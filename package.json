@@ -1,0 +1,12 @@
+{
+  "name": "spb-daily-guide-bot",
+  "version": "4.1.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.cjs",
+    "test": "node --test tests/runtime.test.cjs"
+  },
+  "dependencies": {
+    "@vercel/functions": "^3.9.1"
+  }
+}
