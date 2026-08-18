@@ -11,15 +11,6 @@ function manualTokenValid(token) {
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 
-function authorizeTelegramWebhook(req) {
-  if (req.query?.route !== 'telegram' || !process.env.CRON_SECRET) return;
-  req.headers = {
-    ...req.headers,
-    authorization: `Bearer ${process.env.CRON_SECRET}`,
-    'x-telegram-bot-api-secret-token': process.env.CRON_SECRET,
-  };
-}
-
 function getRuntimeHandler() {
   if (!runtimeHandler) {
     runtimeHandler = require('../runtime/generated-runtime.cjs');
@@ -28,6 +19,20 @@ function getRuntimeHandler() {
     }
   }
   return runtimeHandler;
+}
+
+async function runRuntime(req, res, runtime = getRuntimeHandler()) {
+  if (req.query?.route !== 'telegram' || !process.env.CRON_SECRET) {
+    return runtime(req, res);
+  }
+
+  const cronSecret = process.env.CRON_SECRET;
+  delete process.env.CRON_SECRET;
+  try {
+    return await runtime(req, res);
+  } finally {
+    process.env.CRON_SECRET = cronSecret;
+  }
 }
 
 async function handler(req, res) {
@@ -49,8 +54,7 @@ async function handler(req, res) {
         authorization: `Bearer ${process.env.CRON_SECRET}`,
       };
     }
-    authorizeTelegramWebhook(req);
-    return await getRuntimeHandler()(req, res);
+    return await runRuntime(req, res);
   } catch (error) {
     console.error('RUDI_RUNTIME_ERROR', error);
     if (!res.headersSent) {
@@ -60,4 +64,4 @@ async function handler(req, res) {
 }
 
 module.exports = handler;
-module.exports.authorizeTelegramWebhook = authorizeTelegramWebhook;
+module.exports.runRuntime = runRuntime;

@@ -40,32 +40,39 @@ test('one-time manual daily trigger is routed and safely token-hashed', () => {
   assert.match(entry, /req\.query\.date = '2026-08-18'/);
 });
 
-test('telegram webhook gets both cron authorization and Telegram secret header', () => {
+test('telegram runtime is called without CRON_SECRET and restores it afterward', async () => {
   const old = process.env.CRON_SECRET;
   process.env.CRON_SECRET = 'production-secret';
   try {
     const entry = require('../api/index.js');
-    const req = {
-      query: { route: 'telegram' },
-      headers: { 'x-telegram-bot-api-secret-token': 'old-secret' },
+    let seenSecret = 'not-called';
+    const fakeRuntime = async () => {
+      seenSecret = process.env.CRON_SECRET;
+      return 'ok';
     };
-    entry.authorizeTelegramWebhook(req);
-    assert.equal(req.headers.authorization, 'Bearer production-secret');
-    assert.equal(req.headers['x-telegram-bot-api-secret-token'], 'production-secret');
+    const result = await entry.runRuntime({ query: { route: 'telegram' } }, {}, fakeRuntime);
+    assert.equal(result, 'ok');
+    assert.equal(seenSecret, undefined);
+    assert.equal(process.env.CRON_SECRET, 'production-secret');
   } finally {
     if (old === undefined) delete process.env.CRON_SECRET;
     else process.env.CRON_SECRET = old;
   }
 });
 
-test('Telegram auth helper leaves non-Telegram routes untouched', () => {
+test('non-Telegram routes keep CRON_SECRET available', async () => {
   const old = process.env.CRON_SECRET;
   process.env.CRON_SECRET = 'production-secret';
   try {
     const entry = require('../api/index.js');
-    const req = { query: { route: 'health' }, headers: {} };
-    entry.authorizeTelegramWebhook(req);
-    assert.deepEqual(req.headers, {});
+    let seenSecret;
+    const fakeRuntime = async () => {
+      seenSecret = process.env.CRON_SECRET;
+      return 'ok';
+    };
+    await entry.runRuntime({ query: { route: 'health' } }, {}, fakeRuntime);
+    assert.equal(seenSecret, 'production-secret');
+    assert.equal(process.env.CRON_SECRET, 'production-secret');
   } finally {
     if (old === undefined) delete process.env.CRON_SECRET;
     else process.env.CRON_SECRET = old;
