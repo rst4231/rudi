@@ -6,14 +6,39 @@
     }
   },
   "rewrites": [
-    { "source": "/api/daily", "destination": "/api/index?route=daily" },
-    { "source": "/api/health", "destination": "/api/index?route=health" },
-    { "source": "/api/telegram", "destination": "/api/index?route=telegram" },
-    { "source": "/api/alice-shopping", "destination": "/api/index?route=alice-shopping" },
-    { "source": "/api/init-products", "destination": "/api/index?route=init-products" },
-    { "source": "/api/preview", "destination": "/api/index?route=preview" }
+    {
+      "source": "/api/daily",
+      "destination": "/api/index?route=daily"
+    },
+    {
+      "source": "/api/manual-daily",
+      "destination": "/api/index?route=manual-daily"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/index?route=health"
+    },
+    {
+      "source": "/api/telegram",
+      "destination": "/api/index?route=telegram"
+    },
+    {
+      "source": "/api/alice-shopping",
+      "destination": "/api/index?route=alice-shopping"
+    },
+    {
+      "source": "/api/init-products",
+      "destination": "/api/index?route=init-products"
+    },
+    {
+      "source": "/api/preview",
+      "destination": "/api/index?route=preview"
+    }
   ],
   "crons": [
-    { "path": "/api/daily", "schedule": "30 21 * * *" }
+    {
+      "path": "/api/daily",
+      "schedule": "30 21 * * *"
+    }
   ]
 }
