@@ -1,0 +1,193 @@
+const { AsyncLocalStorage } = require('node:async_hooks');
+
+const PRODUCTS_TOPIC_ID = 263;
+const SHOPPING_BOUGHT_CALLBACK = 'rudi:products:bought';
+const productsContext = new AsyncLocalStorage();
+
+function productsContextActive() {
+  return productsContext.getStore()?.products === true;
+}
+
+function runWithProductsContext(task) {
+  return productsContext.run({ products: true }, task);
+}
+
+function isProductsTopicUpdate(req) {
+  const update = req?.body || {};
+  const message = update.callback_query?.message || update.message || update.edited_message;
+  return Number(message?.message_thread_id) === PRODUCTS_TOPIC_ID;
+}
+
+function isTelegramMethod(input, methods) {
+  const value = typeof input === 'string' || input instanceof URL
+    ? String(input)
+    : String(input?.url || '');
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.hostname !== 'api.telegram.org') return false;
+    const match = url.pathname.match(/^\/bot[^/]+\/([A-Za-z0-9_]+)$/);
+    return Boolean(match && methods.includes(match[1]));
+  } catch {
+    return false;
+  }
+}
+
+function parseReplyMarkup(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function withBoughtButton(replyMarkup) {
+  if (!replyMarkup || !Array.isArray(replyMarkup.inline_keyboard)) return null;
+  const exists = replyMarkup.inline_keyboard
+    .flat()
+    .some((button) => button?.callback_data === SHOPPING_BOUGHT_CALLBACK);
+  if (exists) return replyMarkup;
+  return {
+    ...replyMarkup,
+    inline_keyboard: [
+      ...replyMarkup.inline_keyboard,
+      [{ text: 'Куплено', callback_data: SHOPPING_BOUGHT_CALLBACK }],
+    ],
+  };
+}
+
+function addBoughtButtonToTelegramRequest(input, init = {}) {
+  if (!isTelegramMethod(input, ['sendMessage', 'editMessageText', 'editMessageReplyMarkup'])) return init;
+
+  if (typeof init.body === 'string') {
+    let payload;
+    try {
+      payload = JSON.parse(init.body);
+    } catch {
+      return init;
+    }
+    const scopedToProducts = Number(payload?.message_thread_id) === PRODUCTS_TOPIC_ID || productsContextActive();
+    if (!scopedToProducts) return init;
+    const current = parseReplyMarkup(payload.reply_markup);
+    const replyMarkup = withBoughtButton(current);
+    if (!replyMarkup || replyMarkup === current) return init;
+    return {
+      ...init,
+      body: JSON.stringify({ ...payload, reply_markup: replyMarkup }),
+    };
+  }
+
+  if (init.body instanceof URLSearchParams) {
+    const scopedToProducts = Number(init.body.get('message_thread_id')) === PRODUCTS_TOPIC_ID || productsContextActive();
+    if (!scopedToProducts) return init;
+    const current = parseReplyMarkup(init.body.get('reply_markup'));
+    const replyMarkup = withBoughtButton(current);
+    if (!replyMarkup || replyMarkup === current) return init;
+    const body = new URLSearchParams(init.body);
+    body.set('reply_markup', JSON.stringify(replyMarkup));
+    return { ...init, body };
+  }
+
+  return init;
+}
+
+function formatTelegramUserName(user = {}) {
+  const profileName = [user.first_name, user.last_name]
+    .filter((part) => typeof part === 'string' && part.trim())
+    .map((part) => part.trim())
+    .join(' ');
+  if (profileName) return profileName;
+  if (typeof user.username === 'string' && user.username.trim()) {
+    return `@${user.username.trim().replace(/^@/, '')}`;
+  }
+  return 'Пользователь Telegram';
+}
+
+function formatMoscowDateTime(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const parts = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.day}.${map.month}.${map.year}, ${map.hour}:${map.minute}`;
+}
+
+function resolveTelegramBotToken(env = process.env) {
+  const preferredKeys = [
+    'TELEGRAM_BOT_TOKEN',
+    'TELEGRAM_TOKEN',
+    'TG_BOT_TOKEN',
+    'BOT_TOKEN',
+  ];
+  for (const key of preferredKeys) {
+    if (typeof env[key] === 'string' && env[key].trim()) return env[key].trim();
+  }
+  for (const [key, value] of Object.entries(env)) {
+    if (!/(telegram|(^|_)tg(_|$)|bot)/i.test(key)) continue;
+    if (typeof value === 'string' && /^\d+:[A-Za-z0-9_-]{20,}$/.test(value.trim())) {
+      return value.trim();
+    }
+  }
+  throw new Error('Telegram bot token is not configured');
+}
+
+async function telegramCall(token, method, payload, fetchImpl) {
+  const response = await fetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    let detail = '';
+    try { detail = await response.text(); } catch {}
+    throw new Error(`Telegram ${method} failed: HTTP ${response.status}${detail ? ` ${detail}` : ''}`);
+  }
+  return response;
+}
+
+async function handleBoughtCallback(req, res, options = {}) {
+  const callback = req?.body?.callback_query;
+  if (callback?.data !== SHOPPING_BOUGHT_CALLBACK) return false;
+  if (Number(callback?.message?.message_thread_id) !== PRODUCTS_TOPIC_ID) return false;
+
+  const chatId = callback?.message?.chat?.id;
+  if (chatId === undefined || chatId === null) return false;
+
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const token = options.token || resolveTelegramBotToken(options.env || process.env);
+  const now = options.now || new Date();
+  const name = formatTelegramUserName(callback.from);
+  const text = `${name} купил продукты\n${formatMoscowDateTime(now)}`;
+
+  await telegramCall(token, 'answerCallbackQuery', {
+    callback_query_id: callback.id,
+  }, fetchImpl);
+  await telegramCall(token, 'sendMessage', {
+    chat_id: chatId,
+    message_thread_id: PRODUCTS_TOPIC_ID,
+    text,
+  }, fetchImpl);
+
+  res.status(200).json({ ok: true });
+  return true;
+}
+
+module.exports = {
+  PRODUCTS_TOPIC_ID,
+  SHOPPING_BOUGHT_CALLBACK,
+  addBoughtButtonToTelegramRequest,
+  formatTelegramUserName,
+  formatMoscowDateTime,
+  resolveTelegramBotToken,
+  handleBoughtCallback,
+  runWithProductsContext,
+  isProductsTopicUpdate,
+};

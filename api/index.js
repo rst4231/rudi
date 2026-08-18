@@ -3,6 +3,12 @@ const {
   runWithCronSecretHidden,
   installGlobalTelegramFetchGuard,
 } = require('./runtime-guard.cjs');
+const {
+  addBoughtButtonToTelegramRequest,
+  handleBoughtCallback,
+  runWithProductsContext,
+  isProductsTopicUpdate,
+} = require('./products-bought.cjs');
 
 let runtimeHandler;
 
@@ -44,6 +50,12 @@ globalThis.fetch = async function stageSafeFetch(input, init = {}) {
     console.error('RUDI_STAGE_PRICE_SANITIZER_ERROR', error);
   }
 
+  try {
+    nextInit = addBoughtButtonToTelegramRequest(input, nextInit);
+  } catch (error) {
+    console.error('RUDI_PRODUCTS_BUTTON_ERROR', error);
+  }
+
   return nativeFetch(input, nextInit);
 };
 
@@ -68,6 +80,16 @@ async function runRuntime(req, res, runtime = getRuntimeHandler()) {
 
 async function handler(req, res) {
   try {
+    if (req.query?.route === 'telegram') {
+      const handled = await handleBoughtCallback(req, res);
+      if (handled) return;
+      if (isProductsTopicUpdate(req)) {
+        return await runWithProductsContext(() => runRuntime(req, res));
+      }
+    }
+    if (req.query?.route === 'init-products') {
+      return await runWithProductsContext(() => runRuntime(req, res));
+    }
     return await runRuntime(req, res);
   } catch (error) {
     console.error('RUDI_RUNTIME_ERROR', error);
