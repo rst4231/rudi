@@ -9,6 +9,10 @@ const {
   handleBoughtCallback,
   runWithProductsContext,
   isProductsTopicUpdate,
+  findClearCallbackData,
+  runWithAnsweredCallbackContext,
+  shouldSuppressAnsweredCallbackQuery,
+  runWithExistingClearAction,
 } = require('../api/products-bought.cjs');
 
 test('adds Куплено button to product-topic inline keyboard once', () => {
@@ -72,7 +76,19 @@ test('uses Telegram profile name and Moscow date/time', () => {
   );
 });
 
-test('Куплено callback posts purchase notice into the same products topic and acknowledges callback', async () => {
+test('finds the actual Очистить callback_data from the same Telegram keyboard', () => {
+  assert.equal(findClearCallbackData({
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: 'Добавить', callback_data: 'products:add' }],
+        [{ text: '🧹 Очистить', callback_data: 'runtime:clear:actual' }],
+        [{ text: 'Куплено', callback_data: SHOPPING_BOUGHT_CALLBACK }],
+      ],
+    },
+  }), 'runtime:clear:actual');
+});
+
+test('Куплено callback validates, posts purchase notice, and returns the existing Очистить action', async () => {
   const calls = [];
   const fakeFetch = async (url, init) => {
     calls.push({ url: String(url), init });
@@ -90,26 +106,28 @@ test('Куплено callback posts purchase notice into the same products topic
         message: {
           chat: { id: -100555 },
           message_thread_id: 263,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Очистить', callback_data: 'runtime:clear:actual' }],
+              [{ text: 'Куплено', callback_data: SHOPPING_BOUGHT_CALLBACK }],
+            ],
+          },
         },
       },
     },
   };
   const res = {
-    statusCode: null,
-    body: null,
-    status(code) { this.statusCode = code; return this; },
-    json(body) { this.body = body; return this; },
+    status() { throw new Error('existing Очистить runtime must finish the response'); },
+    json() { throw new Error('existing Очистить runtime must finish the response'); },
   };
 
-  const handled = await handleBoughtCallback(req, res, {
+  const action = await handleBoughtCallback(req, res, {
     fetchImpl: fakeFetch,
     token: '123:TEST_TOKEN',
     now: new Date('2026-08-18T16:36:00Z'),
   });
 
-  assert.equal(handled, true);
-  assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { ok: true });
+  assert.deepEqual(action, { clearCallbackData: 'runtime:clear:actual' });
   assert.equal(calls.length, 2);
 
   const send = calls.find((call) => call.url.endsWith('/sendMessage'));
@@ -140,20 +158,54 @@ test('forged or expired callback cannot trigger purchase message when Telegram r
         id: 'fake-callback',
         data: SHOPPING_BOUGHT_CALLBACK,
         from: { first_name: 'Подделка' },
-        message: { chat: { id: -100555 }, message_thread_id: 263 },
+        message: {
+          chat: { id: -100555 },
+          message_thread_id: 263,
+          reply_markup: {
+            inline_keyboard: [[{ text: 'Очистить', callback_data: 'runtime:clear:actual' }]],
+          },
+        },
       },
     },
   };
-  const res = {
-    status() { return this; },
-    json() { return this; },
-  };
+  const res = { status() { return this; }, json() { return this; } };
 
   await assert.rejects(
     handleBoughtCallback(req, res, { fetchImpl: fakeFetch, token: '123:TEST_TOKEN' }),
     /answerCallbackQuery failed: HTTP 400/,
   );
   assert.equal(calls.filter((call) => call.url.endsWith('/sendMessage')).length, 0);
+});
+
+test('delegates Куплено to exact existing Очистить callback and suppresses only duplicate callback answer', async () => {
+  const req = { body: { callback_query: { data: SHOPPING_BOUGHT_CALLBACK } } };
+  let seenData;
+  await runWithExistingClearAction(req, 'runtime:clear:actual', async () => {
+    seenData = req.body.callback_query.data;
+    assert.equal(
+      shouldSuppressAnsweredCallbackQuery('https://api.telegram.org/bot123/answerCallbackQuery'),
+      true,
+    );
+    assert.equal(
+      shouldSuppressAnsweredCallbackQuery('https://api.telegram.org/bot123/editMessageReplyMarkup'),
+      false,
+    );
+  });
+  assert.equal(seenData, 'runtime:clear:actual');
+  assert.equal(req.body.callback_query.data, SHOPPING_BOUGHT_CALLBACK);
+  assert.equal(
+    shouldSuppressAnsweredCallbackQuery('https://api.telegram.org/bot123/answerCallbackQuery'),
+    false,
+  );
+});
+
+test('answered callback context is async-safe and scoped', async () => {
+  assert.equal(shouldSuppressAnsweredCallbackQuery('https://api.telegram.org/bot123/answerCallbackQuery'), false);
+  await runWithAnsweredCallbackContext(async () => {
+    await Promise.resolve();
+    assert.equal(shouldSuppressAnsweredCallbackQuery('https://api.telegram.org/bot123/answerCallbackQuery'), true);
+  });
+  assert.equal(shouldSuppressAnsweredCallbackQuery('https://api.telegram.org/bot123/answerCallbackQuery'), false);
 });
 
 test('products context keeps Куплено on editMessageReplyMarkup even when Telegram edit has no thread id', async () => {

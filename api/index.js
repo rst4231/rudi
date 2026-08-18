@@ -8,6 +8,8 @@ const {
   handleBoughtCallback,
   runWithProductsContext,
   isProductsTopicUpdate,
+  runWithExistingClearAction,
+  shouldSuppressAnsweredCallbackQuery,
 } = require('./products-bought.cjs');
 
 let runtimeHandler;
@@ -26,6 +28,13 @@ globalThis.fetch = async function stageSafeFetch(input, init = {}) {
   const url = typeof input === 'string' ? input : input?.url || '';
   if (!url.includes('api.telegram.org/')) {
     return nativeFetch(input, init);
+  }
+
+  if (shouldSuppressAnsweredCallbackQuery(input)) {
+    return new Response(JSON.stringify({ ok: true, result: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
   }
 
   let nextInit = init;
@@ -81,8 +90,14 @@ async function runRuntime(req, res, runtime = getRuntimeHandler()) {
 async function handler(req, res) {
   try {
     if (req.query?.route === 'telegram') {
-      const handled = await handleBoughtCallback(req, res);
-      if (handled) return;
+      const boughtAction = await handleBoughtCallback(req, res);
+      if (boughtAction) {
+        return await runWithExistingClearAction(
+          req,
+          boughtAction.clearCallbackData,
+          () => runRuntime(req, res),
+        );
+      }
       if (isProductsTopicUpdate(req)) {
         return await runWithProductsContext(() => runRuntime(req, res));
       }
