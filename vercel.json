@@ -11,10 +11,6 @@
       "destination": "/api/index?route=daily"
     },
     {
-      "source": "/api/manual-daily",
-      "destination": "/api/index?route=manual-daily"
-    },
-    {
       "source": "/api/health",
       "destination": "/api/index?route=health"
     },
