@@ -23,3 +23,7 @@ test('npm test runs the full RUDI test suite', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   assert.equal(pkg.scripts?.test, 'node --test tests/*.test.cjs');
 });
+
+test('Vercel static output directory exists alongside API functions', () => {
+  assert.equal(fs.existsSync(path.join(root, 'public', 'index.html')), true);
+});
