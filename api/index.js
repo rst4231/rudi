@@ -5,6 +5,47 @@ const MANUAL_PUBLISH_TOKEN_SHA256 = '9cd4e9bd85ad74e42f2419e0b7a254392a84212327a
 const MANUAL_PUBLISH_EXPIRES_AT = Date.parse('2026-08-18T13:30:00Z');
 let runtimeHandler;
 
+function sanitizeStagePriceText(text) {
+  if (typeof text !== 'string' || !text.includes('Stage StandUp Club')) return text;
+  return text.split('\n').map((line) => {
+    if (!line.startsWith('💳')) return line;
+    const age = line.match(/\s·\s(\d+\+)\s*$/)?.[1];
+    return `💳 стоимость уточняйте на странице билетов${age ? ` · ${age}` : ''}`;
+  }).join('\n');
+}
+
+const nativeFetch = globalThis.fetch.bind(globalThis);
+globalThis.fetch = async function stageSafeFetch(input, init = {}) {
+  const url = typeof input === 'string' ? input : input?.url || '';
+  if (!url.includes('api.telegram.org/')) {
+    return nativeFetch(input, init);
+  }
+
+  let nextInit = init;
+  try {
+    if (typeof init.body === 'string') {
+      const body = JSON.parse(init.body);
+      if (typeof body?.text === 'string' && body.text.includes('Stage StandUp Club')) {
+        nextInit = {
+          ...init,
+          body: JSON.stringify({ ...body, text: sanitizeStagePriceText(body.text) }),
+        };
+      }
+    } else if (init.body instanceof URLSearchParams) {
+      const text = init.body.get('text');
+      if (typeof text === 'string' && text.includes('Stage StandUp Club')) {
+        const body = new URLSearchParams(init.body);
+        body.set('text', sanitizeStagePriceText(text));
+        nextInit = { ...init, body };
+      }
+    }
+  } catch (error) {
+    console.error('RUDI_STAGE_PRICE_SANITIZER_ERROR', error);
+  }
+
+  return nativeFetch(input, nextInit);
+};
+
 function manualTokenValid(token) {
   const actual = crypto.createHash('sha256').update(String(token || '')).digest();
   const expected = Buffer.from(MANUAL_PUBLISH_TOKEN_SHA256, 'hex');
@@ -65,3 +106,4 @@ async function handler(req, res) {
 
 module.exports = handler;
 module.exports.runRuntime = runRuntime;
+module.exports.sanitizeStagePriceText = sanitizeStagePriceText;
