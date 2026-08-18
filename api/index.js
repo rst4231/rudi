@@ -11,6 +11,14 @@ function manualTokenValid(token) {
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 
+function authorizeTelegramWebhook(req) {
+  if (req.query?.route !== 'telegram' || !process.env.CRON_SECRET) return;
+  req.headers = {
+    ...req.headers,
+    authorization: `Bearer ${process.env.CRON_SECRET}`,
+  };
+}
+
 function getRuntimeHandler() {
   if (!runtimeHandler) {
     runtimeHandler = require('../runtime/generated-runtime.cjs');
@@ -40,6 +48,7 @@ module.exports = async function handler(req, res) {
         authorization: `Bearer ${process.env.CRON_SECRET}`,
       };
     }
+    authorizeTelegramWebhook(req);
     return await getRuntimeHandler()(req, res);
   } catch (error) {
     console.error('RUDI_RUNTIME_ERROR', error);

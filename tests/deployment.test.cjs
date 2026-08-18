@@ -39,3 +39,11 @@ test('one-time manual daily trigger is routed and safely token-hashed', () => {
   assert.match(entry, /req\.query\.route = 'daily'/);
   assert.match(entry, /req\.query\.date = '2026-08-18'/);
 });
+
+test('telegram webhook gets internal cron authorization without affecting other routes', () => {
+  const entry = fs.readFileSync(path.join(root, 'api/index.js'), 'utf8');
+  assert.match(entry, /function authorizeTelegramWebhook\(req\)/);
+  assert.match(entry, /req\.query\?\.route !== 'telegram'/);
+  assert.match(entry, /authorization: `Bearer \$\{process\.env\.CRON_SECRET\}`/);
+  assert.match(entry, /authorizeTelegramWebhook\(req\)/);
+});
