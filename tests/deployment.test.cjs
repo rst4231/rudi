@@ -40,10 +40,34 @@ test('one-time manual daily trigger is routed and safely token-hashed', () => {
   assert.match(entry, /req\.query\.date = '2026-08-18'/);
 });
 
-test('telegram webhook gets internal cron authorization without affecting other routes', () => {
-  const entry = fs.readFileSync(path.join(root, 'api/index.js'), 'utf8');
-  assert.match(entry, /function authorizeTelegramWebhook\(req\)/);
-  assert.match(entry, /req\.query\?\.route !== 'telegram'/);
-  assert.match(entry, /authorization: `Bearer \$\{process\.env\.CRON_SECRET\}`/);
-  assert.match(entry, /authorizeTelegramWebhook\(req\)/);
+test('telegram webhook gets both cron authorization and Telegram secret header', () => {
+  const old = process.env.CRON_SECRET;
+  process.env.CRON_SECRET = 'production-secret';
+  try {
+    const entry = require('../api/index.js');
+    const req = {
+      query: { route: 'telegram' },
+      headers: { 'x-telegram-bot-api-secret-token': 'old-secret' },
+    };
+    entry.authorizeTelegramWebhook(req);
+    assert.equal(req.headers.authorization, 'Bearer production-secret');
+    assert.equal(req.headers['x-telegram-bot-api-secret-token'], 'production-secret');
+  } finally {
+    if (old === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = old;
+  }
+});
+
+test('Telegram auth helper leaves non-Telegram routes untouched', () => {
+  const old = process.env.CRON_SECRET;
+  process.env.CRON_SECRET = 'production-secret';
+  try {
+    const entry = require('../api/index.js');
+    const req = { query: { route: 'health' }, headers: {} };
+    entry.authorizeTelegramWebhook(req);
+    assert.deepEqual(req.headers, {});
+  } finally {
+    if (old === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = old;
+  }
 });

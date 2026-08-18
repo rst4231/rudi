@@ -16,6 +16,7 @@ function authorizeTelegramWebhook(req) {
   req.headers = {
     ...req.headers,
     authorization: `Bearer ${process.env.CRON_SECRET}`,
+    'x-telegram-bot-api-secret-token': process.env.CRON_SECRET,
   };
 }
 
@@ -29,7 +30,7 @@ function getRuntimeHandler() {
   return runtimeHandler;
 }
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
   try {
     if (req.query?.route === 'manual-daily') {
       if (Date.now() > MANUAL_PUBLISH_EXPIRES_AT) {
@@ -56,4 +57,7 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ ok: false, error: String(error?.message || error) });
     }
   }
-};
+}
+
+module.exports = handler;
+module.exports.authorizeTelegramWebhook = authorizeTelegramWebhook;
