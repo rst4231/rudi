@@ -1,3 +1,4 @@
+require('@vercel/functions');
 let runtimeHandler;
 
 function getRuntimeHandler() {
