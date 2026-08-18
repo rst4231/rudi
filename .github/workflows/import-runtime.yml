@@ -1,0 +1,47 @@
+name: Import pinned RUDI runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-runtime.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import pinned runtime chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime
+          ref='64bf5d7737e81e3e23c4ec88e641e774fc79b58c'
+          for i in 0 1 2 3 4 5 6; do
+            curl -fsSL "https://raw.githubusercontent.com/rst4231/botsandsite/${ref}/rudi-runtime-20260817/chunk${i}.txt" -o "runtime/chunk${i}.txt"
+          done
+          for i in 0 1 2 3 4 5; do test "$(wc -c < "runtime/chunk${i}.txt")" -eq 9000; done
+          test "$(wc -c < runtime/chunk6.txt)" -eq 7364
+          python3 - <<'PY'
+          import base64, gzip, pathlib
+          parts = [pathlib.Path(f'runtime/chunk{i}.txt').read_text().strip() for i in range(7)]
+          code = gzip.decompress(base64.b64decode(''.join(parts)))
+          pathlib.Path('/tmp/rudi-runtime.cjs').write_bytes(code)
+          print(f'decoded runtime bytes={len(code)}')
+          PY
+          node --check /tmp/rudi-runtime.cjs
+
+      - name: Commit imported runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add runtime/chunk*.txt
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore: import pinned RUDI runtime'
+          git push
