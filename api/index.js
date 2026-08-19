@@ -10,7 +10,14 @@ const {
   isProductsTopicUpdate,
   runWithExistingClearAction,
   shouldSuppressAnsweredCallbackQuery,
+  resolveTelegramBotToken,
 } = require('./products-bought.cjs');
+const {
+  handleTelegramTopicRequest,
+  prepareDailyTopicCleanup,
+  isRemovedCoupleTopicUpdate,
+  sanitizeHealthPayload,
+} = require('./topic-maintenance.cjs');
 
 let runtimeHandler;
 
@@ -65,7 +72,7 @@ globalThis.fetch = async function stageSafeFetch(input, init = {}) {
     console.error('RUDI_PRODUCTS_BUTTON_ERROR', error);
   }
 
-  return nativeFetch(input, nextInit);
+  return handleTelegramTopicRequest(input, nextInit, { fetchImpl: nativeFetch });
 };
 
 installGlobalTelegramFetchGuard();
@@ -87,9 +94,23 @@ async function runRuntime(req, res, runtime = getRuntimeHandler()) {
   return runtime(req, res);
 }
 
+async function runHealthWithoutCouple(req, res) {
+  if (typeof res?.json !== 'function') return runRuntime(req, res);
+  const originalJson = res.json.bind(res);
+  res.json = (payload) => originalJson(sanitizeHealthPayload(payload));
+  try {
+    return await runRuntime(req, res);
+  } finally {
+    res.json = originalJson;
+  }
+}
+
 async function handler(req, res) {
   try {
     if (req.query?.route === 'telegram') {
+      if (isRemovedCoupleTopicUpdate(req)) {
+        return res.status(200).json({ ok: true, ignored: 'removed-couple-topic' });
+      }
       const boughtAction = await handleBoughtCallback(req, res);
       if (boughtAction) {
         return await runWithExistingClearAction(
@@ -102,8 +123,22 @@ async function handler(req, res) {
         return await runWithProductsContext(() => runRuntime(req, res));
       }
     }
-    if (req.query?.route === 'init-products') {
+    if (req.query?.route === 'alice-shopping' || req.query?.route === 'init-products') {
       return await runWithProductsContext(() => runRuntime(req, res));
+    }
+    if (req.query?.route === 'daily') {
+      try {
+        await prepareDailyTopicCleanup({
+          token: resolveTelegramBotToken(process.env),
+          fetchImpl: nativeFetch,
+        });
+      } catch (error) {
+        console.error('RUDI_DAILY_TOPIC_CLEANUP_ERROR', error);
+      }
+      return await runRuntime(req, res);
+    }
+    if (req.query?.route === 'health') {
+      return await runHealthWithoutCouple(req, res);
     }
     return await runRuntime(req, res);
   } catch (error) {
@@ -116,4 +151,5 @@ async function handler(req, res) {
 
 module.exports = handler;
 module.exports.runRuntime = runRuntime;
+module.exports.runHealthWithoutCouple = runHealthWithoutCouple;
 module.exports.sanitizeStagePriceText = sanitizeStagePriceText;
