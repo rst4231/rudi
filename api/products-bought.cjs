@@ -140,22 +140,32 @@ async function telegramCall(token, method, payload, fetchImpl) {
   return response;
 }
 
+function isEmptyProductsListMessage(message = {}) {
+  const text = [message?.text, message?.caption]
+    .find((value) => typeof value === 'string' && value.trim());
+  if (!text) return false;
+  return /(?:список[^\n.!?]*пуст|пока\s+пуст(?:о)?|ничего\s+не\s+добавлено|нет\s+(?:добавленных\s+)?продуктов|продуктов\s+(?:пока\s+)?нет)/i.test(text);
+}
+
 async function handleBoughtCallback(req, res, options = {}) {
   const callback = req?.body?.callback_query;
   if (callback?.data !== SHOPPING_BOUGHT_CALLBACK) return false;
   if (Number(callback?.message?.message_thread_id) !== PRODUCTS_TOPIC_ID) return false;
   const chatId = callback?.message?.chat?.id;
   if (chatId === undefined || chatId === null) return false;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const token = options.token || resolveTelegramBotToken(options.env || process.env);
+  await telegramCall(token, 'answerCallbackQuery', { callback_query_id: callback.id }, fetchImpl);
+  if (isEmptyProductsListMessage(callback.message)) {
+    return { empty: true };
+  }
   const clearCallbackData = findClearCallbackData(callback.message);
   if (!clearCallbackData) {
     throw new Error('Products Очистить action is missing from the Telegram keyboard');
   }
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const token = options.token || resolveTelegramBotToken(options.env || process.env);
   const now = options.now || new Date();
   const name = formatTelegramUserName(callback.from);
   const text = `${name} купил продукты\n${formatMoscowDateTime(now)}`;
-  await telegramCall(token, 'answerCallbackQuery', { callback_query_id: callback.id }, fetchImpl);
   await telegramCall(token, 'sendMessage', { chat_id: chatId, message_thread_id: PRODUCTS_TOPIC_ID, text }, fetchImpl);
   return { clearCallbackData };
 }
@@ -168,6 +178,7 @@ module.exports = {
   formatMoscowDateTime,
   resolveTelegramBotToken,
   handleBoughtCallback,
+  isEmptyProductsListMessage,
   runWithProductsContext,
   isProductsTopicUpdate,
   findClearCallbackData,

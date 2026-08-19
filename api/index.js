@@ -18,6 +18,7 @@ const {
   isRemovedCoupleTopicUpdate,
   sanitizeHealthPayload,
 } = require('./topic-maintenance.cjs');
+const { sanitizeAliceShoppingPayload } = require('./alice-shopping-response.cjs');
 
 let runtimeHandler;
 
@@ -105,6 +106,19 @@ async function runHealthWithoutCouple(req, res) {
   }
 }
 
+async function runAliceShoppingWithPrompt(req, res) {
+  if (typeof res?.json !== 'function') {
+    return runWithProductsContext(() => runRuntime(req, res));
+  }
+  const originalJson = res.json.bind(res);
+  res.json = (payload) => originalJson(sanitizeAliceShoppingPayload(payload));
+  try {
+    return await runWithProductsContext(() => runRuntime(req, res));
+  } finally {
+    res.json = originalJson;
+  }
+}
+
 async function handler(req, res) {
   try {
     if (req.query?.route === 'telegram') {
@@ -112,6 +126,9 @@ async function handler(req, res) {
         return res.status(200).json({ ok: true, ignored: 'removed-couple-topic' });
       }
       const boughtAction = await handleBoughtCallback(req, res);
+      if (boughtAction?.empty) {
+        return res.status(200).json({ ok: true, ignored: 'empty-products' });
+      }
       if (boughtAction) {
         return await runWithExistingClearAction(
           req,
@@ -123,7 +140,10 @@ async function handler(req, res) {
         return await runWithProductsContext(() => runRuntime(req, res));
       }
     }
-    if (req.query?.route === 'alice-shopping' || req.query?.route === 'init-products') {
+    if (req.query?.route === 'alice-shopping') {
+      return await runAliceShoppingWithPrompt(req, res);
+    }
+    if (req.query?.route === 'init-products') {
       return await runWithProductsContext(() => runRuntime(req, res));
     }
     if (req.query?.route === 'daily') {
@@ -152,4 +172,5 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.runRuntime = runRuntime;
 module.exports.runHealthWithoutCouple = runHealthWithoutCouple;
+module.exports.runAliceShoppingWithPrompt = runAliceShoppingWithPrompt;
 module.exports.sanitizeStagePriceText = sanitizeStagePriceText;
