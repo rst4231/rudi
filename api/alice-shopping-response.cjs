@@ -16,6 +16,26 @@ function sanitizeAliceShoppingPayload(value) {
   return value;
 }
 
+function isAliceShoppingLaunch(req) {
+  const body = req?.body || {};
+  const command = typeof body?.request?.command === 'string' ? body.request.command.trim() : '';
+  const utterance = typeof body?.request?.original_utterance === 'string' ? body.request.original_utterance.trim() : '';
+  return body?.session?.new === true && !command && !utterance;
+}
+
+function buildAliceShoppingLaunchResponse(req) {
+  return {
+    response: {
+      text: NEW_PROMPT,
+      tts: NEW_PROMPT,
+      end_session: false,
+    },
+    version: req?.body?.version || '1.0',
+  };
+}
+
 module.exports = {
   sanitizeAliceShoppingPayload,
+  isAliceShoppingLaunch,
+  buildAliceShoppingLaunchResponse,
 };

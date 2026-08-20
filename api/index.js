@@ -20,7 +20,11 @@ const {
   sanitizeHealthPayload,
   getKnownForumChatId,
 } = require('./topic-maintenance.cjs');
-const { sanitizeAliceShoppingPayload } = require('./alice-shopping-response.cjs');
+const {
+  sanitizeAliceShoppingPayload,
+  isAliceShoppingLaunch,
+  buildAliceShoppingLaunchResponse,
+} = require('./alice-shopping-response.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
 const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
 
@@ -151,7 +155,12 @@ async function handler(req, res) {
       }
       if (isProductsTopicUpdate(req)) return await runWithProductsContext(() => runRuntime(req, res));
     }
-    if (req.query?.route === 'alice-shopping') return await runAliceShoppingWithPrompt(req, res);
+    if (req.query?.route === 'alice-shopping') {
+      if (isAliceShoppingLaunch(req)) {
+        return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      }
+      return await runAliceShoppingWithPrompt(req, res);
+    }
     if (req.query?.route === 'init-products') return await runWithProductsContext(() => runRuntime(req, res));
     if (req.query?.route === 'labor-bootstrap') {
       if (!isLaborBootstrapAllowed()) {
