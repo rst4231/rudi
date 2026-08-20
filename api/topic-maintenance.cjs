@@ -1,26 +1,17 @@
 const EVENTS_TOPIC_ID = 19;
 const HOLIDAYS_TOPIC_ID = 44;
+const CLIENTS_TOPIC_ID = 126;
 const COUPLE_TOPIC_ID = 237;
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 35;
+const CLEANUP_LOOKBACK_DAYS = 35;
 const MANAGED_TOPICS = new Map([
   [EVENTS_TOPIC_ID, 1],
   [HOLIDAYS_TOPIC_ID, 2],
 ]);
 const MESSAGE_CREATING_METHODS = new Set([
-  'sendMessage',
-  'sendPhoto',
-  'sendMediaGroup',
-  'sendDocument',
-  'sendVideo',
-  'sendAudio',
-  'sendVoice',
-  'sendAnimation',
-  'sendVenue',
-  'sendLocation',
-  'sendContact',
-  'sendPoll',
-  'sendDice',
-  'sendSticker',
+  'sendMessage', 'sendPhoto', 'sendMediaGroup', 'sendDocument', 'sendVideo',
+  'sendAudio', 'sendVoice', 'sendAnimation', 'sendVenue', 'sendLocation',
+  'sendContact', 'sendPoll', 'sendDice', 'sendSticker',
 ]);
 
 function getRuntimeCache() {
@@ -31,10 +22,7 @@ function getRuntimeCache() {
 function dateKeyInMoscow(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Moscow',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(date);
   const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${map.year}-${map.month}-${map.day}`;
@@ -48,21 +36,11 @@ function shiftDateKey(dateKey, days) {
   return date.toISOString().slice(0, 10);
 }
 
-function topicMessagesKey(topicId, dateKey) {
-  return `topic:${topicId}:${dateKey}:messages`;
-}
-
-function topicChatKey(topicId) {
-  return `topic:${topicId}:chat-id`;
-}
-
-function topicCleanupKey(topicId, dateKey) {
-  return `topic:${topicId}:${dateKey}:cleanup`;
-}
-
-function coupleDeletedKey(chatId) {
-  return `topic:${COUPLE_TOPIC_ID}:deleted:${chatId}`;
-}
+function topicMessagesKey(topicId, dateKey) { return `topic:${topicId}:${dateKey}:messages`; }
+function topicChatKey(topicId) { return `topic:${topicId}:chat-id`; }
+function topicCleanupKey(topicId, dateKey) { return `topic:${topicId}:${dateKey}:cleanup`; }
+function topicTargetCleanupKey(topicId, targetDateKey) { return `topic:${topicId}:${targetDateKey}:cleanup-target`; }
+function coupleDeletedKey(chatId) { return `topic:${COUPLE_TOPIC_ID}:deleted:${chatId}`; }
 
 function telegramEndpoint(input) {
   const raw = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
@@ -72,9 +50,7 @@ function telegramEndpoint(input) {
     const match = url.pathname.match(/^(\/bot[^/]+)\/([A-Za-z0-9_]+)$/);
     if (!match) return null;
     return { method: match[2], baseUrl: `${url.origin}${match[1]}` };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function parseRequestPayload(init = {}) {
@@ -92,25 +68,44 @@ function parseRequestPayload(init = {}) {
 
 function telegramOkResponse(result = true) {
   return new Response(JSON.stringify({ ok: true, result }), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
+    status: 200, headers: { 'content-type': 'application/json' },
   });
 }
 
 async function telegramJsonCall(baseUrl, method, payload, fetchImpl) {
-  const response = await fetchImpl(`${baseUrl}/${method}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
+  return fetchImpl(`${baseUrl}/${method}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
   });
-  return response;
 }
 
 function extractMessageIds(result) {
   const rows = Array.isArray(result) ? result : [result];
-  return rows
-    .map((row) => Number(row?.message_id))
-    .filter((id) => Number.isInteger(id) && id > 0);
+  return rows.map((row) => Number(row?.message_id)).filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function sanitizeClientsText(text) {
+  if (typeof text !== 'string') return null;
+  const marker = /(?:💡\s*)?<b>Совет[^<\n]*от маркетолога<\/b>/i;
+  const match = marker.exec(text);
+  if (!match) return null;
+  const prefixStart = text.lastIndexOf('💡', match.index);
+  return text.slice(prefixStart >= 0 ? prefixStart : match.index).trim();
+}
+
+function sanitizeClientsRequest(init, payload) {
+  const field = typeof payload?.text === 'string' ? 'text' : (typeof payload?.caption === 'string' ? 'caption' : null);
+  if (!field) return { init, allowed: false };
+  const cleaned = sanitizeClientsText(payload[field]);
+  if (!cleaned) return { init, allowed: false };
+  if (typeof init.body === 'string') {
+    return { init: { ...init, body: JSON.stringify({ ...payload, [field]: cleaned }) }, allowed: true };
+  }
+  if (init.body instanceof URLSearchParams) {
+    const body = new URLSearchParams(init.body);
+    body.set(field, cleaned);
+    return { init: { ...init, body }, allowed: true };
+  }
+  return { init, allowed: false };
 }
 
 async function rememberPublishedMessages(topicId, chatId, messageIds, dateKey, cache) {
@@ -123,19 +118,14 @@ async function rememberPublishedMessages(topicId, chatId, messageIds, dateKey, c
   await cache.set(topicChatKey(topicId), chatId, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-messages'] });
 }
 
-async function deleteTrackedMessages({ topicId, targetDateKey, todayKey, chatId, cache, baseUrl, fetchImpl }) {
-  const markerKey = topicCleanupKey(topicId, todayKey);
-  if (await cache.get(markerKey)) return { skipped: true };
-
+async function deleteTrackedMessages({ topicId, targetDateKey, chatId, cache, baseUrl, fetchImpl }) {
+  const markerKey = topicTargetCleanupKey(topicId, targetDateKey);
+  if (await cache.get(markerKey)) return { skipped: true, deleted: 0 };
   const stored = await cache.get(topicMessagesKey(topicId, targetDateKey));
   const messageIds = Array.isArray(stored)
     ? [...new Set(stored.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
     : [];
-
-  if (!messageIds.length) {
-    await cache.set(markerKey, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-cleanup'] });
-    return { deleted: 0 };
-  }
+  if (!messageIds.length) return { deleted: 0 };
 
   let deleted = 0;
   for (let index = 0; index < messageIds.length; index += 100) {
@@ -148,7 +138,6 @@ async function deleteTrackedMessages({ topicId, targetDateKey, todayKey, chatId,
     }
     deleted += chunk.length;
   }
-
   await cache.set(markerKey, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-cleanup'] });
   await cache.delete(topicMessagesKey(topicId, targetDateKey));
   return { deleted };
@@ -161,6 +150,7 @@ async function prepareDailyTopicCleanup(options = {}) {
   if (!token) throw new Error('Telegram bot token is required for topic cleanup');
   const baseUrl = `https://api.telegram.org/bot${token}`;
   const todayKey = dateKeyInMoscow(options.now || new Date());
+  const lookbackDays = Math.max(1, Number(options.lookbackDays || CLEANUP_LOOKBACK_DAYS));
   const results = [];
 
   for (const [topicId, retentionDays] of MANAGED_TOPICS) {
@@ -169,25 +159,28 @@ async function prepareDailyTopicCleanup(options = {}) {
       results.push({ topicId, skipped: 'chat-id-not-recorded' });
       continue;
     }
-    const targetDateKey = shiftDateKey(todayKey, -retentionDays);
-    try {
-      const result = await deleteTrackedMessages({
-        topicId,
-        targetDateKey,
-        todayKey,
-        chatId,
-        cache,
-        baseUrl,
-        fetchImpl,
-      });
-      results.push({ topicId, targetDateKey, ...result });
-    } catch (error) {
-      console.error('RUDI_TOPIC_CLEANUP_ERROR', { topicId, targetDateKey, error });
-      results.push({ topicId, targetDateKey, error: String(error?.message || error) });
+    for (let ageDays = retentionDays; ageDays <= lookbackDays; ageDays += 1) {
+      const targetDateKey = shiftDateKey(todayKey, -ageDays);
+      try {
+        const result = await deleteTrackedMessages({ topicId, targetDateKey, chatId, cache, baseUrl, fetchImpl });
+        if (result.deleted || ageDays === retentionDays) results.push({ topicId, targetDateKey, ...result });
+      } catch (error) {
+        console.error('RUDI_TOPIC_CLEANUP_ERROR', { topicId, targetDateKey, error });
+        results.push({ topicId, targetDateKey, error: String(error?.message || error) });
+      }
     }
+    await cache.set(topicCleanupKey(topicId, todayKey), true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-cleanup'] });
   }
-
   return results;
+}
+
+async function getKnownForumChatId(options = {}) {
+  const cache = options.cache || getRuntimeCache();
+  for (const topicId of [EVENTS_TOPIC_ID, HOLIDAYS_TOPIC_ID]) {
+    const chatId = await cache.get(topicChatKey(topicId));
+    if (chatId !== undefined && chatId !== null && chatId !== '') return chatId;
+  }
+  return null;
 }
 
 async function deleteCoupleTopicOnce({ chatId, baseUrl, cache, fetchImpl }) {
@@ -195,8 +188,7 @@ async function deleteCoupleTopicOnce({ chatId, baseUrl, cache, fetchImpl }) {
   const key = coupleDeletedKey(chatId);
   if (await cache.get(key)) return true;
   const response = await telegramJsonCall(baseUrl, 'deleteForumTopic', {
-    chat_id: chatId,
-    message_thread_id: COUPLE_TOPIC_ID,
+    chat_id: chatId, message_thread_id: COUPLE_TOPIC_ID,
   }, fetchImpl);
   if (response.ok) {
     await cache.set(key, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-removed-topics'] });
@@ -204,7 +196,9 @@ async function deleteCoupleTopicOnce({ chatId, baseUrl, cache, fetchImpl }) {
   }
   let detail = '';
   try { detail = await response.text(); } catch {}
-  console.error('RUDI_COUPLE_TOPIC_DELETE_ERROR', `HTTP ${response.status}${detail ? ` ${detail}` : ''}`);
+  if (!/TOPIC_ID_INVALID/i.test(detail)) {
+    console.error('RUDI_COUPLE_TOPIC_DELETE_ERROR', `HTTP ${response.status}${detail ? ` ${detail}` : ''}`);
+  }
   return false;
 }
 
@@ -213,17 +207,23 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (!endpoint) return fetchImpl(input, init);
 
-  const payload = parseRequestPayload(init);
+  let payload = parseRequestPayload(init);
   const topicId = Number(payload?.message_thread_id);
+  let nextInit = init;
+
+  if (topicId === CLIENTS_TOPIC_ID && MESSAGE_CREATING_METHODS.has(endpoint.method)) {
+    const sanitized = sanitizeClientsRequest(init, payload);
+    if (!sanitized.allowed) return telegramOkResponse({ message_id: 0, message_thread_id: CLIENTS_TOPIC_ID });
+    nextInit = sanitized.init;
+    payload = parseRequestPayload(nextInit);
+  }
 
   let cache;
   if (topicId === COUPLE_TOPIC_ID && MESSAGE_CREATING_METHODS.has(endpoint.method)) {
     try {
       cache = options.cache || getRuntimeCache();
       await deleteCoupleTopicOnce({ chatId: payload?.chat_id, baseUrl: endpoint.baseUrl, cache, fetchImpl });
-    } catch (error) {
-      console.error('RUDI_COUPLE_TOPIC_MAINTENANCE_ERROR', error);
-    }
+    } catch (error) { console.error('RUDI_COUPLE_TOPIC_MAINTENANCE_ERROR', error); }
     return telegramOkResponse({ message_id: 0, message_thread_id: COUPLE_TOPIC_ID });
   }
 
@@ -231,32 +231,20 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
     try {
       cache = options.cache || getRuntimeCache();
       await deleteCoupleTopicOnce({ chatId: payload?.chat_id, baseUrl: endpoint.baseUrl, cache, fetchImpl });
-    } catch (error) {
-      console.error('RUDI_COUPLE_TOPIC_MAINTENANCE_ERROR', error);
-    }
+    } catch (error) { console.error('RUDI_COUPLE_TOPIC_MAINTENANCE_ERROR', error); }
   }
 
-  const response = await fetchImpl(input, init);
-  if (!response.ok || !MANAGED_TOPICS.has(topicId) || !MESSAGE_CREATING_METHODS.has(endpoint.method)) {
-    return response;
-  }
+  const response = await fetchImpl(input, nextInit);
+  if (!response.ok || !MANAGED_TOPICS.has(topicId) || !MESSAGE_CREATING_METHODS.has(endpoint.method)) return response;
 
   try {
     cache = cache || options.cache || getRuntimeCache();
     const body = await response.clone().json();
     const messageIds = extractMessageIds(body?.result);
     if (messageIds.length) {
-      await rememberPublishedMessages(
-        topicId,
-        payload?.chat_id,
-        messageIds,
-        dateKeyInMoscow(options.now || new Date()),
-        cache,
-      );
+      await rememberPublishedMessages(topicId, payload?.chat_id, messageIds, dateKeyInMoscow(options.now || new Date()), cache);
     }
-  } catch (error) {
-    console.error('RUDI_TOPIC_MESSAGE_TRACK_ERROR', error);
-  }
+  } catch (error) { console.error('RUDI_TOPIC_MESSAGE_TRACK_ERROR', error); }
   return response;
 }
 
@@ -273,18 +261,9 @@ function sanitizeHealthPayload(payload) {
 }
 
 module.exports = {
-  EVENTS_TOPIC_ID,
-  HOLIDAYS_TOPIC_ID,
-  COUPLE_TOPIC_ID,
-  dateKeyInMoscow,
-  shiftDateKey,
-  prepareDailyTopicCleanup,
-  handleTelegramTopicRequest,
-  isRemovedCoupleTopicUpdate,
-  sanitizeHealthPayload,
-  telegramEndpoint,
-  parseRequestPayload,
-  rememberPublishedMessages,
-  deleteTrackedMessages,
-  deleteCoupleTopicOnce,
+  EVENTS_TOPIC_ID, HOLIDAYS_TOPIC_ID, CLIENTS_TOPIC_ID, COUPLE_TOPIC_ID,
+  dateKeyInMoscow, shiftDateKey, prepareDailyTopicCleanup, getKnownForumChatId,
+  handleTelegramTopicRequest, isRemovedCoupleTopicUpdate, sanitizeHealthPayload,
+  sanitizeClientsText, telegramEndpoint, parseRequestPayload, rememberPublishedMessages,
+  deleteTrackedMessages, deleteCoupleTopicOnce,
 };
