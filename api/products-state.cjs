@@ -60,11 +60,15 @@ function sanitizeProductTelegramRequest(init = {}) {
   return init;
 }
 
+function stripRudiPrefix(value) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text.replace(/^руди[,.:;\s-]*/iu, '').trim();
+}
+
 function cleanProductUtterance(value) {
   if (typeof value !== 'string') return '';
-  let text = value.trim();
+  let text = stripRudiPrefix(value);
   if (!text) return '';
-  text = text.replace(/^руди[,.:;\s-]*/iu, '');
   text = text.replace(/^(?:(?:добавь|добавить|запиши|записать|внеси|внести|купи|купить)\s+)(?:мне\s+)?(?:в\s+)?(?:список(?:\s+продуктов)?\s*)?/iu, '');
   return restoreCompoundProducts(text.trim());
 }
@@ -82,12 +86,46 @@ function isEmptyAliceShoppingRequest(req) {
   return getAliceInput(req) === '';
 }
 
+function getRemovalVerbTarget(value) {
+  const text = stripRudiPrefix(value).replace(/[.!?]+$/u, '').trim();
+  const match = text.match(/^(?:удали|удалить|удалите|убери|убрать|уберите)(?:\s+(.+))?$/iu);
+  if (!match) return null;
+  return (match[1] || '').trim();
+}
+
+function normalizeRemovalTarget(value) {
+  return restoreCompoundProducts(String(value || ''))
+    .replace(/^из\s+списка(?:\s+продуктов)?(?:\s+|$)/iu, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function isWholeListRemovalTarget(value) {
+  const target = normalizeRemovalTarget(value).toLocaleLowerCase('ru-RU');
+  if (!target) return true;
+  if (/^(?:все|всё)(?:\s|$)/iu.test(target)) return true;
+  if (/^весь\s+список(?:\s|$)/iu.test(target)) return true;
+  if (/^список(?:\s|$)/iu.test(target)) return true;
+  return /^(?:продукты|покупки)(?:\s+из\s+списка)?$/iu.test(target);
+}
+
+function getProductRemovalTarget(value) {
+  const verbTarget = getRemovalVerbTarget(value);
+  if (verbTarget === null) return '';
+  const target = normalizeRemovalTarget(verbTarget);
+  return isWholeListRemovalTarget(target) ? '' : target;
+}
+
 function isClearIntentText(value) {
-  const text = typeof value === 'string' ? value.trim() : '';
+  const text = stripRudiPrefix(value);
   if (!text) return false;
   if (/^куплено[.!?]*$/iu.test(text)) return true;
   if (/^(?:все|всё)\s+куплено[.!?]*$/iu.test(text)) return true;
-  if (/(?:^|\s)(?:очист(?:и|ить|ите)|сброс(?:ь|ить|ьте)|обнул(?:и|ить|ите)|удал(?:и|ить|ите)|убер(?:и|ите))(?:\s|$|[.!?])/iu.test(text)) return true;
+
+  const removalTarget = getRemovalVerbTarget(text);
+  if (removalTarget !== null) return isWholeListRemovalTarget(removalTarget);
+
+  if (/(?:^|\s)(?:очист(?:и|ить|ите)|сброс(?:ь|ить|ьте)|обнул(?:и|ить|ите))(?:\s|$|[.!?])/iu.test(text)) return true;
   if (/(?:^|\s)(?:начн(?:и|ите)|начать)\s+(?:сначала|заново)(?:\s|$|[.!?])/iu.test(text)) return true;
   return /(?:^|\s)(?:созда(?:й|йте|ть)\s+)?нов(?:ый|ого)\s+спис(?:ок|ка)(?:\s|$|[.!?])/iu.test(text);
 }
@@ -171,6 +209,14 @@ function normalizeProductsActor(req) {
   return req;
 }
 
+function getRawProductInput(req) {
+  const message = req?.body?.message;
+  if (message && Number(message.message_thread_id) === PRODUCTS_TOPIC_ID && typeof message.text === 'string') {
+    return message.text.trim();
+  }
+  return getAliceInput(req);
+}
+
 function getProductInput(req) {
   if (isTelegramProductAddition(req)) return cleanProductUtterance(req.body.message.text);
   return cleanProductUtterance(getAliceInput(req));
@@ -203,6 +249,24 @@ function dedupeHistory(values) {
     result.push(restored);
   }
   return result;
+}
+
+function normalizeProductMatchText(value) {
+  return restoreCompoundProducts(String(value || ''))
+    .toLocaleLowerCase('ru-RU')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function productMatchesRemovalTarget(product, target) {
+  const productTokens = new Set(normalizeProductMatchText(product).split(' ').filter(Boolean));
+  const targetTokens = normalizeProductMatchText(target).split(' ').filter(Boolean);
+  return targetTokens.length > 0 && targetTokens.every((token) => productTokens.has(token));
+}
+
+function removeProductsFromHistory(history, target) {
+  return dedupeHistory(history).filter((product) => !productMatchesRemovalTarget(product, target));
 }
 
 function buildHydratedProductInput(history, current) {
@@ -263,6 +327,21 @@ async function runProductsAddition(req, task, options = {}) {
     const originalBody = req?.body;
     req.body = cloneJson(originalBody || {});
     try {
+      const rawInput = getRawProductInput(req);
+      const removalTarget = getProductRemovalTarget(rawInput);
+      if (removalTarget) {
+        await readProductsHistory(cache);
+        normalizeProductsActor(req);
+        setProductInput(req, rawInput);
+
+        const result = await task();
+
+        const latest = await readProductsHistory(cache);
+        await writeProductsHistory(removeProductsFromHistory(latest, removalTarget), cache);
+        hydratedHistoryFingerprint = null;
+        return result;
+      }
+
       const current = getProductInput(req);
       if (!current) return task();
 
@@ -326,6 +405,8 @@ module.exports = {
   sanitizeProductPayload,
   sanitizeProductTelegramRequest,
   cleanProductUtterance,
+  getProductRemovalTarget,
+  removeProductsFromHistory,
   isEmptyAliceShoppingRequest,
   isTelegramProductAddition,
   isTelegramClearIntent,

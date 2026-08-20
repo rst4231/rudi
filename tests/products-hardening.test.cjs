@@ -73,12 +73,21 @@ test('empty Alice utterance is always non-mutating even when session.new is fals
   } }), true);
 });
 
-test('typed clear or typed Куплено in products topic is never an addition', () => {
+test('typed full-list clear or typed Куплено in products topic is never an addition', () => {
   assert.equal(typeof state.isTelegramClearIntent, 'function');
-  for (const text of ['очисти список', 'удали все', 'удали список', 'обнули список', 'начни заново', 'куплено', 'все куплено', 'всё куплено']) {
+  for (const text of ['очисти список', 'удали все', 'удали всё', 'удали список', 'удали весь список', 'убери все продукты', 'удали продукты', 'убери покупки', 'обнули список', 'начни заново', 'куплено', 'все куплено', 'всё куплено']) {
     const req = { body: { message: { message_thread_id: 263, text, from: { id: 1, is_bot: false } } } };
     assert.equal(state.isTelegramClearIntent(req), true, text);
     assert.equal(state.isTelegramProductAddition(req), false, text);
+  }
+});
+
+test('item removal phrases are not mistaken for full-list clear', () => {
+  for (const text of ['Удали йогурт', 'Удали греческий', 'Удали кефир', 'Убери из списка молоко']) {
+    const req = { body: { message: { message_thread_id: 263, text, from: { id: 1, is_bot: false } } } };
+    assert.equal(state.isTelegramClearIntent(req), false, text);
+    assert.equal(state.isTelegramProductAddition(req), true, text);
+    assert.ok(state.getProductRemovalTarget(text), text);
   }
 });
 
@@ -118,7 +127,7 @@ test('same warm instance rehydrates when another instance changed durable histor
 
   await cache.set('products:history', ['фарш куриный', 'молоко', 'хлеб']);
 
-  const secondReq = { body: { message: { message_thread_id: 263, text: 'сыр', from: { id: 10 } } } };
+  const secondReq = { body: { message: { message_thread_id: 263, text: 'сыр', from: { id: 10 } } };
   let secondSeen;
   await state.runProductsAddition(secondReq, async () => { secondSeen = secondReq.body.message.text; }, { cache });
 
@@ -160,4 +169,34 @@ test('Diana Telegram addition merges with products previously added through Alic
   assert.deepEqual(await cache.get('products:history'), [
     'молоко', 'яйца', 'греческий йогурт', 'фарш куриный',
   ]);
+});
+
+test('item removal updates durable history instead of appending the command', async () => {
+  const cache = fakeCache({
+    'products:history': ['греческий йогурт', 'кефир', 'молоко'],
+    'products:migration:2026-08-20': true,
+  });
+  state.resetProductsProcessStateForTests();
+  const req = { body: { message: {
+    message_thread_id: 263,
+    text: 'Удали йогурт',
+    from: { id: 1, is_bot: false },
+  } } };
+  let seen;
+  await state.runProductsAddition(req, async () => { seen = req.body.message.text; }, { cache });
+
+  assert.equal(seen, 'Удали йогурт');
+  assert.deepEqual(await cache.get('products:history'), ['кефир', 'молоко']);
+  assert.equal(req.body.message.text, 'Удали йогурт', 'original command is restored after runtime');
+});
+
+test('partial item name removes the matching compound product from durable history', () => {
+  assert.deepEqual(
+    state.removeProductsFromHistory(['греческий йогурт', 'кефир'], 'греческий'),
+    ['кефир'],
+  );
+  assert.deepEqual(
+    state.removeProductsFromHistory(['греческий йогурт', 'кефир'], 'йогурт'),
+    ['кефир'],
+  );
 });
