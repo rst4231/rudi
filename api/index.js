@@ -100,6 +100,18 @@ async function runAliceShoppingWithPrompt(req, res) {
   finally { res.json = originalJson; }
 }
 
+function getMoscowDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function isLaborBootstrapAllowed(date = new Date()) {
+  return getMoscowDateKey(date) === '2026-08-20';
+}
+
 async function publishDailyLaborArticle() {
   const token = resolveTelegramBotToken(process.env);
   const chatId = await getKnownForumChatId();
@@ -123,6 +135,14 @@ async function handler(req, res) {
     }
     if (req.query?.route === 'alice-shopping') return await runAliceShoppingWithPrompt(req, res);
     if (req.query?.route === 'init-products') return await runWithProductsContext(() => runRuntime(req, res));
+    if (req.query?.route === 'labor-bootstrap') {
+      if (!isLaborBootstrapAllowed()) {
+        return res.status(410).json({ ok: false, error: 'labor-bootstrap-expired' });
+      }
+      const labor = await publishDailyLaborArticle();
+      if (labor) console.log('RUDI_LABOR_BOOTSTRAP_RESULT', labor);
+      return res.status(labor ? 200 : 503).json({ ok: Boolean(labor), labor });
+    }
     if (req.query?.route === 'daily') {
       try {
         const cleanup = await prepareDailyTopicCleanup({
@@ -151,4 +171,5 @@ module.exports.runRuntime = runRuntime;
 module.exports.runHealthWithoutCouple = runHealthWithoutCouple;
 module.exports.runAliceShoppingWithPrompt = runAliceShoppingWithPrompt;
 module.exports.publishDailyLaborArticle = publishDailyLaborArticle;
+module.exports.isLaborBootstrapAllowed = isLaborBootstrapAllowed;
 module.exports.sanitizeStagePriceText = sanitizeStagePriceText;
