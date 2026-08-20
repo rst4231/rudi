@@ -1,4 +1,5 @@
 require('@vercel/functions');
+const fs = require('node:fs');
 const {
   runWithCronSecretHidden,
   installGlobalTelegramFetchGuard,
@@ -21,6 +22,7 @@ const {
 } = require('./topic-maintenance.cjs');
 const { sanitizeAliceShoppingPayload } = require('./alice-shopping-response.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
+const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
 
 let runtimeHandler;
 
@@ -112,14 +114,30 @@ function isLaborBootstrapAllowed(date = new Date()) {
   return getMoscowDateKey(date) === '2026-08-20';
 }
 
+function readGeneratedRuntimeSource() {
+  try { return fs.readFileSync(require.resolve('../runtime/generated-runtime.cjs'), 'utf8'); }
+  catch { return ''; }
+}
+
 async function publishDailyLaborArticle() {
   const token = resolveTelegramBotToken(process.env);
-  const chatId = await getKnownForumChatId();
+  const cachedChatId = await getKnownForumChatId();
+  const chatId = resolveForumChatId({
+    cached: cachedChatId,
+    env: process.env,
+    runtimeSource: cachedChatId === null ? readGeneratedRuntimeSource() : '',
+  });
   if (chatId === null) {
-    console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id is not recorded yet'));
+    console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id could not be resolved'));
     return null;
   }
-  return publishLaborArticle({ token, chatId, fetchImpl: nativeFetch });
+  const labor = await publishLaborArticle({ token, chatId, fetchImpl: nativeFetch });
+  if (cachedChatId === null && labor?.topicId) {
+    const { getCache } = require('@vercel/functions');
+    const cache = getCache({ namespace: 'rudi-topic-maintenance-v1' });
+    await rememberForumChatId(cache, chatId);
+  }
+  return labor;
 }
 
 async function handler(req, res) {
