@@ -7,7 +7,7 @@ const SHARED_PRODUCTS_ACTOR_ID = 263000001;
 const WORD_JOINER = '\u2060';
 const LEGACY_VISIBLE_PRODUCTS = ['фарш куриный'];
 
-let hydratedHistoryFingerprint = null;
+const hydratedHistoryFingerprints = new Map();
 let mutationQueue = Promise.resolve();
 
 function getProductsCache() {
@@ -209,6 +209,14 @@ function normalizeProductsActor(req) {
   return req;
 }
 
+function getProductsRuntimeKey(req) {
+  const body = req?.body || {};
+  if (body.message && Number(body.message.message_thread_id) === PRODUCTS_TOPIC_ID) return 'telegram';
+  if (body.callback_query && Number(body.callback_query?.message?.message_thread_id) === PRODUCTS_TOPIC_ID) return 'telegram';
+  if (body.request || body.session) return 'alice';
+  return 'default';
+}
+
 function getRawProductInput(req) {
   const message = req?.body?.message;
   if (message && Number(message.message_thread_id) === PRODUCTS_TOPIC_ID && typeof message.text === 'string') {
@@ -324,6 +332,7 @@ function cloneJson(value) {
 async function runProductsAddition(req, task, options = {}) {
   return enqueueMutation(async () => {
     const cache = options.cache || getProductsCache();
+    const runtimeKey = getProductsRuntimeKey(req);
     const originalBody = req?.body;
     req.body = cloneJson(originalBody || {});
     try {
@@ -338,7 +347,7 @@ async function runProductsAddition(req, task, options = {}) {
 
         const latest = await readProductsHistory(cache);
         await writeProductsHistory(removeProductsFromHistory(latest, removalTarget), cache);
-        hydratedHistoryFingerprint = null;
+        hydratedHistoryFingerprints.delete(runtimeKey);
         return result;
       }
 
@@ -350,7 +359,7 @@ async function runProductsAddition(req, task, options = {}) {
       normalizeProductsActor(req);
       setProductInput(
         req,
-        hydratedHistoryFingerprint === historyBeforeFingerprint
+        hydratedHistoryFingerprints.get(runtimeKey) === historyBeforeFingerprint
           ? current
           : buildHydratedProductInput(history, current),
       );
@@ -359,10 +368,10 @@ async function runProductsAddition(req, task, options = {}) {
 
       const latest = await readProductsHistory(cache);
       const updated = await writeProductsHistory([...latest, current], cache);
-      hydratedHistoryFingerprint = historyFingerprint(updated);
+      hydratedHistoryFingerprints.set(runtimeKey, historyFingerprint(updated));
       return result;
     } catch (error) {
-      hydratedHistoryFingerprint = null;
+      hydratedHistoryFingerprints.delete(runtimeKey);
       throw error;
     } finally {
       req.body = originalBody;
@@ -376,21 +385,21 @@ async function runAuthorizedProductsClear(task, options = {}) {
     try {
       const result = await task();
       const updated = await writeProductsHistory([], cache);
-      hydratedHistoryFingerprint = historyFingerprint(updated);
+      hydratedHistoryFingerprints.clear();
       return result;
     } catch (error) {
-      hydratedHistoryFingerprint = null;
+      hydratedHistoryFingerprints.clear();
       throw error;
     }
   });
 }
 
 function markProductsRuntimeStale() {
-  hydratedHistoryFingerprint = null;
+  hydratedHistoryFingerprints.clear();
 }
 
 function resetProductsProcessStateForTests() {
-  hydratedHistoryFingerprint = null;
+  hydratedHistoryFingerprints.clear();
   mutationQueue = Promise.resolve();
 }
 
