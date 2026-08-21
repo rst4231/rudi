@@ -46,6 +46,7 @@ test('Vercel config exposes the expected RUDI routes and only the RUDI cron', ()
     '/api/daily': '/api/index?route=daily',
     '/api/health': '/api/index?route=health',
     '/api/telegram': '/api/index?route=telegram',
+    '/api/alice': '/api/index?route=alice-shopping',
     '/api/alice-shopping': '/api/index?route=alice-shopping',
     '/api/init-products': '/api/index?route=init-products',
     '/api/preview': '/api/index?route=preview'
