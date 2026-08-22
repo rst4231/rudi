@@ -41,6 +41,10 @@ async function runProductsAddition(req, task, options = {}) {
   const raw = getRawInput(req);
   const removalTarget = base.getProductRemovalTarget(raw);
   const current = getCurrentProduct(req, raw);
+
+  // The generated runtime is not a durable source of truth. Always force it
+  // to rebuild from the shared persisted history before a product mutation.
+  base.markProductsRuntimeStale();
   const result = await base.runProductsAddition(req, task, options);
   const cache = options.cache;
 
