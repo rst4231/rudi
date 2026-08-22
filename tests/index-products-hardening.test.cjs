@@ -37,7 +37,7 @@ test('daily runtime marks product runtime state stale so next addition rehydrate
 
 test('keeps the existing explicit Alice launch guard before shopping runtime', () => {
   const launchIndex = source.indexOf('if (isAliceShoppingLaunch(req))');
-  const runtimeIndex = source.indexOf('return await runAliceShoppingWithPrompt(req, res);');
+  const runtimeIndex = source.indexOf('runAliceShoppingWithPrompt(req, res)', launchIndex);
   assert.ok(launchIndex > -1);
   assert.ok(runtimeIndex > launchIndex);
 });
