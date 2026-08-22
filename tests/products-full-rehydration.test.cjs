@@ -1,6 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-
 const state = require('../api/products-state.cjs');
 
 function fakeCache(initial) {
@@ -8,12 +7,11 @@ function fakeCache(initial) {
   return {
     async get(key) { return values.has(key) ? values.get(key) : null; },
     async set(key, value) { values.set(key, structuredClone(value)); },
-    async delete(key) { values.delete(key); },
     values,
   };
 }
 
-test('Telegram always rehydrates the full durable list before the next user adds a product', async () => {
+test('Telegram rehydrates the full durable list without resurrecting the old chicken-mince seed', async () => {
   const cache = fakeCache({
     'products:history': ['фарш куриный'],
     'products:migration:2026-08-20': true,
@@ -35,13 +33,12 @@ test('Telegram always rehydrates the full durable list before the next user adds
   let seen;
   await state.runProductsAddition(user, async () => { seen = user.body.message.text; }, { cache });
 
-  assert.match(seen, /фарш/iu);
+  assert.doesNotMatch(seen, /фарш/iu);
   assert.match(seen, /молоко/iu);
   assert.match(seen, /яйца/iu);
   assert.match(seen, /хлеб/iu);
   assert.match(seen, /шоколад/iu);
   assert.deepEqual(await cache.get('products:history'), [
-    'фарш куриный',
     'молоко, яйца, хлеб',
     'шоколад',
   ]);

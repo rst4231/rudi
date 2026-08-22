@@ -30,9 +30,6 @@ async function ensureDurableHistory(cache) {
     await durable.markInitialized(cache);
     return durable.readProducts({ cache });
   }
-  // Migrate only an actually persisted legacy array. Never call the legacy
-  // reader here because that reader can manufacture the old hard-coded
-  // `фарш куриный` default when the key is absent.
   const legacy = await cache.get(base.PRODUCTS_HISTORY_KEY);
   return durable.ensureInitialized(Array.isArray(legacy) ? legacy : [], { cache });
 }
@@ -73,6 +70,10 @@ async function runProductsAddition(req, task, options = {}) {
   const cache = resolveCache(options);
 
   await ensureDurableHistory(cache);
+  if (current && !removalTarget) {
+    const persisted = await durable.addProducts([current], { cache });
+    await mirrorLegacyHistory(persisted, cache);
+  }
   base.markProductsRuntimeStale();
   const runtimeTask = req?.body?.request
     ? () => runWithProductsUpdateAuthorName('Алиса', task)
@@ -90,11 +91,7 @@ async function runProductsAddition(req, task, options = {}) {
     return result;
   }
 
-  if (current) {
-    const updated = await durable.addProducts([current], { cache });
-    await mirrorLegacyHistory(updated, cache);
-    base.markProductsRuntimeStale();
-  }
+  if (current) base.markProductsRuntimeStale();
   return result;
 }
 

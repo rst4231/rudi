@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const state = require('../api/products-state.cjs');
+const durable = require('../api/products-durable-state.cjs');
 
 function fakeCache(initial) {
   const values = new Map(Object.entries(initial || {}));
@@ -13,12 +14,12 @@ function fakeCache(initial) {
   };
 }
 
-test('one-time migration preserves the currently visible legacy product', async () => {
+test('missing legacy history initializes empty and never invents chicken mince', async () => {
   assert.equal(typeof state.readProductsHistory, 'function');
   const cache = fakeCache();
-  const history = await state.readProductsHistory(cache);
-  assert.deepEqual(history, ['фарш куриный']);
-  assert.deepEqual(await cache.get('products:history'), ['фарш куриный']);
+  assert.deepEqual(await state.readProductsHistory(cache), []);
+  assert.deepEqual(await state.readProductsHistory(cache), []);
+  assert.equal(await cache.get('products:history'), null);
 });
 
 test('authorized clear prevents legacy seed from ever returning', async () => {
@@ -104,14 +105,14 @@ test('add callback is recognized by the actual keyboard button text only', () =>
   assert.equal(state.isProductsAddCallback(req), false);
 });
 
-test('cold hydration preserves both the legacy item and a new compound product', async () => {
+test('cold hydration starts empty and preserves only the newly added compound product', async () => {
   const cache = fakeCache();
   state.resetProductsProcessStateForTests();
   const req = { body: { message: { message_thread_id: 263, text: 'греческий йогурт', from: { id: 44 } } } };
   let seen;
   await state.runProductsAddition(req, async () => { seen = req.body.message.text; }, { cache });
-  assert.equal(seen, `фарш${state.WORD_JOINER}куриный, греческий${state.WORD_JOINER}йогурт`);
-  assert.deepEqual(await cache.get('products:history'), ['фарш куриный', 'греческий йогурт']);
+  assert.equal(seen, `греческий${state.WORD_JOINER}йогурт`);
+  assert.deepEqual(await cache.get('products:history'), ['греческий йогурт']);
   assert.equal(req.body.message.text, 'греческий йогурт', 'original Telegram update is restored after runtime');
 });
 
@@ -122,18 +123,18 @@ test('same warm instance rehydrates when another instance changed durable histor
   const firstReq = { body: { message: { message_thread_id: 263, text: 'молоко', from: { id: 10 } } } };
   let firstSeen;
   await state.runProductsAddition(firstReq, async () => { firstSeen = firstReq.body.message.text; }, { cache });
-  assert.match(firstSeen, /фарш/iu);
+  assert.doesNotMatch(firstSeen, /фарш/iu);
   assert.match(firstSeen, /молоко/iu);
 
-  await cache.set('products:history', ['фарш куриный', 'молоко', 'хлеб']);
+  await durable.addProducts(['хлеб'], { cache, version: 9000000000000, eventId: 'remote-instance', settleMs: 0 });
 
-  const secondReq = { body: { message: { message_thread_id: 263, text: 'сыр', from: { id: 10 } } };
+  const secondReq = { body: { message: { message_thread_id: 263, text: 'сыр', from: { id: 10 } } } };
   let secondSeen;
   await state.runProductsAddition(secondReq, async () => { secondSeen = secondReq.body.message.text; }, { cache });
 
-  assert.match(secondSeen, /хлеб/iu, 'warm runtime must be rehydrated with the remote item');
+  assert.match(secondSeen, /хлеб/iu, 'warm runtime must be rehydrated with the remote durable item');
   assert.match(secondSeen, /сыр/iu);
-  assert.deepEqual(await cache.get('products:history'), ['фарш куриный', 'молоко', 'хлеб', 'сыр']);
+  assert.deepEqual(new Set(await cache.get('products:history')), new Set(['молоко', 'хлеб', 'сыр']));
 });
 
 test('failed clear never clears durable products history', async () => {
