@@ -43,7 +43,7 @@ test('same warm process rehydrates Telegram after Alice changed shared history',
   assert.deepEqual(await cache.get('products:history'), ['молоко', 'яйца', 'хлеб', 'сыр']);
 });
 
-test('same transport can keep warm optimization without losing shared history', async () => {
+test('same transport rehydrates full durable history before every mutation', async () => {
   const cache = fakeCache({
     'products:history': ['молоко'],
     'products:migration:2026-08-20': true,
@@ -59,7 +59,9 @@ test('same transport can keep warm optimization without losing shared history', 
   const second = { body: { message: { message_thread_id: 263, text: 'сыр', from: { id: 2, is_bot: false } } } };
   let secondSeen;
   await state.runProductsAddition(second, async () => { secondSeen = second.body.message.text; }, { cache });
-  assert.equal(secondSeen, 'сыр');
+  assert.match(secondSeen, /молоко/iu);
+  assert.match(secondSeen, /хлеб/iu);
+  assert.match(secondSeen, /сыр/iu);
   assert.deepEqual(await cache.get('products:history'), ['молоко', 'хлеб', 'сыр']);
 });
 

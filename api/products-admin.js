@@ -19,6 +19,17 @@ function isAuthorized(req, expectedHash = process.env.PRODUCTS_ADMIN_KEY_SHA256 
   return expected.length === supplied.length && expected.length > 0 && timingSafeEqual(supplied, expected);
 }
 
+function parseItems(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+  const text = String(value || '').trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item || '').trim()).filter(Boolean);
+  } catch {}
+  return text.split('|').map((item) => item.trim()).filter(Boolean);
+}
+
 function readGeneratedRuntimeSource() {
   try { return fs.readFileSync(require.resolve('../runtime/generated-runtime.cjs'), 'utf8'); }
   catch { return ''; }
@@ -108,12 +119,20 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true, history, refresh });
   }
 
+  if (action === 'replace') {
+    history = await state.writeProductsHistory(parseItems(req?.query?.items));
+    state.markProductsRuntimeStale();
+    const refresh = await refreshVisibleProducts(history);
+    return res.status(200).json({ ok: true, history, refresh });
+  }
+
   return res.status(400).json({ ok: false, error: 'unsupported-action' });
 }
 
 module.exports = handler;
 module.exports.hashKey = hashKey;
 module.exports.isAuthorized = isAuthorized;
+module.exports.parseItems = parseItems;
 module.exports.createSinkResponse = createSinkResponse;
 module.exports.buildRefreshRequest = buildRefreshRequest;
 module.exports.refreshVisibleProducts = refreshVisibleProducts;

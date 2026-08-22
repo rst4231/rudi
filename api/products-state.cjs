@@ -1,4 +1,5 @@
 const base = require('./products-state-base.cjs');
+const durable = require('./products-durable-state.cjs');
 
 function normalizeKey(value) {
   return base.restoreCompoundProducts(String(value || ''))
@@ -24,61 +25,103 @@ function getCurrentProduct(req, raw) {
   return '';
 }
 
-async function converge(mutator, satisfied, cache, maxAttempts = 4) {
-  let last = [];
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const latest = await base.readProductsHistory(cache);
-    if (satisfied(latest)) return { history: latest, changed: false };
-    const desired = mutator(latest);
-    await base.writeProductsHistory(desired, cache);
-    last = await base.readProductsHistory(cache);
-    if (satisfied(last)) return { history: last, changed: true };
-  }
-  throw new Error(`Products history did not converge after ${maxAttempts} attempts`);
+function resolveCache(options = {}) {
+  return options.cache || durable.getProductsCache();
+}
+
+async function ensureDurableHistory(cache) {
+  if (await durable.isInitialized(cache)) return durable.readProducts({ cache });
+  let legacy = [];
+  try { legacy = await base.readProductsHistory(cache); }
+  catch (error) { console.warn('RUDI_PRODUCTS_LEGACY_READ_ERROR', String(error?.message || error)); }
+  return durable.ensureInitialized(legacy, { cache });
+}
+
+function createDurableCacheAdapter(cache) {
+  return {
+    async get(key) {
+      if (key === base.PRODUCTS_HISTORY_KEY) return ensureDurableHistory(cache);
+      if (key === base.PRODUCTS_MIGRATION_KEY) return true;
+      return cache.get(key);
+    },
+    async set(key, value, options) {
+      if (key === base.PRODUCTS_HISTORY_KEY || key === base.PRODUCTS_MIGRATION_KEY) return;
+      return cache.set(key, value, options);
+    },
+    async delete(key) {
+      if (typeof cache.delete === 'function') return cache.delete(key);
+    },
+  };
+}
+
+async function mirrorLegacyHistory(history, cache) {
+  try { await base.writeProductsHistory(history, cache); }
+  catch (error) { console.warn('RUDI_PRODUCTS_LEGACY_MIRROR_ERROR', String(error?.message || error)); }
+}
+
+async function readProductsHistory(cache = durable.getProductsCache()) {
+  return ensureDurableHistory(cache);
+}
+
+async function writeProductsHistory(history, cache = durable.getProductsCache()) {
+  const result = await durable.replaceProducts(history, { cache });
+  await mirrorLegacyHistory(result, cache);
+  base.markProductsRuntimeStale();
+  return result;
 }
 
 async function runProductsAddition(req, task, options = {}) {
   const raw = getRawInput(req);
   const removalTarget = base.getProductRemovalTarget(raw);
   const current = getCurrentProduct(req, raw);
+  const cache = resolveCache(options);
 
-  // The generated runtime is not a durable source of truth. Always force it
-  // to rebuild from the shared persisted history before a product mutation.
+  await ensureDurableHistory(cache);
   base.markProductsRuntimeStale();
-  const result = await base.runProductsAddition(req, task, options);
-  const cache = options.cache;
+  const result = await base.runProductsAddition(req, task, {
+    ...options,
+    cache: createDurableCacheAdapter(cache),
+  });
 
   if (removalTarget) {
-    const convergence = await converge(
-      (latest) => base.removeProductsFromHistory(latest, removalTarget),
-      (latest) => base.removeProductsFromHistory(latest, removalTarget).length === latest.length,
-      cache,
-    );
-    if (convergence.changed) base.markProductsRuntimeStale();
+    const latest = await durable.readProducts({ cache });
+    const desired = base.removeProductsFromHistory(latest, removalTarget);
+    const desiredKeys = new Set(desired.map(normalizeKey));
+    const removed = latest.filter((product) => !desiredKeys.has(normalizeKey(product)));
+    const updated = removed.length
+      ? await durable.removeProducts(removed, { cache })
+      : latest;
+    await mirrorLegacyHistory(updated, cache);
+    base.markProductsRuntimeStale();
     return result;
   }
 
   if (current) {
-    const currentKey = normalizeKey(current);
-    const convergence = await converge(
-      (latest) => [...latest, current],
-      (latest) => latest.some((product) => normalizeKey(product) === currentKey),
-      cache,
-    );
-    if (convergence.changed) base.markProductsRuntimeStale();
+    const updated = await durable.addProducts([current], { cache });
+    await mirrorLegacyHistory(updated, cache);
+    base.markProductsRuntimeStale();
   }
   return result;
 }
 
 async function runAuthorizedProductsClear(task, options = {}) {
-  const result = await base.runAuthorizedProductsClear(task, options);
-  const convergence = await converge(() => [], (latest) => latest.length === 0, options.cache);
-  if (convergence.changed) base.markProductsRuntimeStale();
+  const cache = resolveCache(options);
+  await ensureDurableHistory(cache);
+  const result = await base.runAuthorizedProductsClear(task, {
+    ...options,
+    cache: createDurableCacheAdapter(cache),
+  });
+  await durable.clearProducts({ cache });
+  await mirrorLegacyHistory([], cache);
+  base.markProductsRuntimeStale();
   return result;
 }
 
 module.exports = {
   ...base,
+  readProductsHistory,
+  writeProductsHistory,
   runProductsAddition,
   runAuthorizedProductsClear,
+  createDurableCacheAdapter,
 };

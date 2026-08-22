@@ -11,3 +11,9 @@ test('products admin refresh uses a POST Telegram webhook shape', () => {
   assert.equal(req.body.message.chat.id, '-1001234567890');
   assert.equal(req.body.message.text, 'фарш куриный');
 });
+
+test('products admin parses an exact replacement list without inventing items', () => {
+  assert.deepEqual(admin.parseItems('["фарш куриный"]'), ['фарш куриный']);
+  assert.deepEqual(admin.parseItems('фарш куриный|молоко'), ['фарш куриный', 'молоко']);
+  assert.deepEqual(admin.parseItems(''), []);
+});
