@@ -1,4 +1,5 @@
 const { randomUUID } = require('node:crypto');
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const BUCKET_COUNT = 16;
 const REPLICA_COUNT = 4;
@@ -10,10 +11,11 @@ const INIT_PREFIX = 'products:durable:v3:init:';
 const PRODUCTS_CACHE_NAMESPACE = 'rudi-products-state-v2';
 const PRODUCTS_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const CACHE_OPTIONS = { ttl: PRODUCTS_TTL_SECONDS, tags: ['rudi-products-durable-v3'] };
+const LEGACY_PHANTOM_PRODUCT = 'фарш куриный';
+const LEGACY_SEED_EVENT_ID = 'legacy-seed';
 
-function getProductsCache() {
-  const { getCache } = require('@vercel/functions');
-  return getCache({ namespace: PRODUCTS_CACHE_NAMESPACE });
+function getProductsCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: PRODUCTS_CACHE_NAMESPACE, ...options });
 }
 
 function normalizeProduct(value) {
@@ -43,9 +45,7 @@ function compareRecord(left, right) {
   return String(left?.eventId || '').localeCompare(String(right?.eventId || ''));
 }
 
-function sleep(ms) {
-  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
-}
+function sleep(ms) { return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve(); }
 
 function cleanBucket(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -58,9 +58,7 @@ async function cacheSet(cache, key, value) {
     try {
       await cache.set(key, value, CACHE_OPTIONS);
       return;
-    } catch (error) {
-      lastError = error;
-    }
+    } catch (error) { lastError = error; }
   }
   throw lastError || new Error(`Could not persist ${key}`);
 }
@@ -82,17 +80,14 @@ async function writeRecordReplica(record, replica, cache, { settleMs = 30, maxAt
 async function writeRecord(record, options = {}) {
   const { cache, settleMs = 30 } = options;
   if (!cache) throw new Error('cache is required');
-  await Promise.all(Array.from({ length: REPLICA_COUNT }, (_, replica) =>
-    writeRecordReplica(record, replica, cache, { settleMs })));
+  await Promise.all(Array.from({ length: REPLICA_COUNT }, (_, replica) => writeRecordReplica(record, replica, cache, { settleMs })));
   return record;
 }
 
 async function readAllBuckets(cache) {
   const keys = [];
   for (let replica = 0; replica < REPLICA_COUNT; replica += 1) {
-    for (let bucket = 0; bucket < BUCKET_COUNT; bucket += 1) {
-      keys.push(`${BUCKET_PREFIX}${replica}:${bucket}`);
-    }
+    for (let bucket = 0; bucket < BUCKET_COUNT; bucket += 1) keys.push(`${BUCKET_PREFIX}${replica}:${bucket}`);
   }
   return Promise.all(keys.map((key) => cache.get(key)));
 }
@@ -104,6 +99,10 @@ async function readClearRecords(cache) {
 async function readClearVersion(cache) {
   const values = await readClearRecords(cache);
   return values.reduce((max, value) => Math.max(max, Number(value?.version || 0)), 0);
+}
+
+function isLegacyPhantomRecord(record) {
+  return normalizeProduct(record?.product) === LEGACY_PHANTOM_PRODUCT && String(record?.eventId || '') === LEGACY_SEED_EVENT_ID;
 }
 
 async function readProducts({ cache } = {}) {
@@ -120,6 +119,7 @@ async function readProducts({ cache } = {}) {
     }
   }
   return [...latest.values()]
+    .filter((record) => !isLegacyPhantomRecord(record))
     .filter((record) => record.present !== false && Number(record.version || 0) > clearVersion)
     .sort((a, b) => Number(a.version || 0) - Number(b.version || 0) || Number(a.order || 0) - Number(b.order || 0) || String(a.product).localeCompare(String(b.product), 'ru'))
     .map((record) => String(record.product).trim());
@@ -146,13 +146,8 @@ async function mutateProducts(products, present, options = {}) {
   return readProducts({ cache });
 }
 
-async function addProducts(products, options = {}) {
-  return mutateProducts(products, true, options);
-}
-
-async function removeProducts(products, options = {}) {
-  return mutateProducts(products, false, options);
-}
+async function addProducts(products, options = {}) { return mutateProducts(products, true, options); }
+async function removeProducts(products, options = {}) { return mutateProducts(products, false, options); }
 
 async function clearProducts(options = {}) {
   const { cache, version = Date.now(), eventId = `${version}-${randomUUID()}`, settleMs = 30 } = options;
@@ -175,8 +170,7 @@ async function markInitialized(cache, version = Date.now()) {
 
 async function hasDurableState(cache) {
   const [buckets, clearRecords] = await Promise.all([readAllBuckets(cache), readClearRecords(cache)]);
-  return buckets.some((bucket) => Object.keys(cleanBucket(bucket)).length > 0)
-    || clearRecords.some((value) => value && Number(value.version || 0) > 0);
+  return buckets.some((bucket) => Object.keys(cleanBucket(bucket)).length > 0) || clearRecords.some((value) => value && Number(value.version || 0) > 0);
 }
 
 async function ensureInitialized(seedProducts, options = {}) {
@@ -188,8 +182,7 @@ async function ensureInitialized(seedProducts, options = {}) {
     return readProducts({ cache });
   }
   const seed = uniqueProducts(seedProducts).map(({ product }) => product);
-  if (!seed.length) return [];
-  await addProducts(seed, { cache, version: 1, eventId: 'legacy-seed', settleMs });
+  if (seed.length) await addProducts(seed, { cache, version: 1, eventId: LEGACY_SEED_EVENT_ID, settleMs });
   await markInitialized(cache, 1);
   return readProducts({ cache });
 }
@@ -199,26 +192,15 @@ async function replaceProducts(products, options = {}) {
   if (!cache) throw new Error('cache is required');
   await clearProducts({ cache, version, eventId: `replace-clear-${version}`, settleMs });
   const desired = uniqueProducts(products).map(({ product }) => product);
-  if (desired.length) {
-    await addProducts(desired, { cache, version: version + 1, eventId: `replace-add-${version + 1}`, settleMs });
-  }
+  if (desired.length) await addProducts(desired, { cache, version: version + 1, eventId: `replace-add-${version + 1}`, settleMs });
   await markInitialized(cache, version + 1);
   return readProducts({ cache });
 }
 
 module.exports = {
-  PRODUCTS_CACHE_NAMESPACE,
-  BUCKET_COUNT,
-  REPLICA_COUNT,
-  getProductsCache,
-  normalizeProduct,
-  bucketKey,
-  readProducts,
-  addProducts,
-  removeProducts,
-  clearProducts,
-  ensureInitialized,
-  replaceProducts,
-  isInitialized,
-  hasDurableState,
+  PRODUCTS_CACHE_NAMESPACE, BUCKET_COUNT, REPLICA_COUNT,
+  getProductsCache, normalizeProduct, bucketKey, readProducts,
+  addProducts, removeProducts, clearProducts, ensureInitialized,
+  replaceProducts, isInitialized, hasDurableState, markInitialized,
+  isLegacyPhantomRecord,
 };

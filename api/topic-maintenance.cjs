@@ -1,5 +1,6 @@
 const base = require('./topic-maintenance-base.cjs');
 const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
+const { handleHolidayPublication } = require('./holiday-rollover.cjs');
 
 function telegramMethod(input) {
   const raw = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
@@ -7,9 +8,7 @@ function telegramMethod(input) {
     const url = new URL(raw);
     if (url.hostname !== 'api.telegram.org') return '';
     return url.pathname.match(/^\/bot[^/]+\/([A-Za-z0-9_]+)$/)?.[1] || '';
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
 async function terminalSuccessResponse(input, response) {
@@ -35,7 +34,19 @@ function wrapFetch(fetchImpl, options = {}) {
       localConfig: options.clientsAdviceLocalConfig,
       now: options.now,
     });
-    return terminalSuccessResponse(input, await fetchImpl(input, rewritten));
+    const response = await terminalSuccessResponse(input, await fetchImpl(input, rewritten));
+    try {
+      return await handleHolidayPublication(input, rewritten, response, {
+        fetchImpl,
+        now: options.now,
+        stateCache: options.holidayStateCache,
+        topicCache: options.holidayTopicCache,
+        cacheOptions: options.holidayCacheOptions,
+      });
+    } catch (error) {
+      console.error('RUDI_HOLIDAY_ROLLOVER_ERROR', error);
+      return response;
+    }
   };
 }
 
