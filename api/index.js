@@ -14,6 +14,10 @@ const {
   resolveTelegramBotToken,
 } = require('./products-bought.cjs');
 const {
+  runWithProductsUpdateAuthor,
+  addProductsUpdateAuthorToTelegramRequest,
+} = require('./products-update-author.cjs');
+const {
   handleTelegramTopicRequest,
   prepareDailyTopicCleanup,
   isRemovedCoupleTopicUpdate,
@@ -42,9 +46,11 @@ const {
   markProductsRuntimeStale,
 } = require('./products-state.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
+const { withLaborPublicationLease } = require('./labor-publication-lock.cjs');
 const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
 
 let runtimeHandler;
+let laborPublicationFlight = null;
 
 function sanitizeStagePriceText(text) {
   if (typeof text !== 'string' || !text.includes('Stage StandUp Club')) return text;
@@ -57,7 +63,7 @@ function sanitizeStagePriceText(text) {
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
 globalThis.fetch = async function stageSafeFetch(input, init = {}) {
-  const url = typeof input === 'string' ? input : input?.url || '';
+  const url = typeof input === 'string' || input instanceof URL ? String(input) : input?.url || '';
   if (!url.includes('api.telegram.org/')) return nativeFetch(input, init);
 
   if (shouldSuppressAnsweredCallbackQuery(input)) {
@@ -88,6 +94,9 @@ globalThis.fetch = async function stageSafeFetch(input, init = {}) {
 
   try { nextInit = sanitizeProductTelegramRequest(nextInit); }
   catch (error) { console.error('RUDI_PRODUCTS_OUTPUT_SANITIZER_ERROR', error); }
+
+  try { nextInit = addProductsUpdateAuthorToTelegramRequest(input, nextInit); }
+  catch (error) { console.error('RUDI_PRODUCTS_UPDATE_AUTHOR_ERROR', error); }
 
   return handleTelegramTopicRequest(input, nextInit, { fetchImpl: nativeFetch });
 };
@@ -141,10 +150,7 @@ async function answerProductsAddCallback(req) {
   const response = await nativeFetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      callback_query_id: callbackId,
-      text: 'Напишите продукт сообщением в этой теме.',
-    }),
+    body: JSON.stringify({ callback_query_id: callbackId, text: 'Напишите продукт сообщением в этой теме.' }),
   });
   if (!response.ok) {
     let detail = '';
@@ -163,143 +169,77 @@ async function runAliceShoppingWithPrompt(req, res) {
 }
 
 function getMoscowDateKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function isLaborBootstrapAllowed(date = new Date()) {
-  return getMoscowDateKey(date) === '2026-08-20';
-}
-
-function readGeneratedRuntimeSource() {
-  try { return fs.readFileSync(require.resolve('../runtime/generated-runtime.cjs'), 'utf8'); }
-  catch { return ''; }
-}
-
+function isLaborBootstrapAllowed(date = new Date()) { return getMoscowDateKey(date) === '2026-08-20'; }
+function readGeneratedRuntimeSource() { try { return fs.readFileSync(require.resolve('../runtime/generated-runtime.cjs'), 'utf8'); } catch { return ''; } }
 async function publishDailyLaborArticle() {
-  const token = resolveTelegramBotToken(process.env);
-  const cachedChatId = await getKnownForumChatId();
-  const chatId = resolveForumChatId({
-    cached: cachedChatId,
-    env: process.env,
-    runtimeSource: cachedChatId === null ? readGeneratedRuntimeSource() : '',
+  if (laborPublicationFlight) return laborPublicationFlight;
+  const run = withLaborPublicationLease(async () => {
+    const token = resolveTelegramBotToken(process.env);
+    const cachedChatId = await getKnownForumChatId();
+    const chatId = resolveForumChatId({ cached: cachedChatId, env: process.env, runtimeSource: cachedChatId === null ? readGeneratedRuntimeSource() : '' });
+    if (chatId === null) { console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id could not be resolved')); return null; }
+    const labor = await publishLaborArticle({ token, chatId, fetchImpl: nativeFetch });
+    if (cachedChatId === null && labor?.topicId) {
+      const { getCache } = require('@vercel/functions');
+      const cache = getCache({ namespace: 'rudi-topic-maintenance-v1' });
+      await rememberForumChatId(cache, chatId);
+    }
+    return labor;
   });
-  if (chatId === null) {
-    console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id could not be resolved'));
-    return null;
-  }
-  const labor = await publishLaborArticle({ token, chatId, fetchImpl: nativeFetch });
-  if (cachedChatId === null && labor?.topicId) {
-    const { getCache } = require('@vercel/functions');
-    const cache = getCache({ namespace: 'rudi-topic-maintenance-v1' });
-    await rememberForumChatId(cache, chatId);
-  }
-  return labor;
+  laborPublicationFlight = run;
+  try { return await run; }
+  finally { if (laborPublicationFlight === run) laborPublicationFlight = null; }
 }
 
 async function handler(req, res) {
   try {
     if (req.query?.route === 'telegram') {
       if (isRemovedCoupleTopicUpdate(req)) return res.status(200).json({ ok: true, ignored: 'removed-couple-topic' });
-      if (shouldIgnorePassiveTelegramMessage(req)) {
-        return res.status(200).json({ ok: true, ignored: 'passive-chat-message' });
-      }
-
+      if (shouldIgnorePassiveTelegramMessage(req)) return res.status(200).json({ ok: true, ignored: 'passive-chat-message' });
       const boughtAction = await handleBoughtCallback(req, res);
       if (boughtAction?.empty) return res.status(200).json({ ok: true, ignored: 'empty-products' });
       if (boughtAction) {
-        normalizeProductsActor(req);
-        return await runAuthorizedProductsClear(
-          () => runWithExistingClearAction(req, boughtAction.clearCallbackData, () => runRuntime(req, res)),
-        );
+        return await runWithProductsUpdateAuthor(req, async () => {
+          normalizeProductsActor(req);
+          return await runAuthorizedProductsClear(() => runWithExistingClearAction(req, boughtAction.clearCallbackData, () => runRuntime(req, res)));
+        });
       }
-
       if (isProductsClearCallback(req)) {
-        try {
-          await validateTelegramCallback(req);
-        } catch (error) {
-          console.warn('RUDI_PRODUCTS_CLEAR_CALLBACK_REJECTED', String(error?.message || error));
-          return res.status(200).json({ ok: true, ignored: 'invalid-products-clear-callback' });
-        }
-        normalizeProductsActor(req);
-        return await runAuthorizedProductsClear(
-          () => runWithAnsweredCallbackContext(
-            () => runWithProductsContext(() => runRuntime(req, res)),
-          ),
-        );
+        try { await validateTelegramCallback(req); } catch (error) { console.warn('RUDI_PRODUCTS_CLEAR_CALLBACK_REJECTED', String(error?.message || error)); return res.status(200).json({ ok: true, ignored: 'invalid-products-clear-callback' }); }
+        return await runWithProductsUpdateAuthor(req, async () => {
+          normalizeProductsActor(req);
+          return await runAuthorizedProductsClear(() => runWithAnsweredCallbackContext(() => runWithProductsContext(() => runRuntime(req, res))));
+        });
       }
-
-      if (isTelegramClearIntent(req)) {
-        return res.status(200).json({ ok: true, ignored: 'typed-products-clear-disabled' });
-      }
-
-      if (isProductsAddCallback(req)) {
-        try { await answerProductsAddCallback(req); }
-        catch (error) { console.warn('RUDI_PRODUCTS_ADD_CALLBACK_ERROR', String(error?.message || error)); }
-        return res.status(200).json({ ok: true, ignored: 'products-add-button-prompted' });
-      }
-
+      if (isTelegramClearIntent(req)) return res.status(200).json({ ok: true, ignored: 'typed-products-clear-disabled' });
+      if (isProductsAddCallback(req)) { try { await answerProductsAddCallback(req); } catch (error) { console.warn('RUDI_PRODUCTS_ADD_CALLBACK_ERROR', String(error?.message || error)); } return res.status(200).json({ ok: true, ignored: 'products-add-button-prompted' }); }
       if (isTelegramProductAddition(req)) {
-        return await runProductsAddition(
-          req,
-          () => runWithProductsContext(() => runRuntime(req, res)),
-        );
+        return await runWithProductsUpdateAuthor(req, () => runProductsAddition(req, () => runWithProductsContext(() => runRuntime(req, res))));
       }
-
-      if (Number(req.body?.callback_query?.message?.message_thread_id) === 263
-        || Number(req.body?.message?.message_thread_id) === 263
-        || Number(req.body?.edited_message?.message_thread_id) === 263) {
-        return res.status(200).json({ ok: true, ignored: 'non-mutating-products-update' });
-      }
-
+      if (Number(req.body?.callback_query?.message?.message_thread_id) === 263 || Number(req.body?.message?.message_thread_id) === 263 || Number(req.body?.edited_message?.message_thread_id) === 263) return res.status(200).json({ ok: true, ignored: 'non-mutating-products-update' });
       return await runRuntime(req, res);
     }
     if (req.query?.route === 'alice-shopping') {
-      if (isEmptyAliceShoppingRequest(req)) {
-        return res.status(200).json(buildAliceShoppingLaunchResponse(req));
-      }
-      if (isAliceShoppingLaunch(req)) {
-        return res.status(200).json(buildAliceShoppingLaunchResponse(req));
-      }
-      if (isAliceClearIntent(req)) {
-        return res.status(200).json(buildAliceClearDeniedResponse(req));
-      }
-      if (req.body?.request?.type !== 'SimpleUtterance') {
-        return res.status(200).json(buildAliceShoppingLaunchResponse(req));
-      }
-      return await runProductsAddition(req, async () => {
-        return await runAliceShoppingWithPrompt(req, res);
-      });
+      if (isEmptyAliceShoppingRequest(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      if (isAliceShoppingLaunch(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      if (isAliceClearIntent(req)) return res.status(200).json(buildAliceClearDeniedResponse(req));
+      if (req.body?.request?.type !== 'SimpleUtterance') return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      return await runProductsAddition(req, async () => await runAliceShoppingWithPrompt(req, res));
     }
-    if (req.query?.route === 'init-products') {
-      return res.status(200).json({ ok: true, ignored: 'init-products-disabled' });
-    }
+    if (req.query?.route === 'init-products') return res.status(200).json({ ok: true, ignored: 'init-products-disabled' });
     if (req.query?.route === 'labor-bootstrap') {
-      if (!isLaborBootstrapAllowed()) {
-        return res.status(410).json({ ok: false, error: 'labor-bootstrap-expired' });
-      }
-      const labor = await publishDailyLaborArticle();
-      if (labor) console.log('RUDI_LABOR_BOOTSTRAP_RESULT', labor);
-      return res.status(labor ? 200 : 503).json({ ok: Boolean(labor), labor });
+      if (!isLaborBootstrapAllowed()) return res.status(410).json({ ok: false, error: 'labor-bootstrap-expired' });
+      const labor = await publishDailyLaborArticle(); if (labor) console.log('RUDI_LABOR_BOOTSTRAP_RESULT', labor); return res.status(labor ? 200 : 503).json({ ok: Boolean(labor), labor });
     }
     if (req.query?.route === 'daily') {
-      try {
-        const cleanup = await prepareDailyTopicCleanup({
-          token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch,
-        });
-        console.log('RUDI_TOPIC_CLEANUP_RESULT', cleanup);
-      } catch (error) { console.error('RUDI_DAILY_TOPIC_CLEANUP_ERROR', error); }
-
-      let runtimeResult;
-      try { runtimeResult = await runRuntime(req, res); }
-      finally { markProductsRuntimeStale(); }
-      try {
-        const labor = await publishDailyLaborArticle();
-        if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor);
-      } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
+      try { const cleanup = await prepareDailyTopicCleanup({ token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch }); console.log('RUDI_TOPIC_CLEANUP_RESULT', cleanup); } catch (error) { console.error('RUDI_DAILY_TOPIC_CLEANUP_ERROR', error); }
+      let runtimeResult; try { runtimeResult = await runRuntime(req, res); } finally { markProductsRuntimeStale(); }
+      try { const labor = await publishDailyLaborArticle(); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
     }
     if (req.query?.route === 'health') return await runHealthWithoutCouple(req, res);
@@ -309,7 +249,6 @@ async function handler(req, res) {
     if (!res.headersSent) return res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 }
-
 module.exports = handler;
 module.exports.runRuntime = runRuntime;
 module.exports.runHealthWithoutCouple = runHealthWithoutCouple;
