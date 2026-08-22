@@ -9,12 +9,15 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 300
+    },
+    "api/daily-cron.js": {
+      "maxDuration": 300
     }
   },
   "rewrites": [
     {
       "source": "/api/daily",
-      "destination": "/api/index?route=daily"
+      "destination": "/api/daily-cron?route=daily"
     },
     {
       "source": "/api/health",
