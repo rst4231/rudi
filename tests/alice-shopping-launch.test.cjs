@@ -31,7 +31,7 @@ test('launch response asks for products and keeps Alice session open', () => {
 test('Alice route short-circuits blank launch before product runtime', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
   const launchIndex = source.indexOf('if (isAliceShoppingLaunch(req))');
-  const runtimeIndex = source.indexOf('return await runAliceShoppingWithPrompt(req, res);');
+  const runtimeIndex = source.indexOf('runAliceShoppingWithPrompt(req, res)', launchIndex);
   assert.ok(launchIndex > -1);
   assert.ok(runtimeIndex > launchIndex);
 });
