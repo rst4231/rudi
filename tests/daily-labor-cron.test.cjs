@@ -7,12 +7,14 @@ const root = path.join(__dirname, '..');
 const handlerPath = path.join(root, 'api', 'daily-cron.js');
 const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
 
-test('daily cron publishes labor before the runtime can finish the HTTP response', () => {
+test('daily cron authenticates first and publishes labor before runtime can finish the response', () => {
   assert.equal(fs.existsSync(handlerPath), true, 'dedicated daily cron handler must exist');
   const source = fs.readFileSync(handlerPath, 'utf8');
+  const auth = source.indexOf('isCronRequestAuthorized(req)');
   const labor = source.indexOf('publishDailyLaborArticle()');
   const runtime = source.indexOf('runRuntime(req, res)');
-  assert.ok(labor >= 0 && runtime >= 0, 'daily handler must call labor publication and runtime');
+  assert.ok(auth >= 0 && labor >= 0 && runtime >= 0, 'daily handler must authenticate, publish labor and run runtime');
+  assert.ok(auth < labor, 'cron authentication must happen before labor publication');
   assert.ok(labor < runtime, 'labor publication must happen before runRuntime closes the response');
 });
 
