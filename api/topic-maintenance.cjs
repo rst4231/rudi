@@ -1,4 +1,5 @@
 const base = require('./topic-maintenance-base.cjs');
+const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
 
 function telegramMethod(input) {
   const raw = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
@@ -26,18 +27,26 @@ async function terminalSuccessResponse(input, response) {
   });
 }
 
-function wrapFetch(fetchImpl) {
-  return async (input, init) => terminalSuccessResponse(input, await fetchImpl(input, init));
+function wrapFetch(fetchImpl, options = {}) {
+  return async (input, init = {}) => {
+    const rewritten = await rewriteClientsTelegramRequest(input, init, {
+      fetchImpl: options.configFetchImpl || fetchImpl,
+      configUrl: options.clientsAdviceConfigUrl,
+      localConfig: options.clientsAdviceLocalConfig,
+      now: options.now,
+    });
+    return terminalSuccessResponse(input, await fetchImpl(input, rewritten));
+  };
 }
 
 function prepareDailyTopicCleanup(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  return base.prepareDailyTopicCleanup({ ...options, fetchImpl: wrapFetch(fetchImpl) });
+  return base.prepareDailyTopicCleanup({ ...options, fetchImpl: wrapFetch(fetchImpl, options) });
 }
 
 function handleTelegramTopicRequest(input, init = {}, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  return base.handleTelegramTopicRequest(input, init, { ...options, fetchImpl: wrapFetch(fetchImpl) });
+  return base.handleTelegramTopicRequest(input, init, { ...options, fetchImpl: wrapFetch(fetchImpl, options) });
 }
 
 module.exports = {

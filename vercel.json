@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)config/clients-advice.json'",
   "functions": {
     "api/index.js": {
       "maxDuration": 300
@@ -29,10 +30,6 @@
     {
       "source": "/api/init-products",
       "destination": "/api/index?route=init-products"
-    },
-    {
-      "source": "/api/preview",
-      "destination": "/api/index?route=preview"
     }
   ],
   "crons": [
