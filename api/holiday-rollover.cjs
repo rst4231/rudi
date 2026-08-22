@@ -91,24 +91,55 @@ async function readTrackedHolidayMessages(topicCache, now = new Date(), lookback
   return [...found];
 }
 
+async function responseDetail(response) {
+  let detail = '';
+  try { detail = await response.text(); } catch {}
+  return detail;
+}
+
+function isAlreadyGoneResponse(response, detail) {
+  return response.status === 400
+    && /message to delete not found|MESSAGE_ID_INVALID|message identifier is not specified/i.test(detail);
+}
+
+async function deleteMessageChunk(baseUrl, chatId, messageIds, fetchImpl) {
+  return fetchImpl(`${baseUrl}/deleteMessages`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, message_ids: messageIds }),
+  });
+}
+
 async function deleteMessages(baseUrl, chatId, messageIds, fetchImpl) {
   const ids = [...new Set(messageIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
   if (!ids.length) return 0;
   let deleted = 0;
   for (let index = 0; index < ids.length; index += 100) {
     const chunk = ids.slice(index, index + 100);
-    const response = await fetchImpl(`${baseUrl}/deleteMessages`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, message_ids: chunk }),
-    });
-    if (!response.ok) {
-      let detail = '';
-      try { detail = await response.text(); } catch {}
-      const alreadyGone = response.status === 400
-        && /message to delete not found|MESSAGE_ID_INVALID|message identifier is not specified/i.test(detail);
-      if (!alreadyGone) throw new Error(`Telegram deleteMessages failed: HTTP ${response.status}${detail ? ` ${detail}` : ''}`);
+    const response = await deleteMessageChunk(baseUrl, chatId, chunk, fetchImpl);
+    if (response.ok) {
+      deleted += chunk.length;
+      continue;
     }
-    deleted += chunk.length;
+    const detail = await responseDetail(response);
+    if (!isAlreadyGoneResponse(response, detail)) {
+      throw new Error(`Telegram deleteMessages failed: HTTP ${response.status}${detail ? ` ${detail}` : ''}`);
+    }
+    if (chunk.length === 1) {
+      deleted += 1;
+      continue;
+    }
+    for (const id of chunk) {
+      const single = await deleteMessageChunk(baseUrl, chatId, [id], fetchImpl);
+      if (single.ok) {
+        deleted += 1;
+        continue;
+      }
+      const singleDetail = await responseDetail(single);
+      if (!isAlreadyGoneResponse(single, singleDetail)) {
+        throw new Error(`Telegram deleteMessages failed: HTTP ${single.status}${singleDetail ? ` ${singleDetail}` : ''}`);
+      }
+      deleted += 1;
+    }
   }
   return deleted;
 }

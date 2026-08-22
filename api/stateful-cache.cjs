@@ -1,0 +1,19 @@
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+
+function getTopicMaintenanceCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: 'rudi-topic-maintenance-v1', ...options });
+}
+
+function getLaborCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: 'rudi-labor-code-v1', ...options });
+}
+
+function getLaborLeaseCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: 'rudi-labor-publication-lock-v1', ...options });
+}
+
+module.exports = {
+  getTopicMaintenanceCache,
+  getLaborCache,
+  getLaborLeaseCache,
+};

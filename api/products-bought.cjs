@@ -147,6 +147,17 @@ function isEmptyProductsListMessage(message = {}) {
   return /(?:список[^\n.!?]*пуст|пока\s+пуст(?:о)?|ничего\s+не\s+добавлено|нет\s+(?:добавленных\s+)?продуктов|продуктов\s+(?:пока\s+)?нет)/i.test(text);
 }
 
+function buildBoughtNotice(callback, now = new Date()) {
+  const chatId = callback?.message?.chat?.id;
+  if (chatId === undefined || chatId === null) return null;
+  const name = formatTelegramUserName(callback.from);
+  return {
+    chat_id: chatId,
+    message_thread_id: PRODUCTS_TOPIC_ID,
+    text: `${name} купил продукты\n${formatMoscowDateTime(now)}`,
+  };
+}
+
 async function handleBoughtCallback(req, res, options = {}) {
   const callback = req?.body?.callback_query;
   if (callback?.data !== SHOPPING_BOUGHT_CALLBACK) return false;
@@ -163,11 +174,18 @@ async function handleBoughtCallback(req, res, options = {}) {
   if (!clearCallbackData) {
     throw new Error('Products Очистить action is missing from the Telegram keyboard');
   }
-  const now = options.now || new Date();
-  const name = formatTelegramUserName(callback.from);
-  const text = `${name} купил продукты\n${formatMoscowDateTime(now)}`;
-  await telegramCall(token, 'sendMessage', { chat_id: chatId, message_thread_id: PRODUCTS_TOPIC_ID, text }, fetchImpl);
-  return { clearCallbackData };
+  return {
+    clearCallbackData,
+    notice: buildBoughtNotice(callback, options.now || new Date()),
+  };
+}
+
+async function sendBoughtNotice(action, options = {}) {
+  if (!action?.notice) return false;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const token = options.token || resolveTelegramBotToken(options.env || process.env);
+  await telegramCall(token, 'sendMessage', action.notice, fetchImpl);
+  return true;
 }
 
 module.exports = {
@@ -178,6 +196,8 @@ module.exports = {
   formatMoscowDateTime,
   resolveTelegramBotToken,
   handleBoughtCallback,
+  sendBoughtNotice,
+  buildBoughtNotice,
   isEmptyProductsListMessage,
   runWithProductsContext,
   isProductsTopicUpdate,

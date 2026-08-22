@@ -13,6 +13,7 @@ const PRODUCTS_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const CACHE_OPTIONS = { ttl: PRODUCTS_TTL_SECONDS, tags: ['rudi-products-durable-v3'] };
 const LEGACY_PHANTOM_PRODUCT = 'фарш куриный';
 const LEGACY_SEED_EVENT_ID = 'legacy-seed';
+let mutationQueue = Promise.resolve();
 
 function getProductsCache(options = {}) {
   return createStrictRuntimeCache({ namespace: PRODUCTS_CACHE_NAMESPACE, ...options });
@@ -46,6 +47,12 @@ function compareRecord(left, right) {
 }
 
 function sleep(ms) { return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve(); }
+
+function enqueueMutation(task) {
+  const run = mutationQueue.then(task, task);
+  mutationQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
 
 function cleanBucket(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -138,7 +145,7 @@ function uniqueProducts(products) {
   return result;
 }
 
-async function mutateProducts(products, present, options = {}) {
+async function mutateProductsUnlocked(products, present, options = {}) {
   const { cache, version = Date.now(), eventId = `${version}-${randomUUID()}`, settleMs = 30 } = options;
   if (!cache) throw new Error('cache is required');
   const unique = uniqueProducts(products);
@@ -146,16 +153,26 @@ async function mutateProducts(products, present, options = {}) {
   return readProducts({ cache });
 }
 
-async function addProducts(products, options = {}) { return mutateProducts(products, true, options); }
-async function removeProducts(products, options = {}) { return mutateProducts(products, false, options); }
+async function addProducts(products, options = {}) {
+  return enqueueMutation(() => mutateProductsUnlocked(products, true, options));
+}
+async function removeProducts(products, options = {}) {
+  return enqueueMutation(() => mutateProductsUnlocked(products, false, options));
+}
 
-async function clearProducts(options = {}) {
+async function clearProductsUnlocked(options = {}) {
   const { cache, version = Date.now(), eventId = `${version}-${randomUUID()}`, settleMs = 30 } = options;
   if (!cache) throw new Error('cache is required');
   const record = { version, eventId };
   await Promise.all(Array.from({ length: CLEAR_REPLICA_COUNT }, (_, index) => cacheSet(cache, `${CLEAR_PREFIX}${index}`, record)));
   await sleep(settleMs);
+  const confirmedVersion = await readClearVersion(cache);
+  if (confirmedVersion < version) throw new Error('Products clear state did not persist');
   return [];
+}
+
+async function clearProducts(options = {}) {
+  return enqueueMutation(() => clearProductsUnlocked(options));
 }
 
 async function isInitialized(cache) {
@@ -188,14 +205,18 @@ async function ensureInitialized(seedProducts, options = {}) {
 }
 
 async function replaceProducts(products, options = {}) {
-  const { cache, version = Date.now(), settleMs = 30 } = options;
-  if (!cache) throw new Error('cache is required');
-  await clearProducts({ cache, version, eventId: `replace-clear-${version}`, settleMs });
-  const desired = uniqueProducts(products).map(({ product }) => product);
-  if (desired.length) await addProducts(desired, { cache, version: version + 1, eventId: `replace-add-${version + 1}`, settleMs });
-  await markInitialized(cache, version + 1);
-  return readProducts({ cache });
+  return enqueueMutation(async () => {
+    const { cache, version = Date.now(), settleMs = 30 } = options;
+    if (!cache) throw new Error('cache is required');
+    await clearProductsUnlocked({ cache, version, eventId: `replace-clear-${version}`, settleMs });
+    const desired = uniqueProducts(products).map(({ product }) => product);
+    if (desired.length) await mutateProductsUnlocked(desired, true, { cache, version: version + 1, eventId: `replace-add-${version + 1}`, settleMs });
+    await markInitialized(cache, version + 1);
+    return readProducts({ cache });
+  });
 }
+
+function resetProductsMutationQueueForTests() { mutationQueue = Promise.resolve(); }
 
 module.exports = {
   PRODUCTS_CACHE_NAMESPACE, BUCKET_COUNT, REPLICA_COUNT,
@@ -203,4 +224,5 @@ module.exports = {
   addProducts, removeProducts, clearProducts, ensureInitialized,
   replaceProducts, isInitialized, hasDurableState, markInitialized,
   isLegacyPhantomRecord,
+  resetProductsMutationQueueForTests,
 };

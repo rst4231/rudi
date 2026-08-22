@@ -1,6 +1,11 @@
 const base = require('./topic-maintenance-base.cjs');
 const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
 const { handleHolidayPublication } = require('./holiday-rollover.cjs');
+const { getTopicMaintenanceCache } = require('./stateful-cache.cjs');
+
+function resolveTopicCache(options = {}) {
+  return options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
+}
 
 function telegramMethod(input) {
   const raw = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
@@ -52,12 +57,27 @@ function wrapFetch(fetchImpl, options = {}) {
 
 function prepareDailyTopicCleanup(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  return base.prepareDailyTopicCleanup({ ...options, fetchImpl: wrapFetch(fetchImpl, options) });
+  const cache = resolveTopicCache(options);
+  return base.prepareDailyTopicCleanup({ ...options, cache, fetchImpl: wrapFetch(fetchImpl, options) });
 }
 
 function handleTelegramTopicRequest(input, init = {}, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  return base.handleTelegramTopicRequest(input, init, { ...options, fetchImpl: wrapFetch(fetchImpl, options) });
+  const payload = base.parseRequestPayload(init);
+  const topicId = Number(payload?.message_thread_id);
+  const needsCache = topicId === base.EVENTS_TOPIC_ID
+    || topicId === base.HOLIDAYS_TOPIC_ID
+    || topicId === base.COUPLE_TOPIC_ID;
+  const cache = options.cache || (needsCache ? resolveTopicCache(options) : undefined);
+  return base.handleTelegramTopicRequest(input, init, {
+    ...options,
+    ...(cache ? { cache } : {}),
+    fetchImpl: wrapFetch(fetchImpl, options),
+  });
+}
+
+function getKnownForumChatId(options = {}) {
+  return base.getKnownForumChatId({ ...options, cache: resolveTopicCache(options) });
 }
 
 module.exports = {
@@ -65,4 +85,6 @@ module.exports = {
   terminalSuccessResponse,
   prepareDailyTopicCleanup,
   handleTelegramTopicRequest,
+  getKnownForumChatId,
+  resolveTopicCache,
 };

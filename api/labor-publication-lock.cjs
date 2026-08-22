@@ -1,12 +1,12 @@
 const { randomUUID } = require('node:crypto');
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const CACHE_NAMESPACE = 'rudi-labor-publication-lock-v1';
 const DEFAULT_LEASE_MS = 2 * 60 * 1000;
 const DEFAULT_SETTLE_MS = 25;
 
 function getLeaseCache() {
-  const { getCache } = require('@vercel/functions');
-  return getCache({ namespace: CACHE_NAMESPACE });
+  return createStrictRuntimeCache({ namespace: CACHE_NAMESPACE });
 }
 
 function moscowDateKey(value = new Date()) {

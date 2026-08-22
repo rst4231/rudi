@@ -7,6 +7,7 @@ function fakeCache(initial) {
   return {
     async get(key) { return values.has(key) ? values.get(key) : null; },
     async set(key, value) { values.set(key, structuredClone(value)); },
+    async delete(key) { values.delete(key); },
     values,
   };
 }
@@ -23,7 +24,12 @@ test('Telegram rehydrates the full durable list without resurrecting the old chi
     text: 'молоко, яйца, хлеб',
     from: { id: 100, is_bot: false, first_name: 'Диана' },
   } } };
-  await state.runProductsAddition(diana, async () => {}, { cache });
+  let dianaSeen;
+  await state.runProductsAddition(diana, async () => { dianaSeen = diana.body.message.text; }, { cache });
+  assert.equal((dianaSeen.match(/молоко/giu) || []).length, 1);
+  assert.equal((dianaSeen.match(/яйца/giu) || []).length, 1);
+  assert.equal((dianaSeen.match(/хлеб/giu) || []).length, 1);
+  assert.deepEqual(await cache.get('products:history'), ['молоко', 'яйца', 'хлеб']);
 
   const user = { body: { message: {
     message_thread_id: 263,
@@ -39,7 +45,6 @@ test('Telegram rehydrates the full durable list without resurrecting the old chi
   assert.match(seen, /хлеб/iu);
   assert.match(seen, /шоколад/iu);
   assert.deepEqual(await cache.get('products:history'), [
-    'молоко, яйца, хлеб',
-    'шоколад',
+    'молоко', 'яйца', 'хлеб', 'шоколад',
   ]);
 });

@@ -36,7 +36,7 @@ test('empty list Куплено sends no purchase message and does not request c
   assert.equal(calls.filter((call) => call.url.endsWith('/answerCallbackQuery')).length, 1);
 });
 
-test('non-empty list Куплено still posts purchase notice and requests clear', async () => {
+test('non-empty list Куплено defers purchase notice until clear succeeds', async () => {
   const calls = [];
   const fakeFetch = async (url, init) => {
     calls.push({ url: String(url), init });
@@ -58,6 +58,8 @@ test('non-empty list Куплено still posts purchase notice and requests cle
     token: '123:TEST_TOKEN',
     now: new Date('2026-08-18T16:36:00Z'),
   });
-  assert.deepEqual(action, { clearCallbackData: 'runtime:clear:actual' });
-  assert.equal(calls.filter((call) => call.url.endsWith('/sendMessage')).length, 1);
+  assert.equal(action.clearCallbackData, 'runtime:clear:actual');
+  assert.ok(action.notice);
+  assert.equal(calls.filter((call) => call.url.endsWith('/sendMessage')).length, 0);
+  assert.equal(calls.filter((call) => call.url.endsWith('/answerCallbackQuery')).length, 1);
 });

@@ -24,6 +24,14 @@ test('npm test runs the full RUDI test suite', () => {
   assert.equal(pkg.scripts?.test, 'node --test tests/*.test.cjs');
 });
 
+test('Vercel ignores docs, tests and external config-only commits', () => {
+  const config = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.equal(
+    config.ignoreCommand,
+    'git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public',
+  );
+});
+
 test('Vercel static output directory exists alongside API functions', () => {
   assert.equal(fs.existsSync(path.join(root, 'public', 'index.html')), true);
 });

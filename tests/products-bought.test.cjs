@@ -7,6 +7,7 @@ const {
   formatTelegramUserName,
   formatMoscowDateTime,
   handleBoughtCallback,
+  sendBoughtNotice,
   runWithProductsContext,
   isProductsTopicUpdate,
   findClearCallbackData,
@@ -88,7 +89,7 @@ test('finds the actual Очистить callback_data from the same Telegram key
   }), 'runtime:clear:actual');
 });
 
-test('Куплено callback validates, posts purchase notice, and returns the existing Очистить action', async () => {
+test('Куплено validates callback and defers purchase notice until clear succeeds', async () => {
   const calls = [];
   const fakeFetch = async (url, init) => {
     calls.push({ url: String(url), init });
@@ -127,17 +128,20 @@ test('Куплено callback validates, posts purchase notice, and returns the 
     now: new Date('2026-08-18T16:36:00Z'),
   });
 
-  assert.deepEqual(action, { clearCallbackData: 'runtime:clear:actual' });
+  assert.equal(action.clearCallbackData, 'runtime:clear:actual');
+  assert.deepEqual(action.notice, {
+    chat_id: -100555,
+    message_thread_id: 263,
+    text: 'Рустам купил продукты\n18.08.2026, 19:36',
+  });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /answerCallbackQuery$/);
+  assert.equal(calls.some((call) => call.url.endsWith('/sendMessage')), false);
+
+  await sendBoughtNotice(action, { fetchImpl: fakeFetch, token: '123:TEST_TOKEN' });
   assert.equal(calls.length, 2);
-
   const send = calls.find((call) => call.url.endsWith('/sendMessage'));
-  const sendBody = JSON.parse(send.init.body);
-  assert.equal(sendBody.chat_id, -100555);
-  assert.equal(sendBody.message_thread_id, 263);
-  assert.equal(sendBody.text, 'Рустам купил продукты\n18.08.2026, 19:36');
-
-  const answer = calls.find((call) => call.url.endsWith('/answerCallbackQuery'));
-  assert.equal(JSON.parse(answer.init.body).callback_query_id, 'cb-1');
+  assert.deepEqual(JSON.parse(send.init.body), action.notice);
 });
 
 test('forged or expired callback cannot trigger purchase message when Telegram rejects callback id', async () => {

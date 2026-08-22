@@ -7,6 +7,7 @@ const {
 const {
   addBoughtButtonToTelegramRequest,
   handleBoughtCallback,
+  sendBoughtNotice,
   runWithProductsContext,
   runWithExistingClearAction,
   runWithAnsweredCallbackContext,
@@ -48,6 +49,8 @@ const {
 const { publishLaborArticle } = require('./labor-code.cjs');
 const { withLaborPublicationLease } = require('./labor-publication-lock.cjs');
 const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
+const { isCronRequestAuthorized } = require('./cron-auth.cjs');
+const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 
 let runtimeHandler;
 let laborPublicationFlight = null;
@@ -183,14 +186,12 @@ async function publishDailyLaborArticle() {
     const cachedChatId = await getKnownForumChatId();
     const chatId = resolveForumChatId({ cached: cachedChatId, env: process.env, runtimeSource: cachedChatId === null ? readGeneratedRuntimeSource() : '' });
     if (chatId === null) { console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id could not be resolved')); return null; }
-    const labor = await publishLaborArticle({ token, chatId, fetchImpl: nativeFetch });
+    const labor = await publishLaborArticle({ token, chatId, cache: getLaborCache(), fetchImpl: nativeFetch });
     if (cachedChatId === null && labor?.topicId) {
-      const { getCache } = require('@vercel/functions');
-      const cache = getCache({ namespace: 'rudi-topic-maintenance-v1' });
-      await rememberForumChatId(cache, chatId);
+      await rememberForumChatId(getTopicMaintenanceCache(), chatId);
     }
     return labor;
-  });
+  }, { cache: getLaborLeaseCache() });
   laborPublicationFlight = run;
   try { return await run; }
   finally { if (laborPublicationFlight === run) laborPublicationFlight = null; }
@@ -206,7 +207,13 @@ async function handler(req, res) {
       if (boughtAction) {
         return await runWithProductsUpdateAuthor(req, async () => {
           normalizeProductsActor(req);
-          return await runAuthorizedProductsClear(() => runWithExistingClearAction(req, boughtAction.clearCallbackData, () => runRuntime(req, res)));
+          const clearResult = await runAuthorizedProductsClear(() => runWithExistingClearAction(req, boughtAction.clearCallbackData, () => runRuntime(req, res)));
+          try {
+            await sendBoughtNotice(boughtAction, { fetchImpl: globalThis.fetch, token: resolveTelegramBotToken(process.env) });
+          } catch (error) {
+            console.warn('RUDI_PRODUCTS_BOUGHT_NOTICE_ERROR', String(error?.message || error));
+          }
+          return clearResult;
         });
       }
       if (isProductsClearCallback(req)) {
@@ -237,6 +244,7 @@ async function handler(req, res) {
       const labor = await publishDailyLaborArticle(); if (labor) console.log('RUDI_LABOR_BOOTSTRAP_RESULT', labor); return res.status(labor ? 200 : 503).json({ ok: Boolean(labor), labor });
     }
     if (req.query?.route === 'daily') {
+      if (!isCronRequestAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
       try { const cleanup = await prepareDailyTopicCleanup({ token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch }); console.log('RUDI_TOPIC_CLEANUP_RESULT', cleanup); } catch (error) { console.error('RUDI_DAILY_TOPIC_CLEANUP_ERROR', error); }
       let runtimeResult; try { runtimeResult = await runRuntime(req, res); } finally { markProductsRuntimeStale(); }
       try { const labor = await publishDailyLaborArticle(); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }

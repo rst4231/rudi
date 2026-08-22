@@ -1,3 +1,4 @@
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const PRODUCTS_TOPIC_ID = 263;
 const PRODUCTS_HISTORY_KEY = 'products:history';
 const PRODUCTS_MIGRATION_KEY = 'products:migration:2026-08-20';
@@ -5,14 +6,12 @@ const PRODUCTS_HISTORY_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const PRODUCTS_CACHE_NAMESPACE = 'rudi-products-state-v2';
 const SHARED_PRODUCTS_ACTOR_ID = 263000001;
 const WORD_JOINER = '\u2060';
-const LEGACY_VISIBLE_PRODUCTS = ['фарш куриный'];
 
 const hydratedHistoryFingerprints = new Map();
 let mutationQueue = Promise.resolve();
 
 function getProductsCache() {
-  const { getCache } = require('@vercel/functions');
-  return getCache({ namespace: PRODUCTS_CACHE_NAMESPACE });
+  return createStrictRuntimeCache({ namespace: PRODUCTS_CACHE_NAMESPACE });
 }
 
 function normalizeCompoundProducts(value) {
@@ -305,7 +304,7 @@ async function readProductsHistory(cache = getProductsCache()) {
   const migrated = await cache.get(PRODUCTS_MIGRATION_KEY);
   if (migrated) return [];
 
-  const seed = dedupeHistory(LEGACY_VISIBLE_PRODUCTS);
+  const seed = [];
   await cacheSet(cache, PRODUCTS_HISTORY_KEY, seed);
   await cacheSet(cache, PRODUCTS_MIGRATION_KEY, true);
   return seed;

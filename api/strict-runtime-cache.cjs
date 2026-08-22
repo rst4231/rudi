@@ -1,3 +1,4 @@
+const { isDeepStrictEqual } = require('node:util');
 const CACHE_STATE_HEADER = 'x-vercel-cache-state';
 const DEFAULT_TIMEOUT_MS = 3500;
 const DEFAULT_ATTEMPTS = 4;
@@ -32,17 +33,71 @@ function createTimeoutSignal(timeoutMs) {
   return { signal: controller.signal, done: () => clearTimeout(timer) };
 }
 
-function createStrictRuntimeCache(options = {}) {
-  const env = options.env || process.env;
-  const endpoint = String(options.endpoint || env.RUNTIME_CACHE_ENDPOINT || '').trim();
-  if (!endpoint) throw new Error('RUNTIME_CACHE_ENDPOINT is not configured');
-  const headers = parseHeaders(options.headers || env.RUNTIME_CACHE_HEADERS);
+function createOfficialRuntimeCache(options, namespace, attempts, retryDelayMs) {
+  let cache = options.runtimeCache;
+  if (!cache) {
+    const getCacheImpl = options.getCacheImpl || require('@vercel/functions').getCache;
+    if (typeof getCacheImpl !== 'function') throw new Error('Vercel Runtime Cache is unavailable');
+    cache = getCacheImpl({ namespace });
+  }
+  if (!cache || typeof cache.get !== 'function' || typeof cache.set !== 'function') {
+    throw new Error('Vercel Runtime Cache is unavailable');
+  }
+
+  async function retry(operation, name) {
+    let lastError;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try { return await operation(); }
+      catch (error) {
+        lastError = error;
+        if (attempt + 1 < attempts) await sleep(retryDelayMs * (attempt + 1));
+      }
+    }
+    throw lastError || new Error(`Runtime Cache ${name} failed after ${attempts} attempts`);
+  }
+
+  return {
+    async get(key) {
+      let value = null;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        value = await retry(() => cache.get(key), 'GET');
+        if (value !== null && value !== undefined) return value;
+        if (attempt + 1 < attempts) await sleep(retryDelayMs * (attempt + 1));
+      }
+      return null;
+    },
+    async set(key, value, cacheOptions = {}) {
+      let lastError = null;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        try {
+          await cache.set(key, value, cacheOptions);
+          for (let confirm = 0; confirm < attempts; confirm += 1) {
+            const stored = await cache.get(key);
+            if (stored !== null && stored !== undefined && isDeepStrictEqual(stored, value)) return true;
+            if (confirm + 1 < attempts) await sleep(retryDelayMs * (confirm + 1));
+          }
+          lastError = new Error(`Runtime Cache write did not persist for ${key}`);
+        } catch (error) {
+          lastError = error;
+        }
+        if (attempt + 1 < attempts) await sleep(retryDelayMs * (attempt + 1));
+      }
+      throw lastError || new Error(`Runtime Cache POST failed after ${attempts} attempts`);
+    },
+    delete(key) {
+      if (typeof cache.delete !== 'function') throw new Error('Vercel Runtime Cache delete is unavailable');
+      return retry(() => cache.delete(key), 'DELETE');
+    },
+    expireTag(tag) {
+      if (typeof cache.expireTag !== 'function') throw new Error('Vercel Runtime Cache expireTag is unavailable');
+      return retry(() => cache.expireTag(tag), 'expireTag');
+    },
+  };
+}
+
+function createDirectRuntimeCache(options, endpoint, headers, namespace, timeoutMs, attempts, retryDelayMs) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('fetch is not available');
-  const namespace = String(options.namespace || '');
-  const timeoutMs = Math.max(250, Number(options.timeoutMs || env.PRODUCTS_CACHE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS));
-  const attempts = Math.max(1, Number(options.attempts || DEFAULT_ATTEMPTS));
-  const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS));
 
   async function request(method, key, value, cacheOptions = {}) {
     const transformed = transformRuntimeCacheKey(key, namespace);
@@ -74,7 +129,7 @@ function createStrictRuntimeCache(options = {}) {
         if (method !== 'GET') return true;
         const state = String(response.headers?.get?.(CACHE_STATE_HEADER) || '').toLowerCase();
         if (state !== 'fresh') {
-          lastError = new Error(`Runtime Cache read is ${state}`);
+          lastError = new Error(`Runtime Cache read is ${state || 'unknown'}`);
           if (attempt + 1 < attempts) await sleep(retryDelayMs * (attempt + 1));
           continue;
         }
@@ -97,6 +152,24 @@ function createStrictRuntimeCache(options = {}) {
     set(key, value, cacheOptions = {}) { return request('POST', key, value, cacheOptions); },
     delete(key) { return request('DELETE', key); },
   };
+}
+
+function createStrictRuntimeCache(options = {}) {
+  const env = options.env || process.env;
+  const endpoint = String(options.endpoint || env.RUNTIME_CACHE_ENDPOINT || '').trim();
+  const rawHeaders = options.headers || env.RUNTIME_CACHE_HEADERS;
+  const namespace = String(options.namespace || '');
+  const attempts = Math.max(1, Number(options.attempts || DEFAULT_ATTEMPTS));
+  const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS));
+
+  const explicitDirect = options.endpoint !== undefined || options.headers !== undefined;
+  if (!explicitDirect && (!endpoint || !rawHeaders)) {
+    return createOfficialRuntimeCache(options, namespace, attempts, retryDelayMs);
+  }
+  if (!endpoint) throw new Error('RUNTIME_CACHE_ENDPOINT is not configured');
+  const headers = parseHeaders(rawHeaders);
+  const timeoutMs = Math.max(250, Number(options.timeoutMs || env.PRODUCTS_CACHE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS));
+  return createDirectRuntimeCache(options, endpoint, headers, namespace, timeoutMs, attempts, retryDelayMs);
 }
 
 module.exports = {
