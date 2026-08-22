@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "fix/labor-daily-cron": false
+    }
+  },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",
   "functions": {
     "api/index.js": {
