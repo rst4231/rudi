@@ -8,9 +8,8 @@ const {
   addBoughtButtonToTelegramRequest,
   handleBoughtCallback,
   sendBoughtNotice,
+  deleteProductsListMessage,
   runWithProductsContext,
-  runWithExistingClearAction,
-  runWithAnsweredCallbackContext,
   shouldSuppressAnsweredCallbackQuery,
   resolveTelegramBotToken,
 } = require('./products-bought.cjs');
@@ -205,23 +204,26 @@ async function handler(req, res) {
       const boughtAction = await handleBoughtCallback(req, res);
       if (boughtAction?.empty) return res.status(200).json({ ok: true, ignored: 'empty-products' });
       if (boughtAction) {
-        return await runWithProductsUpdateAuthor(req, async () => {
-          normalizeProductsActor(req);
-          const clearResult = await runAuthorizedProductsClear(() => runWithExistingClearAction(req, boughtAction.clearCallbackData, () => runRuntime(req, res)));
-          try {
-            await sendBoughtNotice(boughtAction, { fetchImpl: globalThis.fetch, token: resolveTelegramBotToken(process.env) });
-          } catch (error) {
-            console.warn('RUDI_PRODUCTS_BOUGHT_NOTICE_ERROR', String(error?.message || error));
-          }
-          return clearResult;
-        });
+        normalizeProductsActor(req);
+        await runAuthorizedProductsClear(() => deleteProductsListMessage(req, {
+          fetchImpl: globalThis.fetch,
+          token: resolveTelegramBotToken(process.env),
+        }));
+        try {
+          await sendBoughtNotice(boughtAction, { fetchImpl: globalThis.fetch, token: resolveTelegramBotToken(process.env) });
+        } catch (error) {
+          console.warn('RUDI_PRODUCTS_BOUGHT_NOTICE_ERROR', String(error?.message || error));
+        }
+        return res.status(200).json({ ok: true, cleared: true, bought: true });
       }
       if (isProductsClearCallback(req)) {
         try { await validateTelegramCallback(req); } catch (error) { console.warn('RUDI_PRODUCTS_CLEAR_CALLBACK_REJECTED', String(error?.message || error)); return res.status(200).json({ ok: true, ignored: 'invalid-products-clear-callback' }); }
-        return await runWithProductsUpdateAuthor(req, async () => {
-          normalizeProductsActor(req);
-          return await runAuthorizedProductsClear(() => runWithAnsweredCallbackContext(() => runWithProductsContext(() => runRuntime(req, res))));
-        });
+        normalizeProductsActor(req);
+        await runAuthorizedProductsClear(() => deleteProductsListMessage(req, {
+          fetchImpl: globalThis.fetch,
+          token: resolveTelegramBotToken(process.env),
+        }));
+        return res.status(200).json({ ok: true, cleared: true });
       }
       if (isTelegramClearIntent(req)) return res.status(200).json({ ok: true, ignored: 'typed-products-clear-disabled' });
       if (isProductsAddCallback(req)) { try { await answerProductsAddCallback(req); } catch (error) { console.warn('RUDI_PRODUCTS_ADD_CALLBACK_ERROR', String(error?.message || error)); } return res.status(200).json({ ok: true, ignored: 'products-add-button-prompted' }); }
