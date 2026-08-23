@@ -58,8 +58,19 @@ function hasProductsKeyboard(replyMarkup) {
     || String(button?.callback_data || '') === 'rudi:products:bought');
 }
 
+function plainTelegramLine(value) {
+  return String(value || '')
+    .replace(/<[^>]*>/gu, '')
+    .replace(/&nbsp;/giu, ' ')
+    .trim();
+}
+
+function isProductsUpdateLine(value) {
+  return /^обновл(?:е|ё)?н(?:о|а|ы)?\s*:/iu.test(plainTelegramLine(value));
+}
+
 function looksLikeProductsList(text, replyMarkup) {
-  if (/^\s*обновл(?:е|ё)?н(?:о|а|ы)?\s*:/imu.test(String(text || ''))) return true;
+  if (String(text || '').split('\n').some(isProductsUpdateLine)) return true;
   if (/список\s+(?:покупок|продуктов)/iu.test(String(text || ''))) return true;
   return hasProductsKeyboard(replyMarkup);
 }
@@ -68,14 +79,19 @@ function withLatestProductsUpdateAuthor(text, name, now = new Date(), replyMarku
   if (typeof text !== 'string' || !name) return text;
   if (!looksLikeProductsList(text, replyMarkup)) return text;
   const line = `Обновлено: ${name} · ${formatMoscowTime(now)}`;
-  const lines = text.split('\n');
-  let changed = false;
-  const updated = lines.map((current) => {
-    if (!/^\s*обновл(?:е|ё)?н(?:о|а|ы)?\s*:/iu.test(current)) return current;
-    changed = true;
-    return line;
-  });
-  if (changed) return updated.join('\n');
+  const updated = [];
+  let inserted = false;
+  for (const current of text.split('\n')) {
+    if (!isProductsUpdateLine(current)) {
+      updated.push(current);
+      continue;
+    }
+    if (!inserted) {
+      updated.push(line);
+      inserted = true;
+    }
+  }
+  if (inserted) return updated.join('\n');
   return `${text.trimEnd()}\n\n${line}`;
 }
 
