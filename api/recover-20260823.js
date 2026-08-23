@@ -4,7 +4,7 @@ const { getRecoveryCache } = require('./stateful-cache.cjs');
 
 const RECOVERY_DATE = '2026-08-23';
 const RECOVERY_KEY = 'recovery-20260823-complete';
-const EXPECTED_KEY_HASH = 'eddafa79375ae67a152d5e93ab2eecb42b29f22b6cb753f79357bef6b7cca5b8';
+const EXPECTED_KEY_HASH = 'ed06a21ce6c7d58cc1228538ec04a6a6057a25ea0ac08dbe7d29fe06c3e29956';
 const TTL_SECONDS = 3 * 24 * 60 * 60;
 
 function moscowDateKey(now = new Date()) {
@@ -37,11 +37,16 @@ function createCaptureResponse() {
 }
 
 async function runEventsRecovery() {
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  if (!cronSecret) throw new Error('CRON_SECRET is not configured');
   const request = {
     method: 'GET',
     url: `/api/daily?date=${RECOVERY_DATE}&only=events`,
     query: { route: 'daily', date: RECOVERY_DATE, only: 'events' },
-    headers: { 'x-vercel-cron-schedule': '30 21 * * *' },
+    headers: {
+      authorization: `Bearer ${process.env.CRON_SECRET}`,
+      'x-vercel-cron-schedule': '30 21 * * *',
+    },
   };
   const response = createCaptureResponse();
   await indexHandler.runRuntime(request, response);
