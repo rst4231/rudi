@@ -60,12 +60,9 @@ function patchRecipeRuntime(source) {
   const extra = JSON.parse(fs.readFileSync(recipeConfigPath, 'utf8'));
   let next = source;
 
-  next = replaceOnce(
-    next,
-    'const { moscowDateKey, validateDateKey } = __req("src/time.js");',
-    'const { moscowDateKey, validateDateKey, weekdayMondayZero } = __req("src/time.js");',
-    'morning digest weekday import',
-  );
+  const morningHeader = '__mods["src/morning-digest.js"]=function(module,exports,__req,require){\nconst { escapeHtml } = __req("src/format.js");\nconst { answerCallbackQuery, editMessageReplyMarkup, sendDigest } = __req("src/telegram.js");\nconst { moscowDateKey, validateDateKey } = __req("src/time.js");';
+  const morningHeaderWithWeekday = '__mods["src/morning-digest.js"]=function(module,exports,__req,require){\nconst { escapeHtml } = __req("src/format.js");\nconst { answerCallbackQuery, editMessageReplyMarkup, sendDigest } = __req("src/telegram.js");\nconst { moscowDateKey, validateDateKey, weekdayMondayZero } = __req("src/time.js");';
+  next = replaceOnce(next, morningHeader, morningHeaderWithWeekday, 'morning digest weekday import');
 
   const extension = ['breakfast', 'lunch', 'snack', 'dinner']
     .map((meal) => `R.${meal}.push(...${JSON.stringify(extra[meal])});`)
