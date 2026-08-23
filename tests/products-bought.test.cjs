@@ -8,6 +8,7 @@ const {
   formatMoscowDateTime,
   handleBoughtCallback,
   sendBoughtNotice,
+  deleteProductsListMessage,
   runWithProductsContext,
   isProductsTopicUpdate,
   findClearCallbackData,
@@ -87,6 +88,30 @@ test('finds the actual Очистить callback_data from the same Telegram key
       ],
     },
   }), 'runtime:clear:actual');
+});
+
+test('clear deletes the current products list and never creates a replacement list', async () => {
+  const calls = [];
+  const fakeFetch = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({ ok: true, result: true }), { status: 200 });
+  };
+  const req = {
+    body: {
+      callback_query: {
+        message: {
+          chat: { id: -100555 },
+          message_id: 77,
+          message_thread_id: 263,
+        },
+      },
+    },
+  };
+  await deleteProductsListMessage(req, { fetchImpl: fakeFetch, token: '123:TEST_TOKEN' });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/deleteMessage$/u);
+  assert.deepEqual(JSON.parse(calls[0].init.body), { chat_id: -100555, message_id: 77 });
+  assert.equal(calls.some((call) => /\/(?:sendMessage|editMessageText|pinChatMessage)$/u.test(call.url)), false);
 });
 
 test('Куплено validates callback and defers purchase notice until clear succeeds', async () => {
