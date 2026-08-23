@@ -16,12 +16,13 @@ test('recovery endpoint is date-limited, key-protected and one-time', () => {
   assert.match(source, /status\(401\)/);
 });
 
-test('recovery sends labor and only the events section', () => {
+test('recovery sends labor and only the events section through an authenticated daily request', () => {
   assert.equal(fs.existsSync(recoveryPath), true, 'api/recover-20260823.js must exist');
   const source = fs.readFileSync(recoveryPath, 'utf8');
   assert.match(source, /publishDailyLaborArticle\(\)/);
   assert.match(source, /route: 'daily'/);
   assert.match(source, /only: 'events'/);
+  assert.match(source, /authorization: `Bearer \$\{process\.env\.CRON_SECRET\}`/);
   assert.match(source, /'x-vercel-cron-schedule': '30 21 \* \* \*'/);
   assert.doesNotMatch(source, /only: 'morning'/);
 });
