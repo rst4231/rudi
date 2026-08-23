@@ -2,24 +2,21 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function snippet(source, needle, radius = 7000) {
-  const index = source.toLowerCase().indexOf(needle.toLowerCase());
-  if (index < 0) return `[missing:${needle}]`;
-  return source.slice(Math.max(0, index - radius), Math.min(source.length, index + needle.length + radius));
+function snippets(source, needle, radius = 2500) {
+  const out = [];
+  let from = 0;
+  while (true) {
+    const index = source.indexOf(needle, from);
+    if (index < 0) break;
+    out.push(source.slice(Math.max(0, index - radius), Math.min(source.length, index + needle.length + radius)));
+    from = index + needle.length;
+  }
+  return out.length ? out.join('\n\n--- OCCURRENCE ---\n\n') : `[missing:${needle}]`;
 }
 
-test('diagnose packed recipe runtime', () => {
+test('diagnose packed event entrypoints', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'runtime', 'generated-runtime.cjs'), 'utf8');
-  for (const needle of [
-    'RECIPE_HISTORY_KEY',
-    'recipe-history-v2',
-    'function recipe',
-    'function pick',
-    'nextRecipe',
-    'runMorningDigest',
-    'morning-digest',
-    'THREADS={lulu:85,recipe:88}',
-  ]) {
-    console.log(`\n===== DIAG ${needle} =====\n${snippet(source, needle)}\n===== END DIAG =====\n`);
+  for (const needle of ['runNextDayDigest(', 'route === "daily"', 'route==="daily"', 'runMorningDigest(', 'module.exports']) {
+    console.log(`\n===== DIAG ${needle} =====\n${snippets(source, needle)}\n===== END DIAG =====\n`);
   }
 });
