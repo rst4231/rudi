@@ -28,7 +28,6 @@ const {
   getAliceProductDeleteTarget,
   splitAliceProductItems,
   sendAliceProductMessage,
-  sendAliceProductMessages,
   deleteAliceProductMessage,
   buildAliceProductAddedResponse,
   buildAliceProductDeletedResponse,
@@ -202,7 +201,7 @@ async function handler(req, res) {
       if (!cleanAliceProductText(req) || !splitAliceProductItems(req).length) {
         return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       }
-      await sendAliceProductMessages(req, {
+      await sendAliceProductMessage(req, {
         token: resolveTelegramBotToken(process.env),
         fetchImpl: nativeFetch,
       });
