@@ -4,6 +4,7 @@ const PRODUCTS_TOPIC_ID = 263;
 const SHOPPING_BOUGHT_CALLBACK = 'rudi:products:bought';
 const productsContext = new AsyncLocalStorage();
 const answeredCallbackContext = new AsyncLocalStorage();
+const productsClearSilenceContext = new AsyncLocalStorage();
 
 function productsContextActive() {
   return productsContext.getStore()?.products === true;
@@ -15,6 +16,10 @@ function runWithProductsContext(task) {
 
 function runWithAnsweredCallbackContext(task) {
   return answeredCallbackContext.run({ callbackAnswered: true }, task);
+}
+
+function runWithProductsClearSilenced(task) {
+  return productsClearSilenceContext.run({ silent: true }, task);
 }
 
 async function runWithExistingClearAction(req, clearCallbackData, task) {
@@ -48,21 +53,31 @@ function findClearCallbackData(message = {}) {
   return null;
 }
 
-function isTelegramMethod(input, methods) {
+function telegramMethodName(input) {
   const value = typeof input === 'string' || input instanceof URL
     ? String(input)
     : String(input?.url || '');
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:' || url.hostname !== 'api.telegram.org') return false;
-    const match = url.pathname.match(/^\/bot[^/]+\/([A-Za-z0-9_]+)$/);
-    return Boolean(match && methods.includes(match[1]));
+    if (url.protocol !== 'https:' || url.hostname !== 'api.telegram.org') return '';
+    return url.pathname.match(/^\/bot[^/]+\/([A-Za-z0-9_]+)$/)?.[1] || '';
   } catch {
-    return false;
+    return '';
   }
 }
 
+function isTelegramMethod(input, methods) {
+  const method = telegramMethodName(input);
+  return Boolean(method && methods.includes(method));
+}
+
+function shouldSuppressProductsClearTelegram(input) {
+  return productsClearSilenceContext.getStore()?.silent === true
+    && Boolean(telegramMethodName(input));
+}
+
 function shouldSuppressAnsweredCallbackQuery(input) {
+  if (shouldSuppressProductsClearTelegram(input)) return true;
   return answeredCallbackContext.getStore()?.callbackAnswered === true
     && isTelegramMethod(input, ['answerCallbackQuery']);
 }
@@ -140,6 +155,39 @@ async function telegramCall(token, method, payload, fetchImpl) {
   return response;
 }
 
+function createRuntimeResponseCapture() {
+  return {
+    statusCode: 200,
+    headersSent: false,
+    payload: null,
+    setHeader() {},
+    status(code) { this.statusCode = Number(code) || 200; return this; },
+    json(payload) { this.payload = payload; this.headersSent = true; return payload; },
+    end(payload) { this.payload = payload; this.headersSent = true; return payload; },
+  };
+}
+
+async function clearLegacyProductsRuntime(req, options = {}) {
+  const callback = req?.body?.callback_query;
+  if (!callback) throw new Error('Telegram callback query is missing');
+  const clearCallbackData = options.clearCallbackData || findClearCallbackData(callback.message) || callback.data;
+  if (typeof clearCallbackData !== 'string' || !clearCallbackData.trim()) {
+    throw new Error('Products Очистить action is missing from the Telegram keyboard');
+  }
+  const runtime = options.runtime || require('../runtime/generated-runtime.cjs');
+  if (typeof runtime !== 'function') throw new Error('RUDI runtime did not export a handler function');
+  const response = options.runtimeResponse || createRuntimeResponseCapture();
+  await runWithProductsClearSilenced(() => runWithExistingClearAction(
+    req,
+    clearCallbackData,
+    () => runtime(req, response),
+  ));
+  if (Number(response.statusCode || 200) >= 400 || response.payload?.ok === false) {
+    throw new Error(`Products runtime clear failed: HTTP ${response.statusCode || 500}`);
+  }
+  return response.payload;
+}
+
 async function deleteProductsListMessage(req, options = {}) {
   const message = req?.body?.callback_query?.message;
   const chatId = message?.chat?.id;
@@ -147,6 +195,7 @@ async function deleteProductsListMessage(req, options = {}) {
   if (chatId === undefined || chatId === null || !Number.isInteger(Number(messageId))) {
     throw new Error('Products list Telegram message is missing');
   }
+  await clearLegacyProductsRuntime(req, options);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const token = options.token || resolveTelegramBotToken(options.env || process.env);
   await telegramCall(token, 'deleteMessage', { chat_id: chatId, message_id: Number(messageId) }, fetchImpl);
@@ -211,12 +260,15 @@ module.exports = {
   handleBoughtCallback,
   sendBoughtNotice,
   deleteProductsListMessage,
+  clearLegacyProductsRuntime,
   buildBoughtNotice,
   isEmptyProductsListMessage,
   runWithProductsContext,
   isProductsTopicUpdate,
   findClearCallbackData,
   runWithAnsweredCallbackContext,
+  runWithProductsClearSilenced,
+  shouldSuppressProductsClearTelegram,
   shouldSuppressAnsweredCallbackQuery,
   runWithExistingClearAction,
 };
