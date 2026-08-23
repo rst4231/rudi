@@ -3,6 +3,14 @@ const { cleanProductUtterance } = require('./products-state-base.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance.cjs');
 const { resolveForumChatId } = require('./forum-chat-id.cjs');
+const {
+  normalizeProductMessageText,
+  recordAliceProductMessage,
+  findLatestAliceProductMessage,
+  removeAliceProductMessageRecord,
+  readAliceProductMessageRecords,
+  writeAliceProductMessageRecords,
+} = require('./products-message-store.cjs');
 
 const PRODUCTS_TOPIC_ID = 263;
 
@@ -27,8 +35,44 @@ function cleanAliceProductText(req) {
   return cleanProductUtterance(aliceInput(req)).trim();
 }
 
+function getAliceProductDeleteTarget(req) {
+  const text = aliceInput(req)
+    .replace(/^руди[,.:;\s-]*/iu, '')
+    .trim();
+  const match = text.match(/^(?:удали|удалить|удалите|убери|убрать|уберите)\s+(.+)$/iu);
+  if (!match) return '';
+  return String(match[1] || '')
+    .replace(/[.!?]+$/u, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function splitAliceProductItems(req) {
+  if (getAliceProductDeleteTarget(req)) return [];
+  const text = cleanAliceProductText(req);
+  if (!text) return [];
+  return text
+    .split(/\s*(?:[,;\n]+|\s+и\s+)\s*/iu)
+    .map((item) => item
+      .replace(/^[-–—•]+\s*/u, '')
+      .replace(/[.!?]+$/u, '')
+      .replace(/\s+/gu, ' ')
+      .trim())
+    .filter(Boolean);
+}
+
 function buildAliceProductAddedResponse(req) {
   const text = 'Добавил.';
+  return {
+    response: { text, tts: text, end_session: false },
+    version: req?.body?.version || '1.0',
+  };
+}
+
+function buildAliceProductDeletedResponse(req, result = {}) {
+  const text = result.deleted
+    ? `Удалил ${result.text}.`
+    : `Не нашёл ${result.text || 'такую позицию'}.`;
   return {
     response: { text, tts: text, end_session: false },
     version: req?.body?.version || '1.0',
@@ -74,24 +118,73 @@ async function telegramJsonCall(token, method, payload, fetchImpl = globalThis.f
   return body;
 }
 
-async function sendAliceProductMessage(req, options = {}) {
-  const text = cleanAliceProductText(req);
-  if (!text) throw new Error('Product text is empty');
+async function sendAliceProductMessages(req, options = {}) {
+  const items = splitAliceProductItems(req);
+  if (!items.length) throw new Error('Product text is empty');
   const token = options.token || resolveTelegramBotToken(options.env || process.env);
   const chatId = options.chatId ?? await resolveProductsForumChatId();
   if (chatId === null || chatId === undefined || chatId === '') {
     throw new Error('Telegram forum chat id is unavailable');
   }
-  const sent = await telegramJsonCall(token, 'sendMessage', {
-    chat_id: chatId,
-    message_thread_id: PRODUCTS_TOPIC_ID,
-    text,
-  }, options.fetchImpl || globalThis.fetch);
-  const messageId = Number(sent?.result?.message_id);
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const now = typeof options.now === 'function' ? options.now : Date.now;
+  const sentItems = [];
+
+  for (const text of items) {
+    const sent = await telegramJsonCall(token, 'sendMessage', {
+      chat_id: chatId,
+      message_thread_id: PRODUCTS_TOPIC_ID,
+      text,
+    }, fetchImpl);
+    const messageId = Number(sent?.result?.message_id);
+    if (!Number.isInteger(messageId)) throw new Error('Telegram sendMessage did not return message_id');
+    const record = {
+      text,
+      normalized: normalizeProductMessageText(text),
+      messageId,
+      createdAt: Number(now()),
+    };
+    try {
+      await recordAliceProductMessage(record, { cache: options.cache });
+    } catch (error) {
+      try {
+        await telegramJsonCall(token, 'deleteMessage', { chat_id: chatId, message_id: messageId }, fetchImpl);
+      } catch {}
+      throw error;
+    }
+    sentItems.push(record);
+  }
+
+  return { items: sentItems };
+}
+
+async function sendAliceProductMessage(req, options = {}) {
+  const result = await sendAliceProductMessages(req, options);
+  if (result.items.length === 1) return result.items[0];
   return {
-    text,
-    messageId: Number.isInteger(messageId) ? messageId : null,
+    text: result.items.map((item) => item.text).join(', '),
+    messageId: null,
+    items: result.items,
   };
+}
+
+async function deleteAliceProductMessage(req, options = {}) {
+  const target = getAliceProductDeleteTarget(req);
+  if (!target) return { deleted: false, text: '' };
+  const record = await findLatestAliceProductMessage(target, { cache: options.cache });
+  if (!record) return { deleted: false, text: target };
+
+  const token = options.token || resolveTelegramBotToken(options.env || process.env);
+  const chatId = options.chatId ?? await resolveProductsForumChatId();
+  if (chatId === null || chatId === undefined || chatId === '') {
+    throw new Error('Telegram forum chat id is unavailable');
+  }
+  await telegramJsonCall(token, 'deleteMessage', {
+    chat_id: chatId,
+    message_id: record.messageId,
+  }, options.fetchImpl || globalThis.fetch);
+  await removeAliceProductMessageRecord(record, { cache: options.cache });
+  return { deleted: true, text: record.text, messageId: record.messageId };
 }
 
 async function acknowledgeLegacyProductsCallback(req, options = {}) {
@@ -117,10 +210,17 @@ module.exports = {
   PRODUCTS_TOPIC_ID,
   isProductsTopicUpdate,
   cleanAliceProductText,
+  getAliceProductDeleteTarget,
+  splitAliceProductItems,
   buildAliceProductAddedResponse,
+  buildAliceProductDeletedResponse,
   buildAliceNoSharedListResponse,
   resolveProductsForumChatId,
   sendAliceProductMessage,
+  sendAliceProductMessages,
+  deleteAliceProductMessage,
+  readAliceProductMessageRecords,
+  writeAliceProductMessageRecords,
   acknowledgeLegacyProductsCallback,
   telegramJsonCall,
 };

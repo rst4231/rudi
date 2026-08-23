@@ -25,8 +25,12 @@ const {
 const {
   isProductsTopicUpdate,
   cleanAliceProductText,
+  getAliceProductDeleteTarget,
+  splitAliceProductItems,
   sendAliceProductMessage,
+  deleteAliceProductMessage,
   buildAliceProductAddedResponse,
+  buildAliceProductDeletedResponse,
   buildAliceNoSharedListResponse,
   acknowledgeLegacyProductsCallback,
 } = require('./products-chat.cjs');
@@ -184,7 +188,17 @@ async function handler(req, res) {
       if (req.body?.request?.type !== 'SimpleUtterance') {
         return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       }
-      if (!cleanAliceProductText(req)) {
+
+      const deleteTarget = getAliceProductDeleteTarget(req);
+      if (deleteTarget) {
+        const deletion = await deleteAliceProductMessage(req, {
+          token: resolveTelegramBotToken(process.env),
+          fetchImpl: nativeFetch,
+        });
+        return res.status(200).json(buildAliceProductDeletedResponse(req, deletion));
+      }
+
+      if (!cleanAliceProductText(req) || !splitAliceProductItems(req).length) {
         return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       }
       await sendAliceProductMessage(req, {
