@@ -4,40 +4,32 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 
-test('only authenticated clear and Куплено enter destructive product paths', () => {
-  assert.match(source, /isProductsClearCallback/);
-  assert.match(source, /validateTelegramCallback/);
-  assert.match(source, /runAuthorizedProductsClear/);
-  assert.match(source, /handleBoughtCallback/);
-  assert.match(source, /deleteProductsListMessage/);
+test('Telegram products topic bypasses legacy list mutation paths', () => {
+  assert.match(source, /isProductsTopicUpdate/);
+  const start = source.indexOf("if (req.query?.route === 'telegram')");
+  const nativeIndex = source.indexOf('isProductsTopicUpdate(req)', start);
+  const boughtIndex = source.indexOf('handleBoughtCallback', start);
+  const runtimeIndex = source.indexOf('runRuntime(req, res)', start);
+  assert.ok(nativeIndex > start);
+  assert.ok(boughtIndex === -1 || nativeIndex < boughtIndex);
+  assert.ok(runtimeIndex === -1 || nativeIndex < runtimeIndex);
 });
 
-test('typed clear, empty Alice, Alice clear, and init-products are blocked before runtime', () => {
-  assert.match(source, /isTelegramClearIntent/);
-  assert.match(source, /ignored: 'typed-products-clear-disabled'/);
-  assert.match(source, /isEmptyAliceShoppingRequest/);
-  assert.match(source, /isAliceClearIntent/);
-  assert.match(source, /init-products-disabled/);
+test('Alice shopping sends a plain products chat message instead of entering shared-list runtime', () => {
+  const start = source.indexOf("if (req.query?.route === 'alice-shopping')");
+  assert.ok(start > -1);
+  const block = source.slice(start, source.indexOf("if (req.query?.route === 'init-products')", start));
+  assert.match(block, /sendAliceProductMessage/);
+  assert.doesNotMatch(block, /runProductsAddition/);
+  assert.doesNotMatch(block, /runAliceShoppingWithPrompt/);
 });
 
-test('ordinary chatter cannot enter old runtime, while product additions use durable state', () => {
+test('ordinary chatter outside products topic still uses existing routing guards', () => {
   assert.match(source, /shouldIgnorePassiveTelegramMessage/);
   assert.match(source, /ignored: 'passive-chat-message'/);
-  assert.match(source, /runProductsAddition/);
 });
 
-test('non-destructive Add button is handled without entering old product runtime', () => {
-  assert.match(source, /isProductsAddCallback/);
-  assert.match(source, /answerProductsAddCallback/);
-});
-
-test('daily runtime marks product runtime state stale so next addition rehydrates durable history', () => {
+test('daily runtime behavior stays present outside products chat cutover', () => {
   assert.match(source, /markProductsRuntimeStale/);
-});
-
-test('keeps the existing explicit Alice launch guard before shopping runtime', () => {
-  const launchIndex = source.indexOf('if (isAliceShoppingLaunch(req))');
-  const runtimeIndex = source.indexOf('runAliceShoppingWithPrompt(req, res)', launchIndex);
-  assert.ok(launchIndex > -1);
-  assert.ok(runtimeIndex > launchIndex);
+  assert.match(source, /publishDailyLaborArticle/);
 });
