@@ -8,15 +8,18 @@ function snippet(source, needle, radius = 6000) {
   return source.slice(Math.max(0, index - radius), Math.min(source.length, index + needle.length + radius));
 }
 
-test('diagnose packed events runtime', () => {
+test('diagnose packed events and recipes runtime', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'runtime', 'generated-runtime.cjs'), 'utf8');
   for (const needle of [
     'async function runNextDayDigest',
     'async function fetchStageStandupEvents',
     'YANDEX_AFISHA_BASE_URL',
-    'async function fetchYandex',
-    'async function fetchConcert',
-    'Promise.all',
+    'Рецепт',
+    'рецепт',
+    'recipe',
+    'meal',
+    'nutrition',
+    'topicId',
   ]) {
     console.log(`\n===== DIAG ${needle} =====\n${snippet(source, needle)}\n===== END DIAG =====\n`);
   }
