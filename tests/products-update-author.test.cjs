@@ -8,6 +8,15 @@ test('replaces existing update line with updater name and Moscow time',()=>{
  assert.doesNotMatch(out,/18:00/u);
 });
 
+test('collapses legacy HTML and duplicate update footers into one current line',()=>{
+ const text='Список продуктов\nСыр\n<i>Обновлен: 22.08.2026 в 21:54</i>\nОбновлено: СТАРОЕ · 21:53';
+ const out=author.withLatestProductsUpdateAuthor(text,'РУСТАМ',new Date('2026-08-22T18:54:00Z'));
+ assert.equal((out.match(/Обновлено:/gu)||[]).length,1);
+ assert.match(out,/Обновлено: РУСТАМ · 21:54/u);
+ assert.doesNotMatch(out,/22\.08\.2026/u);
+ assert.doesNotMatch(out,/СТАРОЕ/u);
+});
+
 test('appends author when runtime omitted update line but product keyboard identifies list',()=>{
  const kb={inline_keyboard:[[{text:'Очистить',callback_data:'clear'}]]};
  const out=author.withLatestProductsUpdateAuthor('Сыр\nЯйца','Рустам',new Date('2026-08-22T16:05:00Z'),kb);
