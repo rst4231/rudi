@@ -1,5 +1,9 @@
 const fs = require('node:fs');
-const { cleanProductUtterance } = require('./products-state-base.cjs');
+const {
+  cleanProductUtterance,
+  normalizeCompoundProducts,
+  restoreCompoundProducts,
+} = require('./products-state-base.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance.cjs');
 const { resolveForumChatId } = require('./forum-chat-id.cjs');
@@ -31,6 +35,13 @@ function aliceInput(req) {
   return command || utterance;
 }
 
+function aliceOriginalInput(req) {
+  const request = req?.body?.request || {};
+  const utterance = typeof request.original_utterance === 'string' ? request.original_utterance.trim() : '';
+  const command = typeof request.command === 'string' ? request.command.trim() : '';
+  return utterance || command;
+}
+
 function cleanAliceProductText(req) {
   return cleanProductUtterance(aliceInput(req)).trim();
 }
@@ -49,11 +60,17 @@ function getAliceProductDeleteTarget(req) {
 
 function splitAliceProductItems(req) {
   if (getAliceProductDeleteTarget(req)) return [];
-  const text = cleanAliceProductText(req);
+  const text = cleanProductUtterance(aliceOriginalInput(req)).trim();
   if (!text) return [];
-  return text
-    .split(/\s*(?:[,;\n]+|\s+и\s+)\s*/iu)
-    .map((item) => item
+
+  const protectedText = normalizeCompoundProducts(text);
+  const hasExplicitSeparators = /[,;\n]|\s+и\s+/iu.test(protectedText);
+  const parts = hasExplicitSeparators
+    ? protectedText.split(/\s*(?:[,;\n]+|\s+и\s+)\s*/iu)
+    : protectedText.split(/\s+/u);
+
+  return parts
+    .map((item) => restoreCompoundProducts(item)
       .replace(/^[-–—•]+\s*/u, '')
       .replace(/[.!?]+$/u, '')
       .replace(/\s+/gu, ' ')
