@@ -1,5 +1,3 @@
-const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
-
 const PRODUCTS_MESSAGE_CACHE_NAMESPACE = 'rudi-products-chat-messages-v1';
 const PRODUCTS_MESSAGE_INDEX_KEY = 'alice-products:index';
 const PRODUCTS_MESSAGE_TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -10,8 +8,17 @@ const CACHE_OPTIONS = {
 
 let mutationQueue = Promise.resolve();
 
+function createProductsMessageCache(options = {}) {
+  const getCacheImpl = options.getCacheImpl || require('@vercel/functions').getCache;
+  const cache = options.runtimeCache || getCacheImpl({ namespace: PRODUCTS_MESSAGE_CACHE_NAMESPACE });
+  if (!cache || typeof cache.get !== 'function' || typeof cache.set !== 'function') {
+    throw new Error('Vercel Runtime Cache is unavailable for products messages');
+  }
+  return cache;
+}
+
 function getProductsMessageCache(options = {}) {
-  return createStrictRuntimeCache({ namespace: PRODUCTS_MESSAGE_CACHE_NAMESPACE, ...options });
+  return createProductsMessageCache(options);
 }
 
 function normalizeProductMessageText(value) {
@@ -146,6 +153,7 @@ function resetProductsMessageMutationQueueForTests() {
 module.exports = {
   PRODUCTS_MESSAGE_CACHE_NAMESPACE,
   PRODUCTS_MESSAGE_INDEX_KEY,
+  createProductsMessageCache,
   getProductsMessageCache,
   normalizeProductMessageText,
   recordAliceProductMessage,
