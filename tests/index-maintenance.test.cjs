@@ -5,9 +5,14 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 
-test('Alice shopping runs inside the products context so Куплено is preserved', () => {
+test('Alice shopping posts through products chat instead of legacy shared-list context', () => {
   assert.match(source, /route === 'alice-shopping'/);
-  assert.match(source, /runWithProductsContext\(\(\) => runRuntime\(req, res\)\)/);
+  assert.match(source, /sendAliceProductMessage/);
+  const route = source.indexOf("if (req.query?.route === 'alice-shopping')");
+  const end = source.indexOf("if (req.query?.route === 'init-products')", route);
+  const block = source.slice(route, end);
+  assert.doesNotMatch(block, /runWithProductsContext/);
+  assert.doesNotMatch(block, /runProductsAddition/);
 });
 
 test('daily route authenticates cron before any cleanup or publication side effects', () => {
@@ -22,11 +27,11 @@ test('daily route authenticates cron before any cleanup or publication side effe
   assert.ok(auth < labor);
 });
 
-test('Куплено sends purchase notice only after authorized clear returns', () => {
-  const block = source.indexOf('if (boughtAction)');
-  const clear = source.indexOf('runAuthorizedProductsClear', block);
-  const notice = source.indexOf('sendBoughtNotice', block);
-  assert.ok(block >= 0 && clear > block && notice > clear);
+test('legacy products callbacks are intercepted by native products chat instead of mutating a list', () => {
+  const route = source.indexOf("if (req.query?.route === 'telegram')");
+  const native = source.indexOf('isProductsTopicUpdate(req)', route);
+  const ack = source.indexOf('acknowledgeLegacyProductsCallback', native);
+  assert.ok(route >= 0 && native > route && ack > native);
 });
 
 test('removed couple topic is ignored on incoming updates and hidden from health', () => {
