@@ -6,6 +6,7 @@ const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 7364];
 const runtimeDir = path.join(__dirname, 'runtime');
 const outputPath = path.join(runtimeDir, 'generated-runtime.cjs');
+const recipeConfigPath = path.join(__dirname, 'config', 'recipes-extra.json');
 
 function replaceOnce(source, before, after, label) {
   const first = source.indexOf(before);
@@ -54,6 +55,45 @@ function patchEventRuntime(source) {
   return next;
 }
 
+function patchRecipeRuntime(source) {
+  if (!fs.existsSync(recipeConfigPath)) throw new Error('Missing config/recipes-extra.json');
+  const extra = JSON.parse(fs.readFileSync(recipeConfigPath, 'utf8'));
+  let next = source;
+
+  next = replaceOnce(
+    next,
+    'const { moscowDateKey, validateDateKey } = __req("src/time.js");',
+    'const { moscowDateKey, validateDateKey, weekdayMondayZero } = __req("src/time.js");',
+    'morning digest weekday import',
+  );
+
+  const extension = ['breakfast', 'lunch', 'snack', 'dinner']
+    .map((meal) => `R.${meal}.push(...${JSON.stringify(extra[meal])});`)
+    .join('\n');
+  next = replaceOnce(
+    next,
+    '};\nasync function cache(){if(!process.env.VERCEL)return null;',
+    `};\n${extension}\nasync function cache(){if(!process.env.VERCEL)return null;`,
+    'recipe catalog extension',
+  );
+
+  next = replaceOnce(
+    next,
+    'async function runMorningDigest({dateKey=moscowDateKey(),dryRun=false,only}={}){',
+    'function isRecipePublicationDay(dateKey){return [0,2,4].includes(weekdayMondayZero(dateKey));}\nasync function runMorningDigest({dateKey=moscowDateKey(),dryRun=false,only}={}){',
+    'recipe publication weekday helper',
+  );
+
+  next = replaceOnce(
+    next,
+    'const recipes=sections.has("recipe")?Object.keys(MEAL_META).map(m=>chooseRecipe(m,dateKey,rh.sentIds)):[];',
+    'const recipes=sections.has("recipe")&&isRecipePublicationDay(dateKey)?Object.keys(MEAL_META).map(m=>chooseRecipe(m,dateKey,rh.sentIds)):[];',
+    'recipe MWF schedule',
+  );
+
+  return next;
+}
+
 function buildRuntime() {
   const parts = [];
 
@@ -73,7 +113,8 @@ function buildRuntime() {
   }
 
   const compressed = Buffer.from(parts.join(''), 'base64');
-  const code = patchEventRuntime(zlib.gunzipSync(compressed).toString('utf8'));
+  const unpacked = zlib.gunzipSync(compressed).toString('utf8');
+  const code = patchRecipeRuntime(patchEventRuntime(unpacked));
   fs.writeFileSync(outputPath, code);
   return { outputPath, bytes: Buffer.byteLength(code) };
 }
@@ -83,4 +124,4 @@ if (require.main === module) {
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime };
+module.exports = { buildRuntime, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRecipeRuntime };
