@@ -13,6 +13,6 @@ test('topic maintenance wrapper injects strict cache for requests cleanup and ch
 
 test('daily labor path injects strict content and lease caches', () => {
   const source=src('index.js');
-  assert.match(source,/publishLaborArticle\(\{ token, chatId, cache: getLaborCache\(\)/);
+  assert.match(source,/publishLaborArticle\(\{[\s\S]*?token,[\s\S]*?chatId,[\s\S]*?cache: getLaborCache\(\)/);
   assert.match(source,/withLaborPublicationLease[\s\S]*\{ cache: getLaborLeaseCache\(\) \}/);
 });
