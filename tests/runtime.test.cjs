@@ -43,13 +43,12 @@ test('Vercel config exposes the expected RUDI routes and only the RUDI cron', ()
   const config = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   const routes = Object.fromEntries(config.rewrites.map((item) => [item.source, item.destination]));
   assert.deepEqual(routes, {
-    '/api/daily': '/api/index?route=daily',
+    '/api/daily': '/api/daily-cron?route=daily',
     '/api/health': '/api/index?route=health',
     '/api/telegram': '/api/index?route=telegram',
     '/api/alice': '/api/index?route=alice-shopping',
     '/api/alice-shopping': '/api/index?route=alice-shopping',
-    '/api/init-products': '/api/index?route=init-products',
-    '/api/preview': '/api/index?route=preview'
+    '/api/init-products': '/api/index?route=init-products'
   });
   assert.deepEqual(config.crons, [{ path: '/api/daily', schedule: '30 21 * * *' }]);
 });

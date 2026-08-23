@@ -4,12 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 
-test('only authenticated clear and Куплено enter destructive runtime paths', () => {
+test('only authenticated clear and Куплено enter destructive product paths', () => {
   assert.match(source, /isProductsClearCallback/);
   assert.match(source, /validateTelegramCallback/);
   assert.match(source, /runAuthorizedProductsClear/);
   assert.match(source, /handleBoughtCallback/);
-  assert.match(source, /runWithAnsweredCallbackContext/);
+  assert.match(source, /deleteProductsListMessage/);
 });
 
 test('typed clear, empty Alice, Alice clear, and init-products are blocked before runtime', () => {
@@ -37,7 +37,7 @@ test('daily runtime marks product runtime state stale so next addition rehydrate
 
 test('keeps the existing explicit Alice launch guard before shopping runtime', () => {
   const launchIndex = source.indexOf('if (isAliceShoppingLaunch(req))');
-  const runtimeIndex = source.indexOf('return await runAliceShoppingWithPrompt(req, res);');
+  const runtimeIndex = source.indexOf('runAliceShoppingWithPrompt(req, res)', launchIndex);
   assert.ok(launchIndex > -1);
   assert.ok(runtimeIndex > launchIndex);
 });

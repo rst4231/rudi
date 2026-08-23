@@ -12,8 +12,13 @@ function getLaborLeaseCache(options = {}) {
   return createStrictRuntimeCache({ namespace: 'rudi-labor-publication-lock-v1', ...options });
 }
 
+function getRecoveryCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: 'rudi-one-time-recovery-v1', ...options });
+}
+
 module.exports = {
   getTopicMaintenanceCache,
   getLaborCache,
   getLaborLeaseCache,
+  getRecoveryCache,
 };

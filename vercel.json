@@ -1,15 +1,27 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "fix/labor-daily-cron": false,
+      "fix/daily-content-reliability-clean": false
+    }
+  },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",
   "functions": {
     "api/index.js": {
+      "maxDuration": 300
+    },
+    "api/daily-cron.js": {
+      "maxDuration": 300
+    },
+    "api/recover-20260823.js": {
       "maxDuration": 300
     }
   },
   "rewrites": [
     {
       "source": "/api/daily",
-      "destination": "/api/index?route=daily"
+      "destination": "/api/daily-cron?route=daily"
     },
     {
       "source": "/api/health",
