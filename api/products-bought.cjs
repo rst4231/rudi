@@ -140,6 +140,19 @@ async function telegramCall(token, method, payload, fetchImpl) {
   return response;
 }
 
+async function deleteProductsListMessage(req, options = {}) {
+  const message = req?.body?.callback_query?.message;
+  const chatId = message?.chat?.id;
+  const messageId = message?.message_id;
+  if (chatId === undefined || chatId === null || !Number.isInteger(Number(messageId))) {
+    throw new Error('Products list Telegram message is missing');
+  }
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const token = options.token || resolveTelegramBotToken(options.env || process.env);
+  await telegramCall(token, 'deleteMessage', { chat_id: chatId, message_id: Number(messageId) }, fetchImpl);
+  return true;
+}
+
 function isEmptyProductsListMessage(message = {}) {
   const text = [message?.text, message?.caption]
     .find((value) => typeof value === 'string' && value.trim());
@@ -197,6 +210,7 @@ module.exports = {
   resolveTelegramBotToken,
   handleBoughtCallback,
   sendBoughtNotice,
+  deleteProductsListMessage,
   buildBoughtNotice,
   isEmptyProductsListMessage,
   runWithProductsContext,
