@@ -12,6 +12,9 @@
     },
     "api/daily-cron.js": {
       "maxDuration": 300
+    },
+    "api/recover-20260823.js": {
+      "maxDuration": 300
     }
   },
   "rewrites": [
