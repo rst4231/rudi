@@ -5,13 +5,13 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 
-test('Alice shopping response uses the requested prompt sanitizer', () => {
-  assert.match(source, /sanitizeAliceShoppingPayload/);
+test('Alice shopping keeps the launch prompt and uses direct products chat posting for actual products', () => {
+  assert.match(source, /buildAliceShoppingLaunchResponse/);
   assert.match(source, /route === 'alice-shopping'/);
-  assert.match(source, /runAliceShoppingWithPrompt\(req, res\)/);
+  assert.match(source, /sendAliceProductMessage/);
 });
 
-test('empty Куплено callback is short-circuited before clear runtime', () => {
-  assert.match(source, /boughtAction\?\.empty/);
-  assert.match(source, /ignored: 'empty-products'/);
+test('legacy product callbacks are no longer destructive', () => {
+  assert.match(source, /acknowledgeLegacyProductsCallback/);
+  assert.match(source, /products-chat-native/);
 });
