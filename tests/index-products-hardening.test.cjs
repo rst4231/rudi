@@ -4,12 +4,30 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 
-test('only authenticated clear and Куплено enter destructive runtime paths', () => {
+test('only authenticated clear and Куплено enter destructive product paths', () => {
   assert.match(source, /isProductsClearCallback/);
   assert.match(source, /validateTelegramCallback/);
   assert.match(source, /runAuthorizedProductsClear/);
   assert.match(source, /handleBoughtCallback/);
-  assert.match(source, /runWithAnsweredCallbackContext/);
+});
+
+test('direct Очистить deletes the current list without entering old runtime that can republish it', () => {
+  const start = source.indexOf('if (isProductsClearCallback(req))');
+  const end = source.indexOf('if (isTelegramClearIntent(req))', start);
+  assert.ok(start > -1 && end > start);
+  const block = source.slice(start, end);
+  assert.match(block, /deleteProductsListMessage/);
+  assert.doesNotMatch(block, /runRuntime\(/);
+});
+
+test('Куплено clears by deleting the current list instead of replaying the old clear callback', () => {
+  const start = source.indexOf('if (boughtAction)');
+  const end = source.indexOf('if (isProductsClearCallback(req))', start);
+  assert.ok(start > -1 && end > start);
+  const block = source.slice(start, end);
+  assert.match(block, /deleteProductsListMessage/);
+  assert.doesNotMatch(block, /runWithExistingClearAction/);
+  assert.doesNotMatch(block, /runRuntime\(/);
 });
 
 test('typed clear, empty Alice, Alice clear, and init-products are blocked before runtime', () => {
