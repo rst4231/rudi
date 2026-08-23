@@ -12,7 +12,7 @@ test('new Alice session with blank command is treated as launch', () => {
   assert.equal(isAliceShoppingLaunch(req), true);
 });
 
-test('new Alice session with a spoken product reaches the normal products runtime', () => {
+test('new Alice session with a spoken product reaches the products chat flow', () => {
   const req = { body: { session: { new: true }, request: { command: 'молоко', original_utterance: 'молоко' }, version: '1.0' } };
   assert.equal(isAliceShoppingLaunch(req), false);
 });
@@ -28,10 +28,10 @@ test('launch response asks for products and keeps Alice session open', () => {
   });
 });
 
-test('Alice route short-circuits blank launch before product runtime', () => {
+test('Alice route short-circuits blank launch before sending a Telegram product message', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
   const launchIndex = source.indexOf('if (isAliceShoppingLaunch(req))');
-  const runtimeIndex = source.indexOf('runAliceShoppingWithPrompt(req, res)', launchIndex);
+  const sendIndex = source.indexOf('sendAliceProductMessage(req', launchIndex);
   assert.ok(launchIndex > -1);
-  assert.ok(runtimeIndex > launchIndex);
+  assert.ok(sendIndex > launchIndex);
 });
