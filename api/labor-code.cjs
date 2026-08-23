@@ -1,6 +1,8 @@
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const LABOR_TOPIC_NAME = 'Трудовой кодекс';
 const LABOR_SOURCE_URL = 'https://www.consultant.ru/document/cons_doc_LAW_34683/';
+const LABOR_ROTATION_START = '2026-08-20';
+const RECENT_ARTICLE_LIMIT = 30;
 
 const LABOR_ARTICLES = [
   ['contract','Трудовой договор: что проверить до подписи','В договоре должны быть зафиксированы ключевые условия работы: трудовая функция, место работы, условия оплаты и другие обязательные сведения. Не соглашайтесь на устные обещания по зарплате или графику, если они важны для вас.','ст. 57 ТК РФ'],
@@ -63,6 +65,11 @@ function dateKeyInMoscow(value = new Date()) {
   return `${map.year}-${map.month}-${map.day}`;
 }
 
+function dayNumberFromDateKey(key) {
+  const [year, month, day] = String(key).split('-').map(Number);
+  return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+}
+
 async function telegramCall(token, method, payload, fetchImpl) {
   const response = await fetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
@@ -93,6 +100,8 @@ function allArticleVariants() {
     for (const [baseId, title, body, reference] of LABOR_ARTICLES) {
       result.push({
         id: `${baseId}:${angleId}`,
+        baseId,
+        angleId,
         text: `⚖️ <b>Трудовой кодекс</b>\n\n<b>${title}</b>\n\n${body}\n\n<b>${angleTitle}</b>\n${angleBody}\n\n📘 ${reference}\n<a href="${LABOR_SOURCE_URL}">Актуальная редакция ТК РФ →</a>`,
       });
     }
@@ -100,13 +109,39 @@ function allArticleVariants() {
   return result;
 }
 
-async function selectUnusedArticle(cache) {
+function selectArticleForDate(value = new Date(), options = {}) {
   const variants = allArticleVariants();
-  const stored = await cache.get('labor:used-article-ids');
-  const used = new Set(Array.isArray(stored) ? stored : []);
-  const next = variants.find((article) => !used.has(article.id));
-  if (!next) return null;
-  return { next, used };
+  if (!variants.length) return null;
+  const excluded = new Set(Array.isArray(options.excludeIds) ? options.excludeIds.filter(Boolean) : []);
+  const today = dayNumberFromDateKey(dateKeyInMoscow(value));
+  const start = dayNumberFromDateKey(LABOR_ROTATION_START);
+  const primaryIndex = ((today - start) % variants.length + variants.length) % variants.length;
+  for (let step = 0; step < variants.length; step += 1) {
+    const candidate = variants[(primaryIndex + step) % variants.length];
+    if (!excluded.has(candidate.id)) return candidate;
+  }
+  return null;
+}
+
+async function readArticleHistory(cache) {
+  const [usedStored, recentStored] = await Promise.all([
+    cache.get('labor:used-article-ids'),
+    cache.get('labor:recent-article-ids'),
+  ]);
+  const used = new Set(Array.isArray(usedStored) ? usedStored.filter(Boolean) : []);
+  const recent = Array.isArray(recentStored) ? recentStored.filter(Boolean) : [];
+  return { used, recent };
+}
+
+async function recordArticlePublication(cache, articleId, todayKey, messageId, topicId, history) {
+  history.used.add(articleId);
+  const recent = [...history.recent.filter((id) => id !== articleId), articleId].slice(-RECENT_ARTICLE_LIMIT);
+  await Promise.all([
+    cache.set('labor:used-article-ids', [...history.used], { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] }),
+    cache.set('labor:recent-article-ids', recent, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] }),
+    cache.set(`labor:published:${todayKey}`, articleId, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] }),
+    cache.set(`labor:message:${todayKey}`, { articleId, messageId, topicId }, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] }),
+  ]);
 }
 
 async function publishLaborArticle(options = {}) {
@@ -116,34 +151,56 @@ async function publishLaborArticle(options = {}) {
   if (chatId === undefined || chatId === null || chatId === '') throw new Error('Telegram forum chat id is required for labor articles');
   const cache = options.cache || getRuntimeCache();
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const todayKey = dateKeyInMoscow(options.now || new Date());
+  const now = options.now || new Date();
+  const todayKey = dateKeyInMoscow(now);
   const publishedKey = `labor:published:${todayKey}`;
   const already = await cache.get(publishedKey);
-  if (already) return { skipped: true, articleId: already };
+  const alreadyId = typeof already === 'string' ? already : already?.articleId;
+  if (already && options.force !== true) return { skipped: true, articleId: alreadyId || already };
 
-  const selection = await selectUnusedArticle(cache);
-  if (!selection) return { skipped: true, reason: 'article-pool-exhausted' };
+  const history = await readArticleHistory(cache);
+  const explicitExcludes = Array.isArray(options.excludeIds) ? options.excludeIds.filter(Boolean) : [];
+  const exclusions = new Set([...history.used, ...history.recent, ...explicitExcludes]);
+  if (options.force === true && alreadyId) exclusions.add(alreadyId);
+  let next = selectArticleForDate(now, { excludeIds: [...exclusions] });
+  if (!next) {
+    next = selectArticleForDate(now, { excludeIds: [...new Set([...history.recent, ...explicitExcludes, alreadyId].filter(Boolean))] });
+  }
+  if (!next) return { skipped: true, reason: 'article-pool-exhausted' };
+
   let topicId = await ensureLaborTopic({ token, chatId, cache, fetchImpl });
-
+  let sent;
   try {
-    await telegramCall(token, 'sendMessage', {
-      chat_id: chatId, message_thread_id: topicId, text: selection.next.text,
+    sent = await telegramCall(token, 'sendMessage', {
+      chat_id: chatId, message_thread_id: topicId, text: next.text,
       parse_mode: 'HTML', disable_web_page_preview: true,
     }, fetchImpl);
   } catch (error) {
     if (!/TOPIC_ID_INVALID|message thread not found|topic.*not found/i.test(String(error.detail || error.message))) throw error;
     await cache.delete('labor:topic-id');
     topicId = await ensureLaborTopic({ token, chatId, cache, fetchImpl });
-    await telegramCall(token, 'sendMessage', {
-      chat_id: chatId, message_thread_id: topicId, text: selection.next.text,
+    sent = await telegramCall(token, 'sendMessage', {
+      chat_id: chatId, message_thread_id: topicId, text: next.text,
       parse_mode: 'HTML', disable_web_page_preview: true,
     }, fetchImpl);
   }
 
-  selection.used.add(selection.next.id);
-  await cache.set('labor:used-article-ids', [...selection.used], { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] });
-  await cache.set(publishedKey, selection.next.id, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] });
-  return { articleId: selection.next.id, topicId };
+  const messageId = Number(sent?.result?.message_id);
+  await recordArticlePublication(cache, next.id, todayKey, Number.isInteger(messageId) ? messageId : null, topicId, history);
+  return { articleId: next.id, topicId, messageId: Number.isInteger(messageId) ? messageId : null };
 }
 
-module.exports = { LABOR_ARTICLES, LABOR_TOPIC_NAME, allArticleVariants, publishLaborArticle, ensureLaborTopic, dateKeyInMoscow };
+async function replaceLaborArticle(options = {}) {
+  return publishLaborArticle({ ...options, force: true });
+}
+
+module.exports = {
+  LABOR_ARTICLES,
+  LABOR_TOPIC_NAME,
+  allArticleVariants,
+  selectArticleForDate,
+  publishLaborArticle,
+  replaceLaborArticle,
+  ensureLaborTopic,
+  dateKeyInMoscow,
+};
