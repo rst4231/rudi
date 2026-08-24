@@ -2,7 +2,9 @@
   "version": 1,
   "blockedVenueTokens": [
     "севкабель",
-    "брусницын"
+    "sevkabel",
+    "брусницын",
+    "brusnitsyn"
   ],
   "cinemaPremieres": {
     "enabled": true,
