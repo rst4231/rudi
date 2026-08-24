@@ -29,20 +29,28 @@ function findCinemaSource(cinemaInput, type, fallbackName, fallbackUrl) {
   };
 }
 
-function collectInitialSeenTitles(cinemaInput) {
-  const titles = [];
-  const manualByDate = cinemaInput.manualByDate && typeof cinemaInput.manualByDate === 'object'
-    ? cinemaInput.manualByDate
-    : {};
-  for (const rows of Object.values(manualByDate)) {
-    if (!Array.isArray(rows)) continue;
-    for (const row of rows) {
-      const title = String(row?.title || '').trim();
-      if (title) titles.push(title);
-    }
+function validateManualPremiere(entry, label) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`${label} must be an object`);
+  const title = String(entry.title || '').trim();
+  const source = String(entry.source || '').trim();
+  if (!title) throw new Error(`${label}.title is required`);
+  if (!source) throw new Error(`${label}.source is required`);
+  return {
+    title,
+    source,
+    sourceUrl: entry.sourceUrl ? assertHttpUrl(entry.sourceUrl, `${label}.sourceUrl`) : null,
+    posterUrl: entry.posterUrl ? assertHttpUrl(entry.posterUrl, `${label}.posterUrl`) : null,
+  };
+}
+
+function validateManualByDate(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+  const result = {};
+  for (const [dateKey, rows] of Object.entries(input)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/u.test(dateKey) || !Array.isArray(rows)) continue;
+    result[dateKey] = rows.map((entry, index) => validateManualPremiere(entry, `cinemaPremieres.manualByDate.${dateKey}[${index}]`));
   }
-  if (Array.isArray(cinemaInput.initialSeenTitles)) titles.push(...cinemaInput.initialSeenTitles);
-  return [...new Set(titles.map((title) => String(title).trim()).filter(Boolean))];
+  return result;
 }
 
 function validateEventsConfig(input) {
@@ -66,10 +74,10 @@ function validateEventsConfig(input) {
     mirage: findCinemaSource(
       cinemaInput,
       'mirage',
-      'Мираж Синема',
+      'Мираж Синема Санкт-Петербург',
       'https://www.mirage.ru/spb/films/soon/',
     ),
-    initialSeenTitles: collectInitialSeenTitles(cinemaInput),
+    manualByDate: validateManualByDate(cinemaInput.manualByDate),
   };
   if (!blockedVenueTokens.length) throw new Error('Events config must contain a venue blocklist');
   return { version: Number(input.version || 1), blockedVenueTokens, cinemaPremieres };
