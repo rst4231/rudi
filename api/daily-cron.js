@@ -3,7 +3,7 @@ const { prepareDailyTopicCleanup } = require('./topic-maintenance.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { markProductsRuntimeStale } = require('./products-state.cjs');
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
-const { publishWeeklyCinemaPremieres } = require('./cinema-premieres.cjs');
+const { publishWeeklyCinemaPremieres } = require('./cinema-premieres-collage.cjs');
 const indexHandler = require('./index.js');
 
 async function handler(req, res) {
