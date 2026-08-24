@@ -29,12 +29,10 @@ test('Alice list splitting prefers the original utterance so punctuation is not 
   ]);
 });
 
-test('Alice spoken list without punctuation still becomes separate one-word positions', () => {
+test('Alice does not split an utterance by spaces when no list separator is present', () => {
   const req = aliceReq('добавь мороженое кефир масло');
   assert.deepEqual(productsChat.splitAliceProductItems(req), [
-    'мороженое',
-    'кефир',
-    'масло',
+    'мороженое кефир масло',
   ]);
 });
 
