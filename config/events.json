@@ -1,22 +1,84 @@
 {
   "version": 1,
-  "blockedVenueTokens": [
+  "venueBlocklist": [
     "севкабель",
-    "sevkabel",
-    "брусницын",
-    "brusnitsyn"
+    "брусницын"
   ],
-  "cinemaPremieres": {
+  "cinema": {
     "enabled": true,
-    "topicId": 19,
-    "maxItems": 12,
-    "kinopolis": {
-      "name": "Кинополис Мурино",
-      "url": "https://sky.kinopolis-film.ru/"
-    },
-    "mirage": {
-      "name": "Мираж Синема",
-      "url": "https://www.mirage.ru/spb/films/soon/"
+    "sources": [
+      {
+        "id": "kinopolis-murino",
+        "name": "Кинополис Мурино",
+        "type": "kinopolis",
+        "url": "https://sky.kinopolis-film.ru/",
+        "enabled": true
+      },
+      {
+        "id": "mirage-spb",
+        "name": "Мираж Синема",
+        "type": "mirage",
+        "url": "https://www.mirage.ru/",
+        "enabled": true
+      }
+    ],
+    "manualByDate": {
+      "2026-08-20": [
+        {
+          "title": "Человек-паук: Новый день",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7451.jpg",
+          "sourceId": "mirage-spb",
+          "sourceName": "Мираж Синема",
+          "sourceUrl": "https://www.mirage.ru/film/7451/chelovek-pauk-novyy-den.htm"
+        },
+        {
+          "title": "Человек-паук: Новый день",
+          "sourceId": "kinopolis-murino",
+          "sourceName": "Кинополис Мурино",
+          "sourceUrl": "https://sky.kinopolis-film.ru/release/10076823?date=2026-08-20"
+        },
+        {
+          "title": "Мотор Сити",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7517.jpg",
+          "sourceId": "mirage-spb",
+          "sourceName": "Мираж Синема",
+          "sourceUrl": "https://www.mirage.ru/film/7517/motor-siti-.htm"
+        },
+        {
+          "title": "Жертва обстоятельств",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7515.jpg",
+          "sourceId": "mirage-spb",
+          "sourceName": "Мираж Синема",
+          "sourceUrl": "https://www.mirage.ru/film/7515/zhertva-obstoyatelstv-.htm"
+        },
+        {
+          "title": "Жертва обстоятельств",
+          "sourceId": "kinopolis-murino",
+          "sourceName": "Кинополис Мурино",
+          "sourceUrl": "https://sky.kinopolis-film.ru/release/25835?date=2026-08-20"
+        },
+        {
+          "title": "Лидия и всадник тумана",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7516.jpg",
+          "sourceId": "mirage-spb",
+          "sourceName": "Мираж Синема",
+          "sourceUrl": "https://www.mirage.ru/film/7516/lidiya-i-vsadnik-tumana-.htm"
+        },
+        {
+          "title": "Параллельные истории",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7518.jpg",
+          "sourceId": "mirage-spb",
+          "sourceName": "Мираж Синема",
+          "sourceUrl": "https://www.mirage.ru/film/7518/parallelnye-istorii-.htm"
+        },
+        {
+          "title": "Пункт назначения: Мост №13",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7519.jpg",
+          "sourceId": "mirage-spb",
+          "sourceName": "Мираж Синема",
+          "sourceUrl": "https://www.mirage.ru/film/7519/punkt-naznacheniya-most-%E2%84%9613-.htm"
+        }
+      ]
     }
   }
 }
