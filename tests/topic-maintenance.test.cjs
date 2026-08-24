@@ -34,12 +34,12 @@ test('date helpers use Moscow day keys and deterministic day shifting', () => {
   assert.equal(shiftDateKey('2026-08-20', -2), '2026-08-18');
 });
 
-test('daily cleanup deletes yesterday event posts and day-before-yesterday holiday posts', async () => {
+test('daily cleanup deletes yesterday posts from both events and holidays', async () => {
   const cache = fakeCache({
     'topic:19:chat-id': -100123,
     'topic:19:2026-08-19:messages': [101, 102],
     'topic:44:chat-id': -100123,
-    'topic:44:2026-08-18:messages': [201],
+    'topic:44:2026-08-19:messages': [201],
   });
   const calls = [];
   const fetchImpl = async (url, init) => {
@@ -57,6 +57,32 @@ test('daily cleanup deletes yesterday event posts and day-before-yesterday holid
   assert.deepEqual(calls.map((call) => call.body.message_ids), [[101, 102], [201]]);
   assert.equal(await cache.get('topic:19:2026-08-20:cleanup'), true);
   assert.equal(await cache.get('topic:44:2026-08-20:cleanup'), true);
+});
+
+test('new event publication clears yesterday posts even when daily cron did not run', async () => {
+  const cache = fakeCache({
+    'topic:237:deleted:-100123': true,
+    'topic:19:2026-08-19:messages': [501, 502],
+  });
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const method = String(url).split('/').at(-1);
+    const body = JSON.parse(init.body);
+    calls.push({ method, body });
+    if (method === 'deleteMessages') return telegramResponse(true);
+    return telegramResponse({ message_id: 777 });
+  };
+
+  const response = await handleTelegramTopicRequest(
+    'https://api.telegram.org/bot1:testtoken/sendMessage',
+    { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'today event' }) },
+    { cache, now: new Date('2026-08-20T10:00:00Z'), fetchImpl },
+  );
+
+  assert.equal(response.status, 200);
+  const deletion = calls.find((call) => call.method === 'deleteMessages');
+  assert.deepEqual(deletion?.body.message_ids, [501, 502]);
+  assert.deepEqual(await cache.get('topic:19:2026-08-20:messages'), [777]);
 });
 
 test('outgoing managed topic messages are recorded for future cleanup', async () => {

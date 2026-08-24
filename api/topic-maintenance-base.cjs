@@ -6,7 +6,7 @@ const CACHE_TTL_SECONDS = 60 * 60 * 24 * 35;
 const CLEANUP_LOOKBACK_DAYS = 35;
 const MANAGED_TOPICS = new Map([
   [EVENTS_TOPIC_ID, 1],
-  [HOLIDAYS_TOPIC_ID, 2],
+  [HOLIDAYS_TOPIC_ID, 1],
 ]);
 const MESSAGE_CREATING_METHODS = new Set([
   'sendMessage', 'sendPhoto', 'sendMediaGroup', 'sendDocument', 'sendVideo',
@@ -143,6 +143,11 @@ async function deleteTrackedMessages({ topicId, targetDateKey, chatId, cache, ba
   return { deleted };
 }
 
+async function deletePreviousDayTrackedMessages({ topicId, todayKey, chatId, cache, baseUrl, fetchImpl }) {
+  const targetDateKey = shiftDateKey(todayKey, -1);
+  return deleteTrackedMessages({ topicId, targetDateKey, chatId, cache, baseUrl, fetchImpl });
+}
+
 async function prepareDailyTopicCleanup(options = {}) {
   const cache = options.cache || getRuntimeCache();
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -242,7 +247,20 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
     const body = await response.clone().json();
     const messageIds = extractMessageIds(body?.result);
     if (messageIds.length) {
-      await rememberPublishedMessages(topicId, payload?.chat_id, messageIds, dateKeyInMoscow(options.now || new Date()), cache);
+      const todayKey = dateKeyInMoscow(options.now || new Date());
+      try {
+        await deletePreviousDayTrackedMessages({
+          topicId,
+          todayKey,
+          chatId: payload?.chat_id,
+          cache,
+          baseUrl: endpoint.baseUrl,
+          fetchImpl,
+        });
+      } catch (error) {
+        console.error('RUDI_TOPIC_ROLLOVER_ERROR', { topicId, error });
+      }
+      await rememberPublishedMessages(topicId, payload?.chat_id, messageIds, todayKey, cache);
     }
   } catch (error) { console.error('RUDI_TOPIC_MESSAGE_TRACK_ERROR', error); }
   return response;
