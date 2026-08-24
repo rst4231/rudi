@@ -17,7 +17,7 @@ const {
 } = require('./cinema-premieres-collage.cjs');
 
 const DATE_KEY = '2026-08-20';
-const REPLACED_KEY = `manual-collage-replace:${DATE_KEY}`;
+const REPLACED_KEY = 'manual-collage-replace:2026-08-20';
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 365 * 5;
 
 function isPreview(req) {
