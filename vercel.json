@@ -7,7 +7,8 @@
       "fix/daily-content-repair-20260824": false,
       "fix/alice-product-phrases": false,
       "feat/events-cinema-premieres": false,
-      "fix/cinema-poster-proxy": false
+      "fix/cinema-poster-proxy": false,
+      "fix/cinema-collage": false
     }
   },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",

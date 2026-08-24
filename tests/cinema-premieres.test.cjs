@@ -119,7 +119,7 @@ test('Thursday is resolved in Moscow time at the existing 21:30 UTC cron boundar
   assert.equal(cinema.moscowDateKey(new Date('2026-08-26T21:30:00Z')), '2026-08-27');
 });
 
-test('each premiere caption is designed for a separate Telegram photo card', () => {
+test('legacy single-film caption stays available for compatibility', () => {
   const text = cinema.buildCinemaPremiereCaption({
     title: 'Пентхаус',
     sources: ['Кинополис Мурино', 'Мираж Синема'],
@@ -159,11 +159,13 @@ test('event runtime loads venue exclusions from remote events config before form
   assert.match(source, /filter\(event=>eventVenueAllowed\(event,blockedVenueTokens\)\)/);
 });
 
-test('daily cron publishes cinema photo cards in the same scheduled run as regular content', () => {
+test('daily cron publishes one cinema collage post in the same scheduled run as regular content', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'daily-cron.js'), 'utf8');
+  assert.match(source, /cinema-premieres-collage\.cjs/);
   assert.match(source, /publishWeeklyCinemaPremieres/);
   assert.match(source, /RUDI_CINEMA_PREMIERES_RESULT/);
-  const cinemaSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'cinema-premieres.cjs'), 'utf8');
-  assert.match(cinemaSource, /sendPhoto/);
-  assert.match(cinemaSource, /photo: row\.posterUrl/);
+  const cinemaSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'cinema-premieres-collage.cjs'), 'utf8');
+  assert.match(cinemaSource, /buildCinemaCollage/);
+  assert.match(cinemaSource, /sendTelegramCollage/);
+  assert.doesNotMatch(cinemaSource, /photo: row\.posterUrl/);
 });
