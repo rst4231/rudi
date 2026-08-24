@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "blockedVenueTokens": [
+    "севкабель",
+    "брусницын"
+  ],
+  "cinemaPremieres": {
+    "enabled": true,
+    "topicId": 19,
+    "maxItems": 12,
+    "kinopolis": {
+      "name": "Кинополис Мурино",
+      "url": "https://sky.kinopolis-film.ru/"
+    },
+    "mirage": {
+      "name": "Мираж Синема",
+      "url": "https://www.mirage.ru/spb/films/soon/"
+    }
+  }
+}
