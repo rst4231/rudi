@@ -3,7 +3,8 @@
   "git": {
     "deploymentEnabled": {
       "fix/labor-daily-cron": false,
-      "fix/daily-content-reliability-clean": false
+      "fix/daily-content-reliability-clean": false,
+      "fix/daily-content-repair-20260824": false
     }
   },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",
