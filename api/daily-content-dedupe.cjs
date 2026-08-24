@@ -53,6 +53,18 @@ function defaultFingerprint(text) {
   return createHash('sha256').update(normalizeMessage(text)).digest('hex');
 }
 
+function dateKeyInMoscow(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
 function topicKind(topicId) {
   if (Number(topicId) === FACTS_TOPIC_ID) return 'facts';
   if (Number(topicId) === LULU_TOPIC_ID) return 'lulu';
@@ -158,9 +170,13 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
       : (typeof payload?.caption === 'string' ? 'caption' : null);
     if (!field) return fetchImpl(input, init);
 
+    const now = new Date(options.now || Date.now());
+    const dateKey = dateKeyInMoscow(now);
     const originalMessage = payload[field];
     const originalFingerprint = fingerprint(originalMessage);
     const history = await loadHistory(cache, topicId);
+    if (history.some((row) => row?.dateKey === dateKey)) return syntheticSuccess(topicId);
+
     const seenFingerprints = new Set(history.map((row) => String(row?.fingerprint || '')).filter(Boolean));
     const originalSeen = seenFingerprints.has(originalFingerprint);
 
@@ -188,7 +204,8 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
         fingerprint: actualFingerprint,
         id: contentId,
         messageId,
-        publishedAt: new Date(options.now || Date.now()).toISOString(),
+        dateKey,
+        publishedAt: now.toISOString(),
       });
     }
     return response;
@@ -200,6 +217,7 @@ module.exports = {
   LULU_TOPIC_ID,
   normalizeMessage,
   defaultFingerprint,
+  dateKeyInMoscow,
   formatCatalogEntry,
   wrapDailyContentDedupe,
   historyKey,

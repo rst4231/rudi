@@ -109,3 +109,37 @@ test('new target-topic content passes through unchanged and is remembered only a
   assert.equal(history.length, 1);
   assert.equal(history[0].messageId, 901);
 });
+
+test('a second publication for the same Moscow date is suppressed', async () => {
+  const cache = fakeCache({
+    'daily-content:72:history': [{
+      fingerprint: 'old',
+      id: 'already-sent',
+      messageId: 777,
+      dateKey: '2026-08-24',
+      publishedAt: '2026-08-24T00:30:00.000Z',
+    }],
+  });
+  let calls = 0;
+  const wrapped = wrapDailyContentDedupe(async () => {
+    calls += 1;
+    return telegramResponse({ message_id: 778 });
+  }, {
+    cache,
+    catalog: {
+      facts: [{ id: 'new', type: 'facts', emoji: '💡', category: 'Тест', body: 'Новый факт', sourceUrl: 'https://example.com/new' }],
+      lulu: [],
+    },
+    now: new Date('2026-08-24T10:00:00.000Z'),
+  });
+
+  const response = await wrapped('https://api.telegram.org/bot1:test/sendMessage', {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: -1001, message_thread_id: FACTS_TOPIC_ID, text: 'другой встроенный факт' }),
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.result.suppressed_duplicate, true);
+});
