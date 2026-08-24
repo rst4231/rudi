@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const cinema = require('../api/cinema-premieres.cjs');
+const cinema = require('../api/cinema-premieres-collage.cjs');
 
 const ROWS = [
   {
