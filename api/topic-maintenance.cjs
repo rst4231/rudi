@@ -1,10 +1,16 @@
 const base = require('./topic-maintenance-base.cjs');
 const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
 const { handleHolidayPublication } = require('./holiday-rollover.cjs');
-const { getTopicMaintenanceCache } = require('./stateful-cache.cjs');
+const { getTopicMaintenanceCache, getDailyContentCache } = require('./stateful-cache.cjs');
+const { FACTS_TOPIC_ID, LULU_TOPIC_ID, wrapDailyContentDedupe } = require('./daily-content-dedupe.cjs');
+const { loadDailyContentCatalog } = require('./daily-content-config.cjs');
 
 function resolveTopicCache(options = {}) {
   return options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
+}
+
+function resolveDailyContentCache(options = {}) {
+  return options.dailyContentCache || getDailyContentCache(options.dailyContentCacheOptions || {});
 }
 
 function telegramMethod(input) {
@@ -39,7 +45,24 @@ function wrapFetch(fetchImpl, options = {}) {
       localConfig: options.clientsAdviceLocalConfig,
       now: options.now,
     });
-    const response = await terminalSuccessResponse(input, await fetchImpl(input, rewritten));
+    const payload = base.parseRequestPayload(rewritten);
+    const topicId = Number(payload?.message_thread_id);
+    let dailyContentFetch = fetchImpl;
+    if (topicId === FACTS_TOPIC_ID || topicId === LULU_TOPIC_ID) {
+      const catalog = await loadDailyContentCatalog({
+        fetchImpl: options.configFetchImpl || fetchImpl,
+        configUrl: options.dailyContentConfigUrl,
+        localConfig: options.dailyContentLocalConfig,
+        now: options.now,
+      });
+      dailyContentFetch = wrapDailyContentDedupe(fetchImpl, {
+        cache: resolveDailyContentCache(options),
+        catalog,
+        alwaysReplace: true,
+        now: options.now,
+      });
+    }
+    const response = await terminalSuccessResponse(input, await dailyContentFetch(input, rewritten));
     try {
       return await handleHolidayPublication(input, rewritten, response, {
         fetchImpl,
@@ -87,4 +110,5 @@ module.exports = {
   handleTelegramTopicRequest,
   getKnownForumChatId,
   resolveTopicCache,
+  resolveDailyContentCache,
 };
