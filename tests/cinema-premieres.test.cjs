@@ -161,9 +161,10 @@ test('event runtime loads venue exclusions from remote events config before form
 
 test('daily cron publishes one cinema collage post in the same scheduled run as regular content', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'daily-cron.js'), 'utf8');
+  assert.match(source, /cinema-premieres-collage\.cjs/);
   assert.match(source, /publishWeeklyCinemaPremieres/);
   assert.match(source, /RUDI_CINEMA_PREMIERES_RESULT/);
-  const cinemaSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'cinema-premieres.cjs'), 'utf8');
+  const cinemaSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'cinema-premieres-collage.cjs'), 'utf8');
   assert.match(cinemaSource, /buildCinemaCollage/);
   assert.match(cinemaSource, /sendTelegramCollage/);
   assert.doesNotMatch(cinemaSource, /photo: row\.posterUrl/);
