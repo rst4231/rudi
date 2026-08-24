@@ -35,6 +35,13 @@ test('Alice product input is split into separate positions', () => {
   );
 });
 
+test('Alice keeps an unseparated multi-word product as one position', () => {
+  assert.deepEqual(
+    productsChat.splitAliceProductItems(aliceReq('сладкие хлебцы')),
+    ['сладкие хлебцы'],
+  );
+});
+
 test('Alice sends every product as a separate RUDI Telegram message and stores message ids', async () => {
   const calls = [];
   let nextId = 100;
