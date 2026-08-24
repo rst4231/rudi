@@ -28,11 +28,12 @@ const MIRAGE_FILM = `
 <html><head><title>Моана</title></head><body>
 <img src="https://cdn.mirage.ru/images/film/7000/big/s7426.jpg">
 <h1>МОАНА</h1><div>США, 2026</div><div>с 27 Августа</div>
+<div>ВНИМАНИЕ! Вы выбираете сеансы начиная с даты премьеры фильма 27.08.2026</div>
 </body></html>`;
 
 const MIRAGE_OTHER_DATE = `
 <html><body><img src="https://cdn.mirage.ru/images/film/7000/big/s7515.jpg">
-<h1>Жертва обстоятельств</h1><div>с 20 Августа</div></body></html>`;
+<h1>Жертва обстоятельств</h1><div>с 20 Августа</div><div>20.08.2026</div></body></html>`;
 
 test('cinema premieres module exposes poster-aware parsing and publishing API', () => {
   assert.equal(typeof cinema.extractKinopolisReleaseLinks, 'function');
