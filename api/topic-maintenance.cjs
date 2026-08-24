@@ -5,6 +5,9 @@ const { getTopicMaintenanceCache, getDailyContentCache } = require('./stateful-c
 const { FACTS_TOPIC_ID, LULU_TOPIC_ID, wrapDailyContentDedupe } = require('./daily-content-dedupe.cjs');
 const { loadDailyContentCatalog } = require('./daily-content-config.cjs');
 
+const POSTER_PROXY_BASE = 'https://spb-daily-guide-bot.vercel.app/api/poster-proxy';
+const PROXIED_POSTER_HOST = /^(?:cdn\.mirage\.ru|s\d+ru1\.kinoplan24\.ru)$/iu;
+
 function resolveTopicCache(options = {}) {
   return options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
 }
@@ -20,6 +23,25 @@ function telegramMethod(input) {
     if (url.hostname !== 'api.telegram.org') return '';
     return url.pathname.match(/^\/bot[^/]+\/([A-Za-z0-9_]+)$/)?.[1] || '';
   } catch { return ''; }
+}
+
+function rewriteTelegramPhotoRequest(input, init = {}) {
+  if (telegramMethod(input) !== 'sendPhoto') return init;
+  const payload = base.parseRequestPayload(init);
+  if (!payload || typeof payload.photo !== 'string') return init;
+  let photoUrl;
+  try { photoUrl = new URL(payload.photo); } catch { return init; }
+  if (photoUrl.protocol !== 'https:' || !PROXIED_POSTER_HOST.test(photoUrl.hostname)) return init;
+  const photo = `${POSTER_PROXY_BASE}?url=${encodeURIComponent(photoUrl.toString())}`;
+  if (typeof init.body === 'string') {
+    return { ...init, body: JSON.stringify({ ...payload, photo }) };
+  }
+  if (init.body instanceof URLSearchParams) {
+    const body = new URLSearchParams(init.body);
+    body.set('photo', photo);
+    return { ...init, body };
+  }
+  return init;
 }
 
 async function terminalSuccessResponse(input, response) {
@@ -39,12 +61,13 @@ async function terminalSuccessResponse(input, response) {
 
 function wrapFetch(fetchImpl, options = {}) {
   return async (input, init = {}) => {
-    const rewritten = await rewriteClientsTelegramRequest(input, init, {
+    const clientRewritten = await rewriteClientsTelegramRequest(input, init, {
       fetchImpl: options.configFetchImpl || fetchImpl,
       configUrl: options.clientsAdviceConfigUrl,
       localConfig: options.clientsAdviceLocalConfig,
       now: options.now,
     });
+    const rewritten = rewriteTelegramPhotoRequest(input, clientRewritten);
     const payload = base.parseRequestPayload(rewritten);
     const topicId = Number(payload?.message_thread_id);
     let dailyContentFetch = fetchImpl;
@@ -105,6 +128,9 @@ function getKnownForumChatId(options = {}) {
 
 module.exports = {
   ...base,
+  POSTER_PROXY_BASE,
+  PROXIED_POSTER_HOST,
+  rewriteTelegramPhotoRequest,
   terminalSuccessResponse,
   prepareDailyTopicCleanup,
   handleTelegramTopicRequest,
