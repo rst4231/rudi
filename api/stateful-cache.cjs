@@ -4,6 +4,10 @@ function getTopicMaintenanceCache(options = {}) {
   return createStrictRuntimeCache({ namespace: 'rudi-topic-maintenance-v1', ...options });
 }
 
+function getDailyContentCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: 'rudi-daily-content-v1', ...options });
+}
+
 function getLaborCache(options = {}) {
   return createStrictRuntimeCache({ namespace: 'rudi-labor-code-v1', ...options });
 }
@@ -18,6 +22,7 @@ function getRecoveryCache(options = {}) {
 
 module.exports = {
   getTopicMaintenanceCache,
+  getDailyContentCache,
   getLaborCache,
   getLaborLeaseCache,
   getRecoveryCache,

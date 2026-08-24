@@ -1,0 +1,111 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+  FACTS_TOPIC_ID,
+  LULU_TOPIC_ID,
+  wrapDailyContentDedupe,
+  formatCatalogEntry,
+} = require('../api/daily-content-dedupe.cjs');
+
+function fakeCache(initial = {}) {
+  const values = new Map(Object.entries(initial));
+  return {
+    values,
+    async get(key) { return values.get(key); },
+    async set(key, value) { values.set(key, value); },
+  };
+}
+
+function telegramResponse(result = { message_id: 777 }, status = 200) {
+  return new Response(JSON.stringify({ ok: status >= 200 && status < 300, result }), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+test('facts duplicate is replaced with an unseen catalog fact and remembered', async () => {
+  const duplicate = '💡 <b>Полезные факты</b>\n🌙 <b>Сон</b>\n\nПовтор.';
+  const replacement = {
+    id: 'facts-water-break',
+    type: 'facts',
+    emoji: '💧',
+    category: 'Самочувствие',
+    body: 'Новый полезный факт.',
+    sourceUrl: 'https://example.com/fact',
+    sourceLabel: 'Источник →',
+  };
+  const cache = fakeCache({
+    'daily-content:72:history': [{ fingerprint: 'f:known', normalized: duplicate.toLowerCase() }],
+  });
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), body: JSON.parse(init.body) });
+    return telegramResponse();
+  };
+
+  const wrapped = wrapDailyContentDedupe(fetchImpl, {
+    cache,
+    catalog: { facts: [replacement], lulu: [] },
+    fingerprint: (text) => text === duplicate ? 'f:known' : `f:${text.length}`,
+  });
+
+  const response = await wrapped('https://api.telegram.org/bot1:test/sendMessage', {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: -1001, message_thread_id: FACTS_TOPIC_ID, text: duplicate }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.text, formatCatalogEntry(replacement));
+  const history = await cache.get('daily-content:72:history');
+  assert.equal(history.at(-1).id, 'facts-water-break');
+  assert.equal(history.at(-1).messageId, 777);
+});
+
+test('lulu duplicate is never sent when no unseen replacement exists', async () => {
+  const duplicate = '🐶 <b>Для Лулу</b>\n\n<b>Повтор</b>\nСтарый совет.';
+  const cache = fakeCache({
+    'daily-content:85:history': [{ fingerprint: 'same' }],
+  });
+  let calls = 0;
+  const wrapped = wrapDailyContentDedupe(async () => {
+    calls += 1;
+    return telegramResponse();
+  }, {
+    cache,
+    catalog: { facts: [], lulu: [] },
+    fingerprint: () => 'same',
+  });
+
+  const response = await wrapped('https://api.telegram.org/bot1:test/sendMessage', {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: -1001, message_thread_id: LULU_TOPIC_ID, text: duplicate }),
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.ok, true);
+  assert.equal(payload.result.message_thread_id, LULU_TOPIC_ID);
+});
+
+test('new target-topic content passes through unchanged and is remembered only after success', async () => {
+  const text = '🐶 <b>Для Лулу</b>\n\n<b>Новый совет</b>\nТекст.';
+  const cache = fakeCache();
+  let sentBody;
+  const wrapped = wrapDailyContentDedupe(async (_url, init) => {
+    sentBody = JSON.parse(init.body);
+    return telegramResponse({ message_id: 901 });
+  }, { cache, catalog: { facts: [], lulu: [] } });
+
+  await wrapped('https://api.telegram.org/bot1:test/sendMessage', {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: -1001, message_thread_id: LULU_TOPIC_ID, text }),
+  });
+
+  assert.equal(sentBody.text, text);
+  const history = await cache.get('daily-content:85:history');
+  assert.equal(history.length, 1);
+  assert.equal(history[0].messageId, 901);
+});
