@@ -3,6 +3,7 @@ const { prepareDailyTopicCleanup } = require('./topic-maintenance.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { markProductsRuntimeStale } = require('./products-state.cjs');
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
+const { publishWeeklyCinemaPremieres } = require('./cinema-premieres.cjs');
 const indexHandler = require('./index.js');
 
 async function handler(req, res) {
@@ -25,6 +26,13 @@ async function handler(req, res) {
     if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor);
   } catch (error) {
     console.error('RUDI_LABOR_ARTICLE_ERROR', error);
+  }
+
+  try {
+    const cinema = await publishWeeklyCinemaPremieres({ fetchImpl: nativeFetch });
+    if (cinema) console.log('RUDI_CINEMA_PREMIERES_RESULT', cinema);
+  } catch (error) {
+    console.error('RUDI_CINEMA_PREMIERES_ERROR', error);
   }
 
   let runtimeResult;
