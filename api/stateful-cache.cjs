@@ -20,10 +20,15 @@ function getRecoveryCache(options = {}) {
   return createStrictRuntimeCache({ namespace: 'rudi-one-time-recovery-v1', ...options });
 }
 
+function getCinemaPremieresCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: 'rudi-cinema-premieres-v1', ...options });
+}
+
 module.exports = {
   getTopicMaintenanceCache,
   getDailyContentCache,
   getLaborCache,
   getLaborLeaseCache,
   getRecoveryCache,
+  getCinemaPremieresCache,
 };
