@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const cinema = require('../api/cinema-premieres.cjs');
+const topicMaintenance = require('../api/topic-maintenance-base.cjs');
 
 const ROWS = [
   {
@@ -18,10 +19,16 @@ const ROWS = [
   },
 ];
 
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
+
 test('cinema digest exposes one-post helpers', () => {
   assert.equal(typeof cinema.kinopoiskSearchUrl, 'function');
   assert.equal(typeof cinema.buildCinemaDigestCaption, 'function');
   assert.equal(typeof cinema.collageGrid, 'function');
+  assert.equal(typeof cinema.buildCinemaCollage, 'function');
 });
 
 test('each title in the digest caption is a clickable Kinopoisk link', () => {
@@ -40,4 +47,26 @@ test('collage layout keeps up to 12 posters inside one image', () => {
   assert.deepEqual(cinema.collageGrid(6), { columns: 3, rows: 2 });
   assert.deepEqual(cinema.collageGrid(10), { columns: 4, rows: 3 });
   assert.deepEqual(cinema.collageGrid(12), { columns: 4, rows: 3 });
+});
+
+test('collage renderer returns one PNG for all poster rows', async () => {
+  const fetchImpl = async () => new Response(TINY_PNG, {
+    status: 200,
+    headers: { 'content-type': 'image/png' },
+  });
+  const image = await cinema.buildCinemaCollage(ROWS, { fetchImpl, tileWidth: 120, tileHeight: 180 });
+  assert.equal(Buffer.isBuffer(image), true);
+  assert.equal(image.subarray(1, 4).toString('ascii'), 'PNG');
+});
+
+test('Telegram request parser reads multipart sendPhoto fields so topic tracking still works', () => {
+  const body = new FormData();
+  body.set('chat_id', '-100123');
+  body.set('message_thread_id', '19');
+  body.set('caption', 'Кинопремьеры');
+  body.set('photo', new Blob([TINY_PNG], { type: 'image/png' }), 'cinema.png');
+  const payload = topicMaintenance.parseRequestPayload({ body });
+  assert.equal(payload.chat_id, -100123);
+  assert.equal(payload.message_thread_id, 19);
+  assert.equal(payload.caption, 'Кинопремьеры');
 });
