@@ -67,7 +67,7 @@ function splitAliceProductItems(req) {
   const hasExplicitSeparators = /[,;\n]|\s+и\s+/iu.test(protectedText);
   const parts = hasExplicitSeparators
     ? protectedText.split(/\s*(?:[,;\n]+|\s+и\s+)\s*/iu)
-    : protectedText.split(/\s+/u);
+    : [protectedText];
 
   return parts
     .map((item) => restoreCompoundProducts(item)
