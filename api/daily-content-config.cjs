@@ -24,10 +24,20 @@ function validateEntry(entry, expectedType) {
   return entry;
 }
 
+function validatePublishedIds(input) {
+  if (input === undefined) return [];
+  if (!Array.isArray(input)) throw new Error('publishedIds must be an array');
+  const ids = input.map((value) => String(value || '').trim());
+  if (ids.some((id) => !id)) throw new Error('publishedIds cannot contain empty values');
+  if (new Set(ids).size !== ids.length) throw new Error('publishedIds cannot contain duplicates');
+  return ids;
+}
+
 function validateCatalog(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Daily content catalog is invalid');
   const facts = Array.isArray(input.facts) ? input.facts.map((entry) => validateEntry(entry, 'facts')) : [];
   const lulu = Array.isArray(input.lulu) ? input.lulu.map((entry) => validateEntry(entry, 'lulu')) : [];
+  const publishedIds = validatePublishedIds(input.publishedIds);
   const seen = new Set();
   for (const entry of [...facts, ...lulu]) {
     const id = String(entry.id).trim();
@@ -36,7 +46,7 @@ function validateCatalog(input) {
   }
   if (!facts.length) throw new Error('Daily content catalog has no facts');
   if (!lulu.length) throw new Error('Daily content catalog has no Lulu entries');
-  return { version: Number(input.version || 1), facts, lulu };
+  return { version: Number(input.version || 1), publishedIds, facts, lulu };
 }
 
 function readBundledConfig() {

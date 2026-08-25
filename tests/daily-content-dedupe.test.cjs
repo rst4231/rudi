@@ -10,10 +10,15 @@ const {
 
 function fakeCache(initial = {}) {
   const values = new Map(Object.entries(initial));
+  const setOptions = new Map();
   return {
     values,
+    setOptions,
     async get(key) { return values.get(key); },
-    async set(key, value) { values.set(key, value); },
+    async set(key, value, options) {
+      values.set(key, value);
+      setOptions.set(key, options || {});
+    },
   };
 }
 
@@ -142,4 +147,101 @@ test('a second publication for the same Moscow date is suppressed', async () => 
   assert.equal(response.status, 200);
   const payload = await response.json();
   assert.equal(payload.result.suppressed_duplicate, true);
+});
+
+test('an already published content id is never reused even if its text changes', async () => {
+  const oldIdChangedText = {
+    id: 'facts-used-before',
+    type: 'facts',
+    emoji: '💡',
+    category: 'Тест',
+    body: 'Переписанный текст уже опубликованной темы.',
+    sourceUrl: 'https://example.com/old',
+  };
+  const fresh = {
+    id: 'facts-fresh',
+    type: 'facts',
+    emoji: '💡',
+    category: 'Тест',
+    body: 'Совсем новая тема.',
+    sourceUrl: 'https://example.com/fresh',
+  };
+  const cache = fakeCache({
+    'daily-content:72:history': [{ id: 'facts-used-before', fingerprint: 'old-fingerprint', dateKey: '2026-08-20' }],
+  });
+  let sentBody;
+  const wrapped = wrapDailyContentDedupe(async (_url, init) => {
+    sentBody = JSON.parse(init.body);
+    return telegramResponse({ message_id: 902 });
+  }, {
+    cache,
+    catalog: { facts: [oldIdChangedText, fresh], lulu: [] },
+    alwaysReplace: true,
+    now: new Date('2026-08-26T00:30:00.000Z'),
+  });
+
+  await wrapped('https://api.telegram.org/bot1:test/sendMessage', {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: -1001, message_thread_id: FACTS_TOPIC_ID, text: 'runtime fact' }),
+  });
+
+  assert.equal(sentBody.text, formatCatalogEntry(fresh));
+  const history = await cache.get('daily-content:72:history');
+  assert.equal(history.at(-1).id, 'facts-fresh');
+});
+
+test('catalog-published ids are permanently excluded even when runtime history is empty', async () => {
+  const retired = {
+    id: 'lulu-already-published',
+    type: 'lulu',
+    title: 'Уже выходило',
+    body: 'Этот совет уже был опубликован.',
+    sourceUrl: 'https://example.com/retired',
+  };
+  const fresh = {
+    id: 'lulu-new',
+    type: 'lulu',
+    title: 'Новый совет',
+    body: 'Этот совет ещё не выходил.',
+    sourceUrl: 'https://example.com/new',
+  };
+  const cache = fakeCache();
+  let sentBody;
+  const wrapped = wrapDailyContentDedupe(async (_url, init) => {
+    sentBody = JSON.parse(init.body);
+    return telegramResponse({ message_id: 903 });
+  }, {
+    cache,
+    catalog: { facts: [], lulu: [retired, fresh], publishedIds: ['lulu-already-published'] },
+    alwaysReplace: true,
+    now: new Date('2026-08-26T00:30:00.000Z'),
+  });
+
+  await wrapped('https://api.telegram.org/bot1:test/sendMessage', {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: -1001, message_thread_id: LULU_TOPIC_ID, text: 'runtime lulu' }),
+  });
+
+  assert.equal(sentBody.text, formatCatalogEntry(fresh));
+});
+
+test('daily content history is stored without an expiry ttl', async () => {
+  const cache = fakeCache();
+  const wrapped = wrapDailyContentDedupe(async () => telegramResponse({ message_id: 904 }), {
+    cache,
+    catalog: {
+      facts: [{ id: 'facts-new', type: 'facts', emoji: '💡', category: 'Тест', body: 'Новый факт', sourceUrl: 'https://example.com/new' }],
+      lulu: [],
+    },
+    alwaysReplace: true,
+    now: new Date('2026-08-26T00:30:00.000Z'),
+  });
+
+  await wrapped('https://api.telegram.org/bot1:test/sendMessage', {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: -1001, message_thread_id: FACTS_TOPIC_ID, text: 'runtime fact' }),
+  });
+
+  const options = cache.setOptions.get('daily-content:72:history');
+  assert.equal(Object.prototype.hasOwnProperty.call(options, 'ttl'), false);
 });

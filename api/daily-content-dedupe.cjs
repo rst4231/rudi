@@ -2,7 +2,7 @@ const { createHash } = require('node:crypto');
 
 const FACTS_TOPIC_ID = 72;
 const LULU_TOPIC_ID = 85;
-const HISTORY_TTL_SECONDS = 60 * 60 * 24 * 730;
+const LEGACY_PUBLISHED_IDS = new Set(['facts-sleep-7h', 'lulu-teeth-daily']);
 const HISTORY_LIMIT = 1000;
 const TARGET_METHODS = new Set(['sendMessage', 'sendPhoto', 'sendDocument', 'sendVideo', 'sendAnimation']);
 
@@ -101,6 +101,14 @@ function historyKey(topicId) {
   return `daily-content:${Number(topicId)}:history`;
 }
 
+function usedIdsKey(topicId) {
+  return `daily-content:${Number(topicId)}:used-ids`;
+}
+
+function publicationDateKey(topicId, dateKey) {
+  return `daily-content:${Number(topicId)}:date:${String(dateKey)}`;
+}
+
 function syntheticSuccess(topicId) {
   return new Response(JSON.stringify({
     ok: true,
@@ -125,8 +133,15 @@ async function loadHistory(cache, topicId) {
   return Array.isArray(value) ? value : [];
 }
 
-function chooseUnseenEntry(entries, seenFingerprints, fingerprint) {
+async function loadUsedIds(cache, topicId) {
+  const value = await cache.get(usedIdsKey(topicId));
+  return Array.isArray(value) ? value.map((id) => String(id || '').trim()).filter(Boolean) : [];
+}
+
+function chooseUnseenEntry(entries, seenFingerprints, fingerprint, seenIds = new Set()) {
   for (const entry of Array.isArray(entries) ? entries : []) {
+    const entryId = String(entry?.id || '').trim();
+    if (entryId && seenIds.has(entryId)) continue;
     const message = formatCatalogEntry(entry);
     if (!message) continue;
     const candidateFingerprint = fingerprint(message);
@@ -137,10 +152,27 @@ function chooseUnseenEntry(entries, seenFingerprints, fingerprint) {
   return null;
 }
 
+async function reservePublication(cache, topicId, dateKey, usedIds, record) {
+  const id = String(record?.id || '').trim();
+  if (!id) return;
+  const nextUsedIds = [...new Set([...usedIds, id])];
+  await cache.set(usedIdsKey(topicId), nextUsedIds, {
+    tags: ['rudi-daily-content-used'],
+    name: usedIdsKey(topicId),
+  });
+  await cache.set(publicationDateKey(topicId, dateKey), {
+    id,
+    fingerprint: String(record?.fingerprint || ''),
+    reservedAt: String(record?.reservedAt || new Date().toISOString()),
+  }, {
+    tags: ['rudi-daily-content-date'],
+    name: publicationDateKey(topicId, dateKey),
+  });
+}
+
 async function rememberPublished(cache, topicId, history, record) {
   const next = [...history, record].slice(-HISTORY_LIMIT);
   await cache.set(historyKey(topicId), next, {
-    ttl: HISTORY_TTL_SECONDS,
     tags: ['rudi-daily-content-history'],
     name: historyKey(topicId),
   });
@@ -153,7 +185,7 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
   if (!cache || typeof cache.get !== 'function' || typeof cache.set !== 'function') {
     throw new Error('Daily content dedupe cache is required');
   }
-  const catalog = options.catalog || { facts: [], lulu: [] };
+  const catalog = options.catalog || { facts: [], lulu: [], publishedIds: [] };
   const alwaysReplace = options.alwaysReplace === true;
 
   return async (input, init = {}) => {
@@ -172,12 +204,22 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
 
     const now = new Date(options.now || Date.now());
     const dateKey = dateKeyInMoscow(now);
+    const dateReservation = await cache.get(publicationDateKey(topicId, dateKey));
+    if (dateReservation) return syntheticSuccess(topicId);
+
     const originalMessage = payload[field];
     const originalFingerprint = fingerprint(originalMessage);
     const history = await loadHistory(cache, topicId);
     if (history.some((row) => row?.dateKey === dateKey)) return syntheticSuccess(topicId);
 
+    const usedIds = await loadUsedIds(cache, topicId);
     const seenFingerprints = new Set(history.map((row) => String(row?.fingerprint || '')).filter(Boolean));
+    const seenIds = new Set([
+      ...LEGACY_PUBLISHED_IDS,
+      ...usedIds,
+      ...history.map((row) => String(row?.id || '').trim()).filter(Boolean),
+      ...(Array.isArray(catalog.publishedIds) ? catalog.publishedIds.map((id) => String(id || '').trim()).filter(Boolean) : []),
+    ]);
     const originalSeen = seenFingerprints.has(originalFingerprint);
 
     let actualMessage = originalMessage;
@@ -185,11 +227,19 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
     let contentId = null;
 
     if (alwaysReplace || originalSeen) {
-      const replacement = chooseUnseenEntry(catalog[kind], seenFingerprints, fingerprint);
+      const replacement = chooseUnseenEntry(catalog[kind], seenFingerprints, fingerprint, seenIds);
       if (!replacement) return syntheticSuccess(topicId);
       actualMessage = replacement.message;
       actualFingerprint = replacement.fingerprint;
       contentId = String(replacement.entry.id || '') || null;
+    }
+
+    if (contentId) {
+      await reservePublication(cache, topicId, dateKey, usedIds, {
+        id: contentId,
+        fingerprint: actualFingerprint,
+        reservedAt: now.toISOString(),
+      });
     }
 
     const nextInit = actualMessage === originalMessage
@@ -215,11 +265,15 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
 module.exports = {
   FACTS_TOPIC_ID,
   LULU_TOPIC_ID,
+  LEGACY_PUBLISHED_IDS,
   normalizeMessage,
   defaultFingerprint,
   dateKeyInMoscow,
   formatCatalogEntry,
   wrapDailyContentDedupe,
   historyKey,
+  usedIdsKey,
+  publicationDateKey,
   chooseUnseenEntry,
+  reservePublication,
 };
