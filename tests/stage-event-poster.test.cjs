@@ -1,10 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const { fetchEventPoster } = require('../api/event-collage.cjs');
 const {
   extractStagePosterUrl,
-  fetchEventPoster,
-} = require('../api/event-collage.cjs');
+  wrapStageEventFetch,
+} = require('../api/stage-poster.cjs');
 
 function response(body, options = {}) {
   return new Response(body, { status: 200, ...options });
@@ -49,10 +50,10 @@ test('Stage fragment event id resolves the matching card poster instead of the p
 test('fetchEventPoster downloads the Stage card poster selected by fragment event id', async () => {
   const wanted = 'https://static.tildacdn.com/proverka-materiala.jpg';
   const calls = [];
-  const fetchImpl = async (url) => {
+  const nativeFetch = async (url) => {
     const key = String(url);
     calls.push(key);
-    if (key.startsWith('https://stagestandup.ru/')) {
+    if (key === 'https://stagestandup.ru/') {
       return response(stageHtml, { headers: { 'content-type': 'text/html; charset=utf-8' } });
     }
     if (key === wanted) {
@@ -63,7 +64,7 @@ test('fetchEventPoster downloads the Stage card poster selected by fragment even
 
   const poster = await fetchEventPoster(
     'https://stagestandup.ru/#ticketscloud:event=6a541f4aa852a67005892233&token=abc',
-    { fetchImpl },
+    { fetchImpl: wrapStageEventFetch(nativeFetch) },
   );
 
   assert.equal(poster.toString(), 'poster-bytes');
