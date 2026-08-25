@@ -5,6 +5,7 @@ const {
   extractPosterUrl,
   extractEventLinks,
   compactEventCaption,
+  compactEventTelegramRequest,
   buildEventCollage,
   maybeSendEventCollage,
 } = require('../api/event-collage.cjs');
@@ -39,6 +40,24 @@ test('compactEventCaption removes the huge vertical gaps from event posts', () =
   const text = '<b>🎙 Stage StandUp Club</b>\n\n\n📅 Вторник, 25 августа\n\n\nНайдено: 2\n\n\n1. Большой стендап';
   const compact = compactEventCaption(text);
   assert.equal(compact, '<b>🎙 Stage StandUp Club</b>\n📅 Вторник, 25 августа\nНайдено: 2\n1. Большой стендап');
+});
+
+test('compactEventTelegramRequest also removes gaps when a collage cannot be built', () => {
+  const init = {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: -100123,
+      text: '<b>🎤 Поп и хип-хоп концерты</b>\n\n\n📅 Среда, 26 августа\n\n\nКонцертов не найдено.',
+      parse_mode: 'HTML',
+    }),
+  };
+  const compacted = compactEventTelegramRequest(init);
+  assert.notEqual(compacted, init);
+  assert.equal(
+    JSON.parse(compacted.body).text,
+    '<b>🎤 Поп и хип-хоп концерты</b>\n📅 Среда, 26 августа\nКонцертов не найдено.',
+  );
 });
 
 test('buildEventCollage combines downloaded poster images into one jpeg', async () => {
