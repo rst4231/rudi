@@ -3,6 +3,7 @@ const { collageGrid } = require('./cinema-collage.cjs');
 const MAX_POSTERS = 12;
 const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_CAPTION_VISIBLE = 1000;
 
 function decodeHtml(value) {
   return String(value || '')
@@ -102,6 +103,23 @@ function compactEventTelegramRequest(init = {}) {
 
 function visibleCaptionLength(text) {
   return decodeHtml(String(text || '').replace(/<[^>]*>/gu, '')).length;
+}
+
+function fitEventCaption(text, maxVisible = MAX_CAPTION_VISIBLE) {
+  const compact = compactEventCaption(text);
+  if (visibleCaptionLength(compact) <= maxVisible) return compact;
+  const selected = [];
+  let used = 0;
+  for (const line of compact.split('\n')) {
+    const lineVisible = visibleCaptionLength(line);
+    const extra = lineVisible + (selected.length ? 1 : 0);
+    if (selected.length && used + extra + 2 > maxVisible) break;
+    if (!selected.length && extra + 2 > maxVisible) return line.slice(0, Math.max(1, maxVisible - 2));
+    selected.push(line);
+    used += extra;
+  }
+  const base = selected.join('\n').trimEnd();
+  return visibleCaptionLength(`${base}\n…`) <= maxVisible ? `${base}\n…` : base;
 }
 
 async function readBodyBuffer(response, maxBytes, label) {
@@ -206,12 +224,7 @@ async function maybeSendEventCollage(input, init = {}, options = {}) {
   }
   if (!posters.length) return null;
 
-  const caption = compactEventCaption(payload.text);
-  if (visibleCaptionLength(caption) > 1024) {
-    console.warn('RUDI_EVENT_COLLAGE_CAPTION_TOO_LONG', { visibleLength: visibleCaptionLength(caption) });
-    return null;
-  }
-
+  const caption = fitEventCaption(payload.text);
   const image = await buildEventCollage(posters, options);
   const body = new FormData();
   body.set('chat_id', String(payload.chat_id));
@@ -240,6 +253,7 @@ module.exports = {
   extractEventLinks,
   compactEventCaption,
   compactEventTelegramRequest,
+  fitEventCaption,
   fetchEventPoster,
   buildEventCollage,
   maybeSendEventCollage,
