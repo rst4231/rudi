@@ -2,6 +2,7 @@ const { createHash } = require('node:crypto');
 
 const FACTS_TOPIC_ID = 72;
 const LULU_TOPIC_ID = 85;
+const LEGACY_PUBLISHED_IDS = new Set(['facts-sleep-7h', 'lulu-teeth-daily']);
 const HISTORY_LIMIT = 1000;
 const TARGET_METHODS = new Set(['sendMessage', 'sendPhoto', 'sendDocument', 'sendVideo', 'sendAnimation']);
 
@@ -179,6 +180,7 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
 
     const seenFingerprints = new Set(history.map((row) => String(row?.fingerprint || '')).filter(Boolean));
     const seenIds = new Set([
+      ...LEGACY_PUBLISHED_IDS,
       ...history.map((row) => String(row?.id || '').trim()).filter(Boolean),
       ...(Array.isArray(catalog.publishedIds) ? catalog.publishedIds.map((id) => String(id || '').trim()).filter(Boolean) : []),
     ]);
@@ -219,6 +221,7 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
 module.exports = {
   FACTS_TOPIC_ID,
   LULU_TOPIC_ID,
+  LEGACY_PUBLISHED_IDS,
   normalizeMessage,
   defaultFingerprint,
   dateKeyInMoscow,
