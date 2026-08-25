@@ -100,6 +100,26 @@ test('outgoing managed topic messages are recorded for future cleanup', async ()
   assert.equal(await cache.get('topic:19:chat-id'), -100123);
 });
 
+test('managed sendPhoto FormData messages are recorded for future cleanup', async () => {
+  const cache = fakeCache({ 'topic:237:deleted:-100123': true });
+  const fetchImpl = async () => telegramResponse({ message_id: 779 });
+  const body = new FormData();
+  body.set('chat_id', '-100123');
+  body.set('message_thread_id', String(EVENTS_TOPIC_ID));
+  body.set('caption', '<b>events</b>');
+  body.set('photo', new Blob([Buffer.from('fake-image')], { type: 'image/jpeg' }), 'events.jpg');
+
+  const response = await handleTelegramTopicRequest(
+    'https://api.telegram.org/bot1:testtoken/sendPhoto',
+    { method: 'POST', body },
+    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await cache.get('topic:19:2026-08-19:messages'), [779]);
+  assert.equal(await cache.get('topic:19:chat-id'), -100123);
+});
+
 test('publishing in the main forum also removes the obsolete couple topic once', async () => {
   const cache = fakeCache();
   const calls = [];
