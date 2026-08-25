@@ -135,6 +135,43 @@ test('maybeSendEventCollage converts concert and Stage sendMessage calls to one 
   assert.match(body.get('caption'), /Большой стендап/);
 });
 
+test('maybeSendEventCollage keeps a collage post when the original event text is longer than Telegram photo caption limit', async () => {
+  const sourceUrl = 'https://stage-standup.ru/event/long';
+  const eventText = [
+    '<b>🎙 Stage StandUp Club</b>',
+    '📅 Среда, 26 августа',
+    ...Array.from({ length: 35 }, (_, index) => `${index + 1}. Очень длинное описание события номер ${index + 1} с площадкой, временем, стоимостью и дополнительными подробностями`),
+    `<a href="${sourceUrl}">Официальная страница →</a>`,
+  ].join('\n');
+  const telegramCalls = [];
+  const fetchImpl = async (url) => {
+    const key = String(url);
+    if (key === sourceUrl) return response('<meta property="og:image" content="https://stage-standup.ru/img/long.jpg">');
+    if (key === 'https://stage-standup.ru/img/long.jpg') return response(svg('LONG'), { headers: { 'content-type': 'image/svg+xml' } });
+    throw new Error(`unexpected fetch ${key}`);
+  };
+  const telegramFetchImpl = async (url, init) => {
+    telegramCalls.push({ url: String(url), init });
+    return response(JSON.stringify({ ok: true, result: { message_id: 781 } }), { headers: { 'content-type': 'application/json' } });
+  };
+
+  const result = await maybeSendEventCollage(
+    'https://api.telegram.org/botTEST/sendMessage',
+    {
+      method: 'POST',
+      body: JSON.stringify({ chat_id: -100123, message_thread_id: 19, text: eventText, parse_mode: 'HTML' }),
+    },
+    { fetchImpl, telegramFetchImpl },
+  );
+
+  assert.ok(result);
+  assert.equal(telegramCalls.length, 1);
+  assert.match(telegramCalls[0].url, /sendPhoto$/);
+  const caption = telegramCalls[0].init.body.get('caption');
+  assert.ok(caption.length < eventText.length);
+  assert.match(caption, /Stage StandUp Club/);
+});
+
 test('maybeSendEventCollage leaves the original text path untouched when source posters are unavailable', async () => {
   const result = await maybeSendEventCollage(
     'https://api.telegram.org/botTEST/sendMessage',
