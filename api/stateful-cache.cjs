@@ -5,7 +5,7 @@ function getTopicMaintenanceCache(options = {}) {
 }
 
 function getDailyContentCache(options = {}) {
-  return createStrictRuntimeCache({ namespace: 'rudi-daily-content-v1', ...options });
+  return createStrictRuntimeCache({ namespace: 'rudi-daily-content-v1', confirmWrites: false, ...options });
 }
 
 function getLaborCache(options = {}) {
