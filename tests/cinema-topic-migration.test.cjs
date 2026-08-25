@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { migrateCinemaPost } = require('../api/cinema-topic-migrate.js');
+const {
+  migrateCinemaPost,
+  securelyMatchesMigrationKey,
+} = require('../api/cinema-topic-migrate.js');
 
 function memoryCache(initial = {}) {
   const state = new Map(Object.entries(initial));
@@ -11,6 +14,11 @@ function memoryCache(initial = {}) {
     async delete(key) { state.delete(key); return true; },
   };
 }
+
+test('migration endpoint accepts only the intended one-time key', () => {
+  assert.equal(securelyMatchesMigrationKey('cinema-topic-20260825'), true);
+  assert.equal(securelyMatchesMigrationKey('wrong-key'), false);
+});
 
 test('migration identifies the cinema post without deleting normal events messages', async () => {
   const cache = memoryCache({
