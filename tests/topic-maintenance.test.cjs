@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   EVENTS_TOPIC_ID,
   HOLIDAYS_TOPIC_ID,
+  CLIENTS_TOPIC_ID,
   COUPLE_TOPIC_ID,
   dateKeyInMoscow,
   shiftDateKey,
@@ -98,6 +99,50 @@ test('outgoing managed topic messages are recorded for future cleanup', async ()
   assert.equal(response.status, 200);
   assert.deepEqual(await cache.get('topic:19:2026-08-19:messages'), [777]);
   assert.equal(await cache.get('topic:19:chat-id'), -100123);
+});
+
+test('managed sendPhoto FormData messages are recorded for future cleanup', async () => {
+  const cache = fakeCache({ 'topic:237:deleted:-100123': true });
+  const fetchImpl = async () => telegramResponse({ message_id: 779 });
+  const body = new FormData();
+  body.set('chat_id', '-100123');
+  body.set('message_thread_id', String(EVENTS_TOPIC_ID));
+  body.set('caption', '<b>events</b>');
+  body.set('photo', new Blob([Buffer.from('fake-image')], { type: 'image/jpeg' }), 'events.jpg');
+
+  const response = await handleTelegramTopicRequest(
+    'https://api.telegram.org/bot1:testtoken/sendPhoto',
+    { method: 'POST', body },
+    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await cache.get('topic:19:2026-08-19:messages'), [779]);
+  assert.equal(await cache.get('topic:19:chat-id'), -100123);
+});
+
+test('clients FormData media is sanitized and forwarded instead of being suppressed', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return telegramResponse({ message_id: 780 });
+  };
+  const body = new FormData();
+  body.set('chat_id', '-100123');
+  body.set('message_thread_id', String(CLIENTS_TOPIC_ID));
+  body.set('caption', 'Старый заголовок\n\n💡 <b>Совет дня от маркетолога</b>\nПолезный совет');
+  body.set('photo', new Blob([Buffer.from('fake-image')], { type: 'image/jpeg' }), 'client.jpg');
+
+  const response = await handleTelegramTopicRequest(
+    'https://api.telegram.org/bot1:testtoken/sendPhoto',
+    { method: 'POST', body },
+    { fetchImpl },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /sendPhoto$/);
+  assert.equal(calls[0].init.body.get('caption'), '💡 <b>Совет дня от маркетолога</b>\nПолезный совет');
 });
 
 test('publishing in the main forum also removes the obsolete couple topic once', async () => {

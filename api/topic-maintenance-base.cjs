@@ -63,6 +63,12 @@ function parseRequestPayload(init = {}) {
     if (payload.chat_id !== undefined && /^-?\d+$/.test(payload.chat_id)) payload.chat_id = Number(payload.chat_id);
     return payload;
   }
+  if (typeof FormData !== 'undefined' && init.body instanceof FormData) {
+    const payload = Object.fromEntries(init.body.entries());
+    if (payload.message_thread_id !== undefined) payload.message_thread_id = Number(payload.message_thread_id);
+    if (payload.chat_id !== undefined && /^-?\d+$/.test(String(payload.chat_id))) payload.chat_id = Number(payload.chat_id);
+    return payload;
+  }
   return null;
 }
 
@@ -102,6 +108,16 @@ function sanitizeClientsRequest(init, payload) {
   }
   if (init.body instanceof URLSearchParams) {
     const body = new URLSearchParams(init.body);
+    body.set(field, cleaned);
+    return { init: { ...init, body }, allowed: true };
+  }
+  if (typeof FormData !== 'undefined' && init.body instanceof FormData) {
+    const body = new FormData();
+    for (const [key, value] of init.body.entries()) {
+      if (key === field) continue;
+      if (typeof value === 'string') body.append(key, value);
+      else body.append(key, value, typeof value.name === 'string' && value.name ? value.name : 'blob');
+    }
     body.set(field, cleaned);
     return { init: { ...init, body }, allowed: true };
   }
