@@ -2,7 +2,6 @@ const { createHash } = require('node:crypto');
 
 const FACTS_TOPIC_ID = 72;
 const LULU_TOPIC_ID = 85;
-const HISTORY_TTL_SECONDS = 60 * 60 * 24 * 730;
 const HISTORY_LIMIT = 1000;
 const TARGET_METHODS = new Set(['sendMessage', 'sendPhoto', 'sendDocument', 'sendVideo', 'sendAnimation']);
 
@@ -125,8 +124,10 @@ async function loadHistory(cache, topicId) {
   return Array.isArray(value) ? value : [];
 }
 
-function chooseUnseenEntry(entries, seenFingerprints, fingerprint) {
+function chooseUnseenEntry(entries, seenFingerprints, fingerprint, seenIds = new Set()) {
   for (const entry of Array.isArray(entries) ? entries : []) {
+    const entryId = String(entry?.id || '').trim();
+    if (entryId && seenIds.has(entryId)) continue;
     const message = formatCatalogEntry(entry);
     if (!message) continue;
     const candidateFingerprint = fingerprint(message);
@@ -140,7 +141,6 @@ function chooseUnseenEntry(entries, seenFingerprints, fingerprint) {
 async function rememberPublished(cache, topicId, history, record) {
   const next = [...history, record].slice(-HISTORY_LIMIT);
   await cache.set(historyKey(topicId), next, {
-    ttl: HISTORY_TTL_SECONDS,
     tags: ['rudi-daily-content-history'],
     name: historyKey(topicId),
   });
@@ -153,7 +153,7 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
   if (!cache || typeof cache.get !== 'function' || typeof cache.set !== 'function') {
     throw new Error('Daily content dedupe cache is required');
   }
-  const catalog = options.catalog || { facts: [], lulu: [] };
+  const catalog = options.catalog || { facts: [], lulu: [], publishedIds: [] };
   const alwaysReplace = options.alwaysReplace === true;
 
   return async (input, init = {}) => {
@@ -178,6 +178,10 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
     if (history.some((row) => row?.dateKey === dateKey)) return syntheticSuccess(topicId);
 
     const seenFingerprints = new Set(history.map((row) => String(row?.fingerprint || '')).filter(Boolean));
+    const seenIds = new Set([
+      ...history.map((row) => String(row?.id || '').trim()).filter(Boolean),
+      ...(Array.isArray(catalog.publishedIds) ? catalog.publishedIds.map((id) => String(id || '').trim()).filter(Boolean) : []),
+    ]);
     const originalSeen = seenFingerprints.has(originalFingerprint);
 
     let actualMessage = originalMessage;
@@ -185,7 +189,7 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
     let contentId = null;
 
     if (alwaysReplace || originalSeen) {
-      const replacement = chooseUnseenEntry(catalog[kind], seenFingerprints, fingerprint);
+      const replacement = chooseUnseenEntry(catalog[kind], seenFingerprints, fingerprint, seenIds);
       if (!replacement) return syntheticSuccess(topicId);
       actualMessage = replacement.message;
       actualFingerprint = replacement.fingerprint;
