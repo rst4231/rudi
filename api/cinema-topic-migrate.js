@@ -6,7 +6,7 @@ const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { ensureCinemaTopic, LEGACY_EVENTS_TOPIC_ID } = require('./cinema-topic.cjs');
 
 const MIGRATION_KEY = 'cinema-post-migrated-v1';
-const EXPECTED_KEY_HASH = '94508e8a2948c79438ca89c7e2d61b9b0483938a298379747fd9f84ca00c21de';
+const EXPECTED_KEY_HASH = '67e125e05fb9cd303c4960b0c46f127205d8a605c8f49237e0f32e5f1b2873b7';
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 365 * 5;
 
 function securelyMatchesMigrationKey(value) {
