@@ -34,6 +34,7 @@ function createTimeoutSignal(timeoutMs) {
 }
 
 function createOfficialRuntimeCache(options, namespace, attempts, retryDelayMs) {
+  const confirmWrites = options.confirmWrites !== false;
   let cache = options.runtimeCache;
   if (!cache) {
     const getCacheImpl = options.getCacheImpl || require('@vercel/functions').getCache;
@@ -71,6 +72,7 @@ function createOfficialRuntimeCache(options, namespace, attempts, retryDelayMs) 
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         try {
           await cache.set(key, value, cacheOptions);
+          if (!confirmWrites) return true;
           for (let confirm = 0; confirm < attempts; confirm += 1) {
             const stored = await cache.get(key);
             if (stored !== null && stored !== undefined && isDeepStrictEqual(stored, value)) return true;
