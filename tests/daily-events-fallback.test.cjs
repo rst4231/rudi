@@ -15,7 +15,7 @@ function memoryCache(initial = {}) {
   };
 }
 
-test('events fallback does nothing when events were already published for the Moscow date', async () => {
+test('events fallback does nothing when both daily event messages were already published', async () => {
   const calls = [];
   const result = await runEventsFallback({
     dateKey: '2026-08-25',
@@ -24,6 +24,21 @@ test('events fallback does nothing when events were already published for the Mo
   });
   assert.equal(result.skipped, 'already-published');
   assert.equal(calls.length, 0);
+});
+
+test('events fallback retries when only one of the two daily event messages exists', async () => {
+  const calls = [];
+  const runtime = async (req, res) => {
+    calls.push(req);
+    res.status(200).json({ ok: true, results: { events: { sent: true } } });
+  };
+  const result = await runEventsFallback({
+    dateKey: '2026-08-25',
+    cache: memoryCache({ 'topic:19:2026-08-25:messages': [701] }),
+    runtime,
+  });
+  assert.equal(result.ran, true);
+  assert.equal(calls.length, 1);
 });
 
 test('events fallback republishes only the events rubric when the nightly cron left no event messages', async () => {
