@@ -63,7 +63,42 @@ function extractStagePosterUrl(html, pageUrl) {
   return candidates[candidates.length - 1].url;
 }
 
+function escapeHtmlAttribute(value) {
+  return String(value || '')
+    .replace(/&/gu, '&amp;')
+    .replace(/"/gu, '&quot;')
+    .replace(/</gu, '&lt;')
+    .replace(/>/gu, '&gt;');
+}
+
+async function stageEventAwareFetch(input, init = {}, baseFetch = globalThis.fetch) {
+  const rawUrl = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
+  if (!stageEventId(rawUrl)) return baseFetch(input, init);
+
+  const requestUrl = new URL(rawUrl);
+  requestUrl.hash = '';
+  const response = await baseFetch(requestUrl.toString(), init);
+  if (!response?.ok) return response;
+
+  const html = await response.text();
+  const posterUrl = extractStagePosterUrl(html, rawUrl);
+  const syntheticHtml = posterUrl
+    ? `<html><head><meta property="og:image" content="${escapeHtmlAttribute(posterUrl)}"></head></html>`
+    : '<html><head></head><body></body></html>';
+  return new Response(syntheticHtml, {
+    status: response.status,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  });
+}
+
+function wrapStageEventFetch(baseFetch) {
+  if (typeof baseFetch !== 'function') throw new TypeError('fetch is not available');
+  return (input, init) => stageEventAwareFetch(input, init, baseFetch);
+}
+
 module.exports = {
   stageEventId,
   extractStagePosterUrl,
+  stageEventAwareFetch,
+  wrapStageEventFetch,
 };
