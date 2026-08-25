@@ -34,6 +34,7 @@ const {
   buildAliceNoSharedListResponse,
   acknowledgeLegacyProductsCallback,
 } = require('./products-chat.cjs');
+const { maybeSendEventCollage } = require('./event-collage.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
 const { withLaborPublicationLease } = require('./labor-publication-lock.cjs');
 const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
@@ -73,6 +74,20 @@ globalThis.fetch = async function stageSafeFetch(input, init = {}) {
       }
     }
   } catch (error) { console.error('RUDI_STAGE_PRICE_SANITIZER_ERROR', error); }
+
+  try {
+    const collageResponse = await maybeSendEventCollage(input, nextInit, {
+      fetchImpl: nativeFetch,
+      telegramFetchImpl: (telegramUrl, telegramInit) => handleTelegramTopicRequest(
+        telegramUrl,
+        telegramInit,
+        { fetchImpl: nativeFetch },
+      ),
+    });
+    if (collageResponse) return collageResponse;
+  } catch (error) {
+    console.error('RUDI_EVENT_COLLAGE_ERROR', error);
+  }
 
   return handleTelegramTopicRequest(input, nextInit, { fetchImpl: nativeFetch });
 };
