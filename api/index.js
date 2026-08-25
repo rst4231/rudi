@@ -34,7 +34,7 @@ const {
   buildAliceNoSharedListResponse,
   acknowledgeLegacyProductsCallback,
 } = require('./products-chat.cjs');
-const { maybeSendEventCollage } = require('./event-collage.cjs');
+const { maybeSendEventCollage, compactEventTelegramRequest } = require('./event-collage.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
 const { withLaborPublicationLease } = require('./labor-publication-lock.cjs');
 const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
@@ -74,6 +74,8 @@ globalThis.fetch = async function stageSafeFetch(input, init = {}) {
       }
     }
   } catch (error) { console.error('RUDI_STAGE_PRICE_SANITIZER_ERROR', error); }
+
+  nextInit = compactEventTelegramRequest(nextInit);
 
   try {
     const collageResponse = await maybeSendEventCollage(input, nextInit, {
