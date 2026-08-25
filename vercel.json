@@ -20,9 +20,6 @@
     "api/daily-cron.js": {
       "maxDuration": 300
     },
-    "api/daily-events-fallback.cjs": {
-      "maxDuration": 300
-    },
     "api/recover-20260823.js": {
       "maxDuration": 300
     }
@@ -57,10 +54,6 @@
     {
       "path": "/api/daily",
       "schedule": "30 21 * * *"
-    },
-    {
-      "path": "/api/daily-events-fallback",
-      "schedule": "30 22 * * *"
     }
   ]
 }
