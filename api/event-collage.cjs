@@ -76,6 +76,30 @@ function compactEventCaption(text) {
     .trim();
 }
 
+function compactEventTelegramRequest(init = {}) {
+  if (typeof init.body === 'string') {
+    try {
+      const payload = JSON.parse(init.body);
+      if (!isEventDigestText(payload?.text)) return init;
+      const text = compactEventCaption(payload.text);
+      if (text === payload.text) return init;
+      return { ...init, body: JSON.stringify({ ...payload, text }) };
+    } catch {
+      return init;
+    }
+  }
+  if (init.body instanceof URLSearchParams) {
+    const text = init.body.get('text');
+    if (!isEventDigestText(text)) return init;
+    const compact = compactEventCaption(text);
+    if (compact === text) return init;
+    const body = new URLSearchParams(init.body);
+    body.set('text', compact);
+    return { ...init, body };
+  }
+  return init;
+}
+
 function visibleCaptionLength(text) {
   return decodeHtml(String(text || '').replace(/<[^>]*>/gu, '')).length;
 }
@@ -215,6 +239,7 @@ module.exports = {
   extractPosterUrl,
   extractEventLinks,
   compactEventCaption,
+  compactEventTelegramRequest,
   fetchEventPoster,
   buildEventCollage,
   maybeSendEventCollage,
