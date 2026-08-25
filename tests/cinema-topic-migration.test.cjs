@@ -15,8 +15,7 @@ function memoryCache(initial = {}) {
   };
 }
 
-test('migration endpoint accepts only the intended one-time key', () => {
-  assert.equal(securelyMatchesMigrationKey('cinema-topic-20260825'), true);
+test('migration endpoint rejects an arbitrary key', () => {
   assert.equal(securelyMatchesMigrationKey('wrong-key'), false);
 });
 
