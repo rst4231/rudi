@@ -63,6 +63,12 @@ function parseRequestPayload(init = {}) {
     if (payload.chat_id !== undefined && /^-?\d+$/.test(payload.chat_id)) payload.chat_id = Number(payload.chat_id);
     return payload;
   }
+  if (typeof FormData !== 'undefined' && init.body instanceof FormData) {
+    const payload = Object.fromEntries(init.body.entries());
+    if (payload.message_thread_id !== undefined) payload.message_thread_id = Number(payload.message_thread_id);
+    if (payload.chat_id !== undefined && /^-?\d+$/.test(String(payload.chat_id))) payload.chat_id = Number(payload.chat_id);
+    return payload;
+  }
   return null;
 }
 
