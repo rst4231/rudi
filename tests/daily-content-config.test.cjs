@@ -47,3 +47,14 @@ test('catalog rejects duplicate IDs and malformed entries', () => {
     lulu: [],
   }), /duplicate content id/i);
 });
+
+test('catalog preserves permanently published content ids', () => {
+  const catalog = validateCatalog({
+    version: 2,
+    publishedIds: ['facts-old', 'lulu-old'],
+    facts: [{ id: 'facts-old', type: 'facts', category: 'A', body: 'A', sourceUrl: 'https://example.com/a' }],
+    lulu: [{ id: 'lulu-old', type: 'lulu', title: 'B', body: 'B', sourceUrl: 'https://example.com/b' }],
+  });
+
+  assert.deepEqual(catalog.publishedIds, ['facts-old', 'lulu-old']);
+});
