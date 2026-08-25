@@ -15,6 +15,7 @@ const {
   handleTelegramTopicRequest,
 } = require('./topic-maintenance.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
+const { ensureCinemaTopic } = require('./cinema-topic.cjs');
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 365 * 5;
 
@@ -113,6 +114,13 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     || await getKnownForumChatId({ cache: options.topicCache })
     || findForumChatIdInEnv(options.env || process.env);
   if (!chatId) throw new Error('Telegram forum chat id is unavailable for cinema premieres');
+  const { topicId } = await ensureCinemaTopic({
+    token,
+    chatId,
+    cache,
+    fetchImpl,
+    configuredTopicId: config.cinemaPremieres.topicId,
+  });
 
   let posts = 0;
   if (rows.length) {
@@ -121,7 +129,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     await sendTelegramCollage({
       token,
       chatId,
-      topicId: config.cinemaPremieres.topicId,
+      topicId,
       image,
       caption,
       fetchImpl,
@@ -141,7 +149,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
 
   const complete = kinopolisResult.status === 'fulfilled' && mirageResult.status === 'fulfilled';
   if (!rows.length && complete) {
-    await sendNoPremieresMessage({ token, chatId, topicId: config.cinemaPremieres.topicId, fetchImpl, now });
+    await sendNoPremieresMessage({ token, chatId, topicId, fetchImpl, now });
   }
   if (complete) {
     await cache.set(`done:${dateKey}`, true, {
@@ -153,6 +161,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
 
   return {
     date: dateKey,
+    topicId,
     published: rows.length,
     posts,
     complete,
