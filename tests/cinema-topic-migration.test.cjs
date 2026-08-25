@@ -19,6 +19,44 @@ test('migration endpoint rejects an arbitrary key', () => {
   assert.equal(securelyMatchesMigrationKey('wrong-key'), false);
 });
 
+test('explicit source message id can be migrated even when it was never tracked', async () => {
+  const cache = memoryCache({ 'cinema-topic-id': 705 });
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const method = String(url).split('/').pop();
+    const body = JSON.parse(init.body);
+    calls.push({ method, body });
+    if (method === 'forwardMessage') {
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 901, caption: '🎬 Кинопремьеры — 20 августа' } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    if (method === 'copyMessage') {
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 950 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    if (method === 'deleteMessage') {
+      return new Response(JSON.stringify({ ok: true, result: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    throw new Error(`unexpected ${method}`);
+  };
+
+  const result = await migrateCinemaPost({
+    token: 'token',
+    chatId: -1004476323368,
+    cache,
+    fetchImpl,
+    sourceMessageId: 695,
+    now: new Date('2026-08-25T18:00:00Z'),
+  });
+
+  assert.equal(result.migrated, true);
+  assert.equal(result.sourceMessageId, 695);
+  assert.equal(result.topicId, 705);
+  const copied = calls.find((call) => call.method === 'copyMessage');
+  assert.equal(copied.body.message_id, 695);
+  assert.equal(copied.body.message_thread_id, 705);
+  const deletedSource = calls.find((call) => call.method === 'deleteMessage' && Number(call.body.message_id) === 695);
+  assert.ok(deletedSource);
+});
+
 test('migration identifies the cinema post without deleting normal events messages', async () => {
   const cache = memoryCache({
     'cinema-topic-id': 314,

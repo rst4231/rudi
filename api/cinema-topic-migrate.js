@@ -15,6 +15,11 @@ function securelyMatchesMigrationKey(value) {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
+function validMessageId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 async function telegramCall(fetchImpl, token, method, payload) {
   const response = await fetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST',
@@ -50,15 +55,21 @@ async function migrateCinemaPost(options = {}) {
   const todayKey = dateKeyInMoscow(options.now || new Date());
   const lookbackDays = Math.max(1, Number(options.lookbackDays || 7));
   const candidates = [];
+  const explicitMessageId = validMessageId(options.sourceMessageId);
+  if (explicitMessageId) {
+    candidates.push({ dateKey: null, key: null, messageId: explicitMessageId });
+  }
 
-  for (let age = 0; age < lookbackDays; age += 1) {
-    const dateKey = shiftDateKey(todayKey, -age);
-    const key = `topic:${LEGACY_EVENTS_TOPIC_ID}:${dateKey}:messages`;
-    const stored = await topicCache.get(key);
-    if (!Array.isArray(stored)) continue;
-    for (const rawId of stored) {
-      const messageId = Number(rawId);
-      if (Number.isInteger(messageId) && messageId > 0) candidates.push({ dateKey, key, messageId });
+  if (!explicitMessageId) {
+    for (let age = 0; age < lookbackDays; age += 1) {
+      const dateKey = shiftDateKey(todayKey, -age);
+      const key = `topic:${LEGACY_EVENTS_TOPIC_ID}:${dateKey}:messages`;
+      const stored = await topicCache.get(key);
+      if (!Array.isArray(stored)) continue;
+      for (const rawId of stored) {
+        const messageId = Number(rawId);
+        if (Number.isInteger(messageId) && messageId > 0) candidates.push({ dateKey, key, messageId });
+      }
     }
   }
 
@@ -108,13 +119,15 @@ async function migrateCinemaPost(options = {}) {
       throw new Error(`Telegram source cinema delete failed: HTTP ${deleted.response?.status || 0}${detail ? ` ${detail}` : ''}`);
     }
 
-    const originalList = await topicCache.get(candidate.key);
-    if (Array.isArray(originalList)) {
-      const remaining = originalList.map(Number).filter((id) => id !== candidate.messageId);
-      if (remaining.length) {
-        await topicCache.set(candidate.key, remaining, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-messages'] });
-      } else if (typeof topicCache.delete === 'function') {
-        await topicCache.delete(candidate.key);
+    if (candidate.key) {
+      const originalList = await topicCache.get(candidate.key);
+      if (Array.isArray(originalList)) {
+        const remaining = originalList.map(Number).filter((id) => id !== candidate.messageId);
+        if (remaining.length) {
+          await topicCache.set(candidate.key, remaining, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-messages'] });
+        } else if (typeof topicCache.delete === 'function') {
+          await topicCache.delete(candidate.key);
+        }
       }
     }
 
@@ -146,7 +159,14 @@ async function handler(req, res) {
     const cinemaCache = getCinemaPremieresCache();
     const chatId = await getKnownForumChatId({ cache: topicCache }) || findForumChatIdInEnv(process.env);
     if (!chatId) throw new Error('Telegram forum chat id is unavailable for cinema migration');
-    const result = await migrateCinemaPost({ token, chatId, topicCache, cinemaCache, fetchImpl: globalThis.fetch });
+    const result = await migrateCinemaPost({
+      token,
+      chatId,
+      topicCache,
+      cinemaCache,
+      fetchImpl: globalThis.fetch,
+      sourceMessageId: req.query?.messageId,
+    });
     return res.status(result.migrated || result.skipped ? 200 : 404).json({ ok: Boolean(result.migrated || result.skipped), ...result });
   } catch (error) {
     console.error('RUDI_CINEMA_TOPIC_MIGRATION_ERROR', error);

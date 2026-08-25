@@ -9,7 +9,8 @@
       "feat/events-cinema-premieres": false,
       "fix/cinema-poster-proxy": false,
       "fix/cinema-collage": false,
-      "fix/cinema-topic-and-events-fallback": false
+      "fix/cinema-topic-and-events-fallback": false,
+      "fix/cinema-explicit-migrate": false
     }
   },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",
