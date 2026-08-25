@@ -101,6 +101,14 @@ function historyKey(topicId) {
   return `daily-content:${Number(topicId)}:history`;
 }
 
+function usedIdsKey(topicId) {
+  return `daily-content:${Number(topicId)}:used-ids`;
+}
+
+function publicationDateKey(topicId, dateKey) {
+  return `daily-content:${Number(topicId)}:date:${String(dateKey)}`;
+}
+
 function syntheticSuccess(topicId) {
   return new Response(JSON.stringify({
     ok: true,
@@ -125,6 +133,11 @@ async function loadHistory(cache, topicId) {
   return Array.isArray(value) ? value : [];
 }
 
+async function loadUsedIds(cache, topicId) {
+  const value = await cache.get(usedIdsKey(topicId));
+  return Array.isArray(value) ? value.map((id) => String(id || '').trim()).filter(Boolean) : [];
+}
+
 function chooseUnseenEntry(entries, seenFingerprints, fingerprint, seenIds = new Set()) {
   for (const entry of Array.isArray(entries) ? entries : []) {
     const entryId = String(entry?.id || '').trim();
@@ -137,6 +150,24 @@ function chooseUnseenEntry(entries, seenFingerprints, fingerprint, seenIds = new
     }
   }
   return null;
+}
+
+async function reservePublication(cache, topicId, dateKey, usedIds, record) {
+  const id = String(record?.id || '').trim();
+  if (!id) return;
+  const nextUsedIds = [...new Set([...usedIds, id])];
+  await cache.set(usedIdsKey(topicId), nextUsedIds, {
+    tags: ['rudi-daily-content-used'],
+    name: usedIdsKey(topicId),
+  });
+  await cache.set(publicationDateKey(topicId, dateKey), {
+    id,
+    fingerprint: String(record?.fingerprint || ''),
+    reservedAt: String(record?.reservedAt || new Date().toISOString()),
+  }, {
+    tags: ['rudi-daily-content-date'],
+    name: publicationDateKey(topicId, dateKey),
+  });
 }
 
 async function rememberPublished(cache, topicId, history, record) {
@@ -173,14 +204,19 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
 
     const now = new Date(options.now || Date.now());
     const dateKey = dateKeyInMoscow(now);
+    const dateReservation = await cache.get(publicationDateKey(topicId, dateKey));
+    if (dateReservation) return syntheticSuccess(topicId);
+
     const originalMessage = payload[field];
     const originalFingerprint = fingerprint(originalMessage);
     const history = await loadHistory(cache, topicId);
     if (history.some((row) => row?.dateKey === dateKey)) return syntheticSuccess(topicId);
 
+    const usedIds = await loadUsedIds(cache, topicId);
     const seenFingerprints = new Set(history.map((row) => String(row?.fingerprint || '')).filter(Boolean));
     const seenIds = new Set([
       ...LEGACY_PUBLISHED_IDS,
+      ...usedIds,
       ...history.map((row) => String(row?.id || '').trim()).filter(Boolean),
       ...(Array.isArray(catalog.publishedIds) ? catalog.publishedIds.map((id) => String(id || '').trim()).filter(Boolean) : []),
     ]);
@@ -196,6 +232,14 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
       actualMessage = replacement.message;
       actualFingerprint = replacement.fingerprint;
       contentId = String(replacement.entry.id || '') || null;
+    }
+
+    if (contentId) {
+      await reservePublication(cache, topicId, dateKey, usedIds, {
+        id: contentId,
+        fingerprint: actualFingerprint,
+        reservedAt: now.toISOString(),
+      });
     }
 
     const nextInit = actualMessage === originalMessage
@@ -228,5 +272,8 @@ module.exports = {
   formatCatalogEntry,
   wrapDailyContentDedupe,
   historyKey,
+  usedIdsKey,
+  publicationDateKey,
   chooseUnseenEntry,
+  reservePublication,
 };
