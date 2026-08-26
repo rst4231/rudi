@@ -67,7 +67,7 @@ test('event venue config blocks Sevkabel, BRUS shorthand and Brusnitsyn', () => 
   assert.ok(blocked.has('брусницын'));
 });
 
-test('Labor falls back to existing topic 126 when runtime cache is empty', async () => {
+test('Labor never falls back to Clients topic 126 when runtime cache is empty', async () => {
   const calls = [];
   const now = new Date('2026-08-26T09:00:00Z');
   const cache = getLaborCache({
@@ -78,17 +78,15 @@ test('Labor falls back to existing topic 126 when runtime cache is empty', async
     now,
   });
 
-  const result = await publishLaborArticle({
+  await assert.rejects(() => publishLaborArticle({
     token: '1:test',
     chatId: -1001,
     cache,
     fetchImpl: telegramStub(calls),
     now,
-  });
+  }), /Labor topic id is unavailable/i);
 
-  assert.equal(result.topicId, 126);
-  assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
-  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 126);
+  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
 });
 
 test('one-time Labor bootstrap is allowed on 26 August 2026', () => {
