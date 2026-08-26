@@ -61,10 +61,17 @@ function extractEventLinks(text) {
   return links;
 }
 
-function isEventDigestText(text) {
+function isConcertDigestText(text) {
+  return String(text || '').includes('Поп и хип-хоп концерты');
+}
+
+function isStageDigestText(text) {
   const value = String(text || '');
-  return value.includes('Поп и хип-хоп концерты')
-    || (value.includes('Stage StandUp Club') && (value.includes('Найдено событий/сеансов') || value.includes('📅')));
+  return value.includes('Stage StandUp Club') && (value.includes('Найдено событий/сеансов') || value.includes('📅'));
+}
+
+function isEventDigestText(text) {
+  return isConcertDigestText(text) || isStageDigestText(text);
 }
 
 function compactEventCaption(text) {
@@ -206,6 +213,7 @@ async function maybeSendEventCollage(input, init = {}, options = {}) {
 
   const payload = telegramPayload(init);
   if (!payload || !isEventDigestText(payload.text)) return null;
+  if (isConcertDigestText(payload.text)) return null;
   const eventLinks = extractEventLinks(payload.text).slice(0, MAX_POSTERS);
   if (!eventLinks.length) return null;
 
@@ -258,4 +266,6 @@ module.exports = {
   buildEventCollage,
   maybeSendEventCollage,
   isEventDigestText,
+  isConcertDigestText,
+  isStageDigestText,
 };
