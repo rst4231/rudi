@@ -25,6 +25,9 @@
     },
     "api/recover-20260823.js": {
       "maxDuration": 300
+    },
+    "api/recover-events-20260826.js": {
+      "maxDuration": 300
     }
   },
   "rewrites": [
