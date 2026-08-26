@@ -5,13 +5,15 @@ const path = require('node:path');
 
 const recoveryPath = path.join(__dirname, '..', 'api', 'recover-events-20260826.js');
 
-test('Aug 26 events recovery is date-limited and one-time', () => {
+test('Aug 26 events recovery is date-limited, key-protected and one-time', () => {
   assert.equal(fs.existsSync(recoveryPath), true, 'api/recover-events-20260826.js must exist');
   const source = fs.readFileSync(recoveryPath, 'utf8');
   assert.match(source, /RECOVERY_DATE = '2026-08-26'/);
+  assert.match(source, /EXPECTED_KEY_HASH = '[a-f0-9]{64}'/);
   assert.match(source, /events-recovery-20260826-complete/);
   assert.match(source, /getRecoveryCache/);
   assert.match(source, /status\(410\)/);
+  assert.match(source, /status\(401\)/);
 });
 
 test('Aug 26 events recovery republishes only events through the authenticated daily runtime', () => {
