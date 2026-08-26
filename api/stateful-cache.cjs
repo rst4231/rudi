@@ -1,4 +1,5 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 
 const LABOR_TOPIC_LOOKBACK_DAYS = 45;
 const CLIENTS_TOPIC_ID = 126;
@@ -55,6 +56,10 @@ async function restoreLaborTopicId(cache, topicId) {
 
 function guardLaborTopicCache(cache, options = {}) {
   const todayKey = moscowDateKey(options.now || new Date());
+  const laborTopicIdResolver = options.laborTopicIdResolver || (async () => {
+    const config = await loadForumTopicsConfig();
+    return config.labor;
+  });
 
   return {
     async get(key) {
@@ -70,6 +75,13 @@ function guardLaborTopicCache(cache, options = {}) {
         const recoveredTopicId = validLaborTopicId(recorded?.topicId);
         if (!recoveredTopicId) continue;
         return restoreLaborTopicId(cache, recoveredTopicId);
+      }
+
+      try {
+        const configuredTopicId = validLaborTopicId(await laborTopicIdResolver());
+        if (configuredTopicId) return restoreLaborTopicId(cache, configuredTopicId);
+      } catch (error) {
+        console.warn('RUDI_LABOR_TOPIC_CONFIG_ERROR', String(error?.message || error));
       }
 
       throw new Error('Labor topic id is unavailable; refusing to create a duplicate Telegram forum topic');
@@ -88,9 +100,9 @@ function guardLaborTopicCache(cache, options = {}) {
 }
 
 function getLaborCache(options = {}) {
-  const { now, fallbackTopicId: _ignoredFallbackTopicId, ...cacheOptions } = options;
+  const { now, fallbackTopicId: _ignoredFallbackTopicId, laborTopicIdResolver, ...cacheOptions } = options;
   const cache = createStrictRuntimeCache({ namespace: 'rudi-labor-code-v1', ...cacheOptions });
-  return guardLaborTopicCache(cache, { now });
+  return guardLaborTopicCache(cache, { now, laborTopicIdResolver });
 }
 
 function getLaborLeaseCache(options = {}) {
