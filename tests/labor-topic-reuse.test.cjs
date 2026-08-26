@@ -12,7 +12,7 @@ function memoryCache(seed = {}) {
   };
 }
 
-function guardedLaborCache(seed = {}, now = new Date('2026-08-25T09:00:00Z')) {
+function guardedLaborCache(seed = {}, now = new Date('2026-08-26T09:00:00Z')) {
   return getLaborCache({
     runtimeCache: memoryCache(seed),
     env: {},
@@ -45,12 +45,12 @@ function telegramStub(calls) {
 
 test('reuses the most recent recorded Labor topic when the primary topic cache key is missing', async () => {
   const calls = [];
-  const now = new Date('2026-08-25T09:00:00Z');
+  const now = new Date('2026-08-26T09:00:00Z');
   const result = await publishLaborArticle({
     token: '1:test',
     chatId: -1001,
     cache: guardedLaborCache({
-      'labor:message:2026-08-24': {
+      'labor:message:2026-08-25': {
         articleId: 'contract:worker',
         messageId: 800,
         topicId: 444,
@@ -66,19 +66,36 @@ test('reuses the most recent recorded Labor topic when the primary topic cache k
   assert.equal(send.body.message_thread_id, 444);
 });
 
-test('uses the known Labor topic 126 when runtime topic history is unavailable', async () => {
+test('ignores a bad same-day Clients topic record and recovers the older Labor topic', async () => {
   const calls = [];
-  const now = new Date('2026-08-25T09:00:00Z');
-
+  const now = new Date('2026-08-26T09:00:00Z');
   const result = await publishLaborArticle({
+    token: '1:test',
+    chatId: -1001,
+    cache: guardedLaborCache({
+      'labor:message:2026-08-26': { articleId: 'wrong', messageId: 721, topicId: 126 },
+      'labor:message:2026-08-23': { articleId: 'right', messageId: 636, topicId: 444 },
+    }, now),
+    fetchImpl: telegramStub(calls),
+    now,
+  });
+
+  assert.equal(result.topicId, 444);
+  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 444);
+});
+
+test('fails closed instead of ever using Clients topic 126 when Labor topic history is unavailable', async () => {
+  const calls = [];
+  const now = new Date('2026-08-26T09:00:00Z');
+
+  await assert.rejects(() => publishLaborArticle({
     token: '1:test',
     chatId: -1001,
     cache: guardedLaborCache({}, now),
     fetchImpl: telegramStub(calls),
     now,
-  });
+  }), /Labor topic id is unavailable/i);
 
-  assert.equal(result.topicId, 126);
   assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
-  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 126);
+  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
 });
