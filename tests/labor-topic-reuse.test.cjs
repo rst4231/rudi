@@ -12,13 +12,14 @@ function memoryCache(seed = {}) {
   };
 }
 
-function guardedLaborCache(seed = {}, now = new Date('2026-08-26T09:00:00Z')) {
+function guardedLaborCache(seed = {}, now = new Date('2026-08-26T09:00:00Z'), options = {}) {
   return getLaborCache({
     runtimeCache: memoryCache(seed),
     env: {},
     attempts: 1,
     retryDelayMs: 0,
     now,
+    ...options,
   });
 }
 
@@ -84,14 +85,34 @@ test('ignores a bad same-day Clients topic record and recovers the older Labor t
   assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 444);
 });
 
-test('fails closed instead of ever using Clients topic 126 when Labor topic history is unavailable', async () => {
+test('uses externally configured Labor topic 696 when runtime history is unavailable', async () => {
+  const calls = [];
+  const now = new Date('2026-08-26T09:00:00Z');
+  const result = await publishLaborArticle({
+    token: '1:test',
+    chatId: -1001,
+    cache: guardedLaborCache({}, now, {
+      laborTopicIdResolver: async () => 696,
+    }),
+    fetchImpl: telegramStub(calls),
+    now,
+  });
+
+  assert.equal(result.topicId, 696);
+  assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
+  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 696);
+});
+
+test('fails closed instead of ever using Clients topic 126 when Labor topic history and config are unavailable', async () => {
   const calls = [];
   const now = new Date('2026-08-26T09:00:00Z');
 
   await assert.rejects(() => publishLaborArticle({
     token: '1:test',
     chatId: -1001,
-    cache: guardedLaborCache({}, now),
+    cache: guardedLaborCache({}, now, {
+      laborTopicIdResolver: async () => null,
+    }),
     fetchImpl: telegramStub(calls),
     now,
   }), /Labor topic id is unavailable/i);
