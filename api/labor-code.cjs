@@ -47,13 +47,6 @@ const LABOR_ARTICLES = [
   ['discrimination','Дискриминация в сфере труда','Ограничения при найме и работе должны быть связаны с деловыми качествами сотрудника или прямо допускаться законом. Необоснованная дискриминация в сфере труда запрещена.','ст. 3, 64 ТК РФ'],
 ];
 
-const ANGLES = [
-  ['worker','Что важно работнику','Сохраните договоры, уведомления, расчётные листки и переписку, если они подтверждают условия работы.'],
-  ['documents','Какие документы проверить','Сверьте трудовой договор, локальные правила и приказы: устная договорённость намного сложнее доказывается при споре.'],
-  ['employer','Что важно работодателю','Процедуру лучше фиксировать письменно и соблюдать сроки: большинство трудовых споров осложняются именно ошибками в оформлении.'],
-  ['dispute','Если возник спор','Сначала запросите документы и письменное объяснение позиции второй стороны. При необходимости можно обращаться в государственную инспекцию труда или суд.'],
-];
-
 function getRuntimeCache() {
   const { getCache } = require('@vercel/functions');
   return getCache({ namespace: 'rudi-labor-code-v1' });
@@ -95,18 +88,12 @@ async function ensureLaborTopic({ token, chatId, cache, fetchImpl }) {
 }
 
 function allArticleVariants() {
-  const result = [];
-  for (const [angleId, angleTitle, angleBody] of ANGLES) {
-    for (const [baseId, title, body, reference] of LABOR_ARTICLES) {
-      result.push({
-        id: `${baseId}:${angleId}`,
-        baseId,
-        angleId,
-        text: `⚖️ <b>Трудовой кодекс</b>\n\n<b>${title}</b>\n\n${body}\n\n<b>${angleTitle}</b>\n${angleBody}\n\n📘 ${reference}\n<a href="${LABOR_SOURCE_URL}">Актуальная редакция ТК РФ →</a>`,
-      });
-    }
-  }
-  return result;
+  return LABOR_ARTICLES.map(([baseId, title, body, reference]) => ({
+    id: `${baseId}:worker`,
+    baseId,
+    angleId: 'worker',
+    text: `⚖️ <b>Трудовой кодекс</b>\n\n<b>${title}</b>\n\n${body}\n\n📘 ${reference}\n<a href="${LABOR_SOURCE_URL}">Актуальная редакция ТК РФ →</a>`,
+  }));
 }
 
 function selectArticleForDate(value = new Date(), options = {}) {
