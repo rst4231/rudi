@@ -5,6 +5,9 @@ const { getRecoveryCache } = require('./stateful-cache.cjs');
 const RECOVERY_DATE = '2026-08-23';
 const RECOVERY_KEY = 'recovery-20260823-complete';
 const EXPECTED_KEY_HASH = 'ed06a21ce6c7d58cc1228538ec04a6a6057a25ea0ac08dbe7d29fe06c3e29956';
+const EVENTS_RECOVERY_DATE = '2026-08-26';
+const EVENTS_RECOVERY_KEY = 'events-recovery-20260826-complete';
+const EVENTS_EXPECTED_KEY_HASH = '8c09eb7a108c22cdf6814353ad846b2a4866394458edbe62199131a5c9b72c46';
 const TTL_SECONDS = 3 * 24 * 60 * 60;
 
 function moscowDateKey(now = new Date()) {
@@ -18,10 +21,18 @@ function moscowDateKey(now = new Date()) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function securelyMatchesRecoveryKey(value) {
+function securelyMatchesHash(value, expectedHash) {
   const actual = createHash('sha256').update(String(value || '')).digest();
-  const expected = Buffer.from(EXPECTED_KEY_HASH, 'hex');
+  const expected = Buffer.from(expectedHash, 'hex');
   return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function securelyMatchesRecoveryKey(value) {
+  return securelyMatchesHash(value, EXPECTED_KEY_HASH);
+}
+
+function securelyMatchesEventsRecoveryKey(value) {
+  return securelyMatchesHash(value, EVENTS_EXPECTED_KEY_HASH);
 }
 
 function createCaptureResponse() {
@@ -36,13 +47,13 @@ function createCaptureResponse() {
   };
 }
 
-async function runEventsRecovery() {
+async function runEventsRecovery(dateKey = RECOVERY_DATE) {
   const cronSecret = process.env.CRON_SECRET?.trim();
   if (!cronSecret) throw new Error('CRON_SECRET is not configured');
   const request = {
     method: 'GET',
-    url: `/api/daily?date=${RECOVERY_DATE}&only=events`,
-    query: { route: 'daily', date: RECOVERY_DATE, only: 'events' },
+    url: `/api/daily?date=${dateKey}&only=events`,
+    query: { route: 'daily', date: dateKey, only: 'events' },
     headers: {
       authorization: `Bearer ${process.env.CRON_SECRET}`,
       'x-vercel-cron-schedule': '30 21 * * *',
@@ -57,15 +68,40 @@ async function runEventsRecovery() {
   return response.payload;
 }
 
+async function recordCompletion(cache, key, completedAt) {
+  await cache.set(key, { completed: true, completedAt }, {
+    ttl: TTL_SECONDS,
+    tags: ['one-time-recovery'],
+    name: key,
+  });
+}
+
 async function handler(req, res) {
-  if (moscowDateKey() !== RECOVERY_DATE) {
+  const today = moscowDateKey();
+  const cache = getRecoveryCache();
+
+  if (today === EVENTS_RECOVERY_DATE) {
+    if (!securelyMatchesEventsRecoveryKey(req.query?.key)) {
+      return res.status(401).json({ ok: false, error: 'unauthorized-events-recovery' });
+    }
+    const completed = await cache.get(EVENTS_RECOVERY_KEY);
+    if (completed?.completed === true) {
+      return res.status(200).json({ ok: true, alreadyCompleted: true, completedAt: completed.completedAt || null });
+    }
+
+    const events = await runEventsRecovery(EVENTS_RECOVERY_DATE);
+    const completedAt = new Date().toISOString();
+    await recordCompletion(cache, EVENTS_RECOVERY_KEY, completedAt);
+    return res.status(200).json({ ok: true, events, completedAt });
+  }
+
+  if (today !== RECOVERY_DATE) {
     return res.status(410).json({ ok: false, error: 'recovery-expired' });
   }
   if (!securelyMatchesRecoveryKey(req.query?.key)) {
     return res.status(401).json({ ok: false, error: 'unauthorized-recovery' });
   }
 
-  const cache = getRecoveryCache();
   const completed = await cache.get(RECOVERY_KEY);
   if (completed?.completed === true) {
     return res.status(200).json({ ok: true, alreadyCompleted: true, completedAt: completed.completedAt || null });
@@ -74,11 +110,7 @@ async function handler(req, res) {
   const labor = await indexHandler.publishDailyLaborArticle();
   const events = await runEventsRecovery();
   const completedAt = new Date().toISOString();
-  await cache.set(RECOVERY_KEY, { completed: true, completedAt }, {
-    ttl: TTL_SECONDS,
-    tags: ['one-time-recovery'],
-    name: RECOVERY_KEY,
-  });
+  await recordCompletion(cache, RECOVERY_KEY, completedAt);
 
   return res.status(200).json({ ok: true, labor, events, completedAt });
 }
@@ -86,4 +118,5 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.moscowDateKey = moscowDateKey;
 module.exports.securelyMatchesRecoveryKey = securelyMatchesRecoveryKey;
+module.exports.securelyMatchesEventsRecoveryKey = securelyMatchesEventsRecoveryKey;
 module.exports.runEventsRecovery = runEventsRecovery;
