@@ -26,3 +26,8 @@ test('Aug 26 events recovery republishes only events through the authenticated d
   assert.doesNotMatch(source, /publishDailyLaborArticle/);
   assert.doesNotMatch(source, /only: 'morning'/);
 });
+
+test('Aug 26 events recovery has enough Vercel execution time for remote event sources', () => {
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
+  assert.equal(config.functions?.['api/recover-events-20260826.js']?.maxDuration, 300);
+});
