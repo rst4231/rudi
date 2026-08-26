@@ -66,18 +66,19 @@ test('reuses the most recent recorded Labor topic when the primary topic cache k
   assert.equal(send.body.message_thread_id, 444);
 });
 
-test('refuses to create a duplicate Labor topic when durable topic state is unavailable', async () => {
+test('uses the known Labor topic 126 when runtime topic history is unavailable', async () => {
   const calls = [];
   const now = new Date('2026-08-25T09:00:00Z');
 
-  await assert.rejects(() => publishLaborArticle({
+  const result = await publishLaborArticle({
     token: '1:test',
     chatId: -1001,
     cache: guardedLaborCache({}, now),
     fetchImpl: telegramStub(calls),
     now,
-  }), /refusing to create a duplicate/i);
+  });
 
+  assert.equal(result.topicId, 126);
   assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
-  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
+  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 126);
 });

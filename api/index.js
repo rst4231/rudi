@@ -131,7 +131,7 @@ function getMoscowDateKey(date = new Date()) {
 }
 
 function isLaborBootstrapAllowed(date = new Date()) {
-  return getMoscowDateKey(date) === '2026-08-20';
+  return ['2026-08-20', '2026-08-26'].includes(getMoscowDateKey(date));
 }
 
 function readGeneratedRuntimeSource() {

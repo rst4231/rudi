@@ -1,6 +1,7 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const LABOR_TOPIC_LOOKBACK_DAYS = 45;
+const LABOR_TOPIC_FALLBACK_ID = 126;
 const LABOR_TOPIC_CACHE_OPTIONS = {
   ttl: 60 * 60 * 24 * 3650,
   tags: ['rudi-labor-topic'],
@@ -38,8 +39,18 @@ function validTopicId(value) {
   return Number.isInteger(topicId) && topicId > 0 ? topicId : null;
 }
 
+async function restoreLaborTopicId(cache, topicId) {
+  try {
+    await cache.set('labor:topic-id', topicId, LABOR_TOPIC_CACHE_OPTIONS);
+  } catch (error) {
+    console.warn('RUDI_LABOR_TOPIC_CACHE_RESTORE_ERROR', String(error?.message || error));
+  }
+  return topicId;
+}
+
 function guardLaborTopicCache(cache, options = {}) {
   const todayKey = moscowDateKey(options.now || new Date());
+  const fallbackTopicId = validTopicId(options.fallbackTopicId) || LABOR_TOPIC_FALLBACK_ID;
 
   return {
     async get(key) {
@@ -54,15 +65,10 @@ function guardLaborTopicCache(cache, options = {}) {
         const recorded = await cache.get(`labor:message:${dateKey}`);
         const recoveredTopicId = validTopicId(recorded?.topicId);
         if (!recoveredTopicId) continue;
-        try {
-          await cache.set('labor:topic-id', recoveredTopicId, LABOR_TOPIC_CACHE_OPTIONS);
-        } catch (error) {
-          console.warn('RUDI_LABOR_TOPIC_CACHE_RESTORE_ERROR', String(error?.message || error));
-        }
-        return recoveredTopicId;
+        return restoreLaborTopicId(cache, recoveredTopicId);
       }
 
-      throw new Error('Labor topic id is unavailable; refusing to create a duplicate Telegram forum topic');
+      return restoreLaborTopicId(cache, fallbackTopicId);
     },
     set(key, value, cacheOptions) {
       return cache.set(key, value, cacheOptions);
@@ -78,9 +84,9 @@ function guardLaborTopicCache(cache, options = {}) {
 }
 
 function getLaborCache(options = {}) {
-  const { now, ...cacheOptions } = options;
+  const { now, fallbackTopicId, ...cacheOptions } = options;
   const cache = createStrictRuntimeCache({ namespace: 'rudi-labor-code-v1', ...cacheOptions });
-  return guardLaborTopicCache(cache, { now });
+  return guardLaborTopicCache(cache, { now, fallbackTopicId });
 }
 
 function getLaborLeaseCache(options = {}) {
@@ -97,6 +103,7 @@ function getCinemaPremieresCache(options = {}) {
 
 module.exports = {
   LABOR_TOPIC_LOOKBACK_DAYS,
+  LABOR_TOPIC_FALLBACK_ID,
   getTopicMaintenanceCache,
   getDailyContentCache,
   getLaborCache,
