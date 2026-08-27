@@ -168,7 +168,7 @@ function parseKinopolisReleasePage(html, releaseUrl, sourceName = 'Кинопо�
 }
 
 function extractMirageFilmLinks(html, baseUrl = 'https://www.mirage.ru/') {
-  const re = /href=["']([^"']*\/film\/(\d+)\/[^"'#?]+(?:\.htm)?)["']/giu;
+  const re = /href=["']([^"']*\/film\/(\d+)\/(?:[^"'#?]+(?:\.htm)?)?)["']/giu;
   const rows = [];
   let match;
   while ((match = re.exec(String(html || '')))) rows.push({ id: match[2], url: absoluteUrl(match[1], baseUrl) });
