@@ -33,32 +33,7 @@ async function ensureCinemaTopic(options = {}) {
   const cached = await resolveCinemaTopicId({ cache, configuredTopicId: configured });
   if (cached) return { topicId: cached, source: 'cache' };
 
-  const token = String(options.token || '').trim();
-  const chatId = options.chatId;
-  if (!token) throw new Error('Telegram bot token is required to create cinema topic');
-  if (chatId === undefined || chatId === null || chatId === '') throw new Error('Telegram forum chat id is required to create cinema topic');
-
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const response = await fetchImpl(`https://api.telegram.org/bot${token}/createForumTopic`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, name: 'Кинопремьеры' }),
-  });
-  if (!response?.ok) {
-    let detail = '';
-    try { detail = await response.text(); } catch {}
-    throw new Error(`Telegram createForumTopic failed: HTTP ${response?.status || 0}${detail ? ` ${detail}` : ''}`);
-  }
-  const data = await response.json();
-  const topicId = validTopicId(data?.result?.message_thread_id);
-  if (!topicId) throw new Error('Telegram createForumTopic returned no message_thread_id');
-
-  await cache.set(CINEMA_TOPIC_CACHE_KEY, topicId, {
-    ttl: CACHE_TTL_SECONDS,
-    tags: ['rudi-cinema-topic'],
-    name: CINEMA_TOPIC_CACHE_KEY,
-  });
-  return { topicId, source: 'created' };
+  throw new Error('Cinema topic id is unavailable; refusing to create a duplicate Telegram forum topic');
 }
 
 module.exports = {
