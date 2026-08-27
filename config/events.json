@@ -1,12 +1,20 @@
 {
-  "version": 1,
+  "version": 2,
   "blockedVenueTokens": [
     "севкабель",
     "sevkabel",
+    "севкабель порт",
+    "sevkabel port",
+    "кожевенная линия, 40",
+    "kozhevennaya liniya, 40",
     "брус",
     "brus",
     "брусницын",
-    "brusnitsyn"
+    "brusnitsyn",
+    "брусницын холл",
+    "brusnitsyn hall",
+    "кожевенная линия, 30",
+    "kozhevennaya liniya, 30"
   ],
   "cinemaPremieres": {
     "enabled": true,
