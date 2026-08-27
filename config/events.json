@@ -35,7 +35,7 @@
   ],
   "cinemaPremieres": {
     "enabled": true,
-    "topicId": 19,
+    "topicId": 705,
     "maxItems": 12,
     "kinopolis": {
       "name": "Кинополис Мурино",
