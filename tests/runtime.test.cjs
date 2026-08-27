@@ -50,5 +50,5 @@ test('Vercel config exposes the expected RUDI routes and only the RUDI cron', ()
     '/api/alice-shopping': '/api/index?route=alice-shopping',
     '/api/init-products': '/api/index?route=init-products'
   });
-  assert.deepEqual(config.crons, [{ path: '/api/daily', schedule: '30 21 * * *' }]);
+  assert.deepEqual(config.crons, [{ path: '/api/daily', schedule: '0 1 * * *' }]);
 });

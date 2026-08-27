@@ -20,15 +20,12 @@ test('cached cinema topic overrides the legacy configured events topic', async (
   assert.equal(await resolveCinemaTopicId({ cache, configuredTopicId: 19 }), 314);
 });
 
-test('cinema topic is created once and persisted for later publications', async () => {
+test('configured cinema topic is persisted and reused without creating a Telegram topic', async () => {
   const cache = memoryCache();
-  const calls = [];
-  const fetchImpl = async (url, init) => {
-    calls.push({ url: String(url), body: JSON.parse(init.body) });
-    return new Response(JSON.stringify({
-      ok: true,
-      result: { message_thread_id: 314, name: 'Кинопремьеры' },
-    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    throw new Error('Telegram should not be called');
   };
 
   const first = await ensureCinemaTopic({
@@ -36,17 +33,41 @@ test('cinema topic is created once and persisted for later publications', async 
     chatId: -100123,
     cache,
     fetchImpl,
+    configuredTopicId: 705,
   });
   const second = await ensureCinemaTopic({
     token: 'token',
     chatId: -100123,
     cache,
     fetchImpl,
+    configuredTopicId: 705,
   });
 
-  assert.equal(first.topicId, 314);
-  assert.equal(second.topicId, 314);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].body.name, 'Кинопремьеры');
-  assert.equal(await cache.get(CINEMA_TOPIC_CACHE_KEY), 314);
+  assert.equal(first.topicId, 705);
+  assert.equal(second.topicId, 705);
+  assert.equal(calls, 0);
+  assert.equal(await cache.get(CINEMA_TOPIC_CACHE_KEY), 705);
+});
+
+test('cinema routing refuses to create a duplicate topic when no existing topic id is available', async () => {
+  const cache = memoryCache();
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({
+      ok: true,
+      result: { message_thread_id: 999, name: 'Кинопремьеры' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+
+  await assert.rejects(
+    ensureCinemaTopic({
+      token: 'token',
+      chatId: -100123,
+      cache,
+      fetchImpl,
+    }),
+    /refusing to create a duplicate Telegram forum topic/i,
+  );
+  assert.equal(calls, 0);
 });
