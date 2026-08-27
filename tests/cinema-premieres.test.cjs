@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const cinema = require('../api/cinema-premieres.cjs');
+const cinemaCollage = require('../api/cinema-premieres-collage.cjs');
 const config = require('../api/events-config.cjs');
 
 const KINOPOLIS_HOME = `
@@ -143,12 +144,17 @@ test('events config validates remote-editable venue exclusions and cinema source
       topicId: 19,
       maxItems: 12,
       kinopolis: { name: 'Кинополис Мурино', url: 'https://sky.kinopolis-film.ru/' },
-      mirage: { name: 'Мираж Синема', url: 'https://www.mirage.ru/spb/films/soon/' },
+      mirage: {
+        name: 'Мираж Синема',
+        url: 'https://www.mirage.ru/spb/films/soon/',
+        fallbackUrls: ['https://film.mirage.ru/'],
+      },
     },
   });
   assert.deepEqual(parsed.blockedVenueTokens, ['севкабель', 'брусницын']);
   assert.equal(parsed.cinemaPremieres.topicId, 19);
   assert.equal(parsed.cinemaPremieres.maxItems, 12);
+  assert.deepEqual(parsed.cinemaPremieres.mirage.fallbackUrls, ['https://film.mirage.ru/']);
 });
 
 test('event runtime loads venue exclusions from remote events config before formatting messages', () => {
@@ -168,4 +174,47 @@ test('daily cron publishes one cinema collage post in the same scheduled run as 
   assert.match(cinemaSource, /buildCinemaCollage/);
   assert.match(cinemaSource, /sendTelegramCollage/);
   assert.doesNotMatch(cinemaSource, /photo: row\.posterUrl/);
+});
+
+test('Mirage loader also checks current films because release-day titles can disappear from Soon after midnight', async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(String(url));
+    if (String(url) === 'https://www.mirage.ru/spb/films/soon/') return new Response('<html></html>', { status: 200 });
+    if (String(url) === 'https://www.mirage.ru/spb/films/') return new Response(MIRAGE_SOON, { status: 200 });
+    if (String(url) === 'https://www.mirage.ru/film/7426/moana.htm') return new Response(MIRAGE_FILM, { status: 200 });
+    if (String(url) === 'https://www.mirage.ru/film/7515/zhertva-obstoyatelstv-.htm') return new Response(MIRAGE_OTHER_DATE, { status: 200 });
+    return new Response('not found', { status: 404 });
+  };
+  const rows = await cinema.loadMiragePremieres('2026-08-27', {
+    name: 'Мираж Синема',
+    url: 'https://www.mirage.ru/spb/films/soon/',
+  }, { fetchImpl, attempts: 1 });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].title, 'МОАНА');
+  assert.ok(calls.includes('https://www.mirage.ru/spb/films/'));
+});
+
+test('Mirage loader falls back to an official mirror when www host fails in serverless runtime', async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    const value = String(url);
+    calls.push(value);
+    if (value.startsWith('https://www.mirage.ru/')) throw new TypeError('fetch failed');
+    if (value === 'https://film.mirage.ru/') return new Response(MIRAGE_SOON, { status: 200 });
+    if (value === 'https://film.mirage.ru/film/7426/moana.htm') return new Response(MIRAGE_FILM, { status: 200 });
+    if (value === 'https://film.mirage.ru/film/7515/zhertva-obstoyatelstv-.htm') return new Response(MIRAGE_OTHER_DATE, { status: 200 });
+    return new Response('not found', { status: 404 });
+  };
+
+  const rows = await cinemaCollage.loadMiragePremieresWithFallback('2026-08-27', {
+    name: 'Мираж Синема',
+    url: 'https://www.mirage.ru/spb/films/soon/',
+    fallbackUrls: ['https://film.mirage.ru/'],
+  }, { fetchImpl, attempts: 1 });
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].title, 'МОАНА');
+  assert.ok(calls.includes('https://film.mirage.ru/'));
+  assert.ok(calls.includes('https://film.mirage.ru/film/7426/moana.htm'));
 });

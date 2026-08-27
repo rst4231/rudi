@@ -54,6 +54,10 @@ function securelyMatchesCinemaRecoveryKey(value) {
   return securelyMatchesHash(value, CINEMA_EXPECTED_KEY_HASH);
 }
 
+function cinemaRecoveryIsComplete(cinema) {
+  return cinema?.complete === true;
+}
+
 function createCaptureResponse() {
   return {
     statusCode: 200,
@@ -192,12 +196,21 @@ async function handler(req, res) {
       return res.status(401).json({ ok: false, error: 'unauthorized-cinema-recovery' });
     }
     const completed = await cache.get(CINEMA_RECOVERY_KEY);
-    if (completed?.completed === true) {
+    if (completed?.completed === true && cinemaRecoveryIsComplete(completed.cinema)) {
       return res.status(200).json({ ok: true, alreadyCompleted: true, ...completed });
     }
 
     const cinema = await runCinemaRecovery(CINEMA_RECOVERY_DATE);
     const completedAt = new Date().toISOString();
+    if (!cinemaRecoveryIsComplete(cinema)) {
+      return res.status(503).json({
+        ok: false,
+        retryable: true,
+        error: 'cinema-recovery-incomplete',
+        cinema,
+        completedAt,
+      });
+    }
     await recordCompletion(cache, CINEMA_RECOVERY_KEY, completedAt, { cinema });
     return res.status(200).json({ ok: true, cinema, completedAt });
   }
@@ -243,6 +256,7 @@ module.exports.moscowDateKey = moscowDateKey;
 module.exports.securelyMatchesRecoveryKey = securelyMatchesRecoveryKey;
 module.exports.securelyMatchesEventsRecoveryKey = securelyMatchesEventsRecoveryKey;
 module.exports.securelyMatchesCinemaRecoveryKey = securelyMatchesCinemaRecoveryKey;
+module.exports.cinemaRecoveryIsComplete = cinemaRecoveryIsComplete;
 module.exports.runEventsRecovery = runEventsRecovery;
 module.exports.loadEventsPreview = loadEventsPreview;
 module.exports.finalizeEventsRecovery = finalizeEventsRecovery;
