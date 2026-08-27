@@ -55,7 +55,7 @@ function securelyMatchesCinemaRecoveryKey(value) {
 }
 
 function cinemaRecoveryIsComplete(cinema) {
-  return cinema?.complete === true;
+  return cinema?.complete === true && Number(cinema?.published || 0) > 0;
 }
 
 function createCaptureResponse() {
