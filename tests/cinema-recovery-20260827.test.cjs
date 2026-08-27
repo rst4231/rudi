@@ -22,9 +22,9 @@ test('Aug 27 cinema recovery clears the false done marker and republishes once f
   assert.equal(result.published, 5);
 });
 
-test('incomplete cinema recovery is not treated as completed so it can be retried', () => {
+test('zero-result Aug 27 cinema recovery remains retryable after a false empty parse', () => {
   assert.equal(typeof recovery.cinemaRecoveryIsComplete, 'function');
   assert.equal(recovery.cinemaRecoveryIsComplete({ complete: false, published: 0 }), false);
-  assert.equal(recovery.cinemaRecoveryIsComplete({ complete: true, published: 0 }), true);
+  assert.equal(recovery.cinemaRecoveryIsComplete({ complete: true, published: 0 }), false);
   assert.equal(recovery.cinemaRecoveryIsComplete({ complete: true, published: 8 }), true);
 });
