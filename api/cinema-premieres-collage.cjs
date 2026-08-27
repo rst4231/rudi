@@ -72,6 +72,29 @@ async function sendNoPremieresMessage({ token, chatId, topicId, fetchImpl, now }
   return response;
 }
 
+async function loadMiragePremieresWithFallback(dateKey, sourceConfig, sourceOptions = {}) {
+  const urls = [...new Set([
+    sourceConfig?.url,
+    ...(Array.isArray(sourceConfig?.fallbackUrls) ? sourceConfig.fallbackUrls : []),
+  ].filter(Boolean))];
+  let lastError = null;
+
+  for (const url of urls) {
+    try {
+      return await legacy.loadMiragePremieres(dateKey, { ...sourceConfig, url }, sourceOptions);
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        'RUDI_MIRAGE_PREMIERES_SOURCE_ERROR',
+        url,
+        String(error?.message || error),
+      );
+    }
+  }
+
+  throw lastError || new Error('Mirage cinema source is unavailable');
+}
+
 async function publishWeeklyCinemaPremieres(options = {}) {
   const now = options.now || new Date();
   if (!legacy.isThursdayInMoscow(now)) return { skipped: 'not-thursday', date: legacy.moscowDateKey(now) };
@@ -91,7 +114,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   };
   const [kinopolisResult, mirageResult] = await Promise.allSettled([
     legacy.loadKinopolisPremieres(dateKey, config.cinemaPremieres.kinopolis, sourceOptions),
-    legacy.loadMiragePremieres(dateKey, config.cinemaPremieres.mirage, sourceOptions),
+    loadMiragePremieresWithFallback(dateKey, config.cinemaPremieres.mirage, sourceOptions),
   ]);
   if (kinopolisResult.status === 'rejected') {
     console.warn('RUDI_KINOPOLIS_PREMIERES_ERROR', String(kinopolisResult.reason?.message || kinopolisResult.reason));
@@ -178,5 +201,6 @@ module.exports = {
   collageGrid,
   buildCinemaCollage,
   sendTelegramCollage,
+  loadMiragePremieresWithFallback,
   publishWeeklyCinemaPremieres,
 };

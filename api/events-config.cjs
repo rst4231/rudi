@@ -23,9 +23,12 @@ function findCinemaSource(cinemaInput, type, fallbackName, fallbackUrl) {
   const source = sources.find((item) => item?.enabled !== false && String(item?.type || '').toLowerCase() === type)
     || cinemaInput[type]
     || {};
+  const fallbackUrls = [...new Set((Array.isArray(source.fallbackUrls) ? source.fallbackUrls : [])
+    .map((value, index) => assertHttpUrl(value, `cinema.${type}.fallbackUrls[${index}]`)))];
   return {
     name: String(source.name || fallbackName).trim(),
     url: assertHttpUrl(source.url || fallbackUrl, `cinema.${type}.url`),
+    fallbackUrls,
   };
 }
 
