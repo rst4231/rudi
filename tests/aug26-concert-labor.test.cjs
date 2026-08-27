@@ -59,12 +59,12 @@ test('concert digest stays text-only and does not fetch posters', async () => {
   assert.equal(sourceFetches, 0);
 });
 
-test('event venue config blocks Sevkabel, BRUS shorthand and Brusnitsyn', () => {
+test('event venue config blocks explicit Sevkabel and Brusnitsyn identifiers without broad BRUS shorthand', () => {
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'events.json'), 'utf8'));
   const blocked = new Set((config.blockedVenueTokens || []).map((value) => String(value).toLowerCase()));
   assert.ok(blocked.has('севкабель'));
-  assert.ok(blocked.has('брус'));
   assert.ok(blocked.has('брусницын'));
+  assert.equal(blocked.has('брус'), false);
 });
 
 test('Labor uses configured topic 696 and never Clients topic 126 when runtime cache is empty', async () => {

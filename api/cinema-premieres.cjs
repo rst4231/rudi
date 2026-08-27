@@ -217,9 +217,24 @@ async function loadKinopolisPremieres(dateKey, sourceConfig, options = {}) {
   return results.filter((result) => result.status === 'fulfilled' && result.value?.posterUrl).map((result) => result.value);
 }
 
+function mirageCurrentFilmsUrl(sourceUrl) {
+  try {
+    const url = new URL(sourceUrl);
+    url.pathname = url.pathname.replace(/\/films\/soon\/?$/u, '/films/');
+    return url.toString();
+  } catch {
+    return sourceUrl;
+  }
+}
+
 async function loadMiragePremieres(dateKey, sourceConfig, options = {}) {
-  const html = await fetchText(sourceConfig.url, options);
-  const links = extractMirageFilmLinks(html, sourceConfig.url).slice(0, 60);
+  const currentUrl = mirageCurrentFilmsUrl(sourceConfig.url);
+  const pageUrls = [...new Set([sourceConfig.url, currentUrl])];
+  const pages = await Promise.all(pageUrls.map((url) => fetchText(url, options)));
+  const links = uniqueBy(
+    pages.flatMap((html, index) => extractMirageFilmLinks(html, pageUrls[index])),
+    (row) => row.id,
+  ).slice(0, 90);
   const results = await Promise.allSettled(links.map(async (item) => {
     const page = await fetchText(item.url, options);
     return parseMirageFilmPage(page, item.url, dateKey, sourceConfig.name);

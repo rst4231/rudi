@@ -1,12 +1,17 @@
 const { createHash, timingSafeEqual } = require('node:crypto');
 const indexHandler = require('./index.js');
-const { getRecoveryCache, getTopicMaintenanceCache } = require('./stateful-cache.cjs');
+const {
+  getRecoveryCache,
+  getTopicMaintenanceCache,
+  getCinemaPremieresCache,
+} = require('./stateful-cache.cjs');
 const {
   EVENTS_TOPIC_ID,
   deleteTrackedMessages,
   getKnownForumChatId,
 } = require('./topic-maintenance.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
+const { publishWeeklyCinemaPremieres } = require('./cinema-premieres-collage.cjs');
 
 const RECOVERY_DATE = '2026-08-23';
 const RECOVERY_KEY = 'recovery-20260823-complete';
@@ -15,6 +20,9 @@ const EVENTS_RECOVERY_DATE = '2026-08-26';
 const EVENTS_RECOVERY_KEY = 'events-recovery-20260826-complete';
 const EVENTS_FINALIZE_KEY = 'events-recovery-20260826-finalized';
 const EVENTS_EXPECTED_KEY_HASH = '8c09eb7a108c22cdf6814353ad846b2a4866394458edbe62199131a5c9b72c46';
+const CINEMA_RECOVERY_DATE = '2026-08-27';
+const CINEMA_RECOVERY_KEY = 'cinema-recovery-20260827-complete';
+const CINEMA_EXPECTED_KEY_HASH = 'dcc8262f572bcca4597378a311933924a6afa916a253fdcb354c58b13fa14aa7';
 const TTL_SECONDS = 3 * 24 * 60 * 60;
 
 function moscowDateKey(now = new Date()) {
@@ -40,6 +48,10 @@ function securelyMatchesRecoveryKey(value) {
 
 function securelyMatchesEventsRecoveryKey(value) {
   return securelyMatchesHash(value, EVENTS_EXPECTED_KEY_HASH);
+}
+
+function securelyMatchesCinemaRecoveryKey(value) {
+  return securelyMatchesHash(value, CINEMA_EXPECTED_KEY_HASH);
 }
 
 function createCaptureResponse() {
@@ -155,6 +167,14 @@ async function finalizeEventsRecovery(dateKey = EVENTS_RECOVERY_DATE, options = 
   };
 }
 
+async function runCinemaRecovery(dateKey = CINEMA_RECOVERY_DATE, options = {}) {
+  const cinemaCache = options.cinemaCache || getCinemaPremieresCache();
+  const publish = options.publish || publishWeeklyCinemaPremieres;
+  await cinemaCache.delete(`done:${dateKey}`);
+  const now = options.now || new Date(`${dateKey}T09:00:00+03:00`);
+  return publish({ now, cache: cinemaCache });
+}
+
 async function recordCompletion(cache, key, completedAt, detail = {}) {
   await cache.set(key, { completed: true, completedAt, ...detail }, {
     ttl: TTL_SECONDS,
@@ -166,6 +186,21 @@ async function recordCompletion(cache, key, completedAt, detail = {}) {
 async function handler(req, res) {
   const today = moscowDateKey();
   const cache = getRecoveryCache();
+
+  if (today === CINEMA_RECOVERY_DATE) {
+    if (!securelyMatchesCinemaRecoveryKey(req.query?.key)) {
+      return res.status(401).json({ ok: false, error: 'unauthorized-cinema-recovery' });
+    }
+    const completed = await cache.get(CINEMA_RECOVERY_KEY);
+    if (completed?.completed === true) {
+      return res.status(200).json({ ok: true, alreadyCompleted: true, ...completed });
+    }
+
+    const cinema = await runCinemaRecovery(CINEMA_RECOVERY_DATE);
+    const completedAt = new Date().toISOString();
+    await recordCompletion(cache, CINEMA_RECOVERY_KEY, completedAt, { cinema });
+    return res.status(200).json({ ok: true, cinema, completedAt });
+  }
 
   if (today === EVENTS_RECOVERY_DATE) {
     if (!securelyMatchesEventsRecoveryKey(req.query?.key)) {
@@ -207,6 +242,8 @@ module.exports = handler;
 module.exports.moscowDateKey = moscowDateKey;
 module.exports.securelyMatchesRecoveryKey = securelyMatchesRecoveryKey;
 module.exports.securelyMatchesEventsRecoveryKey = securelyMatchesEventsRecoveryKey;
+module.exports.securelyMatchesCinemaRecoveryKey = securelyMatchesCinemaRecoveryKey;
 module.exports.runEventsRecovery = runEventsRecovery;
 module.exports.loadEventsPreview = loadEventsPreview;
 module.exports.finalizeEventsRecovery = finalizeEventsRecovery;
+module.exports.runCinemaRecovery = runCinemaRecovery;
