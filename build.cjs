@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 
 const CHUNK_COUNT = 7;
-const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 7364];
+const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
 const runtimeDir = path.join(__dirname, 'runtime');
 const outputPath = path.join(runtimeDir, 'generated-runtime.cjs');
 const recipeConfigPath = path.join(__dirname, 'config', 'recipes-extra.json');

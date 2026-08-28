@@ -1,6 +1,5 @@
 const base = require('./event-collage-base.cjs');
 const { wrapStageEventFetch } = require('./stage-poster.cjs');
-const { maybeSuppressLegacyVenueDigest } = require('./legacy-venue-digest-guard.cjs');
 
 function withStageEventFetch(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -12,8 +11,6 @@ async function fetchEventPoster(pageUrl, options = {}) {
 }
 
 async function maybeSendEventCollage(input, init = {}, options = {}) {
-  const suppressed = await maybeSuppressLegacyVenueDigest(input, init, options);
-  if (suppressed) return suppressed;
   return base.maybeSendEventCollage(input, init, withStageEventFetch(options));
 }
 
