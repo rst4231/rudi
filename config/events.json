@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "blockedVenueTokens": [
     "севкабель",
     "sevkabel",
@@ -33,14 +33,6 @@
     "kozhevennaya liniya, 30",
     "kozhevennaya liniya 30"
   ],
-  "legacyVenueDigest": {
-    "enabled": false,
-    "titleTokens": [
-      "севкабель порт + брусницын",
-      "севкабель порт",
-      "брусницын"
-    ]
-  },
   "cinemaPremieres": {
     "enabled": true,
     "topicId": 705,
