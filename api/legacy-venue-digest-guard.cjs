@@ -26,6 +26,11 @@ function firstMeaningfulLine(text) {
     .find(Boolean) || '';
 }
 
+function looksLikeLegacyVenueDigestHeading(heading) {
+  const value = normalizeText(heading);
+  return /севкабель|sevkabel|sevcable|брусницын|brusnitsyn/u.test(value);
+}
+
 function normalizeLegacyVenueDigest(input = {}) {
   const legacy = input?.legacyVenueDigest || {};
   const rawTokens = Array.isArray(legacy.titleTokens) && legacy.titleTokens.length
@@ -112,9 +117,11 @@ async function maybeSuppressLegacyVenueDigest(input, init = {}, options = {}) {
   if (!isTelegramSendMessageUrl(input)) return null;
   const text = telegramText(init);
   if (!text) return null;
+  const heading = firstMeaningfulLine(text);
+  if (!looksLikeLegacyVenueDigestHeading(heading)) return null;
   const config = await loadLegacyVenueDigestConfig(options);
   if (!shouldSuppressLegacyVenueDigest(text, config)) return null;
-  console.warn('RUDI_LEGACY_VENUE_DIGEST_SUPPRESSED', firstMeaningfulLine(text));
+  console.warn('RUDI_LEGACY_VENUE_DIGEST_SUPPRESSED', heading);
   return syntheticTelegramSuccess();
 }
 
@@ -125,6 +132,7 @@ module.exports = {
   DEFAULT_TITLE_TOKENS,
   normalizeText,
   firstMeaningfulLine,
+  looksLikeLegacyVenueDigestHeading,
   normalizeLegacyVenueDigest,
   loadLegacyVenueDigestConfig,
   telegramText,
