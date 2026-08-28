@@ -68,6 +68,22 @@ test('buildEventCollage combines downloaded poster images into one jpeg', async 
   assert.equal(result[1], 0xd8);
 });
 
+test('buildEventCollage keeps the full poster visible instead of cropping its edges', async () => {
+  const sharp = require('sharp');
+  const poster = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="200"><rect width="100" height="200" fill="white"/><rect width="100" height="20" fill="#00ff00"/><rect y="180" width="100" height="20" fill="#ff0000"/></svg>');
+  const result = await buildEventCollage([poster], { tileWidth: 100, tileHeight: 100, gap: 0 });
+  const { data, info } = await sharp(result).raw().toBuffer({ resolveWithObject: true });
+  const pixel = (x, y) => {
+    const offset = (y * info.width + x) * info.channels;
+    return Array.from(data.subarray(offset, offset + 3));
+  };
+
+  const top = pixel(50, 3);
+  const bottom = pixel(50, 96);
+  assert.ok(top[1] > 150 && top[0] < 120, `top edge was cropped: ${top.join(',')}`);
+  assert.ok(bottom[0] > 150 && bottom[1] < 120, `bottom edge was cropped: ${bottom.join(',')}`);
+});
+
 test('maybeSendEventCollage converts concert and Stage sendMessage calls to one photo post using source-site posters', async () => {
   const eventText = [
     '<b>🎙 Stage StandUp Club</b>',
