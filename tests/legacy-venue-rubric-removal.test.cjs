@@ -6,10 +6,13 @@ const { buildRuntime } = require('../build.cjs');
 
 const root = path.join(__dirname, '..');
 
-function contextAround(source, marker, radius = 1200) {
-  const index = source.indexOf(marker);
-  if (index < 0) return '';
-  return source.slice(Math.max(0, index - radius), Math.min(source.length, index + marker.length + radius));
+function legacyReferenceLines(source) {
+  return source
+    .split('\n')
+    .map((line, index) => ({ line, number: index + 1 }))
+    .filter(({ line }) => /(src\/venues\.js|runVenueDigest|fetchVenueEvents|venueDigest|\bvenues\b)/iu.test(line))
+    .map(({ line, number }) => `${number}: ${line}`)
+    .join('\n');
 }
 
 test('legacy Sevkabel and Brusnitsyn rubric is absent from built runtime', () => {
@@ -19,7 +22,7 @@ test('legacy Sevkabel and Brusnitsyn rubric is absent from built runtime', () =>
   assert.equal(
     source.includes(marker),
     false,
-    `legacy venue rubric still exists in generated runtime:\n${contextAround(source, marker)}`,
+    `legacy venue rubric still exists in generated runtime. References:\n${legacyReferenceLines(source)}`,
   );
 });
 
