@@ -178,7 +178,7 @@ async function buildEventCollage(images, options = {}) {
 
   const tiles = await Promise.all(items.map((image) => sharp(image)
     .rotate()
-    .resize(tileWidth, tileHeight, { fit: 'cover', position: 'centre' })
+    .resize(tileWidth, tileHeight, { fit: 'contain', position: 'centre', background: '#111111' })
     .jpeg({ quality: 86, chromaSubsampling: '4:4:4' })
     .toBuffer()));
 
