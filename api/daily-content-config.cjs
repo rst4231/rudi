@@ -45,36 +45,27 @@ function validDateKey(value) {
 function validateSequence(input, facts, lulu) {
   if (input === undefined || input === null) return null;
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('sequence must be an object');
-
   const startDate = String(input.startDate || '').trim();
   const factsStartId = String(input.factsStartId || '').trim();
   const luluStartId = String(input.luluStartId || '').trim();
   if (!validDateKey(startDate)) throw new Error('sequence.startDate must be YYYY-MM-DD');
-  if (!factsStartId || !facts.some((entry) => String(entry.id) === factsStartId)) {
-    throw new Error('sequence.factsStartId must reference a facts entry');
-  }
-  if (!luluStartId || !lulu.some((entry) => String(entry.id) === luluStartId)) {
-    throw new Error('sequence.luluStartId must reference a Lulu entry');
-  }
+  if (!factsStartId || !facts.some((entry) => String(entry.id) === factsStartId)) throw new Error('sequence.factsStartId must reference a facts entry');
+  if (!luluStartId || !lulu.some((entry) => String(entry.id) === luluStartId)) throw new Error('sequence.luluStartId must reference a Lulu entry');
   return { startDate, factsStartId, luluStartId };
 }
 
 function applySequenceState(baseConfig, state) {
   if (state === undefined || state === null) return baseConfig;
   if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('Daily content sequence state is invalid');
-
   const retiredIds = validatePublishedIds(state.retiredIds);
   const existingPublished = validatePublishedIds(baseConfig?.publishedIds);
   const publishedIds = [...new Set([...existingPublished, ...retiredIds])];
   const enabled = state.enabled !== false;
-  const sequence = enabled
-    ? {
-        startDate: String(state.startDate || '').trim(),
-        factsStartId: String(state.factsStartId || '').trim(),
-        luluStartId: String(state.luluStartId || '').trim(),
-      }
-    : null;
-
+  const sequence = enabled ? {
+    startDate: String(state.startDate || '').trim(),
+    factsStartId: String(state.factsStartId || '').trim(),
+    luluStartId: String(state.luluStartId || '').trim(),
+  } : null;
   return { ...baseConfig, publishedIds, sequence };
 }
 
@@ -95,21 +86,13 @@ function validateCatalog(input) {
   return { version: Number(input.version || 1), publishedIds, sequence, facts, lulu };
 }
 
-function readBundledConfig() {
-  return JSON.parse(fs.readFileSync(localConfigPath, 'utf8'));
-}
-
-function readBundledSequenceState() {
-  return JSON.parse(fs.readFileSync(localSequencePath, 'utf8'));
-}
+function readBundledConfig() { return JSON.parse(fs.readFileSync(localConfigPath, 'utf8')); }
+function readBundledSequenceState() { return JSON.parse(fs.readFileSync(localSequencePath, 'utf8')); }
 
 async function fetchJson(url, fetchImpl, userAgent) {
   if (!url || typeof fetchImpl !== 'function') return null;
   try {
-    const response = await fetchImpl(url, {
-      headers: { 'user-agent': userAgent },
-      cache: 'no-store',
-    });
+    const response = await fetchImpl(url, { headers: { 'user-agent': userAgent }, cache: 'no-store' });
     if (response?.ok) return await response.json();
   } catch (error) {
     console.warn('RUDI_DAILY_CONTENT_CONFIG_ERROR', String(error?.message || error));
@@ -118,44 +101,28 @@ async function fetchJson(url, fetchImpl, userAgent) {
 }
 
 async function loadDailyContentCatalog(options = {}) {
-  const configUrl = String(options.configUrl || process.env.DAILY_CONTENT_CONFIG_URL || DEFAULT_CONFIG_URL).trim();
-  const sequenceDisabledForTest = options.localSequenceState === null && options.sequenceConfigUrl === undefined;
-  const sequenceUrl = sequenceDisabledForTest
-    ? ''
-    : String(options.sequenceConfigUrl || process.env.DAILY_CONTENT_SEQUENCE_URL || DEFAULT_SEQUENCE_URL).trim();
+  const configUrl = String(options.configUrl || options.settings?.sources?.dailyContentConfigUrl || process.env.DAILY_CONTENT_CONFIG_URL || DEFAULT_CONFIG_URL).trim();
+  const sequenceDisabledForTest = options.localSequenceState === null && options.sequenceConfigUrl === undefined && options.settings?.sources?.dailyContentSequenceUrl === undefined;
+  const sequenceUrl = sequenceDisabledForTest ? '' : String(options.sequenceConfigUrl || options.settings?.sources?.dailyContentSequenceUrl || process.env.DAILY_CONTENT_SEQUENCE_URL || DEFAULT_SEQUENCE_URL).trim();
   const cacheMs = Number.isFinite(Number(options.cacheMs)) ? Math.max(0, Number(options.cacheMs)) : DEFAULT_CACHE_MS;
   const now = Number(options.now || Date.now());
-  if (memo && cacheMs > 0 && memo.configUrl === configUrl && memo.sequenceUrl === sequenceUrl && now - memo.loadedAt < cacheMs) {
-    return memo.catalog;
-  }
+  if (memo && cacheMs > 0 && memo.configUrl === configUrl && memo.sequenceUrl === sequenceUrl && now - memo.loadedAt < cacheMs) return memo.catalog;
 
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const localConfig = options.localConfig || readBundledConfig();
   const remoteConfig = await fetchJson(configUrl, fetchImpl, 'RUDI-Daily-Content/1.0');
   const baseConfig = remoteConfig || localConfig;
-
   let sequenceState = options.localSequenceState;
   if (sequenceState === undefined) sequenceState = readBundledSequenceState();
   if (sequenceUrl) {
     const remoteSequence = await fetchJson(sequenceUrl, fetchImpl, 'RUDI-Daily-Content-Sequence/1.0');
     if (remoteSequence) sequenceState = remoteSequence;
   }
-
   const catalog = validateCatalog(applySequenceState(baseConfig, sequenceState));
   memo = { configUrl, sequenceUrl, loadedAt: now, catalog };
   return catalog;
 }
 
-function resetDailyContentConfigMemo() {
-  memo = null;
-}
+function resetDailyContentConfigMemo() { memo = null; }
 
-module.exports = {
-  DEFAULT_CONFIG_URL,
-  DEFAULT_SEQUENCE_URL,
-  validateCatalog,
-  validateSequence,
-  applySequenceState,
-  loadDailyContentCatalog,
-  resetDailyContentConfigMemo,
-};
+module.exports = { DEFAULT_CONFIG_URL, DEFAULT_SEQUENCE_URL, validateCatalog, validateSequence, applySequenceState, loadDailyContentCatalog, resetDailyContentConfigMemo };
