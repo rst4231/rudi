@@ -1,0 +1,4 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {buildWeekendItems,isWeekendPublicationDay}=require('../api/weekend-digest.cjs');
+test('weekend digest skips below three verified items',()=>{const r=buildWeekendItems({events:[{title:'A',url:'https://a'},{title:'B',url:'https://b'}],cinema:[]},{seenFingerprints:new Set()});assert.equal(r.skipped,'insufficient-verified-items');});
+test('weekend digest deduplicates and caps at seven',()=>{const rows=Array.from({length:9},(_,i)=>({title:`E${i}`,url:`https://e/${i}`,date:'2026-08-30',time:`1${i}:00`}));const r=buildWeekendItems({events:[...rows,rows[0]],cinema:[]},{seenFingerprints:new Set()});assert.equal(r.items.length,7);assert.equal(new Set(r.fingerprints).size,7);});
+test('friday and saturday are configured days',()=>{assert.equal(isWeekendPublicationDay('2026-08-28',[4,5]),true);assert.equal(isWeekendPublicationDay('2026-08-30',[4,5]),false);});
