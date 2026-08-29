@@ -165,11 +165,12 @@ test('event runtime loads venue exclusions from remote events config before form
   assert.match(source, /filter\(event=>eventVenueAllowed\(event,blockedVenueTokens\)\)/);
 });
 
-test('daily cron publishes one cinema collage post in the same scheduled run as regular content', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'daily-cron.js'), 'utf8');
-  assert.match(source, /cinema-premieres-collage\.cjs/);
-  assert.match(source, /publishWeeklyCinemaPremieres/);
-  assert.match(source, /RUDI_CINEMA_PREMIERES_RESULT/);
+test('daily orchestrator routes cinema through the native collage publisher', () => {
+  const orchestratorSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'daily-orchestrator.cjs'), 'utf8');
+  const runnersSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'section-runners.cjs'), 'utf8');
+  assert.match(orchestratorSource, /'cinema'/);
+  assert.match(runnersSource, /cinema-premieres-collage\.cjs/);
+  assert.match(runnersSource, /publishWeeklyCinemaPremieres/);
   const cinemaSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'cinema-premieres-collage.cjs'), 'utf8');
   assert.match(cinemaSource, /buildCinemaCollage/);
   assert.match(cinemaSource, /sendTelegramCollage/);
