@@ -5,7 +5,7 @@ const { getTopicMaintenanceCache, getDailyContentCache, getControlPlaneCache } =
 const { FACTS_TOPIC_ID, LULU_TOPIC_ID, wrapDailyContentDedupe } = require('./daily-content-dedupe.cjs');
 const { loadDailyContentCatalog } = require('./daily-content-config.cjs');
 const { loadRudiSettings } = require('./rudi-settings.cjs');
-const { applySectionControlToTelegramRequest, currentPublicationContext } = require('./section-controls.cjs');
+const { applySectionControlToTelegramRequest, currentPublicationContext, topicSectionMap } = require('./section-controls.cjs');
 const { buildFeedbackMarkup } = require('./feedback-analytics.cjs');
 const { moscowDateKey } = require('./preview-date.cjs');
 
@@ -57,8 +57,6 @@ async function resolveSettings(options = {}) {
   try {
     const loaded = await loadRudiSettings({
       cache: resolveControlCache(options),
-      // Never reuse a Telegram transport for config reads. Callers that want the
-      // remote baseline must provide a dedicated settingsFetchImpl explicitly.
       fetchImpl: options.settingsFetchImpl === undefined ? null : options.settingsFetchImpl,
     });
     return loaded.settings;
@@ -68,11 +66,19 @@ async function resolveSettings(options = {}) {
   }
 }
 
+function manualControlResult(init, settings) {
+  const payload = base.parseRequestPayload(init);
+  const section = topicSectionMap(settings).get(Number(payload?.message_thread_id)) || null;
+  return { handled: false, init, section };
+}
+
 function wrapFetch(fetchImpl, options = {}) {
   return async (input, init = {}) => {
     const settings = await resolveSettings(options);
     const publicationDate = options.publicationDate || currentPublicationContext()?.date || moscowDateKey(options.now || new Date());
-    const control = await applySectionControlToTelegramRequest(input, init, { ...options, settings, cache: resolveControlCache(options), date: publicationDate });
+    const control = options.bypassSectionControls
+      ? manualControlResult(init, settings)
+      : await applySectionControlToTelegramRequest(input, init, { ...options, settings, cache: resolveControlCache(options), date: publicationDate });
     if (control.handled) return control.response;
 
     const clientRewritten = await rewriteClientsTelegramRequest(input, control.init, {
@@ -89,7 +95,7 @@ function wrapFetch(fetchImpl, options = {}) {
     if (section) rewritten = withReplyMarkup(rewritten, buildFeedbackMarkup(section, publicationDate, options.env || process.env));
 
     let dailyContentFetch = fetchImpl;
-    if (topicId === FACTS_TOPIC_ID || topicId === LULU_TOPIC_ID) {
+    if (!options.bypassDailyDedupe && (topicId === FACTS_TOPIC_ID || topicId === LULU_TOPIC_ID)) {
       const catalog = await loadDailyContentCatalog({
         fetchImpl: options.configFetchImpl || fetchImpl,
         configUrl: options.dailyContentConfigUrl,
