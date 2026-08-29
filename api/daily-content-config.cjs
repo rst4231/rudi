@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { recordSourceHealth } = require('./source-health.cjs');
 
 const DEFAULT_CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json';
 const DEFAULT_SEQUENCE_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content-sequence.json';
@@ -100,6 +101,25 @@ async function fetchJson(url, fetchImpl, userAgent) {
   return null;
 }
 
+async function safeRecordDailyContentHealth(catalog, source, sequenceSource, options, now) {
+  try {
+    const recordHealth = options.recordHealth || recordSourceHealth;
+    await recordHealth({
+      sourceId: 'daily-content',
+      status: source === 'remote' ? 'healthy' : 'stale',
+      itemCount: catalog.facts.length + catalog.lulu.length,
+      fallbackSource: source === 'remote' ? null : 'bundled-config',
+      metadata: { catalogSource: source, sequenceSource },
+    }, {
+      cache: options.sourceHealthCache || options.controlCache,
+      now: new Date(now),
+      secrets: options.secrets,
+    });
+  } catch (error) {
+    console.warn('RUDI_DAILY_CONTENT_SOURCE_HEALTH_ERROR', String(error?.message || error));
+  }
+}
+
 async function loadDailyContentCatalog(options = {}) {
   const configUrl = String(options.configUrl || options.settings?.sources?.dailyContentConfigUrl || process.env.DAILY_CONTENT_CONFIG_URL || DEFAULT_CONFIG_URL).trim();
   const sequenceDisabledForTest = options.localSequenceState === null && options.sequenceConfigUrl === undefined && options.settings?.sources?.dailyContentSequenceUrl === undefined;
@@ -114,15 +134,28 @@ async function loadDailyContentCatalog(options = {}) {
   const baseConfig = remoteConfig || localConfig;
   let sequenceState = options.localSequenceState;
   if (sequenceState === undefined) sequenceState = readBundledSequenceState();
+  let sequenceSource = sequenceUrl ? 'bundled-fallback' : 'disabled';
   if (sequenceUrl) {
     const remoteSequence = await fetchJson(sequenceUrl, fetchImpl, 'RUDI-Daily-Content-Sequence/1.0');
-    if (remoteSequence) sequenceState = remoteSequence;
+    if (remoteSequence) {
+      sequenceState = remoteSequence;
+      sequenceSource = 'remote';
+    }
   }
   const catalog = validateCatalog(applySequenceState(baseConfig, sequenceState));
   memo = { configUrl, sequenceUrl, loadedAt: now, catalog };
+  await safeRecordDailyContentHealth(catalog, remoteConfig ? 'remote' : 'bundled-fallback', sequenceSource, options, now);
   return catalog;
 }
 
 function resetDailyContentConfigMemo() { memo = null; }
 
-module.exports = { DEFAULT_CONFIG_URL, DEFAULT_SEQUENCE_URL, validateCatalog, validateSequence, applySequenceState, loadDailyContentCatalog, resetDailyContentConfigMemo };
+module.exports = {
+  DEFAULT_CONFIG_URL,
+  DEFAULT_SEQUENCE_URL,
+  validateCatalog,
+  validateSequence,
+  applySequenceState,
+  loadDailyContentCatalog,
+  resetDailyContentConfigMemo,
+};
