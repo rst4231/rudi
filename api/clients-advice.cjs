@@ -1,5 +1,6 @@
 const localConfigDefault = require('../config/clients-advice.json');
 const { fingerprintContent, getRecentFingerprints } = require('./content-fingerprint.cjs');
+const { recordSourceHealth } = require('./source-health.cjs');
 
 const CLIENTS_TOPIC_ID = 126;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -56,16 +57,49 @@ function formatClientsAdvice(item) {
   if (!isValidAdvice(item)) throw new Error('Clients advice item is invalid');
   return ['💡 <b>Развитие для стилиста с 8-летним опытом</b>', '', `<b>${item.title.trim()}</b>`, item.body.trim(), '', '<b>Что сделать сегодня:</b>', item.action.trim()].join('\n');
 }
+
+async function safeRecordClientsAdviceHealth(source, itemCount, options = {}) {
+  try {
+    const recordHealth = options.recordHealth || recordSourceHealth;
+    await recordHealth({
+      sourceId: 'clients-advice',
+      status: source === 'remote' ? 'healthy' : 'stale',
+      itemCount,
+      fallbackSource: source === 'remote' ? null : 'bundled-config',
+      metadata: { configSource: source },
+    }, {
+      cache: options.sourceHealthCache || options.controlCache,
+      now: options.now,
+      secrets: options.secrets,
+    });
+  } catch (error) {
+    console.warn('RUDI_CLIENTS_ADVICE_SOURCE_HEALTH_ERROR', String(error?.message || error));
+  }
+}
+
 async function loadClientsAdviceConfig(options = {}) {
   const localConfig = normalizeConfig(options.localConfig || localConfigDefault) || localConfigDefault;
-  const fetchImpl = options.fetchImpl || globalThis.fetch; if (typeof fetchImpl !== 'function') return localConfig;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  if (typeof fetchImpl !== 'function') {
+    await safeRecordClientsAdviceHealth('bundled-fallback', localConfig.length, options);
+    return localConfig;
+  }
   const baseUrl = String(options.configUrl || options.settings?.sources?.clientsAdviceConfigUrl || process.env.CLIENTS_ADVICE_CONFIG_URL || DEFAULT_CONFIG_URL).trim();
   try {
     const separator = baseUrl.includes('?') ? '&' : '?';
     const response = await fetchImpl(`${baseUrl}${separator}r=${Date.now()}`, { headers: { accept: 'application/json', 'cache-control': 'no-cache' }, cache: 'no-store' });
-    if (!response?.ok) return localConfig;
-    const remote = normalizeConfig(await response.json()); return remote || localConfig;
-  } catch { return localConfig; }
+    if (response?.ok) {
+      const remote = normalizeConfig(await response.json());
+      if (remote) {
+        await safeRecordClientsAdviceHealth('remote', remote.length, options);
+        return remote;
+      }
+    }
+  } catch (error) {
+    console.warn('RUDI_CLIENTS_ADVICE_CONFIG_ERROR', String(error?.message || error));
+  }
+  await safeRecordClientsAdviceHealth('bundled-fallback', localConfig.length, options);
+  return localConfig;
 }
 function telegramMethod(input) {
   const raw = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
