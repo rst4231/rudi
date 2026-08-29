@@ -25,6 +25,7 @@ const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require(
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { handleFeedbackCallback } = require('./feedback-analytics.cjs');
 const { runWithPublicationContext } = require('./section-controls.cjs');
+const { recordEventSourceState } = require('./event-source-state.cjs');
 
 let runtimeHandler;
 let laborPublicationFlight = null;
@@ -39,6 +40,7 @@ function sanitizeStagePriceText(text) {
 }
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
+globalThis.__RUDI_RECORD_EVENT_SOURCE_STATE__ = (sourceId, dateKey, result) => recordEventSourceState(sourceId, dateKey, result);
 globalThis.fetch = async function stageSafeFetch(input, init = {}) {
   const url = typeof input === 'string' || input instanceof URL ? String(input) : input?.url || '';
   if (!url.includes('api.telegram.org/')) return nativeFetch(input, init);
