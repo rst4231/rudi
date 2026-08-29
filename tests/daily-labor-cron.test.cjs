@@ -31,6 +31,7 @@ test('daily orchestrator publishes native labor before generated runtime', async
   const res = responseStub();
   await runDailyOrchestrator({ query: { route: 'daily' } }, res, {
     date: '2026-08-30',
+    token: '1:testtoken',
     settings: {
       sections: {
         labor: { enabled: true },
