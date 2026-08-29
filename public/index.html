@@ -3,12 +3,132 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RUDI</title>
-  <style>body{font-family:system-ui,-apple-system,sans-serif;max-width:720px;margin:12vh auto;padding:24px;background:#111217;color:#f5f6f8}a{color:#b9ccff}.status{display:inline-block;padding:6px 10px;border:1px solid #347a50;border-radius:999px;color:#8be0a8}</style>
+  <meta name="color-scheme" content="dark">
+  <title>RUDI — настройки бота</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f4f6fb;background:#0e1015}*{box-sizing:border-box}body{margin:0;background:#0e1015;color:#f4f6fb}.shell{max-width:1180px;margin:0 auto;padding:28px 20px 56px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:22px}.eyebrow{font-size:13px;color:#8f97a7;text-transform:uppercase;letter-spacing:.12em}.title{font-size:36px;line-height:1.05;margin:7px 0 8px}.muted{color:#9da5b4}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#f5f7fb;background:#20242d;border:1px solid #343a47;border-radius:10px;padding:10px 13px;cursor:pointer;font:inherit}.btn:hover{background:#292e39}.status{display:inline-flex;align-items:center;gap:7px;border:1px solid #38404d;border-radius:999px;padding:8px 11px;font-size:13px}.status.ok{border-color:#2c7247;color:#8ee5ad}.status.bad{border-color:#7b3c43;color:#ffafb7}.dot{width:8px;height:8px;border-radius:50%;background:currentColor}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.metric,.card{background:#171a21;border:1px solid #2b303a;border-radius:14px}.metric{padding:14px}.metric b{display:block;font-size:19px;margin-top:5px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{padding:17px}.card h2{font-size:18px;margin:0 0 14px}.list{display:grid;gap:8px}.row{display:flex;justify-content:space-between;gap:18px;padding:9px 0;border-bottom:1px solid #272c35}.row:last-child{border-bottom:0}.label{color:#a7afbd}.value{text-align:right;overflow-wrap:anywhere}.pill{display:inline-flex;border:1px solid #3a414d;border-radius:999px;padding:4px 8px;font-size:12px}.pill.on{color:#91e4ad;border-color:#2d7149}.pill.off{color:#ffabb3;border-color:#743d43}.sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.section{border:1px solid #2b313c;border-radius:10px;padding:10px}.section-name{font-weight:650}.section-meta{color:#929baa;font-size:12px;margin-top:4px}.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}.footer-value{white-space:pre-wrap}.error{margin-top:14px;padding:12px;border:1px solid #783d44;border-radius:10px;color:#ffb1b8;background:#321a1f}.hidden{display:none}.wide{grid-column:1/-1}@media(max-width:850px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}.wide{grid-column:auto}}@media(max-width:520px){.shell{padding:20px 13px 40px}.title{font-size:30px}.summary,.sections{grid-template-columns:1fr}.row{display:block}.value{text-align:left;margin-top:5px}}
+  </style>
 </head>
 <body>
-  <h1>RUDI</h1>
-  <p class="status">RUDI is running</p>
-  <p><a href="/admin">Открыть админку</a></p>
+  <main class="shell">
+    <header class="top">
+      <div>
+        <div class="eyebrow">SPB Daily Guide Bot</div>
+        <h1 class="title">RUDI</h1>
+        <div class="muted">Публичное состояние и настройки бота. Редактирование — только через защищённую админку.</div>
+      </div>
+      <div class="actions">
+        <span id="status" class="status"><span class="dot"></span><span>Загрузка…</span></span>
+        <button id="refresh" class="btn" type="button">Обновить</button>
+        <a class="btn" href="/admin">Открыть админку</a>
+      </div>
+    </header>
+
+    <section class="summary">
+      <div class="metric"><span class="muted">Дата, Москва</span><b id="date">—</b></div>
+      <div class="metric"><span class="muted">Настройки</span><b id="settingsSource">—</b></div>
+      <div class="metric"><span class="muted">Рубрик включено</span><b id="enabledCount">—</b></div>
+      <div class="metric"><span class="muted">Последний запуск</span><b id="lastRun">—</b></div>
+    </section>
+
+    <div id="error" class="error hidden"></div>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Расписание</h2>
+        <div id="publishing" class="list"></div>
+      </article>
+
+      <article class="card">
+        <h2>Алерты</h2>
+        <div id="alerts" class="list"></div>
+      </article>
+
+      <article class="card wide">
+        <h2>Рубрики и темы</h2>
+        <div id="sections" class="sections"></div>
+      </article>
+
+      <article class="card">
+        <h2>Антидубли</h2>
+        <div id="dedupe" class="list"></div>
+      </article>
+
+      <article class="card">
+        <h2>Футеры</h2>
+        <div id="footers" class="list"></div>
+      </article>
+
+      <article class="card wide">
+        <h2>Источники контента</h2>
+        <div id="sources" class="list"></div>
+      </article>
+    </section>
+  </main>
+
+<script>
+(() => {
+  const sectionLabels={events:'Места и мероприятия',holidays:'Праздники',facts:'Факты',lulu:'Lulu',recipes:'Рецепты',clients:'Советы клиентам',cinema:'Кинопремьеры',labor:'Труд',weekend:'План на выходные'};
+  const dedupeLabels={eventsDays:'Мероприятия',cinemaDays:'Кино',recipesDays:'Рецепты',clientsDays:'Советы клиентам',weekendDays:'План на выходные'};
+  const sourceLabels={dailyContentConfigUrl:'Факты и Lulu',dailyContentSequenceUrl:'Последовательность Facts/Lulu',eventsConfigUrl:'Мероприятия',clientsAdviceConfigUrl:'Советы клиентам'};
+  const dayLabels={0:'воскресенье',1:'понедельник',2:'вторник',3:'среда',4:'четверг',5:'пятница',6:'суббота'};
+  const $=(id)=>document.getElementById(id);
+  const esc=(value)=>String(value??'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const row=(label,value,extra='')=>`<div class="row"><span class="label">${esc(label)}</span><span class="value ${extra}">${esc(value)}</span></div>`;
+  const bool=(value)=>`<span class="pill ${value?'on':'off'}">${value?'включено':'выключено'}</span>`;
+
+  function render(data){
+    const status=$('status');status.className=`status ${data?.ok?'ok':'bad'}`;status.innerHTML=`<span class="dot"></span><span>${data?.ok?'Бот работает':'Есть проблема'}</span>`;
+    $('date').textContent=data?.date||'—';
+    $('settingsSource').textContent=`v${data?.settingsVersion??'—'} · ${data?.settingsSource||'—'}`;
+    const sections=data?.sections||{};
+    const entries=Object.entries(sections);
+    $('enabledCount').textContent=`${entries.filter(([,v])=>v?.enabled!==false).length}/${entries.length||0}`;
+    $('lastRun').textContent=data?.lastDailyRun?.date||'нет данных';
+
+    const op=data?.operationalSettings||{};
+    const publishing=op.publishing||{};
+    const weekend=(publishing.weekendDays||[]).map((day)=>dayLabels[day]||day).join(', ')||'—';
+    $('publishing').innerHTML=[
+      row('Ежедневный запуск',data?.cron?.description||'—'),
+      row('Cron',data?.cron?.schedule||'—','code'),
+      row('Часовой пояс',data?.timezone||'—'),
+      row('План на выходные',weekend),
+      `<div class="row"><span class="label">Автоповтор при ошибке</span><span class="value">${bool(Boolean(publishing.allowAutomaticRetry))}</span></div>`
+    ].join('');
+
+    $('sections').innerHTML=entries.map(([name,value])=>`<div class="section"><div class="section-name">${esc(sectionLabels[name]||name)} <span class="pill ${value?.enabled===false?'off':'on'}">${value?.enabled===false?'выкл':'вкл'}</span></div><div class="section-meta">${Number.isInteger(value?.topicId)?`Telegram topic ID: ${value.topicId}`:'Topic ID: динамический / отдельная настройка'}</div></div>`).join('')||'<span class="muted">Нет данных</span>';
+
+    $('dedupe').innerHTML=Object.entries(op.dedupe||{}).map(([name,days])=>row(dedupeLabels[name]||name,`${days} дн.`)).join('')||'<span class="muted">Нет данных</span>';
+
+    const alerts=op.alerts||{};
+    $('alerts').innerHTML=[
+      `<div class="row"><span class="label">Уведомления об ошибках</span><span class="value">${bool(Boolean(alerts.enabled))}</span></div>`,
+      row('Повтор одинакового алерта',`${alerts.dedupeMinutes??'—'} мин.`),
+      row('Активный алерт',data?.alerts?.message||data?.alerts?.code||'нет')
+    ].join('');
+
+    $('sources').innerHTML=Object.entries(op.sources||{}).map(([name,url])=>row(sourceLabels[name]||name,url,'code')).join('')||'<span class="muted">Нет данных</span>';
+
+    const footers=op.copy?.footers||{};
+    $('footers').innerHTML=Object.entries(footers).map(([name,value])=>row(sectionLabels[name]||name,value||'не задан','footer-value')).join('')||'<span class="muted">Нет данных</span>';
+    $('error').classList.add('hidden');
+  }
+
+  async function load(){
+    $('refresh').disabled=true;
+    try{
+      const response=await fetch('/api/health',{cache:'no-store'});
+      if(!response.ok)throw new Error(`HTTP ${response.status}`);
+      render(await response.json());
+    }catch(error){
+      const box=$('error');box.textContent=`Не удалось загрузить настройки: ${error.message}`;box.classList.remove('hidden');
+      const status=$('status');status.className='status bad';status.innerHTML='<span class="dot"></span><span>Нет данных</span>';
+    }finally{$('refresh').disabled=false}
+  }
+  $('refresh').addEventListener('click',load);
+  load();
+})();
+</script>
 </body>
 </html>
