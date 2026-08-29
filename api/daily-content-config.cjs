@@ -33,6 +33,30 @@ function validatePublishedIds(input) {
   return ids;
 }
 
+function validDateKey(value) {
+  const text = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const date = new Date(`${text}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === text;
+}
+
+function validateSequence(input, facts, lulu) {
+  if (input === undefined || input === null) return null;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('sequence must be an object');
+
+  const startDate = String(input.startDate || '').trim();
+  const factsStartId = String(input.factsStartId || '').trim();
+  const luluStartId = String(input.luluStartId || '').trim();
+  if (!validDateKey(startDate)) throw new Error('sequence.startDate must be YYYY-MM-DD');
+  if (!factsStartId || !facts.some((entry) => String(entry.id) === factsStartId)) {
+    throw new Error('sequence.factsStartId must reference a facts entry');
+  }
+  if (!luluStartId || !lulu.some((entry) => String(entry.id) === luluStartId)) {
+    throw new Error('sequence.luluStartId must reference a Lulu entry');
+  }
+  return { startDate, factsStartId, luluStartId };
+}
+
 function validateCatalog(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Daily content catalog is invalid');
   const facts = Array.isArray(input.facts) ? input.facts.map((entry) => validateEntry(entry, 'facts')) : [];
@@ -46,7 +70,8 @@ function validateCatalog(input) {
   }
   if (!facts.length) throw new Error('Daily content catalog has no facts');
   if (!lulu.length) throw new Error('Daily content catalog has no Lulu entries');
-  return { version: Number(input.version || 1), publishedIds, facts, lulu };
+  const sequence = validateSequence(input.sequence, facts, lulu);
+  return { version: Number(input.version || 1), publishedIds, sequence, facts, lulu };
 }
 
 function readBundledConfig() {
@@ -90,6 +115,7 @@ function resetDailyContentConfigMemo() {
 module.exports = {
   DEFAULT_CONFIG_URL,
   validateCatalog,
+  validateSequence,
   loadDailyContentCatalog,
   resetDailyContentConfigMemo,
 };
