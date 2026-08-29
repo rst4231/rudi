@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   loadDailyContentCatalog,
   validateCatalog,
+  applySequenceState,
 } = require('../api/daily-content-config.cjs');
 
 test('remote daily-content config is preferred over bundled fallback', async () => {
@@ -19,7 +20,7 @@ test('remote daily-content config is preferred over bundled fallback', async () 
   };
   const fetchImpl = async () => new Response(JSON.stringify(remote), { status: 200 });
 
-  const loaded = await loadDailyContentCatalog({ fetchImpl, localConfig: fallback, cacheMs: 0 });
+  const loaded = await loadDailyContentCatalog({ fetchImpl, localConfig: fallback, localSequenceState: null, cacheMs: 0 });
 
   assert.equal(loaded.facts[0].id, 'remote-fact');
   assert.equal(loaded.lulu[0].id, 'remote-lulu');
@@ -33,7 +34,7 @@ test('bundled config is used when remote config is unavailable', async () => {
   };
   const fetchImpl = async () => new Response('down', { status: 503 });
 
-  const loaded = await loadDailyContentCatalog({ fetchImpl, localConfig: fallback, cacheMs: 0 });
+  const loaded = await loadDailyContentCatalog({ fetchImpl, localConfig: fallback, localSequenceState: null, cacheMs: 0 });
 
   assert.equal(loaded.facts[0].id, 'local-fact');
 });
@@ -89,4 +90,36 @@ test('catalog preserves and validates stable calendar sequence anchors', () => {
     facts: [{ id: 'facts-new', type: 'facts', category: 'B', body: 'B', sourceUrl: 'https://example.com/b' }],
     lulu: [{ id: 'lulu-new', type: 'lulu', title: 'B', body: 'B', sourceUrl: 'https://example.com/d' }],
   }), /factsStartId/i);
+});
+
+test('external sequence state retires known repeats and sets stable start anchors', () => {
+  const base = {
+    version: 2,
+    publishedIds: ['facts-old', 'lulu-old'],
+    facts: [
+      { id: 'facts-old', type: 'facts', category: 'A', body: 'A', sourceUrl: 'https://example.com/a' },
+      { id: 'facts-repeat', type: 'facts', category: 'B', body: 'B', sourceUrl: 'https://example.com/b' },
+      { id: 'facts-next', type: 'facts', category: 'C', body: 'C', sourceUrl: 'https://example.com/c' },
+    ],
+    lulu: [
+      { id: 'lulu-old', type: 'lulu', title: 'A', body: 'A', sourceUrl: 'https://example.com/d' },
+      { id: 'lulu-repeat', type: 'lulu', title: 'B', body: 'B', sourceUrl: 'https://example.com/e' },
+      { id: 'lulu-next', type: 'lulu', title: 'C', body: 'C', sourceUrl: 'https://example.com/f' },
+    ],
+  };
+  const merged = applySequenceState(base, {
+    enabled: true,
+    startDate: '2026-08-30',
+    factsStartId: 'facts-next',
+    luluStartId: 'lulu-next',
+    retiredIds: ['facts-repeat', 'lulu-repeat'],
+  });
+  const catalog = validateCatalog(merged);
+
+  assert.deepEqual(catalog.publishedIds, ['facts-old', 'lulu-old', 'facts-repeat', 'lulu-repeat']);
+  assert.deepEqual(catalog.sequence, {
+    startDate: '2026-08-30',
+    factsStartId: 'facts-next',
+    luluStartId: 'lulu-next',
+  });
 });
