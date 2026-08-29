@@ -74,14 +74,23 @@ function isEventDigestText(text) {
   return isConcertDigestText(text) || isStageDigestText(text);
 }
 
+function isNumberedEventLine(line) {
+  return /^(?:<[^>]+>\s*)*\d+\.\s/u.test(String(line || '').trimStart());
+}
+
 function compactEventCaption(text) {
-  return String(text || '')
+  const compactLines = String(text || '')
     .replace(/\r\n?/gu, '\n')
     .split('\n')
     .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0)
-    .join('\n')
-    .trim();
+    .filter((line) => line.trim().length > 0);
+
+  const output = [];
+  for (const line of compactLines) {
+    if (isNumberedEventLine(line) && output.length && output[output.length - 1] !== '') output.push('');
+    output.push(line);
+  }
+  return output.join('\n').trim();
 }
 
 function compactEventTelegramRequest(init = {}) {
