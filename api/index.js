@@ -83,7 +83,10 @@ async function runRuntime(req, res, runtime = getRuntimeHandler()) {
     if (req.query?.route === 'telegram' && process.env.CRON_SECRET) return runWithCronSecretHidden(() => runtime(req, res));
     return runtime(req, res);
   };
-  if (req.query?.route === 'daily') return runWithPublicationContext({ date: getMoscowDateKey() }, execute);
+  const isDailyRoute = req.query?.route === 'daily';
+  if (isDailyRoute) {
+    return runWithPublicationContext({ date: getMoscowDateKey(), settings: req.rudiSettings }, execute);
+  }
   return execute();
 }
 
@@ -127,7 +130,8 @@ async function handler(req, res) {
     }
 
     if (req.query?.route === 'alice-shopping') {
-      if (isEmptyAliceShoppingRequest(req) || isAliceShoppingLaunch(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      if (isEmptyAliceShoppingRequest(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      if (isAliceShoppingLaunch(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       if (isAliceClearIntent(req)) return res.status(200).json(buildAliceNoSharedListResponse(req));
       if (req.body?.request?.type !== 'SimpleUtterance') return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       const deleteTarget = getAliceProductDeleteTarget(req);
