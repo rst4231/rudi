@@ -1,6 +1,6 @@
 const {
   loadClientsAdviceConfig,
-  selectAdviceForDate,
+  selectUnseenAdviceForDate,
   formatClientsAdvice,
   rewriteClientsPreviewPayloadWithAdvice,
 } = require('./clients-advice.cjs');
@@ -24,9 +24,16 @@ async function runPreview(req, res, options = {}) {
   const config = await loadClientsAdviceConfig({
     fetchImpl: options.fetchImpl || globalThis.fetch,
     configUrl: options.configUrl,
+    settings: options.settings,
     localConfig: options.localConfig,
   });
-  const advice = formatClientsAdvice(selectAdviceForDate(config, now));
+  const selection = await selectUnseenAdviceForDate(config, now, {
+    cache: options.controlCache,
+    days: options.settings?.dedupe?.clientsDays || 45,
+    now,
+    seenFingerprints: options.clientsSeenFingerprints,
+  });
+  const advice = formatClientsAdvice(selection.item);
   const overrides = options.overrides || await loadPreviewOverrides(requestedDate, options);
 
   const originalJson = typeof res?.json === 'function' ? res.json.bind(res) : null;
