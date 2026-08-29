@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "enabled": true,
+  "startDate": "2026-08-30",
+  "factsStartId": "facts-sedentary",
+  "luluStartId": "lulu-weight-portions",
+  "retiredIds": [
+    "facts-some-activity",
+    "lulu-human-food"
+  ]
+}
