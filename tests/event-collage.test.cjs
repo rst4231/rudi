@@ -36,10 +36,10 @@ test('extractEventLinks reads event source links from Telegram HTML', () => {
   ]);
 });
 
-test('compactEventCaption removes the huge vertical gaps from event posts', () => {
+test('compactEventCaption removes huge gaps but keeps one separator before an event', () => {
   const text = '<b>🎙 Stage StandUp Club</b>\n\n\n📅 Вторник, 25 августа\n\n\nНайдено: 2\n\n\n1. Большой стендап';
   const compact = compactEventCaption(text);
-  assert.equal(compact, '<b>🎙 Stage StandUp Club</b>\n📅 Вторник, 25 августа\nНайдено: 2\n1. Большой стендап');
+  assert.equal(compact, '<b>🎙 Stage StandUp Club</b>\n📅 Вторник, 25 августа\nНайдено: 2\n\n1. Большой стендап');
 });
 
 test('compactEventTelegramRequest also removes gaps when a collage cannot be built', () => {
@@ -147,8 +147,9 @@ test('maybeSendEventCollage converts concert and Stage sendMessage calls to one 
   assert.equal(body.get('parse_mode'), 'HTML');
   assert.equal(body.get('disable_notification'), 'true');
   assert.ok(body.get('photo') instanceof Blob);
-  assert.doesNotMatch(body.get('caption'), /\n{2,}/);
+  assert.doesNotMatch(body.get('caption'), /\n{3,}/);
   assert.match(body.get('caption'), /Большой стендап/);
+  assert.match(body.get('caption'), /Официальная страница →<\/a>\n\n2\. Проверочный концерт/);
 });
 
 test('maybeSendEventCollage keeps a collage post when the original event text is longer than Telegram photo caption limit', async () => {
