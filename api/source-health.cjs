@@ -40,6 +40,28 @@ function validRequestedDate(value) {
   return text;
 }
 
+function analyticsSectionForSource(sourceId) {
+  if (String(sourceId).startsWith('events:')) return 'events';
+  if (String(sourceId).startsWith('cinema:')) return 'cinema';
+  if (sourceId === 'clients-advice') return 'clients';
+  return null;
+}
+
+async function recordSourceFailureMetric(record, options = {}) {
+  if (record.status !== 'failed') return;
+  const section = analyticsSectionForSource(record.sourceId);
+  if (!section) return;
+  try {
+    const { incrementSectionMetric } = require('./feedback-analytics.cjs');
+    await incrementSectionMetric(section, 'sourceFailures', 1, {
+      cache: options.analyticsCache || options.cache,
+      now: options.now,
+    });
+  } catch (error) {
+    console.warn('RUDI_SOURCE_FAILURE_METRIC_ERROR', section, String(error?.message || error));
+  }
+}
+
 async function recordSourceHealth(input, options = {}) {
   const sourceId = String(input?.sourceId || '').trim();
   sourceKey(sourceId);
@@ -65,6 +87,7 @@ async function recordSourceHealth(input, options = {}) {
     tags: ['rudi-source-health', `rudi-source-${sourceId}`],
     name: sourceKey(sourceId),
   });
+  await recordSourceFailureMetric(record, { ...options, cache });
   return structuredClone(record);
 }
 
@@ -82,6 +105,7 @@ module.exports = {
   ALLOWED_STATUSES,
   classifySourceResult,
   sanitizeError,
+  analyticsSectionForSource,
   recordSourceHealth,
   getSourceHealth,
   listSourceHealth,
