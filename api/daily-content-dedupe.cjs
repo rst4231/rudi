@@ -5,6 +5,7 @@ const LULU_TOPIC_ID = 85;
 const LEGACY_PUBLISHED_IDS = new Set(['facts-sleep-7h', 'lulu-teeth-daily']);
 const HISTORY_LIMIT = 1000;
 const TARGET_METHODS = new Set(['sendMessage', 'sendPhoto', 'sendDocument', 'sendVideo', 'sendAnimation']);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function telegramEndpoint(input) {
   const raw = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
@@ -152,6 +153,35 @@ function chooseUnseenEntry(entries, seenFingerprints, fingerprint, seenIds = new
   return null;
 }
 
+function dateOffset(startDateKey, currentDateKey) {
+  const start = Date.parse(`${String(startDateKey)}T00:00:00.000Z`);
+  const current = Date.parse(`${String(currentDateKey)}T00:00:00.000Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(current)) return null;
+  return Math.round((current - start) / DAY_MS);
+}
+
+function chooseSequencedEntry(catalog, kind, dateKey, fingerprint = defaultFingerprint) {
+  const sequence = catalog?.sequence;
+  if (!sequence) return { enabled: false, replacement: null };
+
+  const offset = dateOffset(sequence.startDate, dateKey);
+  if (!Number.isInteger(offset) || offset < 0) return { enabled: true, replacement: null };
+
+  const entries = Array.isArray(catalog?.[kind]) ? catalog[kind] : [];
+  const startId = kind === 'facts' ? sequence.factsStartId : sequence.luluStartId;
+  const startIndex = entries.findIndex((entry) => String(entry?.id || '') === String(startId || ''));
+  if (startIndex < 0) return { enabled: true, replacement: null };
+
+  const entry = entries[startIndex + offset];
+  if (!entry) return { enabled: true, replacement: null };
+  const message = formatCatalogEntry(entry);
+  if (!message) return { enabled: true, replacement: null };
+  return {
+    enabled: true,
+    replacement: { entry, message, fingerprint: fingerprint(message) },
+  };
+}
+
 async function reservePublication(cache, topicId, dateKey, usedIds, record) {
   const id = String(record?.id || '').trim();
   if (!id) return;
@@ -185,7 +215,7 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
   if (!cache || typeof cache.get !== 'function' || typeof cache.set !== 'function') {
     throw new Error('Daily content dedupe cache is required');
   }
-  const catalog = options.catalog || { facts: [], lulu: [], publishedIds: [] };
+  const catalog = options.catalog || { facts: [], lulu: [], publishedIds: [], sequence: null };
   const alwaysReplace = options.alwaysReplace === true;
 
   return async (input, init = {}) => {
@@ -227,11 +257,20 @@ function wrapDailyContentDedupe(fetchImpl, options = {}) {
     let contentId = null;
 
     if (alwaysReplace || originalSeen) {
-      const replacement = chooseUnseenEntry(catalog[kind], seenFingerprints, fingerprint, seenIds);
+      const sequenced = chooseSequencedEntry(catalog, kind, dateKey, fingerprint);
+      const replacement = sequenced.enabled
+        ? sequenced.replacement
+        : chooseUnseenEntry(catalog[kind], seenFingerprints, fingerprint, seenIds);
       if (!replacement) return syntheticSuccess(topicId);
+
+      const replacementId = String(replacement.entry?.id || '').trim();
+      if (sequenced.enabled && (seenIds.has(replacementId) || seenFingerprints.has(replacement.fingerprint))) {
+        return syntheticSuccess(topicId);
+      }
+
       actualMessage = replacement.message;
       actualFingerprint = replacement.fingerprint;
-      contentId = String(replacement.entry.id || '') || null;
+      contentId = replacementId || null;
     }
 
     if (contentId) {
@@ -275,5 +314,6 @@ module.exports = {
   usedIdsKey,
   publicationDateKey,
   chooseUnseenEntry,
+  chooseSequencedEntry,
   reservePublication,
 };
