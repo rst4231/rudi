@@ -117,6 +117,10 @@ function getCinemaPremieresCache(options = {}) {
   return createStrictRuntimeCache({ namespace: 'rudi-cinema-premieres-v1', ...options });
 }
 
+function getControlPlaneCache(options = {}) {
+  return createStrictRuntimeCache({ namespace: 'rudi-control-plane-v1', confirmWrites: false, ...options });
+}
+
 module.exports = {
   LABOR_TOPIC_LOOKBACK_DAYS,
   CLIENTS_TOPIC_ID,
@@ -126,5 +130,6 @@ module.exports = {
   getLaborLeaseCache,
   getRecoveryCache,
   getCinemaPremieresCache,
+  getControlPlaneCache,
   guardLaborTopicCache,
 };

@@ -1,0 +1,22 @@
+const { AsyncLocalStorage }=require('node:async_hooks');
+const { getControlPlaneCache }=require('./stateful-cache.cjs');
+const { SECTION_NAMES }=require('./rudi-settings.cjs');
+const ctx=new AsyncLocalStorage(); const SECTIONS=new Set(SECTION_NAMES);
+function validDate(v){const s=String(v||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(s))throw new Error('date must be YYYY-MM-DD');return s}
+function validSection(v){const s=String(v||'');if(!SECTIONS.has(s))throw new Error('unknown section');return s}
+function cacheOf(o={}){return o.cache||getControlPlaneCache(o.cacheOptions||{})}
+const skipKey=(d,s)=>`skip:${validDate(d)}:${validSection(s)}`;const contentKey=(d,s)=>`content-override:${validDate(d)}:${validSection(s)}`;
+async function setSectionSkip(d,s,value,o={}){const c=cacheOf(o);if(value)await c.set(skipKey(d,s),true,{tags:['rudi-controls']});else await c.delete(skipKey(d,s));return Boolean(value)}
+async function getSectionSkip(d,s,o={}){return Boolean(await cacheOf(o).get(skipKey(d,s)))}
+function validateParts(parts){if(!Array.isArray(parts)||!parts.length||parts.length>8)throw new Error('parts must contain 1-8 messages');return parts.map((p)=>{const t=String(p||'').trim();if(!t||t.length>4096)throw new Error('each part must contain 1-4096 characters');return t})}
+async function setContentOverride(d,s,parts,o={}){const row={parts:validateParts(parts),updatedAt:new Date(o.now||Date.now()).toISOString(),updatedBy:'admin',includeFooter:o.includeFooter!==false};await cacheOf(o).set(contentKey(d,s),row,{tags:['rudi-controls']});return row}
+async function getContentOverride(d,s,o={}){return cacheOf(o).get(contentKey(d,s))}
+async function clearContentOverride(d,s,o={}){await cacheOf(o).delete(contentKey(d,s));return true}
+function runWithPublicationContext(context,fn){return ctx.run({...context,partIndexes:new Map()},fn)}
+function currentPublicationContext(){return ctx.getStore()||null}
+function appendFooter(text,footer){const base=String(text||'').trim();const f=String(footer||'').trim();if(!f)return base;if(base.endsWith(f))return base;return `${base}\n\n${f}`}
+function topicSectionMap(settings){const map=new Map();for(const [name,row] of Object.entries(settings?.sections||{})){if(Number.isInteger(Number(row?.topicId)))map.set(Number(row.topicId),name)}return map}
+function payloadFrom(init={}){if(typeof init.body==='string'){try{return JSON.parse(init.body)}catch{return null}}if(init.body instanceof URLSearchParams)return Object.fromEntries(init.body.entries());return null}
+function withPayload(init,payload){if(typeof init.body==='string')return{...init,body:JSON.stringify(payload)};if(init.body instanceof URLSearchParams){const body=new URLSearchParams();for(const[k,v]of Object.entries(payload))body.set(k,String(v));return{...init,body}}return init}
+async function applySectionControlToTelegramRequest(input,init={},options={}){const payload=payloadFrom(init);const topicId=Number(payload?.message_thread_id);const section=topicSectionMap(options.settings).get(topicId);if(!section)return{handled:false,init,section:null};const date=options.date||currentPublicationContext()?.date;if(!date)return{handled:false,init,section};if(await getSectionSkip(date,section,options)){return{handled:true,section,response:new Response(JSON.stringify({ok:true,result:{message_id:0,suppressed_by_admin:true}}),{status:200,headers:{'content-type':'application/json'}})}}const override=await getContentOverride(date,section,options);let next={...payload};const field=typeof next.text==='string'?'text':typeof next.caption==='string'?'caption':null;const store=currentPublicationContext();if(override&&field){const index=store?(store.partIndexes.get(section)||0):0;if(store)store.partIndexes.set(section,index+1);if(index>=override.parts.length)return{handled:true,section,response:new Response(JSON.stringify({ok:true,result:{message_id:0,suppressed_by_admin:true}}),{status:200,headers:{'content-type':'application/json'}})};next[field]=override.parts[index]}const footer=options.settings?.copy?.footers?.[section];if(field&&footer&&(override?.includeFooter!==false))next[field]=appendFooter(next[field],footer);return{handled:false,init:withPayload(init,next),section}}
+module.exports={setSectionSkip,getSectionSkip,setContentOverride,getContentOverride,clearContentOverride,runWithPublicationContext,currentPublicationContext,appendFooter,applySectionControlToTelegramRequest,topicSectionMap};
