@@ -23,9 +23,17 @@ test('vercel exposes /admin without enabling Git deployments or changing cron', 
   assert.ok(config.rewrites.some((row) => row.source === '/admin' && row.destination === '/admin.html'));
 });
 
-test('landing page links to admin without embedding credentials', () => {
+test('landing page renders public bot settings from health without embedding credentials', () => {
   const source = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
-  assert.match(source, /RUDI is running/);
+  assert.match(source, /Настройки бота/);
+  assert.match(source, /\/api\/health/);
+  assert.match(source, /Расписание/);
+  assert.match(source, /Рубрики и темы/);
+  assert.match(source, /Антидубли/);
+  assert.match(source, /Алерты/);
+  assert.match(source, /Источники контента/);
+  assert.match(source, /Футеры/);
   assert.match(source, /href="\/admin"/);
   assert.doesNotMatch(source, /CRON_SECRET|RUDI_ADMIN_SECRET|Authorization:\s*Bearer/i);
+  assert.doesNotMatch(source, /<script[^>]+src=|<link[^>]+https?:\/\//i);
 });
