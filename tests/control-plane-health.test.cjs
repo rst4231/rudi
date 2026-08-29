@@ -21,3 +21,27 @@ test('health reports effective settings and omits removed venue rubric', async (
   assert.ok(!text.includes('Sevkabel'));
   assert.ok(!text.includes('Brusnitsyn'));
 });
+
+test('health exposes only safe operational settings used by the public dashboard', async () => {
+  const effective = structuredClone(settings);
+  effective.copy.footers.events = 'Проверочный футер';
+  effective.alerts.dedupeMinutes = 240;
+  const payload = await buildHealthPayload({
+    settingsLoader: async () => ({ settings: effective, source: 'runtime-cache', overrides: { alerts: { dedupeMinutes: 240 } } }),
+    getLatestDailyRun: async () => null,
+    getLatestPublication: async () => null,
+    listSourceHealth: async () => [],
+    getAlertState: async () => null,
+  });
+
+  assert.deepEqual(payload.operationalSettings, {
+    publishing: effective.publishing,
+    dedupe: effective.dedupe,
+    alerts: effective.alerts,
+    sources: effective.sources,
+    copy: effective.copy,
+  });
+  assert.equal(payload.operationalSettings.copy.footers.events, 'Проверочный футер');
+  assert.equal(payload.operationalSettings.alerts.dedupeMinutes, 240);
+  assert.doesNotMatch(JSON.stringify(payload.operationalSettings), /CRON_SECRET|RUDI_ADMIN_SECRET|TELEGRAM|token/i);
+});
