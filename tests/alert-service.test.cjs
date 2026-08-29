@@ -1,0 +1,3 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {emitOperationalAlert}=require('../api/alert-service.cjs');
+function cache(){const m=new Map();return{async get(k){return m.get(k)||null},async set(k,v){m.set(k,structuredClone(v));return true}}}
+test('identical alert is suppressed inside dedupe window',async()=>{const sent=[];const c=cache();const a={code:'cinema-failed',section:'cinema',message:'sources failed'};assert.equal((await emitOperationalAlert(a,{cache:c,dedupeMinutes:180,now:new Date('2026-08-30T00:00Z'),send:async t=>sent.push(t)})).sent,true);assert.equal((await emitOperationalAlert(a,{cache:c,dedupeMinutes:180,now:new Date('2026-08-30T01:00Z'),send:async t=>sent.push(t)})).suppressed,true);assert.equal(sent.length,1);});
