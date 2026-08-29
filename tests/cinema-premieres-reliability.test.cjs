@@ -62,3 +62,24 @@ test('recent cinema fingerprint is suppressed before maxItems slicing', async ()
   assert.deepEqual(result.rows.map((row) => row.title), ['Новый фильм']);
   assert.equal(result.fingerprints.length, 1);
 });
+
+test('cinema publisher returns the real Telegram collage message id for the journal', async () => {
+  const row = {
+    title: 'Тестовая премьера',
+    posterUrl: 'https://cdn.mirage.ru/images/film/1/big/p1.jpg',
+    source: 'Мираж',
+    sourceUrl: 'https://mirage.test/film/1/test.htm',
+  };
+  const result = await publishWeeklyCinemaPremieres({
+    now, config, cache: memoryCache(), chatId: -1001, token: '1:test',
+    settings: { dedupe: { cinemaDays: 60 } },
+    loadKinopolis: async () => [row], loadMirage: async () => [],
+    recordHealth: async (healthRow) => healthRow,
+    ensureTopic: async () => ({ topicId: 19 }),
+    buildCollage: async () => Buffer.from('fake'),
+    sendCollage: async () => ({ messageId: 812 }),
+    seenFingerprints: new Set(),
+    dedupeCache: memoryCache(),
+  });
+  assert.equal(result.messageId, 812);
+});
