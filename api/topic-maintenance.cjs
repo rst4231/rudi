@@ -6,7 +6,8 @@ const { FACTS_TOPIC_ID, LULU_TOPIC_ID, wrapDailyContentDedupe } = require('./dai
 const { loadDailyContentCatalog } = require('./daily-content-config.cjs');
 const { loadRudiSettings } = require('./rudi-settings.cjs');
 const { applySectionControlToTelegramRequest, currentPublicationContext, topicSectionMap } = require('./section-controls.cjs');
-const { buildFeedbackMarkup } = require('./feedback-analytics.cjs');
+const { buildFeedbackMarkup, incrementSectionMetric } = require('./feedback-analytics.cjs');
+const { rememberFingerprints } = require('./content-fingerprint.cjs');
 const { moscowDateKey } = require('./preview-date.cjs');
 
 const POSTER_PROXY_BASE = 'https://spb-daily-guide-bot.vercel.app/api/poster-proxy';
@@ -55,10 +56,7 @@ async function resolveSettings(options = {}) {
   const contextSettings = currentPublicationContext()?.settings;
   if (contextSettings) return contextSettings;
   try {
-    const loaded = await loadRudiSettings({
-      cache: resolveControlCache(options),
-      fetchImpl: options.settingsFetchImpl === undefined ? null : options.settingsFetchImpl,
-    });
+    const loaded = await loadRudiSettings({ cache: resolveControlCache(options), fetchImpl: options.settingsFetchImpl === undefined ? null : options.settingsFetchImpl });
     return loaded.settings;
   } catch (error) {
     console.warn('RUDI_SETTINGS_LOAD_ERROR', String(error?.message || error));
@@ -75,18 +73,22 @@ function manualControlResult(init, settings) {
 function wrapFetch(fetchImpl, options = {}) {
   return async (input, init = {}) => {
     const settings = await resolveSettings(options);
+    const controlCache = resolveControlCache(options);
     const publicationDate = options.publicationDate || currentPublicationContext()?.date || moscowDateKey(options.now || new Date());
     const control = options.bypassSectionControls
       ? manualControlResult(init, settings)
-      : await applySectionControlToTelegramRequest(input, init, { ...options, settings, cache: resolveControlCache(options), date: publicationDate });
+      : await applySectionControlToTelegramRequest(input, init, { ...options, settings, cache: controlCache, date: publicationDate });
     if (control.handled) return control.response;
 
+    let clientSelection = null;
     const clientRewritten = await rewriteClientsTelegramRequest(input, control.init, {
       fetchImpl: options.configFetchImpl || fetchImpl,
       configUrl: options.clientsAdviceConfigUrl,
       settings,
       localConfig: options.clientsAdviceLocalConfig,
+      dedupeCache: controlCache,
       now: options.now,
+      onSelected: (selection) => { clientSelection = selection; },
     });
     let rewritten = rewriteTelegramPhotoRequest(input, clientRewritten);
     const controlledPayload = base.parseRequestPayload(rewritten);
@@ -108,6 +110,12 @@ function wrapFetch(fetchImpl, options = {}) {
       dailyContentFetch = wrapDailyContentDedupe(fetchImpl, { cache: resolveDailyContentCache(options), catalog, alwaysReplace: true, now: options.now });
     }
     const response = await terminalSuccessResponse(input, await dailyContentFetch(input, rewritten));
+    if (response?.ok && clientSelection?.fingerprint) {
+      try {
+        await rememberFingerprints('clients', [clientSelection.fingerprint], settings.dedupe?.clientsDays || 45, { cache: controlCache, now: options.now });
+        if (clientSelection.offset > 0) await incrementSectionMetric('clients', 'duplicateSuppressions', clientSelection.offset, { cache: controlCache, now: options.now });
+      } catch (error) { console.warn('RUDI_CLIENTS_DEDUPE_STATE_ERROR', String(error?.message || error)); }
+    }
     try {
       return await handleHolidayPublication(input, rewritten, response, { fetchImpl, now: options.now, stateCache: options.holidayStateCache, topicCache: options.holidayTopicCache, cacheOptions: options.holidayCacheOptions });
     } catch (error) { console.error('RUDI_HOLIDAY_ROLLOVER_ERROR', error); return response; }
