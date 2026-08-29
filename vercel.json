@@ -11,11 +11,18 @@
     "api/daily-cron.js": {
       "maxDuration": 300
     },
+    "api/admin.js": {
+      "maxDuration": 300
+    },
     "api/recover-20260823.js": {
       "maxDuration": 300
     }
   },
   "rewrites": [
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
     {
       "source": "/api/daily",
       "destination": "/api/daily-cron?route=daily"
