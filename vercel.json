@@ -1,19 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": {
-      "fix/labor-daily-cron": false,
-      "fix/daily-content-reliability-clean": false,
-      "fix/daily-content-repair-20260824": false,
-      "fix/alice-product-phrases": false,
-      "feat/events-cinema-premieres": false,
-      "fix/cinema-poster-proxy": false,
-      "fix/cinema-collage": false,
-      "fix/cinema-topic-and-events-fallback": false,
-      "fix/cinema-explicit-migrate": false,
-      "feat/events-poster-collages": false,
-      "fix/stage-event-posters": false
-    }
+    "deploymentEnabled": false
   },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",
   "functions": {
