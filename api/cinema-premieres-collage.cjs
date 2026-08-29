@@ -22,6 +22,19 @@ const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 365 * 5;
 
+async function extractTelegramMessageId(result) {
+  const direct = Number(result?.messageId);
+  if (Number.isInteger(direct) && direct > 0) return direct;
+  try {
+    if (typeof result?.clone !== 'function') return null;
+    const data = await result.clone().json();
+    const messageId = Number(data?.result?.message_id);
+    return Number.isInteger(messageId) && messageId > 0 ? messageId : null;
+  } catch {
+    return null;
+  }
+}
+
 async function sendTelegramCollage({ token, chatId, topicId, image, caption, fetchImpl, now, topicCache }) {
   const url = `https://api.telegram.org/bot${token}/sendPhoto`;
   const body = new FormData();
@@ -40,9 +53,8 @@ async function sendTelegramCollage({ token, chatId, topicId, image, caption, fet
   }
 
   try {
-    const data = await response.clone().json();
-    const messageId = Number(data?.result?.message_id);
-    if (Number.isInteger(messageId) && messageId > 0) {
+    const messageId = await extractTelegramMessageId(response);
+    if (messageId) {
       await rememberPublishedMessages(Number(topicId), chatId, [messageId], dateKeyInMoscow(now || new Date()), topicCache || getTopicMaintenanceCache());
     }
   } catch (error) {
@@ -176,24 +188,27 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   const { topicId } = await ensureTopic({ token, chatId, cache, fetchImpl, configuredTopicId: config.cinemaPremieres.topicId });
 
   let posts = 0;
+  let messageId = null;
   if (rows.length) {
     const buildCollage = options.buildCollage || buildCinemaCollage;
     const sendCollage = options.sendCollage || sendTelegramCollage;
     const image = await buildCollage(rows, { fetchImpl });
     const caption = buildCinemaDigestCaption(rows, dateKey);
-    await sendCollage({ token, chatId, topicId, image, caption, fetchImpl, now, topicCache: options.topicCache });
+    const sent = await sendCollage({ token, chatId, topicId, image, caption, fetchImpl, now, topicCache: options.topicCache });
+    messageId = await extractTelegramMessageId(sent);
     await rememberFingerprints('cinema', fingerprints, recent.days, { cache: options.dedupeCache || options.controlCache, now });
 
-    const sent = new Set((Array.isArray(sentTitles) ? sentTitles : []).map(legacy.normalizeTitle).filter(Boolean));
-    for (const row of rows) sent.add(legacy.normalizeTitle(row.title));
-    await cache.set(legacy.SENT_TITLES_KEY, [...sent], { ttl: CACHE_TTL_SECONDS, tags: ['rudi-cinema-premieres'], name: legacy.SENT_TITLES_KEY });
+    const sentTitlesSet = new Set((Array.isArray(sentTitles) ? sentTitles : []).map(legacy.normalizeTitle).filter(Boolean));
+    for (const row of rows) sentTitlesSet.add(legacy.normalizeTitle(row.title));
+    await cache.set(legacy.SENT_TITLES_KEY, [...sentTitlesSet], { ttl: CACHE_TTL_SECONDS, tags: ['rudi-cinema-premieres'], name: legacy.SENT_TITLES_KEY });
     posts = 1;
   }
 
   const complete = kinopolisResult.status === 'fulfilled' && mirageResult.status === 'fulfilled';
   if (!rows.length && complete) {
     const sendEmpty = options.sendEmpty || sendNoPremieresMessage;
-    await sendEmpty({ token, chatId, topicId, fetchImpl, now });
+    const sent = await sendEmpty({ token, chatId, topicId, fetchImpl, now });
+    messageId = await extractTelegramMessageId(sent);
   }
   if (complete) {
     await cache.set(`done:${dateKey}`, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-cinema-premieres'], name: `cinema-premieres-${dateKey}` });
@@ -202,6 +217,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   return {
     date: dateKey,
     topicId,
+    messageId,
     published: rows.length,
     posts,
     complete,
@@ -219,6 +235,7 @@ module.exports = {
   buildCinemaDigestCaption,
   collageGrid,
   buildCinemaCollage,
+  extractTelegramMessageId,
   sendTelegramCollage,
   sendNoPremieresMessage,
   loadMiragePremieresWithFallback,
