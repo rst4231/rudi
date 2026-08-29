@@ -50,10 +50,17 @@ function withReplyMarkup(init, markup) {
   return init;
 }
 
-async function resolveSettings(options, fetchImpl) {
+async function resolveSettings(options = {}) {
   if (options.settings) return options.settings;
+  const contextSettings = currentPublicationContext()?.settings;
+  if (contextSettings) return contextSettings;
   try {
-    const loaded = await loadRudiSettings({ cache: resolveControlCache(options), fetchImpl: options.settingsFetchImpl || options.configFetchImpl || fetchImpl });
+    const loaded = await loadRudiSettings({
+      cache: resolveControlCache(options),
+      // Never reuse a Telegram transport for config reads. Callers that want the
+      // remote baseline must provide a dedicated settingsFetchImpl explicitly.
+      fetchImpl: options.settingsFetchImpl === undefined ? null : options.settingsFetchImpl,
+    });
     return loaded.settings;
   } catch (error) {
     console.warn('RUDI_SETTINGS_LOAD_ERROR', String(error?.message || error));
@@ -63,7 +70,7 @@ async function resolveSettings(options, fetchImpl) {
 
 function wrapFetch(fetchImpl, options = {}) {
   return async (input, init = {}) => {
-    const settings = await resolveSettings(options, fetchImpl);
+    const settings = await resolveSettings(options);
     const publicationDate = options.publicationDate || currentPublicationContext()?.date || moscowDateKey(options.now || new Date());
     const control = await applySectionControlToTelegramRequest(input, init, { ...options, settings, cache: resolveControlCache(options), date: publicationDate });
     if (control.handled) return control.response;
