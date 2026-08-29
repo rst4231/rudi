@@ -12,6 +12,11 @@ const { moscowDateKey } = require('./preview-date.cjs');
 
 const POSTER_PROXY_BASE = 'https://spb-daily-guide-bot.vercel.app/api/poster-proxy';
 const PROXIED_POSTER_HOST = /^(?:cdn\.mirage\.ru|s\d+ru1\.kinoplan24\.ru)$/iu;
+const EVENT_POST_METHODS = new Set([
+  'sendMessage', 'sendPhoto', 'sendMediaGroup', 'sendDocument', 'sendVideo',
+  'sendAudio', 'sendVoice', 'sendAnimation', 'sendVenue', 'sendLocation',
+  'sendContact', 'sendPoll', 'sendDice', 'sendSticker',
+]);
 
 function resolveTopicCache(options = {}) { return options.cache || getTopicMaintenanceCache(options.cacheOptions || {}); }
 function resolveDailyContentCache(options = {}) { return options.dailyContentCache || getDailyContentCache(options.dailyContentCacheOptions || {}); }
@@ -122,16 +127,45 @@ function wrapFetch(fetchImpl, options = {}) {
   };
 }
 
+async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options = {}) {
+  const payload = base.parseRequestPayload(init);
+  if (Number(payload?.message_thread_id) !== base.EVENTS_TOPIC_ID) return null;
+  const endpoint = base.telegramEndpoint(input);
+  if (!endpoint || !EVENT_POST_METHODS.has(endpoint.method)) return null;
+  const chatId = payload?.chat_id;
+  if (chatId === undefined || chatId === null || chatId === '') return null;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const cache = options.cache || resolveTopicCache(options);
+  const todayKey = base.dateKeyInMoscow(options.now || new Date());
+  const targetDateKey = base.shiftDateKey(todayKey, -1);
+  try {
+    return await base.deleteTrackedMessages({
+      topicId: base.EVENTS_TOPIC_ID,
+      targetDateKey,
+      chatId,
+      cache,
+      baseUrl: endpoint.baseUrl,
+      fetchImpl,
+    });
+  } catch (error) {
+    console.error('RUDI_EVENT_PREPUBLISH_CLEANUP_ERROR', { targetDateKey, error });
+    return { error: String(error?.message || error) };
+  }
+}
+
 function prepareDailyTopicCleanup(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch; const cache = resolveTopicCache(options);
   return base.prepareDailyTopicCleanup({ ...options, cache, fetchImpl: wrapFetch(fetchImpl, options) });
 }
-function handleTelegramTopicRequest(input, init = {}, options = {}) {
+async function handleTelegramTopicRequest(input, init = {}, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch; const payload = base.parseRequestPayload(init); const topicId = Number(payload?.message_thread_id);
   const needsCache = topicId === base.EVENTS_TOPIC_ID || topicId === base.HOLIDAYS_TOPIC_ID || topicId === base.COUPLE_TOPIC_ID;
   const cache = options.cache || (needsCache ? resolveTopicCache(options) : undefined);
+  if (topicId === base.EVENTS_TOPIC_ID) {
+    await cleanupPreviousEventPostsBeforePublish(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl });
+  }
   return base.handleTelegramTopicRequest(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl: wrapFetch(fetchImpl, options) });
 }
 function getKnownForumChatId(options = {}) { return base.getKnownForumChatId({ ...options, cache: resolveTopicCache(options) }); }
 
-module.exports = { ...base, POSTER_PROXY_BASE, PROXIED_POSTER_HOST, rewriteTelegramPhotoRequest, terminalSuccessResponse, wrapFetch, prepareDailyTopicCleanup, handleTelegramTopicRequest, getKnownForumChatId, resolveTopicCache, resolveDailyContentCache, resolveControlCache };
+module.exports = { ...base, POSTER_PROXY_BASE, PROXIED_POSTER_HOST, rewriteTelegramPhotoRequest, terminalSuccessResponse, wrapFetch, cleanupPreviousEventPostsBeforePublish, prepareDailyTopicCleanup, handleTelegramTopicRequest, getKnownForumChatId, resolveTopicCache, resolveDailyContentCache, resolveControlCache };
