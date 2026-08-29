@@ -1,0 +1,4 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {buildFeedbackData,parseFeedbackCallback,incrementSectionMetric}=require('../api/feedback-analytics.cjs');
+function cache(){const m=new Map();return{async get(k){return m.get(k)||null},async set(k,v){m.set(k,structuredClone(v));return true}}}
+test('feedback callback is signed and validates',()=>{const env={RUDI_FEEDBACK_SECRET:'secret'};const data=buildFeedbackData('facts','2026-08-30','up',env);assert.deepEqual(parseFeedbackCallback(data,env),{section:'facts',date:'2026-08-30',vote:'up'});assert.equal(parseFeedbackCallback(data.replace(':u:',':d:'),env),null);});
+test('analytics increments named counter',async()=>{const c=cache();await incrementSectionMetric('facts','positiveFeedback',1,{cache:c});await incrementSectionMetric('facts','positiveFeedback',1,{cache:c});assert.equal((await c.get('analytics:facts')).positiveFeedback,2);});
