@@ -2,8 +2,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const DEFAULT_CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json';
+const DEFAULT_SEQUENCE_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content-sequence.json';
 const DEFAULT_CACHE_MS = 5 * 60 * 1000;
 const localConfigPath = path.join(__dirname, '..', 'config', 'daily-content.json');
+const localSequencePath = path.join(__dirname, '..', 'config', 'daily-content-sequence.json');
 
 let memo = null;
 
@@ -57,6 +59,25 @@ function validateSequence(input, facts, lulu) {
   return { startDate, factsStartId, luluStartId };
 }
 
+function applySequenceState(baseConfig, state) {
+  if (state === undefined || state === null) return baseConfig;
+  if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('Daily content sequence state is invalid');
+
+  const retiredIds = validatePublishedIds(state.retiredIds);
+  const existingPublished = validatePublishedIds(baseConfig?.publishedIds);
+  const publishedIds = [...new Set([...existingPublished, ...retiredIds])];
+  const enabled = state.enabled !== false;
+  const sequence = enabled
+    ? {
+        startDate: String(state.startDate || '').trim(),
+        factsStartId: String(state.factsStartId || '').trim(),
+        luluStartId: String(state.luluStartId || '').trim(),
+      }
+    : null;
+
+  return { ...baseConfig, publishedIds, sequence };
+}
+
 function validateCatalog(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Daily content catalog is invalid');
   const facts = Array.isArray(input.facts) ? input.facts.map((entry) => validateEntry(entry, 'facts')) : [];
@@ -78,34 +99,51 @@ function readBundledConfig() {
   return JSON.parse(fs.readFileSync(localConfigPath, 'utf8'));
 }
 
+function readBundledSequenceState() {
+  return JSON.parse(fs.readFileSync(localSequencePath, 'utf8'));
+}
+
+async function fetchJson(url, fetchImpl, userAgent) {
+  if (!url || typeof fetchImpl !== 'function') return null;
+  try {
+    const response = await fetchImpl(url, {
+      headers: { 'user-agent': userAgent },
+      cache: 'no-store',
+    });
+    if (response?.ok) return await response.json();
+  } catch (error) {
+    console.warn('RUDI_DAILY_CONTENT_CONFIG_ERROR', String(error?.message || error));
+  }
+  return null;
+}
+
 async function loadDailyContentCatalog(options = {}) {
   const configUrl = String(options.configUrl || process.env.DAILY_CONTENT_CONFIG_URL || DEFAULT_CONFIG_URL).trim();
+  const sequenceDisabledForTest = options.localSequenceState === null && options.sequenceConfigUrl === undefined;
+  const sequenceUrl = sequenceDisabledForTest
+    ? ''
+    : String(options.sequenceConfigUrl || process.env.DAILY_CONTENT_SEQUENCE_URL || DEFAULT_SEQUENCE_URL).trim();
   const cacheMs = Number.isFinite(Number(options.cacheMs)) ? Math.max(0, Number(options.cacheMs)) : DEFAULT_CACHE_MS;
   const now = Number(options.now || Date.now());
-  if (memo && cacheMs > 0 && memo.url === configUrl && now - memo.loadedAt < cacheMs) return memo.catalog;
-
-  const localConfig = options.localConfig || readBundledConfig();
-  const fallback = validateCatalog(localConfig);
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-
-  if (configUrl && typeof fetchImpl === 'function') {
-    try {
-      const response = await fetchImpl(configUrl, {
-        headers: { 'user-agent': 'RUDI-Daily-Content/1.0' },
-        cache: 'no-store',
-      });
-      if (response?.ok) {
-        const remote = validateCatalog(await response.json());
-        memo = { url: configUrl, loadedAt: now, catalog: remote };
-        return remote;
-      }
-    } catch (error) {
-      console.warn('RUDI_DAILY_CONTENT_CONFIG_ERROR', String(error?.message || error));
-    }
+  if (memo && cacheMs > 0 && memo.configUrl === configUrl && memo.sequenceUrl === sequenceUrl && now - memo.loadedAt < cacheMs) {
+    return memo.catalog;
   }
 
-  memo = { url: configUrl, loadedAt: now, catalog: fallback };
-  return fallback;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const localConfig = options.localConfig || readBundledConfig();
+  const remoteConfig = await fetchJson(configUrl, fetchImpl, 'RUDI-Daily-Content/1.0');
+  const baseConfig = remoteConfig || localConfig;
+
+  let sequenceState = options.localSequenceState;
+  if (sequenceState === undefined) sequenceState = readBundledSequenceState();
+  if (sequenceUrl) {
+    const remoteSequence = await fetchJson(sequenceUrl, fetchImpl, 'RUDI-Daily-Content-Sequence/1.0');
+    if (remoteSequence) sequenceState = remoteSequence;
+  }
+
+  const catalog = validateCatalog(applySequenceState(baseConfig, sequenceState));
+  memo = { configUrl, sequenceUrl, loadedAt: now, catalog };
+  return catalog;
 }
 
 function resetDailyContentConfigMemo() {
@@ -114,8 +152,10 @@ function resetDailyContentConfigMemo() {
 
 module.exports = {
   DEFAULT_CONFIG_URL,
+  DEFAULT_SEQUENCE_URL,
   validateCatalog,
   validateSequence,
+  applySequenceState,
   loadDailyContentCatalog,
   resetDailyContentConfigMemo,
 };
