@@ -58,3 +58,35 @@ test('catalog preserves permanently published content ids', () => {
 
   assert.deepEqual(catalog.publishedIds, ['facts-old', 'lulu-old']);
 });
+
+test('catalog preserves and validates stable calendar sequence anchors', () => {
+  const catalog = validateCatalog({
+    version: 3,
+    publishedIds: ['facts-old', 'lulu-old'],
+    sequence: {
+      startDate: '2026-08-30',
+      factsStartId: 'facts-new',
+      luluStartId: 'lulu-new',
+    },
+    facts: [
+      { id: 'facts-old', type: 'facts', category: 'A', body: 'A', sourceUrl: 'https://example.com/a' },
+      { id: 'facts-new', type: 'facts', category: 'B', body: 'B', sourceUrl: 'https://example.com/b' },
+    ],
+    lulu: [
+      { id: 'lulu-old', type: 'lulu', title: 'A', body: 'A', sourceUrl: 'https://example.com/c' },
+      { id: 'lulu-new', type: 'lulu', title: 'B', body: 'B', sourceUrl: 'https://example.com/d' },
+    ],
+  });
+
+  assert.deepEqual(catalog.sequence, {
+    startDate: '2026-08-30',
+    factsStartId: 'facts-new',
+    luluStartId: 'lulu-new',
+  });
+
+  assert.throws(() => validateCatalog({
+    sequence: { startDate: '2026-08-30', factsStartId: 'missing', luluStartId: 'lulu-new' },
+    facts: [{ id: 'facts-new', type: 'facts', category: 'B', body: 'B', sourceUrl: 'https://example.com/b' }],
+    lulu: [{ id: 'lulu-new', type: 'lulu', title: 'B', body: 'B', sourceUrl: 'https://example.com/d' }],
+  }), /factsStartId/i);
+});
