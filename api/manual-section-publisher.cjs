@@ -12,6 +12,7 @@ const { runPreview } = require('./preview.js');
 const { handleTelegramTopicRequest, getKnownForumChatId } = require('./topic-maintenance.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
+const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 
 const SECTION_SET = new Set(SECTION_NAMES);
 const NATIVE_SECTIONS = new Set(['cinema', 'labor', 'weekend']);
@@ -30,6 +31,18 @@ function validSection(value) {
   const section = String(value || '').trim();
   if (!SECTION_SET.has(section)) throw new Error('unknown section');
   return section;
+}
+
+async function metric(section, name, options = {}) {
+  try {
+    const increment = options.incrementMetric || incrementSectionMetric;
+    await increment(section, name, 1, {
+      cache: options.analyticsCache || options.controlCache,
+      now: options.now,
+    });
+  } catch (error) {
+    console.warn('RUDI_ANALYTICS_METRIC_ERROR', section, name, String(error?.message || error));
+  }
 }
 
 function responseCollector() {
@@ -161,6 +174,7 @@ async function publishSelectedSection(input, options = {}) {
     }
   } catch (error) {
     await markFailed({ date, section, error, messageIds, sourceIds: ['manual-preview'], metadata: { manual: true, force } });
+    await metric(section, 'failures', options);
     throw error;
   }
 
@@ -171,6 +185,8 @@ async function publishSelectedSection(input, options = {}) {
     sourceIds: ['manual-preview'],
     metadata: { manual: true, force, partCount: effectiveParts.length },
   });
+  await metric(section, 'publications', options);
+  await metric(section, 'successfulPublications', options);
   return { ok: true, section, date, published: effectiveParts.length, messageIds, forced: force };
 }
 
