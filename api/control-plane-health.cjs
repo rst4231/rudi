@@ -33,6 +33,16 @@ function cloneSectionState(settings) {
   return result;
 }
 
+function cloneOperationalSettings(settings) {
+  return {
+    publishing: structuredClone(settings.publishing),
+    dedupe: structuredClone(settings.dedupe),
+    alerts: structuredClone(settings.alerts),
+    sources: structuredClone(settings.sources),
+    copy: structuredClone(settings.copy),
+  };
+}
+
 async function defaultAlertState() {
   try {
     const { getAlertState } = require('./alert-service.cjs');
@@ -77,6 +87,7 @@ async function buildHealthPayload(options = {}) {
       description: settings.publishing.dailyCronDescription,
     },
     sections: cloneSectionState(settings),
+    operationalSettings: cloneOperationalSettings(settings),
     lastDailyRun: lastDailyRun || null,
     latestPublications,
     sourceHealth: sourceHealth || [],
@@ -85,4 +96,4 @@ async function buildHealthPayload(options = {}) {
   };
 }
 
-module.exports = { SOURCE_IDS, moscowDate, buildHealthPayload };
+module.exports = { SOURCE_IDS, moscowDate, cloneOperationalSettings, buildHealthPayload };
