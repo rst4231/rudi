@@ -6,6 +6,7 @@ const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { publishWeeklyCinemaPremieres } = require('./cinema-premieres-collage.cjs');
 const indexHandler = require('./index.js');
 
+// Facts/Lulu cross-day sequencing is resolved from external config before this runtime publishes.
 async function handler(req, res) {
   if (!isCronRequestAuthorized(req)) {
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
