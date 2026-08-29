@@ -5,7 +5,20 @@ const { runNativeSection } = require('./section-runners.cjs');
 const { loadRudiSettings } = require('./rudi-settings.cjs');
 const { markPublicationPublished, markPublicationSkipped, writeDailyRunSummary } = require('./publication-journal.cjs');
 const { emitOperationalAlert } = require('./alert-service.cjs');
+const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 const { moscowDateKey } = require('./preview-date.cjs');
+
+async function metric(section, name, amount, options = {}) {
+  try {
+    const increment = options.incrementMetric || incrementSectionMetric;
+    await increment(section, name, amount, {
+      cache: options.analyticsCache || options.controlCache,
+      now: options.now,
+    });
+  } catch (error) {
+    console.warn('RUDI_ANALYTICS_METRIC_ERROR', section, name, String(error?.message || error));
+  }
+}
 
 async function recordGeneratedPayload(payload, date, options = {}) {
   const results = payload?.results || {};
@@ -19,17 +32,19 @@ async function recordGeneratedPayload(payload, date, options = {}) {
   ];
   for (const [section, value] of rows) {
     if (!value) continue;
-    if (value.sent === false && payload?.requestedDate) continue;
-    if (value.skipped) {
-      await markPublicationSkipped({ date, section, reason: String(value.skipped) }, { cache: options.journalCache });
-    } else {
-      await markPublicationPublished({
-        date,
-        section,
-        sourceIds: [section === 'events' ? 'events-runtime' : 'generated-runtime'],
-        metadata: { runtime: true },
-      }, { cache: options.journalCache });
+    const skipReason = value.skipped || (value.sent === false ? 'not-sent' : null);
+    if (skipReason) {
+      await markPublicationSkipped({ date, section, reason: String(skipReason) }, { cache: options.journalCache, now: options.now });
+      continue;
     }
+    await markPublicationPublished({
+      date,
+      section,
+      sourceIds: [section === 'events' ? 'events-runtime' : 'generated-runtime'],
+      metadata: { runtime: true },
+    }, { cache: options.journalCache, now: options.now });
+    await metric(section, 'publications', 1, options);
+    await metric(section, 'successfulPublications', 1, options);
   }
 }
 
@@ -67,6 +82,7 @@ async function runDailyOrchestrator(req, res, options = {}) {
   }
 
   let captured = null;
+  let runtimeError = null;
   const originalJson = typeof res?.json === 'function' ? res.json.bind(res) : null;
   if (originalJson) res.json = (payload) => { captured = payload; return originalJson(payload); };
   const previousSettings = req.rudiSettings;
@@ -74,6 +90,9 @@ async function runDailyOrchestrator(req, res, options = {}) {
   let runtimeReturn;
   try {
     runtimeReturn = await (options.runRuntime || require('./index.js').runRuntime)(req, res);
+  } catch (error) {
+    runtimeError = error;
+    failures.push({ section: 'generated-runtime', error: String(error?.message || error) });
   } finally {
     if (previousSettings === undefined) delete req.rudiSettings;
     else req.rudiSettings = previousSettings;
@@ -82,10 +101,12 @@ async function runDailyOrchestrator(req, res, options = {}) {
   }
 
   const payload = captured || runtimeReturn || {};
-  try {
-    await (options.recordGenerated || recordGeneratedPayload)(payload, date, options);
-  } catch (error) {
-    failures.push({ section: 'journal', error: String(error?.message || error) });
+  if (!runtimeError) {
+    try {
+      await (options.recordGenerated || recordGeneratedPayload)(payload, date, options);
+    } catch (error) {
+      failures.push({ section: 'journal', error: String(error?.message || error) });
+    }
   }
 
   const summary = {
@@ -95,6 +116,7 @@ async function runDailyOrchestrator(req, res, options = {}) {
         key,
         value?.failed ? 'failed' : value?.skipped ? 'skipped' : 'published',
       ])),
+      ...(runtimeError ? { generatedRuntime: 'failed' } : {}),
     },
     failures: failures.length,
   };
@@ -108,6 +130,7 @@ async function runDailyOrchestrator(req, res, options = {}) {
       }, { cache: options.alertCache, fetchImpl: options.fetchImpl, env: options.env });
     } catch {}
   }
+  if (runtimeError) throw runtimeError;
   return { runtime: payload, native: nativeResults, failures };
 }
 
