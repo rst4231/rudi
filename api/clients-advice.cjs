@@ -1,4 +1,5 @@
 const localConfigDefault = require('../config/clients-advice.json');
+const { fingerprintContent, getRecentFingerprints } = require('./content-fingerprint.cjs');
 
 const CLIENTS_TOPIC_ID = 126;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -19,10 +20,37 @@ function moscowDateParts(value = new Date()) {
   const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return { year: Number(map.year), month: Number(map.month), day: Number(map.day) };
 }
+function deterministicIndex(items, value = new Date()) {
+  const { year, month, day } = moscowDateParts(value);
+  const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / DAY_MS);
+  return ((dayNumber % items.length) + items.length) % items.length;
+}
 function selectAdviceForDate(config, value = new Date()) {
   const items = normalizeConfig(config); if (!items) throw new Error('Clients advice config is empty or invalid');
-  const { year, month, day } = moscowDateParts(value); const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / DAY_MS);
-  return items[((dayNumber % items.length) + items.length) % items.length];
+  return items[deterministicIndex(items, value)];
+}
+async function selectUnseenAdviceForDate(config, value = new Date(), options = {}) {
+  const items = normalizeConfig(config); if (!items) throw new Error('Clients advice config is empty or invalid');
+  const start = deterministicIndex(items, value);
+  let seen = options.seenFingerprints;
+  if (!(seen instanceof Set)) {
+    try {
+      seen = await getRecentFingerprints('clients', {
+        cache: options.cache,
+        days: Math.max(1, Number(options.days || 45)),
+        now: options.now || value,
+      });
+    } catch {
+      seen = new Set();
+    }
+  }
+  for (let offset = 0; offset < items.length; offset += 1) {
+    const item = items[(start + offset) % items.length];
+    const fingerprint = fingerprintContent('clients', item);
+    if (!seen.has(fingerprint)) return { item, fingerprint, exhausted: false, offset };
+  }
+  const item = items[start];
+  return { item, fingerprint: fingerprintContent('clients', item), exhausted: true, offset: 0 };
 }
 function formatClientsAdvice(item) {
   if (!isValidAdvice(item)) throw new Error('Clients advice item is invalid');
@@ -58,8 +86,15 @@ async function rewriteClientsTelegramRequest(input, init = {}, options = {}) {
   const payload = parsePayload(init); if (Number(payload?.message_thread_id) !== CLIENTS_TOPIC_ID) return init;
   const field = typeof payload?.text === 'string' ? 'text' : (typeof payload?.caption === 'string' ? 'caption' : null);
   if (!field || !OLD_MARKER.test(payload[field])) return init;
-  const config = await loadClientsAdviceConfig(options); const advice = formatClientsAdvice(selectAdviceForDate(config, options.now || new Date()));
-  return withPayloadField(init, payload, field, advice);
+  const config = await loadClientsAdviceConfig(options);
+  const selection = await selectUnseenAdviceForDate(config, options.now || new Date(), {
+    cache: options.dedupeCache,
+    days: options.settings?.dedupe?.clientsDays || 45,
+    now: options.now,
+    seenFingerprints: options.seenFingerprints,
+  });
+  if (typeof options.onSelected === 'function') options.onSelected(selection);
+  return withPayloadField(init, payload, field, formatClientsAdvice(selection.item));
 }
 function replaceAdviceSection(text, advice) {
   if (typeof text !== 'string') return text; const match = OLD_MARKER.exec(text); if (!match) return text;
@@ -71,7 +106,13 @@ function rewriteClientsPreviewPayloadWithAdvice(payload, advice) {
 }
 async function rewriteClientsPreviewPayload(payload, options = {}) {
   const text = payload?.results?.clients?.preview?.message; if (typeof text !== 'string' || !OLD_MARKER.test(text)) return payload;
-  const config = await loadClientsAdviceConfig(options); const advice = formatClientsAdvice(selectAdviceForDate(config, options.now || new Date()));
-  return rewriteClientsPreviewPayloadWithAdvice(payload, advice);
+  const config = await loadClientsAdviceConfig(options);
+  const selection = await selectUnseenAdviceForDate(config, options.now || new Date(), {
+    cache: options.dedupeCache,
+    days: options.settings?.dedupe?.clientsDays || 45,
+    now: options.now,
+    seenFingerprints: options.seenFingerprints,
+  });
+  return rewriteClientsPreviewPayloadWithAdvice(payload, formatClientsAdvice(selection.item));
 }
-module.exports = { CLIENTS_TOPIC_ID, DEFAULT_CONFIG_URL, selectAdviceForDate, formatClientsAdvice, loadClientsAdviceConfig, rewriteClientsTelegramRequest, rewriteClientsPreviewPayload, rewriteClientsPreviewPayloadWithAdvice, replaceAdviceSection };
+module.exports = { CLIENTS_TOPIC_ID, DEFAULT_CONFIG_URL, selectAdviceForDate, selectUnseenAdviceForDate, formatClientsAdvice, loadClientsAdviceConfig, rewriteClientsTelegramRequest, rewriteClientsPreviewPayload, rewriteClientsPreviewPayloadWithAdvice, replaceAdviceSection };
