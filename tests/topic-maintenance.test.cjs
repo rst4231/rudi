@@ -60,10 +60,12 @@ test('daily cleanup deletes yesterday posts from both events and holidays', asyn
   assert.equal(await cache.get('topic:44:2026-08-20:cleanup'), true);
 });
 
-test('new event publication clears yesterday posts even when daily cron did not run', async () => {
+test('new event publication deletes all previous-day bot posts before sending todays post', async () => {
   const cache = fakeCache({
     'topic:237:deleted:-100123': true,
-    'topic:19:2026-08-19:messages': [501, 502],
+    'topic:19:2026-08-19:messages': [759, 760],
+    'topic:19:2026-08-18:messages': [700],
+    'topic:44:2026-08-19:messages': [900],
   });
   const calls = [];
   const fetchImpl = async (url, init) => {
@@ -81,9 +83,11 @@ test('new event publication clears yesterday posts even when daily cron did not 
   );
 
   assert.equal(response.status, 200);
-  const deletion = calls.find((call) => call.method === 'deleteMessages');
-  assert.deepEqual(deletion?.body.message_ids, [501, 502]);
+  assert.deepEqual(calls.map((call) => call.method), ['deleteMessages', 'sendMessage']);
+  assert.deepEqual(calls[0].body, { chat_id: -100123, message_ids: [759, 760] });
   assert.deepEqual(await cache.get('topic:19:2026-08-20:messages'), [777]);
+  assert.deepEqual(await cache.get('topic:19:2026-08-18:messages'), [700]);
+  assert.deepEqual(await cache.get('topic:44:2026-08-19:messages'), [900]);
 });
 
 test('outgoing managed topic messages are recorded for future cleanup', async () => {
