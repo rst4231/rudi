@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const { replaceEventMessage, isConcertDigestText } = require('./event-collage.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
-const { getKnownForumChatId } = require('./topic-maintenance.cjs');
+const { getKnownForumChatId, rememberPublishedMessages, resolveTopicCache } = require('./topic-maintenance.cjs');
 const { resolveForumChatId } = require('./forum-chat-id.cjs');
 const { getRecoveryCache } = require('./stateful-cache.cjs');
 
@@ -202,6 +202,15 @@ async function runEventPostRepair(options = {}) {
     fetchImpl: options.fetchImpl || globalThis.fetch,
     telegramFetchImpl: options.telegramFetchImpl || globalThis.fetch,
   });
+
+  const topicCache = options.topicCache || resolveTopicCache(options.topicCacheOptions || {});
+  await rememberPublishedMessages(
+    EVENTS_TOPIC_ID,
+    chatId,
+    [replacement.newMessageId],
+    moscowDateKey(now),
+    topicCache,
+  );
 
   const result = {
     completed: true,
