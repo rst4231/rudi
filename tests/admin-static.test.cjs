@@ -5,14 +5,14 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 
-test('admin page is local-only, keeps credential in sessionStorage and calls authenticated API', () => {
+test('admin page opens directly and calls API without credentials', () => {
   const source = fs.readFileSync(path.join(root, 'public', 'admin.html'), 'utf8');
   assert.doesNotMatch(source, /CRON_SECRET|RUDI_ADMIN_SECRET/);
   assert.doesNotMatch(source, /<script[^>]+src=|<link[^>]+https?:\/\//i);
-  assert.doesNotMatch(source, /localStorage/);
-  assert.match(source, /sessionStorage/);
+  assert.doesNotMatch(source, /localStorage|sessionStorage/);
+  assert.doesNotMatch(source, /Authorization|Bearer|id="auth"|id="secret"|Неверный секрет|Подключиться/);
+  assert.match(source, /id="app"/);
   assert.match(source, /\/api\/admin/);
-  assert.match(source, /Authorization/);
   assert.match(source, /window\.confirm/);
 });
 

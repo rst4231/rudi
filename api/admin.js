@@ -1,4 +1,3 @@
-const { requireAdmin } = require('./admin-auth.cjs');
 const { buildAdminDashboard, handleAdminAction } = require('./admin-api.cjs');
 
 function resultStatus(result) {
@@ -10,9 +9,6 @@ function resultStatus(result) {
 }
 
 async function runAdmin(req, res, options = {}) {
-  const env = options.env || process.env;
-  if (!requireAdmin(req, res, env)) return null;
-
   if (req.method === 'GET' || !req.method) {
     const buildDashboard = options.buildDashboard || buildAdminDashboard;
     const dashboard = await buildDashboard(options);

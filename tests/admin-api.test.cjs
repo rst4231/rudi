@@ -71,10 +71,10 @@ test('retry-failed-section delegates only one failed section', async () => {
   assert.deepEqual(calls, [{ section: 'cinema', date: '2026-08-30', retryFailedOnly: true }]);
 });
 
-test('admin endpoint rejects missing bearer auth before building dashboard', async () => {
+test('admin endpoint serves dashboard without bearer auth', async () => {
   const req = { method: 'GET', headers: {}, query: {} };
   const res = responseStub();
-  await adminHandler.runAdmin(req, res, { env: { RUDI_ADMIN_SECRET: 'secret' }, buildDashboard: async () => { throw new Error('must not run'); } });
-  assert.equal(res.statusCode, 401);
-  assert.equal(res.payload.error, 'unauthorized-admin');
+  await adminHandler.runAdmin(req, res, { buildDashboard: async () => ({ ok: true, marker: 'dashboard' }) });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.payload, { ok: true, marker: 'dashboard' });
 });

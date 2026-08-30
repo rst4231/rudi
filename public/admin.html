@@ -5,23 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>RUDI Admin</title>
   <style>
-    :root{color-scheme:light dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:#111217;color:#f5f6f8}button,input,textarea{font:inherit}.shell{max-width:1180px;margin:0 auto;padding:20px}.top{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}.brand{font-size:26px;font-weight:800}.muted{color:#9ba1ad}.badge{display:inline-flex;padding:6px 10px;border:1px solid #3c414c;border-radius:999px;font-size:13px}.ok{border-color:#2e7d4d;color:#8be0a8}.bad{border-color:#8c4141;color:#ffaaaa}.panel,.card{background:#191b22;border:1px solid #2c303a;border-radius:14px;padding:16px}.panel{margin-top:16px}.login{max-width:460px;margin:10vh auto}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1}.input,textarea{width:100%;background:#111319;color:#f7f7f8;border:1px solid #343945;border-radius:9px;padding:10px}textarea{min-height:110px;resize:vertical}.btn{border:1px solid #3a404d;background:#252934;color:#f5f6f8;border-radius:9px;padding:9px 12px;cursor:pointer}.btn:hover{background:#303644}.btn.primary{background:#e9ecf4;color:#15171c}.btn.danger{border-color:#754246}.tabs{display:flex;gap:8px;margin:16px 0}.tabs .active{background:#e9ecf4;color:#111}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}.card h3{margin:0 0 8px}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:13px}.parts{display:grid;gap:8px}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.section-off{opacity:.62}.error{background:#3b1e22;border:1px solid #713c44;color:#ffc5cb;padding:10px;border-radius:9px;margin-top:12px;white-space:pre-wrap}.success{background:#183224;border:1px solid #2a6544;color:#a9edc2;padding:10px;border-radius:9px;margin-top:12px}.hidden{display:none!important}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid #2e323b}.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.split{display:grid;grid-template-columns:2fr 1fr;gap:14px}@media(max-width:800px){.split{grid-template-columns:1fr}.shell{padding:12px}.grid{grid-template-columns:1fr}}
+    :root{color-scheme:light dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:#111217;color:#f5f6f8}button,textarea{font:inherit}.shell{max-width:1180px;margin:0 auto;padding:20px}.top{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}.brand{font-size:26px;font-weight:800}.muted{color:#9ba1ad}.badge{display:inline-flex;padding:6px 10px;border:1px solid #3c414c;border-radius:999px;font-size:13px}.ok{border-color:#2e7d4d;color:#8be0a8}.bad{border-color:#8c4141;color:#ffaaaa}.panel,.card{background:#191b22;border:1px solid #2c303a;border-radius:14px;padding:16px}.panel{margin-top:16px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}textarea{width:100%;min-height:110px;resize:vertical;background:#111319;color:#f7f7f8;border:1px solid #343945;border-radius:9px;padding:10px}.btn{border:1px solid #3a404d;background:#252934;color:#f5f6f8;border-radius:9px;padding:9px 12px;cursor:pointer}.btn:hover{background:#303644}.btn.primary{background:#e9ecf4;color:#15171c}.btn.danger{border-color:#754246}.tabs{display:flex;gap:8px;margin:16px 0}.tabs .active{background:#e9ecf4;color:#111}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}.card h3{margin:0 0 8px}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:13px}.parts{display:grid;gap:8px}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.section-off{opacity:.62}.error{background:#3b1e22;border:1px solid #713c44;color:#ffc5cb;padding:10px;border-radius:9px;margin-top:12px;white-space:pre-wrap}.success{background:#183224;border:1px solid #2a6544;color:#a9edc2;padding:10px;border-radius:9px;margin-top:12px}.hidden{display:none!important}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid #2e323b}.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.split{display:grid;grid-template-columns:2fr 1fr;gap:14px}@media(max-width:800px){.split{grid-template-columns:1fr}.shell{padding:12px}.grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <main class="shell">
-    <section id="auth" class="panel login">
-      <div class="brand">RUDI Admin</div>
-      <p class="muted">Введите административный секрет. Он хранится только до закрытия текущей вкладки.</p>
-      <input id="secret" class="input" type="password" autocomplete="current-password" placeholder="Секрет">
-      <div class="actions"><button id="connect" class="btn primary">Подключиться</button></div>
-      <div id="authError" class="error hidden"></div>
-    </section>
-
-    <section id="app" class="hidden">
+    <section id="app">
       <header class="top">
-        <div><div class="brand">RUDI</div><div id="clock" class="muted"></div></div>
-        <div class="row"><span id="healthBadge" class="badge">Загрузка…</span><button id="refresh" class="btn">Обновить</button><button id="logout" class="btn">Выйти</button></div>
+        <div><div class="brand">RUDI Admin</div><div id="clock" class="muted"></div></div>
+        <div class="row"><span id="healthBadge" class="badge">Загрузка…</span><button id="refresh" class="btn">Обновить</button></div>
       </header>
       <div id="notice" class="hidden"></div>
       <div class="tabs"><button class="btn active" data-tab="today">Сегодня</button><button class="btn" data-tab="tomorrow">Завтра</button></div>
@@ -35,23 +27,18 @@
   </main>
 <script>
 (() => {
-  const key='rudiAdminSecret';
   const sectionNames=['events','holidays','facts','lulu','recipes','clients','cinema','labor','weekend'];
   let state=null, activeTab='today';
   const $=(id)=>document.getElementById(id);
-  function token(){return sessionStorage.getItem(key)||''}
   function setNotice(text,type='success'){const el=$('notice');el.className=type;el.textContent=text;el.classList.toggle('hidden',!text)}
   async function api(method='GET',body=null){
-    const headers={Authorization:`Bearer ${token()}`};
+    const headers={};
     if(body)headers['Content-Type']='application/json';
     const response=await fetch('/api/admin',{method,headers,body:body?JSON.stringify(body):undefined});
     let data={};try{data=await response.json()}catch{}
-    if(response.status===401){sessionStorage.removeItem(key);showAuth('Неверный секрет');throw new Error('unauthorized')}
     if(!response.ok||data.ok===false)throw new Error(data.error||`HTTP ${response.status}`);
     return data;
   }
-  function showAuth(message=''){$('app').classList.add('hidden');$('auth').classList.remove('hidden');$('authError').textContent=message;$('authError').classList.toggle('hidden',!message)}
-  function showApp(){$('auth').classList.add('hidden');$('app').classList.remove('hidden')}
   function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
   function currentDate(){return state?.dates?.[activeTab]||''}
   function previewSection(name){return state?.previews?.[activeTab]?.sections?.[name]||{parts:[],metadata:{available:false}}}
@@ -65,7 +52,6 @@
     return `<article class="card ${config.enabled===false?'section-off':''}"><h3>${name}</h3><div class="meta"><span class="badge">${config.enabled===false?'выкл':'вкл'}</span><span class="badge">${pub?.status||'нет журнала'}</span><span class="badge">source: ${escapeHtml(sourceState(name))}</span>${skipped?'<span class="badge bad">skip</span>':''}${view.overridden?'<span class="badge">override</span>':''}</div><div class="parts">${parts}</div><div class="actions">${canEdit?`<button class="btn" data-action="save" data-section="${name}">Сохранить текст</button><button class="btn" data-action="clear-text" data-section="${name}">Очистить override</button>`:''}<button class="btn" data-action="toggle" data-section="${name}" data-enabled="${config.enabled!==false}">${config.enabled===false?'Включить':'Выключить'}</button><button class="btn" data-action="skip" data-section="${name}" data-skipped="${skipped}">${skipped?'Убрать skip':'Пропустить дату'}</button><button class="btn primary" data-action="publish" data-section="${name}">Опубликовать</button>${retry}</div></article>`;
   }
   function render(){
-    showApp();
     const ok=state?.health?.ok===true;$('healthBadge').textContent=ok?'Работает':'Проблема';$('healthBadge').className=`badge ${ok?'ok':'bad'}`;
     $('sections').innerHTML=sectionNames.map(card).join('');
     $('overrides').textContent=JSON.stringify(state?.overrides||{},null,2);
@@ -74,9 +60,6 @@
   }
   async function load(){setNotice('');state=await api('GET');render()}
   async function action(payload,message){setNotice('');const result=await api('POST',payload);setNotice(message||'Готово');await load();return result}
-  $('connect').onclick=async()=>{const value=$('secret').value.trim();if(!value)return showAuth('Введите секрет');sessionStorage.setItem(key,value);try{await load()}catch(error){if(error.message!=='unauthorized')showAuth(error.message)}};
-  $('secret').addEventListener('keydown',(e)=>{if(e.key==='Enter')$('connect').click()});
-  $('logout').onclick=()=>{sessionStorage.removeItem(key);state=null;showAuth()};
   $('refresh').onclick=()=>load().catch((e)=>setNotice(e.message,'error'));
   document.querySelector('.tabs').onclick=(e)=>{const tab=e.target.dataset.tab;if(!tab)return;activeTab=tab;document.querySelectorAll('[data-tab]').forEach((b)=>b.classList.toggle('active',b.dataset.tab===tab));render()};
   $('sections').onclick=async(e)=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const section=btn.dataset.section,date=currentDate(),kind=btn.dataset.action;try{
@@ -89,7 +72,7 @@
   }catch(error){setNotice(error.message,'error')}};
   $('alerts').onclick=async(e)=>{const fp=e.target.dataset.alert;if(!fp)return;if(!window.confirm('Подтвердить этот алерт?'))return;try{await action({action:'acknowledge-alert',fingerprint:fp},'Алерт подтверждён')}catch(error){setNotice(error.message,'error')}};
   function tick(){$('clock').textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',dateStyle:'medium',timeStyle:'medium'}).format(new Date())+' · Москва'}setInterval(tick,1000);tick();
-  if(token())load().catch((e)=>{if(e.message!=='unauthorized')showAuth(e.message)});else showAuth();
+  load().catch((e)=>setNotice(e.message,'error'));
 })();
 </script>
 </body>
