@@ -1,7 +1,6 @@
 const { createHash, timingSafeEqual } = require('node:crypto');
 const fs = require('node:fs');
 
-const { runPreview } = require('./preview.js');
 const { replaceEventMessage, isConcertDigestText } = require('./event-collage.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance.cjs');
@@ -34,29 +33,133 @@ function readGeneratedRuntimeSource() {
   catch { return ''; }
 }
 
-function createCaptureResponse() {
-  return {
-    statusCode: 200,
-    headersSent: false,
-    payload: null,
-    status(code) { this.statusCode = Number(code) || 200; return this; },
-    json(payload) { this.payload = payload; this.headersSent = true; return payload; },
-    send(payload) { this.payload = payload; this.headersSent = true; return payload; },
-    setHeader() {},
-  };
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/gu, '&amp;')
+    .replace(/</gu, '&lt;')
+    .replace(/>/gu, '&gt;')
+    .replace(/"/gu, '&quot;');
 }
 
-async function loadConcertText(options = {}) {
-  if (typeof options.concertText === 'string' && options.concertText.trim()) return options.concertText.trim();
-  const req = { method: 'GET', query: { date: REPAIR_DATE } };
-  const res = createCaptureResponse();
-  const previewRunner = options.runPreview || runPreview;
-  await previewRunner(req, res, options.previewOptions || {});
-  if (res.statusCode >= 400) throw new Error(`Event preview failed with status ${res.statusCode}`);
-  const parts = res.payload?.sections?.events?.parts || [];
-  const text = parts.find((part) => isConcertDigestText(part));
-  if (!text) throw new Error('Pop and hip-hop concert preview is unavailable');
-  return text;
+function safeEntityUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function entityTags(entity, text) {
+  const type = String(entity?.type || '');
+  if (type === 'bold') return ['<b>', '</b>'];
+  if (type === 'italic') return ['<i>', '</i>'];
+  if (type === 'underline') return ['<u>', '</u>'];
+  if (type === 'strikethrough') return ['<s>', '</s>'];
+  if (type === 'code') return ['<code>', '</code>'];
+  if (type === 'text_link') {
+    const url = safeEntityUrl(entity?.url);
+    return url ? [`<a href="${escapeHtml(url)}">`, '</a>'] : null;
+  }
+  if (type === 'url') {
+    const offset = Number(entity?.offset);
+    const length = Number(entity?.length);
+    const url = safeEntityUrl(text.slice(offset, offset + length));
+    return url ? [`<a href="${escapeHtml(url)}">`, '</a>'] : null;
+  }
+  return null;
+}
+
+function telegramMessageToHtml(message = {}) {
+  const text = String(message.text ?? message.caption ?? '');
+  const entities = Array.isArray(message.entities)
+    ? message.entities
+    : Array.isArray(message.caption_entities) ? message.caption_entities : [];
+  const supported = entities.map((entity) => {
+    const offset = Number(entity?.offset);
+    const length = Number(entity?.length);
+    if (!Number.isInteger(offset) || !Number.isInteger(length) || offset < 0 || length <= 0 || offset + length > text.length) return null;
+    const tags = entityTags(entity, text);
+    return tags ? { offset, end: offset + length, open: tags[0], close: tags[1] } : null;
+  }).filter(Boolean);
+
+  if (!supported.length) return escapeHtml(text);
+  const boundaries = new Set([0, text.length]);
+  for (const entity of supported) {
+    boundaries.add(entity.offset);
+    boundaries.add(entity.end);
+  }
+  const positions = [...boundaries].sort((a, b) => a - b);
+  let html = '';
+  for (let index = 0; index < positions.length - 1; index += 1) {
+    const position = positions[index];
+    const next = positions[index + 1];
+    const closing = supported
+      .filter((entity) => entity.end === position)
+      .sort((a, b) => b.offset - a.offset || a.end - b.end);
+    for (const entity of closing) html += entity.close;
+    const opening = supported
+      .filter((entity) => entity.offset === position)
+      .sort((a, b) => b.end - a.end);
+    for (const entity of opening) html += entity.open;
+    html += escapeHtml(text.slice(position, next));
+  }
+  const finalPosition = positions.at(-1);
+  const finalClosing = supported
+    .filter((entity) => entity.end === finalPosition)
+    .sort((a, b) => b.offset - a.offset || a.end - b.end);
+  for (const entity of finalClosing) html += entity.close;
+  return html;
+}
+
+async function telegramJsonCall(telegramFetchImpl, token, method, payload) {
+  const response = await telegramFetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  let data = null;
+  try { data = await response.clone().json(); } catch {}
+  if (!response?.ok || data?.ok === false) {
+    const detail = data?.description ? ` ${data.description}` : '';
+    throw new Error(`Telegram ${method} failed: HTTP ${response?.status || 0}${detail}`);
+  }
+  return data?.result;
+}
+
+async function readOriginalEventText(options = {}) {
+  const token = String(options.token || '').trim();
+  const chatId = options.chatId;
+  const topicId = Number(options.topicId);
+  const oldMessageId = Number(options.oldMessageId);
+  const telegramFetchImpl = options.telegramFetchImpl || globalThis.fetch;
+  if (!token) throw new Error('Telegram bot token is required');
+  if (chatId === undefined || chatId === null || chatId === '') throw new Error('Telegram chat id is required');
+  if (!Number.isInteger(topicId) || topicId <= 0) throw new Error('Telegram topic id is required');
+  if (!Number.isInteger(oldMessageId) || oldMessageId <= 0) throw new Error('Old Telegram message id is required');
+
+  let temporaryMessageId = null;
+  let forwarded;
+  try {
+    forwarded = await telegramJsonCall(telegramFetchImpl, token, 'forwardMessage', {
+      chat_id: chatId,
+      message_thread_id: topicId,
+      from_chat_id: chatId,
+      message_id: oldMessageId,
+      disable_notification: true,
+    });
+    temporaryMessageId = Number(forwarded?.message_id) || null;
+    const html = telegramMessageToHtml(forwarded);
+    if (!html.trim() || !isConcertDigestText(html)) throw new Error('Forwarded message is not the expected concert digest');
+    return html;
+  } finally {
+    if (Number.isInteger(temporaryMessageId) && temporaryMessageId > 0) {
+      await telegramJsonCall(telegramFetchImpl, token, 'deleteMessage', {
+        chat_id: chatId,
+        message_id: temporaryMessageId,
+      });
+    }
+  }
 }
 
 async function resolveChatId(options = {}) {
@@ -80,7 +183,15 @@ async function runEventPostRepair(options = {}) {
   const token = options.token || resolveTelegramBotToken(options.env || process.env);
   const chatId = await resolveChatId(options);
   if (chatId === null || chatId === undefined || chatId === '') throw new Error('Telegram forum chat id is unavailable');
-  const text = await loadConcertText(options);
+  const text = typeof options.concertText === 'string' && options.concertText.trim()
+    ? options.concertText.trim()
+    : await readOriginalEventText({
+      token,
+      chatId,
+      topicId: EVENTS_TOPIC_ID,
+      oldMessageId: OLD_MESSAGE_ID,
+      telegramFetchImpl: options.telegramFetchImpl || globalThis.fetch,
+    });
   const replace = options.replaceEventMessage || replaceEventMessage;
   const replacement = await replace({
     token,
@@ -123,7 +234,8 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.runEventPostRepair = runEventPostRepair;
 module.exports.securelyMatchesRepairKey = securelyMatchesRepairKey;
-module.exports.loadConcertText = loadConcertText;
+module.exports.telegramMessageToHtml = telegramMessageToHtml;
+module.exports.readOriginalEventText = readOriginalEventText;
 module.exports.moscowDateKey = moscowDateKey;
 module.exports.REPAIR_DATE = REPAIR_DATE;
 module.exports.OLD_MESSAGE_ID = OLD_MESSAGE_ID;
