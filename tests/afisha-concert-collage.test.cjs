@@ -104,3 +104,52 @@ test('one-time post 768 repair endpoint exists and is date/key guarded', async (
   assert.equal(repair.OLD_MESSAGE_ID, 768);
   assert.equal(repair.securelyMatchesRepairKey('wrong-key'), false);
 });
+
+test('post 768 repair recovers exact Yandex Afisha links from a temporary Telegram forward', async () => {
+  const repair = require('../api/repair-event-post.js');
+  assert.equal(typeof repair.readOriginalEventText, 'function');
+  const yandexEvent = 'https://afisha.yandex.ru/saint-petersburg/concert/live-artist';
+  const original = '🎤 Поп и хип-хоп концерты\n1. Live Artist\nПодробнее →';
+  const linkText = 'Подробнее →';
+  const calls = [];
+  const telegramFetchImpl = async (url, init) => {
+    const method = String(url).split('/').at(-1);
+    calls.push(method);
+    if (method === 'forwardMessage') {
+      const payload = JSON.parse(init.body);
+      assert.deepEqual(payload, {
+        chat_id: -100123,
+        message_thread_id: 19,
+        from_chat_id: -100123,
+        message_id: 768,
+        disable_notification: true,
+      });
+      return response(JSON.stringify({
+        ok: true,
+        result: {
+          message_id: 990,
+          text: original,
+          entities: [{
+            type: 'text_link',
+            offset: original.indexOf(linkText),
+            length: linkText.length,
+            url: yandexEvent,
+          }],
+        },
+      }), { headers: { 'content-type': 'application/json' } });
+    }
+    if (method === 'deleteMessage') {
+      assert.deepEqual(JSON.parse(init.body), { chat_id: -100123, message_id: 990 });
+      return response(JSON.stringify({ ok: true, result: true }), { headers: { 'content-type': 'application/json' } });
+    }
+    throw new Error(`unexpected Telegram method ${method}`);
+  };
+
+  const html = await repair.readOriginalEventText({
+    token: 'TEST', chatId: -100123, topicId: 19, oldMessageId: 768, telegramFetchImpl,
+  });
+
+  assert.deepEqual(calls, ['forwardMessage', 'deleteMessage']);
+  assert.match(html, /Поп и хип-хоп концерты/);
+  assert.match(html, new RegExp(`<a href="${yandexEvent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">Подробнее →<\\/a>`));
+});
