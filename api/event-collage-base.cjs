@@ -61,6 +61,15 @@ function extractEventLinks(text) {
   return links;
 }
 
+function isYandexAfishaEventUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' && url.hostname === 'afisha.yandex.ru';
+  } catch {
+    return false;
+  }
+}
+
 function isConcertDigestText(text) {
   return String(text || '').includes('Поп и хип-хоп концерты');
 }
@@ -222,8 +231,9 @@ async function maybeSendEventCollage(input, init = {}, options = {}) {
 
   const payload = telegramPayload(init);
   if (!payload || !isEventDigestText(payload.text)) return null;
-  if (isConcertDigestText(payload.text)) return null;
-  const eventLinks = extractEventLinks(payload.text).slice(0, MAX_POSTERS);
+  let eventLinks = extractEventLinks(payload.text);
+  if (isConcertDigestText(payload.text)) eventLinks = eventLinks.filter(isYandexAfishaEventUrl);
+  eventLinks = eventLinks.slice(0, MAX_POSTERS);
   if (!eventLinks.length) return null;
 
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -268,6 +278,7 @@ async function maybeSendEventCollage(input, init = {}, options = {}) {
 module.exports = {
   extractPosterUrl,
   extractEventLinks,
+  isYandexAfishaEventUrl,
   compactEventCaption,
   compactEventTelegramRequest,
   fitEventCaption,
