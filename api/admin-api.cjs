@@ -76,6 +76,19 @@ async function buildSkips(dates, options = {}) {
   return result;
 }
 
+async function safePreview(previewProvider, date) {
+  try {
+    return await previewProvider(date);
+  } catch (error) {
+    return {
+      requestedDate: date,
+      sections: {},
+      error: 'preview-unavailable',
+      reason: String(error?.message || error || 'preview-failed'),
+    };
+  }
+}
+
 async function buildAdminDashboard(options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const today = resolvePreviewDate('today', now);
@@ -93,8 +106,8 @@ async function buildAdminDashboard(options = {}) {
       now,
       settingsLoader: async () => loaded,
     }),
-    previewProvider(today),
-    previewProvider(tomorrow),
+    safePreview(previewProvider, today),
+    safePreview(previewProvider, tomorrow),
     buildSkips({ today, tomorrow }, options),
     analyticsProvider(SECTION_NAMES, { cache: options.analyticsCache }),
   ]);

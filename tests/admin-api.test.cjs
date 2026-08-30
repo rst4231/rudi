@@ -43,6 +43,25 @@ test('dashboard combines health, today/tomorrow previews, skips and analytics', 
   assert.equal(dashboard.analytics.facts.publications, 3);
 });
 
+test('dashboard stays available when one preview fails', async () => {
+  const dashboard = await buildAdminDashboard({
+    now: new Date('2026-08-29T12:00:00Z'),
+    settingsLoader: async () => ({ settings, overrides: {} }),
+    healthBuilder: async () => ({ ok: true, date: '2026-08-29', latestPublications: {}, sourceHealth: [], alerts: null }),
+    previewProvider: async (date) => {
+      if (date === '2026-08-30') throw new Error('preview-down');
+      return { requestedDate: date, sections: {} };
+    },
+    getSkip: async () => false,
+    analyticsProvider: async () => ({}),
+  });
+  assert.equal(dashboard.ok, true);
+  assert.equal(dashboard.previews.today.requestedDate, '2026-08-29');
+  assert.equal(dashboard.previews.tomorrow.requestedDate, '2026-08-30');
+  assert.equal(dashboard.previews.tomorrow.error, 'preview-unavailable');
+  assert.equal(dashboard.previews.tomorrow.reason, 'preview-down');
+});
+
 test('unknown admin action returns a validation result and mutates nothing', async () => {
   let mutations = 0;
   const result = await handleAdminAction('anything-goes', {}, {
