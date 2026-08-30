@@ -12,6 +12,16 @@ function response(body, options = {}) {
   return new Response(body, { status: 200, ...options });
 }
 
+function memoryCache(seed = {}) {
+  const map = new Map(Object.entries(seed));
+  return {
+    map,
+    async get(key) { return map.has(key) ? map.get(key) : null; },
+    async set(key, value) { map.set(key, value); return true; },
+    async delete(key) { map.delete(key); return true; },
+  };
+}
+
 const svg = (label) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="100%" height="100%" fill="white"/><text x="30" y="80" font-size="42">${label}</text></svg>`);
 
 test('pop and hip-hop digest builds a collage only from Yandex Afisha event posters', async () => {
@@ -152,4 +162,23 @@ test('post 768 repair recovers exact Yandex Afisha links from a temporary Telegr
   assert.deepEqual(calls, ['forwardMessage', 'deleteMessage']);
   assert.match(html, /Поп и хип-хоп концерты/);
   assert.match(html, new RegExp(`<a href="${yandexEvent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">Подробнее →<\\/a>`));
+});
+
+test('one-time replacement records the new collage message for next-day topic cleanup', async () => {
+  const repair = require('../api/repair-event-post.js');
+  const recoveryCache = memoryCache();
+  const topicCache = memoryCache();
+  const result = await repair.runEventPostRepair({
+    now: new Date('2026-08-30T06:00:00Z'),
+    token: 'TEST',
+    chatId: -100123,
+    concertText: '<b>🎤 Поп и хип-хоп концерты</b>\n<a href="https://afisha.yandex.ru/saint-petersburg/concert/live">Подробнее →</a>',
+    cache: recoveryCache,
+    topicCache,
+    replaceEventMessage: async () => ({ oldMessageId: 768, newMessageId: 902, topicId: 19 }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(await topicCache.get('topic:19:2026-08-30:messages'), [902]);
+  assert.equal(await topicCache.get('topic:19:chat-id'), -100123);
 });
