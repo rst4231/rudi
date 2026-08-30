@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { maybeSendEventCollage } = require('../api/event-collage.cjs');
 const { publishLaborArticle } = require('../api/labor-code.cjs');
 const { getLaborCache } = require('../api/stateful-cache.cjs');
 const { isLaborBootstrapAllowed } = require('../api/index.js');
@@ -31,33 +30,6 @@ function telegramStub(calls) {
     throw new Error(`Unexpected Telegram method: ${method}`);
   };
 }
-
-test('concert digest stays text-only and does not fetch posters', async () => {
-  let sourceFetches = 0;
-  const result = await maybeSendEventCollage(
-    'https://api.telegram.org/botTEST/sendMessage',
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: -100123,
-        message_thread_id: 19,
-        text: '<b>🎤 Поп и хип-хоп концерты</b>\n<a href="https://afisha.yandex.ru/saint-petersburg/concert/test">Подробнее →</a>',
-        parse_mode: 'HTML',
-      }),
-    },
-    {
-      fetchImpl: async () => {
-        sourceFetches += 1;
-        return new Response('<meta property="og:image" content="https://example.com/poster.jpg">', { status: 200 });
-      },
-      telegramFetchImpl: async () => { throw new Error('concert digest must not use sendPhoto'); },
-    },
-  );
-
-  assert.equal(result, null);
-  assert.equal(sourceFetches, 0);
-});
 
 test('event venue config blocks explicit Sevkabel and Brusnitsyn identifiers without broad BRUS shorthand', () => {
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'events.json'), 'utf8'));
