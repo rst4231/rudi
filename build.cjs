@@ -9,6 +9,13 @@ const outputPath = path.join(runtimeDir, 'generated-runtime.cjs');
 const recipeConfigPath = path.join(__dirname, 'config', 'recipes-extra.json');
 const eventsConfigPath = path.join(__dirname, 'config', 'events.json');
 
+function assertProductionGitDeployment(env = process.env) {
+  const isVercelProduction = env?.VERCEL === '1' && (env?.VERCEL_TARGET_ENV || env?.VERCEL_ENV) === 'production';
+  if (!isVercelProduction) return true;
+  if (String(env?.VERCEL_GIT_COMMIT_SHA || '').trim()) return true;
+  throw new Error('Git-backed production deployment is required so Vercel registers vercel.json cron jobs');
+}
+
 function replaceOnce(source, before, after, label) {
   const first = source.indexOf(before);
   if (first < 0) throw new Error(`Missing runtime patch target: ${label}`);
@@ -97,6 +104,7 @@ function patchRecipeRuntime(source) {
 }
 
 function buildRuntime() {
+  assertProductionGitDeployment();
   const parts = [];
 
   for (let index = 0; index < CHUNK_COUNT; index += 1) {
@@ -126,4 +134,4 @@ if (require.main === module) {
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRecipeRuntime };
+module.exports = { buildRuntime, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRecipeRuntime, assertProductionGitDeployment };
