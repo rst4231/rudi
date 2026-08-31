@@ -77,3 +77,17 @@ test('Stage Club prices are replaced with the safe ticket-page wording', () => {
     'Stage StandUp Club\n💳 стоимость уточняйте на странице билетов · 18+',
   );
 });
+
+test('production builds reject deployments that are not Git-backed', () => {
+  const { assertProductionGitDeployment } = require('../build.cjs');
+  assert.throws(
+    () => assertProductionGitDeployment({ VERCEL: '1', VERCEL_ENV: 'production' }),
+    /Git-backed production deployment is required/,
+  );
+  assert.doesNotThrow(() => assertProductionGitDeployment({
+    VERCEL: '1',
+    VERCEL_ENV: 'production',
+    VERCEL_GIT_COMMIT_SHA: '7250d2c65611c4866561e825d70065cb96c805b9',
+  }));
+  assert.doesNotThrow(() => assertProductionGitDeployment({}));
+});
