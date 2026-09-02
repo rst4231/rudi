@@ -1,6 +1,7 @@
 const EVENTS_TOPIC_ID = 19;
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 35;
 const ACTIVE_KEY = `topic:${EVENTS_TOPIC_ID}:active`;
+const STATUS_KEY = `topic:${EVENTS_TOPIC_ID}:cleanup:last`;
 
 function normalizeMessageIds(input) {
   if (!Array.isArray(input)) return [];
@@ -16,6 +17,30 @@ function normalizeActiveState(input) {
   const messageIds = normalizeMessageIds(input.messageIds);
   if (!messageIds.length) return null;
   return { dateKey, chatId, messageIds };
+}
+
+function normalizeDateKey(value) {
+  const text = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
+}
+
+function normalizeCleanupStatus(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const date = normalizeDateKey(input.date);
+  if (!date) return null;
+  let checkedAt;
+  try { checkedAt = new Date(input.checkedAt).toISOString(); } catch { return null; }
+  if (checkedAt === 'Invalid Date') return null;
+  return {
+    checkedAt,
+    trigger: String(input.trigger || '').trim() || 'unknown',
+    date,
+    targetDateKey: normalizeDateKey(input.targetDateKey),
+    tracked: Math.max(0, Number(input.tracked || 0)),
+    deleted: Math.max(0, Number(input.deleted || 0)),
+    skipped: input.skipped ? String(input.skipped).slice(0, 200) : null,
+    error: input.error ? String(input.error).slice(0, 500) : null,
+  };
 }
 
 function alreadyDeleted(detail) {
@@ -43,6 +68,21 @@ async function rememberActiveEventMessages({ dateKey, chatId, messageIds, cache 
     name: ACTIVE_KEY,
   });
   return next;
+}
+
+async function rememberEventCleanupStatus(input, cache) {
+  const status = normalizeCleanupStatus(input);
+  if (!status) throw new Error('Invalid event cleanup status');
+  await cache.set(STATUS_KEY, status, {
+    ttl: CACHE_TTL_SECONDS,
+    tags: ['rudi-topic-cleanup'],
+    name: STATUS_KEY,
+  });
+  return status;
+}
+
+async function getEventCleanupStatus(cache) {
+  return normalizeCleanupStatus(await cache.get(STATUS_KEY));
 }
 
 async function deleteActiveEventMessagesBeforeDate({ beforeDateKey, chatId, cache, baseUrl, fetchImpl }) {
@@ -78,7 +118,11 @@ async function deleteActiveEventMessagesBeforeDate({ beforeDateKey, chatId, cach
 
 module.exports = {
   ACTIVE_KEY,
+  STATUS_KEY,
   normalizeActiveState,
+  normalizeCleanupStatus,
   rememberActiveEventMessages,
+  rememberEventCleanupStatus,
+  getEventCleanupStatus,
   deleteActiveEventMessagesBeforeDate,
 };
