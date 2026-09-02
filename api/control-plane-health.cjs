@@ -1,6 +1,8 @@
 const { loadRudiSettings, SECTION_NAMES } = require('./rudi-settings.cjs');
 const { getLatestDailyRun, getLatestPublication } = require('./publication-journal.cjs');
 const { listSourceHealth } = require('./source-health.cjs');
+const { getEventCleanupStatus } = require('./event-active-rollover.cjs');
+const { getTopicMaintenanceCache } = require('./stateful-cache.cjs');
 
 const SOURCE_IDS = [
   'events:yandex',
@@ -52,6 +54,15 @@ async function defaultAlertState() {
   }
 }
 
+async function defaultEventCleanupStatus(options = {}) {
+  try {
+    const cache = options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
+    return await getEventCleanupStatus(cache);
+  } catch {
+    return null;
+  }
+}
+
 async function buildHealthPayload(options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const settingsLoader = options.settingsLoader || loadRudiSettings;
@@ -59,6 +70,7 @@ async function buildHealthPayload(options = {}) {
   const latestPublicationGetter = options.getLatestPublication || getLatestPublication;
   const sourceHealthGetter = options.listSourceHealth || listSourceHealth;
   const alertStateGetter = options.getAlertState || defaultAlertState;
+  const eventCleanupGetter = options.getEventCleanupStatus || defaultEventCleanupStatus;
 
   const loaded = await settingsLoader(options.settingsOptions || {});
   const settings = loaded.settings;
@@ -67,10 +79,11 @@ async function buildHealthPayload(options = {}) {
     latestPublications[section] = await latestPublicationGetter(section, options.journalOptions || {});
   }));
 
-  const [lastDailyRun, sourceHealth, alerts] = await Promise.all([
+  const [lastDailyRun, sourceHealth, alerts, eventCleanup] = await Promise.all([
     latestRunGetter(options.journalOptions || {}),
     sourceHealthGetter(options.sourceIds || SOURCE_IDS, options.sourceHealthOptions || {}),
     alertStateGetter(options.alertOptions || {}),
+    eventCleanupGetter(options.topicCleanupOptions || {}),
   ]);
 
   return {
@@ -91,6 +104,7 @@ async function buildHealthPayload(options = {}) {
     lastDailyRun: lastDailyRun || null,
     latestPublications,
     sourceHealth: sourceHealth || [],
+    topicCleanup: { events: eventCleanup || null },
     alerts: alerts || null,
     overrides: loaded.overrides || {},
   };
