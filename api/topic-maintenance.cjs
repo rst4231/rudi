@@ -1,4 +1,5 @@
 const base = require('./topic-maintenance-base.cjs');
+const { rememberActiveEventMessages, deleteActiveEventMessagesBeforeDate } = require('./event-active-rollover.cjs');
 const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
 const { handleHolidayPublication } = require('./holiday-rollover.cjs');
 const { getTopicMaintenanceCache, getDailyContentCache, getControlPlaneCache } = require('./stateful-cache.cjs');
@@ -25,6 +26,11 @@ function resolveControlCache(options = {}) { return options.controlCache || getC
 function telegramMethod(input) {
   const raw = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
   try { const url = new URL(raw); if (url.hostname !== 'api.telegram.org') return ''; return url.pathname.match(/^\/bot[^/]+\/([A-Za-z0-9_]+)$/)?.[1] || ''; } catch { return ''; }
+}
+
+function responseMessageIds(result) {
+  const rows = Array.isArray(result) ? result : [result];
+  return rows.map((row) => Number(row?.message_id)).filter((id) => Number.isInteger(id) && id > 0);
 }
 
 function rewriteTelegramPhotoRequest(input, init = {}) {
@@ -139,7 +145,14 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
   const todayKey = base.dateKeyInMoscow(options.now || new Date());
   const targetDateKey = base.shiftDateKey(todayKey, -1);
   try {
-    return await base.deleteTrackedMessages({
+    const active = await deleteActiveEventMessagesBeforeDate({
+      beforeDateKey: todayKey,
+      chatId,
+      cache,
+      baseUrl: endpoint.baseUrl,
+      fetchImpl,
+    });
+    const dated = await base.deleteTrackedMessages({
       topicId: base.EVENTS_TOPIC_ID,
       targetDateKey,
       chatId,
@@ -147,24 +160,61 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
       baseUrl: endpoint.baseUrl,
       fetchImpl,
     });
+    return { active, dated };
   } catch (error) {
     console.error('RUDI_EVENT_PREPUBLISH_CLEANUP_ERROR', { targetDateKey, error });
     return { error: String(error?.message || error) };
   }
 }
 
-function prepareDailyTopicCleanup(options = {}) {
-  const fetchImpl = options.fetchImpl || globalThis.fetch; const cache = resolveTopicCache(options);
+async function prepareDailyTopicCleanup(options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const cache = resolveTopicCache(options);
+  const token = String(options.token || '').trim();
+  if (token) {
+    try {
+      await deleteActiveEventMessagesBeforeDate({
+        beforeDateKey: base.dateKeyInMoscow(options.now || new Date()),
+        cache,
+        baseUrl: `https://api.telegram.org/bot${token}`,
+        fetchImpl,
+      });
+    } catch (error) {
+      console.error('RUDI_DAILY_ACTIVE_EVENT_CLEANUP_ERROR', error);
+    }
+  }
   return base.prepareDailyTopicCleanup({ ...options, cache, fetchImpl: wrapFetch(fetchImpl, options) });
 }
+
 async function handleTelegramTopicRequest(input, init = {}, options = {}) {
-  const fetchImpl = options.fetchImpl || globalThis.fetch; const payload = base.parseRequestPayload(init); const topicId = Number(payload?.message_thread_id);
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const payload = base.parseRequestPayload(init);
+  const topicId = Number(payload?.message_thread_id);
+  const endpoint = base.telegramEndpoint(input);
+  const isEventPost = topicId === base.EVENTS_TOPIC_ID && endpoint && EVENT_POST_METHODS.has(endpoint.method);
   const needsCache = topicId === base.EVENTS_TOPIC_ID || topicId === base.HOLIDAYS_TOPIC_ID || topicId === base.COUPLE_TOPIC_ID;
   const cache = options.cache || (needsCache ? resolveTopicCache(options) : undefined);
-  if (topicId === base.EVENTS_TOPIC_ID) {
+  if (isEventPost) {
     await cleanupPreviousEventPostsBeforePublish(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl });
   }
-  return base.handleTelegramTopicRequest(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl: wrapFetch(fetchImpl, options) });
+  const response = await base.handleTelegramTopicRequest(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl: wrapFetch(fetchImpl, options) });
+  if (isEventPost && response?.ok && cache) {
+    try {
+      const data = await response.clone().json();
+      const messageIds = responseMessageIds(data?.result);
+      if (messageIds.length) {
+        await rememberActiveEventMessages({
+          dateKey: base.dateKeyInMoscow(options.now || new Date()),
+          chatId: payload?.chat_id,
+          messageIds,
+          cache,
+        });
+      }
+    } catch (error) {
+      console.error('RUDI_EVENT_ACTIVE_TRACK_ERROR', error);
+    }
+  }
+  return response;
 }
 function getKnownForumChatId(options = {}) { return base.getKnownForumChatId({ ...options, cache: resolveTopicCache(options) }); }
 
