@@ -86,4 +86,15 @@ test('nightly cleanup deletes the previous active event batch without a dated ke
     body: { chat_id: -100123, message_ids: [759, 760] },
   });
   assert.equal(await cache.get('topic:19:active'), undefined);
+  assert.deepEqual(await cache.get('topic:19:cleanup:last'), {
+    checkedAt: '2026-08-19T21:30:00.000Z',
+    trigger: 'daily',
+    date: '2026-08-20',
+    targetDateKey: '2026-08-19',
+    tracked: 2,
+    deleted: 2,
+    skipped: null,
+    error: null,
+  });
+  assert.doesNotMatch(JSON.stringify(await cache.get('topic:19:cleanup:last')), /chatId|messageIds/i);
 });
