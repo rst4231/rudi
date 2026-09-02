@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   EVENTS_TOPIC_ID,
+  prepareDailyTopicCleanup,
   handleTelegramTopicRequest,
 } = require('../api/topic-maintenance.cjs');
 
@@ -55,4 +56,34 @@ test('events delete the previous active batch even when the dated message key is
     chatId: -100123,
     messageIds: [777],
   });
+});
+
+test('nightly cleanup deletes the previous active event batch without a dated key', async () => {
+  const cache = fakeCache({
+    'topic:19:chat-id': -100123,
+    'topic:19:active': {
+      dateKey: '2026-08-19',
+      chatId: -100123,
+      messageIds: [759, 760],
+    },
+  });
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const method = String(url).split('/').at(-1);
+    calls.push({ method, body: JSON.parse(init.body) });
+    return telegramResponse(true);
+  };
+
+  await prepareDailyTopicCleanup({
+    now: new Date('2026-08-19T21:30:00Z'),
+    cache,
+    token: '1:testtoken',
+    fetchImpl,
+  });
+
+  assert.deepEqual(calls[0], {
+    method: 'deleteMessages',
+    body: { chat_id: -100123, message_ids: [759, 760] },
+  });
+  assert.equal(await cache.get('topic:19:active'), undefined);
 });
