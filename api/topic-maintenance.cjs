@@ -1,5 +1,5 @@
 const base = require('./topic-maintenance-base.cjs');
-const { rememberActiveEventMessages, deleteActiveEventMessagesBeforeDate } = require('./event-active-rollover.cjs');
+const { rememberActiveEventMessages, rememberEventCleanupStatus, deleteActiveEventMessagesBeforeDate } = require('./event-active-rollover.cjs');
 const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
 const { handleHolidayPublication } = require('./holiday-rollover.cjs');
 const { getTopicMaintenanceCache, getDailyContentCache, getControlPlaneCache } = require('./stateful-cache.cjs');
@@ -31,6 +31,11 @@ function telegramMethod(input) {
 function responseMessageIds(result) {
   const rows = Array.isArray(result) ? result : [result];
   return rows.map((row) => Number(row?.message_id)).filter((id) => Number.isInteger(id) && id > 0);
+}
+
+async function rememberCleanupStatusSafe(status, cache) {
+  try { return await rememberEventCleanupStatus(status, cache); }
+  catch (error) { console.warn('RUDI_EVENT_CLEANUP_STATUS_ERROR', String(error?.message || error)); return null; }
 }
 
 function rewriteTelegramPhotoRequest(input, init = {}) {
@@ -142,7 +147,8 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
   if (chatId === undefined || chatId === null || chatId === '') return null;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const cache = options.cache || resolveTopicCache(options);
-  const todayKey = base.dateKeyInMoscow(options.now || new Date());
+  const now = options.now || new Date();
+  const todayKey = base.dateKeyInMoscow(now);
   const targetDateKey = base.shiftDateKey(todayKey, -1);
   try {
     const active = await deleteActiveEventMessagesBeforeDate({
@@ -160,9 +166,30 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
       baseUrl: endpoint.baseUrl,
       fetchImpl,
     });
+    const deleted = Number(active?.deleted || 0) + Number(dated?.deleted || 0);
+    await rememberCleanupStatusSafe({
+      checkedAt: now,
+      trigger: 'prepublish',
+      date: todayKey,
+      targetDateKey: active?.targetDateKey || targetDateKey,
+      tracked: Number(active?.tracked || 0) + Number(dated?.deleted || 0),
+      deleted,
+      skipped: deleted ? null : (active?.skipped || (dated?.skipped ? 'dated-cleanup-skipped' : null)),
+      error: null,
+    }, cache);
     return { active, dated };
   } catch (error) {
     console.error('RUDI_EVENT_PREPUBLISH_CLEANUP_ERROR', { targetDateKey, error });
+    await rememberCleanupStatusSafe({
+      checkedAt: now,
+      trigger: 'prepublish',
+      date: todayKey,
+      targetDateKey,
+      tracked: 0,
+      deleted: 0,
+      skipped: null,
+      error: String(error?.message || error),
+    }, cache);
     return { error: String(error?.message || error) };
   }
 }
@@ -171,19 +198,60 @@ async function prepareDailyTopicCleanup(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const cache = resolveTopicCache(options);
   const token = String(options.token || '').trim();
+  const now = options.now || new Date();
+  const todayKey = base.dateKeyInMoscow(now);
+  let active = null;
+  let activeError = null;
   if (token) {
     try {
-      await deleteActiveEventMessagesBeforeDate({
-        beforeDateKey: base.dateKeyInMoscow(options.now || new Date()),
+      active = await deleteActiveEventMessagesBeforeDate({
+        beforeDateKey: todayKey,
         cache,
         baseUrl: `https://api.telegram.org/bot${token}`,
         fetchImpl,
       });
     } catch (error) {
+      activeError = String(error?.message || error);
       console.error('RUDI_DAILY_ACTIVE_EVENT_CLEANUP_ERROR', error);
     }
   }
-  return base.prepareDailyTopicCleanup({ ...options, cache, fetchImpl: wrapFetch(fetchImpl, options) });
+
+  let results;
+  try {
+    results = await base.prepareDailyTopicCleanup({ ...options, cache, fetchImpl: wrapFetch(fetchImpl, options) });
+  } catch (error) {
+    await rememberCleanupStatusSafe({
+      checkedAt: now,
+      trigger: 'daily',
+      date: todayKey,
+      targetDateKey: active?.targetDateKey || base.shiftDateKey(todayKey, -1),
+      tracked: Number(active?.tracked || 0),
+      deleted: Number(active?.deleted || 0),
+      skipped: active?.skipped || null,
+      error: activeError || String(error?.message || error),
+    }, cache);
+    throw error;
+  }
+
+  const eventRows = results.filter((row) => Number(row?.topicId) === base.EVENTS_TOPIC_ID);
+  const datedDeleted = eventRows.reduce((sum, row) => sum + Number(row?.deleted || 0), 0);
+  const eventError = activeError || eventRows.find((row) => row?.error)?.error || null;
+  const deleted = Number(active?.deleted || 0) + datedDeleted;
+  const activeTracked = active?.targetDateKey && active.targetDateKey < todayKey ? Number(active?.tracked || 0) : Number(active?.deleted || 0);
+  const targetDateKey = active?.targetDateKey && active.targetDateKey < todayKey
+    ? active.targetDateKey
+    : (eventRows.find((row) => row?.targetDateKey)?.targetDateKey || base.shiftDateKey(todayKey, -1));
+  await rememberCleanupStatusSafe({
+    checkedAt: now,
+    trigger: 'daily',
+    date: todayKey,
+    targetDateKey,
+    tracked: activeTracked + datedDeleted,
+    deleted,
+    skipped: deleted ? null : (active?.skipped || (eventRows.some((row) => row?.skipped) ? 'dated-cleanup-skipped' : null)),
+    error: eventError,
+  }, cache);
+  return results;
 }
 
 async function handleTelegramTopicRequest(input, init = {}, options = {}) {
