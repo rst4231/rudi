@@ -1,4 +1,4 @@
-name: Diagnose Mirage film pages 2026-09-03
+name: Diagnose Mirage listing cards 2026-09-03
 
 "on": push
 
@@ -9,22 +9,8 @@ jobs:
   diagnose:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect missing premiere pages
+      - name: Inspect Sept 3 listing card markup
         run: |
           set -euo pipefail
-          for url in \
-            'https://app.mirage.ru/film/7520/sygrat-v-yaschik-.htm' \
-            'https://app.mirage.ru/film/7536/mia-i-monstry-.htm' \
-            'https://online.mirage.ru/film/7520/sygrat-v-yaschik-.htm' \
-            'https://online.mirage.ru/film/7536/mia-i-monstry-.htm'; do
-            echo "=== $url ==="
-            curl --silent --show-error --location "$url" -o /tmp/page.html
-            echo "bytes=$(wc -c </tmp/page.html)"
-            grep -n -Ei '(<h1|og:title|og:image|с 0?3 Сентября|03\.09\.2026|7520|7536)' /tmp/page.html | head -n 80 || true
-          done
-          for base in https://app.mirage.ru https://online.mirage.ru https://new-print.mirage.ru; do
-            url="$base/spb/schedule/03.09.2026/"
-            echo "=== $url ==="
-            curl --silent --show-error --location "$url" -o /tmp/schedule.html
-            grep -n -B 8 -A 8 'Турбулентность' /tmp/schedule.html | head -n 120 || true
-          done
+          curl --silent --show-error --location 'https://app.mirage.ru/' -o /tmp/page.html
+          grep -n -B 18 -A 25 'с 03 Сентября' /tmp/page.html | head -n 500 || true
