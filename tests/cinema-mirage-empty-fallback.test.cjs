@@ -47,6 +47,37 @@ test('Mirage fallback is tried when the primary source succeeds but has no premi
   }]);
 });
 
+test('Mirage mirrors are combined when the first non-empty mirror has only part of the premiere list', async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    const value = String(url);
+    calls.push(value);
+
+    if (value === 'https://app.mirage.ru/') {
+      return response('<a href="/film/7534/beguschaya.htm">Бегущая</a>');
+    }
+    if (value === 'https://cloud.mirage.ru/') {
+      return response('<a href="/film/7534/beguschaya.htm">Бегущая</a><a href="/film/7536/mia-i-monstry.htm">Миа и монстры</a>');
+    }
+    if (value.includes('/film/7534/')) {
+      return response('<html><body><h1>Бегущая</h1><div>с 03 Сентября</div><img src="https://cdn.mirage.ru/images/film/7000/big/s7534.jpg"></body></html>');
+    }
+    if (value.includes('/film/7536/')) {
+      return response('<html><body><h1>Миа и монстры</h1><div>с 03 Сентября</div><img src="https://cdn.mirage.ru/images/film/7000/big/s7536.jpg"></body></html>');
+    }
+    return response('', 404);
+  };
+
+  const rows = await loadMiragePremieresWithFallback('2026-09-03', {
+    name: 'Мираж Синема Санкт-Петербург',
+    url: 'https://app.mirage.ru/',
+    fallbackUrls: ['https://cloud.mirage.ru/'],
+  }, { fetchImpl, attempts: 1, timeoutMs: 1000 });
+
+  assert.ok(calls.includes('https://cloud.mirage.ru/'));
+  assert.deepEqual(rows.map((row) => row.title), ['Бегущая', 'Миа и монстры']);
+});
+
 test('Mirage textual Russian release date matches without requiring a numeric date', () => {
   assert.equal(
     releaseDateMatchesMiragePage('<html><body><div>с 03 Сентября</div></body></html>', '2026-09-03'),
