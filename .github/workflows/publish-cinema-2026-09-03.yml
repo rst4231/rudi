@@ -9,9 +9,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Publish complete Sept 3 cinema digest
+      - name: Diagnose complete Sept 3 cinema digest
         run: |
           set -euo pipefail
-          response="$(curl --fail-with-body --silent --show-error -X POST 'https://spb-daily-guide-bot.vercel.app/api/admin' -H 'content-type: application/json' --data '{"action":"publish-section","section":"cinema","date":"2026-09-03","force":true}')"
-          echo "$response"
-          node -e 'const x=JSON.parse(process.argv[1]); if(!x.ok) process.exit(1)' "$response"
+          tmp="$(mktemp)"
+          status="$(curl --silent --show-error -o "$tmp" -w '%{http_code}' -X POST 'https://spb-daily-guide-bot.vercel.app/api/admin' -H 'content-type: application/json' --data '{"action":"publish-section","section":"cinema","date":"2026-09-03","force":true}')"
+          cat "$tmp"
+          echo
+          echo "HTTP_STATUS=$status"
+          test "$status" = "200"
