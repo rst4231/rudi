@@ -46,6 +46,7 @@ test('manualByDate fills a verified premiere missing from live cinema sources ev
       return Buffer.from('fake');
     },
     sendCollage: async () => ({ messageId: 901 }),
+    sendEmpty: async () => ({ messageId: 902 }),
     seenFingerprints: new Set(),
   });
 
