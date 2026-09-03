@@ -82,3 +82,17 @@ test('native section delegates to native runner without previewing generated run
   assert.deepEqual(calls, [['cinema', true]]);
   assert.equal(result.published, 2);
 });
+
+test('forced native cinema repair receives the previous published message ids', async () => {
+  const previous = { status: 'published', messageIds: [823], metadata: { nativeResult: { published: 5 } } };
+  let received = null;
+  await publishSelectedSection({ section: 'cinema', date: '2026-09-03', force: true }, {
+    settingsLoader: async () => ({ settings }),
+    getRecord: async () => previous,
+    runNative: async (_section, options) => {
+      received = options.previousPublication;
+      return { published: 7, messageId: 900 };
+    },
+  });
+  assert.deepEqual(received, previous);
+});
