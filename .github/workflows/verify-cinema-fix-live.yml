@@ -1,0 +1,38 @@
+name: Verify cinema fix live
+
+"on": push
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install
+      - run: npm test
+      - run: npm run build
+      - name: Validate JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); JSON.parse(require('fs').readFileSync('vercel.json','utf8')); JSON.parse(require('fs').readFileSync('config/events.json','utf8'));"
+      - name: Verify live Sept 3 Mirage premieres
+        run: |
+          node <<'NODE'
+          const { loadMiragePremieresWithFallback } = require('./api/cinema-premieres-collage.cjs');
+          const config = require('./config/events.json');
+          (async () => {
+            const rows = await loadMiragePremieresWithFallback('2026-09-03', config.cinemaPremieres.mirage, {
+              fetchImpl: globalThis.fetch,
+              attempts: 2,
+              timeoutMs: 15000,
+            });
+            const titles = rows.map((row) => row.title);
+            console.log(JSON.stringify({ count: rows.length, titles }, null, 2));
+            const expected = ['Бегущая','Сыграть в ящик','Миа и монстры','Мой папа — медведь 2','Тони','Изгой','Турбулентность'];
+            const missing = expected.filter((title) => !titles.includes(title));
+            if (missing.length) throw new Error(`missing-live-premieres:${missing.join(',')}`);
+          })().catch((error) => { console.error(error); process.exit(1); });
+          NODE
