@@ -78,6 +78,39 @@ test('Mirage mirrors are combined when the first non-empty mirror has only part 
   assert.deepEqual(rows.map((row) => row.title), ['Бегущая', 'Миа и монстры']);
 });
 
+test('only the primary Mirage listing probes a small missing film-id gap', async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    const value = String(url);
+    calls.push(value);
+
+    if (value === 'https://app.mirage.ru/') {
+      return response('<a href="/film/7538/toni.htm">Тони</a><a href="/film/7540/mult.htm">МУЛЬТ</a>');
+    }
+    if (value === 'https://cloud.mirage.ru/') {
+      return response('<a href="/film/8000/a.htm">A</a><a href="/film/8002/b.htm">B</a>');
+    }
+    if (value === 'https://app.mirage.ru/film/7539/') {
+      return response('<h1>Турбулентность</h1><div>с 03 Сентября</div>');
+    }
+    if (value === 'https://cloud.mirage.ru/film/8001/') {
+      throw new Error('fallback gap must not be probed');
+    }
+    if (value.includes('/film/')) return response('<h1>Не сегодня</h1><div>с 10 Сентября</div>');
+    return response('', 404);
+  };
+
+  const rows = await loadMiragePremieresWithFallback('2026-09-03', {
+    name: 'Мираж Синема Санкт-Петербург',
+    url: 'https://app.mirage.ru/',
+    fallbackUrls: ['https://cloud.mirage.ru/'],
+  }, { fetchImpl, attempts: 1, timeoutMs: 1000 });
+
+  assert.ok(calls.includes('https://app.mirage.ru/film/7539/'));
+  assert.equal(calls.includes('https://cloud.mirage.ru/film/8001/'), false);
+  assert.deepEqual(rows.map((row) => row.title), ['Турбулентность']);
+});
+
 test('Mirage textual Russian release date matches without requiring a numeric date', () => {
   assert.equal(
     releaseDateMatchesMiragePage('<html><body><div>с 03 Сентября</div></body></html>', '2026-09-03'),
