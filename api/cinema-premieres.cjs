@@ -190,8 +190,10 @@ function parseMirageFilmPage(html, filmUrl, dateKey, sourceName = 'Мираж С
   const id = String(filmUrl || '').match(/\/film\/(\d+)/u)?.[1] || '';
   const title = cleanPageTitle(htmlHeading(html) || htmlMeta(html, 'og:title') || htmlTitle(html));
   if (!title) return null;
-  let posterUrl = id
-    ? `https://cdn.mirage.ru/images/film/7000/small/p${id}.jpg`
+  const numericId = Number(id);
+  const posterBucket = Number.isInteger(numericId) && numericId > 0 ? Math.floor(numericId / 1000) * 1000 : null;
+  let posterUrl = posterBucket !== null
+    ? `https://cdn.mirage.ru/images/film/${posterBucket}/small/p${id}.jpg`
     : htmlMeta(html, 'og:image');
   posterUrl = posterUrl ? absoluteUrl(posterUrl, filmUrl) : null;
   return { title, posterUrl, source: sourceName, sourceUrl: filmUrl };
