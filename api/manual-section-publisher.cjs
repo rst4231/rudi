@@ -137,6 +137,7 @@ async function publishSelectedSection(input, options = {}) {
       settings,
       force,
       retryFailedOnly,
+      previousPublication: record || null,
     });
   }
 
