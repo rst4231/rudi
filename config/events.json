@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "blockedVenueTokens": [
     "севкабель",
     "sevkabel",
@@ -45,6 +45,7 @@
       "name": "Мираж Синема Санкт-Петербург",
       "url": "https://app.mirage.ru/",
       "fallbackUrls": [
+        "https://sml.mirage.ru/film/7539/",
         "https://www.portal.mirage.ru/spb/",
         "https://online.mirage.ru/",
         "https://new-print.mirage.ru/",
