@@ -78,7 +78,7 @@ test('Mirage film links are deduplicated and the film page must match the reques
     cinema.parseMirageFilmPage(MIRAGE_FILM, 'https://www.mirage.ru/film/7426/moana.htm', '2026-08-27', 'Мираж Синема'),
     {
       title: 'МОАНА',
-      posterUrl: 'https://cdn.mirage.ru/images/film/7000/big/s7426.jpg',
+      posterUrl: 'https://cdn.mirage.ru/images/film/7000/small/p7426.jpg',
       source: 'Мираж Синема',
       sourceUrl: 'https://www.mirage.ru/film/7426/moana.htm',
     },
