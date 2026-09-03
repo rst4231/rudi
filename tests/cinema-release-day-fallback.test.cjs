@@ -40,7 +40,7 @@ test('Mirage loader also checks current films because release-day titles can dis
   assert.ok(calls.includes('https://www.mirage.ru/spb/films/'));
   assert.deepEqual(rows, [{
     title: 'Сегодняшняя премьера',
-    posterUrl: 'https://cdn.mirage.ru/images/film/8000/big/s8001.jpg',
+    posterUrl: 'https://cdn.mirage.ru/images/film/8000/small/p8001.jpg',
     source: 'Мираж Синема Санкт-Петербург',
     sourceUrl: 'https://www.mirage.ru/film/8001/today.htm',
   }]);
