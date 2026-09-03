@@ -42,7 +42,13 @@ function buildCinemaDigestCaption(rows, dateKey) {
 
 function collageGrid(count) {
   const total = Math.max(1, Math.min(12, Number(count) || 1));
-  const columns = total <= 1 ? 1 : total <= 4 ? 2 : total <= 9 ? 3 : 4;
+  let columns;
+  if (total <= 1) columns = 1;
+  else if (total <= 4) columns = 2;
+  else if (total <= 6) columns = 3;
+  else if (total <= 8) columns = 4;
+  else if (total === 9) columns = 3;
+  else columns = 4;
   return { columns, rows: Math.ceil(total / columns) };
 }
 
@@ -74,18 +80,7 @@ async function fetchPosterBuffer(url, options = {}) {
   return buffer;
 }
 
-function numberBadge(index, width) {
-  const size = Math.max(50, Math.round(width * 0.12));
-  const fontSize = Math.round(size * 0.5);
-  return Buffer.from(`
-    <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="${size}" height="${size}" rx="${Math.round(size * 0.25)}" fill="rgba(0,0,0,0.78)"/>
-      <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
-        font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="700" fill="white">${index + 1}</text>
-    </svg>`);
-}
-
-function fallbackPoster(title, width, height, index) {
+function fallbackPoster(title, width, height) {
   const safeTitle = escapeXml(String(title || 'Афиша недоступна').slice(0, 42));
   const fontSize = Math.max(24, Math.round(width * 0.07));
   return Buffer.from(`
@@ -95,11 +90,6 @@ function fallbackPoster(title, width, height, index) {
         font-size="${fontSize}" font-weight="700" fill="white">${safeTitle}</text>
       <text x="50%" y="54%" text-anchor="middle" font-family="Arial, sans-serif"
         font-size="${Math.round(fontSize * 0.7)}" fill="#b7b7b7">Афиша недоступна</text>
-      <rect x="18" y="18" width="${Math.max(50, Math.round(width * 0.12))}" height="${Math.max(50, Math.round(width * 0.12))}"
-        rx="14" fill="rgba(0,0,0,0.78)"/>
-      <text x="${18 + Math.max(50, Math.round(width * 0.12)) / 2}" y="${18 + Math.max(50, Math.round(width * 0.12)) / 2 + 4}"
-        text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif"
-        font-size="${Math.round(Math.max(50, Math.round(width * 0.12)) * 0.5)}" font-weight="700" fill="white">${index + 1}</text>
     </svg>`);
 }
 
@@ -115,27 +105,36 @@ async function buildCinemaCollage(rows, options = {}) {
   const canvasWidth = columns * tileWidth + Math.max(0, columns - 1) * gap;
   const canvasHeight = rowCount * tileHeight + Math.max(0, rowCount - 1) * gap;
 
-  const tiles = await Promise.all(items.map(async (row, index) => {
+  const tiles = await Promise.all(items.map(async (row) => {
     try {
       if (!row.posterUrl) throw new Error('poster-unavailable');
       const poster = await fetchPosterBuffer(row.posterUrl, options);
       return await sharp(poster)
         .rotate()
         .resize(tileWidth, tileHeight, { fit: 'contain', position: 'centre', background: '#111111' })
-        .composite([{ input: numberBadge(index, tileWidth), left: 18, top: 18 }])
-        .jpeg({ quality: 86, chromaSubsampling: '4:4:4' })
+        .jpeg({ quality: 88, chromaSubsampling: '4:4:4' })
         .toBuffer();
     } catch (error) {
       console.warn('RUDI_CINEMA_COLLAGE_POSTER_ERROR', row?.title, String(error?.message || error));
-      return sharp(fallbackPoster(row?.title, tileWidth, tileHeight, index)).jpeg({ quality: 86 }).toBuffer();
+      return sharp(fallbackPoster(row?.title, tileWidth, tileHeight)).jpeg({ quality: 88 }).toBuffer();
     }
   }));
 
-  const composite = tiles.map((input, index) => ({
-    input,
-    left: (index % columns) * (tileWidth + gap),
-    top: Math.floor(index / columns) * (tileHeight + gap),
-  }));
+  const composite = [];
+  for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+    const startIndex = rowIndex * columns;
+    const countInRow = Math.min(columns, tiles.length - startIndex);
+    const rowWidth = countInRow * tileWidth + Math.max(0, countInRow - 1) * gap;
+    const rowLeft = Math.round((canvasWidth - rowWidth) / 2);
+    for (let columnIndex = 0; columnIndex < countInRow; columnIndex += 1) {
+      const index = startIndex + columnIndex;
+      composite.push({
+        input: tiles[index],
+        left: rowLeft + columnIndex * (tileWidth + gap),
+        top: rowIndex * (tileHeight + gap),
+      });
+    }
+  }
 
   return sharp({
     create: {
@@ -146,7 +145,7 @@ async function buildCinemaCollage(rows, options = {}) {
     },
   })
     .composite(composite)
-    .jpeg({ quality: 86, chromaSubsampling: '4:4:4', mozjpeg: true })
+    .jpeg({ quality: 88, chromaSubsampling: '4:4:4', mozjpeg: true })
     .toBuffer();
 }
 
