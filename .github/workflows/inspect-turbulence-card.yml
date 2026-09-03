@@ -1,4 +1,4 @@
-name: Verify complete Mirage mirror
+name: Resolve Turbulence Mirage id
 
 "on": push
 
@@ -9,22 +9,20 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: npm install
-      - name: Parse sml Mirage mirror
+      - name: Probe nearby official Mirage film ids
         run: |
-          node <<'NODE'
-          const { loadMiragePremieres } = require('./api/cinema-premieres.cjs');
-          (async () => {
-            const rows = await loadMiragePremieres('2026-09-03', { name: 'Мираж Синема Санкт-Петербург', url: 'https://sml.mirage.ru/' }, {
-              fetchImpl: globalThis.fetch,
-              attempts: 2,
-              timeoutMs: 15000,
-            });
-            console.log(JSON.stringify({ count: rows.length, titles: rows.map((x) => x.title), posterUrls: rows.map((x) => x.posterUrl), sourceUrls: rows.map((x) => x.sourceUrl) }, null, 2));
-            if (rows.length < 7) process.exitCode = 2;
-          })().catch((error) => { console.error(error); process.exit(1); });
-          NODE
+          set -euo pipefail
+          for id in $(seq 7539 7565); do
+            url="https://sml.mirage.ru/film/$id/"
+            body="/tmp/$id.html"
+            code=$(curl --silent --show-error --location --max-time 12 --output "$body" --write-out '%{http_code}' "$url" || true)
+            title=$(grep -o -m1 -E '<h1[^>]*>[^<]+' "$body" 2>/dev/null | sed -E 's/<h1[^>]*>//' || true)
+            if [ -z "$title" ]; then
+              title=$(grep -o -m1 -E '<meta[^>]+(property|name)=["'"']og:title["'"'][^>]+content=["'"'][^"'"']+' "$body" 2>/dev/null | sed -E 's/.*content=["'"']([^"'"']+).*/\1/' || true)
+            fi
+            if [ -n "$title" ]; then
+              echo "ID=$id HTTP=$code TITLE=$title"
+              grep -o -m1 -E 'https://cdn\.mirage\.ru/images/film/[0-9]+/(big|small)/[sp][0-9]+\.jpg' "$body" || true
+              grep -o -m1 -E 'с[[:space:]]+0?3[[:space:]]+Сентября' "$body" || true
+            fi
+          done
