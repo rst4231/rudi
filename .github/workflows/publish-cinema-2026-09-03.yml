@@ -1,4 +1,4 @@
-name: Publish Cinema 2026-09-03
+name: Diagnose Mirage 2026-09-03
 
 "on": push
 
@@ -6,15 +6,19 @@ permissions:
   contents: read
 
 jobs:
-  publish:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
-      - name: Diagnose complete Sept 3 cinema digest
+      - name: Inspect live Mirage film links
         run: |
           set -euo pipefail
-          tmp="$(mktemp)"
-          status="$(curl --silent --show-error -o "$tmp" -w '%{http_code}' -X POST 'https://spb-daily-guide-bot.vercel.app/api/admin' -H 'content-type: application/json' --data '{"action":"publish-section","section":"cinema","date":"2026-09-03","force":true}')"
-          cat "$tmp"
-          echo
-          echo "HTTP_STATUS=$status"
-          test "$status" = "200"
+          for base in https://app.mirage.ru/ https://online.mirage.ru/ https://new-print.mirage.ru/ https://film.mirage.ru/; do
+            echo "=== $base ==="
+            curl --silent --show-error --location "$base" -o /tmp/mirage.html
+            echo "bytes=$(wc -c </tmp/mirage.html)"
+            grep -oE 'href=["'"'][^"'"']*/film/[0-9]+[^"'"']*["'"']' /tmp/mirage.html | sed -E 's/^href=["'"']|["'"']$//g' | sort -u | tail -n 80 || true
+            for title in 'Сыграть в ящик' 'Миа и монстры' 'Турбулентность'; do
+              echo "--- $title ---"
+              grep -n -B 4 -A 4 "$title" /tmp/mirage.html | head -n 40 || true
+            done
+          done
