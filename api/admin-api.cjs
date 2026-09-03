@@ -34,6 +34,11 @@ function failure(error, extra = {}) {
   return { ok: false, error, ...extra };
 }
 
+function normalizeActionResult(action, result) {
+  if (result?.ok === false || result?.error) return result;
+  return { action, ...(result || {}), ok: true };
+}
+
 function validSection(value) {
   const section = String(value || '').trim();
   if (!SECTION_SET.has(section)) throw new Error('unknown-section');
@@ -181,14 +186,14 @@ async function handleAdminAction(actionInput, body = {}, options = {}) {
       const date = validDate(body.date);
       const force = body.force === undefined ? false : validBoolean(body.force, 'force');
       const publishSection = options.publishSection || publishSelectedSection;
-      return await publishSection({ section, date, force }, options);
+      return normalizeActionResult(action, await publishSection({ section, date, force }, options));
     }
 
     if (action === 'retry-failed-section') {
       const section = validSection(body.section);
       const date = validDate(body.date);
       const publishSection = options.publishSection || publishSelectedSection;
-      return await publishSection({ section, date, retryFailedOnly: true }, options);
+      return normalizeActionResult(action, await publishSection({ section, date, retryFailedOnly: true }, options));
     }
 
     if (action === 'acknowledge-alert') {
