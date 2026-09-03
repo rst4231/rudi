@@ -7,7 +7,7 @@ permissions:
 
 jobs:
   apply:
-    if: ${{ !contains(github.event.head_commit.message, 'fix: recover unlinked Mirage premiere ids') }}
+    if: "${{ !contains(github.event.head_commit.message, 'fix: recover unlinked Mirage premiere ids') }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
