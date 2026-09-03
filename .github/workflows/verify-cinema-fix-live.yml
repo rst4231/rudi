@@ -1,4 +1,4 @@
-name: Verify cinema fix live
+name: Inspect live Mirage film ids
 
 "on": push
 
@@ -6,33 +6,22 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install
-      - run: npm test
-      - run: npm run build
-      - name: Validate JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); JSON.parse(require('fs').readFileSync('vercel.json','utf8')); JSON.parse(require('fs').readFileSync('config/events.json','utf8'));"
-      - name: Verify live Sept 3 Mirage premieres
+      - name: Print linked Mirage ids around current releases
         run: |
           node <<'NODE'
-          const { loadMiragePremieresWithFallback } = require('./api/cinema-premieres-collage.cjs');
-          const config = require('./config/events.json');
+          const { extractMirageFilmLinks } = require('./api/cinema-premieres.cjs');
           (async () => {
-            const rows = await loadMiragePremieresWithFallback('2026-09-03', config.cinemaPremieres.mirage, {
-              fetchImpl: globalThis.fetch,
-              attempts: 2,
-              timeoutMs: 15000,
-            });
-            const titles = rows.map((row) => row.title);
-            console.log(JSON.stringify({ count: rows.length, titles }, null, 2));
-            const expected = ['Бегущая','Сыграть в ящик','Миа и монстры','Мой папа — медведь 2','Тони','Изгой','Турбулентность'];
-            const missing = expected.filter((title) => !titles.includes(title));
-            if (missing.length) throw new Error(`missing-live-premieres:${missing.join(',')}`);
+            const response = await fetch('https://app.mirage.ru/', { headers: { 'user-agent': 'Mozilla/5.0' } });
+            const html = await response.text();
+            const links = extractMirageFilmLinks(html, 'https://app.mirage.ru/');
+            const ids = links.map((row) => Number(row.id)).filter(Number.isInteger).sort((a,b) => a-b);
+            console.log(JSON.stringify({ count: ids.length, min: ids[0], max: ids.at(-1), around: ids.filter((id) => id >= 7525 && id <= 7565) }, null, 2));
           })().catch((error) => { console.error(error); process.exit(1); });
           NODE
