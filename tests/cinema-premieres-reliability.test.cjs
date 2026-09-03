@@ -103,6 +103,7 @@ test('a title stored in the legacy permanent sent-title cache is still publishab
     ensureTopic: async () => ({ topicId: 19 }),
     buildCollage: async () => Buffer.from('fake'),
     sendCollage: async () => ({ messageId: 813 }),
+    sendEmpty: async () => new Response('{"ok":true}', { status: 200 }),
     seenFingerprints: new Set(),
     dedupeCache: memoryCache(),
   });
