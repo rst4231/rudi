@@ -125,3 +125,51 @@ test('forced cinema repair bypasses same-date fingerprint history so a complete 
   assert.equal(result.published, 1);
   assert.deepEqual(result.titles, ['Бегущая']);
 });
+
+test('forced cinema replacement deletes the old post only after the corrected post is sent', async () => {
+  const order = [];
+  const row = {
+    title: 'Турбулентность',
+    posterUrl: 'https://cdn.mirage.ru/images/film/7000/small/p7539.jpg',
+    source: 'Мираж Синема Санкт-Петербург',
+    sourceUrl: 'https://www.mirage.ru/film/7539/',
+  };
+  let deleted = null;
+  const result = await publishWeeklyCinemaPremieres({
+    now: new Date('2026-09-02T21:30:00Z'),
+    force: true,
+    previousPublication: { status: 'published', messageIds: [823] },
+    config: {
+      cinemaPremieres: {
+        enabled: true,
+        topicId: 705,
+        maxItems: 12,
+        kinopolis: { name: 'Кинополис Мурино', url: 'https://kinopolis.test/' },
+        mirage: { name: 'Мираж Синема Санкт-Петербург', url: 'https://mirage.test/', fallbackUrls: [] },
+      },
+    },
+    cache: memoryCache(),
+    dedupeCache: memoryCache(),
+    chatId: -1001,
+    token: '1:test',
+    loadKinopolis: async () => [],
+    loadMirage: async () => [row],
+    recordHealth: async (healthRow) => healthRow,
+    ensureTopic: async () => ({ topicId: 705 }),
+    buildCollage: async () => Buffer.from('fake'),
+    sendCollage: async () => {
+      order.push('send-new');
+      return { messageId: 900 };
+    },
+    deleteMessages: async ({ messageIds }) => {
+      order.push('delete-old');
+      deleted = messageIds;
+      return { deleted: messageIds.length };
+    },
+  });
+
+  assert.deepEqual(order, ['send-new', 'delete-old']);
+  assert.deepEqual(deleted, [823]);
+  assert.deepEqual(result.replacedMessageIds, [823]);
+  assert.equal(result.messageId, 900);
+});
