@@ -81,6 +81,25 @@ async function sendNoPremieresMessage({ token, chatId, topicId, fetchImpl, now }
   return response;
 }
 
+async function deleteTelegramMessages({ token, chatId, messageIds, fetchImpl }) {
+  const ids = [...new Set((messageIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  if (!ids.length) return { deleted: 0 };
+  const response = await fetchImpl(`https://api.telegram.org/bot${token}/deleteMessages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, message_ids: ids }),
+  });
+  if (!response?.ok) {
+    let detail = '';
+    try { detail = await response.text(); } catch {}
+    if (response?.status === 400 && /message to delete not found|MESSAGE_ID_INVALID|message identifier is not specified/iu.test(detail)) {
+      return { deleted: 0, alreadyGone: true };
+    }
+    throw new Error(`Telegram cinema replacement cleanup failed: HTTP ${response?.status || 0}${detail ? ` ${detail}` : ''}`);
+  }
+  return { deleted: ids.length };
+}
+
 async function loadMiragePremieresWithFallback(dateKey, sourceConfig, sourceOptions = {}) {
   const urls = [...new Set([sourceConfig?.url, ...(Array.isArray(sourceConfig?.fallbackUrls) ? sourceConfig.fallbackUrls : [])].filter(Boolean))];
   let lastError = null;
@@ -89,10 +108,10 @@ async function loadMiragePremieresWithFallback(dateKey, sourceConfig, sourceOpti
   for (const url of urls) {
     try {
       const rows = await legacy.loadMiragePremieres(dateKey, {
-      ...sourceConfig,
-      url,
-      scanRecentIdGaps: url === sourceConfig?.url,
-    }, sourceOptions);
+        ...sourceConfig,
+        url,
+        scanRecentIdGaps: url === sourceConfig?.url,
+      }, sourceOptions);
       hadSuccessfulSource = true;
       if (!rows.length) {
         console.warn('RUDI_MIRAGE_PREMIERES_SOURCE_EMPTY', url, dateKey);
@@ -209,6 +228,8 @@ async function publishWeeklyCinemaPremieres(options = {}) {
 
   let posts = 0;
   let messageId = null;
+  let replacedMessageIds = [];
+  let replacementCleanupError = null;
   if (rows.length) {
     const buildCollage = options.buildCollage || buildCinemaCollage;
     const sendCollage = options.sendCollage || sendTelegramCollage;
@@ -216,6 +237,21 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     const caption = buildCinemaDigestCaption(rows, dateKey);
     const sent = await sendCollage({ token, chatId, topicId, image, caption, fetchImpl, now, topicCache: options.topicCache });
     messageId = await extractTelegramMessageId(sent);
+
+    const previousIds = options.force
+      ? [...new Set((options.previousPublication?.messageIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0 && id !== messageId))]
+      : [];
+    if (previousIds.length) {
+      const deleteMessages = options.deleteMessages || deleteTelegramMessages;
+      try {
+        await deleteMessages({ token, chatId, messageIds: previousIds, fetchImpl });
+        replacedMessageIds = previousIds;
+      } catch (error) {
+        replacementCleanupError = String(error?.message || error);
+        console.error('RUDI_CINEMA_REPLACEMENT_CLEANUP_ERROR', replacementCleanupError);
+      }
+    }
+
     await rememberFingerprints('cinema', fingerprints, recent.days, { cache: options.dedupeCache || options.controlCache, now });
     posts = 1;
   }
@@ -243,6 +279,8 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
     manualCount: manualRows.length,
     titles: rows.map((row) => row.title),
+    replacedMessageIds,
+    replacementCleanupError,
   };
 }
 
@@ -255,6 +293,7 @@ module.exports = {
   extractTelegramMessageId,
   sendTelegramCollage,
   sendNoPremieresMessage,
+  deleteTelegramMessages,
   loadMiragePremieresWithFallback,
   recordCinemaSourceResults,
   filterRecentCinemaRows,
