@@ -1,0 +1,52 @@
+name: Publish corrected cinema 2026-09-03
+
+"on": push
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install
+      - name: Verify complete Sept 3 premiere set
+        run: |
+          node <<'NODE'
+          const { loadMiragePremieresWithFallback } = require('./api/cinema-premieres-collage.cjs');
+          const config = require('./config/events.json');
+          (async () => {
+            const rows = await loadMiragePremieresWithFallback('2026-09-03', config.cinemaPremieres.mirage, {
+              fetchImpl: globalThis.fetch,
+              attempts: 2,
+              timeoutMs: 15000,
+            });
+            console.log(JSON.stringify({ count: rows.length, titles: rows.map((x) => x.title) }, null, 2));
+            if (rows.length < 7) throw new Error(`expected-at-least-7-premieres-got-${rows.length}`);
+          })().catch((error) => { console.error(error); process.exit(1); });
+          NODE
+      - name: Publish corrected cinema digest
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --location \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data '{"action":"publish-section","section":"cinema","date":"2026-09-03","force":true}' \
+            --output /tmp/result.json \
+            --write-out '%{http_code}' \
+            'https://spb-daily-guide-bot.vercel.app/api/admin' > /tmp/status.txt
+          echo "HTTP $(cat /tmp/status.txt)"
+          cat /tmp/result.json
+          node <<'NODE'
+          const fs = require('fs');
+          const body = JSON.parse(fs.readFileSync('/tmp/result.json', 'utf8'));
+          const native = body?.metadata?.nativeResult || body?.nativeResult || body;
+          const published = Number(native?.published ?? 0);
+          const messageId = native?.messageId ?? body?.messageId;
+          console.log(JSON.stringify({ published, messageId, titles: native?.titles || [] }, null, 2));
+          if (published < 7) process.exit(2);
+          NODE
