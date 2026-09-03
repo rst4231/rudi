@@ -1,5 +1,5 @@
 {
-  "version": 11,
+  "version": 12,
   "blockedVenueTokens": [
     "севкабель",
     "sevkabel",
@@ -44,11 +44,13 @@
     "mirage": {
       "name": "Мираж Синема Санкт-Петербург",
       "url": "https://app.mirage.ru/",
+      "gapProbeBaseUrl": "https://sml.mirage.ru/",
       "fallbackUrls": [
         "https://www.portal.mirage.ru/spb/",
         "https://online.mirage.ru/",
         "https://new-print.mirage.ru/",
         "https://film.mirage.ru/",
+        "https://www.mirage.ru/",
         "https://www.mirage.ru/spb/films/soon/"
       ]
     },
@@ -105,8 +107,14 @@
       ],
       "2026-09-03": [
         {
+          "title": "Сыграть в ящик",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7520.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7520/sygrat-v-yaschik-.htm"
+        },
+        {
           "title": "Турбулентность",
-          "posterUrl": "https://cdn.mirage.ru/images/film/7000/big/s7539.jpg",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7539.jpg",
           "source": "Мираж Синема Санкт-Петербург",
           "sourceUrl": "https://www.mirage.ru/film/7539/"
         }
