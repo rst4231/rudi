@@ -168,7 +168,7 @@ function parseKinopolisReleasePage(html, releaseUrl, sourceName = 'Кинопо�
 }
 
 function extractMirageFilmLinks(html, baseUrl = 'https://www.mirage.ru/') {
-  const re = /href=["']([^"']*\/film\/(\d+)\/[^"'#?]+(?:\.htm)?)["']/giu;
+  const re = /href=["']([^"']*\/film\/(\d+)\/[^"'#?]*)["']/giu;
   const rows = [];
   let match;
   while ((match = re.exec(String(html || '')))) rows.push({ id: match[2], url: absoluteUrl(match[1], baseUrl) });
@@ -195,6 +195,7 @@ function parseMirageFilmPage(html, filmUrl, dateKey, sourceName = 'Мираж С
   if (id) {
     const bigPoster = source.match(new RegExp(`https?:\\/\\/cdn\\.mirage\\.ru\\/images\\/film\\/\\d+\\/big\\/[sp]${id}\\.jpg[^"'<>\\s]*`, 'iu'));
     if (bigPoster) posterUrl = bigPoster[0];
+    if (!posterUrl) posterUrl = `https://cdn.mirage.ru/images/film/7000/small/p${id}.jpg`;
   }
   posterUrl = posterUrl ? absoluteUrl(posterUrl, filmUrl) : null;
   return { title, posterUrl, source: sourceName, sourceUrl: filmUrl };
