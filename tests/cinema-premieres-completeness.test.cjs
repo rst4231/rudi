@@ -183,3 +183,33 @@ test('forced cinema replacement deletes the old post only after the corrected po
   assert.deepEqual(result.replacedMessageIds, [823]);
   assert.equal(result.messageId, 900);
 });
+
+test('forced cinema repair with empty sources never sends a false no-premieres message', async () => {
+  let sendEmptyCalls = 0;
+  let ensureTopicCalls = 0;
+  const result = await publishWeeklyCinemaPremieres({
+    now: new Date('2026-09-02T21:30:00Z'),
+    force: true,
+    config: {
+      cinemaPremieres: {
+        enabled: true,
+        topicId: 705,
+        maxItems: 12,
+        kinopolis: { name: 'Кинополис Мурино', url: 'https://kinopolis.test/' },
+        mirage: { name: 'Мираж Синема Санкт-Петербург', url: 'https://mirage.test/', fallbackUrls: [] },
+      },
+    },
+    cache: memoryCache(),
+    dedupeCache: memoryCache(),
+    loadKinopolis: async () => [],
+    loadMirage: async () => [],
+    recordHealth: async (healthRow) => healthRow,
+    ensureTopic: async () => { ensureTopicCalls += 1; return { topicId: 705 }; },
+    sendEmpty: async () => { sendEmptyCalls += 1; return new Response('{"ok":true}', { status: 200 }); },
+  });
+
+  assert.equal(result.skipped, 'no-premieres');
+  assert.equal(result.published, 0);
+  assert.equal(sendEmptyCalls, 0);
+  assert.equal(ensureTopicCalls, 0);
+});
