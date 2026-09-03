@@ -1,0 +1,56 @@
+name: Preflight cinema once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/preflight-cinema-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    if: github.event.head_commit.message == 'chore: preflight cinema once'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      - name: Verify Sept 3 cinema set and render
+        run: |
+          node <<'NODE'
+          const sharp = require('sharp');
+          const config = require('./config/events.json');
+          const legacy = require('./api/cinema-premieres.cjs');
+          const collage = require('./api/cinema-premieres-collage.cjs');
+          const date = '2026-09-03';
+          const expected = ['Бегущая','Сыграть в ящик','Миа и монстры','Мой папа — медведь 2','Тони','Изгой','Турбулентность'];
+          (async () => {
+            const sourceOptions = { fetchImpl: globalThis.fetch, attempts: 2, timeoutMs: 15000 };
+            const [kinopolis, mirage] = await Promise.all([
+              legacy.loadKinopolisPremieres(date, config.cinemaPremieres.kinopolis, sourceOptions).catch((error) => { console.warn('KINOPOLIS', String(error?.message || error)); return []; }),
+              collage.loadMiragePremieresWithFallback(date, config.cinemaPremieres.mirage, sourceOptions),
+            ]);
+            const manual = config.cinemaPremieres.manualByDate?.[date] || [];
+            const rows = legacy.mergePremieres([...kinopolis, ...mirage, ...manual]);
+            const titles = rows.map((row) => row.title);
+            console.log('CINEMA_PREFLIGHT ' + JSON.stringify({ kinopolisCount: kinopolis.length, mirageCount: mirage.length, manualCount: manual.length, titles, posters: rows.map((row) => ({ title: row.title, posterUrl: row.posterUrl })) }, null, 2));
+            for (const title of expected) {
+              if (!titles.includes(title)) throw new Error(`Missing expected premiere: ${title}`);
+            }
+            const selected = expected.map((title) => rows.find((row) => row.title === title));
+            if (selected.some((row) => !row)) throw new Error('Expected premiere row missing after merge');
+            if (selected.some((row) => !/\/small\/p\d+\.jpg(?:$|\?)/.test(String(row.posterUrl || '')) && !/kinoplan24\.ru/.test(String(row.posterUrl || '')))) {
+              throw new Error('Unexpected non-poster artwork URL in final set');
+            }
+            const image = await collage.buildCinemaCollage(selected, { fetchImpl: globalThis.fetch });
+            if (!Buffer.isBuffer(image) || image.length < 1000) throw new Error('Collage render failed');
+            const meta = await sharp(image).metadata();
+            console.log('COLLAGE_PREFLIGHT ' + JSON.stringify({ width: meta.width, height: meta.height, format: meta.format, bytes: image.length }));
+            if (meta.format !== 'jpeg') throw new Error('Collage is not JPEG');
+            console.log('PREFLIGHT_OK');
+          })().catch((error) => { console.error(error); process.exit(1); });
+          NODE
