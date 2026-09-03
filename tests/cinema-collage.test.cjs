@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const sharp = require('sharp');
 
 const cinema = require('../api/cinema-premieres-collage.cjs');
 
@@ -56,4 +57,37 @@ test('collage renderer returns one JPEG for all poster rows', async () => {
   const image = await cinema.buildCinemaCollage(ROWS, { fetchImpl, tileWidth: 120, tileHeight: 180 });
   assert.equal(Buffer.isBuffer(image), true);
   assert.deepEqual([...image.subarray(0, 3)], [0xff, 0xd8, 0xff]);
+});
+
+test('cinema collage keeps the entire poster visible instead of cropping its sides', async () => {
+  const poster = await sharp(Buffer.from(`
+    <svg width="180" height="60" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="60" height="60" fill="#ff0000"/>
+      <rect x="60" y="0" width="60" height="60" fill="#00ff00"/>
+      <rect x="120" y="0" width="60" height="60" fill="#0000ff"/>
+    </svg>`)).png().toBuffer();
+
+  const fetchImpl = async () => new Response(poster, {
+    status: 200,
+    headers: { 'content-type': 'image/png' },
+  });
+  const image = await cinema.buildCinemaCollage([ROWS[0]], {
+    fetchImpl,
+    tileWidth: 120,
+    tileHeight: 180,
+    gap: 0,
+  });
+  const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
+  const pixel = (x, y) => {
+    const offset = (y * info.width + x) * info.channels;
+    return [...data.subarray(offset, offset + 3)];
+  };
+
+  const left = pixel(8, 90);
+  const center = pixel(60, 90);
+  const right = pixel(112, 90);
+
+  assert.ok(left[0] > 180 && left[1] < 100 && left[2] < 100, `left edge was cropped: ${left}`);
+  assert.ok(center[1] > 140 && center[0] < 120 && center[2] < 120, `center stripe missing: ${center}`);
+  assert.ok(right[2] > 180 && right[0] < 100 && right[1] < 100, `right edge was cropped: ${right}`);
 });
