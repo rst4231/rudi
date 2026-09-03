@@ -120,7 +120,7 @@ async function buildCinemaCollage(rows, options = {}) {
       const poster = await fetchPosterBuffer(row.posterUrl, options);
       return await sharp(poster)
         .rotate()
-        .resize(tileWidth, tileHeight, { fit: 'cover', position: 'centre' })
+        .resize(tileWidth, tileHeight, { fit: 'contain', position: 'centre', background: '#111111' })
         .composite([{ input: numberBadge(index, tileWidth), left: 18, top: 18 }])
         .jpeg({ quality: 86, chromaSubsampling: '4:4:4' })
         .toBuffer();
