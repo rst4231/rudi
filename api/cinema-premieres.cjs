@@ -228,6 +228,11 @@ function mirageCurrentFilmsUrl(sourceUrl) {
   }
 }
 
+async function loadMirageFilmItem(item, dateKey, sourceConfig, options) {
+  const page = await fetchText(item.url, options);
+  return parseMirageFilmPage(page, item.url, dateKey, sourceConfig.name);
+}
+
 async function loadMiragePremieres(dateKey, sourceConfig, options = {}) {
   const currentUrl = mirageCurrentFilmsUrl(sourceConfig.url);
   const pageUrls = [...new Set([sourceConfig.url, currentUrl])];
@@ -236,10 +241,20 @@ async function loadMiragePremieres(dateKey, sourceConfig, options = {}) {
     pages.flatMap((html, index) => extractMirageFilmLinks(html, pageUrls[index])),
     (row) => row.id,
   ).slice(0, 90);
-  const results = await Promise.allSettled(links.map(async (item) => {
-    const page = await fetchText(item.url, options);
-    return parseMirageFilmPage(page, item.url, dateKey, sourceConfig.name);
-  }));
+  const results = await Promise.allSettled(links.map((item) => loadMirageFilmItem(item, dateKey, sourceConfig, options)));
+
+  for (let index = 0; index < results.length; index += 1) {
+    if (results[index].status !== 'rejected') continue;
+    const item = links[index];
+    try {
+      const value = await loadMirageFilmItem(item, dateKey, sourceConfig, options);
+      results[index] = { status: 'fulfilled', value };
+      console.warn('RUDI_MIRAGE_PREMIERE_DETAIL_RECOVERED', item.url);
+    } catch (error) {
+      console.warn('RUDI_MIRAGE_PREMIERE_DETAIL_ERROR', item.url, String(error?.message || error));
+    }
+  }
+
   return results.filter((result) => result.status === 'fulfilled' && result.value?.posterUrl).map((result) => result.value);
 }
 
@@ -248,17 +263,18 @@ function mergePremieres(rows, sentTitles = []) {
   const merged = new Map();
   for (const row of rows || []) {
     const key = normalizeTitle(row?.title);
-    if (!key || sent.has(key) || !row?.posterUrl) continue;
+    if (!key || sent.has(key)) continue;
     const existing = merged.get(key);
     if (!existing) {
       merged.set(key, {
         title: String(row.title).trim(),
-        posterUrl: row.posterUrl,
+        posterUrl: row.posterUrl || null,
         sources: [row.source].filter(Boolean),
         sourceUrls: row.sourceUrl ? [{ name: row.source, url: row.sourceUrl }] : [],
       });
       continue;
     }
+    if (!existing.posterUrl && row.posterUrl) existing.posterUrl = row.posterUrl;
     if (row.source && !existing.sources.includes(row.source)) existing.sources.push(row.source);
     if (row.sourceUrl && !existing.sourceUrls.some((item) => item.url === row.sourceUrl)) {
       existing.sourceUrls.push({ name: row.source, url: row.sourceUrl });
