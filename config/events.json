@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "blockedVenueTokens": [
     "севкабель",
     "sevkabel",
@@ -43,10 +43,13 @@
     },
     "mirage": {
       "name": "Мираж Синема Санкт-Петербург",
-      "url": "https://www.mirage.ru/spb/films/soon/",
+      "url": "https://app.mirage.ru/",
       "fallbackUrls": [
+        "https://cloud.mirage.ru/",
+        "https://ds1.mirage.ru/",
+        "https://corp.mirage.ru/",
         "https://film.mirage.ru/",
-        "https://europolis.mirage.ru/spb/"
+        "https://www.mirage.ru/spb/films/soon/"
       ]
     },
     "manualByDate": {
