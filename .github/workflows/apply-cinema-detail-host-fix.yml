@@ -7,7 +7,6 @@ permissions:
 
 jobs:
   apply:
-    if: "${{ !contains(github.event.head_commit.message, 'fix: route Mirage gap probes through detail host') }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,5 +49,9 @@ jobs:
           git config user.name rst4231
           git config user.email cpateammail@gmail.com
           git add api/cinema-premieres.cjs api/events-config.cjs
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
           git commit -m 'fix: route Mirage gap probes through detail host'
           git push origin HEAD:main
