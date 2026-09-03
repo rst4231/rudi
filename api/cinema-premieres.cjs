@@ -228,6 +228,31 @@ function mirageCurrentFilmsUrl(sourceUrl) {
   }
 }
 
+function directMirageFilmLink(sourceUrl) {
+  const match = String(sourceUrl || '').match(/\/film\/(\d+)(?:\/|$)/u);
+  if (!match) return null;
+  return { id: match[1], url: String(sourceUrl) };
+}
+
+function mirageGapLinks(links, baseUrl, maxMissingPerGap = 3) {
+  const ids = [...new Set((links || [])
+    .map((row) => Number(row?.id))
+    .filter((id) => Number.isInteger(id) && id > 0))]
+    .sort((a, b) => a - b);
+  const rows = [];
+  for (let index = 1; index < ids.length; index += 1) {
+    const previous = ids[index - 1];
+    const current = ids[index];
+    const missing = current - previous - 1;
+    if (missing < 1 || missing > maxMissingPerGap) continue;
+    for (let id = previous + 1; id < current; id += 1) {
+      const url = absoluteUrl(`/film/${id}/`, baseUrl);
+      if (url) rows.push({ id: String(id), url });
+    }
+  }
+  return rows;
+}
+
 async function loadMirageFilmItem(item, dateKey, sourceConfig, options) {
   const page = await fetchText(item.url, options);
   return parseMirageFilmPage(page, item.url, dateKey, sourceConfig.name);
@@ -237,10 +262,15 @@ async function loadMiragePremieres(dateKey, sourceConfig, options = {}) {
   const currentUrl = mirageCurrentFilmsUrl(sourceConfig.url);
   const pageUrls = [...new Set([sourceConfig.url, currentUrl])];
   const pages = await Promise.all(pageUrls.map((url) => fetchText(url, options)));
-  const links = uniqueBy(
-    pages.flatMap((html, index) => extractMirageFilmLinks(html, pageUrls[index])),
-    (row) => row.id,
-  ).slice(0, 90);
+  const direct = directMirageFilmLink(sourceConfig.url);
+  let links = uniqueBy([
+    ...(direct ? [direct] : []),
+    ...pages.flatMap((html, index) => extractMirageFilmLinks(html, pageUrls[index])),
+  ], (row) => row.id);
+  if (!direct && sourceConfig.scanRecentIdGaps === true) {
+    links = uniqueBy([...links, ...mirageGapLinks(links, sourceConfig.url)], (row) => row.id);
+  }
+  links = links.slice(0, 90);
   const results = await Promise.allSettled(links.map((item) => loadMirageFilmItem(item, dateKey, sourceConfig, options)));
 
   for (let index = 0; index < results.length; index += 1) {

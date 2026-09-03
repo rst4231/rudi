@@ -88,7 +88,11 @@ async function loadMiragePremieresWithFallback(dateKey, sourceConfig, sourceOpti
   const combined = new Map();
   for (const url of urls) {
     try {
-      const rows = await legacy.loadMiragePremieres(dateKey, { ...sourceConfig, url }, sourceOptions);
+      const rows = await legacy.loadMiragePremieres(dateKey, {
+      ...sourceConfig,
+      url,
+      scanRecentIdGaps: url === sourceConfig?.url,
+    }, sourceOptions);
       hadSuccessfulSource = true;
       if (!rows.length) {
         console.warn('RUDI_MIRAGE_PREMIERES_SOURCE_EMPTY', url, dateKey);
