@@ -15,6 +15,7 @@ const {
 const { listSectionAnalytics } = require('./feedback-analytics.cjs');
 const { acknowledgeAlert } = require('./alert-service.cjs');
 const { publishSelectedSection, defaultPreviewProvider } = require('./manual-section-publisher.cjs');
+const { cleanupCinemaMessages, MAX_CLEANUP_IDS } = require('./cinema-message-cleanup.cjs');
 
 const SECTION_SET = new Set(SECTION_NAMES);
 const ACTIONS = new Set([
@@ -26,6 +27,7 @@ const ACTIONS = new Set([
   'clear-content-override',
   'publish-section',
   'retry-failed-section',
+  'cleanup-cinema-messages',
   'acknowledge-alert',
   'refresh-preview',
 ]);
@@ -53,6 +55,13 @@ function validDate(value) {
 function validBoolean(value, name) {
   if (typeof value !== 'boolean') throw new Error(`${name}-must-be-boolean`);
   return value;
+}
+
+function validMessageIds(value) {
+  if (!Array.isArray(value) || !value.length || value.length > MAX_CLEANUP_IDS) throw new Error('invalid-message-ids');
+  const ids = value.map(Number);
+  if (ids.some((id) => !Number.isInteger(id) || id <= 0)) throw new Error('invalid-message-ids');
+  return [...new Set(ids)];
 }
 
 function safeResetPath(value) {
@@ -196,6 +205,13 @@ async function handleAdminAction(actionInput, body = {}, options = {}) {
       return normalizeActionResult(action, await publishSection({ section, date, retryFailedOnly: true }, options));
     }
 
+    if (action === 'cleanup-cinema-messages') {
+      const date = validDate(body.date);
+      const messageIds = validMessageIds(body.messageIds);
+      const cleanupCinema = options.cleanupCinema || cleanupCinemaMessages;
+      return normalizeActionResult(action, await cleanupCinema({ date, messageIds }, options));
+    }
+
     if (action === 'acknowledge-alert') {
       const fingerprint = validFingerprint(body.fingerprint);
       const ackAlert = options.ackAlert || acknowledgeAlert;
@@ -223,5 +239,6 @@ module.exports = {
   handleAdminAction,
   validSection,
   validDate,
+  validMessageIds,
   safeResetPath,
 };
