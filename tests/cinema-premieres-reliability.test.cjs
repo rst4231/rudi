@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { fingerprintContent } = require('../api/content-fingerprint.cjs');
+const { SENT_TITLES_KEY } = require('../api/cinema-premieres.cjs');
 const { publishWeeklyCinemaPremieres, filterRecentCinemaRows } = require('../api/cinema-premieres-collage.cjs');
 
 function memoryCache() {
@@ -82,4 +83,30 @@ test('cinema publisher returns the real Telegram collage message id for the jour
     dedupeCache: memoryCache(),
   });
   assert.equal(result.messageId, 812);
+});
+
+test('a title stored in the legacy permanent sent-title cache is still publishable for a new release date', async () => {
+  const cache = memoryCache();
+  await cache.set(SENT_TITLES_KEY, ['Возвращение']);
+  const row = {
+    title: 'Возвращение',
+    posterUrl: 'https://cdn.mirage.ru/images/film/7000/big/p9999.jpg',
+    source: 'Мираж',
+    sourceUrl: 'https://mirage.test/film/9999/vozvraschenie.htm',
+  };
+
+  const result = await publishWeeklyCinemaPremieres({
+    now, config, cache, chatId: -1001, token: '1:test',
+    settings: { dedupe: { cinemaDays: 60 } },
+    loadKinopolis: async () => [], loadMirage: async () => [row],
+    recordHealth: async (healthRow) => healthRow,
+    ensureTopic: async () => ({ topicId: 19 }),
+    buildCollage: async () => Buffer.from('fake'),
+    sendCollage: async () => ({ messageId: 813 }),
+    seenFingerprints: new Set(),
+    dedupeCache: memoryCache(),
+  });
+
+  assert.equal(result.published, 1);
+  assert.deepEqual(result.titles, ['Возвращение']);
 });
