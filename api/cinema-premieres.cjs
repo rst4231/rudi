@@ -190,13 +190,9 @@ function parseMirageFilmPage(html, filmUrl, dateKey, sourceName = 'Мираж С
   const id = String(filmUrl || '').match(/\/film\/(\d+)/u)?.[1] || '';
   const title = cleanPageTitle(htmlHeading(html) || htmlMeta(html, 'og:title') || htmlTitle(html));
   if (!title) return null;
-  const source = String(html || '');
-  let posterUrl = htmlMeta(html, 'og:image');
-  if (id) {
-    const bigPoster = source.match(new RegExp(`https?:\\/\\/cdn\\.mirage\\.ru\\/images\\/film\\/\\d+\\/big\\/[sp]${id}\\.jpg[^"'<>\\s]*`, 'iu'));
-    if (bigPoster) posterUrl = bigPoster[0];
-    if (!posterUrl) posterUrl = `https://cdn.mirage.ru/images/film/7000/small/p${id}.jpg`;
-  }
+  let posterUrl = id
+    ? `https://cdn.mirage.ru/images/film/7000/small/p${id}.jpg`
+    : htmlMeta(html, 'og:image');
   posterUrl = posterUrl ? absoluteUrl(posterUrl, filmUrl) : null;
   return { title, posterUrl, source: sourceName, sourceUrl: filmUrl };
 }
@@ -268,7 +264,8 @@ async function loadMiragePremieres(dateKey, sourceConfig, options = {}) {
     ...pages.flatMap((html, index) => extractMirageFilmLinks(html, pageUrls[index])),
   ], (row) => row.id);
   if (!direct && sourceConfig.scanRecentIdGaps === true) {
-    links = uniqueBy([...links, ...mirageGapLinks(links, sourceConfig.url)], (row) => row.id);
+    const gapBaseUrl = sourceConfig.gapProbeBaseUrl || sourceConfig.url;
+    links = uniqueBy([...links, ...mirageGapLinks(links, gapBaseUrl)], (row) => row.id);
   }
   links = links.slice(0, 90);
   const results = await Promise.allSettled(links.map((item) => loadMirageFilmItem(item, dateKey, sourceConfig, options)));
