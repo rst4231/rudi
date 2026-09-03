@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "blockedVenueTokens": [
     "севкабель",
     "sevkabel",
@@ -101,6 +101,14 @@
           "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7519.jpg",
           "source": "Мираж Синема Санкт-Петербург",
           "sourceUrl": "https://www.mirage.ru/film/7519/punkt-naznacheniya-most-%E2%84%9613-.htm"
+        }
+      ],
+      "2026-09-03": [
+        {
+          "title": "Турбулентность",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/big/s7539.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7539/"
         }
       ]
     }
