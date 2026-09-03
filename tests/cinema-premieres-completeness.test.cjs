@@ -21,6 +21,51 @@ test('Mirage collector accepts slugless official film links', () => {
   assert.deepEqual(rows, [{ id: '7537', url: 'https://app.mirage.ru/film/7537/' }]);
 });
 
+test('Mirage loader treats a configured direct film URL as the film item itself', async () => {
+  const filmUrl = 'https://sml.mirage.ru/film/7539/';
+  const page = '<html><body><h1>Турбулентность</h1><div>с 03 Сентября</div></body></html>';
+  const fetchImpl = async (url) => {
+    assert.equal(String(url), filmUrl);
+    return new Response(page, { status: 200, headers: { 'content-type': 'text/html' } });
+  };
+
+  const rows = await cinema.loadMiragePremieres('2026-09-03', {
+    name: 'Мираж Синема Санкт-Петербург',
+    url: filmUrl,
+  }, { fetchImpl, attempts: 1, timeoutMs: 1000 });
+
+  assert.deepEqual(rows.map((row) => row.title), ['Турбулентность']);
+  assert.equal(rows[0].posterUrl, 'https://cdn.mirage.ru/images/film/7000/small/p7539.jpg');
+});
+
+test('Mirage loader probes missing ids between recent linked films when gap scanning is enabled', async () => {
+  const listingUrl = 'https://app.mirage.ru/';
+  const listing = [
+    '<a href="/film/7538/toni-.htm">Тони</a>',
+    '<a href="/film/7540/mult-v-kino-.htm">МУЛЬТ</a>',
+  ].join('');
+  const fetchImpl = async (url) => {
+    const value = String(url);
+    if (value === listingUrl) return new Response(listing, { status: 200 });
+    if (value.endsWith('/film/7539/')) {
+      return new Response('<h1>Турбулентность</h1><div>с 03 Сентября</div>', { status: 200 });
+    }
+    if (value.includes('/film/7538/') || value.includes('/film/7540/')) {
+      return new Response('<h1>Другой фильм</h1><div>с 10 Сентября</div>', { status: 200 });
+    }
+    return new Response('not found', { status: 404 });
+  };
+
+  const rows = await cinema.loadMiragePremieres('2026-09-03', {
+    name: 'Мираж Синема Санкт-Петербург',
+    url: listingUrl,
+    scanRecentIdGaps: true,
+  }, { fetchImpl, attempts: 1, timeoutMs: 1000 });
+
+  assert.deepEqual(rows.map((row) => row.title), ['Турбулентность']);
+  assert.equal(rows[0].sourceUrl, 'https://app.mirage.ru/film/7539/');
+});
+
 test('Mirage parser keeps a dated premiere when the page lacks a recognized poster meta tag', () => {
   const row = cinema.parseMirageFilmPage(
     '<html><body><h1>Мой папа — медведь 2</h1><div>с 03 Сентября</div></body></html>',
