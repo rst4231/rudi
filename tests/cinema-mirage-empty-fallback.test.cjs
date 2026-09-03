@@ -41,7 +41,7 @@ test('Mirage fallback is tried when the primary source succeeds but has no premi
   assert.ok(calls.includes('https://film.mirage.ru/'));
   assert.deepEqual(rows, [{
     title: 'Бегущая',
-    posterUrl: 'https://cdn.mirage.ru/images/film/7000/big/s7534.jpg',
+    posterUrl: 'https://cdn.mirage.ru/images/film/7000/small/p7534.jpg',
     source: 'Мираж Синема Санкт-Петербург',
     sourceUrl: 'https://film.mirage.ru/film/7534/beguschaya.htm',
   }]);
