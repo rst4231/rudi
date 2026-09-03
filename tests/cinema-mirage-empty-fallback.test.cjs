@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { loadMiragePremieresWithFallback } = require('../api/cinema-premieres-collage.cjs');
+const {
+  loadMiragePremieresWithFallback,
+  releaseDateMatchesMiragePage,
+} = require('../api/cinema-premieres-collage.cjs');
 
 function response(body, status = 200) {
   return {
@@ -24,7 +27,7 @@ test('Mirage fallback is tried when the primary source succeeds but has no premi
       return response('<a href="/film/7534/beguschaya.htm">Бегущая</a>');
     }
     if (value.includes('/film/7534/')) {
-      return response('<html><body><h1>Бегущая</h1><div>с 03 Сентября</div><img src="https://cdn.mirage.ru/images/film/7000/big/s7534.jpg"></body></html>');
+      return response('<html><body><h1>Бегущая</h1><div>с 03 Сентября</div><div>03.09.2026</div><img src="https://cdn.mirage.ru/images/film/7000/big/s7534.jpg"></body></html>');
     }
     return response('', 404);
   };
@@ -42,4 +45,11 @@ test('Mirage fallback is tried when the primary source succeeds but has no premi
     source: 'Мираж Синема Санкт-Петербург',
     sourceUrl: 'https://film.mirage.ru/film/7534/beguschaya.htm',
   }]);
+});
+
+test('Mirage textual Russian release date matches without requiring a numeric date', () => {
+  assert.equal(
+    releaseDateMatchesMiragePage('<html><body><div>с 03 Сентября</div></body></html>', '2026-09-03'),
+    true,
+  );
 });
