@@ -1,4 +1,4 @@
-name: Diagnose Mirage listing cards 2026-09-03
+name: Verify Mirage source set 2026-09-03
 
 "on": push
 
@@ -6,11 +6,26 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  verify-sources:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect Sept 3 listing card markup
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install
+      - name: Load Sept 3 premieres without Telegram
         run: |
-          set -euo pipefail
-          curl --silent --show-error --location 'https://app.mirage.ru/' -o /tmp/page.html
-          grep -n -B 18 -A 25 'с 03 Сентября' /tmp/page.html | head -n 500 || true
+          node <<'NODE'
+          const { loadMiragePremieresWithFallback } = require('./api/cinema-premieres-collage.cjs');
+          const config = require('./config/events.json');
+          (async () => {
+            const rows = await loadMiragePremieresWithFallback('2026-09-03', config.cinemaPremieres.mirage, {
+              fetchImpl: globalThis.fetch,
+              attempts: 2,
+              timeoutMs: 15000,
+            });
+            console.log(JSON.stringify({ count: rows.length, titles: rows.map((x) => x.title), urls: rows.map((x) => x.sourceUrl) }, null, 2));
+            if (rows.length < 7) process.exitCode = 2;
+          })().catch((error) => { console.error(error); process.exit(1); });
+          NODE
