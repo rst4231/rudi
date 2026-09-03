@@ -178,9 +178,13 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   if (mirageResult.status === 'rejected') console.warn('RUDI_MIRAGE_PREMIERES_ERROR', String(mirageResult.reason?.message || mirageResult.reason));
   if (kinopolisResult.status === 'rejected' && mirageResult.status === 'rejected') throw new Error('Both cinema premiere sources failed');
 
+  const manualRows = Array.isArray(config.cinemaPremieres.manualByDate?.[dateKey])
+    ? config.cinemaPremieres.manualByDate[dateKey]
+    : [];
   const merged = legacy.mergePremieres([
     ...(kinopolisResult.status === 'fulfilled' ? kinopolisResult.value : []),
     ...(mirageResult.status === 'fulfilled' ? mirageResult.value : []),
+    ...manualRows,
   ]);
   const recent = await filterRecentCinemaRows(merged, dateKey, settings, {
     cache: options.dedupeCache || options.controlCache,
@@ -233,6 +237,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     fingerprints,
     kinopolisCount: kinopolisResult.status === 'fulfilled' ? kinopolisResult.value.length : null,
     mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
+    manualCount: manualRows.length,
     titles: rows.map((row) => row.title),
   };
 }
