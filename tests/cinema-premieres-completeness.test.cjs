@@ -81,6 +81,16 @@ test('Mirage parser keeps a dated premiere when the page lacks a recognized post
   });
 });
 
+test('Mirage parser prefers the official portrait poster over horizontal big artwork', () => {
+  const row = cinema.parseMirageFilmPage(
+    '<html><head><meta property="og:image" content="https://cdn.mirage.ru/images/film/7000/big/s7534.jpg"></head><body><h1>Бегущая</h1><div>с 03 Сентября</div><img src="https://cdn.mirage.ru/images/film/7000/big/s7534.jpg"></body></html>',
+    'https://app.mirage.ru/film/7534/beguschaya.htm',
+    '2026-09-03',
+    'Мираж Синема Санкт-Петербург',
+  );
+  assert.equal(row.posterUrl, 'https://cdn.mirage.ru/images/film/7000/small/p7534.jpg');
+});
+
 test('forced cinema repair bypasses same-date fingerprint history so a complete corrected digest can replace an incomplete one', async () => {
   const now = new Date('2026-09-02T21:30:00Z');
   const row = {
