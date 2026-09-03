@@ -1,6 +1,6 @@
 name: Preflight cinema once
 
-on:
+"on":
   push:
     branches: [main]
     paths:
@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   preflight:
-    if: github.event.head_commit.message == 'chore: preflight cinema once'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,14 +37,10 @@ jobs:
             const rows = legacy.mergePremieres([...kinopolis, ...mirage, ...manual]);
             const titles = rows.map((row) => row.title);
             console.log('CINEMA_PREFLIGHT ' + JSON.stringify({ kinopolisCount: kinopolis.length, mirageCount: mirage.length, manualCount: manual.length, titles, posters: rows.map((row) => ({ title: row.title, posterUrl: row.posterUrl })) }, null, 2));
-            for (const title of expected) {
-              if (!titles.includes(title)) throw new Error(`Missing expected premiere: ${title}`);
-            }
+            for (const title of expected) if (!titles.includes(title)) throw new Error(`Missing expected premiere: ${title}`);
             const selected = expected.map((title) => rows.find((row) => row.title === title));
             if (selected.some((row) => !row)) throw new Error('Expected premiere row missing after merge');
-            if (selected.some((row) => !/\/small\/p\d+\.jpg(?:$|\?)/.test(String(row.posterUrl || '')) && !/kinoplan24\.ru/.test(String(row.posterUrl || '')))) {
-              throw new Error('Unexpected non-poster artwork URL in final set');
-            }
+            if (selected.some((row) => !/\/small\/p\d+\.jpg(?:$|\?)/.test(String(row.posterUrl || '')) && !/kinoplan24\.ru/.test(String(row.posterUrl || '')))) throw new Error('Unexpected non-poster artwork URL in final set');
             const image = await collage.buildCinemaCollage(selected, { fetchImpl: globalThis.fetch });
             if (!Buffer.isBuffer(image) || image.length < 1000) throw new Error('Collage render failed');
             const meta = await sharp(image).metadata();
