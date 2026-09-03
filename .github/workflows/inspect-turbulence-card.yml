@@ -1,0 +1,16 @@
+name: Inspect Turbulence card
+
+"on": push
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Mirage homepage card
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --location 'https://app.mirage.ru/' -o /tmp/page.html
+          grep -n -B 30 -A 30 'Турбулентность' /tmp/page.html | head -n 200 || true
