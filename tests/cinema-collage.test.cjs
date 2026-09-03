@@ -110,7 +110,7 @@ test('seven-poster collage uses a compact 4 plus 3 layout', async () => {
   assert.equal(info.height, 368);
 });
 
-test('cinema collage keeps the entire poster visible without black letterbox bands', async () => {
+test('cinema collage keeps the entire wide image visible when an unusual source is not portrait', async () => {
   const poster = await sharp(Buffer.from(`
     <svg width="180" height="60" xmlns="http://www.w3.org/2000/svg">
       <rect x="0" y="0" width="60" height="60" fill="#ff0000"/>
@@ -118,12 +118,8 @@ test('cinema collage keeps the entire poster visible without black letterbox ban
       <rect x="120" y="0" width="60" height="60" fill="#0000ff"/>
     </svg>`)).png().toBuffer();
 
-  const fetchImpl = async () => new Response(poster, {
-    status: 200,
-    headers: { 'content-type': 'image/png' },
-  });
   const image = await cinema.buildCinemaCollage([ROWS[0]], {
-    fetchImpl,
+    fetchImpl: async () => new Response(poster, { status: 200, headers: { 'content-type': 'image/png' } }),
     tileWidth: 120,
     tileHeight: 180,
     gap: 0,
@@ -134,13 +130,24 @@ test('cinema collage keeps the entire poster visible without black letterbox ban
     return [...data.subarray(offset, offset + 3)];
   };
 
-  const left = pixel(8, 90);
-  const center = pixel(60, 90);
-  const right = pixel(112, 90);
-  const corner = pixel(112, 8);
+  assert.ok(pixel(8, 90)[0] > 180, `left edge was cropped: ${pixel(8, 90)}`);
+  assert.ok(pixel(60, 90)[1] > 140, `center stripe missing: ${pixel(60, 90)}`);
+  assert.ok(pixel(112, 90)[2] > 180, `right edge was cropped: ${pixel(112, 90)}`);
+});
 
-  assert.ok(left[0] > 180 && left[1] < 100 && left[2] < 100, `left edge was cropped: ${left}`);
-  assert.ok(center[1] > 140 && center[0] < 120 && center[2] < 120, `center stripe missing: ${center}`);
-  assert.ok(right[2] > 180 && right[0] < 100 && right[1] < 100, `right edge was cropped: ${right}`);
-  assert.ok(corner.some((value) => value > 80), `letterbox background stayed black: ${corner}`);
+test('portrait cinema poster fills the normal tile without visible black bands', async () => {
+  const poster = await sharp(Buffer.from(`
+    <svg width="120" height="180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="180" fill="#eeeeee"/>
+    </svg>`)).png().toBuffer();
+  const image = await cinema.buildCinemaCollage([ROWS[0]], {
+    fetchImpl: async () => new Response(poster, { status: 200, headers: { 'content-type': 'image/png' } }),
+    tileWidth: 120,
+    tileHeight: 180,
+    gap: 0,
+  });
+  const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
+  const offset = (170 * info.width + 112) * info.channels;
+  const corner = [...data.subarray(offset, offset + 3)];
+  assert.ok(corner.every((value) => value > 150), `portrait poster did not fill tile: ${corner}`);
 });
