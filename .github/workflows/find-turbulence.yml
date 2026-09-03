@@ -1,0 +1,22 @@
+name: Find Mirage Turbulence Film ID
+
+"on": push
+
+permissions:
+  contents: read
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan nearby Mirage film ids
+        run: |
+          set -euo pipefail
+          seq 7500 7580 | xargs -P 12 -I{} bash -c '
+            url="https://app.mirage.ru/film/{}/"
+            body="$(curl --max-time 10 --silent --show-error --location "$url" 2>/dev/null || true)"
+            if printf "%s" "$body" | grep -qi "Турбулентность"; then
+              echo "FOUND_ID={} URL=$url"
+              printf "%s" "$body" | grep -Ei "og:title|og:image|<h1|с 0?3 Сентября|03\.09\.2026" | head -n 30
+            fi
+          '
