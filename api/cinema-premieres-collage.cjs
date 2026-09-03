@@ -85,18 +85,26 @@ async function loadMiragePremieresWithFallback(dateKey, sourceConfig, sourceOpti
   const urls = [...new Set([sourceConfig?.url, ...(Array.isArray(sourceConfig?.fallbackUrls) ? sourceConfig.fallbackUrls : [])].filter(Boolean))];
   let lastError = null;
   let hadSuccessfulSource = false;
+  const combined = new Map();
   for (const url of urls) {
     try {
       const rows = await legacy.loadMiragePremieres(dateKey, { ...sourceConfig, url }, sourceOptions);
       hadSuccessfulSource = true;
-      if (rows.length) return rows;
-      console.warn('RUDI_MIRAGE_PREMIERES_SOURCE_EMPTY', url, dateKey);
+      if (!rows.length) {
+        console.warn('RUDI_MIRAGE_PREMIERES_SOURCE_EMPTY', url, dateKey);
+        continue;
+      }
+      for (const row of rows) {
+        const key = legacy.normalizeTitle(row?.title);
+        if (!key || combined.has(key)) continue;
+        combined.set(key, row);
+      }
     } catch (error) {
       lastError = error;
       console.warn('RUDI_MIRAGE_PREMIERES_SOURCE_ERROR', url, String(error?.message || error));
     }
   }
-  if (hadSuccessfulSource) return [];
+  if (hadSuccessfulSource) return [...combined.values()];
   throw lastError || new Error('Mirage cinema source is unavailable');
 }
 
@@ -170,14 +178,13 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   if (mirageResult.status === 'rejected') console.warn('RUDI_MIRAGE_PREMIERES_ERROR', String(mirageResult.reason?.message || mirageResult.reason));
   if (kinopolisResult.status === 'rejected' && mirageResult.status === 'rejected') throw new Error('Both cinema premiere sources failed');
 
-  const sentTitles = await cache.get(legacy.SENT_TITLES_KEY);
   const merged = legacy.mergePremieres([
     ...(kinopolisResult.status === 'fulfilled' ? kinopolisResult.value : []),
     ...(mirageResult.status === 'fulfilled' ? mirageResult.value : []),
-  ], Array.isArray(sentTitles) ? sentTitles : []);
+  ]);
   const recent = await filterRecentCinemaRows(merged, dateKey, settings, {
     cache: options.dedupeCache || options.controlCache,
-    seenFingerprints: options.seenFingerprints,
+    seenFingerprints: options.force ? new Set() : options.seenFingerprints,
     now,
   });
   const rows = recent.rows.slice(0, config.cinemaPremieres.maxItems);
@@ -202,10 +209,6 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     const sent = await sendCollage({ token, chatId, topicId, image, caption, fetchImpl, now, topicCache: options.topicCache });
     messageId = await extractTelegramMessageId(sent);
     await rememberFingerprints('cinema', fingerprints, recent.days, { cache: options.dedupeCache || options.controlCache, now });
-
-    const sentTitlesSet = new Set((Array.isArray(sentTitles) ? sentTitles : []).map(legacy.normalizeTitle).filter(Boolean));
-    for (const row of rows) sentTitlesSet.add(legacy.normalizeTitle(row.title));
-    await cache.set(legacy.SENT_TITLES_KEY, [...sentTitlesSet], { ttl: CACHE_TTL_SECONDS, tags: ['rudi-cinema-premieres'], name: legacy.SENT_TITLES_KEY });
     posts = 1;
   }
 
