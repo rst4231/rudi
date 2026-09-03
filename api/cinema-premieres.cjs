@@ -180,7 +180,7 @@ function releaseDateMatchesMiragePage(html, dateKey) {
   if (!year || !month || !day) return false;
   const text = stripTags(html).toLowerCase().replace(/ё/gu, 'е');
   const monthName = RU_MONTHS[month - 1];
-  if (new RegExp(`\\bс\\s+0?${day}\\s+${monthName}\\b`, 'iu').test(text)) return true;
+  if (new RegExp(`(?:^|\\s)с\\s+0?${day}\\s+${monthName}(?=\\s|$)`, 'iu').test(text)) return true;
   const numeric = `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
   return text.includes(numeric);
 }
