@@ -105,7 +105,7 @@ function fallbackPoster(title, width, height, index) {
 
 async function buildCinemaCollage(rows, options = {}) {
   const sharp = require('sharp');
-  const items = (rows || []).filter((row) => row?.posterUrl).slice(0, 12);
+  const items = (rows || []).filter((row) => row?.title).slice(0, 12);
   if (!items.length) throw new Error('cinema-collage-empty');
 
   const tileWidth = Math.max(120, Number(options.tileWidth || 500));
@@ -117,6 +117,7 @@ async function buildCinemaCollage(rows, options = {}) {
 
   const tiles = await Promise.all(items.map(async (row, index) => {
     try {
+      if (!row.posterUrl) throw new Error('poster-unavailable');
       const poster = await fetchPosterBuffer(row.posterUrl, options);
       return await sharp(poster)
         .rotate()
