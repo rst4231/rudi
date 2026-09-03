@@ -1,0 +1,22 @@
+name: Publish cinema once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-cinema-once.yml'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish cinema for 2026-09-03
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --show-error --silent \
+            -X POST 'https://spb-daily-guide-bot.vercel.app/api/admin' \
+            -H 'content-type: application/json' \
+            --data '{"action":"publish-section","section":"cinema","date":"2026-09-03","force":true}' \
+            | tee /tmp/publish-result.json
+          grep -q '"ok":true' /tmp/publish-result.json
