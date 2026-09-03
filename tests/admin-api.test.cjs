@@ -90,6 +90,21 @@ test('retry-failed-section delegates only one failed section', async () => {
   assert.deepEqual(calls, [{ section: 'cinema', date: '2026-08-30', retryFailedOnly: true }]);
 });
 
+test('cleanup-cinema-messages delegates only validated ids for the requested date', async () => {
+  const calls = [];
+  const result = await handleAdminAction('cleanup-cinema-messages', {
+    date: '2026-09-03',
+    messageIds: [823, 824, 825],
+  }, {
+    cleanupCinema: async (input) => {
+      calls.push(input);
+      return { deleted: input.messageIds, protected: [], rejected: [] };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls, [{ date: '2026-09-03', messageIds: [823, 824, 825] }]);
+});
+
 test('admin endpoint serves dashboard without bearer auth', async () => {
   const req = { method: 'GET', headers: {}, query: {} };
   const res = responseStub();
