@@ -1,0 +1,35 @@
+name: Publish corrected Sept 3 cinema
+
+"on": push
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event.head_commit.message == 'ops: publish corrected Sept 3 cinema'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish cinema with force
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --location \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data '{"action":"publish-section","section":"cinema","date":"2026-09-03","force":true}' \
+            --output /tmp/result.json \
+            --write-out '%{http_code}' \
+            'https://spb-daily-guide-bot.vercel.app/api/admin' > /tmp/status.txt
+          echo "HTTP $(cat /tmp/status.txt)"
+          cat /tmp/result.json
+          python3 <<'PY'
+          import json
+          body = json.load(open('/tmp/result.json'))
+          native = (body.get('metadata') or {}).get('nativeResult') or body.get('nativeResult') or body
+          published = int(native.get('published') or 0)
+          message_id = native.get('messageId') or body.get('messageId')
+          titles = native.get('titles') or []
+          print(json.dumps({'published': published, 'messageId': message_id, 'titles': titles}, ensure_ascii=False, indent=2))
+          if published < 7 or not message_id:
+              raise SystemExit(2)
+          PY
