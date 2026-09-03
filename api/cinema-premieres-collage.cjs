@@ -84,14 +84,19 @@ async function sendNoPremieresMessage({ token, chatId, topicId, fetchImpl, now }
 async function loadMiragePremieresWithFallback(dateKey, sourceConfig, sourceOptions = {}) {
   const urls = [...new Set([sourceConfig?.url, ...(Array.isArray(sourceConfig?.fallbackUrls) ? sourceConfig.fallbackUrls : [])].filter(Boolean))];
   let lastError = null;
+  let hadSuccessfulSource = false;
   for (const url of urls) {
     try {
-      return await legacy.loadMiragePremieres(dateKey, { ...sourceConfig, url }, sourceOptions);
+      const rows = await legacy.loadMiragePremieres(dateKey, { ...sourceConfig, url }, sourceOptions);
+      hadSuccessfulSource = true;
+      if (rows.length) return rows;
+      console.warn('RUDI_MIRAGE_PREMIERES_SOURCE_EMPTY', url, dateKey);
     } catch (error) {
       lastError = error;
       console.warn('RUDI_MIRAGE_PREMIERES_SOURCE_ERROR', url, String(error?.message || error));
     }
   }
+  if (hadSuccessfulSource) return [];
   throw lastError || new Error('Mirage cinema source is unavailable');
 }
 
