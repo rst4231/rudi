@@ -220,6 +220,27 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     try { await (options.incrementMetric || incrementSectionMetric)('cinema', 'duplicateSuppressions', recent.suppressed, { cache: options.analyticsCache || options.controlCache, now }); } catch {}
   }
 
+  const complete = kinopolisResult.status === 'fulfilled' && mirageResult.status === 'fulfilled';
+  if (options.force && !rows.length) {
+    return {
+      skipped: 'no-premieres',
+      date: dateKey,
+      topicId: Number(config.cinemaPremieres.topicId) || null,
+      messageId: null,
+      published: 0,
+      posts: 0,
+      complete,
+      duplicateSuppressions: recent.suppressed,
+      fingerprints: [],
+      kinopolisCount: kinopolisResult.status === 'fulfilled' ? kinopolisResult.value.length : null,
+      mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
+      manualCount: manualRows.length,
+      titles: [],
+      replacedMessageIds: [],
+      replacementCleanupError: null,
+    };
+  }
+
   const token = options.token || resolveTelegramBotToken(options.env || process.env);
   const chatId = options.chatId || await getKnownForumChatId({ cache: options.topicCache }) || findForumChatIdInEnv(options.env || process.env);
   if (!chatId) throw new Error('Telegram forum chat id is unavailable for cinema premieres');
@@ -256,7 +277,6 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     posts = 1;
   }
 
-  const complete = kinopolisResult.status === 'fulfilled' && mirageResult.status === 'fulfilled';
   if (!rows.length && complete) {
     const sendEmpty = options.sendEmpty || sendNoPremieresMessage;
     const sent = await sendEmpty({ token, chatId, topicId, fetchImpl, now });
