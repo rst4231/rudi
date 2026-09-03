@@ -151,3 +151,20 @@ test('portrait cinema poster fills the normal tile without visible black bands',
   const corner = [...data.subarray(offset, offset + 3)];
   assert.ok(corner.every((value) => value > 150), `portrait poster did not fill tile: ${corner}`);
 });
+
+test('cinema collage does not paint number badges over the poster artwork', async () => {
+  const poster = await sharp(Buffer.from(`
+    <svg width="120" height="180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="180" fill="#eeeeee"/>
+    </svg>`)).png().toBuffer();
+  const image = await cinema.buildCinemaCollage([ROWS[0]], {
+    fetchImpl: async () => new Response(poster, { status: 200, headers: { 'content-type': 'image/png' } }),
+    tileWidth: 120,
+    tileHeight: 180,
+    gap: 0,
+  });
+  const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
+  const offset = (30 * info.width + 30) * info.channels;
+  const pixel = [...data.subarray(offset, offset + 3)];
+  assert.ok(pixel.every((value) => value > 150), `poster artwork is covered by a badge: ${pixel}`);
+});
