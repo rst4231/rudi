@@ -1,0 +1,26 @@
+name: Publish Cinema 2026-09-03
+
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-cinema-2026-09-03.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event.head_commit.message == 'ops: publish complete cinema 2026-09-03'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish complete Sept 3 cinema digest
+        env:
+          ADMIN_URL: https://spb-daily-guide-bot.vercel.app/api/admin
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body --silent --show-error \
+            -X POST "$ADMIN_URL" \
+            -H 'content-type: application/json' \
+            --data '{"action":"publish-section","section":"cinema","date":"2026-09-03","force":true}')"
+          echo "$response"
+          node -e 'const x=JSON.parse(process.argv[1]); if(!x.ok) process.exit(1)' "$response"
