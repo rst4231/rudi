@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { loadMiragePremieres } = require('../api/cinema-premieres.cjs');
+const { buildCinemaCollage } = require('../api/cinema-collage.cjs');
 const { publishWeeklyCinemaPremieres } = require('../api/cinema-premieres-collage.cjs');
 
 function memoryCache() {
@@ -52,6 +53,15 @@ test('manualByDate fills a verified premiere missing from live cinema sources ev
 
   assert.equal(result.published, 1);
   assert.deepEqual(result.titles, ['Турбулентность']);
+});
+
+test('cinema collage renders a fallback tile for a verified manual premiere without a poster URL', async () => {
+  const image = await buildCinemaCollage([{ title: 'Турбулентность', posterUrl: null }], {
+    tileWidth: 180,
+    tileHeight: 270,
+  });
+  assert.ok(Buffer.isBuffer(image));
+  assert.ok(image.length > 100);
 });
 
 test('Mirage loader retries a film detail page that failed during the parallel pass', async () => {
