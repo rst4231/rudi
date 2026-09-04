@@ -27,6 +27,12 @@ function telegramStub(calls) {
         headers: { 'content-type': 'application/json' },
       });
     }
+    if (method === 'editForumTopic' || method === 'deleteForumTopic') {
+      return new Response(JSON.stringify({ ok: true, result: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     throw new Error(`Unexpected Telegram method: ${method}`);
   };
 }
@@ -39,7 +45,7 @@ test('event venue config blocks explicit Sevkabel and Brusnitsyn identifiers wit
   assert.equal(blocked.has('брус'), false);
 });
 
-test('Labor uses configured topic 696 and never Clients topic 126 when runtime cache is empty', async () => {
+test('Labor routes to For Di topic 126 and retires legacy topic 696', async () => {
   const calls = [];
   const now = new Date('2026-08-26T09:00:00Z');
   const cache = getLaborCache({
@@ -48,7 +54,6 @@ test('Labor uses configured topic 696 and never Clients topic 126 when runtime c
     attempts: 1,
     retryDelayMs: 0,
     now,
-    laborTopicIdResolver: async () => 696,
   });
 
   const result = await publishLaborArticle({
@@ -56,12 +61,13 @@ test('Labor uses configured topic 696 and never Clients topic 126 when runtime c
     chatId: -1001,
     cache,
     fetchImpl: telegramStub(calls),
+    forumTopicsConfig: { version: 1, clients: 126, labor: 696, names: { clients: 'Для Ди' } },
     now,
   });
 
-  assert.equal(result.topicId, 696);
-  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 696);
-  assert.equal(calls.some((call) => call.body?.message_thread_id === 126), false);
+  assert.equal(result.topicId, 126);
+  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 126);
+  assert.equal(calls.find((call) => call.method === 'deleteForumTopic').body.message_thread_id, 696);
 });
 
 test('one-time Labor bootstrap is allowed on 26 August 2026', () => {
