@@ -23,7 +23,11 @@ const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
-const { handleFeedbackCallback, cleanupLegacyFeedbackKeyboards } = require('./feedback-analytics.cjs');
+const {
+  handleFeedbackCallback,
+  cleanupLegacyFeedbackKeyboards,
+  parseFeedbackCleanupMessageIds,
+} = require('./feedback-analytics.cjs');
 const { runWithPublicationContext } = require('./section-controls.cjs');
 const { recordEventSourceState } = require('./event-source-state.cjs');
 
@@ -159,10 +163,13 @@ async function handler(req, res) {
     }
     if (req.query?.route === 'health') {
       if (String(req.query?.cleanupFeedback || '') === '1') {
+        const explicitMessageIds = parseFeedbackCleanupMessageIds(req.query?.messageIds);
         const feedbackCleanup = await cleanupLegacyFeedbackKeyboards({
           token: resolveTelegramBotToken(process.env),
           fetchImpl: nativeFetch,
           env: process.env,
+          force: explicitMessageIds.length > 0,
+          messageIds: explicitMessageIds,
         });
         return res.status(200).json({ ok: true, feedbackCleanup });
       }
