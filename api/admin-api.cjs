@@ -12,7 +12,7 @@ const {
   setContentOverride,
   clearContentOverride,
 } = require('./section-controls.cjs');
-const { listSectionAnalytics } = require('./feedback-analytics.cjs');
+const { listSectionAnalytics, cleanupLegacyFeedbackKeyboards } = require('./feedback-analytics.cjs');
 const { acknowledgeAlert } = require('./alert-service.cjs');
 const { publishSelectedSection, defaultPreviewProvider } = require('./manual-section-publisher.cjs');
 const { cleanupCinemaMessages, MAX_CLEANUP_IDS } = require('./cinema-message-cleanup.cjs');
@@ -28,6 +28,7 @@ const ACTIONS = new Set([
   'publish-section',
   'retry-failed-section',
   'cleanup-cinema-messages',
+  'cleanup-feedback-keyboards',
   'acknowledge-alert',
   'refresh-preview',
 ]);
@@ -210,6 +211,11 @@ async function handleAdminAction(actionInput, body = {}, options = {}) {
       const messageIds = validMessageIds(body.messageIds);
       const cleanupCinema = options.cleanupCinema || cleanupCinemaMessages;
       return normalizeActionResult(action, await cleanupCinema({ date, messageIds }, options));
+    }
+
+    if (action === 'cleanup-feedback-keyboards') {
+      const cleanupFeedback = options.cleanupFeedback || cleanupLegacyFeedbackKeyboards;
+      return normalizeActionResult(action, await cleanupFeedback({}, options));
     }
 
     if (action === 'acknowledge-alert') {
