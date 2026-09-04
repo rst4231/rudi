@@ -3,6 +3,9 @@ const { getLatestDailyRun, getLatestPublication } = require('./publication-journ
 const { listSourceHealth } = require('./source-health.cjs');
 const { getEventCleanupStatus } = require('./event-active-rollover.cjs');
 const { getTopicMaintenanceCache } = require('./stateful-cache.cjs');
+const { resolveTelegramBotToken } = require('./products-bought.cjs');
+const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
+const { syncConfiguredForumTopicNames } = require('./forum-topic-names.cjs');
 
 const SOURCE_IDS = [
   'events:yandex',
@@ -12,6 +15,8 @@ const SOURCE_IDS = [
   'daily-content',
   'clients-advice',
 ];
+
+let topicNameSyncFlight = null;
 
 function moscowParts(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
@@ -63,7 +68,30 @@ async function defaultEventCleanupStatus(options = {}) {
   }
 }
 
+async function syncForumTopicNamesSafe(options = {}) {
+  if (options.enabled === false) return null;
+  if (!topicNameSyncFlight) {
+    topicNameSyncFlight = (async () => {
+      const cache = options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
+      const chatId = await getKnownForumChatId({ cache });
+      if (chatId === null) return null;
+      return syncConfiguredForumTopicNames({
+        token: resolveTelegramBotToken(options.env || process.env),
+        chatId,
+        fetchImpl: options.fetchImpl || globalThis.fetch,
+        configFetchImpl: options.configFetchImpl,
+      });
+    })().catch((error) => {
+      console.warn('RUDI_FORUM_TOPIC_NAME_SYNC_ERROR', String(error?.message || error));
+      return null;
+    });
+  }
+  return topicNameSyncFlight;
+}
+
 async function buildHealthPayload(options = {}) {
+  await syncForumTopicNamesSafe(options.topicNameOptions || {});
+
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const settingsLoader = options.settingsLoader || loadRudiSettings;
   const latestRunGetter = options.getLatestDailyRun || getLatestDailyRun;
@@ -110,4 +138,4 @@ async function buildHealthPayload(options = {}) {
   };
 }
 
-module.exports = { SOURCE_IDS, moscowDate, cloneOperationalSettings, buildHealthPayload };
+module.exports = { SOURCE_IDS, moscowDate, cloneOperationalSettings, syncForumTopicNamesSafe, buildHealthPayload };

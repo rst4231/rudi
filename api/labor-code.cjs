@@ -1,3 +1,6 @@
+const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
+const { syncForumTopicTitles } = require('./forum-topic-sync.cjs');
+
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const LABOR_TOPIC_NAME = 'Трудовой кодекс';
 const LABOR_SOURCE_URL = 'https://www.consultant.ru/document/cons_doc_LAW_34683/';
@@ -77,12 +80,35 @@ async function telegramCall(token, method, payload, fetchImpl) {
   return response.json();
 }
 
-async function ensureLaborTopic({ token, chatId, cache, fetchImpl }) {
-  const cached = Number(await cache.get('labor:topic-id'));
-  if (Number.isInteger(cached) && cached > 0) return cached;
-  const result = await telegramCall(token, 'createForumTopic', { chat_id: chatId, name: LABOR_TOPIC_NAME }, fetchImpl);
-  const topicId = Number(result?.result?.message_thread_id);
-  if (!Number.isInteger(topicId) || topicId <= 0) throw new Error('Telegram createForumTopic did not return message_thread_id');
+async function deleteLegacyLaborTopicOnce({ token, chatId, legacyTopicId, targetTopicId, cache, fetchImpl }) {
+  if (!Number.isInteger(legacyTopicId) || legacyTopicId <= 0 || legacyTopicId === targetTopicId) return false;
+  const key = `labor:legacy-topic-deleted:${legacyTopicId}`;
+  if (await cache.get(key)) return true;
+  try {
+    await telegramCall(token, 'deleteForumTopic', {
+      chat_id: chatId,
+      message_thread_id: legacyTopicId,
+    }, fetchImpl);
+  } catch (error) {
+    if (!/TOPIC_ID_INVALID|message thread not found|topic.*not found/i.test(String(error.detail || error.message))) throw error;
+  }
+  await cache.set(key, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-topic'] });
+  return true;
+}
+
+async function ensureLaborTopic({ token, chatId, cache, fetchImpl, forumTopicsConfig, forumTopicsOptions }) {
+  const config = forumTopicsConfig || await loadForumTopicsConfig(forumTopicsOptions || {});
+  const topicId = Number(config?.clients);
+  const legacyTopicId = Number(config?.labor);
+  if (!Number.isInteger(topicId) || topicId <= 0) throw new Error('For Di topic id is unavailable');
+
+  await syncForumTopicTitles({
+    token,
+    chatId,
+    config,
+    fetchImpl,
+  });
+  await deleteLegacyLaborTopicOnce({ token, chatId, legacyTopicId, targetTopicId: topicId, cache, fetchImpl });
   await cache.set('labor:topic-id', topicId, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-topic'] });
   return topicId;
 }
@@ -139,11 +165,19 @@ async function publishLaborArticle(options = {}) {
   const cache = options.cache || getRuntimeCache();
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const now = options.now || new Date();
+  const topicId = await ensureLaborTopic({
+    token,
+    chatId,
+    cache,
+    fetchImpl,
+    forumTopicsConfig: options.forumTopicsConfig,
+    forumTopicsOptions: options.forumTopicsOptions,
+  });
   const todayKey = dateKeyInMoscow(now);
   const publishedKey = `labor:published:${todayKey}`;
   const already = await cache.get(publishedKey);
   const alreadyId = typeof already === 'string' ? already : already?.articleId;
-  if (already && options.force !== true) return { skipped: true, articleId: alreadyId || already };
+  if (already && options.force !== true) return { skipped: true, articleId: alreadyId || already, topicId };
 
   const history = await readArticleHistory(cache);
   const explicitExcludes = Array.isArray(options.excludeIds) ? options.excludeIds.filter(Boolean) : [];
@@ -153,24 +187,12 @@ async function publishLaborArticle(options = {}) {
   if (!next) {
     next = selectArticleForDate(now, { excludeIds: [...new Set([...history.recent, ...explicitExcludes, alreadyId].filter(Boolean))] });
   }
-  if (!next) return { skipped: true, reason: 'article-pool-exhausted' };
+  if (!next) return { skipped: true, reason: 'article-pool-exhausted', topicId };
 
-  let topicId = await ensureLaborTopic({ token, chatId, cache, fetchImpl });
-  let sent;
-  try {
-    sent = await telegramCall(token, 'sendMessage', {
-      chat_id: chatId, message_thread_id: topicId, text: next.text,
-      parse_mode: 'HTML', disable_web_page_preview: true,
-    }, fetchImpl);
-  } catch (error) {
-    if (!/TOPIC_ID_INVALID|message thread not found|topic.*not found/i.test(String(error.detail || error.message))) throw error;
-    await cache.delete('labor:topic-id');
-    topicId = await ensureLaborTopic({ token, chatId, cache, fetchImpl });
-    sent = await telegramCall(token, 'sendMessage', {
-      chat_id: chatId, message_thread_id: topicId, text: next.text,
-      parse_mode: 'HTML', disable_web_page_preview: true,
-    }, fetchImpl);
-  }
+  const sent = await telegramCall(token, 'sendMessage', {
+    chat_id: chatId, message_thread_id: topicId, text: next.text,
+    parse_mode: 'HTML', disable_web_page_preview: true,
+  }, fetchImpl);
 
   const messageId = Number(sent?.result?.message_id);
   await recordArticlePublication(cache, next.id, todayKey, Number.isInteger(messageId) ? messageId : null, topicId, history);
@@ -189,5 +211,6 @@ module.exports = {
   publishLaborArticle,
   replaceLaborArticle,
   ensureLaborTopic,
+  deleteLegacyLaborTopicOnce,
   dateKeyInMoscow,
 };
