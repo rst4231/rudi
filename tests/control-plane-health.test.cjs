@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const { buildHealthPayload, syncForumTopicNamesSafe } = require('../api/control-plane-health.cjs');
 const settings = require('../config/rudi-settings.json');
 
-test('forum topic rename falls back to the known forum chat when cache is empty', async () => {
+test('forum topic maintenance falls back to the known forum chat when cache is empty', async () => {
   const calls = [];
   await syncForumTopicNamesSafe({
-    cache: { async get() { return null; } },
+    cache: { async get() { return null; }, async set() { return true; } },
     env: { TELEGRAM_BOT_TOKEN: '1:test' },
     configFetchImpl: async () => new Response(JSON.stringify({
       version: 2,
@@ -23,12 +23,17 @@ test('forum topic rename falls back to the known forum chat when cache is empty'
     },
   });
 
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   assert.match(calls[0].url, /editForumTopic$/);
   assert.deepEqual(calls[0].body, {
     chat_id: '-1004476323368',
     message_thread_id: 126,
     name: 'Для Ди',
+  });
+  assert.match(calls[1].url, /deleteForumTopic$/);
+  assert.deepEqual(calls[1].body, {
+    chat_id: '-1004476323368',
+    message_thread_id: 696,
   });
 });
 
