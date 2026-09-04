@@ -1,7 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { publishLaborArticle } = require('../api/labor-code.cjs');
-const { getLaborCache } = require('../api/stateful-cache.cjs');
 
 function memoryCache(seed = {}) {
   const map = new Map(Object.entries(seed));
@@ -12,24 +11,19 @@ function memoryCache(seed = {}) {
   };
 }
 
-function guardedLaborCache(seed = {}, now = new Date('2026-08-26T09:00:00Z'), options = {}) {
-  return getLaborCache({
-    runtimeCache: memoryCache(seed),
-    env: {},
-    attempts: 1,
-    retryDelayMs: 0,
-    now,
-    ...options,
-  });
-}
-
-function telegramStub(calls) {
+function telegramStub(calls, options = {}) {
   return async (url, init) => {
     const method = String(url).split('/').at(-1);
     const body = JSON.parse(init.body);
     calls.push({ method, body });
-    if (method === 'createForumTopic') {
-      return new Response(JSON.stringify({ ok: true, result: { message_thread_id: 999 } }), {
+    if (method === 'deleteForumTopic') {
+      if (options.deletedAlready) {
+        return new Response(JSON.stringify({ ok: false, description: 'Bad Request: TOPIC_ID_INVALID' }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, result: true }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
@@ -44,79 +38,43 @@ function telegramStub(calls) {
   };
 }
 
-test('reuses the most recent recorded Labor topic when the primary topic cache key is missing', async () => {
+test('routes future Labor posts to Clients topic 126 and deletes legacy Labor topic 696', async () => {
   const calls = [];
-  const now = new Date('2026-08-26T09:00:00Z');
-  const result = await publishLaborArticle({
-    token: '1:test',
-    chatId: -1001,
-    cache: guardedLaborCache({
-      'labor:message:2026-08-25': {
-        articleId: 'contract:worker',
-        messageId: 800,
-        topicId: 444,
-      },
-    }, now),
-    fetchImpl: telegramStub(calls),
-    now,
+  const now = new Date('2026-09-04T18:00:00Z');
+  const cache = memoryCache({
+    'labor:topic-id': 696,
+    'labor:message:2026-09-03': { articleId: 'contract:worker', messageId: 828, topicId: 696 },
   });
 
-  assert.equal(result.topicId, 444);
-  assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
-  const send = calls.find((call) => call.method === 'sendMessage');
-  assert.equal(send.body.message_thread_id, 444);
-});
-
-test('ignores a bad same-day Clients topic record and recovers the older Labor topic', async () => {
-  const calls = [];
-  const now = new Date('2026-08-26T09:00:00Z');
   const result = await publishLaborArticle({
     token: '1:test',
-    chatId: -1001,
-    cache: guardedLaborCache({
-      'labor:message:2026-08-26': { articleId: 'wrong', messageId: 721, topicId: 126 },
-      'labor:message:2026-08-23': { articleId: 'right', messageId: 636, topicId: 444 },
-    }, now),
+    chatId: -1004476323368,
+    cache,
     fetchImpl: telegramStub(calls),
     now,
+    forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
   });
 
-  assert.equal(result.topicId, 444);
-  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 444);
+  assert.equal(result.topicId, 126);
+  assert.deepEqual(calls.find((call) => call.method === 'deleteForumTopic')?.body, {
+    chat_id: -1004476323368,
+    message_thread_id: 696,
+  });
+  assert.equal(calls.find((call) => call.method === 'sendMessage')?.body.message_thread_id, 126);
+  assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
 });
 
-test('uses externally configured Labor topic 696 when runtime history is unavailable', async () => {
+test('continues publishing to topic 126 when legacy Labor topic 696 is already deleted', async () => {
   const calls = [];
-  const now = new Date('2026-08-26T09:00:00Z');
   const result = await publishLaborArticle({
     token: '1:test',
-    chatId: -1001,
-    cache: guardedLaborCache({}, now, {
-      laborTopicIdResolver: async () => 696,
-    }),
-    fetchImpl: telegramStub(calls),
-    now,
+    chatId: -1004476323368,
+    cache: memoryCache(),
+    fetchImpl: telegramStub(calls, { deletedAlready: true }),
+    now: new Date('2026-09-05T09:00:00Z'),
+    forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
   });
 
-  assert.equal(result.topicId, 696);
-  assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
-  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 696);
-});
-
-test('fails closed instead of ever using Clients topic 126 when Labor topic history and config are unavailable', async () => {
-  const calls = [];
-  const now = new Date('2026-08-26T09:00:00Z');
-
-  await assert.rejects(() => publishLaborArticle({
-    token: '1:test',
-    chatId: -1001,
-    cache: guardedLaborCache({}, now, {
-      laborTopicIdResolver: async () => null,
-    }),
-    fetchImpl: telegramStub(calls),
-    now,
-  }), /Labor topic id is unavailable/i);
-
-  assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
-  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
+  assert.equal(result.topicId, 126);
+  assert.equal(calls.find((call) => call.method === 'sendMessage')?.body.message_thread_id, 126);
 });
