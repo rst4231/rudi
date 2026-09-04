@@ -6,6 +6,8 @@ const { getTopicMaintenanceCache } = require('./stateful-cache.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { syncConfiguredForumTopicNames } = require('./forum-topic-names.cjs');
+const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
+const { deleteLegacyLaborTopicOnce } = require('./labor-code.cjs');
 
 const SOURCE_IDS = [
   'events:yandex',
@@ -75,12 +77,27 @@ async function syncForumTopicNamesSafe(options = {}) {
     topicNameSyncFlight = (async () => {
       const cache = options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
       const chatId = await getKnownForumChatId({ cache }) || KNOWN_FORUM_CHAT_ID;
-      return syncConfiguredForumTopicNames({
-        token: resolveTelegramBotToken(options.env || process.env),
-        chatId,
-        fetchImpl: options.fetchImpl || globalThis.fetch,
-        configFetchImpl: options.configFetchImpl,
+      const token = resolveTelegramBotToken(options.env || process.env);
+      const fetchImpl = options.fetchImpl || globalThis.fetch;
+      const config = options.config || await loadForumTopicsConfig({
+        fetchImpl: options.configFetchImpl || fetchImpl,
       });
+
+      const renamed = await syncConfiguredForumTopicNames({
+        token,
+        chatId,
+        fetchImpl,
+        config,
+      });
+      const legacyLaborDeleted = await deleteLegacyLaborTopicOnce({
+        token,
+        chatId,
+        legacyTopicId: Number(config.labor),
+        targetTopicId: Number(config.clients),
+        cache,
+        fetchImpl,
+      });
+      return { ...renamed, legacyLaborDeleted };
     })().catch((error) => {
       console.warn('RUDI_FORUM_TOPIC_NAME_SYNC_ERROR', String(error?.message || error));
       return null;
