@@ -40,6 +40,12 @@ test('removed couple topic is ignored on incoming updates and hidden from health
   assert.match(source, /route === 'health'/);
 });
 
+test('health route exposes an explicit one-time legacy feedback keyboard cleanup trigger', () => {
+  assert.match(source, /cleanupLegacyFeedbackKeyboards/);
+  assert.match(source, /cleanupFeedback/);
+  assert.match(source, /feedbackCleanup/);
+});
+
 test('Telegram transport is passed through topic maintenance', () => {
   assert.match(source, /handleTelegramTopicRequest\(input, nextInit/);
 });
