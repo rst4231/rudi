@@ -2,10 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { isAdminAuthorized } = require('../api/admin-auth.cjs');
 const { buildAdminDashboard, handleAdminAction } = require('../api/admin-api.cjs');
-const { getContentOverride, applySectionControlToTelegramRequest } = require('../api/section-controls.cjs');
+const { getContentOverride } = require('../api/section-controls.cjs');
 const { applyPreviewContentOverride } = require('../api/preview-sections.cjs');
 const { wrapFetch } = require('../api/topic-maintenance.cjs');
-const { handleFeedbackCallback, getSectionAnalytics } = require('../api/feedback-analytics.cjs');
 const { publishSelectedSection } = require('../api/manual-section-publisher.cjs');
 const { getPublicationRecord } = require('../api/publication-journal.cjs');
 const { runNativeSection } = require('../api/section-runners.cjs');
@@ -114,21 +113,7 @@ test('admin no-deploy workflow controls one generated section end to end', async
   assert.equal(response.ok, true);
   assert.equal(networkCalls.length, 1);
   assert.equal(networkCalls[0].text, 'edited fact');
-  assert.equal(networkCalls[0].reply_markup.inline_keyboard[0].length, 2);
-
-  const callbackData = networkCalls[0].reply_markup.inline_keyboard[0][0].callback_data;
-  const order = [];
-  const handled = await handleFeedbackCallback({
-    body: { callback_query: { id: 'callback-1', data: callbackData, message: { message_id: 501 } } },
-  }, {
-    env,
-    cache: controlCache,
-    token: '1:test',
-    answer: async () => { order.push('ack'); },
-  });
-  assert.equal(handled, true);
-  assert.deepEqual(order, ['ack']);
-  assert.equal((await getSectionAnalytics('facts', { cache: controlCache })).positiveFeedback, 1);
+  assert.equal(networkCalls[0].reply_markup, undefined);
 
   await handleAdminAction('skip-section', { section: 'facts', date: tomorrow }, { controlCache });
   let tomorrowNetwork = 0;
