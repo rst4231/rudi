@@ -7,6 +7,7 @@ const {
   buildFeedbackMarkup,
   collectLegacyFeedbackMessageIds,
   cleanupLegacyFeedbackKeyboards,
+  parseFeedbackCleanupMessageIds,
 } = require('../api/feedback-analytics.cjs');
 
 function cache(initial = {}) {
@@ -33,6 +34,13 @@ test('analytics increments named counter', async () => {
 
 test('new publications no longer get thumbs feedback markup', () => {
   assert.equal(buildFeedbackMarkup('facts', '2026-09-04', { RUDI_FEEDBACK_SECRET: 'secret' }), null);
+});
+
+test('feedback cleanup parses an explicit bounded message id list for a forced retry', () => {
+  assert.equal(typeof parseFeedbackCleanupMessageIds, 'function');
+  assert.deepEqual(parseFeedbackCleanupMessageIds('833, 831,833'), [831, 833]);
+  assert.deepEqual(parseFeedbackCleanupMessageIds(''), []);
+  assert.throws(() => parseFeedbackCleanupMessageIds('833,nope'), /invalid-feedback-cleanup-message-ids/);
 });
 
 test('legacy feedback cleanup finds stored message ids and removes their keyboards', async () => {
