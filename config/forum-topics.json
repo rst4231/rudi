@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "clients": 126,
-  "labor": 696
+  "labor": 696,
+  "names": {
+    "clients": "Для Ди"
+  }
 }
