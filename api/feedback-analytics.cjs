@@ -24,6 +24,7 @@ const METRICS = new Set([
 const LEGACY_FEEDBACK_SECTIONS = ['events', 'holidays', 'facts', 'lulu', 'recipes', 'clients'];
 const LEGACY_FEEDBACK_START_DATE = '2026-08-29';
 const LEGACY_FEEDBACK_CLEANUP_KEY = 'feedback-keyboard-cleanup:v1';
+const MAX_EXPLICIT_FEEDBACK_IDS = 50;
 
 function secret(env = process.env) {
   return String(env.RUDI_FEEDBACK_SECRET || env.CRON_SECRET || '');
@@ -122,7 +123,21 @@ function dateKeysBetween(startDate, endDate) {
 }
 
 function normalizeMessageIds(values) {
-  return [...new Set((Array.isArray(values) ? values : []).map(Number).filter((id) => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
+  return [...new Set((Array.isArray(values) ? values : []).map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))].sort((a, b) => a - b);
+}
+
+function parseFeedbackCleanupMessageIds(value) {
+  const text = Array.isArray(value) ? value.join(',') : String(value ?? '').trim();
+  if (!text) return [];
+  const parts = text.split(',').map((part) => part.trim()).filter(Boolean);
+  if (!parts.length || parts.length > MAX_EXPLICIT_FEEDBACK_IDS || parts.some((part) => !/^[1-9]\d*$/.test(part))) {
+    throw new Error('invalid-feedback-cleanup-message-ids');
+  }
+  const ids = normalizeMessageIds(parts);
+  if (!ids.length || ids.length > MAX_EXPLICIT_FEEDBACK_IDS || ids.some((id) => !Number.isSafeInteger(id))) {
+    throw new Error('invalid-feedback-cleanup-message-ids');
+  }
+  return ids;
 }
 
 async function collectLegacyFeedbackMessageIds(options = {}) {
@@ -204,7 +219,8 @@ async function cleanupLegacyFeedbackKeyboards(options = {}) {
   if (!chatId) throw new Error('Telegram forum chat id is unavailable for feedback cleanup');
   const token = String(options.token || require('./products-bought.cjs').resolveTelegramBotToken(options.env || process.env) || '').trim();
   if (!token) throw new Error('Telegram bot token is unavailable for feedback cleanup');
-  const messageIds = normalizeMessageIds(options.messageIds || await collectLegacyFeedbackMessageIds(options));
+  const explicitMessageIds = normalizeMessageIds(options.messageIds);
+  const messageIds = explicitMessageIds.length ? explicitMessageIds : await collectLegacyFeedbackMessageIds(options);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('Fetch is unavailable for feedback cleanup');
 
@@ -272,6 +288,7 @@ module.exports = {
   getSectionAnalytics,
   listSectionAnalytics,
   buildFeedbackMarkup,
+  parseFeedbackCleanupMessageIds,
   collectLegacyFeedbackMessageIds,
   cleanupLegacyFeedbackKeyboards,
   handleFeedbackCallback,
