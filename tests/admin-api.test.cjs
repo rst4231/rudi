@@ -105,6 +105,20 @@ test('cleanup-cinema-messages delegates only validated ids for the requested dat
   assert.deepEqual(calls, [{ date: '2026-09-03', messageIds: [823, 824, 825] }]);
 });
 
+test('cleanup-feedback-keyboards delegates one idempotent legacy cleanup', async () => {
+  const calls = [];
+  const result = await handleAdminAction('cleanup-feedback-keyboards', {}, {
+    cleanupFeedback: async (input) => {
+      calls.push(input);
+      return { removed: 8, skipped: 1, checked: 9 };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls, [{}]);
+  assert.equal(result.removed, 8);
+  assert.equal(result.skipped, 1);
+});
+
 test('admin endpoint serves dashboard without bearer auth', async () => {
   const req = { method: 'GET', headers: {}, query: {} };
   const res = responseStub();
