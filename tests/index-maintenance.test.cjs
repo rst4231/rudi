@@ -46,6 +46,13 @@ test('health route exposes an explicit one-time legacy feedback keyboard cleanup
   assert.match(source, /feedbackCleanup/);
 });
 
+test('health feedback cleanup can retry exact legacy message ids without another code change', () => {
+  assert.match(source, /parseFeedbackCleanupMessageIds/);
+  assert.match(source, /req\.query\?\.messageIds/);
+  assert.match(source, /force:\s*explicitMessageIds\.length\s*>\s*0/);
+  assert.match(source, /messageIds:\s*explicitMessageIds/);
+});
+
 test('Telegram transport is passed through topic maintenance', () => {
   assert.match(source, /handleTelegramTopicRequest\(input, nextInit/);
 });
