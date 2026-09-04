@@ -13,15 +13,30 @@ function validTopicId(value, label) {
   return topicId;
 }
 
+function validTopicName(value, label) {
+  if (value === undefined || value === null) return null;
+  const name = String(value).trim();
+  if (!name || name.length > 128) throw new Error(`${label} is invalid`);
+  return name;
+}
+
 function validateForumTopicsConfig(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Forum topics config is invalid');
   const clients = validTopicId(input.clients, 'clients topic');
   const labor = validTopicId(input.labor, 'labor topic');
   if (labor === clients) throw new Error('Labor topic must differ from Clients topic');
+
+  const names = {};
+  const clientsName = validTopicName(input.names?.clients, 'clients topic name');
+  const laborName = validTopicName(input.names?.labor, 'labor topic name');
+  if (clientsName) names.clients = clientsName;
+  if (laborName) names.labor = laborName;
+
   return {
     version: Number(input.version || 1),
     clients,
     labor,
+    ...(Object.keys(names).length ? { names } : {}),
   };
 }
 
