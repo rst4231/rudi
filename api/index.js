@@ -23,7 +23,7 @@ const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
-const { handleFeedbackCallback } = require('./feedback-analytics.cjs');
+const { handleFeedbackCallback, cleanupLegacyFeedbackKeyboards } = require('./feedback-analytics.cjs');
 const { runWithPublicationContext } = require('./section-controls.cjs');
 const { recordEventSourceState } = require('./event-source-state.cjs');
 
@@ -157,7 +157,17 @@ async function handler(req, res) {
       try { const labor = await publishDailyLaborArticle(); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
     }
-    if (req.query?.route === 'health') return res.status(200).json(await buildHealthPayload());
+    if (req.query?.route === 'health') {
+      if (String(req.query?.cleanupFeedback || '') === '1') {
+        const feedbackCleanup = await cleanupLegacyFeedbackKeyboards({
+          token: resolveTelegramBotToken(process.env),
+          fetchImpl: nativeFetch,
+          env: process.env,
+        });
+        return res.status(200).json({ ok: true, feedbackCleanup });
+      }
+      return res.status(200).json(await buildHealthPayload());
+    }
     return await runRuntime(req, res);
   } catch (error) {
     console.error('RUDI_RUNTIME_ERROR', error);
