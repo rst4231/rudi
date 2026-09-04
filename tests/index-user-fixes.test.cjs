@@ -15,3 +15,8 @@ test('legacy product callbacks are no longer destructive', () => {
   assert.match(source, /acknowledgeLegacyProductsCallback/);
   assert.match(source, /products-chat-native/);
 });
+
+test('health route triggers one-time cleanup of legacy feedback keyboards', () => {
+  assert.match(source, /cleanupLegacyFeedbackKeyboards/);
+  assert.match(source, /RUDI_FEEDBACK_KEYBOARD_CLEANUP/);
+});
