@@ -15,6 +15,7 @@ const SOURCE_IDS = [
   'daily-content',
   'clients-advice',
 ];
+const KNOWN_FORUM_CHAT_ID = '-1004476323368';
 
 let topicNameSyncFlight = null;
 
@@ -73,8 +74,7 @@ async function syncForumTopicNamesSafe(options = {}) {
   if (!topicNameSyncFlight) {
     topicNameSyncFlight = (async () => {
       const cache = options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
-      const chatId = await getKnownForumChatId({ cache });
-      if (chatId === null) return null;
+      const chatId = await getKnownForumChatId({ cache }) || KNOWN_FORUM_CHAT_ID;
       return syncConfiguredForumTopicNames({
         token: resolveTelegramBotToken(options.env || process.env),
         chatId,

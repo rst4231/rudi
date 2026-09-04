@@ -1,7 +1,36 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildHealthPayload } = require('../api/control-plane-health.cjs');
+const { buildHealthPayload, syncForumTopicNamesSafe } = require('../api/control-plane-health.cjs');
 const settings = require('../config/rudi-settings.json');
+
+test('forum topic rename falls back to the known forum chat when cache is empty', async () => {
+  const calls = [];
+  await syncForumTopicNamesSafe({
+    cache: { async get() { return null; } },
+    env: { TELEGRAM_BOT_TOKEN: '1:test' },
+    configFetchImpl: async () => new Response(JSON.stringify({
+      version: 2,
+      clients: 126,
+      labor: 696,
+      names: { clients: 'Для Ди' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    fetchImpl: async (url, init) => {
+      calls.push({ url, body: JSON.parse(init.body) });
+      return new Response(JSON.stringify({ ok: true, result: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /editForumTopic$/);
+  assert.deepEqual(calls[0].body, {
+    chat_id: '-1004476323368',
+    message_thread_id: 126,
+    name: 'Для Ди',
+  });
+});
 
 test('health reports effective settings and omits removed venue rubric', async () => {
   const payload = await buildHealthPayload({
