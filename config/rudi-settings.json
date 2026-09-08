@@ -13,7 +13,7 @@
     "weekend": { "enabled": true }
   },
   "sources": {
-    "dailyContentConfigUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json",
+    "dailyContentConfigUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content-v3.json",
     "dailyContentSequenceUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content-sequence.json",
     "eventsConfigUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/events.json",
     "clientsAdviceConfigUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/clients-advice.json"
