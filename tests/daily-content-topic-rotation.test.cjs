@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const catalog = require('../config/daily-content-v3.json');
+const catalog = require('../config/daily-content.json');
 const sequence = require('../config/daily-content-sequence.json');
 const settings = require('../config/rudi-settings.json');
 
@@ -16,7 +16,7 @@ const EXPECTED_CYCLE = [
 ];
 
 test('Полезные факты чередуют семь тем без длинных тематических блоков', () => {
-  assert.equal(settings.sources.dailyContentConfigUrl, 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content-v3.json');
+  assert.equal(settings.sources.dailyContentConfigUrl, 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json');
   assert.equal(sequence.enabled, true);
   assert.equal(sequence.startDate, '2026-09-09');
   assert.equal(sequence.luluStartId, 'lulu-booties-fit');
