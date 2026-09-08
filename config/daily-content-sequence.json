@@ -1,9 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
   "enabled": true,
-  "startDate": "2026-08-30",
-  "factsStartId": "facts-sedentary",
-  "luluStartId": "lulu-weight-portions",
+  "startDate": "2026-09-09",
+  "factsStartId": "facts-rotation-sleep-consistency",
+  "luluStartId": "lulu-booties-fit",
   "retiredIds": [
     "facts-some-activity",
     "lulu-human-food"
