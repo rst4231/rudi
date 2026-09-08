@@ -1,0 +1,259 @@
+{
+  "version": 3,
+  "publishedIds": [
+    "facts-sleep-7h",
+    "facts-sleep-schedule",
+    "facts-morning-light",
+    "facts-sleep-activity",
+    "facts-activity-minimum",
+    "facts-strength-2days",
+    "lulu-teeth-daily",
+    "lulu-human-toothpaste",
+    "lulu-dental-signs",
+    "lulu-hard-chews",
+    "lulu-mouth-check",
+    "lulu-clean-water"
+  ],
+  "facts": [
+    {
+      "id": "facts-rotation-sleep-consistency",
+      "type": "facts",
+      "emoji": "🌙",
+      "category": "Сон",
+      "body": "Регулярное время сна и подъёма помогает поддерживать более стабильный режим. Практичнее сначала закрепить примерно одинаковое время подъёма каждый день, а уже от него выстраивать вечер.",
+      "sourceUrl": "https://www.cdc.gov/heart-disease/about/sleep-and-heart-health.html",
+      "sourceLabel": "CDC →"
+    },
+    {
+      "id": "facts-rotation-men-help-seeking",
+      "type": "facts",
+      "emoji": "🧠",
+      "category": "Психология мужчин",
+      "body": "Мужчины в среднем реже обращаются за психологической помощью, а следование жёстким установкам вроде «справлюсь сам» связано с ещё меньшей готовностью просить поддержку. Для женщины это значит: молчание мужчины не всегда означает, что помощь ему не нужна. Это средняя тенденция, а не правило для каждого человека.",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/40038563/",
+      "sourceLabel": "PubMed →"
+    },
+    {
+      "id": "facts-rotation-sugar-10pct",
+      "type": "facts",
+      "emoji": "🍬",
+      "category": "Питание",
+      "body": "ВОЗ рекомендует ограничивать свободные сахара уровнем менее 10% суточной энергии. К ним относятся не только добавленный сахар, но и сахара из мёда, сиропов, фруктовых соков и концентратов.",
+      "sourceUrl": "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-movement-150",
+      "type": "facts",
+      "emoji": "🏃",
+      "category": "Движение",
+      "body": "Для взрослых ВОЗ рекомендует 150–300 минут умеренной аэробной активности в неделю или 75–150 минут интенсивной. Этот объём можно набирать частями в разные дни, а не одной длинной тренировкой.",
+      "sourceUrl": "https://www.who.int/europe/news-room/fact-sheets/item/physical-activity",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-women-rumination",
+      "type": "facts",
+      "emoji": "💭",
+      "category": "Психология женщин",
+      "body": "Женщины в среднем немного чаще мужчин возвращаются мыслями к неприятной ситуации и прокручивают её снова. Для мужчины это значит: желание ещё раз обсудить переживание не обязательно является просьбой немедленно решить проблему. Различие небольшое и не описывает каждую женщину.",
+      "sourceUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3786159/",
+      "sourceLabel": "PubMed Central →"
+    },
+    {
+      "id": "facts-rotation-health-bp-silent",
+      "type": "facts",
+      "emoji": "🩺",
+      "category": "Здоровье",
+      "body": "Повышенное давление часто вообще не ощущается, поэтому самочувствие не показывает, всё ли с ним нормально. ВОЗ прямо указывает, что измерение давления — основной способ узнать о гипертонии.",
+      "sourceUrl": "https://www.who.int/news-room/fact-sheets/detail/hypertension",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-science-spacing",
+      "type": "facts",
+      "emoji": "🧪",
+      "category": "Наука",
+      "body": "Информация запоминается лучше, когда обучение распределено во времени и приходится самостоятельно извлекать ответ из памяти, а не только перечитывать материал. Поэтому несколько коротких повторений с самопроверкой обычно полезнее одной большой зубрёжки.",
+      "sourceUrl": "https://www.nature.com/articles/s44159-022-00089-1",
+      "sourceLabel": "Nature Reviews Psychology →"
+    },
+    {
+      "id": "facts-rotation-sleep-quality",
+      "type": "facts",
+      "emoji": "🛌",
+      "category": "Сон",
+      "body": "Для здорового сна важна не только его продолжительность, но и качество. Если времени в кровати достаточно, но утром регулярно нет ощущения восстановления, проблему нельзя сводить только к количеству часов.",
+      "sourceUrl": "https://www.cdc.gov/sleep/about/index.html",
+      "sourceLabel": "CDC →"
+    },
+    {
+      "id": "facts-rotation-men-depression-signs",
+      "type": "facts",
+      "emoji": "🧠",
+      "category": "Психология мужчин",
+      "body": "При депрессии мужчины в среднем чаще женщин сообщают о рискованном поведении, проблемах с контролем импульсов и злоупотреблении алкоголем или другими веществами. Для женщины это значит: ухудшение состояния не всегда выглядит как очевидная грусть. Это средняя тенденция и не правило для каждого мужчины.",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/28059934/",
+      "sourceLabel": "PubMed →"
+    },
+    {
+      "id": "facts-rotation-minimally-processed",
+      "type": "facts",
+      "emoji": "🥗",
+      "category": "Питание",
+      "body": "ВОЗ называет основой здорового рациона разнообразные натуральные и минимально переработанные продукты с низким содержанием свободных сахаров, натрия и нездоровых жиров. Полезнее улучшать основу обычного рациона, чем искать один «суперпродукт».",
+      "sourceUrl": "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-strength-2d",
+      "type": "facts",
+      "emoji": "💪",
+      "category": "Движение",
+      "body": "Помимо аэробной нагрузки, ВОЗ рекомендует взрослым силовые упражнения на основные группы мышц два или более дней в неделю. То есть для здоровья важно не только кардио, но и регулярная работа с сопротивлением.",
+      "sourceUrl": "https://www.who.int/europe/news-room/fact-sheets/item/physical-activity",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-women-emotion-recognition",
+      "type": "facts",
+      "emoji": "🙂",
+      "category": "Психология женщин",
+      "body": "В исследованиях женщины в среднем немного точнее мужчин распознают невербальные эмоциональные сигналы; метаанализ показал небольшой эффект. Для мужчины это не означает, что женщина «читает мысли»: сигналы всё равно могут быть поняты неверно. Это средняя тенденция, а не правило для каждой женщины.",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/24400860/",
+      "sourceLabel": "PubMed →"
+    },
+    {
+      "id": "facts-rotation-health-hearing",
+      "type": "facts",
+      "emoji": "🎧",
+      "category": "Здоровье",
+      "body": "Риск повреждения слуха зависит и от громкости, и от длительности воздействия. ВОЗ советует держать громкость личных аудиоустройств не выше примерно 60% от максимальной и делать перерывы от громкого звука.",
+      "sourceUrl": "https://www.who.int/news-room/questions-and-answers/item/deafness-and-hearing-loss-safe-listening",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-science-switch-cost",
+      "type": "facts",
+      "emoji": "🔄",
+      "category": "Наука",
+      "body": "Быстрое переключение между задачами имеет измеримую цену: после смены задачи ответы обычно становятся медленнее и нередко менее точными. Поэтому работа блоками без постоянных переключений может быть эффективнее ощущения «многозадачности».",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/12639695/",
+      "sourceLabel": "PubMed →"
+    },
+    {
+      "id": "facts-rotation-sleep-memory",
+      "type": "facts",
+      "emoji": "🧠",
+      "category": "Сон",
+      "body": "Сон участвует в закреплении недавно полученной информации в памяти. Поэтому после обучения нормальный сон — часть самого процесса запоминания, а не просто пауза между занятиями.",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/41260295/",
+      "sourceLabel": "PubMed →"
+    },
+    {
+      "id": "facts-rotation-men-action-support",
+      "type": "facts",
+      "emoji": "🎯",
+      "category": "Психология мужчин",
+      "body": "В работах о вовлечении мужчин в психологическую помощь лучше воспринимались совместный, понятный, ориентированный на действие и цель формат. Для женщины это значит: конкретное «давай решим, что можно сделать сейчас» иногда легче принять, чем абстрактное давление «тебе надо поговорить». Это средняя тенденция, а не правило для каждого мужчины.",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/30103643/",
+      "sourceLabel": "PubMed →"
+    },
+    {
+      "id": "facts-rotation-plant-protein",
+      "type": "facts",
+      "emoji": "🫘",
+      "category": "Питание",
+      "body": "ВОЗ отмечает, что для многих взрослых частичная замена животного белка растительными источниками может приносить пользу, особенно когда уменьшается доля красного мяса. Бобовые удобно использовать как один из таких источников.",
+      "sourceUrl": "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-activity-regular",
+      "type": "facts",
+      "emoji": "🚶",
+      "category": "Движение",
+      "body": "Физическая активность — это не только тренировка в зале: в рекомендации ВОЗ входят ходьба, велосипед, активный отдых, бытовая и рабочая активность. Регулярное движение в течение недели тоже вносит вклад в общий объём нагрузки.",
+      "sourceUrl": "https://www.who.int/europe/news-room/fact-sheets/item/physical-activity",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-women-empathy-nuance",
+      "type": "facts",
+      "emoji": "❤️",
+      "category": "Психология женщин",
+      "body": "Женщины в среднем часто оценивают себя как более эмпатичных, но в одном крупном исследовании объективные EEG-показатели не показали такого различия, а социальные ожидания влияли на самооценку. Для мужчины вывод простой: пол сам по себе плохо предсказывает эмпатию конкретного человека. Это средняя картина и не правило для каждой женщины.",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/36807483/",
+      "sourceLabel": "PubMed →"
+    },
+    {
+      "id": "facts-rotation-health-teeth-fluoride",
+      "type": "facts",
+      "emoji": "🦷",
+      "category": "Здоровье",
+      "body": "ВОЗ рекомендует чистить зубы два раза в день фторсодержащей пастой с концентрацией фтора 1000–1500 ppm. Такая привычка относится к базовой профилактике кариеса и болезней полости рта.",
+      "sourceUrl": "https://www.who.int/news-room/fact-sheets/detail/oral-health",
+      "sourceLabel": "ВОЗ →"
+    },
+    {
+      "id": "facts-rotation-science-habit-context",
+      "type": "facts",
+      "emoji": "🔁",
+      "category": "Наука",
+      "body": "Привычки формируются легче, когда одно и то же действие повторяется в стабильном контексте. Исследования показывают, что постоянные условия помогают поведению становиться более автоматическим, поэтому удобный одинаковый триггер часто важнее одной силы воли.",
+      "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/35756236/",
+      "sourceLabel": "PubMed →"
+    }
+  ],
+  "lulu": [
+    {
+      "id": "lulu-booties-fit",
+      "type": "lulu",
+      "title": "Ботинки должны сидеть плотно, но не давить",
+      "body": "Хорошо подобранные ботинки могут защищать лапы от соли, льда и холода. После первых прогулок стоит проверить, нет ли натирания и не изменился ли шаг Лулу.",
+      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
+    },
+    {
+      "id": "lulu-antifreeze",
+      "type": "lulu",
+      "title": "Антифриз особенно опасен",
+      "body": "Средства с этиленгликолем токсичны для животных даже в небольшом количестве. Любые проливы возле машины нужно убирать сразу, а при подозрении на проглатывание нужна срочная ветеринарная помощь.",
+      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
+    },
+    {
+      "id": "lulu-frozen-water",
+      "type": "lulu",
+      "title": "На лёд с собакой лучше не выходить",
+      "body": "Прочность льда трудно оценить по виду. Cornell советует не выводить собак на замёрзшие водоёмы, чтобы не рисковать провалом под лёд и переохлаждением.",
+      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
+    },
+    {
+      "id": "lulu-snow-between-toes",
+      "type": "lulu",
+      "title": "Снег может собираться между пальцами",
+      "body": "У собак снег и лёд иногда скатываются в плотные комочки между пальцами и мешают идти. Зимой полезно быстро проверять лапы прямо на прогулке, если Лулу внезапно начала прихрамывать.",
+      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
+    },
+    {
+      "id": "lulu-jacket-cold",
+      "type": "lulu",
+      "title": "Короткошёрстным собакам одежда может быть полезна",
+      "body": "Небольшие, пожилые и короткошёрстные собаки хуже переносят сильный холод. Подходящая куртка или свитер могут сделать короткую зимнюю прогулку комфортнее.",
+      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
+    },
+    {
+      "id": "lulu-toilet-routine",
+      "type": "lulu",
+      "title": "После туалета не всегда стоит сразу идти домой",
+      "body": "Если каждая прогулка заканчивается сразу после туалета, собака может начать откладывать его, чтобы дольше оставаться на улице. Иногда полезно ещё немного пройтись или поиграть после этого.",
+      "sourceUrl": "https://www.rspca.org.uk/adviceandwelfare/pets/dogs/training/toilettraining"
+    },
+    {
+      "id": "lulu-praise-timing",
+      "type": "lulu",
+      "title": "Награда работает лучше сразу",
+      "body": "Чтобы Лулу поняла, за что её хвалят, награда должна следовать сразу после нужного действия. Чем больше пауза, тем сложнее собаке связать результат со своим поведением.",
+      "sourceUrl": "https://www.rspca.org.uk/adviceandwelfare/pets/dogs/training/toilettraining"
+    }
+  ]
+}
