@@ -150,9 +150,11 @@ function deletePath(object, pathText) {
 async function loadRemoteSettings(options, fallback) {
   const fetchImpl = options.fetchImpl === undefined ? globalThis.fetch : options.fetchImpl;
   if (typeof fetchImpl !== 'function') return { value: fallback, source: 'bundled' };
-  const url = String(options.configUrl || process.env.RUDI_SETTINGS_CONFIG_URL || DEFAULT_CONFIG_URL).trim();
+  const urlText = String(options.configUrl || process.env.RUDI_SETTINGS_CONFIG_URL || DEFAULT_CONFIG_URL).trim();
   try {
-    const response = await fetchImpl(url, {
+    const url = new URL(urlText);
+    if (url.hostname === 'raw.githubusercontent.com') url.searchParams.set('_rudi', String(Date.now()));
+    const response = await fetchImpl(url.toString(), {
       headers: { 'user-agent': 'RUDI-Settings/1.0', accept: 'application/json' },
       cache: 'no-store',
     });
