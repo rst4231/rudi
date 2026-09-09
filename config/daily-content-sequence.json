@@ -4,8 +4,29 @@
   "startDate": "2026-09-09",
   "factsStartId": "facts-rotation-sleep-consistency",
   "luluStartId": "lulu-booties-fit",
+  "factsExhaustionPolicy": "suppress-until-replenished",
+  "factsWeekdays": {
+    "monday": "Здоровье",
+    "tuesday": "Наука",
+    "wednesday": "Сон",
+    "thursday": "Психология мужчин",
+    "friday": "Питание",
+    "saturday": "Движение",
+    "sunday": "Психология женщин"
+  },
   "retiredIds": [
     "facts-some-activity",
+    "facts-sedentary",
+    "facts-walking-heart",
+    "facts-walking-start-small",
+    "facts-fruitveg-400",
+    "facts-fiber-25",
+    "facts-frozen-veg",
+    "facts-juice-sugar",
+    "facts-whole-grains",
+    "facts-diet-diversity",
+    "facts-minimally-processed",
+    "facts-rotation-sleep-consistency",
     "lulu-human-food"
   ]
 }

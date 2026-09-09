@@ -6,6 +6,7 @@ const {
   LULU_TOPIC_ID,
   wrapDailyContentDedupe,
   formatCatalogEntry,
+  chooseSequencedEntry,
 } = require('../api/daily-content-dedupe.cjs');
 
 function fakeCache(initial = {}) {
@@ -28,6 +29,64 @@ function telegramResponse(result = { message_id: 777 }, status = 200) {
     headers: { 'content-type': 'application/json' },
   });
 }
+
+test('fact message includes one practical action before the source', () => {
+  const message = formatCatalogEntry({
+    id: 'facts-practical',
+    type: 'facts',
+    emoji: '🌙',
+    category: 'Сон',
+    body: 'Стабильное время подъёма помогает поддерживать режим сна.',
+    application: 'Поставьте один будильник на одинаковое время подъёма всю неделю.',
+    sourceUrl: 'https://example.com/sleep',
+    sourceLabel: 'Источник →',
+  });
+
+  assert.equal(message, [
+    '💡 <b>Полезные факты</b>',
+    '🌙 <b>Сон</b>',
+    '',
+    'Стабильное время подъёма помогает поддерживать режим сна.',
+    '',
+    '🧩 <b>Как использовать в жизни</b>',
+    'Поставьте один будильник на одинаковое время подъёма всю неделю.',
+    '',
+    '<a href="https://example.com/sleep">Источник →</a>',
+  ].join('\n'));
+});
+
+test('weekday schedule selects a fact by Moscow calendar day, not catalog position', () => {
+  const catalog = {
+    facts: [
+      { id: 'nutrition-1', type: 'facts', category: 'Питание', body: 'N1', sourceUrl: 'https://example.com/n1' },
+      { id: 'sleep-1', type: 'facts', category: 'Сон', body: 'S1', sourceUrl: 'https://example.com/s1' },
+      { id: 'science-1', type: 'facts', category: 'Наука', body: 'C1', sourceUrl: 'https://example.com/c1' },
+      { id: 'health-1', type: 'facts', category: 'Здоровье', body: 'H1', sourceUrl: 'https://example.com/h1' },
+      { id: 'sleep-2', type: 'facts', category: 'Сон', body: 'S2', sourceUrl: 'https://example.com/s2' },
+      { id: 'health-2', type: 'facts', category: 'Здоровье', body: 'H2', sourceUrl: 'https://example.com/h2' },
+    ],
+    sequence: {
+      startDate: '2026-09-09',
+      factsStartId: 'sleep-1',
+      luluStartId: 'lulu-1',
+      factsExhaustionPolicy: 'suppress-until-replenished',
+      factsWeekdays: {
+        monday: 'Здоровье',
+        tuesday: 'Наука',
+        wednesday: 'Сон',
+        thursday: 'Психология мужчин',
+        friday: 'Питание',
+        saturday: 'Движение',
+        sunday: 'Психология женщин',
+      },
+    },
+  };
+
+  assert.equal(chooseSequencedEntry(catalog, 'facts', '2026-09-09').replacement.entry.id, 'sleep-1');
+  assert.equal(chooseSequencedEntry(catalog, 'facts', '2026-09-14').replacement.entry.id, 'health-1');
+  assert.equal(chooseSequencedEntry(catalog, 'facts', '2026-09-16').replacement.entry.id, 'sleep-2');
+  assert.equal(chooseSequencedEntry(catalog, 'facts', '2026-09-21').replacement.entry.id, 'health-2');
+});
 
 test('facts duplicate is replaced with an unseen catalog fact and remembered', async () => {
   const duplicate = '💡 <b>Полезные факты</b>\n🌙 <b>Сон</b>\n\nПовтор.';

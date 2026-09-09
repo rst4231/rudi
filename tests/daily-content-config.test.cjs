@@ -49,6 +49,24 @@ test('catalog rejects duplicate IDs and malformed entries', () => {
   }), /duplicate content id/i);
 });
 
+test('version 4 catalog rejects a fact without practical application', () => {
+  assert.throws(() => validateCatalog({
+    version: 4,
+    facts: [{ id: 'fact', type: 'facts', category: 'A', body: 'A', sourceUrl: 'https://example.com/a' }],
+    lulu: [{ id: 'lulu', type: 'lulu', title: 'B', body: 'B', sourceUrl: 'https://example.com/b' }],
+  }), /application/i);
+});
+
+test('legacy version 3 catalog remains valid without practical application', () => {
+  const catalog = validateCatalog({
+    version: 3,
+    facts: [{ id: 'fact', type: 'facts', category: 'A', body: 'A', sourceUrl: 'https://example.com/a' }],
+    lulu: [{ id: 'lulu', type: 'lulu', title: 'B', body: 'B', sourceUrl: 'https://example.com/b' }],
+  });
+
+  assert.equal(catalog.facts[0].id, 'fact');
+});
+
 test('catalog preserves permanently published content ids', () => {
   const catalog = validateCatalog({
     version: 2,
@@ -68,10 +86,20 @@ test('catalog preserves and validates stable calendar sequence anchors', () => {
       startDate: '2026-08-30',
       factsStartId: 'facts-new',
       luluStartId: 'lulu-new',
+      factsExhaustionPolicy: 'suppress-until-replenished',
+      factsWeekdays: {
+        monday: 'A',
+        tuesday: 'B',
+        wednesday: 'A',
+        thursday: 'B',
+        friday: 'A',
+        saturday: 'B',
+        sunday: 'A',
+      },
     },
     facts: [
-      { id: 'facts-old', type: 'facts', category: 'A', body: 'A', sourceUrl: 'https://example.com/a' },
-      { id: 'facts-new', type: 'facts', category: 'B', body: 'B', sourceUrl: 'https://example.com/b' },
+      { id: 'facts-old', type: 'facts', category: 'A', body: 'A', application: 'Use A', sourceUrl: 'https://example.com/a' },
+      { id: 'facts-new', type: 'facts', category: 'B', body: 'B', application: 'Use B', sourceUrl: 'https://example.com/b' },
     ],
     lulu: [
       { id: 'lulu-old', type: 'lulu', title: 'A', body: 'A', sourceUrl: 'https://example.com/c' },
@@ -83,6 +111,16 @@ test('catalog preserves and validates stable calendar sequence anchors', () => {
     startDate: '2026-08-30',
     factsStartId: 'facts-new',
     luluStartId: 'lulu-new',
+    factsExhaustionPolicy: 'suppress-until-replenished',
+    factsWeekdays: {
+      monday: 'A',
+      tuesday: 'B',
+      wednesday: 'A',
+      thursday: 'B',
+      friday: 'A',
+      saturday: 'B',
+      sunday: 'A',
+    },
   });
 
   assert.throws(() => validateCatalog({

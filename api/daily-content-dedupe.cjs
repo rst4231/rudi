@@ -76,14 +76,21 @@ function formatCatalogEntry(entry) {
   if (!entry || typeof entry !== 'object') return '';
   if (entry.type === 'facts') {
     const label = String(entry.sourceLabel || 'Источник →').trim();
-    return [
+    const application = String(entry.application || '').trim();
+    const parts = [
       '💡 <b>Полезные факты</b>',
       `${String(entry.emoji || '💡').trim()} <b>${String(entry.category || 'Факт').trim()}</b>`,
       '',
       String(entry.body || '').trim(),
+    ];
+    if (application) {
+      parts.push('', '🧩 <b>Как использовать в жизни</b>', application);
+    }
+    parts.push(
       '',
       `<a href="${String(entry.sourceUrl || '').trim()}">${label}</a>`,
-    ].join('\n');
+    );
+    return parts.join('\n');
   }
   if (entry.type === 'lulu') {
     return [
@@ -160,6 +167,26 @@ function dateOffset(startDateKey, currentDateKey) {
   return Math.round((current - start) / DAY_MS);
 }
 
+const WEEKDAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function chooseWeekdayFact(entries, sequence, dateKey) {
+  const offset = dateOffset(sequence.startDate, dateKey);
+  if (!Number.isInteger(offset) || offset < 0) return null;
+
+  const start = new Date(`${sequence.startDate}T00:00:00.000Z`);
+  const current = new Date(`${dateKey}T00:00:00.000Z`);
+  const currentWeekday = current.getUTCDay();
+  const category = String(sequence.factsWeekdays?.[WEEKDAY_KEYS[currentWeekday]] || '').trim();
+  if (!category) return null;
+
+  const firstOccurrenceOffset = (currentWeekday - start.getUTCDay() + 7) % 7;
+  const occurrenceIndex = (offset - firstOccurrenceOffset) / 7;
+  if (!Number.isInteger(occurrenceIndex) || occurrenceIndex < 0) return null;
+
+  const categoryEntries = entries.filter((entry) => String(entry?.category || '').trim() === category);
+  return categoryEntries[occurrenceIndex] || null;
+}
+
 function chooseSequencedEntry(catalog, kind, dateKey, fingerprint = defaultFingerprint) {
   const sequence = catalog?.sequence;
   if (!sequence) return { enabled: false, replacement: null };
@@ -168,11 +195,15 @@ function chooseSequencedEntry(catalog, kind, dateKey, fingerprint = defaultFinge
   if (!Number.isInteger(offset) || offset < 0) return { enabled: true, replacement: null };
 
   const entries = Array.isArray(catalog?.[kind]) ? catalog[kind] : [];
-  const startId = kind === 'facts' ? sequence.factsStartId : sequence.luluStartId;
-  const startIndex = entries.findIndex((entry) => String(entry?.id || '') === String(startId || ''));
-  if (startIndex < 0) return { enabled: true, replacement: null };
-
-  const entry = entries[startIndex + offset];
+  let entry = null;
+  if (kind === 'facts' && sequence.factsWeekdays) {
+    entry = chooseWeekdayFact(entries, sequence, dateKey);
+  } else {
+    const startId = kind === 'facts' ? sequence.factsStartId : sequence.luluStartId;
+    const startIndex = entries.findIndex((candidate) => String(candidate?.id || '') === String(startId || ''));
+    if (startIndex < 0) return { enabled: true, replacement: null };
+    entry = entries[startIndex + offset];
+  }
   if (!entry) return { enabled: true, replacement: null };
   const message = formatCatalogEntry(entry);
   if (!message) return { enabled: true, replacement: null };

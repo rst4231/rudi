@@ -5,6 +5,7 @@ const { recordSourceHealth } = require('./source-health.cjs');
 const DEFAULT_CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json';
 const DEFAULT_SEQUENCE_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content-sequence.json';
 const DEFAULT_CACHE_MS = 5 * 60 * 1000;
+const FACTS_WEEKDAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const localConfigPath = path.join(__dirname, '..', 'config', 'daily-content.json');
 const localSequencePath = path.join(__dirname, '..', 'config', 'daily-content-sequence.json');
 
@@ -16,12 +17,15 @@ function assertHttpUrl(value, label) {
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error(`${label} must use http or https`);
 }
 
-function validateEntry(entry, expectedType) {
+function validateEntry(entry, expectedType, options = {}) {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`Invalid ${expectedType} content entry`);
   if (String(entry.type || '') !== expectedType) throw new Error(`Content entry ${entry.id || '<unknown>'} must have type ${expectedType}`);
   if (!String(entry.id || '').trim()) throw new Error('Content entry is missing id');
   if (!String(entry.body || '').trim()) throw new Error(`Content entry ${entry.id} is missing body`);
   if (expectedType === 'facts' && !String(entry.category || '').trim()) throw new Error(`Fact ${entry.id} is missing category`);
+  if (expectedType === 'facts' && options.requireApplication && !String(entry.application || '').trim()) {
+    throw new Error(`Fact ${entry.id} is missing application`);
+  }
   if (expectedType === 'lulu' && !String(entry.title || '').trim()) throw new Error(`Lulu entry ${entry.id} is missing title`);
   assertHttpUrl(entry.sourceUrl, `sourceUrl for ${entry.id}`);
   return entry;
@@ -43,6 +47,22 @@ function validDateKey(value) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === text;
 }
 
+function validateFactsWeekdays(input, facts) {
+  if (input === undefined || input === null) return null;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('sequence.factsWeekdays must be an object');
+  }
+  const result = {};
+  const categories = new Set(facts.map((entry) => String(entry.category || '').trim()));
+  for (const weekday of FACTS_WEEKDAY_KEYS) {
+    const category = String(input[weekday] || '').trim();
+    if (!category) throw new Error(`sequence.factsWeekdays.${weekday} is required`);
+    if (!categories.has(category)) throw new Error(`sequence.factsWeekdays.${weekday} must reference a facts category`);
+    result[weekday] = category;
+  }
+  return result;
+}
+
 function validateSequence(input, facts, lulu) {
   if (input === undefined || input === null) return null;
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('sequence must be an object');
@@ -52,7 +72,18 @@ function validateSequence(input, facts, lulu) {
   if (!validDateKey(startDate)) throw new Error('sequence.startDate must be YYYY-MM-DD');
   if (!factsStartId || !facts.some((entry) => String(entry.id) === factsStartId)) throw new Error('sequence.factsStartId must reference a facts entry');
   if (!luluStartId || !lulu.some((entry) => String(entry.id) === luluStartId)) throw new Error('sequence.luluStartId must reference a Lulu entry');
-  return { startDate, factsStartId, luluStartId };
+  const factsWeekdays = validateFactsWeekdays(input.factsWeekdays, facts);
+  const factsExhaustionPolicy = String(input.factsExhaustionPolicy || '').trim();
+  if (factsWeekdays && factsExhaustionPolicy !== 'suppress-until-replenished') {
+    throw new Error('sequence.factsExhaustionPolicy must be suppress-until-replenished');
+  }
+  return {
+    startDate,
+    factsStartId,
+    luluStartId,
+    ...(factsWeekdays ? { factsExhaustionPolicy } : {}),
+    ...(factsWeekdays ? { factsWeekdays } : {}),
+  };
 }
 
 function applySequenceState(baseConfig, state) {
@@ -66,13 +97,18 @@ function applySequenceState(baseConfig, state) {
     startDate: String(state.startDate || '').trim(),
     factsStartId: String(state.factsStartId || '').trim(),
     luluStartId: String(state.luluStartId || '').trim(),
+    ...(state.factsExhaustionPolicy ? { factsExhaustionPolicy: String(state.factsExhaustionPolicy).trim() } : {}),
+    ...(state.factsWeekdays ? { factsWeekdays: structuredClone(state.factsWeekdays) } : {}),
   } : null;
   return { ...baseConfig, publishedIds, sequence };
 }
 
 function validateCatalog(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Daily content catalog is invalid');
-  const facts = Array.isArray(input.facts) ? input.facts.map((entry) => validateEntry(entry, 'facts')) : [];
+  const version = Number(input.version || 1);
+  const facts = Array.isArray(input.facts)
+    ? input.facts.map((entry) => validateEntry(entry, 'facts', { requireApplication: version >= 4 }))
+    : [];
   const lulu = Array.isArray(input.lulu) ? input.lulu.map((entry) => validateEntry(entry, 'lulu')) : [];
   const publishedIds = validatePublishedIds(input.publishedIds);
   const seen = new Set();
@@ -84,7 +120,7 @@ function validateCatalog(input) {
   if (!facts.length) throw new Error('Daily content catalog has no facts');
   if (!lulu.length) throw new Error('Daily content catalog has no Lulu entries');
   const sequence = validateSequence(input.sequence, facts, lulu);
-  return { version: Number(input.version || 1), publishedIds, sequence, facts, lulu };
+  return { version, publishedIds, sequence, facts, lulu };
 }
 
 function readBundledConfig() { return JSON.parse(fs.readFileSync(localConfigPath, 'utf8')); }
