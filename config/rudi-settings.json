@@ -6,7 +6,7 @@
     "holidays": { "enabled": true, "topicId": 44 },
     "facts": { "enabled": true, "topicId": 72 },
     "lulu": { "enabled": true, "topicId": 85 },
-    "recipes": { "enabled": true, "topicId": 88 },
+    "recipes": { "enabled": false, "topicId": 88 },
     "clients": { "enabled": true, "topicId": 126 },
     "cinema": { "enabled": true },
     "labor": { "enabled": true },
