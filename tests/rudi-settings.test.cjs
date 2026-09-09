@@ -95,3 +95,23 @@ test('non-http source URLs are rejected', () => {
 test('unknown top-level keys are rejected', () => {
   assert.throws(() => validateRudiSettings({ ...baseSettings(), surprise: true }), /unknown/i);
 });
+
+test('default raw GitHub settings fetch bypasses stale CDN cache', async () => {
+  const remote = baseSettings();
+  remote.sections.recipes.enabled = false;
+  let requestedUrl = '';
+
+  const loaded = await loadRudiSettings({
+    localConfig: baseSettings(),
+    cache: memoryCache(),
+    fetchImpl: async (url) => {
+      requestedUrl = String(url);
+      return { ok: true, async json() { return remote; } };
+    },
+  });
+
+  const parsed = new URL(requestedUrl);
+  assert.equal(parsed.hostname, 'raw.githubusercontent.com');
+  assert.equal(parsed.searchParams.has('_rudi'), true);
+  assert.equal(loaded.settings.sections.recipes.enabled, false);
+});
