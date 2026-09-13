@@ -16,10 +16,13 @@ test('admin page opens directly and calls API without credentials', () => {
   assert.match(source, /window\.confirm/);
 });
 
-test('vercel exposes /admin without enabling Git deployments or changing cron', () => {
+test('vercel exposes /admin without enabling Git deployments or changing existing daily cron', () => {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   assert.equal(config.git?.deploymentEnabled, false);
-  assert.deepEqual(config.crons, [{ path: '/api/daily', schedule: '30 21 * * *' }]);
+  assert.deepEqual(config.crons, [
+    { path: '/api/daily', schedule: '30 21 * * *' },
+    { path: '/api/stylist-leads-cron', schedule: '0 4 * * *' },
+  ]);
   assert.ok(config.rewrites.some((row) => row.source === '/admin' && row.destination === '/admin.html'));
 });
 
