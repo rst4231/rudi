@@ -212,3 +212,17 @@ test('scoreStylistLead accepts externally configured phrases and respects extern
   });
   assert.equal(blocked.score, 0);
 });
+
+test('runStylistLeads does not send a false empty notice when every source failed', async () => {
+  const config = { version: 1, enabled: true, topicId: 126, lookbackHours: 30, maxLeadsPerRun: 5, sendEmpty: true, sources: [{ id: 'a', handle: 'a', title: 'A' }, { id: 'b', handle: 'b', title: 'B' }] };
+  const sent = [];
+  await assert.rejects(() => api.runStylistLeads({
+    now: new Date('2026-09-13T04:00:00Z'),
+    config,
+    cache: { async get() { return null; }, async set() { return true; } },
+    chatId: '-1001234567890',
+    scanImpl: async () => ({ posts: [], errors: [{ source: config.sources[0], error: 'HTTP 500' }, { source: config.sources[1], error: 'HTTP 500' }], sourcesChecked: 2 }),
+    sendMessage: async (payload) => { sent.push(payload); },
+  }), /all stylist lead sources failed/i);
+  assert.equal(sent.length, 0);
+});
