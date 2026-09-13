@@ -30,8 +30,143 @@ function htmlAttribute(tag, name) {
   return match ? decodeHtml(match[1]).trim() : '';
 }
 
+function isYandexAfishaEventUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' && url.hostname === 'afisha.yandex.ru';
+  } catch {
+    return false;
+  }
+}
+
+function plainHtmlText(value) {
+  return decodeHtml(String(value || '').replace(/<[^>]*>/gu, ' ')).replace(/\s+/gu, ' ').trim();
+}
+
+function normalizedImageLabel(value) {
+  return plainHtmlText(value).toLocaleLowerCase('ru-RU').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+function yandexPageTitle(source) {
+  const h1 = String(source || '').match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/iu);
+  if (h1) return plainHtmlText(h1[1]);
+  for (const tagMatch of String(source || '').matchAll(/<meta\b[^>]*>/giu)) {
+    const tag = tagMatch[0];
+    const key = (htmlAttribute(tag, 'property') || htmlAttribute(tag, 'name')).toLowerCase();
+    if (!['og:title', 'twitter:title'].includes(key)) continue;
+    const title = plainHtmlText(htmlAttribute(tag, 'content'));
+    if (title) return title;
+  }
+  const title = String(source || '').match(/<title\b[^>]*>([\s\S]*?)<\/title>/iu);
+  return title ? plainHtmlText(title[1]) : '';
+}
+
+function srcsetUrls(value, baseUrl) {
+  return String(value || '')
+    .split(',')
+    .map((entry) => safeHttpUrl(entry.trim().split(/\s+/u)[0], baseUrl))
+    .filter(Boolean);
+}
+
+function jsonLdImageUrls(source, pageUrl) {
+  const urls = [];
+  const collect = (value) => {
+    if (typeof value === 'string') {
+      const resolved = safeHttpUrl(value, pageUrl);
+      if (resolved) urls.push(resolved);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(collect);
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    if (typeof value.url === 'string') collect(value.url);
+    if (typeof value.contentUrl === 'string') collect(value.contentUrl);
+  };
+
+  for (const match of String(source || '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/giu)) {
+    const tag = `<script ${match[1]}>`;
+    if (htmlAttribute(tag, 'type').toLowerCase() !== 'application/ld+json') continue;
+    try {
+      const parsed = JSON.parse(decodeHtml(match[2]).trim());
+      const visit = (value) => {
+        if (Array.isArray(value)) {
+          value.forEach(visit);
+          return;
+        }
+        if (!value || typeof value !== 'object') return;
+        for (const [key, child] of Object.entries(value)) {
+          if (['image', 'thumbnailurl', 'contenturl'].includes(key.toLowerCase())) collect(child);
+          if (child && typeof child === 'object') visit(child);
+        }
+      };
+      visit(parsed);
+    } catch {}
+  }
+  return urls;
+}
+
+function yandexImageScore(url, details = {}) {
+  let parsed;
+  try { parsed = new URL(url); } catch { return -Infinity; }
+  const text = `${parsed.hostname}${parsed.pathname}${parsed.search}`.toLowerCase();
+  if (/(?:logo|favicon|sprite|icon|social[-_]?card|share[-_]?card)/u.test(text)) return -1000;
+
+  let score = 0;
+  if (parsed.hostname === 'avatars.mds.yandex.net') score += 80;
+  if (/\/get-afishanew\//u.test(parsed.pathname)) score += 80;
+  if (details.fromJsonLd) score += 70;
+  if (details.fromImageTag) score += 30;
+  if (details.fromSourceTag) score += 20;
+
+  const alt = normalizedImageLabel(details.alt);
+  const title = normalizedImageLabel(details.pageTitle);
+  if (alt.length >= 3) score += 20;
+  if (alt && title && (alt.includes(title) || title.includes(alt))) score += 60;
+  if (/(?:yastatic\.net|favicon|logo|sprite)/u.test(text)) score -= 120;
+  return score;
+}
+
+function extractYandexAfishaContentImage(source, pageUrl) {
+  const pageTitle = yandexPageTitle(source);
+  const candidates = [];
+  const seen = new Set();
+  const add = (url, details = {}) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    candidates.push({ url, score: yandexImageScore(url, { ...details, pageTitle }) });
+  };
+
+  for (const url of jsonLdImageUrls(source, pageUrl)) add(url, { fromJsonLd: true });
+
+  for (const tagMatch of String(source || '').matchAll(/<img\b[^>]*>/giu)) {
+    const tag = tagMatch[0];
+    const alt = htmlAttribute(tag, 'alt');
+    const direct = htmlAttribute(tag, 'data-src') || htmlAttribute(tag, 'data-original') || htmlAttribute(tag, 'src');
+    add(safeHttpUrl(direct, pageUrl), { fromImageTag: true, alt });
+    for (const url of srcsetUrls(htmlAttribute(tag, 'srcset') || htmlAttribute(tag, 'data-srcset'), pageUrl)) {
+      add(url, { fromImageTag: true, alt });
+    }
+  }
+
+  for (const tagMatch of String(source || '').matchAll(/<source\b[^>]*>/giu)) {
+    const tag = tagMatch[0];
+    for (const url of srcsetUrls(htmlAttribute(tag, 'srcset') || htmlAttribute(tag, 'data-srcset'), pageUrl)) {
+      add(url, { fromSourceTag: true });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.score >= 80 ? candidates[0].url : null;
+}
+
 function extractPosterUrl(html, pageUrl) {
   const source = String(html || '');
+  if (isYandexAfishaEventUrl(pageUrl)) {
+    const contentImage = extractYandexAfishaContentImage(source, pageUrl);
+    if (contentImage) return contentImage;
+  }
   for (const tagMatch of source.matchAll(/<meta\b[^>]*>/giu)) {
     const tag = tagMatch[0];
     const key = (htmlAttribute(tag, 'property') || htmlAttribute(tag, 'name')).toLowerCase();
@@ -59,15 +194,6 @@ function extractEventLinks(text) {
     links.push(url);
   }
   return links;
-}
-
-function isYandexAfishaEventUrl(value) {
-  try {
-    const url = new URL(String(value || ''));
-    return url.protocol === 'https:' && url.hostname === 'afisha.yandex.ru';
-  } catch {
-    return false;
-  }
 }
 
 function isConcertDigestText(text) {
@@ -190,29 +316,44 @@ async function buildEventCollage(images, options = {}) {
   const tileWidth = Math.max(120, Number(options.tileWidth || 480));
   const tileHeight = Math.max(180, Number(options.tileHeight || 680));
   const gap = Math.max(0, Number(options.gap ?? 8));
+  const fit = options.fit === 'cover' ? 'cover' : 'contain';
+  const position = String(options.position || 'centre');
+  const background = String(options.background || '#111111');
   const { columns, rows } = collageGrid(items.length);
   const width = columns * tileWidth + Math.max(0, columns - 1) * gap;
   const height = rows * tileHeight + Math.max(0, rows - 1) * gap;
 
   const tiles = await Promise.all(items.map((image) => sharp(image)
     .rotate()
-    .resize(tileWidth, tileHeight, { fit: 'contain', position: 'centre', background: '#111111' })
+    .resize(tileWidth, tileHeight, { fit, position, background })
     .jpeg({ quality: 86, chromaSubsampling: '4:4:4' })
     .toBuffer()));
+
+  const composite = [];
+  for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+    const startIndex = rowIndex * columns;
+    const countInRow = Math.min(columns, tiles.length - startIndex);
+    const rowWidth = countInRow * tileWidth + Math.max(0, countInRow - 1) * gap;
+    const rowLeft = Math.round((width - rowWidth) / 2);
+    for (let columnIndex = 0; columnIndex < countInRow; columnIndex += 1) {
+      const index = startIndex + columnIndex;
+      composite.push({
+        input: tiles[index],
+        left: rowLeft + columnIndex * (tileWidth + gap),
+        top: rowIndex * (tileHeight + gap),
+      });
+    }
+  }
 
   return sharp({
     create: {
       width,
       height,
       channels: 3,
-      background: '#111111',
+      background,
     },
   })
-    .composite(tiles.map((input, index) => ({
-      input,
-      left: (index % columns) * (tileWidth + gap),
-      top: Math.floor(index / columns) * (tileHeight + gap),
-    })))
+    .composite(composite)
     .jpeg({ quality: 86, chromaSubsampling: '4:4:4', mozjpeg: true })
     .toBuffer();
 }
@@ -225,14 +366,26 @@ function telegramPayload(init = {}) {
   return null;
 }
 
+function concertCollageOptions(options = {}) {
+  return {
+    ...options,
+    tileWidth: options.tileWidth || 480,
+    tileHeight: options.tileHeight || 360,
+    gap: options.gap ?? 4,
+    fit: options.fit || 'cover',
+    position: options.position || 'attention',
+  };
+}
+
 async function maybeSendEventCollage(input, init = {}, options = {}) {
   const url = typeof input === 'string' || input instanceof URL ? String(input) : input?.url || '';
   if (!/api\.telegram\.org\/bot[^/]+\/sendMessage(?:\?|$)/u.test(url)) return null;
 
   const payload = telegramPayload(init);
   if (!payload || !isEventDigestText(payload.text)) return null;
+  const isConcert = isConcertDigestText(payload.text);
   let eventLinks = extractEventLinks(payload.text);
-  if (isConcertDigestText(payload.text)) eventLinks = eventLinks.filter(isYandexAfishaEventUrl);
+  if (isConcert) eventLinks = eventLinks.filter(isYandexAfishaEventUrl);
   eventLinks = eventLinks.slice(0, MAX_POSTERS);
   if (!eventLinks.length) return null;
 
@@ -252,7 +405,7 @@ async function maybeSendEventCollage(input, init = {}, options = {}) {
   if (!posters.length) return null;
 
   const caption = fitEventCaption(payload.text);
-  const image = await buildEventCollage(posters, options);
+  const image = await buildEventCollage(posters, isConcert ? concertCollageOptions(options) : options);
   const body = new FormData();
   body.set('chat_id', String(payload.chat_id));
   if (payload.message_thread_id !== undefined && payload.message_thread_id !== null) {
