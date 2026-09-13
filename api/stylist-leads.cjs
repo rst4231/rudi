@@ -94,6 +94,11 @@ async function runStylistLeads(options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const scanImpl = options.scanImpl || scanStylistSources;
   const scan = await scanImpl(config, { ...options, now });
+  const sourcesChecked = Number(scan.sourcesChecked || 0);
+  const sourceErrors = Array.isArray(scan.errors) ? scan.errors.length : 0;
+  if (sourcesChecked > 0 && sourceErrors >= sourcesChecked) {
+    throw new Error('All stylist lead sources failed');
+  }
   const lookbackHours = Math.max(1, Number(config.lookbackHours || 30));
   const prefiltered = await filterFreshLeads(scan.posts || [], { now, lookbackHours, seenFingerprints: new Set(), matching: config.matching || {} });
   const cache = getStylistLeadsCache(options);
@@ -139,8 +144,8 @@ async function runStylistLeads(options = {}) {
   }
   return {
     ok: true,
-    sourcesChecked: Number(scan.sourcesChecked || 0),
-    sourceErrors: Array.isArray(scan.errors) ? scan.errors.length : 0,
+    sourcesChecked,
+    sourceErrors,
     postsScanned: Array.isArray(scan.posts) ? scan.posts.length : 0,
     matchingCandidates: prefiltered.length,
     leadsSent,
