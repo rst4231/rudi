@@ -13,6 +13,9 @@
     },
     "api/admin.js": {
       "maxDuration": 300
+    },
+    "api/stylist-leads-cron.js": {
+      "maxDuration": 300
     }
   },
   "rewrites": [
@@ -49,6 +52,10 @@
     {
       "path": "/api/daily",
       "schedule": "30 21 * * *"
+    },
+    {
+      "path": "/api/stylist-leads-cron",
+      "schedule": "0 4 * * *"
     }
   ]
 }
