@@ -10,7 +10,7 @@
     "clients": { "enabled": true, "topicId": 126 },
     "cinema": { "enabled": true },
     "labor": { "enabled": true },
-    "weekend": { "enabled": true }
+    "weekend": { "enabled": false }
   },
   "sources": {
     "dailyContentConfigUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json",

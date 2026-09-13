@@ -6,12 +6,85 @@ function withStageEventFetch(options = {}) {
   return { ...options, fetchImpl: wrapStageEventFetch(fetchImpl) };
 }
 
+function isNumberedEventLine(line) {
+  return /^(?:<[^>]+>\s*)*\d+\.\s/u.test(String(line || '').trimStart());
+}
+
+function normalizeStageLocationLine(line) {
+  const value = String(line || '').trim();
+  const match = value.match(/^(📍\s*Stage StandUp Club)\s*\|\s*[^,|]+(?:\s*\|\s*)?,?\s*(.+)$/iu);
+  if (!match) return value;
+  const address = String(match[2] || '').replace(/^[,|\s]+/u, '').trim();
+  return address ? `${match[1]}, ${address}` : match[1];
+}
+
+function sanitizeStageDigestText(text) {
+  const source = String(text || '');
+  if (!base.isStageDigestText(source)) return source;
+
+  const lines = source.replace(/\r\n?/gu, '\n').split('\n');
+  const locationLine = lines.find((line) => /^📍\s*Stage StandUp Club/iu.test(line.trim()));
+  const location = locationLine ? normalizeStageLocationLine(locationLine) : '';
+  const output = [];
+  let locationInserted = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^💳/u.test(trimmed)) continue;
+    if (/^📍\s*Stage StandUp Club/iu.test(trimmed)) continue;
+    if (!locationInserted && location && isNumberedEventLine(trimmed)) {
+      output.push(location);
+      locationInserted = true;
+    }
+    output.push(line);
+  }
+
+  if (location && !locationInserted) output.push(location);
+  return output.join('\n');
+}
+
+function sanitizeStageTelegramRequest(init = {}) {
+  if (typeof init.body === 'string') {
+    try {
+      const payload = JSON.parse(init.body);
+      if (!base.isStageDigestText(payload?.text)) return init;
+      const text = sanitizeStageDigestText(payload.text);
+      if (text === payload.text) return init;
+      return { ...init, body: JSON.stringify({ ...payload, text }) };
+    } catch {
+      return init;
+    }
+  }
+  if (init.body instanceof URLSearchParams) {
+    const text = init.body.get('text');
+    if (!base.isStageDigestText(text)) return init;
+    const sanitized = sanitizeStageDigestText(text);
+    if (sanitized === text) return init;
+    const body = new URLSearchParams(init.body);
+    body.set('text', sanitized);
+    return { ...init, body };
+  }
+  return init;
+}
+
+function compactEventCaption(text) {
+  return base.compactEventCaption(sanitizeStageDigestText(text));
+}
+
+function compactEventTelegramRequest(init = {}) {
+  return base.compactEventTelegramRequest(sanitizeStageTelegramRequest(init));
+}
+
+function fitEventCaption(text, maxVisible) {
+  return base.fitEventCaption(sanitizeStageDigestText(text), maxVisible);
+}
+
 async function fetchEventPoster(pageUrl, options = {}) {
   return base.fetchEventPoster(pageUrl, withStageEventFetch(options));
 }
 
 async function maybeSendEventCollage(input, init = {}, options = {}) {
-  return base.maybeSendEventCollage(input, init, withStageEventFetch(options));
+  return base.maybeSendEventCollage(input, sanitizeStageTelegramRequest(init), withStageEventFetch(options));
 }
 
 async function responseJson(response) {
@@ -65,6 +138,10 @@ async function replaceEventMessage(options = {}) {
 
 module.exports = {
   ...base,
+  sanitizeStageDigestText,
+  compactEventCaption,
+  compactEventTelegramRequest,
+  fitEventCaption,
   fetchEventPoster,
   maybeSendEventCollage,
   replaceEventMessage,
