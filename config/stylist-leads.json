@@ -8,6 +8,24 @@
   "maxPagesPerSource": 3,
   "concurrency": 5,
   "sendEmpty": true,
+  "webSearch": {
+    "enabled": true,
+    "provider": "tavily",
+    "searchDepth": "basic",
+    "timeRange": "day",
+    "lookbackHours": 24,
+    "maxResults": 8,
+    "maxQueries": 6,
+    "priority": 80,
+    "queries": [
+      "Санкт-Петербург ищу стилиста по одежде гардероб",
+      "СПб нужен стилист по одежде разбор гардероба",
+      "Петербург посоветуйте персонального стилиста одежда",
+      "Санкт-Петербург нужна помощь разобрать гардероб подобрать вещи",
+      "СПб шопинг сопровождение нужен стилист",
+      "Петербург не знаю что носить как сочетать вещи стилист"
+    ]
+  },
   "matching": {
     "positivePhrases": [
       "ищу стилиста",
