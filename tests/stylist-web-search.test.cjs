@@ -1,8 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-let api = {};
-try { api = require('../api/stylist-leads.cjs'); } catch {}
+let webApi = {};
+try { webApi = require('../api/stylist-web-search.cjs'); } catch {}
 
 function tavilyResponse(results = []) {
   return new Response(JSON.stringify({
@@ -16,7 +16,7 @@ function tavilyResponse(results = []) {
 }
 
 test('scanTavilyStylistLeads uses a basic 24h search and maps fresh web results', async () => {
-  assert.equal(typeof api.scanTavilyStylistLeads, 'function');
+  assert.equal(typeof webApi.scanTavilyStylistLeads, 'function');
   const calls = [];
   const config = {
     webSearch: {
@@ -27,7 +27,7 @@ test('scanTavilyStylistLeads uses a basic 24h search and maps fresh web results'
       queries: ['Санкт-Петербург ищу стилиста по одежде'],
     },
   };
-  const result = await api.scanTavilyStylistLeads(config, {
+  const result = await webApi.scanTavilyStylistLeads(config, {
     env: { TAVILY_API_KEY: 'test-key' },
     now: new Date('2026-09-13T10:00:00Z'),
     tavilyFetchImpl: async (url, init) => {
@@ -62,7 +62,7 @@ test('scanTavilyStylistLeads uses a basic 24h search and maps fresh web results'
 });
 
 test('scanTavilyStylistLeads isolates a failed query and keeps healthy query results', async () => {
-  assert.equal(typeof api.scanTavilyStylistLeads, 'function');
+  assert.equal(typeof webApi.scanTavilyStylistLeads, 'function');
   const config = {
     webSearch: {
       enabled: true,
@@ -71,7 +71,7 @@ test('scanTavilyStylistLeads isolates a failed query and keeps healthy query res
     },
   };
   let call = 0;
-  const result = await api.scanTavilyStylistLeads(config, {
+  const result = await webApi.scanTavilyStylistLeads(config, {
     env: { TAVILY_API_KEY: 'test-key' },
     now: new Date('2026-09-13T10:00:00Z'),
     tavilyFetchImpl: async () => {
@@ -93,7 +93,7 @@ test('scanTavilyStylistLeads isolates a failed query and keeps healthy query res
 });
 
 test('scanAllStylistSources combines Telegram and web search without making one depend on the other', async () => {
-  assert.equal(typeof api.scanAllStylistSources, 'function');
+  assert.equal(typeof webApi.scanAllStylistSources, 'function');
   const telegramPost = {
     source: { id: 'tg', title: 'Telegram', priority: 100 },
     id: '1',
@@ -108,7 +108,7 @@ test('scanAllStylistSources combines Telegram and web search without making one 
     datetime: '2026-09-13T09:00:00Z',
     link: 'https://example.test/2',
   };
-  const result = await api.scanAllStylistSources({ webSearch: { enabled: true } }, {
+  const result = await webApi.scanAllStylistSources({ webSearch: { enabled: true } }, {
     telegramScanImpl: async () => ({ posts: [telegramPost], errors: [], sourcesChecked: 1 }),
     webScanImpl: async () => ({ posts: [webPost], errors: [{ source: { id: 'web-q2' }, error: 'failed' }], sourcesChecked: 2 }),
   });
@@ -119,7 +119,7 @@ test('scanAllStylistSources combines Telegram and web search without making one 
 });
 
 test('scanAllStylistSources keeps Telegram working when Tavily key is missing', async () => {
-  assert.equal(typeof api.scanAllStylistSources, 'function');
+  assert.equal(typeof webApi.scanAllStylistSources, 'function');
   const telegramPost = {
     source: { id: 'tg', title: 'Telegram', priority: 100 },
     id: '1',
@@ -127,7 +127,7 @@ test('scanAllStylistSources keeps Telegram working when Tavily key is missing', 
     datetime: '2026-09-13T08:00:00Z',
     link: 'https://t.me/test/1',
   };
-  const result = await api.scanAllStylistSources({
+  const result = await webApi.scanAllStylistSources({
     webSearch: { enabled: true, queries: ['query one'] },
     sources: [],
   }, {
@@ -141,37 +141,16 @@ test('scanAllStylistSources keeps Telegram working when Tavily key is missing', 
   assert.match(result.errors[0].error, /TAVILY_API_KEY/i);
 });
 
-test('filterFreshLeads rejects generic web service advertising without client intent', async () => {
-  assert.equal(typeof api.filterFreshLeads, 'function');
-  const posts = [{
-    source: { id: 'web', title: 'Интернет', priority: 80, kind: 'web' },
-    id: 'offer',
-    text: 'Услуги стилиста в Санкт-Петербурге. Разбор гардероба, шопинг-сопровождение, подбор образов. Запись открыта.',
-    datetime: '2026-09-13T09:00:00Z',
-    link: 'https://example.test/stylist-service',
-  }];
-  const leads = await api.filterFreshLeads(posts, {
-    now: new Date('2026-09-13T10:00:00Z'),
-    lookbackHours: 30,
-    seenFingerprints: new Set(),
-  });
-  assert.equal(leads.length, 0);
+test('web client-intent filter rejects generic stylist service advertising', () => {
+  assert.equal(typeof webApi.isLikelyWebClientIntent, 'function');
+  const text = 'Услуги стилиста в Санкт-Петербурге. Разбор гардероба, шопинг-сопровождение, подбор образов. Запись открыта.';
+  assert.equal(webApi.isLikelyWebClientIntent(text), false);
 });
 
-test('filterFreshLeads accepts web pain-language that signals a real client need', async () => {
-  const posts = [{
-    source: { id: 'web', title: 'Интернет', priority: 80, kind: 'web' },
-    id: 'need',
-    text: 'Петербург. Не знаю что носить и как сочетать вещи, нужна помощь разобрать гардероб и собрать образы.',
-    datetime: '2026-09-13T09:00:00Z',
-    link: 'https://example.test/question',
-  }];
-  const leads = await api.filterFreshLeads(posts, {
-    now: new Date('2026-09-13T10:00:00Z'),
-    lookbackHours: 30,
-    seenFingerprints: new Set(),
-  });
-  assert.equal(leads.length, 1);
+test('web client-intent filter accepts pain-language that signals a real client need', () => {
+  assert.equal(typeof webApi.isLikelyWebClientIntent, 'function');
+  const text = 'Петербург. Не знаю что носить и как сочетать вещи, нужна помощь разобрать гардероб и собрать образы.';
+  assert.equal(webApi.isLikelyWebClientIntent(text), true);
 });
 
 test('stylist lead config enables Tavily web search with a bounded daily query set and no embedded API key', () => {
