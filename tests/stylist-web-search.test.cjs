@@ -56,7 +56,7 @@ test('scanTavilyStylistLeads uses a basic 24h search and maps fresh web results'
   assert.equal(result.errors.length, 0);
   assert.equal(result.posts.length, 1);
   assert.equal(result.posts[0].link, 'https://example.test/post/1');
-  assert.equal(result.posts[0].datetime, '2026-09-13T08:30:00Z');
+  assert.equal(new Date(result.posts[0].datetime).getTime(), new Date('2026-09-13T08:30:00Z').getTime());
   assert.equal(result.posts[0].source.kind, 'web');
   assert.match(result.posts[0].source.title, /Интернет/);
 });
