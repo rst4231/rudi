@@ -22,17 +22,16 @@ function sanitizeStageDigestText(text) {
   const source = String(text || '');
   if (!base.isStageDigestText(source)) return source;
 
+  const lines = source.replace(/\r\n?/gu, '\n').split('\n');
+  const locationLine = lines.find((line) => /^📍\s*Stage StandUp Club/iu.test(line.trim()));
+  const location = locationLine ? normalizeStageLocationLine(locationLine) : '';
   const output = [];
-  let location = '';
   let locationInserted = false;
 
-  for (const line of source.replace(/\r\n?/gu, '\n').split('\n')) {
+  for (const line of lines) {
     const trimmed = line.trim();
     if (/^💳/u.test(trimmed)) continue;
-    if (/^📍\s*Stage StandUp Club/iu.test(trimmed)) {
-      if (!location) location = normalizeStageLocationLine(trimmed);
-      continue;
-    }
+    if (/^📍\s*Stage StandUp Club/iu.test(trimmed)) continue;
     if (!locationInserted && location && isNumberedEventLine(trimmed)) {
       output.push(location);
       locationInserted = true;
