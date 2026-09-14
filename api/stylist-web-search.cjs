@@ -10,9 +10,24 @@ function normalizeText(value = '') {
   return String(value).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 }
 
+function isLikelyProviderRecruitment(text = '') {
+  const value = normalizeText(text);
+  if (!value) return false;
+
+  const recruitingPeople = /(?:ищу|ищем|набираю|набираем|наберу|приглашаю|приглашаем|возьму|возьмем|нужны)\s+(?:до\s+)?(?:\d+\s+)?(?:девушек|девушки|женщин|женщины|участниц|участницы|моделей|модели|клиентов|клиенток|желающих)(?:\s|[.,!?:;—-]|$)/i.test(value);
+  if (!recruitingPeople) return false;
+
+  const explicitlySeekingStylists = /(?:девушек|девушки|женщин|женщины|участниц|участницы|моделей|модели)\s*[-—]?\s*стилист/i.test(value);
+  if (explicitlySeekingStylists) return false;
+
+  const serviceContext = /(разбор\w*\s+гардероб|шопинг[\s-]*сопровожд|подбор\w*[^.!?\n]{0,40}(?:образ|лук|одежд|вещ|капсул)|собер\w*[^.!?\n]{0,50}(?:образ|капсул|лук)|стилизац|обновлен\w*\s+гардероб)/i.test(value);
+  return serviceContext;
+}
+
 function isLikelyWebClientIntent(text = '') {
   const value = normalizeText(text);
   if (!value) return false;
+  if (isLikelyProviderRecruitment(value)) return false;
 
   const clientRequest = /(ищу|ищем|нужен|нужна|нужны|посовет|порекоменду|подскаж|помогите|кто\s+(?:может|делает)|хочу\s+(?:найти|подобрать|разобрать|обновить|собрать))/i.test(value);
   const painLanguage = /(не\s+знаю\s+что\s+носить|нечего\s+носить|как\s+сочетать\s+вещ|гардероб[^.!?\n]{0,60}(?:не\s+работает|не\s+нравится|устарел|разобрать)|нужна?\s+помощь[^.!?\n]{0,80}(?:гардероб|одежд|образ|вещ|капсул)|помогите[^.!?\n]{0,80}(?:гардероб|одежд|образ|вещ|капсул))/i.test(value);
@@ -190,9 +205,13 @@ async function scanAllStylistSources(config = {}, options = {}) {
   const web = webSettled.status === 'fulfilled'
     ? webSettled.value
     : failedScanResult(webSettled.reason, webCount || 1, 'web');
+  const combinedPosts = [
+    ...(Array.isArray(telegram?.posts) ? telegram.posts : []),
+    ...(Array.isArray(web?.posts) ? web.posts : []),
+  ];
 
   return {
-    posts: [...(Array.isArray(telegram?.posts) ? telegram.posts : []), ...(Array.isArray(web?.posts) ? web.posts : [])],
+    posts: combinedPosts.filter((post) => !isLikelyProviderRecruitment(post?.text || '')),
     errors: [...(Array.isArray(telegram?.errors) ? telegram.errors : []), ...(Array.isArray(web?.errors) ? web.errors : [])],
     sourcesChecked: Number(telegram?.sourcesChecked || 0) + Number(web?.sourcesChecked || 0),
     creditsUsed: Number(web?.creditsUsed || 0),
@@ -206,6 +225,7 @@ async function runStylistLeadScan(options = {}) {
 
 module.exports = {
   TAVILY_SEARCH_URL,
+  isLikelyProviderRecruitment,
   isLikelyWebClientIntent,
   resolveWebSearchConfig,
   scanTavilyStylistLeads,
