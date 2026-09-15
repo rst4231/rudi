@@ -4,6 +4,8 @@ const {
   rankHolidayEntries,
   rewriteHolidayTelegramRequest,
 } = require('../api/holiday-significance.cjs');
+const { validateRudiSettings } = require('../api/rudi-settings.cjs');
+const defaultSettings = require('../config/rudi-settings.json');
 
 const entries = [
   'День рождения смайлика',
@@ -48,6 +50,11 @@ test('holiday telegram request keeps header and sends only configured maximum', 
   assert.equal(holidayLines.length, 5);
   assert.ok(holidayLines.some((line) => line.includes('День России')));
   assert.ok(!holidayLines.some((line) => line.includes('День рождения смайлика')));
+});
+
+test('holiday maximum is a validated external setting', () => {
+  const settings = validateRudiSettings(defaultSettings);
+  assert.equal(settings.sections.holidays.maxItems, 5);
 });
 
 test('non-holiday topics are left untouched', () => {
