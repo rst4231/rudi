@@ -3,7 +3,7 @@
   "timezone": "Europe/Moscow",
   "sections": {
     "events": { "enabled": true, "topicId": 19 },
-    "holidays": { "enabled": true, "topicId": 44 },
+    "holidays": { "enabled": true, "topicId": 44, "maxItems": 5 },
     "facts": { "enabled": true, "topicId": 72 },
     "lulu": { "enabled": true, "topicId": 85 },
     "recipes": { "enabled": false, "topicId": 88 },
