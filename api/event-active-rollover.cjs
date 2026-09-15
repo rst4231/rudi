@@ -85,12 +85,12 @@ async function getEventCleanupStatus(cache) {
   return normalizeCleanupStatus(await cache.get(STATUS_KEY));
 }
 
-async function deleteActiveEventMessagesBeforeDate({ beforeDateKey, chatId, cache, baseUrl, fetchImpl }) {
+async function deleteActiveEventMessagesBeforeDate({ beforeDateKey, chatId, cache, baseUrl, fetchImpl, force = false }) {
   const active = normalizeActiveState(await cache.get(ACTIVE_KEY));
   if (!active) return { tracked: 0, deleted: 0, skipped: 'active-not-recorded' };
   const boundary = String(beforeDateKey || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(boundary)) throw new Error('Active event cleanup date must be YYYY-MM-DD');
-  if (active.dateKey >= boundary) {
+  if (!force && active.dateKey >= boundary) {
     return { tracked: active.messageIds.length, deleted: 0, skipped: 'active-is-current', targetDateKey: active.dateKey };
   }
 
