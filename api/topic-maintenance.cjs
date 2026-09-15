@@ -2,6 +2,7 @@ const base = require('./topic-maintenance-base.cjs');
 const { rememberActiveEventMessages, rememberEventCleanupStatus, deleteActiveEventMessagesBeforeDate } = require('./event-active-rollover.cjs');
 const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
 const { handleHolidayPublication } = require('./holiday-rollover.cjs');
+const { rewriteHolidayTelegramRequest } = require('./holiday-significance.cjs');
 const { getTopicMaintenanceCache, getDailyContentCache, getControlPlaneCache } = require('./stateful-cache.cjs');
 const { FACTS_TOPIC_ID, LULU_TOPIC_ID, wrapDailyContentDedupe } = require('./daily-content-dedupe.cjs');
 const { loadDailyContentCatalog } = require('./daily-content-config.cjs');
@@ -106,7 +107,8 @@ function wrapFetch(fetchImpl, options = {}) {
       now: options.now,
       onSelected: (selection) => { clientSelection = selection; },
     });
-    let rewritten = rewriteTelegramPhotoRequest(input, clientRewritten);
+    let rewritten = rewriteHolidayTelegramRequest(input, clientRewritten, settings);
+    rewritten = rewriteTelegramPhotoRequest(input, rewritten);
     const controlledPayload = base.parseRequestPayload(rewritten);
     const topicId = Number(controlledPayload?.message_thread_id);
     const section = control.section;
