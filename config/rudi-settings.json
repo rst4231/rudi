@@ -46,10 +46,5 @@
   "alerts": {
     "enabled": true,
     "dedupeMinutes": 180
-  },
-  "miniApp": {
-    "enabled": true,
-    "menuText": "Открыть RUDI",
-    "url": "https://spb-daily-guide-bot.vercel.app/"
   }
 }
