@@ -7,7 +7,7 @@
   "maxLeadsPerRun": 8,
   "maxPagesPerSource": 3,
   "concurrency": 5,
-  "sendEmpty": true,
+  "sendEmpty": false,
   "webSearch": {
     "enabled": true,
     "provider": "tavily",
