@@ -1,6 +1,6 @@
 const { SECTION_NAMES, loadRudiSettings } = require('./rudi-settings.cjs');
 const { normalizePreviewSections } = require('./preview-sections.cjs');
-const { getContentOverride, appendFooter } = require('./section-controls.cjs');
+const { getContentOverride, appendFooter, runWithPublicationContext } = require('./section-controls.cjs');
 const {
   getPublicationRecord,
   markPublicationPending,
@@ -93,6 +93,7 @@ async function defaultSendTelegram(payload, options = {}) {
     }),
   }, {
     fetchImpl: options.fetchImpl || globalThis.fetch,
+    cache: options.topicCache,
     settings: payload.settings,
     publicationDate: payload.date,
     bypassSectionControls: true,
@@ -166,13 +167,17 @@ async function publishSelectedSection(input, options = {}) {
 
   await markPending({ date, section, sourceIds: ['manual-preview'], metadata: { manual: true, force } });
   const messageIds = [];
-  try {
+  const publishParts = async () => {
     for (const text of effectiveParts) {
       const sent = await sendTelegram({ section, date, topicId, text, settings });
       const messageId = Number(sent?.messageId);
       if (!Number.isInteger(messageId) || messageId <= 0) throw new Error('Manual sender returned no message id');
       messageIds.push(messageId);
     }
+  };
+  try {
+    if (section === 'events') await runWithPublicationContext({ date, settings }, publishParts);
+    else await publishParts();
   } catch (error) {
     await markFailed({ date, section, error, messageIds, sourceIds: ['manual-preview'], metadata: { manual: true, force } });
     await metric(section, 'failures', options);
