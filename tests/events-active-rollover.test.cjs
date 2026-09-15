@@ -6,6 +6,7 @@ const {
   prepareDailyTopicCleanup,
   handleTelegramTopicRequest,
 } = require('../api/topic-maintenance.cjs');
+const { runWithPublicationContext } = require('../api/section-controls.cjs');
 
 function fakeCache(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -55,6 +56,47 @@ test('events delete the previous active batch even when the dated message key is
     dateKey: '2026-08-20',
     chatId: -100123,
     messageIds: [777],
+  });
+});
+
+test('a same-day event publication replaces the previous active batch once and keeps its own messages', async () => {
+  const cache = fakeCache({
+    'topic:237:deleted:-100123': true,
+    'topic:19:active': {
+      dateKey: '2026-09-15',
+      chatId: -100123,
+      messageIds: [759, 760],
+    },
+  });
+  const calls = [];
+  let nextMessageId = 777;
+  const fetchImpl = async (url, init) => {
+    const method = String(url).split('/').at(-1);
+    const body = init?.body instanceof FormData ? Object.fromEntries(init.body.entries()) : JSON.parse(init.body);
+    calls.push({ method, body });
+    if (method === 'deleteMessages') return telegramResponse(true);
+    return telegramResponse({ message_id: nextMessageId++ });
+  };
+
+  await runWithPublicationContext({ date: '2026-09-15' }, async () => {
+    await handleTelegramTopicRequest(
+      'https://api.telegram.org/bot1:testtoken/sendMessage',
+      { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'concerts' }) },
+      { cache, now: new Date('2026-09-15T10:00:00Z'), fetchImpl },
+    );
+    await handleTelegramTopicRequest(
+      'https://api.telegram.org/bot1:testtoken/sendMessage',
+      { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'standup' }) },
+      { cache, now: new Date('2026-09-15T10:00:01Z'), fetchImpl },
+    );
+  });
+
+  assert.deepEqual(calls.map((call) => call.method), ['deleteMessages', 'sendMessage', 'sendMessage']);
+  assert.deepEqual(calls[0].body, { chat_id: -100123, message_ids: [759, 760] });
+  assert.deepEqual(await cache.get('topic:19:active'), {
+    dateKey: '2026-09-15',
+    chatId: -100123,
+    messageIds: [777, 778],
   });
 });
 
