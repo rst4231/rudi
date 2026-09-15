@@ -39,6 +39,13 @@ async function rememberCleanupStatusSafe(status, cache) {
   catch (error) { console.warn('RUDI_EVENT_CLEANUP_STATUS_ERROR', String(error?.message || error)); return null; }
 }
 
+function claimEventPublicationReplacement() {
+  const context = currentPublicationContext();
+  if (!context || context.eventActiveBatchStarted) return false;
+  context.eventActiveBatchStarted = true;
+  return true;
+}
+
 function rewriteTelegramPhotoRequest(input, init = {}) {
   if (telegramMethod(input) !== 'sendPhoto') return init;
   const payload = base.parseRequestPayload(init); if (!payload || typeof payload.photo !== 'string') return init;
@@ -159,6 +166,7 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
       cache,
       baseUrl: endpoint.baseUrl,
       fetchImpl,
+      force: options.replaceActiveBatch === true,
     });
     const dated = await base.deleteTrackedMessages({
       topicId: base.EVENTS_TOPIC_ID,
@@ -265,7 +273,8 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
   const needsCache = topicId === base.EVENTS_TOPIC_ID || topicId === base.HOLIDAYS_TOPIC_ID || topicId === base.COUPLE_TOPIC_ID;
   const cache = options.cache || (needsCache ? resolveTopicCache(options) : undefined);
   if (isEventPost) {
-    await cleanupPreviousEventPostsBeforePublish(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl });
+    const replaceActiveBatch = claimEventPublicationReplacement();
+    await cleanupPreviousEventPostsBeforePublish(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl, replaceActiveBatch });
   }
   const response = await base.handleTelegramTopicRequest(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl: wrapFetch(fetchImpl, options) });
   if (isEventPost && response?.ok && cache) {
