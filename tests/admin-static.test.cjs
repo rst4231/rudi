@@ -47,3 +47,11 @@ test('landing page is a compact one-screen mini app dashboard', () => {
   assert.doesNotMatch(source, /CRON_SECRET|RUDI_ADMIN_SECRET|Authorization:\s*Bearer/i);
   assert.doesNotMatch(source, /<script[^>]+src=|<link[^>]+https?:\/\//i);
 });
+
+test('landing page distributes rubric tiles across the remaining viewport instead of stacking them at the top', () => {
+  const source = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+  assert.match(source, /\.sections-card\{[^}]*grid-template-rows:auto minmax\(0,1fr\)/);
+  assert.match(source, /\.sections\{[^}]*height:100%[^}]*grid-template-rows:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(source, /@media\(max-width:430px\)\{[^]*?\.sections\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.doesNotMatch(source, /\.sections\{[^}]*align-content:start/);
+});
