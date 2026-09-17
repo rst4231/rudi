@@ -96,6 +96,7 @@ async function defaultSendTelegram(payload, options = {}) {
     cache: options.topicCache,
     settings: payload.settings,
     publicationDate: payload.date,
+    now: options.now,
     bypassSectionControls: true,
     bypassDailyDedupe: true,
     env,
