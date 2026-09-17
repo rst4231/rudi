@@ -15,7 +15,7 @@ const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 
 const SECTION_SET = new Set(SECTION_NAMES);
-const NATIVE_SECTIONS = new Set(['cinema', 'labor', 'weekend']);
+const NATIVE_SECTIONS = new Set(['cinema', 'labor']);
 
 function validDate(value) {
   const date = String(value || '').trim();
