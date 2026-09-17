@@ -46,6 +46,10 @@ function claimEventPublicationReplacement() {
   return true;
 }
 
+function eventPublicationDate(options = {}, now = new Date()) {
+  return options.publicationDate || currentPublicationContext()?.date || base.dateKeyInMoscow(now);
+}
+
 function rewriteTelegramPhotoRequest(input, init = {}) {
   if (telegramMethod(input) !== 'sendPhoto') return init;
   const payload = base.parseRequestPayload(init); if (!payload || typeof payload.photo !== 'string') return init;
@@ -157,7 +161,7 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const cache = options.cache || resolveTopicCache(options);
   const now = options.now || new Date();
-  const todayKey = base.dateKeyInMoscow(now);
+  const todayKey = eventPublicationDate(options, now);
   const targetDateKey = base.shiftDateKey(todayKey, -1);
   try {
     const active = await deleteActiveEventMessagesBeforeDate({
@@ -189,6 +193,7 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
     }, cache);
     return { active, dated };
   } catch (error) {
+    const detail = String(error?.message || error);
     console.error('RUDI_EVENT_PREPUBLISH_CLEANUP_ERROR', { targetDateKey, error });
     await rememberCleanupStatusSafe({
       checkedAt: now,
@@ -198,9 +203,9 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
       tracked: 0,
       deleted: 0,
       skipped: null,
-      error: String(error?.message || error),
+      error: detail,
     }, cache);
-    return { error: String(error?.message || error) };
+    throw new Error(`Active event cleanup failed: ${detail}`);
   }
 }
 
@@ -283,7 +288,7 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
       const messageIds = responseMessageIds(data?.result);
       if (messageIds.length) {
         await rememberActiveEventMessages({
-          dateKey: base.dateKeyInMoscow(options.now || new Date()),
+          dateKey: eventPublicationDate(options, options.now || new Date()),
           chatId: payload?.chat_id,
           messageIds,
           cache,
