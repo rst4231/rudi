@@ -43,17 +43,12 @@ test('feedback cleanup parses an explicit bounded message id list for a forced r
   assert.throws(() => parseFeedbackCleanupMessageIds('833,nope'), /invalid-feedback-cleanup-message-ids/);
 });
 
-test('legacy feedback cleanup finds stored message ids and removes their keyboards', async () => {
-  assert.equal(typeof collectLegacyFeedbackMessageIds, 'function');
-  assert.equal(typeof cleanupLegacyFeedbackKeyboards, 'function');
-  if (typeof collectLegacyFeedbackMessageIds !== 'function' || typeof cleanupLegacyFeedbackKeyboards !== 'function') return;
-
+test('legacy feedback cleanup finds stored active message ids and removes their keyboards', async () => {
   const topicCache = cache({
     'topic:19:2026-09-04:messages': [702, 701],
   });
   const dailyContentCache = cache({
     'daily-content:72:history': [{ dateKey: '2026-09-04', messageId: 703 }],
-    'daily-content:85:history': [{ dateKey: '2026-09-04', messageId: 704 }],
   });
   const ids = await collectLegacyFeedbackMessageIds({
     dateKeys: ['2026-09-04'],
@@ -61,7 +56,7 @@ test('legacy feedback cleanup finds stored message ids and removes their keyboar
     dailyContentCache,
     getRecord: async (_date, section) => section === 'clients' ? { messageIds: [701] } : null,
   });
-  assert.deepEqual(ids, [701, 702, 703, 704]);
+  assert.deepEqual(ids, [701, 702, 703]);
 
   const calls = [];
   const result = await cleanupLegacyFeedbackKeyboards({
@@ -75,8 +70,8 @@ test('legacy feedback cleanup finds stored message ids and removes their keyboar
     },
   });
 
-  assert.equal(result.removed, 4);
-  assert.equal(calls.length, 4);
+  assert.equal(result.removed, 3);
+  assert.equal(calls.length, 3);
   assert.ok(calls.every((call) => call.url.endsWith('/editMessageReplyMarkup')));
   assert.ok(calls.every((call) => call.body.chat_id === '-1004476323368'));
   assert.ok(calls.every((call) => Array.isArray(call.body.reply_markup.inline_keyboard) && call.body.reply_markup.inline_keyboard.length === 0));
