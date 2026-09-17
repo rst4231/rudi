@@ -134,9 +134,9 @@ async function rememberPublishedMessages(topicId, chatId, messageIds, dateKey, c
   await cache.set(topicChatKey(topicId), chatId, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-messages'] });
 }
 
-async function deleteTrackedMessages({ topicId, targetDateKey, chatId, cache, baseUrl, fetchImpl }) {
+async function deleteTrackedMessages({ topicId, targetDateKey, chatId, cache, baseUrl, fetchImpl, markCleanup = true }) {
   const markerKey = topicTargetCleanupKey(topicId, targetDateKey);
-  if (await cache.get(markerKey)) return { skipped: true, deleted: 0 };
+  if (markCleanup && await cache.get(markerKey)) return { skipped: true, deleted: 0 };
   const stored = await cache.get(topicMessagesKey(topicId, targetDateKey));
   const messageIds = Array.isArray(stored)
     ? [...new Set(stored.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
@@ -154,7 +154,7 @@ async function deleteTrackedMessages({ topicId, targetDateKey, chatId, cache, ba
     }
     deleted += chunk.length;
   }
-  await cache.set(markerKey, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-cleanup'] });
+  if (markCleanup) await cache.set(markerKey, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-topic-cleanup'] });
   await cache.delete(topicMessagesKey(topicId, targetDateKey));
   return { deleted };
 }
@@ -263,7 +263,7 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
     const body = await response.clone().json();
     const messageIds = extractMessageIds(body?.result);
     if (messageIds.length) {
-      const todayKey = dateKeyInMoscow(options.now || new Date());
+      const todayKey = options.publicationDate || dateKeyInMoscow(options.now || new Date());
       try {
         await deletePreviousDayTrackedMessages({
           topicId,
