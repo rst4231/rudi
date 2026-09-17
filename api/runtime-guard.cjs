@@ -3,6 +3,7 @@ const { AsyncLocalStorage } = require('node:async_hooks');
 const cronSecretContext = new AsyncLocalStorage();
 const ENV_PROXY_MARKER = Symbol.for('rudi.cron-secret-env-proxy');
 const FETCH_GUARD_MARKER = Symbol.for('rudi.telegram-fetch-guard');
+const RETIRED_TOPIC_IDS = new Set([85, 88]);
 
 function cronSecretHidden() { return cronSecretContext.getStore()?.hideCronSecret === true; }
 function installContextualEnvProxy() {
@@ -22,6 +23,19 @@ function runWithCronSecretHidden(task) { installContextualEnvProxy(); return cro
 function isTelegramApiUrl(input) {
   const value = typeof input === 'string' || input instanceof URL ? String(input) : String(input?.url || '');
   try { const url = new URL(value); return url.protocol === 'https:' && url.hostname === 'api.telegram.org' && /^\/bot[^/]+\/[A-Za-z0-9_]+$/.test(url.pathname); } catch { return false; }
+}
+function requestPayload(init = {}) {
+  if (typeof init.body === 'string') { try { return JSON.parse(init.body); } catch { return null; } }
+  if (init.body instanceof URLSearchParams) return Object.fromEntries(init.body.entries());
+  return null;
+}
+function retiredTopicResponse(init = {}) {
+  const topicId = Number(requestPayload(init)?.message_thread_id);
+  if (!RETIRED_TOPIC_IDS.has(topicId)) return null;
+  return new Response(JSON.stringify({ ok: true, result: { message_id: 0, message_thread_id: topicId, retired_topic: true } }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms))); }
 async function telegramRetryDelay(response, fallbackMs = 1000) {
@@ -48,6 +62,8 @@ function installTelegramFetchGuard(baseFetch = globalThis.fetch, options = {}) {
   }
   return function guardedFetch(input, init) {
     if (!isTelegramApiUrl(input)) return baseFetch(input, init);
+    const retired = retiredTopicResponse(init);
+    if (retired) return Promise.resolve(retired);
     const run = queue.then(() => execute(input, init), () => execute(input, init));
     queue = run.then(() => undefined, () => undefined);
     return run;
@@ -61,4 +77,4 @@ function installGlobalTelegramFetchGuard(options = {}) {
   globalThis[FETCH_GUARD_MARKER] = { originalFetch, guardedFetch };
   return globalThis[FETCH_GUARD_MARKER];
 }
-module.exports = { installContextualEnvProxy, runWithCronSecretHidden, isTelegramApiUrl, installTelegramFetchGuard, installGlobalTelegramFetchGuard };
+module.exports = { RETIRED_TOPIC_IDS, installContextualEnvProxy, runWithCronSecretHidden, isTelegramApiUrl, retiredTopicResponse, installTelegramFetchGuard, installGlobalTelegramFetchGuard };

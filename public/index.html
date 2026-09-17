@@ -2,132 +2,85 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e14">
   <meta name="color-scheme" content="dark">
-  <title>RUDI — настройки бота</title>
+  <title>RUDI — Настройки бота</title>
   <style>
-    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f4f6fb;background:#0e1015}*{box-sizing:border-box}body{margin:0;background:#0e1015;color:#f4f6fb}.shell{max-width:1180px;margin:0 auto;padding:28px 20px 56px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:22px}.eyebrow{font-size:13px;color:#8f97a7;text-transform:uppercase;letter-spacing:.12em}.title{font-size:36px;line-height:1.05;margin:7px 0 8px}.muted{color:#9da5b4}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#f5f7fb;background:#20242d;border:1px solid #343a47;border-radius:10px;padding:10px 13px;cursor:pointer;font:inherit}.btn:hover{background:#292e39}.status{display:inline-flex;align-items:center;gap:7px;border:1px solid #38404d;border-radius:999px;padding:8px 11px;font-size:13px}.status.ok{border-color:#2c7247;color:#8ee5ad}.status.bad{border-color:#7b3c43;color:#ffafb7}.dot{width:8px;height:8px;border-radius:50%;background:currentColor}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.metric,.card{background:#171a21;border:1px solid #2b303a;border-radius:14px}.metric{padding:14px}.metric b{display:block;font-size:19px;margin-top:5px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{padding:17px}.card h2{font-size:18px;margin:0 0 14px}.list{display:grid;gap:8px}.row{display:flex;justify-content:space-between;gap:18px;padding:9px 0;border-bottom:1px solid #272c35}.row:last-child{border-bottom:0}.label{color:#a7afbd}.value{text-align:right;overflow-wrap:anywhere}.pill{display:inline-flex;border:1px solid #3a414d;border-radius:999px;padding:4px 8px;font-size:12px}.pill.on{color:#91e4ad;border-color:#2d7149}.pill.off{color:#ffabb3;border-color:#743d43}.sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.section{border:1px solid #2b313c;border-radius:10px;padding:10px}.section-name{font-weight:650}.section-meta{color:#929baa;font-size:12px;margin-top:4px}.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}.footer-value{white-space:pre-wrap}.error{margin-top:14px;padding:12px;border:1px solid #783d44;border-radius:10px;color:#ffb1b8;background:#321a1f}.hidden{display:none}.wide{grid-column:1/-1}@media(max-width:850px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}.wide{grid-column:auto}}@media(max-width:520px){.shell{padding:20px 13px 40px}.title{font-size:30px}.summary,.sections{grid-template-columns:1fr}.row{display:block}.value{text-align:left;margin-top:5px}}
+    :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#f7f8fb;background:#0b0e14;--bg:#0b0e14;--panel:#141821;--panel2:#191e29;--line:#252c39;--muted:#8993a5;--text:#f7f8fb;--accent:#5aa7ff;--green:#65d995;--red:#ff7885;--radius:16px}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--text)}body{overflow:hidden;-webkit-font-smoothing:antialiased}.app-shell{width:min(100%,760px);height:100dvh;min-height:100dvh;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) 12px max(10px,env(safe-area-inset-bottom));display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:9px;overflow:hidden}.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px}.brand{display:flex;align-items:center;gap:10px;min-width:0}.logo{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-weight:850;font-size:15px;letter-spacing:-.04em;background:linear-gradient(145deg,#6db5ff,#387fe8);box-shadow:0 8px 24px rgba(60,132,235,.26)}.brand-copy{min-width:0}.brand-title{font-weight:800;font-size:17px;line-height:1.05;letter-spacing:-.02em}.brand-sub{font-size:11px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top-actions{display:flex;align-items:center;gap:6px}.status{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 9px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}.status .dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(137,147,165,.09)}.status.ok{color:var(--green)}.status.bad{color:var(--red)}.icon-btn{width:30px;height:30px;padding:0;border:1px solid var(--line);background:var(--panel);color:#dce3ee;border-radius:10px;display:grid;place-items:center;text-decoration:none;cursor:pointer;font:700 15px/1 inherit;transition:.16s ease}.icon-btn:active{transform:scale(.94);background:var(--panel2)}.icon-btn:disabled{opacity:.45}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.metric{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 9px}.metric-label{display:block;color:var(--muted);font-size:9px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric-value{display:block;margin-top:3px;font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dashboard{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px}.utility-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.card{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 11px;overflow:hidden}.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.card-title{font-size:12px;font-weight:800;letter-spacing:-.01em}.card-note{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.compact-list{display:grid;gap:5px}.compact-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.compact-label{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.compact-value{font-size:10px;font-weight:700;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64%}.pill{display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 7px;border-radius:999px;border:1px solid #344052;font-size:9px;font-weight:800;color:#aab4c4}.pill.on{border-color:rgba(101,217,149,.32);background:rgba(101,217,149,.08);color:var(--green)}.pill.off{border-color:rgba(255,120,133,.3);background:rgba(255,120,133,.07);color:var(--red)}.sections-card{min-height:0;display:flex;flex-direction:column}.sections{min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-content:start}.section{min-width:0;background:var(--panel2);border:1px solid #242c39;border-radius:11px;padding:8px}.section-top{display:flex;align-items:flex-start;justify-content:space-between;gap:5px}.section-name{min-width:0;font-size:10px;font-weight:760;line-height:1.18;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.section-meta{margin-top:5px;color:var(--muted);font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.error{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:10;max-width:736px;margin:auto;padding:10px 12px;border:1px solid rgba(255,120,133,.35);border-radius:12px;color:#ffc1c7;background:#351b22;box-shadow:0 16px 50px rgba(0,0,0,.35);font-size:11px}.hidden{display:none!important}.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}@media(max-width:430px){.app-shell{padding-left:9px;padding-right:9px;gap:7px}.topbar{min-height:42px}.logo{width:33px;height:33px;border-radius:11px}.brand-title{font-size:16px}.brand-sub{font-size:10px}.status{height:28px;padding:0 7px}.status span:last-child{max-width:76px;overflow:hidden;text-overflow:ellipsis}.icon-btn{width:28px;height:28px}.summary{gap:5px}.metric{padding:7px 7px}.metric-label{font-size:8px}.metric-value{font-size:12px}.dashboard{gap:7px}.utility-grid{gap:6px}.card{padding:9px}.card-head{margin-bottom:6px}.sections{gap:5px}.section{padding:7px 6px}}@media(max-height:680px){.brand-sub{display:none}.summary .metric{padding-top:6px;padding-bottom:6px}.card{padding-top:8px;padding-bottom:8px}.compact-list{gap:3px}.section-meta{margin-top:3px}.sections{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:700px){.app-shell{padding-left:16px;padding-right:16px}.sections{grid-template-columns:repeat(6,minmax(0,1fr))}}
   </style>
 </head>
-<body>
-  <main class="shell">
-    <header class="top">
-      <div>
-        <div class="eyebrow">Настройки бота · SPB Daily Guide Bot</div>
-        <h1 class="title">RUDI</h1>
-        <div class="muted">Публичное состояние и актуальная конфигурация. Редактирование — только через защищённую админку.</div>
+<body data-density="compact">
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">RU</div>
+        <div class="brand-copy"><div class="brand-title">RUDI</div><div class="brand-sub">Настройки бота · SPB Daily Guide</div></div>
       </div>
-      <div class="actions">
-        <span id="status" class="status"><span class="dot"></span><span>Загрузка…</span></span>
-        <button id="refresh" class="btn" type="button">Обновить</button>
-        <a class="btn" href="/admin">Открыть админку</a>
+      <div class="top-actions">
+        <span id="status" class="status"><span class="dot"></span><span>Загрузка</span></span>
+        <button id="refresh" class="icon-btn" type="button" aria-label="Обновить">↻</button>
+        <a class="icon-btn" href="/admin" aria-label="Админка">⋯</a>
       </div>
     </header>
 
-    <section class="summary">
-      <div class="metric"><span class="muted">Дата, Москва</span><b id="date">—</b></div>
-      <div class="metric"><span class="muted">Настройки</span><b id="settingsSource">—</b></div>
-      <div class="metric"><span class="muted">Рубрик включено</span><b id="enabledCount">—</b></div>
-      <div class="metric"><span class="muted">Последний запуск</span><b id="lastRun">—</b></div>
+    <section class="summary" aria-label="Сводка">
+      <div class="metric"><span class="metric-label">Дата · Москва</span><b id="date" class="metric-value">—</b></div>
+      <div class="metric"><span class="metric-label">Конфигурация</span><b id="settingsSource" class="metric-value">—</b></div>
+      <div class="metric"><span class="metric-label">Рубрики</span><b id="enabledCount" class="metric-value">—</b></div>
+      <div class="metric"><span class="metric-label">Последний запуск</span><b id="lastRun" class="metric-value">—</b></div>
     </section>
 
-    <div id="error" class="error hidden"></div>
+    <section class="dashboard">
+      <div class="utility-grid">
+        <article class="card">
+          <div class="card-head"><div class="card-title">Расписание</div><div id="cronMini" class="card-note">—</div></div>
+          <div id="publishing" class="compact-list"></div>
+        </article>
+        <article class="card">
+          <div class="card-head"><div class="card-title">Алерты</div><div id="alertMini" class="card-note">—</div></div>
+          <div id="alerts" class="compact-list"></div>
+        </article>
+      </div>
 
-    <section class="grid">
-      <article class="card">
-        <h2>Расписание</h2>
-        <div id="publishing" class="list"></div>
-      </article>
-
-      <article class="card">
-        <h2>Алерты</h2>
-        <div id="alerts" class="list"></div>
-      </article>
-
-      <article class="card wide">
-        <h2>Рубрики и темы</h2>
+      <article class="card sections-card">
+        <div class="card-head"><div class="card-title">Рубрики и темы</div><div id="sectionMini" class="card-note">—</div></div>
         <div id="sections" class="sections"></div>
-      </article>
-
-      <article class="card">
-        <h2>Антидубли</h2>
-        <div id="dedupe" class="list"></div>
-      </article>
-
-      <article class="card">
-        <h2>Футеры</h2>
-        <div id="footers" class="list"></div>
-      </article>
-
-      <article class="card wide">
-        <h2>Источники контента</h2>
-        <div id="sources" class="list"></div>
       </article>
     </section>
   </main>
-
+  <div id="error" class="error hidden"></div>
 <script>
 (() => {
-  const sectionLabels={events:'Места и мероприятия',holidays:'Праздники',facts:'Факты',lulu:'Lulu',recipes:'Рецепты',clients:'Советы клиентам',cinema:'Кинопремьеры',labor:'Труд',weekend:'План на выходные'};
-  const dedupeLabels={eventsDays:'Мероприятия',cinemaDays:'Кино',recipesDays:'Рецепты',clientsDays:'Советы клиентам',weekendDays:'План на выходные'};
-  const sourceLabels={dailyContentConfigUrl:'Факты и Lulu',dailyContentSequenceUrl:'Последовательность Facts/Lulu',eventsConfigUrl:'Мероприятия',clientsAdviceConfigUrl:'Советы клиентам'};
-  const dayLabels={0:'воскресенье',1:'понедельник',2:'вторник',3:'среда',4:'четверг',5:'пятница',6:'суббота'};
+  const sectionLabels={events:'Места и мероприятия',holidays:'Праздники',facts:'Факты',clients:'Советы клиентам',cinema:'Кинопремьеры',labor:'Труд'};
   const $=(id)=>document.getElementById(id);
   const esc=(value)=>String(value??'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const row=(label,value,extra='')=>`<div class="row"><span class="label">${esc(label)}</span><span class="value ${extra}">${esc(value)}</span></div>`;
-  const bool=(value)=>`<span class="pill ${value?'on':'off'}">${value?'включено':'выключено'}</span>`;
-
+  const compactRow=(label,value,extra='')=>`<div class="compact-row"><span class="compact-label">${esc(label)}</span><span class="compact-value ${extra}">${esc(value)}</span></div>`;
+  const bool=(value)=>`<span class="pill ${value?'on':'off'}">${value?'вкл':'выкл'}</span>`;
   function render(data){
-    const status=$('status');status.className=`status ${data?.ok?'ok':'bad'}`;status.innerHTML=`<span class="dot"></span><span>${data?.ok?'Бот работает':'Есть проблема'}</span>`;
+    const status=$('status');status.className=`status ${data?.ok?'ok':'bad'}`;status.innerHTML=`<span class="dot"></span><span>${data?.ok?'Работает':'Проблема'}</span>`;
     $('date').textContent=data?.date||'—';
     $('settingsSource').textContent=`v${data?.settingsVersion??'—'} · ${data?.settingsSource||'—'}`;
-    const sections=data?.sections||{};
-    const entries=Object.entries(sections);
-    $('enabledCount').textContent=`${entries.filter(([,v])=>v?.enabled!==false).length}/${entries.length||0}`;
-    $('lastRun').textContent=data?.lastDailyRun?.date||'нет данных';
-
-    const op=data?.operationalSettings||{};
-    const publishing=op.publishing||{};
-    const weekend=(publishing.weekendDays||[]).map((day)=>dayLabels[day]||day).join(', ')||'—';
-    $('publishing').innerHTML=[
-      row('Ежедневный запуск',data?.cron?.description||'—'),
-      row('Cron',data?.cron?.schedule||'—','code'),
-      row('Часовой пояс',data?.timezone||'—'),
-      row('План на выходные',weekend),
-      `<div class="row"><span class="label">Автоповтор при ошибке</span><span class="value">${bool(Boolean(publishing.allowAutomaticRetry))}</span></div>`
-    ].join('');
-
-    $('sections').innerHTML=entries.map(([name,value])=>`<div class="section"><div class="section-name">${esc(sectionLabels[name]||name)} <span class="pill ${value?.enabled===false?'off':'on'}">${value?.enabled===false?'выкл':'вкл'}</span></div><div class="section-meta">${Number.isInteger(value?.topicId)?`Telegram topic ID: ${value.topicId}`:'Topic ID: динамический / отдельная настройка'}</div></div>`).join('')||'<span class="muted">Нет данных</span>';
-
-    $('dedupe').innerHTML=Object.entries(op.dedupe||{}).map(([name,days])=>row(dedupeLabels[name]||name,`${days} дн.`)).join('')||'<span class="muted">Нет данных</span>';
-
-    const alerts=op.alerts||{};
-    $('alerts').innerHTML=[
-      `<div class="row"><span class="label">Уведомления об ошибках</span><span class="value">${bool(Boolean(alerts.enabled))}</span></div>`,
-      row('Повтор одинакового алерта',`${alerts.dedupeMinutes??'—'} мин.`),
-      row('Активный алерт',data?.alerts?.message||data?.alerts?.code||'нет')
-    ].join('');
-
-    $('sources').innerHTML=Object.entries(op.sources||{}).map(([name,url])=>row(sourceLabels[name]||name,url,'code')).join('')||'<span class="muted">Нет данных</span>';
-
-    const footers=op.copy?.footers||{};
-    $('footers').innerHTML=Object.entries(footers).map(([name,value])=>row(sectionLabels[name]||name,value||'не задан','footer-value')).join('')||'<span class="muted">Нет данных</span>';
+    const sections=data?.sections||{};const entries=Object.entries(sections);const enabled=entries.filter(([,v])=>v?.enabled!==false).length;
+    $('enabledCount').textContent=`${enabled}/${entries.length||0}`;
+    $('sectionMini').textContent=`${enabled} активных`;
+    $('lastRun').textContent=data?.lastDailyRun?.date||'нет';
+    const publishing=data?.operationalSettings?.publishing||{};
+    $('cronMini').textContent=data?.cron?.schedule||'—';
+    $('publishing').innerHTML=[compactRow('Запуск',data?.cron?.description||'—'),compactRow('Часовой пояс',data?.timezone||'—'),`<div class="compact-row"><span class="compact-label">Автоповтор</span><span class="compact-value">${bool(Boolean(publishing.allowAutomaticRetry))}</span></div>`].join('');
+    $('sections').innerHTML=entries.map(([name,value])=>`<div class="section"><div class="section-top"><div class="section-name">${esc(sectionLabels[name]||name)}</div><span class="pill ${value?.enabled===false?'off':'on'}">${value?.enabled===false?'off':'on'}</span></div><div class="section-meta">${Number.isInteger(value?.topicId)?`topic ${value.topicId}`:'динамический topic'}</div></div>`).join('')||'<span class="card-note">Нет данных</span>';
+    const alerts=data?.operationalSettings?.alerts||{};const active=data?.alerts?.message||data?.alerts?.code||'';
+    $('alertMini').textContent=active?'есть активный':'спокойно';
+    $('alerts').innerHTML=[`<div class="compact-row"><span class="compact-label">Уведомления</span><span class="compact-value">${bool(Boolean(alerts.enabled))}</span></div>`,compactRow('Повтор',`${alerts.dedupeMinutes??'—'} мин`),compactRow('Сейчас',active||'нет')].join('');
     $('error').classList.add('hidden');
   }
-
   async function load(){
     $('refresh').disabled=true;
-    try{
-      const response=await fetch('/api/health',{cache:'no-store'});
-      if(!response.ok)throw new Error(`HTTP ${response.status}`);
-      render(await response.json());
-    }catch(error){
-      const box=$('error');box.textContent=`Не удалось загрузить настройки: ${error.message}`;box.classList.remove('hidden');
-      const status=$('status');status.className='status bad';status.innerHTML='<span class="dot"></span><span>Нет данных</span>';
-    }finally{$('refresh').disabled=false}
+    try{const response=await fetch('/api/health',{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);render(await response.json())}
+    catch(error){const box=$('error');box.textContent=`Не удалось загрузить настройки: ${error.message}`;box.classList.remove('hidden');const status=$('status');status.className='status bad';status.innerHTML='<span class="dot"></span><span>Нет данных</span>'}
+    finally{$('refresh').disabled=false}
   }
-  $('refresh').addEventListener('click',load);
-  load();
+  $('refresh').addEventListener('click',load);load();
 })();
 </script>
 </body>

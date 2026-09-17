@@ -83,12 +83,7 @@ async function syncForumTopicNamesSafe(options = {}) {
         fetchImpl: options.configFetchImpl || fetchImpl,
       });
 
-      const renamed = await syncConfiguredForumTopicNames({
-        token,
-        chatId,
-        fetchImpl,
-        config,
-      });
+      const renamed = await syncConfiguredForumTopicNames({ token, chatId, fetchImpl, config });
       const legacyLaborDeleted = await deleteLegacyLaborTopicOnce({
         token,
         chatId,

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { buildHealthPayload, syncForumTopicNamesSafe } = require('../api/control-plane-health.cjs');
 const settings = require('../config/rudi-settings.json');
 
-test('forum topic maintenance falls back to the known forum chat when cache is empty', async () => {
+test('forum topic maintenance keeps removed Lulu and recipe topics untouched', async () => {
   const calls = [];
   await syncForumTopicNamesSafe({
     cache: { async get() { return null; }, async set() { return true; } },
@@ -25,16 +25,10 @@ test('forum topic maintenance falls back to the known forum chat when cache is e
 
   assert.equal(calls.length, 2);
   assert.match(calls[0].url, /editForumTopic$/);
-  assert.deepEqual(calls[0].body, {
-    chat_id: '-1004476323368',
-    message_thread_id: 126,
-    name: 'Для Ди',
-  });
+  assert.deepEqual(calls[0].body, { chat_id: '-1004476323368', message_thread_id: 126, name: 'Для Ди' });
   assert.match(calls[1].url, /deleteForumTopic$/);
-  assert.deepEqual(calls[1].body, {
-    chat_id: '-1004476323368',
-    message_thread_id: 696,
-  });
+  assert.equal(calls[1].body.message_thread_id, 696);
+  assert.equal(calls.some((call) => [85, 88].includes(call.body.message_thread_id)), false);
 });
 
 test('health reports effective settings and omits removed venue rubric', async () => {
@@ -54,6 +48,9 @@ test('health reports effective settings and omits removed venue rubric', async (
   const text = JSON.stringify(payload);
   assert.ok(!text.includes('Sevkabel'));
   assert.ok(!text.includes('Brusnitsyn'));
+  assert.ok(!text.includes('lulu'));
+  assert.ok(!text.includes('recipes'));
+  assert.ok(!text.includes('weekend'));
 });
 
 test('health exposes only safe operational settings used by the public dashboard', async () => {

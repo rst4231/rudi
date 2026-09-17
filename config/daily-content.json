@@ -1,18 +1,12 @@
 {
-  "version": 4,
+  "version": 5,
   "publishedIds": [
     "facts-sleep-7h",
     "facts-sleep-schedule",
     "facts-morning-light",
     "facts-sleep-activity",
     "facts-activity-minimum",
-    "facts-strength-2days",
-    "lulu-teeth-daily",
-    "lulu-human-toothpaste",
-    "lulu-dental-signs",
-    "lulu-hard-chews",
-    "lulu-mouth-check",
-    "lulu-clean-water"
+    "facts-strength-2days"
   ],
   "facts": [
     {
@@ -224,57 +218,6 @@
       "application": "Привяжите одну новую привычку к уже стабильному действию, например делайте её сразу после утреннего кофе или чистки зубов.",
       "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/35756236/",
       "sourceLabel": "PubMed →"
-    }
-  ],
-  "lulu": [
-    {
-      "id": "lulu-booties-fit",
-      "type": "lulu",
-      "title": "Ботинки должны сидеть плотно, но не давить",
-      "body": "Хорошо подобранные ботинки могут защищать лапы от соли, льда и холода. После первых прогулок стоит проверить, нет ли натирания и не изменился ли шаг Лулу.",
-      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
-    },
-    {
-      "id": "lulu-antifreeze",
-      "type": "lulu",
-      "title": "Антифриз особенно опасен",
-      "body": "Средства с этиленгликолем токсичны для животных даже в небольшом количестве. Любые проливы возле машины нужно убирать сразу, а при подозрении на проглатывание нужна срочная ветеринарная помощь.",
-      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
-    },
-    {
-      "id": "lulu-frozen-water",
-      "type": "lulu",
-      "title": "На лёд с собакой лучше не выходить",
-      "body": "Прочность льда трудно оценить по виду. Cornell советует не выводить собак на замёрзшие водоёмы, чтобы не рисковать провалом под лёд и переохлаждением.",
-      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
-    },
-    {
-      "id": "lulu-snow-between-toes",
-      "type": "lulu",
-      "title": "Снег может собираться между пальцами",
-      "body": "У собак снег и лёд иногда скатываются в плотные комочки между пальцами и мешают идти. Зимой полезно быстро проверять лапы прямо на прогулке, если Лулу внезапно начала прихрамывать.",
-      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
-    },
-    {
-      "id": "lulu-jacket-cold",
-      "type": "lulu",
-      "title": "Короткошёрстным собакам одежда может быть полезна",
-      "body": "Небольшие, пожилые и короткошёрстные собаки хуже переносят сильный холод. Подходящая куртка или свитер могут сделать короткую зимнюю прогулку комфортнее.",
-      "sourceUrl": "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-information/winter-safety-tips"
-    },
-    {
-      "id": "lulu-toilet-routine",
-      "type": "lulu",
-      "title": "После туалета не всегда стоит сразу идти домой",
-      "body": "Если каждая прогулка заканчивается сразу после туалета, собака может начать откладывать его, чтобы дольше оставаться на улице. Иногда полезно ещё немного пройтись или поиграть после этого.",
-      "sourceUrl": "https://www.rspca.org.uk/adviceandwelfare/pets/dogs/training/toilettraining"
-    },
-    {
-      "id": "lulu-praise-timing",
-      "type": "lulu",
-      "title": "Награда работает лучше сразу",
-      "body": "Чтобы Лулу поняла, за что её хвалят, награда должна следовать сразу после нужного действия. Чем больше пауза, тем сложнее собаке связать результат со своим поведением.",
-      "sourceUrl": "https://www.rspca.org.uk/adviceandwelfare/pets/dogs/training/toilettraining"
     }
   ]
 }

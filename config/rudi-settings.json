@@ -1,16 +1,13 @@
 {
-  "version": 1,
+  "version": 2,
   "timezone": "Europe/Moscow",
   "sections": {
     "events": { "enabled": true, "topicId": 19 },
     "holidays": { "enabled": true, "topicId": 44, "maxItems": 5 },
     "facts": { "enabled": true, "topicId": 72 },
-    "lulu": { "enabled": true, "topicId": 85 },
-    "recipes": { "enabled": false, "topicId": 88 },
     "clients": { "enabled": true, "topicId": 126 },
     "cinema": { "enabled": true },
-    "labor": { "enabled": true },
-    "weekend": { "enabled": false }
+    "labor": { "enabled": true }
   },
   "sources": {
     "dailyContentConfigUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json",
@@ -23,25 +20,19 @@
       "events": "",
       "holidays": "",
       "facts": "",
-      "lulu": "",
-      "recipes": "",
       "clients": "",
       "cinema": "",
-      "labor": "",
-      "weekend": ""
+      "labor": ""
     }
   },
   "publishing": {
     "dailyCronDescription": "Daily 00:30 Moscow",
-    "weekendDays": [4, 5],
     "allowAutomaticRetry": true
   },
   "dedupe": {
     "eventsDays": 30,
     "cinemaDays": 60,
-    "recipesDays": 45,
-    "clientsDays": 45,
-    "weekendDays": 30
+    "clientsDays": 45
   },
   "alerts": {
     "enabled": true,

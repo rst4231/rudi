@@ -8,12 +8,9 @@ function normalizePreviewSections(payload = {}) {
     events: { section: 'events', parts: parts(results.events?.preview?.concerts, results.events?.preview?.stage), metadata: { available: Boolean(results.events) } },
     holidays: { section: 'holidays', parts: parts(results.holidays?.preview?.message), metadata: { available: Boolean(results.holidays) } },
     facts: { section: 'facts', parts: parts(results.facts?.preview?.message), metadata: { available: Boolean(results.facts) } },
-    lulu: { section: 'lulu', parts: parts(results.morning?.preview?.lulu), metadata: { available: Boolean(results.morning?.preview?.lulu) } },
-    recipes: { section: 'recipes', parts: parts(results.morning?.preview?.recipes || []), metadata: { available: Array.isArray(results.morning?.preview?.recipes) } },
     clients: { section: 'clients', parts: parts(results.clients?.preview?.message), metadata: { available: Boolean(results.clients) } },
     cinema: { section: 'cinema', parts: parts(results.cinema?.preview?.message || results.cinema?.preview), metadata: { available: Boolean(results.cinema) } },
     labor: { section: 'labor', parts: parts(results.labor?.preview?.message || results.labor?.preview), metadata: { available: Boolean(results.labor) } },
-    weekend: { section: 'weekend', parts: parts(results.weekend?.preview?.message || results.weekend?.preview), metadata: { available: Boolean(results.weekend) } },
   };
 }
 

@@ -19,18 +19,15 @@ function memoryCache(initial = {}) {
 
 function baseSettings() {
   return {
-    version: 1,
+    version: 2,
     timezone: 'Europe/Moscow',
     sections: {
       events: { enabled: true, topicId: 19 },
       holidays: { enabled: true, topicId: 44 },
       facts: { enabled: true, topicId: 72 },
-      lulu: { enabled: true, topicId: 85 },
-      recipes: { enabled: true, topicId: 88 },
       clients: { enabled: true, topicId: 126 },
       cinema: { enabled: true },
       labor: { enabled: true },
-      weekend: { enabled: true },
     },
     sources: {
       dailyContentConfigUrl: 'https://example.test/daily.json',
@@ -38,23 +35,9 @@ function baseSettings() {
       eventsConfigUrl: 'https://example.test/events.json',
       clientsAdviceConfigUrl: 'https://example.test/clients.json',
     },
-    copy: {
-      footers: {
-        events: '', holidays: '', facts: '', lulu: '', recipes: '', clients: '', cinema: '', labor: '', weekend: '',
-      },
-    },
-    publishing: {
-      dailyCronDescription: 'Daily 00:30 Moscow',
-      weekendDays: [4, 5],
-      allowAutomaticRetry: true,
-    },
-    dedupe: {
-      eventsDays: 30,
-      cinemaDays: 60,
-      recipesDays: 45,
-      clientsDays: 45,
-      weekendDays: 30,
-    },
+    copy: { footers: { events: '', holidays: '', facts: '', clients: '', cinema: '', labor: '' } },
+    publishing: { dailyCronDescription: 'Daily 00:30 Moscow', allowAutomaticRetry: true },
+    dedupe: { eventsDays: 30, cinemaDays: 60, clientsDays: 45 },
     alerts: { enabled: true, dedupeMinutes: 180 },
   };
 }
@@ -85,6 +68,13 @@ test('operational settings validate external catalog URLs and reusable footers',
   assert.equal(settings.copy.footers.facts, 'Мой футер');
 });
 
+test('retired sections are rejected by the settings schema', () => {
+  assert.throws(() => validateRudiSettings({
+    ...baseSettings(),
+    sections: { ...baseSettings().sections, lulu: { enabled: true, topicId: 85 } },
+  }), /unknown sections key/i);
+});
+
 test('non-http source URLs are rejected', () => {
   assert.throws(() => validateRudiSettings({
     ...baseSettings(),
@@ -98,9 +88,8 @@ test('unknown top-level keys are rejected', () => {
 
 test('default raw GitHub settings fetch bypasses stale CDN cache', async () => {
   const remote = baseSettings();
-  remote.sections.recipes.enabled = false;
+  remote.sections.facts.enabled = false;
   let requestedUrl = '';
-
   const loaded = await loadRudiSettings({
     localConfig: baseSettings(),
     cache: memoryCache(),
@@ -109,9 +98,8 @@ test('default raw GitHub settings fetch bypasses stale CDN cache', async () => {
       return { ok: true, async json() { return remote; } };
     },
   });
-
   const parsed = new URL(requestedUrl);
   assert.equal(parsed.hostname, 'raw.githubusercontent.com');
   assert.equal(parsed.searchParams.has('_rudi'), true);
-  assert.equal(loaded.settings.sections.recipes.enabled, false);
+  assert.equal(loaded.settings.sections.facts.enabled, false);
 });

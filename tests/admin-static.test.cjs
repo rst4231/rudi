@@ -11,7 +11,11 @@ test('admin page opens directly and calls API without credentials', () => {
   assert.doesNotMatch(source, /<script[^>]+src=|<link[^>]+https?:\/\//i);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
   assert.doesNotMatch(source, /Authorization|Bearer|id="auth"|id="secret"|Неверный секрет|Подключиться/);
+  assert.doesNotMatch(source, /Overrides|Аналитика рубрик|weekend|recipes|lulu/i);
   assert.match(source, /id="app"/);
+  assert.match(source, /data-density="compact"/);
+  assert.match(source, /viewport-fit=cover/);
+  assert.match(source, /safe-area-inset/);
   assert.match(source, /\/api\/admin/);
   assert.match(source, /window\.confirm/);
 });
@@ -26,16 +30,19 @@ test('vercel exposes /admin without enabling Git deployments or changing existin
   assert.ok(config.rewrites.some((row) => row.source === '/admin' && row.destination === '/admin.html'));
 });
 
-test('landing page renders public bot settings from health without embedding credentials', () => {
+test('landing page is a compact one-screen mini app dashboard', () => {
   const source = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
   assert.match(source, /Настройки бота/);
   assert.match(source, /\/api\/health/);
   assert.match(source, /Расписание/);
   assert.match(source, /Рубрики и темы/);
-  assert.match(source, /Антидубли/);
   assert.match(source, /Алерты/);
-  assert.match(source, /Источники контента/);
-  assert.match(source, /Футеры/);
+  assert.match(source, /viewport-fit=cover/);
+  assert.match(source, /data-density="compact"/);
+  assert.match(source, /class="app-shell"/);
+  assert.match(source, /100dvh/);
+  assert.match(source, /safe-area-inset/);
+  assert.doesNotMatch(source, /Антидубли|Источники контента|Футеры|weekend|recipes|lulu/i);
   assert.match(source, /href="\/admin"/);
   assert.doesNotMatch(source, /CRON_SECRET|RUDI_ADMIN_SECRET|Authorization:\s*Bearer/i);
   assert.doesNotMatch(source, /<script[^>]+src=|<link[^>]+https?:\/\//i);

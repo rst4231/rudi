@@ -27,8 +27,6 @@ async function recordGeneratedPayload(payload, date, options = {}) {
     ['holidays', results.holidays],
     ['facts', results.facts],
     ['clients', results.clients],
-    ['lulu', results.morning?.preview?.lulu ? results.morning : null],
-    ['recipes', Array.isArray(results.morning?.preview?.recipes) || results.morning?.recipeIds?.length ? results.morning : null],
   ];
   for (const [section, value] of rows) {
     if (!value) continue;
@@ -67,7 +65,7 @@ async function runDailyOrchestrator(req, res, options = {}) {
     failures.push({ section: 'cleanup', error: String(error?.message || error) });
   }
 
-  for (const section of ['labor', 'cinema', 'weekend']) {
+  for (const section of ['labor', 'cinema']) {
     if (settings.sections?.[section]?.enabled === false) continue;
     try {
       nativeResults[section] = await (options.runNative || ((name, runOptions) => runNativeSection(name, runOptions)))(section, {

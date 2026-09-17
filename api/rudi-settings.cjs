@@ -4,10 +4,10 @@ const { getControlPlaneCache } = require('./stateful-cache.cjs');
 const DEFAULT_CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/rudi-settings.json';
 const OVERRIDES_KEY = 'settings:overrides';
 const TOP_LEVEL_KEYS = new Set(['version', 'timezone', 'sections', 'sources', 'copy', 'publishing', 'dedupe', 'alerts']);
-const SECTION_NAMES = ['events', 'holidays', 'facts', 'lulu', 'recipes', 'clients', 'cinema', 'labor', 'weekend'];
-const TOPIC_SECTIONS = new Set(['events', 'holidays', 'facts', 'lulu', 'recipes', 'clients']);
+const SECTION_NAMES = ['events', 'holidays', 'facts', 'clients', 'cinema', 'labor'];
+const TOPIC_SECTIONS = new Set(['events', 'holidays', 'facts', 'clients']);
 const SOURCE_KEYS = ['dailyContentConfigUrl', 'dailyContentSequenceUrl', 'eventsConfigUrl', 'clientsAdviceConfigUrl'];
-const DEDUPE_KEYS = ['eventsDays', 'cinemaDays', 'recipesDays', 'clientsDays', 'weekendDays'];
+const DEDUPE_KEYS = ['eventsDays', 'cinemaDays', 'clientsDays'];
 
 function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
@@ -79,16 +79,9 @@ function validateRudiSettings(input) {
   }
 
   if (!isPlainObject(input.publishing)) throw new Error('publishing must be an object');
-  assertKnownKeys(input.publishing, new Set(['dailyCronDescription', 'weekendDays', 'allowAutomaticRetry']), 'publishing');
+  assertKnownKeys(input.publishing, new Set(['dailyCronDescription', 'allowAutomaticRetry']), 'publishing');
   const dailyCronDescription = String(input.publishing.dailyCronDescription || '').trim();
   if (!dailyCronDescription) throw new Error('publishing.dailyCronDescription is required');
-  if (!Array.isArray(input.publishing.weekendDays) || !input.publishing.weekendDays.length) {
-    throw new Error('publishing.weekendDays must be a non-empty array');
-  }
-  const weekendDays = [...new Set(input.publishing.weekendDays.map(Number))];
-  if (weekendDays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
-    throw new Error('publishing.weekendDays values must be integers from 0 to 6');
-  }
   if (typeof input.publishing.allowAutomaticRetry !== 'boolean') {
     throw new Error('publishing.allowAutomaticRetry must be boolean');
   }
@@ -111,7 +104,6 @@ function validateRudiSettings(input) {
     copy: { footers },
     publishing: {
       dailyCronDescription,
-      weekendDays,
       allowAutomaticRetry: input.publishing.allowAutomaticRetry,
     },
     dedupe,

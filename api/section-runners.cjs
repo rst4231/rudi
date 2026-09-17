@@ -10,7 +10,6 @@ const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 function getNativeSectionRunner(section, deps = {}) {
   if (section === 'labor') return deps.labor || (async () => require('./index.js').publishDailyLaborArticle());
   if (section === 'cinema') return deps.cinema || (async (options) => require('./cinema-premieres-collage.cjs').publishWeeklyCinemaPremieres(options));
-  if (section === 'weekend') return deps.weekend || (async (options) => require('./weekend-digest.cjs').publishWeekendDigest(options));
   return null;
 }
 

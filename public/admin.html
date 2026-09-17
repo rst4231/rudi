@@ -2,42 +2,39 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e14">
+  <meta name="color-scheme" content="dark">
   <title>RUDI Admin</title>
   <style>
-    :root{color-scheme:light dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:#111217;color:#f5f6f8}button,textarea{font:inherit}.shell{max-width:1180px;margin:0 auto;padding:20px}.top{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}.brand{font-size:26px;font-weight:800}.muted{color:#9ba1ad}.badge{display:inline-flex;padding:6px 10px;border:1px solid #3c414c;border-radius:999px;font-size:13px}.ok{border-color:#2e7d4d;color:#8be0a8}.bad{border-color:#8c4141;color:#ffaaaa}.panel,.card{background:#191b22;border:1px solid #2c303a;border-radius:14px;padding:16px}.panel{margin-top:16px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}textarea{width:100%;min-height:110px;resize:vertical;background:#111319;color:#f7f7f8;border:1px solid #343945;border-radius:9px;padding:10px}.btn{border:1px solid #3a404d;background:#252934;color:#f5f6f8;border-radius:9px;padding:9px 12px;cursor:pointer}.btn:hover{background:#303644}.btn.primary{background:#e9ecf4;color:#15171c}.btn.danger{border-color:#754246}.tabs{display:flex;gap:8px;margin:16px 0}.tabs .active{background:#e9ecf4;color:#111}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}.card h3{margin:0 0 8px}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:13px}.parts{display:grid;gap:8px}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.section-off{opacity:.62}.error{background:#3b1e22;border:1px solid #713c44;color:#ffc5cb;padding:10px;border-radius:9px;margin-top:12px;white-space:pre-wrap}.success{background:#183224;border:1px solid #2a6544;color:#a9edc2;padding:10px;border-radius:9px;margin-top:12px}.hidden{display:none!important}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid #2e323b}.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.split{display:grid;grid-template-columns:2fr 1fr;gap:14px}@media(max-width:800px){.split{grid-template-columns:1fr}.shell{padding:12px}.grid{grid-template-columns:1fr}}
+    :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#f7f8fb;background:#0b0e14;--bg:#0b0e14;--panel:#141821;--panel2:#191e29;--line:#272e3a;--muted:#8e98aa;--text:#f7f8fb;--accent:#5aa7ff;--green:#65d995;--red:#ff7885;--radius:15px}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}body{-webkit-font-smoothing:antialiased}button,textarea{font:inherit}.shell{width:min(100%,1120px);margin:0 auto;padding:max(10px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom))}.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:4px 0 8px;background:linear-gradient(var(--bg) 78%,rgba(11,14,20,0))}.brand{display:flex;align-items:center;gap:9px;min-width:0}.logo{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#6db5ff,#387fe8);font-size:14px;font-weight:850;box-shadow:0 8px 24px rgba(60,132,235,.22)}.brand-title{font-size:16px;font-weight:820;line-height:1}.clock{margin-top:3px;color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top-actions{display:flex;align-items:center;gap:6px}.badge{display:inline-flex;align-items:center;justify-content:center;min-height:24px;padding:0 8px;border:1px solid #364051;border-radius:999px;color:#aab5c5;font-size:9px;font-weight:800;white-space:nowrap}.badge.ok{color:var(--green);border-color:rgba(101,217,149,.3);background:rgba(101,217,149,.07)}.badge.bad{color:var(--red);border-color:rgba(255,120,133,.3);background:rgba(255,120,133,.07)}.btn{border:1px solid var(--line);background:var(--panel2);color:#e8edf5;border-radius:10px;padding:7px 9px;cursor:pointer;font-size:10px;font-weight:740;transition:.15s ease}.btn:active{transform:scale(.97)}.btn.primary{background:#e8eef8;color:#141821;border-color:#e8eef8}.btn.danger{color:#ffadb5;border-color:rgba(255,120,133,.32);background:rgba(255,120,133,.06)}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;margin:2px 0 9px}.tabs .btn{border:0;background:transparent;color:var(--muted);padding:7px}.tabs .active{background:var(--panel2);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.18)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}.card{padding:10px;min-width:0}.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.card h3{margin:0;font-size:12px;line-height:1.2;text-transform:capitalize}.meta{display:flex;gap:4px;flex-wrap:wrap;margin:7px 0}.parts{display:grid;gap:6px}textarea{width:100%;min-height:72px;max-height:126px;resize:vertical;background:#0f131a;color:#f3f6fb;border:1px solid #293241;border-radius:10px;padding:8px 9px;font-size:10px;line-height:1.38;outline:none}textarea:focus{border-color:#4d8fe9;box-shadow:0 0 0 2px rgba(77,143,233,.12)}.muted{color:var(--muted);font-size:10px}.actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.section-off{opacity:.55}.panel{margin-top:8px;padding:10px}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.panel h2{margin:0;font-size:12px}.notice{position:sticky;top:52px;z-index:4;margin-bottom:8px;padding:8px 10px;border-radius:11px;font-size:10px;box-shadow:0 12px 34px rgba(0,0,0,.22)}.error{background:#351c22;border:1px solid rgba(255,120,133,.35);color:#ffc3c9}.success{background:#173024;border:1px solid rgba(101,217,149,.3);color:#b9f2cf}.hidden{display:none!important}@media(max-width:700px){.shell{padding-left:9px;padding-right:9px}.grid{grid-template-columns:1fr 1fr;gap:6px}.card{padding:8px}.card h3{font-size:11px}.meta{margin:5px 0}.badge{min-height:20px;padding:0 6px;font-size:8px}.btn{padding:6px 7px;font-size:9px}textarea{min-height:64px;font-size:9px;padding:7px}.actions{gap:4px;margin-top:6px}}@media(max-width:520px){.top-actions .btn{padding-left:8px;padding-right:8px}.clock{max-width:170px}.grid{grid-template-columns:1fr}.card{padding:9px}.card-top{align-items:center}textarea{min-height:68px}.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.actions .btn{min-width:0;padding-left:4px;padding-right:4px}.panel{padding:9px}}@media(max-height:700px) and (min-width:521px){textarea{min-height:56px;max-height:86px}.card{padding-top:8px;padding-bottom:8px}.meta{margin:4px 0}.actions{margin-top:5px}}
   </style>
 </head>
-<body>
+<body data-density="compact">
   <main class="shell">
     <section id="app">
-      <header class="top">
-        <div><div class="brand">RUDI Admin</div><div id="clock" class="muted"></div></div>
-        <div class="row"><span id="healthBadge" class="badge">Загрузка…</span><button id="refresh" class="btn">Обновить</button></div>
+      <header class="topbar">
+        <div class="brand"><div class="logo">RU</div><div><div class="brand-title">RUDI Admin</div><div id="clock" class="clock"></div></div></div>
+        <div class="top-actions"><span id="healthBadge" class="badge">Загрузка</span><button id="refresh" class="btn" type="button">↻ Обновить</button></div>
       </header>
-      <div id="notice" class="hidden"></div>
+      <div id="notice" class="hidden notice"></div>
       <div class="tabs"><button class="btn active" data-tab="today">Сегодня</button><button class="btn" data-tab="tomorrow">Завтра</button></div>
       <div id="sections" class="grid"></div>
-      <div class="split">
-        <section class="panel"><h2>Ошибки и алерты</h2><div id="alerts" class="muted">Нет данных</div></section>
-        <section class="panel"><h2>Overrides</h2><div id="overrides" class="code muted">{}</div></section>
-      </div>
-      <section class="panel"><h2>Аналитика рубрик</h2><div style="overflow:auto"><table><thead><tr><th>Рубрика</th><th>Публикации</th><th>Ошибки</th><th>👍</th><th>👎</th><th>Позитив</th><th>Дубли</th></tr></thead><tbody id="analytics"></tbody></table></div></section>
+      <section class="panel"><div class="panel-head"><h2>Ошибки и алерты</h2><span class="badge">система</span></div><div id="alerts" class="muted">Нет данных</div></section>
     </section>
   </main>
 <script>
 (() => {
-  const sectionNames=['events','holidays','facts','lulu','recipes','clients','cinema','labor','weekend'];
+  const sectionNames=['events','holidays','facts','clients','cinema','labor'];
+  const sectionLabels={events:'Места и мероприятия',holidays:'Праздники',facts:'Факты',clients:'Советы клиентам',cinema:'Кинопремьеры',labor:'Труд'};
   let state=null, activeTab='today';
   const $=(id)=>document.getElementById(id);
-  function setNotice(text,type='success'){const el=$('notice');el.className=type;el.textContent=text;el.classList.toggle('hidden',!text)}
+  function setNotice(text,type='success'){const el=$('notice');el.className=`notice ${type}`;el.textContent=text;el.classList.toggle('hidden',!text)}
   async function api(method='GET',body=null){
-    const headers={};
-    if(body)headers['Content-Type']='application/json';
+    const headers={};if(body)headers['Content-Type']='application/json';
     const response=await fetch('/api/admin',{method,headers,body:body?JSON.stringify(body):undefined});
     let data={};try{data=await response.json()}catch{}
-    if(!response.ok||data.ok===false)throw new Error(data.error||`HTTP ${response.status}`);
-    return data;
+    if(!response.ok||data.ok===false)throw new Error(data.error||`HTTP ${response.status}`);return data;
   }
   function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
   function currentDate(){return state?.dates?.[activeTab]||''}
@@ -46,17 +43,15 @@
   function sourceState(name){const rows=state?.sourceHealth||[];const row=rows.find((item)=>String(item.sourceId||'').startsWith(name+':')||item.sourceId===name||name==='cinema'&&String(item.sourceId||'').startsWith('cinema:'));return row?.state||row?.status||'—'}
   function card(name){
     const config=state?.settings?.sections?.[name]||{};const view=previewSection(name);const pub=publication(name);const skipped=Boolean(state?.skips?.[activeTab]?.[name]);
-    const parts=(view.parts||[]).map((part,index)=>`<textarea class="part" data-section="${name}" data-index="${index}">${escapeHtml(part)}</textarea>`).join('')||'<div class="muted">Preview текста недоступен для этой рубрики.</div>';
-    const canEdit=['events','holidays','facts','lulu','recipes','clients'].includes(name);
-    const retry=pub?.status==='failed'?`<button class="btn" data-action="retry" data-section="${name}">Повторить ошибку</button>`:'';
-    return `<article class="card ${config.enabled===false?'section-off':''}"><h3>${name}</h3><div class="meta"><span class="badge">${config.enabled===false?'выкл':'вкл'}</span><span class="badge">${pub?.status||'нет журнала'}</span><span class="badge">source: ${escapeHtml(sourceState(name))}</span>${skipped?'<span class="badge bad">skip</span>':''}${view.overridden?'<span class="badge">override</span>':''}</div><div class="parts">${parts}</div><div class="actions">${canEdit?`<button class="btn" data-action="save" data-section="${name}">Сохранить текст</button><button class="btn" data-action="clear-text" data-section="${name}">Очистить override</button>`:''}<button class="btn" data-action="toggle" data-section="${name}" data-enabled="${config.enabled!==false}">${config.enabled===false?'Включить':'Выключить'}</button><button class="btn" data-action="skip" data-section="${name}" data-skipped="${skipped}">${skipped?'Убрать skip':'Пропустить дату'}</button><button class="btn primary" data-action="publish" data-section="${name}">Опубликовать</button>${retry}</div></article>`;
+    const parts=(view.parts||[]).map((part,index)=>`<textarea class="part" data-section="${name}" data-index="${index}">${escapeHtml(part)}</textarea>`).join('')||'<div class="muted">Preview текста недоступен.</div>';
+    const canEdit=['events','holidays','facts','clients'].includes(name);
+    const retry=pub?.status==='failed'?`<button class="btn" data-action="retry" data-section="${name}">Повторить</button>`:'';
+    return `<article class="card ${config.enabled===false?'section-off':''}"><div class="card-top"><h3>${escapeHtml(sectionLabels[name]||name)}</h3><span class="badge ${config.enabled===false?'bad':'ok'}">${config.enabled===false?'выкл':'вкл'}</span></div><div class="meta"><span class="badge">${escapeHtml(pub?.status||'нет журнала')}</span><span class="badge">source: ${escapeHtml(sourceState(name))}</span>${skipped?'<span class="badge bad">skip</span>':''}</div><div class="parts">${parts}</div><div class="actions">${canEdit?`<button class="btn" data-action="save" data-section="${name}">Сохранить</button><button class="btn" data-action="clear-text" data-section="${name}">Сбросить</button>`:''}<button class="btn" data-action="toggle" data-section="${name}" data-enabled="${config.enabled!==false}">${config.enabled===false?'Включить':'Выключить'}</button><button class="btn" data-action="skip" data-section="${name}" data-skipped="${skipped}">${skipped?'Вернуть':'Пропустить'}</button><button class="btn primary" data-action="publish" data-section="${name}">Опубликовать</button>${retry}</div></article>`;
   }
   function render(){
     const ok=state?.health?.ok===true;$('healthBadge').textContent=ok?'Работает':'Проблема';$('healthBadge').className=`badge ${ok?'ok':'bad'}`;
     $('sections').innerHTML=sectionNames.map(card).join('');
-    $('overrides').textContent=JSON.stringify(state?.overrides||{},null,2);
-    const alert=state?.alerts;if(alert){$('alerts').innerHTML=`<div><b>${escapeHtml(alert.section||'system')}</b>: ${escapeHtml(alert.message||alert.code||'')}</div><div class="muted">${escapeHtml(alert.sentAt||'')}</div>${alert.acknowledgedAt?'<div class="muted">Подтверждено</div>':'<button class="btn danger" data-alert="'+escapeHtml(alert.fingerprint)+'">Подтвердить алерт</button>'}`}else $('alerts').textContent='Активных алертов нет';
-    $('analytics').innerHTML=sectionNames.map((name)=>{const a=state?.analytics?.[name]||{};const up=Number(a.positiveFeedback||0),down=Number(a.negativeFeedback||0),ratio=up+down?Math.round(up/(up+down)*100)+'%':'—';return `<tr><td>${name}</td><td>${a.publications||0}</td><td>${a.failures||0}</td><td>${up}</td><td>${down}</td><td>${ratio}</td><td>${a.duplicateSuppressions||0}</td></tr>`}).join('');
+    const alert=state?.alerts;if(alert){$('alerts').innerHTML=`<div style="margin-top:7px"><b>${escapeHtml(alert.section||'system')}</b>: ${escapeHtml(alert.message||alert.code||'')}</div><div class="muted">${escapeHtml(alert.sentAt||'')}</div>${alert.acknowledgedAt?'<div class="muted">Подтверждено</div>':'<button class="btn danger" style="margin-top:6px" data-alert="'+escapeHtml(alert.fingerprint)+'">Подтвердить алерт</button>'}`}else $('alerts').textContent='Активных алертов нет';
   }
   async function load(){setNotice('');state=await api('GET');render()}
   async function action(payload,message){setNotice('');const result=await api('POST',payload);setNotice(message||'Готово');await load();return result}
@@ -64,7 +59,7 @@
   document.querySelector('.tabs').onclick=(e)=>{const tab=e.target.dataset.tab;if(!tab)return;activeTab=tab;document.querySelectorAll('[data-tab]').forEach((b)=>b.classList.toggle('active',b.dataset.tab===tab));render()};
   $('sections').onclick=async(e)=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const section=btn.dataset.section,date=currentDate(),kind=btn.dataset.action;try{
     if(kind==='save'){const parts=[...document.querySelectorAll(`textarea.part[data-section="${section}"]`)].map((el)=>el.value.trim()).filter(Boolean);await action({action:'set-content-override',section,date,parts},'Текст сохранён')}
-    if(kind==='clear-text'&&window.confirm(`Очистить текстовый override ${section}?`))await action({action:'clear-content-override',section,date},'Override очищен');
+    if(kind==='clear-text'&&window.confirm(`Сбросить сохранённый текст ${section}?`))await action({action:'clear-content-override',section,date},'Текст сброшен');
     if(kind==='toggle'){const enabled=btn.dataset.enabled!=='true';if(enabled||window.confirm(`Выключить рубрику ${section}?`))await action({action:'set-section-enabled',section,enabled},enabled?'Рубрика включена':'Рубрика выключена')}
     if(kind==='skip'){const skipped=btn.dataset.skipped==='true';if(window.confirm(`${skipped?'Вернуть':'Пропустить'} ${section} на ${date}?`))await action({action:skipped?'clear-section-skip':'skip-section',section,date},'Расписание обновлено')}
     if(kind==='publish'){const force=publication(section)?.status==='published';if(window.confirm(`${force?'ПОВТОРНО ':''}опубликовать только ${section} за ${date}?`))await action({action:'publish-section',section,date,force},'Рубрика опубликована')}
