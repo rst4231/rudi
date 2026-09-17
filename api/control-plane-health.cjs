@@ -18,7 +18,6 @@ const SOURCE_IDS = [
   'clients-advice',
 ];
 const KNOWN_FORUM_CHAT_ID = '-1004476323368';
-const RETIRED_TOPIC_IDS = [85, 88];
 
 let topicNameSyncFlight = null;
 
@@ -72,27 +71,6 @@ async function defaultEventCleanupStatus(options = {}) {
   }
 }
 
-async function deleteRetiredForumTopicOnce({ token, chatId, topicId, cache, fetchImpl }) {
-  const id = Number(topicId);
-  if (!Number.isInteger(id) || id <= 0) return false;
-  const key = `forum:retired-topic-deleted:${id}`;
-  if (await cache.get(key)) return true;
-  const response = await fetchImpl(`https://api.telegram.org/bot${token}/deleteForumTopic`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, message_thread_id: id }),
-  });
-  if (!response.ok) {
-    let detail = '';
-    try { detail = await response.text(); } catch {}
-    if (!/TOPIC_ID_INVALID|message thread not found|topic.*not found/i.test(detail)) {
-      throw new Error(`Telegram deleteForumTopic failed for ${id}: HTTP ${response.status}${detail ? ` ${detail}` : ''}`);
-    }
-  }
-  await cache.set(key, true, { tags: ['rudi-retired-topics'], name: key });
-  return true;
-}
-
 async function syncForumTopicNamesSafe(options = {}) {
   if (options.enabled === false) return null;
   if (!topicNameSyncFlight) {
@@ -114,11 +92,7 @@ async function syncForumTopicNamesSafe(options = {}) {
         cache,
         fetchImpl,
       });
-      const retiredTopicsDeleted = {};
-      for (const topicId of RETIRED_TOPIC_IDS) {
-        retiredTopicsDeleted[topicId] = await deleteRetiredForumTopicOnce({ token, chatId, topicId, cache, fetchImpl });
-      }
-      return { ...renamed, legacyLaborDeleted, retiredTopicsDeleted };
+      return { ...renamed, legacyLaborDeleted };
     })().catch((error) => {
       console.warn('RUDI_FORUM_TOPIC_NAME_SYNC_ERROR', String(error?.message || error));
       return null;
@@ -176,4 +150,4 @@ async function buildHealthPayload(options = {}) {
   };
 }
 
-module.exports = { SOURCE_IDS, RETIRED_TOPIC_IDS, moscowDate, cloneOperationalSettings, deleteRetiredForumTopicOnce, syncForumTopicNamesSafe, buildHealthPayload };
+module.exports = { SOURCE_IDS, moscowDate, cloneOperationalSettings, syncForumTopicNamesSafe, buildHealthPayload };
