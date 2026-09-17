@@ -4,7 +4,7 @@ const { rewriteClientsTelegramRequest } = require('./clients-advice.cjs');
 const { handleHolidayPublication } = require('./holiday-rollover.cjs');
 const { rewriteHolidayTelegramRequest } = require('./holiday-significance.cjs');
 const { getTopicMaintenanceCache, getDailyContentCache, getControlPlaneCache } = require('./stateful-cache.cjs');
-const { FACTS_TOPIC_ID, LULU_TOPIC_ID, wrapDailyContentDedupe } = require('./daily-content-dedupe.cjs');
+const { FACTS_TOPIC_ID, wrapDailyContentDedupe } = require('./daily-content-dedupe.cjs');
 const { loadDailyContentCatalog } = require('./daily-content-config.cjs');
 const { loadRudiSettings } = require('./rudi-settings.cjs');
 const { applySectionControlToTelegramRequest, currentPublicationContext, topicSectionMap } = require('./section-controls.cjs');
@@ -122,7 +122,7 @@ function wrapFetch(fetchImpl, options = {}) {
     if (section) rewritten = withReplyMarkup(rewritten, buildFeedbackMarkup(section, publicationDate, options.env || process.env));
 
     let dailyContentFetch = fetchImpl;
-    if (!options.bypassDailyDedupe && (topicId === FACTS_TOPIC_ID || topicId === LULU_TOPIC_ID)) {
+    if (!options.bypassDailyDedupe && topicId === FACTS_TOPIC_ID) {
       const catalog = await loadDailyContentCatalog({
         fetchImpl: options.configFetchImpl || fetchImpl,
         configUrl: options.dailyContentConfigUrl,
