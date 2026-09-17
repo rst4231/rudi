@@ -172,6 +172,17 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
       fetchImpl,
       force: options.replaceActiveBatch === true,
     });
+    const sameDay = options.replaceActiveBatch === true
+      ? await base.deleteTrackedMessages({
+        topicId: base.EVENTS_TOPIC_ID,
+        targetDateKey: todayKey,
+        chatId,
+        cache,
+        baseUrl: endpoint.baseUrl,
+        fetchImpl,
+        markCleanup: false,
+      })
+      : { deleted: 0, skipped: true };
     const dated = await base.deleteTrackedMessages({
       topicId: base.EVENTS_TOPIC_ID,
       targetDateKey,
@@ -180,18 +191,18 @@ async function cleanupPreviousEventPostsBeforePublish(input, init = {}, options 
       baseUrl: endpoint.baseUrl,
       fetchImpl,
     });
-    const deleted = Number(active?.deleted || 0) + Number(dated?.deleted || 0);
+    const deleted = Number(active?.deleted || 0) + Number(sameDay?.deleted || 0) + Number(dated?.deleted || 0);
     await rememberCleanupStatusSafe({
       checkedAt: now,
       trigger: 'prepublish',
       date: todayKey,
-      targetDateKey: active?.targetDateKey || targetDateKey,
-      tracked: Number(active?.tracked || 0) + Number(dated?.deleted || 0),
+      targetDateKey: active?.targetDateKey || (sameDay?.deleted ? todayKey : targetDateKey),
+      tracked: Number(active?.tracked || 0) + Number(sameDay?.deleted || 0) + Number(dated?.deleted || 0),
       deleted,
       skipped: deleted ? null : (active?.skipped || (dated?.skipped ? 'dated-cleanup-skipped' : null)),
       error: null,
     }, cache);
-    return { active, dated };
+    return { active, sameDay, dated };
   } catch (error) {
     const detail = String(error?.message || error);
     console.error('RUDI_EVENT_PREPUBLISH_CLEANUP_ERROR', { targetDateKey, error });
@@ -277,18 +288,19 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
   const isEventPost = topicId === base.EVENTS_TOPIC_ID && endpoint && EVENT_POST_METHODS.has(endpoint.method);
   const needsCache = topicId === base.EVENTS_TOPIC_ID || topicId === base.HOLIDAYS_TOPIC_ID || topicId === base.COUPLE_TOPIC_ID;
   const cache = options.cache || (needsCache ? resolveTopicCache(options) : undefined);
+  const publicationDate = eventPublicationDate(options, options.now || new Date());
   if (isEventPost) {
     const replaceActiveBatch = claimEventPublicationReplacement();
-    await cleanupPreviousEventPostsBeforePublish(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl, replaceActiveBatch });
+    await cleanupPreviousEventPostsBeforePublish(input, init, { ...options, publicationDate, ...(cache ? { cache } : {}), fetchImpl, replaceActiveBatch });
   }
-  const response = await base.handleTelegramTopicRequest(input, init, { ...options, ...(cache ? { cache } : {}), fetchImpl: wrapFetch(fetchImpl, options) });
+  const response = await base.handleTelegramTopicRequest(input, init, { ...options, publicationDate, ...(cache ? { cache } : {}), fetchImpl: wrapFetch(fetchImpl, options) });
   if (isEventPost && response?.ok && cache) {
     try {
       const data = await response.clone().json();
       const messageIds = responseMessageIds(data?.result);
       if (messageIds.length) {
         await rememberActiveEventMessages({
-          dateKey: eventPublicationDate(options, options.now || new Date()),
+          dateKey: publicationDate,
           chatId: payload?.chat_id,
           messageIds,
           cache,
