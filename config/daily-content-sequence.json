@@ -1,9 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "enabled": true,
   "startDate": "2026-09-09",
   "factsStartId": "facts-rotation-sleep-consistency",
-  "luluStartId": "lulu-booties-fit",
   "factsExhaustionPolicy": "suppress-until-replenished",
   "factsWeekdays": {
     "monday": "Здоровье",
@@ -26,7 +25,6 @@
     "facts-whole-grains",
     "facts-diet-diversity",
     "facts-minimally-processed",
-    "facts-rotation-sleep-consistency",
-    "lulu-human-food"
+    "facts-rotation-sleep-consistency"
   ]
 }
