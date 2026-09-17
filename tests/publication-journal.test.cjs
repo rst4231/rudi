@@ -44,11 +44,11 @@ test('failed section can start a second attempt while preserving first start', a
   assert.equal(retry.startedAt, t0.toISOString());
 });
 
-test('skipped section records reason without counting as failure', async () => {
+test('skipped active section records reason without counting as failure', async () => {
   const cache = memoryCache();
-  const row = await markPublicationSkipped({ date: '2026-08-30', section: 'weekend', reason: 'insufficient-verified-items' }, { cache, now: t0 });
+  const row = await markPublicationSkipped({ date: '2026-08-30', section: 'events', reason: 'manual-skip' }, { cache, now: t0 });
   assert.equal(row.status, 'skipped');
-  assert.equal(row.metadata.reason, 'insufficient-verified-items');
+  assert.equal(row.metadata.reason, 'manual-skip');
   assert.equal(row.error, null);
 });
 
