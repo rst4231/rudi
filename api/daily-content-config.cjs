@@ -17,16 +17,13 @@ function assertHttpUrl(value, label) {
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error(`${label} must use http or https`);
 }
 
-function validateEntry(entry, expectedType, options = {}) {
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`Invalid ${expectedType} content entry`);
-  if (String(entry.type || '') !== expectedType) throw new Error(`Content entry ${entry.id || '<unknown>'} must have type ${expectedType}`);
+function validateEntry(entry, options = {}) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid facts content entry');
+  if (String(entry.type || '') !== 'facts') throw new Error(`Content entry ${entry.id || '<unknown>'} must have type facts`);
   if (!String(entry.id || '').trim()) throw new Error('Content entry is missing id');
   if (!String(entry.body || '').trim()) throw new Error(`Content entry ${entry.id} is missing body`);
-  if (expectedType === 'facts' && !String(entry.category || '').trim()) throw new Error(`Fact ${entry.id} is missing category`);
-  if (expectedType === 'facts' && options.requireApplication && !String(entry.application || '').trim()) {
-    throw new Error(`Fact ${entry.id} is missing application`);
-  }
-  if (expectedType === 'lulu' && !String(entry.title || '').trim()) throw new Error(`Lulu entry ${entry.id} is missing title`);
+  if (!String(entry.category || '').trim()) throw new Error(`Fact ${entry.id} is missing category`);
+  if (options.requireApplication && !String(entry.application || '').trim()) throw new Error(`Fact ${entry.id} is missing application`);
   assertHttpUrl(entry.sourceUrl, `sourceUrl for ${entry.id}`);
   return entry;
 }
@@ -49,9 +46,7 @@ function validDateKey(value) {
 
 function validateFactsWeekdays(input, facts) {
   if (input === undefined || input === null) return null;
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new Error('sequence.factsWeekdays must be an object');
-  }
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('sequence.factsWeekdays must be an object');
   const result = {};
   const categories = new Set(facts.map((entry) => String(entry.category || '').trim()));
   for (const weekday of FACTS_WEEKDAY_KEYS) {
@@ -63,26 +58,20 @@ function validateFactsWeekdays(input, facts) {
   return result;
 }
 
-function validateSequence(input, facts, lulu) {
+function validateSequence(input, facts) {
   if (input === undefined || input === null) return null;
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('sequence must be an object');
   const startDate = String(input.startDate || '').trim();
   const factsStartId = String(input.factsStartId || '').trim();
-  const luluStartId = String(input.luluStartId || '').trim();
   if (!validDateKey(startDate)) throw new Error('sequence.startDate must be YYYY-MM-DD');
   if (!factsStartId || !facts.some((entry) => String(entry.id) === factsStartId)) throw new Error('sequence.factsStartId must reference a facts entry');
-  if (!luluStartId || !lulu.some((entry) => String(entry.id) === luluStartId)) throw new Error('sequence.luluStartId must reference a Lulu entry');
   const factsWeekdays = validateFactsWeekdays(input.factsWeekdays, facts);
   const factsExhaustionPolicy = String(input.factsExhaustionPolicy || '').trim();
-  if (factsWeekdays && factsExhaustionPolicy !== 'suppress-until-replenished') {
-    throw new Error('sequence.factsExhaustionPolicy must be suppress-until-replenished');
-  }
+  if (factsWeekdays && factsExhaustionPolicy !== 'suppress-until-replenished') throw new Error('sequence.factsExhaustionPolicy must be suppress-until-replenished');
   return {
     startDate,
     factsStartId,
-    luluStartId,
-    ...(factsWeekdays ? { factsExhaustionPolicy } : {}),
-    ...(factsWeekdays ? { factsWeekdays } : {}),
+    ...(factsWeekdays ? { factsExhaustionPolicy, factsWeekdays } : {}),
   };
 }
 
@@ -96,7 +85,6 @@ function applySequenceState(baseConfig, state) {
   const sequence = enabled ? {
     startDate: String(state.startDate || '').trim(),
     factsStartId: String(state.factsStartId || '').trim(),
-    luluStartId: String(state.luluStartId || '').trim(),
     ...(state.factsExhaustionPolicy ? { factsExhaustionPolicy: String(state.factsExhaustionPolicy).trim() } : {}),
     ...(state.factsWeekdays ? { factsWeekdays: structuredClone(state.factsWeekdays) } : {}),
   } : null;
@@ -106,21 +94,17 @@ function applySequenceState(baseConfig, state) {
 function validateCatalog(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Daily content catalog is invalid');
   const version = Number(input.version || 1);
-  const facts = Array.isArray(input.facts)
-    ? input.facts.map((entry) => validateEntry(entry, 'facts', { requireApplication: version >= 4 }))
-    : [];
-  const lulu = Array.isArray(input.lulu) ? input.lulu.map((entry) => validateEntry(entry, 'lulu')) : [];
+  const facts = Array.isArray(input.facts) ? input.facts.map((entry) => validateEntry(entry, { requireApplication: version >= 4 })) : [];
   const publishedIds = validatePublishedIds(input.publishedIds);
   const seen = new Set();
-  for (const entry of [...facts, ...lulu]) {
+  for (const entry of facts) {
     const id = String(entry.id).trim();
     if (seen.has(id)) throw new Error(`Duplicate content id: ${id}`);
     seen.add(id);
   }
   if (!facts.length) throw new Error('Daily content catalog has no facts');
-  if (!lulu.length) throw new Error('Daily content catalog has no Lulu entries');
-  const sequence = validateSequence(input.sequence, facts, lulu);
-  return { version, publishedIds, sequence, facts, lulu };
+  const sequence = validateSequence(input.sequence, facts);
+  return { version, publishedIds, sequence, facts };
 }
 
 function readBundledConfig() { return JSON.parse(fs.readFileSync(localConfigPath, 'utf8')); }
@@ -143,7 +127,7 @@ async function safeRecordDailyContentHealth(catalog, source, sequenceSource, opt
     await recordHealth({
       sourceId: 'daily-content',
       status: source === 'remote' ? 'healthy' : 'stale',
-      itemCount: catalog.facts.length + catalog.lulu.length,
+      itemCount: catalog.facts.length,
       fallbackSource: source === 'remote' ? null : 'bundled-config',
       metadata: { catalogSource: source, sequenceSource },
     }, {
