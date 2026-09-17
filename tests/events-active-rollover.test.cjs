@@ -59,6 +59,75 @@ test('events delete the previous active batch even when the dated message key is
   });
 });
 
+test('event replacement does not publish a new post when deleting the active post fails', async () => {
+  const cache = fakeCache({
+    'topic:237:deleted:-100123': true,
+    'topic:19:active': {
+      dateKey: '2026-09-16',
+      chatId: -100123,
+      messageIds: [901, 902],
+    },
+  });
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const method = String(url).split('/').at(-1);
+    const body = init?.body instanceof FormData ? Object.fromEntries(init.body.entries()) : JSON.parse(init.body);
+    calls.push({ method, body });
+    if (method === 'deleteMessages') {
+      return new Response(JSON.stringify({ ok: false, description: 'temporary delete failure' }), {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return telegramResponse({ message_id: 903 });
+  };
+
+  await assert.rejects(
+    handleTelegramTopicRequest(
+      'https://api.telegram.org/bot1:testtoken/sendMessage',
+      { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'new event post' }) },
+      { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl },
+    ),
+    /active event cleanup failed/i,
+  );
+
+  assert.deepEqual(calls.map((call) => call.method), ['deleteMessages']);
+  assert.deepEqual(await cache.get('topic:19:active'), {
+    dateKey: '2026-09-16',
+    chatId: -100123,
+    messageIds: [901, 902],
+  });
+});
+
+test('same-day replacement deletes dated event messages when active tracking is missing', async () => {
+  const cache = fakeCache({
+    'topic:237:deleted:-100123': true,
+    'topic:19:2026-09-17:messages': [911, 912],
+  });
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const method = String(url).split('/').at(-1);
+    const body = init?.body instanceof FormData ? Object.fromEntries(init.body.entries()) : JSON.parse(init.body);
+    calls.push({ method, body });
+    if (method === 'deleteMessages') return telegramResponse(true);
+    return telegramResponse({ message_id: 913 });
+  };
+
+  await runWithPublicationContext({ date: '2026-09-17' }, () => handleTelegramTopicRequest(
+    'https://api.telegram.org/bot1:testtoken/sendMessage',
+    { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'replacement' }) },
+    { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl },
+  ));
+
+  assert.deepEqual(calls.map((call) => call.method), ['deleteMessages', 'sendMessage']);
+  assert.deepEqual(calls[0].body, { chat_id: -100123, message_ids: [911, 912] });
+  assert.deepEqual(await cache.get('topic:19:active'), {
+    dateKey: '2026-09-17',
+    chatId: -100123,
+    messageIds: [913],
+  });
+});
+
 test('a same-day event publication replaces the previous active batch once and keeps its own messages', async () => {
   const cache = fakeCache({
     'topic:237:deleted:-100123': true,
