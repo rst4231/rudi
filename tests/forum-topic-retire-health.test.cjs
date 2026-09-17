@@ -11,7 +11,7 @@ function memoryCache(seed = {}) {
   };
 }
 
-test('health maintenance keeps For Di and deletes legacy and retired topics', async () => {
+test('health maintenance keeps For Di, deletes legacy Labor, and leaves retired topics untouched', async () => {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push({ method: String(url).split('/').at(-1), body: JSON.parse(init.body) });
@@ -34,7 +34,8 @@ test('health maintenance keeps For Di and deletes legacy and retired topics', as
     configFetchImpl,
   });
 
-  assert.deepEqual(calls.map((call) => call.method), ['editForumTopic', 'deleteForumTopic', 'deleteForumTopic', 'deleteForumTopic']);
+  assert.deepEqual(calls.map((call) => call.method), ['editForumTopic', 'deleteForumTopic']);
   assert.deepEqual(calls[0].body, { chat_id: '-1004476323368', message_thread_id: 126, name: 'Для Ди' });
-  assert.deepEqual(calls.slice(1).map((call) => call.body.message_thread_id), [696, 85, 88]);
+  assert.equal(calls[1].body.message_thread_id, 696);
+  assert.equal(calls.some((call) => [85, 88].includes(call.body.message_thread_id)), false);
 });
