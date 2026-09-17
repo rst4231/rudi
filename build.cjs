@@ -6,7 +6,6 @@ const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
 const runtimeDir = path.join(__dirname, 'runtime');
 const outputPath = path.join(runtimeDir, 'generated-runtime.cjs');
-const recipeConfigPath = path.join(__dirname, 'config', 'recipes-extra.json');
 const eventsConfigPath = path.join(__dirname, 'config', 'events.json');
 
 function assertProductionGitDeployment(env = process.env) {
@@ -19,9 +18,7 @@ function assertProductionGitDeployment(env = process.env) {
 function replaceOnce(source, before, after, label) {
   const first = source.indexOf(before);
   if (first < 0) throw new Error(`Missing runtime patch target: ${label}`);
-  if (source.indexOf(before, first + before.length) >= 0) {
-    throw new Error(`Ambiguous runtime patch target: ${label}`);
-  }
+  if (source.indexOf(before, first + before.length) >= 0) throw new Error(`Ambiguous runtime patch target: ${label}`);
   return `${source.slice(0, first)}${after}${source.slice(first + before.length)}`;
 }
 
@@ -67,40 +64,13 @@ function patchEventRuntime(source) {
   return next;
 }
 
-function patchRecipeRuntime(source) {
-  if (!fs.existsSync(recipeConfigPath)) throw new Error('Missing config/recipes-extra.json');
-  const extra = JSON.parse(fs.readFileSync(recipeConfigPath, 'utf8'));
-  let next = source;
-
-  const morningHeader = '__mods["src/morning-digest.js"]=function(module,exports,__req,require){\nconst { escapeHtml } = __req("src/format.js");\nconst { answerCallbackQuery, editMessageReplyMarkup, sendDigest } = __req("src/telegram.js");\nconst { moscowDateKey, validateDateKey } = __req("src/time.js");';
-  const morningHeaderWithWeekday = '__mods["src/morning-digest.js"]=function(module,exports,__req,require){\nconst { escapeHtml } = __req("src/format.js");\nconst { answerCallbackQuery, editMessageReplyMarkup, sendDigest } = __req("src/telegram.js");\nconst { moscowDateKey, validateDateKey, weekdayMondayZero } = __req("src/time.js");';
-  next = replaceOnce(next, morningHeader, morningHeaderWithWeekday, 'morning digest weekday import');
-
-  const extension = ['breakfast', 'lunch', 'snack', 'dinner']
-    .map((meal) => `R.${meal}.push(...${JSON.stringify(extra[meal])});`)
-    .join('\n');
-  next = replaceOnce(
-    next,
-    '};\nasync function cache(){if(!process.env.VERCEL)return null;',
-    `};\n${extension}\nasync function cache(){if(!process.env.VERCEL)return null;`,
-    'recipe catalog extension',
-  );
-
-  next = replaceOnce(
-    next,
-    'async function runMorningDigest({dateKey=moscowDateKey(),dryRun=false,only}={}){',
-    'function isRecipePublicationDay(dateKey){return [0,2,4].includes(weekdayMondayZero(dateKey));}\nasync function runMorningDigest({dateKey=moscowDateKey(),dryRun=false,only}={}){',
-    'recipe publication weekday helper',
-  );
-
-  next = replaceOnce(
-    next,
+function patchRetiredRuntime(source) {
+  return replaceOnce(
+    source,
     'const recipes=sections.has("recipe")?Object.keys(MEAL_META).map(m=>chooseRecipe(m,dateKey,rh.sentIds)):[];',
-    'const recipes=sections.has("recipe")&&isRecipePublicationDay(dateKey)?Object.keys(MEAL_META).map(m=>chooseRecipe(m,dateKey,rh.sentIds)):[];',
-    'recipe MWF schedule',
+    'const recipes=[];',
+    'retired recipe generation',
   );
-
-  return next;
 }
 
 function buildRuntime() {
@@ -109,22 +79,16 @@ function buildRuntime() {
 
   for (let index = 0; index < CHUNK_COUNT; index += 1) {
     const filePath = path.join(runtimeDir, `chunk${index}.txt`);
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Missing RUDI runtime chunk: chunk${index}.txt`);
-    }
-
+    if (!fs.existsSync(filePath)) throw new Error(`Missing RUDI runtime chunk: chunk${index}.txt`);
     const raw = fs.readFileSync(filePath, 'utf8');
     const size = Buffer.byteLength(raw, 'utf8');
-    if (size !== EXPECTED_SIZES[index]) {
-      throw new Error(`Unexpected size for chunk${index}.txt: ${size}, expected ${EXPECTED_SIZES[index]}`);
-    }
-
+    if (size !== EXPECTED_SIZES[index]) throw new Error(`Unexpected size for chunk${index}.txt: ${size}, expected ${EXPECTED_SIZES[index]}`);
     parts.push(raw.trim());
   }
 
   const compressed = Buffer.from(parts.join(''), 'base64');
   const unpacked = zlib.gunzipSync(compressed).toString('utf8');
-  const code = patchRecipeRuntime(patchEventRuntime(unpacked));
+  const code = patchRetiredRuntime(patchEventRuntime(unpacked));
   fs.writeFileSync(outputPath, code);
   return { outputPath, bytes: Buffer.byteLength(code) };
 }
@@ -134,4 +98,4 @@ if (require.main === module) {
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRecipeRuntime, assertProductionGitDeployment };
+module.exports = { buildRuntime, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
