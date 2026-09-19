@@ -2452,6 +2452,133 @@
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'week';
+      let sharedAlbumUrl = '';
+
+      function blockStateStorageKey(){
+        const userId=String(tg?.initDataUnsafe?.user?.id||'local');
+        return 'rudi:block-state:v2:'+userId;
+      }
+
+      function readBlockStates(){
+        try{
+          const value=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}');
+          return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+        }catch(_){return {}}
+      }
+
+      function getBlockCollapsed(key,fallback=false){
+        const states=readBlockStates();
+        return Object.prototype.hasOwnProperty.call(states,key)?Boolean(states[key]):Boolean(fallback);
+      }
+
+      function setBlockCollapsed(key,collapsed){
+        try{
+          const states=readBlockStates();
+          states[key]=Boolean(collapsed);
+          localStorage.setItem(blockStateStorageKey(),JSON.stringify(states));
+        }catch(_){}
+      }
+
+      function collapseButton(label){
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='block-collapse-button';
+        button.setAttribute('aria-label',label);
+        button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>';
+        return button;
+      }
+
+      function wrapCollapseBody(section,selectors){
+        const nodes=selectors.map(selector=>section.querySelector(selector)).filter(Boolean);
+        if(!nodes.length) return null;
+        const wrapper=document.createElement('div');
+        wrapper.className='rudi-collapse-body';
+        const inner=document.createElement('div');
+        inner.className='rudi-collapse-body-inner';
+        nodes[0].parentNode.insertBefore(wrapper,nodes[0]);
+        wrapper.appendChild(inner);
+        nodes.forEach(node=>inner.appendChild(node));
+        return wrapper;
+      }
+
+      function addHeaderCollapseButton(section,host,button){
+        if(host.classList.contains('section-heading')||host.classList.contains('partner-head')){
+          let actions=host.querySelector(':scope > .block-head-actions');
+          if(!actions){
+            actions=document.createElement('div');
+            actions.className='block-head-actions';
+            const children=Array.from(host.children).slice(1);
+            children.forEach(child=>actions.appendChild(child));
+            host.appendChild(actions);
+          }
+          actions.appendChild(button);
+          return;
+        }
+        host.appendChild(button);
+      }
+
+      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false}){
+        const section=document.querySelector(selector);
+        if(!section||section.dataset.collapseReady==='1') return;
+        const body=wrapCollapseBody(section,bodySelectors);
+        const host=section.querySelector(hostSelector);
+        if(!body||!host) return;
+        section.dataset.collapseReady='1';
+        section.classList.add('rudi-collapsible');
+        const button=collapseButton('Свернуть или развернуть блок');
+        addHeaderCollapseButton(section,host,button);
+
+        const apply=collapsed=>{
+          section.classList.toggle('is-collapsed',collapsed);
+          button.setAttribute('aria-expanded',collapsed?'false':'true');
+          body.setAttribute('aria-hidden',collapsed?'true':'false');
+        };
+        apply(getBlockCollapsed(key,defaultCollapsed));
+        button.addEventListener('click',()=>{
+          const collapsed=!section.classList.contains('is-collapsed');
+          apply(collapsed);
+          setBlockCollapsed(key,collapsed);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+      }
+
+      function setupPersistentCollapsibles(){
+        setupPersistentCollapsible({
+          selector:'.profile',key:'profile',
+          bodySelectors:['#moodMessage','.profile-weather'],
+          hostSelector:'.profile-mood'
+        });
+        setupPersistentCollapsible({
+          selector:'.priority-section',key:'priority',
+          bodySelectors:['.priority-grid'],
+          hostSelector:'.section-heading'
+        });
+        setupPersistentCollapsible({
+          selector:'.partner-message',key:'partner',
+          bodySelectors:['#partnerMessageText','#partnerMessageAuthor','#partnerEditor'],
+          hostSelector:'.partner-head'
+        });
+        setupPersistentCollapsible({
+          selector:'.daily-section',key:'daily',
+          bodySelectors:['.daily-grid'],
+          hostSelector:'.section-heading'
+        });
+        setupPersistentCollapsible({
+          selector:'.wishlist-section',key:'wishlist',
+          bodySelectors:['.wishlist-card'],
+          hostSelector:'.section-heading'
+        });
+        setupPersistentCollapsible({
+          selector:'.shared-album-section',key:'album',
+          bodySelectors:['.shared-album-card'],
+          hostSelector:'.section-heading'
+        });
+        setupPersistentCollapsible({
+          selector:'.tools-section',key:'tools',
+          bodySelectors:['.links'],
+          hostSelector:'.section-heading'
+        });
+      }
 
       const fallback = {
         weather:{enabled:true,city:'Санкт-Петербург',latitude:59.9386,longitude:30.3141,timezone:TZ},
@@ -3091,17 +3218,18 @@
         const toggle=document.getElementById('workCalendarToggle');
         const details=document.getElementById('workCalendarDetails');
         const rangeButtons=Array.from(document.querySelectorAll('[data-work-view]'));
-        const setOpen=(open)=>{
+        const setOpen=(open,persist=false)=>{
           section.classList.toggle('open',open);
           toggle.setAttribute('aria-expanded',open?'true':'false');
           details.setAttribute('aria-hidden',open?'false':'true');
+          if(persist) setBlockCollapsed('work',!open);
         };
-        setOpen(true);
+        setOpen(!getBlockCollapsed('work',false));
         setWorkCalendarRangeActive('week');
 
         toggle.addEventListener('click',()=>{
           const open=!section.classList.contains('open');
-          setOpen(open);
+          setOpen(open,true);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
@@ -3116,9 +3244,12 @@
 
       function renderWorkCalendar(payload){
         const container=document.getElementById('workCalendarDays');
+        const selected=document.getElementById('workCalendarSelected');
         const status=document.getElementById('workCalendarStatus');
         const label=document.getElementById('workWeekLabel');
         container.replaceChildren();
+        selected.hidden=true;
+        selected.replaceChildren();
 
         const days=Array.isArray(payload?.days)?payload.days:[];
         if(!payload?.configured){
@@ -3137,7 +3268,8 @@
         const first=dateFromKey(days[0].date);
         const last=dateFromKey(days[days.length-1].date);
         const view=String(payload?.view||currentWorkCalendarView||'week');
-        if(view==='month'||view==='next-month'){
+        const isMonth=view==='month'||view==='next-month';
+        if(isMonth){
           const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
           label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
         }else{
@@ -3148,41 +3280,74 @@
         setWorkCalendarRangeActive(view);
         status.textContent=payload.stale?'Кэш':'Актуально';
 
+        if(isMonth){
+          ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(value=>{
+            const head=document.createElement('div');
+            head.className='calendar-weekday';
+            head.textContent=value;
+            container.appendChild(head);
+          });
+          const firstWeekday=(first.getUTCDay()+6)%7;
+          for(let i=0;i<firstWeekday;i+=1){
+            const blank=document.createElement('div');
+            blank.className='calendar-empty';
+            container.appendChild(blank);
+          }
+        }
+
         const today=todayState().key;
         for(const day of days){
           const date=dateFromKey(day.date);
-          const row=document.createElement('div');
-          row.className='work-day '+(day.working?'working':'off')+(day.date===today?' today':'');
-
-          const name=document.createElement('div');
-          name.className='work-day-name';
-          const weekday=document.createElement('strong');
-          weekday.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:'UTC'}).format(date);
-          const dateLabel=document.createElement('span');
-          dateLabel.textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(date).replace('.','');
-          name.append(weekday,dateLabel);
-
-          const state=document.createElement('div');
-          state.className='work-day-state';
-          const title=document.createElement('strong');
-          title.textContent=day.working?'Работа':'Выходной';
-          const details=document.createElement('span');
           const events=Array.isArray(day.events)?day.events:[];
-          details.textContent=day.working
-            ? events.map(event=>event.title).filter(Boolean).join(' · ')
-            : 'Свободный день';
-          state.append(title,details);
-
-          const time=document.createElement('div');
-          time.className='work-day-time';
+          const times=events
+            .map(event=>event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–')))
+            .filter(Boolean);
+          const timeText=times.join(' / ')||'Смена';
+          const cell=document.createElement(day.working?'button':'div');
+          if(day.working) cell.type='button';
+          cell.className='calendar-day-cell '+(day.working?'working':'off')+(day.date===today?' today':'');
           if(day.working){
-            const times=events.map(event=>event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–'))).filter(Boolean);
-            time.textContent=times.join(' / ')||'Смена';
-          }else{
-            time.textContent='—';
+            cell.title=timeText;
+            cell.setAttribute('aria-label','Работа '+new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+', '+timeText);
           }
-          row.append(name,state,time);
-          container.appendChild(row);
+
+          if(!isMonth){
+            const week=document.createElement('span');
+            week.className='calendar-week-label';
+            week.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:'UTC'}).format(date).replace('.','');
+            cell.appendChild(week);
+          }
+
+          const number=document.createElement('span');
+          number.className='calendar-date-number';
+          number.textContent=String(date.getUTCDate());
+          cell.appendChild(number);
+
+          if(day.working){
+            const dot=document.createElement('span');
+            dot.className='calendar-work-dot';
+            cell.appendChild(dot);
+            cell.addEventListener('click',()=>{
+              container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
+              cell.classList.add('selected');
+              const heading=document.createElement('strong');
+              heading.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(date);
+              const info=document.createElement('span');
+              const titles=events.map(event=>event.title).filter(Boolean);
+              info.textContent=(times.length?times.join(' / '):'Смена')+(titles.length?' · '+titles.join(' · '):'');
+              selected.replaceChildren(heading,info);
+              selected.hidden=false;
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            });
+          }else{
+            const check=document.createElement('span');
+            check.className='calendar-check';
+            check.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>';
+            cell.appendChild(check);
+            cell.title='Выходной';
+          }
+
+          container.appendChild(cell);
         }
       }
 
@@ -3208,6 +3373,79 @@
           const container=document.getElementById('workCalendarDays');
           container.innerHTML='<div class="wishlist-empty">Не удалось обновить график.</div>';
         }
+      }
+
+      function openSharedAlbum(){
+        if(!sharedAlbumUrl) return;
+        try{
+          if(tg?.openLink) tg.openLink(sharedAlbumUrl);
+          else window.open(sharedAlbumUrl,'_blank','noopener,noreferrer');
+        }catch(_){
+          window.open(sharedAlbumUrl,'_blank','noopener,noreferrer');
+        }
+      }
+
+      function renderSharedAlbum(payload){
+        const section=document.getElementById('sharedAlbumSection');
+        const grid=document.getElementById('sharedAlbumGrid');
+        const status=document.getElementById('sharedAlbumStatus');
+        const open=document.getElementById('sharedAlbumOpen');
+        const photos=Array.isArray(payload?.photos)?payload.photos.slice(0,5):[];
+
+        if(!payload?.configured){
+          section.hidden=true;
+          return;
+        }
+        section.hidden=false;
+        sharedAlbumUrl=String(payload.albumUrl||'');
+        open.disabled=!sharedAlbumUrl;
+        status.textContent=payload.stale?'Кэш':'Актуально';
+        grid.replaceChildren();
+
+        if(!photos.length){
+          const empty=document.createElement('div');
+          empty.className='wishlist-empty';
+          empty.textContent='В альбоме пока нет фотографий.';
+          grid.appendChild(empty);
+          return;
+        }
+
+        photos.forEach((photo,index)=>{
+          const button=document.createElement('button');
+          button.className='shared-album-photo';
+          button.type='button';
+          button.setAttribute('aria-label','Открыть общий альбом, фото '+(index+1));
+          const img=document.createElement('img');
+          img.src=String(photo.url||'');
+          img.alt=photo.caption?String(photo.caption):'Фото из общего альбома';
+          img.loading='lazy';
+          img.decoding='async';
+          button.appendChild(img);
+          button.addEventListener('click',openSharedAlbum);
+          grid.appendChild(button);
+        });
+      }
+
+      async function loadSharedAlbum(){
+        if(!tg?.initData) return;
+        const status=document.getElementById('sharedAlbumStatus');
+        try{
+          const response=await fetch('/api/shared-album',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok) throw new Error(payload.error||'album');
+          renderSharedAlbum(payload);
+        }catch(_){
+          status.textContent='Ошибка';
+        }
+      }
+
+      function setupSharedAlbum(){
+        document.getElementById('sharedAlbumOpen')?.addEventListener('click',openSharedAlbum);
       }
 
       async function wishlistRequest(operation,payload={}){
@@ -3535,15 +3773,17 @@
           list.appendChild(group);
         }
 
-        card.classList.remove('open');
-        toggle.setAttribute('aria-expanded','false');
-        details.setAttribute('aria-hidden','true');
-
-        toggle.addEventListener('click',()=>{
-          const open=!card.classList.contains('open');
+        const applyUpdateOpen=open=>{
           card.classList.toggle('open',open);
           toggle.setAttribute('aria-expanded',open?'true':'false');
           details.setAttribute('aria-hidden',open?'false':'true');
+        };
+        applyUpdateOpen(!getBlockCollapsed('updates',true));
+
+        toggle.addEventListener('click',()=>{
+          const open=!card.classList.contains('open');
+          applyUpdateOpen(open);
+          setBlockCollapsed('updates',!open);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
       }
@@ -3572,21 +3812,25 @@
         document.getElementById('cookToday').textContent=cook[Math.abs(dayIndex+7)%cook.length];
 
         renderNearest(config);
+        setupPersistentCollapsibles();
         setupPartnerMessage();
         setupStreakAndMood(config);
         setupTickTickDisclosure();
         setupTickTickConnect();
         setupHolidayModal(config);
         setupWishlist();
+        setupSharedAlbum();
         setupWorkCalendarDisclosure();
         loadWeather(config.weather);
         loadTickTickNext();
         loadWorkCalendar();
+        loadSharedAlbum();
       }
 
       init();
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
       setInterval(()=>{if(currentActor) loadWorkCalendar()},15*60*1000);
+      setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
 
       window.addEventListener('pageshow',event=>{if(event.persisted) location.reload()});
       let hiddenAt=0;
