@@ -1777,6 +1777,50 @@
       .work-range-button{padding:7px 5px;font-size:9.8px}
     }
 
+  
+    .daily-grid{gap:8px}
+    .daily-card.suggestion{
+      padding:12px 13px;
+      border-radius:17px;
+      min-height:0;
+    }
+    .daily-card-head{
+      gap:7px;
+      margin-bottom:9px;
+    }
+    .daily-card-head .panel-label{
+      font-size:9.4px;
+      letter-spacing:.055em;
+    }
+    .daily-icon{
+      width:27px;
+      height:27px;
+      border-radius:9px;
+    }
+    .daily-icon svg{
+      width:15px;
+      height:15px;
+    }
+    .daily-card .idea-text,
+    .daily-card .suggestion-value{
+      font-size:12.5px;
+      line-height:1.34;
+      font-weight:620;
+    }
+    .daily-card::after{
+      width:84px;
+      height:84px;
+      right:-34px;
+      bottom:-42px;
+      opacity:.42;
+    }
+    @media(max-width:370px){
+      .daily-grid{gap:7px}
+      .daily-card.suggestion{padding:11px 12px}
+      .daily-card .idea-text,
+      .daily-card .suggestion-value{font-size:12px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -1919,6 +1963,40 @@
       </div>
     </section>
 
+    <section class="panel partner-message" aria-label="Послание для партнёра">
+      <div class="love-hearts" aria-hidden="true">
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+      </div>
+      <div class="partner-head">
+        <div class="partner-title">
+          <span class="partner-title-heart" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+          </span>
+          <span>Послание для партнёра</span>
+        </div>
+        <button id="partnerEditButton" class="partner-edit" type="button" aria-label="Изменить послание" title="Изменить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 20h4l10.2-10.2-4-4L4 16v4Z"/>
+            <path d="m12.7 7.3 4 4"/>
+            <path d="M18.2 4.2c.9-.9 2.2-.9 3.1 0 .9.9.9 2.2 0 3.1l-1.1 1.1-4-4 1.1-1.1Z"/>
+          </svg>
+        </button>
+      </div>
+      <div id="partnerMessageText" class="partner-text partner-empty">Оставьте здесь пару тёплых слов друг для друга ♥</div>
+      <div id="partnerMessageAuthor" class="partner-author"></div>
+      <div id="partnerEditor" class="partner-editor">
+        <textarea id="partnerMessageInput" maxlength="1000" placeholder="Напишите что-нибудь тёплое…"></textarea>
+        <div class="partner-actions">
+          <button id="partnerCancelButton" class="partner-action" type="button">Отмена</button>
+          <button id="partnerSaveButton" class="partner-action primary" type="button">Сохранить</button>
+        </div>
+        <div id="partnerStatus" class="partner-status"></div>
+      </div>
+    </section>
+
     <section id="workCalendarSection" class="section-block work-section" aria-labelledby="workScheduleTitle">
       <button id="workCalendarToggle" class="work-calendar-toggle" type="button" aria-expanded="false" aria-controls="workCalendarDetails">
         <span class="work-calendar-toggle-copy">
@@ -1956,74 +2034,6 @@
           </article>
         </div>
       </div>
-    </section>
-
-    <section class="panel partner-message" aria-label="Послание для партнёра">
-      <div class="love-hearts" aria-hidden="true">
-        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-      </div>
-      <div class="partner-head">
-        <div class="partner-title">
-          <span class="partner-title-heart" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-          </span>
-          <span>Послание для партнёра</span>
-        </div>
-        <button id="partnerEditButton" class="partner-edit" type="button" aria-label="Изменить послание" title="Изменить">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 20h4l10.2-10.2-4-4L4 16v4Z"/>
-            <path d="m12.7 7.3 4 4"/>
-            <path d="M18.2 4.2c.9-.9 2.2-.9 3.1 0 .9.9.9 2.2 0 3.1l-1.1 1.1-4-4 1.1-1.1Z"/>
-          </svg>
-        </button>
-      </div>
-      <div id="partnerMessageText" class="partner-text partner-empty">Оставьте здесь пару тёплых слов друг для друга ♥</div>
-      <div id="partnerMessageAuthor" class="partner-author"></div>
-      <div id="partnerEditor" class="partner-editor">
-        <textarea id="partnerMessageInput" maxlength="1000" placeholder="Напишите что-нибудь тёплое…"></textarea>
-        <div class="partner-actions">
-          <button id="partnerCancelButton" class="partner-action" type="button">Отмена</button>
-          <button id="partnerSaveButton" class="partner-action primary" type="button">Сохранить</button>
-        </div>
-        <div id="partnerStatus" class="partner-status"></div>
-      </div>
-    </section>
-
-    <section class="section-block wishlist-section" aria-labelledby="wishlistTitle">
-      <div class="section-heading compact">
-        <div>
-          <div class="section-eyebrow">Вместе</div>
-          <h2 id="wishlistTitle">Наш вишлист</h2>
-        </div>
-        <span id="wishlistStatus" class="section-status">Синхронизация</span>
-      </div>
-      <article class="panel wishlist-card">
-        <form id="wishlistForm" class="wishlist-form">
-          <input id="wishlistInput" class="wishlist-input" maxlength="180" autocomplete="off" placeholder="Добавить желание…" aria-label="Добавить желание">
-          <button id="wishlistAdd" class="wishlist-add" type="submit" aria-label="Добавить">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          </button>
-        </form>
-        <div class="wishlist-columns">
-          <section class="wishlist-column" aria-labelledby="wishlistRustamTitle">
-            <div class="wishlist-column-head">
-              <span class="wishlist-avatar rustam">R</span>
-              <span id="wishlistRustamTitle">Рустам</span>
-            </div>
-            <div id="wishlistRustam" class="wishlist-list"></div>
-          </section>
-          <section class="wishlist-column" aria-labelledby="wishlistDianaTitle">
-            <div class="wishlist-column-head">
-              <span class="wishlist-avatar diana">D</span>
-              <span id="wishlistDianaTitle">Диана</span>
-            </div>
-            <div id="wishlistDiana" class="wishlist-list"></div>
-          </section>
-        </div>
-      </article>
     </section>
 
     <section class="section-block daily-section" aria-labelledby="dailyTitle">
@@ -2074,6 +2084,40 @@
           </span>
         </button>
       </div>
+    </section>
+
+    <section class="section-block wishlist-section" aria-labelledby="wishlistTitle">
+      <div class="section-heading compact">
+        <div>
+          <div class="section-eyebrow">Вместе</div>
+          <h2 id="wishlistTitle">Наш вишлист</h2>
+        </div>
+        <span id="wishlistStatus" class="section-status">Синхронизация</span>
+      </div>
+      <article class="panel wishlist-card">
+        <form id="wishlistForm" class="wishlist-form">
+          <input id="wishlistInput" class="wishlist-input" maxlength="180" autocomplete="off" placeholder="Добавить желание…" aria-label="Добавить желание">
+          <button id="wishlistAdd" class="wishlist-add" type="submit" aria-label="Добавить">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </form>
+        <div class="wishlist-columns">
+          <section class="wishlist-column" aria-labelledby="wishlistRustamTitle">
+            <div class="wishlist-column-head">
+              <span class="wishlist-avatar rustam">R</span>
+              <span id="wishlistRustamTitle">Рустам</span>
+            </div>
+            <div id="wishlistRustam" class="wishlist-list"></div>
+          </section>
+          <section class="wishlist-column" aria-labelledby="wishlistDianaTitle">
+            <div class="wishlist-column-head">
+              <span class="wishlist-avatar diana">D</span>
+              <span id="wishlistDianaTitle">Диана</span>
+            </div>
+            <div id="wishlistDiana" class="wishlist-list"></div>
+          </section>
+        </div>
+      </article>
     </section>
 
     <section class="section-block tools-section" aria-labelledby="toolsTitle">
