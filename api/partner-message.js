@@ -7,6 +7,18 @@ const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = 
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
 const {
+  decodeSetupKey: decodeNotificationSetupKey,
+  saveRecipients,
+  readRecipients,
+  recipientFor,
+} = require('./partner-notification-store.cjs');
+const {
+  decodeSetupKey: decodeAlbumSetupKey,
+  saveAlbumConfig,
+  readAlbumConfig,
+  getLatestPhotos,
+} = require('./shared-album.cjs');
+const {
   getCredentials,
   credentialsConfigured,
   buildAuthorizeUrl,
@@ -86,6 +98,26 @@ function authorizeInitData(rawInitData, options = {}) {
   const auth = validateTelegramInitData(rawInitData, token, options.now || Date.now());
   const actor = assertAllowedTelegramUser(auth.user);
   return { ...auth, actor };
+}
+
+async function sendPartnerMessageNotification(actor, options = {}) {
+  const recipients = await readRecipients(options);
+  const chatId = recipientFor(actor, recipients);
+  if (!chatId) return { sent: false, reason: 'recipient-not-configured' };
+
+  const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: '💌 Для вас оставлено новое послание в RUDI.\n\nОткройте приложение, чтобы прочитать его.',
+      disable_notification: false,
+    }),
+  });
+  if (!response?.ok) throw new Error(`partner-notification-http-${response?.status || 0}`);
+  return { sent: true };
 }
 
 function moscowDateKey(now = Date.now()) {
@@ -232,6 +264,60 @@ async function handleTickTick(req, res, action, options = {}) {
 }
 
 async function handleRudiAction(req, res, action, options = {}) {
+  if (action === 'partner-notification-setup') {
+    if (req.method !== 'GET' && req.method !== 'POST' && req.method) {
+      return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    }
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const key = req.method === 'POST' ? body.key : req.query?.key;
+      const existing = await readRecipients(options);
+      if (!existing) {
+        await saveRecipients(decodeNotificationSetupKey(key), options);
+      } else if (key) {
+        decodeNotificationSetupKey(key);
+      }
+      return res.status(200).json({ ok: true, configured: true, alreadyConfigured: Boolean(existing) });
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'shared-album-setup') {
+    if (req.method !== 'GET' && req.method !== 'POST' && req.method) {
+      return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    }
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const key = req.method === 'POST' ? body.key : req.query?.key;
+      const existing = await readAlbumConfig(options);
+      if (!existing) {
+        await saveAlbumConfig(decodeAlbumSetupKey(key), options);
+      } else if (key) {
+        decodeAlbumSetupKey(key);
+      }
+      const album = await getLatestPhotos(options);
+      return res.status(200).json({ ok: true, configured: true, alreadyConfigured: Boolean(existing), photoCount: album.photos?.length || 0 });
+    } catch (error) {
+      console.error('RUDI_SHARED_ALBUM_SETUP_ERROR', String(error?.message || error));
+      return res.status(400).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'shared-album') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+      const album = await getLatestPhotos(options);
+      return res.status(200).json({ ok: true, ...album });
+    } catch (error) {
+      const status = statusForError(error) === 500 ? 502 : statusForError(error);
+      console.error('RUDI_SHARED_ALBUM_ERROR', String(error?.message || error));
+      return res.status(status).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
   if (action === 'app-auth') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -377,7 +463,7 @@ async function handler(req, res, options = {}) {
 
   try {
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-    const { authorName } = authorizeInitData(body.initData, options);
+    const { authorName, actor } = authorizeInitData(body.initData, options);
     const text = normalizeMessageText(body.text);
 
     const message = await writePartnerMessage({
@@ -386,7 +472,15 @@ async function handler(req, res, options = {}) {
       updatedAt: new Date(options.now || Date.now()).toISOString(),
     }, options);
 
-    return res.status(200).json({ ok: true, message });
+    let notification = { sent: false };
+    try {
+      notification = await sendPartnerMessageNotification(actor, options);
+    } catch (error) {
+      console.error('RUDI_PARTNER_NOTIFICATION_ERROR', String(error?.message || error));
+      notification = { sent: false, error: 'notification-failed' };
+    }
+
+    return res.status(200).json({ ok: true, message, notification });
   } catch (error) {
     const status = statusForError(error);
     if (status === 500) console.error('RUDI_PARTNER_MESSAGE_ERROR', error);
@@ -400,3 +494,4 @@ module.exports.normalizeMessageText = normalizeMessageText;
 module.exports.statusForError = statusForError;
 module.exports.handleTickTick = handleTickTick;
 module.exports.handleRudiAction = handleRudiAction;
+module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
