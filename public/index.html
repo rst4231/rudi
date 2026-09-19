@@ -3826,6 +3826,63 @@
       .tools-section .links > .card .label{font-size:7.9px!important}
     }
 
+
+    /* Home order controls: arrows instead of drag & drop */
+    body.home-layout-editing [data-home-tile]{
+      touch-action:auto!important;
+      cursor:default!important;
+      user-select:auto!important;
+      -webkit-user-select:auto!important;
+      rotate:none!important;
+      will-change:auto!important;
+    }
+    body.home-layout-editing [data-home-tile]::after{display:none!important}
+    body.home-layout-editing [data-home-tile].is-home-dragging{
+      opacity:1!important;
+      transform:none!important;
+      box-shadow:0 10px 26px rgba(20,24,36,.07)!important;
+    }
+    .home-order-controls{
+      position:absolute;
+      z-index:120;
+      right:9px;
+      top:9px;
+      display:none;
+      grid-template-columns:repeat(2,32px);
+      gap:5px;
+      pointer-events:auto!important;
+    }
+    body.home-layout-editing [data-home-tile] > .home-order-controls{
+      display:grid!important;
+      pointer-events:auto!important;
+    }
+    .home-order-button{
+      width:32px;
+      height:30px;
+      display:grid;
+      place-items:center;
+      padding:0;
+      border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+      border-radius:10px;
+      background:color-mix(in srgb,var(--surface-strong) 88%,transparent);
+      color:var(--text);
+      font:inherit;
+      font-size:18px;
+      line-height:1;
+      font-weight:760;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      box-shadow:0 5px 14px rgba(20,24,36,.08),inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      transition:transform .14s ease,opacity .16s ease,background-color .16s ease;
+    }
+    .home-order-button:active:not(:disabled){transform:scale(.92)}
+    .home-order-button:disabled{opacity:.25;cursor:default}
+    body.home-layout-editing [data-home-tile] > *:not(.home-order-controls){pointer-events:none!important}
+    body.home-layout-editing [data-home-tile] > .home-order-controls,
+    body.home-layout-editing [data-home-tile] > .home-order-controls *{pointer-events:auto!important}
+
   </style>
 </head>
 <body class="auth-pending">
@@ -4355,8 +4412,6 @@
       let currentMoodDateKey = '';
       let homeLayoutEditing = false;
       let homeTileHost = null;
-      let homeDragState = null;
-      let homeWiggleFrame = 0;
       const HOME_TILE_DEFAULT_ORDER = ['profile','priority','partner','daily','tools'];
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
 
@@ -4437,64 +4492,61 @@
         try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
       }
 
+      function updateHomeOrderControls(){
+        const host=ensureHomeTileHost();
+        if(!host) return;
+        const tiles=[...host.querySelectorAll(':scope > [data-home-tile]')];
+        tiles.forEach((tile,index)=>{
+          const controls=tile.querySelector(':scope > .home-order-controls');
+          if(!controls) return;
+          const up=controls.querySelector('[data-home-move="up"]');
+          const down=controls.querySelector('[data-home-move="down"]');
+          if(up) up.disabled=index===0;
+          if(down) down.disabled=index===tiles.length-1;
+        });
+      }
+
       function resetHomeOrder(){
         try{localStorage.removeItem(homeLayoutStorageKey())}catch(_){}
         applyHomeOrder(HOME_TILE_DEFAULT_ORDER,{animate:true});
         saveHomeOrder();
+        updateHomeOrderControls();
         try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
       }
 
-      function clearHomeTileRotations(){
+      function moveHomeTile(tile,direction){
         const host=ensureHomeTileHost();
-        host?.querySelectorAll(':scope > [data-home-tile]').forEach(tile=>tile.style.removeProperty('rotate'));
-      }
+        if(!host||!tile||tile.parentElement!==host) return;
+        const sibling=direction==='up'?tile.previousElementSibling:tile.nextElementSibling;
+        if(!sibling||!sibling.matches?.('[data-home-tile]')) return;
 
-      function homeWiggleTick(time){
-        if(!homeLayoutEditing){
-          homeWiggleFrame=0;
-          clearHomeTileRotations();
-          return;
-        }
-        const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-        const host=ensureHomeTileHost();
-        if(host&&!reduce){
-          [...host.querySelectorAll(':scope > [data-home-tile]')].forEach((tile,index)=>{
-            if(tile===homeDragState?.tile){
-              tile.style.rotate='0deg';
-              return;
-            }
-            const degrees=Math.sin((time/155)+(index*1.55))*.22;
-            tile.style.rotate=degrees.toFixed(3)+'deg';
-          });
-        }
-        homeWiggleFrame=requestAnimationFrame(homeWiggleTick);
-      }
-
-      function startHomeWiggle(){
-        if(homeWiggleFrame) cancelAnimationFrame(homeWiggleFrame);
-        homeWiggleFrame=requestAnimationFrame(homeWiggleTick);
-      }
-
-      function stopHomeWiggle(){
-        if(homeWiggleFrame) cancelAnimationFrame(homeWiggleFrame);
-        homeWiggleFrame=0;
-        clearHomeTileRotations();
-      }
-
-      function finishHomeDrag(){
-        const state=homeDragState;
-        if(!state) return;
-        try{state.tile.releasePointerCapture?.(state.pointerId)}catch(_){}
-        state.tile.classList.remove('is-home-dragging');
-        state.tile.style.removeProperty('rotate');
-        homeDragState=null;
+        const before=homeTileRects(host);
+        if(direction==='up') host.insertBefore(tile,sibling);
+        else host.insertBefore(sibling,tile);
+        animateHomeReorder(host,before);
         saveHomeOrder();
+        updateHomeOrderControls();
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function ensureHomeOrderControls(){
+        const host=ensureHomeTileHost();
+        if(!host) return;
+        for(const tile of host.querySelectorAll(':scope > [data-home-tile]')){
+          if(tile.querySelector(':scope > .home-order-controls')) continue;
+          const controls=document.createElement('div');
+          controls.className='home-order-controls';
+          controls.setAttribute('aria-label','Изменить положение блока');
+          controls.innerHTML=
+            '<button class="home-order-button" type="button" data-home-move="up" aria-label="Переместить блок вверх" title="Вверх">↑</button>'+
+            '<button class="home-order-button" type="button" data-home-move="down" aria-label="Переместить блок вниз" title="Вниз">↓</button>';
+          tile.appendChild(controls);
+        }
+        updateHomeOrderControls();
       }
 
       function setHomeLayoutEditing(enabled){
         homeLayoutEditing=Boolean(enabled);
-        if(!homeLayoutEditing&&homeDragState) finishHomeDrag();
         document.body.classList.toggle('home-layout-editing',homeLayoutEditing);
         const button=document.getElementById('homeLayoutEditButton');
         const reset=document.getElementById('homeLayoutResetButton');
@@ -4503,8 +4555,10 @@
           button.setAttribute('aria-pressed',homeLayoutEditing?'true':'false');
         }
         if(reset) reset.hidden=!homeLayoutEditing;
-        if(homeLayoutEditing) startHomeWiggle();
-        else stopHomeWiggle();
+        if(homeLayoutEditing){
+          ensureHomeOrderControls();
+          updateHomeOrderControls();
+        }
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -4514,6 +4568,7 @@
         const reset=document.getElementById('homeLayoutResetButton');
         if(!host||!button) return;
         loadHomeOrder();
+        ensureHomeOrderControls();
 
         if(button.dataset.homeLayoutBound!=='1'){
           button.dataset.homeLayoutBound='1';
@@ -4530,49 +4585,15 @@
         if(host.dataset.homeLayoutBound==='1') return;
         host.dataset.homeLayoutBound='1';
 
-        host.addEventListener('pointerdown',event=>{
+        host.addEventListener('click',event=>{
           if(!homeLayoutEditing) return;
-          if(event.pointerType==='mouse'&&event.button!==0) return;
-          const tile=event.target.closest?.('[data-home-tile]');
+          const moveButton=event.target.closest?.('[data-home-move]');
+          if(!moveButton||moveButton.disabled) return;
+          const tile=moveButton.closest?.('[data-home-tile]');
           if(!tile||tile.parentElement!==host) return;
           event.preventDefault();
-          homeDragState={tile,pointerId:event.pointerId,lastTarget:''};
-          tile.style.rotate='0deg';
-          tile.classList.add('is-home-dragging');
-          try{tile.setPointerCapture?.(event.pointerId)}catch(_){}
-          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
-        },{passive:false});
-
-        host.addEventListener('pointermove',event=>{
-          const state=homeDragState;
-          if(!homeLayoutEditing||!state||event.pointerId!==state.pointerId) return;
-          event.preventDefault();
-
-          if(event.clientY<105) window.scrollBy({top:-14,left:0,behavior:'auto'});
-          else if(event.clientY>window.innerHeight-125) window.scrollBy({top:14,left:0,behavior:'auto'});
-
-          const point=document.elementFromPoint(event.clientX,event.clientY);
-          const target=point?.closest?.('[data-home-tile]');
-          if(!target||target===state.tile||target.parentElement!==host) return;
-
-          const rect=target.getBoundingClientRect();
-          const side=event.clientY<rect.top+rect.height/2?'before':'after';
-          const moveKey=(target.dataset.homeTile||'')+':'+side;
-          if(moveKey===state.lastTarget) return;
-          state.lastTarget=moveKey;
-
-          const before=homeTileRects(host);
-          if(side==='before') host.insertBefore(state.tile,target);
-          else host.insertBefore(state.tile,target.nextSibling);
-          animateHomeReorder(host,before,state.tile);
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        },{passive:false});
-
-        host.addEventListener('pointerup',event=>{
-          if(homeDragState&&event.pointerId===homeDragState.pointerId) finishHomeDrag();
-        });
-        host.addEventListener('pointercancel',event=>{
-          if(homeDragState&&event.pointerId===homeDragState.pointerId) finishHomeDrag();
+          event.stopPropagation();
+          moveHomeTile(tile,moveButton.dataset.homeMove);
         });
       }
 
