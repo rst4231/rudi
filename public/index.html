@@ -3226,6 +3226,15 @@
       }
     }
 
+
+    /* Slightly more breathing room between Calendar blocks */
+    body[data-app-tab="schedule"] .work-page{
+      gap:18px!important;
+    }
+    body[data-app-tab="schedule"] .footer{
+      margin-top:10px!important;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3947,6 +3956,7 @@
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
           applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
+          markSelfPresenceVisible();
           cacheHolidayItems(payload.holidayHighlights);
           document.body.classList.remove('auth-pending','auth-denied');
           document.body.classList.add('auth-ok');
@@ -5277,7 +5287,8 @@
         const mine=payload?.mine||{};
         const partner=payload?.partnerPresence||{};
         const partnerName=String(payload?.partner||partnerProfileName||'Партнёр');
-        setPresenceDot('selfPresenceDot',Boolean(mine.online),currentActor||'Вы');
+        const selfVisible=document.visibilityState==='visible'&&Boolean(currentActor);
+        setPresenceDot('selfPresenceDot',selfVisible||Boolean(mine.online),currentActor||'Вы');
         setPresenceDot('partnerPresenceDot',Boolean(partner.online),partnerName);
 
         const text=document.getElementById('partnerPresenceText');
@@ -5292,9 +5303,15 @@
         }
       }
 
+      function markSelfPresenceVisible(){
+        if(!currentActor) return;
+        setPresenceDot('selfPresenceDot',document.visibilityState==='visible',currentActor||'Вы');
+      }
+
       async function refreshPresence(heartbeat=true){
         if(!currentActor||!tg?.initData) return;
         if(heartbeat&&document.visibilityState!=='visible') return;
+        markSelfPresenceVisible();
         try{
           const response=await fetch('/api/partner-message?rudiAction=presence',{
             method:'POST',
@@ -5460,11 +5477,22 @@
 
       window.addEventListener('pageshow',event=>{
         updateTelegramSafeArea();
+        markSelfPresenceVisible();
         if(event.persisted) refreshAfterResume();
+      });
+      window.addEventListener('focus',()=>{
+        markSelfPresenceVisible();
+        if(currentActor) refreshPresence(true);
       });
       let hiddenAt=0;
       document.addEventListener('visibilitychange',()=>{
-        if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}
+        if(document.visibilityState==='hidden'){
+          setPresenceDot('selfPresenceDot',false,currentActor||'Вы');
+          hiddenAt=Date.now();
+          return;
+        }
+        markSelfPresenceVisible();
+        if(currentActor) refreshPresence(true);
         if(hiddenAt&&Date.now()-hiddenAt>1200) refreshAfterResume();
         hiddenAt=0;
       });
