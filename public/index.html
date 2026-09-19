@@ -2613,20 +2613,22 @@
     }
     .wishlist-page .wishlist-column-head{margin-bottom:8px!important}
 
-    /* Quick access: one clean aligned row */
+    /* Quick access: force all four buttons into one horizontal row */
     .tools-section .links{
       width:100%!important;
-      display:grid!important;
-      grid-template-columns:repeat(4,minmax(0,1fr))!important;
-      grid-auto-flow:column!important;
+      display:flex!important;
+      flex-flow:row nowrap!important;
       align-items:stretch!important;
+      justify-content:space-between!important;
       gap:6px!important;
     }
     .tools-section .links > .card{
-      width:100%!important;
+      flex:1 1 0!important;
+      width:auto!important;
       min-width:0!important;
       min-height:72px!important;
       margin:0!important;
+      grid-column:auto!important;
       display:grid!important;
       grid-template-rows:40px 20px!important;
       grid-template-columns:1fr!important;
