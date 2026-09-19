@@ -56,6 +56,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/mood",
+      "destination": "/api/partner-message?rudiAction=mood"
+    },
+    {
       "source": "/api/partner-notifications/setup",
       "destination": "/api/partner-message?rudiAction=partner-notification-setup"
     },
