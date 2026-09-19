@@ -1,9 +1,11 @@
 const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
+const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
+const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
 const { decodeSetupKey, saveCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
-const { readWishlist, ownerFromTelegramUser, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
+const { readWishlist, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -74,23 +76,35 @@ function normalizeMessageText(value) {
 function statusForError(error) {
   const code = String(error?.message || error || '');
   if (code === 'telegram-auth-required' || code === 'telegram-auth-invalid' || code === 'telegram-auth-expired' || code === 'telegram-user-invalid') return 401;
+  if (code === 'rudi-access-denied') return 403;
   if (code === 'message-empty' || code === 'message-too-long') return 400;
   return 500;
 }
 
+function authorizeInitData(rawInitData, options = {}) {
+  const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
+  const auth = validateTelegramInitData(rawInitData, token, options.now || Date.now());
+  const actor = assertAllowedTelegramUser(auth.user);
+  return { ...auth, actor };
+}
+
 async function handleTickTick(req, res, action, options = {}) {
   if (action === 'connect') {
-    if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-    if (!credentialsConfigured(options.env || process.env)) {
-      return res.status(503).json({ ok: false, error: 'ticktick-not-configured' });
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+      if (!credentialsConfigured(options.env || process.env)) {
+        return res.status(503).json({ ok: false, error: 'ticktick-not-configured' });
+      }
+      const state = crypto.randomBytes(24).toString('base64url');
+      await saveOAuthState(state, options);
+      const { clientId, redirectUri } = getCredentials(options.env || process.env);
+      const authorizeUrl = buildAuthorizeUrl({ clientId, redirectUri, state });
+      return res.status(200).json({ ok: true, authorizeUrl });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
-    const state = crypto.randomBytes(24).toString('base64url');
-    await saveOAuthState(state, options);
-    const { clientId, redirectUri } = getCredentials(options.env || process.env);
-    const url = buildAuthorizeUrl({ clientId, redirectUri, state });
-    res.statusCode = 302;
-    res.setHeader('Location', url);
-    return res.end();
   }
 
   if (action === 'callback') {
@@ -119,7 +133,13 @@ async function handleTickTick(req, res, action, options = {}) {
   }
 
   if (action === 'next') {
-    if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
 
     if (!credentialsConfigured(options.env || process.env)) {
       return res.status(503).json({
@@ -198,10 +218,48 @@ async function handleTickTick(req, res, action, options = {}) {
 }
 
 async function handleRudiAction(req, res, action, options = {}) {
-  if (action === 'work-calendar-setup') {
-    if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+  if (action === 'app-auth') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
-      const url = decodeSetupKey(req.query?.key);
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      return res.status(200).json({ ok: true, actor });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'partner-message-read') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+      const message = await readPartnerMessage(options);
+      return res.status(200).json({ ok: true, message });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'holidays') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+      const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(new Date(options.now || Date.now()));
+      const row = await readHolidayHighlights(date, options);
+      if (!row?.items?.length) return res.status(404).json({ ok: false, error: 'holiday-highlights-not-ready' });
+      return res.status(200).json({ ok: true, ...row });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'work-calendar-setup') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const url = decodeSetupKey(body.key);
       await saveCalendarUrl(url, options);
       return res.status(200).json({ ok: true, configured: true });
     } catch (error) {
@@ -213,8 +271,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
-      validateTelegramInitData(body.initData, token, options.now || Date.now());
+      authorizeInitData(body.initData, options);
       const weekOffset = Math.max(-12, Math.min(12, Number(body.weekOffset || 0) || 0));
       const week = await getWorkWeek({ ...options, weekOffset });
       return res.status(200).json({ ok: true, ...week });
@@ -230,9 +287,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
-      const { user } = validateTelegramInitData(body.initData, token, options.now || Date.now());
-      const owner = ownerFromTelegramUser(user);
+      const { actor: owner } = authorizeInitData(body.initData, options);
       const operation = String(body.operation || 'list').trim();
 
       if (operation === 'list') {
@@ -274,8 +329,7 @@ async function handler(req, res, options = {}) {
   if (ticktickAction) return handleTickTick(req, res, ticktickAction, options);
 
   if (req.method === 'GET' || !req.method) {
-    const message = await readPartnerMessage(options);
-    return res.status(200).json({ ok: true, message });
+    return res.status(404).json({ ok: false, error: 'route-not-found' });
   }
 
   if (req.method !== 'POST') {
@@ -285,8 +339,7 @@ async function handler(req, res, options = {}) {
 
   try {
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-    const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
-    const { authorName } = validateTelegramInitData(body.initData, token, options.now || Date.now());
+    const { authorName } = authorizeInitData(body.initData, options);
     const text = normalizeMessageText(body.text);
 
     const message = await writePartnerMessage({
