@@ -43,10 +43,8 @@ function validateTelegramInitData(rawInitData, botToken, now = Date.now()) {
     throw new Error('telegram-user-invalid');
   }
 
-  const authorName = [user.first_name, user.last_name]
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .join(' ')
+  const authorName = String(user.first_name || '').trim()
+    || String(user.last_name || '').trim()
     || String(user.username || '').trim()
     || 'Telegram';
 
