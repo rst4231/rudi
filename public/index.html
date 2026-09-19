@@ -2869,6 +2869,74 @@
       padding-top:7px;
     }
 
+
+    /* Telegram partner identity inside the mood strip */
+    .profile .mood-partner{
+      flex:0 0 auto!important;
+      min-width:0!important;
+      display:grid!important;
+      grid-template-columns:30px minmax(0,64px) 28px!important;
+      align-items:center!important;
+      justify-content:end!important;
+      gap:6px!important;
+      padding:2px 0 2px 9px!important;
+      border-left:1px solid rgba(255,255,255,.09)!important;
+    }
+    .profile .partner-profile-avatar{
+      position:relative;
+      width:30px;
+      height:30px;
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:9px;
+      background:linear-gradient(145deg,rgba(255,134,183,.18),rgba(139,154,255,.14));
+      color:#f6e9f0;
+      font-size:10px;
+      line-height:1;
+      font-weight:820;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .profile .partner-profile-avatar img{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+      object-fit:cover;
+      opacity:0;
+      transition:opacity .2s ease;
+    }
+    .profile .partner-profile-avatar.has-photo img{opacity:1}
+    .profile .partner-profile-name{
+      min-width:0!important;
+      max-width:64px!important;
+      overflow:hidden!important;
+      color:rgba(245,247,253,.88)!important;
+      font-size:9.5px!important;
+      line-height:1.1!important;
+      font-weight:760!important;
+      letter-spacing:-.005em!important;
+      text-overflow:ellipsis!important;
+      white-space:nowrap!important;
+    }
+    .profile .mood-partner .partner-mood-value{
+      flex:0 0 28px!important;
+      width:28px!important;
+      height:28px!important;
+      margin:0!important;
+    }
+    @media(max-width:390px){
+      .profile .mood-partner{
+        grid-template-columns:28px minmax(0,50px) 27px!important;
+        gap:5px!important;
+        padding-left:7px!important;
+      }
+      .profile .partner-profile-avatar{width:28px;height:28px;border-radius:8px}
+      .profile .partner-profile-name{max-width:50px!important;font-size:8.7px!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2915,7 +2983,11 @@
             </div>
           </div>
           <div class="mood-person mood-partner">
-            <span id="partnerMoodLabel" class="mood-person-label">Партнёр</span>
+            <span id="partnerProfileAvatar" class="partner-profile-avatar" aria-hidden="true">
+              <span id="partnerProfileInitial">Д</span>
+              <img id="partnerProfileImage" alt="">
+            </span>
+            <span id="partnerMoodLabel" class="mood-person-label partner-profile-name">Диана</span>
             <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
               <span class="partner-mood-icon" data-partner-mood="low" hidden>
@@ -3328,6 +3400,7 @@
       const tg = window.Telegram?.WebApp;
       const DAY = 86400000;
       let currentActor = '';
+      let partnerProfileName = '';
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
@@ -3584,6 +3657,7 @@
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
+          applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
           cacheHolidayItems(payload.holidayHighlights);
           document.body.classList.remove('auth-pending','auth-denied');
           document.body.classList.add('auth-ok');
@@ -3639,6 +3713,44 @@
           avatarImage.alt = 'Фото профиля ' + fullName;
           avatarImage.addEventListener('load',()=>avatar.classList.add('has-photo'),{once:true});
           avatarImage.addEventListener('error',()=>avatar.classList.remove('has-photo'),{once:true});
+        }
+      }
+
+      function initialsForName(value,fallback='П'){
+        const parts=String(value||'').trim().split(/\s+/).filter(Boolean);
+        return (parts.length?parts.map(part=>part.charAt(0)).join(''):fallback).slice(0,2).toUpperCase();
+      }
+
+      function applyTelegramProfiles(selfProfile,partnerProfile){
+        if(!avatar.classList.contains('has-photo')&&selfProfile?.photoDataUrl){
+          avatarImage.src=String(selfProfile.photoDataUrl);
+          avatarImage.alt='Фото профиля '+(displayName.textContent||'Telegram');
+          avatarImage.addEventListener('load',()=>avatar.classList.add('has-photo'),{once:true});
+          avatarImage.addEventListener('error',()=>avatar.classList.remove('has-photo'),{once:true});
+        }
+
+        const partnerName=String(partnerProfile?.name||'').trim()
+          || (currentActor==='Рустам'?'Диана':currentActor==='Диана'?'Рустам':'Партнёр');
+        partnerProfileName=partnerName;
+
+        const label=document.getElementById('partnerMoodLabel');
+        const holder=document.getElementById('partnerProfileAvatar');
+        const image=document.getElementById('partnerProfileImage');
+        const initial=document.getElementById('partnerProfileInitial');
+
+        if(label) label.textContent=partnerName;
+        if(initial) initial.textContent=initialsForName(partnerName,'П');
+        if(image&&holder){
+          image.alt='Фото профиля '+partnerName;
+          const photo=String(partnerProfile?.photoDataUrl||'').trim();
+          if(photo){
+            image.src=photo;
+            image.addEventListener('load',()=>holder.classList.add('has-photo'),{once:true});
+            image.addEventListener('error',()=>holder.classList.remove('has-photo'),{once:true});
+          }else{
+            image.removeAttribute('src');
+            holder.classList.remove('has-photo');
+          }
         }
       }
 
@@ -4676,7 +4788,8 @@
         const holder=document.getElementById('partnerMoodValue');
         const empty=document.getElementById('partnerMoodEmpty');
         const mood=String(value||'');
-        label.textContent=partner||'Партнёр';
+        const visiblePartner=partnerProfileName||partner||'Партнёр';
+        label.textContent=visiblePartner;
         holder.dataset.mood=mood;
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==mood;
@@ -4684,7 +4797,7 @@
         empty.hidden=['low','ok','great'].includes(mood);
         holder.setAttribute(
           'aria-label',
-          (partner||'Партнёр')+': '+(
+          visiblePartner+': '+(
             mood==='low'?'не очень':mood==='ok'?'нормально':mood==='great'?'отлично':'настроение ещё не выбрано'
           )
         );
