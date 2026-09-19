@@ -10,6 +10,7 @@ const MAX_BATCH = 12;
 function cacheOf(options = {}) {
   return options.reactionsCache || options.cache || createStrictRuntimeCache({
     namespace: NAMESPACE,
+    confirmWrites: false,
   });
 }
 
