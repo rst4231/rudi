@@ -62,6 +62,7 @@ function normalizeState(value) {
     history: history.map((item) => ({
       id: String(item?.id || ''),
       text: String(item?.text || '').trim().slice(0, MAX_TEXT),
+      addedBy: String(item?.addedBy || ''),
       boughtBy: String(item?.boughtBy || ''),
       category: categorizeProduct(item?.text),
       boughtAt: String(item?.boughtAt || ''),
@@ -186,6 +187,7 @@ async function markProductBought(id, boughtBy = '', options = {}) {
     state.history.unshift({
       id: crypto.randomUUID(),
       text: item.text,
+      addedBy: String(item.addedBy || ''),
       boughtBy: String(boughtBy || ''),
       category: categorizeProduct(item.text),
       boughtAt: new Date(options.now || Date.now()).toISOString(),
