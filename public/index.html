@@ -3274,9 +3274,9 @@
           list.appendChild(group);
         }
 
-        card.classList.add('open');
-        toggle.setAttribute('aria-expanded','true');
-        details.setAttribute('aria-hidden','false');
+        card.classList.remove('open');
+        toggle.setAttribute('aria-expanded','false');
+        details.setAttribute('aria-hidden','true');
 
         toggle.addEventListener('click',()=>{
           const open=!card.classList.contains('open');
