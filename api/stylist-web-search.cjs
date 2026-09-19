@@ -1,4 +1,5 @@
 const { createHash } = require('node:crypto');
+const { hasStylistRoleMention, hasClothingContext } = require('./stylist-leads.cjs');
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 const DEFAULT_WEB_PRIORITY = 80;
@@ -31,7 +32,7 @@ function isLikelyWebClientIntent(text = '') {
 
   const clientRequest = /(ищу|ищем|нужен|нужна|нужны|посовет|порекоменду|подскаж|помогите|кто\s+(?:может|делает)|хочу\s+(?:найти|подобрать|разобрать|обновить|собрать))/i.test(value);
   const painLanguage = /(не\s+знаю\s+что\s+носить|нечего\s+носить|как\s+сочетать\s+вещ|гардероб[^.!?\n]{0,60}(?:не\s+работает|не\s+нравится|устарел|разобрать)|нужна?\s+помощь[^.!?\n]{0,80}(?:гардероб|одежд|образ|вещ|капсул)|помогите[^.!?\n]{0,80}(?:гардероб|одежд|образ|вещ|капсул))/i.test(value);
-  const clothingNeed = /(стилист|одежд|гардероб|образ|лук|капсул|вещ|шопинг|shopping|наряд|стил)/i.test(value);
+  const clothingNeed = hasStylistRoleMention(value) || hasClothingContext(value);
   const providerOffer = /(услуги\s+стилист|я\s+(?:персональный\s+)?стилист|мои\s+услуги|запись\s+открыта|записываю\s+на|прайс|стоимость\s+(?:услуг|разбора|сопровождения)|предлагаю[^.!?\n]{0,60}(?:разбор\s+гардероба|шопинг|услуг))/i.test(value);
 
   if (providerOffer && !clientRequest && !painLanguage) return false;
