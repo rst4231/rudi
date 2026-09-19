@@ -32,26 +32,6 @@
       "recurring": true
     }
   ],
-  "favorites": [
-    {
-      "id": "telegram-chat",
-      "title": "Telegram чат",
-      "url": "https://t.me/+fiPsnWoBJ-c0ZmU1",
-      "icon": "telegram"
-    },
-    {
-      "id": "maps",
-      "title": "Яндекс Карты",
-      "url": "https://yandex.ru/maps/",
-      "icon": "map"
-    },
-    {
-      "id": "youtube",
-      "title": "YouTube",
-      "url": "https://www.youtube.com/",
-      "icon": "play"
-    }
-  ],
   "dailyIdeas": [
     "Сделать небольшую прогулку без телефона.",
     "Попробовать сегодня новый рецепт.",
