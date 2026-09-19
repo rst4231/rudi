@@ -1671,7 +1671,67 @@
       .update-group{display:grid;gap:8px}
     .update-group+.update-group{margin-top:5px;padding-top:13px;border-top:1px solid var(--line)}
     .update-group-title{margin-bottom:1px;color:var(--muted);font-size:10px;font-weight:780;letter-spacing:.02em}
-</style>
+
+    .work-calendar-toggle{
+      width:100%;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:14px;
+      padding:0 5px;
+      border:0;
+      background:transparent;
+      color:var(--text);
+      font:inherit;
+      text-align:left;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .work-calendar-toggle-copy{display:grid;gap:2px;min-width:0}
+    .work-calendar-toggle-title{
+      font-size:20px;
+      line-height:1.12;
+      font-weight:830;
+      letter-spacing:-.035em;
+    }
+    .work-calendar-toggle-actions{display:flex;align-items:center;gap:7px;flex:none}
+    .work-calendar-chevron{
+      width:30px;height:30px;
+      display:grid;place-items:center;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:var(--soft);
+      color:var(--muted);
+      transition:transform .25s ease,background-color .2s ease;
+    }
+    .work-calendar-chevron svg{width:15px;height:15px}
+    .work-section.open .work-calendar-chevron{transform:rotate(180deg);background:var(--accent-soft);color:var(--accent)}
+    .work-calendar-details{
+      display:grid;
+      grid-template-rows:0fr;
+      opacity:0;
+      transition:grid-template-rows .3s cubic-bezier(.2,.8,.2,1),opacity .22s ease;
+    }
+    .work-section.open .work-calendar-details{grid-template-rows:1fr;opacity:1}
+    .work-calendar-details-clip{overflow:hidden}
+    .work-calendar-card{margin-top:11px}
+    .work-day.off{
+      border-color:color-mix(in srgb,var(--green) 28%,var(--line));
+      background:
+        linear-gradient(135deg,var(--green-soft),transparent 72%),
+        color-mix(in srgb,var(--surface) 78%,transparent);
+    }
+    .work-day.off .work-day-state strong{color:color-mix(in srgb,var(--green) 78%,var(--text));font-weight:740}
+    .work-day.off .work-day-time{
+      background:var(--green-soft);
+      color:color-mix(in srgb,var(--green) 78%,var(--text));
+    }
+    @media(max-width:430px){
+      .work-calendar-toggle{padding:0 4px}
+      .work-calendar-toggle-title{font-size:18px}
+    }
+
+  </style>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -1813,29 +1873,38 @@
       </div>
     </section>
 
-    <section class="section-block work-section" aria-labelledby="workScheduleTitle">
-      <div class="section-heading compact">
-        <div>
-          <div class="section-eyebrow">Расписание</div>
-          <h2 id="workScheduleTitle">График работы Дианы</h2>
+    <section id="workCalendarSection" class="section-block work-section" aria-labelledby="workScheduleTitle">
+      <button id="workCalendarToggle" class="work-calendar-toggle" type="button" aria-expanded="false" aria-controls="workCalendarDetails">
+        <span class="work-calendar-toggle-copy">
+          <span class="section-eyebrow">Расписание</span>
+          <span id="workScheduleTitle" class="work-calendar-toggle-title">График работы Дианы</span>
+        </span>
+        <span class="work-calendar-toggle-actions">
+          <span id="workCalendarStatus" class="section-status">Обновляю</span>
+          <span class="work-calendar-chevron" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
+          </span>
+        </span>
+      </button>
+      <div id="workCalendarDetails" class="work-calendar-details" aria-hidden="true">
+        <div class="work-calendar-details-clip">
+          <article class="panel work-calendar-card">
+            <div class="work-calendar-head">
+              <div id="workWeekLabel" class="work-week-label">Сегодня + 6 дней</div>
+              <div class="work-calendar-legend"><span></span> рабочий день</div>
+            </div>
+            <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
+              <div class="work-calendar-skeleton"></div>
+              <div class="work-calendar-skeleton"></div>
+              <div class="work-calendar-skeleton"></div>
+              <div class="work-calendar-skeleton"></div>
+              <div class="work-calendar-skeleton"></div>
+              <div class="work-calendar-skeleton"></div>
+              <div class="work-calendar-skeleton"></div>
+            </div>
+          </article>
         </div>
-        <span id="workCalendarStatus" class="section-status">Обновляю</span>
       </div>
-      <article class="panel work-calendar-card">
-        <div class="work-calendar-head">
-          <div id="workWeekLabel" class="work-week-label">Эта неделя</div>
-          <div class="work-calendar-legend"><span></span> рабочий день</div>
-        </div>
-        <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-        </div>
-      </article>
     </section>
 
     <section class="panel partner-message" aria-label="Послание для партнёра">
@@ -2116,10 +2185,13 @@
       }
 
       function updateTelegramSafeArea(){
-        const contentTop=Number(tg?.contentSafeAreaInset?.top);
-        const safeTop=Number(tg?.safeAreaInset?.top);
-        const top=Number.isFinite(contentTop)&&contentTop>0 ? contentTop
-          : (Number.isFinite(safeTop)&&safeTop>0 ? safeTop : 0);
+        const contentTop=Number(tg?.contentSafeAreaInset?.top)||0;
+        const safeTop=Number(tg?.safeAreaInset?.top)||0;
+        const telegramOpen=Boolean(tg?.initData);
+        const iosReserve=telegramOpen&&tg?.platform==='ios' ? 76 : 0;
+        const otherReserve=telegramOpen&&tg?.platform!=='ios' ? 58 : 0;
+        const fullscreenExtra=tg?.isFullscreen ? 8 : 0;
+        const top=Math.max(contentTop,safeTop,iosReserve,otherReserve)+fullscreenExtra;
         root.style.setProperty('--tg-content-safe-top',Math.max(0,top)+'px');
       }
 
@@ -2179,6 +2251,7 @@
       tg?.onEvent?.('safeAreaChanged',updateTelegramSafeArea);
       tg?.onEvent?.('contentSafeAreaChanged',updateTelegramSafeArea);
       tg?.onEvent?.('viewportChanged',updateTelegramSafeArea);
+      tg?.onEvent?.('fullscreenChanged',updateTelegramSafeArea);
       media.addEventListener?.('change',()=>{if(!tg?.initData) applyTheme()});
 
       const user = tg?.initDataUnsafe?.user;
@@ -2691,6 +2764,23 @@
         return new Date(Date.UTC(year,month-1,day));
       }
 
+      function setupWorkCalendarDisclosure(){
+        const section=document.getElementById('workCalendarSection');
+        const toggle=document.getElementById('workCalendarToggle');
+        const details=document.getElementById('workCalendarDetails');
+        const setOpen=(open)=>{
+          section.classList.toggle('open',open);
+          toggle.setAttribute('aria-expanded',open?'true':'false');
+          details.setAttribute('aria-hidden',open?'false':'true');
+        };
+        setOpen(false);
+        toggle.addEventListener('click',()=>{
+          const open=!section.classList.contains('open');
+          setOpen(open);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+      }
+
       function renderWorkCalendar(payload){
         const container=document.getElementById('workCalendarDays');
         const status=document.getElementById('workCalendarStatus');
@@ -3143,6 +3233,7 @@
         setupTickTickConnect();
         setupHolidayModal(config);
         setupWishlist();
+        setupWorkCalendarDisclosure();
         loadWeather(config.weather);
         loadTickTickNext();
         loadWorkCalendar();
