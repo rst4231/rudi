@@ -41,8 +41,8 @@
     },
     {
       "id": "maps",
-      "title": "Карты",
-      "url": "https://maps.google.com/",
+      "title": "Яндекс Карты",
+      "url": "https://yandex.ru/maps/",
       "icon": "map"
     },
     {
