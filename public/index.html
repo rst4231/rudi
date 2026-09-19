@@ -846,7 +846,7 @@
           if(start<0) start=times.findIndex(time=>String(time)>=currentHour);
           if(start<0) start=0;
 
-          const end=Math.min(times.length,start+7);
+          const end=times.length;
           const nextProb=probabilities.slice(start,end).map(Number).filter(Number.isFinite);
           const nextPrecip=precipitation.slice(start,end).map(Number).filter(Number.isFinite);
           const nextRain=rain.slice(start,end).map(Number).filter(Number.isFinite);
@@ -859,11 +859,11 @@
           if(rainingNow){
             rainText='Дождь идёт сейчас · зонт нужен';
           }else if(maxProbability>=60 || totalRain>=0.5 || totalPrecip>=0.8){
-            rainText='Дождь вероятен в ближайшие часы · лучше взять зонт';
+            rainText='Дождь ожидается сегодня · лучше взять зонт';
           }else if(maxProbability>=30 || totalRain>0 || totalPrecip>0){
-            rainText='Небольшой дождь возможен · зонт по желанию';
+            rainText='Дождь возможен сегодня · зонт по желанию';
           }else{
-            rainText='Дождя не ожидается · зонт не нужен';
+            rainText='Сегодня дождя не ожидается · зонт не нужен';
           }
 
           elValue.textContent=Math.round(c.temperature_2m)+'°';
