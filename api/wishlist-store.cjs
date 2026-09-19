@@ -6,6 +6,7 @@ const STATE_KEY = 'wishlist';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ITEMS = 120;
 const MAX_TEXT = 180;
+const MAX_URL = 1200;
 
 function cacheOf(options = {}) {
   return options.cache || createStrictRuntimeCache({ namespace: NAMESPACE, ...(options.cacheOptions || {}) });
@@ -19,6 +20,7 @@ function normalizeState(value) {
       .map((item) => ({
         id: String(item?.id || ''),
         text: String(item?.text || '').trim().slice(0, MAX_TEXT),
+        url: normalizeWishUrl(item?.url, { allowEmpty: true }),
         owner: item?.owner === 'Диана' ? 'Диана' : 'Рустам',
         done: Boolean(item?.done),
         createdAt: String(item?.createdAt || ''),
@@ -46,13 +48,39 @@ function normalizeWishText(value) {
   return text;
 }
 
-async function addWish(text, owner, options = {}) {
+function normalizeWishUrl(value, options = {}) {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    if (options.allowEmpty !== false) return '';
+    throw new Error('wishlist-url-empty');
+  }
+  if (raw.length > MAX_URL) throw new Error('wishlist-url-too-long');
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw) && !/^https?:/i.test(raw)) {
+    throw new Error('wishlist-url-invalid');
+  }
+
+  const candidate = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch (_) {
+    throw new Error('wishlist-url-invalid');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+    throw new Error('wishlist-url-invalid');
+  }
+  return parsed.toString();
+}
+
+async function addWish(text, url, owner, options = {}) {
   const state = await readWishlist(options);
   if (state.items.length >= MAX_ITEMS) throw new Error('wishlist-full');
   const now = new Date(options.now || Date.now()).toISOString();
   const item = {
     id: crypto.randomUUID(),
     text: normalizeWishText(text),
+    url: normalizeWishUrl(url, { allowEmpty: true }),
     owner,
     done: false,
     createdAt: now,
@@ -80,7 +108,7 @@ async function removeWish(id, options = {}) {
 }
 
 module.exports = {
-  NAMESPACE, MAX_ITEMS, MAX_TEXT,
-  readWishlist, writeWishlist, normalizeWishText,
+  NAMESPACE, MAX_ITEMS, MAX_TEXT, MAX_URL,
+  readWishlist, writeWishlist, normalizeWishText, normalizeWishUrl,
   addWish, toggleWish, removeWish,
 };
