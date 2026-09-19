@@ -59,9 +59,9 @@ test('health reports effective settings and omits removed venue rubric', async (
   assert.equal(payload.sections.events.topicId, 19);
   assert.equal(payload.cron.schedule, '30 21 * * *');
   assert.equal(payload.cron.lastAttempt.status, 'completed');
-  assert.equal(payload.topicCleanup.eventTracking.activeDate, '2026-08-29');
-  assert.equal(payload.topicCleanup.eventTracking.activeMessages, 1);
-  assert.equal(payload.topicCleanup.eventTracking.pendingMessages, 2);
+  assert.equal(payload.eventTracking.activeDate, '2026-08-29');
+  assert.equal(payload.eventTracking.activeMessages, 1);
+  assert.equal(payload.eventTracking.pendingMessages, 2);
   const text = JSON.stringify(payload);
   assert.ok(!text.includes('Sevkabel'));
   assert.ok(!text.includes('Brusnitsyn'));
