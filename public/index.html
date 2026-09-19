@@ -2306,6 +2306,109 @@
       place-items:center;
     }
 
+  
+    /* iOS-style bottom tab navigation */
+    .shell{
+      padding-bottom:calc(94px + env(safe-area-inset-bottom)) !important;
+    }
+    [data-app-tab-section][hidden]{display:none !important}
+    .app-tabbar{
+      position:fixed;
+      left:50%;
+      bottom:max(8px,env(safe-area-inset-bottom));
+      z-index:4200;
+      width:min(calc(100% - 24px),560px);
+      min-height:64px;
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:3px;
+      padding:6px;
+      border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
+      border-radius:22px;
+      background:color-mix(in srgb,var(--surface-strong) 88%,transparent);
+      box-shadow:0 16px 44px rgba(20,24,36,.18),inset 0 1px 0 rgba(255,255,255,.10);
+      backdrop-filter:blur(22px) saturate(1.25);
+      -webkit-backdrop-filter:blur(22px) saturate(1.25);
+      transform:translateX(-50%);
+      transition:transform .24s ease,opacity .2s ease;
+    }
+    .app-tab-button{
+      min-width:0;
+      min-height:52px;
+      display:grid;
+      place-items:center;
+      align-content:center;
+      gap:3px;
+      padding:5px 2px;
+      border:0;
+      border-radius:16px;
+      background:transparent;
+      color:var(--muted);
+      font:inherit;
+      font-size:8.8px;
+      line-height:1;
+      font-weight:680;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      transition:background-color .18s ease,color .18s ease,transform .16s ease;
+    }
+    .app-tab-button:active{transform:scale(.94)}
+    .app-tab-icon{
+      width:25px;height:25px;
+      display:grid;place-items:center;
+      border-radius:9px;
+    }
+    .app-tab-icon svg{width:20px;height:20px}
+    .app-tab-button.active{
+      color:var(--accent);
+      background:color-mix(in srgb,var(--accent-soft) 68%,transparent);
+    }
+    .app-tab-button.active .app-tab-icon{
+      background:color-mix(in srgb,var(--accent-soft) 86%,transparent);
+    }
+    html[data-theme="dark"] .app-tabbar{
+      border-color:rgba(255,255,255,.09);
+      background:rgba(23,27,38,.88);
+      box-shadow:0 18px 46px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    body.keyboard-editing .app-tabbar{
+      opacity:0;
+      pointer-events:none;
+      transform:translate(-50%,calc(100% + 28px));
+    }
+
+    /* Dedicated tab pages */
+    body[data-app-tab="schedule"] .work-section,
+    body[data-app-tab="wishlist"] .wishlist-section,
+    body[data-app-tab="photos"] .shared-album-section{
+      margin-top:0;
+      min-height:calc(100dvh - 190px);
+    }
+    body[data-app-tab="schedule"] .work-section{
+      background:linear-gradient(145deg,rgba(255,157,87,.085),var(--surface));
+    }
+    body[data-app-tab="wishlist"] .wishlist-section{
+      background:linear-gradient(145deg,color-mix(in srgb,var(--love-soft) 70%,var(--surface)),var(--surface));
+    }
+    body[data-app-tab="photos"] .shared-album-section{
+      background:linear-gradient(145deg,rgba(72,166,220,.09),var(--surface));
+    }
+    body[data-app-tab="wishlist"] .wishlist-card,
+    body[data-app-tab="photos"] .shared-album-card{
+      margin-top:4px;
+    }
+    @media(max-width:430px){
+      .app-tabbar{
+        width:calc(100% - 18px);
+        min-height:62px;
+        padding:5px;
+        border-radius:20px;
+      }
+      .app-tab-button{min-height:50px;font-size:8.4px}
+      .app-tab-icon{width:24px;height:24px}
+      .shell{padding-bottom:calc(90px + env(safe-area-inset-bottom)) !important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2786,6 +2889,52 @@
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'week';
       let sharedAlbumUrl = '';
+      let currentAppTab = 'home';
+      const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0};
+
+      function applyAppTab(tab,{scroll=false}={}){
+        const allowed=['home','schedule','wishlist','photos'];
+        const next=allowed.includes(tab)?tab:'home';
+        currentAppTab=next;
+        document.body.dataset.appTab=next;
+
+        document.querySelectorAll('[data-app-tab-section]').forEach(section=>{
+          const available=section.dataset.tabAvailable!=='0';
+          section.hidden=section.dataset.appTabSection!==next||!available;
+        });
+
+        document.querySelectorAll('[data-app-tab]').forEach(button=>{
+          const active=button.dataset.appTab===next;
+          button.classList.toggle('active',active);
+          button.setAttribute('aria-selected',active?'true':'false');
+          if(active) button.setAttribute('aria-current','page');
+          else button.removeAttribute('aria-current');
+        });
+
+        if(scroll){
+          requestAnimationFrame(()=>{
+            window.scrollTo({top:appTabScroll[next]||0,left:0,behavior:'auto'});
+          });
+        }
+      }
+
+      function setupAppTabs(){
+        applyAppTab('home',{scroll:false});
+        document.querySelectorAll('[data-app-tab]').forEach(button=>{
+          button.addEventListener('click',()=>{
+            const next=button.dataset.appTab||'home';
+            if(next===currentAppTab){
+              window.scrollTo({top:0,left:0,behavior:'smooth'});
+              appTabScroll[next]=0;
+              return;
+            }
+            appTabScroll[currentAppTab]=window.scrollY||0;
+            document.activeElement?.blur?.();
+            applyAppTab(next,{scroll:true});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+      }
 
       function blockStateStorageKey(){
         const userId=String(tg?.initDataUnsafe?.user?.id||'local');
@@ -2898,16 +3047,6 @@
         setupPersistentCollapsible({
           selector:'.daily-section',key:'daily',
           bodySelectors:['.daily-grid'],
-          hostSelector:'.section-heading'
-        });
-        setupPersistentCollapsible({
-          selector:'.wishlist-section',key:'wishlist',
-          bodySelectors:['.wishlist-card'],
-          hostSelector:'.section-heading'
-        });
-        setupPersistentCollapsible({
-          selector:'.shared-album-section',key:'album',
-          bodySelectors:['.shared-album-card'],
           hostSelector:'.section-heading'
         });
         setupPersistentCollapsible({
@@ -3761,10 +3900,12 @@
         const photos=Array.isArray(payload?.photos)?payload.photos.slice(0,5):[];
 
         if(!payload?.configured){
-          section.hidden=true;
+          section.dataset.tabAvailable='0';
+          applyAppTab(currentAppTab,{scroll:false});
           return;
         }
-        section.hidden=false;
+        section.dataset.tabAvailable='1';
+        applyAppTab(currentAppTab,{scroll:false});
         sharedAlbumUrl=String(payload.albumUrl||'');
         open.disabled=!sharedAlbumUrl;
         if(payload.stale){
@@ -3905,10 +4046,12 @@
 
         input.addEventListener('focus',()=>{
           section?.classList.add('wishlist-editing');
+          document.body.classList.add('keyboard-editing');
           revealForm();
         });
         input.addEventListener('blur',()=>{
           section?.classList.remove('wishlist-editing');
+          document.body.classList.remove('keyboard-editing');
           clearTimeout(focusTimer);
         });
         window.visualViewport?.addEventListener('resize',()=>{
@@ -4287,6 +4430,7 @@
         document.getElementById('watchToday').textContent=watch[Math.abs(dayIndex+3)%watch.length];
 
         renderNearest(config);
+        setupAppTabs();
         setupPersistentCollapsibles();
         setupPartnerMessage();
         setupStreakAndMood(config);
