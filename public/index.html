@@ -3893,6 +3893,7 @@
       let currentWorkCalendarView = 'month';
       let sharedAlbumUrl = '';
       let currentAppTab = 'home';
+      let presenceRequestPromise = null;
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
 
       function applyAppTab(tab,{scroll=false}={}){
@@ -5541,24 +5542,63 @@
         return prefix+' '+days+' '+form(days,'день','дня','дней')+' назад';
       }
 
+      function presenceStorageKey(partnerName){
+        return 'rudi-presence-last-seen:'+String(partnerName||'partner').toLocaleLowerCase('ru-RU');
+      }
+
+      function rememberPartnerLastSeen(partnerName,lastSeenAt){
+        const seen=Date.parse(String(lastSeenAt||''));
+        if(!Number.isFinite(seen)) return;
+        try{localStorage.setItem(presenceStorageKey(partnerName),new Date(seen).toISOString())}catch(_){}
+      }
+
+      function cachedPartnerLastSeen(partnerName){
+        try{
+          const value=localStorage.getItem(presenceStorageKey(partnerName))||'';
+          return Number.isFinite(Date.parse(value))?value:'';
+        }catch(_){
+          return '';
+        }
+      }
+
+      function renderPartnerPresenceState(partnerName,online,lastSeenAt){
+        setPresenceDot('partnerPresenceDot',Boolean(online),partnerName);
+        const text=document.getElementById('partnerPresenceText');
+        if(!text) return;
+        if(online){
+          text.hidden=true;
+          text.textContent='';
+          return;
+        }
+        text.textContent=relativePresenceText(lastSeenAt,partnerName);
+        text.hidden=false;
+      }
+
       function renderPresence(payload){
         const mine=payload?.mine||{};
         const partner=payload?.partnerPresence||{};
-        const partnerName=String(payload?.partner||partnerProfileName||'Партнёр');
+        const partnerName=String(payload?.partner||partnerProfileName||(currentActor==='Рустам'?'Диана':'Рустам'));
         const selfVisible=document.visibilityState==='visible'&&Boolean(currentActor);
         setPresenceDot('selfPresenceDot',selfVisible||Boolean(mine.online),currentActor||'Вы');
-        setPresenceDot('partnerPresenceDot',Boolean(partner.online),partnerName);
 
-        const text=document.getElementById('partnerPresenceText');
-        if(text){
-          if(partner.online){
-            text.hidden=true;
-            text.textContent='';
-          }else{
-            text.textContent=relativePresenceText(partner.lastSeenAt,partnerName);
-            text.hidden=false;
-          }
-        }
+        const serverLastSeen=String(partner.lastSeenAt||'');
+        if(Number.isFinite(Date.parse(serverLastSeen))) rememberPartnerLastSeen(partnerName,serverLastSeen);
+        const effectiveLastSeen=Number.isFinite(Date.parse(serverLastSeen))
+          ?serverLastSeen
+          :cachedPartnerLastSeen(partnerName);
+        const cachedSeen=Date.parse(effectiveLastSeen);
+        const cachedOnline=Number.isFinite(cachedSeen)&&Date.now()-cachedSeen<=75000;
+        const effectiveOnline=Boolean(partner.online)||(!serverLastSeen&&cachedOnline);
+        renderPartnerPresenceState(partnerName,effectiveOnline,effectiveLastSeen);
+      }
+
+      function renderPresenceFallback(){
+        const partnerName=String(partnerProfileName||(currentActor==='Рустам'?'Диана':'Рустам'));
+        const lastSeenAt=cachedPartnerLastSeen(partnerName);
+        if(!lastSeenAt) return;
+        const seen=Date.parse(lastSeenAt);
+        const online=Number.isFinite(seen)&&Date.now()-seen<=75000;
+        renderPartnerPresenceState(partnerName,online,lastSeenAt);
       }
 
       function markSelfPresenceVisible(){
@@ -5570,20 +5610,32 @@
         if(!currentActor||!tg?.initData) return;
         if(heartbeat&&document.visibilityState!=='visible') return;
         markSelfPresenceVisible();
+        if(presenceRequestPromise) return presenceRequestPromise;
+
+        presenceRequestPromise=(async()=>{
+          try{
+            const response=await fetch('/api/partner-message?rudiAction=presence',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                initData:tg.initData,
+                operation:heartbeat?'heartbeat':'get'
+              }),
+              cache:'no-store'
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(!response.ok||!payload.ok) throw new Error(payload.error||'presence');
+            renderPresence(payload);
+          }catch(_){
+            renderPresenceFallback();
+          }
+        })();
+
         try{
-          const response=await fetch('/api/partner-message?rudiAction=presence',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-              initData:tg.initData,
-              operation:heartbeat?'heartbeat':'get'
-            }),
-            cache:'no-store'
-          });
-          const payload=await response.json().catch(()=>({}));
-          if(!response.ok||!payload.ok) throw new Error(payload.error||'presence');
-          renderPresence(payload);
-        }catch(_){}
+          return await presenceRequestPromise;
+        }finally{
+          presenceRequestPromise=null;
+        }
       }
 
       function setupWatchSuggestion(config,title){
