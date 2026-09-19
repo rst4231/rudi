@@ -10,7 +10,6 @@ const MAX_BATCH = 12;
 function cacheOf(options = {}) {
   return options.reactionsCache || options.cache || createStrictRuntimeCache({
     namespace: NAMESPACE,
-    confirmWrites: false,
   });
 }
 
@@ -56,10 +55,18 @@ async function toggleReaction(targetInput, actorInput, options = {}) {
   const actor = normalizeActor(actorInput);
   const cache = cacheOf(options);
   const key = cacheKey(target, actor);
-  const existing = await cache.get(key);
-  if (existing) {
-    await cache.delete(key);
-  } else {
+
+  const otherActors = [...ACTORS].filter((value) => value !== actor);
+  const [existing, otherRows] = await Promise.all([
+    cache.get(key),
+    Promise.all(otherActors.map(async (otherActor) => [
+      otherActor,
+      Boolean(await cache.get(cacheKey(target, otherActor))),
+    ])),
+  ]);
+
+  const nextLiked = !existing;
+  if (nextLiked) {
     await cache.set(key, {
       actor,
       reactedAt: new Date(options.now || Date.now()).toISOString(),
@@ -68,8 +75,18 @@ async function toggleReaction(targetInput, actorInput, options = {}) {
       tags: ['rudi-reactions', `rudi-reaction-${target.type}`],
       name: key,
     });
+  } else {
+    await cache.delete(key);
   }
-  return readReaction(target, options);
+
+  const likedBy = otherRows.filter(([, liked]) => liked).map(([name]) => name);
+  if (nextLiked) likedBy.push(actor);
+
+  return {
+    ...target,
+    likedBy: [...ACTORS].filter((name) => likedBy.includes(name)),
+    count: likedBy.length,
+  };
 }
 
 module.exports = {
