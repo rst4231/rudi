@@ -114,3 +114,22 @@ test('setReaction survives a fresh read with the persisted ASCII key', async () 
   assert.deepEqual(persisted.likedBy, ['Рустам']);
   assert.equal(persisted.count, 1);
 });
+
+
+test('setReaction persists an unlike tombstone so a fresh read stays unliked', async () => {
+  const values = new Map();
+  const cache = {
+    async get(key) { return values.has(key) ? structuredClone(values.get(key)) : null; },
+    async set(key, value) { values.set(key, structuredClone(value)); },
+    async delete(key) { values.delete(key); },
+  };
+  const target = { type: 'watch', key: 'day:2026-09-19' };
+
+  await setReaction(target, 'Рустам', true, { reactionsCache: cache });
+  await setReaction(target, 'Рустам', false, { reactionsCache: cache });
+  const persisted = await require('../api/reactions-store.cjs').readReaction(target, { reactionsCache: cache });
+
+  assert.deepEqual(persisted.likedBy, []);
+  assert.equal(persisted.count, 0);
+  assert.equal(values.get(cacheKey(target, 'Рустам')).liked, false);
+});
