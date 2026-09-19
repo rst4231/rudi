@@ -29,7 +29,7 @@ const {
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
 const { markPresence, presenceView } = require('./presence-store.cjs');
-const { readReactions, toggleReaction } = require('./reactions-store.cjs');
+const { readReactions, setReaction, toggleReaction } = require('./reactions-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -460,6 +460,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'list') {
         const reactions = await readReactions(body.targets, options);
         return res.status(200).json({ ok: true, actor, reactions });
+      }
+      if (operation === 'set') {
+        const reaction = await setReaction(body.target, actor, body.liked, options);
+        return res.status(200).json({ ok: true, actor, reaction });
       }
       if (operation === 'toggle') {
         const reaction = await toggleReaction(body.target, actor, options);
