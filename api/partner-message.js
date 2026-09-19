@@ -308,8 +308,10 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       authorizeInitData(body.initData, options);
-      const weekOffset = Math.max(-12, Math.min(12, Number(body.weekOffset || 0) || 0));
-      const week = await getWorkWeek({ ...options, weekOffset });
+      const view = ['week','month','next-month'].includes(String(body.view || ''))
+        ? String(body.view)
+        : 'week';
+      const week = await getWorkWeek({ ...options, view });
       return res.status(200).json({ ok: true, ...week });
     } catch (error) {
       const code = String(error?.message || error);
