@@ -2128,6 +2128,114 @@
       box-shadow:0 9px 22px rgba(0,0,0,.30),0 0 0 1px rgba(255,255,255,.04) !important;
     }
 
+  
+    /* Clean mood strip */
+    .profile .identity{
+      grid-template-columns:auto minmax(0,1fr) !important;
+    }
+    .profile .profile-mood{
+      width:100%;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:space-between;
+      gap:10px !important;
+      margin-top:8px;
+      padding:7px 8px !important;
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:13px !important;
+      background:rgba(255,255,255,.045);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+    }
+    .profile .mood-person{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      min-width:0;
+    }
+    .profile .mood-self{flex:1 1 auto}
+    .profile .mood-partner{
+      flex:0 0 auto;
+      padding-left:9px;
+      border-left:1px solid rgba(255,255,255,.09);
+    }
+    .profile .mood-person-label{
+      max-width:none !important;
+      flex:none;
+      color:rgba(235,238,248,.66) !important;
+      font-size:9px !important;
+      line-height:1 !important;
+      font-weight:760 !important;
+      letter-spacing:.015em !important;
+    }
+    .profile .mood-self-buttons{
+      display:flex;
+      align-items:center;
+      gap:3px;
+    }
+    .profile .mood-button,
+    .profile .partner-mood-value{
+      width:28px !important;
+      height:28px !important;
+      border-radius:9px !important;
+    }
+    .profile .mood-button svg,
+    .profile .partner-mood-icon svg{
+      width:15px !important;
+      height:15px !important;
+    }
+    .profile .mood-prompt{
+      position:absolute;
+      right:12px;
+      top:54px;
+      z-index:3;
+      width:max-content;
+      max-width:180px;
+      margin:0 !important;
+      padding:4px 7px !important;
+      border-radius:8px !important;
+      font-size:8.5px !important;
+      line-height:1.2 !important;
+      box-shadow:0 5px 16px rgba(0,0,0,.14);
+    }
+    .profile .block-collapse-button{display:none !important}
+
+    /* Stable wishlist editing on iPhone */
+    .wishlist-form{
+      width:100%;
+      max-width:100%;
+      grid-template-columns:minmax(0,1fr) 42px !important;
+      gap:8px !important;
+    }
+    .wishlist-input{
+      width:100%;
+      min-width:0;
+      height:42px !important;
+      padding:0 12px !important;
+      font-size:16px !important;
+      line-height:1 !important;
+      box-sizing:border-box;
+    }
+    .wishlist-add{
+      width:42px !important;
+      height:42px !important;
+      flex:none;
+    }
+    .wishlist-section.wishlist-editing{
+      scroll-margin-top:110px;
+      scroll-margin-bottom:18px;
+    }
+    .wishlist-section.wishlist-editing .wishlist-form{
+      position:relative;
+      z-index:5;
+    }
+    @media(max-width:390px){
+      .profile .profile-mood{gap:7px!important;padding:6px 7px!important}
+      .profile .mood-person{gap:4px}
+      .profile .mood-person-label{font-size:8.5px!important}
+      .profile .mood-button,
+      .profile .partner-mood-value{width:27px!important;height:27px!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2156,6 +2264,8 @@
           <div id="displayName" class="name">RUDI</div>
           <div id="profileMeta" class="profile-meta"></div>
         </div>
+      </div>
+
         <div class="profile-mood" role="group" aria-label="Настроение сегодня">
           <div class="mood-person mood-self">
             <span class="mood-person-label">Моё</span>
@@ -2188,7 +2298,7 @@
           </div>
           <div id="moodPrompt" class="mood-prompt">Какое у тебя настроение?</div>
         </div>
-      </div>
+
 
       <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
 
@@ -2678,11 +2788,6 @@
       }
 
       function setupPersistentCollapsibles(){
-        setupPersistentCollapsible({
-          selector:'.profile',key:'profile',
-          bodySelectors:['#moodMessage','.profile-weather'],
-          hostSelector:'.profile-mood'
-        });
         setupPersistentCollapsible({
           selector:'.priority-section',key:'priority',
           bodySelectors:['.priority-grid'],
@@ -3683,6 +3788,28 @@
         const form=document.getElementById('wishlistForm');
         const input=document.getElementById('wishlistInput');
         const add=document.getElementById('wishlistAdd');
+        const section=document.querySelector('.wishlist-section');
+        let focusTimer=0;
+
+        const revealForm=()=>{
+          clearTimeout(focusTimer);
+          focusTimer=setTimeout(()=>{
+            form.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'});
+          },180);
+        };
+
+        input.addEventListener('focus',()=>{
+          section?.classList.add('wishlist-editing');
+          revealForm();
+        });
+        input.addEventListener('blur',()=>{
+          section?.classList.remove('wishlist-editing');
+          clearTimeout(focusTimer);
+        });
+        window.visualViewport?.addEventListener('resize',()=>{
+          if(document.activeElement===input) revealForm();
+        });
+
         form.addEventListener('submit',async(event)=>{
           event.preventDefault();
           const text=input.value.trim();
