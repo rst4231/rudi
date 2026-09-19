@@ -4,7 +4,7 @@ const { readPartnerMessage, writePartnerMessage } = require('./partner-message-s
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
-const { decodeSetupKey, saveCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
+const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
 const {
   getCredentials,
@@ -262,6 +262,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     }
     try {
+      const existing = await readCalendarUrl(options);
+      if (existing) return res.status(200).json({ ok: true, configured: true, alreadyConfigured: true });
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const key = req.method === 'POST' ? body.key : req.query?.key;
       const url = decodeSetupKey(key);
