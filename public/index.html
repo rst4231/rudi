@@ -1631,6 +1631,37 @@
       .weather-rays,.weather-sun,.weather-cloud,.rain-drop,.snow-dot,.weather-fog,.weather-bolt,.work-calendar-skeleton{animation:none!important}
     }
 
+  
+    .updates-card{padding:0;border-radius:22px;overflow:hidden}
+    .updates-toggle{
+      width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) 30px;align-items:center;gap:11px;
+      padding:14px 15px;border:0;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;
+    }
+    .updates-icon{
+      width:38px;height:38px;display:grid;place-items:center;border-radius:13px;
+      background:var(--accent-soft);color:var(--accent);
+    }
+    .updates-icon svg{width:19px;height:19px}
+    .updates-copy{display:grid;gap:3px;min-width:0}
+    .updates-copy strong{font-size:13.5px;line-height:1.2;font-weight:770;letter-spacing:-.012em}
+    .updates-copy small{color:var(--muted);font-size:10.5px;line-height:1.3;font-weight:580}
+    .updates-chevron{
+      width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:var(--soft);color:var(--muted);
+      transition:transform .24s ease;
+    }
+    .updates-chevron svg{width:15px;height:15px}
+    .updates-card.open .updates-chevron{transform:rotate(180deg)}
+    .updates-details{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .28s cubic-bezier(.2,.8,.2,1),opacity .2s ease}
+    .updates-card.open .updates-details{grid-template-rows:1fr;opacity:1}
+    .updates-details-clip{overflow:hidden}
+    .updates-list{display:grid;gap:8px;margin:0 15px 15px;padding-top:13px;border-top:1px solid var(--line)}
+    .update-row{display:grid;grid-template-columns:19px minmax(0,1fr);gap:8px;align-items:start}
+    .update-check{
+      width:19px;height:19px;display:grid;place-items:center;border-radius:7px;
+      background:var(--green-soft);color:var(--green);font-size:11px;font-weight:850;line-height:1;
+    }
+    .update-text{padding-top:1px;color:var(--text);font-size:11.5px;line-height:1.42;font-weight:580}
+
   </style>
 </head>
 <body class="auth-pending">
@@ -1955,6 +1986,37 @@
         <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
       </a>
       </nav>
+    </section>
+
+    <section class="section-block updates-section" aria-labelledby="updatesTitle">
+      <div class="section-heading compact">
+        <div>
+          <div class="section-eyebrow">RUDI</div>
+          <h2 id="updatesTitle">Что нового</h2>
+        </div>
+      </div>
+      <article id="updatesCard" class="panel updates-card">
+        <button id="updatesToggle" class="updates-toggle" type="button" aria-expanded="false" aria-controls="updatesDetails">
+          <span class="updates-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
+              <circle cx="12" cy="12" r="3.2"/>
+            </svg>
+          </span>
+          <span class="updates-copy">
+            <strong id="updatesDate">Последнее обновление</strong>
+            <small id="updatesSummary">Смотрю, что изменилось…</small>
+          </span>
+          <span class="updates-chevron" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
+          </span>
+        </button>
+        <div id="updatesDetails" class="updates-details" aria-hidden="true">
+          <div class="updates-details-clip">
+            <div id="updatesList" class="updates-list"></div>
+          </div>
+        </div>
+      </article>
     </section>
 
     <footer class="footer">
@@ -2973,11 +3035,63 @@
         }));
       }
 
+      function renderLatestUpdate(config){
+        const updates=Array.isArray(config?.updates)?config.updates:[];
+        const latest=updates
+          .filter(item=>item?.date)
+          .sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];
+        const card=document.getElementById('updatesCard');
+        const date=document.getElementById('updatesDate');
+        const summary=document.getElementById('updatesSummary');
+        const list=document.getElementById('updatesList');
+        const toggle=document.getElementById('updatesToggle');
+        const details=document.getElementById('updatesDetails');
+
+        if(!latest){
+          card.hidden=true;
+          return;
+        }
+
+        const parsed=new Date(String(latest.date)+'T12:00:00Z');
+        const dateText=Number.isNaN(parsed.getTime())
+          ?String(latest.date)
+          :new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(parsed);
+        const items=Array.isArray(latest.items)?latest.items.filter(Boolean):[];
+
+        date.textContent='Обновление · '+dateText;
+        summary.textContent=items.length
+          ?items.length+' '+(items.length===1?'изменение':(items.length>=2&&items.length<=4?'изменения':'изменений'))
+          :(latest.title||'Обновление RUDI');
+
+        list.replaceChildren();
+        for(const value of items){
+          const row=document.createElement('div');
+          row.className='update-row';
+          const check=document.createElement('span');
+          check.className='update-check';
+          check.textContent='✓';
+          const text=document.createElement('div');
+          text.className='update-text';
+          text.textContent=String(value);
+          row.append(check,text);
+          list.appendChild(row);
+        }
+
+        toggle.addEventListener('click',()=>{
+          const open=!card.classList.contains('open');
+          card.classList.toggle('open',open);
+          toggle.setAttribute('aria-expanded',open?'true':'false');
+          details.setAttribute('aria-hidden',open?'false':'true');
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+      }
+
       async function init(){
         const allowed=await authenticateApp();
         if(!allowed) return;
         holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
+        renderLatestUpdate(config);
         const {utc}=todayState();
         const dayIndex=Math.floor(utc/DAY);
 
