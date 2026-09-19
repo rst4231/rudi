@@ -3627,63 +3627,94 @@
     .partner-message .reaction-strip{margin-top:6px!important;min-height:26px}
     .partner-message.is-collapsed{padding-bottom:11px!important}
 
-    /* Larger Apple-like Liquid Glass bottom navigation */
+    /* Larger bottom navigation with the original RUDI styling */
     .app-tabbar{
-      min-height:116px!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:6px!important;padding:9px!important;
-      border:1px solid rgba(255,255,255,.28)!important;border-radius:32px!important;
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,.11) 48%,rgba(255,255,255,.07)),
-        color-mix(in srgb,var(--surface-strong) 52%,transparent)!important;
-      box-shadow:0 22px 54px rgba(16,22,36,.20),inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.12)!important;
-      backdrop-filter:blur(34px) saturate(1.8)!important;-webkit-backdrop-filter:blur(34px) saturate(1.8)!important;
-      overflow:hidden;
+      min-height:116px!important;
+      grid-template-columns:repeat(5,minmax(0,1fr))!important;
+      gap:6px!important;
+      padding:9px!important;
+      border:1px solid color-mix(in srgb,var(--line) 78%,transparent)!important;
+      border-radius:26px!important;
+      background:color-mix(in srgb,var(--surface-strong) 88%,transparent)!important;
+      box-shadow:0 16px 44px rgba(20,24,36,.18),inset 0 1px 0 rgba(255,255,255,.10)!important;
+      backdrop-filter:blur(22px) saturate(1.25)!important;
+      -webkit-backdrop-filter:blur(22px) saturate(1.25)!important;
+      overflow:visible;
     }
-    .app-tabbar::before{
-      content:"";position:absolute;inset:1px 8px auto 8px;height:42%;border-radius:28px 28px 44% 44%;
-      background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0));pointer-events:none;
-    }
+    .app-tabbar::before{display:none!important}
     .app-tab-button{
-      position:relative;z-index:1;min-height:96px!important;gap:7px!important;padding:10px 2px!important;
-      border:1px solid rgba(255,255,255,.08)!important;border-radius:24px!important;background:rgba(255,255,255,.045)!important;
-      font-size:11.5px!important;line-height:1!important;font-weight:720!important;overflow:hidden;
-      backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+      position:relative;
+      z-index:1;
+      min-height:96px!important;
+      gap:7px!important;
+      padding:10px 2px!important;
+      border:0!important;
+      border-radius:20px!important;
+      background:transparent!important;
+      color:var(--muted)!important;
+      font-size:11.5px!important;
+      line-height:1!important;
+      font-weight:680!important;
+      overflow:visible;
+      backdrop-filter:none!important;
+      -webkit-backdrop-filter:none!important;
+      box-shadow:none!important;
     }
-    .app-tab-button::before{
-      content:"";position:absolute;inset:0;background:linear-gradient(145deg,rgba(255,255,255,.20),transparent 38%,rgba(255,255,255,.04) 72%);
-      opacity:.55;pointer-events:none;
-    }
+    .app-tab-button::before{display:none!important}
     .app-tab-icon{
-      position:relative;z-index:1;width:42px!important;height:42px!important;border-radius:15px!important;
-      background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.11);
+      position:relative;
+      z-index:1;
+      width:42px!important;
+      height:42px!important;
+      border-radius:13px!important;
+      background:transparent!important;
+      box-shadow:none!important;
     }
     .app-tab-icon svg{width:31px!important;height:31px!important}
     .app-tab-button > span:last-child{position:relative;z-index:1}
     .app-tab-button.active{
-      border-color:color-mix(in srgb,var(--accent) 24%,rgba(255,255,255,.34))!important;
-      background:linear-gradient(155deg,rgba(255,255,255,.34),rgba(255,255,255,.11) 44%,color-mix(in srgb,var(--accent-soft) 46%,transparent))!important;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.58),inset 0 -1px 0 rgba(255,255,255,.11),0 9px 22px color-mix(in srgb,var(--accent-glow) 26%,transparent)!important;
+      color:var(--accent)!important;
+      background:color-mix(in srgb,var(--accent-soft) 68%,transparent)!important;
+      box-shadow:none!important;
     }
     .app-tab-button.active .app-tab-icon{
-      background:color-mix(in srgb,var(--accent-soft) 60%,rgba(255,255,255,.18))!important;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 5px 16px color-mix(in srgb,var(--accent-glow) 25%,transparent)!important;
+      background:color-mix(in srgb,var(--accent-soft) 86%,transparent)!important;
+      box-shadow:none!important;
     }
     html[data-theme="dark"] .app-tabbar{
-      border-color:rgba(255,255,255,.16)!important;
-      background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.045) 48%,rgba(255,255,255,.025)),rgba(20,24,34,.61)!important;
-      box-shadow:0 24px 58px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.17)!important;
+      border-color:rgba(255,255,255,.09)!important;
+      background:rgba(23,27,38,.88)!important;
+      box-shadow:0 18px 46px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.05)!important;
     }
-    html[data-theme="dark"] .app-tab-button{border-color:rgba(255,255,255,.055)!important;background:rgba(255,255,255,.028)!important}
-    .shell{padding-bottom:calc(148px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important}
+    html[data-theme="dark"] .app-tab-button{
+      border:0!important;
+      background:transparent!important;
+    }
+    .shell{
+      padding-bottom:calc(148px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+    }
     @media(max-width:430px){
-      .app-tabbar{width:calc(100% - 14px)!important;min-height:112px!important;padding:8px 6px!important;gap:4px!important;border-radius:30px!important}
-      .app-tab-button{min-height:94px!important;padding:9px 1px!important;gap:6px!important;border-radius:21px!important;font-size:10.8px!important}
+      .app-tabbar{
+        width:calc(100% - 14px)!important;
+        min-height:112px!important;
+        padding:8px 6px!important;
+        gap:4px!important;
+        border-radius:24px!important;
+      }
+      .app-tab-button{
+        min-height:94px!important;
+        padding:9px 1px!important;
+        gap:6px!important;
+        border-radius:18px!important;
+        font-size:10.8px!important;
+      }
       .app-tab-icon{width:40px!important;height:40px!important}
       .app-tab-icon svg{width:30px!important;height:30px!important}
-      .shell{padding-bottom:calc(144px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important}
+      .shell{
+        padding-bottom:calc(144px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+      }
       .partner-title{font-size:18px!important}
     }
-
   </style>
 </head>
 <body class="auth-pending">
