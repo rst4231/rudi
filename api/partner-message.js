@@ -2,6 +2,8 @@ const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
+const { decodeSetupKey, saveCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
+const { readWishlist, ownerFromTelegramUser, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -195,8 +197,78 @@ async function handleTickTick(req, res, action, options = {}) {
   return res.status(404).json({ ok: false, error: 'ticktick-route-not-found' });
 }
 
+async function handleRudiAction(req, res, action, options = {}) {
+  if (action === 'work-calendar-setup') {
+    if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const url = decodeSetupKey(req.query?.key);
+      await saveCalendarUrl(url, options);
+      return res.status(200).json({ ok: true, configured: true });
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'work-calendar') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
+      validateTelegramInitData(body.initData, token, options.now || Date.now());
+      const weekOffset = Math.max(-12, Math.min(12, Number(body.weekOffset || 0) || 0));
+      const week = await getWorkWeek({ ...options, weekOffset });
+      return res.status(200).json({ ok: true, ...week });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const status = code.startsWith('telegram-') ? 401 : 502;
+      console.error('RUDI_WORK_CALENDAR_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
+  if (action === 'wishlist') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
+      const { user } = validateTelegramInitData(body.initData, token, options.now || Date.now());
+      const owner = ownerFromTelegramUser(user);
+      const operation = String(body.operation || 'list').trim();
+
+      if (operation === 'list') {
+        return res.status(200).json({ ok: true, owner, ...(await readWishlist(options)) });
+      }
+      if (operation === 'add') {
+        const result = await addWish(body.text, owner, options);
+        return res.status(200).json({ ok: true, owner, ...result.state });
+      }
+      if (operation === 'toggle') {
+        const result = await toggleWish(body.id, options);
+        return res.status(200).json({ ok: true, owner, ...result.state });
+      }
+      if (operation === 'remove') {
+        const state = await removeWish(body.id, options);
+        return res.status(200).json({ ok: true, owner, ...state });
+      }
+      return res.status(400).json({ ok: false, error: 'wishlist-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const status = code.startsWith('telegram-') ? 401
+        : code === 'wishlist-user-not-recognized' ? 403
+        : code === 'wishlist-item-not-found' ? 404
+        : 400;
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
+  return res.status(404).json({ ok: false, error: 'rudi-route-not-found' });
+}
+
 async function handler(req, res, options = {}) {
   res.setHeader?.('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+  const rudiAction = String(req.query?.rudiAction || '').trim();
+  if (rudiAction) return handleRudiAction(req, res, rudiAction, options);
 
   const ticktickAction = String(req.query?.ticktickAction || '').trim();
   if (ticktickAction) return handleTickTick(req, res, ticktickAction, options);
@@ -236,3 +308,4 @@ module.exports.validateTelegramInitData = validateTelegramInitData;
 module.exports.normalizeMessageText = normalizeMessageText;
 module.exports.statusForError = statusForError;
 module.exports.handleTickTick = handleTickTick;
+module.exports.handleRudiAction = handleRudiAction;
