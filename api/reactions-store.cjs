@@ -51,6 +51,42 @@ async function readReactions(targets, options = {}) {
   return Promise.all(list.map((target) => readReaction(target, options)));
 }
 
+async function setReaction(targetInput, actorInput, likedInput, options = {}) {
+  const target = normalizeTarget(targetInput);
+  const actor = normalizeActor(actorInput);
+  if (typeof likedInput !== 'boolean') throw new Error('reaction-liked-invalid');
+  const cache = cacheOf(options);
+  const key = cacheKey(target, actor);
+  const otherActors = [...ACTORS].filter((value) => value !== actor);
+
+  const otherRows = await Promise.all(otherActors.map(async (otherActor) => [
+    otherActor,
+    Boolean(await cache.get(cacheKey(target, otherActor))),
+  ]));
+
+  if (likedInput) {
+    await cache.set(key, {
+      actor,
+      reactedAt: new Date(options.now || Date.now()).toISOString(),
+    }, {
+      ttl: TTL_SECONDS,
+      tags: ['rudi-reactions', `rudi-reaction-${target.type}`],
+      name: key,
+    });
+  } else {
+    await cache.delete(key);
+  }
+
+  const likedBy = otherRows.filter(([, liked]) => liked).map(([name]) => name);
+  if (likedInput) likedBy.push(actor);
+
+  return {
+    ...target,
+    likedBy: [...ACTORS].filter((name) => likedBy.includes(name)),
+    count: likedBy.length,
+  };
+}
+
 async function toggleReaction(targetInput, actorInput, options = {}) {
   const target = normalizeTarget(targetInput);
   const actor = normalizeActor(actorInput);
@@ -98,5 +134,6 @@ module.exports = {
   normalizeTarget,
   readReaction,
   readReactions,
+  setReaction,
   toggleReaction,
 };
