@@ -168,6 +168,12 @@ async function handleTickTick(req, res, action, options = {}) {
           isAllDay: Boolean(task.isAllDay),
           assignee: resolveAssigneeName(task.assigneeUsername),
           assigned: Boolean(String(task.assigneeUsername || '').trim()),
+          description: String(task.desc || task.content || '').trim().slice(0, 5000),
+          checklist: (Array.isArray(task.items) ? task.items : []).slice(0, 50).map((item) => ({
+            id: String(item?.id || ''),
+            title: String(item?.title || '').trim().slice(0, 500),
+            completed: Number(item?.status || 0) === 1,
+          })).filter((item) => item.title),
         },
       });
     } catch (error) {
