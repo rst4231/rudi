@@ -88,6 +88,20 @@ function authorizeInitData(rawInitData, options = {}) {
   return { ...auth, actor };
 }
 
+function moscowDateKey(now = Date.now()) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(now))
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  );
+  return [parts.year, parts.month, parts.day].join('-');
+}
+
 async function handleTickTick(req, res, action, options = {}) {
   if (action === 'connect') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
@@ -223,7 +237,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeInitData(body.initData, options);
-      const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(new Date(options.now || Date.now()));
+      const date = moscowDateKey(options.now || Date.now());
       const holidays = await readHolidayHighlights(date, options).catch(() => null);
       return res.status(200).json({ ok: true, actor, holidayHighlights: holidays?.items || [] });
     } catch (error) {
@@ -248,7 +262,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       authorizeInitData(body.initData, options);
-      const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(new Date(options.now || Date.now()));
+      const date = moscowDateKey(options.now || Date.now());
       const row = await readHolidayHighlights(date, options);
       if (!row?.items?.length) return res.status(404).json({ ok: false, error: 'holiday-highlights-not-ready' });
       return res.status(200).json({ ok: true, ...row });
@@ -262,13 +276,28 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     }
     try {
-      const existing = await readCalendarUrl(options);
-      if (existing) return res.status(200).json({ ok: true, configured: true, alreadyConfigured: true });
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const key = req.method === 'POST' ? body.key : req.query?.key;
-      const url = decodeSetupKey(key);
-      await saveCalendarUrl(url, options);
-      return res.status(200).json({ ok: true, configured: true });
+      const existing = await readCalendarUrl(options);
+      if (!existing) {
+        const url = decodeSetupKey(key);
+        await saveCalendarUrl(url, options);
+      } else if (key) {
+        decodeSetupKey(key);
+      }
+      const week = await getWorkWeek({ ...options, weekOffset: 0 });
+      return res.status(200).json({
+        ok: true,
+        configured: true,
+        alreadyConfigured: Boolean(existing),
+        verified: Array.isArray(week?.days) && week.days.length === 7,
+        weekStart: week?.weekStart || null,
+        days: (week?.days || []).map((day) => ({
+          date: day.date,
+          working: Boolean(day.working),
+          eventCount: Array.isArray(day.events) ? day.events.length : 0,
+        })),
+      });
     } catch (error) {
       return res.status(400).json({ ok: false, error: String(error?.message || error) });
     }
