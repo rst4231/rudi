@@ -3715,6 +3715,117 @@
       }
       .partner-title{font-size:18px!important}
     }
+
+    /* Home UX polish */
+    .home-layout-actions{display:flex;align-items:center;justify-content:center;gap:7px;min-height:34px}
+    .home-layout-reset-button{
+      min-height:34px;padding:7px 11px;border:0;border-radius:999px;background:transparent;color:var(--muted);
+      font:inherit;font-size:10.5px;line-height:1;font-weight:680;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    }
+    .home-layout-reset-button:active{transform:scale(.96)}
+    .home-layout-reset-button[hidden]{display:none!important}
+    body:not([data-app-tab="home"]) .home-layout-actions{display:none!important}
+
+    body[data-app-tab="home"] .shell{gap:13px!important}
+    body[data-app-tab="home"] .section-block{gap:9px!important;padding:11px!important}
+    body[data-app-tab="home"] .section-heading{padding-left:3px!important;padding-right:3px!important}
+
+    body.home-layout-editing [data-home-tile]{
+      outline-style:dashed;
+      outline-color:color-mix(in srgb,var(--accent) 32%,var(--line));
+      box-shadow:0 10px 26px rgba(20,24,36,.07);
+      will-change:transform,rotate;
+    }
+    body.home-layout-editing [data-home-tile].is-home-dragging{
+      opacity:.9!important;
+      transform:scale(1.012)!important;
+      box-shadow:0 20px 48px rgba(18,22,34,.17)!important;
+    }
+
+    /* Joint tasks: make the actual task primary, metadata secondary */
+    .priority-section .ticktick-title{
+      font-size:17.8px!important;line-height:1.24!important;font-weight:820!important;letter-spacing:-.025em!important;
+    }
+    .priority-section .ticktick-meta{
+      margin-top:5px!important;font-size:10.4px!important;font-weight:540!important;opacity:.72;
+    }
+    .priority-section .ticktick-details-inner{opacity:.86}
+    .priority-section .ticktick-detail-label{opacity:.72}
+
+    /* Message: nearly pure quote */
+    .partner-message{
+      padding:12px 13px!important;
+      border-color:color-mix(in srgb,var(--line) 88%,transparent)!important;
+      background:color-mix(in srgb,var(--surface) 97%,transparent)!important;
+      box-shadow:0 7px 19px rgba(20,24,36,.045)!important;
+    }
+    .partner-message .love-hearts{display:none!important}
+    .partner-head{margin-bottom:2px!important}
+    .partner-title{font-size:20px!important;line-height:1.12!important}
+    .partner-text{margin-top:0!important;padding-top:6px!important;padding-bottom:3px!important}
+    .partner-author{margin:2px 0 0 18px!important;color:var(--muted)!important;opacity:.82}
+    .partner-message .reaction-strip{margin:5px 0 0 18px!important}
+    .partner-message.is-collapsed{padding-bottom:10px!important}
+
+    /* Today cards: equal visual height and aligned reactions */
+    .daily-grid{align-items:stretch!important}
+    .daily-grid .daily-card{
+      display:flex!important;flex-direction:column!important;height:100%!important;min-height:126px!important;
+    }
+    .daily-grid .daily-card-head{margin-bottom:11px!important}
+    .daily-grid .daily-reaction{margin-top:auto!important;padding-top:8px}
+
+    /* Quick access: consistent icons and more readable labels */
+    .tools-section .links > .card{
+      min-height:76px!important;grid-template-rows:42px auto!important;gap:5px!important;padding:7px 3px!important;
+    }
+    .tools-section .links > .card .feature-icon{
+      width:40px!important;height:40px!important;border-radius:12px!important;
+    }
+    .tools-section .links > .card .feature-icon svg{width:22px!important;height:22px!important}
+    .tools-section .links > .card .label{
+      font-size:8.8px!important;line-height:1.12!important;font-weight:720!important;
+    }
+
+    /* Bottom navigation: original RUDI look, about 35% larger than the old compact bar */
+    .app-tabbar{
+      min-height:86px!important;gap:4px!important;padding:7px!important;border-radius:24px!important;
+      background:color-mix(in srgb,var(--surface-strong) 88%,transparent)!important;
+      border:1px solid color-mix(in srgb,var(--line) 78%,transparent)!important;
+      box-shadow:0 16px 44px rgba(20,24,36,.18),inset 0 1px 0 rgba(255,255,255,.10)!important;
+      backdrop-filter:blur(22px) saturate(1.25)!important;-webkit-backdrop-filter:blur(22px) saturate(1.25)!important;
+    }
+    .app-tab-button{
+      min-height:70px!important;gap:5px!important;padding:7px 2px!important;border-radius:18px!important;
+      font-size:10.2px!important;font-weight:680!important;
+    }
+    .app-tab-icon{width:33px!important;height:33px!important;border-radius:11px!important}
+    .app-tab-icon svg{width:25px!important;height:25px!important}
+    .shell{
+      padding-bottom:calc(116px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+    }
+
+    @media(max-width:430px){
+      body[data-app-tab="home"] .shell{gap:12px!important}
+      .partner-title{font-size:18px!important}
+      .tools-section .links > .card{min-height:74px!important}
+      .tools-section .links > .card .label{font-size:8.4px!important}
+      .app-tabbar{
+        width:calc(100% - 16px)!important;min-height:84px!important;padding:6px!important;gap:3px!important;border-radius:23px!important;
+      }
+      .app-tab-button{
+        min-height:68px!important;padding:6px 1px!important;gap:4px!important;border-radius:17px!important;font-size:9.8px!important;
+      }
+      .app-tab-icon{width:32px!important;height:32px!important}
+      .app-tab-icon svg{width:24px!important;height:24px!important}
+      .shell{
+        padding-bottom:calc(112px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+      }
+    }
+    @media(max-width:370px){
+      .tools-section .links > .card .label{font-size:7.9px!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -4154,7 +4265,10 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
       <div>© <span id="currentYear"></span></div>
-      <button id="homeLayoutEditButton" class="home-layout-edit-button" type="button" aria-pressed="false">Изменить</button>
+      <div class="home-layout-actions">
+        <button id="homeLayoutResetButton" class="home-layout-reset-button" type="button" hidden>Сбросить порядок</button>
+        <button id="homeLayoutEditButton" class="home-layout-edit-button" type="button" aria-pressed="false">Изменить</button>
+      </div>
 
     </footer>
   </main>
@@ -4242,6 +4356,7 @@
       let homeLayoutEditing = false;
       let homeTileHost = null;
       let homeDragState = null;
+      let homeWiggleFrame = 0;
       const HOME_TILE_DEFAULT_ORDER = ['profile','priority','partner','daily','tools'];
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
 
@@ -4272,14 +4387,41 @@
         return valid;
       }
 
-      function applyHomeOrder(order){
+      function homeTileRects(host){
+        return new Map([...host.querySelectorAll(':scope > [data-home-tile]')].map(tile=>[tile,tile.getBoundingClientRect()]));
+      }
+
+      function animateHomeReorder(host,before,skipTile=null){
+        if(!before||window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+        requestAnimationFrame(()=>{
+          for(const tile of host.querySelectorAll(':scope > [data-home-tile]')){
+            if(tile===skipTile) continue;
+            const previous=before.get(tile);
+            if(!previous) continue;
+            const next=tile.getBoundingClientRect();
+            const dx=previous.left-next.left;
+            const dy=previous.top-next.top;
+            if(Math.abs(dx)<1&&Math.abs(dy)<1) continue;
+            try{
+              tile.animate(
+                [{transform:`translate3d(${dx}px,${dy}px,0)`},{transform:'translate3d(0,0,0)'}],
+                {duration:230,easing:'cubic-bezier(.2,.82,.2,1)'}
+              );
+            }catch(_){}
+          }
+        });
+      }
+
+      function applyHomeOrder(order,{animate=false}={}){
         const host=ensureHomeTileHost();
         if(!host) return;
+        const before=animate?homeTileRects(host):null;
         const tiles=new Map([...host.querySelectorAll(':scope > [data-home-tile]')].map(tile=>[tile.dataset.homeTile,tile]));
         for(const id of normalizedHomeOrder(order)){
           const tile=tiles.get(id);
           if(tile) host.appendChild(tile);
         }
+        if(animate) animateHomeReorder(host,before);
       }
 
       function loadHomeOrder(){
@@ -4295,11 +4437,56 @@
         try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
       }
 
+      function resetHomeOrder(){
+        try{localStorage.removeItem(homeLayoutStorageKey())}catch(_){}
+        applyHomeOrder(HOME_TILE_DEFAULT_ORDER,{animate:true});
+        saveHomeOrder();
+        try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+      }
+
+      function clearHomeTileRotations(){
+        const host=ensureHomeTileHost();
+        host?.querySelectorAll(':scope > [data-home-tile]').forEach(tile=>tile.style.removeProperty('rotate'));
+      }
+
+      function homeWiggleTick(time){
+        if(!homeLayoutEditing){
+          homeWiggleFrame=0;
+          clearHomeTileRotations();
+          return;
+        }
+        const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+        const host=ensureHomeTileHost();
+        if(host&&!reduce){
+          [...host.querySelectorAll(':scope > [data-home-tile]')].forEach((tile,index)=>{
+            if(tile===homeDragState?.tile){
+              tile.style.rotate='0deg';
+              return;
+            }
+            const degrees=Math.sin((time/155)+(index*1.55))*.22;
+            tile.style.rotate=degrees.toFixed(3)+'deg';
+          });
+        }
+        homeWiggleFrame=requestAnimationFrame(homeWiggleTick);
+      }
+
+      function startHomeWiggle(){
+        if(homeWiggleFrame) cancelAnimationFrame(homeWiggleFrame);
+        homeWiggleFrame=requestAnimationFrame(homeWiggleTick);
+      }
+
+      function stopHomeWiggle(){
+        if(homeWiggleFrame) cancelAnimationFrame(homeWiggleFrame);
+        homeWiggleFrame=0;
+        clearHomeTileRotations();
+      }
+
       function finishHomeDrag(){
         const state=homeDragState;
         if(!state) return;
         try{state.tile.releasePointerCapture?.(state.pointerId)}catch(_){}
         state.tile.classList.remove('is-home-dragging');
+        state.tile.style.removeProperty('rotate');
         homeDragState=null;
         saveHomeOrder();
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
@@ -4310,22 +4497,35 @@
         if(!homeLayoutEditing&&homeDragState) finishHomeDrag();
         document.body.classList.toggle('home-layout-editing',homeLayoutEditing);
         const button=document.getElementById('homeLayoutEditButton');
+        const reset=document.getElementById('homeLayoutResetButton');
         if(button){
           button.textContent=homeLayoutEditing?'Готово':'Изменить';
           button.setAttribute('aria-pressed',homeLayoutEditing?'true':'false');
         }
+        if(reset) reset.hidden=!homeLayoutEditing;
+        if(homeLayoutEditing) startHomeWiggle();
+        else stopHomeWiggle();
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
       function setupHomeLayoutEditor(){
         const host=ensureHomeTileHost();
         const button=document.getElementById('homeLayoutEditButton');
+        const reset=document.getElementById('homeLayoutResetButton');
         if(!host||!button) return;
         loadHomeOrder();
 
         if(button.dataset.homeLayoutBound!=='1'){
           button.dataset.homeLayoutBound='1';
           button.addEventListener('click',()=>setHomeLayoutEditing(!homeLayoutEditing));
+        }
+        if(reset&&reset.dataset.homeLayoutBound!=='1'){
+          reset.dataset.homeLayoutBound='1';
+          reset.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            resetHomeOrder();
+          });
         }
         if(host.dataset.homeLayoutBound==='1') return;
         host.dataset.homeLayoutBound='1';
@@ -4336,7 +4536,8 @@
           const tile=event.target.closest?.('[data-home-tile]');
           if(!tile||tile.parentElement!==host) return;
           event.preventDefault();
-          homeDragState={tile,pointerId:event.pointerId};
+          homeDragState={tile,pointerId:event.pointerId,lastTarget:''};
+          tile.style.rotate='0deg';
           tile.classList.add('is-home-dragging');
           try{tile.setPointerCapture?.(event.pointerId)}catch(_){}
           try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
@@ -4348,14 +4549,23 @@
           event.preventDefault();
 
           if(event.clientY<105) window.scrollBy({top:-14,left:0,behavior:'auto'});
-          else if(event.clientY>window.innerHeight-150) window.scrollBy({top:14,left:0,behavior:'auto'});
+          else if(event.clientY>window.innerHeight-125) window.scrollBy({top:14,left:0,behavior:'auto'});
 
           const point=document.elementFromPoint(event.clientX,event.clientY);
           const target=point?.closest?.('[data-home-tile]');
           if(!target||target===state.tile||target.parentElement!==host) return;
+
           const rect=target.getBoundingClientRect();
-          if(event.clientY<rect.top+rect.height/2) host.insertBefore(state.tile,target);
+          const side=event.clientY<rect.top+rect.height/2?'before':'after';
+          const moveKey=(target.dataset.homeTile||'')+':'+side;
+          if(moveKey===state.lastTarget) return;
+          state.lastTarget=moveKey;
+
+          const before=homeTileRects(host);
+          if(side==='before') host.insertBefore(state.tile,target);
           else host.insertBefore(state.tile,target.nextSibling);
+          animateHomeReorder(host,before,state.tile);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         },{passive:false});
 
         host.addEventListener('pointerup',event=>{
