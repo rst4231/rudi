@@ -3004,6 +3004,72 @@
       .work-page .work-calendar-card{padding:15px 13px 13px!important;border-radius:24px!important}.work-page .work-week-label{font-size:20px!important}.work-page .work-calendar-legend{min-height:31px;padding:6px 9px!important;font-size:9.5px!important}.work-page .work-calendar-ranges{min-height:46px;margin-bottom:13px!important}.work-page .work-range-button{min-height:38px!important;font-size:11px!important}.work-page .work-calendar-days{gap:5px!important}.work-page .calendar-weekday{font-size:8.5px!important}.work-page .calendar-day-cell{border-radius:11px!important}.work-page .calendar-day-cell .calendar-date-number{font-size:11.5px!important}.work-page .work-calendar-selected{grid-template-columns:40px minmax(0,1fr) 32px!important}.work-selected-icon{width:40px;height:40px}
     }
 
+
+    /* Mood emoji */
+    .profile .mood-emoji{
+      display:block!important;
+      margin:0!important;
+      font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+      font-size:17px!important;
+      line-height:1!important;
+      transform:none!important;
+    }
+    .profile .mood-button,
+    .profile .partner-mood-value{
+      align-items:center!important;
+      justify-items:center!important;
+    }
+    .profile .partner-mood-icon{
+      display:grid!important;
+      place-items:center!important;
+      margin:0!important;
+    }
+
+    /* Calendar: green days off */
+    .work-page .calendar-day-cell.off{
+      border-color:rgba(28,176,104,.30)!important;
+      background:
+        linear-gradient(145deg,rgba(35,181,110,.14),rgba(35,181,110,.045)),
+        color-mix(in srgb,var(--surface) 91%,transparent)!important;
+      color:#15945d!important;
+    }
+    .work-page .calendar-day-cell.off .calendar-check{
+      color:#13a867!important;
+    }
+
+    /* Selected work detail: keep the left icon aligned and remove arrow space */
+    .work-page .work-calendar-selected{
+      grid-template-columns:44px minmax(0,1fr)!important;
+      justify-content:start!important;
+    }
+    .work-page .work-calendar-selected .work-selected-icon{
+      width:44px!important;
+      height:44px!important;
+      margin:0!important;
+      padding:0!important;
+      display:grid!important;
+      place-items:center!important;
+      align-self:center!important;
+      justify-self:start!important;
+      color:#f4670c!important;
+      font-size:initial!important;
+      line-height:1!important;
+    }
+    .work-page .work-calendar-selected .work-selected-icon svg{
+      width:23px!important;
+      height:23px!important;
+      margin:0!important;
+    }
+    .work-page .work-calendar-selected .work-selected-copy{
+      margin:0!important;
+      align-self:center!important;
+    }
+    .work-selected-arrow{display:none!important}
+    @media(max-width:390px){
+      .work-page .work-calendar-selected{grid-template-columns:40px minmax(0,1fr)!important}
+      .work-page .work-calendar-selected .work-selected-icon{width:40px!important;height:40px!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3050,30 +3116,18 @@
           <div class="mood-person mood-self">
             <span class="mood-person-label">Моё</span>
             <div class="mood-self-buttons">
-              <button class="mood-button" type="button" data-mood="low" aria-label="Не очень" title="Не очень">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.1 16c1.7-1.7 4.1-1.7 5.8 0"/></svg>
-              </button>
-              <button class="mood-button" type="button" data-mood="ok" aria-label="Нормально" title="Нормально">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.3 15h5.4"/></svg>
-              </button>
-              <button class="mood-button" type="button" data-mood="great" aria-label="Отлично" title="Отлично">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M8.8 14.3c1.7 2.1 4.7 2.1 6.4 0"/></svg>
-              </button>
+              <button class="mood-button" type="button" data-mood="low" aria-label="Не очень" title="Не очень"><span class="mood-emoji" aria-hidden="true">😔</span></button>
+              <button class="mood-button" type="button" data-mood="ok" aria-label="Нормально" title="Нормально"><span class="mood-emoji" aria-hidden="true">😐</span></button>
+              <button class="mood-button" type="button" data-mood="great" aria-label="Отлично" title="Отлично"><span class="mood-emoji" aria-hidden="true">😄</span></button>
             </div>
           </div>
           <div class="mood-person mood-partner">
             <span id="partnerMoodLabel" class="mood-person-label">Диана</span>
             <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
-              <span class="partner-mood-icon" data-partner-mood="low" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.1 16c1.7-1.7 4.1-1.7 5.8 0"/></svg>
-              </span>
-              <span class="partner-mood-icon" data-partner-mood="ok" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.3 15h5.4"/></svg>
-              </span>
-              <span class="partner-mood-icon" data-partner-mood="great" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M8.8 14.3c1.7 2.1 4.7 2.1 6.4 0"/></svg>
-              </span>
+              <span class="partner-mood-icon" data-partner-mood="low" hidden><span class="mood-emoji" aria-hidden="true">😔</span></span>
+              <span class="partner-mood-icon" data-partner-mood="ok" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
+              <span class="partner-mood-icon" data-partner-mood="great" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
             </div>
           </div>
           <div id="moodPrompt" class="mood-prompt">Какое у тебя настроение?</div>
@@ -4491,10 +4545,7 @@
               const titles=events.map(event=>event.title).filter(Boolean);
               info.textContent=(times.length?times.join(' / '):'Смена')+(titles.length?' · '+titles.join(' · '):'');
               copy.append(heading,info);
-              const arrow=document.createElement('span');
-              arrow.className='work-selected-arrow';
-              arrow.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
-              selected.replaceChildren(icon,copy,arrow);
+              selected.replaceChildren(icon,copy);
               selected.hidden=false;
               if(withHaptic){
                 try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
