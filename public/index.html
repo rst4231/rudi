@@ -1383,6 +1383,55 @@
       }
     }
 
+  
+    .mood-message{
+      display:grid;
+      grid-template-rows:0fr;
+      opacity:0;
+      margin-top:0;
+      padding:0 14px;
+      border:0 solid transparent;
+      border-radius:15px;
+      color:var(--text);
+      font-size:12.5px;
+      line-height:1.42;
+      font-weight:620;
+      letter-spacing:-.008em;
+      overflow:hidden;
+      transform:translateY(-4px);
+      transition:
+        grid-template-rows .24s cubic-bezier(.2,.8,.2,1),
+        opacity .22s ease,
+        margin .24s ease,
+        padding .24s ease,
+        border-width .24s ease,
+        transform .24s ease;
+    }
+    .mood-message::before{
+      content:"";
+      min-height:0;
+    }
+    .mood-message.show{
+      grid-template-rows:1fr;
+      opacity:1;
+      margin-top:14px;
+      padding:11px 13px;
+      border-width:1px;
+      transform:translateY(0);
+    }
+    .mood-message.show[data-mood="low"]{
+      border-color:color-mix(in srgb,#7f8da8 22%,var(--line));
+      background:linear-gradient(135deg,rgba(127,141,168,.09),transparent 72%),var(--soft);
+    }
+    .mood-message.show[data-mood="ok"]{
+      border-color:color-mix(in srgb,var(--accent) 20%,var(--line));
+      background:linear-gradient(135deg,var(--accent-soft),transparent 72%),var(--soft);
+    }
+    .mood-message.show[data-mood="great"]{
+      border-color:color-mix(in srgb,#f0b84b 24%,var(--line));
+      background:linear-gradient(135deg,rgba(240,184,75,.11),transparent 72%),var(--soft);
+    }
+
   </style>
 </head>
 <body>
@@ -1409,6 +1458,8 @@
           </button>
         </div>
       </div>
+
+      <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
 
       <div class="profile-weather" aria-label="Погода">
         <div class="profile-weather-main">
@@ -1659,6 +1710,20 @@
           neutral:['Сегодня отличный день, чтобы сделать что-то приятное для себя.','Пусть сегодняшний день приятно удивит.'],
           surpriseChance:.12,
           surprises:['Сегодня можно нарушить привычный сценарий и сделать что-нибудь неожиданно приятное.']
+        },
+        moodMessages:{
+          low:[
+            'Сегодня не обязательно быть на максимуме. Сделай один маленький шаг — этого уже достаточно.',
+            'Пусть сегодня будет чуть бережнее к себе. Не всё нужно решать за один день.'
+          ],
+          ok:[
+            'Спокойный настрой — хорошая база. Один уверенный шаг, и день уже пойдёт в нужную сторону.',
+            'Нормальный день тоже можно сделать классным. Добавь в него одну приятную вещь.'
+          ],
+          great:[
+            'Вот это настрой! Сохрани его — сегодня у тебя есть хороший разгон.',
+            'Отличная энергия. Используй её на что-нибудь, чем вечером будешь доволен.'
+          ]
         }
       };
 
@@ -2211,7 +2276,7 @@
         loadPartnerMessage().then(message=>{currentMessage=message});
       }
 
-      function setupStreakAndMood(){
+      function setupStreakAndMood(config){
         const {key,utc}=todayState();
         const prev=new Date(utc-DAY);
         const prevKey=[prev.getUTCFullYear(),String(prev.getUTCMonth()+1).padStart(2,'0'),String(prev.getUTCDate()).padStart(2,'0')].join('-');
@@ -2229,16 +2294,40 @@
 
         const moodKey='rudi-mood-'+key;
         const buttons=Array.from(document.querySelectorAll('.mood-button'));
+        const message=document.getElementById('moodMessage');
+        const messages=config?.moodMessages||fallback.moodMessages;
+        let messageTimer=0;
+
         const select=value=>buttons.forEach(button=>{
           const selected=button.dataset.mood===value;
           button.classList.toggle('selected',selected);
           button.setAttribute('aria-pressed',selected?'true':'false');
         });
+
+        const showMessage=mood=>{
+          const pool=Array.isArray(messages?.[mood])&&messages[mood].length
+            ? messages[mood]
+            : fallback.moodMessages[mood];
+          if(!pool?.length) return;
+          clearTimeout(messageTimer);
+          message.textContent=randomItem(pool);
+          message.dataset.mood=mood;
+          message.classList.remove('show');
+          void message.offsetWidth;
+          message.classList.add('show');
+          messageTimer=setTimeout(()=>message.classList.remove('show'),4200);
+        };
+
         try{select(localStorage.getItem(moodKey)||'')}catch(_){select('')}
         buttons.forEach(button=>button.addEventListener('click',()=>{
-          try{localStorage.setItem(moodKey,button.dataset.mood)}catch(_){}
-          select(button.dataset.mood);
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          const mood=button.dataset.mood;
+          try{localStorage.setItem(moodKey,mood)}catch(_){}
+          select(mood);
+          showMessage(mood);
+          try{
+            if(mood==='great') tg?.HapticFeedback?.notificationOccurred?.('success');
+            else tg?.HapticFeedback?.selectionChanged?.();
+          }catch(_){}
         }));
       }
 
@@ -2263,7 +2352,7 @@
 
         renderNearest(config);
         setupPartnerMessage();
-        setupStreakAndMood();
+        setupStreakAndMood(config);
         setupTickTickDisclosure();
         setupHolidayModal();
         loadWeather(config.weather);
