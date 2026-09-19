@@ -210,6 +210,107 @@
       letter-spacing:-.01em;
       animation:fadeUp .5s .08s cubic-bezier(.2,.8,.2,1) both;
     }
+    .partner-message{
+      padding:18px;
+      border-color:color-mix(in srgb,var(--icon-stroke) 24%,var(--line));
+      background:
+        linear-gradient(135deg,var(--icon-bg),transparent 58%),
+        var(--surface);
+      animation:fadeUp .52s .03s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .partner-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:10px;
+    }
+    .partner-head .panel-label{margin:0}
+    .partner-edit{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:34px;
+      height:34px;
+      padding:0;
+      border:1px solid var(--line);
+      border-radius:11px;
+      background:var(--soft);
+      color:var(--text);
+      cursor:pointer;
+      transition:transform .18s ease,background-color .2s ease;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .partner-edit:hover{transform:translateY(-2px);background:var(--surface-hover)}
+    .partner-edit:active{transform:scale(.95)}
+    .partner-edit svg{width:17px;height:17px}
+    .partner-text{
+      color:var(--text);
+      font-size:15px;
+      line-height:1.5;
+      font-weight:650;
+      letter-spacing:-.012em;
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+    }
+    .partner-empty{
+      color:var(--muted);
+      font-weight:560;
+    }
+    .partner-author{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:11.5px;
+      line-height:1.3;
+      font-weight:560;
+    }
+    .partner-editor{
+      display:none;
+      gap:10px;
+      margin-top:12px;
+    }
+    .partner-editor.open{display:grid}
+    .partner-editor textarea{
+      width:100%;
+      min-height:110px;
+      resize:vertical;
+      padding:12px 13px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      outline:none;
+      background:var(--surface-strong);
+      color:var(--text);
+      font:inherit;
+      font-size:14px;
+      line-height:1.45;
+    }
+    .partner-editor textarea:focus{border-color:color-mix(in srgb,var(--icon-stroke) 40%,var(--line))}
+    .partner-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+    }
+    .partner-action{
+      padding:9px 12px;
+      border:1px solid var(--line);
+      border-radius:11px;
+      background:var(--soft);
+      color:var(--text);
+      font:inherit;
+      font-size:12.5px;
+      font-weight:680;
+      cursor:pointer;
+    }
+    .partner-action.primary{
+      background:var(--icon-bg);
+      color:var(--icon-stroke);
+    }
+    .partner-status{
+      min-height:16px;
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.3;
+    }
     .dashboard{display:grid;gap:11px}
     .panel{
       position:relative;
@@ -274,8 +375,9 @@
     }
     .today-side{display:grid;gap:8px;justify-items:stretch}
     .weather{
-      min-width:92px;
-      padding:10px 11px;
+      min-width:156px;
+      max-width:184px;
+      padding:11px 12px;
       border-radius:14px;
       background:var(--soft);
     }
@@ -290,8 +392,17 @@
       margin-top:4px;
       color:var(--muted);
       font-size:10.5px;
-      line-height:1.15;
+      line-height:1.2;
       font-weight:620;
+    }
+    .weather-rain{
+      margin-top:7px;
+      padding-top:7px;
+      border-top:1px solid var(--line);
+      color:var(--text);
+      font-size:10.8px;
+      line-height:1.3;
+      font-weight:650;
     }
     .suggestions{
       display:grid;
@@ -404,7 +515,9 @@
       .profile-meta{font-size:12px}
       .mood-button{width:29px;height:29px;border-radius:9px}
       .mood-button svg{width:16px;height:16px}
-      .today-panel{padding:16px;gap:12px}
+      .today-panel{grid-template-columns:1fr;padding:16px;gap:12px}
+      .weather{width:100%;max-width:none}
+      .today-side{width:100%}
       .suggestions{grid-template-columns:1fr}
       .suggestion{padding:15px}
     }
@@ -446,6 +559,28 @@
       <div id="compliment" class="compliment"></div>
     </section>
 
+    <section class="panel partner-message" aria-label="Послание для партнёра">
+      <div class="partner-head">
+        <div class="panel-label">Послание для партнёра</div>
+        <button id="partnerEditButton" class="partner-edit" type="button" aria-label="Изменить послание" title="Изменить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 20h4l11-11-4-4L4 16v4Z"/>
+            <path d="m13.5 6.5 4 4"/>
+          </svg>
+        </button>
+      </div>
+      <div id="partnerMessageText" class="partner-text partner-empty">Здесь можно оставить послание друг для друга.</div>
+      <div id="partnerMessageAuthor" class="partner-author"></div>
+      <div id="partnerEditor" class="partner-editor">
+        <textarea id="partnerMessageInput" maxlength="1000" placeholder="Напишите послание…"></textarea>
+        <div class="partner-actions">
+          <button id="partnerCancelButton" class="partner-action" type="button">Отмена</button>
+          <button id="partnerSaveButton" class="partner-action primary" type="button">Сохранить</button>
+        </div>
+        <div id="partnerStatus" class="partner-status"></div>
+      </div>
+    </section>
+
     <section class="dashboard" aria-label="Сегодня">
       <article class="panel nearest-panel">
         <div class="panel-label">Ближайшее</div>
@@ -467,6 +602,7 @@
           <div class="weather">
             <div id="weatherValue" class="weather-value">—</div>
             <div id="weatherCaption" class="weather-caption">Погода</div>
+            <div id="weatherRain" class="weather-rain">Проверяю дождь…</div>
           </div>
         </div>
       </article>
@@ -662,19 +798,63 @@
       async function loadWeather(cfg){
         const elValue=document.getElementById('weatherValue');
         const elCaption=document.getElementById('weatherCaption');
-        if(!cfg?.enabled){elCaption.textContent='Погода выключена';return}
+        const elRain=document.getElementById('weatherRain');
+        if(!cfg?.enabled){
+          elCaption.textContent='Погода выключена';
+          elRain.textContent='Прогноз дождя выключен';
+          return;
+        }
         try{
-          const url='https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(cfg.latitude)+'&longitude='+encodeURIComponent(cfg.longitude)+'&current=temperature_2m,apparent_temperature,weather_code&timezone='+encodeURIComponent(cfg.timezone||TZ);
-          const r=await fetch(url,{cache:'no-store'});
+          const query=[
+            'latitude='+encodeURIComponent(cfg.latitude),
+            'longitude='+encodeURIComponent(cfg.longitude),
+            'current=temperature_2m,apparent_temperature,weather_code,precipitation,rain',
+            'hourly=precipitation_probability,precipitation,rain',
+            'forecast_days=1',
+            'timezone='+encodeURIComponent(cfg.timezone||TZ)
+          ].join('&');
+          const r=await fetch('https://api.open-meteo.com/v1/forecast?'+query,{cache:'no-store'});
           if(!r.ok) throw new Error('weather');
           const data=await r.json();
           const c=data.current||{};
           const labels={0:'Ясно',1:'Преимущественно ясно',2:'Облачно',3:'Пасмурно',45:'Туман',48:'Туман',51:'Морось',53:'Морось',55:'Морось',61:'Дождь',63:'Дождь',65:'Сильный дождь',71:'Снег',73:'Снег',75:'Сильный снег',80:'Ливень',81:'Ливень',82:'Сильный ливень',95:'Гроза'};
+
+          const times=Array.isArray(data.hourly?.time)?data.hourly.time:[];
+          const probabilities=Array.isArray(data.hourly?.precipitation_probability)?data.hourly.precipitation_probability:[];
+          const precipitation=Array.isArray(data.hourly?.precipitation)?data.hourly.precipitation:[];
+          const rain=Array.isArray(data.hourly?.rain)?data.hourly.rain:[];
+          const currentHour=String(c.time||'').slice(0,13)+':00';
+          let start=times.indexOf(currentHour);
+          if(start<0) start=times.findIndex(time=>String(time)>=currentHour);
+          if(start<0) start=0;
+
+          const end=Math.min(times.length,start+7);
+          const nextProb=probabilities.slice(start,end).map(Number).filter(Number.isFinite);
+          const nextPrecip=precipitation.slice(start,end).map(Number).filter(Number.isFinite);
+          const nextRain=rain.slice(start,end).map(Number).filter(Number.isFinite);
+          const maxProbability=nextProb.length?Math.max(...nextProb):0;
+          const totalPrecip=nextPrecip.reduce((sum,value)=>sum+value,0);
+          const totalRain=nextRain.reduce((sum,value)=>sum+value,0);
+          const rainingNow=Number(c.rain||0)>0 || Number(c.precipitation||0)>0;
+
+          let rainText;
+          if(rainingNow){
+            rainText='Дождь идёт сейчас · зонт нужен';
+          }else if(maxProbability>=60 || totalRain>=0.5 || totalPrecip>=0.8){
+            rainText='Дождь вероятен в ближайшие часы · лучше взять зонт';
+          }else if(maxProbability>=30 || totalRain>0 || totalPrecip>0){
+            rainText='Небольшой дождь возможен · зонт по желанию';
+          }else{
+            rainText='Дождя не ожидается · зонт не нужен';
+          }
+
           elValue.textContent=Math.round(c.temperature_2m)+'°';
           elCaption.textContent=(labels[c.weather_code]||'Погода')+' · '+(cfg.city||'');
+          elRain.textContent=rainText;
         }catch(_){
           elValue.textContent='—';
           elCaption.textContent='Погода недоступна';
+          elRain.textContent='Не удалось проверить дождь';
         }
       }
 
@@ -699,6 +879,106 @@
         document.getElementById('nearestTitle').textContent=e.title;
         document.getElementById('nearestMeta').textContent=e.meta;
         document.getElementById('nearestDays').textContent=daysLabel(e.days);
+      }
+
+      function formatPartnerUpdatedAt(value){
+        const date=new Date(value);
+        if(Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU',{
+          day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',timeZone:TZ
+        }).format(date);
+      }
+
+      function renderPartnerMessage(message){
+        const textEl=document.getElementById('partnerMessageText');
+        const authorEl=document.getElementById('partnerMessageAuthor');
+        if(!message?.text){
+          textEl.textContent='Здесь можно оставить послание друг для друга.';
+          textEl.classList.add('partner-empty');
+          authorEl.textContent='';
+          return;
+        }
+        textEl.textContent=message.text;
+        textEl.classList.remove('partner-empty');
+        const when=formatPartnerUpdatedAt(message.updatedAt);
+        authorEl.textContent='Написал(а): '+message.authorName+(when?' · '+when:'');
+      }
+
+      async function loadPartnerMessage(){
+        try{
+          const r=await fetch('/api/partner-message',{cache:'no-store'});
+          if(!r.ok) throw new Error('partner-message');
+          const data=await r.json();
+          renderPartnerMessage(data.message);
+          return data.message||null;
+        }catch(_){
+          const textEl=document.getElementById('partnerMessageText');
+          textEl.textContent='Не удалось загрузить послание.';
+          textEl.classList.add('partner-empty');
+          return null;
+        }
+      }
+
+      function setupPartnerMessage(){
+        const editButton=document.getElementById('partnerEditButton');
+        const editor=document.getElementById('partnerEditor');
+        const input=document.getElementById('partnerMessageInput');
+        const saveButton=document.getElementById('partnerSaveButton');
+        const cancelButton=document.getElementById('partnerCancelButton');
+        const status=document.getElementById('partnerStatus');
+        let currentMessage=null;
+
+        const canEdit=Boolean(tg?.initData);
+        if(!canEdit){
+          editButton.disabled=true;
+          editButton.style.opacity='.45';
+          editButton.title='Редактирование доступно внутри Telegram';
+        }
+
+        const closeEditor=()=>{
+          editor.classList.remove('open');
+          status.textContent='';
+        };
+
+        editButton.addEventListener('click',()=>{
+          if(!canEdit) return;
+          input.value=currentMessage?.text||'';
+          editor.classList.add('open');
+          setTimeout(()=>input.focus(),0);
+        });
+
+        cancelButton.addEventListener('click',closeEditor);
+
+        saveButton.addEventListener('click',async()=>{
+          const text=input.value.trim();
+          if(!text){
+            status.textContent='Введите текст послания.';
+            return;
+          }
+          saveButton.disabled=true;
+          status.textContent='Сохраняю…';
+          try{
+            const r=await fetch('/api/partner-message',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({text,initData:tg.initData}),
+              cache:'no-store'
+            });
+            const data=await r.json().catch(()=>({}));
+            if(!r.ok) throw new Error(data.error||'save');
+            currentMessage=data.message;
+            renderPartnerMessage(currentMessage);
+            closeEditor();
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            status.textContent=String(error?.message||'Ошибка сохранения');
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            saveButton.disabled=false;
+          }
+        });
+
+        loadPartnerMessage().then(message=>{currentMessage=message});
       }
 
       function setupStreakAndMood(){
@@ -752,6 +1032,7 @@
         document.getElementById('cookToday').textContent=cook[Math.abs(dayIndex+7)%cook.length];
 
         renderNearest(config);
+        setupPartnerMessage();
         setupStreakAndMood();
         loadWeather(config.weather);
       }
