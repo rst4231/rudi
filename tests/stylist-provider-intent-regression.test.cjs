@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const webApi = require('../api/stylist-web-search.cjs');
+const leadsApi = require('../api/stylist-leads.cjs');
 
 const providerRecruitingClients = 'СПБ, ищу 3 девушек на разбор гардероба офлайн в сентябре, соберем актуальные осенние образы и дадим вашим вещам 2 жизнь!';
 
@@ -50,4 +51,16 @@ test('combined scanner removes provider recruitment from both Telegram and web r
 
 test('real client wording still passes after provider-intent protection', () => {
   assert.equal(webApi.isLikelyWebClientIntent('СПб. Ищу стилиста по одежде, нужен разбор гардероба.'), true);
+});
+
+
+const copywriterVacancyFalsePositive = `Ищем копирайтера в команду — юридическая компания (банкротство физических лиц)
+
+Привет! Мы юридическая компания, помогаем людям решать финансовые трудности с помощью процедуры банкротства физических лиц. Мы ищем копирайтера, который сможет просто и интересно рассказывать о сложных вещах и юридических процессах – без давления и тревожных сценариев, но при этом побуждать к действию.
+
+Что мы ждем от кандидата: У вас есть опыт в написании текстов для соцсетей. Вы пишете без ошибок, следите за стилистикой и логикой повествования.`;
+
+test('copywriter vacancy mentioning stylistics and things is not a stylist client lead', () => {
+  assert.equal(webApi.isLikelyWebClientIntent(copywriterVacancyFalsePositive), false);
+  assert.equal(leadsApi.scoreStylistLead(copywriterVacancyFalsePositive).score, 0);
 });
