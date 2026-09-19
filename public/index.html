@@ -464,6 +464,7 @@
         var(--surface);
       animation:fadeUp .52s .05s cubic-bezier(.2,.8,.2,1) both;
     }
+    .ticktick-head-spacer{flex:1 1 auto}
     .ticktick-head{
       display:flex;
       align-items:center;
@@ -3602,14 +3603,14 @@
     <section class="section-block priority-section" data-app-tab-section="home" aria-labelledby="priorityTitle">
       <div class="section-heading">
         <div>
-          <h2 id="priorityTitle">Главное</h2>
+          <h2 id="priorityTitle">Совместные дела</h2>
         </div>
       </div>
       <div class="priority-grid">
         <article id="ticktickPanel" class="panel ticktick-panel" aria-label="Ближайшее в TickTick">
         <div id="ticktickToggle" class="ticktick-toggle" role="button" tabindex="-1" aria-expanded="false" aria-controls="ticktickDetails">
           <div class="ticktick-head">
-            <div class="panel-label">Совместные дела</div>
+            <div class="ticktick-head-spacer" aria-hidden="true"></div>
             <div class="ticktick-head-actions">
               <div id="ticktickBadge" class="ticktick-badge" hidden></div>
               <span class="ticktick-chevron" aria-hidden="true">
