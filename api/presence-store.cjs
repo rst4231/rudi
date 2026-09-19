@@ -6,7 +6,12 @@ const ONLINE_WINDOW_MS = 75 * 1000;
 const ACTORS = new Set(['Рустам', 'Диана']);
 
 function cacheOf(options = {}) {
-  return options.presenceCache || options.cache || createStrictRuntimeCache({ namespace: NAMESPACE });
+  return options.presenceCache || options.cache || createStrictRuntimeCache({
+    namespace: NAMESPACE,
+    // Presence is last-write-wins and can receive concurrent heartbeats.
+    // Confirming exact write equality creates false failures when a newer heartbeat wins the race.
+    confirmWrites: false,
+  });
 }
 
 function keyForActor(actor) {
@@ -29,9 +34,7 @@ async function markPresence(actor, options = {}) {
   return row;
 }
 
-async function readPresence(actor, options = {}) {
-  if (!ACTORS.has(actor)) throw new Error('presence-actor-invalid');
-  const row = await cacheOf(options).get(keyForActor(actor));
+function presenceFromRow(actor, row, options = {}) {
   const lastSeenAt = String(row?.lastSeenAt || '');
   const lastSeenMs = normalizeTimestamp(lastSeenAt);
   const now = Number(options.now || Date.now());
@@ -42,11 +45,27 @@ async function readPresence(actor, options = {}) {
   };
 }
 
-async function presenceView(actor, options = {}) {
+async function readPresence(actor, options = {}) {
+  if (!ACTORS.has(actor)) throw new Error('presence-actor-invalid');
+  const row = await cacheOf(options).get(keyForActor(actor));
+  return presenceFromRow(actor, row, options);
+}
+
+async function readPresenceSafe(actor, options = {}) {
+  try {
+    return await readPresence(actor, options);
+  } catch (error) {
+    if (String(error?.message || error) === 'presence-actor-invalid') throw error;
+    return { actor, online: false, lastSeenAt: '' };
+  }
+}
+
+async function presenceView(actor, options = {}, mineRow = null) {
+  if (!ACTORS.has(actor)) throw new Error('presence-actor-invalid');
   const partner = actor === 'Рустам' ? 'Диана' : 'Рустам';
   const [mine, theirs] = await Promise.all([
-    readPresence(actor, options),
-    readPresence(partner, options),
+    mineRow ? Promise.resolve(presenceFromRow(actor, mineRow, options)) : readPresenceSafe(actor, options),
+    readPresenceSafe(partner, options),
   ]);
   return {
     actor,
@@ -56,4 +75,4 @@ async function presenceView(actor, options = {}) {
   };
 }
 
-module.exports = { markPresence, readPresence, presenceView, ONLINE_WINDOW_MS };
+module.exports = { markPresence, readPresence, readPresenceSafe, presenceView, presenceFromRow, ONLINE_WINDOW_MS };
