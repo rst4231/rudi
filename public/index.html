@@ -3170,6 +3170,29 @@
       outline-offset:2px;
     }
 
+
+    /* Partner-only last seen text */
+    .profile .partner-presence-text{
+      max-width:170px;
+      overflow:hidden;
+      color:rgba(232,235,246,.58)!important;
+      font-size:8.7px!important;
+      line-height:1.2!important;
+      font-weight:590!important;
+      text-align:right!important;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .profile .partner-presence-text[hidden]{
+      display:none!important;
+    }
+    @media(max-width:390px){
+      .profile .partner-presence-text{
+        max-width:138px;
+        font-size:8px!important;
+      }
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3205,6 +3228,7 @@
         <div class="identity identity-partner">
           <div class="person partner-person">
             <div id="partnerHeaderName" class="name partner-header-name">Диана</div>
+            <div id="partnerPresenceText" class="profile-meta partner-presence-text" hidden></div>
           </div>
           <div id="partnerProfileAvatar" class="avatar partner-header-avatar" aria-hidden="true">
             <span id="partnerProfileInitial">Д</span>
@@ -5169,11 +5193,55 @@
         dot.title=(name||'Пользователь')+(online?' сейчас в RUDI':' сейчас не в RUDI');
       }
 
+      function relativePresenceText(lastSeenAt,partnerName){
+        const partner=String(partnerName||partnerProfileName||'Партнёр');
+        const female=partner.toLowerCase().startsWith('диан');
+        const prefix=female?'Была в приложении':'Был в приложении';
+        const never=female?'Ещё не заходила в приложение':'Ещё не заходил в приложение';
+        const seen=Date.parse(String(lastSeenAt||''));
+        if(!Number.isFinite(seen)) return never;
+
+        const diff=Math.max(0,Date.now()-seen);
+        const minutes=Math.floor(diff/60000);
+        if(minutes<1) return prefix+' только что';
+
+        const form=(value,one,few,many)=>{
+          const mod100=value%100;
+          const mod10=value%10;
+          if(mod100>=11&&mod100<=14) return many;
+          if(mod10===1) return one;
+          if(mod10>=2&&mod10<=4) return few;
+          return many;
+        };
+
+        if(minutes<60){
+          return prefix+' '+minutes+' '+form(minutes,'минуту','минуты','минут')+' назад';
+        }
+        const hours=Math.floor(minutes/60);
+        if(hours<24){
+          return prefix+' '+hours+' '+form(hours,'час','часа','часов')+' назад';
+        }
+        const days=Math.floor(hours/24);
+        return prefix+' '+days+' '+form(days,'день','дня','дней')+' назад';
+      }
+
       function renderPresence(payload){
         const mine=payload?.mine||{};
         const partner=payload?.partnerPresence||{};
+        const partnerName=String(payload?.partner||partnerProfileName||'Партнёр');
         setPresenceDot('selfPresenceDot',Boolean(mine.online),currentActor||'Вы');
-        setPresenceDot('partnerPresenceDot',Boolean(partner.online),String(payload?.partner||partnerProfileName||'Партнёр'));
+        setPresenceDot('partnerPresenceDot',Boolean(partner.online),partnerName);
+
+        const text=document.getElementById('partnerPresenceText');
+        if(text){
+          if(partner.online){
+            text.hidden=true;
+            text.textContent='';
+          }else{
+            text.textContent=relativePresenceText(partner.lastSeenAt,partnerName);
+            text.hidden=false;
+          }
+        }
       }
 
       async function refreshPresence(heartbeat=true){
