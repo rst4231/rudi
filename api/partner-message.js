@@ -1,6 +1,17 @@
 const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
+const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
+const {
+  getCredentials,
+  credentialsConfigured,
+  buildAuthorizeUrl,
+  exchangeCode,
+  loadTickTickConfig,
+  fetchProjectData,
+  chooseNextTask,
+  resolveAssigneeName,
+} = require('./ticktick-client.cjs');
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_AUTH_AGE_SECONDS = 24 * 60 * 60;
@@ -65,8 +76,124 @@ function statusForError(error) {
   return 500;
 }
 
+async function handleTickTick(req, res, action, options = {}) {
+  if (action === 'connect') {
+    if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    if (!credentialsConfigured(options.env || process.env)) {
+      return res.status(503).json({ ok: false, error: 'ticktick-not-configured' });
+    }
+    const state = crypto.randomBytes(24).toString('base64url');
+    await saveOAuthState(state, options);
+    const { clientId, redirectUri } = getCredentials(options.env || process.env);
+    const url = buildAuthorizeUrl({ clientId, redirectUri, state });
+    res.statusCode = 302;
+    res.setHeader('Location', url);
+    return res.end();
+  }
+
+  if (action === 'callback') {
+    const redirect = (value) => {
+      res.statusCode = 302;
+      res.setHeader('Location', '/?ticktick=' + encodeURIComponent(value));
+      res.end();
+    };
+
+    if (!credentialsConfigured(options.env || process.env)) return redirect('not-configured');
+
+    const code = String(req.query?.code || '').trim();
+    const state = String(req.query?.state || '').trim();
+    if (!code || !state) return redirect('invalid-callback');
+
+    try {
+      const validState = await consumeOAuthState(state, options);
+      if (!validState) return redirect('invalid-state');
+      const token = await exchangeCode(code, { ...options, env: options.env || process.env });
+      await saveToken(token, options);
+      return redirect('connected');
+    } catch (error) {
+      console.error('RUDI_TICKTICK_OAUTH_ERROR', String(error?.message || error));
+      return redirect('error');
+    }
+  }
+
+  if (action === 'next') {
+    if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+
+    if (!credentialsConfigured(options.env || process.env)) {
+      return res.status(503).json({
+        ok: false,
+        connected: false,
+        configured: false,
+        error: 'ticktick-not-configured',
+      });
+    }
+
+    const config = await loadTickTickConfig(options);
+    if (!config.enabled) return res.status(200).json({ ok: true, enabled: false, connected: true, task: null });
+
+    const token = await readToken(options);
+    if (!token?.accessToken) {
+      return res.status(401).json({
+        ok: false,
+        connected: false,
+        configured: true,
+        connectUrl: '/api/ticktick/connect',
+        error: 'ticktick-not-connected',
+      });
+    }
+
+    try {
+      const data = await fetchProjectData(token.accessToken, config.projectId, options);
+      const task = chooseNextTask(data?.tasks || [], options.now ? new Date(options.now) : new Date());
+      if (!task) {
+        return res.status(200).json({
+          ok: true,
+          connected: true,
+          enabled: true,
+          project: data?.project?.name || 'Общий',
+          task: null,
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        connected: true,
+        enabled: true,
+        project: data?.project?.name || 'Общий',
+        task: {
+          id: task.id,
+          title: String(task.title || '').trim(),
+          startDate: task.startDate || task.dueDate || null,
+          dueDate: task.dueDate || null,
+          isAllDay: Boolean(task.isAllDay),
+          assignee: resolveAssigneeName(task.assigneeUsername),
+          assigned: Boolean(String(task.assigneeUsername || '').trim()),
+        },
+      });
+    } catch (error) {
+      if (String(error?.message || '') === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({
+          ok: false,
+          connected: false,
+          configured: true,
+          connectUrl: '/api/ticktick/connect',
+          error: 'ticktick-reconnect-required',
+        });
+      }
+      console.error('RUDI_TICKTICK_NEXT_ERROR', String(error?.message || error));
+      return res.status(502).json({ ok: false, connected: true, error: 'ticktick-unavailable' });
+    }
+  }
+
+  return res.status(404).json({ ok: false, error: 'ticktick-route-not-found' });
+}
+
 async function handler(req, res, options = {}) {
   res.setHeader?.('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+  const ticktickAction = String(req.query?.ticktickAction || '').trim();
+  if (ticktickAction) return handleTickTick(req, res, ticktickAction, options);
 
   if (req.method === 'GET' || !req.method) {
     const message = await readPartnerMessage(options);
@@ -102,3 +229,4 @@ module.exports = handler;
 module.exports.validateTelegramInitData = validateTelegramInitData;
 module.exports.normalizeMessageText = normalizeMessageText;
 module.exports.statusForError = statusForError;
+module.exports.handleTickTick = handleTickTick;
