@@ -18,6 +18,7 @@ const {
   readAlbumConfig,
   getLatestPhotos,
 } = require('./shared-album.cjs');
+const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -328,6 +329,34 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({ ok: true, actor, holidayHighlights: holidays?.items || [] });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'mood') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      const date = moscowDateKey(options.now || Date.now());
+      const operation = String(body.operation || 'get').trim();
+      let row;
+
+      if (operation === 'set') {
+        row = await setDailyMood(date, actor, body.mood, options);
+      } else if (operation === 'get') {
+        row = await readDailyMood(date, options);
+      } else {
+        return res.status(400).json({ ok: false, error: 'mood-operation-invalid' });
+      }
+
+      return res.status(200).json({ ok: true, ...moodView(row, actor) });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'mood-value-invalid' || code === 'mood-actor-invalid' ? 400
+        : 500;
+      return res.status(status).json({ ok: false, error: code });
     }
   }
 
