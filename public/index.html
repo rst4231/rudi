@@ -204,6 +204,56 @@
       font-weight:560;
       text-align:right;
     }
+    .birthdays{
+      position:relative;
+      z-index:1;
+      display:grid;
+      gap:9px;
+      margin-top:17px;
+      padding-top:17px;
+      border-top:1px solid var(--line);
+    }
+    .birthday-row{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      align-items:center;
+      gap:14px;
+      padding:12px 13px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:var(--soft);
+    }
+    .birthday-person{
+      min-width:0;
+      display:grid;
+      gap:3px;
+    }
+    .birthday-name{
+      color:var(--text);
+      font-size:14px;
+      line-height:1.2;
+      font-weight:700;
+      letter-spacing:-.012em;
+    }
+    .birthday-date{
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.25;
+      font-weight:540;
+    }
+    .birthday-left{
+      min-width:78px;
+      padding:8px 10px;
+      border-radius:12px;
+      background:var(--surface-strong);
+      color:var(--text);
+      font-size:12.5px;
+      line-height:1.15;
+      font-weight:720;
+      text-align:center;
+      white-space:nowrap;
+      box-shadow:0 7px 18px rgba(0,0,0,.055);
+    }
     .links{
       display:grid;
       gap:11px;
@@ -350,6 +400,23 @@
         <div id="weekday" class="weekday"></div>
         <div id="date" class="date"></div>
       </div>
+
+      <div class="birthdays" aria-label="Дни рождения">
+        <div class="birthday-row">
+          <div class="birthday-person">
+            <div class="birthday-name">Рустам</div>
+            <div class="birthday-date">3 марта 1992</div>
+          </div>
+          <div id="rustamBirthday" class="birthday-left"></div>
+        </div>
+        <div class="birthday-row">
+          <div class="birthday-person">
+            <div class="birthday-name">Диана</div>
+            <div class="birthday-date">30 июня 1996</div>
+          </div>
+          <div id="dianaBirthday" class="birthday-left"></div>
+        </div>
+      </div>
     </section>
 
     <nav class="links" aria-label="Инструменты">
@@ -471,6 +538,41 @@
 
       document.getElementById('weekday').textContent = weekdayText;
       document.getElementById('date').textContent = dateText;
+
+      const moscowParts = Object.fromEntries(
+        new Intl.DateTimeFormat('en-CA', {
+          timeZone:'Europe/Moscow',
+          year:'numeric',
+          month:'numeric',
+          day:'numeric'
+        }).formatToParts(now)
+          .filter(part => part.type !== 'literal')
+          .map(part => [part.type, Number(part.value)])
+      );
+
+      const todayUtc = Date.UTC(moscowParts.year, moscowParts.month - 1, moscowParts.day);
+      const DAY = 86400000;
+
+      function daysUntilBirthday(month, day) {
+        let target = Date.UTC(moscowParts.year, month - 1, day);
+        if (target < todayUtc) target = Date.UTC(moscowParts.year + 1, month - 1, day);
+        return Math.round((target - todayUtc) / DAY);
+      }
+
+      function dayWord(value) {
+        const mod10 = value % 10;
+        const mod100 = value % 100;
+        if (mod10 === 1 && mod100 !== 11) return 'день';
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'дня';
+        return 'дней';
+      }
+
+      function birthdayLabel(days) {
+        return days === 0 ? 'сегодня' : days + ' ' + dayWord(days);
+      }
+
+      document.getElementById('rustamBirthday').textContent = birthdayLabel(daysUntilBirthday(3, 3));
+      document.getElementById('dianaBirthday').textContent = birthdayLabel(daysUntilBirthday(6, 30));
 
       window.addEventListener('pageshow', event => {
         if (event.persisted) location.reload();
