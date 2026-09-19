@@ -3127,6 +3127,49 @@
       .profile .profile-weather-main{width:54px!important}
     }
 
+
+    /* Presence status: this tiny indicator is the only block refreshed every 30 seconds */
+    .profile .avatar{
+      overflow:visible!important;
+    }
+    .profile .avatar > img{
+      border-radius:inherit;
+    }
+    .profile .presence-dot{
+      position:absolute;
+      right:-2px;
+      bottom:-2px;
+      z-index:5;
+      width:11px;
+      height:11px;
+      border:2px solid #171b29;
+      border-radius:50%;
+      background:#ef4b55;
+      box-shadow:0 2px 8px rgba(0,0,0,.28);
+      transition:background-color .18s ease,box-shadow .18s ease;
+    }
+    .profile .presence-dot.is-online{
+      background:#28c76f;
+      box-shadow:0 0 0 3px rgba(40,199,111,.13),0 2px 8px rgba(0,0,0,.24);
+    }
+    .profile .presence-dot.is-offline{
+      background:#ef4b55;
+    }
+
+    /* Daily movie opens its configured Kinopoisk page */
+    .daily-card.watch-card.is-link{
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      transition:transform .17s ease,box-shadow .17s ease,border-color .17s ease;
+    }
+    .daily-card.watch-card.is-link:active{
+      transform:scale(.985);
+    }
+    .daily-card.watch-card.is-link:focus-visible{
+      outline:2px solid color-mix(in srgb,var(--accent) 68%,transparent);
+      outline-offset:2px;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3151,6 +3194,7 @@
           <div id="avatar" class="avatar" aria-hidden="true">
             <span id="initials">R</span>
             <img id="avatarImage" alt="">
+            <span id="selfPresenceDot" class="presence-dot is-offline" title="Не в RUDI"></span>
           </div>
           <div class="person">
             <div id="displayName" class="name">RUDI</div>
@@ -3165,6 +3209,7 @@
           <div id="partnerProfileAvatar" class="avatar partner-header-avatar" aria-hidden="true">
             <span id="partnerProfileInitial">Д</span>
             <img id="partnerProfileImage" alt="">
+            <span id="partnerPresenceDot" class="presence-dot is-offline" title="Не в RUDI"></span>
           </div>
         </div>
       </div>
@@ -3379,7 +3424,7 @@
           </div>
           <div id="dailyIdea" class="idea-text"></div>
         </article>
-        <article class="panel suggestion daily-card watch-card">
+        <article class="panel suggestion daily-card watch-card" role="link" tabindex="0" aria-label="Открыть предложенный фильм на Кинопоиске">
           <div class="daily-card-head">
             <span class="daily-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3V9Z"/></svg>
@@ -5116,6 +5161,67 @@
         refreshDailyMood();
       }
 
+      function setPresenceDot(id,online,name){
+        const dot=document.getElementById(id);
+        if(!dot) return;
+        dot.classList.toggle('is-online',Boolean(online));
+        dot.classList.toggle('is-offline',!online);
+        dot.title=(name||'Пользователь')+(online?' сейчас в RUDI':' сейчас не в RUDI');
+      }
+
+      function renderPresence(payload){
+        const mine=payload?.mine||{};
+        const partner=payload?.partnerPresence||{};
+        setPresenceDot('selfPresenceDot',Boolean(mine.online),currentActor||'Вы');
+        setPresenceDot('partnerPresenceDot',Boolean(partner.online),String(payload?.partner||partnerProfileName||'Партнёр'));
+      }
+
+      async function refreshPresence(heartbeat=true){
+        if(!currentActor||!tg?.initData) return;
+        if(heartbeat&&document.visibilityState!=='visible') return;
+        try{
+          const response=await fetch('/api/partner-message?rudiAction=presence',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              initData:tg.initData,
+              operation:heartbeat?'heartbeat':'get'
+            }),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'presence');
+          renderPresence(payload);
+        }catch(_){}
+      }
+
+      function setupWatchSuggestion(config,title){
+        const card=document.querySelector('.watch-card');
+        if(!card) return;
+        const links=config?.watchLinks&&typeof config.watchLinks==='object'?config.watchLinks:{};
+        const url=String(links?.[title]||'').trim();
+        card.classList.toggle('is-link',Boolean(url));
+        card.setAttribute('aria-disabled',url?'false':'true');
+        if(!url) return;
+
+        const open=()=>{
+          try{
+            if(tg?.openLink) tg.openLink(url);
+            else window.open(url,'_blank','noopener,noreferrer');
+          }catch(_){
+            window.open(url,'_blank','noopener,noreferrer');
+          }
+        };
+
+        card.addEventListener('click',open);
+        card.addEventListener('keydown',event=>{
+          if(event.key==='Enter'||event.key===' '){
+            event.preventDefault();
+            open();
+          }
+        });
+      }
+
       function renderLatestUpdate(config){
         const updates=(Array.isArray(config?.updates)?config.updates:[])
           .filter(item=>item?.date)
@@ -5190,8 +5296,10 @@
 
         const ideas=config.dailyIdeas?.length?config.dailyIdeas:fallback.dailyIdeas;
         const watch=config.watchList?.length?config.watchList:fallback.watchList;
+        const watchTitle=String(watch[Math.abs(dayIndex+3)%watch.length]||'').trim();
         document.getElementById('dailyIdea').textContent=ideas[Math.abs(dayIndex)%ideas.length];
-        document.getElementById('watchToday').textContent=watch[Math.abs(dayIndex+3)%watch.length];
+        document.getElementById('watchToday').textContent=watchTitle;
+        setupWatchSuggestion(config,watchTitle);
 
         renderNearest(config);
         setupPersistentCollapsibles();
@@ -5207,6 +5315,7 @@
         loadTickTickNext();
         loadWorkCalendar();
         loadSharedAlbum();
+        refreshPresence(true);
       }
 
       init().catch(error=>{
@@ -5219,6 +5328,7 @@
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
+      setInterval(()=>{if(currentActor) refreshPresence(true)},30*1000);
 
       async function refreshAfterResume(){
         updateTelegramSafeArea();
@@ -5227,7 +5337,8 @@
           refreshDailyMood(),
           loadTickTickNext(),
           loadWorkCalendar(currentWorkCalendarView),
-          loadSharedAlbum()
+          loadSharedAlbum(),
+          refreshPresence(true)
         ]);
       }
 
