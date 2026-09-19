@@ -56,6 +56,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api/ticktick/connect",
+      "destination": "/api/partner-message?ticktickAction=connect"
+    },
+    {
+      "source": "/api/ticktick/callback",
+      "destination": "/api/partner-message?ticktickAction=callback"
+    },
+    {
+      "source": "/api/ticktick/next",
+      "destination": "/api/partner-message?ticktickAction=next"
+    },
+    {
       "source": "/api/daily",
       "destination": "/api/daily-cron?route=daily"
     },
