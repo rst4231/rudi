@@ -3349,10 +3349,32 @@
     .product-category-head strong{font-size:10.5px;font-weight:820}
     .product-category-head span{min-width:20px;padding:2px 6px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:8px;font-weight:760;text-align:center}
     .product-list{display:grid;gap:5px}
-    .product-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-height:48px;padding:7px 7px 7px 10px;border:1px solid color-mix(in srgb,var(--line) 92%,transparent);border-radius:12px;background:color-mix(in srgb,var(--surface) 84%,transparent)}
-    .product-main{min-width:0;display:grid;gap:3px}
-    .product-text{min-width:0;overflow:hidden;color:var(--text);font-size:11.5px;line-height:1.25;font-weight:710;text-overflow:ellipsis;white-space:nowrap}
-    .product-added-by{color:var(--muted);font-size:8px;font-weight:600}
+    .product-item{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:7px;min-height:52px;padding:7px 7px 7px 8px;border:1px solid color-mix(in srgb,var(--line) 92%,transparent);border-radius:12px;background:color-mix(in srgb,var(--surface) 84%,transparent)}
+    .product-check{
+      width:22px;height:22px;display:grid;place-items:center;padding:0;
+      border:1.5px solid color-mix(in srgb,var(--muted) 48%,var(--line));
+      border-radius:7px;background:transparent;color:transparent;cursor:pointer;
+      transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .12s ease;
+    }
+    .product-check:active{transform:scale(.9)}
+    .product-check svg{width:14px;height:14px}
+    .product-item.is-checked .product-check{
+      border-color:var(--green);
+      background:var(--green);
+      color:white;
+    }
+    .product-main{min-width:0;display:grid;gap:2px}
+    .product-text{min-width:0;overflow:hidden;color:var(--text);font-size:11.5px;line-height:1.25;font-weight:710;text-overflow:ellipsis;white-space:nowrap;transition:opacity .15s ease,color .15s ease}
+    .product-weekly-amount{color:var(--muted);font-size:8.2px;line-height:1.25;font-weight:600}
+    .product-added-by{color:var(--muted);font-size:7.7px;font-weight:600;opacity:.82}
+    .product-item.is-checked .product-text{
+      color:var(--muted);
+      text-decoration:line-through;
+      text-decoration-thickness:1.3px;
+      text-decoration-color:currentColor;
+    }
+    .product-item.is-checked .product-weekly-amount,
+    .product-item.is-checked .product-added-by{opacity:.52}
     .product-actions{display:flex;align-items:center;gap:4px}
     .product-bought{min-height:29px;padding:0 8px;border:0;border-radius:9px;background:color-mix(in srgb,var(--green) 14%,var(--surface));color:color-mix(in srgb,var(--green) 76%,var(--text));font:inherit;font-size:8px;font-weight:790;cursor:pointer}
     .product-icon-action{width:29px;height:29px;display:grid;place-items:center;border:0;border-radius:9px;background:var(--soft);color:var(--muted);cursor:pointer;transition:transform .14s ease,background-color .14s ease,color .14s ease}
@@ -3374,7 +3396,8 @@
     .app-tab-notification{position:absolute;top:0;right:0;width:7px;height:7px;border:2px solid color-mix(in srgb,var(--surface-strong) 94%,transparent);border-radius:999px;background:#ff4d57;box-sizing:content-box}
     .app-tab-notification[hidden]{display:none!important}
     @media(max-width:390px){
-      .product-item{gap:5px;padding-left:8px}
+      .product-item{grid-template-columns:22px minmax(0,1fr) auto;gap:5px;padding-left:7px}
+      .product-check{width:20px;height:20px}
       .product-bought{padding:0 6px;font-size:7.6px}
       .product-icon-action{width:27px;height:27px}
       .product-text{font-size:10.8px}
@@ -5713,16 +5736,38 @@
           list.className='product-list';
           for(const item of byCategory.get(category)){
             const row=document.createElement('div');
-            row.className='product-item';
+            row.className='product-item'+(item.checked?' is-checked':'');
+
+            const check=document.createElement('button');
+            check.type='button';
+            check.className='product-check';
+            check.setAttribute('aria-label',item.checked?'Снять отметку':'Отметить');
+            check.setAttribute('aria-pressed',item.checked?'true':'false');
+            check.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
+            check.addEventListener('click',async()=>{
+              check.disabled=true;
+              try{
+                renderProducts(await productsRequest('toggle',{id:item.id}));
+                try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+              }catch(_){
+                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+              }finally{check.disabled=false}
+            });
+
             const main=document.createElement('div');
             main.className='product-main';
             const text=document.createElement('div');
             text.className='product-text';
             text.textContent=String(item.text||'');
+            const amount=document.createElement('small');
+            amount.className='product-weekly-amount';
+            const weeklyAmount=String(item.weeklyAmount||'').trim();
+            amount.textContent=weeklyAmount?'На неделю для двоих: ~'+weeklyAmount:'';
+            amount.hidden=!weeklyAmount;
             const meta=document.createElement('small');
             meta.className='product-added-by';
             meta.textContent=productAddedByLabel(item.addedBy);
-            main.append(text,meta);
+            main.append(text,amount,meta);
 
             const actions=document.createElement('div');
             actions.className='product-actions';
@@ -5756,7 +5801,7 @@
             });
 
             actions.append(bought,copy,remove);
-            row.append(main,actions);
+            row.append(check,main,actions);
             list.appendChild(row);
           }
           section.append(head,list);
