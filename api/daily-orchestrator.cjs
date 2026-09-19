@@ -7,6 +7,8 @@ const { markPublicationPublished, markPublicationSkipped, writeDailyRunSummary }
 const { emitOperationalAlert } = require('./alert-service.cjs');
 const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 const { moscowDateKey } = require('./preview-date.cjs');
+const { rankHolidayEntries, DEFAULT_MAX_ITEMS } = require('./holiday-significance.cjs');
+const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 
 async function metric(section, name, amount, options = {}) {
   try {
@@ -22,6 +24,17 @@ async function metric(section, name, amount, options = {}) {
 
 async function recordGeneratedPayload(payload, date, options = {}) {
   const results = payload?.results || {};
+  try {
+    const holidayMessage = String(results.holidays?.preview?.message || '');
+    const holidayEntries = holidayMessage.split('\n')
+      .map((line) => line.match(/^\s*[•●▪◦‣·*\-–—]\s+(.+)$/u)?.[1] || '')
+      .map((line) => line.replace(/<[^>]*>/gu, '').trim())
+      .filter(Boolean);
+    const highlights = rankHolidayEntries(holidayEntries, DEFAULT_MAX_ITEMS);
+    if (highlights.length) await writeHolidayHighlights(date, highlights, options);
+  } catch (error) {
+    console.warn('RUDI_HOLIDAY_HIGHLIGHTS_CACHE_ERROR', String(error?.message || error));
+  }
   const rows = [
     ['events', results.events],
     ['holidays', results.holidays],
