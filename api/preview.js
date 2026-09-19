@@ -8,6 +8,15 @@ const { resolvePreviewDate } = require('./preview-date.cjs');
 const { normalizePreviewSections, applyPreviewContentOverride } = require('./preview-sections.cjs');
 const { getContentOverride } = require('./section-controls.cjs');
 const { SECTION_NAMES } = require('./rudi-settings.cjs');
+const { DEFAULT_MAX_ITEMS, rankHolidayEntries } = require('./holiday-significance.cjs');
+
+function extractHolidayEntries(value) {
+  return String(value || '')
+    .split('\n')
+    .map((line) => line.match(/^\s*[•●▪◦‣·*\-–—]\s+(.+)$/u)?.[1] || '')
+    .map((line) => line.replace(/<[^>]*>/gu, '').replace(/&amp;/giu, '&').replace(/&quot;/giu, '"').replace(/&nbsp;/giu, ' ').trim())
+    .filter(Boolean);
+}
 
 async function loadPreviewOverrides(date, options = {}) {
   const rows = await Promise.all(SECTION_NAMES.map(async (section) => [
@@ -49,12 +58,18 @@ async function runPreview(req, res, options = {}) {
       for (const section of SECTION_NAMES) {
         sections[section] = applyPreviewContentOverride(rawSections[section], overrides[section]);
       }
+      const holidayEntries = extractHolidayEntries(
+        rewritten?.results?.holidays?.preview?.message || sections?.holidays?.parts?.[0] || ''
+      );
+      const holidayHighlights = rankHolidayEntries(holidayEntries, DEFAULT_MAX_ITEMS);
+
       return originalJson({
         ...rewritten,
         requestedDate,
         generatedAt: now.toISOString(),
         warnings,
         sections,
+        holidayHighlights,
       });
     };
   }
@@ -69,3 +84,4 @@ async function runPreview(req, res, options = {}) {
 module.exports = (req, res) => runPreview(req, res);
 module.exports.runPreview = runPreview;
 module.exports.loadPreviewOverrides = loadPreviewOverrides;
+module.exports.extractHolidayEntries = extractHolidayEntries;
