@@ -26,6 +26,7 @@ const EVENT_POST_METHODS = new Set([
   'sendContact', 'sendPoll', 'sendDice', 'sendSticker',
 ]);
 const EVENT_CLEANUP_ATTEMPTS = 3;
+const KNOWN_FORUM_CHAT_ID = '-1004476323368';
 
 function resolveTopicCache(options = {}) { return options.cache || getTopicMaintenanceCache(options.cacheOptions || {}); }
 function resolveDailyContentCache(options = {}) { return options.dailyContentCache || getDailyContentCache(options.dailyContentCacheOptions || {}); }
@@ -302,7 +303,12 @@ async function prepareDailyTopicCleanup(options = {}) {
 
   let results;
   try {
-    results = await base.prepareDailyTopicCleanup({ ...options, cache, fetchImpl: wrapFetch(fetchImpl, options) });
+    results = await base.prepareDailyTopicCleanup({
+      ...options,
+      cache,
+      fallbackChatId: options.fallbackChatId || KNOWN_FORUM_CHAT_ID,
+      fetchImpl: wrapFetch(fetchImpl, options),
+    });
   } catch (error) {
     await rememberCleanupStatusSafe({
       checkedAt: now,
@@ -358,11 +364,16 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
       const data = await response.clone().json();
       const messageIds = responseMessageIds(data?.result);
       if (messageIds.length) {
-        await rememberActiveEventMessages({
+        const active = await rememberActiveEventMessages({
           dateKey: publicationDate,
           chatId: payload?.chat_id,
           messageIds,
           cache,
+          replace: replaceActiveBatch,
+        });
+        console.log('RUDI_EVENT_ACTIVE_TRACKED', {
+          dateKey: active?.dateKey || publicationDate,
+          tracked: active?.messageIds?.length || messageIds.length,
           replace: replaceActiveBatch,
         });
       }

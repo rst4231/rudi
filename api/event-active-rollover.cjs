@@ -182,6 +182,22 @@ async function deleteActiveEventMessagesBeforeDate({ beforeDateKey, chatId, cach
   return { tracked: active.messageIds.length, deleted: active.messageIds.length, targetDateKey: active.dateKey };
 }
 
+
+async function getEventTrackingState(cache) {
+  const [activeRaw, pendingRaw] = await Promise.all([
+    cache.get(ACTIVE_KEY),
+    cache.get(PENDING_KEY),
+  ]);
+  const active = normalizeActiveState(activeRaw);
+  const pending = normalizePendingState(pendingRaw);
+  return {
+    active,
+    pending,
+    pendingBatches: pending.batches.length,
+    pendingMessages: pending.batches.reduce((sum, batch) => sum + batch.messageIds.length, 0),
+  };
+}
+
 module.exports = {
   ACTIVE_KEY,
   PENDING_KEY,
@@ -193,6 +209,7 @@ module.exports = {
   rememberActiveEventMessages,
   rememberEventCleanupStatus,
   getEventCleanupStatus,
+  getEventTrackingState,
   deletePendingEventMessages,
   deleteActiveEventMessagesBeforeDate,
 };
