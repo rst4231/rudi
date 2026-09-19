@@ -4046,6 +4046,7 @@
       let presenceRequestPromise = null;
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
+      let currentMoodDateKey = '';
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
 
       function applyAppTab(tab,{scroll=false}={}){
@@ -5696,10 +5697,36 @@
       async function refreshDailyMood(){
         if(!currentActor||!tg?.initData) return;
         try{
-          renderDailyMood(await moodRequest('get'));
+          const payload=await moodRequest('get');
+          currentMoodDateKey=String(payload?.date||todayState().key);
+          renderDailyMood(payload);
         }catch(_){
           renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
         }
+      }
+
+      function resetMoodForNewDay(){
+        const nextKey=todayState().key;
+        if(!currentMoodDateKey){
+          currentMoodDateKey=nextKey;
+          return false;
+        }
+        if(nextKey===currentMoodDateKey) return false;
+
+        currentMoodDateKey=nextKey;
+        clearTimeout(moodMessageTimer);
+        const message=document.getElementById('moodMessage');
+        if(message){
+          message.classList.remove('show');
+          message.textContent='';
+          delete message.dataset.mood;
+        }
+        selectOwnMood('');
+        renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
+        const prompt=document.getElementById('moodPrompt');
+        if(prompt) prompt.hidden=false;
+        refreshDailyMood();
+        return true;
       }
 
       function showMoodMessage(mood){
@@ -5719,21 +5746,7 @@
       }
 
       function setupStreakAndMood(config){
-        const {key,utc}=todayState();
-        const prev=new Date(utc-DAY);
-        const prevKey=[prev.getUTCFullYear(),String(prev.getUTCMonth()+1).padStart(2,'0'),String(prev.getUTCDate()).padStart(2,'0')].join('-');
-        let streak=1;
-        try{
-          const last=localStorage.getItem('rudi-last-open');
-          const stored=Math.max(1,Number(localStorage.getItem('rudi-open-streak'))||1);
-          if(last===key) streak=stored;
-          else if(last===prevKey) streak=stored+1;
-          localStorage.setItem('rudi-last-open',key);
-          localStorage.setItem('rudi-open-streak',String(streak));
-        }catch(_){}
-        document.getElementById('streakValue').textContent=streak;
-        document.getElementById('streakCaption').textContent=streakWord(streak);
-
+        currentMoodDateKey=todayState().key;
         moodMessagesConfig=config?.moodMessages||fallback.moodMessages;
         renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
         document.getElementById('moodPrompt').hidden=false;
@@ -6369,6 +6382,7 @@
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
+      setInterval(()=>{if(currentActor) resetMoodForNewDay()},5000);
       setInterval(()=>{if(currentActor) refreshPresence(true)},PRESENCE_REFRESH_MS);
 
       function ensureAppSurface(){
@@ -6388,6 +6402,7 @@
       async function refreshAfterResume(){
         ensureAppSurface();
         if(!currentActor) return;
+        resetMoodForNewDay();
         await Promise.allSettled([
           refreshDailyMood(),
           loadTickTickNext(),
