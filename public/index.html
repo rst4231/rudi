@@ -2409,6 +2409,15 @@
       .shell{padding-bottom:calc(90px + env(safe-area-inset-bottom)) !important}
     }
 
+  
+    body.auth-pending .app-tabbar,
+    body.auth-denied .app-tabbar{
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+    }
+    body.auth-ok .app-tabbar{visibility:visible}
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2825,26 +2834,26 @@
     </footer>
   </main>
 
-  <nav id="appTabBar" class="app-tabbar" aria-label="Основная навигация">
-    <button class="app-tab-button active" type="button" data-app-tab="home" aria-selected="true">
+  <nav id="appTabBar" class="app-tabbar" role="tablist" aria-label="Основная навигация">
+    <button role="tab" class="app-tab-button active" type="button" data-app-tab="home" aria-selected="true">
       <span class="app-tab-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 10.5 8.5-7 8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
       </span>
       <span>Домой</span>
     </button>
-    <button class="app-tab-button" type="button" data-app-tab="schedule" aria-selected="false">
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="schedule" aria-selected="false">
       <span class="app-tab-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
       </span>
       <span>График</span>
     </button>
-    <button class="app-tab-button" type="button" data-app-tab="wishlist" aria-selected="false">
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="wishlist" aria-selected="false">
       <span class="app-tab-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.3 4.7 13.6A5.2 5.2 0 0 1 12 6.1a5.2 5.2 0 0 1 7.3 7.5L12 20.3Z"/></svg>
       </span>
       <span>Вишлист</span>
     </button>
-    <button class="app-tab-button" type="button" data-app-tab="photos" aria-selected="false">
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="photos" aria-selected="false">
       <span class="app-tab-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="m5.5 17 4.2-4.2 3.2 3.2 2.1-2.1 3.5 3.1"/></svg>
       </span>
@@ -4411,6 +4420,7 @@
       async function init(){
         const allowed=await authenticateApp();
         if(!allowed) return;
+        setupAppTabs();
         holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
         renderLatestUpdate(config);
@@ -4430,7 +4440,6 @@
         document.getElementById('watchToday').textContent=watch[Math.abs(dayIndex+3)%watch.length];
 
         renderNearest(config);
-        setupAppTabs();
         setupPersistentCollapsibles();
         setupPartnerMessage();
         setupStreakAndMood(config);
