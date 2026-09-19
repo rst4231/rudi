@@ -1024,6 +1024,133 @@
       .card{min-height:72px}
     }
 
+  
+    .ticktick-toggle{outline:none;-webkit-tap-highlight-color:transparent}
+    .ticktick-panel.expandable .ticktick-toggle{cursor:pointer}
+    .ticktick-panel.expandable .ticktick-toggle:focus-visible{
+      border-radius:14px;
+      box-shadow:0 0 0 3px var(--green-soft);
+    }
+    .ticktick-head-actions{display:flex;align-items:center;gap:7px;flex:none}
+    .ticktick-chevron{
+      width:24px;height:24px;
+      display:none;
+      place-items:center;
+      border-radius:8px;
+      background:var(--green-soft);
+      color:color-mix(in srgb,var(--green) 78%,var(--text));
+      transition:transform .24s ease,background-color .24s ease;
+    }
+    .ticktick-chevron svg{width:14px;height:14px}
+    .ticktick-panel.expandable .ticktick-chevron{display:grid}
+    .ticktick-panel.expanded .ticktick-chevron{transform:rotate(180deg)}
+    .ticktick-details{
+      display:grid;
+      grid-template-rows:0fr;
+      opacity:0;
+      transition:grid-template-rows .3s cubic-bezier(.2,.8,.2,1),opacity .22s ease;
+    }
+    .ticktick-panel.expanded .ticktick-details{grid-template-rows:1fr;opacity:1}
+    .ticktick-details-clip{overflow:hidden}
+    .ticktick-details-inner{
+      display:grid;
+      gap:13px;
+      margin-top:15px;
+      padding-top:14px;
+      border-top:1px solid color-mix(in srgb,var(--green) 15%,var(--line));
+    }
+    .ticktick-detail-block{display:grid;gap:7px}
+    .ticktick-detail-block.hidden{display:none}
+    .ticktick-detail-label{
+      color:var(--muted);
+      font-size:9px;
+      line-height:1.2;
+      font-weight:820;
+      letter-spacing:.1em;
+      text-transform:uppercase;
+    }
+    .ticktick-description{
+      color:var(--text);
+      font-size:12.5px;
+      line-height:1.48;
+      font-weight:560;
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+    }
+    .ticktick-checklist{display:grid;gap:7px}
+    .ticktick-check-item{
+      display:grid;
+      grid-template-columns:18px minmax(0,1fr);
+      align-items:start;
+      gap:8px;
+      color:var(--text);
+      font-size:12.5px;
+      line-height:1.35;
+      font-weight:590;
+    }
+    .ticktick-check-box{
+      width:17px;height:17px;
+      display:grid;
+      place-items:center;
+      margin-top:0;
+      border:1px solid color-mix(in srgb,var(--green) 45%,var(--line));
+      border-radius:6px;
+      background:color-mix(in srgb,var(--green-soft) 72%,transparent);
+      color:var(--green);
+    }
+    .ticktick-check-box svg{width:11px;height:11px}
+    .ticktick-check-item.done{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+    .ticktick-check-item.done .ticktick-check-box{background:var(--green);color:#fff;border-color:var(--green)}
+
+    .daily-card{position:relative;isolation:isolate;overflow:hidden}
+    .daily-card::after{
+      content:"";
+      position:absolute;
+      z-index:-1;
+      width:110px;height:110px;
+      right:-42px;bottom:-52px;
+      border-radius:50%;
+      filter:blur(1px);
+      opacity:.55;
+    }
+    .daily-card-head{display:flex;align-items:center;gap:9px;margin-bottom:17px}
+    .daily-card-head .panel-label{margin:0}
+    .daily-icon{
+      width:32px;height:32px;
+      display:grid;
+      place-items:center;
+      flex:none;
+      border-radius:11px;
+    }
+    .daily-icon svg{width:18px;height:18px}
+    .idea-card{
+      border-color:color-mix(in srgb,#a48cff 20%,var(--line)) !important;
+      background:
+        linear-gradient(145deg,rgba(164,140,255,.08),transparent 66%),
+        color-mix(in srgb,var(--surface) 90%,transparent) !important;
+    }
+    .idea-card::after{background:rgba(164,140,255,.16)}
+    .idea-card .daily-icon{background:rgba(164,140,255,.13);color:#8872e8}
+    .watch-card{
+      border-color:color-mix(in srgb,#55a8ff 20%,var(--line)) !important;
+      background:
+        linear-gradient(145deg,rgba(85,168,255,.08),transparent 66%),
+        color-mix(in srgb,var(--surface) 90%,transparent) !important;
+    }
+    .watch-card::after{background:rgba(85,168,255,.15)}
+    .watch-card .daily-icon{background:rgba(85,168,255,.13);color:#3e8edb}
+    .cook-card{
+      border-color:color-mix(in srgb,#ff9d57 20%,var(--line)) !important;
+      background:
+        linear-gradient(145deg,rgba(255,157,87,.08),transparent 72%),
+        color-mix(in srgb,var(--surface) 90%,transparent) !important;
+    }
+    .cook-card::after{background:rgba(255,157,87,.16)}
+    .cook-card .daily-icon{background:rgba(255,157,87,.14);color:#dc7f3d}
+    html[data-theme="dark"] .idea-card .daily-icon{color:#b9a9ff}
+    html[data-theme="dark"] .watch-card .daily-icon{color:#79bdff}
+    html[data-theme="dark"] .cook-card .daily-icon{color:#ffb47d}
+
   </style>
 </head>
 <body>
@@ -1073,17 +1200,38 @@
         <span class="section-status">RUDI</span>
       </div>
       <div class="priority-grid">
-        <article class="panel ticktick-panel" aria-label="Ближайшее в TickTick">
-        <div class="ticktick-head">
-          <div class="panel-label">Совместные дела</div>
-          <div id="ticktickBadge" class="ticktick-badge">Синхронизация</div>
-        </div>
-        <div id="ticktickTitle" class="ticktick-title">Загружаю ближайшее событие…</div>
-        <div class="ticktick-meta">
-          <span id="ticktickDate"></span>
-          <span id="ticktickAssignee"></span>
+        <article id="ticktickPanel" class="panel ticktick-panel" aria-label="Ближайшее в TickTick">
+        <div id="ticktickToggle" class="ticktick-toggle" role="button" tabindex="-1" aria-expanded="false" aria-controls="ticktickDetails">
+          <div class="ticktick-head">
+            <div class="panel-label">Совместные дела</div>
+            <div class="ticktick-head-actions">
+              <div id="ticktickBadge" class="ticktick-badge">Синхронизация</div>
+              <span class="ticktick-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
+              </span>
+            </div>
+          </div>
+          <div id="ticktickTitle" class="ticktick-title">Загружаю ближайшее событие…</div>
+          <div class="ticktick-meta">
+            <span id="ticktickDate"></span>
+            <span id="ticktickAssignee"></span>
+          </div>
         </div>
         <a id="ticktickConnect" class="ticktick-connect" href="/api/ticktick/connect">Подключить TickTick</a>
+        <div id="ticktickDetails" class="ticktick-details" aria-hidden="true">
+          <div class="ticktick-details-clip">
+            <div class="ticktick-details-inner">
+              <div id="ticktickDescriptionBlock" class="ticktick-detail-block">
+                <div class="ticktick-detail-label">Описание</div>
+                <div id="ticktickDescription" class="ticktick-description"></div>
+              </div>
+              <div id="ticktickChecklistBlock" class="ticktick-detail-block">
+                <div class="ticktick-detail-label">Чек-лист</div>
+                <div id="ticktickChecklist" class="ticktick-checklist"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </article>
         <article class="panel nearest-panel">
         <div class="panel-label">Ближайшее</div>
@@ -1140,16 +1288,31 @@
         </div>
       </div>
       <div class="daily-grid">
-        <article class="panel suggestion">
-          <div class="panel-label">Идея дня</div>
+        <article class="panel suggestion daily-card idea-card">
+          <div class="daily-card-head">
+            <span class="daily-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 18.3h5.2"/><path d="M10 21h4"/><path d="M8.2 14.4A6 6 0 1 1 15.8 14.4c-.9.7-1.4 1.5-1.5 2.3h-4.6c-.1-.8-.6-1.6-1.5-2.3Z"/><path d="M12 3V1.8M4.8 6.2 3.9 5.3M19.2 6.2l.9-.9"/></svg>
+            </span>
+            <div class="panel-label">Идея дня</div>
+          </div>
           <div id="dailyIdea" class="idea-text"></div>
         </article>
-        <article class="panel suggestion">
-          <div class="panel-label">Что посмотреть</div>
+        <article class="panel suggestion daily-card watch-card">
+          <div class="daily-card-head">
+            <span class="daily-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3V9Z"/></svg>
+            </span>
+            <div class="panel-label">Что посмотреть</div>
+          </div>
           <div id="watchToday" class="suggestion-value"></div>
         </article>
-        <article class="panel suggestion">
-          <div class="panel-label">Что приготовить</div>
+        <article class="panel suggestion daily-card cook-card">
+          <div class="daily-card-head">
+            <span class="daily-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v5.2A3.8 3.8 0 0 1 15.2 20H8.8A3.8 3.8 0 0 1 5 16.2V11Z"/><path d="M8 11V8.5A2.5 2.5 0 0 1 10.5 6H12"/><path d="M13.8 4.1c1.5.2 2.6 1.2 2.9 2.5"/><path d="M4 11h16"/></svg>
+            </span>
+            <div class="panel-label">Что приготовить</div>
+          </div>
           <div id="cookToday" class="suggestion-value"></div>
         </article>
       </div>
@@ -1425,6 +1588,55 @@
         return dateText+' · '+timeText;
       }
 
+      function setTickTickExpanded(expanded){
+        const panel=document.getElementById('ticktickPanel');
+        const toggle=document.getElementById('ticktickToggle');
+        const details=document.getElementById('ticktickDetails');
+        if(!panel.classList.contains('expandable')) expanded=false;
+        panel.classList.toggle('expanded',expanded);
+        toggle.setAttribute('aria-expanded',expanded?'true':'false');
+        details.setAttribute('aria-hidden',expanded?'false':'true');
+      }
+
+      function renderTickTickDetails(task){
+        const panel=document.getElementById('ticktickPanel');
+        const toggle=document.getElementById('ticktickToggle');
+        const descriptionBlock=document.getElementById('ticktickDescriptionBlock');
+        const description=document.getElementById('ticktickDescription');
+        const checklistBlock=document.getElementById('ticktickChecklistBlock');
+        const checklist=document.getElementById('ticktickChecklist');
+
+        const descriptionText=String(task?.description||'').trim();
+        const items=Array.isArray(task?.checklist)?task.checklist.filter(item=>item?.title):[];
+        const hasDetails=Boolean(descriptionText||items.length);
+
+        description.textContent=descriptionText;
+        descriptionBlock.classList.toggle('hidden',!descriptionText);
+
+        checklist.replaceChildren();
+        checklistBlock.classList.toggle('hidden',!items.length);
+        for(const item of items){
+          const row=document.createElement('div');
+          row.className='ticktick-check-item'+(item.completed?' done':'');
+
+          const box=document.createElement('span');
+          box.className='ticktick-check-box';
+          box.setAttribute('aria-hidden','true');
+          if(item.completed){
+            box.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
+          }
+
+          const label=document.createElement('span');
+          label.textContent=item.title;
+          row.append(box,label);
+          checklist.appendChild(row);
+        }
+
+        panel.classList.toggle('expandable',hasDetails);
+        toggle.tabIndex=hasDetails?0:-1;
+        setTickTickExpanded(false);
+      }
+
       function renderTickTickState(payload){
         const title=document.getElementById('ticktickTitle');
         const date=document.getElementById('ticktickDate');
@@ -1435,6 +1647,7 @@
         connect.classList.remove('show');
         date.textContent='';
         assignee.textContent='';
+        renderTickTickDetails(null);
 
         if(payload?.configured===false){
           title.textContent='Интеграция TickTick ещё не настроена.';
@@ -1466,6 +1679,23 @@
         date.textContent=formatTickTickDate(payload.task);
         assignee.textContent='Ответственный: '+(payload.task.assignee||'Не назначен');
         badge.textContent='Актуально';
+        renderTickTickDetails(payload.task);
+      }
+
+      function setupTickTickDisclosure(){
+        const panel=document.getElementById('ticktickPanel');
+        const toggle=document.getElementById('ticktickToggle');
+        const flip=()=>{
+          if(!panel.classList.contains('expandable')) return;
+          setTickTickExpanded(!panel.classList.contains('expanded'));
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        };
+        toggle.addEventListener('click',flip);
+        toggle.addEventListener('keydown',event=>{
+          if(event.key!=='Enter'&&event.key!==' ') return;
+          event.preventDefault();
+          flip();
+        });
       }
 
       async function loadTickTickNext(){
@@ -1662,6 +1892,7 @@
         renderNearest(config);
         setupPartnerMessage();
         setupStreakAndMood();
+        setupTickTickDisclosure();
         loadWeather(config.weather);
         loadTickTickNext();
       }
