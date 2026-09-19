@@ -138,6 +138,8 @@ module.exports = {
   ACTORS,
   TARGET_TYPES,
   normalizeTarget,
+  actorSlug,
+  cacheKey,
   readReaction,
   readReactions,
   setReaction,
