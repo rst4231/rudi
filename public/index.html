@@ -5495,9 +5495,10 @@
           event.stopPropagation();
           const target=targetProvider();
           if(!target?.key||button.disabled) return;
+          const liked=button.getAttribute('aria-pressed')!=='true';
           button.disabled=true;
           try{
-            const data=await reactionsRequest('toggle',{target});
+            const data=await reactionsRequest('set',{target,liked});
             renderReaction(data.reaction,buttonId,namesId);
             button.classList.remove('just-liked');
             void button.offsetWidth;
