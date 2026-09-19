@@ -165,14 +165,12 @@ async function buildHealthPayload(options = {}) {
     lastDailyRun: lastDailyRun || null,
     latestPublications,
     sourceHealth: sourceHealth || [],
-    topicCleanup: {
-      events: eventCleanup || null,
-      eventTracking: {
-        activeDate: eventTracking?.active?.dateKey || null,
-        activeMessages: eventTracking?.active?.messageIds?.length || 0,
-        pendingBatches: eventTracking?.pendingBatches || 0,
-        pendingMessages: eventTracking?.pendingMessages || 0,
-      },
+    topicCleanup: { events: eventCleanup || null },
+    eventTracking: {
+      activeDate: eventTracking?.active?.dateKey || null,
+      activeMessages: eventTracking?.active?.messageIds?.length || 0,
+      pendingBatches: eventTracking?.pendingBatches || 0,
+      pendingMessages: eventTracking?.pendingMessages || 0,
     },
     alerts: alerts || null,
     overrides: loaded.overrides || {},
