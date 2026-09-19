@@ -553,7 +553,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, owner, ...(await readWishlist(options)) });
       }
       if (operation === 'add') {
-        const result = await addWish(body.text, owner, options);
+        const result = await addWish(body.text, body.url, owner, options);
         return res.status(200).json({ ok: true, owner, ...result.state });
       }
       if (operation === 'toggle') {
