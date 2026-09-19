@@ -654,23 +654,6 @@
       line-height:1.3;
       animation:fadeUp .5s .28s cubic-bezier(.2,.8,.2,1) both;
     }
-    .telegram-link{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:9px 12px;
-      border:1px solid var(--line);
-      border-radius:13px;
-      background:var(--surface);
-      color:var(--text);
-      text-decoration:none;
-      font-weight:650;
-      transition:transform .18s ease,background-color .2s ease;
-      -webkit-tap-highlight-color:transparent;
-    }
-    .telegram-link:hover{transform:translateY(-2px);background:var(--surface-hover)}
-    .telegram-link:active{transform:scale(.97)}
-    .telegram-link svg{width:18px;height:18px;color:var(--icon-stroke)}
     @keyframes heroIn{from{opacity:0;transform:translateY(-10px) scale(.985)}to{opacity:1;transform:none}}
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     @keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1)}}
@@ -822,6 +805,15 @@
     </section>
 
     <nav class="links" aria-label="Инструменты">
+      <a class="card" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer">
+        <span class="feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="label">Telegram чат</span>
+        <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
+      </a>
       <a class="card" href="https://gemini.google.com/share/a09a924c005c" target="_blank" rel="noopener noreferrer">
         <span class="feature-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 3.7h7.6"/><path d="M12 3.7v2.1"/><circle cx="12" cy="13.2" r="7.1"/><path d="M12 9.5v4.1l2.7 1.7"/><path d="M5.6 6.5 4.3 7.8M18.4 6.5l1.3 1.3"/></svg>
@@ -849,12 +841,6 @@
       <div id="compliment" class="compliment"></div>
       <div>© <span id="currentYear"></span></div>
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
-      <a class="telegram-link" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/>
-        </svg>
-        <span>Telegram чат</span>
-      </a>
     </footer>
   </main>
 
