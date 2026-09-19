@@ -30,6 +30,11 @@ const {
 } = require('./feedback-analytics.cjs');
 const { runWithPublicationContext } = require('./section-controls.cjs');
 const { recordEventSourceState } = require('./event-source-state.cjs');
+const {
+  addProducts: addSharedProducts,
+  removeProductByText: removeSharedProductByText,
+  clearProducts: clearSharedProducts,
+} = require('./product-list-store.cjs');
 
 let runtimeHandler;
 let laborPublicationFlight = null;
@@ -138,12 +143,29 @@ async function handler(req, res) {
     if (req.query?.route === 'alice-shopping') {
       if (isEmptyAliceShoppingRequest(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       if (isAliceShoppingLaunch(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
-      if (isAliceClearIntent(req)) return res.status(200).json(buildAliceNoSharedListResponse(req));
+      if (isAliceClearIntent(req)) {
+        await clearSharedProducts();
+        const text = 'Список продуктов очищен.';
+        return res.status(200).json({ response: { text, tts: text, end_session: false }, version: req?.body?.version || '1.0' });
+      }
       if (req.body?.request?.type !== 'SimpleUtterance') return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+
       const deleteTarget = getAliceProductDeleteTarget(req);
-      if (deleteTarget) { const deletion = await deleteAliceProductMessage(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch }); return res.status(200).json(buildAliceProductDeletedResponse(req, deletion)); }
-      if (!cleanAliceProductText(req) || !splitAliceProductItems(req).length) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      if (deleteTarget) {
+        const sharedDeletion = await removeSharedProductByText(deleteTarget);
+        let telegramDeletion = { deleted: false, text: deleteTarget };
+        try {
+          telegramDeletion = await deleteAliceProductMessage(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch });
+        } catch (error) {
+          console.warn('RUDI_ALICE_PRODUCTS_TELEGRAM_DELETE_WARN', String(error?.message || error));
+        }
+        return res.status(200).json(buildAliceProductDeletedResponse(req, sharedDeletion.deleted ? sharedDeletion : telegramDeletion));
+      }
+
+      const items = splitAliceProductItems(req);
+      if (!cleanAliceProductText(req) || !items.length) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       await sendAliceProductMessage(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch });
+      await addSharedProducts(items, 'Алиса');
       return res.status(200).json(buildAliceProductAddedResponse(req));
     }
 
