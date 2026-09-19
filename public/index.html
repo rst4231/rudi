@@ -35,6 +35,11 @@
       --avatar-ring:rgba(255,255,255,.76);
       --icon-bg:rgba(67,89,255,.085);
       --icon-stroke:#5266d9;
+      --love:#d94d86;
+      --love-soft:rgba(232,88,145,.13);
+      --love-glow:rgba(234,94,153,.22);
+      --love-card-a:rgba(255,224,238,.88);
+      --love-card-b:rgba(239,228,255,.82);
     }
     html[data-theme="dark"]{
       --bg:#0b0d12;
@@ -52,6 +57,11 @@
       --avatar-ring:rgba(255,255,255,.10);
       --icon-bg:rgba(120,137,255,.12);
       --icon-stroke:#aebaff;
+      --love:#ff86b7;
+      --love-soft:rgba(255,113,174,.12);
+      --love-glow:rgba(255,99,164,.18);
+      --love-card-a:rgba(71,30,50,.72);
+      --love-card-b:rgba(49,32,69,.72);
     }
     *{box-sizing:border-box}
     html,body{margin:0;min-height:100%}
@@ -258,99 +268,185 @@
       animation:fadeUp .5s .08s cubic-bezier(.2,.8,.2,1) both;
     }
     .partner-message{
-      padding:18px;
-      border-color:color-mix(in srgb,var(--icon-stroke) 24%,var(--line));
+      isolation:isolate;
+      padding:19px;
+      border-color:color-mix(in srgb,var(--love) 35%,var(--line));
+      border-radius:24px;
       background:
-        linear-gradient(135deg,var(--icon-bg),transparent 58%),
-        var(--surface);
+        radial-gradient(circle at 12% 10%,var(--love-glow),transparent 34%),
+        radial-gradient(circle at 92% 88%,rgba(164,111,255,.16),transparent 36%),
+        linear-gradient(135deg,var(--love-card-a),var(--love-card-b));
+      box-shadow:
+        0 20px 50px color-mix(in srgb,var(--love-glow) 34%,transparent),
+        inset 0 1px 0 rgba(255,255,255,.16);
       animation:fadeUp .52s .03s cubic-bezier(.2,.8,.2,1) both;
     }
+    .partner-message::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      z-index:-1;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 26% 112%,rgba(255,255,255,.14),transparent 28%),
+        linear-gradient(115deg,rgba(255,255,255,.08),transparent 38%);
+    }
+    .love-hearts{
+      position:absolute;
+      inset:0;
+      z-index:-1;
+      overflow:hidden;
+      pointer-events:none;
+    }
+    .love-heart{
+      position:absolute;
+      width:16px;
+      height:16px;
+      color:var(--love);
+      opacity:.14;
+      animation:loveFloat 6s ease-in-out infinite alternate;
+    }
+    .love-heart:nth-child(1){left:5%;top:16%;width:19px;height:19px;animation-delay:-1s}
+    .love-heart:nth-child(2){right:7%;top:23%;width:12px;height:12px;opacity:.12;animation-delay:-3s}
+    .love-heart:nth-child(3){right:18%;bottom:8%;width:22px;height:22px;opacity:.10;animation-delay:-4.5s}
+    .love-heart:nth-child(4){left:17%;bottom:6%;width:10px;height:10px;opacity:.12;animation-delay:-2s}
     .partner-head{
+      position:relative;
+      z-index:1;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      margin-bottom:10px;
+      margin-bottom:12px;
     }
-    .partner-head .panel-label{margin:0}
+    .partner-title{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      color:var(--text);
+      font-size:11px;
+      line-height:1.2;
+      font-weight:780;
+      letter-spacing:.07em;
+      text-transform:uppercase;
+    }
+    .partner-title-heart{
+      width:18px;
+      height:18px;
+      display:grid;
+      place-items:center;
+      border-radius:7px;
+      background:var(--love-soft);
+      color:var(--love);
+      box-shadow:0 5px 18px var(--love-glow);
+    }
+    .partner-title-heart svg{width:12px;height:12px}
     .partner-edit{
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      width:34px;
-      height:34px;
+      width:36px;
+      height:36px;
       padding:0;
-      border:1px solid var(--line);
-      border-radius:11px;
-      background:var(--soft);
-      color:var(--text);
+      border:1px solid color-mix(in srgb,var(--love) 28%,var(--line));
+      border-radius:12px;
+      background:color-mix(in srgb,var(--love-soft) 72%,var(--surface-strong));
+      color:var(--love);
       cursor:pointer;
-      transition:transform .18s ease,background-color .2s ease;
+      box-shadow:0 8px 24px color-mix(in srgb,var(--love-glow) 40%,transparent);
+      transition:transform .18s ease,background-color .2s ease,box-shadow .2s ease;
       -webkit-tap-highlight-color:transparent;
     }
-    .partner-edit:hover{transform:translateY(-2px);background:var(--surface-hover)}
-    .partner-edit:active{transform:scale(.95)}
-    .partner-edit svg{width:17px;height:17px}
+    .partner-edit:hover{
+      transform:translateY(-2px) rotate(-2deg);
+      background:color-mix(in srgb,var(--love-soft) 92%,var(--surface-strong));
+      box-shadow:0 12px 28px color-mix(in srgb,var(--love-glow) 56%,transparent);
+    }
+    .partner-edit:active{transform:scale(.94)}
+    .partner-edit svg{width:18px;height:18px}
     .partner-text{
+      position:relative;
+      z-index:1;
       color:var(--text);
-      font-size:15px;
-      line-height:1.5;
-      font-weight:650;
-      letter-spacing:-.012em;
+      font-size:16px;
+      line-height:1.55;
+      font-weight:670;
+      letter-spacing:-.014em;
       white-space:pre-wrap;
       overflow-wrap:anywhere;
+      text-shadow:0 1px 0 rgba(255,255,255,.04);
     }
     .partner-empty{
       color:var(--muted);
-      font-weight:560;
+      font-weight:580;
     }
     .partner-author{
-      margin-top:10px;
-      color:var(--muted);
+      position:relative;
+      z-index:1;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-top:12px;
+      padding:6px 9px;
+      border:1px solid color-mix(in srgb,var(--love) 18%,var(--line));
+      border-radius:999px;
+      background:color-mix(in srgb,var(--love-soft) 54%,transparent);
+      color:color-mix(in srgb,var(--love) 74%,var(--text));
       font-size:11.5px;
-      line-height:1.3;
-      font-weight:560;
+      line-height:1.25;
+      font-weight:650;
     }
+    .partner-author:empty{display:none}
     .partner-editor{
+      position:relative;
+      z-index:2;
       display:none;
       gap:10px;
-      margin-top:12px;
+      margin-top:14px;
+      padding-top:13px;
+      border-top:1px solid color-mix(in srgb,var(--love) 18%,var(--line));
     }
     .partner-editor.open{display:grid}
     .partner-editor textarea{
       width:100%;
-      min-height:110px;
+      min-height:112px;
       resize:vertical;
-      padding:12px 13px;
-      border:1px solid var(--line);
-      border-radius:14px;
+      padding:13px 14px;
+      border:1px solid color-mix(in srgb,var(--love) 22%,var(--line));
+      border-radius:15px;
       outline:none;
-      background:var(--surface-strong);
+      background:color-mix(in srgb,var(--surface-strong) 90%,var(--love-soft));
       color:var(--text);
       font:inherit;
       font-size:14px;
       line-height:1.45;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
     }
-    .partner-editor textarea:focus{border-color:color-mix(in srgb,var(--icon-stroke) 40%,var(--line))}
+    .partner-editor textarea:focus{
+      border-color:color-mix(in srgb,var(--love) 60%,var(--line));
+      box-shadow:0 0 0 3px color-mix(in srgb,var(--love-soft) 85%,transparent);
+    }
     .partner-actions{
       display:flex;
       justify-content:flex-end;
       gap:8px;
     }
     .partner-action{
-      padding:9px 12px;
-      border:1px solid var(--line);
+      padding:9px 13px;
+      border:1px solid color-mix(in srgb,var(--love) 16%,var(--line));
       border-radius:11px;
-      background:var(--soft);
+      background:color-mix(in srgb,var(--soft) 85%,var(--love-soft));
       color:var(--text);
       font:inherit;
       font-size:12.5px;
-      font-weight:680;
+      font-weight:690;
       cursor:pointer;
     }
     .partner-action.primary{
-      background:var(--icon-bg);
-      color:var(--icon-stroke);
+      border-color:color-mix(in srgb,var(--love) 32%,transparent);
+      background:var(--love-soft);
+      color:var(--love);
+      box-shadow:0 8px 20px color-mix(in srgb,var(--love-glow) 35%,transparent);
     }
     .partner-status{
       min-height:16px;
@@ -519,6 +615,10 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     @keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1)}}
     @keyframes float{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(30px,20px,0) scale(1.08)}}
+    @keyframes loveFloat{
+      from{transform:translate3d(0,2px,0) rotate(-5deg) scale(.96)}
+      to{transform:translate3d(0,-7px,0) rotate(5deg) scale(1.06)}
+    }
     @media(max-width:430px){
       body{padding-left:14px;padding-right:14px}
       .profile{padding:18px;border-radius:22px}
@@ -584,19 +684,31 @@
     </section>
 
     <section class="panel partner-message" aria-label="Послание для партнёра">
+      <div class="love-hearts" aria-hidden="true">
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+        <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+      </div>
       <div class="partner-head">
-        <div class="panel-label">Послание для партнёра</div>
+        <div class="partner-title">
+          <span class="partner-title-heart" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+          </span>
+          <span>Послание для партнёра</span>
+        </div>
         <button id="partnerEditButton" class="partner-edit" type="button" aria-label="Изменить послание" title="Изменить">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 20h4l11-11-4-4L4 16v4Z"/>
-            <path d="m13.5 6.5 4 4"/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 20h4l10.2-10.2-4-4L4 16v4Z"/>
+            <path d="m12.7 7.3 4 4"/>
+            <path d="M18.2 4.2c.9-.9 2.2-.9 3.1 0 .9.9.9 2.2 0 3.1l-1.1 1.1-4-4 1.1-1.1Z"/>
           </svg>
         </button>
       </div>
-      <div id="partnerMessageText" class="partner-text partner-empty">Здесь можно оставить послание друг для друга.</div>
+      <div id="partnerMessageText" class="partner-text partner-empty">Оставьте здесь пару тёплых слов друг для друга ♥</div>
       <div id="partnerMessageAuthor" class="partner-author"></div>
       <div id="partnerEditor" class="partner-editor">
-        <textarea id="partnerMessageInput" maxlength="1000" placeholder="Напишите послание…"></textarea>
+        <textarea id="partnerMessageInput" maxlength="1000" placeholder="Напишите что-нибудь тёплое…"></textarea>
         <div class="partner-actions">
           <button id="partnerCancelButton" class="partner-action" type="button">Отмена</button>
           <button id="partnerSaveButton" class="partner-action primary" type="button">Сохранить</button>
@@ -912,7 +1024,7 @@
         const textEl=document.getElementById('partnerMessageText');
         const authorEl=document.getElementById('partnerMessageAuthor');
         if(!message?.text){
-          textEl.textContent='Здесь можно оставить послание друг для друга.';
+          textEl.textContent='Оставьте здесь пару тёплых слов друг для друга ♥';
           textEl.classList.add('partner-empty');
           authorEl.textContent='';
           return;
@@ -920,7 +1032,7 @@
         textEl.textContent=message.text;
         textEl.classList.remove('partner-empty');
         const when=formatPartnerUpdatedAt(message.updatedAt);
-        authorEl.textContent='Написал(а): '+message.authorName+(when?' · '+when:'');
+        authorEl.textContent='♥ С любовью от '+message.authorName+(when?' · '+when:'');
       }
 
       async function loadPartnerMessage(){
