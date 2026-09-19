@@ -1,7 +1,7 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const NAMESPACE = 'rudi-presence-v1';
-const TTL_SECONDS = 5 * 60;
+const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const ONLINE_WINDOW_MS = 75 * 1000;
 const ACTORS = new Set(['Рустам', 'Диана']);
 
