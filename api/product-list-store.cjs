@@ -282,6 +282,30 @@ async function toggleProductChecked(id, options = {}) {
   });
 }
 
+async function markCheckedProductsBought(boughtBy = '', options = {}) {
+  return enqueue(async () => {
+    const state = await readProductList(options);
+    const checked = state.items.filter((item) => Boolean(item.checked));
+    if (!checked.length) return writeState(state, options);
+
+    const checkedIds = new Set(checked.map((item) => item.id));
+    const boughtAt = new Date(options.now || Date.now()).toISOString();
+    const historyRows = checked.map((item) => ({
+      id: crypto.randomUUID(),
+      text: item.text,
+      addedBy: String(item.addedBy || ''),
+      boughtBy: String(boughtBy || ''),
+      category: categorizeProduct(item.text),
+      weeklyAmount: estimateWeeklyAmount(item.text),
+      boughtAt,
+    }));
+
+    state.items = state.items.filter((item) => !checkedIds.has(item.id));
+    state.history = [...historyRows, ...state.history].slice(0, MAX_HISTORY);
+    return writeState(state, options);
+  });
+}
+
 async function markProductBought(id, boughtBy = '', options = {}) {
   return enqueue(async () => {
     const state = await readProductList(options);
@@ -317,6 +341,6 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
   readProductList, addProducts, removeProduct, removeProductByText,
-  toggleProductChecked, markProductBought, clearProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
+  toggleProductChecked, markCheckedProductsBought, markProductBought, clearProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   resetMutationQueueForTests,
 };
