@@ -255,7 +255,8 @@
     .compliment{
       position:relative;
       z-index:1;
-      margin-top:17px;
+      width:100%;
+      margin:0 0 5px;
       padding:13px 14px;
       border:1px solid var(--line);
       border-radius:15px;
@@ -265,6 +266,7 @@
       line-height:1.45;
       font-weight:620;
       letter-spacing:-.01em;
+      text-align:center;
       animation:fadeUp .5s .08s cubic-bezier(.2,.8,.2,1) both;
     }
     .partner-message{
@@ -738,7 +740,6 @@
         </div>
       </div>
 
-      <div id="compliment" class="compliment"></div>
     </section>
 
     <section class="panel partner-message" aria-label="Послание для партнёра">
@@ -845,6 +846,7 @@
     </nav>
 
     <footer class="footer">
+      <div id="compliment" class="compliment"></div>
       <div>© <span id="currentYear"></span></div>
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
       <a class="telegram-link" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer">
