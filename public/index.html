@@ -2240,9 +2240,9 @@
         const contentTop=Number(tg?.contentSafeAreaInset?.top)||0;
         const safeTop=Number(tg?.safeAreaInset?.top)||0;
         const telegramOpen=Boolean(tg?.initData);
-        const iosReserve=telegramOpen&&tg?.platform==='ios' ? 132 : 0;
-        const otherReserve=telegramOpen&&tg?.platform!=='ios' ? 76 : 0;
-        const fullscreenExtra=tg?.isFullscreen ? 12 : 0;
+        const iosReserve=telegramOpen&&tg?.platform==='ios' ? 92 : 0;
+        const otherReserve=telegramOpen&&tg?.platform!=='ios' ? 64 : 0;
+        const fullscreenExtra=tg?.isFullscreen ? 6 : 0;
         const top=Math.max(contentTop,safeTop,iosReserve,otherReserve)+fullscreenExtra;
         root.style.setProperty('--tg-content-safe-top',Math.max(0,top)+'px');
       }
@@ -2835,7 +2835,7 @@
           toggle.setAttribute('aria-expanded',open?'true':'false');
           details.setAttribute('aria-hidden',open?'false':'true');
         };
-        setOpen(false);
+        setOpen(true);
         setWorkCalendarRangeActive('week');
 
         toggle.addEventListener('click',()=>{
