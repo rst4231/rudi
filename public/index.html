@@ -2579,20 +2579,7 @@
     .work-page .work-calendar-ranges{margin:0 0 10px!important}
     .work-page .work-calendar-days{gap:5px!important}
     .work-page .calendar-day-cell{
-      aspect-ratio:auto!important;
-      min-height:48px!important;
-      padding:4px 2px!important;
-    }
-    .calendar-work-time{
-      max-width:100%;
-      color:color-mix(in srgb,#d97827 82%,var(--text));
-      font-size:6.4px;
-      line-height:1.05;
-      font-weight:780;
-      letter-spacing:-.02em;
-      text-align:center;
-      white-space:normal;
-      overflow-wrap:anywhere;
+      padding:3px!important;
     }
     .work-page .calendar-work-dot{
       right:4px!important;
@@ -2678,7 +2665,6 @@
       .tools-section .links > .card{padding-left:2px!important;padding-right:2px!important}
       .tools-section .links > .card .feature-icon{width:35px!important;height:35px!important}
       .tools-section .links > .card .label{font-size:7px!important}
-      .calendar-work-time{font-size:5.8px}
     }
 
   </style>
@@ -4065,10 +4051,6 @@
           cell.appendChild(number);
 
           if(day.working){
-            const workTime=document.createElement('span');
-            workTime.className='calendar-work-time';
-            workTime.textContent=timeText;
-            cell.appendChild(workTime);
             const dot=document.createElement('span');
             dot.className='calendar-work-dot';
             cell.appendChild(dot);
