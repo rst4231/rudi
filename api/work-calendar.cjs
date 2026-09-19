@@ -239,16 +239,13 @@ function formatTime(date, tz = DEFAULT_TIMEZONE) {
   return new Intl.DateTimeFormat('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date);
 }
 
-function mondayFor(now = new Date(), tz = DEFAULT_TIMEZONE, weekOffset = 0) {
-  const today = dateKey(now, tz);
-  const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
-  const back = weekday === 0 ? 6 : weekday - 1;
-  return shiftDateKey(today, -back + Number(weekOffset || 0) * 7);
+function rollingStart(now = new Date(), tz = DEFAULT_TIMEZONE, dayOffset = 0) {
+  return shiftDateKey(dateKey(now, tz), Number(dayOffset || 0));
 }
 
-function buildWeek(events, mondayKey, tz = DEFAULT_TIMEZONE) {
+function buildWeek(events, startKey, tz = DEFAULT_TIMEZONE) {
   const days = Array.from({ length: 7 }, (_, index) => ({
-    date: shiftDateKey(mondayKey, index),
+    date: shiftDateKey(startKey, index),
     events: [],
   }));
   const overrideIds = new Set(events.filter((e) => e.recurrenceId && e.uid).map((e) => `${e.uid}:${dateKey(e.recurrenceId.date, tz)}`));
@@ -311,18 +308,19 @@ async function fetchCalendarText(calendarUrl, options = {}) {
 
 async function getWorkWeek(options = {}) {
   const tz = options.timeZone || DEFAULT_TIMEZONE;
-  const monday = mondayFor(options.now || new Date(), tz, options.weekOffset || 0);
+  const startKey = rollingStart(options.now || new Date(), tz, Number(options.dayOffset || 0));
   const cache = cacheOf(options);
-  const cached = await cache.get(`week:${monday}`);
+  const cacheKey = `rolling:${startKey}`;
+  const cached = await cache.get(cacheKey);
   const calendarUrl = await readCalendarUrl({ ...options, cache });
-  if (!calendarUrl) return { configured: false, weekStart: monday, days: [] };
+  if (!calendarUrl) return { configured: false, weekStart: startKey, days: [] };
 
   try {
     const ics = await fetchCalendarText(calendarUrl, options);
     const events = parseEvents(ics, tz);
-    const days = buildWeek(events, monday, tz);
-    const result = { configured: true, weekStart: monday, days, updatedAt: new Date().toISOString() };
-    await cache.set(`week:${monday}`, result, { ttl: WEEK_TTL_SECONDS, tags: ['rudi-work-calendar'] });
+    const days = buildWeek(events, startKey, tz);
+    const result = { configured: true, weekStart: startKey, days, updatedAt: new Date().toISOString() };
+    await cache.set(cacheKey, result, { ttl: WEEK_TTL_SECONDS, tags: ['rudi-work-calendar'] });
     return result;
   } catch (error) {
     if (cached?.days) return { ...cached, stale: true, error: String(error?.message || error) };
@@ -333,5 +331,5 @@ async function getWorkWeek(options = {}) {
 module.exports = {
   NAMESPACE, EXPECTED_URL_SHA256, DEFAULT_TIMEZONE,
   normalizeCalendarUrl, sha256, decodeSetupKey, saveCalendarUrl, readCalendarUrl,
-  unfoldIcs, parseEvents, parseRRule, parseIcsDate, mondayFor, buildWeek, getWorkWeek,
+  unfoldIcs, parseEvents, parseRRule, parseIcsDate, rollingStart, buildWeek, getWorkWeek,
 };
