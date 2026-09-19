@@ -1,4 +1,4 @@
-const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { createStrictRuntimeCache, hashRuntimeCacheKey } = require('./strict-runtime-cache.cjs');
 
 const NAMESPACE = 'rudi-reactions-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -10,7 +10,6 @@ const MAX_BATCH = 12;
 function cacheOf(options = {}) {
   return options.reactionsCache || options.cache || createStrictRuntimeCache({
     namespace: NAMESPACE,
-    confirmWrites: false,
   });
 }
 
@@ -30,8 +29,15 @@ function normalizeTarget(input) {
   return { type, key };
 }
 
+function actorSlug(actor) {
+  if (actor === 'Рустам') return 'rustam';
+  if (actor === 'Диана') return 'diana';
+  throw new Error('reaction-actor-invalid');
+}
+
 function cacheKey(target, actor) {
-  return `${target.type}:${target.key}:${actor}`;
+  const targetHash = hashRuntimeCacheKey(`${target.type}:${target.key}`);
+  return `reaction:${target.type}:${targetHash}:${actorSlug(actor)}`;
 }
 
 async function readReaction(targetInput, options = {}) {
