@@ -3128,7 +3128,7 @@
     }
 
 
-    /* Presence status: this tiny indicator is the only block refreshed every 30 seconds */
+    /* Presence status: refreshed every 3 seconds while the app is visible */
     .profile .avatar{
       overflow:visible!important;
     }
@@ -3409,6 +3409,77 @@
       .product-text{font-size:10.8px}
     }
 
+    /* RUDI interaction polish + reactions + footer progress */
+    .reaction-strip{position:relative;z-index:2;display:flex;align-items:center;gap:7px;margin-top:11px;min-height:28px}
+    .reaction-strip[hidden]{display:none!important}
+    .reaction-button{
+      width:30px;height:30px;display:grid;place-items:center;flex:none;padding:0;
+      border:1px solid color-mix(in srgb,var(--love) 18%,var(--line));border-radius:11px;
+      background:color-mix(in srgb,var(--surface-strong) 86%,var(--love-soft));color:color-mix(in srgb,var(--muted) 82%,var(--love));
+      cursor:pointer;-webkit-tap-highlight-color:transparent;
+      transition:transform .2s cubic-bezier(.2,.9,.25,1.25),background-color .2s ease,color .2s ease,border-color .2s ease,box-shadow .2s ease;
+    }
+    .reaction-button svg{width:15px;height:15px;fill:currentColor;transition:transform .22s cubic-bezier(.2,.9,.25,1.35)}
+    .reaction-button:active{transform:scale(.88)}
+    .reaction-button.is-liked{
+      color:var(--love);border-color:color-mix(in srgb,var(--love) 38%,var(--line));
+      background:color-mix(in srgb,var(--love-soft) 86%,var(--surface-strong));
+      box-shadow:0 7px 20px color-mix(in srgb,var(--love-glow) 42%,transparent);
+    }
+    .reaction-button.just-liked svg{animation:heartPop .5s cubic-bezier(.2,.85,.2,1.3)}
+    .reaction-names{min-width:0;color:var(--muted);font-size:9.5px;line-height:1.25;font-weight:650;opacity:0;transform:translateX(-4px);transition:opacity .2s ease,transform .2s ease}
+    .reaction-names.is-visible{opacity:1;transform:none}
+    .daily-reaction{margin-top:14px}
+    .daily-reaction .reaction-button{width:28px;height:28px;border-radius:10px}
+    .watch-rating{display:flex;align-items:center;gap:4px;margin-top:8px;color:var(--muted);font-size:10px;font-weight:650}
+    .watch-rating[hidden]{display:none!important}
+    .watch-rating strong{color:var(--text);font-size:11px;font-weight:820}
+    .imdb-badge{display:inline-grid;place-items:center;padding:3px 5px;border-radius:5px;background:#f5c518;color:#171717;font-size:8px;line-height:1;font-weight:900;letter-spacing:.02em}
+
+    .products-card{
+      position:relative;isolation:isolate;overflow:hidden;
+      border-color:color-mix(in srgb,#72c66b 24%,var(--line))!important;
+      background:
+        radial-gradient(circle at 91% 4%,rgba(116,201,102,.15),transparent 26%),
+        radial-gradient(circle at 10% 96%,rgba(255,177,76,.10),transparent 32%),
+        color-mix(in srgb,var(--surface) 94%,transparent)!important;
+    }
+    .products-card::before{content:"";position:absolute;inset:0;z-index:-2;pointer-events:none;background:linear-gradient(150deg,rgba(113,196,105,.055),transparent 48%,rgba(255,179,77,.045))}
+    .products-decor{position:absolute;right:-2px;top:-7px;z-index:-1;width:118px;height:91px;pointer-events:none;opacity:.78;filter:saturate(.9)}
+    .products-basket{position:absolute;right:8px;top:24px;width:72px;color:color-mix(in srgb,#a77748 72%,var(--muted))}
+    .products-basket svg{width:72px;height:auto;display:block;opacity:.48}
+    .produce{position:absolute;z-index:2;font-size:18px;filter:drop-shadow(0 4px 7px rgba(0,0,0,.10));animation:produceFloat 4.8s ease-in-out infinite alternate}
+    .produce-apple{left:6px;top:-11px;animation-delay:-.8s}
+    .produce-carrot{left:25px;top:-17px;font-size:20px;animation-delay:-2.1s}
+    .produce-broccoli{left:43px;top:-13px;font-size:19px;animation-delay:-3.4s}
+    .produce-bread{left:56px;top:-7px;font-size:17px;transform:rotate(12deg);animation-delay:-1.7s}
+    .products-form,.products-status,.products-groups,.products-empty,.products-history{position:relative;z-index:1}
+    .product-item{transition:transform .18s ease,border-color .2s ease,background-color .2s ease,opacity .2s ease}
+    .product-item:active{transform:scale(.992)}
+    .product-item.is-checked{opacity:.72}
+
+    .year-progress{width:min(100%,320px);display:grid;gap:6px;margin:1px auto 2px;padding:0 4px}
+    .year-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted);font-size:9.5px;font-weight:700}
+    .year-progress-head strong{color:var(--text);font-size:10px;font-weight:820;font-variant-numeric:tabular-nums}
+    .year-progress-track{position:relative;height:6px;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--muted) 14%,transparent);box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+    .year-progress-bar{position:absolute;inset:0 auto 0 0;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--love) 62%,var(--accent)));box-shadow:0 0 12px color-mix(in srgb,var(--accent-glow) 70%,transparent);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+    .year-progress-bar::after{content:"";position:absolute;inset:0;width:36%;transform:translateX(-150%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);animation:progressSheen 4.8s ease-in-out infinite}
+
+    .daily-card,.products-card,.shared-album-card,.wishlist-card,.work-calendar-card{transition:transform .24s cubic-bezier(.2,.8,.2,1),box-shadow .24s ease,border-color .24s ease}
+    .daily-card:active,.shared-album-card:active{transform:scale(.992)}
+    .products-section:not([hidden]) .products-card{animation:modernCardIn .42s cubic-bezier(.18,.82,.2,1) both}
+    .daily-section:not([hidden]) .daily-card{animation:modernCardIn .42s cubic-bezier(.18,.82,.2,1) both}
+    .daily-section:not([hidden]) .daily-card:nth-child(2){animation-delay:.055s}
+
+    @keyframes heartPop{0%{transform:scale(.75)}42%{transform:scale(1.38) rotate(-7deg)}72%{transform:scale(.93) rotate(3deg)}100%{transform:scale(1)}}
+    @keyframes produceFloat{from{translate:0 1px;rotate:-2deg}to{translate:0 -4px;rotate:3deg}}
+    @keyframes progressSheen{0%,62%{transform:translateX(-150%)}82%,100%{transform:translateX(320%)}}
+    @keyframes modernCardIn{from{opacity:.55;transform:translateY(7px) scale(.992)}to{opacity:1;transform:none}}
+    @media(prefers-reduced-motion:reduce){
+      .reaction-button.just-liked svg,.produce,.year-progress-bar::after,.products-section:not([hidden]) .products-card,.daily-section:not([hidden]) .daily-card{animation:none!important}
+      .year-progress-bar{transition:none!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3595,6 +3666,12 @@
       </div>
       <div id="partnerMessageText" class="partner-text partner-empty">Оставьте здесь пару тёплых слов друг для друга ♥</div>
       <div id="partnerMessageAuthor" class="partner-author"></div>
+      <div id="partnerMessageReaction" class="reaction-strip" hidden>
+        <button id="partnerMessageLike" class="reaction-button" type="button" aria-label="Поставить лайк посланию" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+        </button>
+        <span id="partnerMessageLikedBy" class="reaction-names"></span>
+      </div>
       <div id="partnerEditor" class="partner-editor">
         <textarea id="partnerMessageInput" maxlength="1000" placeholder="Напишите что-нибудь тёплое…"></textarea>
         <div class="partner-actions">
@@ -3669,6 +3746,12 @@
             <div class="panel-label">Идея дня</div>
           </div>
           <div id="dailyIdea" class="idea-text"></div>
+          <div class="reaction-strip daily-reaction">
+            <button id="dailyIdeaLike" class="reaction-button" type="button" aria-label="Поставить лайк идее дня" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="dailyIdeaLikedBy" class="reaction-names"></span>
+          </div>
         </article>
         <article class="panel suggestion daily-card watch-card" role="link" tabindex="0" aria-label="Открыть предложенный фильм на Кинопоиске">
           <div class="daily-card-head">
@@ -3678,6 +3761,13 @@
             <div class="panel-label">Что посмотреть</div>
           </div>
           <div id="watchToday" class="suggestion-value"></div>
+          <div id="watchRatingRow" class="watch-rating" hidden><span class="imdb-badge">IMDb</span><strong id="watchRating"></strong><span>/10</span></div>
+          <div class="reaction-strip daily-reaction">
+            <button id="watchLike" class="reaction-button" type="button" aria-label="Поставить лайк фильму" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="watchLikedBy" class="reaction-names"></span>
+          </div>
         </article>
         
       </div>
@@ -3792,6 +3882,19 @@
       </div>
 
       <article class="panel products-card">
+        <div class="products-decor" aria-hidden="true">
+          <div class="products-basket">
+            <span class="produce produce-apple">🍎</span>
+            <span class="produce produce-carrot">🥕</span>
+            <span class="produce produce-broccoli">🥦</span>
+            <span class="produce produce-bread">🥖</span>
+            <svg viewBox="0 0 80 58" fill="none">
+              <path d="M13 24h54l-5 27H18l-5-27Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M26 25c1-11 6-17 14-17s13 6 14 17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <path d="M28 31v13M40 31v13M52 31v13" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+            </svg>
+          </div>
+        </div>
         <form id="productsForm" class="products-form">
           <input id="productsInput" class="products-input" maxlength="180" autocomplete="off" placeholder="Добавить продукт…" aria-label="Добавить продукт">
           <button id="productsAdd" class="products-add" type="submit" aria-label="Добавить продукт">
@@ -3815,6 +3918,10 @@
     </section>
 
     <footer class="footer">
+      <div class="year-progress" aria-label="Прогресс текущего года">
+        <div class="year-progress-head"><span>Год пройден</span><strong id="yearProgressPercent">0%</strong></div>
+        <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
+      </div>
       <div>© <span id="currentYear"></span></div>
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
     </footer>
@@ -3886,7 +3993,10 @@
       const media = window.matchMedia('(prefers-color-scheme: dark)');
       const tg = window.Telegram?.WebApp;
       const DAY = 86400000;
+      const PRESENCE_REFRESH_MS = 3000;
       let currentActor = '';
+      let currentPartnerReactionKey = '';
+      let currentDailyReactionTargets = [];
       let partnerProfileName = '';
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
@@ -4051,7 +4161,7 @@
         });
         setupPersistentCollapsible({
           selector:'.partner-message',key:'partner',
-          bodySelectors:['#partnerMessageText','#partnerMessageAuthor','#partnerEditor'],
+          bodySelectors:['#partnerMessageText','#partnerMessageAuthor','#partnerMessageReaction','#partnerEditor'],
           hostSelector:'.partner-head'
         });
         setupPersistentCollapsible({
@@ -4075,6 +4185,8 @@
         importantDates:[{id:'new-year',title:'Новый год',month:1,day:1,recurring:true}],
         dailyIdeas:['Сделать небольшую прогулку без телефона.','Попробовать сегодня новый рецепт.','Устроить вечером час без соцсетей.','Написать близкому человеку что-нибудь приятное.'],
         watchList:['Достать ножи','Интерстеллар','Одержимость','Зелёная книга'],
+        watchMinImdbRating:7,
+        watchRatings:{'Достать ножи':7.9,'Интерстеллар':8.7,'Одержимость':8.5,'Зелёная книга':8.2},
         cookList:['Паста карбонара','Шакшука','Курица терияки с рисом','Сырники'],
         compliments:{
           male:['Сегодня ты выглядишь особенно уверенно.','У тебя отличный настрой — это чувствуется.','Сегодня определённо твой день.'],
@@ -4305,6 +4417,18 @@
       setInterval(updateClock,30000);
 
       document.getElementById('currentYear').textContent = new Intl.DateTimeFormat('en',{year:'numeric',timeZone:TZ}).format(new Date());
+
+      function updateYearProgress(){
+        const {parts,utc}=todayState();
+        const start=Date.UTC(parts.year,0,1);
+        const end=Date.UTC(parts.year+1,0,1);
+        const progress=Math.max(0,Math.min(100,((utc-start)/(end-start))*100));
+        const percent=document.getElementById('yearProgressPercent');
+        const bar=document.getElementById('yearProgressBar');
+        if(percent) percent.textContent=progress.toLocaleString('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+        if(bar) bar.style.width=progress.toFixed(3)+'%';
+      }
+      updateYearProgress();
 
       function dayWord(value){
         const mod10=value%10, mod100=value%100;
@@ -5278,6 +5402,87 @@
         document.getElementById('nearestDays').textContent=daysLabel(e.days);
       }
 
+      async function reactionsRequest(operation,payload={}){
+        const response=await fetch('/api/partner-message?rudiAction=reactions',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok) throw new Error(data.error||'reactions-request-failed');
+        return data;
+      }
+
+      function reactionNames(likedBy){
+        const names=Array.isArray(likedBy)?likedBy.filter(Boolean):[];
+        if(!names.length) return '';
+        if(names.length===1) return 'Нравится: '+names[0];
+        return 'Нравится: '+names.join(' и ');
+      }
+
+      function renderReaction(reaction,buttonId,namesId){
+        const button=document.getElementById(buttonId);
+        const names=document.getElementById(namesId);
+        if(!button||!names) return;
+        const likedBy=Array.isArray(reaction?.likedBy)?reaction.likedBy:[];
+        const mine=likedBy.includes(currentActor);
+        button.classList.toggle('is-liked',mine);
+        button.setAttribute('aria-pressed',mine?'true':'false');
+        names.textContent=reactionNames(likedBy);
+        names.classList.toggle('is-visible',likedBy.length>0);
+      }
+
+      async function refreshReaction(target,buttonId,namesId){
+        if(!target?.key||!currentActor) return;
+        try{
+          const data=await reactionsRequest('list',{targets:[target]});
+          renderReaction(data.reactions?.[0],buttonId,namesId);
+        }catch(_){}
+      }
+
+      function bindReaction(buttonId,namesId,targetProvider){
+        const button=document.getElementById(buttonId);
+        if(!button||button.dataset.reactionBound==='1') return;
+        button.dataset.reactionBound='1';
+        button.addEventListener('click',async event=>{
+          event.preventDefault();
+          event.stopPropagation();
+          const target=targetProvider();
+          if(!target?.key||button.disabled) return;
+          button.disabled=true;
+          try{
+            const data=await reactionsRequest('toggle',{target});
+            renderReaction(data.reaction,buttonId,namesId);
+            button.classList.remove('just-liked');
+            void button.offsetWidth;
+            if(data.reaction?.likedBy?.includes(currentActor)) button.classList.add('just-liked');
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          }catch(_){
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            button.disabled=false;
+          }
+        });
+      }
+
+      function setupReactions(){
+        bindReaction('partnerMessageLike','partnerMessageLikedBy',()=>currentPartnerReactionKey?{type:'partner-message',key:currentPartnerReactionKey}:null);
+        bindReaction('dailyIdeaLike','dailyIdeaLikedBy',()=>currentDailyReactionTargets.find(target=>target.type==='daily-idea')||null);
+        bindReaction('watchLike','watchLikedBy',()=>currentDailyReactionTargets.find(target=>target.type==='watch')||null);
+      }
+
+      async function refreshDailyReactions(){
+        if(!currentActor||!currentDailyReactionTargets.length) return;
+        try{
+          const data=await reactionsRequest('list',{targets:currentDailyReactionTargets});
+          for(const reaction of data.reactions||[]){
+            if(reaction.type==='daily-idea') renderReaction(reaction,'dailyIdeaLike','dailyIdeaLikedBy');
+            if(reaction.type==='watch') renderReaction(reaction,'watchLike','watchLikedBy');
+          }
+        }catch(_){}
+      }
+
       function partnerAuthorGenitive(value){
         const name=String(value||'').trim();
         const normalized=name.toLowerCase();
@@ -5289,15 +5494,22 @@
       function renderPartnerMessage(message){
         const textEl=document.getElementById('partnerMessageText');
         const authorEl=document.getElementById('partnerMessageAuthor');
+        const reactionStrip=document.getElementById('partnerMessageReaction');
         if(!message?.text){
           textEl.textContent='Оставьте здесь пару тёплых слов друг для друга ♥';
           textEl.classList.add('partner-empty');
           authorEl.textContent='';
+          currentPartnerReactionKey='';
+          if(reactionStrip) reactionStrip.hidden=true;
           return;
         }
         textEl.textContent=message.text;
         textEl.classList.remove('partner-empty');
-        authorEl.textContent='♥ С любовью';
+        const author=String(message.authorName||'').trim();
+        authorEl.textContent=author?'♥ С любовью, '+author:'♥ С любовью';
+        currentPartnerReactionKey='message:'+String(message.updatedAt||'').trim();
+        if(reactionStrip) reactionStrip.hidden=!currentPartnerReactionKey;
+        if(currentPartnerReactionKey) refreshReaction({type:'partner-message',key:currentPartnerReactionKey},'partnerMessageLike','partnerMessageLikedBy');
       }
 
       async function loadPartnerMessage(){
@@ -5661,7 +5873,7 @@
           }
         };
 
-        card.addEventListener('click',open);
+        card.addEventListener('click',event=>{if(event.target.closest('.reaction-button')) return;open()});
         card.addEventListener('keydown',event=>{
           if(event.key==='Enter'||event.key===' '){
             event.preventDefault();
@@ -6062,10 +6274,29 @@
 
         const ideas=config.dailyIdeas?.length?config.dailyIdeas:fallback.dailyIdeas;
         const watch=config.watchList?.length?config.watchList:fallback.watchList;
-        const watchTitle=String(watch[Math.abs(dayIndex+3)%watch.length]||'').trim();
-        document.getElementById('dailyIdea').textContent=ideas[Math.abs(dayIndex)%ideas.length];
+        const watchRatings=config.watchRatings&&typeof config.watchRatings==='object'?config.watchRatings:fallback.watchRatings;
+        const watchMin=Math.max(7,Number(config.watchMinImdbRating??fallback.watchMinImdbRating)||7);
+        const eligibleWatch=watch.filter(title=>Number(watchRatings?.[title])>=watchMin);
+        const watchTitle=String(eligibleWatch.length?eligibleWatch[Math.abs(dayIndex+3)%eligibleWatch.length]:'').trim();
+        const watchRating=Number(watchRatings?.[watchTitle]);
+        const ideaText=String(ideas[Math.abs(dayIndex)%ideas.length]||'').trim();
+        document.getElementById('dailyIdea').textContent=ideaText;
+        const watchCard=document.querySelector('.watch-card');
+        if(watchCard) watchCard.hidden=!watchTitle;
         document.getElementById('watchToday').textContent=watchTitle;
-        setupWatchSuggestion(config,watchTitle);
+        const watchRatingRow=document.getElementById('watchRatingRow');
+        const watchRatingEl=document.getElementById('watchRating');
+        if(watchRatingRow) watchRatingRow.hidden=!(watchTitle&&Number.isFinite(watchRating)&&watchRating>=watchMin);
+        if(watchRatingEl) watchRatingEl.textContent=Number.isFinite(watchRating)?watchRating.toFixed(1):'';
+        if(watchTitle) setupWatchSuggestion(config,watchTitle);
+
+        const todayKey=todayState().key;
+        currentDailyReactionTargets=[
+          {type:'daily-idea',key:'day:'+todayKey},
+          ...(watchTitle?[{type:'watch',key:'day:'+todayKey}]:[])
+        ];
+        setupReactions();
+        refreshDailyReactions();
 
         renderNearest(config);
         setupPersistentCollapsibles();
@@ -6094,7 +6325,7 @@
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
-      setInterval(()=>{if(currentActor) refreshPresence(true)},3*1000);
+      setInterval(()=>{if(currentActor) refreshPresence(true)},PRESENCE_REFRESH_MS);
 
       async function refreshAfterResume(){
         updateTelegramSafeArea();
@@ -6105,7 +6336,8 @@
           loadWorkCalendar(currentWorkCalendarView),
           loadSharedAlbum(),
           loadProducts({silent:true}),
-          refreshPresence(true)
+          refreshPresence(true),
+          refreshDailyReactions()
         ]);
       }
 

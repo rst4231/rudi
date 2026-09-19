@@ -29,6 +29,7 @@ const {
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
 const { markPresence, presenceView } = require('./presence-store.cjs');
+const { readReactions, toggleReaction } = require('./reactions-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -449,6 +450,31 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'reactions') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      const operation = String(body.operation || 'list').trim();
+
+      if (operation === 'list') {
+        const reactions = await readReactions(body.targets, options);
+        return res.status(200).json({ ok: true, actor, reactions });
+      }
+      if (operation === 'toggle') {
+        const reaction = await toggleReaction(body.target, actor, options);
+        return res.status(200).json({ ok: true, actor, reaction });
+      }
+      return res.status(400).json({ ok: false, error: 'reaction-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus : code.startsWith('reaction-') ? 400 : 500;
+      if (status === 500) console.error('RUDI_REACTIONS_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
   if (action === 'mood') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -662,7 +688,7 @@ async function handler(req, res, options = {}) {
 
     const message = await writePartnerMessage({
       text,
-      authorName,
+      authorName: actor || authorName,
       updatedAt: new Date(options.now || Date.now()).toISOString(),
     }, options);
 
