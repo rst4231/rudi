@@ -209,6 +209,21 @@ function normalizeText(value = '') {
   return String(value).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 }
 
+function hasStylistRoleMention(text = '') {
+  const value = normalizeText(text);
+  return /(?:^|[^а-яё])стилист(?:а|у|ом|ы|ов|е|ами|ах)?(?=$|[^а-яё])/i.test(value);
+}
+
+function hasClothingContext(text = '') {
+  const value = normalizeText(text);
+  if (!value) return false;
+  const explicitFashion = /(одежд|гардероб|капсул|шопинг|shopping|fashion|фэшн|наряд)/i.test(value);
+  const lookWord = /(?:^|[^а-яё])(?:образ(?:а|у|ом|ы|ов|е|ами|ах)?|лук(?:а|у|ом|и|ов|е|ами|ах)?)(?=$|[^а-яё])/i.test(value);
+  const clothesAction = /(?:подобрат|сочетат|носит|купит|покуп|обновит|разобрат|собрат)[^.!?\n]{0,60}вещ|вещ[^.!?\n]{0,60}(?:гардероб|одежд|образ|лук|носит|сочетат)/i.test(value);
+  const fashionStyling = /стилизац[^.!?\n]{0,40}(?:съем|съём|образ|одежд|лук|fashion|фэшн)/i.test(value);
+  return explicitFashion || lookWord || clothesAction || fashionStyling;
+}
+
 function scoreStylistLead(text = '', rules = {}) {
   const value = normalizeText(text);
   if (!value) return { score: 0, reason: 'пустой текст' };
@@ -219,11 +234,11 @@ function scoreStylistLead(text = '', rules = {}) {
   const localCity = /(санкт[- ]?петербург|спб|питер|мурино|ленинградск)/i.test(value);
   const otherCity = /(москв|мск(?:\s|[.,!?:;]|$)|казан|екатеринбург|новосибирск|краснодар|сочи|ростов(?:-на-дону)?)/i.test(value);
   if (otherCity && !localCity) return { score: 0, reason: 'запрос явно не по Петербургу' };
-  const clothing = /(одежд|гардероб|образ|лук|капсул|вещ|шопинг|shopping|стилизац|fashion|фэшн|наряд)/i.test(value);
+  const clothing = hasClothingContext(value);
   const hairBeauty = /(стилист\s+по\s+волос|парикмах|визажист|макияж|прическ|причёск|бровист|колорист)/i.test(value);
   const retailVacancy = /(продавец[\s-]*стилист|стилист[\s-]*консультант|в\s+магазин[^.!?\n]{0,80}(?:требуется|ищем)[^.!?\n]{0,80}стилист|ваканси[^.!?\n]{0,80}стилист)/i.test(value);
   const request = /(ищу|ищем|нужен|нужна|нужны|посовет|порекоменду|подскаж|кто\s+(?:может|делает)|хочу|помогите|требуется)/i.test(value);
-  const stylist = /стилист(?:а|у|ом|ы|ов)?/i.test(value);
+  const stylist = hasStylistRoleMention(value);
   const wardrobeService = /(разбор\s+гардероб|шопинг[\s-]*сопровожд|собрат[^.!?\n]{0,50}(?:капсул|образ|лук)|подобрат[^.!?\n]{0,50}(?:вещ|одежд|образ|лук|капсул)|помо(?:чь|гите)[^.!?\n]{0,50}(?:гардероб|одежд|образ|капсул))/i.test(value);
 
   if (hairBeauty && !clothing) return { score: 0, reason: 'стилист по волосам/бьюти, не одежда' };
@@ -342,6 +357,8 @@ async function scanStylistSources(config = {}, options = {}) {
 
 module.exports = {
   extractTelegramPosts,
+  hasStylistRoleMention,
+  hasClothingContext,
   scoreStylistLead,
   leadFingerprint,
   filterFreshLeads,
