@@ -39,13 +39,6 @@ async function writeWishlist(state, options = {}) {
   return next;
 }
 
-function ownerFromTelegramUser(user) {
-  const name = [user?.first_name, user?.last_name, user?.username].filter(Boolean).join(' ').toLocaleLowerCase('ru-RU');
-  if (/диан|dian/.test(name)) return 'Диана';
-  if (/руст|rust/.test(name)) return 'Рустам';
-  throw new Error('wishlist-user-not-recognized');
-}
-
 function normalizeWishText(value) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (!text) throw new Error('wishlist-text-empty');
@@ -88,6 +81,6 @@ async function removeWish(id, options = {}) {
 
 module.exports = {
   NAMESPACE, MAX_ITEMS, MAX_TEXT,
-  readWishlist, writeWishlist, ownerFromTelegramUser, normalizeWishText,
+  readWishlist, writeWishlist, normalizeWishText,
   addWish, toggleWish, removeWish,
 };
