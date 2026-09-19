@@ -175,7 +175,10 @@ async function prepareDailyTopicCleanup(options = {}) {
   const results = [];
 
   for (const [topicId, retentionDays] of MANAGED_TOPICS) {
-    const chatId = await cache.get(topicChatKey(topicId));
+    const cachedChatId = await cache.get(topicChatKey(topicId));
+    const chatId = cachedChatId === undefined || cachedChatId === null || cachedChatId === ''
+      ? options.fallbackChatId
+      : cachedChatId;
     if (chatId === undefined || chatId === null || chatId === '') {
       results.push({ topicId, skipped: 'chat-id-not-recorded' });
       continue;
