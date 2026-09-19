@@ -11,6 +11,7 @@ const {
   addProducts,
   removeProduct,
   toggleProductChecked,
+  markCheckedProductsBought,
   markProductBought,
   clearProducts,
 } = require('./product-list-store.cjs');
@@ -575,6 +576,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'bought') {
         const state = await markProductBought(body.id, actor, options);
+        return res.status(200).json({ ok: true, actor, ...state });
+      }
+      if (operation === 'buy-checked') {
+        const state = await markCheckedProductsBought(actor, options);
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'clear') {
