@@ -223,7 +223,9 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeInitData(body.initData, options);
-      return res.status(200).json({ ok: true, actor });
+      const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(new Date(options.now || Date.now()));
+      const holidays = await readHolidayHighlights(date, options).catch(() => null);
+      return res.status(200).json({ ok: true, actor, holidayHighlights: holidays?.items || [] });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
