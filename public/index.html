@@ -2277,6 +2277,35 @@
       overscroll-behavior-x:none;
     }
 
+  
+    /* Partner mood alignment fix */
+    .profile .partner-mood-icon[hidden]{display:none !important}
+    .profile .partner-mood-empty[hidden]{display:none !important}
+    .profile .mood-partner{
+      display:flex !important;
+      align-items:center !important;
+      justify-content:flex-end !important;
+      gap:7px !important;
+      min-width:96px;
+    }
+    .profile .partner-mood-value{
+      position:relative;
+      flex:0 0 28px;
+      width:28px !important;
+      height:28px !important;
+      display:grid !important;
+      place-items:center !important;
+      overflow:hidden;
+    }
+    .profile .partner-mood-icon{
+      position:absolute;
+      inset:0;
+      width:100% !important;
+      height:100% !important;
+      display:grid;
+      place-items:center;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
