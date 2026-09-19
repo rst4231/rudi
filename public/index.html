@@ -3058,8 +3058,8 @@
           button.addEventListener('click',()=>{
             const next=button.dataset.appTab||'home';
             if(next===currentAppTab){
-              window.scrollTo({top:0,left:0,behavior:'smooth'});
-              appTabScroll[next]=0;
+              appTabScroll[next]=window.scrollY||0;
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               return;
             }
             appTabScroll[currentAppTab]=window.scrollY||0;
