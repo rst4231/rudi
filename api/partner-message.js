@@ -121,6 +121,72 @@ async function sendPartnerMessageNotification(actor, options = {}) {
   return { sent: true };
 }
 
+async function telegramBotCall(method, payload, options = {}) {
+  const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(`https://api.telegram.org/bot${token}/${method}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response?.ok || !data?.ok) throw new Error(`telegram-${method}-unavailable`);
+  return data.result;
+}
+
+async function telegramPhotoDataUrl(fileId, options = {}) {
+  const id = String(fileId || '').trim();
+  if (!id) return '';
+  const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const file = await telegramBotCall('getFile', { file_id: id }, options);
+  const path = String(file?.file_path || '').trim();
+  if (!path) return '';
+
+  const response = await fetchImpl(`https://api.telegram.org/file/bot${token}/${path}`, { cache: 'no-store' });
+  if (!response?.ok) return '';
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!bytes.length || bytes.length > 512 * 1024) return '';
+
+  const contentType = String(response.headers?.get?.('content-type') || '').split(';')[0].trim();
+  const mime = /^image\//i.test(contentType)
+    ? contentType
+    : /\.png$/i.test(path) ? 'image/png'
+    : /\.webp$/i.test(path) ? 'image/webp'
+    : 'image/jpeg';
+  return `data:${mime};base64,${bytes.toString('base64')}`;
+}
+
+async function readTelegramProfile(userId, fallbackName, options = {}) {
+  const id = Number(userId);
+  const fallback = { name: String(fallbackName || 'Партнёр'), photoDataUrl: '' };
+  if (!Number.isInteger(id) || id <= 0) return fallback;
+
+  try {
+    const chat = await telegramBotCall('getChat', { chat_id: id }, options);
+    const name = [chat?.first_name, chat?.last_name].map((value) => String(value || '').trim()).filter(Boolean).join(' ')
+      || String(chat?.title || '').trim()
+      || fallback.name;
+
+    let fileId = String(chat?.photo?.small_file_id || '').trim();
+    if (!fileId) {
+      const photos = await telegramBotCall('getUserProfilePhotos', { user_id: id, offset: 0, limit: 1 }, options)
+        .catch(() => null);
+      const firstSet = Array.isArray(photos?.photos) ? photos.photos[0] : null;
+      if (Array.isArray(firstSet) && firstSet.length) {
+        fileId = String(firstSet[0]?.file_id || '').trim();
+      }
+    }
+
+    const photoDataUrl = fileId
+      ? await telegramPhotoDataUrl(fileId, options).catch(() => '')
+      : '';
+    return { name, photoDataUrl };
+  } catch (_) {
+    return fallback;
+  }
+}
+
 function moscowDateKey(now = Date.now()) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
@@ -323,10 +389,24 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
+      const { actor, user } = authorizeInitData(body.initData, options);
       const date = moscowDateKey(options.now || Date.now());
-      const holidays = await readHolidayHighlights(date, options).catch(() => null);
-      return res.status(200).json({ ok: true, actor, holidayHighlights: holidays?.items || [] });
+      const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
+      const recipients = await readRecipients(options).catch(() => null);
+      const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
+      const partnerId = recipientFor(actor, recipients);
+      const [holidays, selfProfile, partnerProfile] = await Promise.all([
+        holidaysPromise,
+        readTelegramProfile(user?.id, actor, options),
+        readTelegramProfile(partnerId, partnerActor, options),
+      ]);
+      return res.status(200).json({
+        ok: true,
+        actor,
+        selfProfile,
+        partnerProfile,
+        holidayHighlights: holidays?.items || [],
+      });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
