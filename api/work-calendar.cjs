@@ -243,8 +243,9 @@ function rollingStart(now = new Date(), tz = DEFAULT_TIMEZONE, dayOffset = 0) {
   return shiftDateKey(dateKey(now, tz), Number(dayOffset || 0));
 }
 
-function buildWeek(events, startKey, tz = DEFAULT_TIMEZONE) {
-  const days = Array.from({ length: 7 }, (_, index) => ({
+function buildRange(events, startKey, dayCount = 7, tz = DEFAULT_TIMEZONE) {
+  const safeDayCount = Math.max(1, Math.min(62, Number(dayCount || 7)));
+  const days = Array.from({ length: safeDayCount }, (_, index) => ({
     date: shiftDateKey(startKey, index),
     events: [],
   }));
@@ -295,6 +296,25 @@ function buildWeek(events, startKey, tz = DEFAULT_TIMEZONE) {
   }));
 }
 
+function buildWeek(events, startKey, tz = DEFAULT_TIMEZONE) {
+  return buildRange(events, startKey, 7, tz);
+}
+
+function monthRange(now = new Date(), tz = DEFAULT_TIMEZONE, monthOffset = 0) {
+  const today = dateKey(now, tz);
+  const [year, month] = today.split('-').map(Number);
+  const first = new Date(Date.UTC(year, month - 1 + Number(monthOffset || 0), 1));
+  const rangeYear = first.getUTCFullYear();
+  const rangeMonth = first.getUTCMonth() + 1;
+  const startKey = [
+    rangeYear,
+    String(rangeMonth).padStart(2, '0'),
+    '01',
+  ].join('-');
+  const dayCount = new Date(Date.UTC(rangeYear, rangeMonth, 0)).getUTCDate();
+  return { startKey, dayCount };
+}
+
 async function fetchCalendarText(calendarUrl, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const url = normalizeCalendarUrl(calendarUrl).replace(/^webcal:/i, 'https:');
@@ -308,18 +328,39 @@ async function fetchCalendarText(calendarUrl, options = {}) {
 
 async function getWorkWeek(options = {}) {
   const tz = options.timeZone || DEFAULT_TIMEZONE;
-  const startKey = rollingStart(options.now || new Date(), tz, Number(options.dayOffset || 0));
+  const now = options.now || new Date();
+  const view = ['month', 'next-month'].includes(String(options.view || ''))
+    ? String(options.view)
+    : 'week';
+
+  let startKey;
+  let dayCount;
+  if (view === 'month' || view === 'next-month') {
+    const range = monthRange(now, tz, view === 'next-month' ? 1 : 0);
+    startKey = range.startKey;
+    dayCount = range.dayCount;
+  } else {
+    startKey = rollingStart(now, tz, 0);
+    dayCount = 7;
+  }
+
   const cache = cacheOf(options);
-  const cacheKey = `rolling:${startKey}`;
+  const cacheKey = `range:${view}:${startKey}:${dayCount}`;
   const cached = await cache.get(cacheKey);
   const calendarUrl = await readCalendarUrl({ ...options, cache });
-  if (!calendarUrl) return { configured: false, weekStart: startKey, days: [] };
+  if (!calendarUrl) return { configured: false, view, weekStart: startKey, days: [] };
 
   try {
     const ics = await fetchCalendarText(calendarUrl, options);
     const events = parseEvents(ics, tz);
-    const days = buildWeek(events, startKey, tz);
-    const result = { configured: true, weekStart: startKey, days, updatedAt: new Date().toISOString() };
+    const days = buildRange(events, startKey, dayCount, tz);
+    const result = {
+      configured: true,
+      view,
+      weekStart: startKey,
+      days,
+      updatedAt: new Date().toISOString(),
+    };
     await cache.set(cacheKey, result, { ttl: WEEK_TTL_SECONDS, tags: ['rudi-work-calendar'] });
     return result;
   } catch (error) {
@@ -331,5 +372,5 @@ async function getWorkWeek(options = {}) {
 module.exports = {
   NAMESPACE, EXPECTED_URL_SHA256, DEFAULT_TIMEZONE,
   normalizeCalendarUrl, sha256, decodeSetupKey, saveCalendarUrl, readCalendarUrl,
-  unfoldIcs, parseEvents, parseRRule, parseIcsDate, rollingStart, buildWeek, getWorkWeek,
+  unfoldIcs, parseEvents, parseRRule, parseIcsDate, rollingStart, monthRange, buildRange, buildWeek, getWorkWeek,
 };
