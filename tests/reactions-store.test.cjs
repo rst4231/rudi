@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { toggleReaction } = require('../api/reactions-store.cjs');
+const { setReaction, toggleReaction } = require('../api/reactions-store.cjs');
 
 function eventualCache(initial = {}) {
   const visible = new Map(Object.entries(initial));
@@ -44,6 +44,40 @@ test('toggleReaction immediately returns the removed-like state', async () => {
   const result = await toggleReaction(
     { type: 'partner-message', key: 'message:2026-09-19T10:00:00.000Z' },
     'Рустам',
+    { reactionsCache: cache }
+  );
+
+  assert.deepEqual(result.likedBy, []);
+  assert.equal(result.count, 0);
+});
+
+
+test('setReaction does not depend on reading back the current actor before writing', async () => {
+  const cache = eventualCache();
+  const result = await setReaction(
+    { type: 'daily-idea', key: 'day:2026-09-19' },
+    'Рустам',
+    true,
+    { reactionsCache: cache, now: Date.UTC(2026, 8, 19, 12, 0, 0) }
+  );
+
+  assert.deepEqual(result.likedBy, ['Рустам']);
+  assert.equal(result.count, 1);
+});
+
+test('setReaction can remove a like even when the actor write is not readable yet', async () => {
+  const cache = eventualCache();
+  await setReaction(
+    { type: 'watch', key: 'day:2026-09-19' },
+    'Рустам',
+    true,
+    { reactionsCache: cache }
+  );
+
+  const result = await setReaction(
+    { type: 'watch', key: 'day:2026-09-19' },
+    'Рустам',
+    false,
     { reactionsCache: cache }
   );
 
