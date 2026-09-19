@@ -135,7 +135,7 @@ async function fetchLatestPhotos(config, options = {}) {
   const photos = (Array.isArray(streamResult.payload?.photos) ? streamResult.payload.photos : [])
     .filter((photo) => photo?.mediaAssetType !== 'video' && photo?.photoGuid)
     .sort((a, b) => photoDate(b) - photoDate(a))
-    .slice(0, 5);
+    .slice(0, 40);
 
   if (!photos.length) return { photos: [], albumUrl: config.url, title: String(streamResult.payload?.streamName || 'Общий альбом') };
 
