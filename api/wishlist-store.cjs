@@ -20,7 +20,7 @@ function normalizeState(value) {
       .map((item) => ({
         id: String(item?.id || ''),
         text: String(item?.text || '').trim().slice(0, MAX_TEXT),
-        url: normalizeWishUrl(item?.url, { allowEmpty: true }),
+        url: normalizeStoredWishUrl(item?.url),
         owner: item?.owner === 'Диана' ? 'Диана' : 'Рустам',
         done: Boolean(item?.done),
         createdAt: String(item?.createdAt || ''),
@@ -72,6 +72,15 @@ function normalizeWishUrl(value, options = {}) {
   }
   return parsed.toString();
 }
+
+function normalizeStoredWishUrl(value) {
+  try {
+    return normalizeWishUrl(value, { allowEmpty: true });
+  } catch (_) {
+    return '';
+  }
+}
+
 
 async function addWish(text, url, owner, options = {}) {
   const state = await readWishlist(options);
