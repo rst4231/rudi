@@ -3276,6 +3276,47 @@
       margin-top:5px!important;
     }
 
+
+    /* Optional links in wishlist */
+    .wishlist-page .wishlist-form{
+      grid-template-columns:minmax(0,1fr) 42px!important;
+      align-items:end!important;
+      gap:8px!important;
+    }
+    .wishlist-page .wishlist-form-fields{
+      min-width:0;
+      display:grid;
+      gap:6px;
+    }
+    .wishlist-page .wishlist-url-input{
+      height:38px!important;
+      color:var(--muted)!important;
+    }
+    .wishlist-page .wishlist-url-input:focus{
+      color:var(--text)!important;
+    }
+    .wishlist-page .wishlist-add{
+      align-self:end!important;
+    }
+    .wishlist-page .wish-item.has-link{
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      transition:transform .16s ease,background-color .16s ease;
+    }
+    .wishlist-page .wish-item.has-link:active{
+      transform:scale(.985);
+    }
+    .wishlist-page .wish-item.has-link .wish-text::after{
+      content:" ↗";
+      color:var(--accent);
+      font-weight:800;
+      text-decoration:none!important;
+    }
+    .wishlist-page .wish-item.has-link:focus-visible{
+      outline:2px solid color-mix(in srgb,var(--accent) 62%,transparent);
+      outline-offset:2px;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3578,7 +3619,10 @@
       <h1 class="wishlist-page-title">Наш вишлист</h1>
       <div class="wishlist-card">
         <form id="wishlistForm" class="wishlist-form">
-          <input id="wishlistInput" class="wishlist-input" maxlength="180" autocomplete="off" placeholder="Добавить желание…" aria-label="Добавить желание">
+          <div class="wishlist-form-fields">
+            <input id="wishlistInput" class="wishlist-input" maxlength="180" autocomplete="off" placeholder="Добавить желание…" aria-label="Добавить желание">
+            <input id="wishlistUrl" class="wishlist-input wishlist-url-input" maxlength="1200" inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false" placeholder="Ссылка — необязательно" aria-label="Ссылка на желание">
+          </div>
           <button id="wishlistAdd" class="wishlist-add" type="submit" aria-label="Добавить">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           </button>
@@ -4959,9 +5003,26 @@
         return data;
       }
 
+      function openWishlistUrl(value){
+        const url=String(value||'').trim();
+        if(!url) return;
+        try{
+          if(tg?.openLink) tg.openLink(url);
+          else window.open(url,'_blank','noopener,noreferrer');
+        }catch(_){
+          window.open(url,'_blank','noopener,noreferrer');
+        }
+      }
+
       function wishItemElement(item){
         const row=document.createElement('div');
-        row.className='wish-item'+(item.done?' done':'');
+        const url=String(item?.url||'').trim();
+        row.className='wish-item'+(item.done?' done':'')+(url?' has-link':'');
+        if(url){
+          row.tabIndex=0;
+          row.setAttribute('role','link');
+          row.setAttribute('aria-label',String(item.text||'Желание')+' — открыть ссылку');
+        }
 
         const toggle=document.createElement('button');
         toggle.className='wish-toggle';
@@ -4985,6 +5046,20 @@
         remove.addEventListener('click',async()=>{
           try{renderWishlist(await wishlistRequest('remove',{id:item.id}));}catch(_){}
         });
+
+        if(url){
+          row.addEventListener('click',event=>{
+            if(event.target.closest('button')) return;
+            openWishlistUrl(url);
+          });
+          row.addEventListener('keydown',event=>{
+            if(event.target.closest('button')) return;
+            if(event.key==='Enter'||event.key===' '){
+              event.preventDefault();
+              openWishlistUrl(url);
+            }
+          });
+        }
 
         row.append(toggle,text,remove);
         return row;
@@ -5014,6 +5089,7 @@
       function setupWishlist(){
         const form=document.getElementById('wishlistForm');
         const input=document.getElementById('wishlistInput');
+        const urlInput=document.getElementById('wishlistUrl');
         const add=document.getElementById('wishlistAdd');
         const section=document.querySelector('.wishlist-section');
         let focusTimer=0;
@@ -5024,36 +5100,42 @@
             form.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'});
           },180);
         };
+        const setEditing=active=>{
+          section?.classList.toggle('wishlist-editing',active);
+          document.body.classList.toggle('keyboard-editing',active);
+          if(active) revealForm();
+          else clearTimeout(focusTimer);
+        };
+        const onFocus=()=>setEditing(true);
+        const onBlur=()=>setTimeout(()=>{
+          if(!form.contains(document.activeElement)) setEditing(false);
+        },0);
 
-        input.addEventListener('focus',()=>{
-          section?.classList.add('wishlist-editing');
-          document.body.classList.add('keyboard-editing');
-          revealForm();
-        });
-        input.addEventListener('blur',()=>{
-          section?.classList.remove('wishlist-editing');
-          document.body.classList.remove('keyboard-editing');
-          clearTimeout(focusTimer);
-        });
+        input.addEventListener('focus',onFocus);
+        urlInput.addEventListener('focus',onFocus);
+        input.addEventListener('blur',onBlur);
+        urlInput.addEventListener('blur',onBlur);
         window.visualViewport?.addEventListener('resize',()=>{
-          if(document.activeElement===input) revealForm();
+          if(form.contains(document.activeElement)) revealForm();
         });
 
         form.addEventListener('submit',async(event)=>{
           event.preventDefault();
           const text=input.value.trim();
+          const url=urlInput.value.trim();
           if(!text) return;
           add.disabled=true;
           try{
-            const data=await wishlistRequest('add',{text});
+            const data=await wishlistRequest('add',{text,url});
             input.value='';
+            urlInput.value='';
             renderWishlist(data);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-          }catch(_){
+          }catch(error){
             {
               const status=document.getElementById('wishlistStatus');
               status.hidden=false;
-              status.textContent='Ошибка';
+              status.textContent=String(error?.message||'').startsWith('wishlist-url-')?'Проверьте ссылку':'Ошибка';
             }
           }finally{add.disabled=false}
         });
