@@ -25,6 +25,27 @@ function keyOf(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru-RU');
 }
 
+function categorizeProduct(value) {
+  const text = keyOf(value);
+
+  const rules = [
+    ['Мясо и рыба', /(мяс|говя|свин|кур|индей|фарш|котлет|колбас|сосиск|ветчин|бекон|рыб|лосос|семг|сёмг|форел|тунец|кревет|морепродукт)/u],
+    ['Овощи и зелень', /(картоф|томат|помид|огур|капуст|морков|лук|чеснок|перец|баклаж|кабач|тыкв|св[её]кл|редис|салат|укроп|петруш|кинз|зелень|броккол|цветн)/u],
+    ['Фрукты и ягоды', /(яблок|банан|апельс|мандарин|лимон|лайм|груш|виноград|персик|нектар|абрикос|слив|арбуз|дын|киви|манго|ананас|ягод|клубник|малин|голубик|черник|вишн|черешн)/u],
+    ['Молочное и яйца', /(молок|кефир|йогур|творог|сыр|сметан|сливк|масло слив|ряжен|яйц)/u],
+    ['Хлеб и выпечка', /(хлеб|батон|булк|лаваш|лепеш|лепёш|багет|выпеч|круассан|пирог)/u],
+    ['Бакалея', /(макарон|паст[аы]|рис|греч|круп|мук|сахар|соль|специ|приправ|масло раст|оливков|соус|кетчуп|майонез|консерв|фасол|горох|чечев|овсян|хлопь)/u],
+    ['Сладкое и снеки', /(шоколад|конфет|печень|вафл|мармелад|зефир|торт|чипс|сухар|орех|батончик|морожен)/u],
+    ['Напитки', /(вод[аы]\b|сок|газиров|кола|чай|кофе|морс|компот|энергет|лимонад)/u],
+    ['Заморозка', /(заморож|пельмен|вареник|наггет|заморозк)/u],
+    ['Для дома', /(бумаг|салфет|пакет|губк|моющ|порошок|капсул|средство для|перчатк|фольг|пл[её]нк|мусор)/u],
+    ['Гигиена', /(шампун|гель|мыло|паст[аы] зуб|щетк|щёт|дезодорант|крем|ватн|бритв|проклад|тампон)/u],
+    ['Для Лулу', /(лулу|корм|лакомств|пеленк|наполнитель|миска|ошейник|поводок)/u],
+  ];
+  for (const [category, pattern] of rules) if (pattern.test(text)) return category;
+  return 'Другое';
+}
+
 function normalizeState(value) {
   const items = Array.isArray(value?.items) ? value.items : [];
   const history = Array.isArray(value?.history) ? value.history : [];
@@ -35,12 +56,14 @@ function normalizeState(value) {
       id: String(item?.id || ''),
       text: String(item?.text || '').trim().slice(0, MAX_TEXT),
       addedBy: String(item?.addedBy || ''),
+      category: categorizeProduct(item?.text),
       createdAt: String(item?.createdAt || ''),
     })).filter((item) => item.id && item.text).slice(0, MAX_ACTIVE),
     history: history.map((item) => ({
       id: String(item?.id || ''),
       text: String(item?.text || '').trim().slice(0, MAX_TEXT),
       boughtBy: String(item?.boughtBy || ''),
+      category: categorizeProduct(item?.text),
       boughtAt: String(item?.boughtAt || ''),
     })).filter((item) => item.id && item.text && item.boughtAt).slice(0, MAX_HISTORY),
   };
@@ -94,6 +117,7 @@ async function initializeFromLegacy(options = {}) {
       id: crypto.randomUUID(),
       text,
       addedBy: 'RUDI',
+      category: categorizeProduct(text),
       createdAt: now,
     });
     if (items.length >= MAX_ACTIVE) break;
@@ -118,6 +142,7 @@ async function addProducts(values, addedBy = '', options = {}) {
         id: crypto.randomUUID(),
         text,
         addedBy: String(addedBy || ''),
+        category: categorizeProduct(text),
         createdAt: now,
       });
       existing.add(key);
@@ -162,6 +187,7 @@ async function markProductBought(id, boughtBy = '', options = {}) {
       id: crypto.randomUUID(),
       text: item.text,
       boughtBy: String(boughtBy || ''),
+      category: categorizeProduct(item.text),
       boughtAt: new Date(options.now || Date.now()).toISOString(),
     });
     state.history = state.history.slice(0, MAX_HISTORY);
@@ -184,6 +210,6 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
   readProductList, addProducts, removeProduct, removeProductByText,
-  markProductBought, clearProducts, normalizeText, keyOf,
+  markProductBought, clearProducts, normalizeText, keyOf, categorizeProduct,
   resetMutationQueueForTests,
 };
