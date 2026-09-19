@@ -60,7 +60,10 @@ const copywriterVacancyFalsePositive = `Ищем копирайтера в ко�
 
 Что мы ждем от кандидата: У вас есть опыт в написании текстов для соцсетей. Вы пишете без ошибок, следите за стилистикой и логикой повествования.`;
 
-test('copywriter vacancy mentioning stylistics and things is not a stylist client lead', () => {
+test('web intent rejects a copywriter vacancy that only says stylistics and things', () => {
   assert.equal(webApi.isLikelyWebClientIntent(copywriterVacancyFalsePositive), false);
+});
+
+test('lead scorer rejects a copywriter vacancy that only says stylistics and things', () => {
   assert.equal(leadsApi.scoreStylistLead(copywriterVacancyFalsePositive).score, 0);
 });
