@@ -1139,17 +1139,6 @@
     }
     .watch-card::after{background:rgba(85,168,255,.15)}
     .watch-card .daily-icon{background:rgba(85,168,255,.13);color:#3e8edb}
-    .cook-card{
-      border-color:color-mix(in srgb,#ff9d57 20%,var(--line)) !important;
-      background:
-        linear-gradient(145deg,rgba(255,157,87,.08),transparent 72%),
-        color-mix(in srgb,var(--surface) 90%,transparent) !important;
-    }
-    .cook-card::after{background:rgba(255,157,87,.16)}
-    .cook-card .daily-icon{background:rgba(255,157,87,.14);color:#dc7f3d}
-    html[data-theme="dark"] .idea-card .daily-icon{color:#b9a9ff}
-    html[data-theme="dark"] .watch-card .daily-icon{color:#79bdff}
-    html[data-theme="dark"] .cook-card .daily-icon{color:#ffb47d}
 
   
     .holiday-trigger{
@@ -2262,15 +2251,7 @@
           </div>
           <div id="watchToday" class="suggestion-value"></div>
         </article>
-        <article class="panel suggestion daily-card cook-card">
-          <div class="daily-card-head">
-            <span class="daily-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v5.2A3.8 3.8 0 0 1 15.2 20H8.8A3.8 3.8 0 0 1 5 16.2V11Z"/><path d="M8 11V8.5A2.5 2.5 0 0 1 10.5 6H12"/><path d="M13.8 4.1c1.5.2 2.6 1.2 2.9 2.5"/><path d="M4 11h16"/></svg>
-            </span>
-            <div class="panel-label">Что приготовить</div>
-          </div>
-          <div id="cookToday" class="suggestion-value"></div>
-        </article>
+        
         <button id="holidayButton" class="panel holiday-trigger" type="button" aria-haspopup="dialog" aria-controls="holidayModal">
           <span class="holiday-trigger-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 16.5 7.5"/><path d="m14.2 5.2 4.6 4.6"/><path d="M6 6.2h.01M9.3 3.8h.01M4.2 10h.01M17.8 14h.01M20.2 17.4h.01M14.7 18.8h.01"/><path d="M17.5 3.5c.3 1.1 1 1.8 2 2"/><path d="M4.5 14.7c1.2.1 2.1.7 2.6 1.7"/></svg>
@@ -3821,10 +3802,8 @@
 
         const ideas=config.dailyIdeas?.length?config.dailyIdeas:fallback.dailyIdeas;
         const watch=config.watchList?.length?config.watchList:fallback.watchList;
-        const cook=config.cookList?.length?config.cookList:fallback.cookList;
         document.getElementById('dailyIdea').textContent=ideas[Math.abs(dayIndex)%ideas.length];
         document.getElementById('watchToday').textContent=watch[Math.abs(dayIndex+3)%watch.length];
-        document.getElementById('cookToday').textContent=cook[Math.abs(dayIndex+7)%cook.length];
 
         renderNearest(config);
         setupPersistentCollapsibles();
