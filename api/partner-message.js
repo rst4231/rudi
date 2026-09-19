@@ -313,7 +313,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({ ok: true, ...week });
     } catch (error) {
       const code = String(error?.message || error);
-      const status = code.startsWith('telegram-') ? 401 : 502;
+      const status = statusForError(error) === 500 ? 502 : statusForError(error);
       console.error('RUDI_WORK_CALENDAR_ERROR', code);
       return res.status(status).json({ ok: false, error: code });
     }
@@ -344,8 +344,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(400).json({ ok: false, error: 'wishlist-operation-invalid' });
     } catch (error) {
       const code = String(error?.message || error);
-      const status = code.startsWith('telegram-') ? 401
-        : code === 'wishlist-user-not-recognized' ? 403
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
         : code === 'wishlist-item-not-found' ? 404
         : 400;
       return res.status(status).json({ ok: false, error: code });
