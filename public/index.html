@@ -2732,6 +2732,143 @@
       margin-top:0!important;
     }
 
+
+    /* Calendar: clearer visual hierarchy */
+    body[data-app-tab="schedule"] .work-page{
+      gap:11px!important;
+    }
+    .work-page .work-calendar-card{
+      margin:0!important;
+      padding:12px!important;
+      border:1px solid color-mix(in srgb,var(--accent) 15%,var(--line))!important;
+      border-radius:19px!important;
+      background:
+        radial-gradient(circle at 96% 0%,color-mix(in srgb,var(--accent-soft) 76%,transparent),transparent 36%),
+        color-mix(in srgb,var(--surface-strong) 91%,var(--surface))!important;
+      box-shadow:0 10px 30px color-mix(in srgb,var(--accent-glow) 15%,transparent)!important;
+      backdrop-filter:blur(18px)!important;
+      -webkit-backdrop-filter:blur(18px)!important;
+      overflow:hidden!important;
+    }
+    .work-page .work-calendar-head{
+      padding:0 2px!important;
+      margin:0 0 9px!important;
+    }
+    .work-page .work-week-label{
+      color:var(--text)!important;
+      font-size:13px!important;
+      line-height:1.15!important;
+      font-weight:820!important;
+      letter-spacing:-.015em!important;
+      text-transform:capitalize;
+    }
+    .work-page .work-calendar-legend{
+      color:var(--muted)!important;
+      font-size:9.5px!important;
+      font-weight:680!important;
+    }
+    .work-page .work-calendar-legend span{
+      width:8px!important;
+      height:8px!important;
+      background:#ed8a37!important;
+      box-shadow:0 0 0 3px rgba(237,138,55,.11)!important;
+    }
+    .work-page .work-calendar-ranges{
+      margin:0 0 10px!important;
+      padding:3px!important;
+      border:1px solid color-mix(in srgb,var(--accent) 10%,var(--line))!important;
+      border-radius:12px!important;
+      background:color-mix(in srgb,var(--soft) 82%,transparent)!important;
+    }
+    .work-page .work-range-button{
+      border-radius:9px!important;
+      color:var(--muted)!important;
+      background:transparent!important;
+      box-shadow:none!important;
+    }
+    .work-page .work-range-button.active{
+      color:var(--accent)!important;
+      background:color-mix(in srgb,var(--accent-soft) 86%,var(--surface-strong))!important;
+      box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 15%,transparent)!important;
+    }
+    .work-page .calendar-weekday{
+      color:color-mix(in srgb,var(--muted) 90%,var(--text))!important;
+      font-size:8.5px!important;
+      letter-spacing:.03em!important;
+    }
+    .work-page .calendar-day-cell{
+      border-color:color-mix(in srgb,var(--line) 92%,transparent)!important;
+      background:color-mix(in srgb,var(--surface) 78%,transparent)!important;
+      color:var(--text)!important;
+      box-shadow:none;
+    }
+    .work-page .calendar-day-cell.off{
+      border-color:color-mix(in srgb,var(--line) 92%,transparent)!important;
+      background:color-mix(in srgb,var(--surface) 72%,var(--soft))!important;
+      color:var(--text)!important;
+    }
+    .work-page .calendar-day-cell.working{
+      border-color:color-mix(in srgb,#ed8a37 38%,var(--line))!important;
+      background:
+        linear-gradient(145deg,rgba(237,138,55,.16),rgba(237,138,55,.06)),
+        color-mix(in srgb,var(--surface) 82%,transparent)!important;
+      color:color-mix(in srgb,#d97827 82%,var(--text))!important;
+    }
+    .work-page .calendar-day-cell.today{
+      box-shadow:inset 0 0 0 2px var(--accent)!important;
+    }
+    .work-page .calendar-day-cell.selected{
+      border-color:color-mix(in srgb,#ed8a37 58%,var(--line))!important;
+      box-shadow:inset 0 0 0 2px #e18436,0 0 0 2px rgba(225,132,54,.10)!important;
+    }
+    .work-page .calendar-check{
+      color:color-mix(in srgb,var(--green) 74%,var(--text))!important;
+      opacity:.78;
+    }
+    .work-page .calendar-work-dot{
+      background:#ed8a37!important;
+      box-shadow:0 0 0 2px rgba(237,138,55,.10)!important;
+    }
+    .work-page .work-calendar-selected{
+      margin-top:10px!important;
+      padding:10px 11px!important;
+      border:1px solid color-mix(in srgb,#ed8a37 28%,var(--line))!important;
+      border-radius:13px!important;
+      background:
+        linear-gradient(135deg,rgba(237,138,55,.11),transparent 78%),
+        color-mix(in srgb,var(--surface) 84%,transparent)!important;
+    }
+    .work-page .work-calendar-selected strong{
+      color:color-mix(in srgb,#d97827 72%,var(--text))!important;
+      font-size:11.8px!important;
+    }
+    .schedule-nearest{
+      border:1px solid color-mix(in srgb,var(--accent) 20%,var(--line))!important;
+      background:
+        radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--accent-soft) 82%,transparent),transparent 45%),
+        color-mix(in srgb,var(--surface) 90%,transparent)!important;
+    }
+    .schedule-nearest .nearest-days{
+      background:color-mix(in srgb,var(--accent-soft) 88%,transparent)!important;
+      color:var(--accent)!important;
+    }
+    .schedule-holiday{
+      border-color:color-mix(in srgb,#f2ae38 25%,var(--line))!important;
+      background:
+        radial-gradient(circle at 96% 0%,rgba(255,193,77,.18),transparent 42%),
+        linear-gradient(145deg,rgba(255,193,77,.07),transparent 68%),
+        color-mix(in srgb,var(--surface) 90%,transparent)!important;
+    }
+
+    /* Footer is shared by every app tab; the compliment stays on Home only */
+    body:not([data-app-tab="home"]) .footer .compliment{
+      display:none!important;
+    }
+    body:not([data-app-tab="home"]) .footer{
+      margin-top:2px;
+      padding-top:7px;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3118,7 +3255,7 @@
       </article>
     </section>
 
-    <footer class="footer" data-app-tab-section="home">
+    <footer class="footer">
       <div id="compliment" class="compliment"></div>
       <div>© <span id="currentYear"></span></div>
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
