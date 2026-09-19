@@ -1462,7 +1462,21 @@
 
   </style>
 </head>
-<body>
+<body class="auth-pending">
+  <div id="appGate" class="app-gate" role="status" aria-live="polite">
+    <div class="app-gate-card">
+      <div class="app-gate-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="10" width="14" height="10" rx="3"/>
+          <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/>
+          <path d="M12 14v2"/>
+        </svg>
+      </div>
+      <div id="appGateTitle" class="app-gate-title">Проверяю доступ</div>
+      <div id="appGateText" class="app-gate-text">RUDI доступен только вам двоим.</div>
+    </div>
+  </div>
+
   <main class="shell">
     <section class="profile" aria-label="Профиль">
       <div class="identity">
@@ -1490,6 +1504,37 @@
       <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
 
       <div class="profile-weather" aria-label="Погода">
+        <div id="weatherVisual" class="weather-visual" data-weather="idle" aria-hidden="true">
+          <svg viewBox="0 0 64 64" fill="none">
+            <g class="weather-layer weather-sun">
+              <g class="weather-rays" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                <path d="M22 5v6M22 33v6M5 22h6M33 22h6M10 10l4.3 4.3M29.7 29.7 34 34M34 10l-4.3 4.3M14.3 29.7 10 34"/>
+              </g>
+              <circle cx="22" cy="22" r="8.5" fill="currentColor" opacity=".2"/>
+              <circle cx="22" cy="22" r="7" stroke="currentColor" stroke-width="2.4"/>
+            </g>
+            <g class="weather-layer weather-cloud" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 44h27a10 10 0 0 0 .9-19.96A15 15 0 0 0 17.2 27.5 8.5 8.5 0 0 0 18 44Z" fill="currentColor" opacity=".12"/>
+              <path d="M18 44h27a10 10 0 0 0 .9-19.96A15 15 0 0 0 17.2 27.5 8.5 8.5 0 0 0 18 44Z"/>
+            </g>
+            <g class="weather-layer weather-rain" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+              <path class="rain-drop d1" d="m23 49-2 5"/>
+              <path class="rain-drop d2" d="m34 49-2 5"/>
+              <path class="rain-drop d3" d="m45 49-2 5"/>
+            </g>
+            <g class="weather-layer weather-snow" fill="currentColor">
+              <circle class="snow-dot s1" cx="23" cy="52" r="1.8"/>
+              <circle class="snow-dot s2" cx="34" cy="55" r="1.8"/>
+              <circle class="snow-dot s3" cx="45" cy="51" r="1.8"/>
+            </g>
+            <g class="weather-layer weather-fog" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <path d="M13 35h34"/><path d="M17 42h30"/><path d="M22 49h24"/>
+            </g>
+            <g class="weather-layer weather-bolt" fill="currentColor">
+              <path d="m35 43-7 10h6l-3 8 10-12h-6l4-6Z"/>
+            </g>
+          </svg>
+        </div>
         <div class="profile-weather-main">
           <div id="weatherValue" class="profile-weather-value">—</div>
           <div id="weatherCity" class="profile-weather-city">СПб</div>
@@ -1528,7 +1573,7 @@
             <span id="ticktickAssignee"></span>
           </div>
         </div>
-        <a id="ticktickConnect" class="ticktick-connect" href="/api/ticktick/connect">Подключить TickTick</a>
+        <button id="ticktickConnect" class="ticktick-connect" type="button">Подключить TickTick</button>
         <div id="ticktickDetails" class="ticktick-details" aria-hidden="true">
           <div class="ticktick-details-clip">
             <div class="ticktick-details-inner">
@@ -1555,6 +1600,31 @@
         </div>
       </article>
       </div>
+    </section>
+
+    <section class="section-block work-section" aria-labelledby="workScheduleTitle">
+      <div class="section-heading compact">
+        <div>
+          <div class="section-eyebrow">Расписание</div>
+          <h2 id="workScheduleTitle">График работы Дианы</h2>
+        </div>
+        <span id="workCalendarStatus" class="section-status">Обновляю</span>
+      </div>
+      <article class="panel work-calendar-card">
+        <div class="work-calendar-head">
+          <div id="workWeekLabel" class="work-week-label">Эта неделя</div>
+          <div class="work-calendar-legend"><span></span> рабочий день</div>
+        </div>
+        <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+        </div>
+      </article>
     </section>
 
     <section class="panel partner-message" aria-label="Послание для партнёра">
@@ -1589,6 +1659,40 @@
         </div>
         <div id="partnerStatus" class="partner-status"></div>
       </div>
+    </section>
+
+    <section class="section-block wishlist-section" aria-labelledby="wishlistTitle">
+      <div class="section-heading compact">
+        <div>
+          <div class="section-eyebrow">Вместе</div>
+          <h2 id="wishlistTitle">Наш вишлист</h2>
+        </div>
+        <span id="wishlistStatus" class="section-status">Синхронизация</span>
+      </div>
+      <article class="panel wishlist-card">
+        <form id="wishlistForm" class="wishlist-form">
+          <input id="wishlistInput" class="wishlist-input" maxlength="180" autocomplete="off" placeholder="Добавить желание…" aria-label="Добавить желание">
+          <button id="wishlistAdd" class="wishlist-add" type="submit" aria-label="Добавить">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </form>
+        <div class="wishlist-columns">
+          <section class="wishlist-column" aria-labelledby="wishlistRustamTitle">
+            <div class="wishlist-column-head">
+              <span class="wishlist-avatar rustam">R</span>
+              <span id="wishlistRustamTitle">Рустам</span>
+            </div>
+            <div id="wishlistRustam" class="wishlist-list"></div>
+          </section>
+          <section class="wishlist-column" aria-labelledby="wishlistDianaTitle">
+            <div class="wishlist-column-head">
+              <span class="wishlist-avatar diana">D</span>
+              <span id="wishlistDianaTitle">Диана</span>
+            </div>
+            <div id="wishlistDiana" class="wishlist-list"></div>
+          </section>
+        </div>
+      </article>
     </section>
 
     <section class="section-block daily-section" aria-labelledby="dailyTitle">
