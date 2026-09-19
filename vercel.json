@@ -20,10 +20,6 @@
   },
   "rewrites": [
     {
-      "source": "/admin",
-      "destination": "/admin.html"
-    },
-    {
       "source": "/api/daily",
       "destination": "/api/daily-cron?route=daily"
     },
