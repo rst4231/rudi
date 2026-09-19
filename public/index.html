@@ -273,20 +273,20 @@
       letter-spacing:-.01em;
     }
     .today-side{display:grid;gap:8px;justify-items:stretch}
-    .weather,.streak{
+    .weather{
       min-width:92px;
       padding:10px 11px;
       border-radius:14px;
       background:var(--soft);
     }
-    .weather-value,.streak-value{
+    .weather-value{
       color:var(--text);
       font-size:18px;
       line-height:1;
       font-weight:800;
       letter-spacing:-.03em;
     }
-    .weather-caption,.streak-caption{
+    .weather-caption{
       margin-top:4px;
       color:var(--muted);
       font-size:10.5px;
@@ -426,7 +426,6 @@
       .identity{grid-template-columns:auto minmax(0,1fr)}
       .profile-mood{grid-column:2;justify-content:flex-start}
       .today-panel{grid-template-columns:1fr}
-      .today-side{grid-template-columns:1fr 1fr}
     }
     @media(prefers-reduced-motion:reduce){
       *,*::before,*::after{animation:none!important;transition:none!important}
@@ -483,10 +482,6 @@
             <div id="weatherValue" class="weather-value">—</div>
             <div id="weatherCaption" class="weather-caption">Погода</div>
           </div>
-          <div class="streak">
-            <div id="streakValue" class="streak-value">1</div>
-            <div id="streakCaption" class="streak-caption">день подряд</div>
-          </div>
         </div>
       </article>
 
@@ -533,6 +528,7 @@
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
+      <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
     </footer>
   </main>
 
