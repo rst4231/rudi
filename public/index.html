@@ -2102,7 +2102,6 @@
           <div class="section-eyebrow">Сегодня</div>
           <h2 id="priorityTitle">Главное</h2>
         </div>
-        <span class="section-status">RUDI</span>
       </div>
       <div class="priority-grid">
         <article id="ticktickPanel" class="panel ticktick-panel" aria-label="Ближайшее в TickTick">
@@ -2110,7 +2109,7 @@
           <div class="ticktick-head">
             <div class="panel-label">Совместные дела</div>
             <div class="ticktick-head-actions">
-              <div id="ticktickBadge" class="ticktick-badge">Синхронизация</div>
+              <div id="ticktickBadge" class="ticktick-badge" hidden></div>
               <span class="ticktick-chevron" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
               </span>
@@ -2192,7 +2191,7 @@
           <span id="workScheduleTitle" class="work-calendar-toggle-title">График работы Дианы</span>
         </span>
         <span class="work-calendar-toggle-actions">
-          <span id="workCalendarStatus" class="section-status">Обновляю</span>
+          <span id="workCalendarStatus" class="section-status" hidden></span>
           <span class="work-calendar-chevron" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
           </span>
@@ -2273,7 +2272,7 @@
           <div class="section-eyebrow">Вместе</div>
           <h2 id="sharedAlbumTitle">Общий альбом</h2>
         </div>
-        <span id="sharedAlbumStatus" class="section-status">Обновляю</span>
+        <span id="sharedAlbumStatus" class="section-status" hidden></span>
       </div>
       <article class="panel shared-album-card">
         <div id="sharedAlbumGrid" class="shared-album-grid" aria-live="polite">
@@ -2296,7 +2295,7 @@
           <div class="section-eyebrow">Вместе</div>
           <h2 id="wishlistTitle">Наш вишлист</h2>
         </div>
-        <span id="wishlistStatus" class="section-status">Синхронизация</span>
+        <span id="wishlistStatus" class="section-status" hidden></span>
       </div>
       <article class="panel wishlist-card">
         <form id="wishlistForm" class="wishlist-form">
@@ -2950,12 +2949,14 @@
 
         if(payload?.configured===false){
           title.textContent='Интеграция TickTick ещё не настроена.';
+          badge.hidden=false;
           badge.textContent='Настройка';
           return;
         }
 
         if(payload?.connected===false){
           title.textContent='Подключите общий список TickTick.';
+          badge.hidden=false;
           badge.textContent='Не подключён';
            connect.classList.add('show');
           return;
@@ -2963,13 +2964,15 @@
 
         if(payload?.enabled===false){
           title.textContent='Синхронизация TickTick выключена.';
+          badge.hidden=false;
           badge.textContent='Выключено';
           return;
         }
 
         if(!payload?.task){
           title.textContent='В общем списке нет ближайших задач с датой.';
-          badge.textContent='Актуально';
+          badge.hidden=true;
+          badge.textContent='';
           return;
         }
 
@@ -2982,7 +2985,8 @@
           assignee.hidden=true;
           assignee.textContent='';
         }
-        badge.textContent='Актуально';
+        badge.hidden=true;
+        badge.textContent='';
         renderTickTickDetails(payload.task);
       }
 
@@ -3017,7 +3021,11 @@
             if(!response.ok||!payload.authorizeUrl) throw new Error(payload.error||'ticktick-connect');
             window.location.assign(payload.authorizeUrl);
           }catch(_){
-            document.getElementById('ticktickBadge').textContent='Ошибка';
+            {
+              const badge=document.getElementById('ticktickBadge');
+              badge.hidden=false;
+              badge.textContent='Ошибка';
+            }
             button.disabled=false;
           }
         });
@@ -3041,7 +3049,11 @@
           renderTickTickState(payload);
         }catch(_){
           document.getElementById('ticktickTitle').textContent='Не удалось обновить TickTick.';
-          document.getElementById('ticktickBadge').textContent='Ошибка';
+          {
+            const badge=document.getElementById('ticktickBadge');
+            badge.hidden=false;
+            badge.textContent='Ошибка';
+          }
           document.getElementById('ticktickDate').textContent='';
           const assignee=document.getElementById('ticktickAssignee');
           assignee.textContent='';
@@ -3249,6 +3261,7 @@
 
         const days=Array.isArray(payload?.days)?payload.days:[];
         if(!payload?.configured){
+          status.hidden=false;
           status.textContent='Не подключён';
           const empty=document.createElement('div');
           empty.className='wishlist-empty';
@@ -3257,6 +3270,7 @@
           return;
         }
         if(!days.length){
+          status.hidden=false;
           status.textContent='Нет данных';
           return;
         }
@@ -3274,7 +3288,13 @@
           label.textContent=firstText+' — '+lastText;
         }
         setWorkCalendarRangeActive(view);
-        status.textContent=payload.stale?'Кэш':'Актуально';
+        if(payload.stale){
+          status.hidden=false;
+          status.textContent='Кэш';
+        }else{
+          status.hidden=true;
+          status.textContent='';
+        }
 
         if(isMonth){
           ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(value=>{
@@ -3353,6 +3373,7 @@
         currentWorkCalendarView=requested;
         setWorkCalendarRangeActive(requested);
         const status=document.getElementById('workCalendarStatus');
+        status.hidden=false;
         status.textContent='Обновляю';
         try{
           const response=await fetch('/api/work-calendar',{
@@ -3365,6 +3386,7 @@
           if(!response.ok) throw new Error(payload.error||'calendar');
           renderWorkCalendar(payload);
         }catch(_){
+          status.hidden=false;
           status.textContent='Ошибка';
           const container=document.getElementById('workCalendarDays');
           container.innerHTML='<div class="wishlist-empty">Не удалось обновить график.</div>';
@@ -3395,7 +3417,13 @@
         section.hidden=false;
         sharedAlbumUrl=String(payload.albumUrl||'');
         open.disabled=!sharedAlbumUrl;
-        status.textContent=payload.stale?'Кэш':'Актуально';
+        if(payload.stale){
+          status.hidden=false;
+          status.textContent='Кэш';
+        }else{
+          status.hidden=true;
+          status.textContent='';
+        }
         grid.replaceChildren();
 
         if(!photos.length){
@@ -3425,6 +3453,8 @@
       async function loadSharedAlbum(){
         if(!tg?.initData) return;
         const status=document.getElementById('sharedAlbumStatus');
+        status.hidden=false;
+        status.textContent='Обновляю';
         try{
           const response=await fetch('/api/shared-album',{
             method:'POST',
@@ -3436,6 +3466,7 @@
           if(!response.ok) throw new Error(payload.error||'album');
           renderSharedAlbum(payload);
         }catch(_){
+          status.hidden=false;
           status.textContent='Ошибка';
         }
       }
@@ -3504,7 +3535,8 @@
             rows.forEach(item=>container.appendChild(wishItemElement(item)));
           }
         }
-        status.textContent='Актуально';
+        status.hidden=true;
+        status.textContent='';
       }
 
       function setupWishlist(){
@@ -3522,11 +3554,19 @@
             renderWishlist(data);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
-            document.getElementById('wishlistStatus').textContent='Ошибка';
+            {
+              const status=document.getElementById('wishlistStatus');
+              status.hidden=false;
+              status.textContent='Ошибка';
+            }
           }finally{add.disabled=false}
         });
         wishlistRequest('list').then(renderWishlist).catch(()=>{
-          document.getElementById('wishlistStatus').textContent='Ошибка';
+          {
+            const status=document.getElementById('wishlistStatus');
+            status.hidden=false;
+            status.textContent='Ошибка';
+          }
         });
       }
 
