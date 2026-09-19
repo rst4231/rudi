@@ -3256,6 +3256,20 @@
       margin-top:10px!important;
     }
 
+
+    /* Daily quote now lives above weather on Home */
+    .profile .profile-compliment{
+      margin:12px 0 0!important;
+      padding:10px 12px!important;
+      border-radius:13px!important;
+      font-size:11.5px!important;
+      line-height:1.35!important;
+      text-align:center!important;
+    }
+    .profile .profile-compliment + .profile-weather{
+      margin-top:10px!important;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3328,6 +3342,8 @@
 
 
       <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
+
+      <div id="compliment" class="compliment profile-compliment"></div>
 
       <div class="profile-weather" aria-label="Погода">
         <div id="weatherVisual" class="weather-visual" data-weather="idle" aria-hidden="true">
@@ -3650,7 +3666,6 @@
     </section>
 
     <footer class="footer">
-      <div id="compliment" class="compliment"></div>
       <div>© <span id="currentYear"></span></div>
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
     </footer>
