@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setReaction, toggleReaction } = require('../api/reactions-store.cjs');
+const { cacheKey, setReaction, toggleReaction } = require('../api/reactions-store.cjs');
 
 function eventualCache(initial = {}) {
   const visible = new Map(Object.entries(initial));
@@ -28,7 +28,7 @@ test('toggleReaction immediately returns the new like before cache read-after-wr
 test('toggleReaction preserves the other actor while adding the current actor', async () => {
   const target = { type: 'watch', key: 'day:2026-09-19' };
   const cache = eventualCache({
-    'watch:day:2026-09-19:Диана': { actor: 'Диана', reactedAt: '2026-09-19T10:00:00.000Z' },
+    [cacheKey({ type: 'watch', key: 'day:2026-09-19' }, 'Диана')]: { actor: 'Диана', reactedAt: '2026-09-19T10:00:00.000Z' },
   });
 
   const result = await toggleReaction(target, 'Рустам', { reactionsCache: cache });
@@ -38,7 +38,7 @@ test('toggleReaction preserves the other actor while adding the current actor', 
 
 test('toggleReaction immediately returns the removed-like state', async () => {
   const cache = eventualCache({
-    'partner-message:message:2026-09-19T10:00:00.000Z:Рустам': { actor: 'Рустам' },
+    [cacheKey({ type: 'partner-message', key: 'message:2026-09-19T10:00:00.000Z' }, 'Рустам')]: { actor: 'Рустам' },
   });
 
   const result = await toggleReaction(
@@ -83,4 +83,34 @@ test('setReaction can remove a like even when the actor write is not readable ye
 
   assert.deepEqual(result.likedBy, []);
   assert.equal(result.count, 0);
+});
+
+
+test('reaction cache keys are compact ASCII-only keys', () => {
+  for (const actor of ['Рустам', 'Диана']) {
+    const key = cacheKey(
+      { type: 'partner-message', key: 'message:2026-09-19T19:06:40.134Z' },
+      actor
+    );
+    assert.match(key, /^[\x20-\x7E]+$/);
+    assert.ok(key.length < 100);
+    assert.equal(key.includes('Рустам'), false);
+    assert.equal(key.includes('Диана'), false);
+  }
+});
+
+test('setReaction survives a fresh read with the persisted ASCII key', async () => {
+  const values = new Map();
+  const cache = {
+    async get(key) { return values.has(key) ? structuredClone(values.get(key)) : null; },
+    async set(key, value) { values.set(key, structuredClone(value)); },
+    async delete(key) { values.delete(key); },
+  };
+  const target = { type: 'daily-idea', key: 'day:2026-09-19' };
+
+  await setReaction(target, 'Рустам', true, { reactionsCache: cache });
+  const persisted = await require('../api/reactions-store.cjs').readReaction(target, { reactionsCache: cache });
+
+  assert.deepEqual(persisted.likedBy, ['Рустам']);
+  assert.equal(persisted.count, 1);
 });
