@@ -3521,6 +3521,169 @@
     .profile .profile-compliment::after{content:"”";right:8px;bottom:-2px}
     .profile .profile-compliment + .profile-weather{margin-top:6px!important}
 
+
+    /* Home layout editor */
+    .home-tile-host{display:contents}
+    .home-layout-edit-button{
+      min-width:104px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;
+      padding:7px 14px;border:1px solid color-mix(in srgb,var(--line) 78%,transparent);border-radius:999px;
+      background:color-mix(in srgb,var(--surface-strong) 80%,transparent);color:var(--text);font:inherit;
+      font-size:11px;line-height:1;font-weight:760;letter-spacing:.01em;cursor:pointer;-webkit-tap-highlight-color:transparent;
+      backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 8px 18px rgba(20,24,36,.08);
+      transition:transform .16s ease,background-color .2s ease,border-color .2s ease;
+    }
+    .home-layout-edit-button:active{transform:scale(.96)}
+    .home-layout-edit-button[aria-pressed="true"]{
+      color:var(--accent);border-color:color-mix(in srgb,var(--accent) 34%,var(--line));
+      background:color-mix(in srgb,var(--accent-soft) 72%,var(--surface-strong));
+    }
+    body:not([data-app-tab="home"]) .home-layout-edit-button{display:none!important}
+    body.home-layout-editing [data-home-tile]{
+      position:relative;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;
+      outline:1px dashed color-mix(in srgb,var(--accent) 42%,var(--line));outline-offset:3px;
+      transition:transform .18s ease,opacity .18s ease,box-shadow .18s ease;
+    }
+    body.home-layout-editing [data-home-tile] > *{pointer-events:none!important}
+    body.home-layout-editing [data-home-tile]::after{
+      content:"⋮⋮";position:absolute;z-index:90;right:10px;top:9px;min-width:31px;height:25px;
+      display:grid;place-items:center;border:1px solid rgba(255,255,255,.18);border-radius:10px;
+      background:color-mix(in srgb,var(--surface-strong) 78%,transparent);color:var(--muted);
+      font-size:15px;line-height:1;font-weight:900;letter-spacing:-3px;pointer-events:none;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 14px rgba(0,0,0,.08);
+      backdrop-filter:blur(14px) saturate(1.35);-webkit-backdrop-filter:blur(14px) saturate(1.35);
+    }
+    body.home-layout-editing [data-home-tile].is-home-dragging{
+      z-index:100;opacity:.84;transform:scale(1.018);cursor:grabbing;pointer-events:none!important;
+      box-shadow:0 18px 46px rgba(18,22,34,.18);
+    }
+
+    /* Compact message as a quote */
+    .partner-message{
+      padding:13px 14px!important;
+      border-radius:18px!important;
+      border-color:color-mix(in srgb,var(--love) 20%,var(--line))!important;
+      background:
+        linear-gradient(135deg,color-mix(in srgb,var(--love-soft) 28%,transparent),transparent 72%),
+        color-mix(in srgb,var(--surface) 94%,transparent)!important;
+      box-shadow:0 10px 26px color-mix(in srgb,var(--love-glow) 14%,transparent),inset 0 1px 0 rgba(255,255,255,.08)!important;
+    }
+    .partner-message .love-hearts{opacity:.28}
+    .partner-head{margin-bottom:5px!important}
+    .partner-title{
+      display:block!important;
+      color:var(--text)!important;
+      font-size:18px!important;
+      line-height:1.15!important;
+      font-weight:820!important;
+      letter-spacing:-.025em!important;
+      text-transform:none!important;
+    }
+    .partner-title-heart{display:none!important}
+    .partner-edit{
+      width:30px!important;height:30px!important;border-radius:10px!important;
+      border-color:color-mix(in srgb,var(--line) 82%,transparent)!important;
+      background:color-mix(in srgb,var(--surface-strong) 70%,transparent)!important;
+    }
+    .partner-edit svg{width:15px!important;height:15px!important}
+    .partner-text{
+      max-width:100%!important;
+      margin-top:2px!important;
+      padding:7px 18px 6px 18px!important;
+      color:var(--text)!important;
+      font-size:14px!important;
+      line-height:1.42!important;
+      font-weight:610!important;
+      font-style:italic;
+    }
+    .partner-text::before,.partner-text::after{
+      position:absolute;
+      color:color-mix(in srgb,var(--love) 52%,var(--muted));
+      font-family:Georgia,serif;
+      font-style:normal;
+      font-size:24px;
+      line-height:1;
+      opacity:.72;
+      pointer-events:none;
+    }
+    .partner-text::before{content:"“";left:1px;top:2px}
+    .partner-text::after{content:"”";right:1px;bottom:-3px}
+    .partner-text.partner-empty{font-style:normal;padding-left:0!important;padding-right:0!important}
+    .partner-text.partner-empty::before,.partner-text.partner-empty::after{display:none}
+    .partner-author{
+      display:block!important;
+      margin-top:3px!important;
+      padding:0!important;
+      border:0!important;
+      border-radius:0!important;
+      background:transparent!important;
+      color:var(--muted)!important;
+      font-size:10.5px!important;
+      line-height:1.3!important;
+      font-weight:570!important;
+      box-shadow:none!important;
+    }
+    .partner-author:empty{display:none!important}
+    .partner-message .reaction-strip{margin-top:6px!important;min-height:26px}
+    .partner-message.is-collapsed{padding-bottom:11px!important}
+
+    /* Larger Apple-like Liquid Glass bottom navigation */
+    .app-tabbar{
+      min-height:116px!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:6px!important;padding:9px!important;
+      border:1px solid rgba(255,255,255,.28)!important;border-radius:32px!important;
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,.11) 48%,rgba(255,255,255,.07)),
+        color-mix(in srgb,var(--surface-strong) 52%,transparent)!important;
+      box-shadow:0 22px 54px rgba(16,22,36,.20),inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.12)!important;
+      backdrop-filter:blur(34px) saturate(1.8)!important;-webkit-backdrop-filter:blur(34px) saturate(1.8)!important;
+      overflow:hidden;
+    }
+    .app-tabbar::before{
+      content:"";position:absolute;inset:1px 8px auto 8px;height:42%;border-radius:28px 28px 44% 44%;
+      background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0));pointer-events:none;
+    }
+    .app-tab-button{
+      position:relative;z-index:1;min-height:96px!important;gap:7px!important;padding:10px 2px!important;
+      border:1px solid rgba(255,255,255,.08)!important;border-radius:24px!important;background:rgba(255,255,255,.045)!important;
+      font-size:11.5px!important;line-height:1!important;font-weight:720!important;overflow:hidden;
+      backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+    }
+    .app-tab-button::before{
+      content:"";position:absolute;inset:0;background:linear-gradient(145deg,rgba(255,255,255,.20),transparent 38%,rgba(255,255,255,.04) 72%);
+      opacity:.55;pointer-events:none;
+    }
+    .app-tab-icon{
+      position:relative;z-index:1;width:42px!important;height:42px!important;border-radius:15px!important;
+      background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.11);
+    }
+    .app-tab-icon svg{width:31px!important;height:31px!important}
+    .app-tab-button > span:last-child{position:relative;z-index:1}
+    .app-tab-button.active{
+      border-color:color-mix(in srgb,var(--accent) 24%,rgba(255,255,255,.34))!important;
+      background:linear-gradient(155deg,rgba(255,255,255,.34),rgba(255,255,255,.11) 44%,color-mix(in srgb,var(--accent-soft) 46%,transparent))!important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.58),inset 0 -1px 0 rgba(255,255,255,.11),0 9px 22px color-mix(in srgb,var(--accent-glow) 26%,transparent)!important;
+    }
+    .app-tab-button.active .app-tab-icon{
+      background:color-mix(in srgb,var(--accent-soft) 60%,rgba(255,255,255,.18))!important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 5px 16px color-mix(in srgb,var(--accent-glow) 25%,transparent)!important;
+    }
+    html[data-theme="dark"] .app-tabbar{
+      border-color:rgba(255,255,255,.16)!important;
+      background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.045) 48%,rgba(255,255,255,.025)),rgba(20,24,34,.61)!important;
+      box-shadow:0 24px 58px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.17)!important;
+    }
+    html[data-theme="dark"] .app-tab-button{border-color:rgba(255,255,255,.055)!important;background:rgba(255,255,255,.028)!important}
+    .shell{padding-bottom:calc(148px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important}
+    @media(max-width:430px){
+      .app-tabbar{width:calc(100% - 14px)!important;min-height:112px!important;padding:8px 6px!important;gap:4px!important;border-radius:30px!important}
+      .app-tab-button{min-height:94px!important;padding:9px 1px!important;gap:6px!important;border-radius:21px!important;font-size:10.8px!important}
+      .app-tab-icon{width:40px!important;height:40px!important}
+      .app-tab-icon svg{width:30px!important;height:30px!important}
+      .shell{padding-bottom:calc(144px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important}
+      .partner-title{font-size:18px!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3539,7 +3702,7 @@
   </div>
 
   <main class="shell">
-    <section class="profile" data-app-tab-section="home" aria-label="Профиль">
+    <section class="profile" data-app-tab-section="home" data-home-tile="profile" aria-label="Профиль">
       <div class="profile-people">
         <div class="identity identity-self">
           <div id="avatar" class="avatar" aria-hidden="true">
@@ -3640,7 +3803,7 @@
 
     </section>
 
-    <section class="section-block priority-section" data-app-tab-section="home" aria-labelledby="priorityTitle">
+    <section class="section-block priority-section" data-app-tab-section="home" data-home-tile="priority" aria-labelledby="priorityTitle">
       <div class="section-heading">
         <div>
           <h2 id="priorityTitle">Совместные дела</h2>
@@ -3683,7 +3846,7 @@
       </div>
     </section>
 
-    <section class="panel partner-message" data-app-tab-section="home" aria-label="Послание">
+    <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
       <div class="love-hearts" aria-hidden="true">
         <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
         <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
@@ -3692,9 +3855,6 @@
       </div>
       <div class="partner-head">
         <div class="partner-title">
-          <span class="partner-title-heart" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-          </span>
           <span>Послание</span>
         </div>
         <button id="partnerEditButton" class="partner-edit" type="button" aria-label="Изменить послание" title="Изменить">
@@ -3771,7 +3931,7 @@
       </button>
     </section>
 
-    <section class="section-block daily-section" data-app-tab-section="home" aria-labelledby="dailyTitle">
+    <section class="section-block daily-section" data-app-tab-section="home" data-home-tile="daily" aria-labelledby="dailyTitle">
       <div class="section-heading compact">
         <div>
           <h2 id="dailyTitle">Сегодня</h2>
@@ -3868,7 +4028,7 @@
       </div>
     </section>
 
-    <section class="section-block tools-section" data-app-tab-section="home" aria-labelledby="toolsTitle">
+    <section class="section-block tools-section" data-app-tab-section="home" data-home-tile="tools" aria-labelledby="toolsTitle">
       <div class="section-heading compact">
         <div>
           <div class="section-eyebrow">Полезное</div>
@@ -3963,6 +4123,7 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
       <div>© <span id="currentYear"></span></div>
+      <button id="homeLayoutEditButton" class="home-layout-edit-button" type="button" aria-pressed="false">Изменить</button>
 
     </footer>
   </main>
@@ -4047,7 +4208,132 @@
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
       let currentMoodDateKey = '';
+      let homeLayoutEditing = false;
+      let homeTileHost = null;
+      let homeDragState = null;
+      const HOME_TILE_DEFAULT_ORDER = ['profile','priority','partner','daily','tools'];
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
+
+      function homeLayoutStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi-home-layout-v1-'+actor;
+      }
+
+      function ensureHomeTileHost(){
+        if(homeTileHost?.isConnected) return homeTileHost;
+        const shell=document.querySelector('.shell');
+        if(!shell) return null;
+        const tiles=[...shell.querySelectorAll('[data-app-tab-section="home"][data-home-tile]')];
+        if(!tiles.length) return null;
+        const host=document.createElement('div');
+        host.id='homeTileHost';
+        host.className='home-tile-host';
+        shell.insertBefore(host,tiles[0]);
+        tiles.forEach(tile=>host.appendChild(tile));
+        homeTileHost=host;
+        return host;
+      }
+
+      function normalizedHomeOrder(order){
+        const requested=Array.isArray(order)?order.map(String):[];
+        const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
+        for(const id of HOME_TILE_DEFAULT_ORDER) if(!valid.includes(id)) valid.push(id);
+        return valid;
+      }
+
+      function applyHomeOrder(order){
+        const host=ensureHomeTileHost();
+        if(!host) return;
+        const tiles=new Map([...host.querySelectorAll(':scope > [data-home-tile]')].map(tile=>[tile.dataset.homeTile,tile]));
+        for(const id of normalizedHomeOrder(order)){
+          const tile=tiles.get(id);
+          if(tile) host.appendChild(tile);
+        }
+      }
+
+      function loadHomeOrder(){
+        let order=[];
+        try{order=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
+        applyHomeOrder(order);
+      }
+
+      function saveHomeOrder(){
+        const host=ensureHomeTileHost();
+        if(!host) return;
+        const order=[...host.querySelectorAll(':scope > [data-home-tile]')].map(tile=>tile.dataset.homeTile).filter(Boolean);
+        try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
+      }
+
+      function finishHomeDrag(){
+        const state=homeDragState;
+        if(!state) return;
+        try{state.tile.releasePointerCapture?.(state.pointerId)}catch(_){}
+        state.tile.classList.remove('is-home-dragging');
+        homeDragState=null;
+        saveHomeOrder();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setHomeLayoutEditing(enabled){
+        homeLayoutEditing=Boolean(enabled);
+        if(!homeLayoutEditing&&homeDragState) finishHomeDrag();
+        document.body.classList.toggle('home-layout-editing',homeLayoutEditing);
+        const button=document.getElementById('homeLayoutEditButton');
+        if(button){
+          button.textContent=homeLayoutEditing?'Готово':'Изменить';
+          button.setAttribute('aria-pressed',homeLayoutEditing?'true':'false');
+        }
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setupHomeLayoutEditor(){
+        const host=ensureHomeTileHost();
+        const button=document.getElementById('homeLayoutEditButton');
+        if(!host||!button) return;
+        loadHomeOrder();
+
+        if(button.dataset.homeLayoutBound!=='1'){
+          button.dataset.homeLayoutBound='1';
+          button.addEventListener('click',()=>setHomeLayoutEditing(!homeLayoutEditing));
+        }
+        if(host.dataset.homeLayoutBound==='1') return;
+        host.dataset.homeLayoutBound='1';
+
+        host.addEventListener('pointerdown',event=>{
+          if(!homeLayoutEditing) return;
+          if(event.pointerType==='mouse'&&event.button!==0) return;
+          const tile=event.target.closest?.('[data-home-tile]');
+          if(!tile||tile.parentElement!==host) return;
+          event.preventDefault();
+          homeDragState={tile,pointerId:event.pointerId};
+          tile.classList.add('is-home-dragging');
+          try{tile.setPointerCapture?.(event.pointerId)}catch(_){}
+          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+        },{passive:false});
+
+        host.addEventListener('pointermove',event=>{
+          const state=homeDragState;
+          if(!homeLayoutEditing||!state||event.pointerId!==state.pointerId) return;
+          event.preventDefault();
+
+          if(event.clientY<105) window.scrollBy({top:-14,left:0,behavior:'auto'});
+          else if(event.clientY>window.innerHeight-150) window.scrollBy({top:14,left:0,behavior:'auto'});
+
+          const point=document.elementFromPoint(event.clientX,event.clientY);
+          const target=point?.closest?.('[data-home-tile]');
+          if(!target||target===state.tile||target.parentElement!==host) return;
+          const rect=target.getBoundingClientRect();
+          if(event.clientY<rect.top+rect.height/2) host.insertBefore(state.tile,target);
+          else host.insertBefore(state.tile,target.nextSibling);
+        },{passive:false});
+
+        host.addEventListener('pointerup',event=>{
+          if(homeDragState&&event.pointerId===homeDragState.pointerId) finishHomeDrag();
+        });
+        host.addEventListener('pointercancel',event=>{
+          if(homeDragState&&event.pointerId===homeDragState.pointerId) finishHomeDrag();
+        });
+      }
 
       function applyAppTab(tab,{scroll=false}={}){
         const allowed=['home','schedule','wishlist','photos','products'];
@@ -4056,6 +4342,7 @@
         if(next!=='home'&&candidates.length&&candidates.every(section=>section.dataset.tabAvailable==='0')){
           next='home';
         }
+        if(next!=='home'&&homeLayoutEditing) setHomeLayoutEditing(false);
         currentAppTab=next;
         document.body.dataset.appTab=next;
 
@@ -6324,6 +6611,7 @@
       async function init(){
         const allowed=await authenticateApp();
         if(!allowed) return;
+        setupHomeLayoutEditor();
         setupAppTabs();
         holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
