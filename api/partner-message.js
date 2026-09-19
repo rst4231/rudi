@@ -258,10 +258,13 @@ async function handleRudiAction(req, res, action, options = {}) {
   }
 
   if (action === 'work-calendar-setup') {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    if (req.method !== 'GET' && req.method !== 'POST' && req.method) {
+      return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    }
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const url = decodeSetupKey(body.key);
+      const key = req.method === 'POST' ? body.key : req.query?.key;
+      const url = decodeSetupKey(key);
       await saveCalendarUrl(url, options);
       return res.status(200).json({ ok: true, configured: true });
     } catch (error) {
