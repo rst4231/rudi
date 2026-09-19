@@ -1,4 +1,4 @@
-const { createStrictRuntimeCache } = require('../strict-runtime-cache.cjs');
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const NAMESPACE = 'rudi-ticktick-oauth-v1';
 const TOKEN_KEY = 'oauth-token';
