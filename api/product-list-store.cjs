@@ -46,6 +46,93 @@ function categorizeProduct(value) {
   return 'Другое';
 }
 
+function estimateWeeklyAmount(value, category = categorizeProduct(value)) {
+  const text = keyOf(value);
+  const specific = [
+    [/(яйц)/u, '20 шт.'],
+    [/(молок)/u, '4 л'],
+    [/(кефир|ряжен)/u, '2 л'],
+    [/(йогур)/u, '8 шт.'],
+    [/(творог)/u, '1 кг'],
+    [/(сыр)/u, '500 г'],
+    [/(сметан)/u, '400–500 г'],
+    [/(сливочн.*масл|масло слив)/u, '400 г'],
+    [/(кур|индей)/u, '1,5–2 кг'],
+    [/(говя|свин)/u, '1–1,5 кг'],
+    [/(фарш|котлет)/u, '1–1,2 кг'],
+    [/(рыб|лосос|семг|сёмг|форел|тунец)/u, '1–1,2 кг'],
+    [/(кревет|морепродукт)/u, '800 г–1 кг'],
+    [/(колбас|сосиск|ветчин|бекон)/u, '500–700 г'],
+    [/(картоф)/u, '3 кг'],
+    [/(томат|помид)/u, '1,5 кг'],
+    [/(огур)/u, '1,2 кг'],
+    [/(морков)/u, '1 кг'],
+    [/(лук)/u, '1 кг'],
+    [/(чеснок)/u, '2 головки'],
+    [/(капуст)/u, '1 кочан'],
+    [/(перец)/u, '6–8 шт.'],
+    [/(кабач|баклаж)/u, '1 кг'],
+    [/(броккол|цветн)/u, '800 г–1 кг'],
+    [/(салат|укроп|петруш|кинз|зелень)/u, '2–3 пучка'],
+    [/(яблок)/u, '2 кг'],
+    [/(банан)/u, '1,5 кг'],
+    [/(апельс|мандарин)/u, '1,5 кг'],
+    [/(груш)/u, '1,5 кг'],
+    [/(виноград)/u, '1 кг'],
+    [/(ягод|клубник|малин|голубик|черник|вишн|черешн)/u, '700–800 г'],
+    [/(лимон|лайм)/u, '4–5 шт.'],
+    [/(киви|персик|нектар|абрикос|слив)/u, '1 кг'],
+    [/(арбуз|дын)/u, '1 шт.'],
+    [/(хлеб|батон|багет)/u, '3 шт.'],
+    [/(лаваш|лепеш|лепёш)/u, '2 упаковки'],
+    [/(булк|круассан)/u, '6–8 шт.'],
+    [/(макарон|паст[аы])/u, '1 кг'],
+    [/(рис)/u, '1 кг'],
+    [/(греч)/u, '1 кг'],
+    [/(овсян|хлопь)/u, '800 г–1 кг'],
+    [/(фасол|чечев|горох)/u, '700–800 г'],
+    [/(мук)/u, '1 кг'],
+    [/(сахар)/u, '1 кг'],
+    [/(соль)/u, '1 упаковка'],
+    [/(масло раст|оливков)/u, '1 л'],
+    [/(кетчуп|майонез|соус)/u, '1 упаковка'],
+    [/(специ|приправ)/u, '1 упаковка'],
+    [/(вод[аы]\b)/u, '20–28 л'],
+    [/(сок|морс|компот|лимонад|газиров|кола)/u, '3–4 л'],
+    [/(кофе)/u, '400–500 г'],
+    [/(чай)/u, '1 упаковка'],
+    [/(шоколад)/u, '2–3 плитки'],
+    [/(конфет)/u, '500 г'],
+    [/(печень|вафл|мармелад|зефир)/u, '500–700 г'],
+    [/(орех)/u, '400–500 г'],
+    [/(чипс|сухар)/u, '2 упаковки'],
+    [/(морожен)/u, '4 шт.'],
+    [/(пельмен|вареник|наггет)/u, '1,5 кг'],
+    [/(корм)/u, 'недельный запас по норме Лулу'],
+    [/(лакомств|пеленк|наполнитель)/u, '1 упаковка'],
+    [/(бумаг.*туалет|салфет|пакет|губк|перчатк|фольг|пл[её]нк|моющ|порошок|капсул|средство для)/u, '1 упаковка'],
+    [/(шампун|гель|мыло|паст[аы] зуб|дезодорант|крем)/u, '1 упаковка'],
+  ];
+  for (const [pattern, amount] of specific) if (pattern.test(text)) return amount;
+
+  const fallback = {
+    'Мясо и рыба': '1–1,5 кг',
+    'Овощи и зелень': '1–1,5 кг',
+    'Фрукты и ягоды': '1,5 кг',
+    'Молочное и яйца': '1–2 упаковки',
+    'Хлеб и выпечка': '2–3 упаковки',
+    'Бакалея': '1 упаковка',
+    'Сладкое и снеки': '1–2 упаковки',
+    'Напитки': '3–4 л',
+    'Заморозка': '1–1,5 кг',
+    'Для дома': '1 упаковка',
+    'Гигиена': '1 упаковка',
+    'Для Лулу': '1 недельный запас',
+    'Другое': '1 упаковка',
+  };
+  return fallback[category] || fallback.Другое;
+}
+
 function normalizeState(value) {
   const items = Array.isArray(value?.items) ? value.items : [];
   const history = Array.isArray(value?.history) ? value.history : [];
@@ -57,6 +144,8 @@ function normalizeState(value) {
       text: String(item?.text || '').trim().slice(0, MAX_TEXT),
       addedBy: String(item?.addedBy || ''),
       category: categorizeProduct(item?.text),
+      weeklyAmount: estimateWeeklyAmount(item?.text, categorizeProduct(item?.text)),
+      checked: Boolean(item?.checked),
       createdAt: String(item?.createdAt || ''),
     })).filter((item) => item.id && item.text).slice(0, MAX_ACTIVE),
     history: history.map((item) => ({
@@ -65,6 +154,7 @@ function normalizeState(value) {
       addedBy: String(item?.addedBy || ''),
       boughtBy: String(item?.boughtBy || ''),
       category: categorizeProduct(item?.text),
+      weeklyAmount: estimateWeeklyAmount(item?.text, categorizeProduct(item?.text)),
       boughtAt: String(item?.boughtAt || ''),
     })).filter((item) => item.id && item.text && item.boughtAt).slice(0, MAX_HISTORY),
   };
@@ -119,6 +209,8 @@ async function initializeFromLegacy(options = {}) {
       text,
       addedBy: 'RUDI',
       category: categorizeProduct(text),
+      weeklyAmount: estimateWeeklyAmount(text),
+      checked: false,
       createdAt: now,
     });
     if (items.length >= MAX_ACTIVE) break;
@@ -144,6 +236,8 @@ async function addProducts(values, addedBy = '', options = {}) {
         text,
         addedBy: String(addedBy || ''),
         category: categorizeProduct(text),
+        weeklyAmount: estimateWeeklyAmount(text),
+        checked: false,
         createdAt: now,
       });
       existing.add(key);
@@ -178,6 +272,16 @@ async function removeProductByText(value, options = {}) {
   });
 }
 
+async function toggleProductChecked(id, options = {}) {
+  return enqueue(async () => {
+    const state = await readProductList(options);
+    const item = state.items.find((row) => row.id === String(id || ''));
+    if (!item) throw new Error('product-item-not-found');
+    item.checked = !Boolean(item.checked);
+    return writeState(state, options);
+  });
+}
+
 async function markProductBought(id, boughtBy = '', options = {}) {
   return enqueue(async () => {
     const state = await readProductList(options);
@@ -190,6 +294,7 @@ async function markProductBought(id, boughtBy = '', options = {}) {
       addedBy: String(item.addedBy || ''),
       boughtBy: String(boughtBy || ''),
       category: categorizeProduct(item.text),
+      weeklyAmount: estimateWeeklyAmount(item.text),
       boughtAt: new Date(options.now || Date.now()).toISOString(),
     });
     state.history = state.history.slice(0, MAX_HISTORY);
@@ -212,6 +317,6 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
   readProductList, addProducts, removeProduct, removeProductByText,
-  markProductBought, clearProducts, normalizeText, keyOf, categorizeProduct,
+  toggleProductChecked, markProductBought, clearProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   resetMutationQueueForTests,
 };
