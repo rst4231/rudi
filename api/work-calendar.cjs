@@ -148,7 +148,7 @@ function parseEvents(ics, fallbackTimeZone = DEFAULT_TIMEZONE) {
       }
     }
   }
-  return events.filter((event) => event.start && event.status !== 'CANCELLED');
+  return events.filter((event) => event.start || event.recurrenceId);
 }
 
 function dateKeyFromParts(parts) {
@@ -255,6 +255,7 @@ function buildWeek(events, mondayKey, tz = DEFAULT_TIMEZONE) {
 
   for (const event of events) {
     if (event.recurrenceId) {
+      if (event.status === 'CANCELLED' || !event.start) continue;
       const key = dateKey(event.start.date, tz);
       const day = days.find((row) => row.date === key);
       if (day) day.events.push({
@@ -265,6 +266,8 @@ function buildWeek(events, mondayKey, tz = DEFAULT_TIMEZONE) {
       });
       continue;
     }
+
+    if (event.status === 'CANCELLED' || !event.start) continue;
 
     for (const day of days) {
       if (!occurrenceMatches(event, day.date, tz)) continue;
