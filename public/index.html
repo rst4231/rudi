@@ -756,10 +756,11 @@
 
       function updateClock(){
         const now = new Date();
-        const weekday = new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:TZ}).format(now);
+        const weekdayRaw = new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:TZ}).format(now);
+        const weekday = weekdayRaw.replace('.', '').toUpperCase();
         const date = new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:TZ}).format(now);
         const time = new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:TZ}).format(now);
-        document.getElementById('profileMeta').textContent = weekday.charAt(0).toUpperCase()+weekday.slice(1)+' · '+date+' · '+time;
+        document.getElementById('profileMeta').textContent = weekday+' · '+date+' · '+time;
       }
       updateClock();
       setInterval(updateClock,30000);
