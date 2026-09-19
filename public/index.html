@@ -454,6 +454,64 @@
       font-size:11px;
       line-height:1.3;
     }
+    .ticktick-panel{
+      padding:17px 18px;
+      border-color:color-mix(in srgb,#35d870 24%,var(--line));
+      background:
+        linear-gradient(135deg,rgba(53,216,112,.08),transparent 58%),
+        var(--surface);
+      animation:fadeUp .52s .05s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .ticktick-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:9px;
+    }
+    .ticktick-head .panel-label{margin:0}
+    .ticktick-badge{
+      flex:none;
+      padding:5px 8px;
+      border-radius:999px;
+      background:rgba(53,216,112,.11);
+      color:color-mix(in srgb,#35d870 72%,var(--text));
+      font-size:10.5px;
+      line-height:1;
+      font-weight:740;
+    }
+    .ticktick-title{
+      color:var(--text);
+      font-size:15px;
+      line-height:1.35;
+      font-weight:740;
+      letter-spacing:-.014em;
+    }
+    .ticktick-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px 12px;
+      margin-top:7px;
+      color:var(--muted);
+      font-size:11.8px;
+      line-height:1.3;
+      font-weight:560;
+    }
+    .ticktick-connect{
+      display:none;
+      width:max-content;
+      margin-top:11px;
+      padding:8px 11px;
+      border:1px solid color-mix(in srgb,#35d870 30%,var(--line));
+      border-radius:11px;
+      background:rgba(53,216,112,.10);
+      color:color-mix(in srgb,#35d870 72%,var(--text));
+      text-decoration:none;
+      font-size:12px;
+      font-weight:700;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .ticktick-connect.show{display:inline-flex}
     .dashboard{display:grid;gap:11px}
     .panel{
       position:relative;
@@ -718,6 +776,19 @@
     </section>
 
     <section class="dashboard" aria-label="Сегодня">
+      <article class="panel ticktick-panel" aria-label="Ближайшее в TickTick">
+        <div class="ticktick-head">
+          <div class="panel-label">Общий список · TickTick</div>
+          <div id="ticktickBadge" class="ticktick-badge">Синхронизация</div>
+        </div>
+        <div id="ticktickTitle" class="ticktick-title">Загружаю ближайшее событие…</div>
+        <div class="ticktick-meta">
+          <span id="ticktickDate"></span>
+          <span id="ticktickAssignee"></span>
+        </div>
+        <a id="ticktickConnect" class="ticktick-connect" href="/api/ticktick/connect">Подключить TickTick</a>
+      </article>
+
       <article class="panel nearest-panel">
         <div class="panel-label">Ближайшее</div>
         <div class="nearest-content">
@@ -989,6 +1060,85 @@
         }
       }
 
+      function formatTickTickDate(task){
+        if(!task?.startDate) return '';
+        const date=new Date(task.startDate);
+        if(Number.isNaN(date.getTime())) return '';
+        const dateText=new Intl.DateTimeFormat('ru-RU',{
+          day:'numeric',
+          month:'long',
+          timeZone:TZ
+        }).format(date);
+        if(task.isAllDay) return dateText;
+        const timeText=new Intl.DateTimeFormat('ru-RU',{
+          hour:'2-digit',
+          minute:'2-digit',
+          timeZone:TZ
+        }).format(date);
+        return dateText+' · '+timeText;
+      }
+
+      function renderTickTickState(payload){
+        const title=document.getElementById('ticktickTitle');
+        const date=document.getElementById('ticktickDate');
+        const assignee=document.getElementById('ticktickAssignee');
+        const badge=document.getElementById('ticktickBadge');
+        const connect=document.getElementById('ticktickConnect');
+
+        connect.classList.remove('show');
+        date.textContent='';
+        assignee.textContent='';
+
+        if(payload?.configured===false){
+          title.textContent='Интеграция TickTick ещё не настроена.';
+          badge.textContent='Настройка';
+          return;
+        }
+
+        if(payload?.connected===false){
+          title.textContent='Подключите общий список TickTick.';
+          badge.textContent='Не подключён';
+          connect.href=payload.connectUrl||'/api/ticktick/connect';
+          connect.classList.add('show');
+          return;
+        }
+
+        if(payload?.enabled===false){
+          title.textContent='Синхронизация TickTick выключена.';
+          badge.textContent='Выключено';
+          return;
+        }
+
+        if(!payload?.task){
+          title.textContent='В общем списке нет ближайших задач с датой.';
+          badge.textContent='Актуально';
+          return;
+        }
+
+        title.textContent=payload.task.title||'Без названия';
+        date.textContent=formatTickTickDate(payload.task);
+        assignee.textContent='Ответственный: '+(payload.task.assignee||'Не назначен');
+        badge.textContent='Актуально';
+      }
+
+      async function loadTickTickNext(){
+        try{
+          const response=await fetch('/api/ticktick/next?t='+Date.now(),{cache:'no-store'});
+          const payload=await response.json().catch(()=>({}));
+          if(response.status===401){
+            renderTickTickState({...payload,connected:false});
+            return;
+          }
+          if(!response.ok) throw new Error(payload.error||'ticktick');
+          renderTickTickState(payload);
+        }catch(_){
+          document.getElementById('ticktickTitle').textContent='Не удалось обновить TickTick.';
+          document.getElementById('ticktickBadge').textContent='Ошибка';
+          document.getElementById('ticktickDate').textContent='';
+          document.getElementById('ticktickAssignee').textContent='';
+        }
+      }
+
       function renderNearest(config){
         const events=[];
         for(const b of config.birthdays||[]){
@@ -1166,9 +1316,11 @@
         setupPartnerMessage();
         setupStreakAndMood();
         loadWeather(config.weather);
+        loadTickTickNext();
       }
 
       init();
+      setInterval(loadTickTickNext,5*60*1000);
 
       window.addEventListener('pageshow',event=>{if(event.persisted) location.reload()});
       let hiddenAt=0;
