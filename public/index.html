@@ -3198,9 +3198,20 @@
     .profile .mood-partner{
       gap:7px!important;
     }
+    .profile .partner-work-info{
+      min-width:0;
+      max-width:96px;
+      display:grid;
+      justify-items:end;
+      gap:3px;
+      text-align:right;
+    }
+    .profile .partner-work-info[hidden]{
+      display:none!important;
+    }
     .profile .partner-work-status{
       min-width:0;
-      max-width:92px;
+      max-width:96px;
       overflow:hidden;
       font-size:9px;
       line-height:1;
@@ -3215,15 +3226,25 @@
     .profile .partner-work-status.is-off{
       color:#35c97a;
     }
-    .profile .partner-work-status[hidden]{
+    .profile .partner-work-time{
+      color:rgba(232,235,246,.58);
+      font-size:8px;
+      line-height:1;
+      font-weight:650;
+      letter-spacing:.01em;
+      white-space:nowrap;
+    }
+    .profile .partner-work-time[hidden]{
       display:none!important;
     }
     @media(max-width:390px){
       .profile .mood-partner{gap:5px!important}
+      .profile .partner-work-info{max-width:82px}
       .profile .partner-work-status{
-        max-width:76px;
+        max-width:82px;
         font-size:8px;
       }
+      .profile .partner-work-time{font-size:7.5px}
     }
 
 
@@ -3291,7 +3312,10 @@
           </div>
           <div class="mood-person mood-partner">
             <span id="partnerMoodLabel" class="mood-person-label">Диана</span>
-            <span id="partnerWorkStatus" class="partner-work-status" hidden></span>
+            <span id="partnerWorkInfo" class="partner-work-info" hidden>
+              <span id="partnerWorkStatus" class="partner-work-status"></span>
+              <span id="partnerWorkTime" class="partner-work-time" hidden></span>
+            </span>
             <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
               <span class="partner-mood-icon" data-partner-mood="low" hidden><span class="mood-emoji" aria-hidden="true">😔</span></span>
@@ -4608,16 +4632,37 @@
       }
 
       function renderPartnerWorkStatus(days){
+        const info=document.getElementById('partnerWorkInfo');
         const status=document.getElementById('partnerWorkStatus');
-        if(!status) return;
+        const time=document.getElementById('partnerWorkTime');
+        if(!info||!status||!time) return;
+
         const today=todayState().key;
         const row=(Array.isArray(days)?days:[]).find(day=>String(day?.date||'')===today);
-        if(!row) return;
+        if(!row){
+          info.hidden=true;
+          return;
+        }
+
         const working=Boolean(row.working);
         status.textContent=working?'Рабочий день':'Выходной';
         status.classList.toggle('is-working',working);
         status.classList.toggle('is-off',!working);
-        status.hidden=false;
+
+        const events=Array.isArray(row.events)?row.events:[];
+        const ranges=events
+          .map(event=>event?.allDay?'Весь день':([event?.startTime,event?.endTime].filter(Boolean).join('–')))
+          .filter(Boolean);
+
+        if(working&&ranges.length){
+          time.textContent=ranges.join(' / ');
+          time.hidden=false;
+        }else{
+          time.textContent='';
+          time.hidden=true;
+        }
+
+        info.hidden=false;
       }
 
       function renderWorkCalendar(payload){
