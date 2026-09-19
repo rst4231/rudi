@@ -9,6 +9,7 @@ const { normalizePreviewSections, applyPreviewContentOverride } = require('./pre
 const { getContentOverride } = require('./section-controls.cjs');
 const { SECTION_NAMES } = require('./rudi-settings.cjs');
 const { DEFAULT_MAX_ITEMS, rankHolidayEntries } = require('./holiday-significance.cjs');
+const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 
 function extractHolidayEntries(value) {
   return String(value || '')
@@ -62,6 +63,11 @@ async function runPreview(req, res, options = {}) {
         rewritten?.results?.holidays?.preview?.message || sections?.holidays?.parts?.[0] || ''
       );
       const holidayHighlights = rankHolidayEntries(holidayEntries, DEFAULT_MAX_ITEMS);
+      if (rewritten?.date && holidayHighlights.length) {
+        writeHolidayHighlights(rewritten.date, holidayHighlights, options).catch((error) => {
+          console.warn('RUDI_HOLIDAY_HIGHLIGHTS_CACHE_ERROR', String(error?.message || error));
+        });
+      }
 
       return originalJson({
         ...rewritten,
