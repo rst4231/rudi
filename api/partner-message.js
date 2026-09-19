@@ -7,6 +7,13 @@ const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = 
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
 const {
+  readProductList,
+  addProducts,
+  removeProduct,
+  markProductBought,
+  clearProducts,
+} = require('./product-list-store.cjs');
+const {
   decodeSetupKey: decodeNotificationSetupKey,
   saveRecipients,
   readRecipients,
@@ -538,6 +545,46 @@ async function handleRudiAction(req, res, action, options = {}) {
       const code = String(error?.message || error);
       const status = statusForError(error) === 500 ? 502 : statusForError(error);
       console.error('RUDI_WORK_CALENDAR_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
+  if (action === 'products') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      const operation = String(body.operation || 'list').trim();
+
+      if (operation === 'list') {
+        return res.status(200).json({ ok: true, actor, ...(await readProductList(options)) });
+      }
+      if (operation === 'add') {
+        const values = Array.isArray(body.items) && body.items.length ? body.items : [body.text];
+        const state = await addProducts(values, actor, options);
+        return res.status(200).json({ ok: true, actor, ...state });
+      }
+      if (operation === 'remove') {
+        const state = await removeProduct(body.id, options);
+        return res.status(200).json({ ok: true, actor, ...state });
+      }
+      if (operation === 'bought') {
+        const state = await markProductBought(body.id, actor, options);
+        return res.status(200).json({ ok: true, actor, ...state });
+      }
+      if (operation === 'clear') {
+        const state = await clearProducts(options);
+        return res.status(200).json({ ok: true, actor, ...state });
+      }
+      return res.status(400).json({ ok: false, error: 'products-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'product-item-not-found' ? 404
+        : code.startsWith('product-') ? 400
+        : 500;
+      if (status === 500) console.error('RUDI_PRODUCTS_ERROR', code);
       return res.status(status).json({ ok: false, error: code });
     }
   }
