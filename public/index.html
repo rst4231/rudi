@@ -3894,6 +3894,8 @@
       let sharedAlbumUrl = '';
       let currentAppTab = 'home';
       let presenceRequestPromise = null;
+      let productsLoadPromise = null;
+      let productsRefreshTimer = 0;
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
 
       function applyAppTab(tab,{scroll=false}={}){
@@ -3935,7 +3937,10 @@
             appTabScroll[currentAppTab]=window.scrollY||0;
             document.activeElement?.blur?.();
             applyAppTab(next,{scroll:true});
-            if(next==='products') loadProducts({silent:true});
+            if(next==='products'){
+              loadProducts({silent:true});
+              scheduleProductsRefresh(2000);
+            }
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         });
@@ -5876,20 +5881,46 @@
         }
       }
 
+      function productsRefreshDelay(){
+        if(document.visibilityState!=='visible') return 15000;
+        return currentAppTab==='products' ? 2000 : 10000;
+      }
+
+      function scheduleProductsRefresh(delay=productsRefreshDelay()){
+        clearTimeout(productsRefreshTimer);
+        productsRefreshTimer=setTimeout(async()=>{
+          if(currentActor&&document.visibilityState==='visible'){
+            await loadProducts({silent:true});
+          }
+          scheduleProductsRefresh();
+        },Math.max(500,Number(delay)||productsRefreshDelay()));
+      }
+
       async function loadProducts({silent=false}={}){
         if(!currentActor||!tg?.initData) return;
+        if(productsLoadPromise) return productsLoadPromise;
+
         const status=document.getElementById('productsStatus');
         if(status&&!silent){
           status.hidden=false;
           status.textContent='Обновляю список…';
         }
-        try{
-          renderProducts(await productsRequest('list'));
-        }catch(_){
-          if(status&&!silent){
-            status.hidden=false;
-            status.textContent='Не удалось обновить список';
+
+        productsLoadPromise=(async()=>{
+          try{
+            renderProducts(await productsRequest('list'));
+          }catch(_){
+            if(status&&!silent){
+              status.hidden=false;
+              status.textContent='Не удалось обновить список';
+            }
           }
+        })();
+
+        try{
+          return await productsLoadPromise;
+        }finally{
+          productsLoadPromise=null;
         }
       }
 
@@ -5954,6 +5985,7 @@
         });
 
         loadProducts();
+        scheduleProductsRefresh(2000);
       }
 
       function renderLatestUpdate(config){
@@ -6063,7 +6095,6 @@
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor) refreshPresence(true)},30*1000);
-      setInterval(()=>{if(currentActor) loadProducts({silent:true})},30*1000);
 
       async function refreshAfterResume(){
         updateTelegramSafeArea();
@@ -6095,7 +6126,11 @@
           return;
         }
         markSelfPresenceVisible();
-        if(currentActor) refreshPresence(true);
+        if(currentActor){
+          refreshPresence(true);
+          loadProducts({silent:true});
+          scheduleProductsRefresh(2000);
+        }
         if(hiddenAt&&Date.now()-hiddenAt>1200) refreshAfterResume();
         hiddenAt=0;
       });
