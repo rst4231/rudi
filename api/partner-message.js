@@ -430,19 +430,21 @@ async function handleRudiAction(req, res, action, options = {}) {
       const { actor } = authorizeInitData(body.initData, options);
       const operation = String(body.operation || 'heartbeat').trim();
 
+      let mineRow = null;
       if (operation === 'heartbeat') {
-        await markPresence(actor, options);
+        mineRow = await markPresence(actor, options);
       } else if (operation !== 'get') {
         return res.status(400).json({ ok: false, error: 'presence-operation-invalid' });
       }
 
-      return res.status(200).json({ ok: true, ...(await presenceView(actor, options)) });
+      return res.status(200).json({ ok: true, ...(await presenceView(actor, options, mineRow)) });
     } catch (error) {
       const code = String(error?.message || error);
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'presence-actor-invalid' || code === 'presence-operation-invalid' ? 400
         : 500;
+      if (status === 500) console.error('RUDI_PRESENCE_ERROR', code);
       return res.status(status).json({ ok: false, error: code });
     }
   }
