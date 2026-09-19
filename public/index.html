@@ -1385,11 +1385,10 @@
 
   
     .mood-message{
-      display:grid;
-      grid-template-rows:0fr;
+      max-height:0;
       opacity:0;
       margin-top:0;
-      padding:0 14px;
+      padding:0 13px;
       border:0 solid transparent;
       border-radius:15px;
       color:var(--text);
@@ -1400,19 +1399,15 @@
       overflow:hidden;
       transform:translateY(-4px);
       transition:
-        grid-template-rows .24s cubic-bezier(.2,.8,.2,1),
+        max-height .28s cubic-bezier(.2,.8,.2,1),
         opacity .22s ease,
         margin .24s ease,
         padding .24s ease,
         border-width .24s ease,
         transform .24s ease;
     }
-    .mood-message::before{
-      content:"";
-      min-height:0;
-    }
     .mood-message.show{
-      grid-template-rows:1fr;
+      max-height:112px;
       opacity:1;
       margin-top:14px;
       padding:11px 13px;
