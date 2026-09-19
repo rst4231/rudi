@@ -164,9 +164,10 @@ async function readTelegramProfile(userId, fallbackName, options = {}) {
 
   try {
     const chat = await telegramBotCall('getChat', { chat_id: id }, options);
-    const name = [chat?.first_name, chat?.last_name].map((value) => String(value || '').trim()).filter(Boolean).join(' ')
-      || String(chat?.title || '').trim()
-      || fallback.name;
+    const name = String(chat?.first_name || '').trim()
+      || String(chat?.title || '').trim().split(/\s+/)[0]
+      || String(fallback.name || '').trim().split(/\s+/)[0]
+      || 'Партнёр';
 
     let fileId = String(chat?.photo?.small_file_id || '').trim();
     if (!fileId) {
