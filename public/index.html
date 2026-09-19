@@ -1662,7 +1662,10 @@
     }
     .update-text{padding-top:1px;color:var(--text);font-size:11.5px;line-height:1.42;font-weight:580}
 
-  </style>
+      .update-group{display:grid;gap:8px}
+    .update-group+.update-group{margin-top:5px;padding-top:13px;border-top:1px solid var(--line)}
+    .update-group-title{margin-bottom:1px;color:var(--muted);font-size:10px;font-weight:780;letter-spacing:.02em}
+</style>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -3036,10 +3039,9 @@
       }
 
       function renderLatestUpdate(config){
-        const updates=Array.isArray(config?.updates)?config.updates:[];
-        const latest=updates
+        const updates=(Array.isArray(config?.updates)?config.updates:[])
           .filter(item=>item?.date)
-          .sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];
+          .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
         const card=document.getElementById('updatesCard');
         const date=document.getElementById('updatesDate');
         const summary=document.getElementById('updatesSummary');
@@ -3047,35 +3049,54 @@
         const toggle=document.getElementById('updatesToggle');
         const details=document.getElementById('updatesDetails');
 
-        if(!latest){
+        if(!updates.length){
           card.hidden=true;
           return;
         }
 
-        const parsed=new Date(String(latest.date)+'T12:00:00Z');
-        const dateText=Number.isNaN(parsed.getTime())
-          ?String(latest.date)
-          :new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(parsed);
-        const items=Array.isArray(latest.items)?latest.items.filter(Boolean):[];
+        const formatUpdateDate=value=>{
+          const parsed=new Date(String(value)+'T12:00:00Z');
+          return Number.isNaN(parsed.getTime())
+            ?String(value)
+            :new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(parsed);
+        };
 
-        date.textContent='Обновление · '+dateText;
-        summary.textContent=items.length
-          ?items.length+' '+(items.length===1?'изменение':(items.length>=2&&items.length<=4?'изменения':'изменений'))
-          :(latest.title||'Обновление RUDI');
+        const latest=updates[0];
+        const latestItems=Array.isArray(latest.items)?latest.items.filter(Boolean):[];
+        date.textContent=latest.title||('Обновление '+formatUpdateDate(latest.date));
+        summary.textContent=latestItems.length
+          ?latestItems.length+' '+(latestItems.length===1?'изменение':(latestItems.length>=2&&latestItems.length<=4?'изменения':'изменений'))
+          :'История обновлений RUDI';
 
         list.replaceChildren();
-        for(const value of items){
-          const row=document.createElement('div');
-          row.className='update-row';
-          const check=document.createElement('span');
-          check.className='update-check';
-          check.textContent='✓';
-          const text=document.createElement('div');
-          text.className='update-text';
-          text.textContent=String(value);
-          row.append(check,text);
-          list.appendChild(row);
+        for(const update of updates){
+          const group=document.createElement('section');
+          group.className='update-group';
+
+          const heading=document.createElement('div');
+          heading.className='update-group-title';
+          heading.textContent=update.title||('Обновление '+formatUpdateDate(update.date));
+          group.appendChild(heading);
+
+          const items=Array.isArray(update.items)?update.items.filter(Boolean):[];
+          for(const value of items){
+            const row=document.createElement('div');
+            row.className='update-row';
+            const check=document.createElement('span');
+            check.className='update-check';
+            check.textContent='✓';
+            const text=document.createElement('div');
+            text.className='update-text';
+            text.textContent=String(value);
+            row.append(check,text);
+            group.appendChild(row);
+          }
+          list.appendChild(group);
         }
+
+        card.classList.add('open');
+        toggle.setAttribute('aria-expanded','true');
+        details.setAttribute('aria-hidden','false');
 
         toggle.addEventListener('click',()=>{
           const open=!card.classList.contains('open');
