@@ -2437,6 +2437,110 @@
       .app-tabbar,.app-tab-button{transition:none}
     }
 
+
+    /* 2026-09 compact app pages */
+    .app-tabbar{grid-template-columns:repeat(5,minmax(0,1fr))}
+    .app-tab-button{font-size:8px}
+    body[data-app-tab="schedule"] .work-section,
+    body[data-app-tab="wishlist"] .wishlist-section,
+    body[data-app-tab="photos"] .shared-album-section,
+    body[data-app-tab="updates"] .updates-section{
+      min-height:0!important;
+      align-self:start;
+      margin-top:0;
+    }
+    body[data-app-tab="updates"] .updates-section{
+      background:linear-gradient(145deg,rgba(126,113,190,.075),var(--surface));
+    }
+
+    .work-calendar-ranges{
+      grid-template-columns:1fr 1fr!important;
+      margin-bottom:7px!important;
+      padding:3px!important;
+    }
+    .work-range-button{min-height:32px!important;padding:6px 8px!important}
+    .work-calendar-card{padding:10px!important;margin-top:7px!important}
+    .work-calendar-head{margin-bottom:6px!important}
+    .work-calendar-days{gap:4px!important}
+    .calendar-day-cell{border-radius:9px!important}
+
+    .wishlist-card{padding:10px!important;border-radius:18px!important}
+    .wishlist-form{margin-bottom:10px!important}
+    .wishlist-columns{gap:7px!important}
+    .wishlist-column{padding:8px!important;border-radius:14px!important}
+    .wishlist-column-head{margin-bottom:7px!important}
+    .wishlist-list{gap:5px!important}
+    .wish-item{padding:7px!important;gap:6px!important;border-radius:10px!important}
+    .wish-text{font-size:11.2px!important;line-height:1.3!important}
+
+    .shared-album-card{padding:8px!important;border-radius:17px!important}
+    .shared-album-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:4px!important}
+    .shared-album-photo,.shared-album-placeholder{border-radius:9px!important}
+    .shared-album-open{min-height:34px!important;margin-top:7px!important;padding:7px 9px!important}
+
+    .tools-section .links{
+      grid-template-columns:repeat(4,minmax(0,1fr))!important;
+      gap:7px!important;
+    }
+    .tools-section .card{
+      min-height:68px!important;
+      grid-template-columns:1fr!important;
+      justify-items:center!important;
+      align-content:center!important;
+      gap:5px!important;
+      padding:8px 4px!important;
+      border-radius:15px!important;
+      text-align:center!important;
+      opacity:1!important;
+      transform:none!important;
+    }
+    .tools-section .feature-icon{
+      width:38px!important;height:38px!important;border-radius:12px!important;
+    }
+    .tools-section .feature-icon svg{width:21px!important;height:21px!important}
+    .tools-section .label{
+      width:100%;
+      font-size:8.2px!important;
+      line-height:1.15!important;
+      font-weight:690!important;
+      text-align:center!important;
+      white-space:normal!important;
+      overflow:visible!important;
+      text-overflow:clip!important;
+    }
+    .tools-section .arrow{display:none!important}
+
+    .updates-static{padding:11px!important;border-radius:18px!important}
+    .updates-static-head{
+      display:grid;
+      grid-template-columns:34px minmax(0,1fr);
+      align-items:center;
+      gap:9px;
+    }
+    .updates-static .updates-icon{width:34px;height:34px;border-radius:11px}
+    .updates-static .updates-icon svg{width:17px;height:17px}
+    .updates-static .updates-details{
+      display:block!important;
+      grid-template-rows:none!important;
+      opacity:1!important;
+      transition:none!important;
+    }
+    .updates-static .updates-list{
+      margin:10px 0 0!important;
+      padding-top:10px!important;
+      gap:7px!important;
+    }
+
+    @media(max-width:430px){
+      .app-tab-button{font-size:7.6px!important;padding-left:1px!important;padding-right:1px!important}
+      .app-tab-icon{width:23px!important;height:23px!important}
+      .app-tab-icon svg{width:19px!important;height:19px!important}
+      .tools-section{padding-left:8px!important;padding-right:8px!important}
+      .tools-section .links{gap:5px!important}
+      .tools-section .card{min-height:64px!important;padding:7px 2px!important}
+      .tools-section .label{font-size:7.6px!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2656,8 +2760,7 @@
               <div class="work-calendar-legend"><span></span> рабочий день</div>
             </div>
             <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика">
-              <button class="work-range-button active" type="button" data-work-view="week" aria-pressed="true">7 дней</button>
-              <button class="work-range-button" type="button" data-work-view="month" aria-pressed="false">Этот месяц</button>
+              <button class="work-range-button active" type="button" data-work-view="month" aria-pressed="true">Этот месяц</button>
               <button class="work-range-button" type="button" data-work-view="next-month" aria-pressed="false">Следующий месяц</button>
             </div>
             <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
@@ -2815,15 +2918,15 @@
       </nav>
     </section>
 
-    <section class="section-block updates-section" data-app-tab-section="home" aria-labelledby="updatesTitle">
+    <section class="section-block updates-section" data-app-tab-section="updates" aria-labelledby="updatesTitle">
       <div class="section-heading compact">
         <div>
           <div class="section-eyebrow">RUDI</div>
           <h2 id="updatesTitle">Что нового</h2>
         </div>
       </div>
-      <article id="updatesCard" class="panel updates-card">
-        <button id="updatesToggle" class="updates-toggle" type="button" aria-expanded="false" aria-controls="updatesDetails">
+      <article id="updatesCard" class="panel updates-card updates-static">
+        <div class="updates-static-head">
           <span class="updates-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
@@ -2834,11 +2937,8 @@
             <strong id="updatesDate">Последнее обновление</strong>
             <small id="updatesSummary">Смотрю, что изменилось…</small>
           </span>
-          <span class="updates-chevron" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
-          </span>
-        </button>
-        <div id="updatesDetails" class="updates-details" aria-hidden="true">
+        </div>
+        <div id="updatesDetails" class="updates-details updates-details-static">
           <div class="updates-details-clip">
             <div id="updatesList" class="updates-list"></div>
           </div>
@@ -2878,6 +2978,12 @@
       </span>
       <span>Фото</span>
     </button>
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="updates" aria-selected="false">
+      <span class="app-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
+      </span>
+      <span>Новое</span>
+    </button>
   </nav>
 
   <div id="holidayModal" class="holiday-modal" aria-hidden="true">
@@ -2915,13 +3021,13 @@
       let currentActor = '';
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
-      let currentWorkCalendarView = 'week';
+      let currentWorkCalendarView = 'month';
       let sharedAlbumUrl = '';
       let currentAppTab = 'home';
-      const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0};
+      const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,updates:0};
 
       function applyAppTab(tab,{scroll=false}={}){
-        const allowed=['home','schedule','wishlist','photos'];
+        const allowed=['home','schedule','wishlist','photos','updates'];
         const next=allowed.includes(tab)?tab:'home';
         currentAppTab=next;
         document.body.dataset.appTab=next;
@@ -3730,7 +3836,7 @@
       }
 
       function setWorkCalendarRangeActive(view){
-        currentWorkCalendarView=['week','month','next-month'].includes(view)?view:'week';
+        currentWorkCalendarView=['month','next-month'].includes(view)?view:'month';
         document.querySelectorAll('[data-work-view]').forEach(button=>{
           const active=button.dataset.workView===currentWorkCalendarView;
           button.classList.toggle('active',active);
@@ -3749,8 +3855,8 @@
           details.setAttribute('aria-hidden',open?'false':'true');
           if(persist) setBlockCollapsed('work',!open);
         };
-        setOpen(!getBlockCollapsed('work',false));
-        setWorkCalendarRangeActive('week');
+        setOpen(true);
+        setWorkCalendarRangeActive('month');
 
         toggle.addEventListener('click',()=>{
           const open=!section.classList.contains('open');
@@ -3759,7 +3865,7 @@
         });
 
         rangeButtons.forEach(button=>button.addEventListener('click',async()=>{
-          const view=button.dataset.workView||'week';
+          const view=button.dataset.workView||'month';
           if(view===currentWorkCalendarView) return;
           setWorkCalendarRangeActive(view);
           await loadWorkCalendar(view);
@@ -3886,7 +3992,7 @@
 
       async function loadWorkCalendar(view=currentWorkCalendarView){
         if(!tg?.initData) return;
-        const requested=['week','month','next-month'].includes(view)?view:'week';
+        const requested=['month','next-month'].includes(view)?view:'month';
         currentWorkCalendarView=requested;
         setWorkCalendarRangeActive(requested);
         const status=document.getElementById('workCalendarStatus');
@@ -3925,7 +4031,7 @@
         const grid=document.getElementById('sharedAlbumGrid');
         const status=document.getElementById('sharedAlbumStatus');
         const open=document.getElementById('sharedAlbumOpen');
-        const photos=Array.isArray(payload?.photos)?payload.photos.slice(0,5):[];
+        const photos=Array.isArray(payload?.photos)?payload.photos.slice(0,40):[];
 
         if(!payload?.configured){
           section.dataset.tabAvailable='0';
@@ -4136,12 +4242,12 @@
         document.getElementById('nearestDays').textContent=daysLabel(e.days);
       }
 
-      function formatPartnerUpdatedAt(value){
-        const date=new Date(value);
-        if(Number.isNaN(date.getTime())) return '';
-        return new Intl.DateTimeFormat('ru-RU',{
-          day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',timeZone:TZ
-        }).format(date);
+      function partnerAuthorGenitive(value){
+        const name=String(value||'').trim();
+        const normalized=name.toLowerCase();
+        if(normalized==='рустам') return 'Рустама';
+        if(normalized==='диана') return 'Дианы';
+        return name;
       }
 
       function renderPartnerMessage(message){
@@ -4155,8 +4261,7 @@
         }
         textEl.textContent=message.text;
         textEl.classList.remove('partner-empty');
-        const when=formatPartnerUpdatedAt(message.updatedAt);
-        authorEl.textContent='♥ С любовью от '+message.authorName+(when?' · '+when:'');
+        authorEl.textContent='♥ С любовью от '+partnerAuthorGenitive(message.authorName);
       }
 
       async function loadPartnerMessage(){
@@ -4373,8 +4478,6 @@
         const date=document.getElementById('updatesDate');
         const summary=document.getElementById('updatesSummary');
         const list=document.getElementById('updatesList');
-        const toggle=document.getElementById('updatesToggle');
-        const details=document.getElementById('updatesDetails');
 
         if(!updates.length){
           card.hidden=true;
@@ -4420,20 +4523,6 @@
           }
           list.appendChild(group);
         }
-
-        const applyUpdateOpen=open=>{
-          card.classList.toggle('open',open);
-          toggle.setAttribute('aria-expanded',open?'true':'false');
-          details.setAttribute('aria-hidden',open?'false':'true');
-        };
-        applyUpdateOpen(!getBlockCollapsed('updates',true));
-
-        toggle.addEventListener('click',()=>{
-          const open=!card.classList.contains('open');
-          applyUpdateOpen(open);
-          setBlockCollapsed('updates',!open);
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
       }
 
       async function init(){
@@ -4474,17 +4563,37 @@
         loadSharedAlbum();
       }
 
-      init();
+      init().catch(error=>{
+        console.error('RUDI_INIT_ERROR',error);
+        if(!document.body.classList.contains('auth-ok')){
+          denyApp('Не удалось открыть RUDI','Закройте приложение и откройте его снова из Telegram.');
+        }
+      });
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
-      setInterval(()=>{if(currentActor) loadWorkCalendar()},15*60*1000);
+      setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
 
-      window.addEventListener('pageshow',event=>{if(event.persisted) location.reload()});
+      async function refreshAfterResume(){
+        updateTelegramSafeArea();
+        if(!currentActor) return;
+        await Promise.allSettled([
+          refreshDailyMood(),
+          loadTickTickNext(),
+          loadWorkCalendar(currentWorkCalendarView),
+          loadSharedAlbum()
+        ]);
+      }
+
+      window.addEventListener('pageshow',event=>{
+        updateTelegramSafeArea();
+        if(event.persisted) refreshAfterResume();
+      });
       let hiddenAt=0;
       document.addEventListener('visibilitychange',()=>{
         if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}
-        if(hiddenAt&&Date.now()-hiddenAt>1200) location.reload();
+        if(hiddenAt&&Date.now()-hiddenAt>1200) refreshAfterResume();
+        hiddenAt=0;
       });
     })();
   </script>
