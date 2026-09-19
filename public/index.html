@@ -3489,6 +3489,38 @@
       .year-progress-bar{transition:none!important}
     }
 
+
+    /* Daily line above weather is presented as a compact quote */
+    .profile .profile-compliment{
+      position:relative!important;
+      margin:4px 0 0!important;
+      padding:9px 25px 9px 25px!important;
+      border:1px solid color-mix(in srgb,var(--accent) 14%,var(--line))!important;
+      border-radius:13px!important;
+      background:linear-gradient(135deg,color-mix(in srgb,var(--accent-soft) 42%,transparent),transparent 72%),color-mix(in srgb,var(--surface-strong) 82%,transparent)!important;
+      color:var(--text)!important;
+      font-size:11.2px!important;
+      line-height:1.35!important;
+      font-weight:590!important;
+      font-style:italic;
+      text-align:left!important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .profile .profile-compliment::before,
+    .profile .profile-compliment::after{
+      position:absolute;
+      color:color-mix(in srgb,var(--accent) 58%,var(--muted));
+      font-family:Georgia,serif;
+      font-size:23px;
+      line-height:1;
+      font-style:normal;
+      opacity:.72;
+      pointer-events:none;
+    }
+    .profile .profile-compliment::before{content:"“";left:8px;top:5px}
+    .profile .profile-compliment::after{content:"”";right:8px;bottom:-2px}
+    .profile .profile-compliment + .profile-weather{margin-top:6px!important}
+
   </style>
 </head>
 <body class="auth-pending">
@@ -4018,7 +4050,11 @@
 
       function applyAppTab(tab,{scroll=false}={}){
         const allowed=['home','schedule','wishlist','photos','products'];
-        const next=allowed.includes(tab)?tab:'home';
+        let next=allowed.includes(tab)?tab:'home';
+        const candidates=[...document.querySelectorAll('[data-app-tab-section="'+next+'"]')];
+        if(next!=='home'&&candidates.length&&candidates.every(section=>section.dataset.tabAvailable==='0')){
+          next='home';
+        }
         currentAppTab=next;
         document.body.dataset.appTab=next;
 
@@ -4303,11 +4339,11 @@
       updateTelegramSafeArea();
       setTimeout(updateTelegramSafeArea,60);
       setTimeout(updateTelegramSafeArea,300);
-      tg?.onEvent?.('themeChanged',applyTheme);
-      tg?.onEvent?.('safeAreaChanged',updateTelegramSafeArea);
-      tg?.onEvent?.('contentSafeAreaChanged',updateTelegramSafeArea);
-      tg?.onEvent?.('viewportChanged',updateTelegramSafeArea);
-      tg?.onEvent?.('fullscreenChanged',updateTelegramSafeArea);
+      tg?.onEvent?.('themeChanged',()=>{applyTheme();setTimeout(()=>ensureAppSurface(),0)});
+      tg?.onEvent?.('safeAreaChanged',()=>{updateTelegramSafeArea();setTimeout(()=>ensureAppSurface(),0)});
+      tg?.onEvent?.('contentSafeAreaChanged',()=>{updateTelegramSafeArea();setTimeout(()=>ensureAppSurface(),0)});
+      tg?.onEvent?.('viewportChanged',()=>setTimeout(()=>ensureAppSurface(),0));
+      tg?.onEvent?.('fullscreenChanged',()=>setTimeout(()=>ensureAppSurface(),0));
       media.addEventListener?.('change',()=>{if(!tg?.initData) applyTheme()});
 
       const user = tg?.initDataUnsafe?.user;
@@ -6335,8 +6371,22 @@
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor) refreshPresence(true)},PRESENCE_REFRESH_MS);
 
-      async function refreshAfterResume(){
+      function ensureAppSurface(){
+        applyTheme();
         updateTelegramSafeArea();
+        document.body.classList.remove('keyboard-editing');
+        if(!currentActor) return;
+
+        document.body.classList.remove('auth-pending','auth-denied');
+        document.body.classList.add('auth-ok');
+
+        const activeSections=[...document.querySelectorAll('[data-app-tab-section="'+currentAppTab+'"]')];
+        const hasAvailableActive=activeSections.some(section=>section.dataset.tabAvailable!=='0');
+        applyAppTab(hasAvailableActive?currentAppTab:'home',{scroll:false});
+      }
+
+      async function refreshAfterResume(){
+        ensureAppSurface();
         if(!currentActor) return;
         await Promise.allSettled([
           refreshDailyMood(),
@@ -6347,14 +6397,16 @@
           refreshPresence(true),
           refreshDailyReactions()
         ]);
+        ensureAppSurface();
       }
 
-      window.addEventListener('pageshow',event=>{
-        updateTelegramSafeArea();
+      window.addEventListener('pageshow',()=>{
+        ensureAppSurface();
         markSelfPresenceVisible();
-        if(event.persisted) refreshAfterResume();
+        refreshAfterResume();
       });
       window.addEventListener('focus',()=>{
+        ensureAppSurface();
         markSelfPresenceVisible();
         if(currentActor) refreshPresence(true);
       });
@@ -6365,6 +6417,7 @@
           hiddenAt=Date.now();
           return;
         }
+        ensureAppSurface();
         markSelfPresenceVisible();
         if(currentActor){
           refreshPresence(true);
