@@ -40,12 +40,18 @@ function cacheKey(target, actor) {
   return `reaction:${target.type}:${targetHash}:${actorSlug(actor)}`;
 }
 
+function storedLiked(value) {
+  if (value === null || value === undefined) return false;
+  if (value && typeof value === 'object' && typeof value.liked === 'boolean') return value.liked;
+  return Boolean(value);
+}
+
 async function readReaction(targetInput, options = {}) {
   const target = normalizeTarget(targetInput);
   const cache = cacheOf(options);
   const rows = await Promise.all([...ACTORS].map(async (actor) => {
     const value = await cache.get(cacheKey(target, actor));
-    return [actor, Boolean(value)];
+    return [actor, storedLiked(value)];
   }));
   const likedBy = rows.filter(([, liked]) => liked).map(([actor]) => actor);
   return { ...target, likedBy, count: likedBy.length };
@@ -70,18 +76,15 @@ async function setReaction(targetInput, actorInput, likedInput, options = {}) {
     Boolean(await cache.get(cacheKey(target, otherActor))),
   ]));
 
-  if (likedInput) {
-    await cache.set(key, {
-      actor,
-      reactedAt: new Date(options.now || Date.now()).toISOString(),
-    }, {
-      ttl: TTL_SECONDS,
-      tags: ['rudi-reactions', `rudi-reaction-${target.type}`],
-      name: key,
-    });
-  } else {
-    await cache.delete(key);
-  }
+  await cache.set(key, {
+    actor,
+    liked: likedInput,
+    reactedAt: new Date(options.now || Date.now()).toISOString(),
+  }, {
+    ttl: TTL_SECONDS,
+    tags: ['rudi-reactions', `rudi-reaction-${target.type}`],
+    name: key,
+  });
 
   const likedBy = otherRows.filter(([, liked]) => liked).map(([name]) => name);
   if (likedInput) likedBy.push(actor);
@@ -104,23 +107,20 @@ async function toggleReaction(targetInput, actorInput, options = {}) {
     cache.get(key),
     Promise.all(otherActors.map(async (otherActor) => [
       otherActor,
-      Boolean(await cache.get(cacheKey(target, otherActor))),
+      storedLiked(await cache.get(cacheKey(target, otherActor))),
     ])),
   ]);
 
-  const nextLiked = !existing;
-  if (nextLiked) {
-    await cache.set(key, {
-      actor,
-      reactedAt: new Date(options.now || Date.now()).toISOString(),
-    }, {
-      ttl: TTL_SECONDS,
-      tags: ['rudi-reactions', `rudi-reaction-${target.type}`],
-      name: key,
-    });
-  } else {
-    await cache.delete(key);
-  }
+  const nextLiked = !storedLiked(existing);
+  await cache.set(key, {
+    actor,
+    liked: nextLiked,
+    reactedAt: new Date(options.now || Date.now()).toISOString(),
+  }, {
+    ttl: TTL_SECONDS,
+    tags: ['rudi-reactions', `rudi-reaction-${target.type}`],
+    name: key,
+  });
 
   const likedBy = otherRows.filter(([, liked]) => liked).map(([name]) => name);
   if (nextLiked) likedBy.push(actor);
