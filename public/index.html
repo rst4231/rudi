@@ -310,37 +310,6 @@
       font-weight:680;
       letter-spacing:-.012em;
     }
-    .favorites{
-      padding:16px;
-      animation:fadeUp .52s .2s cubic-bezier(.2,.8,.2,1) both;
-    }
-    .favorite-list{
-      display:flex;
-      gap:8px;
-      overflow-x:auto;
-      padding-bottom:1px;
-      scrollbar-width:none;
-    }
-    .favorite-list::-webkit-scrollbar{display:none}
-    .favorite{
-      flex:0 0 auto;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:10px 12px;
-      border:1px solid var(--line);
-      border-radius:13px;
-      background:var(--soft);
-      color:var(--text);
-      text-decoration:none;
-      font-size:12.5px;
-      font-weight:650;
-      transition:transform .18s ease,background-color .2s ease;
-      -webkit-tap-highlight-color:transparent;
-    }
-    .favorite:hover{transform:translateY(-2px);background:var(--surface-hover)}
-    .favorite:active{transform:scale(.97)}
-    .favorite svg{width:17px;height:17px;color:var(--icon-stroke)}
     .links{display:grid;gap:10px}
     .card{
       position:relative;
@@ -405,6 +374,23 @@
       line-height:1.3;
       animation:fadeUp .5s .28s cubic-bezier(.2,.8,.2,1) both;
     }
+    .telegram-link{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:9px 12px;
+      border:1px solid var(--line);
+      border-radius:13px;
+      background:var(--surface);
+      color:var(--text);
+      text-decoration:none;
+      font-weight:650;
+      transition:transform .18s ease,background-color .2s ease;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .telegram-link:hover{transform:translateY(-2px);background:var(--surface-hover)}
+    .telegram-link:active{transform:scale(.97)}
+    .telegram-link svg{width:18px;height:18px;color:var(--icon-stroke)}
     @keyframes heroIn{from{opacity:0;transform:translateY(-10px) scale(.985)}to{opacity:1;transform:none}}
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     @keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1)}}
@@ -496,10 +482,6 @@
         </article>
       </div>
 
-      <article class="panel favorites">
-        <div class="panel-label">Избранное</div>
-        <div id="favoriteList" class="favorite-list"></div>
-      </article>
     </section>
 
     <nav class="links" aria-label="Инструменты">
@@ -529,6 +511,12 @@
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
+      <a class="telegram-link" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/>
+        </svg>
+        <span>Telegram чат</span>
+      </a>
     </footer>
   </main>
 
@@ -549,11 +537,6 @@
           {id:'diana',name:'Диана',year:1996,month:6,day:30}
         ],
         importantDates:[{id:'new-year',title:'Новый год',month:1,day:1,recurring:true}],
-        favorites:[
-          {title:'Telegram чат',url:'https://t.me/+fiPsnWoBJ-c0ZmU1',icon:'telegram'},
-          {title:'Яндекс Карты',url:'https://yandex.ru/maps/',icon:'map'},
-          {title:'YouTube',url:'https://www.youtube.com/',icon:'play'}
-        ],
         dailyIdeas:['Сделать небольшую прогулку без телефона.','Попробовать сегодня новый рецепт.','Устроить вечером час без соцсетей.','Написать близкому человеку что-нибудь приятное.'],
         watchList:['Достать ножи','Интерстеллар','Одержимость','Зелёная книга'],
         cookList:['Паста карбонара','Шакшука','Курица терияки с рисом','Сырники'],
@@ -667,14 +650,6 @@
       function secureRandom(){if(window.crypto?.getRandomValues){const a=new Uint32Array(1);window.crypto.getRandomValues(a);return a[0]/4294967296}return Math.random()}
       function randomItem(list){return list[Math.floor(secureRandom()*list.length)]}
 
-      function iconSvg(type){
-        const attrs='viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
-        if(type==='telegram') return '<svg '+attrs+'><path d="M20.5 4.5 17.8 18c-.2.9-.8 1.1-1.5.7l-4.2-3.1-2 1.9c-.2.2-.4.4-.8.4l.3-4.3 7.8-7c.3-.3-.1-.5-.5-.2l-9.6 6-4.1-1.3c-.9-.3-.9-.9.2-1.3l16.1-6.2c.8-.3 1.4.2 1.1 1.1Z"/></svg>';
-        if(type==='map') return '<svg '+attrs+'><path d="m9 18-5 2V6l5-2 6 2 5-2v14l-5 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>';
-        if(type==='play') return '<svg '+attrs+'><circle cx="12" cy="12" r="8.5"/><path d="m10 8.8 5 3.2-5 3.2V8.8Z"/></svg>';
-        return '<svg '+attrs+'><path d="M8 12h8M12 8v8"/><circle cx="12" cy="12" r="8"/></svg>';
-      }
-
       async function loadConfig(){
         try{
           const response=await fetch(CONFIG_URL+'?t='+Date.now(),{cache:'no-store'});
@@ -724,21 +699,6 @@
         document.getElementById('nearestTitle').textContent=e.title;
         document.getElementById('nearestMeta').textContent=e.meta;
         document.getElementById('nearestDays').textContent=daysLabel(e.days);
-      }
-
-      function renderFavorites(config){
-        const root=document.getElementById('favoriteList');
-        root.textContent='';
-        for(const item of config.favorites||[]){
-          const a=document.createElement('a');
-          a.className='favorite';
-          a.href=item.url;
-          a.target='_blank';
-          a.rel='noopener noreferrer';
-          a.innerHTML=iconSvg(item.icon)+'<span></span>';
-          a.querySelector('span').textContent=item.title;
-          root.appendChild(a);
-        }
       }
 
       function setupStreakAndMood(){
@@ -792,7 +752,6 @@
         document.getElementById('cookToday').textContent=cook[Math.abs(dayIndex+7)%cook.length];
 
         renderNearest(config);
-        renderFavorites(config);
         setupStreakAndMood();
         loadWeather(config.weather);
       }
