@@ -3325,6 +3325,14 @@
       margin-top:0;
     }
     .products-heading{align-items:center!important}
+    .products-heading-actions{display:flex;align-items:center;gap:6px}
+    .products-bought-all{
+      border:0;border-radius:11px;padding:7px 10px;
+      background:color-mix(in srgb,var(--green) 14%,var(--surface));
+      color:color-mix(in srgb,var(--green) 78%,var(--text));
+      font:inherit;font-size:9px;font-weight:790;cursor:pointer;
+    }
+    .products-bought-all:disabled{opacity:.34;cursor:default}
     .products-clear{
       border:0;border-radius:11px;padding:7px 10px;
       background:color-mix(in srgb,var(--red) 10%,var(--surface));
@@ -3376,7 +3384,6 @@
     .product-item.is-checked .product-weekly-amount,
     .product-item.is-checked .product-added-by{opacity:.52}
     .product-actions{display:flex;align-items:center;gap:4px}
-    .product-bought{min-height:29px;padding:0 8px;border:0;border-radius:9px;background:color-mix(in srgb,var(--green) 14%,var(--surface));color:color-mix(in srgb,var(--green) 76%,var(--text));font:inherit;font-size:8px;font-weight:790;cursor:pointer}
     .product-icon-action{width:29px;height:29px;display:grid;place-items:center;border:0;border-radius:9px;background:var(--soft);color:var(--muted);cursor:pointer;transition:transform .14s ease,background-color .14s ease,color .14s ease}
     .product-icon-action:active{transform:scale(.92)}
     .product-icon-action svg{width:14px;height:14px}
@@ -3398,7 +3405,6 @@
     @media(max-width:390px){
       .product-item{grid-template-columns:22px minmax(0,1fr) auto;gap:5px;padding-left:7px}
       .product-check{width:20px;height:20px}
-      .product-bought{padding:0 6px;font-size:7.6px}
       .product-icon-action{width:27px;height:27px}
       .product-text{font-size:10.8px}
     }
@@ -3779,7 +3785,10 @@
           <div class="section-eyebrow">Общий список</div>
           <h2 id="productsTitle">Продукты</h2>
         </div>
-        <button id="productsClear" class="products-clear" type="button" disabled>Очистить</button>
+        <div class="products-heading-actions">
+          <button id="productsBought" class="products-bought-all" type="button" disabled>Купил</button>
+          <button id="productsClear" class="products-clear" type="button" disabled>Очистить</button>
+        </div>
       </div>
 
       <article class="panel products-card">
@@ -5695,6 +5704,7 @@
         const empty=document.getElementById('productsEmpty');
         const status=document.getElementById('productsStatus');
         const clear=document.getElementById('productsClear');
+        const boughtAll=document.getElementById('productsBought');
         const historyList=document.getElementById('productsHistory');
         const historyEmpty=document.getElementById('productsHistoryEmpty');
         const historyCount=document.getElementById('productsHistoryCount');
@@ -5702,6 +5712,7 @@
 
         setProductsBadge(items.length>0);
         if(clear) clear.disabled=!items.length;
+        if(boughtAll) boughtAll.disabled=!items.some(item=>Boolean(item.checked));
         if(status){
           status.textContent=items.length
             ?items.length+' '+(items.length===1?'позиция':(items.length>=2&&items.length<=4?'позиции':'позиций'))
@@ -5771,20 +5782,6 @@
 
             const actions=document.createElement('div');
             actions.className='product-actions';
-            const bought=document.createElement('button');
-            bought.type='button';
-            bought.className='product-bought';
-            bought.textContent='Купил';
-            bought.addEventListener('click',async()=>{
-              bought.disabled=true;
-              try{
-                renderProducts(await productsRequest('bought',{id:item.id}));
-                try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-              }catch(_){
-                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-              }finally{bought.disabled=false}
-            });
-
             const copy=productIconButton('Копировать','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>');
             copy.addEventListener('click',()=>copyProductText(item.text,copy));
 
@@ -5800,7 +5797,7 @@
               }finally{remove.disabled=false}
             });
 
-            actions.append(bought,copy,remove);
+            actions.append(copy,remove);
             row.append(check,main,actions);
             list.appendChild(row);
           }
@@ -5861,7 +5858,8 @@
         const input=document.getElementById('productsInput');
         const add=document.getElementById('productsAdd');
         const clear=document.getElementById('productsClear');
-        if(!form||!input||!add||!clear) return;
+        const boughtAll=document.getElementById('productsBought');
+        if(!form||!input||!add||!clear||!boughtAll) return;
 
         input.addEventListener('focus',()=>document.body.classList.add('keyboard-editing'));
         input.addEventListener('blur',()=>document.body.classList.remove('keyboard-editing'));
@@ -5879,6 +5877,17 @@
           }catch(_){
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{add.disabled=false}
+        });
+
+        boughtAll.addEventListener('click',async()=>{
+          if(boughtAll.disabled) return;
+          boughtAll.disabled=true;
+          try{
+            renderProducts(await productsRequest('buy-checked'));
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }
         });
 
         clear.addEventListener('click',async()=>{
