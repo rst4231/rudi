@@ -19,6 +19,7 @@ const {
   getLatestPhotos,
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
+const { markPresence, presenceView } = require('./presence-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -410,6 +411,30 @@ async function handleRudiAction(req, res, action, options = {}) {
       });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'presence') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      const operation = String(body.operation || 'heartbeat').trim();
+
+      if (operation === 'heartbeat') {
+        await markPresence(actor, options);
+      } else if (operation !== 'get') {
+        return res.status(400).json({ ok: false, error: 'presence-operation-invalid' });
+      }
+
+      return res.status(200).json({ ok: true, ...(await presenceView(actor, options)) });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'presence-actor-invalid' || code === 'presence-operation-invalid' ? 400
+        : 500;
+      return res.status(status).json({ ok: false, error: code });
     }
   }
 
