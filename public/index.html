@@ -3317,6 +3317,69 @@
       outline-offset:2px;
     }
 
+
+    /* Shared products tab */
+    body[data-app-tab="products"] .products-section{
+      min-height:0!important;
+      align-self:start;
+      margin-top:0;
+    }
+    .products-heading{align-items:center!important}
+    .products-clear{
+      border:0;border-radius:11px;padding:7px 10px;
+      background:color-mix(in srgb,var(--red) 10%,var(--surface));
+      color:color-mix(in srgb,var(--red) 82%,var(--text));
+      font:inherit;font-size:9px;font-weight:760;cursor:pointer;
+    }
+    .products-clear:disabled{opacity:.34;cursor:default}
+    .products-card{margin-top:4px;padding:11px!important;border-radius:18px!important}
+    .products-form{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:8px;margin-bottom:9px}
+    .products-input{
+      width:100%;min-width:0;height:42px;border:1px solid var(--line);border-radius:13px;
+      padding:0 12px;background:color-mix(in srgb,var(--surface-strong) 84%,var(--surface));
+      color:var(--text);font:inherit;font-size:12px;outline:0;box-sizing:border-box;
+    }
+    .products-input:focus{border-color:color-mix(in srgb,var(--accent) 50%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-soft) 70%,transparent)}
+    .products-add{width:42px;height:42px;display:grid;place-items:center;border:0;border-radius:13px;background:var(--accent);color:white;cursor:pointer}
+    .products-add svg{width:19px;height:19px}
+    .products-status{margin:1px 1px 9px;color:var(--muted);font-size:9px;font-weight:650}
+    .products-groups{display:grid;gap:10px}
+    .product-category{display:grid;gap:6px}
+    .product-category-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px;color:var(--text)}
+    .product-category-head strong{font-size:10.5px;font-weight:820}
+    .product-category-head span{min-width:20px;padding:2px 6px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:8px;font-weight:760;text-align:center}
+    .product-list{display:grid;gap:5px}
+    .product-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-height:48px;padding:7px 7px 7px 10px;border:1px solid color-mix(in srgb,var(--line) 92%,transparent);border-radius:12px;background:color-mix(in srgb,var(--surface) 84%,transparent)}
+    .product-main{min-width:0;display:grid;gap:3px}
+    .product-text{min-width:0;overflow:hidden;color:var(--text);font-size:11.5px;line-height:1.25;font-weight:710;text-overflow:ellipsis;white-space:nowrap}
+    .product-added-by{color:var(--muted);font-size:8px;font-weight:600}
+    .product-actions{display:flex;align-items:center;gap:4px}
+    .product-bought{min-height:29px;padding:0 8px;border:0;border-radius:9px;background:color-mix(in srgb,var(--green) 14%,var(--surface));color:color-mix(in srgb,var(--green) 76%,var(--text));font:inherit;font-size:8px;font-weight:790;cursor:pointer}
+    .product-icon-action{width:29px;height:29px;display:grid;place-items:center;border:0;border-radius:9px;background:var(--soft);color:var(--muted);cursor:pointer;transition:transform .14s ease,background-color .14s ease,color .14s ease}
+    .product-icon-action:active{transform:scale(.92)}
+    .product-icon-action svg{width:14px;height:14px}
+    .product-icon-action.copied{background:color-mix(in srgb,var(--green) 14%,var(--surface));color:var(--green)}
+    .product-icon-action.danger{color:color-mix(in srgb,var(--red) 72%,var(--muted))}
+    .products-empty,.products-history-empty{padding:16px 8px;color:var(--muted);font-size:10px;line-height:1.4;text-align:center}
+    .products-history{margin-top:14px;padding-top:11px;border-top:1px solid var(--line)}
+    .products-history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+    .products-history-head strong{font-size:10.5px;font-weight:820}
+    .products-history-head small{color:var(--muted);font-size:8.5px;font-weight:700}
+    .products-history-list{display:grid;gap:5px}
+    .product-history-item{padding:8px 9px;border-radius:11px;background:color-mix(in srgb,var(--soft) 72%,transparent)}
+    .product-history-copy{display:grid;gap:3px}
+    .product-history-copy strong{color:var(--text);font-size:10.5px;font-weight:690}
+    .product-history-copy small{color:var(--muted);font-size:7.7px;line-height:1.35}
+    .products-tab-icon{position:relative}
+    .app-tab-notification{position:absolute;top:0;right:0;width:7px;height:7px;border:2px solid color-mix(in srgb,var(--surface-strong) 94%,transparent);border-radius:999px;background:#ff4d57;box-sizing:content-box}
+    .app-tab-notification[hidden]{display:none!important}
+    @media(max-width:390px){
+      .product-item{gap:5px;padding-left:8px}
+      .product-bought{padding:0 6px;font-size:7.6px}
+      .product-icon-action{width:27px;height:27px}
+      .product-text{font-size:10.8px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3687,31 +3750,35 @@
       </nav>
     </section>
 
-    <section class="section-block updates-section" data-app-tab-section="updates" aria-labelledby="updatesTitle">
-      <div class="section-heading compact">
+    <section class="section-block products-section" data-app-tab-section="products" aria-labelledby="productsTitle">
+      <div class="section-heading compact products-heading">
         <div>
-          <div class="section-eyebrow">RUDI</div>
-          <h2 id="updatesTitle">Что нового</h2>
+          <div class="section-eyebrow">Общий список</div>
+          <h2 id="productsTitle">Продукты</h2>
         </div>
+        <button id="productsClear" class="products-clear" type="button" disabled>Очистить</button>
       </div>
-      <article id="updatesCard" class="panel updates-card updates-static">
-        <div class="updates-static-head">
-          <span class="updates-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
-              <circle cx="12" cy="12" r="3.2"/>
-            </svg>
-          </span>
-          <span class="updates-copy">
-            <strong id="updatesDate">Последнее обновление</strong>
-            <small id="updatesSummary">Смотрю, что изменилось…</small>
-          </span>
-        </div>
-        <div id="updatesDetails" class="updates-details updates-details-static">
-          <div class="updates-details-clip">
-            <div id="updatesList" class="updates-list"></div>
+
+      <article class="panel products-card">
+        <form id="productsForm" class="products-form">
+          <input id="productsInput" class="products-input" maxlength="180" autocomplete="off" placeholder="Добавить продукт…" aria-label="Добавить продукт">
+          <button id="productsAdd" class="products-add" type="submit" aria-label="Добавить продукт">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </form>
+
+        <div id="productsStatus" class="products-status">Загружаю список…</div>
+        <div id="productsGroups" class="products-groups"></div>
+        <div id="productsEmpty" class="products-empty" hidden>Список пока пуст. Добавьте продукт вручную или через Алису.</div>
+
+        <section class="products-history" aria-labelledby="productsHistoryTitle">
+          <div class="products-history-head">
+            <strong id="productsHistoryTitle">История покупок</strong>
+            <small id="productsHistoryCount"></small>
           </div>
-        </div>
+          <div id="productsHistory" class="products-history-list"></div>
+          <div id="productsHistoryEmpty" class="products-history-empty">Покупок пока нет</div>
+        </section>
       </article>
     </section>
 
@@ -3746,11 +3813,12 @@
       </span>
       <span>Фото</span>
     </button>
-    <button role="tab" class="app-tab-button" type="button" data-app-tab="updates" aria-selected="false">
-      <span class="app-tab-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="products" aria-selected="false">
+      <span class="app-tab-icon products-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16l-1.2 11H5.2L4 8Z"/><path d="M8 8a4 4 0 0 1 8 0"/></svg>
+        <span id="productsTabBadge" class="app-tab-notification" hidden></span>
       </span>
-      <span>Новое</span>
+      <span>Продукты</span>
     </button>
   </nav>
 
@@ -3793,10 +3861,10 @@
       let currentWorkCalendarView = 'month';
       let sharedAlbumUrl = '';
       let currentAppTab = 'home';
-      const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,updates:0};
+      const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
 
       function applyAppTab(tab,{scroll=false}={}){
-        const allowed=['home','schedule','wishlist','photos','updates'];
+        const allowed=['home','schedule','wishlist','photos','products'];
         const next=allowed.includes(tab)?tab:'home';
         currentAppTab=next;
         document.body.dataset.appTab=next;
@@ -3834,6 +3902,7 @@
             appTabScroll[currentAppTab]=window.scrollY||0;
             document.activeElement?.blur?.();
             applyAppTab(next,{scroll:true});
+            if(next==='products') loadProducts({silent:true});
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         });
@@ -4317,13 +4386,13 @@
 
           let rainText;
           if(rainingNow){
-            rainText='Дождь идёт сейчас · зонт нужен';
+            rainText='Дождь идёт сейчас · нужен ☔️';
           }else if(maxProbability>=60 || totalRain>=0.5 || totalPrecip>=0.8){
-            rainText='Дождь ожидается сегодня · лучше взять зонт';
+            rainText='Дождь ожидается сегодня · лучше взять ☔️';
           }else if(maxProbability>=30 || totalRain>0 || totalPrecip>0){
-            rainText='Дождь возможен сегодня · зонт по желанию';
+            rainText='Дождь возможен сегодня · ☔️ по желанию';
           }else{
-            rainText='Сегодня дождя не ожидается · зонт не нужен';
+            rainText='Сегодня дождя не ожидается · ☔️ не нужен';
           }
 
           setWeatherVisual(c.weather_code);
@@ -5190,7 +5259,7 @@
         }
         textEl.textContent=message.text;
         textEl.classList.remove('partner-empty');
-        authorEl.textContent='♥ С любовью от '+partnerAuthorGenitive(message.authorName);
+        authorEl.textContent='♥ С любовью';
       }
 
       async function loadPartnerMessage(){
@@ -5512,6 +5581,275 @@
         });
       }
 
+      const PRODUCT_CATEGORY_ORDER=[
+        'Мясо и рыба','Овощи и зелень','Фрукты и ягоды','Молочное и яйца',
+        'Хлеб и выпечка','Бакалея','Сладкое и снеки','Напитки',
+        'Заморозка','Для дома','Гигиена','Для Лулу','Другое'
+      ];
+      const PRODUCT_CATEGORY_EMOJI={
+        'Мясо и рыба':'🥩','Овощи и зелень':'🥬','Фрукты и ягоды':'🍎',
+        'Молочное и яйца':'🥛','Хлеб и выпечка':'🥖','Бакалея':'🌾',
+        'Сладкое и снеки':'🍫','Напитки':'🥤','Заморозка':'❄️',
+        'Для дома':'🧽','Гигиена':'🧴','Для Лулу':'🐾','Другое':'📦'
+      };
+
+      async function productsRequest(operation,payload={}){
+        const response=await fetch('/api/partner-message?rudiAction=products',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok) throw new Error(data.error||'products-request-failed');
+        return data;
+      }
+
+      function setProductsBadge(hasProducts){
+        const badge=document.getElementById('productsTabBadge');
+        if(badge) badge.hidden=!hasProducts;
+      }
+
+      function productAddedByLabel(value){
+        const name=String(value||'').trim();
+        if(!name) return '';
+        if(name==='RUDI') return 'Добавлено ранее';
+        const female=name==='Диана'||name==='Алиса';
+        return (female?'Добавила ':'Добавил ')+name;
+      }
+
+      function productBoughtMeta(item){
+        const date=new Date(String(item?.boughtAt||''));
+        const when=Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat('ru-RU',{
+          day:'2-digit',month:'2-digit',year:'numeric',
+          hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:TZ
+        }).format(date).replace(',',' ·');
+        const buyer=String(item?.boughtBy||'').trim();
+        const bought=buyer?(buyer==='Диана'?'Купила ':'Купил ')+buyer:'';
+        const added=productAddedByLabel(item?.addedBy);
+        return [when,added,bought].filter(Boolean).join(' · ');
+      }
+
+      async function copyProductText(text,button){
+        let copied=false;
+        try{
+          await navigator.clipboard.writeText(String(text||''));
+          copied=true;
+        }catch(_){
+          try{
+            const area=document.createElement('textarea');
+            area.value=String(text||'');
+            area.setAttribute('readonly','');
+            area.style.position='fixed';
+            area.style.opacity='0';
+            document.body.appendChild(area);
+            area.select();
+            copied=document.execCommand('copy');
+            area.remove();
+          }catch(_){}
+        }
+        if(copied){
+          button?.classList.add('copied');
+          setTimeout(()=>button?.classList.remove('copied'),700);
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }
+      }
+
+      function productIconButton(label,svg){
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='product-icon-action';
+        button.setAttribute('aria-label',label);
+        button.title=label;
+        button.innerHTML=svg;
+        return button;
+      }
+
+      function renderProducts(payload){
+        const items=Array.isArray(payload?.items)?payload.items:[];
+        const history=Array.isArray(payload?.history)?payload.history:[];
+        const groups=document.getElementById('productsGroups');
+        const empty=document.getElementById('productsEmpty');
+        const status=document.getElementById('productsStatus');
+        const clear=document.getElementById('productsClear');
+        const historyList=document.getElementById('productsHistory');
+        const historyEmpty=document.getElementById('productsHistoryEmpty');
+        const historyCount=document.getElementById('productsHistoryCount');
+        if(!groups||!empty||!historyList) return;
+
+        setProductsBadge(items.length>0);
+        if(clear) clear.disabled=!items.length;
+        if(status){
+          status.textContent=items.length
+            ?items.length+' '+(items.length===1?'позиция':(items.length>=2&&items.length<=4?'позиции':'позиций'))
+            :'';
+          status.hidden=!items.length;
+        }
+
+        groups.replaceChildren();
+        const byCategory=new Map();
+        for(const item of items){
+          const category=String(item?.category||'Другое');
+          if(!byCategory.has(category)) byCategory.set(category,[]);
+          byCategory.get(category).push(item);
+        }
+        const ordered=[
+          ...PRODUCT_CATEGORY_ORDER.filter(category=>byCategory.has(category)),
+          ...[...byCategory.keys()].filter(category=>!PRODUCT_CATEGORY_ORDER.includes(category))
+        ];
+
+        for(const category of ordered){
+          const section=document.createElement('section');
+          section.className='product-category';
+          const head=document.createElement('div');
+          head.className='product-category-head';
+          const title=document.createElement('strong');
+          title.textContent=(PRODUCT_CATEGORY_EMOJI[category]||'📦')+' '+category;
+          const count=document.createElement('span');
+          count.textContent=String(byCategory.get(category).length);
+          head.append(title,count);
+
+          const list=document.createElement('div');
+          list.className='product-list';
+          for(const item of byCategory.get(category)){
+            const row=document.createElement('div');
+            row.className='product-item';
+            const main=document.createElement('div');
+            main.className='product-main';
+            const text=document.createElement('div');
+            text.className='product-text';
+            text.textContent=String(item.text||'');
+            const meta=document.createElement('small');
+            meta.className='product-added-by';
+            meta.textContent=productAddedByLabel(item.addedBy);
+            main.append(text,meta);
+
+            const actions=document.createElement('div');
+            actions.className='product-actions';
+            const bought=document.createElement('button');
+            bought.type='button';
+            bought.className='product-bought';
+            bought.textContent='Купил';
+            bought.addEventListener('click',async()=>{
+              bought.disabled=true;
+              try{
+                renderProducts(await productsRequest('bought',{id:item.id}));
+                try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              }catch(_){
+                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+              }finally{bought.disabled=false}
+            });
+
+            const copy=productIconButton('Копировать','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>');
+            copy.addEventListener('click',()=>copyProductText(item.text,copy));
+
+            const remove=productIconButton('Удалить','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>');
+            remove.classList.add('danger');
+            remove.addEventListener('click',async()=>{
+              remove.disabled=true;
+              try{
+                renderProducts(await productsRequest('remove',{id:item.id}));
+                try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+              }catch(_){
+                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+              }finally{remove.disabled=false}
+            });
+
+            actions.append(bought,copy,remove);
+            row.append(main,actions);
+            list.appendChild(row);
+          }
+          section.append(head,list);
+          groups.appendChild(section);
+        }
+
+        empty.hidden=items.length>0;
+        historyList.replaceChildren();
+        if(historyCount) historyCount.textContent=history.length?String(history.length):'';
+        if(historyEmpty) historyEmpty.hidden=history.length>0;
+        for(const item of history){
+          const row=document.createElement('div');
+          row.className='product-history-item';
+          const copy=document.createElement('div');
+          copy.className='product-history-copy';
+          const text=document.createElement('strong');
+          text.textContent=String(item.text||'');
+          const meta=document.createElement('small');
+          meta.textContent=productBoughtMeta(item);
+          copy.append(text,meta);
+          row.appendChild(copy);
+          historyList.appendChild(row);
+        }
+      }
+
+      async function loadProducts({silent=false}={}){
+        if(!currentActor||!tg?.initData) return;
+        const status=document.getElementById('productsStatus');
+        if(status&&!silent){
+          status.hidden=false;
+          status.textContent='Обновляю список…';
+        }
+        try{
+          renderProducts(await productsRequest('list'));
+        }catch(_){
+          if(status&&!silent){
+            status.hidden=false;
+            status.textContent='Не удалось обновить список';
+          }
+        }
+      }
+
+      function confirmProductsClear(){
+        return new Promise(resolve=>{
+          try{
+            if(tg?.showConfirm){
+              tg.showConfirm('Очистить весь список продуктов?',value=>resolve(Boolean(value)));
+              return;
+            }
+          }catch(_){}
+          resolve(window.confirm('Очистить весь список продуктов?'));
+        });
+      }
+
+      function setupProducts(){
+        const form=document.getElementById('productsForm');
+        const input=document.getElementById('productsInput');
+        const add=document.getElementById('productsAdd');
+        const clear=document.getElementById('productsClear');
+        if(!form||!input||!add||!clear) return;
+
+        input.addEventListener('focus',()=>document.body.classList.add('keyboard-editing'));
+        input.addEventListener('blur',()=>document.body.classList.remove('keyboard-editing'));
+
+        form.addEventListener('submit',async event=>{
+          event.preventDefault();
+          const raw=input.value.trim();
+          if(!raw) return;
+          const items=raw.split(/\s*[,;\n]+\s*/).map(value=>value.trim()).filter(Boolean);
+          add.disabled=true;
+          try{
+            renderProducts(await productsRequest('add',{items}));
+            input.value='';
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{add.disabled=false}
+        });
+
+        clear.addEventListener('click',async()=>{
+          if(clear.disabled||!(await confirmProductsClear())) return;
+          clear.disabled=true;
+          try{
+            renderProducts(await productsRequest('clear'));
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }
+        });
+
+        loadProducts();
+      }
+
       function renderLatestUpdate(config){
         const updates=(Array.isArray(config?.updates)?config.updates:[])
           .filter(item=>item?.date)
@@ -5573,7 +5911,7 @@
         setupAppTabs();
         holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
-        renderLatestUpdate(config);
+        setupProducts();
         const {utc}=todayState();
         const dayIndex=Math.floor(utc/DAY);
 
@@ -5619,6 +5957,7 @@
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor) refreshPresence(true)},30*1000);
+      setInterval(()=>{if(currentActor) loadProducts({silent:true})},30*1000);
 
       async function refreshAfterResume(){
         updateTelegramSafeArea();
@@ -5628,6 +5967,7 @@
           loadTickTickNext(),
           loadWorkCalendar(currentWorkCalendarView),
           loadSharedAlbum(),
+          loadProducts({silent:true}),
           refreshPresence(true)
         ]);
       }
