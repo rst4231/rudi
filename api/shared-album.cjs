@@ -93,7 +93,12 @@ async function postICloud(host, token, endpoint, body, options = {}) {
   }
 
   if (!response.ok) throw new Error(`shared-album-http-${response.status}`);
-  return { payload: await response.json(), host };
+  const payload = await response.json();
+  const payloadHost = String(payload?.['X-Apple-MMe-Host'] || '').trim();
+  if (endpoint === 'webstream' && payloadHost && payloadHost !== host) {
+    return postICloud(payloadHost, token, endpoint, body, options);
+  }
+  return { payload, host };
 }
 
 function photoDate(photo) {
