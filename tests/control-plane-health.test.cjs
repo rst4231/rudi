@@ -39,12 +39,29 @@ test('health reports effective settings and omits removed venue rubric', async (
     getLatestPublication: async (section) => ({ section, status: 'published' }),
     listSourceHealth: async () => [],
     getAlertState: async () => null,
+    getEventCleanupStatus: async () => ({ date: '2026-08-29', deleted: 2 }),
+    getEventTrackingState: async () => ({
+      active: { dateKey: '2026-08-29', chatId: -100123, messageIds: [901] },
+      pendingBatches: 1,
+      pendingMessages: 2,
+    }),
+    getDailyCronState: async () => ({
+      status: 'completed',
+      authorized: true,
+      startedAt: '2026-08-29T21:30:00.000Z',
+      finishedAt: '2026-08-29T21:31:00.000Z',
+      error: null,
+    }),
   });
   assert.equal(payload.ok, true);
   assert.equal(payload.service, 'spb-daily-guide-bot');
   assert.equal(payload.date, '2026-08-29');
   assert.equal(payload.sections.events.topicId, 19);
   assert.equal(payload.cron.schedule, '30 21 * * *');
+  assert.equal(payload.cron.lastAttempt.status, 'completed');
+  assert.equal(payload.topicCleanup.events.activeDate, '2026-08-29');
+  assert.equal(payload.topicCleanup.events.activeMessages, 1);
+  assert.equal(payload.topicCleanup.events.pendingMessages, 2);
   const text = JSON.stringify(payload);
   assert.ok(!text.includes('Sevkabel'));
   assert.ok(!text.includes('Brusnitsyn'));
