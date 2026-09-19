@@ -5474,6 +5474,7 @@
         const mine=likedBy.includes(currentActor);
         button.classList.toggle('is-liked',mine);
         button.setAttribute('aria-pressed',mine?'true':'false');
+        button.dataset.likedBy=JSON.stringify(likedBy);
         names.textContent=reactionNames(likedBy);
         names.classList.toggle('is-visible',likedBy.length>0);
       }
@@ -5496,6 +5497,12 @@
           const target=targetProvider();
           if(!target?.key||button.disabled) return;
           const liked=button.getAttribute('aria-pressed')!=='true';
+          let previousLikedBy=[];
+          try{previousLikedBy=JSON.parse(button.dataset.likedBy||'[]')}catch(_){}
+          const optimisticLikedBy=liked
+            ? [...new Set([...previousLikedBy,currentActor])]
+            : previousLikedBy.filter(name=>name!==currentActor);
+          renderReaction({likedBy:optimisticLikedBy},buttonId,namesId);
           button.disabled=true;
           try{
             const data=await reactionsRequest('set',{target,liked});
@@ -5505,6 +5512,7 @@
             if(data.reaction?.likedBy?.includes(currentActor)) button.classList.add('just-liked');
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           }catch(_){
+            renderReaction({likedBy:previousLikedBy},buttonId,namesId);
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
             button.disabled=false;
