@@ -2324,7 +2324,7 @@
   </div>
 
   <main class="shell">
-    <section class="profile" aria-label="Профиль">
+    <section class="profile" data-app-tab-section="home" aria-label="Профиль">
       <div class="identity">
         <div id="avatar" class="avatar" aria-hidden="true">
           <span id="initials">R</span>
@@ -2416,7 +2416,7 @@
 
     </section>
 
-    <section class="section-block priority-section" aria-labelledby="priorityTitle">
+    <section class="section-block priority-section" data-app-tab-section="home" aria-labelledby="priorityTitle">
       <div class="section-heading">
         <div>
           <div class="section-eyebrow">Сегодня</div>
@@ -2470,7 +2470,7 @@
       </div>
     </section>
 
-    <section class="panel partner-message" aria-label="Послание">
+    <section class="panel partner-message" data-app-tab-section="home" aria-label="Послание">
       <div class="love-hearts" aria-hidden="true">
         <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
         <svg class="love-heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
@@ -2504,7 +2504,7 @@
       </div>
     </section>
 
-    <section id="workCalendarSection" class="section-block work-section" aria-labelledby="workScheduleTitle">
+    <section id="workCalendarSection" class="section-block work-section" data-app-tab-section="schedule" aria-labelledby="workScheduleTitle">
       <button id="workCalendarToggle" class="work-calendar-toggle" type="button" aria-expanded="false" aria-controls="workCalendarDetails">
         <span class="work-calendar-toggle-copy">
           <span class="section-eyebrow">Расписание</span>
@@ -2544,7 +2544,7 @@
       </div>
     </section>
 
-    <section class="section-block daily-section" aria-labelledby="dailyTitle">
+    <section class="section-block daily-section" data-app-tab-section="home" aria-labelledby="dailyTitle">
       <div class="section-heading compact">
         <div>
           <div class="section-eyebrow">Для тебя</div>
@@ -2586,7 +2586,7 @@
       </div>
     </section>
 
-    <section id="sharedAlbumSection" class="section-block shared-album-section" aria-labelledby="sharedAlbumTitle">
+    <section id="sharedAlbumSection" class="section-block shared-album-section" data-app-tab-section="photos" data-tab-available="1" aria-labelledby="sharedAlbumTitle">
       <div class="section-heading compact">
         <div>
           <div class="section-eyebrow">Вместе</div>
@@ -2609,7 +2609,7 @@
       </article>
     </section>
 
-    <section class="section-block wishlist-section" aria-labelledby="wishlistTitle">
+    <section class="section-block wishlist-section" data-app-tab-section="wishlist" aria-labelledby="wishlistTitle">
       <div class="section-heading compact">
         <div>
           <div class="section-eyebrow">Вместе</div>
@@ -2643,7 +2643,7 @@
       </article>
     </section>
 
-    <section class="section-block tools-section" aria-labelledby="toolsTitle">
+    <section class="section-block tools-section" data-app-tab-section="home" aria-labelledby="toolsTitle">
       <div class="section-heading compact">
         <div>
           <div class="section-eyebrow">Полезное</div>
@@ -2684,7 +2684,7 @@
       </nav>
     </section>
 
-    <section class="section-block updates-section" aria-labelledby="updatesTitle">
+    <section class="section-block updates-section" data-app-tab-section="home" aria-labelledby="updatesTitle">
       <div class="section-heading compact">
         <div>
           <div class="section-eyebrow">RUDI</div>
@@ -2715,12 +2715,39 @@
       </article>
     </section>
 
-    <footer class="footer">
+    <footer class="footer" data-app-tab-section="home">
       <div id="compliment" class="compliment"></div>
       <div>© <span id="currentYear"></span></div>
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
     </footer>
   </main>
+
+  <nav id="appTabBar" class="app-tabbar" aria-label="Основная навигация">
+    <button class="app-tab-button active" type="button" data-app-tab="home" aria-selected="true">
+      <span class="app-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 10.5 8.5-7 8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
+      </span>
+      <span>Домой</span>
+    </button>
+    <button class="app-tab-button" type="button" data-app-tab="schedule" aria-selected="false">
+      <span class="app-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+      </span>
+      <span>График</span>
+    </button>
+    <button class="app-tab-button" type="button" data-app-tab="wishlist" aria-selected="false">
+      <span class="app-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.3 4.7 13.6A5.2 5.2 0 0 1 12 6.1a5.2 5.2 0 0 1 7.3 7.5L12 20.3Z"/></svg>
+      </span>
+      <span>Вишлист</span>
+    </button>
+    <button class="app-tab-button" type="button" data-app-tab="photos" aria-selected="false">
+      <span class="app-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="m5.5 17 4.2-4.2 3.2 3.2 2.1-2.1 3.5 3.1"/></svg>
+      </span>
+      <span>Фото</span>
+    </button>
+  </nav>
 
   <div id="holidayModal" class="holiday-modal" aria-hidden="true">
     <button id="holidayBackdrop" class="holiday-backdrop" type="button" aria-label="Закрыть"></button>
