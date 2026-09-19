@@ -56,6 +56,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api/wishlist",
+      "destination": "/api/partner-message?rudiAction=wishlist"
+    },
+    {
+      "source": "/api/work-calendar",
+      "destination": "/api/partner-message?rudiAction=work-calendar"
+    },
+    {
+      "source": "/api/work-calendar/setup",
+      "destination": "/api/partner-message?rudiAction=work-calendar-setup"
+    },
+    {
       "source": "/api/ticktick/connect",
       "destination": "/api/partner-message?ticktickAction=connect"
     },
