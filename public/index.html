@@ -2009,6 +2009,49 @@
     }
     .profile .profile-mood .block-collapse-button svg{width:12px;height:12px}
 
+  
+    .profile .profile-mood{
+      display:grid !important;
+      grid-template-columns:auto auto auto;
+      align-items:end !important;
+      gap:5px !important;
+      padding:3px !important;
+      border-radius:11px !important;
+    }
+    .mood-person{display:grid;justify-items:center;gap:2px;min-width:0}
+    .mood-person-label{
+      max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      color:var(--muted);font-size:7.5px;line-height:1;font-weight:780;letter-spacing:.035em;
+    }
+    .mood-self-buttons{display:flex;align-items:center;gap:1px}
+    .partner-mood-value{
+      width:23px;height:23px;display:grid;place-items:center;
+      border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--muted);
+    }
+    .partner-mood-icon{width:100%;height:100%;display:grid;place-items:center}
+    .partner-mood-icon svg{width:13px;height:13px}
+    .partner-mood-value[data-mood="low"]{color:#7f8da8;background:rgba(127,141,168,.08)}
+    .partner-mood-value[data-mood="ok"]{color:var(--accent);background:var(--accent-soft)}
+    .partner-mood-value[data-mood="great"]{color:#d79a2e;background:rgba(240,184,75,.12)}
+    .partner-mood-empty{font-size:12px;line-height:1;font-weight:750;color:var(--muted)}
+    .mood-prompt{
+      grid-column:1/-1;
+      max-width:100%;
+      margin-top:1px;padding:3px 5px;border-radius:6px;
+      background:var(--accent-soft);color:color-mix(in srgb,var(--accent) 72%,var(--text));
+      font-size:7.7px;line-height:1.15;font-weight:720;text-align:center;white-space:nowrap;
+    }
+    .mood-prompt[hidden]{display:none}
+    .profile .profile-mood .block-collapse-button{
+      align-self:end;
+      width:23px;height:23px;border-radius:7px;
+    }
+    @media(max-width:370px){
+      .profile .profile-mood{gap:3px!important}
+      .mood-person-label{font-size:7px;max-width:48px}
+      .mood-prompt{font-size:7px;padding:3px 4px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2038,15 +2081,36 @@
           <div id="profileMeta" class="profile-meta"></div>
         </div>
         <div class="profile-mood" role="group" aria-label="Настроение сегодня">
-          <button class="mood-button" type="button" data-mood="low" aria-label="Не очень" title="Не очень">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.1 16c1.7-1.7 4.1-1.7 5.8 0"/></svg>
-          </button>
-          <button class="mood-button" type="button" data-mood="ok" aria-label="Нормально" title="Нормально">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.3 15h5.4"/></svg>
-          </button>
-          <button class="mood-button" type="button" data-mood="great" aria-label="Отлично" title="Отлично">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M8.8 14.3c1.7 2.1 4.7 2.1 6.4 0"/></svg>
-          </button>
+          <div class="mood-person mood-self">
+            <span class="mood-person-label">Моё</span>
+            <div class="mood-self-buttons">
+              <button class="mood-button" type="button" data-mood="low" aria-label="Не очень" title="Не очень">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.1 16c1.7-1.7 4.1-1.7 5.8 0"/></svg>
+              </button>
+              <button class="mood-button" type="button" data-mood="ok" aria-label="Нормально" title="Нормально">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.3 15h5.4"/></svg>
+              </button>
+              <button class="mood-button" type="button" data-mood="great" aria-label="Отлично" title="Отлично">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M8.8 14.3c1.7 2.1 4.7 2.1 6.4 0"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="mood-person mood-partner">
+            <span id="partnerMoodLabel" class="mood-person-label">Партнёр</span>
+            <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
+              <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
+              <span class="partner-mood-icon" data-partner-mood="low" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.1 16c1.7-1.7 4.1-1.7 5.8 0"/></svg>
+              </span>
+              <span class="partner-mood-icon" data-partner-mood="ok" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M9.3 15h5.4"/></svg>
+              </span>
+              <span class="partner-mood-icon" data-partner-mood="great" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M8.7 9.6h.01M15.3 9.6h.01M8.8 14.3c1.7 2.1 4.7 2.1 6.4 0"/></svg>
+              </span>
+            </div>
+          </div>
+          <div id="moodPrompt" class="mood-prompt">Какое у тебя настроение?</div>
         </div>
       </div>
 
@@ -3698,6 +3762,85 @@
         loadPartnerMessage().then(message=>{currentMessage=message});
       }
 
+      let moodMessageTimer=0;
+      let moodMessagesConfig=null;
+
+      function moodButtons(){
+        return Array.from(document.querySelectorAll('.mood-button'));
+      }
+
+      function selectOwnMood(value){
+        moodButtons().forEach(button=>{
+          const selected=button.dataset.mood===value;
+          button.classList.toggle('selected',selected);
+          button.setAttribute('aria-pressed',selected?'true':'false');
+        });
+      }
+
+      function renderPartnerMood(value,partner){
+        const label=document.getElementById('partnerMoodLabel');
+        const holder=document.getElementById('partnerMoodValue');
+        const empty=document.getElementById('partnerMoodEmpty');
+        const mood=String(value||'');
+        label.textContent=partner||'Партнёр';
+        holder.dataset.mood=mood;
+        holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
+          icon.hidden=icon.dataset.partnerMood!==mood;
+        });
+        empty.hidden=['low','ok','great'].includes(mood);
+        holder.setAttribute(
+          'aria-label',
+          (partner||'Партнёр')+': '+(
+            mood==='low'?'не очень':mood==='ok'?'нормально':mood==='great'?'отлично':'настроение ещё не выбрано'
+          )
+        );
+      }
+
+      function renderDailyMood(payload){
+        const mine=String(payload?.mine?.mood||'');
+        const partnerMood=String(payload?.partnerMood?.mood||'');
+        selectOwnMood(mine);
+        renderPartnerMood(partnerMood,String(payload?.partner||''));
+        document.getElementById('moodPrompt').hidden=Boolean(mine);
+      }
+
+      async function moodRequest(operation,mood=''){
+        const response=await fetch('/api/mood',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,mood}),
+          cache:'no-store'
+        });
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok) throw new Error(payload.error||'mood');
+        return payload;
+      }
+
+      async function refreshDailyMood(){
+        if(!currentActor||!tg?.initData) return;
+        try{
+          renderDailyMood(await moodRequest('get'));
+        }catch(_){
+          renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
+        }
+      }
+
+      function showMoodMessage(mood){
+        const message=document.getElementById('moodMessage');
+        const messages=moodMessagesConfig||fallback.moodMessages;
+        const pool=Array.isArray(messages?.[mood])&&messages[mood].length
+          ?messages[mood]
+          :fallback.moodMessages[mood];
+        if(!pool?.length) return;
+        clearTimeout(moodMessageTimer);
+        message.textContent=randomItem(pool);
+        message.dataset.mood=mood;
+        message.classList.remove('show');
+        void message.offsetWidth;
+        message.classList.add('show');
+        moodMessageTimer=setTimeout(()=>message.classList.remove('show'),4200);
+      }
+
       function setupStreakAndMood(config){
         const {key,utc}=todayState();
         const prev=new Date(utc-DAY);
@@ -3714,43 +3857,33 @@
         document.getElementById('streakValue').textContent=streak;
         document.getElementById('streakCaption').textContent=streakWord(streak);
 
-        const moodKey='rudi-mood-'+key;
-        const buttons=Array.from(document.querySelectorAll('.mood-button'));
-        const message=document.getElementById('moodMessage');
-        const messages=config?.moodMessages||fallback.moodMessages;
-        let messageTimer=0;
+        moodMessagesConfig=config?.moodMessages||fallback.moodMessages;
+        renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
+        document.getElementById('moodPrompt').hidden=false;
 
-        const select=value=>buttons.forEach(button=>{
-          const selected=button.dataset.mood===value;
-          button.classList.toggle('selected',selected);
-          button.setAttribute('aria-pressed',selected?'true':'false');
-        });
-
-        const showMessage=mood=>{
-          const pool=Array.isArray(messages?.[mood])&&messages[mood].length
-            ? messages[mood]
-            : fallback.moodMessages[mood];
-          if(!pool?.length) return;
-          clearTimeout(messageTimer);
-          message.textContent=randomItem(pool);
-          message.dataset.mood=mood;
-          message.classList.remove('show');
-          void message.offsetWidth;
-          message.classList.add('show');
-          messageTimer=setTimeout(()=>message.classList.remove('show'),4200);
-        };
-
-        try{select(localStorage.getItem(moodKey)||'')}catch(_){select('')}
-        buttons.forEach(button=>button.addEventListener('click',()=>{
+        moodButtons().forEach(button=>button.addEventListener('click',async()=>{
           const mood=button.dataset.mood;
-          try{localStorage.setItem(moodKey,mood)}catch(_){}
-          select(mood);
-          showMessage(mood);
+          const buttons=moodButtons();
+          buttons.forEach(item=>item.disabled=true);
+          selectOwnMood(mood);
+          document.getElementById('moodPrompt').hidden=true;
           try{
-            if(mood==='great') tg?.HapticFeedback?.notificationOccurred?.('success');
-            else tg?.HapticFeedback?.selectionChanged?.();
-          }catch(_){}
+            const payload=await moodRequest('set',mood);
+            renderDailyMood(payload);
+            showMoodMessage(mood);
+            try{
+              if(mood==='great') tg?.HapticFeedback?.notificationOccurred?.('success');
+              else tg?.HapticFeedback?.selectionChanged?.();
+            }catch(_){}
+          }catch(_){
+            await refreshDailyMood();
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            buttons.forEach(item=>item.disabled=false);
+          }
         }));
+
+        refreshDailyMood();
       }
 
       function renderLatestUpdate(config){
@@ -3865,6 +3998,7 @@
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
       setInterval(()=>{if(currentActor) loadWorkCalendar()},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
+      setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
 
       window.addEventListener('pageshow',event=>{if(event.persisted) location.reload()});
       let hiddenAt=0;
