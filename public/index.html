@@ -257,6 +257,12 @@
       line-height:1.25;
       font-weight:540;
     }
+    .birthday-age{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.25;
+      font-weight:540;
+    }
     .birthday-left{
       min-width:78px;
       padding:8px 10px;
@@ -270,6 +276,148 @@
       white-space:nowrap;
       box-shadow:0 7px 18px rgba(0,0,0,.055);
     }
+    .dashboard{
+      display:grid;
+      gap:11px;
+    }
+    .panel{
+      position:relative;
+      overflow:hidden;
+      border:1px solid var(--line);
+      border-radius:21px;
+      background:var(--surface);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(22px);
+      -webkit-backdrop-filter:blur(22px);
+    }
+    .nearest-panel{
+      padding:17px 18px;
+      animation:cardIn .52s .05s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .panel-label{
+      margin-bottom:10px;
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.2;
+      font-weight:720;
+      letter-spacing:.07em;
+      text-transform:uppercase;
+    }
+    .nearest-content{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      align-items:center;
+      gap:16px;
+    }
+    .nearest-title{
+      color:var(--text);
+      font-size:16px;
+      line-height:1.25;
+      font-weight:740;
+      letter-spacing:-.018em;
+    }
+    .nearest-meta{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.3;
+      font-weight:540;
+    }
+    .nearest-days{
+      min-width:82px;
+      padding:10px 12px;
+      border-radius:14px;
+      background:var(--icon-bg);
+      color:var(--icon-stroke);
+      font-size:13px;
+      line-height:1.1;
+      font-weight:780;
+      text-align:center;
+      white-space:nowrap;
+    }
+    .day-panel{
+      display:grid;
+      gap:16px;
+      padding:18px;
+      animation:cardIn .52s .12s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .day-top{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:18px;
+      align-items:start;
+    }
+    .idea-text{
+      color:var(--text);
+      font-size:14px;
+      line-height:1.45;
+      font-weight:620;
+      letter-spacing:-.01em;
+    }
+    .streak{
+      min-width:72px;
+      display:grid;
+      justify-items:center;
+      gap:3px;
+      padding:10px;
+      border-radius:14px;
+      background:var(--soft);
+      color:var(--text);
+    }
+    .streak-value{
+      font-size:19px;
+      line-height:1;
+      font-weight:800;
+      letter-spacing:-.03em;
+    }
+    .streak-caption{
+      color:var(--muted);
+      font-size:10.5px;
+      line-height:1.1;
+      font-weight:650;
+    }
+    .mood{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding-top:15px;
+      border-top:1px solid var(--line);
+    }
+    .mood-title{
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.25;
+      font-weight:620;
+      white-space:nowrap;
+    }
+    .mood-options{
+      display:flex;
+      align-items:center;
+      gap:7px;
+    }
+    .mood-button{
+      width:38px;
+      height:38px;
+      display:grid;
+      place-items:center;
+      padding:0;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--soft);
+      color:var(--muted);
+      cursor:pointer;
+      transition:transform .18s ease,background-color .2s ease,color .2s ease,border-color .2s ease;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mood-button:hover{transform:translateY(-2px);color:var(--text)}
+    .mood-button:active{transform:scale(.94)}
+    .mood-button.selected{
+      background:var(--icon-bg);
+      color:var(--icon-stroke);
+      border-color:color-mix(in srgb,var(--icon-stroke) 28%,transparent);
+    }
+    .mood-button svg{width:21px;height:21px}
     .links{
       display:grid;
       gap:11px;
@@ -428,6 +576,11 @@
       .avatar{width:62px;height:62px;border-radius:20px}
       .name{font-size:19px}
       .date-row{margin-top:18px;padding-top:15px}
+      .nearest-panel{padding:16px}
+      .day-panel{padding:16px}
+      .day-top{gap:12px}
+      .mood{gap:8px}
+      .mood-button{width:36px;height:36px}
       .card{
         min-height:72px;
         grid-template-columns:42px minmax(0,1fr) 32px;
@@ -475,6 +628,7 @@
           <div class="birthday-person">
             <div class="birthday-name">Рустам</div>
             <div class="birthday-date">3 марта 1992</div>
+            <div id="rustamAge" class="birthday-age"></div>
           </div>
           <div id="rustamBirthday" class="birthday-left"></div>
         </div>
@@ -482,10 +636,61 @@
           <div class="birthday-person">
             <div class="birthday-name">Диана</div>
             <div class="birthday-date">30 июня 1996</div>
+            <div id="dianaAge" class="birthday-age"></div>
           </div>
           <div id="dianaBirthday" class="birthday-left"></div>
         </div>
       </div>
+    </section>
+
+    <section class="dashboard" aria-label="Сегодня">
+      <article class="panel nearest-panel">
+        <div class="panel-label">Ближайшее</div>
+        <div class="nearest-content">
+          <div>
+            <div id="nearestTitle" class="nearest-title"></div>
+            <div id="nearestMeta" class="nearest-meta"></div>
+          </div>
+          <div id="nearestDays" class="nearest-days"></div>
+        </div>
+      </article>
+
+      <article class="panel day-panel">
+        <div class="day-top">
+          <div>
+            <div class="panel-label">Идея дня</div>
+            <div id="dailyIdea" class="idea-text"></div>
+          </div>
+          <div class="streak" aria-label="Серия открытий">
+            <div id="streakValue" class="streak-value">1</div>
+            <div id="streakCaption" class="streak-caption">день подряд</div>
+          </div>
+        </div>
+
+        <div class="mood">
+          <div class="mood-title">Как настроение?</div>
+          <div class="mood-options" role="group" aria-label="Настроение сегодня">
+            <button class="mood-button" type="button" data-mood="low" aria-label="Не очень" title="Не очень">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <circle cx="12" cy="12" r="8.4"/>
+                <path d="M8.7 9.6h.01M15.3 9.6h.01M9.1 16c1.7-1.7 4.1-1.7 5.8 0"/>
+              </svg>
+            </button>
+            <button class="mood-button" type="button" data-mood="ok" aria-label="Нормально" title="Нормально">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <circle cx="12" cy="12" r="8.4"/>
+                <path d="M8.7 9.6h.01M15.3 9.6h.01M9.3 15h5.4"/>
+              </svg>
+            </button>
+            <button class="mood-button" type="button" data-mood="great" aria-label="Отлично" title="Отлично">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                <circle cx="12" cy="12" r="8.4"/>
+                <path d="M8.7 9.6h.01M15.3 9.6h.01M8.8 14.3c1.7 2.1 4.7 2.1 6.4 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </article>
     </section>
 
     <nav class="links" aria-label="Инструменты">
@@ -728,8 +933,113 @@
         return days === 0 ? 'сегодня' : days + ' ' + dayWord(days);
       }
 
-      document.getElementById('rustamBirthday').textContent = birthdayLabel(daysUntilBirthday(3, 3));
-      document.getElementById('dianaBirthday').textContent = birthdayLabel(daysUntilBirthday(6, 30));
+      const rustamDays = daysUntilBirthday(3, 3);
+      const dianaDays = daysUntilBirthday(6, 30);
+
+      document.getElementById('rustamBirthday').textContent = birthdayLabel(rustamDays);
+      document.getElementById('dianaBirthday').textContent = birthdayLabel(dianaDays);
+
+      function nextBirthdayYear(month, day) {
+        const thisYearTarget = Date.UTC(moscowParts.year, month - 1, day);
+        return thisYearTarget < todayUtc ? moscowParts.year + 1 : moscowParts.year;
+      }
+
+      const rustamNextAge = nextBirthdayYear(3, 3) - 1992;
+      const dianaNextAge = nextBirthdayYear(6, 30) - 1996;
+      document.getElementById('rustamAge').textContent = 'Исполнится ' + rustamNextAge;
+      document.getElementById('dianaAge').textContent = 'Исполнится ' + dianaNextAge;
+
+      const nearest = rustamDays <= dianaDays
+        ? { name:'Рустама', date:'3 марта', days:rustamDays, age:rustamNextAge }
+        : { name:'Дианы', date:'30 июня', days:dianaDays, age:dianaNextAge };
+
+      document.getElementById('nearestTitle').textContent = 'День рождения ' + nearest.name;
+      document.getElementById('nearestMeta').textContent = nearest.date + ' · исполнится ' + nearest.age;
+      document.getElementById('nearestDays').textContent = birthdayLabel(nearest.days);
+
+      const dailyIdeas = [
+        'Сделать небольшую прогулку без телефона.',
+        'Попробовать сегодня новый рецепт.',
+        'Разобрать одну вещь, которую давно откладывали.',
+        'Устроить вечером час без соцсетей.',
+        'Написать близкому человеку что-нибудь приятное.',
+        'Выбрать одно маленькое дело и закончить его до конца.',
+        'Сделать совместную фотографию на память.',
+        'Найти новое место для прогулки или кофе.',
+        'Посмотреть вечером фильм, который давно откладывали.',
+        'Приготовить любимое блюдо без повода.',
+        'Составить план одного приятного события на ближайший месяц.',
+        'Сегодня сделать что-нибудь спонтанное, но простое.'
+      ];
+
+      const dayIndex = Math.floor(todayUtc / DAY);
+      document.getElementById('dailyIdea').textContent = dailyIdeas[Math.abs(dayIndex) % dailyIdeas.length];
+
+      const todayKey = [
+        moscowParts.year,
+        String(moscowParts.month).padStart(2,'0'),
+        String(moscowParts.day).padStart(2,'0')
+      ].join('-');
+
+      function previousDateKey() {
+        const previous = new Date(todayUtc - DAY);
+        return [
+          previous.getUTCFullYear(),
+          String(previous.getUTCMonth() + 1).padStart(2,'0'),
+          String(previous.getUTCDate()).padStart(2,'0')
+        ].join('-');
+      }
+
+      let streak = 1;
+      try {
+        const lastOpen = localStorage.getItem('rudi-last-open');
+        const storedStreak = Math.max(1, Number(localStorage.getItem('rudi-open-streak')) || 1);
+
+        if (lastOpen === todayKey) {
+          streak = storedStreak;
+        } else if (lastOpen === previousDateKey()) {
+          streak = storedStreak + 1;
+        }
+
+        localStorage.setItem('rudi-last-open', todayKey);
+        localStorage.setItem('rudi-open-streak', String(streak));
+      } catch (_) {}
+
+      function streakWord(value) {
+        const mod10 = value % 10;
+        const mod100 = value % 100;
+        if (mod10 === 1 && mod100 !== 11) return 'день подряд';
+        return 'дней подряд';
+      }
+
+      document.getElementById('streakValue').textContent = streak;
+      document.getElementById('streakCaption').textContent = streakWord(streak);
+
+      const moodKey = 'rudi-mood-' + todayKey;
+      const moodButtons = Array.from(document.querySelectorAll('.mood-button'));
+
+      function selectMood(value) {
+        moodButtons.forEach(button => {
+          const selected = button.dataset.mood === value;
+          button.classList.toggle('selected', selected);
+          button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+      }
+
+      try {
+        selectMood(localStorage.getItem(moodKey) || '');
+      } catch (_) {
+        selectMood('');
+      }
+
+      moodButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const value = button.dataset.mood;
+          try { localStorage.setItem(moodKey, value); } catch (_) {}
+          selectMood(value);
+          try { tg?.HapticFeedback?.selectionChanged?.(); } catch (_) {}
+        });
+      });
 
       window.addEventListener('pageshow', event => {
         if (event.persisted) location.reload();
