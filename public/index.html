@@ -2541,6 +2541,146 @@
       .tools-section .label{font-size:7.6px!important}
     }
 
+
+    /* Integrated Wishlist and Schedule pages */
+    body[data-app-tab="schedule"] .work-page,
+    body[data-app-tab="wishlist"] .wishlist-page{
+      width:100%;
+      min-height:0!important;
+      margin:0!important;
+      padding:0!important;
+      border:0!important;
+      border-radius:0!important;
+      background:transparent!important;
+      box-shadow:none!important;
+    }
+    .work-page-status,.wishlist-page-status{
+      display:block;
+      width:max-content;
+      margin:0 0 8px auto;
+    }
+    .work-page-status[hidden],.wishlist-page-status[hidden]{display:none!important}
+
+    .work-page .work-calendar-card{
+      margin:0!important;
+      padding:0!important;
+      border:0!important;
+      border-radius:0!important;
+      background:transparent!important;
+      box-shadow:none!important;
+      backdrop-filter:none!important;
+      -webkit-backdrop-filter:none!important;
+      overflow:visible!important;
+    }
+    .work-page .work-calendar-head{
+      padding:0 2px!important;
+      margin:0 0 8px!important;
+    }
+    .work-page .work-calendar-ranges{margin:0 0 10px!important}
+    .work-page .work-calendar-days{gap:5px!important}
+    .work-page .calendar-day-cell{
+      aspect-ratio:auto!important;
+      min-height:48px!important;
+      padding:4px 2px!important;
+    }
+    .calendar-work-time{
+      max-width:100%;
+      color:color-mix(in srgb,#d97827 82%,var(--text));
+      font-size:6.4px;
+      line-height:1.05;
+      font-weight:780;
+      letter-spacing:-.02em;
+      text-align:center;
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+    .work-page .calendar-work-dot{
+      right:4px!important;
+      bottom:4px!important;
+      width:4px!important;
+      height:4px!important;
+    }
+
+    .wishlist-page .wishlist-card{
+      margin:0!important;
+      padding:0!important;
+      border:0!important;
+      border-radius:0!important;
+      background:transparent!important;
+      box-shadow:none!important;
+      backdrop-filter:none!important;
+      -webkit-backdrop-filter:none!important;
+      overflow:visible!important;
+    }
+    .wishlist-page .wishlist-form{margin:0 0 12px!important}
+    .wishlist-page .wishlist-columns{
+      display:grid!important;
+      grid-template-columns:1fr!important;
+      gap:10px!important;
+    }
+    .wishlist-page .wishlist-column{
+      width:100%!important;
+      padding:11px!important;
+      border-radius:16px!important;
+      background:color-mix(in srgb,var(--surface) 68%,transparent)!important;
+    }
+    .wishlist-page .wishlist-column-head{margin-bottom:8px!important}
+
+    /* Quick access: one clean aligned row */
+    .tools-section .links{
+      width:100%!important;
+      display:grid!important;
+      grid-template-columns:repeat(4,minmax(0,1fr))!important;
+      grid-auto-flow:column!important;
+      align-items:stretch!important;
+      gap:6px!important;
+    }
+    .tools-section .links > .card{
+      width:100%!important;
+      min-width:0!important;
+      min-height:72px!important;
+      margin:0!important;
+      display:grid!important;
+      grid-template-rows:40px 20px!important;
+      grid-template-columns:1fr!important;
+      place-items:center!important;
+      align-content:center!important;
+      gap:4px!important;
+      padding:7px 3px!important;
+      border-radius:15px!important;
+      text-align:center!important;
+      transform:none!important;
+      opacity:1!important;
+    }
+    .tools-section .links > .card .feature-icon{
+      width:38px!important;
+      height:38px!important;
+      margin:0!important;
+      align-self:center!important;
+    }
+    .tools-section .links > .card .label{
+      width:100%!important;
+      height:20px!important;
+      display:flex!important;
+      align-items:flex-start!important;
+      justify-content:center!important;
+      margin:0!important;
+      font-size:7.5px!important;
+      line-height:1.12!important;
+      text-align:center!important;
+      white-space:normal!important;
+      overflow:hidden!important;
+    }
+    .tools-section .links > .card .arrow{display:none!important}
+
+    @media(max-width:370px){
+      .tools-section .links{gap:4px!important}
+      .tools-section .links > .card{padding-left:2px!important;padding-right:2px!important}
+      .tools-section .links > .card .feature-icon{width:35px!important;height:35px!important}
+      .tools-section .links > .card .label{font-size:7px!important}
+      .calendar-work-time{font-size:5.8px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2739,42 +2879,27 @@
       </div>
     </section>
 
-    <section id="workCalendarSection" class="section-block work-section" data-app-tab-section="schedule" aria-labelledby="workScheduleTitle">
-      <button id="workCalendarToggle" class="work-calendar-toggle" type="button" aria-expanded="false" aria-controls="workCalendarDetails">
-        <span class="work-calendar-toggle-copy">
-          <span class="section-eyebrow">Расписание</span>
-          <span id="workScheduleTitle" class="work-calendar-toggle-title">График работы Дианы</span>
-        </span>
-        <span class="work-calendar-toggle-actions">
-          <span id="workCalendarStatus" class="section-status" hidden></span>
-          <span class="work-calendar-chevron" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
-          </span>
-        </span>
-      </button>
-      <div id="workCalendarDetails" class="work-calendar-details" aria-hidden="true">
-        <div class="work-calendar-details-clip">
-          <article class="panel work-calendar-card">
-            <div class="work-calendar-head">
-              <div id="workWeekLabel" class="work-week-label">Сегодня + 6 дней</div>
-              <div class="work-calendar-legend"><span></span> рабочий день</div>
-            </div>
-            <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика">
-              <button class="work-range-button active" type="button" data-work-view="month" aria-pressed="true">Этот месяц</button>
-              <button class="work-range-button" type="button" data-work-view="next-month" aria-pressed="false">Следующий месяц</button>
-            </div>
-            <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
-              <div class="work-calendar-skeleton"></div>
-              <div class="work-calendar-skeleton"></div>
-              <div class="work-calendar-skeleton"></div>
-              <div class="work-calendar-skeleton"></div>
-              <div class="work-calendar-skeleton"></div>
-              <div class="work-calendar-skeleton"></div>
-              <div class="work-calendar-skeleton"></div>
-            </div>
-            <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
-          </article>
+    <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="График работы Дианы">
+      <span id="workCalendarStatus" class="section-status work-page-status" hidden></span>
+      <div class="work-calendar-card">
+        <div class="work-calendar-head">
+          <div id="workWeekLabel" class="work-week-label">Этот месяц</div>
+          <div class="work-calendar-legend"><span></span> рабочий день</div>
         </div>
+        <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика">
+          <button class="work-range-button active" type="button" data-work-view="month" aria-pressed="true">Этот месяц</button>
+          <button class="work-range-button" type="button" data-work-view="next-month" aria-pressed="false">Следующий месяц</button>
+        </div>
+        <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+        </div>
+        <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
       </div>
     </section>
 
@@ -2843,15 +2968,9 @@
       </article>
     </section>
 
-    <section class="section-block wishlist-section" data-app-tab-section="wishlist" aria-labelledby="wishlistTitle">
-      <div class="section-heading compact">
-        <div>
-          <div class="section-eyebrow">Вместе</div>
-          <h2 id="wishlistTitle">Наш вишлист</h2>
-        </div>
-        <span id="wishlistStatus" class="section-status" hidden></span>
-      </div>
-      <article class="panel wishlist-card">
+    <section class="wishlist-page wishlist-section" data-app-tab-section="wishlist" aria-label="Вишлист">
+      <span id="wishlistStatus" class="section-status wishlist-page-status" hidden></span>
+      <div class="wishlist-card">
         <form id="wishlistForm" class="wishlist-form">
           <input id="wishlistInput" class="wishlist-input" maxlength="180" autocomplete="off" placeholder="Добавить желание…" aria-label="Добавить желание">
           <button id="wishlistAdd" class="wishlist-add" type="submit" aria-label="Добавить">
@@ -2874,7 +2993,7 @@
             <div id="wishlistDiana" class="wishlist-list"></div>
           </section>
         </div>
-      </article>
+      </div>
     </section>
 
     <section class="section-block tools-section" data-app-tab-section="home" aria-labelledby="toolsTitle">
@@ -3845,25 +3964,8 @@
       }
 
       function setupWorkCalendarDisclosure(){
-        const section=document.getElementById('workCalendarSection');
-        const toggle=document.getElementById('workCalendarToggle');
-        const details=document.getElementById('workCalendarDetails');
         const rangeButtons=Array.from(document.querySelectorAll('[data-work-view]'));
-        const setOpen=(open,persist=false)=>{
-          section.classList.toggle('open',open);
-          toggle.setAttribute('aria-expanded',open?'true':'false');
-          details.setAttribute('aria-hidden',open?'false':'true');
-          if(persist) setBlockCollapsed('work',!open);
-        };
-        setOpen(true);
         setWorkCalendarRangeActive('month');
-
-        toggle.addEventListener('click',()=>{
-          const open=!section.classList.contains('open');
-          setOpen(open,true);
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-
         rangeButtons.forEach(button=>button.addEventListener('click',async()=>{
           const view=button.dataset.workView||'month';
           if(view===currentWorkCalendarView) return;
@@ -3963,6 +4065,10 @@
           cell.appendChild(number);
 
           if(day.working){
+            const workTime=document.createElement('span');
+            workTime.className='calendar-work-time';
+            workTime.textContent=timeText;
+            cell.appendChild(workTime);
             const dot=document.createElement('span');
             dot.className='calendar-work-dot';
             cell.appendChild(dot);
@@ -4026,6 +4132,18 @@
         }
       }
 
+      function openSharedAlbumPhoto(photo){
+        const id=String(photo?.id||'').trim();
+        const target=id&&sharedAlbumUrl ? sharedAlbumUrl+';'+id : sharedAlbumUrl;
+        if(!target) return;
+        try{
+          if(tg?.openLink) tg.openLink(target);
+          else window.open(target,'_blank','noopener,noreferrer');
+        }catch(_){
+          window.open(target,'_blank','noopener,noreferrer');
+        }
+      }
+
       function renderSharedAlbum(payload){
         const section=document.getElementById('sharedAlbumSection');
         const grid=document.getElementById('sharedAlbumGrid');
@@ -4070,7 +4188,7 @@
           img.loading='lazy';
           img.decoding='async';
           button.appendChild(img);
-          button.addEventListener('click',openSharedAlbum);
+          button.addEventListener('click',()=>openSharedAlbumPhoto(photo));
           grid.appendChild(button);
         });
       }
