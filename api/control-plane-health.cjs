@@ -166,8 +166,8 @@ async function buildHealthPayload(options = {}) {
     latestPublications,
     sourceHealth: sourceHealth || [],
     topicCleanup: {
-      events: {
-        status: eventCleanup || null,
+      events: eventCleanup || null,
+      eventTracking: {
         activeDate: eventTracking?.active?.dateKey || null,
         activeMessages: eventTracking?.active?.messageIds?.length || 0,
         pendingBatches: eventTracking?.pendingBatches || 0,
