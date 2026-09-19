@@ -1996,6 +1996,9 @@
       const media = window.matchMedia('(prefers-color-scheme: dark)');
       const tg = window.Telegram?.WebApp;
       const DAY = 86400000;
+      let currentActor = '';
+      let holidayItemsCache = null;
+      let holidayItemsPromise = null;
 
       const fallback = {
         weather:{enabled:true,city:'Санкт-Петербург',latitude:59.9386,longitude:30.3141,timezone:TZ},
@@ -2041,10 +2044,70 @@
         }catch(_){}
       }
 
+      function updateTelegramSafeArea(){
+        const contentTop=Number(tg?.contentSafeAreaInset?.top);
+        const safeTop=Number(tg?.safeAreaInset?.top);
+        const top=Number.isFinite(contentTop)&&contentTop>0 ? contentTop
+          : (Number.isFinite(safeTop)&&safeTop>0 ? safeTop : 0);
+        root.style.setProperty('--tg-content-safe-top',Math.max(0,top)+'px');
+      }
+
+      function cacheHolidayItems(items){
+        const rows=(Array.isArray(items)?items:[]).slice(0,5).filter(Boolean);
+        if(!rows.length) return rows;
+        holidayItemsCache=rows;
+        try{localStorage.setItem('rudi-holiday-highlights-'+todayState().key,JSON.stringify(rows))}catch(_){}
+        return rows;
+      }
+
+      function denyApp(title,text){
+        document.body.classList.remove('auth-pending','auth-ok');
+        document.body.classList.add('auth-denied');
+        document.getElementById('appGateTitle').textContent=title;
+        document.getElementById('appGateText').textContent=text;
+      }
+
+      async function authenticateApp(){
+        if(!tg?.initData){
+          denyApp('Откройте RUDI в Telegram','Приложение доступно только через ваш Telegram-бот.');
+          return false;
+        }
+        try{
+          const response=await fetch('/api/partner-message?rudiAction=app-auth',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
+          currentActor=String(payload.actor||'');
+          cacheHolidayItems(payload.holidayHighlights);
+          document.body.classList.remove('auth-pending','auth-denied');
+          document.body.classList.add('auth-ok');
+          return true;
+        }catch(error){
+          const code=String(error?.message||'');
+          denyApp(
+            code==='rudi-access-denied'?'Доступ закрыт':'Не удалось проверить доступ',
+            code==='rudi-access-denied'
+              ?'RUDI работает только для Рустама и Дианы.'
+              :'Закройте приложение и откройте его снова из Telegram.'
+          );
+          return false;
+        }
+      }
+
       applyTheme();
       tg?.ready?.();
       tg?.expand?.();
+      updateTelegramSafeArea();
+      setTimeout(updateTelegramSafeArea,60);
+      setTimeout(updateTelegramSafeArea,300);
       tg?.onEvent?.('themeChanged',applyTheme);
+      tg?.onEvent?.('safeAreaChanged',updateTelegramSafeArea);
+      tg?.onEvent?.('contentSafeAreaChanged',updateTelegramSafeArea);
+      tg?.onEvent?.('viewportChanged',updateTelegramSafeArea);
       media.addEventListener?.('change',()=>{if(!tg?.initData) applyTheme()});
 
       const user = tg?.initDataUnsafe?.user;
@@ -2140,12 +2203,30 @@
         }catch(_){return fallback}
       }
 
+      function weatherVisualType(code){
+        const value=Number(code);
+        if(value===0) return 'clear';
+        if(value===1) return 'partly';
+        if(value===2||value===3) return 'cloudy';
+        if(value===45||value===48) return 'fog';
+        if([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(value)) return 'rain';
+        if([71,73,75,77,85,86].includes(value)) return 'snow';
+        if([95,96,99].includes(value)) return 'storm';
+        return 'cloudy';
+      }
+
+      function setWeatherVisual(code){
+        const visual=document.getElementById('weatherVisual');
+        if(visual) visual.dataset.weather=code===null||code===undefined?'idle':weatherVisualType(code);
+      }
+
       async function loadWeather(cfg){
         const elValue=document.getElementById('weatherValue');
         const elCaption=document.getElementById('weatherCaption');
         const elRain=document.getElementById('weatherRain');
         const elCity=document.getElementById('weatherCity');
         if(!cfg?.enabled){
+          setWeatherVisual(null);
           elCaption.textContent='Погода выключена';
           elRain.textContent='Прогноз дождя выключен';
           return;
@@ -2194,11 +2275,13 @@
             rainText='Сегодня дождя не ожидается · зонт не нужен';
           }
 
+          setWeatherVisual(c.weather_code);
           elValue.textContent=Math.round(c.temperature_2m)+'°';
           elCity.textContent=cfg.city==='Санкт-Петербург'?'СПб':(cfg.city||'');
           elCaption.textContent=labels[c.weather_code]||'Погода';
           elRain.textContent=rainText;
         }catch(_){
+          setWeatherVisual(null);
           elValue.textContent='—';
           elCaption.textContent='Погода недоступна';
           elRain.textContent='Не удалось проверить дождь';
@@ -2294,8 +2377,7 @@
         if(payload?.connected===false){
           title.textContent='Подключите общий список TickTick.';
           badge.textContent='Не подключён';
-          connect.href=payload.connectUrl||'/api/ticktick/connect';
-          connect.classList.add('show');
+           connect.classList.add('show');
           return;
         }
 
@@ -2340,9 +2422,36 @@
         });
       }
 
+      function setupTickTickConnect(){
+        const button=document.getElementById('ticktickConnect');
+        button.addEventListener('click',async()=>{
+          button.disabled=true;
+          try{
+            const response=await fetch('/api/ticktick/connect',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({initData:tg?.initData||''}),
+              cache:'no-store'
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(!response.ok||!payload.authorizeUrl) throw new Error(payload.error||'ticktick-connect');
+            window.location.assign(payload.authorizeUrl);
+          }catch(_){
+            document.getElementById('ticktickBadge').textContent='Ошибка';
+            button.disabled=false;
+          }
+        });
+      }
+
       async function loadTickTickNext(){
+        if(!tg?.initData) return;
         try{
-          const response=await fetch('/api/ticktick/next?t='+Date.now(),{cache:'no-store'});
+          const response=await fetch('/api/ticktick/next',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData}),
+            cache:'no-store'
+          });
           const payload=await response.json().catch(()=>({}));
           if(response.status===401){
             renderTickTickState({...payload,connected:false});
@@ -2432,13 +2541,25 @@
       }
 
       async function loadHolidayHighlights(){
+        if(holidayItemsCache?.length) return holidayItemsCache;
         const key='rudi-holiday-highlights-'+todayState().key;
         try{
-          const cached=sessionStorage.getItem(key);
+          const cached=localStorage.getItem(key);
           if(cached){
             const parsed=JSON.parse(cached);
-            if(Array.isArray(parsed)&&parsed.length) return parsed.slice(0,5);
+            if(Array.isArray(parsed)&&parsed.length) return cacheHolidayItems(parsed);
           }
+        }catch(_){}
+
+        try{
+          const response=await fetch('/api/partner-message?rudiAction=holidays',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg?.initData||''}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(response.ok&&Array.isArray(payload.items)&&payload.items.length) return cacheHolidayItems(payload.items);
         }catch(_){}
 
         const response=await fetch('/api/preview?date=today&t='+Date.now(),{cache:'no-store'});
@@ -2446,8 +2567,7 @@
         const payload=await response.json();
         const rows=Array.isArray(payload?.holidayHighlights)?payload.holidayHighlights.slice(0,5):[];
         if(!rows.length) throw new Error('holiday-empty');
-        try{sessionStorage.setItem(key,JSON.stringify(rows))}catch(_){}
-        return rows;
+        return cacheHolidayItems(rows);
       }
 
       function setupHolidayModal(config){
@@ -2467,14 +2587,20 @@
 
         const openModal=async()=>{
           date.textContent=holidayDateLabel();
-          list.replaceChildren();
-          loading.classList.remove('hidden');
           modal.classList.add('open');
           modal.setAttribute('aria-hidden','false');
           document.body.classList.add('holiday-modal-open');
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+
+          if(holidayItemsCache?.length){
+            renderHolidayItems(holidayItemsCache,config?.holidayPartnerHighlights);
+            return;
+          }
+
+          list.replaceChildren();
+          loading.classList.remove('hidden');
           try{
-            const items=await loadHolidayHighlights();
+            const items=await (holidayItemsPromise||loadHolidayHighlights());
             renderHolidayItems(items,config?.holidayPartnerHighlights);
           }catch(_){
             renderHolidayItems([],config?.holidayPartnerHighlights);
@@ -2486,6 +2612,181 @@
         backdrop.addEventListener('click',closeModal);
         document.addEventListener('keydown',event=>{
           if(event.key==='Escape'&&modal.classList.contains('open')) closeModal();
+        });
+      }
+
+      function dateFromKey(key){
+        const [year,month,day]=String(key||'').split('-').map(Number);
+        return new Date(Date.UTC(year,month-1,day));
+      }
+
+      function renderWorkCalendar(payload){
+        const container=document.getElementById('workCalendarDays');
+        const status=document.getElementById('workCalendarStatus');
+        const label=document.getElementById('workWeekLabel');
+        container.replaceChildren();
+
+        const days=Array.isArray(payload?.days)?payload.days:[];
+        if(!payload?.configured){
+          status.textContent='Не подключён';
+          const empty=document.createElement('div');
+          empty.className='wishlist-empty';
+          empty.textContent='Календарь пока не подключён.';
+          container.appendChild(empty);
+          return;
+        }
+        if(!days.length){
+          status.textContent='Нет данных';
+          return;
+        }
+
+        const first=dateFromKey(days[0].date);
+        const last=dateFromKey(days[days.length-1].date);
+        const firstText=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(first).replace('.','');
+        const lastText=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(last).replace('.','');
+        label.textContent=firstText+' — '+lastText;
+        status.textContent=payload.stale?'Кэш':'Актуально';
+
+        const today=todayState().key;
+        for(const day of days){
+          const date=dateFromKey(day.date);
+          const row=document.createElement('div');
+          row.className='work-day '+(day.working?'working':'off')+(day.date===today?' today':'');
+
+          const name=document.createElement('div');
+          name.className='work-day-name';
+          const weekday=document.createElement('strong');
+          weekday.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:'UTC'}).format(date);
+          const dateLabel=document.createElement('span');
+          dateLabel.textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(date).replace('.','');
+          name.append(weekday,dateLabel);
+
+          const state=document.createElement('div');
+          state.className='work-day-state';
+          const title=document.createElement('strong');
+          title.textContent=day.working?'Работа':'Выходной';
+          const details=document.createElement('span');
+          const events=Array.isArray(day.events)?day.events:[];
+          details.textContent=day.working
+            ? events.map(event=>event.title).filter(Boolean).join(' · ')
+            : 'Свободный день';
+          state.append(title,details);
+
+          const time=document.createElement('div');
+          time.className='work-day-time';
+          if(day.working){
+            const times=events.map(event=>event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–'))).filter(Boolean);
+            time.textContent=times.join(' / ')||'Смена';
+          }else{
+            time.textContent='—';
+          }
+          row.append(name,state,time);
+          container.appendChild(row);
+        }
+      }
+
+      async function loadWorkCalendar(){
+        if(!tg?.initData) return;
+        try{
+          const response=await fetch('/api/work-calendar',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData,weekOffset:0}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok) throw new Error(payload.error||'calendar');
+          renderWorkCalendar(payload);
+        }catch(_){
+          document.getElementById('workCalendarStatus').textContent='Ошибка';
+          const container=document.getElementById('workCalendarDays');
+          container.innerHTML='<div class="wishlist-empty">Не удалось обновить график.</div>';
+        }
+      }
+
+      async function wishlistRequest(operation,payload={}){
+        const response=await fetch('/api/wishlist',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok) throw new Error(data.error||'wishlist');
+        return data;
+      }
+
+      function wishItemElement(item){
+        const row=document.createElement('div');
+        row.className='wish-item'+(item.done?' done':'');
+
+        const toggle=document.createElement('button');
+        toggle.className='wish-toggle';
+        toggle.type='button';
+        toggle.setAttribute('aria-label',item.done?'Вернуть желание':'Отметить выполненным');
+        toggle.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
+
+        const text=document.createElement('div');
+        text.className='wish-text';
+        text.textContent=item.text;
+
+        const remove=document.createElement('button');
+        remove.className='wish-remove';
+        remove.type='button';
+        remove.setAttribute('aria-label','Удалить');
+        remove.textContent='×';
+
+        toggle.addEventListener('click',async()=>{
+          try{renderWishlist(await wishlistRequest('toggle',{id:item.id}));}catch(_){}
+        });
+        remove.addEventListener('click',async()=>{
+          try{renderWishlist(await wishlistRequest('remove',{id:item.id}));}catch(_){}
+        });
+
+        row.append(toggle,text,remove);
+        return row;
+      }
+
+      function renderWishlist(payload){
+        const rustam=document.getElementById('wishlistRustam');
+        const diana=document.getElementById('wishlistDiana');
+        const status=document.getElementById('wishlistStatus');
+        rustam.replaceChildren();diana.replaceChildren();
+        const items=Array.isArray(payload?.items)?payload.items:[];
+        for(const [owner,container] of [['Рустам',rustam],['Диана',diana]]){
+          const rows=items.filter(item=>item.owner===owner);
+          if(!rows.length){
+            const empty=document.createElement('div');
+            empty.className='wishlist-empty';
+            empty.textContent='Пока пусто';
+            container.appendChild(empty);
+          }else{
+            rows.forEach(item=>container.appendChild(wishItemElement(item)));
+          }
+        }
+        status.textContent='Актуально';
+      }
+
+      function setupWishlist(){
+        const form=document.getElementById('wishlistForm');
+        const input=document.getElementById('wishlistInput');
+        const add=document.getElementById('wishlistAdd');
+        form.addEventListener('submit',async(event)=>{
+          event.preventDefault();
+          const text=input.value.trim();
+          if(!text) return;
+          add.disabled=true;
+          try{
+            const data=await wishlistRequest('add',{text});
+            input.value='';
+            renderWishlist(data);
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            document.getElementById('wishlistStatus').textContent='Ошибка';
+          }finally{add.disabled=false}
+        });
+        wishlistRequest('list').then(renderWishlist).catch(()=>{
+          document.getElementById('wishlistStatus').textContent='Ошибка';
         });
       }
 
@@ -2537,7 +2838,12 @@
 
       async function loadPartnerMessage(){
         try{
-          const r=await fetch('/api/partner-message',{cache:'no-store'});
+          const r=await fetch('/api/partner-message?rudiAction=partner-message-read',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg?.initData||''}),
+            cache:'no-store'
+          });
           if(!r.ok) throw new Error('partner-message');
           const data=await r.json();
           renderPartnerMessage(data.message);
@@ -2668,6 +2974,9 @@
       }
 
       async function init(){
+        const allowed=await authenticateApp();
+        if(!allowed) return;
+        holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
         const {utc}=todayState();
         const dayIndex=Math.floor(utc/DAY);
@@ -2690,13 +2999,17 @@
         setupPartnerMessage();
         setupStreakAndMood(config);
         setupTickTickDisclosure();
+        setupTickTickConnect();
         setupHolidayModal(config);
+        setupWishlist();
         loadWeather(config.weather);
         loadTickTickNext();
+        loadWorkCalendar();
       }
 
       init();
-      setInterval(loadTickTickNext,5*60*1000);
+      setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
+      setInterval(()=>{if(currentActor) loadWorkCalendar()},15*60*1000);
 
       window.addEventListener('pageshow',event=>{if(event.persisted) location.reload()});
       let hiddenAt=0;
