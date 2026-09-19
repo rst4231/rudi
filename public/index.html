@@ -2937,6 +2937,73 @@
       .profile .partner-profile-name{max-width:50px!important;font-size:8.7px!important}
     }
 
+
+    /* Mirrored profile header */
+    .profile .profile-people{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:16px}
+    .profile .profile-people .identity{min-width:0;display:grid!important;align-items:center!important;gap:9px!important}
+    .profile .identity-self{grid-template-columns:auto minmax(0,1fr)!important;text-align:left!important}
+    .profile .identity-partner{grid-template-columns:minmax(0,1fr) auto!important;text-align:right!important}
+    .profile .identity-partner .partner-person{min-width:0;display:grid;justify-items:end}
+    .profile .partner-header-name{width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+    .profile .profile-mood{margin-top:9px!important}
+    .profile .mood-partner{min-width:auto!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:0!important;padding-left:10px!important;border-left:1px solid rgba(255,255,255,.10)!important}
+    .profile .mood-partner .mood-person-label{display:none!important}
+
+    /* Telegram avatars in wishlist */
+    .wishlist-avatar{position:relative;overflow:hidden;flex:none}
+    .wishlist-avatar img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;opacity:0;transition:opacity .2s ease}
+    .wishlist-avatar.has-photo img{opacity:1}
+    .wishlist-avatar-initial{position:relative;z-index:0}
+
+    /* Calendar matching the supplied reference */
+    body[data-app-tab="schedule"] .work-page{gap:12px!important}
+    .work-page .work-calendar-card{
+      margin:0!important;padding:17px 16px 15px!important;border:1px solid color-mix(in srgb,var(--accent) 11%,var(--line))!important;border-radius:28px!important;
+      background:radial-gradient(circle at 88% -8%,color-mix(in srgb,var(--accent-soft) 72%,transparent),transparent 28%),color-mix(in srgb,var(--surface-strong) 97%,var(--surface))!important;
+      box-shadow:0 18px 44px color-mix(in srgb,var(--accent-glow) 13%,transparent),inset 0 1px 0 rgba(255,255,255,.10)!important;overflow:hidden!important
+    }
+    .work-page .work-calendar-head{align-items:center!important;gap:12px!important;margin:0 0 13px!important;padding:0 2px!important}
+    .work-page .work-week-label{color:var(--text)!important;font-size:24px!important;line-height:1.05!important;font-weight:880!important;letter-spacing:-.045em!important;text-transform:none!important}
+    .work-page .work-calendar-legend{flex:none;min-height:34px;padding:7px 12px!important;border-radius:999px;background:rgba(237,113,24,.09);color:var(--muted)!important;font-size:10.5px!important;line-height:1!important;font-weight:760!important;white-space:nowrap}
+    .work-page .work-calendar-legend span{width:10px!important;height:10px!important;background:#ff6a00!important;box-shadow:0 0 0 5px rgba(255,106,0,.10)!important}
+    .work-page .work-calendar-ranges{min-height:50px;margin:0 0 16px!important;padding:4px!important;border:0!important;border-radius:17px!important;background:color-mix(in srgb,var(--soft) 96%,transparent)!important;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--line) 70%,transparent)!important}
+    .work-page .work-range-button{min-height:42px!important;padding:8px 10px!important;border-radius:13px!important;color:var(--text)!important;font-size:12px!important;line-height:1!important;font-weight:760!important;letter-spacing:-.015em!important;background:transparent!important;box-shadow:none!important}
+    .work-page .work-range-button.active{color:#fff!important;background:linear-gradient(135deg,#6e7cff,#6873f1)!important;box-shadow:0 8px 20px rgba(92,103,235,.22),inset 0 1px 0 rgba(255,255,255,.22)!important}
+    .work-page .work-calendar-days{grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:7px!important}
+    .work-page .calendar-weekday{padding:1px 0 4px!important;color:var(--muted)!important;font-size:10px!important;line-height:1!important;font-weight:820!important;letter-spacing:.025em!important}
+    .work-page .calendar-empty{aspect-ratio:1.08!important}
+    .work-page .calendar-day-cell{aspect-ratio:1.08!important;min-height:0!important;padding:2px!important;border:1px solid color-mix(in srgb,var(--line) 88%,transparent)!important;border-radius:13px!important;background:color-mix(in srgb,var(--surface) 92%,var(--soft))!important;color:var(--text)!important;box-shadow:0 2px 5px rgba(34,40,58,.025)!important}
+    .work-page .calendar-day-cell .calendar-date-number{font-size:13px!important;line-height:1!important;font-weight:840!important}
+    .work-page .calendar-day-cell.off{border-color:color-mix(in srgb,var(--line) 88%,transparent)!important;background:color-mix(in srgb,var(--surface) 94%,var(--soft))!important;color:var(--text)!important}
+    .work-page .calendar-day-cell.working{border-color:rgba(255,133,61,.30)!important;background:linear-gradient(145deg,rgba(255,127,45,.13),rgba(255,127,45,.045)),color-mix(in srgb,var(--surface) 90%,transparent)!important;color:#d75f08!important}
+    .work-page .calendar-work-dot{right:5px!important;bottom:5px!important;width:5px!important;height:5px!important;background:#ff6a00!important;box-shadow:none!important}
+    .work-page .calendar-check{right:4px!important;bottom:4px!important;width:11px!important;height:11px!important;color:#14a865!important;opacity:1!important}
+    .work-page .calendar-day-cell.today{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 65%,transparent)!important}
+    .work-page .calendar-day-cell.selected{border-color:#ff6a00!important;background:linear-gradient(145deg,#ff7416,#f35f00)!important;color:#fff!important;box-shadow:inset 0 0 0 2px rgba(255,255,255,.80),0 0 0 2px #ff6a00,0 7px 16px rgba(255,100,0,.18)!important}
+    .work-page .calendar-day-cell.selected .calendar-work-dot{background:#fff!important}
+    .work-page .work-calendar-selected{min-height:64px!important;display:grid!important;grid-template-columns:44px minmax(0,1fr) 34px!important;align-items:center!important;gap:10px!important;margin-top:14px!important;padding:10px 11px!important;border:1px solid rgba(255,126,46,.30)!important;border-radius:17px!important;background:linear-gradient(135deg,rgba(255,126,46,.10),rgba(255,126,46,.025)),color-mix(in srgb,var(--surface) 94%,transparent)!important;box-shadow:none!important}
+    .work-selected-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;background:rgba(255,112,19,.12);color:#f4670c}
+    .work-selected-icon svg{width:23px;height:23px}
+    .work-selected-copy{min-width:0}
+    .work-page .work-calendar-selected strong{display:block;color:var(--text)!important;font-size:12.5px!important;line-height:1.2!important;font-weight:820!important}
+    .work-page .work-calendar-selected .work-selected-copy > span{display:block;margin-top:4px;overflow:hidden;color:var(--muted)!important;font-size:10.5px!important;line-height:1.25!important;text-overflow:ellipsis;white-space:nowrap}
+    .work-selected-arrow{width:34px;height:34px;display:grid!important;place-items:center;border-radius:11px;background:var(--soft);color:var(--muted)}
+    .work-selected-arrow svg{width:17px;height:17px}
+    .schedule-nearest{min-height:94px!important;padding:16px 17px!important;border:1px solid color-mix(in srgb,#6980ff 26%,var(--line))!important;border-radius:24px!important;background:radial-gradient(circle at 88% 48%,rgba(111,130,255,.16),transparent 31%),linear-gradient(145deg,rgba(108,132,255,.095),rgba(117,154,255,.035)),color-mix(in srgb,var(--surface) 94%,transparent)!important;box-shadow:0 12px 30px rgba(93,119,220,.07)!important}
+    .schedule-nearest .panel-label{margin:0 0 6px!important;font-size:10px!important;letter-spacing:.07em!important}
+    .schedule-nearest .nearest-title{font-size:18px!important;line-height:1.05!important;font-weight:850!important;letter-spacing:-.03em!important}
+    .schedule-nearest .nearest-meta{margin-top:5px;font-size:11px!important;font-weight:620!important}
+    .schedule-nearest .nearest-days{min-width:60px;padding:8px 10px!important;border-radius:13px!important;background:rgba(102,120,255,.12)!important;color:#6070f0!important;font-size:12px!important;font-weight:850!important}
+    .schedule-holiday{min-height:76px!important;padding:12px 13px!important;border:1px solid rgba(242,174,56,.30)!important;border-radius:22px!important;background:radial-gradient(circle at 4% 18%,rgba(255,193,77,.17),transparent 25%),linear-gradient(145deg,rgba(255,193,77,.08),rgba(255,193,77,.02)),color-mix(in srgb,var(--surface) 94%,transparent)!important;box-shadow:0 10px 28px rgba(201,155,50,.06)!important}
+    .schedule-holiday .holiday-trigger-icon{width:44px!important;height:44px!important;border-radius:14px!important;background:rgba(255,189,48,.15)!important;color:#ec9918!important}
+    .schedule-holiday .holiday-trigger-copy strong{font-size:14px!important;line-height:1.15!important;font-weight:820!important;letter-spacing:-.02em!important}
+    .schedule-holiday .holiday-trigger-copy small{margin-top:3px;font-size:10px!important;line-height:1.2!important}
+    .schedule-holiday .holiday-trigger-arrow{width:34px!important;height:34px!important;border-radius:11px!important;background:rgba(235,184,72,.10)!important}
+    @media(max-width:390px){
+      .profile .profile-people{gap:10px}.profile .profile-people .identity{gap:7px!important}.profile .partner-header-name{font-size:15px!important}
+      .work-page .work-calendar-card{padding:15px 13px 13px!important;border-radius:24px!important}.work-page .work-week-label{font-size:20px!important}.work-page .work-calendar-legend{min-height:31px;padding:6px 9px!important;font-size:9.5px!important}.work-page .work-calendar-ranges{min-height:46px;margin-bottom:13px!important}.work-page .work-range-button{min-height:38px!important;font-size:11px!important}.work-page .work-calendar-days{gap:5px!important}.work-page .calendar-weekday{font-size:8.5px!important}.work-page .calendar-day-cell{border-radius:11px!important}.work-page .calendar-day-cell .calendar-date-number{font-size:11.5px!important}.work-page .work-calendar-selected{grid-template-columns:40px minmax(0,1fr) 32px!important}.work-selected-icon{width:40px;height:40px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2956,14 +3023,26 @@
 
   <main class="shell">
     <section class="profile" data-app-tab-section="home" aria-label="Профиль">
-      <div class="identity">
-        <div id="avatar" class="avatar" aria-hidden="true">
-          <span id="initials">R</span>
-          <img id="avatarImage" alt="">
+      <div class="profile-people">
+        <div class="identity identity-self">
+          <div id="avatar" class="avatar" aria-hidden="true">
+            <span id="initials">R</span>
+            <img id="avatarImage" alt="">
+          </div>
+          <div class="person">
+            <div id="displayName" class="name">RUDI</div>
+            <div id="profileMeta" class="profile-meta"></div>
+          </div>
         </div>
-        <div class="person">
-          <div id="displayName" class="name">RUDI</div>
-          <div id="profileMeta" class="profile-meta"></div>
+
+        <div class="identity identity-partner">
+          <div class="person partner-person">
+            <div id="partnerHeaderName" class="name partner-header-name">Диана</div>
+          </div>
+          <div id="partnerProfileAvatar" class="avatar partner-header-avatar" aria-hidden="true">
+            <span id="partnerProfileInitial">Д</span>
+            <img id="partnerProfileImage" alt="">
+          </div>
         </div>
       </div>
 
@@ -2983,11 +3062,7 @@
             </div>
           </div>
           <div class="mood-person mood-partner">
-            <span id="partnerProfileAvatar" class="partner-profile-avatar" aria-hidden="true">
-              <span id="partnerProfileInitial">Д</span>
-              <img id="partnerProfileImage" alt="">
-            </span>
-            <span id="partnerMoodLabel" class="mood-person-label partner-profile-name">Диана</span>
+            <span id="partnerMoodLabel" class="mood-person-label">Диана</span>
             <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
               <span class="partner-mood-icon" data-partner-mood="low" hidden>
@@ -3242,14 +3317,14 @@
         <div class="wishlist-columns">
           <section class="wishlist-column" aria-labelledby="wishlistRustamTitle">
             <div class="wishlist-column-head">
-              <span class="wishlist-avatar rustam">R</span>
+              <span id="wishlistRustamAvatar" class="wishlist-avatar rustam" aria-hidden="true"><span class="wishlist-avatar-initial">Р</span><img alt=""></span>
               <span id="wishlistRustamTitle">Рустам</span>
             </div>
             <div id="wishlistRustam" class="wishlist-list"></div>
           </section>
           <section class="wishlist-column" aria-labelledby="wishlistDianaTitle">
             <div class="wishlist-column-head">
-              <span class="wishlist-avatar diana">D</span>
+              <span id="wishlistDianaAvatar" class="wishlist-avatar diana" aria-hidden="true"><span class="wishlist-avatar-initial">Д</span><img alt=""></span>
               <span id="wishlistDianaTitle">Диана</span>
             </div>
             <div id="wishlistDiana" class="wishlist-list"></div>
@@ -3705,9 +3780,9 @@
       if(user){
         const fullName = [user.first_name,user.last_name].filter(Boolean).join(' ').trim() || 'Пользователь';
         firstName = (user.first_name || '').trim();
-        displayName.textContent = fullName;
-        const parts = [user.first_name,user.last_name].filter(Boolean);
-        initials.textContent = (parts.length ? parts.map(part=>part.charAt(0)).join('') : 'T').slice(0,2).toUpperCase();
+        const visibleName = firstName || fullName.split(/\s+/)[0] || 'Пользователь';
+        displayName.textContent = visibleName;
+        initials.textContent = visibleName.charAt(0).toUpperCase() || 'T';
         if(user.photo_url){
           avatarImage.src = user.photo_url;
           avatarImage.alt = 'Фото профиля ' + fullName;
@@ -3721,6 +3796,27 @@
         return (parts.length?parts.map(part=>part.charAt(0)).join(''):fallback).slice(0,2).toUpperCase();
       }
 
+      function setWishlistProfile(actor,profile){
+        const holder=document.getElementById(actor==='Рустам'?'wishlistRustamAvatar':'wishlistDianaAvatar');
+        if(!holder) return;
+        const image=holder.querySelector('img');
+        const initial=holder.querySelector('.wishlist-avatar-initial');
+        const name=String(profile?.name||actor).trim().split(/\s+/)[0]||actor;
+        if(initial) initial.textContent=name.charAt(0).toUpperCase();
+        const photo=String(profile?.photoDataUrl||'').trim();
+        if(image){
+          image.alt='Фото профиля '+name;
+          if(photo){
+            image.src=photo;
+            image.addEventListener('load',()=>holder.classList.add('has-photo'),{once:true});
+            image.addEventListener('error',()=>holder.classList.remove('has-photo'),{once:true});
+          }else{
+            image.removeAttribute('src');
+            holder.classList.remove('has-photo');
+          }
+        }
+      }
+
       function applyTelegramProfiles(selfProfile,partnerProfile){
         if(!avatar.classList.contains('has-photo')&&selfProfile?.photoDataUrl){
           avatarImage.src=String(selfProfile.photoDataUrl);
@@ -3729,16 +3825,19 @@
           avatarImage.addEventListener('error',()=>avatar.classList.remove('has-photo'),{once:true});
         }
 
-        const partnerName=String(partnerProfile?.name||'').trim()
+        const rawPartnerName=String(partnerProfile?.name||'').trim()
           || (currentActor==='Рустам'?'Диана':currentActor==='Диана'?'Рустам':'Партнёр');
+        const partnerName=rawPartnerName.split(/\s+/)[0]||'Партнёр';
         partnerProfileName=partnerName;
 
         const label=document.getElementById('partnerMoodLabel');
+        const headerName=document.getElementById('partnerHeaderName');
         const holder=document.getElementById('partnerProfileAvatar');
         const image=document.getElementById('partnerProfileImage');
         const initial=document.getElementById('partnerProfileInitial');
 
         if(label) label.textContent=partnerName;
+        if(headerName) headerName.textContent=partnerName;
         if(initial) initial.textContent=initialsForName(partnerName,'П');
         if(image&&holder){
           image.alt='Фото профиля '+partnerName;
@@ -3752,6 +3851,13 @@
             holder.classList.remove('has-photo');
           }
         }
+
+        const selfForWishlist={
+          name:firstName||currentActor,
+          photoDataUrl:String(user?.photo_url||selfProfile?.photoDataUrl||'').trim()
+        };
+        setWishlistProfile('Рустам',currentActor==='Рустам'?selfForWishlist:partnerProfile);
+        setWishlistProfile('Диана',currentActor==='Диана'?selfForWishlist:partnerProfile);
       }
 
       function getMoscowParts(date=new Date()){
@@ -4374,12 +4480,21 @@
             const showWorkDetails=(withHaptic=false)=>{
               container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
               cell.classList.add('selected');
+              const icon=document.createElement('span');
+              icon.className='work-selected-icon';
+              icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg>';
+              const copy=document.createElement('span');
+              copy.className='work-selected-copy';
               const heading=document.createElement('strong');
               heading.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(date);
               const info=document.createElement('span');
               const titles=events.map(event=>event.title).filter(Boolean);
               info.textContent=(times.length?times.join(' / '):'Смена')+(titles.length?' · '+titles.join(' · '):'');
-              selected.replaceChildren(heading,info);
+              copy.append(heading,info);
+              const arrow=document.createElement('span');
+              arrow.className='work-selected-arrow';
+              arrow.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
+              selected.replaceChildren(icon,copy,arrow);
               selected.hidden=false;
               if(withHaptic){
                 try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
