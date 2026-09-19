@@ -2014,6 +2014,12 @@
       .calendar-day-cell .calendar-date-number{font-size:10.5px}
     }
 
+      .profile .profile-mood .block-collapse-button{
+      width:23px;height:23px;border-radius:7px;border-color:var(--line);
+      background:transparent;
+    }
+    .profile .profile-mood .block-collapse-button svg{width:12px;height:12px}
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2540,6 +2546,15 @@
           setBlockCollapsed(key,collapsed);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
+
+        if(key==='partner'){
+          section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{
+            if(section.classList.contains('is-collapsed')){
+              apply(false);
+              setBlockCollapsed(key,false);
+            }
+          });
+        }
       }
 
       function setupPersistentCollapsibles(){
