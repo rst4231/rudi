@@ -1821,6 +1821,199 @@
       .daily-card .suggestion-value{font-size:12px}
     }
 
+  
+    /* Compact top profile */
+    .profile{
+      padding:10px 12px !important;
+      border-radius:19px !important;
+      background:
+        radial-gradient(circle at 94% 0%,var(--accent-soft),transparent 32%),
+        linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 93%,var(--accent-soft)),var(--surface)) !important;
+      box-shadow:0 12px 32px color-mix(in srgb,var(--accent-glow) 18%,transparent) !important;
+    }
+    .profile .identity{gap:9px !important}
+    .profile .avatar{
+      width:42px !important;height:42px !important;
+      border-radius:13px !important;border-width:2px !important;
+      box-shadow:0 7px 16px rgba(0,0,0,.10) !important;
+      font-size:14px !important;
+    }
+    .profile .person{gap:2px !important}
+    .profile .name{font-size:16px !important;line-height:1.08 !important}
+    .profile .profile-meta{font-size:10.5px !important;line-height:1.2 !important}
+    .profile .profile-mood{padding:2px !important;gap:1px !important;border-radius:10px !important}
+    .profile .mood-button{width:23px !important;height:23px !important;border-radius:7px !important}
+    .profile .mood-button svg{width:13px !important;height:13px !important}
+    .profile .mood-message{
+      margin-top:5px !important;padding:5px 7px !important;
+      border-radius:8px !important;font-size:9.7px !important;line-height:1.25 !important;
+    }
+    .profile .profile-weather{
+      grid-template-columns:34px auto minmax(0,1fr) !important;
+      gap:7px !important;margin:7px 0 0 !important;padding:7px 0 0 !important;
+    }
+    .profile .weather-visual{width:34px !important;height:34px !important;border-radius:11px !important}
+    .profile .weather-visual svg{width:33px !important;height:33px !important}
+    .profile .profile-weather-main{min-width:58px !important;gap:4px !important}
+    .profile .profile-weather-value{font-size:19px !important}
+    .profile .profile-weather-city{font-size:9px !important}
+    .profile .profile-weather-info{gap:1px !important}
+    .profile .profile-weather-caption{font-size:10px !important;line-height:1.15 !important}
+    .profile .profile-weather-rain{font-size:9px !important;line-height:1.15 !important}
+
+    /* Distinct blocks instead of one long white strip */
+    .section-block{
+      padding:12px;
+      border:1px solid var(--line);
+      border-radius:23px;
+      box-shadow:0 9px 26px rgba(21,26,39,.045);
+    }
+    .priority-section{
+      background:linear-gradient(145deg,color-mix(in srgb,var(--green-soft) 54%,var(--surface)),var(--surface));
+      border-color:color-mix(in srgb,var(--green) 18%,var(--line));
+    }
+    .work-section{
+      background:linear-gradient(145deg,rgba(255,157,87,.075),var(--surface));
+      border-color:color-mix(in srgb,#e9904e 20%,var(--line));
+    }
+    .daily-section{
+      background:linear-gradient(145deg,rgba(153,130,255,.075),var(--surface));
+      border-color:color-mix(in srgb,#9b84f4 18%,var(--line));
+    }
+    .wishlist-section{
+      background:linear-gradient(145deg,color-mix(in srgb,var(--love-soft) 62%,var(--surface)),var(--surface));
+      border-color:color-mix(in srgb,var(--love) 18%,var(--line));
+    }
+    .shared-album-section{
+      background:linear-gradient(145deg,rgba(72,166,220,.075),var(--surface));
+      border-color:color-mix(in srgb,#4aa5d7 20%,var(--line));
+    }
+    .tools-section{
+      background:linear-gradient(145deg,rgba(73,130,225,.065),var(--surface));
+      border-color:color-mix(in srgb,#5688da 17%,var(--line));
+    }
+    .updates-section{
+      background:linear-gradient(145deg,rgba(126,113,190,.055),var(--surface));
+      border-color:color-mix(in srgb,#8074bd 16%,var(--line));
+    }
+    html[data-theme="dark"] .section-block{box-shadow:0 12px 30px rgba(0,0,0,.13)}
+
+    /* Visible + persistent collapse controls */
+    .block-head-actions{display:flex;align-items:center;gap:7px;flex:none}
+    .block-collapse-button{
+      width:30px;height:30px;display:grid;place-items:center;flex:none;
+      border:1px solid var(--line);border-radius:10px;
+      background:var(--soft);color:var(--muted);
+      padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    }
+    .block-collapse-button svg{width:15px;height:15px;transition:transform .24s ease}
+    .rudi-collapsible.is-collapsed .block-collapse-button svg{transform:rotate(-90deg)}
+    .rudi-collapse-body{
+      display:grid;grid-template-rows:1fr;opacity:1;
+      transition:grid-template-rows .27s cubic-bezier(.2,.8,.2,1),opacity .18s ease,margin .22s ease;
+    }
+    .rudi-collapse-body-inner{overflow:hidden}
+    .rudi-collapsible.is-collapsed > .rudi-collapse-body{grid-template-rows:0fr;opacity:0;margin:0!important}
+    .rudi-collapsible.is-collapsed{box-shadow:none}
+    .profile > .block-collapse-button{
+      position:absolute;z-index:4;right:8px;bottom:7px;
+      width:24px;height:24px;border-radius:8px;background:color-mix(in srgb,var(--soft) 88%,transparent);
+    }
+    .partner-head .block-head-actions{margin-left:auto}
+    .partner-message.is-collapsed{padding-bottom:14px}
+
+    /* Compact calendar grid */
+    .work-calendar-card{padding:12px !important}
+    .work-calendar-head{margin-bottom:8px !important}
+    .work-calendar-ranges{margin-bottom:8px !important}
+    .work-calendar-days{
+      display:grid !important;
+      grid-template-columns:repeat(7,minmax(0,1fr)) !important;
+      gap:5px !important;
+    }
+    .calendar-weekday{
+      padding:2px 0 3px;text-align:center;
+      color:var(--muted);font-size:8px;font-weight:800;text-transform:uppercase;
+    }
+    .calendar-empty{aspect-ratio:1}
+    .calendar-day-cell{
+      position:relative;aspect-ratio:1;min-width:0;
+      display:grid;place-items:center;align-content:center;gap:2px;
+      padding:3px;border:1px solid var(--line);border-radius:11px;
+      background:var(--surface);color:var(--text);font:inherit;cursor:default;
+      -webkit-tap-highlight-color:transparent;
+      transition:transform .16s ease,border-color .18s ease,background-color .18s ease;
+    }
+    button.calendar-day-cell{cursor:pointer}
+    button.calendar-day-cell:active{transform:scale(.94)}
+    .calendar-day-cell .calendar-week-label{
+      color:var(--muted);font-size:7px;line-height:1;font-weight:760;text-transform:uppercase;
+    }
+    .calendar-day-cell .calendar-date-number{font-size:11px;line-height:1;font-weight:820}
+    .calendar-day-cell.off{
+      border-color:color-mix(in srgb,var(--green) 33%,var(--line));
+      background:color-mix(in srgb,var(--green-soft) 68%,var(--surface));
+      color:color-mix(in srgb,var(--green) 76%,var(--text));
+    }
+    .calendar-day-cell.working{
+      border-color:color-mix(in srgb,#f39a4a 46%,var(--line));
+      background:color-mix(in srgb,rgba(243,154,74,.16) 72%,var(--surface));
+      color:color-mix(in srgb,#d97827 80%,var(--text));
+    }
+    .calendar-day-cell.today{box-shadow:inset 0 0 0 2px var(--accent)}
+    .calendar-day-cell.selected{box-shadow:inset 0 0 0 2px #e18436,0 0 0 2px rgba(225,132,54,.12)}
+    .calendar-check{
+      position:absolute;right:4px;bottom:4px;
+      width:10px;height:10px;color:var(--green);
+    }
+    .calendar-work-dot{
+      position:absolute;right:5px;bottom:5px;
+      width:6px;height:6px;border-radius:50%;background:#ed8a37;
+    }
+    .work-calendar-selected{
+      margin-top:8px;padding:9px 10px;border-radius:12px;
+      border:1px solid color-mix(in srgb,#f39a4a 30%,var(--line));
+      background:color-mix(in srgb,rgba(243,154,74,.10) 72%,var(--surface));
+    }
+    .work-calendar-selected strong{display:block;font-size:11.5px;line-height:1.25}
+    .work-calendar-selected span{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}
+    .work-calendar-skeleton{aspect-ratio:1;height:auto!important;border-radius:11px!important}
+
+    /* Shared album */
+    .shared-album-card{padding:12px;border-radius:18px}
+    .shared-album-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+    .shared-album-photo,.shared-album-placeholder{
+      aspect-ratio:1;min-width:0;border-radius:11px;overflow:hidden;border:1px solid var(--line);
+      background:var(--soft);
+    }
+    .shared-album-photo{
+      padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
+      transition:transform .17s ease,box-shadow .17s ease;
+    }
+    .shared-album-photo:active{transform:scale(.94)}
+    .shared-album-photo img{width:100%;height:100%;display:block;object-fit:cover}
+    .shared-album-placeholder{
+      background:linear-gradient(90deg,var(--soft),var(--surface-strong),var(--soft));
+      background-size:220% 100%;animation:wishlistShimmer 1.6s linear infinite;
+    }
+    .shared-album-open{
+      width:100%;min-height:36px;display:flex;align-items:center;justify-content:center;gap:7px;
+      margin-top:9px;padding:8px 11px;border:1px solid color-mix(in srgb,#4aa5d7 24%,var(--line));
+      border-radius:11px;background:rgba(72,166,220,.09);color:color-mix(in srgb,#318fc2 78%,var(--text));
+      font:inherit;font-size:10.5px;font-weight:740;cursor:pointer;
+    }
+    .shared-album-open:disabled{opacity:.45;cursor:default}
+    .shared-album-open svg{width:14px;height:14px}
+
+    @media(max-width:430px){
+      .section-block{padding:10px;border-radius:20px}
+      .profile{padding:9px 10px!important}
+      .profile .avatar{width:40px!important;height:40px!important}
+      .shared-album-card{padding:10px}
+      .calendar-day-cell{border-radius:9px}
+      .calendar-day-cell .calendar-date-number{font-size:10.5px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2031,6 +2224,7 @@
               <div class="work-calendar-skeleton"></div>
               <div class="work-calendar-skeleton"></div>
             </div>
+            <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
           </article>
         </div>
       </div>
@@ -2117,6 +2311,29 @@
             <div id="wishlistDiana" class="wishlist-list"></div>
           </section>
         </div>
+      </article>
+    </section>
+
+    <section id="sharedAlbumSection" class="section-block shared-album-section" aria-labelledby="sharedAlbumTitle">
+      <div class="section-heading compact">
+        <div>
+          <div class="section-eyebrow">Вместе</div>
+          <h2 id="sharedAlbumTitle">Общий альбом</h2>
+        </div>
+        <span id="sharedAlbumStatus" class="section-status">Обновляю</span>
+      </div>
+      <article class="panel shared-album-card">
+        <div id="sharedAlbumGrid" class="shared-album-grid" aria-live="polite">
+          <div class="shared-album-placeholder"></div>
+          <div class="shared-album-placeholder"></div>
+          <div class="shared-album-placeholder"></div>
+          <div class="shared-album-placeholder"></div>
+          <div class="shared-album-placeholder"></div>
+        </div>
+        <button id="sharedAlbumOpen" class="shared-album-open" type="button" disabled>
+          <span>Открыть общий альбом</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
+        </button>
       </article>
     </section>
 
