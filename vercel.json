@@ -56,6 +56,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api/partner-notifications/setup",
+      "destination": "/api/partner-message?rudiAction=partner-notification-setup"
+    },
+    {
+      "source": "/api/shared-album",
+      "destination": "/api/partner-message?rudiAction=shared-album"
+    },
+    {
+      "source": "/api/shared-album/setup",
+      "destination": "/api/partner-message?rudiAction=shared-album-setup"
+    },
+    {
       "source": "/api/wishlist",
       "destination": "/api/partner-message?rudiAction=wishlist"
     },
