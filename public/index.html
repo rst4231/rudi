@@ -2669,6 +2669,74 @@
       .tools-section .links > .card .label{font-size:7px!important}
     }
 
+
+    /* Calendar / Wishlist final layout adjustments */
+    .priority-section .priority-grid{
+      grid-template-columns:1fr!important;
+    }
+
+    body[data-app-tab="schedule"],
+    body[data-app-tab="wishlist"]{
+      align-content:start!important;
+      place-items:start center!important;
+      padding-top:max(
+        8px,
+        env(safe-area-inset-top),
+        var(--tg-safe-area-inset-top,0px)
+      )!important;
+    }
+
+    body[data-app-tab="schedule"] .shell,
+    body[data-app-tab="wishlist"] .shell{
+      margin-top:0!important;
+      padding-top:0!important;
+    }
+
+    .work-page{
+      gap:10px;
+    }
+    .work-page .work-calendar-card{
+      margin-top:0!important;
+    }
+    .schedule-nearest{
+      width:100%;
+      min-height:0!important;
+      margin:0!important;
+      padding:14px 15px!important;
+      border-radius:17px!important;
+      background:
+        radial-gradient(circle at 100% 0%,var(--accent-soft),transparent 45%),
+        var(--surface)!important;
+      box-shadow:none!important;
+    }
+    .schedule-nearest .panel-label{margin-bottom:8px!important}
+    .schedule-nearest .nearest-content{
+      grid-template-columns:minmax(0,1fr) auto!important;
+      align-items:center!important;
+      gap:12px!important;
+    }
+    .schedule-holiday{
+      margin:0!important;
+    }
+
+    .wishlist-page{
+      gap:10px!important;
+    }
+    .wishlist-page-title{
+      margin:0 0 2px!important;
+      text-align:center;
+      color:var(--love);
+      font-family:"Snell Roundhand","Bradley Hand","Segoe Script","Apple Chancery",cursive;
+      font-size:27px;
+      line-height:1.08;
+      font-weight:700;
+      letter-spacing:.01em;
+      text-shadow:0 5px 18px color-mix(in srgb,var(--love-glow) 40%,transparent);
+    }
+    .wishlist-page .wishlist-card{
+      margin-top:0!important;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -2782,7 +2850,6 @@
     <section class="section-block priority-section" data-app-tab-section="home" aria-labelledby="priorityTitle">
       <div class="section-heading">
         <div>
-          <div class="section-eyebrow">Сегодня</div>
           <h2 id="priorityTitle">Главное</h2>
         </div>
       </div>
@@ -2818,16 +2885,6 @@
               </div>
             </div>
           </div>
-        </div>
-      </article>
-        <article class="panel nearest-panel">
-        <div class="panel-label">Ближайшее</div>
-        <div class="nearest-content">
-          <div>
-            <div id="nearestTitle" class="nearest-title"></div>
-            <div id="nearestMeta" class="nearest-meta"></div>
-          </div>
-          <div id="nearestDays" class="nearest-days"></div>
         </div>
       </article>
       </div>
@@ -2889,6 +2946,30 @@
         </div>
         <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
       </div>
+
+      <article class="panel nearest-panel schedule-nearest">
+        <div class="panel-label">Ближайшее</div>
+        <div class="nearest-content">
+          <div>
+            <div id="nearestTitle" class="nearest-title"></div>
+            <div id="nearestMeta" class="nearest-meta"></div>
+          </div>
+          <div id="nearestDays" class="nearest-days"></div>
+        </div>
+      </article>
+
+      <button id="holidayButton" class="panel holiday-trigger schedule-holiday" type="button" aria-haspopup="dialog" aria-controls="holidayModal">
+        <span class="holiday-trigger-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 16.5 7.5"/><path d="m14.2 5.2 4.6 4.6"/><path d="M6 6.2h.01M9.3 3.8h.01M4.2 10h.01M17.8 14h.01M20.2 17.4h.01M14.7 18.8h.01"/><path d="M17.5 3.5c.3 1.1 1 1.8 2 2"/><path d="M4.5 14.7c1.2.1 2.1.7 2.6 1.7"/></svg>
+        </span>
+        <span class="holiday-trigger-copy">
+          <strong>Какой сегодня праздник</strong>
+          <small>5 актуальных праздников на сегодня</small>
+        </span>
+        <span class="holiday-trigger-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </span>
+      </button>
     </section>
 
     <section class="section-block daily-section" data-app-tab-section="home" aria-labelledby="dailyTitle">
@@ -2918,18 +2999,6 @@
           <div id="watchToday" class="suggestion-value"></div>
         </article>
         
-        <button id="holidayButton" class="panel holiday-trigger" type="button" aria-haspopup="dialog" aria-controls="holidayModal">
-          <span class="holiday-trigger-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 16.5 7.5"/><path d="m14.2 5.2 4.6 4.6"/><path d="M6 6.2h.01M9.3 3.8h.01M4.2 10h.01M17.8 14h.01M20.2 17.4h.01M14.7 18.8h.01"/><path d="M17.5 3.5c.3 1.1 1 1.8 2 2"/><path d="M4.5 14.7c1.2.1 2.1.7 2.6 1.7"/></svg>
-          </span>
-          <span class="holiday-trigger-copy">
-            <strong>Какой сегодня праздник</strong>
-            <small>5 актуальных праздников на сегодня</small>
-          </span>
-          <span class="holiday-trigger-arrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
-          </span>
-        </button>
       </div>
     </section>
 
@@ -2958,6 +3027,7 @@
 
     <section class="wishlist-page wishlist-section" data-app-tab-section="wishlist" aria-label="Вишлист">
       <span id="wishlistStatus" class="section-status wishlist-page-status" hidden></span>
+      <h1 class="wishlist-page-title">Наш вишлист</h1>
       <div class="wishlist-card">
         <form id="wishlistForm" class="wishlist-form">
           <input id="wishlistInput" class="wishlist-input" maxlength="180" autocomplete="off" placeholder="Добавить желание…" aria-label="Добавить желание">
@@ -3071,7 +3141,7 @@
       <span class="app-tab-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
       </span>
-      <span>График</span>
+      <span>Календарь</span>
     </button>
     <button role="tab" class="app-tab-button" type="button" data-app-tab="wishlist" aria-selected="false">
       <span class="app-tab-icon" aria-hidden="true">
@@ -4056,7 +4126,8 @@
             const dot=document.createElement('span');
             dot.className='calendar-work-dot';
             cell.appendChild(dot);
-            cell.addEventListener('click',()=>{
+
+            const showWorkDetails=(withHaptic=false)=>{
               container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
               cell.classList.add('selected');
               const heading=document.createElement('strong');
@@ -4066,8 +4137,13 @@
               info.textContent=(times.length?times.join(' / '):'Смена')+(titles.length?' · '+titles.join(' · '):'');
               selected.replaceChildren(heading,info);
               selected.hidden=false;
-              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-            });
+              if(withHaptic){
+                try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+              }
+            };
+
+            cell.addEventListener('click',()=>showWorkDetails(true));
+            if(day.date===today) showWorkDetails(false);
           }else{
             const check=document.createElement('span');
             check.className='calendar-check';
