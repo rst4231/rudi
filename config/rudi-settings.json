@@ -2,12 +2,29 @@
   "version": 2,
   "timezone": "Europe/Moscow",
   "sections": {
-    "events": { "enabled": true, "topicId": 19 },
-    "holidays": { "enabled": true, "topicId": 44, "maxItems": 5 },
-    "facts": { "enabled": true, "topicId": 72 },
-    "clients": { "enabled": true, "topicId": 126 },
-    "cinema": { "enabled": true },
-    "labor": { "enabled": true }
+    "events": {
+      "enabled": true,
+      "topicId": 19
+    },
+    "holidays": {
+      "enabled": false,
+      "topicId": 44,
+      "maxItems": 5
+    },
+    "facts": {
+      "enabled": true,
+      "topicId": 72
+    },
+    "clients": {
+      "enabled": true,
+      "topicId": 126
+    },
+    "cinema": {
+      "enabled": true
+    },
+    "labor": {
+      "enabled": true
+    }
   },
   "sources": {
     "dailyContentConfigUrl": "https://raw.githubusercontent.com/rst4231/rudi/main/config/daily-content.json",
