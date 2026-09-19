@@ -3193,6 +3193,39 @@
       }
     }
 
+
+    /* Diana work status inside the mood strip */
+    .profile .mood-partner{
+      gap:7px!important;
+    }
+    .profile .partner-work-status{
+      min-width:0;
+      max-width:92px;
+      overflow:hidden;
+      font-size:9px;
+      line-height:1;
+      font-weight:800;
+      letter-spacing:.005em;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .profile .partner-work-status.is-working{
+      color:#ff8b2f;
+    }
+    .profile .partner-work-status.is-off{
+      color:#35c97a;
+    }
+    .profile .partner-work-status[hidden]{
+      display:none!important;
+    }
+    @media(max-width:390px){
+      .profile .mood-partner{gap:5px!important}
+      .profile .partner-work-status{
+        max-width:76px;
+        font-size:8px;
+      }
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3249,6 +3282,7 @@
           </div>
           <div class="mood-person mood-partner">
             <span id="partnerMoodLabel" class="mood-person-label">Диана</span>
+            <span id="partnerWorkStatus" class="partner-work-status" hidden></span>
             <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
               <span class="partner-mood-icon" data-partner-mood="low" hidden><span class="mood-emoji" aria-hidden="true">😔</span></span>
@@ -4563,6 +4597,19 @@
         }));
       }
 
+      function renderPartnerWorkStatus(days){
+        const status=document.getElementById('partnerWorkStatus');
+        if(!status) return;
+        const today=todayState().key;
+        const row=(Array.isArray(days)?days:[]).find(day=>String(day?.date||'')===today);
+        if(!row) return;
+        const working=Boolean(row.working);
+        status.textContent=working?'Рабочий день':'Выходной';
+        status.classList.toggle('is-working',working);
+        status.classList.toggle('is-off',!working);
+        status.hidden=false;
+      }
+
       function renderWorkCalendar(payload){
         const container=document.getElementById('workCalendarDays');
         const selected=document.getElementById('workCalendarSelected');
@@ -4573,6 +4620,7 @@
         selected.replaceChildren();
 
         const days=Array.isArray(payload?.days)?payload.days:[];
+        renderPartnerWorkStatus(days);
         if(!payload?.configured){
           status.hidden=false;
           status.textContent='Не подключён';
