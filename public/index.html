@@ -2285,10 +2285,9 @@
         const safeTop=Number(tg?.safeAreaInset?.top)||0;
         const telegramOpen=Boolean(tg?.initData);
         const isIos=telegramOpen&&tg?.platform==='ios';
-        const toolbarReserve=isIos ? 150 : (telegramOpen ? 88 : 0);
-        const fullscreenExtra=tg?.isFullscreen ? (isIos ? 18 : 12) : 0;
+        const toolbarReserve=isIos ? 92 : (telegramOpen ? 64 : 0);
         const reportedTop=Math.max(contentTop,safeTop);
-        const top=Math.max(reportedTop,toolbarReserve)+fullscreenExtra;
+        const top=Math.max(reportedTop,toolbarReserve);
         root.style.setProperty('--tg-content-safe-top',Math.max(0,top)+'px');
       }
 
