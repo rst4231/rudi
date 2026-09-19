@@ -405,19 +405,6 @@
       line-height:1.3;
       animation:fadeUp .5s .28s cubic-bezier(.2,.8,.2,1) both;
     }
-    .telegram-link{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:9px 12px;
-      border:1px solid var(--line);
-      border-radius:13px;
-      background:var(--surface);
-      color:var(--text);
-      text-decoration:none;
-      font-weight:650;
-    }
-    .telegram-link svg{width:18px;height:18px;color:var(--icon-stroke)}
     @keyframes heroIn{from{opacity:0;transform:translateY(-10px) scale(.985)}to{opacity:1;transform:none}}
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     @keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1)}}
@@ -546,10 +533,6 @@
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
-      <a class="telegram-link" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/></svg>
-        <span>Telegram чат</span>
-      </a>
     </footer>
   </main>
 
@@ -572,7 +555,7 @@
         importantDates:[{id:'new-year',title:'Новый год',month:1,day:1,recurring:true}],
         favorites:[
           {title:'Telegram чат',url:'https://t.me/+fiPsnWoBJ-c0ZmU1',icon:'telegram'},
-          {title:'Карты',url:'https://maps.google.com/',icon:'map'},
+          {title:'Яндекс Карты',url:'https://yandex.ru/maps/',icon:'map'},
           {title:'YouTube',url:'https://www.youtube.com/',icon:'play'}
         ],
         dailyIdeas:['Сделать небольшую прогулку без телефона.','Попробовать сегодня новый рецепт.','Устроить вечером час без соцсетей.','Написать близкому человеку что-нибудь приятное.'],
