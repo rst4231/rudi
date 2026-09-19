@@ -1151,6 +1151,238 @@
     html[data-theme="dark"] .watch-card .daily-icon{color:#79bdff}
     html[data-theme="dark"] .cook-card .daily-icon{color:#ffb47d}
 
+  
+    .holiday-trigger{
+      grid-column:1/-1;
+      width:100%;
+      display:grid;
+      grid-template-columns:42px minmax(0,1fr) 30px;
+      align-items:center;
+      gap:12px;
+      padding:14px 16px;
+      border-radius:21px;
+      appearance:none;
+      -webkit-appearance:none;
+      text-align:left;
+      color:var(--text);
+      font:inherit;
+      cursor:pointer;
+      background:
+        radial-gradient(circle at 96% 0%,rgba(255,193,77,.16),transparent 42%),
+        linear-gradient(145deg,rgba(255,193,77,.075),transparent 68%),
+        color-mix(in srgb,var(--surface) 90%,transparent);
+      border-color:color-mix(in srgb,#f2ae38 22%,var(--line));
+      box-shadow:none;
+      transition:transform .18s ease,background-color .2s ease,border-color .2s ease;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .holiday-trigger:hover{transform:translateY(-2px)}
+    .holiday-trigger:active{transform:scale(.985)}
+    .holiday-trigger-icon{
+      width:42px;height:42px;
+      display:grid;
+      place-items:center;
+      border-radius:14px;
+      background:rgba(255,193,77,.14);
+      color:#d89424;
+    }
+    html[data-theme="dark"] .holiday-trigger-icon{color:#ffc65f}
+    .holiday-trigger-icon svg{width:22px;height:22px}
+    .holiday-trigger-copy{min-width:0;display:grid;gap:3px}
+    .holiday-trigger-copy strong{
+      font-size:14.5px;
+      line-height:1.2;
+      font-weight:760;
+      letter-spacing:-.015em;
+    }
+    .holiday-trigger-copy small{
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.25;
+      font-weight:560;
+    }
+    .holiday-trigger-arrow{
+      width:30px;height:30px;
+      display:grid;
+      place-items:center;
+      border-radius:10px;
+      background:var(--soft);
+      color:var(--muted);
+    }
+    .holiday-trigger-arrow svg{width:15px;height:15px}
+
+    body.holiday-modal-open{overflow:hidden}
+    .holiday-modal{
+      position:fixed;
+      inset:0;
+      z-index:1000;
+      pointer-events:none;
+      opacity:0;
+      transition:opacity .22s ease;
+    }
+    .holiday-modal.open{pointer-events:auto;opacity:1}
+    .holiday-backdrop{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      padding:0;
+      border:0;
+      background:rgba(5,7,12,.56);
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
+    }
+    .holiday-sheet{
+      position:absolute;
+      left:12px;
+      right:12px;
+      bottom:max(12px,env(safe-area-inset-bottom));
+      width:auto;
+      max-height:min(76dvh,640px);
+      overflow:auto;
+      padding:10px 18px 18px;
+      border:1px solid var(--line);
+      border-radius:28px;
+      background:
+        radial-gradient(circle at 90% 0%,rgba(255,193,77,.12),transparent 32%),
+        var(--surface-strong);
+      box-shadow:0 28px 80px rgba(0,0,0,.34);
+      transform:translateY(calc(100% + 26px));
+      transition:transform .32s cubic-bezier(.2,.82,.2,1);
+      overscroll-behavior:contain;
+    }
+    .holiday-modal.open .holiday-sheet{transform:translateY(0)}
+    .holiday-sheet-handle{
+      width:36px;height:4px;
+      margin:0 auto 14px;
+      border-radius:999px;
+      background:color-mix(in srgb,var(--muted) 36%,transparent);
+    }
+    .holiday-sheet-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:14px;
+      margin-bottom:15px;
+    }
+    .holiday-sheet-eyebrow{
+      margin-bottom:3px;
+      color:#d89424;
+      font-size:9.5px;
+      font-weight:820;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+    html[data-theme="dark"] .holiday-sheet-eyebrow{color:#ffc65f}
+    .holiday-sheet-head h2{
+      margin:0;
+      color:var(--text);
+      font-size:22px;
+      line-height:1.12;
+      font-weight:830;
+      letter-spacing:-.035em;
+    }
+    .holiday-sheet-date{
+      margin-top:5px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:580;
+    }
+    .holiday-close{
+      width:36px;height:36px;
+      display:grid;
+      place-items:center;
+      flex:none;
+      padding:0;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--soft);
+      color:var(--text);
+      cursor:pointer;
+    }
+    .holiday-close svg{width:17px;height:17px}
+    .holiday-loading{
+      min-height:142px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      color:var(--muted);
+      font-size:12.5px;
+      font-weight:600;
+    }
+    .holiday-loading.hidden{display:none}
+    .holiday-spinner{
+      width:18px;height:18px;
+      border:2px solid var(--line);
+      border-top-color:#d89424;
+      border-radius:50%;
+      animation:holidaySpin .7s linear infinite;
+    }
+    .holiday-list{display:grid;gap:8px}
+    .holiday-item{
+      display:grid;
+      grid-template-columns:30px minmax(0,1fr);
+      align-items:start;
+      gap:10px;
+      padding:12px 13px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:color-mix(in srgb,var(--surface) 78%,transparent);
+    }
+    .holiday-item-index{
+      width:30px;height:30px;
+      display:grid;
+      place-items:center;
+      border-radius:10px;
+      background:rgba(255,193,77,.13);
+      color:#d89424;
+      font-size:11px;
+      font-weight:820;
+    }
+    html[data-theme="dark"] .holiday-item-index{color:#ffc65f}
+    .holiday-item-text{
+      padding-top:5px;
+      color:var(--text);
+      font-size:13px;
+      line-height:1.38;
+      font-weight:640;
+    }
+    .holiday-empty{
+      padding:18px;
+      border:1px dashed var(--line);
+      border-radius:16px;
+      color:var(--muted);
+      text-align:center;
+      font-size:12.5px;
+      line-height:1.4;
+    }
+    .holiday-source{
+      margin-top:13px;
+      color:var(--muted);
+      font-size:9.8px;
+      line-height:1.35;
+      text-align:center;
+      opacity:.82;
+    }
+    @keyframes holidaySpin{to{transform:rotate(360deg)}}
+
+    @media(min-width:620px){
+      .holiday-sheet{
+        left:50%;
+        right:auto;
+        bottom:auto;
+        top:50%;
+        width:min(520px,calc(100vw - 40px));
+        transform:translate(-50%,-45%) scale(.97);
+        opacity:.7;
+      }
+      .holiday-modal.open .holiday-sheet{
+        transform:translate(-50%,-50%) scale(1);
+        opacity:1;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1315,6 +1547,18 @@
           </div>
           <div id="cookToday" class="suggestion-value"></div>
         </article>
+        <button id="holidayButton" class="panel holiday-trigger" type="button" aria-haspopup="dialog" aria-controls="holidayModal">
+          <span class="holiday-trigger-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 16.5 7.5"/><path d="m14.2 5.2 4.6 4.6"/><path d="M6 6.2h.01M9.3 3.8h.01M4.2 10h.01M17.8 14h.01M20.2 17.4h.01M14.7 18.8h.01"/><path d="M17.5 3.5c.3 1.1 1 1.8 2 2"/><path d="M4.5 14.7c1.2.1 2.1.7 2.6 1.7"/></svg>
+          </span>
+          <span class="holiday-trigger-copy">
+            <strong>Какой сегодня праздник</strong>
+            <small>5 актуальных праздников на сегодня</small>
+          </span>
+          <span class="holiday-trigger-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+          </span>
+        </button>
       </div>
     </section>
 
@@ -1365,6 +1609,29 @@
       <div><span id="streakValue">1</span> <span id="streakCaption">день подряд</span> в RUDI</div>
     </footer>
   </main>
+
+  <div id="holidayModal" class="holiday-modal" aria-hidden="true">
+    <button id="holidayBackdrop" class="holiday-backdrop" type="button" aria-label="Закрыть"></button>
+    <section class="holiday-sheet" role="dialog" aria-modal="true" aria-labelledby="holidayModalTitle">
+      <div class="holiday-sheet-handle" aria-hidden="true"></div>
+      <div class="holiday-sheet-head">
+        <div>
+          <div class="holiday-sheet-eyebrow">Сегодня</div>
+          <h2 id="holidayModalTitle">Праздники дня</h2>
+          <div id="holidayDate" class="holiday-sheet-date"></div>
+        </div>
+        <button id="holidayClose" class="holiday-close" type="button" aria-label="Закрыть">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        </button>
+      </div>
+      <div id="holidayLoading" class="holiday-loading">
+        <span class="holiday-spinner" aria-hidden="true"></span>
+        <span>Ищу праздники на сегодня…</span>
+      </div>
+      <div id="holidayList" class="holiday-list" aria-live="polite"></div>
+      <div class="holiday-source">Источник: КакойСегодняПраздник.рф · используется тот же отбор, что и в боте</div>
+    </section>
+  </div>
 
   <script>
     (() => {
@@ -1647,6 +1914,7 @@
         connect.classList.remove('show');
         date.textContent='';
         assignee.textContent='';
+        assignee.hidden=true;
         renderTickTickDetails(null);
 
         if(payload?.configured===false){
@@ -1677,7 +1945,13 @@
 
         title.textContent=payload.task.title||'Без названия';
         date.textContent=formatTickTickDate(payload.task);
-        assignee.textContent='Ответственный: '+(payload.task.assignee||'Не назначен');
+        if(payload.task.assigned){
+          assignee.hidden=false;
+          assignee.textContent='Ответственный: '+payload.task.assignee;
+        }else{
+          assignee.hidden=true;
+          assignee.textContent='';
+        }
         badge.textContent='Актуально';
         renderTickTickDetails(payload.task);
       }
@@ -1712,8 +1986,106 @@
           document.getElementById('ticktickTitle').textContent='Не удалось обновить TickTick.';
           document.getElementById('ticktickBadge').textContent='Ошибка';
           document.getElementById('ticktickDate').textContent='';
-          document.getElementById('ticktickAssignee').textContent='';
+          const assignee=document.getElementById('ticktickAssignee');
+          assignee.textContent='';
+          assignee.hidden=true;
         }
+      }
+
+      function holidayDateLabel(){
+        return new Intl.DateTimeFormat('ru-RU',{
+          weekday:'long',day:'numeric',month:'long',timeZone:TZ
+        }).format(new Date());
+      }
+
+      function renderHolidayItems(items){
+        const list=document.getElementById('holidayList');
+        const loading=document.getElementById('holidayLoading');
+        list.replaceChildren();
+        loading.classList.add('hidden');
+
+        const rows=(Array.isArray(items)?items:[]).slice(0,5).filter(Boolean);
+        if(!rows.length){
+          const empty=document.createElement('div');
+          empty.className='holiday-empty';
+          empty.textContent='Не удалось получить список праздников на сегодня.';
+          list.appendChild(empty);
+          return;
+        }
+
+        rows.forEach((value,index)=>{
+          const item=document.createElement('div');
+          item.className='holiday-item';
+
+          const number=document.createElement('span');
+          number.className='holiday-item-index';
+          number.textContent=String(index+1);
+
+          const text=document.createElement('span');
+          text.className='holiday-item-text';
+          text.textContent=String(value);
+
+          item.append(number,text);
+          list.appendChild(item);
+        });
+      }
+
+      async function loadHolidayHighlights(){
+        const key='rudi-holiday-highlights-'+todayState().key;
+        try{
+          const cached=sessionStorage.getItem(key);
+          if(cached){
+            const parsed=JSON.parse(cached);
+            if(Array.isArray(parsed)&&parsed.length) return parsed.slice(0,5);
+          }
+        }catch(_){}
+
+        const response=await fetch('/api/preview?date=today&t='+Date.now(),{cache:'no-store'});
+        if(!response.ok) throw new Error('holiday-preview');
+        const payload=await response.json();
+        const rows=Array.isArray(payload?.holidayHighlights)?payload.holidayHighlights.slice(0,5):[];
+        if(!rows.length) throw new Error('holiday-empty');
+        try{sessionStorage.setItem(key,JSON.stringify(rows))}catch(_){}
+        return rows;
+      }
+
+      function setupHolidayModal(){
+        const modal=document.getElementById('holidayModal');
+        const button=document.getElementById('holidayButton');
+        const close=document.getElementById('holidayClose');
+        const backdrop=document.getElementById('holidayBackdrop');
+        const date=document.getElementById('holidayDate');
+        const loading=document.getElementById('holidayLoading');
+        const list=document.getElementById('holidayList');
+
+        const closeModal=()=>{
+          modal.classList.remove('open');
+          modal.setAttribute('aria-hidden','true');
+          document.body.classList.remove('holiday-modal-open');
+        };
+
+        const openModal=async()=>{
+          date.textContent=holidayDateLabel();
+          list.replaceChildren();
+          loading.classList.remove('hidden');
+          modal.classList.add('open');
+          modal.setAttribute('aria-hidden','false');
+          document.body.classList.add('holiday-modal-open');
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          try{
+            const items=await loadHolidayHighlights();
+            renderHolidayItems(items);
+          }catch(_){
+            renderHolidayItems([]);
+          }
+        };
+
+        button.addEventListener('click',openModal);
+        close.addEventListener('click',closeModal);
+        backdrop.addEventListener('click',closeModal);
+        document.addEventListener('keydown',event=>{
+          if(event.key==='Escape'&&modal.classList.contains('open')) closeModal();
+        });
       }
 
       function renderNearest(config){
@@ -1893,6 +2265,7 @@
         setupPartnerMessage();
         setupStreakAndMood();
         setupTickTickDisclosure();
+        setupHolidayModal();
         loadWeather(config.weather);
         loadTickTickNext();
       }
