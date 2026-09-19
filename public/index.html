@@ -1427,6 +1427,39 @@
       background:linear-gradient(135deg,rgba(240,184,75,.11),transparent 72%),var(--soft);
     }
 
+  
+    .holiday-item-content{min-width:0;display:grid;gap:6px}
+    .holiday-item-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0}
+    .holiday-item.partner-relevant{
+      border-color:color-mix(in srgb,var(--love) 28%,var(--line));
+      background:
+        radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--love-glow) 48%,transparent),transparent 44%),
+        color-mix(in srgb,var(--surface) 82%,var(--love-soft));
+      box-shadow:0 10px 30px color-mix(in srgb,var(--love-glow) 22%,transparent);
+    }
+    .holiday-item.partner-relevant .holiday-item-index{
+      background:color-mix(in srgb,var(--love-soft) 86%,transparent);
+      color:var(--love);
+    }
+    .holiday-partner-badge{
+      flex:none;
+      padding:4px 7px;
+      border-radius:999px;
+      background:color-mix(in srgb,var(--love-soft) 88%,transparent);
+      color:var(--love);
+      font-size:9px;
+      line-height:1;
+      font-weight:820;
+      letter-spacing:.03em;
+      white-space:nowrap;
+    }
+    .holiday-partner-note{
+      color:color-mix(in srgb,var(--love) 72%,var(--text));
+      font-size:11.2px;
+      line-height:1.35;
+      font-weight:690;
+    }
+
   </style>
 </head>
 <body>
@@ -2058,7 +2091,18 @@
         }).format(new Date());
       }
 
-      function renderHolidayItems(items){
+      function holidayPartnerMatch(value,highlightConfig){
+        if(highlightConfig?.enabled===false) return false;
+        const text=String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
+        const categories=highlightConfig?.categories||{};
+        const keywords=Object.values(categories).flatMap((row)=>Array.isArray(row)?row:[]);
+        return keywords.some((keyword)=>{
+          const token=String(keyword||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').trim();
+          return token&&text.includes(token);
+        });
+      }
+
+      function renderHolidayItems(items,highlightConfig){
         const list=document.getElementById('holidayList');
         const loading=document.getElementById('holidayLoading');
         list.replaceChildren();
@@ -2074,18 +2118,40 @@
         }
 
         rows.forEach((value,index)=>{
+          const relevant=holidayPartnerMatch(value,highlightConfig);
           const item=document.createElement('div');
-          item.className='holiday-item';
+          item.className='holiday-item'+(relevant?' partner-relevant':'');
 
           const number=document.createElement('span');
           number.className='holiday-item-index';
           number.textContent=String(index+1);
 
+          const content=document.createElement('div');
+          content.className='holiday-item-content';
+
+          const titleRow=document.createElement('div');
+          titleRow.className='holiday-item-title-row';
+
           const text=document.createElement('span');
           text.className='holiday-item-text';
           text.textContent=String(value);
+          titleRow.appendChild(text);
 
-          item.append(number,text);
+          if(relevant){
+            const badge=document.createElement('span');
+            badge.className='holiday-partner-badge';
+            badge.textContent='Для партнёра';
+            titleRow.appendChild(badge);
+
+            const note=document.createElement('div');
+            note.className='holiday-partner-note';
+            note.textContent=String(highlightConfig?.note||'Не забудь поздравить своего партнера.');
+            content.append(titleRow,note);
+          }else{
+            content.appendChild(titleRow);
+          }
+
+          item.append(number,content);
           list.appendChild(item);
         });
       }
@@ -2109,7 +2175,7 @@
         return rows;
       }
 
-      function setupHolidayModal(){
+      function setupHolidayModal(config){
         const modal=document.getElementById('holidayModal');
         const button=document.getElementById('holidayButton');
         const close=document.getElementById('holidayClose');
@@ -2134,9 +2200,9 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           try{
             const items=await loadHolidayHighlights();
-            renderHolidayItems(items);
+            renderHolidayItems(items,config?.holidayPartnerHighlights);
           }catch(_){
-            renderHolidayItems([]);
+            renderHolidayItems([],config?.holidayPartnerHighlights);
           }
         };
 
@@ -2349,7 +2415,7 @@
         setupPartnerMessage();
         setupStreakAndMood(config);
         setupTickTickDisclosure();
-        setupHolidayModal();
+        setupHolidayModal(config);
         loadWeather(config.weather);
         loadTickTickNext();
       }
