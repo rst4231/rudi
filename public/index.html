@@ -174,6 +174,53 @@
       align-items:center;
       gap:5px;
     }
+    .profile-weather{
+      position:relative;
+      z-index:1;
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr);
+      align-items:center;
+      gap:10px;
+      margin-top:15px;
+      padding-top:14px;
+      border-top:1px solid var(--line);
+    }
+    .profile-weather-main{
+      min-width:72px;
+      display:flex;
+      align-items:baseline;
+      gap:6px;
+    }
+    .profile-weather-value{
+      color:var(--text);
+      font-size:22px;
+      line-height:1;
+      font-weight:820;
+      letter-spacing:-.035em;
+    }
+    .profile-weather-city{
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.1;
+      font-weight:620;
+    }
+    .profile-weather-info{
+      min-width:0;
+      display:grid;
+      gap:3px;
+    }
+    .profile-weather-caption{
+      color:var(--text);
+      font-size:12px;
+      line-height:1.25;
+      font-weight:650;
+    }
+    .profile-weather-rain{
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.3;
+      font-weight:560;
+    }
     .mood-button{
       width:32px;height:32px;
       display:grid;
@@ -359,12 +406,10 @@
       text-align:center;
       white-space:nowrap;
     }
-    .today-panel{
+    .content-pair{
       display:grid;
-      grid-template-columns:minmax(0,1fr) auto;
-      gap:18px;
-      padding:18px;
-      animation:fadeUp .52s .10s cubic-bezier(.2,.8,.2,1) both;
+      grid-template-columns:1fr 1fr;
+      gap:11px;
     }
     .idea-text{
       color:var(--text);
@@ -373,40 +418,8 @@
       font-weight:620;
       letter-spacing:-.01em;
     }
-    .today-side{display:grid;gap:8px;justify-items:stretch}
-    .weather{
-      min-width:156px;
-      max-width:184px;
-      padding:11px 12px;
-      border-radius:14px;
-      background:var(--soft);
-    }
-    .weather-value{
-      color:var(--text);
-      font-size:18px;
-      line-height:1;
-      font-weight:800;
-      letter-spacing:-.03em;
-    }
-    .weather-caption{
-      margin-top:4px;
-      color:var(--muted);
-      font-size:10.5px;
-      line-height:1.2;
-      font-weight:620;
-    }
-    .weather-rain{
-      margin-top:7px;
-      padding-top:7px;
-      border-top:1px solid var(--line);
-      color:var(--text);
-      font-size:10.8px;
-      line-height:1.3;
-      font-weight:650;
-    }
     .suggestions{
       display:grid;
-      grid-template-columns:1fr 1fr;
       gap:11px;
     }
     .suggestion{
@@ -515,16 +528,15 @@
       .profile-meta{font-size:12px}
       .mood-button{width:29px;height:29px;border-radius:9px}
       .mood-button svg{width:16px;height:16px}
-      .today-panel{grid-template-columns:1fr;padding:16px;gap:12px}
-      .weather{width:100%;max-width:none}
-      .today-side{width:100%}
-      .suggestions{grid-template-columns:1fr}
+      .profile-weather{gap:9px}
+      .profile-weather-value{font-size:20px}
+      .content-pair{grid-template-columns:1fr 1fr}
       .suggestion{padding:15px}
     }
     @media(max-width:370px){
       .identity{grid-template-columns:auto minmax(0,1fr)}
       .profile-mood{grid-column:2;justify-content:flex-start}
-      .today-panel{grid-template-columns:1fr}
+      .content-pair{grid-template-columns:1fr}
     }
     @media(prefers-reduced-motion:reduce){
       *,*::before,*::after{animation:none!important;transition:none!important}
@@ -556,6 +568,18 @@
           </button>
         </div>
       </div>
+
+      <div class="profile-weather" aria-label="Погода">
+        <div class="profile-weather-main">
+          <div id="weatherValue" class="profile-weather-value">—</div>
+          <div id="weatherCity" class="profile-weather-city">СПб</div>
+        </div>
+        <div class="profile-weather-info">
+          <div id="weatherCaption" class="profile-weather-caption">Проверяю погоду…</div>
+          <div id="weatherRain" class="profile-weather-rain">Проверяю дождь…</div>
+        </div>
+      </div>
+
       <div id="compliment" class="compliment"></div>
     </section>
 
@@ -593,25 +617,18 @@
         </div>
       </article>
 
-      <article class="panel today-panel">
-        <div>
+      <div class="content-pair">
+        <article class="panel suggestion">
           <div class="panel-label">Идея дня</div>
           <div id="dailyIdea" class="idea-text"></div>
-        </div>
-        <div class="today-side">
-          <div class="weather">
-            <div id="weatherValue" class="weather-value">—</div>
-            <div id="weatherCaption" class="weather-caption">Погода</div>
-            <div id="weatherRain" class="weather-rain">Проверяю дождь…</div>
-          </div>
-        </div>
-      </article>
-
-      <div class="suggestions">
+        </article>
         <article class="panel suggestion">
           <div class="panel-label">Что посмотреть</div>
           <div id="watchToday" class="suggestion-value"></div>
         </article>
+      </div>
+
+      <div class="suggestions">
         <article class="panel suggestion">
           <div class="panel-label">Что приготовить</div>
           <div id="cookToday" class="suggestion-value"></div>
@@ -799,6 +816,7 @@
         const elValue=document.getElementById('weatherValue');
         const elCaption=document.getElementById('weatherCaption');
         const elRain=document.getElementById('weatherRain');
+        const elCity=document.getElementById('weatherCity');
         if(!cfg?.enabled){
           elCaption.textContent='Погода выключена';
           elRain.textContent='Прогноз дождя выключен';
@@ -849,7 +867,8 @@
           }
 
           elValue.textContent=Math.round(c.temperature_2m)+'°';
-          elCaption.textContent=(labels[c.weather_code]||'Погода')+' · '+(cfg.city||'');
+          elCity.textContent=cfg.city==='Санкт-Петербург'?'СПб':(cfg.city||'');
+          elCaption.textContent=labels[c.weather_code]||'Погода';
           elRain.textContent=rainText;
         }catch(_){
           elValue.textContent='—';
