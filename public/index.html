@@ -6401,14 +6401,14 @@
         if(Number.isFinite(model.daysToNext)){
           if(model.daysToNext>0){
             countdown.textContent=String(model.daysToNext);
-            countdownLabel.textContent=model.daysToNext+' '+dayWord(model.daysToNext)+' до месячных';
+            countdownLabel.textContent=dayWord(model.daysToNext)+' до месячных';
           }else if(model.daysToNext===0){
             countdown.textContent='Сегодня';
             countdownLabel.textContent='ожидаемое начало месячных';
           }else{
             const overdue=Math.abs(model.daysToNext);
             countdown.textContent='+'+overdue;
-            countdownLabel.textContent=overdue+' '+dayWord(overdue)+' после прогнозной даты';
+            countdownLabel.textContent=dayWord(overdue)+' после прогнозной даты';
           }
         }else{
           countdown.textContent='—';
