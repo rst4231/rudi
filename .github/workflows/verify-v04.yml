@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '24'
       - run: npm install
-      - run: node --test tests/rudi-v04-cycle.test.cjs tests/rudi-v03-ui.test.cjs
+      - run: node --test tests/rudi-v04-cycle.test.cjs tests/ticktick-calendar-v02.test.cjs
       - run: node --check api/partner-message.js
       - run: node --check api/ticktick-client.cjs
       - run: npm run build
