@@ -31,7 +31,7 @@ test('quote and weather card uses a lighter animated gradient', () => {
 });
 
 test('footer exposes v0.2', () => {
-  assert.match(html, /id="appVersion"[^>]*>v0\.2<\/div>/);
+  assert.match(html, /id="appVersion"[^>]*>v0\.3<\/div>/);
 });
 
 test('old saved profile tile migrates into three new profile tiles', () => {
