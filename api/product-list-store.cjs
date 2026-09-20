@@ -218,6 +218,16 @@ async function initializeFromLegacy(options = {}) {
   return writeState({ ...current, items }, options);
 }
 
+async function readProductListRaw(options = {}) {
+  return readRaw(options);
+}
+
+async function restoreProductListSnapshot(snapshot, options = {}) {
+  const normalized = normalizeState(snapshot);
+  if (!normalized.initialized) return readRaw(options);
+  return writeState(normalized, options);
+}
+
 async function readProductList(options = {}) {
   return initializeFromLegacy(options);
 }
@@ -340,7 +350,7 @@ function resetMutationQueueForTests() {
 
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
-  readProductList, addProducts, removeProduct, removeProductByText,
+  readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, removeProductByText,
   toggleProductChecked, markCheckedProductsBought, markProductBought, clearProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   resetMutationQueueForTests,
 };
