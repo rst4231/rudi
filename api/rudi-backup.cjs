@@ -95,14 +95,20 @@ async function restoreStateBackup(token, options = {}) {
   if (!snapshot) return { restored: [] };
   const restored = [];
 
+  const snapshotTime = Date.parse(String(snapshot.createdAt || '')) || 0;
+
   const currentMessage = await safeRead(() => readPartnerMessage(options));
-  if (!currentMessage && snapshot.partnerMessage) {
+  const currentMessageTime = Date.parse(String(currentMessage?.updatedAt || '')) || 0;
+  const savedMessageTime = Date.parse(String(snapshot.partnerMessage?.updatedAt || '')) || snapshotTime;
+  if (snapshot.partnerMessage && (!currentMessage || savedMessageTime > currentMessageTime)) {
     await writePartnerMessage(snapshot.partnerMessage, options);
     restored.push('partner-message');
   }
 
   const currentToken = await safeRead(() => readToken(options));
-  if (!currentToken?.accessToken && snapshot.ticktickToken?.accessToken) {
+  const currentTokenTime = Date.parse(String(currentToken?.savedAt || '')) || 0;
+  const savedTokenTime = Date.parse(String(snapshot.ticktickToken?.savedAt || '')) || snapshotTime;
+  if (snapshot.ticktickToken?.accessToken && (!currentToken?.accessToken || savedTokenTime > currentTokenTime)) {
     await saveToken(snapshot.ticktickToken, options);
     restored.push('ticktick');
   }
@@ -113,14 +119,24 @@ async function restoreStateBackup(token, options = {}) {
     restored.push('calendar');
   }
 
-  const currentWishlist = await safeRead(() => readWishlist(options), { initialized: false, items: [] });
-  if (!currentWishlist?.initialized && snapshot.wishlist?.initialized) {
+  const currentWishlist = await safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] });
+  const currentWishlistVersion = Number(currentWishlist?.version || 0);
+  const savedWishlistVersion = Number(snapshot.wishlist?.version || 0);
+  if (
+    snapshot.wishlist?.initialized &&
+    (!currentWishlist?.initialized || savedWishlistVersion > currentWishlistVersion)
+  ) {
     await writeWishlist(snapshot.wishlist, options);
     restored.push('wishlist');
   }
 
-  const currentProducts = await safeRead(() => readProductListRaw(options), { initialized: false, items: [], history: [] });
-  if (!currentProducts?.initialized && snapshot.products?.initialized) {
+  const currentProducts = await safeRead(() => readProductListRaw(options), { initialized: false, version: 0, items: [], history: [] });
+  const currentProductsVersion = Number(currentProducts?.version || 0);
+  const savedProductsVersion = Number(snapshot.products?.version || 0);
+  if (
+    snapshot.products?.initialized &&
+    (!currentProducts?.initialized || savedProductsVersion > currentProductsVersion)
+  ) {
     await restoreProductListSnapshot(snapshot.products, options);
     restored.push('products');
   }
