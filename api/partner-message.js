@@ -53,6 +53,7 @@ const { getCinemaPremieresCache, getTopicMaintenanceCache } = require('./statefu
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
+const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_AUTH_AGE_SECONDS = 24 * 60 * 60;
@@ -491,8 +492,9 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       const cinemaCache = getCinemaPremieresCache();
       const topicCache = getTopicMaintenanceCache();
+      const forumConfig = await loadForumTopicsConfig();
       const [topicId, cachedChatId] = await Promise.all([
-        resolveCinemaTopicId({ cache: cinemaCache }),
+        resolveCinemaTopicId({ cache: cinemaCache, configuredTopicId: forumConfig.cinema }),
         getKnownForumChatId({ cache: topicCache }).catch(() => null),
       ]);
       const chatId = cachedChatId || findForumChatIdInEnv(options.env || process.env);
