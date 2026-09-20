@@ -13,6 +13,11 @@ test('forum topics config accepts Labor topic 696 and Clients topic 126', () => 
   assert.equal(config.labor, 696);
 });
 
+test('forum topics config accepts Kinopremieres topic 705', () => {
+  const config = validateForumTopicsConfig({ version: 2, clients: 126, labor: 696, cinema: 705 });
+  assert.equal(config.cinema, 705);
+});
+
 test('forum topics config rejects using Clients topic as Labor topic', () => {
   assert.throws(
     () => validateForumTopicsConfig({ version: 1, clients: 126, labor: 126 }),
