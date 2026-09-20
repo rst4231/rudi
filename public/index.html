@@ -3933,6 +3933,24 @@
       .holiday-source{margin-top:8px!important;font-size:9px!important}
     }
 
+    .holiday-item-text{
+      display:flex!important;
+      align-items:flex-start;
+      gap:7px;
+      min-width:0;
+    }
+    .holiday-item-emoji{
+      flex:none;
+      width:20px;
+      line-height:1.2;
+      font-size:16px;
+      text-align:center;
+    }
+    .holiday-item-label{
+      min-width:0;
+      overflow-wrap:anywhere;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -5548,6 +5566,37 @@
         }).format(new Date());
       }
 
+      function holidayEmoji(value){
+        const text=String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
+        const rules=[
+          [/любв|влюб|поцелу|романт|семь|семь[ия]|супруг|жен|муж|партнер/u,'❤️'],
+          [/дет|сын|доч|ребен|семь/u,'👨‍👩‍👧'],
+          [/кот|кош|собак|живот|питом|ветерин|птиц|лошад|рыб/u,'🐾'],
+          [/мир|земл|планет|эколог|природ|лес|вод|океан|климат/u,'🌍'],
+          [/космос|астрон|звезд|лун|солнц/u,'🚀'],
+          [/музык|песн|джаз|рок|пиан|гитар/u,'🎵'],
+          [/театр|кино|фильм|актер|актрис|искусств|музе|культур/u,'🎭'],
+          [/книг|чтен|писател|поэт|литератур|библиот/u,'📚'],
+          [/спорт|футбол|хоккей|бег|фитнес|олимп/u,'🏅'],
+          [/врач|медиц|здоров|донор|сердц|медсестр/u,'🩺'],
+          [/учител|школ|студент|образован|универс/u,'🎓'],
+          [/програм|айти|it\b|интернет|компьют|технолог/u,'💻'],
+          [/еда|повар|кухн|пицц|бургер|шоколад|кофе|чай|хлеб|торт/u,'🍽️'],
+          [/путеше|турист|авиа|самолет|моряк|море/u,'✈️'],
+          [/дружб|друг|обним/u,'🤝'],
+          [/труд|работ|профес|рабоч/u,'🛠️'],
+          [/воен|арм|побед|геро|защитник/u,'🎖️'],
+          [/флаг|независим|республик|государ|националь/u,'🏳️'],
+          [/смех|улыб|счаст|радост/u,'😄'],
+          [/танц/u,'💃'],
+          [/фото|фотограф/u,'📸'],
+          [/почт|письм/u,'✉️'],
+          [/добр|благотвор|волонтер/u,'💛']
+        ];
+        for(const [pattern,emoji] of rules) if(pattern.test(text)) return emoji;
+        return '🎊';
+      }
+
       function holidayPartnerMatch(value,highlightConfig){
         if(highlightConfig?.enabled===false) return false;
         const text=String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
@@ -5591,7 +5640,14 @@
 
           const text=document.createElement('span');
           text.className='holiday-item-text';
-          text.textContent=String(value);
+          const emoji=document.createElement('span');
+          emoji.className='holiday-item-emoji';
+          emoji.setAttribute('aria-hidden','true');
+          emoji.textContent=holidayEmoji(value);
+          const label=document.createElement('span');
+          label.className='holiday-item-label';
+          label.textContent=String(value);
+          text.append(emoji,label);
           titleRow.appendChild(text);
 
           if(relevant){
