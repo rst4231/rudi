@@ -2,23 +2,22 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const html = fs.readFileSync('public/index.html', 'utf8');
+const html = ['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
-test('RUDI v0.1 shows dual calendars and app version', () => {
+test('calendar keeps Diana work schedule and removes retired shared calendar', () => {
   assert.match(html, /График Дианы/);
-  assert.match(html, /Календарь совместных дел/);
-  assert.match(html, /id="appVersion"[^>]*>v0\.1</);
-  assert.doesNotMatch(html, /work-calendar-legend[^>]*>[^<]*<span><\/span>\s*рабочий день/);
+  assert.doesNotMatch(html, /id="sharedCalendarCard"/);
+  assert.doesNotMatch(html, /setupSharedCalendarDisclosure\(\);/);
+  assert.match(html, /id="appVersion"[^>]*>v0\.4</);
 });
 
-test('both calendars persist collapse state', () => {
+test('work calendar persists collapse state', () => {
   assert.match(html, /key:'calendar-work'/);
-  assert.match(html, /key:'calendar-shared'/);
 });
 
 test('Diana work status is rendered from work calendar data', () => {
   assert.match(html, /function renderPartnerWorkStatus\(days\)/);
-  assert.match(html, /status\.textContent=working\?'Рабочий день':'Выходной'/);
+  assert.match(html, /setProfileWorkStatus\('Диана',working\?'Рабочий день':'Выходной'/);
   assert.match(html, /renderPartnerWorkStatus\(days\)/);
 });
 

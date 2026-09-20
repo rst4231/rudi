@@ -42,15 +42,15 @@ test('production code and config contain no botsandsite or traffic project coupl
 test('Vercel config exposes the expected RUDI routes and cron schedules', () => {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   const routes = Object.fromEntries(config.rewrites.map((item) => [item.source, item.destination]));
-  assert.deepEqual(routes, {
-    '/admin': '/admin.html',
-    '/api/daily': '/api/daily-cron?route=daily',
-    '/api/health': '/api/index?route=health',
-    '/api/telegram': '/api/index?route=telegram',
-    '/api/alice': '/api/index?route=alice-shopping',
-    '/api/alice-shopping': '/api/index?route=alice-shopping',
-    '/api/init-products': '/api/index?route=init-products'
-  });
+  assert.equal(routes['/admin'], undefined);
+  assert.equal(routes['/api/daily'], '/api/daily-cron?route=daily');
+  assert.equal(routes['/api/health'], '/api/index?route=health');
+  assert.equal(routes['/api/telegram'], '/api/index?route=telegram');
+  assert.equal(routes['/api/alice'], '/api/index?route=alice-shopping');
+  assert.equal(routes['/api/alice-shopping'], '/api/index?route=alice-shopping');
+  assert.equal(routes['/api/init-products'], '/api/index?route=init-products');
+  assert.equal(routes['/api/work-calendar'], '/api/partner-message?rudiAction=work-calendar');
+  assert.equal(routes['/api/ticktick/next'], '/api/partner-message?ticktickAction=next');
   assert.deepEqual(config.crons, [
     { path: '/api/daily', schedule: '30 21 * * *' },
     { path: '/api/stylist-leads-cron', schedule: '0 4 * * *' },

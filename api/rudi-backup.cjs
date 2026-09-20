@@ -1,19 +1,15 @@
 const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
-const { readToken, saveToken } = require('./ticktick-store.cjs');
-const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
 const { readWishlist, writeWishlist } = require('./wishlist-store.cjs');
 const { readProductList, readProductListRaw, restoreProductListSnapshot } = require('./product-list-store.cjs');
-const { readRecipients, saveRecipient } = require('./partner-notification-store.cjs');
-const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
 const {
   readChecklistAuditState,
   restoreChecklistAuditState,
 } = require('./ticktick-checklist-audit-store.cjs');
 
-const BACKUP_VERSION = 1;
-const BACKUP_PREFIX = 'rudi-state-v1';
+const BACKUP_VERSION = 2;
+const BACKUP_PREFIX = 'rudi-state-v2';
 const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
 
 function encryptionKey(options = {}) {
@@ -67,14 +63,10 @@ async function safeRead(task, fallback = null) {
 }
 
 async function createStateSnapshot(options = {}) {
-  const [partnerMessage, ticktickToken, calendarUrl, wishlist, products, recipients, albumConfig, ticktickChecklistAudit] = await Promise.all([
+  const [partnerMessage, wishlist, products, ticktickChecklistAudit] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
-    safeRead(() => readToken(options)),
-    safeRead(() => readCalendarUrl(options), ''),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
     safeRead(() => readProductList(options), { initialized: false, version: 0, items: [], history: [] }),
-    safeRead(() => readRecipients(options)),
-    safeRead(() => readAlbumConfig(options)),
     safeRead(() => readChecklistAuditState(options), { initialized: false, version: 0, entries: {} }),
   ]);
 
@@ -82,12 +74,8 @@ async function createStateSnapshot(options = {}) {
     version: BACKUP_VERSION,
     createdAt: new Date(options.now || Date.now()).toISOString(),
     partnerMessage,
-    ticktickToken,
-    calendarUrl: String(calendarUrl || ''),
     wishlist,
     products,
-    recipients,
-    albumConfig,
     ticktickChecklistAudit,
   };
 }
@@ -111,20 +99,6 @@ async function restoreStateBackup(token, options = {}) {
     restored.push('partner-message');
   }
 
-  const currentToken = await safeRead(() => readToken(options));
-  const currentTokenTime = Date.parse(String(currentToken?.savedAt || '')) || 0;
-  const savedTokenTime = Date.parse(String(snapshot.ticktickToken?.savedAt || '')) || snapshotTime;
-  if (snapshot.ticktickToken?.accessToken && (!currentToken?.accessToken || savedTokenTime > currentTokenTime)) {
-    await saveToken(snapshot.ticktickToken, options);
-    restored.push('ticktick');
-  }
-
-  const currentCalendar = await safeRead(() => readCalendarUrl(options), '');
-  if (!currentCalendar && snapshot.calendarUrl) {
-    await saveCalendarUrl(snapshot.calendarUrl, options);
-    restored.push('calendar');
-  }
-
   const currentWishlist = await safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] });
   const currentWishlistVersion = Number(currentWishlist?.version || 0);
   const savedWishlistVersion = Number(snapshot.wishlist?.version || 0);
@@ -145,22 +119,6 @@ async function restoreStateBackup(token, options = {}) {
   ) {
     await restoreProductListSnapshot(snapshot.products, options);
     restored.push('products');
-  }
-
-  const currentRecipients = await safeRead(() => readRecipients(options), null);
-  for (const actor of ['Рустам', 'Диана']) {
-    const existing = Number(currentRecipients?.[actor]);
-    const saved = Number(snapshot.recipients?.[actor]);
-    if ((!Number.isInteger(existing) || existing <= 0) && Number.isInteger(saved) && saved > 0) {
-      await saveRecipient(actor, saved, options);
-      restored.push('recipient:' + actor);
-    }
-  }
-
-  const currentAlbum = await safeRead(() => readAlbumConfig(options), null);
-  if (!currentAlbum && snapshot.albumConfig?.url && snapshot.albumConfig?.token) {
-    await saveAlbumConfig(snapshot.albumConfig, options);
-    restored.push('shared-album');
   }
 
   const currentChecklistAudit = await safeRead(

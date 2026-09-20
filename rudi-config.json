@@ -211,5 +211,22 @@
     "Форрест Гамп": "https://www.kinopoisk.ru/film/448/",
     "1+1": "https://www.kinopoisk.ru/film/535341/",
     "Игра на понижение": "https://www.kinopoisk.ru/film/501333/"
+  },
+  "cycle": {
+    "enabled": true,
+    "person": "Диана",
+    "timezone": "Europe/Moscow",
+    "cycleLengthDays": 30,
+    "periodLengthDays": 5,
+    "ovulationDay": 16,
+    "fertileWindowStartDay": 12,
+    "fertileWindowEndDay": 18,
+    "historyStarts": [
+      "2026-07-01",
+      "2026-07-31",
+      "2026-08-30"
+    ],
+    "nextPeriodStart": "2026-09-29",
+    "source": "Flo + фактические даты"
   }
 }
