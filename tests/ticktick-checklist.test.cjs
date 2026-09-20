@@ -6,6 +6,7 @@ const {
   buildAuthorizeUrl,
   checklistUpdateBody,
   updateTaskChecklistItem,
+  visibleChecklistItems,
 } = require('../api/ticktick-client.cjs');
 const {
   recordChecklistAudit,
@@ -29,6 +30,21 @@ test('TickTick OAuth asks for read and write scopes', () => {
     state: 'state',
   }));
   assert.equal(url.searchParams.get('scope'), 'tasks:read tasks:write');
+});
+
+
+test('RUDI hides completed TickTick checklist items before applying the 50-item limit', () => {
+  const completed = Array.from({ length: 50 }, (_, index) => ({
+    id: 'done-' + index,
+    title: 'Done ' + index,
+    status: 1,
+  }));
+  const active = [
+    { id: 'todo-1', title: 'Todo 1', status: 0 },
+    { id: 'todo-2', title: 'Todo 2', status: 0 },
+  ];
+  const visible = visibleChecklistItems([...completed, ...active], 50);
+  assert.deepEqual(visible.map((item) => item.id), ['todo-1', 'todo-2']);
 });
 
 test('checklist update changes only the requested item', () => {
