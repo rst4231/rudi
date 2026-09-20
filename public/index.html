@@ -3883,6 +3883,56 @@
     body.home-layout-editing [data-home-tile] > .home-order-controls,
     body.home-layout-editing [data-home-tile] > .home-order-controls *{pointer-events:auto!important}
 
+    /* Calendar: every day is selectable, including days off */
+    .calendar-day-cell.off.selected{
+      box-shadow:inset 0 0 0 2px var(--green),0 0 0 2px color-mix(in srgb,var(--green) 14%,transparent)!important;
+    }
+    .work-calendar-selected.is-off{
+      border-color:color-mix(in srgb,var(--green) 30%,var(--line))!important;
+      background:color-mix(in srgb,var(--green-soft) 72%,var(--surface))!important;
+    }
+    .work-selected-icon.is-off{color:var(--green)!important}
+    .work-calendar-selected.is-off .work-selected-copy > span{
+      color:color-mix(in srgb,var(--green) 72%,var(--text))!important;
+      font-weight:720!important;
+    }
+
+    /* Holiday sheet: keep all 5 items reachable above the tab bar */
+    .holiday-sheet{
+      bottom:calc(96px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+      max-height:calc(100dvh - 128px - max(env(safe-area-inset-top),var(--tg-content-safe-area-inset-top,0px)))!important;
+      overflow:hidden!important;
+      display:flex!important;
+      flex-direction:column!important;
+    }
+    .holiday-sheet-head{flex:none!important}
+    .holiday-loading{flex:1 1 auto!important;min-height:120px!important}
+    .holiday-list{
+      flex:1 1 auto!important;
+      min-height:0!important;
+      overflow-y:auto!important;
+      overscroll-behavior:contain!important;
+      -webkit-overflow-scrolling:touch;
+      padding-right:2px;
+      padding-bottom:4px;
+    }
+    .holiday-source{flex:none!important}
+    .holiday-item{
+      padding:10px 11px!important;
+      gap:9px!important;
+      border-radius:14px!important;
+    }
+    .holiday-item-index{width:28px!important;height:28px!important;border-radius:9px!important}
+    .holiday-item-text{padding-top:4px!important;font-size:12.4px!important;line-height:1.32!important}
+    @media(max-height:740px){
+      .holiday-sheet{bottom:calc(90px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important}
+      .holiday-sheet-head{margin-bottom:10px!important}
+      .holiday-sheet-handle{margin-bottom:9px!important}
+      .holiday-list{gap:6px!important}
+      .holiday-item{padding:8px 10px!important}
+      .holiday-source{margin-top:8px!important;font-size:9px!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -5768,13 +5818,16 @@
             .map(event=>event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–')))
             .filter(Boolean);
           const timeText=times.join(' / ')||'Смена';
-          const cell=document.createElement(day.working?'button':'div');
-          if(day.working) cell.type='button';
+          const cell=document.createElement('button');
+          cell.type='button';
           cell.className='calendar-day-cell '+(day.working?'working':'off')+(day.date===today?' today':'');
-          if(day.working){
-            cell.title=timeText;
-            cell.setAttribute('aria-label','Работа '+new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+', '+timeText);
-          }
+          cell.title=day.working?timeText:'Выходной';
+          cell.setAttribute(
+            'aria-label',
+            (day.working?'Работа ':'Выходной ')+
+            new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
+            (day.working?', '+timeText:'')
+          );
 
           if(!isMonth){
             const week=document.createElement('span');
@@ -5792,38 +5845,46 @@
             const dot=document.createElement('span');
             dot.className='calendar-work-dot';
             cell.appendChild(dot);
-
-            const showWorkDetails=(withHaptic=false)=>{
-              container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
-              cell.classList.add('selected');
-              const icon=document.createElement('span');
-              icon.className='work-selected-icon';
-              icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg>';
-              const copy=document.createElement('span');
-              copy.className='work-selected-copy';
-              const heading=document.createElement('strong');
-              heading.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(date);
-              const info=document.createElement('span');
-              const titles=events.map(event=>event.title).filter(Boolean);
-              info.textContent=(times.length?times.join(' / '):'Смена')+(titles.length?' · '+titles.join(' · '):'');
-              copy.append(heading,info);
-              selected.replaceChildren(icon,copy);
-              selected.hidden=false;
-              if(withHaptic){
-                try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-              }
-            };
-
-            cell.addEventListener('click',()=>showWorkDetails(true));
-            if(day.date===today) showWorkDetails(false);
           }else{
             const check=document.createElement('span');
             check.className='calendar-check';
             check.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>';
             cell.appendChild(check);
-            cell.title='Выходной';
           }
 
+          const showDayDetails=(withHaptic=false)=>{
+            container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
+            cell.classList.add('selected');
+
+            const icon=document.createElement('span');
+            icon.className='work-selected-icon';
+            icon.innerHTML=day.working
+              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg>'
+              : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>';
+            icon.classList.toggle('is-off',!day.working);
+
+            const copy=document.createElement('span');
+            copy.className='work-selected-copy';
+            const heading=document.createElement('strong');
+            heading.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(date);
+            const info=document.createElement('span');
+            if(day.working){
+              const titles=events.map(event=>event.title).filter(Boolean);
+              info.textContent=(times.length?times.join(' / '):'Смена')+(titles.length?' · '+titles.join(' · '):'');
+            }else{
+              info.textContent='Выходной';
+            }
+            copy.append(heading,info);
+            selected.replaceChildren(icon,copy);
+            selected.classList.toggle('is-off',!day.working);
+            selected.hidden=false;
+            if(withHaptic){
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            }
+          };
+
+          cell.addEventListener('click',()=>showDayDetails(true));
+          if(day.date===today) showDayDetails(false);
           container.appendChild(cell);
         }
       }
