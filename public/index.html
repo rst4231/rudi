@@ -5191,7 +5191,8 @@
       }
 
       function normalizedHomeOrder(order){
-        const requested=Array.isArray(order)?order.map(String):[];
+        const source=Array.isArray(order)?order.map(String):[];
+        const requested=source.flatMap(id=>id==='profile'?['profile-common','profile-self','profile-partner']:[id]);
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
         for(const id of HOME_TILE_DEFAULT_ORDER) if(!valid.includes(id)) valid.push(id);
         return valid;
