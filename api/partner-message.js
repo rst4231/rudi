@@ -55,6 +55,7 @@ const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 
+const RUDI_FORUM_CHAT_ID = '-1004476323368';
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_AUTH_AGE_SECONDS = 24 * 60 * 60;
 const MAX_FUTURE_SKEW_SECONDS = 5 * 60;
@@ -497,7 +498,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         resolveCinemaTopicId({ cache: cinemaCache, configuredTopicId: forumConfig.cinema }),
         getKnownForumChatId({ cache: topicCache }).catch(() => null),
       ]);
-      const chatId = cachedChatId || findForumChatIdInEnv(options.env || process.env);
+      const chatId = cachedChatId || findForumChatIdInEnv(options.env || process.env) || RUDI_FORUM_CHAT_ID;
       if (!topicId || !chatId) {
         return res.status(404).json({ ok: false, error: 'cinema-topic-unavailable' });
       }
