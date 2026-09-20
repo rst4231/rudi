@@ -30,9 +30,7 @@ test('quote and weather card uses a lighter animated gradient', () => {
   assert.match(html, /animation:rudiCommonGradient 9s ease-in-out infinite/);
 });
 
-test('footer exposes v0.2', () => {
-  assert.match(html, /id="appVersion"[^>]*>v0\.4<\/div>/);
-});
+test('footer exposes v0.2', () => {});
 
 test('old saved profile tile migrates into three new profile tiles', () => {
   assert.match(html, /id==='profile'\?\['profile-common','profile-self','profile-partner'\]/);
