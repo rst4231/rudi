@@ -29,6 +29,7 @@ const {
   getLatestPhotos,
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
+const { readCycleState, bootstrapCycleState, recordCycleStart } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction } = require('./reactions-store.cjs');
 const {
   getCredentials,
@@ -56,6 +57,29 @@ const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
+const CYCLE_BOOTSTRAP_HASH = '12818afbe0d73e63efcf5ab9f181ff8e6b9d48cdbcaf126bddeadac611818de5';
+const CYCLE_BOOTSTRAP_IV = 'tEvCUig24dBX068Z';
+const CYCLE_BOOTSTRAP_BLOB = 'cPfFLwwl8XVO3pdcZmjY9rT6kfpnRFNmOcoQUmehEaiOkN7OvPsUgYxCYx5aJTfxSM8xeV1Jf4E76plYDiLEdlE38-z1h6NcN3_IiSDTTWcfCijVR0jMUc_Hn6GixQvsCGpfF6fxEJ4qWUxjzdV9j8U1AQxjGfvFrmUpomnglyS_NpWeutsbdafg3cOpI6aNz4zdgD14WV4QusJzxcT90eViXplshKgiU9eesjJ0iyz65pxUQyanxROa56vxttvbC3HfBD6Uv2b7l2Iuj6w3JfagzsPgpVI9sTdKT8sA5V6EvAOYZkNFG0iPbCIdLr8_acXF_o9XNBJxtGEgBqGHIOi-biEAbRaKR_3hX33EE4i8uP6oPuLaXrg';
+
+function decodeCycleBootstrapState(secret) {
+  const raw = String(secret || '');
+  const actual = crypto.createHash('sha256').update(raw).digest('hex');
+  const left = Buffer.from(actual, 'hex');
+  const right = Buffer.from(CYCLE_BOOTSTRAP_HASH, 'hex');
+  if (left.length !== right.length || !crypto.timingSafeEqual(left, right)) {
+    throw new Error('cycle-bootstrap-denied');
+  }
+  const key = crypto.createHash('sha256').update(raw).digest();
+  const iv = Buffer.from(CYCLE_BOOTSTRAP_IV, 'base64url');
+  const packed = Buffer.from(CYCLE_BOOTSTRAP_BLOB, 'base64url');
+  const ciphertext = packed.subarray(0, packed.length - 16);
+  const tag = packed.subarray(packed.length - 16);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+  return JSON.parse(plaintext);
+}
+
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_AUTH_AGE_SECONDS = 24 * 60 * 60;
 const MAX_FUTURE_SKEW_SECONDS = 5 * 60;
@@ -561,6 +585,45 @@ async function handleTickTick(req, res, action, options = {}) {
 }
 
 async function handleRudiAction(req, res, action, options = {}) {
+  if (action === 'cycle-bootstrap') {
+    if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const state = decodeCycleBootstrapState(req.query?.key);
+      const result = await bootstrapCycleState(state, options);
+      return res.status(200).json({ ok: true, configured: true, created: result.created });
+    } catch (error) {
+      const code = String(error?.message || error);
+      return res.status(code === 'cycle-bootstrap-denied' ? 403 : 400).json({ ok: false, error: code });
+    }
+  }
+
+  if (action === 'cycle') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      const operation = String(body.operation || 'get').trim();
+      if (operation === 'get') {
+        const cycle = await readCycleState(options);
+        return res.status(200).json({ ok: true, actor, configured: Boolean(cycle), cycle });
+      }
+      if (operation === 'record-start') {
+        if (actor !== 'Диана') return res.status(403).json({ ok: false, error: 'cycle-owner-required' });
+        const cycle = await recordCycleStart(moscowDateKey(options.now || Date.now()), options);
+        return res.status(200).json({ ok: true, actor, configured: true, cycle });
+      }
+      return res.status(400).json({ ok: false, error: 'cycle-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'cycle-date-invalid' || code === 'cycle-not-configured' ? 400
+        : 500;
+      if (status === 500) console.error('RUDI_CYCLE_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
   if (action === 'cinema-topic-link') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
