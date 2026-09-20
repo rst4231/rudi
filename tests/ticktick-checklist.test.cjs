@@ -123,3 +123,12 @@ test('RUDI remembers who checked or unchecked a TickTick item', async () => {
   assert.equal(row.actor, 'Диана');
   assert.equal(row.completed, false);
 });
+
+
+test('RUDI refreshes TickTick checklist ids after each successful toggle', () => {
+  const app = require('fs').readFileSync('public/app.js','utf8');
+  assert.match(app, /const checklistRows=\[\.\.\.\(checklist\?\.querySelectorAll\('\.ticktick-check-item'\)\|\|\[\]\)\];/);
+  assert.match(app, /await loadTickTickNext\(\{preserveExpanded:true\}\);/);
+  assert.match(app, /async function loadTickTickNext\(\{preserveExpanded=false\}=\{\}\)/);
+  assert.match(app, /renderTickTickState\(payload,\{preserveExpanded\}\)/);
+});

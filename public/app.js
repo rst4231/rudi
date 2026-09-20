@@ -1327,8 +1327,10 @@
         }
 
         const nextCompleted=!Boolean(item.completed);
+        const checklist=document.getElementById('ticktickChecklist');
+        const checklistRows=[...(checklist?.querySelectorAll('.ticktick-check-item')||[])];
+        for(const checklistRow of checklistRows) checklistRow.disabled=true;
         row.dataset.busy='1';
-        row.disabled=true;
         row.classList.add('syncing');
 
         const meta=row.querySelector('.ticktick-check-meta');
@@ -1366,7 +1368,7 @@
           item.completed=Boolean(payload.item?.completed);
           item.changedBy=String(payload.item?.changedBy||currentActor||'');
           item.changedAt=String(payload.item?.changedAt||'');
-          renderTickTickDetails(task,{writable:true,preserveExpanded:true});
+          await loadTickTickNext({preserveExpanded:true});
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           setTimeout(()=>refreshStateBackup(),250);
         }catch(_){
@@ -1380,8 +1382,10 @@
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
         }finally{
           row.dataset.busy='0';
-          row.disabled=false;
           row.classList.remove('syncing');
+          for(const checklistRow of checklistRows){
+            if(checklistRow.isConnected) checklistRow.disabled=false;
+          }
         }
       }
 
@@ -1442,7 +1446,7 @@
         setTickTickExpanded(Boolean(wasExpanded&&hasDetails));
       }
 
-      function renderTickTickState(payload){
+      function renderTickTickState(payload,{preserveExpanded=false}={}){
         const title=document.getElementById('ticktickTitle');
         const date=document.getElementById('ticktickDate');
         const assignee=document.getElementById('ticktickAssignee');
@@ -1454,9 +1458,9 @@
         date.textContent='';
         assignee.textContent='';
         assignee.hidden=true;
-        renderTickTickDetails(null);
 
         if(payload?.configured===false){
+          renderTickTickDetails(null);
           title.textContent='Интеграция TickTick ещё не настроена.';
           badge.hidden=false;
           badge.textContent='Настройка';
@@ -1464,6 +1468,7 @@
         }
 
         if(payload?.connected===false){
+          renderTickTickDetails(null);
           title.textContent='Подключите общий список TickTick.';
           badge.hidden=false;
           badge.textContent='Не подключён';
@@ -1472,6 +1477,7 @@
         }
 
         if(payload?.enabled===false){
+          renderTickTickDetails(null);
           title.textContent='Синхронизация TickTick выключена.';
           badge.hidden=false;
           badge.textContent='Выключено';
@@ -1479,6 +1485,7 @@
         }
 
         if(!payload?.task){
+          renderTickTickDetails(null);
           title.textContent='В общем списке нет ближайших задач с датой.';
           badge.hidden=true;
           badge.textContent='';
@@ -1499,7 +1506,10 @@
         badge.hidden=true;
         badge.textContent='';
         if(payload?.writable===false) showTickTickWritePermission();
-        renderTickTickDetails(payload.task,{writable:payload?.writable!==false});
+        renderTickTickDetails(payload.task,{
+          writable:payload?.writable!==false,
+          preserveExpanded
+        });
       }
 
       function setupTickTickDisclosure(){
@@ -1543,7 +1553,7 @@
         });
       }
 
-      async function loadTickTickNext(){
+      async function loadTickTickNext({preserveExpanded=false}={}){
         if(!tg?.initData) return;
         try{
           const response=await fetch('/api/ticktick/next',{
@@ -1554,11 +1564,11 @@
           });
           const payload=await response.json().catch(()=>({}));
           if(response.status===401){
-            renderTickTickState({...payload,connected:false});
+            renderTickTickState({...payload,connected:false},{preserveExpanded});
             return;
           }
           if(!response.ok) throw new Error(payload.error||'ticktick');
-          renderTickTickState(payload);
+          renderTickTickState(payload,{preserveExpanded});
         }catch(_){
           document.getElementById('ticktickTitle').textContent='Не удалось обновить TickTick.';
           {
