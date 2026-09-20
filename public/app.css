@@ -4684,3 +4684,17 @@ body[data-app-tab="home"] .priority-section .ticktick-details-inner{
   margin-top:11px!important;
   padding-top:11px!important;
 }
+
+/* RUDI v0.4.2: Diana phase mood */
+.profile-cycle-mood{
+  min-width:0;
+  overflow:hidden;
+  color:#e7a6ca;
+  font-size:9px;
+  line-height:1.15;
+  font-weight:720;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.profile-cycle-mood[hidden]{display:none!important}
+html[data-theme="dark"] .profile-cycle-mood{color:#f0b4d3}

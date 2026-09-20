@@ -451,6 +451,24 @@
         node.hidden=!String(text||'').trim();
       }
 
+      function dianaCycleMoodWord(phase){
+        const value=String(phase||'');
+        if(value==='Месячные') return 'Спокойная';
+        if(value==='Фолликулярная фаза') return 'Бодрая';
+        if(value==='Фертильное окно') return 'Энергичная';
+        if(value==='Лютеиновая фаза') return 'Чувствительная';
+        return '';
+      }
+
+      function setDianaCycleMood(phase){
+        const node=document.getElementById('dianaCycleMood');
+        if(!node) return;
+        const word=dianaCycleMoodWord(phase);
+        node.textContent=word;
+        node.hidden=!word;
+        node.title=word?'Ориентировочно по фазе цикла':'';
+      }
+
       function syncStaticProfileWorkStatus(){
         const moscowDay=new Date(todayState().utc).getUTCDay();
         const rustamWeekend=moscowDay===0||moscowDay===6;
@@ -496,6 +514,14 @@
         partnerStatus.id='partnerWorkStatus';
         partnerStatus.className='profile-work-status is-neutral';
         partnerPerson.appendChild(partnerStatus);
+
+        const dianaPerson=currentActor==='Диана'?selfPerson:partnerPerson;
+        const dianaCycleMood=document.createElement('div');
+        dianaCycleMood.id='dianaCycleMood';
+        dianaCycleMood.className='profile-cycle-mood';
+        dianaCycleMood.hidden=true;
+        dianaCycleMood.title='Ориентировочно по фазе цикла';
+        dianaPerson.appendChild(dianaCycleMood);
 
         /* Avatar left, name/status center, mood controls in the free area on the right. */
         selfIdentity.appendChild(selfMood);
@@ -1057,6 +1083,7 @@
         const recordButton=document.getElementById('dianaCycleStartToday');
 
         if(!cfg||cfg.enabled===false){
+          setDianaCycleMood('');
           countdown.textContent='—';
           countdownLabel.textContent='данные цикла недоступны';
           phase.textContent='Нет данных';
@@ -1071,6 +1098,7 @@
 
         if(recordButton) recordButton.disabled=false;
         const model=dianaCycleModel(cfg);
+        setDianaCycleMood(model.phase);
         if(Number.isFinite(model.daysToNext)){
           if(model.daysToNext>0){
             countdown.textContent=String(model.daysToNext);

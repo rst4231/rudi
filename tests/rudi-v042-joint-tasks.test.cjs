@@ -18,3 +18,15 @@ test('Joint Tasks behavior remains present',()=>{
 test('footer exposes v0.4.2',()=>{
   assert.match(html,/id="appVersion"[^>]*>v0\.4\.2<\/div>/);
 });
+
+test('phase-based Diana mood is shown as one word below her status',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(app,/if\(value==='Месячные'\) return 'Спокойная'/);
+  assert.match(app,/if\(value==='Фолликулярная фаза'\) return 'Бодрая'/);
+  assert.match(app,/if\(value==='Фертильное окно'\) return 'Энергичная'/);
+  assert.match(app,/if\(value==='Лютеиновая фаза'\) return 'Чувствительная'/);
+  assert.match(app,/dianaCycleMood\.id='dianaCycleMood'/);
+  assert.match(app,/setDianaCycleMood\(model\.phase\)/);
+  assert.match(css,/\.profile-cycle-mood\{/);
+});
