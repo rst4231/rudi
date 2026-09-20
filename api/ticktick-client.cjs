@@ -6,6 +6,7 @@ const API_BASE_URL = 'https://api.ticktick.com/open/v1';
 const DEFAULT_REDIRECT_URI = 'https://spb-daily-guide-bot.vercel.app/api/ticktick/callback';
 const DEFAULT_PROJECT_ID = '6a97b9e80a2d51030e185acf';
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
+const OAUTH_SCOPE = 'tasks:read tasks:write';
 
 const ASSIGNEE_HASH_TO_NAME = new Map([
   ['d1e4b6a1e31e8b555a1385990b4811855848d84be631bc3c999acec09e7d43a0', 'RST'],
@@ -27,7 +28,7 @@ function credentialsConfigured(env = process.env) {
 function buildAuthorizeUrl({ clientId, redirectUri, state }) {
   const url = new URL(AUTH_URL);
   url.searchParams.set('client_id', clientId);
-  url.searchParams.set('scope', 'tasks:read');
+  url.searchParams.set('scope', OAUTH_SCOPE);
   url.searchParams.set('state', state);
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('response_type', 'code');
@@ -42,7 +43,7 @@ async function exchangeCode(code, options = {}) {
   const body = new URLSearchParams({
     code: String(code || ''),
     grant_type: 'authorization_code',
-    scope: 'tasks:read',
+    scope: OAUTH_SCOPE,
     redirect_uri: redirectUri,
   });
 
@@ -116,6 +117,112 @@ function chooseNextTask(tasks, now = new Date()) {
     .sort((a, b) => a.timestamp - b.timestamp || Number(a.task?.sortOrder || 0) - Number(b.task?.sortOrder || 0))[0]?.task || null;
 }
 
+function tokenHasWriteScope(token) {
+  const scope = String(token?.scope || '')
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return scope.includes('tasks:write');
+}
+
+function tickTickCompletedTime(now = new Date()) {
+  return new Date(now).toISOString().replace(/\.\d{3}Z$/, '+0000');
+}
+
+async function fetchTask(accessToken, projectId, taskId, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(
+    API_BASE_URL + '/project/' + encodeURIComponent(projectId) + '/task/' + encodeURIComponent(taskId),
+    {
+      headers: {
+        Authorization: 'Bearer ' + accessToken,
+        Accept: 'application/json',
+        'user-agent': 'RUDI-TickTick/1.0',
+      },
+      cache: 'no-store',
+    }
+  );
+  if (response.status === 401) {
+    const error = new Error('ticktick-token-invalid');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 403) {
+    const error = new Error('ticktick-write-forbidden');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 404) throw new Error('ticktick-task-not-found');
+  if (!response.ok) throw new Error('ticktick-api-failed:' + response.status);
+  return response.json();
+}
+
+function checklistUpdateBody(task, itemId, completed, now = new Date()) {
+  const id = String(task?.id || '').trim();
+  const projectId = String(task?.projectId || '').trim();
+  const title = String(task?.title || '').trim();
+  const targetId = String(itemId || '').trim();
+  if (!id || !projectId || !title || !targetId) throw new Error('ticktick-checklist-update-invalid');
+
+  let found = false;
+  const items = (Array.isArray(task?.items) ? task.items : []).map((item) => {
+    const row = { ...item };
+    if (String(item?.id || '').trim() === targetId) {
+      found = true;
+      row.status = completed ? 1 : 0;
+      if (completed) row.completedTime = tickTickCompletedTime(now);
+      else delete row.completedTime;
+    }
+    return row;
+  });
+  if (!found) throw new Error('ticktick-checklist-item-not-found');
+
+  return {
+    id,
+    projectId,
+    title,
+    items,
+  };
+}
+
+async function updateTaskChecklistItem(accessToken, projectId, taskId, itemId, completed, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const task = await fetchTask(accessToken, projectId, taskId, options);
+  const body = checklistUpdateBody(task, itemId, completed, options.now || new Date());
+  const response = await fetchImpl(API_BASE_URL + '/task/' + encodeURIComponent(taskId), {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'user-agent': 'RUDI-TickTick/1.0',
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (response.status === 401) {
+    const error = new Error('ticktick-token-invalid');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 403) {
+    const error = new Error('ticktick-write-forbidden');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 404) throw new Error('ticktick-task-not-found');
+  if (!response.ok) throw new Error('ticktick-update-failed:' + response.status);
+
+  const updated = await response.json().catch(() => null);
+  const source = updated && typeof updated === 'object' ? updated : { ...task, ...body };
+  const item = (Array.isArray(source.items) ? source.items : body.items)
+    .find((row) => String(row?.id || '').trim() === String(itemId || '').trim());
+  return {
+    task: source,
+    item: item || null,
+  };
+}
+
 async function fetchProjectData(accessToken, projectId, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const response = await fetchImpl(API_BASE_URL + '/project/' + encodeURIComponent(projectId) + '/data', {
@@ -150,5 +257,9 @@ module.exports = {
   taskTimestamp,
   startOfMoscowDay,
   chooseNextTask,
+  tokenHasWriteScope,
+  fetchTask,
+  checklistUpdateBody,
+  updateTaskChecklistItem,
   fetchProjectData,
 };
