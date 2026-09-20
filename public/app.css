@@ -4601,3 +4601,36 @@
       .profile-person-card .mood-emoji,
       .profile-person-card .partner-mood-icon .mood-emoji{font-size:17px!important}
     }
+
+
+    /* RUDI v0.4: Diana cycle */
+    .cycle-card{display:grid;gap:11px;padding:14px 15px;border:1px solid color-mix(in srgb,#ec5f8b 20%,var(--line));border-radius:24px;background:radial-gradient(circle at 96% -10%,rgba(236,95,139,.14),transparent 33%),radial-gradient(circle at 3% 115%,rgba(42,172,166,.12),transparent 34%),color-mix(in srgb,var(--surface-strong) 96%,var(--surface));box-shadow:0 14px 34px rgba(48,50,72,.09),inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden}
+    .cycle-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:34px}
+    .cycle-head-copy{display:grid;gap:2px;min-width:0}
+    .cycle-kicker{color:var(--muted);font-size:8px;line-height:1;font-weight:840;letter-spacing:.09em}
+    .cycle-head h2{margin:0;color:var(--text);font-size:17px;line-height:1.1;font-weight:850;letter-spacing:-.025em}
+    .cycle-badge{flex:none;padding:5px 8px;border:1px solid rgba(236,95,139,.18);border-radius:999px;background:rgba(236,95,139,.10);color:#dc557f;font-size:8.5px;line-height:1;font-weight:800}
+    .cycle-body{display:grid;gap:11px}
+    .cycle-summary{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:9px}
+    .cycle-countdown-wrap,.cycle-phase-wrap{min-width:0;padding:10px 11px;border:1px solid color-mix(in srgb,var(--line) 82%,transparent);border-radius:16px;background:color-mix(in srgb,var(--soft) 76%,transparent)}
+    .cycle-countdown-wrap{display:grid;align-content:center;gap:1px}
+    .cycle-countdown{color:#e85d88;font-size:25px;line-height:1;font-weight:900;letter-spacing:-.045em}
+    .cycle-countdown-label{margin-top:3px;color:var(--muted);font-size:8.7px;line-height:1.25;font-weight:650}
+    .cycle-phase-wrap{display:grid;align-content:center;gap:2px}
+    .cycle-phase-label{color:var(--muted);font-size:8px;line-height:1;font-weight:760;text-transform:uppercase;letter-spacing:.055em}
+    .cycle-phase{color:var(--text);font-size:13px;line-height:1.15;font-weight:830}
+    .cycle-day{color:var(--muted);font-size:8.4px;line-height:1.25;font-weight:620}
+    .cycle-progress{height:5px;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--soft) 96%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--line) 60%,transparent)}
+    .cycle-progress span{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#ec5f8b 0%,#d879ae 45%,#39aaa5 100%);transition:width .35s ease}
+    .cycle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .cycle-info-card{min-width:0;display:grid;grid-template-columns:9px minmax(0,1fr);align-items:start;gap:7px;padding:9px 10px;border:1px solid color-mix(in srgb,var(--line) 82%,transparent);border-radius:14px;background:color-mix(in srgb,var(--surface) 72%,transparent)}
+    .cycle-info-dot{width:8px;height:8px;margin-top:2px;border-radius:50%;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 11%,transparent)}
+    .cycle-info-card.period .cycle-info-dot{background:#ec5f8b;color:#ec5f8b}
+    .cycle-info-card.ovulation .cycle-info-dot{background:#2aaaa4;color:#2aaaa4}
+    .cycle-info-card div{min-width:0;display:grid;gap:3px}
+    .cycle-info-card span:not(.cycle-info-dot){color:var(--muted);font-size:8px;line-height:1;font-weight:730}
+    .cycle-info-card strong{min-width:0;color:var(--text);font-size:10.2px;line-height:1.24;font-weight:790}
+    .cycle-note{color:var(--muted);font-size:8.2px;line-height:1.3;font-weight:560}
+    html[data-theme="dark"] .cycle-card{border-color:rgba(255,255,255,.09);background:radial-gradient(circle at 96% -10%,rgba(236,95,139,.16),transparent 33%),radial-gradient(circle at 3% 115%,rgba(42,172,166,.14),transparent 34%),#171b29}
+    html[data-theme="dark"] .cycle-countdown-wrap,html[data-theme="dark"] .cycle-phase-wrap,html[data-theme="dark"] .cycle-info-card{border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.035)}
+    @media(max-width:430px){.cycle-card{padding:12px 13px;border-radius:21px;gap:9px}.cycle-summary{gap:7px}.cycle-countdown-wrap,.cycle-phase-wrap{padding:9px;border-radius:14px}.cycle-countdown{font-size:23px}.cycle-info-card{padding:8px 9px}}

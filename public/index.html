@@ -131,6 +131,41 @@
 
     </section>
 
+    <section id="dianaCycleCard" class="panel cycle-card" data-app-tab-section="home" data-home-tile="cycle" aria-labelledby="dianaCycleTitle">
+      <div class="cycle-head">
+        <div class="cycle-head-copy">
+          <div class="cycle-kicker">ЦИКЛ</div>
+          <h2 id="dianaCycleTitle">Цикл Дианы</h2>
+        </div>
+        <span class="cycle-badge">Прогноз</span>
+      </div>
+      <div id="dianaCycleBody" class="cycle-body">
+        <div class="cycle-summary">
+          <div class="cycle-countdown-wrap">
+            <strong id="dianaCycleCountdown" class="cycle-countdown">—</strong>
+            <span id="dianaCycleCountdownLabel" class="cycle-countdown-label">до следующих месячных</span>
+          </div>
+          <div class="cycle-phase-wrap">
+            <span class="cycle-phase-label">Сейчас</span>
+            <strong id="dianaCyclePhase" class="cycle-phase">—</strong>
+            <span id="dianaCycleDay" class="cycle-day">—</span>
+          </div>
+        </div>
+        <div class="cycle-progress" aria-hidden="true"><span id="dianaCycleProgress"></span></div>
+        <div class="cycle-grid">
+          <div class="cycle-info-card period">
+            <span class="cycle-info-dot"></span>
+            <div><span>Месячные</span><strong id="dianaCyclePeriod">—</strong></div>
+          </div>
+          <div class="cycle-info-card ovulation">
+            <span class="cycle-info-dot"></span>
+            <div><span>Овуляция</span><strong id="dianaCycleOvulation">—</strong></div>
+          </div>
+        </div>
+        <div id="dianaCycleNote" class="cycle-note">Ориентировочный прогноз по истории цикла.</div>
+      </div>
+    </section>
+
     <section class="section-block priority-section" data-app-tab-section="home" data-home-tile="priority" aria-labelledby="priorityTitle">
       <div class="section-heading">
         <div>
@@ -442,7 +477,7 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.3</div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.4</div>
       <a class="home-telegram-chat" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer" aria-label="Открыть Telegram чат" title="Telegram чат">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/></svg>
       </a>
