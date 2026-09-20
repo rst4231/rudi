@@ -1,7 +1,7 @@
 {
   "current": "v0.4",
   "versionBranch": "versions/v0.4",
-  "releaseCommit": null,
+  "releaseCommit": "16efd606d680109622ba2330721406d58eaca04f",
   "createdAt": "2026-09-20",
   "basedOnProduction": "bf88b19b51c2d5afd9cdb22d0e68b18c25af96eb",
   "notes": [
@@ -10,5 +10,15 @@
     "Добавлен переносимый и сворачиваемый блок Цикл Дианы.",
     "Блок показывает дни до месячных, текущую фазу, день цикла, прогноз месячных и ориентировочную овуляцию.",
     "Данные цикла вынесены в rudi-config.json, чтобы обновлять фактические даты без нового деплоя."
-  ]
+  ],
+  "verified": {
+    "workflow": "Verify RUDI",
+    "runId": 35496871626,
+    "result": "success",
+    "checks": [
+      "full npm test",
+      "npm run build",
+      "package/vercel JSON validation"
+    ]
+  }
 }
