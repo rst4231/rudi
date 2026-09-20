@@ -117,6 +117,12 @@ function chooseNextTask(tasks, now = new Date()) {
     .sort((a, b) => a.timestamp - b.timestamp || Number(a.task?.sortOrder || 0) - Number(b.task?.sortOrder || 0))[0]?.task || null;
 }
 
+function visibleChecklistItems(items, limit = 50) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => Number(item?.status || 0) !== 1)
+    .slice(0, Math.max(0, Number(limit) || 0));
+}
+
 function tokenHasWriteScope(token) {
   const raw = String(token?.scope || '').trim();
   if (!raw) return null;
@@ -398,6 +404,7 @@ module.exports = {
   startOfMoscowDay,
   chooseNextTask,
   tokenHasWriteScope,
+  visibleChecklistItems,
   fetchTask,
   checklistUpdateBody,
   updateTaskChecklistItem,
