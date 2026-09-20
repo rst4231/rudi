@@ -4272,6 +4272,19 @@
       min-width:0;
       display:grid!important;
       gap:2px!important;
+      justify-items:start!important;
+      text-align:left!important;
+    }
+    .profile-partner-card .identity-partner{
+      grid-template-columns:46px minmax(0,1fr)!important;
+      text-align:left!important;
+    }
+    .profile-partner-card .partner-person{
+      justify-items:start!important;
+      text-align:left!important;
+    }
+    .profile-partner-card .partner-header-name{
+      width:100%!important;
       text-align:left!important;
     }
     .profile-person-card .name{
@@ -4376,7 +4389,8 @@
       .profile-split-card{border-radius:18px}
       .profile-common-card{padding:10px 11px 11px}
       .profile-person-card{padding:8px 10px;gap:6px}
-      .profile-person-card .identity{grid-template-columns:43px minmax(0,1fr)!important;gap:9px!important}
+      .profile-person-card .identity,
+      .profile-partner-card .identity-partner{grid-template-columns:43px minmax(0,1fr)!important;gap:9px!important}
       .profile-person-card .avatar{width:43px!important;height:43px!important;border-radius:13px!important}
       .profile-person-card .name{font-size:16px!important}
       .profile-work-status{font-size:9px}
