@@ -6,6 +6,7 @@ on:
     paths:
       - 'runtime/**'
       - 'api/**'
+      - 'public/**'
       - 'build.cjs'
       - 'package.json'
       - 'vercel.json'
