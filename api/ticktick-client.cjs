@@ -118,7 +118,9 @@ function chooseNextTask(tasks, now = new Date()) {
 }
 
 function tokenHasWriteScope(token) {
-  const scope = String(token?.scope || '')
+  const raw = String(token?.scope || '').trim();
+  if (!raw) return null;
+  const scope = raw
     .split(/[\s,]+/)
     .map((value) => value.trim())
     .filter(Boolean);
