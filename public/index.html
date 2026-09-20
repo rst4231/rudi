@@ -4621,6 +4621,179 @@
       .profile-person-card .mood-emoji,
       .profile-person-card .partner-mood-icon .mood-emoji{font-size:17px!important}
     }
+
+    /* RUDI v0.4: Diana cycle */
+    .cycle-card{
+      display:grid;
+      gap:11px;
+      padding:14px 15px;
+      border:1px solid color-mix(in srgb,#ec5f8b 20%,var(--line));
+      border-radius:24px;
+      background:
+        radial-gradient(circle at 96% -10%,rgba(236,95,139,.14),transparent 33%),
+        radial-gradient(circle at 3% 115%,rgba(42,172,166,.12),transparent 34%),
+        color-mix(in srgb,var(--surface-strong) 96%,var(--surface));
+      box-shadow:0 14px 34px rgba(48,50,72,.09),inset 0 1px 0 rgba(255,255,255,.08);
+      overflow:hidden;
+    }
+    .cycle-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      min-height:34px;
+    }
+    .cycle-head-copy{display:grid;gap:2px;min-width:0}
+    .cycle-kicker{
+      color:var(--muted);
+      font-size:8px;
+      line-height:1;
+      font-weight:840;
+      letter-spacing:.09em;
+    }
+    .cycle-head h2{
+      margin:0;
+      color:var(--text);
+      font-size:17px;
+      line-height:1.1;
+      font-weight:850;
+      letter-spacing:-.025em;
+    }
+    .cycle-badge{
+      flex:none;
+      padding:5px 8px;
+      border:1px solid rgba(236,95,139,.18);
+      border-radius:999px;
+      background:rgba(236,95,139,.10);
+      color:#dc557f;
+      font-size:8.5px;
+      line-height:1;
+      font-weight:800;
+    }
+    .cycle-body{display:grid;gap:11px}
+    .cycle-summary{
+      display:grid;
+      grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+      gap:9px;
+    }
+    .cycle-countdown-wrap,
+    .cycle-phase-wrap{
+      min-width:0;
+      padding:10px 11px;
+      border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+      border-radius:16px;
+      background:color-mix(in srgb,var(--soft) 76%,transparent);
+    }
+    .cycle-countdown-wrap{display:grid;align-content:center;gap:1px}
+    .cycle-countdown{
+      color:#e85d88;
+      font-size:25px;
+      line-height:1;
+      font-weight:900;
+      letter-spacing:-.045em;
+    }
+    .cycle-countdown-label{
+      margin-top:3px;
+      color:var(--muted);
+      font-size:8.7px;
+      line-height:1.25;
+      font-weight:650;
+    }
+    .cycle-phase-wrap{display:grid;align-content:center;gap:2px}
+    .cycle-phase-label{
+      color:var(--muted);
+      font-size:8px;
+      line-height:1;
+      font-weight:760;
+      text-transform:uppercase;
+      letter-spacing:.055em;
+    }
+    .cycle-phase{
+      color:var(--text);
+      font-size:13px;
+      line-height:1.15;
+      font-weight:830;
+    }
+    .cycle-day{
+      color:var(--muted);
+      font-size:8.4px;
+      line-height:1.25;
+      font-weight:620;
+    }
+    .cycle-progress{
+      height:5px;
+      overflow:hidden;
+      border-radius:999px;
+      background:color-mix(in srgb,var(--soft) 96%,transparent);
+      box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--line) 60%,transparent);
+    }
+    .cycle-progress span{
+      display:block;
+      width:0;
+      height:100%;
+      border-radius:inherit;
+      background:linear-gradient(90deg,#ec5f8b 0%,#d879ae 45%,#39aaa5 100%);
+      transition:width .35s ease;
+    }
+    .cycle-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px;
+    }
+    .cycle-info-card{
+      min-width:0;
+      display:grid;
+      grid-template-columns:9px minmax(0,1fr);
+      align-items:start;
+      gap:7px;
+      padding:9px 10px;
+      border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+      border-radius:14px;
+      background:color-mix(in srgb,var(--surface) 72%,transparent);
+    }
+    .cycle-info-dot{
+      width:8px;height:8px;margin-top:2px;border-radius:50%;
+      box-shadow:0 0 0 4px color-mix(in srgb,currentColor 11%,transparent);
+    }
+    .cycle-info-card.period .cycle-info-dot{background:#ec5f8b;color:#ec5f8b}
+    .cycle-info-card.ovulation .cycle-info-dot{background:#2aaaa4;color:#2aaaa4}
+    .cycle-info-card div{min-width:0;display:grid;gap:3px}
+    .cycle-info-card span:not(.cycle-info-dot){
+      color:var(--muted);font-size:8px;line-height:1;font-weight:730;
+    }
+    .cycle-info-card strong{
+      min-width:0;
+      color:var(--text);
+      font-size:10.2px;
+      line-height:1.24;
+      font-weight:790;
+    }
+    .cycle-note{
+      color:var(--muted);
+      font-size:8.2px;
+      line-height:1.3;
+      font-weight:560;
+    }
+    html[data-theme="dark"] .cycle-card{
+      border-color:rgba(255,255,255,.09);
+      background:
+        radial-gradient(circle at 96% -10%,rgba(236,95,139,.16),transparent 33%),
+        radial-gradient(circle at 3% 115%,rgba(42,172,166,.14),transparent 34%),
+        #171b29;
+    }
+    html[data-theme="dark"] .cycle-countdown-wrap,
+    html[data-theme="dark"] .cycle-phase-wrap,
+    html[data-theme="dark"] .cycle-info-card{
+      border-color:rgba(255,255,255,.07);
+      background:rgba(255,255,255,.035);
+    }
+    @media(max-width:430px){
+      .cycle-card{padding:12px 13px;border-radius:21px;gap:9px}
+      .cycle-summary{gap:7px}
+      .cycle-countdown-wrap,.cycle-phase-wrap{padding:9px;border-radius:14px}
+      .cycle-countdown{font-size:23px}
+      .cycle-info-card{padding:8px 9px}
+    }
   </style>
 </head>
 <body class="auth-pending">
@@ -4734,6 +4907,53 @@
         </div>
       </div>
 
+    </section>
+
+    <section id="dianaCycleCard" class="panel cycle-card" data-app-tab-section="home" data-home-tile="cycle" aria-labelledby="dianaCycleTitle">
+      <div class="cycle-head">
+        <div class="cycle-head-copy">
+          <div class="cycle-kicker">ЦИКЛ</div>
+          <h2 id="dianaCycleTitle">Цикл Дианы</h2>
+        </div>
+        <span id="dianaCycleBadge" class="cycle-badge">Прогноз</span>
+      </div>
+
+      <div id="dianaCycleBody" class="cycle-body">
+        <div class="cycle-summary">
+          <div class="cycle-countdown-wrap">
+            <strong id="dianaCycleCountdown" class="cycle-countdown">—</strong>
+            <span id="dianaCycleCountdownLabel" class="cycle-countdown-label">до следующих месячных</span>
+          </div>
+          <div class="cycle-phase-wrap">
+            <span class="cycle-phase-label">Сейчас</span>
+            <strong id="dianaCyclePhase" class="cycle-phase">—</strong>
+            <span id="dianaCycleDay" class="cycle-day">—</span>
+          </div>
+        </div>
+
+        <div class="cycle-progress" aria-hidden="true">
+          <span id="dianaCycleProgress"></span>
+        </div>
+
+        <div class="cycle-grid">
+          <div class="cycle-info-card period">
+            <span class="cycle-info-dot"></span>
+            <div>
+              <span>Месячные</span>
+              <strong id="dianaCyclePeriod">—</strong>
+            </div>
+          </div>
+          <div class="cycle-info-card ovulation">
+            <span class="cycle-info-dot"></span>
+            <div>
+              <span>Овуляция</span>
+              <strong id="dianaCycleOvulation">—</strong>
+            </div>
+          </div>
+        </div>
+
+        <div id="dianaCycleNote" class="cycle-note">Ориентировочный прогноз по истории цикла.</div>
+      </div>
     </section>
 
     <section class="section-block priority-section" data-app-tab-section="home" data-home-tile="priority" aria-labelledby="priorityTitle">
@@ -5047,7 +5267,7 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.3</div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.4</div>
       <a class="home-telegram-chat" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer" aria-label="Открыть Telegram чат" title="Telegram чат">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/></svg>
       </a>
@@ -5169,7 +5389,7 @@
       let currentMoodDateKey = '';
       let homeLayoutEditing = false;
       let homeTileHost = null;
-      const HOME_TILE_DEFAULT_ORDER = ['profile-common','profile-self','profile-partner','priority','partner','daily'];
+      const HOME_TILE_DEFAULT_ORDER = ['profile-common','profile-self','profile-partner','cycle','priority','partner','daily'];
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v1';
       const STATE_BACKUP_CLOUD_META_KEY = 'rudi_state_backup_v1_meta';
@@ -5745,6 +5965,11 @@
 
       function setupPersistentCollapsibles(){
         setupPersistentCollapsible({
+          selector:'#dianaCycleCard',key:'diana-cycle',
+          bodySelectors:['#dianaCycleBody'],
+          hostSelector:'.cycle-head'
+        });
+        setupPersistentCollapsible({
           selector:'.priority-section',key:'priority',
           bodySelectors:['.priority-grid'],
           hostSelector:'.section-heading'
@@ -5768,6 +5993,17 @@
 
       const fallback = {
         weather:{enabled:true,city:'Санкт-Петербург',latitude:59.9386,longitude:30.3141,timezone:TZ},
+        cycle:{
+          enabled:true,
+          person:'Диана',
+          cycleLengthDays:30,
+          periodLengthDays:5,
+          ovulationDay:16,
+          fertileWindowStartDay:12,
+          fertileWindowEndDay:18,
+          historyStarts:['2026-07-01','2026-07-31','2026-08-30'],
+          nextPeriodStart:'2026-09-29'
+        },
         birthdays:[
           {id:'rustam',name:'Рустам',year:1992,month:3,day:3},
           {id:'diana',name:'Диана',year:1996,month:6,day:30}
@@ -6071,8 +6307,130 @@
           const response=await fetch(CONFIG_URL+'?t='+Date.now(),{cache:'no-store'});
           if(!response.ok) throw new Error('config');
           const remote=await response.json();
-          return {...fallback,...remote,compliments:{...fallback.compliments,...remote.compliments},weather:{...fallback.weather,...remote.weather}};
+          return {...fallback,...remote,compliments:{...fallback.compliments,...remote.compliments},weather:{...fallback.weather,...remote.weather},cycle:{...fallback.cycle,...remote.cycle}};
         }catch(_){return fallback}
+      }
+
+      function parseCycleDate(value){
+        const match=String(value||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if(!match) return null;
+        const utc=Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]));
+        return Number.isFinite(utc)?utc:null;
+      }
+
+      function cycleDateLabel(utc){
+        if(!Number.isFinite(utc)) return '—';
+        return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(utc));
+      }
+
+      function cycleRangeLabel(startUtc,lengthDays){
+        if(!Number.isFinite(startUtc)) return '—';
+        const length=Math.max(1,Math.round(Number(lengthDays)||5));
+        const endUtc=startUtc+(length-1)*DAY;
+        return cycleDateLabel(startUtc)+' — '+cycleDateLabel(endUtc);
+      }
+
+      function dianaCycleModel(cfg){
+        const source=cfg&&typeof cfg==='object'?cfg:{};
+        const history=(Array.isArray(source.historyStarts)?source.historyStarts:[])
+          .map(parseCycleDate)
+          .filter(Number.isFinite)
+          .sort((a,b)=>a-b);
+
+        const diffs=[];
+        for(let index=1;index<history.length;index++){
+          const days=Math.round((history[index]-history[index-1])/DAY);
+          if(days>=20&&days<=45) diffs.push(days);
+        }
+
+        const configuredLength=Math.max(20,Math.min(45,Math.round(Number(source.cycleLengthDays)||30)));
+        const cycleLength=diffs.length
+          ?Math.round(diffs.slice(-6).reduce((sum,value)=>sum+value,0)/Math.min(diffs.length,6))
+          :configuredLength;
+        const periodLength=Math.max(1,Math.min(10,Math.round(Number(source.periodLengthDays)||5)));
+        const ovulationDay=Math.max(8,Math.min(cycleLength-5,Math.round(Number(source.ovulationDay)||Math.max(10,cycleLength-14))));
+        const fertileStart=Math.max(1,Math.round(Number(source.fertileWindowStartDay)||Math.max(1,ovulationDay-4)));
+        const fertileEnd=Math.min(cycleLength,Math.round(Number(source.fertileWindowEndDay)||Math.min(cycleLength,ovulationDay+2)));
+
+        const {utc:todayUtc}=todayState();
+        const pastStarts=history.filter(value=>value<=todayUtc);
+        const currentStart=pastStarts.length?pastStarts[pastStarts.length-1]:null;
+        let nextStart=parseCycleDate(source.nextPeriodStart);
+        if(!Number.isFinite(nextStart)&&Number.isFinite(currentStart)) nextStart=currentStart+cycleLength*DAY;
+
+        const cycleDay=Number.isFinite(currentStart)?Math.max(1,Math.floor((todayUtc-currentStart)/DAY)+1):null;
+        const daysToNext=Number.isFinite(nextStart)?Math.round((nextStart-todayUtc)/DAY):null;
+        const ovulationUtc=Number.isFinite(currentStart)?currentStart+(ovulationDay-1)*DAY:null;
+
+        let phase='Недостаточно данных';
+        if(Number.isFinite(currentStart)&&cycleDay){
+          if(cycleDay<=periodLength) phase='Месячные';
+          else if(cycleDay>=fertileStart&&cycleDay<=fertileEnd) phase='Фертильное окно';
+          else if(cycleDay<fertileStart) phase='Фолликулярная фаза';
+          else phase='Лютеиновая фаза';
+        }
+        if(Number.isFinite(daysToNext)&&daysToNext<0) phase='Ожидаются месячные';
+
+        return {
+          cycleLength,periodLength,ovulationDay,fertileStart,fertileEnd,
+          currentStart,nextStart,cycleDay,daysToNext,ovulationUtc,phase,
+          progress:cycleDay?Math.max(0,Math.min(100,(cycleDay/cycleLength)*100)):0,
+          historyCount:history.length
+        };
+      }
+
+      function renderDianaCycle(cfg){
+        const card=document.getElementById('dianaCycleCard');
+        if(!card) return;
+        if(cfg?.enabled===false){
+          card.hidden=true;
+          return;
+        }
+        card.hidden=false;
+        const model=dianaCycleModel(cfg);
+
+        const countdown=document.getElementById('dianaCycleCountdown');
+        const countdownLabel=document.getElementById('dianaCycleCountdownLabel');
+        const phase=document.getElementById('dianaCyclePhase');
+        const cycleDay=document.getElementById('dianaCycleDay');
+        const progress=document.getElementById('dianaCycleProgress');
+        const period=document.getElementById('dianaCyclePeriod');
+        const ovulation=document.getElementById('dianaCycleOvulation');
+        const note=document.getElementById('dianaCycleNote');
+
+        if(Number.isFinite(model.daysToNext)){
+          if(model.daysToNext>0){
+            countdown.textContent=String(model.daysToNext);
+            countdownLabel.textContent=model.daysToNext+' '+dayWord(model.daysToNext)+' до месячных';
+          }else if(model.daysToNext===0){
+            countdown.textContent='Сегодня';
+            countdownLabel.textContent='ожидаемое начало месячных';
+          }else{
+            const overdue=Math.abs(model.daysToNext);
+            countdown.textContent='+'+overdue;
+            countdownLabel.textContent=overdue+' '+dayWord(overdue)+' после прогнозной даты';
+          }
+        }else{
+          countdown.textContent='—';
+          countdownLabel.textContent='добавьте даты цикла';
+        }
+
+        phase.textContent=model.phase;
+        cycleDay.textContent=model.cycleDay
+          ?model.cycleDay+'-й день цикла · средний цикл '+model.cycleLength+' '+dayWord(model.cycleLength)
+          :'Недостаточно истории';
+        progress.style.width=model.progress.toFixed(1)+'%';
+        period.textContent=cycleRangeLabel(model.nextStart,model.periodLength);
+
+        if(Number.isFinite(model.ovulationUtc)){
+          const diff=Math.round((model.ovulationUtc-todayState().utc)/DAY);
+          const suffix=diff===0?' · сегодня':diff>0?' · через '+diff+' '+dayWord(diff):' · '+Math.abs(diff)+' '+dayWord(Math.abs(diff))+' назад';
+          ovulation.textContent=cycleDateLabel(model.ovulationUtc)+suffix;
+        }else{
+          ovulation.textContent='—';
+        }
+
+        note.textContent='Прогноз по '+Math.max(1,model.historyCount)+' отмеченным циклам. Даты ориентировочные и не подходят для контрацепции.';
       }
 
       function weatherVisualType(code){
@@ -8255,6 +8613,7 @@
         refreshDailyReactions();
 
         renderNearest(config);
+        renderDianaCycle(config.cycle);
         setupPersistentCollapsibles();
         setupPartnerMessage();
         setupStreakAndMood(config);
