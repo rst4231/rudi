@@ -91,6 +91,14 @@
       "destination": "/api/partner-message?rudiAction=mood"
     },
     {
+      "source": "/api/cycle",
+      "destination": "/api/partner-message?rudiAction=cycle"
+    },
+    {
+      "source": "/api/cycle/bootstrap",
+      "destination": "/api/partner-message?rudiAction=cycle-bootstrap"
+    },
+    {
       "source": "/api/partner-notifications/setup",
       "destination": "/api/partner-message?rudiAction=partner-notification-setup"
     },

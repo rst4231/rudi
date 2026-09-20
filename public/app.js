@@ -660,7 +660,6 @@
 
       const fallback = {
         weather:{enabled:true,city:'Санкт-Петербург',latitude:59.9386,longitude:30.3141,timezone:TZ},
-        cycle:{enabled:true,person:'Диана',cycleLengthDays:30,periodLengthDays:5,ovulationDay:16,fertileWindowStartDay:12,fertileWindowEndDay:18,historyStarts:['2026-07-01','2026-07-31','2026-08-30'],nextPeriodStart:'2026-09-29'},
         birthdays:[
           {id:'rustam',name:'Рустам',year:1992,month:3,day:3},
           {id:'diana',name:'Диана',year:1996,month:6,day:30}
@@ -991,61 +990,173 @@
       function dianaCycleModel(cfg){
         const source=cfg&&typeof cfg==='object'?cfg:{};
         const history=(Array.isArray(source.historyStarts)?source.historyStarts:[])
-          .map(parseCycleDate).filter(Number.isFinite).sort((a,b)=>a-b);
+          .map(parseCycleDate)
+          .filter(Number.isFinite)
+          .sort((a,b)=>a-b);
         const diffs=[];
-        for(let i=1;i<history.length;i++){
-          const days=Math.round((history[i]-history[i-1])/DAY);
+        for(let index=1;index<history.length;index++){
+          const days=Math.round((history[index]-history[index-1])/DAY);
           if(days>=20&&days<=45) diffs.push(days);
         }
         const configuredLength=Math.max(20,Math.min(45,Math.round(Number(source.cycleLengthDays)||30)));
         const recent=diffs.slice(-6);
-        const cycleLength=recent.length?Math.round(recent.reduce((s,v)=>s+v,0)/recent.length):configuredLength;
+        const cycleLength=recent.length
+          ?Math.round(recent.reduce((sum,value)=>sum+value,0)/recent.length)
+          :configuredLength;
         const periodLength=Math.max(1,Math.min(10,Math.round(Number(source.periodLengthDays)||5)));
         const ovulationDay=Math.max(8,Math.min(cycleLength-5,Math.round(Number(source.ovulationDay)||Math.max(10,cycleLength-14))));
         const fertileStart=Math.max(1,Math.round(Number(source.fertileWindowStartDay)||Math.max(1,ovulationDay-4)));
         const fertileEnd=Math.min(cycleLength,Math.round(Number(source.fertileWindowEndDay)||Math.min(cycleLength,ovulationDay+2)));
         const {utc:todayUtc}=todayState();
-        const past=history.filter(v=>v<=todayUtc);
-        const currentStart=past.length?past[past.length-1]:null;
+        const pastStarts=history.filter(value=>value<=todayUtc);
+        const latestActualStart=pastStarts.length?pastStarts[pastStarts.length-1]:null;
         let nextStart=parseCycleDate(source.nextPeriodStart);
-        if(!Number.isFinite(nextStart)&&Number.isFinite(currentStart)) nextStart=currentStart+cycleLength*DAY;
-        const cycleDay=Number.isFinite(currentStart)?Math.max(1,Math.floor((todayUtc-currentStart)/DAY)+1):null;
-        const daysToNext=Number.isFinite(nextStart)?Math.round((nextStart-todayUtc)/DAY):null;
-        const ovulationUtc=Number.isFinite(currentStart)?currentStart+(ovulationDay-1)*DAY:null;
+        if(!Number.isFinite(nextStart)&&Number.isFinite(latestActualStart)) nextStart=latestActualStart+cycleLength*DAY;
+        while(Number.isFinite(nextStart)&&nextStart+(periodLength-1)*DAY<todayUtc) nextStart+=cycleLength*DAY;
+        const periodActive=Number.isFinite(nextStart)
+          &&todayUtc>=nextStart
+          &&todayUtc<=nextStart+(periodLength-1)*DAY;
+        const currentStart=Number.isFinite(nextStart)
+          ?(periodActive?nextStart:nextStart-cycleLength*DAY)
+          :latestActualStart;
+        const cycleDay=Number.isFinite(currentStart)
+          ?Math.max(1,Math.min(cycleLength,Math.floor((todayUtc-currentStart)/DAY)+1))
+          :null;
+        const daysToNext=Number.isFinite(nextStart)?Math.max(0,Math.round((nextStart-todayUtc)/DAY)):null;
+        const currentOvulationUtc=Number.isFinite(currentStart)?currentStart+(ovulationDay-1)*DAY:null;
+        const ovulationUtc=Number.isFinite(currentOvulationUtc)&&currentOvulationUtc>=todayUtc
+          ?currentOvulationUtc
+          :Number.isFinite(nextStart)?nextStart+(ovulationDay-1)*DAY:null;
         let phase='Недостаточно данных';
-        if(Number.isFinite(currentStart)&&cycleDay){
-          if(cycleDay<=periodLength) phase='Месячные';
-          else if(cycleDay>=fertileStart&&cycleDay<=fertileEnd) phase='Фертильное окно';
+        if(periodActive) phase='Месячные';
+        else if(Number.isFinite(currentStart)&&cycleDay){
+          if(cycleDay>=fertileStart&&cycleDay<=fertileEnd) phase='Фертильное окно';
           else if(cycleDay<fertileStart) phase='Фолликулярная фаза';
           else phase='Лютеиновая фаза';
         }
-        if(Number.isFinite(daysToNext)&&daysToNext<0) phase='Ожидаются месячные';
-        return {cycleLength,periodLength,currentStart,nextStart,cycleDay,daysToNext,ovulationUtc,phase,progress:cycleDay?Math.max(0,Math.min(100,(cycleDay/cycleLength)*100)):0,historyCount:history.length};
+        return {
+          cycleLength,periodLength,ovulationDay,fertileStart,fertileEnd,
+          currentStart,nextStart,cycleDay,daysToNext,ovulationUtc,phase,
+          progress:cycleDay?Math.max(0,Math.min(100,(cycleDay/cycleLength)*100)):0,
+          historyCount:history.length
+        };
       }
 
       function renderDianaCycle(cfg){
         const card=document.getElementById('dianaCycleCard');
         if(!card) return;
-        if(cfg?.enabled===false){card.hidden=true;return}
         card.hidden=false;
-        const m=dianaCycleModel(cfg);
         const countdown=document.getElementById('dianaCycleCountdown');
-        const label=document.getElementById('dianaCycleCountdownLabel');
-        if(Number.isFinite(m.daysToNext)){
-          if(m.daysToNext>0){countdown.textContent=String(m.daysToNext);label.textContent=dayWord(m.daysToNext)+' до месячных'}
-          else if(m.daysToNext===0){countdown.textContent='Сегодня';label.textContent='ожидаемое начало месячных'}
-          else{const late=Math.abs(m.daysToNext);countdown.textContent='+'+late;label.textContent=dayWord(late)+' после прогнозной даты'}
-        }else{countdown.textContent='—';label.textContent='добавьте даты цикла'}
-        document.getElementById('dianaCyclePhase').textContent=m.phase;
-        document.getElementById('dianaCycleDay').textContent=m.cycleDay?m.cycleDay+'-й день цикла · средний цикл '+m.cycleLength+' '+dayWord(m.cycleLength):'Недостаточно истории';
-        document.getElementById('dianaCycleProgress').style.width=m.progress.toFixed(1)+'%';
-        document.getElementById('dianaCyclePeriod').textContent=cycleRangeLabel(m.nextStart,m.periodLength);
-        if(Number.isFinite(m.ovulationUtc)){
-          const diff=Math.round((m.ovulationUtc-todayState().utc)/DAY);
-          const suffix=diff===0?' · сегодня':diff>0?' · через '+diff+' '+dayWord(diff):' · '+Math.abs(diff)+' '+dayWord(Math.abs(diff))+' назад';
-          document.getElementById('dianaCycleOvulation').textContent=cycleDateLabel(m.ovulationUtc)+suffix;
-        }else document.getElementById('dianaCycleOvulation').textContent='—';
-        document.getElementById('dianaCycleNote').textContent='Прогноз по '+Math.max(1,m.historyCount)+' отмеченным циклам. Даты ориентировочные и не подходят для контрацепции.';
+        const countdownLabel=document.getElementById('dianaCycleCountdownLabel');
+        const phase=document.getElementById('dianaCyclePhase');
+        const cycleDay=document.getElementById('dianaCycleDay');
+        const progress=document.getElementById('dianaCycleProgress');
+        const period=document.getElementById('dianaCyclePeriod');
+        const ovulation=document.getElementById('dianaCycleOvulation');
+        const note=document.getElementById('dianaCycleNote');
+        const recordButton=document.getElementById('dianaCycleStartToday');
+
+        if(!cfg||cfg.enabled===false){
+          countdown.textContent='—';
+          countdownLabel.textContent='данные цикла недоступны';
+          phase.textContent='Нет данных';
+          cycleDay.textContent='—';
+          progress.style.width='0%';
+          period.textContent='—';
+          ovulation.textContent='—';
+          note.textContent='Прогноз появится после загрузки данных.';
+          if(recordButton) recordButton.disabled=true;
+          return;
+        }
+
+        if(recordButton) recordButton.disabled=false;
+        const model=dianaCycleModel(cfg);
+        if(Number.isFinite(model.daysToNext)){
+          if(model.daysToNext>0){
+            countdown.textContent=String(model.daysToNext);
+            countdownLabel.textContent=dayWord(model.daysToNext)+' до месячных';
+          }else{
+            countdown.textContent='Сегодня';
+            countdownLabel.textContent='ожидаемое начало месячных';
+          }
+        }else{
+          countdown.textContent='—';
+          countdownLabel.textContent='недостаточно данных';
+        }
+        phase.textContent=model.phase;
+        cycleDay.textContent=model.cycleDay
+          ?model.cycleDay+'-й день цикла · средний цикл '+model.cycleLength+' '+dayWord(model.cycleLength)
+          :'Недостаточно истории';
+        progress.style.width=model.progress.toFixed(1)+'%';
+        period.textContent=cycleRangeLabel(model.nextStart,model.periodLength);
+        if(Number.isFinite(model.ovulationUtc)){
+          const diff=Math.max(0,Math.round((model.ovulationUtc-todayState().utc)/DAY));
+          ovulation.textContent='≈ '+cycleDateLabel(model.ovulationUtc)+(diff===0?' · сегодня':' · через '+diff+' '+dayWord(diff));
+        }else{
+          ovulation.textContent='—';
+        }
+        note.textContent='Прогноз по '+Math.max(1,model.historyCount)+' отмеченным циклам. Даты ориентировочные и не подходят для контрацепции.';
+      }
+
+      async function cycleRequest(operation,payload={}){
+        const response=await fetchWithTimeout('/api/cycle',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          cache:'no-store'
+        },8000);
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok) throw new Error(data.error||'cycle-unavailable');
+        return data;
+      }
+
+      async function loadDianaCycle({silent=false}={}){
+        const card=document.getElementById('dianaCycleCard');
+        if(!card||!currentActor||!tg?.initData) return;
+        try{
+          const data=await cycleRequest('get');
+          renderDianaCycle(data.configured?data.cycle:null);
+        }catch(_){
+          if(!silent) renderDianaCycle(null);
+        }
+      }
+
+      function confirmCycleStart(){
+        return new Promise(resolve=>{
+          try{
+            if(tg?.showConfirm){
+              tg.showConfirm('Отметить сегодня как первый день нового цикла?',value=>resolve(Boolean(value)));
+              return;
+            }
+          }catch(_){}
+          resolve(window.confirm('Отметить сегодня как первый день нового цикла?'));
+        });
+      }
+
+      function setupDianaCycleActions(){
+        const actions=document.getElementById('dianaCycleActions');
+        const button=document.getElementById('dianaCycleStartToday');
+        if(!actions||!button) return;
+        actions.hidden=currentActor!=='Диана';
+        if(button.dataset.bound==='1') return;
+        button.dataset.bound='1';
+        button.addEventListener('click',async()=>{
+          if(currentActor!=='Диана'||button.disabled) return;
+          if(!await confirmCycleStart()) return;
+          button.disabled=true;
+          const original=button.textContent;
+          button.textContent='Сохраняю…';
+          try{
+            const data=await cycleRequest('record-start');
+            renderDianaCycle(data.cycle);
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            button.textContent=original;
+            button.disabled=false;
+          }
+        });
       }
 
       function weatherVisualType(code){
@@ -3228,7 +3339,8 @@
         refreshDailyReactions();
 
         renderNearest(config);
-        renderDianaCycle(config.cycle);
+        setupDianaCycleActions();
+        loadDianaCycle();
         setupPersistentCollapsibles();
         setupPartnerMessage();
         setupStreakAndMood(config);
@@ -3252,6 +3364,7 @@
           denyApp('Не удалось открыть RUDI','Закройте приложение и откройте его снова из Telegram.');
         }
       });
+      setInterval(()=>{if(currentActor) loadDianaCycle({silent:true})},30*60*1000);
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
@@ -3288,6 +3401,7 @@
           resetMoodForNewDay();
           await Promise.allSettled([
             refreshDailyMood(),
+            loadDianaCycle({silent:true}),
             loadTickTickNext(),
             loadWorkCalendar(currentWorkCalendarView),
             loadSharedAlbum(),

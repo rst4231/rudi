@@ -1,35 +1,37 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const all=['public/index.html','public/app.css','public/app.js'].map(f=>fs.readFileSync(f,'utf8')).join('\n');
+
+const html=fs.readFileSync('public/index.html','utf8');
+const app=fs.readFileSync('public/app.js','utf8');
 const config=JSON.parse(fs.readFileSync('rudi-config.json','utf8'));
+const vercel=JSON.parse(fs.readFileSync('vercel.json','utf8'));
 
-test('cycle card is movable and collapsible',()=>{
-  assert.match(all,/data-home-tile="cycle"/);
-  assert.match(all,/HOME_TILE_DEFAULT_ORDER = \['profile-common','profile-self','profile-partner','cycle','priority','partner','daily'\]/);
-  assert.match(all,/selector:'#dianaCycleCard',key:'diana-cycle'/);
-  assert.match(all,/bodySelectors:\['#dianaCycleBody'\]/);
+test('Diana cycle card is movable and persistent collapsible',()=>{
+  assert.match(html,/data-home-tile="cycle"/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['profile-common','profile-self','profile-partner','cycle','priority','partner','daily'\]/);
+  assert.match(app,/selector:'#dianaCycleCard',key:'diana-cycle'/);
+  assert.match(app,/bodySelectors:\['#dianaCycleBody'\]/);
 });
 
-test('cycle config matches supplied Flo history',()=>{
-  assert.deepEqual(config.cycle.historyStarts,['2026-07-01','2026-07-31','2026-08-30']);
-  assert.equal(config.cycle.nextPeriodStart,'2026-09-29');
-  assert.equal(config.cycle.periodLengthDays,5);
-  assert.equal(config.cycle.ovulationDay,16);
+test('cycle state is not stored in public config',()=>{
+  assert.equal(Object.prototype.hasOwnProperty.call(config,'cycle'),false);
+  assert.match(app,/cycleRequest\('get'\)/);
+  assert.match(app,/fetchWithTimeout\('\/api\/cycle'/);
 });
 
-test('cycle UI uses external config and keeps prediction warning',()=>{
-  assert.match(all,/function dianaCycleModel\(cfg\)/);
-  assert.match(all,/renderDianaCycle\(config\.cycle\)/);
-  assert.match(all,/Даты ориентировочные и не подходят для контрацепции/);
+test('only Diana gets the in-app record action',()=>{
+  assert.match(html,/id="dianaCycleStartToday"/);
+  assert.match(app,/actions\.hidden=currentActor!=='Диана'/);
+  assert.match(app,/cycleRequest\('record-start'\)/);
 });
 
-test('frontend stays split after integration',()=>{
-  const index=fs.readFileSync('public/index.html','utf8');
-  assert.match(index,/href="\/app\.css"/);
-  assert.match(index,/src="\/app\.js"/);
+test('cycle routes go through backend storage',()=>{
+  const routes=Object.fromEntries(vercel.rewrites.map(row=>[row.source,row.destination]));
+  assert.equal(routes['/api/cycle'],'/api/partner-message?rudiAction=cycle');
+  assert.equal(routes['/api/cycle/bootstrap'],'/api/partner-message?rudiAction=cycle-bootstrap');
 });
 
-test('footer exposes v0.4',()=>{
-  assert.match(all,/id="appVersion"[^>]*>v0\.4<\/div>/);
+test('footer exposes v0.4.1',()=>{
+  assert.match(html,/id="appVersion"[^>]*>v0\.4\.1<\/div>/);
 });
