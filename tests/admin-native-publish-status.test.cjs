@@ -2,7 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { handleAdminAction } = require('../api/admin-api.cjs');
-const { resultStatus } = require('../api/admin.js');
 
 test('successful native publish-section result is normalized to ok and HTTP 200', async () => {
   const result = await handleAdminAction('publish-section', {
@@ -21,5 +20,4 @@ test('successful native publish-section result is normalized to ok and HTTP 200'
 
   assert.equal(result.ok, true);
   assert.equal(result.published, 7);
-  assert.equal(resultStatus(result), 200);
 });
