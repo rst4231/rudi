@@ -35,3 +35,5 @@ test('cycle routes go through backend storage',()=>{
 test('footer exposes v0.4',()=>{
   assert.match(html,/id="appVersion"[^>]*>v0\.4<\/div>/);
 });
+
+// privacy regression: cycle seed must remain outside public configuration.
