@@ -295,14 +295,27 @@ function tickTickMonthRange(now = new Date(), view = 'month', timeZone = CALENDA
   };
 }
 
-function tickTickTaskDateKey(task, timeZone = CALENDAR_TIMEZONE) {
-  const raw = String(task?.startDate || task?.dueDate || '').trim();
-  if (!raw) return '';
-  if (task?.isAllDay) {
-    const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (match) return match[1];
+function tickTickTaskDateKeys(task, timeZone = CALENDAR_TIMEZONE) {
+  const rawValues = [task?.startDate, task?.dueDate]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  const keys = [];
+
+  for (const raw of rawValues) {
+    let key = '';
+    if (task?.isAllDay) {
+      const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (match) key = match[1];
+    }
+    if (!key) key = calendarDateKey(raw, timeZone);
+    if (key && !keys.includes(key)) keys.push(key);
   }
-  return calendarDateKey(raw, timeZone);
+
+  return keys;
+}
+
+function tickTickTaskDateKey(task, timeZone = CALENDAR_TIMEZONE) {
+  return tickTickTaskDateKeys(task, timeZone)[0] || '';
 }
 
 function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE) {
@@ -319,29 +332,37 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
   const byDate = new Map(days.map((day) => [day.date, day]));
 
   for (const task of Array.isArray(tasks) ? tasks : []) {
-    const key = tickTickTaskDateKey(task, timeZone);
-    const day = byDate.get(key);
-    if (!day) continue;
+    const keys = tickTickTaskDateKeys(task, timeZone);
+    if (!keys.length) continue;
 
     const rawStart = String(task?.startDate || task?.dueDate || '').trim();
     const rawDue = String(task?.dueDate || '').trim();
     const allDay = Boolean(task?.isAllDay);
-    const startTime = allDay || !rawStart ? null : calendarTime(rawStart, timeZone);
-    let endTime = null;
-    if (!allDay && rawDue && rawDue !== rawStart && calendarDateKey(rawDue, timeZone) === key) {
-      endTime = calendarTime(rawDue, timeZone);
-    }
 
-    day.events.push({
-      id: String(task?.id || ''),
-      title: String(task?.title || '').trim() || 'Совместное дело',
-      allDay,
-      startTime,
-      endTime,
-      assignee: resolveAssigneeName(task?.assigneeUsername),
-      assigned: Boolean(String(task?.assigneeUsername || '').trim()),
-      completed: Number(task?.status || 0) !== 0,
-    });
+    for (const key of keys) {
+      const day = byDate.get(key);
+      if (!day) continue;
+
+      const startTime = allDay || !rawStart || calendarDateKey(rawStart, timeZone) !== key
+        ? null
+        : calendarTime(rawStart, timeZone);
+      let endTime = null;
+      if (!allDay && rawDue && calendarDateKey(rawDue, timeZone) === key) {
+        endTime = calendarTime(rawDue, timeZone);
+      }
+
+      if (day.events.some((event) => event.id && event.id === String(task?.id || ''))) continue;
+      day.events.push({
+        id: String(task?.id || ''),
+        title: String(task?.title || '').trim() || 'Совместное дело',
+        allDay,
+        startTime,
+        endTime,
+        assignee: resolveAssigneeName(task?.assigneeUsername),
+        assigned: Boolean(String(task?.assigneeUsername || '').trim()),
+        completed: Number(task?.status || 0) !== 0,
+      });
+    }
   }
 
   for (const day of days) {
@@ -384,6 +405,7 @@ module.exports = {
   calendarDateKey,
   calendarTime,
   tickTickMonthRange,
+  tickTickTaskDateKeys,
   tickTickTaskDateKey,
   buildTickTickCalendar,
 };

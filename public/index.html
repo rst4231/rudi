@@ -4150,126 +4150,256 @@
     }
 
 
-    /* RUDI v0.1: split profile cards, dual calendars, version label */
-    .profile{
+    /* RUDI v0.2: compact movable profile cards */
+    .profile-common-tile{
       display:grid!important;
-      gap:10px!important;
+      gap:7px!important;
+      min-width:0;
       padding:0!important;
-      overflow:visible!important;
       border:0!important;
       background:transparent!important;
       box-shadow:none!important;
-      backdrop-filter:none!important;
-      -webkit-backdrop-filter:none!important;
     }
-    .profile::after{display:none!important}
+    .profile-date-heading{
+      width:100%;
+      margin:0;
+      color:var(--muted);
+      font-size:10.5px;
+      line-height:1.2;
+      font-weight:760;
+      letter-spacing:.035em;
+      text-align:center;
+    }
     .profile-split-card{
       position:relative;
+      min-width:0;
       overflow:hidden;
-      padding:14px 15px;
+      padding:10px 12px;
       border:1px solid rgba(255,255,255,.10);
-      border-radius:22px;
+      border-radius:19px;
       background:
-        radial-gradient(circle at 88% -8%,rgba(111,104,255,.22),transparent 34%),
+        radial-gradient(circle at 88% -8%,rgba(111,104,255,.18),transparent 34%),
         linear-gradient(145deg,#202536 0%,#171b29 56%,#111520 100%);
-      box-shadow:0 16px 38px rgba(14,18,30,.22),inset 0 1px 0 rgba(255,255,255,.07);
+      box-shadow:0 12px 30px rgba(14,18,30,.18),inset 0 1px 0 rgba(255,255,255,.07);
     }
-    .profile-common-card{padding:12px 14px 13px}
+    .profile-common-card{
+      isolation:isolate;
+      padding:11px 13px 12px;
+      border-color:rgba(170,188,255,.20);
+      background:
+        linear-gradient(118deg,
+          rgba(92,120,255,.34) 0%,
+          rgba(164,112,255,.30) 28%,
+          rgba(87,190,255,.24) 54%,
+          rgba(221,176,255,.24) 76%,
+          rgba(93,124,255,.32) 100%);
+      background-size:260% 260%;
+      animation:rudiCommonGradient 9s ease-in-out infinite;
+      box-shadow:
+        0 14px 34px rgba(70,92,190,.20),
+        inset 0 1px 0 rgba(255,255,255,.15);
+    }
+    .profile-common-card::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      z-index:-1;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 18% 8%,rgba(255,255,255,.16),transparent 28%),
+        linear-gradient(105deg,transparent 20%,rgba(255,255,255,.09) 44%,transparent 68%);
+      background-size:180% 100%;
+      animation:rudiCommonSheen 7s ease-in-out infinite;
+    }
+    @keyframes rudiCommonGradient{
+      0%,100%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+    }
+    @keyframes rudiCommonSheen{
+      0%,100%{background-position:120% 0}
+      50%{background-position:-70% 0}
+    }
     .profile-common-card .profile-compliment{
       margin:0!important;
-      padding:9px 10px!important;
-      border-radius:13px!important;
-      background:rgba(255,255,255,.045)!important;
-      border-color:rgba(255,255,255,.08)!important;
-      color:#f7f8fd!important;
+      padding:8px 10px!important;
+      border-radius:12px!important;
+      border-color:rgba(255,255,255,.12)!important;
+      background:rgba(255,255,255,.075)!important;
+      color:#fbfcff!important;
       font-size:11.5px!important;
-      line-height:1.35!important;
+      line-height:1.34!important;
     }
     .profile-common-card .profile-weather{
       margin-top:7px!important;
-      padding-top:10px!important;
-      border-top:1px solid rgba(255,255,255,.09)!important;
+      padding-top:9px!important;
+      border-top:1px solid rgba(255,255,255,.11)!important;
     }
+    .profile-common-card .profile-weather-value,
+    .profile-common-card .profile-weather-caption{color:#fff!important}
+    .profile-common-card .profile-weather-city,
+    .profile-common-card .profile-weather-rain{color:rgba(244,247,255,.68)!important}
+
     .profile-person-card{
       display:grid;
-      gap:10px;
+      gap:7px;
+      padding:9px 11px;
     }
     .profile-card-kicker{
-      color:rgba(232,235,246,.54);
-      font-size:9px;
+      color:rgba(232,235,246,.50);
+      font-size:8px;
       line-height:1;
-      font-weight:800;
-      letter-spacing:.08em;
+      font-weight:820;
+      letter-spacing:.085em;
       text-transform:uppercase;
     }
     .profile-person-card .identity{
       display:grid!important;
+      grid-template-columns:46px minmax(0,1fr)!important;
+      align-items:center!important;
+      gap:10px!important;
       min-width:0;
+      text-align:left!important;
     }
-    .profile-self-card .identity-self{
-      grid-template-columns:auto minmax(0,1fr)!important;
+    .profile-person-card .avatar{
+      width:46px!important;
+      height:46px!important;
+      border-width:2px!important;
+      border-radius:14px!important;
+      font-size:16px!important;
+      box-shadow:0 7px 17px rgba(0,0,0,.14)!important;
+    }
+    .profile-person-card .person{
+      min-width:0;
+      display:grid!important;
+      gap:2px!important;
+      justify-items:start!important;
       text-align:left!important;
     }
     .profile-partner-card .identity-partner{
-      grid-template-columns:minmax(0,1fr) auto!important;
-      text-align:right!important;
+      grid-template-columns:46px minmax(0,1fr)!important;
+      text-align:left!important;
     }
-    .profile-person-card .mood-person{
-      width:100%;
-      display:flex!important;
-      align-items:center!important;
-      justify-content:space-between!important;
-      gap:10px!important;
-      padding:9px 10px!important;
-      border:1px solid rgba(255,255,255,.08)!important;
-      border-radius:14px!important;
-      background:rgba(255,255,255,.04)!important;
+    .profile-partner-card .partner-person{
+      justify-items:start!important;
+      text-align:left!important;
     }
-    .profile-person-card .mood-self .mood-person-label{
-      display:block!important;
-      max-width:none!important;
-      color:rgba(232,235,246,.62)!important;
-      font-size:9px!important;
-      line-height:1!important;
+    .profile-partner-card .partner-header-name{
+      width:100%!important;
+      text-align:left!important;
     }
-    .profile-partner-card .mood-partner .mood-person-label{display:none!important}
-    .profile-person-card .mood-prompt{
-      width:max-content;
-      max-width:100%;
-      margin:0!important;
-      justify-self:start;
-      font-size:8px!important;
+    .profile-person-card .name{
+      font-size:17px!important;
+      line-height:1.08!important;
+      font-weight:820!important;
+      letter-spacing:-.025em!important;
+      text-align:left!important;
     }
-    .profile-person-card .mood-message.show{margin-top:0!important}
-    .profile .partner-work-info{
+    .profile-work-status{
       min-width:0;
-      display:grid;
-      justify-items:end;
-      gap:3px;
-      text-align:right;
-    }
-    .profile .partner-work-info[hidden]{display:none!important}
-    .profile .partner-work-status{
-      max-width:100%;
       overflow:hidden;
-      color:#ff8b2f;
-      font-size:10px;
-      line-height:1.1;
-      font-weight:820;
+      font-size:9.5px;
+      line-height:1.2;
+      font-weight:760;
       text-overflow:ellipsis;
       white-space:nowrap;
     }
-    .profile .partner-work-status.is-off{color:#35c97a}
-    .profile .partner-work-time{
-      color:rgba(232,235,246,.58);
-      font-size:8.5px;
-      line-height:1;
-      font-weight:650;
-      white-space:nowrap;
-    }
-    .profile .partner-work-time[hidden]{display:none!important}
+    .profile-work-status.is-working{color:#ffad69}
+    .profile-work-status.is-off{color:#53d58c}
+    .profile-work-status.is-neutral{color:rgba(232,235,246,.48)}
 
-    .work-page .calendar-disclosure-card{
+    .profile-person-card .mood-person{
+      width:100%;
+      min-height:34px;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:flex-end!important;
+      gap:7px!important;
+      padding:4px 6px!important;
+      border:1px solid rgba(255,255,255,.075)!important;
+      border-radius:12px!important;
+      background:rgba(255,255,255,.035)!important;
+    }
+    .profile-person-card .mood-person-label{display:none!important}
+    .profile-person-card .mood-self-buttons{
+      display:flex!important;
+      align-items:center!important;
+      gap:4px!important;
+      margin-left:auto!important;
+    }
+    .profile-person-card .mood-button{
+      width:28px!important;
+      height:28px!important;
+      border-radius:9px!important;
+    }
+    .profile-person-card .mood-emoji{font-size:17px!important}
+    .profile-person-card .partner-mood-value{
+      min-height:26px!important;
+      margin-left:auto!important;
+      padding:0 4px!important;
+    }
+    .profile-person-card .partner-mood-icon .mood-emoji{font-size:20px!important}
+    .profile-person-card .partner-mood-empty{font-size:16px!important}
+    .profile-person-card .mood-prompt{
+      display:none!important;
+    }
+    .profile-person-card .mood-message{
+      margin:0!important;
+    }
+    .profile-person-card .mood-message:not(.show){
+      display:none!important;
+    }
+    .profile-person-card .mood-message.show{
+      padding:6px 8px!important;
+      border-radius:10px!important;
+      font-size:9px!important;
+      line-height:1.25!important;
+    }
+
+    .calendar-event-count{
+      position:absolute;
+      right:3px;
+      bottom:2px;
+      min-width:13px;
+      height:13px;
+      display:grid;
+      place-items:center;
+      padding:0 3px;
+      border-radius:999px;
+      background:#6675ee;
+      color:#fff;
+      font-size:7px;
+      line-height:1;
+      font-weight:850;
+      box-shadow:0 2px 7px rgba(89,104,232,.24);
+    }
+    .calendar-day-cell.selected .calendar-event-count{
+      background:#fff;
+      color:#6675ee;
+    }
+
+    .app-version{
+      color:var(--muted);
+      font-size:10px;
+      line-height:1;
+      font-weight:680;
+      letter-spacing:.04em;
+    }
+    @media(max-width:430px){
+      .profile-common-tile{gap:6px!important}
+      .profile-split-card{border-radius:18px}
+      .profile-common-card{padding:10px 11px 11px}
+      .profile-person-card{padding:8px 10px;gap:6px}
+      .profile-person-card .identity,
+      .profile-partner-card .identity-partner{grid-template-columns:43px minmax(0,1fr)!important;gap:9px!important}
+      .profile-person-card .avatar{width:43px!important;height:43px!important;border-radius:13px!important}
+      .profile-person-card .name{font-size:16px!important}
+      .profile-work-status{font-size:9px}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .profile-common-card,.profile-common-card::before{animation:none!important}
+    }
+
+        .work-page .calendar-disclosure-card{
       display:block!important;
       padding:17px 16px 15px!important;
       border:1px solid color-mix(in srgb,var(--accent) 11%,var(--line))!important;
@@ -4796,7 +4926,7 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.1</div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.2</div>
       <a class="home-telegram-chat" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer" aria-label="Открыть Telegram чат" title="Telegram чат">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/></svg>
       </a>
@@ -4918,7 +5048,7 @@
       let currentMoodDateKey = '';
       let homeLayoutEditing = false;
       let homeTileHost = null;
-      const HOME_TILE_DEFAULT_ORDER = ['profile','priority','partner','daily'];
+      const HOME_TILE_DEFAULT_ORDER = ['profile-common','profile-self','profile-partner','priority','partner','daily'];
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v1';
       const STATE_BACKUP_CLOUD_META_KEY = 'rudi_state_backup_v1_meta';
@@ -5075,7 +5205,8 @@
       }
 
       function normalizedHomeOrder(order){
-        const requested=Array.isArray(order)?order.map(String):[];
+        const source=Array.isArray(order)?order.map(String):[];
+        const requested=source.flatMap(id=>id==='profile'?['profile-common','profile-self','profile-partner']:[id]);
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
         for(const id of HOME_TILE_DEFAULT_ORDER) if(!valid.includes(id)) valid.push(id);
         return valid;
@@ -5295,9 +5426,34 @@
       }
 
 
+      function profileStatusElement(person){
+        const actor=String(person||'');
+        if(actor==='Рустам') return document.getElementById(currentActor==='Рустам'?'selfWorkStatus':'partnerWorkStatus');
+        if(actor==='Диана') return document.getElementById(currentActor==='Диана'?'selfWorkStatus':'partnerWorkStatus');
+        return null;
+      }
+
+      function setProfileWorkStatus(person,text,state='neutral'){
+        const node=profileStatusElement(person);
+        if(!node) return;
+        node.textContent=String(text||'');
+        node.classList.toggle('is-working',state==='working');
+        node.classList.toggle('is-off',state==='off');
+        node.classList.toggle('is-neutral',state!=='working'&&state!=='off');
+        node.hidden=!String(text||'').trim();
+      }
+
+      function syncStaticProfileWorkStatus(){
+        setProfileWorkStatus('Рустам','Рабочий день с Пн по Пт','working');
+        const diana=profileStatusElement('Диана');
+        if(diana&&!diana.dataset.calendarReady){
+          setProfileWorkStatus('Диана','Проверяю график…','neutral');
+        }
+      }
+
       function setupProfileSplit(){
         const profile=document.querySelector('.profile');
-        if(!profile||profile.dataset.profileSplitReady==='1') return;
+        if(!profile||document.body.dataset.profileSplitReady==='1') return;
 
         const people=profile.querySelector('.profile-people');
         const selfIdentity=people?.querySelector('.identity-self');
@@ -5309,14 +5465,42 @@
         const moodMessage=document.getElementById('moodMessage');
         const compliment=document.getElementById('compliment');
         const weather=profile.querySelector('.profile-weather');
-        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!compliment||!weather) return;
+        const dateHeading=document.getElementById('profileMeta');
+        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!compliment||!weather||!dateHeading) return;
+
+        const selfPerson=selfIdentity.querySelector('.person');
+        const partnerPerson=partnerIdentity.querySelector('.person');
+        const partnerAvatar=partnerIdentity.querySelector('.partner-header-avatar');
+        if(!selfPerson||!partnerPerson||!partnerAvatar) return;
+
+        const selfStatus=document.createElement('div');
+        selfStatus.id='selfWorkStatus';
+        selfStatus.className='profile-work-status is-neutral';
+        selfPerson.appendChild(selfStatus);
+
+        const partnerStatus=document.createElement('div');
+        partnerStatus.id='partnerWorkStatus';
+        partnerStatus.className='profile-work-status is-neutral';
+        partnerPerson.appendChild(partnerStatus);
+
+        /* Both identity rows use exactly the same left-avatar / right-copy layout. */
+        partnerIdentity.replaceChildren(partnerAvatar,partnerPerson);
 
         const common=document.createElement('div');
         common.className='profile-split-card profile-common-card';
         common.append(compliment,weather);
 
-        const selfCard=document.createElement('div');
+        profile.className='profile-common-tile';
+        profile.dataset.homeTile='profile-common';
+        profile.setAttribute('aria-label','Цитата и погода');
+        dateHeading.className='profile-date-heading';
+        profile.replaceChildren(dateHeading,common);
+
+        const selfCard=document.createElement('section');
         selfCard.className='profile-split-card profile-person-card profile-self-card';
+        selfCard.dataset.appTabSection='home';
+        selfCard.dataset.homeTile='profile-self';
+        selfCard.setAttribute('aria-label','Мой профиль');
         const selfLabel=document.createElement('div');
         selfLabel.className='profile-card-kicker';
         selfLabel.textContent='Моё';
@@ -5324,28 +5508,19 @@
         if(moodPrompt) selfCard.appendChild(moodPrompt);
         if(moodMessage) selfCard.appendChild(moodMessage);
 
-        const partnerCard=document.createElement('div');
+        const partnerCard=document.createElement('section');
         partnerCard.className='profile-split-card profile-person-card profile-partner-card';
+        partnerCard.dataset.appTabSection='home';
+        partnerCard.dataset.homeTile='profile-partner';
+        partnerCard.setAttribute('aria-label','Профиль партнёра');
         const partnerLabel=document.createElement('div');
         partnerLabel.className='profile-card-kicker';
         partnerLabel.textContent='Партнёр';
+        partnerCard.append(partnerLabel,partnerIdentity,partnerMood);
 
-        const workInfo=document.createElement('div');
-        workInfo.id='partnerWorkInfo';
-        workInfo.className='partner-work-info';
-        workInfo.hidden=true;
-        const workStatus=document.createElement('span');
-        workStatus.id='partnerWorkStatus';
-        workStatus.className='partner-work-status';
-        const workTime=document.createElement('span');
-        workTime.id='partnerWorkTime';
-        workTime.className='partner-work-time';
-        workTime.hidden=true;
-        workInfo.append(workStatus,workTime);
-
-        partnerCard.append(partnerLabel,partnerIdentity,workInfo,partnerMood);
-        profile.replaceChildren(common,selfCard,partnerCard);
-        profile.dataset.profileSplitReady='1';
+        profile.after(selfCard,partnerCard);
+        document.body.dataset.profileSplitReady='1';
+        syncStaticProfileWorkStatus();
       }
 
       function readBlockStates(){
@@ -6375,36 +6550,26 @@
 
 
       function renderPartnerWorkStatus(days){
-        const info=document.getElementById('partnerWorkInfo');
-        const status=document.getElementById('partnerWorkStatus');
-        const time=document.getElementById('partnerWorkTime');
-        if(!info||!status||!time) return;
+        const status=profileStatusElement('Диана');
+        if(!status) return;
 
         const today=todayState().key;
         const row=(Array.isArray(days)?days:[]).find(day=>String(day?.date||'')===today);
         if(!row){
-          info.hidden=true;
+          status.dataset.calendarReady='1';
+          setProfileWorkStatus('Диана','Нет данных графика','neutral');
           return;
         }
 
         const working=Boolean(row.working);
-        status.textContent=working?'Рабочий день':'Выходной';
-        status.classList.toggle('is-working',working);
-        status.classList.toggle('is-off',!working);
+        status.dataset.calendarReady='1';
+        setProfileWorkStatus('Диана',working?'Рабочий день':'Выходной',working?'working':'off');
 
         const events=Array.isArray(row.events)?row.events:[];
         const ranges=events
           .map(event=>event?.allDay?'Весь день':([event?.startTime,event?.endTime].filter(Boolean).join('–')))
           .filter(Boolean);
-
-        if(working&&ranges.length){
-          time.textContent=ranges.join(' / ');
-          time.hidden=false;
-        }else{
-          time.textContent='';
-          time.hidden=true;
-        }
-        info.hidden=false;
+        status.title=working&&ranges.length?ranges.join(' / '):'';
       }
 
       function renderWorkCalendar(payload){
@@ -6685,6 +6850,11 @@
             const dot=document.createElement('span');
             dot.className='calendar-work-dot';
             cell.appendChild(dot);
+            const count=document.createElement('span');
+            count.className='calendar-event-count';
+            count.textContent=String(events.length);
+            count.setAttribute('aria-hidden','true');
+            cell.appendChild(count);
           }
 
           const showDayDetails=(withHaptic=false)=>{
@@ -7918,6 +8088,7 @@
       async function init(){
         const allowed=await authenticateApp();
         if(!allowed) return;
+        setupProfileSplit();
         setupHomeLayoutEditor();
         setupAppTabs();
         holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
@@ -7960,7 +8131,6 @@
         refreshDailyReactions();
 
         renderNearest(config);
-        setupProfileSplit();
         setupPersistentCollapsibles();
         setupPartnerMessage();
         setupStreakAndMood(config);
