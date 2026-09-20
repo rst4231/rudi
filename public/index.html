@@ -5857,6 +5857,7 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok) throw new Error(data.error||'wishlist');
+        if(operation!=='list') setTimeout(()=>refreshStateBackup(),250);
         return data;
       }
 
@@ -6217,6 +6218,7 @@
             currentMessage=data.message;
             renderPartnerMessage(currentMessage);
             closeEditor();
+            setTimeout(()=>refreshStateBackup(),250);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
             status.textContent=String(error?.message||'Ошибка сохранения');
@@ -6550,6 +6552,7 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'products-request-failed');
+        if(operation!=='list') setTimeout(()=>refreshStateBackup(),250);
         return data;
       }
 
