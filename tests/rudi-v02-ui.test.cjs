@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const html = fs.readFileSync('public/index.html','utf8');
+const html = ['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
 test('v0.2 profile cards are independent movable home tiles', () => {
   assert.match(html, /HOME_TILE_DEFAULT_ORDER = \['profile-common','profile-self','profile-partner','priority','partner','daily'\]/);
