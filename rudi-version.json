@@ -1,7 +1,7 @@
 {
   "current": "v0.2",
   "versionBranch": "versions/v0.2",
-  "releaseCommit": null,
+  "releaseCommit": "0749d73d03279fa8d1d5eaf63f9d1bd7d2819e4b",
   "createdAt": "2026-09-20",
   "notes": [
     "Карточки Моё и Партнёр сделаны компактнее и приведены к одинаковой структуре.",
@@ -11,5 +11,17 @@
     "Блок цитаты и погоды стал светлее и получил мягкий переливающийся градиент.",
     "Совместный календарь TickTick стал устойчивее к разным startDate/dueDate и заметнее показывает дни с задачами."
   ],
-  "basedOnProduction": "4948176f55acf7051e403d2bb340a9b377c521b4"
+  "basedOnProduction": "4948176f55acf7051e403d2bb340a9b377c521b4",
+  "verified": {
+    "workflow": "Verify RUDI v0.2",
+    "runId": 35494209095,
+    "result": "success",
+    "checks": [
+      "v0.2 UI tests",
+      "real Monday TickTick task test",
+      "backend syntax checks",
+      "npm run build",
+      "JSON config validation"
+    ]
+  }
 }
