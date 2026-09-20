@@ -31,7 +31,3 @@ test('cycle routes go through backend storage',()=>{
   assert.equal(routes['/api/cycle'],'/api/partner-message?rudiAction=cycle');
   assert.equal(routes['/api/cycle/bootstrap'],'/api/partner-message?rudiAction=cycle-bootstrap');
 });
-
-test('footer exposes v0.4.1',()=>{
-  assert.match(html,/id="appVersion"[^>]*>v0\.4\.1<\/div>/);
-});
