@@ -1,7 +1,7 @@
 {
   "current": "v0.4",
   "versionBranch": "versions/v0.4",
-  "releaseCommit": "3b7106564ea69a2191fa4665cc2fb0e226f7b3c6",
+  "releaseCommit": "1daf166b4b15ccea09808a25947686de808ffea0",
   "createdAt": "2026-09-20",
   "basedOnProduction": "bf88b19b51c2d5afd9cdb22d0e68b18c25af96eb",
   "notes": [
@@ -13,13 +13,15 @@
     "Данные цикла вынесены во внешний конфиг, чтобы обновлять фактические даты без нового деплоя."
   ],
   "verified": {
-    "workflow": "Verify RUDI v0.4",
-    "runId": 35496511040,
+    "workflow": "Verify RUDI v0.4 cycle",
+    "runId": 35496611260,
     "result": "success",
     "checks": [
-      "v0.4 cycle UI/config tests",
-      "TickTick calendar regression",
-      "backend syntax checks",
+      "movable + persistent collapsible cycle card",
+      "external cycle config",
+      "30-day cycle and 29 Sep–3 Oct period regression",
+      "next ovulation projection",
+      "backend syntax check",
       "npm run build",
       "JSON config validation"
     ]
