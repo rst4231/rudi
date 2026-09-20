@@ -1,0 +1,23 @@
+name: Verify RUDI v0.4
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-v04:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      - run: node --test tests/rudi-v04-cycle.test.cjs tests/rudi-v03-ui.test.cjs
+      - run: node --check api/partner-message.js
+      - run: node --check api/ticktick-client.cjs
+      - run: npm run build
+      - run: node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('rudi-config.json','utf8')); JSON.parse(fs.readFileSync('rudi-version.json','utf8')); JSON.parse(fs.readFileSync('vercel.json','utf8'));"
