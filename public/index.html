@@ -3137,34 +3137,6 @@
     }
 
 
-    /* Presence status: refreshed every 3 seconds while the app is visible */
-    .profile .avatar{
-      overflow:visible!important;
-    }
-    .profile .avatar > img{
-      border-radius:inherit;
-    }
-    .profile .presence-dot{
-      position:absolute;
-      right:-2px;
-      bottom:-2px;
-      z-index:5;
-      width:11px;
-      height:11px;
-      border:2px solid #171b29;
-      border-radius:50%;
-      background:#ef4b55;
-      box-shadow:0 2px 8px rgba(0,0,0,.28);
-      transition:background-color .18s ease,box-shadow .18s ease;
-    }
-    .profile .presence-dot.is-online{
-      background:#28c76f;
-      box-shadow:0 0 0 3px rgba(40,199,111,.13),0 2px 8px rgba(0,0,0,.24);
-    }
-    .profile .presence-dot.is-offline{
-      background:#ef4b55;
-    }
-
     /* Daily movie opens its configured Kinopoisk page */
     .daily-card.watch-card.is-link{
       cursor:pointer;
@@ -3177,29 +3149,6 @@
     .daily-card.watch-card.is-link:focus-visible{
       outline:2px solid color-mix(in srgb,var(--accent) 68%,transparent);
       outline-offset:2px;
-    }
-
-
-    /* Partner-only last seen text */
-    .profile .partner-presence-text{
-      max-width:170px;
-      overflow:hidden;
-      color:rgba(232,235,246,.58)!important;
-      font-size:8.7px!important;
-      line-height:1.2!important;
-      font-weight:590!important;
-      text-align:right!important;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-    .profile .partner-presence-text[hidden]{
-      display:none!important;
-    }
-    @media(max-width:390px){
-      .profile .partner-presence-text{
-        max-width:138px;
-        font-size:8px!important;
-      }
     }
 
 
@@ -4368,7 +4317,6 @@
           <div id="avatar" class="avatar" aria-hidden="true">
             <span id="initials">R</span>
             <img id="avatarImage" alt="">
-            <span id="selfPresenceDot" class="presence-dot is-offline" title="Не в RUDI"></span>
           </div>
           <div class="person">
             <div id="displayName" class="name">RUDI</div>
@@ -4379,12 +4327,10 @@
         <div class="identity identity-partner">
           <div class="person partner-person">
             <div id="partnerHeaderName" class="name partner-header-name">Диана</div>
-            <div id="partnerPresenceText" class="profile-meta partner-presence-text" hidden></div>
           </div>
           <div id="partnerProfileAvatar" class="avatar partner-header-avatar" aria-hidden="true">
             <span id="partnerProfileInitial">Д</span>
             <img id="partnerProfileImage" alt="">
-            <span id="partnerPresenceDot" class="presence-dot is-offline" title="Не в RUDI"></span>
           </div>
         </div>
       </div>
@@ -4876,7 +4822,6 @@
       const media = window.matchMedia('(prefers-color-scheme: dark)');
       const tg = window.Telegram?.WebApp;
       const DAY = 86400000;
-      const PRESENCE_REFRESH_MS = 3000;
       let currentActor = '';
       let currentPartnerReactionKey = '';
       let currentDailyReactionTargets = [];
@@ -4888,7 +4833,6 @@
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
       let currentAppTab = 'home';
-      let presenceRequestPromise = null;
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
       let currentMoodDateKey = '';
@@ -5378,11 +5322,6 @@
           bodySelectors:['.daily-grid'],
           hostSelector:'.section-heading'
         });
-        setupPersistentCollapsible({
-          selector:'.tools-section',key:'tools',
-          bodySelectors:['.links'],
-          hostSelector:'.section-heading'
-        });
       }
 
       const fallback = {
@@ -5474,7 +5413,6 @@
           currentActor=String(payload.actor||'');
           if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
           applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
-          markSelfPresenceVisible();
           cacheHolidayItems(payload.holidayHighlights);
           document.body.classList.remove('auth-pending','auth-denied');
           document.body.classList.add('auth-ok');
@@ -7204,142 +7142,6 @@
         refreshDailyMood();
       }
 
-      function setPresenceDot(id,online,name){
-        const dot=document.getElementById(id);
-        if(!dot) return;
-        dot.classList.toggle('is-online',Boolean(online));
-        dot.classList.toggle('is-offline',!online);
-        dot.title=(name||'Пользователь')+(online?' сейчас в RUDI':' сейчас не в RUDI');
-      }
-
-      function relativePresenceText(lastSeenAt,partnerName){
-        const partner=String(partnerName||partnerProfileName||'Партнёр');
-        const female=partner.toLowerCase().startsWith('диан');
-        const prefix=female?'Была в приложении':'Был в приложении';
-        const never=female?'Ещё не заходила в приложение':'Ещё не заходил в приложение';
-        const seen=Date.parse(String(lastSeenAt||''));
-        if(!Number.isFinite(seen)) return never;
-
-        const diff=Math.max(0,Date.now()-seen);
-        const minutes=Math.floor(diff/60000);
-        if(minutes<1) return prefix+' только что';
-
-        const form=(value,one,few,many)=>{
-          const mod100=value%100;
-          const mod10=value%10;
-          if(mod100>=11&&mod100<=14) return many;
-          if(mod10===1) return one;
-          if(mod10>=2&&mod10<=4) return few;
-          return many;
-        };
-
-        if(minutes<60){
-          return prefix+' '+minutes+' '+form(minutes,'минуту','минуты','минут')+' назад';
-        }
-        const hours=Math.floor(minutes/60);
-        if(hours<24){
-          return prefix+' '+hours+' '+form(hours,'час','часа','часов')+' назад';
-        }
-        const days=Math.floor(hours/24);
-        return prefix+' '+days+' '+form(days,'день','дня','дней')+' назад';
-      }
-
-      function presenceStorageKey(partnerName){
-        return 'rudi-presence-last-seen:'+String(partnerName||'partner').toLocaleLowerCase('ru-RU');
-      }
-
-      function rememberPartnerLastSeen(partnerName,lastSeenAt){
-        const seen=Date.parse(String(lastSeenAt||''));
-        if(!Number.isFinite(seen)) return;
-        try{localStorage.setItem(presenceStorageKey(partnerName),new Date(seen).toISOString())}catch(_){}
-      }
-
-      function cachedPartnerLastSeen(partnerName){
-        try{
-          const value=localStorage.getItem(presenceStorageKey(partnerName))||'';
-          return Number.isFinite(Date.parse(value))?value:'';
-        }catch(_){
-          return '';
-        }
-      }
-
-      function renderPartnerPresenceState(partnerName,online,lastSeenAt){
-        setPresenceDot('partnerPresenceDot',Boolean(online),partnerName);
-        const text=document.getElementById('partnerPresenceText');
-        if(!text) return;
-        if(online){
-          text.hidden=true;
-          text.textContent='';
-          return;
-        }
-        text.textContent=relativePresenceText(lastSeenAt,partnerName);
-        text.hidden=false;
-      }
-
-      function renderPresence(payload){
-        const mine=payload?.mine||{};
-        const partner=payload?.partnerPresence||{};
-        const partnerName=String(payload?.partner||partnerProfileName||(currentActor==='Рустам'?'Диана':'Рустам'));
-        const selfVisible=document.visibilityState==='visible'&&Boolean(currentActor);
-        setPresenceDot('selfPresenceDot',selfVisible||Boolean(mine.online),currentActor||'Вы');
-
-        const serverLastSeen=String(partner.lastSeenAt||'');
-        if(Number.isFinite(Date.parse(serverLastSeen))) rememberPartnerLastSeen(partnerName,serverLastSeen);
-        const effectiveLastSeen=Number.isFinite(Date.parse(serverLastSeen))
-          ?serverLastSeen
-          :cachedPartnerLastSeen(partnerName);
-        const cachedSeen=Date.parse(effectiveLastSeen);
-        const cachedOnline=Number.isFinite(cachedSeen)&&Date.now()-cachedSeen<=75000;
-        const effectiveOnline=Boolean(partner.online)||(!serverLastSeen&&cachedOnline);
-        renderPartnerPresenceState(partnerName,effectiveOnline,effectiveLastSeen);
-      }
-
-      function renderPresenceFallback(){
-        const partnerName=String(partnerProfileName||(currentActor==='Рустам'?'Диана':'Рустам'));
-        const lastSeenAt=cachedPartnerLastSeen(partnerName);
-        if(!lastSeenAt) return;
-        const seen=Date.parse(lastSeenAt);
-        const online=Number.isFinite(seen)&&Date.now()-seen<=75000;
-        renderPartnerPresenceState(partnerName,online,lastSeenAt);
-      }
-
-      function markSelfPresenceVisible(){
-        if(!currentActor) return;
-        setPresenceDot('selfPresenceDot',document.visibilityState==='visible',currentActor||'Вы');
-      }
-
-      async function refreshPresence(heartbeat=true){
-        if(!currentActor||!tg?.initData) return;
-        if(heartbeat&&document.visibilityState!=='visible') return;
-        markSelfPresenceVisible();
-        if(presenceRequestPromise) return presenceRequestPromise;
-
-        presenceRequestPromise=(async()=>{
-          try{
-            const response=await fetch('/api/partner-message?rudiAction=presence',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({
-                initData:tg.initData,
-                operation:heartbeat?'heartbeat':'get'
-              }),
-              cache:'no-store'
-            });
-            const payload=await response.json().catch(()=>({}));
-            if(!response.ok||!payload.ok) throw new Error(payload.error||'presence');
-            renderPresence(payload);
-          }catch(_){
-            renderPresenceFallback();
-          }
-        })();
-
-        try{
-          return await presenceRequestPromise;
-        }finally{
-          presenceRequestPromise=null;
-        }
-      }
-
       async function openCinemaPremieresTopic(){
         const button=document.getElementById('cinemaPremieresButton');
         if(!button||button.dataset.loading==='1') return;
@@ -7844,7 +7646,6 @@
         loadTickTickNext();
         loadWorkCalendar();
         loadSharedAlbum();
-        refreshPresence(true);
         setTimeout(()=>refreshStateBackup(),2500);
       }
 
@@ -7859,7 +7660,6 @@
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor) resetMoodForNewDay()},5000);
-      setInterval(()=>{if(currentActor) refreshPresence(true)},PRESENCE_REFRESH_MS);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
 
       function ensureAppSurface(){
@@ -7886,7 +7686,6 @@
           loadWorkCalendar(currentWorkCalendarView),
           loadSharedAlbum(),
           loadProducts({silent:true}),
-          refreshPresence(true),
           refreshDailyReactions(),
           refreshStateBackup()
         ]);
@@ -7895,25 +7694,19 @@
 
       window.addEventListener('pageshow',()=>{
         ensureAppSurface();
-        markSelfPresenceVisible();
         refreshAfterResume();
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();
-        markSelfPresenceVisible();
-        if(currentActor) refreshPresence(true);
       });
       let hiddenAt=0;
       document.addEventListener('visibilitychange',()=>{
         if(document.visibilityState==='hidden'){
-          setPresenceDot('selfPresenceDot',false,currentActor||'Вы');
           hiddenAt=Date.now();
           return;
         }
         ensureAppSurface();
-        markSelfPresenceVisible();
         if(currentActor){
-          refreshPresence(true);
           loadProducts({silent:true});
           scheduleProductsRefresh(2000);
         }
