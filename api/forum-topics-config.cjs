@@ -24,7 +24,9 @@ function validateForumTopicsConfig(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Forum topics config is invalid');
   const clients = validTopicId(input.clients, 'clients topic');
   const labor = validTopicId(input.labor, 'labor topic');
+  const cinema = input.cinema === undefined || input.cinema === null ? null : validTopicId(input.cinema, 'cinema topic');
   if (labor === clients) throw new Error('Labor topic must differ from Clients topic');
+  if (cinema && (cinema === clients || cinema === labor)) throw new Error('Cinema topic must differ from configured topics');
 
   const names = {};
   const clientsName = validTopicName(input.names?.clients, 'clients topic name');
@@ -36,6 +38,7 @@ function validateForumTopicsConfig(input) {
     version: Number(input.version || 1),
     clients,
     labor,
+    ...(cinema ? { cinema } : {}),
     ...(Object.keys(names).length ? { names } : {}),
   };
 }
