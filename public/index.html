@@ -4118,6 +4118,73 @@
       .photo-viewer,.photo-viewer-dialog{transition:none!important}
     }
 
+
+    /* Photo viewer navigation and original link */
+    .photo-viewer-stage{position:relative}
+    .photo-viewer-nav{
+      position:absolute;
+      top:50%;
+      z-index:2;
+      width:44px;
+      height:52px;
+      display:grid;
+      place-items:center;
+      padding:0;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:15px;
+      background:rgba(14,16,22,.68);
+      color:#fff;
+      box-shadow:0 10px 28px rgba(0,0,0,.28);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      transform:translateY(-50%);
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      transition:opacity .16s ease,transform .14s ease,background-color .16s ease;
+    }
+    .photo-viewer-prev{left:10px}
+    .photo-viewer-next{right:10px}
+    .photo-viewer-nav svg{width:24px;height:24px}
+    .photo-viewer-nav:active:not(:disabled){transform:translateY(-50%) scale(.92)}
+    .photo-viewer-nav:disabled{opacity:.22;cursor:default}
+    .photo-viewer-footer{
+      display:grid;
+      justify-items:center;
+      gap:9px;
+      padding:0 14px 14px;
+    }
+    .photo-viewer-footer .photo-viewer-caption{
+      padding:0!important;
+    }
+    .photo-viewer-original{
+      min-height:40px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:7px;
+      padding:9px 14px;
+      border:1px solid rgba(255,255,255,.13);
+      border-radius:13px;
+      background:rgba(255,255,255,.08);
+      color:#fff;
+      font:inherit;
+      font-size:11px;
+      line-height:1;
+      font-weight:760;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      transition:transform .14s ease,background-color .16s ease,opacity .16s ease;
+    }
+    .photo-viewer-original svg{width:16px;height:16px}
+    .photo-viewer-original:active:not(:disabled){transform:scale(.96)}
+    .photo-viewer-original:disabled{opacity:.32;cursor:default}
+    @media(max-width:430px){
+      .photo-viewer-nav{width:40px;height:48px;border-radius:14px}
+      .photo-viewer-prev{left:7px}
+      .photo-viewer-next{right:7px}
+      .photo-viewer-nav svg{width:22px;height:22px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -4611,9 +4678,21 @@
         </svg>
       </button>
       <div class="photo-viewer-stage">
+        <button id="photoViewerPrev" class="photo-viewer-nav photo-viewer-prev" type="button" aria-label="Предыдущее фото">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
         <img id="photoViewerImage" alt="">
+        <button id="photoViewerNext" class="photo-viewer-nav photo-viewer-next" type="button" aria-label="Следующее фото">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
       </div>
-      <div id="photoViewerCaption" class="photo-viewer-caption" hidden></div>
+      <div class="photo-viewer-footer">
+        <div id="photoViewerCaption" class="photo-viewer-caption" hidden></div>
+        <button id="photoViewerOriginal" class="photo-viewer-original" type="button">
+          <span>Открыть оригинал</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
+        </button>
+      </div>
     </section>
   </div>
 
@@ -4658,6 +4737,8 @@
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
       let sharedAlbumUrl = '';
+      let sharedAlbumPhotos = [];
+      let currentSharedAlbumPhotoIndex = -1;
       let currentAppTab = 'home';
       let presenceRequestPromise = null;
       let productsLoadPromise = null;
@@ -6166,6 +6247,66 @@
         }
       }
 
+      function sharedAlbumOriginalUrl(photo){
+        const id=String(photo?.id||'').trim();
+        return id&&sharedAlbumUrl ? sharedAlbumUrl+';'+id : sharedAlbumUrl;
+      }
+
+      function openSharedAlbumOriginal(){
+        const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
+        const target=sharedAlbumOriginalUrl(photo);
+        if(!target) return;
+        try{
+          if(tg?.openLink) tg.openLink(target);
+          else window.open(target,'_blank','noopener,noreferrer');
+        }catch(_){
+          window.open(target,'_blank','noopener,noreferrer');
+        }
+      }
+
+      function renderSharedAlbumPhotoViewer(){
+        const viewer=document.getElementById('photoViewer');
+        const image=document.getElementById('photoViewerImage');
+        const caption=document.getElementById('photoViewerCaption');
+        const prev=document.getElementById('photoViewerPrev');
+        const next=document.getElementById('photoViewerNext');
+        const original=document.getElementById('photoViewerOriginal');
+        const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
+        const url=String(photo?.url||'').trim();
+        if(!viewer||!image||!caption||!prev||!next||!original||!url) return false;
+
+        image.src=url;
+        image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
+
+        const captionText=String(photo?.caption||'').trim();
+        caption.textContent=captionText;
+        caption.hidden=!captionText;
+
+        prev.disabled=currentSharedAlbumPhotoIndex<=0;
+        next.disabled=currentSharedAlbumPhotoIndex>=sharedAlbumPhotos.length-1;
+        original.disabled=!sharedAlbumOriginalUrl(photo);
+
+        const preloadIndexes=[currentSharedAlbumPhotoIndex-1,currentSharedAlbumPhotoIndex+1];
+        preloadIndexes.forEach(index=>{
+          const adjacent=sharedAlbumPhotos[index];
+          if(adjacent?.url){
+            const preload=new Image();
+            preload.src=String(adjacent.url);
+          }
+        });
+        return true;
+      }
+
+      function changeSharedAlbumPhoto(step){
+        if(!sharedAlbumPhotos.length) return;
+        const nextIndex=currentSharedAlbumPhotoIndex+Number(step||0);
+        if(nextIndex<0||nextIndex>=sharedAlbumPhotos.length) return;
+        currentSharedAlbumPhotoIndex=nextIndex;
+        if(renderSharedAlbumPhotoViewer()){
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        }
+      }
+
       function closeSharedAlbumPhoto(){
         const viewer=document.getElementById('photoViewer');
         const image=document.getElementById('photoViewerImage');
@@ -6178,21 +6319,20 @@
         image.alt='';
         caption.textContent='';
         caption.hidden=true;
+        currentSharedAlbumPhotoIndex=-1;
       }
 
-      function openSharedAlbumPhoto(photo){
+      function openSharedAlbumPhoto(photo,index=-1){
         const viewer=document.getElementById('photoViewer');
-        const image=document.getElementById('photoViewerImage');
-        const caption=document.getElementById('photoViewerCaption');
         const close=document.getElementById('photoViewerClose');
-        const url=String(photo?.url||'').trim();
-        if(!viewer||!image||!caption||!url) return;
+        if(!viewer) return;
 
-        image.src=url;
-        image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
-        const captionText=String(photo?.caption||'').trim();
-        caption.textContent=captionText;
-        caption.hidden=!captionText;
+        let targetIndex=Number.isInteger(index)?index:sharedAlbumPhotos.findIndex(item=>item?.id&&item.id===photo?.id);
+        if(targetIndex<0) targetIndex=sharedAlbumPhotos.indexOf(photo);
+        if(targetIndex<0||targetIndex>=sharedAlbumPhotos.length) return;
+
+        currentSharedAlbumPhotoIndex=targetIndex;
+        if(!renderSharedAlbumPhotoViewer()) return;
 
         viewer.classList.add('open');
         viewer.setAttribute('aria-hidden','false');
@@ -6207,6 +6347,7 @@
         const status=document.getElementById('sharedAlbumStatus');
         const open=document.getElementById('sharedAlbumOpen');
         const photos=Array.isArray(payload?.photos)?payload.photos.slice(0,40):[];
+        sharedAlbumPhotos=photos;
 
         if(!payload?.configured){
           section.dataset.tabAvailable='0';
@@ -6227,6 +6368,8 @@
         grid.replaceChildren();
 
         if(!photos.length){
+          sharedAlbumPhotos=[];
+          currentSharedAlbumPhotoIndex=-1;
           const empty=document.createElement('div');
           empty.className='wishlist-empty';
           empty.textContent='В альбоме пока нет фотографий.';
@@ -6245,7 +6388,7 @@
           img.loading='lazy';
           img.decoding='async';
           button.appendChild(img);
-          button.addEventListener('click',()=>openSharedAlbumPhoto(photo));
+          button.addEventListener('click',()=>openSharedAlbumPhoto(photo,index));
           grid.appendChild(button);
         });
       }
@@ -6275,10 +6418,14 @@
         document.getElementById('sharedAlbumOpen')?.addEventListener('click',openSharedAlbum);
         document.getElementById('photoViewerClose')?.addEventListener('click',closeSharedAlbumPhoto);
         document.getElementById('photoViewerBackdrop')?.addEventListener('click',closeSharedAlbumPhoto);
+        document.getElementById('photoViewerPrev')?.addEventListener('click',()=>changeSharedAlbumPhoto(-1));
+        document.getElementById('photoViewerNext')?.addEventListener('click',()=>changeSharedAlbumPhoto(1));
+        document.getElementById('photoViewerOriginal')?.addEventListener('click',openSharedAlbumOriginal);
         document.addEventListener('keydown',event=>{
-          if(event.key==='Escape'&&document.getElementById('photoViewer')?.classList.contains('open')){
-            closeSharedAlbumPhoto();
-          }
+          if(!document.getElementById('photoViewer')?.classList.contains('open')) return;
+          if(event.key==='Escape') closeSharedAlbumPhoto();
+          else if(event.key==='ArrowLeft') changeSharedAlbumPhoto(-1);
+          else if(event.key==='ArrowRight') changeSharedAlbumPhoto(1);
         });
       }
 
