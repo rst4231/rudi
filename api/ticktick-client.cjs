@@ -383,6 +383,7 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
 
 module.exports = {
   AUTH_URL,
+  OAUTH_SCOPE,
   TOKEN_URL,
   API_BASE_URL,
   DEFAULT_REDIRECT_URI,

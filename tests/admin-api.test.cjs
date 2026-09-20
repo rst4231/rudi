@@ -1,7 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildAdminDashboard, handleAdminAction } = require('../api/admin-api.cjs');
-const adminHandler = require('../api/admin.js');
 
 const settings = {
   version: 1,
@@ -15,16 +14,6 @@ const settings = {
   sources: {}, copy: { footers: {} }, publishing: { dailyCronDescription: 'daily', weekendDays: [5, 6], allowAutomaticRetry: true },
   dedupe: {}, alerts: { enabled: true, dedupeMinutes: 180 },
 };
-
-function responseStub() {
-  return {
-    statusCode: 200,
-    payload: null,
-    status(code) { this.statusCode = code; return this; },
-    json(payload) { this.payload = payload; return payload; },
-  };
-}
-
 test('dashboard combines health, today/tomorrow previews, skips and analytics', async () => {
   const dashboard = await buildAdminDashboard({
     now: new Date('2026-08-29T12:00:00Z'),
@@ -117,12 +106,4 @@ test('cleanup-feedback-keyboards delegates one idempotent legacy cleanup', async
   assert.deepEqual(calls, [{}]);
   assert.equal(result.removed, 8);
   assert.equal(result.skipped, 1);
-});
-
-test('admin endpoint serves dashboard without bearer auth', async () => {
-  const req = { method: 'GET', headers: {}, query: {} };
-  const res = responseStub();
-  await adminHandler.runAdmin(req, res, { buildDashboard: async () => ({ ok: true, marker: 'dashboard' }) });
-  assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.payload, { ok: true, marker: 'dashboard' });
 });

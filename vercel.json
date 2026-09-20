@@ -11,9 +11,6 @@
     "api/daily-cron.js": {
       "maxDuration": 300
     },
-    "api/admin.js": {
-      "maxDuration": 300
-    },
     "api/stylist-leads-cron.js": {
       "maxDuration": 300
     }
@@ -52,12 +49,54 @@
           "value": "0"
         }
       ]
+    },
+    {
+      "source": "/app.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "source": "/app.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
       "source": "/api/mood",
       "destination": "/api/partner-message?rudiAction=mood"
+    },
+    {
+      "source": "/api/cycle",
+      "destination": "/api/partner-message?rudiAction=cycle"
+    },
+    {
+      "source": "/api/cycle/bootstrap",
+      "destination": "/api/partner-message?rudiAction=cycle-bootstrap"
     },
     {
       "source": "/api/partner-notifications/setup",
@@ -137,5 +176,8 @@
       "path": "/api/stylist-leads-cron",
       "schedule": "0 4 * * *"
     }
-  ]
+  ],
+  "env": {
+    "NODE_OPTIONS": "--disable-warning=DEP0169"
+  }
 }

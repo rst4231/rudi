@@ -69,13 +69,10 @@ test('serverless entrypoint never deletes CRON_SECRET globally', () => {
   assert.equal(entry.includes('delete process.env.CRON_SECRET'), false);
 });
 
-test('Stage Club prices are replaced with the safe ticket-page wording', () => {
+test('Stage Club prices are removed while age rating is preserved', () => {
   const entry = require('../api/index.js');
   const input = 'Stage StandUp Club\n💳 1 500 ₽ · 18+';
-  assert.equal(
-    entry.sanitizeStagePriceText(input),
-    'Stage StandUp Club\n💳 стоимость уточняйте на странице билетов · 18+',
-  );
+  assert.equal(entry.sanitizeStagePriceText(input), 'Stage StandUp Club\n🔞 18+');
 });
 
 test('production builds reject deployments that are not Git-backed', () => {

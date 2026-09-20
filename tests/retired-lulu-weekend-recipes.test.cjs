@@ -7,7 +7,9 @@ const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 function absent(file, patterns) {
-  const source = read(file);
+  const fullPath = path.join(root, file);
+  if (!fs.existsSync(fullPath)) return;
+  const source = fs.readFileSync(fullPath, 'utf8');
   for (const pattern of patterns) assert.doesNotMatch(source, pattern, `${file} still contains ${pattern}`);
 }
 

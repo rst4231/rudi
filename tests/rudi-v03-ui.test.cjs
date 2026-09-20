@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const html=fs.readFileSync('public/index.html','utf8');
+const html = ['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
 test('v0.3 moves moods into identity row',()=>{
   assert.match(html,/selfIdentity\.appendChild\(selfMood\)/);
@@ -30,5 +30,5 @@ test('shared calendar is removed and resume avoids rebuilding tab',()=>{
 });
 
 test('footer exposes v0.3',()=>{
-  assert.match(html,/id="appVersion"[^>]*>v0\.3<\/div>/);
+  assert.match(html,/id="appVersion"[^>]*>v0\.4<\/div>/);
 });

@@ -10,6 +10,16 @@ const { getContentOverride } = require('./section-controls.cjs');
 const { SECTION_NAMES } = require('./rudi-settings.cjs');
 const { DEFAULT_MAX_ITEMS, rankHolidayEntries } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
+const { stripStagePriceLines } = require('./event-text-sanitizer.cjs');
+
+function sanitizeStagePrices(value) {
+  if (typeof value === 'string') return stripStagePriceLines(value);
+  if (Array.isArray(value)) return value.map(sanitizeStagePrices);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizeStagePrices(item)]));
+  }
+  return value;
+}
 
 function extractHolidayEntries(value) {
   return String(value || '')
@@ -49,7 +59,7 @@ async function runPreview(req, res, options = {}) {
   const originalJson = typeof res?.json === 'function' ? res.json.bind(res) : null;
   if (originalJson) {
     res.json = (payload) => {
-      const rewritten = rewriteClientsPreviewPayloadWithAdvice(payload, advice);
+      const rewritten = sanitizeStagePrices(rewriteClientsPreviewPayloadWithAdvice(payload, advice));
       const warnings = Array.isArray(rewritten?.warnings) ? [...rewritten.warnings] : [];
       if (rewritten?.date && rewritten.date !== requestedDate) {
         warnings.push({ code: 'runtime-date-mismatch', expected: requestedDate, actual: rewritten.date });
@@ -91,3 +101,4 @@ module.exports = (req, res) => runPreview(req, res);
 module.exports.runPreview = runPreview;
 module.exports.loadPreviewOverrides = loadPreviewOverrides;
 module.exports.extractHolidayEntries = extractHolidayEntries;
+module.exports.sanitizeStagePrices = sanitizeStagePrices;
