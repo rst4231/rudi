@@ -1,7 +1,7 @@
 {
   "current": "v0.3",
   "versionBranch": "versions/v0.3",
-  "releaseCommit": null,
+  "releaseCommit": "be8762e144d000f39d9129da66ff92a1f5d60827",
   "createdAt": "2026-09-20",
   "basedOnProduction": "8978a7e72ff90642973d5502ba944698b51fcbdf",
   "notes": [
@@ -11,5 +11,17 @@
     "Текст после выбора настроения сделан контрастным на тёмной профильной карточке.",
     "Возврат в приложение после сворачивания Telegram больше не запускает повторное переключение видимой вкладки до обновления данных.",
     "Из вкладки Календарь удалён второй календарь совместных дел."
-  ]
+  ],
+  "verified": {
+    "workflow": "Verify RUDI v0.3",
+    "runId": 35494766192,
+    "result": "success",
+    "checks": [
+      "v0.3 UI tests",
+      "TickTick calendar regression test",
+      "backend syntax checks",
+      "npm run build",
+      "JSON config validation"
+    ]
+  }
 }
