@@ -15,8 +15,10 @@ test('Joint Tasks behavior remains present',()=>{
   assert.match(html,/id="ticktickDetails"/);
 });
 
-test('footer exposes v0.4.2',()=>{
-  assert.match(html,/id="appVersion"[^>]*>v0\.4\.2<\/div>/);
+test('footer version matches rudi-version metadata',()=>{
+  const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current;
+  const escaped=version.replace(/\\./g,'\\\\.');
+  assert.match(html,new RegExp('id="appVersion"[^>]*>'+escaped+'<\\/div>'));
 });
 
 test('phase-based Diana mood is shown as one word below her status',()=>{
