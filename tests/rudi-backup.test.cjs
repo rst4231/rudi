@@ -38,6 +38,15 @@ test('app auth wires encrypted backup restore and recipient self-registration', 
   assert.match(source, /backupToken/);
 });
 
+test('client mirrors encrypted backup into Telegram CloudStorage with local fallback', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(source, /STATE_BACKUP_CLOUD_META_KEY/);
+  assert.match(source, /tg\?\.CloudStorage/);
+  assert.match(source, /readCloudStateBackupToken/);
+  assert.match(source, /writeCloudStateBackupToken/);
+  assert.match(source, /backupToken:await readStateBackupToken\(\)/);
+});
+
 test('client keeps an encrypted state token and refreshes it after shared-state changes', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   assert.match(source, /STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v1'/);
