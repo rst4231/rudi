@@ -21,3 +21,8 @@ test('Diana work status is rendered from work calendar data', () => {
   assert.match(html, /status\.textContent=working\?'Рабочий день':'Выходной'/);
   assert.match(html, /renderPartnerWorkStatus\(days\)/);
 });
+
+test('Diana work status stays tied to current month when browsing next month', () => {
+  assert.match(html, /if\(view==='month'\) renderPartnerWorkStatus\(days\)/);
+  assert.match(html, /if\(requested==='next-month'\) refreshPartnerWorkStatus\(\)/);
+});

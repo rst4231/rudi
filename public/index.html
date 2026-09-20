@@ -6417,7 +6417,6 @@
         selected.replaceChildren();
 
         const days=Array.isArray(payload?.days)?payload.days:[];
-        renderPartnerWorkStatus(days);
         if(!payload?.configured){
           status.hidden=false;
           status.textContent='Не подключён';
@@ -6437,6 +6436,7 @@
         const last=dateFromKey(days[days.length-1].date);
         const view=String(payload?.view||currentWorkCalendarView||'week');
         const isMonth=view==='month'||view==='next-month';
+        if(view==='month') renderPartnerWorkStatus(days);
         if(isMonth){
           const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
           label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
@@ -6548,6 +6548,21 @@
         }
       }
 
+
+      async function refreshPartnerWorkStatus(){
+        if(!tg?.initData) return;
+        try{
+          const response=await fetch('/api/work-calendar',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData,view:'month'}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(response.ok&&Array.isArray(payload?.days)) renderPartnerWorkStatus(payload.days);
+        }catch(_){}
+      }
+
       async function loadWorkCalendar(view=currentWorkCalendarView){
         if(!tg?.initData) return;
         const requested=['month','next-month'].includes(view)?view:'month';
@@ -6566,6 +6581,7 @@
           const payload=await response.json().catch(()=>({}));
           if(!response.ok) throw new Error(payload.error||'calendar');
           renderWorkCalendar(payload);
+          if(requested==='next-month') refreshPartnerWorkStatus();
         }catch(_){
           status.hidden=false;
           status.textContent='Ошибка';
