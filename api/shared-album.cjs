@@ -6,7 +6,7 @@ const CONFIG_KEY = 'album-config';
 const CACHE_KEY = 'album-latest';
 const CONFIG_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const DATA_TTL_SECONDS = 60 * 15;
-const EXPECTED_SETUP_SHA256 = 'aba579924a7a9e9503574beabc2542b5c9e905fe4e2b16291416f1e5976d953c';
+const EXPECTED_SETUP_SHA256 = '89bb9543fa407ae3542bdf4f1b63578e827933ae4583eb032b1d9f29add5cf80';
 const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
 function cacheOf(options = {}) {
