@@ -4476,6 +4476,151 @@
       .work-page .work-calendar-title{font-size:18px}
     }
 
+
+    /* RUDI v0.3: readable themes, inline moods, stable resume */
+    .profile-person-card .identity,
+    .profile-partner-card .identity-partner{
+      grid-template-columns:46px minmax(0,1fr) auto!important;
+      align-items:center!important;
+    }
+    .profile-person-card .name,
+    .profile-partner-card .partner-header-name{
+      color:#f7f8fd!important;
+      text-align:left!important;
+    }
+    .profile-person-card .profile-card-kicker{color:rgba(241,244,252,.56)!important}
+    .profile-person-card .profile-work-status.is-neutral{color:rgba(241,244,252,.58)!important}
+
+    .profile-person-card .mood-person{
+      width:auto!important;
+      min-width:0!important;
+      min-height:0!important;
+      justify-self:end!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:flex-end!important;
+      gap:5px!important;
+      margin:0!important;
+      padding:0!important;
+      border:0!important;
+      border-left:0!important;
+      border-radius:0!important;
+      background:transparent!important;
+    }
+    .profile-person-card .mood-self-buttons{
+      display:flex!important;
+      align-items:center!important;
+      gap:5px!important;
+      margin:0!important;
+    }
+    .profile-person-card .mood-button,
+    .profile-person-card .partner-mood-value{
+      flex:0 0 30px!important;
+      width:30px!important;
+      height:30px!important;
+      min-width:30px!important;
+      min-height:30px!important;
+      margin:0!important;
+      padding:0!important;
+      border-radius:10px!important;
+      border:1px solid rgba(255,255,255,.10)!important;
+      background:rgba(255,255,255,.055)!important;
+      overflow:hidden!important;
+    }
+    .profile-person-card .mood-button.selected{
+      border-color:rgba(126,132,255,.38)!important;
+      background:rgba(104,105,243,.24)!important;
+      box-shadow:0 0 0 1px rgba(126,132,255,.14)!important;
+    }
+    .profile-person-card .partner-mood-value{
+      position:relative!important;
+      display:grid!important;
+      place-items:center!important;
+    }
+    .profile-person-card .partner-mood-icon{
+      position:absolute!important;
+      inset:0!important;
+      width:100%!important;
+      height:100%!important;
+      display:grid!important;
+      place-items:center!important;
+    }
+    .profile-person-card .partner-mood-icon[hidden],
+    .profile-person-card .partner-mood-empty[hidden]{display:none!important}
+    .profile-person-card .mood-emoji{
+      display:block!important;
+      margin:0!important;
+      font-size:18px!important;
+      line-height:1!important;
+      transform:none!important;
+    }
+    .profile-person-card .partner-mood-icon .mood-emoji{font-size:18px!important}
+    .profile-person-card .partner-mood-empty{
+      color:rgba(241,244,252,.48)!important;
+      font-size:15px!important;
+      line-height:1!important;
+    }
+
+    .profile-self-card .mood-message.show{
+      color:#fff!important;
+      background:rgba(255,255,255,.075)!important;
+      border-color:rgba(255,255,255,.10)!important;
+    }
+
+    html[data-theme="light"] .profile-common-card .profile-compliment{
+      color:#202635!important;
+      background:rgba(255,255,255,.28)!important;
+      border-color:rgba(63,76,120,.10)!important;
+    }
+    html[data-theme="light"] .profile-common-card .profile-weather-value,
+    html[data-theme="light"] .profile-common-card .profile-weather-caption{
+      color:#202635!important;
+    }
+    html[data-theme="light"] .profile-common-card .profile-weather-city,
+    html[data-theme="light"] .profile-common-card .profile-weather-rain{
+      color:rgba(32,38,53,.62)!important;
+    }
+    html[data-theme="light"] .profile-common-card .profile-weather{
+      border-top-color:rgba(63,76,120,.12)!important;
+    }
+
+    html[data-theme="dark"] .profile-common-card{
+      background:
+        linear-gradient(118deg,
+          rgba(58,76,158,.52) 0%,
+          rgba(112,68,168,.45) 30%,
+          rgba(48,119,166,.39) 56%,
+          rgba(111,77,154,.43) 78%,
+          rgba(57,77,153,.50) 100%)!important;
+      background-size:260% 260%!important;
+    }
+    html[data-theme="dark"] .profile-common-card .profile-compliment,
+    html[data-theme="dark"] .profile-common-card .profile-weather-value,
+    html[data-theme="dark"] .profile-common-card .profile-weather-caption{
+      color:#f8faff!important;
+    }
+    html[data-theme="dark"] .profile-common-card .profile-weather-city,
+    html[data-theme="dark"] .profile-common-card .profile-weather-rain{
+      color:rgba(244,247,255,.72)!important;
+    }
+
+    @media(max-width:430px){
+      .profile-person-card .identity,
+      .profile-partner-card .identity-partner{
+        grid-template-columns:43px minmax(0,1fr) auto!important;
+      }
+      .profile-person-card .mood-button,
+      .profile-person-card .partner-mood-value{
+        flex-basis:28px!important;
+        width:28px!important;
+        height:28px!important;
+        min-width:28px!important;
+        min-height:28px!important;
+      }
+      .profile-person-card .mood-self-buttons{gap:4px!important}
+      .profile-person-card .mood-emoji,
+      .profile-person-card .partner-mood-icon .mood-emoji{font-size:17px!important}
+    }
   </style>
 </head>
 <body class="auth-pending">
@@ -4696,30 +4841,6 @@
         <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
       </div>
 
-      <div id="sharedCalendarCard" class="work-calendar-card shared-calendar-card calendar-disclosure-card">
-        <div class="work-calendar-head">
-          <div class="calendar-heading-copy">
-            <div class="work-calendar-title">Календарь совместных дел</div>
-            <div id="sharedMonthLabel" class="work-calendar-month">Этот месяц</div>
-          </div>
-        </div>
-        <span id="sharedCalendarStatus" class="section-status work-page-status" hidden></span>
-        <div id="sharedCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период совместных дел">
-          <button class="work-range-button active" type="button" data-shared-view="month" aria-pressed="true">Этот месяц</button>
-          <button class="work-range-button" type="button" data-shared-view="next-month" aria-pressed="false">Следующий месяц</button>
-        </div>
-        <div id="sharedCalendarDays" class="work-calendar-days" aria-live="polite">
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-          <div class="work-calendar-skeleton"></div>
-        </div>
-        <div id="sharedCalendarSelected" class="work-calendar-selected shared-calendar-selected" hidden></div>
-      </div>
-
       <article class="panel nearest-panel schedule-nearest">
         <div class="panel-label">Ближайшее</div>
         <div class="nearest-content">
@@ -4926,7 +5047,7 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.2</div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.3</div>
       <a class="home-telegram-chat" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer" aria-label="Открыть Telegram чат" title="Telegram чат">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/></svg>
       </a>
@@ -5444,7 +5565,13 @@
       }
 
       function syncStaticProfileWorkStatus(){
-        setProfileWorkStatus('Рустам','Рабочий день с Пн по Пт','working');
+        const moscowDay=new Date(todayState().utc).getUTCDay();
+        const rustamWeekend=moscowDay===0||moscowDay===6;
+        setProfileWorkStatus(
+          'Рустам',
+          rustamWeekend?'Выходной':'Рабочий день',
+          rustamWeekend?'off':'working'
+        );
         const diana=profileStatusElement('Диана');
         if(diana&&!diana.dataset.calendarReady){
           setProfileWorkStatus('Диана','Проверяю график…','neutral');
@@ -5483,8 +5610,9 @@
         partnerStatus.className='profile-work-status is-neutral';
         partnerPerson.appendChild(partnerStatus);
 
-        /* Both identity rows use exactly the same left-avatar / right-copy layout. */
-        partnerIdentity.replaceChildren(partnerAvatar,partnerPerson);
+        /* Avatar left, name/status center, mood controls in the free area on the right. */
+        selfIdentity.appendChild(selfMood);
+        partnerIdentity.replaceChildren(partnerAvatar,partnerPerson,partnerMood);
 
         const common=document.createElement('div');
         common.className='profile-split-card profile-common-card';
@@ -5504,7 +5632,7 @@
         const selfLabel=document.createElement('div');
         selfLabel.className='profile-card-kicker';
         selfLabel.textContent='Моё';
-        selfCard.append(selfLabel,selfIdentity,selfMood);
+        selfCard.append(selfLabel,selfIdentity);
         if(moodPrompt) selfCard.appendChild(moodPrompt);
         if(moodMessage) selfCard.appendChild(moodMessage);
 
@@ -5516,7 +5644,7 @@
         const partnerLabel=document.createElement('div');
         partnerLabel.className='profile-card-kicker';
         partnerLabel.textContent='Партнёр';
-        partnerCard.append(partnerLabel,partnerIdentity,partnerMood);
+        partnerCard.append(partnerLabel,partnerIdentity);
 
         profile.after(selfCard,partnerCard);
         document.body.dataset.profileSplitReady='1';
@@ -5634,11 +5762,6 @@
         setupPersistentCollapsible({
           selector:'#workCalendarCard',key:'calendar-work',
           bodySelectors:['#workCalendarStatus','#workCalendarRanges','#workCalendarDays','#workCalendarSelected'],
-          hostSelector:'.work-calendar-head'
-        });
-        setupPersistentCollapsible({
-          selector:'#sharedCalendarCard',key:'calendar-shared',
-          bodySelectors:['#sharedCalendarStatus','#sharedCalendarRanges','#sharedCalendarDays','#sharedCalendarSelected'],
           hostSelector:'.work-calendar-head'
         });
       }
@@ -8091,6 +8214,7 @@
         setupProfileSplit();
         setupHomeLayoutEditor();
         setupAppTabs();
+        ensureAppSurface({restoreTab:true});
         holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
         setupProducts();
@@ -8141,11 +8265,9 @@
         setupSharedAlbum();
         setupCinemaPremieresButton();
         setupWorkCalendarDisclosure();
-        setupSharedCalendarDisclosure();
         loadWeather(config.weather);
         loadTickTickNext();
         loadWorkCalendar();
-        loadSharedCalendar();
         loadSharedAlbum();
         setTimeout(()=>refreshStateBackup(),2500);
       }
@@ -8158,13 +8280,12 @@
       });
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
-      setInterval(()=>{if(currentActor) loadSharedCalendar(currentSharedCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor) resetMoodForNewDay()},5000);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
 
-      function ensureAppSurface(){
+      function ensureAppSurface({restoreTab=false}={}){
         applyTheme();
         updateTelegramSafeArea();
         document.body.classList.remove('keyboard-editing');
@@ -8172,27 +8293,39 @@
 
         document.body.classList.remove('auth-pending','auth-denied');
         document.body.classList.add('auth-ok');
+        syncStaticProfileWorkStatus();
 
-        const activeSections=[...document.querySelectorAll('[data-app-tab-section="'+currentAppTab+'"]')];
-        const hasAvailableActive=activeSections.some(section=>section.dataset.tabAvailable!=='0');
-        applyAppTab(hasAvailableActive?currentAppTab:'home',{scroll:false});
+        if(restoreTab){
+          const activeSections=[...document.querySelectorAll('[data-app-tab-section="'+currentAppTab+'"]')];
+          const hasAvailableActive=activeSections.some(section=>section.dataset.tabAvailable!=='0');
+          applyAppTab(hasAvailableActive?currentAppTab:'home',{scroll:false});
+        }
       }
 
+      let resumeRefreshPromise=null;
       async function refreshAfterResume(){
         ensureAppSurface();
         if(!currentActor) return;
-        resetMoodForNewDay();
-        await Promise.allSettled([
-          refreshDailyMood(),
-          loadTickTickNext(),
-          loadWorkCalendar(currentWorkCalendarView),
-          loadSharedCalendar(currentSharedCalendarView),
-          loadSharedAlbum(),
-          loadProducts({silent:true}),
-          refreshDailyReactions(),
-          refreshStateBackup()
-        ]);
-        ensureAppSurface();
+        if(resumeRefreshPromise) return resumeRefreshPromise;
+
+        resumeRefreshPromise=new Promise(resolve=>{
+          requestAnimationFrame(()=>requestAnimationFrame(resolve));
+        }).then(async()=>{
+          resetMoodForNewDay();
+          await Promise.allSettled([
+            refreshDailyMood(),
+            loadTickTickNext(),
+            loadWorkCalendar(currentWorkCalendarView),
+            loadSharedAlbum(),
+            loadProducts({silent:true}),
+            refreshDailyReactions(),
+            refreshStateBackup()
+          ]);
+        }).finally(()=>{
+          resumeRefreshPromise=null;
+          ensureAppSurface();
+        });
+        return resumeRefreshPromise;
       }
 
       window.addEventListener('pageshow',()=>{
