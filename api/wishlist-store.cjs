@@ -15,6 +15,7 @@ function cacheOf(options = {}) {
 function normalizeState(value) {
   const items = Array.isArray(value?.items) ? value.items : [];
   return {
+    initialized: Boolean(value?.initialized || value?.version || items.length),
     version: Number(value?.version || 0),
     items: items
       .map((item) => ({
@@ -36,7 +37,7 @@ async function readWishlist(options = {}) {
 }
 
 async function writeWishlist(state, options = {}) {
-  const next = normalizeState({ ...state, version: Date.now() });
+  const next = normalizeState({ ...state, initialized: true, version: Date.now() });
   await cacheOf(options).set(STATE_KEY, next, { ttl: TTL_SECONDS, tags: ['rudi-wishlist'] });
   return next;
 }
