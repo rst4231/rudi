@@ -1,5 +1,5 @@
-require('@vercel/functions');
 const fs = require('node:fs');
+const { stripStagePriceLines } = require('./event-text-sanitizer.cjs');
 const { runWithCronSecretHidden, installGlobalTelegramFetchGuard } = require('./runtime-guard.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const {
@@ -40,12 +40,7 @@ let runtimeHandler;
 let laborPublicationFlight = null;
 
 function sanitizeStagePriceText(text) {
-  if (typeof text !== 'string' || !text.includes('Stage StandUp Club')) return text;
-  return text.split('\n').map((line) => {
-    if (!line.startsWith('💳')) return line;
-    const age = line.match(/\s·\s(\d+\+)\s*$/)?.[1];
-    return `💳 стоимость уточняйте на странице билетов${age ? ` · ${age}` : ''}`;
-  }).join('\n');
+  return stripStagePriceLines(text);
 }
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
