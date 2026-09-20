@@ -49,6 +49,10 @@ const {
   checklistAuditForItem,
 } = require('./ticktick-checklist-audit-store.cjs');
 const { createStateBackup, restoreStateBackup } = require('./rudi-backup.cjs');
+const { getCinemaPremieresCache, getTopicMaintenanceCache } = require('./stateful-cache.cjs');
+const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
+const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
+const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_AUTH_AGE_SECONDS = 24 * 60 * 60;
@@ -479,6 +483,38 @@ async function handleTickTick(req, res, action, options = {}) {
 }
 
 async function handleRudiAction(req, res, action, options = {}) {
+  if (action === 'cinema-topic-link') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+
+      const cinemaCache = getCinemaPremieresCache();
+      const topicCache = getTopicMaintenanceCache();
+      const [topicId, cachedChatId] = await Promise.all([
+        resolveCinemaTopicId({ cache: cinemaCache }),
+        getKnownForumChatId({ cache: topicCache }).catch(() => null),
+      ]);
+      const chatId = cachedChatId || findForumChatIdInEnv(options.env || process.env);
+      if (!topicId || !chatId) {
+        return res.status(404).json({ ok: false, error: 'cinema-topic-unavailable' });
+      }
+
+      const internalChatId = String(chatId).replace(/^-100/, '');
+      if (!/^\d+$/.test(internalChatId)) {
+        return res.status(500).json({ ok: false, error: 'cinema-chat-invalid' });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        url: 'https://t.me/c/' + internalChatId + '/' + Number(topicId),
+      });
+    } catch (error) {
+      const status = statusForError(error);
+      return res.status(status === 500 ? 502 : status).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
   if (action === 'partner-notification-setup') {
     if (req.method !== 'GET' && req.method !== 'POST' && req.method) {
       return res.status(405).json({ ok: false, error: 'method-not-allowed' });
