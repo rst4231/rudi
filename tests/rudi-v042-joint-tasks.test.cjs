@@ -17,7 +17,7 @@ test('Joint Tasks behavior remains present',()=>{
 
 test('footer version matches rudi-version metadata',()=>{
   const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current;
-  const escaped=version.replace(/\\./g,'\\\\.');
+  const escaped=version.replace(/\./g,'\\.');
   assert.match(html,new RegExp('id="appVersion"[^>]*>'+escaped+'<\\/div>'));
 });
 
