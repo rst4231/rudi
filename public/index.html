@@ -3970,6 +3970,154 @@
       row-gap:12px!important;
     }
 
+
+    /* Access gate loading animation */
+    .app-gate-icon{
+      position:relative;
+      animation:appGateIconFloat 1.8s ease-in-out infinite;
+    }
+    body.auth-denied .app-gate-icon{animation:none}
+    .app-gate-icon::after{
+      content:"";
+      position:absolute;
+      inset:-6px;
+      border:2px solid transparent;
+      border-top-color:color-mix(in srgb,var(--accent) 72%,transparent);
+      border-right-color:color-mix(in srgb,var(--accent) 28%,transparent);
+      border-radius:50%;
+      animation:appGateRing 1.05s linear infinite;
+    }
+    body.auth-denied .app-gate-icon::after{display:none}
+    .app-gate-loader{
+      height:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:5px;
+      margin-top:2px;
+    }
+    body.auth-denied .app-gate-loader{display:none}
+    .app-gate-loader span{
+      width:5px;
+      height:5px;
+      border-radius:50%;
+      background:var(--accent);
+      opacity:.28;
+      animation:appGateDot 1.05s ease-in-out infinite;
+    }
+    .app-gate-loader span:nth-child(2){animation-delay:.14s}
+    .app-gate-loader span:nth-child(3){animation-delay:.28s}
+    @keyframes appGateRing{to{transform:rotate(360deg)}}
+    @keyframes appGateIconFloat{
+      0%,100%{transform:translateY(0)}
+      50%{transform:translateY(-2px)}
+    }
+    @keyframes appGateDot{
+      0%,60%,100%{opacity:.25;transform:translateY(0) scale(.86)}
+      30%{opacity:1;transform:translateY(-3px) scale(1)}
+    }
+
+    /* In-app shared photo viewer */
+    body.photo-viewer-open{overflow:hidden!important}
+    .photo-viewer{
+      position:fixed;
+      inset:0;
+      z-index:7200;
+      display:grid;
+      place-items:center;
+      padding:
+        max(14px,env(safe-area-inset-top),var(--tg-content-safe-area-inset-top,0px))
+        12px
+        max(14px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px));
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+      transition:opacity .2s ease,visibility .2s ease;
+    }
+    .photo-viewer.open{
+      opacity:1;
+      visibility:visible;
+      pointer-events:auto;
+    }
+    .photo-viewer-backdrop{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      padding:0;
+      border:0;
+      background:rgba(4,6,10,.88);
+      backdrop-filter:blur(18px);
+      -webkit-backdrop-filter:blur(18px);
+    }
+    .photo-viewer-dialog{
+      position:relative;
+      z-index:1;
+      width:min(100%,760px);
+      max-height:calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      display:grid;
+      grid-template-rows:minmax(0,1fr) auto;
+      gap:10px;
+      border-radius:24px;
+      overflow:hidden;
+      background:rgba(16,18,25,.92);
+      box-shadow:0 28px 90px rgba(0,0,0,.52);
+      transform:scale(.965);
+      transition:transform .22s cubic-bezier(.2,.82,.2,1);
+    }
+    .photo-viewer.open .photo-viewer-dialog{transform:scale(1)}
+    .photo-viewer-stage{
+      min-height:180px;
+      max-height:calc(100dvh - 90px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+      background:#07080c;
+    }
+    .photo-viewer-stage img{
+      display:block;
+      width:100%;
+      height:100%;
+      max-width:100%;
+      max-height:calc(100dvh - 90px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      object-fit:contain;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    .photo-viewer-close{
+      position:absolute;
+      top:10px;
+      right:10px;
+      z-index:3;
+      width:42px;
+      height:42px;
+      display:grid;
+      place-items:center;
+      padding:0;
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:50%;
+      background:rgba(15,17,23,.72);
+      color:#fff;
+      box-shadow:0 8px 24px rgba(0,0,0,.30);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .photo-viewer-close svg{width:20px;height:20px}
+    .photo-viewer-close:active{transform:scale(.93)}
+    .photo-viewer-caption{
+      padding:0 16px 14px;
+      color:rgba(255,255,255,.86);
+      font-size:12px;
+      line-height:1.4;
+      text-align:center;
+    }
+    @media(prefers-reduced-motion:reduce){
+      .app-gate-icon,.app-gate-icon::after,.app-gate-loader span{animation:none!important}
+      .photo-viewer,.photo-viewer-dialog{transition:none!important}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -3984,6 +4132,9 @@
       </div>
       <div id="appGateTitle" class="app-gate-title">Проверяю доступ</div>
       <div id="appGateText" class="app-gate-text">RUDI доступен только вам двоим.</div>
+      <div class="app-gate-loader" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
     </div>
   </div>
 
@@ -4450,6 +4601,21 @@
       <span>Вишлист</span>
     </button>
   </nav>
+
+  <div id="photoViewer" class="photo-viewer" aria-hidden="true">
+    <button id="photoViewerBackdrop" class="photo-viewer-backdrop" type="button" aria-label="Закрыть фото"></button>
+    <section class="photo-viewer-dialog" role="dialog" aria-modal="true" aria-label="Просмотр фотографии">
+      <button id="photoViewerClose" class="photo-viewer-close" type="button" aria-label="Закрыть">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/>
+        </svg>
+      </button>
+      <div class="photo-viewer-stage">
+        <img id="photoViewerImage" alt="">
+      </div>
+      <div id="photoViewerCaption" class="photo-viewer-caption" hidden></div>
+    </section>
+  </div>
 
   <div id="holidayModal" class="holiday-modal" aria-hidden="true">
     <button id="holidayBackdrop" class="holiday-backdrop" type="button" aria-label="Закрыть"></button>
@@ -6000,16 +6166,39 @@
         }
       }
 
+      function closeSharedAlbumPhoto(){
+        const viewer=document.getElementById('photoViewer');
+        const image=document.getElementById('photoViewerImage');
+        const caption=document.getElementById('photoViewerCaption');
+        if(!viewer||!image||!caption) return;
+        viewer.classList.remove('open');
+        viewer.setAttribute('aria-hidden','true');
+        document.body.classList.remove('photo-viewer-open');
+        image.removeAttribute('src');
+        image.alt='';
+        caption.textContent='';
+        caption.hidden=true;
+      }
+
       function openSharedAlbumPhoto(photo){
-        const id=String(photo?.id||'').trim();
-        const target=id&&sharedAlbumUrl ? sharedAlbumUrl+';'+id : sharedAlbumUrl;
-        if(!target) return;
-        try{
-          if(tg?.openLink) tg.openLink(target);
-          else window.open(target,'_blank','noopener,noreferrer');
-        }catch(_){
-          window.open(target,'_blank','noopener,noreferrer');
-        }
+        const viewer=document.getElementById('photoViewer');
+        const image=document.getElementById('photoViewerImage');
+        const caption=document.getElementById('photoViewerCaption');
+        const close=document.getElementById('photoViewerClose');
+        const url=String(photo?.url||'').trim();
+        if(!viewer||!image||!caption||!url) return;
+
+        image.src=url;
+        image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
+        const captionText=String(photo?.caption||'').trim();
+        caption.textContent=captionText;
+        caption.hidden=!captionText;
+
+        viewer.classList.add('open');
+        viewer.setAttribute('aria-hidden','false');
+        document.body.classList.add('photo-viewer-open');
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        setTimeout(()=>close?.focus?.({preventScroll:true}),0);
       }
 
       function renderSharedAlbum(payload){
@@ -6049,7 +6238,7 @@
           const button=document.createElement('button');
           button.className='shared-album-photo';
           button.type='button';
-          button.setAttribute('aria-label','Открыть общий альбом, фото '+(index+1));
+          button.setAttribute('aria-label','Открыть фото '+(index+1)+' крупно');
           const img=document.createElement('img');
           img.src=String(photo.url||'');
           img.alt=photo.caption?String(photo.caption):'Фото из общего альбома';
@@ -6084,6 +6273,13 @@
 
       function setupSharedAlbum(){
         document.getElementById('sharedAlbumOpen')?.addEventListener('click',openSharedAlbum);
+        document.getElementById('photoViewerClose')?.addEventListener('click',closeSharedAlbumPhoto);
+        document.getElementById('photoViewerBackdrop')?.addEventListener('click',closeSharedAlbumPhoto);
+        document.addEventListener('keydown',event=>{
+          if(event.key==='Escape'&&document.getElementById('photoViewer')?.classList.contains('open')){
+            closeSharedAlbumPhoto();
+          }
+        });
       }
 
       async function wishlistRequest(operation,payload={}){
