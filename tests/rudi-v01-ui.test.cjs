@@ -4,16 +4,15 @@ const fs = require('node:fs');
 
 const html = ['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
-test('RUDI v0.1 shows dual calendars and app version', () => {
+test('calendar keeps Diana work schedule and removes retired shared calendar', () => {
   assert.match(html, /График Дианы/);
-  assert.match(html, /Календарь совместных дел/);
-  assert.match(html, /id="appVersion"[^>]*>v0\.1</);
-  assert.doesNotMatch(html, /work-calendar-legend[^>]*>[^<]*<span><\/span>\s*рабочий день/);
+  assert.doesNotMatch(html, /id="sharedCalendarCard"/);
+  assert.doesNotMatch(html, /setupSharedCalendarDisclosure\(\);/);
+  assert.match(html, /id="appVersion"[^>]*>v0\.3</);
 });
 
-test('both calendars persist collapse state', () => {
+test('work calendar persists collapse state', () => {
   assert.match(html, /key:'calendar-work'/);
-  assert.match(html, /key:'calendar-shared'/);
 });
 
 test('Diana work status is rendered from work calendar data', () => {
