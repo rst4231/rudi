@@ -4946,7 +4946,7 @@
           <div class="cycle-info-card ovulation">
             <span class="cycle-info-dot"></span>
             <div>
-              <span>Овуляция</span>
+              <span>Следующая овуляция</span>
               <strong id="dianaCycleOvulation">—</strong>
             </div>
           </div>
@@ -5549,6 +5549,11 @@
         const source=Array.isArray(order)?order.map(String):[];
         const requested=source.flatMap(id=>id==='profile'?['profile-common','profile-self','profile-partner']:[id]);
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
+        if(!valid.includes('cycle')){
+          const beforePriority=valid.indexOf('priority');
+          if(beforePriority>=0) valid.splice(beforePriority,0,'cycle');
+          else valid.push('cycle');
+        }
         for(const id of HOME_TILE_DEFAULT_ORDER) if(!valid.includes(id)) valid.push(id);
         return valid;
       }
@@ -5993,17 +5998,7 @@
 
       const fallback = {
         weather:{enabled:true,city:'Санкт-Петербург',latitude:59.9386,longitude:30.3141,timezone:TZ},
-        cycle:{
-          enabled:true,
-          person:'Диана',
-          cycleLengthDays:30,
-          periodLengthDays:5,
-          ovulationDay:16,
-          fertileWindowStartDay:12,
-          fertileWindowEndDay:18,
-          historyStarts:['2026-07-01','2026-07-31','2026-08-30'],
-          nextPeriodStart:'2026-09-29'
-        },
+        cycle:{enabled:false},
         birthdays:[
           {id:'rustam',name:'Рустам',year:1992,month:3,day:3},
           {id:'diana',name:'Диана',year:1996,month:6,day:30}
@@ -6354,22 +6349,34 @@
 
         const {utc:todayUtc}=todayState();
         const pastStarts=history.filter(value=>value<=todayUtc);
-        const currentStart=pastStarts.length?pastStarts[pastStarts.length-1]:null;
+        const latestActualStart=pastStarts.length?pastStarts[pastStarts.length-1]:null;
         let nextStart=parseCycleDate(source.nextPeriodStart);
-        if(!Number.isFinite(nextStart)&&Number.isFinite(currentStart)) nextStart=currentStart+cycleLength*DAY;
+        if(!Number.isFinite(nextStart)&&Number.isFinite(latestActualStart)) nextStart=latestActualStart+cycleLength*DAY;
+        while(Number.isFinite(nextStart)&&nextStart+(periodLength-1)*DAY<todayUtc){
+          nextStart+=cycleLength*DAY;
+        }
 
-        const cycleDay=Number.isFinite(currentStart)?Math.max(1,Math.floor((todayUtc-currentStart)/DAY)+1):null;
-        const daysToNext=Number.isFinite(nextStart)?Math.round((nextStart-todayUtc)/DAY):null;
-        const ovulationUtc=Number.isFinite(currentStart)?currentStart+(ovulationDay-1)*DAY:null;
+        const periodActive=Number.isFinite(nextStart)
+          &&todayUtc>=nextStart
+          &&todayUtc<=nextStart+(periodLength-1)*DAY;
+        const currentStart=Number.isFinite(nextStart)
+          ?(periodActive?nextStart:nextStart-cycleLength*DAY)
+          :latestActualStart;
+
+        const cycleDay=Number.isFinite(currentStart)?Math.max(1,Math.min(cycleLength,Math.floor((todayUtc-currentStart)/DAY)+1)):null;
+        const daysToNext=Number.isFinite(nextStart)?Math.max(0,Math.round((nextStart-todayUtc)/DAY)):null;
+        const currentOvulationUtc=Number.isFinite(currentStart)?currentStart+(ovulationDay-1)*DAY:null;
+        const ovulationUtc=Number.isFinite(currentOvulationUtc)&&currentOvulationUtc>=todayUtc
+          ?currentOvulationUtc
+          :Number.isFinite(nextStart)?nextStart+(ovulationDay-1)*DAY:null;
 
         let phase='Недостаточно данных';
-        if(Number.isFinite(currentStart)&&cycleDay){
-          if(cycleDay<=periodLength) phase='Месячные';
-          else if(cycleDay>=fertileStart&&cycleDay<=fertileEnd) phase='Фертильное окно';
+        if(periodActive) phase='Месячные';
+        else if(Number.isFinite(currentStart)&&cycleDay){
+          if(cycleDay>=fertileStart&&cycleDay<=fertileEnd) phase='Фертильное окно';
           else if(cycleDay<fertileStart) phase='Фолликулярная фаза';
           else phase='Лютеиновая фаза';
         }
-        if(Number.isFinite(daysToNext)&&daysToNext<0) phase='Ожидаются месячные';
 
         return {
           cycleLength,periodLength,ovulationDay,fertileStart,fertileEnd,
@@ -6423,14 +6430,15 @@
         period.textContent=cycleRangeLabel(model.nextStart,model.periodLength);
 
         if(Number.isFinite(model.ovulationUtc)){
-          const diff=Math.round((model.ovulationUtc-todayState().utc)/DAY);
-          const suffix=diff===0?' · сегодня':diff>0?' · через '+diff+' '+dayWord(diff):' · '+Math.abs(diff)+' '+dayWord(Math.abs(diff))+' назад';
-          ovulation.textContent=cycleDateLabel(model.ovulationUtc)+suffix;
+          const diff=Math.max(0,Math.round((model.ovulationUtc-todayState().utc)/DAY));
+          const suffix=diff===0?' · сегодня':' · через '+diff+' '+dayWord(diff);
+          ovulation.textContent='≈ '+cycleDateLabel(model.ovulationUtc)+suffix;
         }else{
           ovulation.textContent='—';
         }
 
-        note.textContent='Прогноз по '+Math.max(1,model.historyCount)+' отмеченным циклам. Даты ориентировочные и не подходят для контрацепции.';
+        const source=String(cfg?.source||'истории цикла').trim();
+        note.textContent='Ориентировочный прогноз по данным '+source+'. Даты могут сдвигаться и не подходят для контрацепции.';
       }
 
       function weatherVisualType(code){
