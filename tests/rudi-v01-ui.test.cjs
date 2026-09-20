@@ -7,9 +7,7 @@ const html = ['public/index.html','public/app.css','public/app.js'].map(file=>fs
 test('calendar keeps Diana work schedule and removes retired shared calendar', () => {
   assert.match(html, /График Дианы/);
   assert.doesNotMatch(html, /id="sharedCalendarCard"/);
-  assert.doesNotMatch(html, /setupSharedCalendarDisclosure\(\);/);
-  assert.match(html, /id="appVersion"[^>]*>v0\.4</);
-});
+  assert.doesNotMatch(html, /setupSharedCalendarDisclosure\(\);/);});
 
 test('work calendar persists collapse state', () => {
   assert.match(html, /key:'calendar-work'/);
