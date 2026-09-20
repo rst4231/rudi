@@ -7,6 +7,10 @@ const { readWishlist, writeWishlist } = require('./wishlist-store.cjs');
 const { readProductList, readProductListRaw, restoreProductListSnapshot } = require('./product-list-store.cjs');
 const { readRecipients, saveRecipient } = require('./partner-notification-store.cjs');
 const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
+const {
+  readChecklistAuditState,
+  restoreChecklistAuditState,
+} = require('./ticktick-checklist-audit-store.cjs');
 
 const BACKUP_VERSION = 1;
 const BACKUP_PREFIX = 'rudi-state-v1';
@@ -63,7 +67,7 @@ async function safeRead(task, fallback = null) {
 }
 
 async function createStateSnapshot(options = {}) {
-  const [partnerMessage, ticktickToken, calendarUrl, wishlist, products, recipients, albumConfig] = await Promise.all([
+  const [partnerMessage, ticktickToken, calendarUrl, wishlist, products, recipients, albumConfig, ticktickChecklistAudit] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readToken(options)),
     safeRead(() => readCalendarUrl(options), ''),
@@ -71,6 +75,7 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readProductList(options), { initialized: false, version: 0, items: [], history: [] }),
     safeRead(() => readRecipients(options)),
     safeRead(() => readAlbumConfig(options)),
+    safeRead(() => readChecklistAuditState(options), { initialized: false, version: 0, entries: {} }),
   ]);
 
   return {
@@ -83,6 +88,7 @@ async function createStateSnapshot(options = {}) {
     products,
     recipients,
     albumConfig,
+    ticktickChecklistAudit,
   };
 }
 
@@ -155,6 +161,20 @@ async function restoreStateBackup(token, options = {}) {
   if (!currentAlbum && snapshot.albumConfig?.url && snapshot.albumConfig?.token) {
     await saveAlbumConfig(snapshot.albumConfig, options);
     restored.push('shared-album');
+  }
+
+  const currentChecklistAudit = await safeRead(
+    () => readChecklistAuditState(options),
+    { initialized: false, version: 0, entries: {} }
+  );
+  const currentChecklistAuditVersion = Number(currentChecklistAudit?.version || 0);
+  const savedChecklistAuditVersion = Number(snapshot.ticktickChecklistAudit?.version || 0);
+  if (
+    snapshot.ticktickChecklistAudit?.initialized &&
+    (!currentChecklistAudit?.initialized || savedChecklistAuditVersion > currentChecklistAuditVersion)
+  ) {
+    await restoreChecklistAuditState(snapshot.ticktickChecklistAudit, options);
+    restored.push('ticktick-checklist-audit');
   }
 
   return { restored };
