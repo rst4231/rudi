@@ -4185,6 +4185,52 @@
       .photo-viewer-nav svg{width:22px;height:22px}
     }
 
+
+    /* Interactive shared TickTick checklist */
+    .ticktick-check-item{
+      width:100%;
+      appearance:none;
+      -webkit-appearance:none;
+      border:0;
+      padding:0;
+      background:transparent;
+      text-align:left;
+      font:inherit;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+      transition:opacity .15s ease,transform .12s ease;
+    }
+    .ticktick-check-item:active:not(:disabled){transform:scale(.992)}
+    .ticktick-check-item:disabled{cursor:default;opacity:.62}
+    .ticktick-check-item.syncing{opacity:.58;pointer-events:none}
+    .ticktick-check-copy{
+      min-width:0;
+      display:grid;
+      gap:3px;
+    }
+    .ticktick-check-label{
+      color:inherit;
+      overflow-wrap:anywhere;
+    }
+    .ticktick-check-item.done{
+      text-decoration:none!important;
+    }
+    .ticktick-check-item.done .ticktick-check-label{
+      color:var(--muted);
+      text-decoration:line-through;
+      text-decoration-thickness:1px;
+    }
+    .ticktick-check-meta{
+      color:var(--muted);
+      font-size:9.5px;
+      line-height:1.25;
+      font-weight:650;
+      text-decoration:none!important;
+    }
+    .ticktick-check-item.done .ticktick-check-meta{
+      color:color-mix(in srgb,var(--green) 68%,var(--muted));
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -5660,13 +5706,99 @@
         details.setAttribute('aria-hidden',expanded?'false':'true');
       }
 
-      function renderTickTickDetails(task){
+      function tickTickChecklistAuditText(item){
+        const actor=String(item?.changedBy||'').trim();
+        if(!actor) return '';
+        if(item?.completed){
+          return actor==='Диана'?'Отметила Диана':'Отметил Рустам';
+        }
+        return actor==='Диана'?'Сняла отметку Диана':'Снял отметку Рустам';
+      }
+
+      function showTickTickWritePermission(){
+        const badge=document.getElementById('ticktickBadge');
+        const connect=document.getElementById('ticktickConnect');
+        badge.hidden=false;
+        badge.textContent='Нужно разрешение';
+        connect.textContent='Разрешить отметки';
+        connect.classList.add('show');
+      }
+
+      async function toggleTickTickChecklistItem(task,item,row,writable){
+        if(!task?.id||!item?.id||row?.dataset?.busy==='1') return;
+        if(writable===false){
+          showTickTickWritePermission();
+          try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+          return;
+        }
+
+        const nextCompleted=!Boolean(item.completed);
+        row.dataset.busy='1';
+        row.disabled=true;
+        row.classList.add('syncing');
+
+        const meta=row.querySelector('.ticktick-check-meta');
+        const previousMeta=meta?.textContent||'';
+        if(meta){
+          meta.hidden=false;
+          meta.textContent='Сохраняю в TickTick…';
+        }
+
+        try{
+          const response=await fetch('/api/ticktick/checklist-toggle',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              initData:tg?.initData||'',
+              taskId:task.id,
+              itemId:item.id,
+              completed:nextCompleted
+            }),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+
+          if((response.status===401||response.status===403)&&payload.reconnectRequired){
+            showTickTickWritePermission();
+            if(meta){
+              meta.hidden=false;
+              meta.textContent='Нужно разрешить изменения в TickTick';
+            }
+            try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+            return;
+          }
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'ticktick-checklist-toggle');
+
+          item.completed=Boolean(payload.item?.completed);
+          item.changedBy=String(payload.item?.changedBy||currentActor||'');
+          item.changedAt=String(payload.item?.changedAt||'');
+          renderTickTickDetails(task,{writable:true,preserveExpanded:true});
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          setTimeout(()=>refreshStateBackup(),250);
+        }catch(_){
+          const badge=document.getElementById('ticktickBadge');
+          badge.hidden=false;
+          badge.textContent='Ошибка синхронизации';
+          if(meta){
+            meta.hidden=!previousMeta;
+            meta.textContent=previousMeta;
+          }
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }finally{
+          row.dataset.busy='0';
+          row.disabled=false;
+          row.classList.remove('syncing');
+        }
+      }
+
+      function renderTickTickDetails(task,{writable=true,preserveExpanded=false}={}){
         const panel=document.getElementById('ticktickPanel');
         const toggle=document.getElementById('ticktickToggle');
         const descriptionBlock=document.getElementById('ticktickDescriptionBlock');
         const description=document.getElementById('ticktickDescription');
         const checklistBlock=document.getElementById('ticktickChecklistBlock');
         const checklist=document.getElementById('ticktickChecklist');
+        const wasExpanded=preserveExpanded&&panel.classList.contains('expanded');
 
         const descriptionText=String(task?.description||'').trim();
         const items=Array.isArray(task?.checklist)?task.checklist.filter(item=>item?.title):[];
@@ -5678,8 +5810,12 @@
         checklist.replaceChildren();
         checklistBlock.classList.toggle('hidden',!items.length);
         for(const item of items){
-          const row=document.createElement('div');
+          const row=document.createElement('button');
+          row.type='button';
           row.className='ticktick-check-item'+(item.completed?' done':'');
+          row.disabled=!item?.id||!task?.id;
+          row.setAttribute('aria-pressed',item.completed?'true':'false');
+          row.setAttribute('aria-label',(item.completed?'Снять отметку: ':'Отметить: ')+item.title);
 
           const box=document.createElement('span');
           box.className='ticktick-check-box';
@@ -5688,15 +5824,28 @@
             box.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
           }
 
+          const copy=document.createElement('span');
+          copy.className='ticktick-check-copy';
+
           const label=document.createElement('span');
+          label.className='ticktick-check-label';
           label.textContent=item.title;
-          row.append(box,label);
+
+          const meta=document.createElement('span');
+          meta.className='ticktick-check-meta';
+          const auditText=tickTickChecklistAuditText(item);
+          meta.textContent=auditText;
+          meta.hidden=!auditText;
+
+          copy.append(label,meta);
+          row.append(box,copy);
+          row.addEventListener('click',()=>toggleTickTickChecklistItem(task,item,row,writable));
           checklist.appendChild(row);
         }
 
         panel.classList.toggle('expandable',hasDetails);
         toggle.tabIndex=hasDetails?0:-1;
-        setTickTickExpanded(false);
+        setTickTickExpanded(Boolean(wasExpanded&&hasDetails));
       }
 
       function renderTickTickState(payload){
@@ -5707,6 +5856,7 @@
         const connect=document.getElementById('ticktickConnect');
 
         connect.classList.remove('show');
+        connect.textContent='Подключить TickTick';
         date.textContent='';
         assignee.textContent='';
         assignee.hidden=true;
@@ -5723,7 +5873,7 @@
           title.textContent='Подключите общий список TickTick.';
           badge.hidden=false;
           badge.textContent='Не подключён';
-           connect.classList.add('show');
+          connect.classList.add('show');
           return;
         }
 
@@ -5738,6 +5888,7 @@
           title.textContent='В общем списке нет ближайших задач с датой.';
           badge.hidden=true;
           badge.textContent='';
+          if(payload?.writable===false) showTickTickWritePermission();
           return;
         }
 
@@ -5750,9 +5901,11 @@
           assignee.hidden=true;
           assignee.textContent='';
         }
+
         badge.hidden=true;
         badge.textContent='';
-        renderTickTickDetails(payload.task);
+        if(payload?.writable===false) showTickTickWritePermission();
+        renderTickTickDetails(payload.task,{writable:payload?.writable!==false});
       }
 
       function setupTickTickDisclosure(){
