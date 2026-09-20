@@ -42,6 +42,7 @@ const {
   chooseNextTask,
   resolveAssigneeName,
   tokenHasWriteScope,
+  visibleChecklistItems,
   updateTaskChecklistItem,
 } = require('./ticktick-client.cjs');
 const {
@@ -346,13 +347,12 @@ async function handleTickTick(req, res, action, options = {}) {
       }
 
       const auditState = await readChecklistAuditState(options).catch(() => ({ entries: {} }));
-      const checklist = (Array.isArray(task.items) ? task.items : []).slice(0, 50).map((item) => {
-        const completed = Number(item?.status || 0) === 1;
-        const audit = checklistAuditForItem(auditState, task.id, item?.id, completed);
+      const checklist = visibleChecklistItems(task.items, 50).map((item) => {
+        const audit = checklistAuditForItem(auditState, task.id, item?.id, false);
         return {
           id: String(item?.id || ''),
           title: String(item?.title || '').trim().slice(0, 500),
-          completed,
+          completed: false,
           changedBy: audit?.actor || '',
           changedAt: audit?.changedAt || '',
         };
