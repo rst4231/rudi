@@ -3951,6 +3951,25 @@
       overflow-wrap:anywhere;
     }
 
+    /* Calendar spacing: compact, even vertical rhythm */
+    body[data-app-tab="schedule"] .work-page{
+      gap:12px!important;
+    }
+    body[data-app-tab="schedule"] .footer{
+      margin-top:2px!important;
+      gap:10px!important;
+      padding-top:0!important;
+    }
+    body[data-app-tab="schedule"] .footer .year-progress{
+      margin:0 auto!important;
+    }
+    body[data-app-tab="schedule"] .footer > div:not(.year-progress):not(.home-layout-actions){
+      margin-top:0!important;
+    }
+    body[data-app-tab="schedule"] .shell{
+      row-gap:12px!important;
+    }
+
   </style>
 </head>
 <body class="auth-pending">
