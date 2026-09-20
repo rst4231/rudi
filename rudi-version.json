@@ -1,7 +1,7 @@
 {
   "current": "v0.1",
   "versionBranch": "versions/v0.1",
-  "releaseCommit": null,
+  "releaseCommit": "c79597b552ee3012bf3e5030bd275f321085a0f1",
   "createdAt": "2026-09-20",
   "notes": [
     "Разделён верхний профильный блок: цитата и погода, мой блок, блок партнёра.",
@@ -10,5 +10,11 @@
     "Добавлен календарь совместных дел из TickTick с отдельным сворачиванием и выбором месяца.",
     "Убрана подпись рабочий день рядом с заголовком календаря.",
     "Версия приложения отображается в футере."
-  ]
+  ],
+  "verified": {
+    "workflow": "Verify RUDI v0.1",
+    "runId": 35493443793,
+    "result": "success",
+    "tests": "targeted tests + syntax checks + npm run build"
+  }
 }
