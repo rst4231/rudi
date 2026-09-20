@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const html = fs.readFileSync('public/index.html', 'utf8');
+const html = ['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
 test('RUDI v0.1 shows dual calendars and app version', () => {
   assert.match(html, /График Дианы/);
