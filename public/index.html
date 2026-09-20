@@ -4414,6 +4414,37 @@
       let homeTileHost = null;
       const HOME_TILE_DEFAULT_ORDER = ['profile','priority','partner','daily','tools'];
       const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
+      const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v1';
+      let stateBackupRefreshPromise = null;
+
+      function readStateBackupToken(){
+        try{return String(localStorage.getItem(STATE_BACKUP_STORAGE_KEY)||'').trim()}catch(_){return ''}
+      }
+
+      function storeStateBackupToken(value){
+        const token=String(value||'').trim();
+        if(!token) return;
+        try{localStorage.setItem(STATE_BACKUP_STORAGE_KEY,token)}catch(_){}
+      }
+
+      async function refreshStateBackup(){
+        if(!currentActor||!tg?.initData) return;
+        if(stateBackupRefreshPromise) return stateBackupRefreshPromise;
+        stateBackupRefreshPromise=(async()=>{
+          try{
+            const response=await fetch('/api/partner-message?rudiAction=state-backup',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({initData:tg.initData}),
+              cache:'no-store'
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(response.ok&&payload.ok&&payload.backupToken) storeStateBackupToken(payload.backupToken);
+          }catch(_){}
+          finally{stateBackupRefreshPromise=null}
+        })();
+        return stateBackupRefreshPromise;
+      }
 
       function homeLayoutStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -4851,12 +4882,13 @@
           const response=await fetch('/api/partner-message?rudiAction=app-auth',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData}),
+            body:JSON.stringify({initData:tg.initData,backupToken:readStateBackupToken()}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
+          if(payload.backupToken) storeStateBackupToken(payload.backupToken);
           applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
           markSelfPresenceVisible();
           cacheHolidayItems(payload.holidayHighlights);
@@ -6929,6 +6961,7 @@
         loadWorkCalendar();
         loadSharedAlbum();
         refreshPresence(true);
+        setTimeout(()=>refreshStateBackup(),2500);
       }
 
       init().catch(error=>{
@@ -6943,6 +6976,7 @@
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor) resetMoodForNewDay()},5000);
       setInterval(()=>{if(currentActor) refreshPresence(true)},PRESENCE_REFRESH_MS);
+      setInterval(()=>{if(currentActor) refreshStateBackup()},60*1000);
 
       function ensureAppSurface(){
         applyTheme();
@@ -6969,7 +7003,8 @@
           loadSharedAlbum(),
           loadProducts({silent:true}),
           refreshPresence(true),
-          refreshDailyReactions()
+          refreshDailyReactions(),
+          refreshStateBackup()
         ]);
         ensureAppSurface();
       }
