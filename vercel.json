@@ -96,6 +96,10 @@
       "destination": "/api/partner-message?ticktickAction=next"
     },
     {
+      "source": "/api/ticktick/calendar",
+      "destination": "/api/partner-message?ticktickAction=calendar"
+    },
+    {
       "source": "/api/ticktick/checklist-toggle",
       "destination": "/api/partner-message?ticktickAction=checklist-toggle"
     },

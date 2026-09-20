@@ -244,6 +244,122 @@ async function fetchProjectData(accessToken, projectId, options = {}) {
   return response.json();
 }
 
+
+const CALENDAR_TIMEZONE = 'Europe/Moscow';
+
+function calendarDateKey(date, timeZone = CALENDAR_TIMEZONE) {
+  const value = date instanceof Date ? date : new Date(date);
+  if (!Number.isFinite(value.getTime())) return '';
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(value)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  );
+  return [parts.year, parts.month, parts.day].join('-');
+}
+
+function calendarTime(date, timeZone = CALENDAR_TIMEZONE) {
+  const value = date instanceof Date ? date : new Date(date);
+  if (!Number.isFinite(value.getTime())) return null;
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(value);
+}
+
+function tickTickMonthRange(now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE) {
+  const today = calendarDateKey(now, timeZone);
+  const [year, month] = today.split('-').map(Number);
+  const offset = view === 'next-month' ? 1 : 0;
+  const first = new Date(Date.UTC(year, month - 1 + offset, 1));
+  const rangeYear = first.getUTCFullYear();
+  const rangeMonth = first.getUTCMonth() + 1;
+  const dayCount = new Date(Date.UTC(rangeYear, rangeMonth, 0)).getUTCDate();
+  return {
+    view: offset ? 'next-month' : 'month',
+    year: rangeYear,
+    month: rangeMonth,
+    dayCount,
+    startKey: [
+      rangeYear,
+      String(rangeMonth).padStart(2, '0'),
+      '01',
+    ].join('-'),
+  };
+}
+
+function tickTickTaskDateKey(task, timeZone = CALENDAR_TIMEZONE) {
+  const raw = String(task?.startDate || task?.dueDate || '').trim();
+  if (!raw) return '';
+  if (task?.isAllDay) {
+    const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+  }
+  return calendarDateKey(raw, timeZone);
+}
+
+function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE) {
+  const range = tickTickMonthRange(now, view, timeZone);
+  const days = Array.from({ length: range.dayCount }, (_, index) => {
+    const date = new Date(Date.UTC(range.year, range.month - 1, index + 1));
+    const key = [
+      date.getUTCFullYear(),
+      String(date.getUTCMonth() + 1).padStart(2, '0'),
+      String(date.getUTCDate()).padStart(2, '0'),
+    ].join('-');
+    return { date: key, events: [] };
+  });
+  const byDate = new Map(days.map((day) => [day.date, day]));
+
+  for (const task of Array.isArray(tasks) ? tasks : []) {
+    const key = tickTickTaskDateKey(task, timeZone);
+    const day = byDate.get(key);
+    if (!day) continue;
+
+    const rawStart = String(task?.startDate || task?.dueDate || '').trim();
+    const rawDue = String(task?.dueDate || '').trim();
+    const allDay = Boolean(task?.isAllDay);
+    const startTime = allDay || !rawStart ? null : calendarTime(rawStart, timeZone);
+    let endTime = null;
+    if (!allDay && rawDue && rawDue !== rawStart && calendarDateKey(rawDue, timeZone) === key) {
+      endTime = calendarTime(rawDue, timeZone);
+    }
+
+    day.events.push({
+      id: String(task?.id || ''),
+      title: String(task?.title || '').trim() || 'Совместное дело',
+      allDay,
+      startTime,
+      endTime,
+      assignee: resolveAssigneeName(task?.assigneeUsername),
+      assigned: Boolean(String(task?.assigneeUsername || '').trim()),
+      completed: Number(task?.status || 0) !== 0,
+    });
+  }
+
+  for (const day of days) {
+    day.events.sort((left, right) => {
+      const leftTime = left.startTime || '99:99';
+      const rightTime = right.startTime || '99:99';
+      return leftTime.localeCompare(rightTime) || left.title.localeCompare(right.title, 'ru');
+    });
+    day.hasEvents = day.events.length > 0;
+  }
+
+  return {
+    view: range.view,
+    monthStart: range.startKey,
+    days,
+  };
+}
+
 module.exports = {
   AUTH_URL,
   TOKEN_URL,
@@ -264,4 +380,10 @@ module.exports = {
   checklistUpdateBody,
   updateTaskChecklistItem,
   fetchProjectData,
+  CALENDAR_TIMEZONE,
+  calendarDateKey,
+  calendarTime,
+  tickTickMonthRange,
+  tickTickTaskDateKey,
+  buildTickTickCalendar,
 };

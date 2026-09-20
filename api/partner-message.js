@@ -37,6 +37,7 @@ const {
   exchangeCode,
   loadTickTickConfig,
   fetchProjectData,
+  buildTickTickCalendar,
   chooseNextTask,
   resolveAssigneeName,
   tokenHasWriteScope,
@@ -363,6 +364,82 @@ async function handleTickTick(req, res, action, options = {}) {
         });
       }
       console.error('RUDI_TICKTICK_NEXT_ERROR', String(error?.message || error));
+      return res.status(502).json({ ok: false, connected: true, error: 'ticktick-unavailable' });
+    }
+  }
+
+
+  if (action === 'calendar') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    let body;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+
+    if (!credentialsConfigured(options.env || process.env)) {
+      return res.status(503).json({
+        ok: false,
+        connected: false,
+        configured: false,
+        error: 'ticktick-not-configured',
+      });
+    }
+
+    const config = await loadTickTickConfig(options);
+    if (!config.enabled) {
+      return res.status(200).json({
+        ok: true,
+        enabled: false,
+        connected: true,
+        view: 'month',
+        days: [],
+      });
+    }
+
+    const token = await readToken(options);
+    if (!token?.accessToken) {
+      return res.status(401).json({
+        ok: false,
+        connected: false,
+        configured: true,
+        connectUrl: '/api/ticktick/connect',
+        error: 'ticktick-not-connected',
+      });
+    }
+
+    const view = ['month', 'next-month'].includes(String(body.view || ''))
+      ? String(body.view)
+      : 'month';
+
+    try {
+      const data = await fetchProjectData(token.accessToken, config.projectId, options);
+      const calendar = buildTickTickCalendar(
+        data?.tasks || [],
+        options.now ? new Date(options.now) : new Date(),
+        view
+      );
+      return res.status(200).json({
+        ok: true,
+        connected: true,
+        enabled: true,
+        project: data?.project?.name || 'Общий',
+        ...calendar,
+      });
+    } catch (error) {
+      if (String(error?.message || '') === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({
+          ok: false,
+          connected: false,
+          configured: true,
+          connectUrl: '/api/ticktick/connect',
+          error: 'ticktick-reconnect-required',
+        });
+      }
+      console.error('RUDI_TICKTICK_CALENDAR_ERROR', String(error?.message || error));
       return res.status(502).json({ ok: false, connected: true, error: 'ticktick-unavailable' });
     }
   }

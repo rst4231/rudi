@@ -4149,6 +4149,203 @@
       .products-tools{grid-template-columns:1fr}
     }
 
+
+    /* RUDI v0.1: split profile cards, dual calendars, version label */
+    .profile{
+      display:grid!important;
+      gap:10px!important;
+      padding:0!important;
+      overflow:visible!important;
+      border:0!important;
+      background:transparent!important;
+      box-shadow:none!important;
+      backdrop-filter:none!important;
+      -webkit-backdrop-filter:none!important;
+    }
+    .profile::after{display:none!important}
+    .profile-split-card{
+      position:relative;
+      overflow:hidden;
+      padding:14px 15px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:22px;
+      background:
+        radial-gradient(circle at 88% -8%,rgba(111,104,255,.22),transparent 34%),
+        linear-gradient(145deg,#202536 0%,#171b29 56%,#111520 100%);
+      box-shadow:0 16px 38px rgba(14,18,30,.22),inset 0 1px 0 rgba(255,255,255,.07);
+    }
+    .profile-common-card{padding:12px 14px 13px}
+    .profile-common-card .profile-compliment{
+      margin:0!important;
+      padding:9px 10px!important;
+      border-radius:13px!important;
+      background:rgba(255,255,255,.045)!important;
+      border-color:rgba(255,255,255,.08)!important;
+      color:#f7f8fd!important;
+      font-size:11.5px!important;
+      line-height:1.35!important;
+    }
+    .profile-common-card .profile-weather{
+      margin-top:7px!important;
+      padding-top:10px!important;
+      border-top:1px solid rgba(255,255,255,.09)!important;
+    }
+    .profile-person-card{
+      display:grid;
+      gap:10px;
+    }
+    .profile-card-kicker{
+      color:rgba(232,235,246,.54);
+      font-size:9px;
+      line-height:1;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    .profile-person-card .identity{
+      display:grid!important;
+      min-width:0;
+    }
+    .profile-self-card .identity-self{
+      grid-template-columns:auto minmax(0,1fr)!important;
+      text-align:left!important;
+    }
+    .profile-partner-card .identity-partner{
+      grid-template-columns:minmax(0,1fr) auto!important;
+      text-align:right!important;
+    }
+    .profile-person-card .mood-person{
+      width:100%;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:space-between!important;
+      gap:10px!important;
+      padding:9px 10px!important;
+      border:1px solid rgba(255,255,255,.08)!important;
+      border-radius:14px!important;
+      background:rgba(255,255,255,.04)!important;
+    }
+    .profile-person-card .mood-self .mood-person-label{
+      display:block!important;
+      max-width:none!important;
+      color:rgba(232,235,246,.62)!important;
+      font-size:9px!important;
+      line-height:1!important;
+    }
+    .profile-partner-card .mood-partner .mood-person-label{display:none!important}
+    .profile-person-card .mood-prompt{
+      width:max-content;
+      max-width:100%;
+      margin:0!important;
+      justify-self:start;
+      font-size:8px!important;
+    }
+    .profile-person-card .mood-message.show{margin-top:0!important}
+    .profile .partner-work-info{
+      min-width:0;
+      display:grid;
+      justify-items:end;
+      gap:3px;
+      text-align:right;
+    }
+    .profile .partner-work-info[hidden]{display:none!important}
+    .profile .partner-work-status{
+      max-width:100%;
+      overflow:hidden;
+      color:#ff8b2f;
+      font-size:10px;
+      line-height:1.1;
+      font-weight:820;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .profile .partner-work-status.is-off{color:#35c97a}
+    .profile .partner-work-time{
+      color:rgba(232,235,246,.58);
+      font-size:8.5px;
+      line-height:1;
+      font-weight:650;
+      white-space:nowrap;
+    }
+    .profile .partner-work-time[hidden]{display:none!important}
+
+    .work-page .calendar-disclosure-card{
+      display:block!important;
+      padding:17px 16px 15px!important;
+      border:1px solid color-mix(in srgb,var(--accent) 11%,var(--line))!important;
+      border-radius:28px!important;
+      background:radial-gradient(circle at 88% -8%,color-mix(in srgb,var(--accent-soft) 72%,transparent),transparent 28%),color-mix(in srgb,var(--surface-strong) 97%,var(--surface))!important;
+      box-shadow:0 18px 44px color-mix(in srgb,var(--accent-glow) 13%,transparent),inset 0 1px 0 rgba(255,255,255,.10)!important;
+      overflow:hidden!important;
+    }
+    .work-page .calendar-heading-copy{display:grid;gap:4px;min-width:0}
+    .work-page .work-calendar-title{
+      color:var(--text);
+      font-size:20px;
+      line-height:1.08;
+      font-weight:870;
+      letter-spacing:-.035em;
+    }
+    .work-page .work-calendar-month,
+    .work-page .work-week-label{
+      color:var(--muted)!important;
+      font-size:10.5px!important;
+      line-height:1.2!important;
+      font-weight:680!important;
+      letter-spacing:.01em!important;
+      text-transform:none!important;
+    }
+    .work-page .work-calendar-head{
+      align-items:center!important;
+      margin:0 0 13px!important;
+    }
+    .work-page .work-calendar-head .block-collapse-button{
+      width:34px;height:34px;border-radius:11px;
+    }
+    .work-page .calendar-disclosure-card.is-collapsed .work-calendar-head{margin-bottom:0!important}
+    .work-page .calendar-disclosure-card .rudi-collapse-body-inner{display:grid;gap:0}
+    .work-page .calendar-disclosure-card .work-page-status{margin:0 0 8px auto}
+    .work-page .shared-calendar-card{
+      border-color:color-mix(in srgb,#6f7cff 22%,var(--line))!important;
+      background:
+        radial-gradient(circle at 90% -8%,rgba(105,122,255,.16),transparent 30%),
+        color-mix(in srgb,var(--surface-strong) 97%,var(--surface))!important;
+    }
+    .work-page .shared-calendar-card .calendar-day-cell.shared-event{
+      border-color:rgba(105,122,255,.32)!important;
+      background:linear-gradient(145deg,rgba(105,122,255,.15),rgba(105,122,255,.045)),color-mix(in srgb,var(--surface) 90%,transparent)!important;
+      color:#6675ee!important;
+    }
+    .work-page .shared-calendar-card .calendar-work-dot{background:#6d7cff!important}
+    .work-page .shared-calendar-card .calendar-day-cell.selected{
+      border-color:#6675ee!important;
+      background:linear-gradient(145deg,#7583ff,#5f6ce8)!important;
+      color:#fff!important;
+      box-shadow:inset 0 0 0 2px rgba(255,255,255,.80),0 0 0 2px #6675ee,0 7px 16px rgba(89,104,232,.18)!important;
+    }
+    .work-page .shared-calendar-card .calendar-day-cell.selected .calendar-work-dot{background:#fff!important}
+    .work-page .shared-calendar-selected{
+      border-color:rgba(105,122,255,.28)!important;
+      background:linear-gradient(135deg,rgba(105,122,255,.10),rgba(105,122,255,.025)),color-mix(in srgb,var(--surface) 94%,transparent)!important;
+    }
+    .work-page .shared-calendar-selected .work-selected-icon{
+      background:rgba(105,122,255,.12)!important;
+      color:#6675ee!important;
+    }
+    .app-version{
+      color:var(--muted);
+      font-size:10px;
+      line-height:1;
+      font-weight:680;
+      letter-spacing:.04em;
+    }
+    @media(max-width:430px){
+      .profile-split-card{padding:12px 13px;border-radius:20px}
+      .profile-common-card{padding:11px 12px}
+      .work-page .calendar-disclosure-card{padding:15px 13px 13px!important;border-radius:24px!important}
+      .work-page .work-calendar-title{font-size:18px}
+    }
+
   </style>
 </head>
 <body class="auth-pending">
@@ -4345,13 +4542,15 @@
     </section>
 
     <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="График работы Дианы">
-      <span id="workCalendarStatus" class="section-status work-page-status" hidden></span>
-      <div class="work-calendar-card">
+      <div id="workCalendarCard" class="work-calendar-card calendar-disclosure-card">
         <div class="work-calendar-head">
-          <div id="workWeekLabel" class="work-week-label">Этот месяц</div>
-          <div class="work-calendar-legend"><span></span> рабочий день</div>
+          <div class="calendar-heading-copy">
+            <div class="work-calendar-title">График Дианы</div>
+            <div id="workWeekLabel" class="work-calendar-month">Этот месяц</div>
+          </div>
         </div>
-        <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика">
+        <span id="workCalendarStatus" class="section-status work-page-status" hidden></span>
+        <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика Дианы">
           <button class="work-range-button active" type="button" data-work-view="month" aria-pressed="true">Этот месяц</button>
           <button class="work-range-button" type="button" data-work-view="next-month" aria-pressed="false">Следующий месяц</button>
         </div>
@@ -4365,6 +4564,30 @@
           <div class="work-calendar-skeleton"></div>
         </div>
         <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
+      </div>
+
+      <div id="sharedCalendarCard" class="work-calendar-card shared-calendar-card calendar-disclosure-card">
+        <div class="work-calendar-head">
+          <div class="calendar-heading-copy">
+            <div class="work-calendar-title">Календарь совместных дел</div>
+            <div id="sharedMonthLabel" class="work-calendar-month">Этот месяц</div>
+          </div>
+        </div>
+        <span id="sharedCalendarStatus" class="section-status work-page-status" hidden></span>
+        <div id="sharedCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период совместных дел">
+          <button class="work-range-button active" type="button" data-shared-view="month" aria-pressed="true">Этот месяц</button>
+          <button class="work-range-button" type="button" data-shared-view="next-month" aria-pressed="false">Следующий месяц</button>
+        </div>
+        <div id="sharedCalendarDays" class="work-calendar-days" aria-live="polite">
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+          <div class="work-calendar-skeleton"></div>
+        </div>
+        <div id="sharedCalendarSelected" class="work-calendar-selected shared-calendar-selected" hidden></div>
       </div>
 
       <article class="panel nearest-panel schedule-nearest">
@@ -4573,6 +4796,7 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
       <div>© <span id="currentYear"></span></div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.1</div>
       <a class="home-telegram-chat" href="https://t.me/+fiPsnWoBJ-c0ZmU1" target="_blank" rel="noopener noreferrer" aria-label="Открыть Telegram чат" title="Telegram чат">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.9 4.2 17.8 19c-.23 1.04-.83 1.3-1.68.81l-4.72-3.48-2.28 2.19c-.25.25-.46.46-.94.46l.34-4.81 8.75-7.91c.38-.34-.08-.53-.59-.19L5.86 12.88 1.2 11.42C.19 11.1.17 10.4 1.41 9.91L19.63 2.9c.84-.31 1.58.19 1.27 1.3Z" fill="currentColor"/></svg>
       </a>
@@ -4684,6 +4908,7 @@
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
+      let currentSharedCalendarView = 'month';
       let sharedAlbumUrl = '';
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
@@ -5069,6 +5294,60 @@
         return 'rudi:block-state:v2:'+userId;
       }
 
+
+      function setupProfileSplit(){
+        const profile=document.querySelector('.profile');
+        if(!profile||profile.dataset.profileSplitReady==='1') return;
+
+        const people=profile.querySelector('.profile-people');
+        const selfIdentity=people?.querySelector('.identity-self');
+        const partnerIdentity=people?.querySelector('.identity-partner');
+        const mood=profile.querySelector('.profile-mood');
+        const selfMood=mood?.querySelector('.mood-self');
+        const partnerMood=mood?.querySelector('.mood-partner');
+        const moodPrompt=document.getElementById('moodPrompt');
+        const moodMessage=document.getElementById('moodMessage');
+        const compliment=document.getElementById('compliment');
+        const weather=profile.querySelector('.profile-weather');
+        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!compliment||!weather) return;
+
+        const common=document.createElement('div');
+        common.className='profile-split-card profile-common-card';
+        common.append(compliment,weather);
+
+        const selfCard=document.createElement('div');
+        selfCard.className='profile-split-card profile-person-card profile-self-card';
+        const selfLabel=document.createElement('div');
+        selfLabel.className='profile-card-kicker';
+        selfLabel.textContent='Моё';
+        selfCard.append(selfLabel,selfIdentity,selfMood);
+        if(moodPrompt) selfCard.appendChild(moodPrompt);
+        if(moodMessage) selfCard.appendChild(moodMessage);
+
+        const partnerCard=document.createElement('div');
+        partnerCard.className='profile-split-card profile-person-card profile-partner-card';
+        const partnerLabel=document.createElement('div');
+        partnerLabel.className='profile-card-kicker';
+        partnerLabel.textContent='Партнёр';
+
+        const workInfo=document.createElement('div');
+        workInfo.id='partnerWorkInfo';
+        workInfo.className='partner-work-info';
+        workInfo.hidden=true;
+        const workStatus=document.createElement('span');
+        workStatus.id='partnerWorkStatus';
+        workStatus.className='partner-work-status';
+        const workTime=document.createElement('span');
+        workTime.id='partnerWorkTime';
+        workTime.className='partner-work-time';
+        workTime.hidden=true;
+        workInfo.append(workStatus,workTime);
+
+        partnerCard.append(partnerLabel,partnerIdentity,workInfo,partnerMood);
+        profile.replaceChildren(common,selfCard,partnerCard);
+        profile.dataset.profileSplitReady='1';
+      }
+
       function readBlockStates(){
         try{
           const value=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}');
@@ -5176,6 +5455,16 @@
           selector:'.daily-section',key:'daily',
           bodySelectors:['.daily-grid'],
           hostSelector:'.section-heading'
+        });
+        setupPersistentCollapsible({
+          selector:'#workCalendarCard',key:'calendar-work',
+          bodySelectors:['#workCalendarStatus','#workCalendarRanges','#workCalendarDays','#workCalendarSelected'],
+          hostSelector:'.work-calendar-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#sharedCalendarCard',key:'calendar-shared',
+          bodySelectors:['#sharedCalendarStatus','#sharedCalendarRanges','#sharedCalendarDays','#sharedCalendarSelected'],
+          hostSelector:'.work-calendar-head'
         });
       }
 
@@ -6084,6 +6373,40 @@
         }));
       }
 
+
+      function renderPartnerWorkStatus(days){
+        const info=document.getElementById('partnerWorkInfo');
+        const status=document.getElementById('partnerWorkStatus');
+        const time=document.getElementById('partnerWorkTime');
+        if(!info||!status||!time) return;
+
+        const today=todayState().key;
+        const row=(Array.isArray(days)?days:[]).find(day=>String(day?.date||'')===today);
+        if(!row){
+          info.hidden=true;
+          return;
+        }
+
+        const working=Boolean(row.working);
+        status.textContent=working?'Рабочий день':'Выходной';
+        status.classList.toggle('is-working',working);
+        status.classList.toggle('is-off',!working);
+
+        const events=Array.isArray(row.events)?row.events:[];
+        const ranges=events
+          .map(event=>event?.allDay?'Весь день':([event?.startTime,event?.endTime].filter(Boolean).join('–')))
+          .filter(Boolean);
+
+        if(working&&ranges.length){
+          time.textContent=ranges.join(' / ');
+          time.hidden=false;
+        }else{
+          time.textContent='';
+          time.hidden=true;
+        }
+        info.hidden=false;
+      }
+
       function renderWorkCalendar(payload){
         const container=document.getElementById('workCalendarDays');
         const selected=document.getElementById('workCalendarSelected');
@@ -6113,6 +6436,7 @@
         const last=dateFromKey(days[days.length-1].date);
         const view=String(payload?.view||currentWorkCalendarView||'week');
         const isMonth=view==='month'||view==='next-month';
+        if(view==='month') renderPartnerWorkStatus(days);
         if(isMonth){
           const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
           label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
@@ -6224,6 +6548,21 @@
         }
       }
 
+
+      async function refreshPartnerWorkStatus(){
+        if(!tg?.initData) return;
+        try{
+          const response=await fetch('/api/work-calendar',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData,view:'month'}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(response.ok&&Array.isArray(payload?.days)) renderPartnerWorkStatus(payload.days);
+        }catch(_){}
+      }
+
       async function loadWorkCalendar(view=currentWorkCalendarView){
         if(!tg?.initData) return;
         const requested=['month','next-month'].includes(view)?view:'month';
@@ -6242,11 +6581,180 @@
           const payload=await response.json().catch(()=>({}));
           if(!response.ok) throw new Error(payload.error||'calendar');
           renderWorkCalendar(payload);
+          if(requested==='next-month') refreshPartnerWorkStatus();
         }catch(_){
           status.hidden=false;
           status.textContent='Ошибка';
           const container=document.getElementById('workCalendarDays');
           container.innerHTML='<div class="wishlist-empty">Не удалось обновить график.</div>';
+        }
+      }
+
+
+      function setSharedCalendarRangeActive(view){
+        currentSharedCalendarView=['month','next-month'].includes(view)?view:'month';
+        document.querySelectorAll('[data-shared-view]').forEach(button=>{
+          const active=button.dataset.sharedView===currentSharedCalendarView;
+          button.classList.toggle('active',active);
+          button.setAttribute('aria-pressed',active?'true':'false');
+        });
+      }
+
+      function setupSharedCalendarDisclosure(){
+        const rangeButtons=Array.from(document.querySelectorAll('[data-shared-view]'));
+        setSharedCalendarRangeActive('month');
+        rangeButtons.forEach(button=>button.addEventListener('click',async()=>{
+          const view=button.dataset.sharedView||'month';
+          if(view===currentSharedCalendarView) return;
+          setSharedCalendarRangeActive(view);
+          await loadSharedCalendar(view);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        }));
+      }
+
+      function renderSharedCalendar(payload){
+        const container=document.getElementById('sharedCalendarDays');
+        const selected=document.getElementById('sharedCalendarSelected');
+        const status=document.getElementById('sharedCalendarStatus');
+        const label=document.getElementById('sharedMonthLabel');
+        if(!container||!selected||!status||!label) return;
+
+        container.replaceChildren();
+        selected.hidden=true;
+        selected.replaceChildren();
+
+        if(payload?.connected===false){
+          status.hidden=false;
+          status.textContent='Подключите TickTick';
+          const empty=document.createElement('div');
+          empty.className='wishlist-empty';
+          empty.textContent='TickTick пока не подключён.';
+          container.appendChild(empty);
+          return;
+        }
+
+        const days=Array.isArray(payload?.days)?payload.days:[];
+        if(!days.length){
+          status.hidden=false;
+          status.textContent=payload?.enabled===false?'Отключён':'Нет данных';
+          return;
+        }
+
+        const first=dateFromKey(days[0].date);
+        const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
+        label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
+        setSharedCalendarRangeActive(String(payload?.view||currentSharedCalendarView||'month'));
+        status.hidden=true;
+        status.textContent='';
+
+        ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(value=>{
+          const head=document.createElement('div');
+          head.className='calendar-weekday';
+          head.textContent=value;
+          container.appendChild(head);
+        });
+
+        const firstWeekday=(first.getUTCDay()+6)%7;
+        for(let i=0;i<firstWeekday;i+=1){
+          const blank=document.createElement('div');
+          blank.className='calendar-empty';
+          container.appendChild(blank);
+        }
+
+        const today=todayState().key;
+        for(const day of days){
+          const date=dateFromKey(day.date);
+          const events=Array.isArray(day.events)?day.events:[];
+          const hasEvents=events.length>0;
+          const cell=document.createElement('button');
+          cell.type='button';
+          cell.className='calendar-day-cell shared-day-cell'+(hasEvents?' shared-event':'')+(day.date===today?' today':'');
+          cell.title=hasEvents?events.map(event=>event.title).join(' · '):'Совместных дел нет';
+          cell.setAttribute(
+            'aria-label',
+            new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
+            (hasEvents?', '+events.length+' совместных дел':' — совместных дел нет')
+          );
+
+          const number=document.createElement('span');
+          number.className='calendar-date-number';
+          number.textContent=String(date.getUTCDate());
+          cell.appendChild(number);
+
+          if(hasEvents){
+            const dot=document.createElement('span');
+            dot.className='calendar-work-dot';
+            cell.appendChild(dot);
+          }
+
+          const showDayDetails=(withHaptic=false)=>{
+            container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
+            cell.classList.add('selected');
+
+            const icon=document.createElement('span');
+            icon.className='work-selected-icon';
+            icon.innerHTML=hasEvents
+              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v14H5z"/><path d="M8 3v4M16 3v4M5 9h14"/><path d="M8 13h3M8 16h6"/></svg>'
+              : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M8.5 12h7"/></svg>';
+
+            const copy=document.createElement('span');
+            copy.className='work-selected-copy';
+            const heading=document.createElement('strong');
+            heading.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(date);
+            const info=document.createElement('span');
+
+            if(hasEvents){
+              info.textContent=events.map(event=>{
+                const range=event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–'));
+                const assignee=event.assigned&&event.assignee&&event.assignee!=='Не назначен'?' · '+event.assignee:'';
+                return (range?range+' · ':'')+event.title+assignee;
+              }).join('  •  ');
+            }else{
+              info.textContent='Совместных дел нет';
+            }
+
+            copy.append(heading,info);
+            selected.replaceChildren(icon,copy);
+            selected.hidden=false;
+            if(withHaptic){
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            }
+          };
+
+          cell.addEventListener('click',()=>showDayDetails(true));
+          if(day.date===today) showDayDetails(false);
+          container.appendChild(cell);
+        }
+      }
+
+      async function loadSharedCalendar(view=currentSharedCalendarView){
+        if(!tg?.initData) return;
+        const requested=['month','next-month'].includes(view)?view:'month';
+        currentSharedCalendarView=requested;
+        setSharedCalendarRangeActive(requested);
+        const status=document.getElementById('sharedCalendarStatus');
+        if(!status) return;
+        status.hidden=false;
+        status.textContent='Обновляю';
+        try{
+          const response=await fetch('/api/ticktick/calendar',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData,view:requested}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(response.status===401){
+            renderSharedCalendar({...payload,connected:false});
+            return;
+          }
+          if(!response.ok) throw new Error(payload.error||'ticktick-calendar');
+          renderSharedCalendar(payload);
+        }catch(_){
+          status.hidden=false;
+          status.textContent='Ошибка';
+          const container=document.getElementById('sharedCalendarDays');
+          if(container) container.innerHTML='<div class="wishlist-empty">Не удалось обновить совместные дела.</div>';
         }
       }
 
@@ -7452,6 +7960,7 @@
         refreshDailyReactions();
 
         renderNearest(config);
+        setupProfileSplit();
         setupPersistentCollapsibles();
         setupPartnerMessage();
         setupStreakAndMood(config);
@@ -7462,9 +7971,11 @@
         setupSharedAlbum();
         setupCinemaPremieresButton();
         setupWorkCalendarDisclosure();
+        setupSharedCalendarDisclosure();
         loadWeather(config.weather);
         loadTickTickNext();
         loadWorkCalendar();
+        loadSharedCalendar();
         loadSharedAlbum();
         setTimeout(()=>refreshStateBackup(),2500);
       }
@@ -7477,6 +7988,7 @@
       });
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
+      setInterval(()=>{if(currentActor) loadSharedCalendar(currentSharedCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor) resetMoodForNewDay()},5000);
@@ -7504,6 +8016,7 @@
           refreshDailyMood(),
           loadTickTickNext(),
           loadWorkCalendar(currentWorkCalendarView),
+          loadSharedCalendar(currentSharedCalendarView),
           loadSharedAlbum(),
           loadProducts({silent:true}),
           refreshDailyReactions(),
