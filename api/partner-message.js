@@ -17,6 +17,7 @@ const {
 } = require('./product-list-store.cjs');
 const {
   decodeSetupKey: decodeNotificationSetupKey,
+  saveRecipient,
   saveRecipients,
   readRecipients,
   recipientFor,
@@ -40,6 +41,7 @@ const {
   chooseNextTask,
   resolveAssigneeName,
 } = require('./ticktick-client.cjs');
+const { createStateBackup, restoreStateBackup } = require('./rudi-backup.cjs');
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_AUTH_AGE_SECONDS = 24 * 60 * 60;
@@ -402,15 +404,32 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor, user } = authorizeInitData(body.initData, options);
+
+      if (body.backupToken) {
+        try {
+          const recovery = await restoreStateBackup(body.backupToken, options);
+          if (recovery.restored?.length) console.info('RUDI_STATE_RESTORED', recovery.restored.join(','));
+        } catch (error) {
+          console.warn('RUDI_STATE_BACKUP_RESTORE_WARN', String(error?.message || error));
+        }
+      }
+
+      try { await saveRecipient(actor, user?.id, options); }
+      catch (error) { console.warn('RUDI_RECIPIENT_SELF_REGISTER_WARN', String(error?.message || error)); }
+
       const date = moscowDateKey(options.now || Date.now());
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
       const recipients = await readRecipients(options).catch(() => null);
       const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
       const partnerId = recipientFor(actor, recipients);
-      const [holidays, selfProfile, partnerProfile] = await Promise.all([
+      const [holidays, selfProfile, partnerProfile, backupToken] = await Promise.all([
         holidaysPromise,
         readTelegramProfile(user?.id, actor, options),
         readTelegramProfile(partnerId, partnerActor, options),
+        createStateBackup(options).catch((error) => {
+          console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
+          return '';
+        }),
       ]);
       return res.status(200).json({
         ok: true,
@@ -418,9 +437,26 @@ async function handleRudiAction(req, res, action, options = {}) {
         selfProfile,
         partnerProfile,
         holidayHighlights: holidays?.items || [],
+        backupToken,
       });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'state-backup') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor, user } = authorizeInitData(body.initData, options);
+      try { await saveRecipient(actor, user?.id, options); } catch {}
+      const backupToken = await createStateBackup(options);
+      return res.status(200).json({ ok: true, backupToken });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const status = statusForError(error);
+      if (status === 500) console.error('RUDI_STATE_BACKUP_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
     }
   }
 
