@@ -1,3 +1,4 @@
+require('@vercel/functions');
 const fs = require('node:fs');
 const { stripStagePriceLines } = require('./event-text-sanitizer.cjs');
 const { runWithCronSecretHidden, installGlobalTelegramFetchGuard } = require('./runtime-guard.cjs');
