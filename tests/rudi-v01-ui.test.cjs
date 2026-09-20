@@ -8,7 +8,7 @@ test('calendar keeps Diana work schedule and removes retired shared calendar', (
   assert.match(html, /График Дианы/);
   assert.doesNotMatch(html, /id="sharedCalendarCard"/);
   assert.doesNotMatch(html, /setupSharedCalendarDisclosure\(\);/);
-  assert.match(html, /id="appVersion"[^>]*>v0\.3</);
+  assert.match(html, /id="appVersion"[^>]*>v0\.4</);
 });
 
 test('work calendar persists collapse state', () => {
@@ -17,7 +17,7 @@ test('work calendar persists collapse state', () => {
 
 test('Diana work status is rendered from work calendar data', () => {
   assert.match(html, /function renderPartnerWorkStatus\(days\)/);
-  assert.match(html, /status\.textContent=working\?'Рабочий день':'Выходной'/);
+  assert.match(html, /setProfileWorkStatus\('Диана',working\?'Рабочий день':'Выходной'/);
   assert.match(html, /renderPartnerWorkStatus\(days\)/);
 });
 

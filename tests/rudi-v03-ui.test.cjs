@@ -30,5 +30,5 @@ test('shared calendar is removed and resume avoids rebuilding tab',()=>{
 });
 
 test('footer exposes v0.3',()=>{
-  assert.match(html,/id="appVersion"[^>]*>v0\.3<\/div>/);
+  assert.match(html,/id="appVersion"[^>]*>v0\.4<\/div>/);
 });
