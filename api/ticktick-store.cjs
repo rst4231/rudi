@@ -30,11 +30,18 @@ async function consumeOAuthState(state, options = {}) {
 
 async function saveToken(token, options = {}) {
   const cache = options.cache || getTickTickCache(options.cacheOptions || {});
+  const savedAt = new Date().toISOString();
+  const expiresIn = Number(token?.expires_in ?? token?.expiresIn ?? 0) || 0;
+  const refreshExpiresIn = Number(token?.refresh_expires_in ?? token?.refreshExpiresIn ?? 0) || 0;
   const value = {
     accessToken: String(token?.access_token || token?.accessToken || '').trim(),
+    refreshToken: String(token?.refresh_token || token?.refreshToken || '').trim(),
     tokenType: String(token?.token_type || token?.tokenType || 'Bearer').trim() || 'Bearer',
     scope: String(token?.scope || '').trim(),
-    savedAt: new Date().toISOString(),
+    expiresIn,
+    refreshExpiresIn,
+    savedAt: String(token?.savedAt || savedAt),
+    expiresAt: String(token?.expiresAt || (expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : '')),
   };
   if (!value.accessToken) throw new Error('ticktick-access-token-missing');
   await cache.set(TOKEN_KEY, value, {
