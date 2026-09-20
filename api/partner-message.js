@@ -40,7 +40,14 @@ const {
   fetchProjectData,
   chooseNextTask,
   resolveAssigneeName,
+  tokenHasWriteScope,
+  updateTaskChecklistItem,
 } = require('./ticktick-client.cjs');
+const {
+  readChecklistAuditState,
+  recordChecklistAudit,
+  checklistAuditForItem,
+} = require('./ticktick-checklist-audit-store.cjs');
 const { createStateBackup, restoreStateBackup } = require('./rudi-backup.cjs');
 
 const MAX_MESSAGE_LENGTH = 1000;
@@ -294,20 +301,38 @@ async function handleTickTick(req, res, action, options = {}) {
     try {
       const data = await fetchProjectData(token.accessToken, config.projectId, options);
       const task = chooseNextTask(data?.tasks || [], options.now ? new Date(options.now) : new Date());
+      const scopeState = tokenHasWriteScope(token);
+      const writable = scopeState !== false;
+
       if (!task) {
         return res.status(200).json({
           ok: true,
           connected: true,
           enabled: true,
+          writable,
           project: data?.project?.name || 'Общий',
           task: null,
         });
       }
 
+      const auditState = await readChecklistAuditState(options).catch(() => ({ entries: {} }));
+      const checklist = (Array.isArray(task.items) ? task.items : []).slice(0, 50).map((item) => {
+        const completed = Number(item?.status || 0) === 1;
+        const audit = checklistAuditForItem(auditState, task.id, item?.id, completed);
+        return {
+          id: String(item?.id || ''),
+          title: String(item?.title || '').trim().slice(0, 500),
+          completed,
+          changedBy: audit?.actor || '',
+          changedAt: audit?.changedAt || '',
+        };
+      }).filter((item) => item.title);
+
       return res.status(200).json({
         ok: true,
         connected: true,
         enabled: true,
+        writable,
         project: data?.project?.name || 'Общий',
         task: {
           id: task.id,
@@ -318,11 +343,7 @@ async function handleTickTick(req, res, action, options = {}) {
           assignee: resolveAssigneeName(task.assigneeUsername),
           assigned: Boolean(String(task.assigneeUsername || '').trim()),
           description: String(task.desc || task.content || '').trim().slice(0, 5000),
-          checklist: (Array.isArray(task.items) ? task.items : []).slice(0, 50).map((item) => ({
-            id: String(item?.id || ''),
-            title: String(item?.title || '').trim().slice(0, 500),
-            completed: Number(item?.status || 0) === 1,
-          })).filter((item) => item.title),
+          checklist,
         },
       });
     } catch (error) {
@@ -338,6 +359,119 @@ async function handleTickTick(req, res, action, options = {}) {
       }
       console.error('RUDI_TICKTICK_NEXT_ERROR', String(error?.message || error));
       return res.status(502).json({ ok: false, connected: true, error: 'ticktick-unavailable' });
+    }
+  }
+
+  if (action === 'checklist-toggle') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+
+    let actor;
+    let body;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      ({ actor } = authorizeInitData(body.initData, options));
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+
+    if (!credentialsConfigured(options.env || process.env)) {
+      return res.status(503).json({ ok: false, configured: false, error: 'ticktick-not-configured' });
+    }
+
+    const taskId = String(body.taskId || '').trim();
+    const itemId = String(body.itemId || '').trim();
+    if (!taskId || !itemId || typeof body.completed !== 'boolean') {
+      return res.status(400).json({ ok: false, error: 'ticktick-checklist-toggle-invalid' });
+    }
+
+    const config = await loadTickTickConfig(options);
+    if (!config.enabled) {
+      return res.status(409).json({ ok: false, enabled: false, error: 'ticktick-disabled' });
+    }
+
+    const token = await readToken(options);
+    if (!token?.accessToken) {
+      return res.status(401).json({
+        ok: false,
+        connected: false,
+        reconnectRequired: true,
+        error: 'ticktick-not-connected',
+      });
+    }
+
+    const scopeState = tokenHasWriteScope(token);
+    if (scopeState === false) {
+      return res.status(403).json({
+        ok: false,
+        connected: true,
+        writable: false,
+        reconnectRequired: true,
+        error: 'ticktick-write-permission-required',
+      });
+    }
+
+    try {
+      const updated = await updateTaskChecklistItem(
+        token.accessToken,
+        config.projectId,
+        taskId,
+        itemId,
+        body.completed,
+        options
+      );
+
+      let changedAt = new Date(options.now || Date.now()).toISOString();
+      let auditPersisted = false;
+      try {
+        const state = await recordChecklistAudit(taskId, itemId, body.completed, actor, options);
+        const audit = checklistAuditForItem(state, taskId, itemId, body.completed);
+        if (audit?.changedAt) changedAt = audit.changedAt;
+        auditPersisted = true;
+      } catch (error) {
+        console.warn('RUDI_TICKTICK_CHECKLIST_AUDIT_WARN', String(error?.message || error));
+      }
+
+      return res.status(200).json({
+        ok: true,
+        connected: true,
+        writable: true,
+        auditPersisted,
+        item: {
+          id: itemId,
+          completed: Boolean(body.completed),
+          changedBy: actor,
+          changedAt,
+          ticktickStatus: Number(updated?.item?.status ?? (body.completed ? 1 : 0)),
+        },
+      });
+    } catch (error) {
+      const code = String(error?.message || error);
+      if (code === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({
+          ok: false,
+          connected: false,
+          reconnectRequired: true,
+          error: 'ticktick-reconnect-required',
+        });
+      }
+      if (code === 'ticktick-write-forbidden') {
+        return res.status(403).json({
+          ok: false,
+          connected: true,
+          writable: false,
+          reconnectRequired: true,
+          error: 'ticktick-write-permission-required',
+        });
+      }
+      if (code === 'ticktick-task-not-found' || code === 'ticktick-checklist-item-not-found') {
+        return res.status(404).json({ ok: false, connected: true, error: code });
+      }
+      if (code === 'ticktick-checklist-update-invalid') {
+        return res.status(400).json({ ok: false, connected: true, error: code });
+      }
+      console.error('RUDI_TICKTICK_CHECKLIST_UPDATE_ERROR', code);
+      return res.status(502).json({ ok: false, connected: true, error: 'ticktick-update-unavailable' });
     }
   }
 
