@@ -1,7 +1,7 @@
 {
   "current": "v0.4",
   "versionBranch": "versions/v0.4",
-  "releaseCommit": null,
+  "releaseCommit": "3b7106564ea69a2191fa4665cc2fb0e226f7b3c6",
   "createdAt": "2026-09-20",
   "basedOnProduction": "bf88b19b51c2d5afd9cdb22d0e68b18c25af96eb",
   "notes": [
@@ -11,5 +11,17 @@
     "Блок можно сворачивать; состояние сохраняется.",
     "Блок участвует в режиме Изменить и может перемещаться вместе с другими карточками.",
     "Данные цикла вынесены во внешний конфиг, чтобы обновлять фактические даты без нового деплоя."
-  ]
+  ],
+  "verified": {
+    "workflow": "Verify RUDI v0.4",
+    "runId": 35496511040,
+    "result": "success",
+    "checks": [
+      "v0.4 cycle UI/config tests",
+      "TickTick calendar regression",
+      "backend syntax checks",
+      "npm run build",
+      "JSON config validation"
+    ]
+  }
 }
