@@ -133,7 +133,7 @@ function feedSummaryLines(feed, date) {
   if (standup && !/не найден/iu.test(stripHtml(standup))) {
     const count = eventCount(standup);
     lines.push(count
-      ? '• ' + count + ' Stand Up ' + countWord(count, 'событие', 'события', 'событий')
+      ? '• ' + count + ' Stand Up'
       : '• Stand Up на сегодня');
   }
 
@@ -192,14 +192,18 @@ function buildMorningSummary(actor, data = {}) {
     blocks.push(workDayBlock(data.workDay));
   }
 
-  const tasks = filterTasksForActor(data.tasks, actor);
-  if (tasks.length) {
-    const visible = tasks.slice(0, 6);
-    let body = '📅 <b>Твои дела на сегодня</b>\n' + visible.map(taskLine).join('\n');
-    if (tasks.length > visible.length) body += '\n• ещё ' + (tasks.length - visible.length);
-    blocks.push(body);
+  if (data.tasks === null) {
+    blocks.push('📅 <b>Дела</b>\nНе удалось проверить TickTick.');
   } else {
-    blocks.push('📅 <b>На сегодня дел нет</b>');
+    const tasks = filterTasksForActor(data.tasks, actor);
+    if (tasks.length) {
+      const visible = tasks.slice(0, 6);
+      let body = '📅 <b>Твои дела на сегодня</b>\n' + visible.map(taskLine).join('\n');
+      if (tasks.length > visible.length) body += '\n• ещё ' + (tasks.length - visible.length);
+      blocks.push(body);
+    } else {
+      blocks.push('📅 <b>На сегодня дел нет</b>');
+    }
   }
 
   const partnerMood = moodLabel(data.moods?.[partner]?.mood);
@@ -253,12 +257,12 @@ async function loadTodayTasks(options = {}) {
   if (typeof options.loadTasksImpl === 'function') return options.loadTasksImpl(options);
   try {
     const token = await readToken(options);
-    if (!token?.accessToken) return [];
+    if (!token?.accessToken) return null;
     const config = await loadTickTickConfig({
       env: options.env || process.env,
       fetchImpl: options.tickTickFetchImpl || globalThis.fetch,
     });
-    if (!config.enabled) return [];
+    if (!config.enabled) return null;
     const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
     const data = await fetchProjectData(token.accessToken, config.projectId, {
       fetchImpl: options.tickTickFetchImpl || globalThis.fetch,
@@ -268,7 +272,7 @@ async function loadTodayTasks(options = {}) {
     return calendar.days.find((day) => day.date === today)?.events || [];
   } catch (error) {
     console.warn('RUDI_MORNING_TICKTICK_WARN', String(error?.message || error));
-    return [];
+    return null;
   }
 }
 
