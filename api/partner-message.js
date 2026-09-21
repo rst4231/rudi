@@ -23,6 +23,8 @@ const {
   readRecipients,
   normalizeRecipients,
   recipientFor,
+  readMessageNotice,
+  saveMessageNotice,
 } = require('./partner-notification-store.cjs');
 const {
   decodeSetupKey: decodeAlbumSetupKey,
@@ -60,6 +62,8 @@ const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
+const { readFeedSnapshot } = require('./feed-store.cjs');
+const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients } = require('./telegram-notifications.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
 const CYCLE_BOOTSTRAP_HASH = '12818afbe0d73e63efcf5ab9f181ff8e6b9d48cdbcaf126bddeadac611818de5';
@@ -158,22 +162,68 @@ function authorizeInitData(rawInitData, options = {}) {
 
 async function sendPartnerMessageNotification(actor, options = {}) {
   const recipients = await readRecipients(options);
+  const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
   const chatId = recipientFor(actor, recipients);
-  if (!chatId) return { sent: false, reason: 'recipient-not-configured' };
+  if (!recipientActor || !chatId) return { sent: false, reason: 'recipient-not-configured' };
 
-  const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: '💌 Для вас оставлено новое послание в RUDI.\n\nОткройте приложение, чтобы прочитать его.',
-      disable_notification: false,
-    }),
-  });
-  if (!response?.ok) throw new Error(`partner-notification-http-${response?.status || 0}`);
-  return { sent: true };
+  const previous = await readMessageNotice(recipientActor, options).catch(() => null);
+  if (previous?.messageId) {
+    try {
+      await telegramDeleteMessage(previous.chatId || chatId, previous.messageId, options);
+    } catch (error) {
+      console.warn('RUDI_PARTNER_NOTIFICATION_DELETE_WARN', String(error?.message || error));
+    }
+  }
+
+  const sent = await telegramSendMessage(
+    chatId,
+    `💌 ${recipientActor}, для вас оставлено новое послание.`,
+    {
+      ...options,
+      tab: 'home',
+      buttonText: 'Открыть RUDI',
+    }
+  );
+  if (sent.messageId) {
+    await saveMessageNotice(recipientActor, { chatId, messageId: sent.messageId }, options);
+  }
+  return { sent: true, messageId: sent.messageId || null };
+}
+
+async function sendActivityNotification(text, tab, options = {}) {
+  try {
+    return await sendToAllRecipients(text, {
+      ...options,
+      tab,
+      buttonText: tab === 'wishlist' ? 'Открыть вишлист'
+        : tab === 'products' ? 'Открыть продукты'
+        : tab === 'home' ? 'Открыть RUDI'
+        : undefined,
+    });
+  } catch (error) {
+    console.warn('RUDI_ACTIVITY_NOTIFICATION_WARN', String(error?.message || error));
+    return [];
+  }
+}
+
+function boughtNotificationText(actor) {
+  return actor === 'Диана' ? 'Диана купила продукты.' : 'Рустам купил продукты.';
+}
+
+function wishlistNotificationText(owner, text) {
+  return `${owner} ${owner === 'Диана' ? 'добавила' : 'добавил'} в вишлист: ${String(text || '').trim()}.`;
+}
+
+const MOOD_NOTICE = {
+  low: { phrase: 'настроение не очень', emoji: '😔' },
+  ok: { phrase: 'нормальное настроение', emoji: '😐' },
+  great: { phrase: 'отличное настроение', emoji: '😄' },
+};
+
+function moodNotificationText(recipient, actor, mood) {
+  const view = MOOD_NOTICE[String(mood || '')];
+  if (!view) return '';
+  return `${recipient}, у ${actor} сейчас ${view.phrase} ${view.emoji}.`;
 }
 
 async function telegramBotCall(method, payload, options = {}) {
@@ -1124,7 +1174,17 @@ async function handleRudiAction(req, res, action, options = {}) {
       let row;
 
       if (operation === 'set') {
+        const before = await readDailyMood(date, options).catch(() => null);
+        const previousMood = before?.moods?.[actor]?.mood || '';
         row = await setDailyMood(date, actor, body.mood, options);
+        const nextMood = row?.moods?.[actor]?.mood || '';
+        if (nextMood && nextMood !== previousMood) {
+          await sendActivityNotification(
+            (recipient) => moodNotificationText(recipient, actor, nextMood),
+            'home',
+            options
+          );
+        }
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
       } else {
@@ -1151,6 +1211,20 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({ ok: true, message });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'feed') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      const feed = await readFeedSnapshot(options);
+      return res.status(200).json({ ok: true, actor, ...feed });
+    } catch (error) {
+      const status = statusForError(error);
+      if (status === 500) console.error('RUDI_FEED_ERROR', String(error?.message || error));
+      return res.status(status).json({ ok: false, error: String(error?.message || error) });
     }
   }
 
@@ -1273,10 +1347,16 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'bought') {
         const state = await markProductBought(body.id, actor, options);
+        await sendActivityNotification(boughtNotificationText(actor), 'products', options);
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'buy-checked') {
+        const before = await readProductList(options);
+        const checkedCount = (before.items || []).filter((item) => Boolean(item.checked)).length;
         const state = await markCheckedProductsBought(actor, options);
+        if (checkedCount > 0) {
+          await sendActivityNotification(boughtNotificationText(actor), 'products', options);
+        }
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'clear') {
@@ -1311,6 +1391,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'add') {
         const result = await addWish(body.text, body.url, owner, options);
+        await sendActivityNotification(wishlistNotificationText(owner, result.item?.text), 'wishlist', options);
         return res.status(200).json({ ok: true, owner, ...result.state });
       }
       if (operation === 'toggle') {
@@ -1387,5 +1468,8 @@ module.exports.statusForError = statusForError;
 module.exports.handleTickTick = handleTickTick;
 module.exports.handleRudiAction = handleRudiAction;
 module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
+module.exports.boughtNotificationText = boughtNotificationText;
+module.exports.wishlistNotificationText = wishlistNotificationText;
+module.exports.moodNotificationText = moodNotificationText;
 
 module.exports.correctRecipientsForSession = correctRecipientsForSession;
