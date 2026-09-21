@@ -56,6 +56,10 @@ function partnerFor(actor) {
   return actor === 'Рустам' ? 'Диана' : 'Рустам';
 }
 
+function partnerGenitive(actor) {
+  return actor === 'Рустам' ? 'Дианы' : 'Рустама';
+}
+
 function assigneeFor(actor) {
   return actor === 'Рустам' ? 'RST' : 'Ди';
 }
@@ -224,7 +228,7 @@ function buildMorningSummary(actor, data = {}) {
   }
 
   if (data.newMessage) {
-    blocks.push('💌 <b>Новое послание от ' + partner + '</b>');
+    blocks.push('💌 <b>Новое послание от ' + partnerGenitive(actor) + '</b>');
   }
 
   const productCount = Number(data.productCount || 0);
@@ -382,6 +386,7 @@ module.exports = {
   NAMESPACE,
   ACTORS,
   partnerFor,
+  partnerGenitive,
   assigneeFor,
   filterTasksForActor,
   moodLabel,
