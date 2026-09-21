@@ -515,13 +515,17 @@
             const next=button.dataset.appTab||'home';
             if(next===currentAppTab){
               appTabScroll[next]=window.scrollY||0;
+              if(next==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               return;
             }
             appTabScroll[currentAppTab]=window.scrollY||0;
             document.activeElement?.blur?.();
             applyAppTab(next,{scroll:true});
-            if(next==='schedule') playCalendarConfetti();
+            if(next==='schedule'){
+              playCalendarConfetti();
+              loadWorkCalendar(currentWorkCalendarView,{silent:true});
+            }
             if(next==='products'){
               loadProducts({silent:true});
               scheduleProductsRefresh(15000);
@@ -1210,7 +1214,6 @@
       function renderDianaCycle(cfg){
         const card=document.getElementById('dianaCycleCard');
         if(!card) return;
-        card.hidden=false;
         const countdown=document.getElementById('dianaCycleCountdown');
         const countdownLabel=document.getElementById('dianaCycleCountdownLabel');
         const phase=document.getElementById('dianaCyclePhase');
@@ -2140,10 +2143,22 @@
               group.appendChild(groupTitle);
               for(const event of tasks){
                 const row=document.createElement('span');
-                row.className='calendar-selected-row';
-                const range=event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–'));
+                row.className='calendar-selected-row calendar-task-row';
+                const start=String(event.startTime||'').trim();
+                const end=String(event.endTime||'').trim();
+                const range=event.allDay?'Весь день':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
                 const assignee=event.assigned&&event.assignee&&event.assignee!=='Не назначен'?' · '+event.assignee:'';
-                row.textContent=(range?range+' · ':'')+String(event.title||'Дело')+assignee;
+
+                if(range){
+                  const time=document.createElement('span');
+                  time.className='calendar-task-time';
+                  time.textContent=range;
+                  row.appendChild(time);
+                }
+                const text=document.createElement('span');
+                text.className='calendar-task-title';
+                text.textContent=String(event.title||'Дело')+assignee;
+                row.appendChild(text);
                 group.appendChild(row);
               }
               details.appendChild(group);

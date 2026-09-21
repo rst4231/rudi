@@ -1,0 +1,35 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+
+const app=fs.readFileSync('public/app.js','utf8');
+const css=fs.readFileSync('public/app.css','utf8');
+const html=fs.readFileSync('public/index.html','utf8');
+
+test('cycle renderer cannot unhide its Home-only card on Calendar tab',()=>{
+  const start=app.indexOf('function renderDianaCycle');
+  const end=app.indexOf('async function cycleRequest',start);
+  const block=app.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.doesNotMatch(block,/card\.hidden=false/);
+  assert.match(css,/body:not\(\[data-app-tab="home"\]\) #dianaCycleCard\{[\s\S]*?display:none!important/);
+});
+
+test('Calendar tab always refreshes the combined calendar',()=>{
+  assert.match(app,/if\(next===currentAppTab\)[\s\S]*?if\(next==='schedule'\) loadWorkCalendar\(currentWorkCalendarView,\{silent:true\}\)/);
+  assert.match(app,/if\(next==='schedule'\)\{[\s\S]*?playCalendarConfetti\(\);[\s\S]*?loadWorkCalendar\(currentWorkCalendarView,\{silent:true\}\)/);
+});
+
+test('TickTick deals render as separate structured rows',()=>{
+  assert.match(app,/row\.className='calendar-selected-row calendar-task-row'/);
+  assert.match(app,/time\.className='calendar-task-time'/);
+  assert.match(app,/text\.className='calendar-task-title'/);
+  assert.match(css,/\.calendar-selected-tasks \.calendar-task-row\{[\s\S]*?display:grid!important/);
+});
+
+test('Calendar block spacing is deliberately separated and assets are fresh',()=>{
+  assert.match(css,/body\[data-app-tab="schedule"\] \.work-page\{[\s\S]*?gap:18px!important/);
+  assert.match(css,/\.schedule-year-progress\{[\s\S]*?margin:0 6px 4px!important/);
+  assert.match(html,/app\.css\?v=0\.4\.6-calendar-mobile-2/);
+  assert.match(html,/app\.js\?v=0\.4\.6-calendar-mobile-2/);
+});
