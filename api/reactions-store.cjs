@@ -3,7 +3,7 @@ const { createStrictRuntimeCache, hashRuntimeCacheKey } = require('./strict-runt
 const NAMESPACE = 'rudi-reactions-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const ACTORS = new Set(['Рустам', 'Диана']);
-const TARGET_TYPES = new Set(['partner-message', 'daily-idea', 'watch']);
+const TARGET_TYPES = new Set(['partner-message', 'daily-idea', 'watch', 'feed']);
 const MAX_TARGET_KEY = 220;
 const MAX_BATCH = 12;
 
