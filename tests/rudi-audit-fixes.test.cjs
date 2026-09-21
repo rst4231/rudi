@@ -11,8 +11,8 @@ test('/api/admin endpoint is removed and Git deploys stay disabled', () => {
 
 test('frontend shell is split and Telegram SDK no longer blocks the head', () => {
   const html = fs.readFileSync('public/index.html','utf8');
-  assert.match(html, /href="\/app\.css"/);
-  assert.match(html, /src="\/app\.js"/);
+  assert.match(html, /href="\/app\.css(?:\?v=[^"]+)?"/);
+  assert.match(html, /src="\/app\.js(?:\?v=[^"]+)?"/);
   assert.doesNotMatch(html, /<style>[\s\S]{1000}/);
   const sdk = html.indexOf('telegram-web-app.js?63');
   const mainEnd = html.indexOf('</main>');

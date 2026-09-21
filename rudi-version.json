@@ -1,16 +1,15 @@
 {
-  "current": "v0.4.4",
-  "versionBranch": "versions/v0.4.4",
+  "current": "v0.4.5",
+  "versionBranch": "versions/v0.4.5",
   "releaseCommit": null,
   "createdAt": "2026-09-21",
-  "basedOnProduction": "ed675061dc16192592f342d95cc7dba93384568c",
+  "basedOnProduction": "f48bc371414c6ec4aa9a4d57ef236ff5c23c1ce2",
   "notes": [
-    "Stateful API requests now carry the encrypted Telegram CloudStorage backup and fall back to it when Vercel Runtime Cache is empty or unavailable.",
-    "Profile recipient IDs are classified by their allowed SHA-256 identity, so old swapped cache entries are automatically corrected.",
-    "Diana cycle reads and updates survive Runtime Cache loss and return a refreshed encrypted backup token.",
-    "Work calendar and shared album can read directly from encrypted backup and no longer fail only because a cache write failed.",
-    "TickTick OAuth state is server-signed instead of cache-backed; the OAuth token returns through an encrypted handoff and is merged into Telegram CloudStorage immediately.",
-    "Products and wishlist list views fall back to encrypted backup when Runtime Cache has no state.",
-    "All v0.4.3 fixes remain, including daily quote rotation and clearer mood selection."
+    "Роль Рустама и Дианы определяется по разрешённому Telegram ID и подписанному имени профиля, поэтому старая переставленная пара больше не меняет роли местами.",
+    "При каждом app-auth сохранённая пара автоматически исправляется по текущему подписанному Telegram-профилю.",
+    "Аватарки, статусы, wishlist-профили и настроение по циклу следуют исправленной роли.",
+    "Bootstrap цикла Дианы использует мягкую запись Runtime Cache и повторно создаёт корректный backup после открытия приложения.",
+    "TickTick и остальные durable fallback-механизмы v0.4.4 сохранены.",
+    "app.js и app.css версионированы, чтобы Telegram не использовал старые файлы после деплоя."
   ]
 }

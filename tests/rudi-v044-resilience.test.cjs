@@ -28,11 +28,10 @@ test('server uses encrypted backup directly when runtime cache is missing',()=>{
   assert.match(api,/calendarUrl: backupSnapshot\?\.calendarUrl \|\| ''/);
 });
 
-test('profile recipient ids are self-corrected by identity hash',()=>{
-  assert.match(recipients,/const \{ allowedActor \} = require\('\.\/rudi-access\.cjs'\)/);
+test('profile recipient ids stay private and are corrected by signed session identity',()=>{
+  assert.match(recipients,/const \{ isAllowedUserId \} = require\('\.\/rudi-access\.cjs'\)/);
   assert.match(recipients,/function normalizeRecipients/);
-  assert.match(recipients,/allowedActor\(\{ id \}\)/);
-  assert.match(recipients,/partner-notification-actor-mismatch/);
+  assert.match(api,/function correctRecipientsForSession/);
   assert.doesNotMatch(recipients,/901637773|941263519/);
 });
 
@@ -67,6 +66,7 @@ test('Diana cycle record returns a refreshed backup even if cache persistence fa
   assert.match(app,/if\(data\.backupToken\) await storeStateBackupToken\(data\.backupToken\)/);
 });
 
-test('footer exposes v0.4.4',()=>{
-  assert.match(html,/id="appVersion"[^>]*>v0\.4\.4<\/div>/);
+test('footer exposes current release version',()=>{
+  const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.replace(/\./g,'\\.');
+  assert.match(html,new RegExp('id="appVersion"[^>]*>'+version+'<\\/div>'));
 });
