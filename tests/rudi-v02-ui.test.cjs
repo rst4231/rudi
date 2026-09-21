@@ -6,7 +6,12 @@ const html=['public/index.html','public/app.css','public/app.js'].map(file=>fs.r
 test('v1 home dashboard consolidates profiles into one movable tile',()=>{
   assert.match(html,/HOME_TILE_DEFAULT_ORDER = \['dashboard','cycle','new','priority','partner','daily'\]/);
   assert.match(html,/profile\.dataset\.homeTile='dashboard'/);
-  assert.match(html,/profile\.replaceChildren\(top,todayBlock,together,quick,nearest\)/);
+  assert.match(html,/profile\.replaceChildren\(top,together,nearest\)/);
+});
+
+test('v1 home dashboard omits retired today and quick action rows',()=>{
+  assert.doesNotMatch(html,/todayBlock\.className='home-dashboard-section home-today'/);
+  assert.doesNotMatch(html,/quick\.className='home-quick-actions'/);
 });
 
 test('v1 shows per-person work status in the dashboard',()=>{
