@@ -2939,7 +2939,9 @@
       }
 
       function sharedAlbumGroupLabel(photo){
-        const key=sharedAlbumDateKey(sharedAlbumPhotoTime(photo));
+        const time=sharedAlbumPhotoTime(photo);
+        if(!time) return {key:'undated',label:'Без даты'};
+        const key=sharedAlbumDateKey(time);
         if(!key) return {key:'undated',label:'Без даты'};
         const today=sharedAlbumDateKey(new Date());
         if(key===today) return {key:'today',label:'Сегодня'};
@@ -2976,7 +2978,9 @@
         const todayKey=sharedAlbumDateKey(new Date());
         const todayMs=Date.parse(todayKey+'T12:00:00Z');
         const candidates=photos.filter(photo=>{
-          const key=sharedAlbumDateKey(sharedAlbumPhotoTime(photo));
+          const photoTime=sharedAlbumPhotoTime(photo);
+          if(!photoTime) return false;
+          const key=sharedAlbumDateKey(photoTime);
           if(!key) return false;
           const time=Date.parse(key+'T12:00:00Z');
           return Number.isFinite(time)&&Number.isFinite(todayMs)&&todayMs-time>=7*DAY;
