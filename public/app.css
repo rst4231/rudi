@@ -4528,6 +4528,10 @@ body[data-app-tab="feed"] .feed-page{
   align-self:start;
   margin-top:0;
 }
+body[data-app-tab="feed"] .shell{
+  padding-bottom:calc(148px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+  scroll-padding-bottom:calc(148px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)));
+}
 .feed-page{
   display:grid;
   gap:14px;
@@ -4648,26 +4652,43 @@ body[data-app-tab="feed"] .feed-page{
   gap:10px;
   color:var(--text);
   font-size:13px;
-  line-height:1.52;
+  line-height:1.58;
   overflow-wrap:anywhere;
 }
 .feed-reaction{
-  margin-top:12px;
-  padding-top:10px;
+  margin-top:10px;
+  padding-top:9px;
   border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);
 }
 .feed-reaction[hidden]{display:none!important}
 .feed-part{
-  padding:12px 13px;
+  padding:13px 14px;
   border-radius:16px;
   background:color-mix(in srgb,var(--surface-strong) 74%,transparent);
   border:1px solid color-mix(in srgb,var(--line) 68%,transparent);
+  line-height:1.62;
 }
-.feed-part br+br{display:block;content:"";margin-top:6px}
+.feed-part strong,.feed-part b{
+  line-height:1.38;
+}
+.feed-part br+br{
+  display:block;
+  content:"";
+  margin-top:9px;
+}
 .feed-part a{
+  display:block;
+  width:max-content;
+  max-width:100%;
+  margin-top:7px;
   color:var(--accent);
   font-weight:700;
+  line-height:1.38;
   text-decoration:none;
+}
+.feed-part[data-feed-kind="standup"] br+br,
+.feed-part[data-feed-kind="cinema"] br+br{
+  margin-top:11px;
 }
 .feed-empty{
   padding:14px 12px;
@@ -4692,7 +4713,11 @@ html[data-theme="dark"] .feed-card{
   .app-tab-button{font-size:7.2px}
   .app-tab-icon{width:23px;height:23px}
   .app-tab-icon svg{width:19px;height:19px}
+  body[data-app-tab="feed"] .shell{
+    padding-bottom:calc(144px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+  }
   .feed-hero{padding:19px 16px;border-radius:21px}
   .feed-hero h1{font-size:27px}
   .feed-card{padding:14px;border-radius:20px}
+  .feed-part{padding:12px 13px;font-size:13px;line-height:1.6}
 }
