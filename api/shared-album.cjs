@@ -162,7 +162,7 @@ async function fetchLatestPhotos(config, options = {}) {
 
 async function getLatestPhotos(options = {}) {
   const cache = cacheOf(options);
-  const config = await readAlbumConfig({ ...options, albumCache: cache });
+  const config = options.albumConfig?.url ? { url: normalizeAlbumUrl(options.albumConfig.url), token: extractToken(options.albumConfig.token || options.albumConfig.url) } : await readAlbumConfig({ ...options, albumCache: cache });
   if (!config) return { configured: false, photos: [], albumUrl: null, title: 'Общий альбом' };
 
   const cached = await cache.get(CACHE_KEY);
