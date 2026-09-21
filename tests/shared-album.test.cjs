@@ -10,10 +10,16 @@ test('shared album reports total photo count while only loading preview window',
     caption: 'Фото ' + index,
     derivatives: {
       preview: {
-        checksum: 'checksum-' + index,
-        width: 800,
-        height: 800,
+        checksum: 'preview-' + index,
+        width: 1200,
+        height: 900,
         fileSize: 1000 + index,
+      },
+      full: {
+        checksum: 'full-' + index,
+        width: 4032,
+        height: 3024,
+        fileSize: 8000 + index,
       },
     },
   }));
@@ -31,9 +37,13 @@ test('shared album reports total photo count while only loading preview window',
       const items = {};
       for (const id of requested) {
         const index = Number(String(id).split('-').at(-1));
-        items['checksum-' + index] = {
+        items['preview-' + index] = {
           url_location: 'photos',
-          url_path: '/photo-' + index + '.jpg',
+          url_path: '/photo-' + index + '-preview.jpg',
+        };
+        items['full-' + index] = {
+          url_location: 'photos',
+          url_path: '/photo-' + index + '-full.jpg',
         };
       }
       return new Response(JSON.stringify({
@@ -55,5 +65,10 @@ test('shared album reports total photo count while only loading preview window',
   assert.equal(result.photos.length, 40);
   assert.equal(result.title, 'Наш альбом');
   assert.equal(result.photos[0].id, 'photo-0');
-  assert.match(result.photos[0].url, /^https:\/\/cdn\.example\.test\//);
+  assert.equal(result.photos[0].width, 1200);
+  assert.equal(result.photos[0].height, 900);
+  assert.equal(result.photos[0].fullWidth, 4032);
+  assert.equal(result.photos[0].fullHeight, 3024);
+  assert.match(result.photos[0].url, /-preview\.jpg$/);
+  assert.match(result.photos[0].fullUrl, /-full\.jpg$/);
 });
