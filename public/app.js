@@ -35,6 +35,7 @@
       const LEGACY_STATE_BACKUP_CLOUD_CHUNK_PREFIX = 'rudi_state_backup_v1_';
       const STATE_BACKUP_CLOUD_CHUNK_SIZE = 3500;
       let stateBackupRefreshPromise = null;
+      let currentStateBackupToken = '';
 
       function withTimeout(promise,timeoutMs,fallback){
         return new Promise(resolve=>{
@@ -162,15 +163,19 @@
       async function readStateBackupToken(){
         const cloud=await readCloudStateBackupToken();
         if(cloud){
+          currentStateBackupToken=cloud;
           storeLocalStateBackupToken(cloud);
           return cloud;
         }
-        return readLocalStateBackupToken();
+        const local=readLocalStateBackupToken();
+        if(local) currentStateBackupToken=local;
+        return local;
       }
 
       async function storeStateBackupToken(value){
         const token=String(value||'').trim();
         if(!token) return;
+        currentStateBackupToken=token;
         storeLocalStateBackupToken(token);
         await writeCloudStateBackupToken(token).catch(()=>false);
       }
@@ -183,7 +188,7 @@
             const response=await fetch('/api/partner-message?rudiAction=state-backup',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({initData:tg.initData}),
+              body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken}),
               cache:'no-store'
             });
             const payload=await response.json().catch(()=>({}));
@@ -1164,7 +1169,7 @@
         const response=await fetchWithTimeout('/api/cycle',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
           cache:'no-store'
         },8000);
         const data=await response.json().catch(()=>({}));
@@ -1380,6 +1385,7 @@
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({
               initData:tg?.initData||'',
+              backupToken:currentStateBackupToken,
               taskId:task.id,
               itemId:item.id,
               completed:nextCompleted
@@ -1593,7 +1599,7 @@
           const response=await fetch('/api/ticktick/next',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData}),
+            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -1999,7 +2005,7 @@
           const response=await fetch('/api/work-calendar',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,view:'month'}),
+            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken,view:'month'}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -2019,7 +2025,7 @@
           const response=await fetch('/api/work-calendar',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,view:requested}),
+            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken,view:requested}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -2189,7 +2195,7 @@
           const response=await fetch('/api/ticktick/calendar',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,view:requested}),
+            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken,view:requested}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -2372,7 +2378,7 @@
           const response=await fetch('/api/shared-album',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData}),
+            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -2403,7 +2409,7 @@
         const response=await fetch('/api/wishlist',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
@@ -3006,7 +3012,7 @@
         const response=await fetch('/api/partner-message?rudiAction=products',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
