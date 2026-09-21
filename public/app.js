@@ -3859,6 +3859,47 @@
         body.appendChild(track);
       }
 
+      function parseLegacyCinemaItems(value){
+        const lines=normalizeFeedSource(value).split('\n');
+        const items=[];
+        let current=null;
+        const push=()=>{
+          if(!current?.title) return;
+          current.sources=current.sources.filter(Boolean);
+          items.push(current);
+          current=null;
+        };
+        for(const rawLine of lines){
+          const row=feedLineData(rawLine);
+          const text=row.text;
+          if(!text) continue;
+          if(/Кинопремьеры/iu.test(text)&&!/^\d+\./u.test(text)) continue;
+          const numbered=text.match(/^\d+\.\s*(.+)$/u);
+          if(numbered){
+            push();
+            current={
+              title:numbered[1].trim(),
+              posterUrl:'',
+              releaseDate:'',
+              sources:[],
+              sourceUrls:[],
+              kinopoiskUrl:row.href||''
+            };
+            continue;
+          }
+          if(!current) continue;
+          if(row.href){
+            if(!current.kinopoiskUrl) current.kinopoiskUrl=row.href;
+            continue;
+          }
+          if(!/^(Подробнее|Открыть|Источник)\s*→?$/iu.test(text)){
+            current.sources.push(cleanEventDetail(text));
+          }
+        }
+        push();
+        return items;
+      }
+
       function feedSectionSeenStorageKey(){
         return 'rudi-feed-card-seen-v1-'+(currentActor==='Диана'?'diana':'rustam');
       }
@@ -3982,9 +4023,27 @@
             part.appendChild(sanitizeFeedHtml(raw,name));
             body.appendChild(part);
           }
-        }else if(name==='cinema'&&structuredItems.length){
-          count=structuredItems.length;
-          renderFeedCinemaItems(body,structuredItems);
+        }else if(name==='cinema'){
+          const cinemaItems=structuredItems.length?structuredItems:parseLegacyCinemaItems(raw);
+          if(cinemaItems.length){
+            count=cinemaItems.length;
+            renderFeedCinemaItems(body,cinemaItems);
+          }else if(parts.length){
+            count=parts.length;
+            for(const value of parts){
+              const part=document.createElement('div');
+              part.className='feed-part';
+              part.dataset.feedKind=name;
+              part.appendChild(sanitizeFeedHtml(value,name));
+              body.appendChild(part);
+            }
+          }else{
+            hasContent=false;
+            const empty=document.createElement('div');
+            empty.className='feed-empty';
+            empty.textContent='Подборка появится после первой публикации кинопремьер.';
+            body.appendChild(empty);
+          }
         }else if(parts.length){
           count=parts.length;
           for(const value of parts){
