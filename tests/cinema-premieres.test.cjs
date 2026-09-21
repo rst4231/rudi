@@ -219,3 +219,50 @@ test('Mirage loader falls back to an official mirror when www host fails in serv
   assert.ok(calls.includes('https://film.mirage.ru/'));
   assert.ok(calls.includes('https://film.mirage.ru/film/7426/moana.htm'));
 });
+
+
+test('cinema can refresh feed data without sending anything to Telegram', async () => {
+  const data = new Map();
+  const cache = {
+    async get(key) { return data.has(key) ? structuredClone(data.get(key)) : null; },
+    async set(key, value) { data.set(key, structuredClone(value)); return true; },
+    async delete(key) { data.delete(key); return true; },
+  };
+  let telegramCalls = 0;
+  const fetchImpl = async (url) => {
+    if (String(url).includes('api.telegram.org')) telegramCalls += 1;
+    throw new Error('unexpected fetch: ' + url);
+  };
+  const row = {
+    title: 'Тестовый фильм',
+    posterUrl: 'https://example.test/poster.jpg',
+    source: 'Кинополис Мурино',
+    sourceUrl: 'https://example.test/film',
+  };
+  const result = await cinemaCollage.publishWeeklyCinemaPremieres({
+    now: new Date('2026-08-26T21:30:00Z'),
+    settings: { sections: { cinema: { enabled: true, publishToTelegram: false } }, dedupe: { cinemaDays: 60 } },
+    config: {
+      cinemaPremieres: {
+        enabled: true,
+        topicId: 705,
+        maxItems: 12,
+        kinopolis: { name: 'Кинополис Мурино', url: 'https://example.test/kinopolis' },
+        mirage: { name: 'Мираж Синема', url: 'https://example.test/mirage', fallbackUrls: [] },
+        manualByDate: {},
+      },
+    },
+    cache,
+    dedupeCache: cache,
+    controlCache: cache,
+    fetchImpl,
+    loadKinopolis: async () => [row],
+    loadMirage: async () => [],
+    recordHealth: async (value) => value,
+    seenFingerprints: new Set(),
+  });
+  assert.equal(result.telegramSuppressed, true);
+  assert.equal(result.posts, 0);
+  assert.equal(telegramCalls, 0);
+  assert.match(result.feedMessage, /Тестовый фильм/);
+});
