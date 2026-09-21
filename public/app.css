@@ -3446,8 +3446,8 @@
       pointer-events:auto!important;
     }
     .home-order-button{
-      width:32px;
-      height:30px;
+      width:30px;
+      height:28px;
       display:grid;
       place-items:center;
       padding:0;
@@ -3468,6 +3468,7 @@
     }
     .home-order-button:active:not(:disabled){transform:scale(.92)}
     .home-order-button:disabled{opacity:.25;cursor:default}
+    .home-order-button svg{width:14px;height:14px;display:block;fill:none;stroke:currentColor;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}
     body.home-layout-editing [data-home-tile] > *:not(.home-order-controls){pointer-events:none!important}
     body.home-layout-editing [data-home-tile] > .home-order-controls,
     body.home-layout-editing [data-home-tile] > .home-order-controls *{pointer-events:auto!important}
