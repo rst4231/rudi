@@ -79,10 +79,10 @@ async function mockRudi(page){
         date:'2026-09-21',
         changedSections:['facts','events','cinema'],
         sections:{
-          facts:{parts:['💡 <b>Полезный факт</b>\\n\\nТестовая польза.'],updatedAt:'2026-09-21T06:40:00.000Z'},
+          facts:{parts:['💡 <b>Полезный факт</b>\\n🚶 <b>Движение</b>\\n\\nТестовая польза.\\n\\n<a href="https://example.com/study">Исследование →</a>'],updatedAt:'2026-09-21T06:40:00.000Z'},
           events:{parts:[
             '🎤 <b>Концерт сегодня</b>\\n\\n<a href="https://example.com/concert">Подробнее →</a>',
-            '🎙 <b>Stand Up сегодня</b>\\n\\n<a href="https://example.com/standup">Подробнее →</a>'
+            '🎙 <b>Stage StandUp Club</b>\\n📅 Понедельник, 21 сентября\\nНайдено событий/сеансов: <b>2</b>\\n1. <b>Первый стендап</b>\\n🕒 19:00\\n<a href="https://example.com/standup-1">Официальная страница →</a>\\n2. <b>Второй стендап</b>\\n🕒 20:00\\n<a href="https://example.com/standup-2">Официальная страница →</a>'
           ],updatedAt:'2026-09-21T06:41:00.000Z'},
           cinema:{parts:['🎬 <b>Кинопремьеры</b>\\n\\n1. Тестовый фильм'],updatedAt:'2026-09-21T06:42:00.000Z'}
         }
