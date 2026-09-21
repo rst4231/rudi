@@ -951,7 +951,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const operation = String(body.operation || 'list').trim();
 
       if (operation === 'list') {
-        const live = await readProductList(options);
+        const live = await readProductList(options).catch(() => ({ initialized: false, version: 0, items: [], history: [] }));
         const saved = backupSnapshotFromToken(body.backupToken, options)?.products;
         const state = live?.initialized ? live : (saved?.initialized ? saved : live);
         return res.status(200).json({ ok: true, actor, ...state });
@@ -1002,7 +1002,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const operation = String(body.operation || 'list').trim();
 
       if (operation === 'list') {
-        const live = await readWishlist(options);
+        const live = await readWishlist(options).catch(() => ({ initialized: false, version: 0, items: [] }));
         const saved = backupSnapshotFromToken(body.backupToken, options)?.wishlist;
         const state = live?.initialized ? live : (saved?.initialized ? saved : live);
         return res.status(200).json({ ok: true, owner, ...state });
