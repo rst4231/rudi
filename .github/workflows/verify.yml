@@ -27,6 +27,8 @@ jobs:
           node-version: '24'
       - run: npm install
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
       - run: npm run build
       - run: |
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); JSON.parse(require('fs').readFileSync('vercel.json','utf8'));"
