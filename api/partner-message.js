@@ -694,6 +694,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const liveCycle = await readCycleState(options).catch(() => null);
         const baseCycle = liveCycle || normalizeCycleState(backupSnapshot?.cycle);
         const cycle = cycleStateWithStart(baseCycle, moscowDateKey(options.now || Date.now()));
+        cycle.updatedAt = new Date(options.now || Date.now()).toISOString();
         await writeCycleState(cycle, options).catch(() => false);
         const previousSnapshot = mergeBackupSnapshots(backupSnapshot, {
           version: 2,
