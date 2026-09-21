@@ -1,8 +1,8 @@
 const crypto = require('node:crypto');
 
 const ALLOWED_USER_HASHES = new Map([
-  ['bc4cb19bfbc2fc3438e53789abaff01aebf165d61ca65929ec839c6a045e83d2', 'Диана'],
-  ['aad6b2cb29f3c311312ad3675df3a93eea1c3476dd9968bd1bcb0bbd67ce5a62', 'Рустам'],
+  ['bc4cb19bfbc2fc3438e53789abaff01aebf165d61ca65929ec839c6a045e83d2', 'Рустам'],
+  ['aad6b2cb29f3c311312ad3675df3a93eea1c3476dd9968bd1bcb0bbd67ce5a62', 'Диана'],
 ]);
 
 function userIdHash(value) {
