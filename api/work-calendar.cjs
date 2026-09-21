@@ -346,7 +346,7 @@ async function getWorkWeek(options = {}) {
 
   const cache = cacheOf(options);
   const cacheKey = `range:${view}:${startKey}:${dayCount}`;
-  const cached = await cache.get(cacheKey);
+  const cached = await cache.get(cacheKey).catch(() => null);
   const calendarUrl = options.calendarUrl ? normalizeCalendarUrl(options.calendarUrl) : await readCalendarUrl({ ...options, cache });
   if (!calendarUrl) return { configured: false, view, weekStart: startKey, days: [] };
 
@@ -361,7 +361,7 @@ async function getWorkWeek(options = {}) {
       days,
       updatedAt: new Date().toISOString(),
     };
-    await cache.set(cacheKey, result, { ttl: WEEK_TTL_SECONDS, tags: ['rudi-work-calendar'] });
+    await cache.set(cacheKey, result, { ttl: WEEK_TTL_SECONDS, tags: ['rudi-work-calendar'] }).catch(() => false);
     return result;
   } catch (error) {
     if (cached?.days) return { ...cached, stale: true, error: String(error?.message || error) };
