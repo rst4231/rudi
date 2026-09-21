@@ -231,6 +231,39 @@ async function updateTaskChecklistItem(accessToken, projectId, taskId, itemId, c
   };
 }
 
+async function completeTickTickTask(accessToken, projectId, taskId, options = {}) {
+  const id = String(taskId || '').trim();
+  const project = String(projectId || '').trim();
+  if (!id || !project) throw new Error('ticktick-task-complete-invalid');
+
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(
+    API_BASE_URL + '/project/' + encodeURIComponent(project) + '/task/' + encodeURIComponent(id) + '/complete',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + accessToken,
+        Accept: 'application/json',
+        'user-agent': 'RUDI-TickTick/1.0',
+      },
+      cache: 'no-store',
+    }
+  );
+  if (response.status === 401) {
+    const error = new Error('ticktick-token-invalid');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 403) {
+    const error = new Error('ticktick-write-forbidden');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 404) throw new Error('ticktick-task-not-found');
+  if (!response.ok) throw new Error('ticktick-complete-failed:' + response.status);
+  return true;
+}
+
 async function fetchProjectData(accessToken, projectId, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const response = await fetchImpl(API_BASE_URL + '/project/' + encodeURIComponent(projectId) + '/data', {
@@ -416,6 +449,7 @@ module.exports = {
   fetchTask,
   checklistUpdateBody,
   updateTaskChecklistItem,
+  completeTickTickTask,
   fetchProjectData,
   CALENDAR_TIMEZONE,
   calendarDateKey,

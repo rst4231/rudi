@@ -5200,3 +5200,42 @@ body[data-app-tab="schedule"] .work-page{
     column-gap:6px!important;
   }
 }
+
+
+/* RUDI v0.4.6: today's shared TickTick tasks */
+.ticktick-panel{position:relative}
+.task-completion-confetti{position:absolute;inset:0;z-index:8;overflow:hidden;pointer-events:none;border-radius:inherit;opacity:0}
+.task-completion-confetti.is-active{opacity:1}
+.task-completion-confetti .calendar-confetti-piece{top:-15px}
+.task-completion-confetti.is-active .calendar-confetti-piece{animation:taskCompletionConfettiFall var(--confetti-duration) var(--confetti-delay) cubic-bezier(.18,.78,.28,1) forwards}
+@keyframes taskCompletionConfettiFall{
+  0%{opacity:0;transform:translate3d(0,-14px,0) rotate(0deg)}
+  10%{opacity:1}86%{opacity:1}
+  100%{opacity:0;transform:translate3d(var(--confetti-drift),170px,0) rotate(var(--confetti-turn))}
+}
+.ticktick-today-list{display:grid;gap:8px;margin:0}
+.ticktick-today-list[hidden]{display:none!important}
+.ticktick-today-task{
+  min-width:0;display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:10px;
+  padding:10px 11px;border:1px solid color-mix(in srgb,#35d870 20%,var(--line));border-radius:14px;
+  background:color-mix(in srgb,var(--surface) 82%,rgba(53,216,112,.06));
+  transition:opacity .2s ease,transform .18s ease,background-color .2s ease;
+}
+.ticktick-today-task.syncing{opacity:.62}.ticktick-today-task.done{opacity:.58;transform:scale(.985)}
+.ticktick-today-complete{
+  width:30px;height:30px;display:grid;place-items:center;margin:0;padding:0;border:1.5px solid color-mix(in srgb,#35d870 52%,var(--line));
+  border-radius:10px;background:color-mix(in srgb,#35d870 8%,var(--surface-strong));color:#22aa5e;cursor:pointer;-webkit-tap-highlight-color:transparent
+}
+.ticktick-today-complete:active:not(:disabled){transform:scale(.91)}.ticktick-today-complete:disabled{cursor:default}
+.ticktick-today-complete svg{width:18px;height:18px}
+.ticktick-today-copy{min-width:0}
+.ticktick-today-title{min-width:0;color:var(--text);font-size:15px;line-height:1.25;font-weight:780;letter-spacing:-.015em;overflow-wrap:anywhere}
+.ticktick-today-meta{margin-top:4px;color:var(--muted);font-size:10.8px;line-height:1.25;font-weight:570}
+.ticktick-today-meta[hidden]{display:none!important}
+@media(max-width:430px){
+  .ticktick-today-list{gap:7px}
+  .ticktick-today-task{grid-template-columns:32px minmax(0,1fr);gap:9px;padding:9px 10px;border-radius:13px}
+  .ticktick-today-complete{width:28px;height:28px;border-radius:9px}.ticktick-today-complete svg{width:17px;height:17px}
+  .ticktick-today-title{font-size:14px}.ticktick-today-meta{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){.task-completion-confetti{display:none!important}}

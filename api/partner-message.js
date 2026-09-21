@@ -46,6 +46,8 @@ const {
   tokenHasWriteScope,
   visibleChecklistItems,
   updateTaskChecklistItem,
+  completeTickTickTask,
+  calendarDateKey,
 } = require('./ticktick-client.cjs');
 const {
   readChecklistAuditState,
@@ -492,6 +494,109 @@ async function handleTickTick(req, res, action, options = {}) {
       }
       console.error('RUDI_TICKTICK_NEXT_ERROR', String(error?.message || error));
       return res.status(502).json({ ok: false, connected: true, error: 'ticktick-unavailable' });
+    }
+  }
+
+
+  if (action === 'today') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    let body;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+
+    if (!credentialsConfigured(options.env || process.env)) {
+      return res.status(503).json({ ok: false, connected: false, configured: false, tasks: [], error: 'ticktick-not-configured' });
+    }
+    const config = await loadTickTickConfig(options);
+    if (!config.enabled) return res.status(200).json({ ok: true, enabled: false, connected: true, writable: false, tasks: [] });
+
+    const token = await readTickTickTokenWithBackup(body, options);
+    if (!token?.accessToken) {
+      return res.status(401).json({
+        ok: false, connected: false, configured: true, tasks: [],
+        connectUrl: '/api/ticktick/connect', error: 'ticktick-not-connected',
+      });
+    }
+
+    try {
+      const now = options.now ? new Date(options.now) : new Date();
+      const data = await fetchProjectData(token.accessToken, config.projectId, options);
+      const calendar = buildTickTickCalendar(data?.tasks || [], now, 'month');
+      const today = calendarDateKey(now);
+      const tasks = (calendar.days.find((day) => day.date === today)?.events || [])
+        .filter((event) => !event.completed)
+        .map((event) => ({ ...event, date: today }));
+      return res.status(200).json({
+        ok: true, connected: true, enabled: true,
+        writable: tokenHasWriteScope(token) !== false,
+        project: data?.project?.name || 'Общий',
+        date: today, tasks,
+      });
+    } catch (error) {
+      if (String(error?.message || '') === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({
+          ok: false, connected: false, configured: true, tasks: [],
+          connectUrl: '/api/ticktick/connect', error: 'ticktick-reconnect-required',
+        });
+      }
+      console.error('RUDI_TICKTICK_TODAY_ERROR', String(error?.message || error));
+      return res.status(502).json({ ok: false, connected: true, tasks: [], error: 'ticktick-unavailable' });
+    }
+  }
+
+  if (action === 'task-complete') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    let body;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+
+    const taskId = String(body.taskId || '').trim();
+    if (!taskId) return res.status(400).json({ ok: false, error: 'ticktick-task-complete-invalid' });
+    if (!credentialsConfigured(options.env || process.env)) {
+      return res.status(503).json({ ok: false, configured: false, error: 'ticktick-not-configured' });
+    }
+
+    const config = await loadTickTickConfig(options);
+    if (!config.enabled) return res.status(409).json({ ok: false, enabled: false, error: 'ticktick-disabled' });
+    const token = await readTickTickTokenWithBackup(body, options);
+    if (!token?.accessToken) {
+      return res.status(401).json({ ok: false, connected: false, reconnectRequired: true, error: 'ticktick-not-connected' });
+    }
+    if (tokenHasWriteScope(token) === false) {
+      return res.status(403).json({
+        ok: false, connected: true, writable: false,
+        reconnectRequired: true, error: 'ticktick-write-permission-required',
+      });
+    }
+
+    try {
+      await completeTickTickTask(token.accessToken, config.projectId, taskId, options);
+      return res.status(200).json({ ok: true, connected: true, writable: true, taskId, completed: true });
+    } catch (error) {
+      const code = String(error?.message || error);
+      if (code === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({ ok: false, connected: false, reconnectRequired: true, error: 'ticktick-reconnect-required' });
+      }
+      if (code === 'ticktick-write-forbidden') {
+        return res.status(403).json({
+          ok: false, connected: true, writable: false,
+          reconnectRequired: true, error: 'ticktick-write-permission-required',
+        });
+      }
+      if (code === 'ticktick-task-not-found') return res.status(404).json({ ok: false, connected: true, error: code });
+      if (code === 'ticktick-task-complete-invalid') return res.status(400).json({ ok: false, connected: true, error: code });
+      console.error('RUDI_TICKTICK_TASK_COMPLETE_ERROR', code);
+      return res.status(502).json({ ok: false, connected: true, error: 'ticktick-update-unavailable' });
     }
   }
 

@@ -20,7 +20,7 @@ test('calendar is unified around Diana schedule, TickTick tasks and holidays',()
 test('calendar entry confetti is scoped to calendar surface',()=>{
   assert.match(html,/id="calendarConfetti"/);
   assert.match(app,/function playCalendarConfetti\(\)/);
-  assert.match(app,/if\(next==='schedule'\) playCalendarConfetti\(\)/);
+  assert.match(app,/if\(next==='schedule'\)\{[\s\S]*?playCalendarConfetti\(\)/);
   assert.match(css,/\.calendar-confetti\{/);
   assert.match(css,/@keyframes calendarConfettiFall/);
 });

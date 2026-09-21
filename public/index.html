@@ -16,7 +16,7 @@
       document.documentElement.dataset.theme = tg?.colorScheme || (dark ? 'dark' : 'light');
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=0.4.6-calendar-mobile-2">
+  <link rel="stylesheet" href="/app.css?v=0.4.6-today-tasks-1">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -176,7 +176,7 @@
         </div>
       </div>
       <div class="priority-grid">
-        <article id="ticktickPanel" class="panel ticktick-panel" aria-label="Ближайшее в TickTick">
+        <article id="ticktickPanel" class="panel ticktick-panel" aria-label="Совместные дела на сегодня">\n        <div id="taskCompletionConfetti" class="task-completion-confetti" aria-hidden="true"></div>
         <div id="ticktickToggle" class="ticktick-toggle" role="button" tabindex="-1" aria-expanded="false" aria-controls="ticktickDetails">
           <div class="ticktick-head">
             <div class="ticktick-head-spacer" aria-hidden="true"></div>
@@ -187,7 +187,7 @@
               </span>
             </div>
           </div>
-          <div id="ticktickTitle" class="ticktick-title">Загружаю ближайшее событие…</div>
+          <div id="ticktickTitle" class="ticktick-title">Загружаю дела на сегодня…</div>\n          <div id="ticktickTodayList" class="ticktick-today-list" hidden></div>
           <div class="ticktick-meta">
             <span id="ticktickDate"></span>
             <span id="ticktickAssignee"></span>
@@ -541,6 +541,6 @@
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app.js?v=0.4.6-calendar-mobile-2"></script>
+  <script src="/app.js?v=0.4.6-today-tasks-1"></script>
 </body>
 </html>

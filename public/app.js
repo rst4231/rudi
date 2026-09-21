@@ -1656,6 +1656,153 @@
         });
       }
 
+      function playTaskCompletionConfetti(){
+        const host=document.getElementById('taskCompletionConfetti');
+        if(!host) return;
+        try{if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return}catch(_){}
+        host.replaceChildren();
+        host.classList.remove('is-active');
+        const palette=['var(--green)','var(--accent)','var(--love)','#f4c95d','#72c6ff','#d98cff'];
+        for(let index=0;index<26;index++){
+          const piece=document.createElement('i');
+          piece.className='calendar-confetti-piece'+(index%5===0?' is-round':'');
+          piece.style.setProperty('--confetti-x',(4+Math.random()*92).toFixed(2)+'%');
+          piece.style.setProperty('--confetti-drift',((-54+Math.random()*108).toFixed(1))+'px');
+          piece.style.setProperty('--confetti-delay',(Math.random()*.34).toFixed(3)+'s');
+          piece.style.setProperty('--confetti-duration',(1.0+Math.random()*.7).toFixed(3)+'s');
+          piece.style.setProperty('--confetti-turn',(360+Math.round(Math.random()*540))+'deg');
+          piece.style.setProperty('--confetti-color',palette[index%palette.length]);
+          host.appendChild(piece);
+        }
+        requestAnimationFrame(()=>host.classList.add('is-active'));
+        setTimeout(()=>{host.classList.remove('is-active');host.replaceChildren()},2100);
+      }
+
+      function tickTickTodayTaskMeta(task){
+        const start=String(task?.startTime||'').trim();
+        const end=String(task?.endTime||'').trim();
+        const time=task?.allDay?'Весь день':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
+        const assignee=task?.assigned&&task?.assignee&&task.assignee!=='Не назначен'?'Ответственный: '+task.assignee:'';
+        return [time,assignee].filter(Boolean).join(' · ');
+      }
+
+      async function completeTickTickTodayTask(task,row,button,writable){
+        if(!task?.id||row?.dataset?.busy==='1') return;
+        if(writable===false){
+          showTickTickWritePermission();
+          try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+          return;
+        }
+        row.dataset.busy='1';
+        row.classList.add('syncing');
+        button.disabled=true;
+        try{
+          const response=await fetch('/api/ticktick/task-complete',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,taskId:task.id}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if((response.status===401||response.status===403)&&payload.reconnectRequired){
+            showTickTickWritePermission();
+            throw new Error(payload.error||'ticktick-write-permission-required');
+          }
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'ticktick-task-complete');
+
+          row.classList.add('done');
+          button.setAttribute('aria-checked','true');
+          button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
+          playTaskCompletionConfetti();
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          await new Promise(resolve=>setTimeout(resolve,420));
+          calendarViewCache.month=null;
+          await Promise.allSettled([loadTickTickNext(),loadWorkCalendar(currentWorkCalendarView,{silent:true})]);
+        }catch(_){
+          row.classList.remove('done');
+          const badge=document.getElementById('ticktickBadge');
+          badge.hidden=false;
+          badge.textContent='Ошибка синхронизации';
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }finally{
+          row.dataset.busy='0';
+          row.classList.remove('syncing');
+          if(row.isConnected) button.disabled=false;
+        }
+      }
+
+      function renderTickTickTodayState(payload){
+        const title=document.getElementById('ticktickTitle');
+        const list=document.getElementById('ticktickTodayList');
+        const date=document.getElementById('ticktickDate');
+        const assignee=document.getElementById('ticktickAssignee');
+        const badge=document.getElementById('ticktickBadge');
+        const connect=document.getElementById('ticktickConnect');
+        const panel=document.getElementById('ticktickPanel');
+
+        renderTickTickDetails(null);
+        panel.classList.remove('expandable','expanded');
+        connect.classList.remove('show');
+        connect.textContent='Подключить TickTick';
+        date.textContent='';date.hidden=true;
+        assignee.textContent='';assignee.hidden=true;
+        list.replaceChildren();list.hidden=true;
+        title.hidden=false;
+
+        if(payload?.configured===false){
+          title.textContent='Интеграция TickTick ещё не настроена.';
+          badge.hidden=false;badge.textContent='Настройка';return;
+        }
+        if(payload?.connected===false){
+          title.textContent='Подключите общий список TickTick.';
+          badge.hidden=false;badge.textContent='Не подключён';connect.classList.add('show');return;
+        }
+        if(payload?.enabled===false){
+          title.textContent='Синхронизация TickTick выключена.';
+          badge.hidden=false;badge.textContent='Выключено';return;
+        }
+
+        const tasks=Array.isArray(payload?.tasks)?payload.tasks.filter(task=>!task?.completed):[];
+        if(!tasks.length){
+          title.textContent='Сегодня дел нет';
+          badge.hidden=true;badge.textContent='';
+          if(payload?.writable===false) showTickTickWritePermission();
+          return;
+        }
+
+        title.hidden=true;list.hidden=false;
+        badge.hidden=false;
+        badge.textContent=tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел');
+
+        for(const task of tasks){
+          const row=document.createElement('div');
+          row.className='ticktick-today-task';
+          row.dataset.taskId=String(task?.id||'');
+
+          const complete=document.createElement('button');
+          complete.type='button';
+          complete.className='ticktick-today-complete';
+          complete.setAttribute('role','checkbox');
+          complete.setAttribute('aria-checked','false');
+          complete.setAttribute('aria-label','Отметить выполненным: '+String(task?.title||'Дело'));
+
+          const copy=document.createElement('div');
+          copy.className='ticktick-today-copy';
+          const taskTitle=document.createElement('div');
+          taskTitle.className='ticktick-today-title';
+          taskTitle.textContent=String(task?.title||'Дело');
+          const meta=document.createElement('div');
+          meta.className='ticktick-today-meta';
+          meta.textContent=tickTickTodayTaskMeta(task);
+          meta.hidden=!meta.textContent;
+          copy.append(taskTitle,meta);
+          row.append(complete,copy);
+          complete.addEventListener('click',()=>completeTickTickTodayTask(task,row,complete,payload?.writable!==false));
+          list.appendChild(row);
+        }
+        if(payload?.writable===false) showTickTickWritePermission();
+      }
+
       function setupTickTickDisclosure(){
         const panel=document.getElementById('ticktickPanel');
         const toggle=document.getElementById('ticktickToggle');
@@ -1700,30 +1847,26 @@
       async function loadTickTickNext({preserveExpanded=false}={}){
         if(!tg?.initData) return;
         try{
-          const response=await fetch('/api/ticktick/next',{
+          const response=await fetch('/api/ticktick/today',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
-          if(response.status===401){
-            renderTickTickState({...payload,connected:false},{preserveExpanded});
-            return;
-          }
+          if(response.status===401){renderTickTickTodayState({...payload,connected:false});return}
           if(!response.ok) throw new Error(payload.error||'ticktick');
-          renderTickTickState(payload,{preserveExpanded});
+          renderTickTickTodayState(payload);
         }catch(_){
-          document.getElementById('ticktickTitle').textContent='Не удалось обновить TickTick.';
-          {
-            const badge=document.getElementById('ticktickBadge');
-            badge.hidden=false;
-            badge.textContent='Ошибка';
-          }
+          const title=document.getElementById('ticktickTitle');
+          const list=document.getElementById('ticktickTodayList');
+          title.hidden=false;title.textContent='Не удалось обновить TickTick.';
+          list.hidden=true;list.replaceChildren();
+          const badge=document.getElementById('ticktickBadge');
+          badge.hidden=false;badge.textContent='Ошибка';
           document.getElementById('ticktickDate').textContent='';
           const assignee=document.getElementById('ticktickAssignee');
-          assignee.textContent='';
-          assignee.hidden=true;
+          assignee.textContent='';assignee.hidden=true;
         }
       }
 

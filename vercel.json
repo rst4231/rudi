@@ -165,6 +165,14 @@
     {
       "source": "/api/init-products",
       "destination": "/api/index?route=init-products"
+    },
+    {
+      "source": "/api/ticktick/today",
+      "destination": "/api/partner-message?ticktickAction=today"
+    },
+    {
+      "source": "/api/ticktick/task-complete",
+      "destination": "/api/partner-message?ticktickAction=task-complete"
     }
   ],
   "crons": [
