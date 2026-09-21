@@ -42,7 +42,7 @@ test('personal summary shows Diana workday only to Diana and cycle status to bot
     },
     cycle:{moodWord:'Чувствительная',phase:'Лютеиновая фаза'},
     productCount:7,
-    feedLines:['• новый полезный факт','• 2 Stand Up события'],
+    feedLines:['• новый полезный факт','• 2 Stand Up'],
   };
 
   const rustam = buildMorningSummary('Рустам', common);
@@ -140,7 +140,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(rustam.text,/Подарок Дианы/);
   assert.doesNotMatch(rustam.text,/Подарок Рустама/);
   assert.match(rustam.text,/Чувствительная/);
-  assert.match(rustam.text,/2 Stand Up события/);
+  assert.match(rustam.text,/2 Stand Up/);
   assert.doesNotMatch(rustam.text,/я обновил Ленту/);
 
   assert.match(diana.text,/Диана, доброе утро/);
