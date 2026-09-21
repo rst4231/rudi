@@ -12,10 +12,10 @@ test('work calendar persists collapse state',()=>assert.match(html,/key:'calenda
 
 test('Diana work status uses calendar hours and resting label',()=>{
   assert.match(html,/function renderPartnerWorkStatus\(days\)/);
-  assert.match(html,/workLabel=working/);
+  assert.match(html,/function dianaWorkStatusText\(row\)/);
   assert.match(html,/Работаю/);
   assert.match(html,/Отдыхаю/);
-  assert.match(html,/start&&end\?' с '\+start\+' до '\+end/);
+  assert.match(html,/return 'Работаю с '\+start\+' до '\+end/);
   assert.match(html,/renderPartnerWorkStatus\(days\)/);
 });
 
