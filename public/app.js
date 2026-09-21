@@ -920,24 +920,28 @@
         document.getElementById('appGateText').textContent=text;
       }
 
-      async function authenticateApp(){
-        if(!tg?.initData){
-          denyApp('Откройте RUDI в Telegram','Приложение доступно только через ваш Telegram-бот.');
-          return false;
-        }
+      async function loadAppBootstrap(){
+        if(!tg?.initData||!currentActor) return;
         try{
-          const backupToken=await withTimeout(readStateBackupToken(),1200,'');
-          const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-auth',{
+          const cloudToken=await withTimeout(readStateBackupToken(),1600,currentStateBackupToken||'');
+          const backupToken=String(cloudToken||currentStateBackupToken||readLocalStateBackupToken()||'');
+          const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-bootstrap',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken,ticktickHandoff:ticktickHandoffToken}),
+            body:JSON.stringify({
+              initData:tg.initData,
+              backupToken,
+              ticktickHandoff:ticktickHandoffToken
+            }),
             cache:'no-store'
-          },8000);
+          },10000);
           const payload=await response.json().catch(()=>({}));
-          if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
-          currentActor=String(payload.actor||'');
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'bootstrap');
+          if(payload.actor&&String(payload.actor)!==currentActor) return;
+          applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
+          cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
-          if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
+          if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
           if(ticktickHandoffToken){
             ticktickHandoffToken='';
             try{
@@ -947,10 +951,31 @@
               history.replaceState(null,'',url.pathname+(url.search||'')+(url.hash||''));
             }catch(_){}
           }
-          applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
-          cacheHolidayItems(payload.holidayHighlights);
+        }catch(error){
+          console.warn('RUDI_APP_BOOTSTRAP_WARN',String(error?.message||error));
+        }
+      }
+
+      async function authenticateApp(){
+        if(!tg?.initData){
+          denyApp('Откройте RUDI в Telegram','Приложение доступно только через ваш Telegram-бот.');
+          return false;
+        }
+        try{
+          const localBackupToken=readLocalStateBackupToken();
+          if(localBackupToken) currentStateBackupToken=localBackupToken;
+          const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-auth',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData}),
+            cache:'no-store'
+          },5000);
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
+          currentActor=String(payload.actor||'');
           document.body.classList.remove('auth-pending','auth-denied');
           document.body.classList.add('auth-ok');
+          setTimeout(()=>loadAppBootstrap(),0);
           return true;
         }catch(error){
           const code=String(error?.message||'');
