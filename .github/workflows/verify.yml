@@ -8,6 +8,8 @@ on:
       - 'api/**'
       - 'public/**'
       - 'build.cjs'
+      - 'rudi-version.json'
+      - 'playwright.config.cjs'
       - 'package.json'
       - 'vercel.json'
       - 'tests/**'
