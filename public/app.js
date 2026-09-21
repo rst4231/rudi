@@ -910,7 +910,7 @@
           const eventCount=homeEventRows().length;
           const rows=[
             {icon:'📅',text:tasks.length?homeTaskCountLabel(tasks.length):'Сегодня дел нет'},
-            ...(work?[{icon:work.working?'💼':'🛋',text:'Диана: '+(work.working?'Работаю':'Отдыхаю')}]:[]),
+            ...(work?[{icon:work.working?'💼':'🛋',text:'Диана: '+dianaWorkStatusText(work)}]:[]),
             ...(eventCount?[{icon:'🎙',text:eventCount+' '+(eventCount===1?'событие сегодня':eventCount<5?'события сегодня':'событий сегодня')}]:[]),
             ...(homeDashboardState.productCount>0?[{icon:'🛒',text:'Купить: '+homeDashboardState.productCount+' '+(homeDashboardState.productCount===1?'позиция':homeDashboardState.productCount<5?'позиции':'позиций')}]:[])
           ];
@@ -1484,11 +1484,18 @@
       }
 
       function updateClock(){
-        const now = new Date();
-        const weekdayRaw = new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:TZ}).format(now);
-        const weekday = weekdayRaw.replace('.', '').toUpperCase();
-        const date = new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:TZ}).format(now);
-        document.getElementById('profileMeta').textContent = weekday+' · '+date;
+        const now=new Date();
+        const weekdayRaw=new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:TZ}).format(now);
+        const weekday=weekdayRaw.charAt(0).toLocaleUpperCase('ru-RU')+weekdayRaw.slice(1);
+        const date=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:TZ}).format(now);
+        const legacy=document.getElementById('profileMeta');
+        if(legacy) legacy.textContent=weekday+' · '+date;
+        const dashboardDate=document.getElementById('homeDashboardDate');
+        if(dashboardDate) dashboardDate.textContent=weekday+', '+date;
+        if(currentActor){
+          syncStaticProfileWorkStatus();
+          renderHomeDashboard();
+        }
       }
       updateClock();
       setInterval(updateClock,30000);
@@ -2632,6 +2639,30 @@
       }
 
 
+      function dianaWorkStatusText(row){
+        if(!row||!row.working) return 'Отдыхаю';
+        const events=(Array.isArray(row.events)?row.events:[])
+          .filter(event=>!event?.allDay)
+          .map(event=>({
+            start:String(event?.startTime||'').trim(),
+            end:String(event?.endTime||'').trim()
+          }))
+          .filter(event=>event.start||event.end);
+        if(!events.length) return 'Работаю';
+        const toMinutes=value=>{
+          const match=String(value||'').match(/^(\d{1,2}):(\d{2})$/u);
+          return match?Number(match[1])*60+Number(match[2]):null;
+        };
+        const starts=events.map(event=>({value:event.start,minutes:toMinutes(event.start)})).filter(row=>row.minutes!==null);
+        const ends=events.map(event=>({value:event.end,minutes:toMinutes(event.end)})).filter(row=>row.minutes!==null);
+        const start=starts.sort((a,b)=>a.minutes-b.minutes)[0]?.value||'';
+        const end=ends.sort((a,b)=>b.minutes-a.minutes)[0]?.value||'';
+        if(start&&end) return 'Работаю с '+start+' до '+end;
+        if(start) return 'Работаю с '+start;
+        if(end) return 'Работаю до '+end;
+        return 'Работаю';
+      }
+
       function renderPartnerWorkStatus(days){
         const status=profileStatusElement('Диана');
         if(!status) return;
@@ -2650,26 +2681,8 @@
         homeDashboardState.workDay={...row,working};
         renderHomeDashboard();
         status.dataset.calendarReady='1';
-
-        const events=Array.isArray(row.events)?row.events:[];
-        const timed=events.find(event=>!event?.allDay&&(event?.startTime||event?.endTime));
-        const startTime=String(timed?.startTime||'').trim();
-        const endTime=String(timed?.endTime||'').trim();
-        const workText=working
-          ?(startTime&&endTime
-            ?'Работаю с '+startTime+' до '+endTime
-            :startTime
-              ?'Работаю с '+startTime
-              :endTime
-                ?'Работаю до '+endTime
-                :'Работаю')
-          :'Отдыхаю';
-        setProfileWorkStatus('Диана',workText,working?'working':'off');
-
-        const ranges=events
-          .map(event=>event?.allDay?'Весь день':([event?.startTime,event?.endTime].filter(Boolean).join('–')))
-          .filter(Boolean);
-        status.title=working&&ranges.length?ranges.join(' / '):'';
+        setProfileWorkStatus('Диана',dianaWorkStatusText({...row,working}),working?'working':'off');
+        status.title='';
       }
 
       function workCalendarRenderSignature(payload){
