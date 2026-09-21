@@ -22,12 +22,12 @@ function baseSettings() {
     version: 2,
     timezone: 'Europe/Moscow',
     sections: {
-      events: { enabled: true, topicId: 19 },
-      holidays: { enabled: true, topicId: 44 },
-      facts: { enabled: true, topicId: 72 },
-      clients: { enabled: true, topicId: 126 },
-      cinema: { enabled: true },
-      labor: { enabled: true },
+      events: { enabled: true, topicId: 19, publishToTelegram: true },
+      holidays: { enabled: true, topicId: 44, publishToTelegram: true },
+      facts: { enabled: true, topicId: 72, publishToTelegram: true },
+      clients: { enabled: true, topicId: 126, publishToTelegram: true },
+      cinema: { enabled: true, publishToTelegram: true },
+      labor: { enabled: true, publishToTelegram: true },
     },
     sources: {
       dailyContentConfigUrl: 'https://example.test/daily.json',
@@ -102,4 +102,17 @@ test('default raw GitHub settings fetch bypasses stale CDN cache', async () => {
   assert.equal(parsed.hostname, 'raw.githubusercontent.com');
   assert.equal(parsed.searchParams.has('_rudi'), true);
   assert.equal(loaded.settings.sections.facts.enabled, false);
+});
+
+
+test('Telegram publication can be disabled without disabling section generation', () => {
+  const input = baseSettings();
+  input.sections.facts.publishToTelegram = false;
+  input.sections.events.publishToTelegram = false;
+  input.sections.cinema.publishToTelegram = false;
+  const parsed = validateRudiSettings(input);
+  assert.equal(parsed.sections.facts.enabled, true);
+  assert.equal(parsed.sections.facts.publishToTelegram, false);
+  assert.equal(parsed.sections.events.publishToTelegram, false);
+  assert.equal(parsed.sections.cinema.publishToTelegram, false);
 });
