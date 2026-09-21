@@ -168,13 +168,6 @@ async function sendPartnerMessageNotification(actor, options = {}) {
   if (!recipientActor || !chatId) return { sent: false, reason: 'recipient-not-configured' };
 
   const previous = await readMessageNotice(recipientActor, options).catch(() => null);
-  if (previous?.messageId) {
-    try {
-      await telegramDeleteMessage(previous.chatId || chatId, previous.messageId, options);
-    } catch (error) {
-      console.warn('RUDI_PARTNER_NOTIFICATION_DELETE_WARN', String(error?.message || error));
-    }
-  }
 
   const sent = await telegramSendMessage(
     chatId,
@@ -185,6 +178,13 @@ async function sendPartnerMessageNotification(actor, options = {}) {
       buttonText: 'Открыть RUDI',
     }
   );
+  if (previous?.messageId && previous.messageId !== sent.messageId) {
+    try {
+      await telegramDeleteMessage(previous.chatId || chatId, previous.messageId, options);
+    } catch (error) {
+      console.warn('RUDI_PARTNER_NOTIFICATION_DELETE_WARN', String(error?.message || error));
+    }
+  }
   if (sent.messageId) {
     await saveMessageNotice(recipientActor, { chatId, messageId: sent.messageId }, options);
   }
@@ -198,6 +198,7 @@ async function sendActivityNotification(text, tab, options = {}) {
       tab,
       buttonText: tab === 'wishlist' ? 'Открыть вишлист'
         : tab === 'products' ? 'Открыть продукты'
+        : tab === 'schedule' ? 'Открыть календарь'
         : tab === 'home' ? 'Открыть RUDI'
         : undefined,
     });
@@ -665,12 +666,15 @@ async function handleTickTick(req, res, action, options = {}) {
 
     try {
       const task = await fetchTask(token.accessToken, config.projectId, taskId, options);
+      const wasOpen = Number(task?.status ?? 0) === 0;
       await completeTickTickTask(token.accessToken, config.projectId, taskId, options);
-      await sendActivityNotification(
-        taskCompletedNotificationText(actor, task?.title),
-        'schedule',
-        options
-      );
+      if (wasOpen) {
+        await sendActivityNotification(
+          taskCompletedNotificationText(actor, task?.title),
+          'schedule',
+          options
+        );
+      }
       return res.status(200).json({
         ok: true,
         connected: true,
