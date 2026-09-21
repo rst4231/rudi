@@ -29,7 +29,7 @@ const {
   getLatestPhotos,
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
-const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState } = require('./cycle-store.cjs');
+const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction } = require('./reactions-store.cjs');
 const {
   getCredentials,
@@ -50,7 +50,7 @@ const {
   recordChecklistAudit,
   checklistAuditForItem,
 } = require('./ticktick-checklist-audit-store.cjs');
-const { createStateBackup, restoreStateBackup, openSnapshot } = require('./rudi-backup.cjs');
+const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot } = require('./rudi-backup.cjs');
 const { getCinemaPremieresCache, getTopicMaintenanceCache } = require('./stateful-cache.cjs');
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
@@ -239,6 +239,56 @@ async function readTelegramProfile(userId, fallbackName, options = {}) {
   }
 }
 
+function tickTickOAuthStateKey(options = {}) {
+  const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
+  return crypto.createHash('sha256').update('rudi-ticktick-oauth-v2\0' + String(token || '')).digest();
+}
+
+function createTickTickOAuthState(options = {}) {
+  const issuedAt = Math.floor((options.now || Date.now()) / 1000);
+  const nonce = crypto.randomBytes(18).toString('base64url');
+  const payload = issuedAt + '.' + nonce;
+  const signature = crypto.createHmac('sha256', tickTickOAuthStateKey(options)).update(payload).digest('base64url');
+  return 'v2.' + payload + '.' + signature;
+}
+
+function verifyTickTickOAuthState(value, options = {}) {
+  const parts = String(value || '').split('.');
+  if (parts.length !== 4 || parts[0] !== 'v2') return false;
+  const issuedAt = Number(parts[1]);
+  const nonce = String(parts[2] || '');
+  const signature = String(parts[3] || '');
+  if (!Number.isFinite(issuedAt) || !nonce || !signature) return false;
+  const now = Math.floor((options.now || Date.now()) / 1000);
+  if (Math.abs(now - issuedAt) > 10 * 60) return false;
+  const payload = issuedAt + '.' + nonce;
+  const expected = crypto.createHmac('sha256', tickTickOAuthStateKey(options)).update(payload).digest();
+  let actual;
+  try { actual = Buffer.from(signature, 'base64url'); } catch { return false; }
+  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+}
+
+function mergeBackupSnapshots(base, overlay) {
+  if (!base) return overlay || null;
+  if (!overlay) return base;
+  return {
+    ...base,
+    ...overlay,
+    partnerMessage: overlay.partnerMessage || base.partnerMessage || null,
+    wishlist: overlay.wishlist || base.wishlist || null,
+    products: overlay.products || base.products || null,
+    ticktickChecklistAudit: overlay.ticktickChecklistAudit || base.ticktickChecklistAudit || null,
+    ticktickToken: overlay.ticktickToken || base.ticktickToken || null,
+    calendarUrl: overlay.calendarUrl || base.calendarUrl || '',
+    albumConfig: overlay.albumConfig || base.albumConfig || null,
+    cycle: overlay.cycle || base.cycle || null,
+    recipients: {
+      'Рустам': Number(overlay.recipients?.['Рустам'] || base.recipients?.['Рустам'] || 0) || null,
+      'Диана': Number(overlay.recipients?.['Диана'] || base.recipients?.['Диана'] || 0) || null,
+    },
+  };
+}
+
 function backupSnapshotFromToken(value, options = {}) {
   const token = String(value || '').trim();
   if (!token) return null;
@@ -282,8 +332,7 @@ async function handleTickTick(req, res, action, options = {}) {
       if (!credentialsConfigured(options.env || process.env)) {
         return res.status(503).json({ ok: false, error: 'ticktick-not-configured' });
       }
-      const state = crypto.randomBytes(24).toString('base64url');
-      await saveOAuthState(state, options);
+      const state = createTickTickOAuthState(options);
       const { clientId, redirectUri } = getCredentials(options.env || process.env);
       const authorizeUrl = buildAuthorizeUrl({ clientId, redirectUri, state });
       return res.status(200).json({ ok: true, authorizeUrl });
@@ -293,9 +342,10 @@ async function handleTickTick(req, res, action, options = {}) {
   }
 
   if (action === 'callback') {
-    const redirect = (value) => {
+    const redirect = (value, handoffToken = '') => {
       res.statusCode = 302;
-      res.setHeader('Location', '/?ticktick=' + encodeURIComponent(value));
+      const handoff = handoffToken ? '&ticktickHandoff=' + encodeURIComponent(handoffToken) : '';
+      res.setHeader('Location', '/?ticktick=' + encodeURIComponent(value) + handoff);
       res.end();
     };
 
@@ -306,11 +356,20 @@ async function handleTickTick(req, res, action, options = {}) {
     if (!code || !state) return redirect('invalid-callback');
 
     try {
-      const validState = await consumeOAuthState(state, options);
+      const validState = verifyTickTickOAuthState(state, options)
+        || await consumeOAuthState(state, options).catch(() => false);
       if (!validState) return redirect('invalid-state');
       const token = await exchangeCode(code, { ...options, env: options.env || process.env });
-      await saveToken(token, options);
-      return redirect('connected');
+      const savedToken = await saveToken(token, {
+        ...options,
+        cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+      });
+      const handoffToken = sealSnapshot({
+        version: 2,
+        createdAt: new Date(options.now || Date.now()).toISOString(),
+        ticktickToken: savedToken,
+      }, options);
+      return redirect('connected', handoffToken);
     } catch (error) {
       console.error('RUDI_TICKTICK_OAUTH_ERROR', String(error?.message || error));
       return redirect('error');
@@ -632,8 +691,17 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'record-start') {
         if (actor !== 'Диана') return res.status(403).json({ ok: false, error: 'cycle-owner-required' });
-        const cycle = await recordCycleStart(moscowDateKey(options.now || Date.now()), options);
-        return res.status(200).json({ ok: true, actor, configured: true, cycle });
+        const liveCycle = await readCycleState(options).catch(() => null);
+        const baseCycle = liveCycle || normalizeCycleState(backupSnapshot?.cycle);
+        const cycle = cycleStateWithStart(baseCycle, moscowDateKey(options.now || Date.now()));
+        await writeCycleState(cycle, options).catch(() => false);
+        const previousSnapshot = mergeBackupSnapshots(backupSnapshot, {
+          version: 2,
+          createdAt: new Date(options.now || Date.now()).toISOString(),
+          cycle,
+        });
+        const backupToken = await createStateBackup({ ...options, previousSnapshot });
+        return res.status(200).json({ ok: true, actor, configured: true, cycle, backupToken });
       }
       return res.status(400).json({ ok: false, error: 'cycle-operation-invalid' });
     } catch (error) {
@@ -744,6 +812,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor, user } = authorizeInitData(body.initData, options);
       const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      const handoffSnapshot = backupSnapshotFromToken(body.ticktickHandoff, options);
+      const previousSnapshot = mergeBackupSnapshots(backupSnapshot, handoffSnapshot);
 
       if (body.backupToken) {
         try {
@@ -761,7 +831,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
       const recipients = mergedRecipientsWithBackup(
         await readRecipients(options).catch(() => null),
-        backupSnapshot
+        previousSnapshot
       );
       const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
       const partnerId = recipientFor(actor, recipients);
@@ -769,7 +839,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         holidaysPromise,
         readTelegramProfile(user?.id, actor, options),
         readTelegramProfile(partnerId, partnerActor, options),
-        createStateBackup({ ...options, previousSnapshot: backupSnapshot }).catch((error) => {
+        createStateBackup({ ...options, previousSnapshot }).catch((error) => {
           console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
           return '';
         }),
