@@ -4698,3 +4698,33 @@ body[data-app-tab="home"] .priority-section .ticktick-details-inner{
 }
 .profile-cycle-mood[hidden]{display:none!important}
 html[data-theme="dark"] .profile-cycle-mood{color:#f0b4d3}
+
+/* RUDI v0.4.3: mood selection clarity */
+.profile-person-card .mood-button.selected{
+  transform:scale(1.11)!important;
+  border-color:rgba(151,154,255,.82)!important;
+  background:linear-gradient(145deg,rgba(126,122,255,.52),rgba(89,86,221,.34))!important;
+  box-shadow:
+    0 0 0 2px rgba(133,130,255,.18),
+    0 7px 18px rgba(78,75,190,.34),
+    inset 0 1px 0 rgba(255,255,255,.18)!important;
+}
+.profile-person-card .mood-button.selected .mood-emoji{transform:scale(1.12)!important}
+.profile-self-card .mood-prompt{
+  margin-top:6px!important;
+  padding:6px 9px!important;
+  border-radius:9px!important;
+  font-size:9.5px!important;
+  font-weight:780!important;
+  letter-spacing:.01em!important;
+}
+html[data-theme="light"] .profile-self-card .mood-prompt{
+  background:rgba(96,100,225,.10)!important;
+  color:#4f55c8!important;
+  border-color:rgba(96,100,225,.18)!important;
+}
+html[data-theme="dark"] .profile-self-card .mood-prompt{
+  background:rgba(116,113,241,.18)!important;
+  color:#eef0ff!important;
+  border-color:rgba(139,142,255,.28)!important;
+}
