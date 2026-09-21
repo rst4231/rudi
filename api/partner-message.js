@@ -63,7 +63,7 @@ const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
-const { readFeedSnapshot } = require('./feed-store.cjs');
+const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
@@ -403,6 +403,53 @@ function moscowDateKey(now = Date.now()) {
       .map((part) => [part.type, part.value])
   );
   return [parts.year, parts.month, parts.day].join('-');
+}
+
+function feedPreviewBaseUrl(options = {}) {
+  const env = options.env || process.env;
+  const explicit = String(options.appBaseUrl || env.RUDI_APP_URL || '').trim();
+  if (explicit) return explicit.replace(/\/+$/, '');
+  const vercelHost = String(env.VERCEL_PROJECT_PRODUCTION_URL || env.VERCEL_URL || '').trim();
+  if (vercelHost) return /^https?:\/\//i.test(vercelHost)
+    ? vercelHost.replace(/\/+$/, '')
+    : ('https://' + vercelHost.replace(/\/+$/, ''));
+  return 'https://spb-daily-guide-bot.vercel.app';
+}
+
+async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const date = moscowDateKey(now);
+  const hasToday = feed?.date === date
+    && Array.isArray(feed?.sections?.facts?.parts) && feed.sections.facts.parts.length
+    && Array.isArray(feed?.sections?.events?.parts) && feed.sections.events.parts.length;
+  if (hasToday) return feed;
+
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  if (typeof fetchImpl !== 'function') return feed;
+
+  try {
+    const response = await fetchImpl(feedPreviewBaseUrl(options) + '/api/preview?date=' + encodeURIComponent(date), {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (!response?.ok) return feed;
+    const preview = await response.json().catch(() => null);
+    const sections = {};
+    const facts = Array.isArray(preview?.sections?.facts?.parts)
+      ? preview.sections.facts.parts.map((value) => String(value || '').trim()).filter(Boolean)
+      : [];
+    const events = Array.isArray(preview?.sections?.events?.parts)
+      ? preview.sections.events.parts.map((value) => String(value || '').trim()).filter(Boolean)
+      : [];
+    if (facts.length) sections.facts = { parts: facts, source: 'preview-bootstrap' };
+    if (events.length) sections.events = { parts: events, source: 'preview-bootstrap' };
+    if (!Object.keys(sections).length) return feed;
+    return await updateFeedSections(sections, { ...options, date, now });
+  } catch (error) {
+    console.warn('RUDI_FEED_PREVIEW_BOOTSTRAP_WARN', String(error?.message || error));
+    return feed;
+  }
 }
 
 async function handleTickTick(req, res, action, options = {}) {
@@ -1252,7 +1299,8 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeInitData(body.initData, options);
-      const feed = await readFeedSnapshot(options);
+      const current = await readFeedSnapshot(options);
+      const feed = await refreshFeedFromPreviewIfNeeded(current, options);
       return res.status(200).json({ ok: true, actor, ...feed });
     } catch (error) {
       const status = statusForError(error);
@@ -1506,5 +1554,7 @@ module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.moodNotificationText = moodNotificationText;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
 module.exports.checklistCompletedNotificationText = checklistCompletedNotificationText;
+module.exports.feedPreviewBaseUrl = feedPreviewBaseUrl;
+module.exports.refreshFeedFromPreviewIfNeeded = refreshFeedFromPreviewIfNeeded;
 
 module.exports.correctRecipientsForSession = correctRecipientsForSession;

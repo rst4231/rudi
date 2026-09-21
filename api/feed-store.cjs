@@ -2,12 +2,12 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const NAMESPACE = 'rudi-feed-v1';
 const STATE_KEY = 'current';
-const TTL_SECONDS = 60 * 60 * 24 * 8;
+const TTL_SECONDS = 60 * 60 * 24 * 365;
 const NOTICE_TTL_SECONDS = 60 * 60 * 24 * 14;
 const SECTION_TTL_MS = {
   facts: 25 * 60 * 60 * 1000,
   events: 25 * 60 * 60 * 1000,
-  cinema: 8 * 24 * 60 * 60 * 1000,
+  cinema: null,
 };
 
 function cacheOf(options = {}) {
@@ -44,8 +44,11 @@ function normalizeSection(name, input, now = new Date()) {
   if (!parts.length) return null;
   const updatedAt = String(input.updatedAt || now.toISOString());
   const updatedMs = new Date(updatedAt).getTime();
+  const persistent = name === 'cinema';
   const ttlMs = Number(input.ttlMs || SECTION_TTL_MS[name] || SECTION_TTL_MS.facts);
-  const expiresAt = String(input.expiresAt || new Date((Number.isFinite(updatedMs) ? updatedMs : now.getTime()) + ttlMs).toISOString());
+  const expiresAt = persistent
+    ? ''
+    : String(input.expiresAt || new Date((Number.isFinite(updatedMs) ? updatedMs : now.getTime()) + ttlMs).toISOString());
   return {
     name,
     parts,

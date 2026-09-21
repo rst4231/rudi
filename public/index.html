@@ -86,47 +86,7 @@
 
       <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
 
-      <div class="profile-weather" aria-label="Погода">
-        <div id="weatherVisual" class="weather-visual" data-weather="idle" aria-hidden="true">
-          <svg viewBox="0 0 64 64" fill="none">
-            <g class="weather-layer weather-sun">
-              <g class="weather-rays" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-                <path d="M22 5v6M22 33v6M5 22h6M33 22h6M10 10l4.3 4.3M29.7 29.7 34 34M34 10l-4.3 4.3M14.3 29.7 10 34"/>
-              </g>
-              <circle cx="22" cy="22" r="8.5" fill="currentColor" opacity=".2"/>
-              <circle cx="22" cy="22" r="7" stroke="currentColor" stroke-width="2.4"/>
-            </g>
-            <g class="weather-layer weather-cloud" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 44h27a10 10 0 0 0 .9-19.96A15 15 0 0 0 17.2 27.5 8.5 8.5 0 0 0 18 44Z" fill="currentColor" opacity=".12"/>
-              <path d="M18 44h27a10 10 0 0 0 .9-19.96A15 15 0 0 0 17.2 27.5 8.5 8.5 0 0 0 18 44Z"/>
-            </g>
-            <g class="weather-layer weather-rain" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-              <path class="rain-drop d1" d="m23 49-2 5"/>
-              <path class="rain-drop d2" d="m34 49-2 5"/>
-              <path class="rain-drop d3" d="m45 49-2 5"/>
-            </g>
-            <g class="weather-layer weather-snow" fill="currentColor">
-              <circle class="snow-dot s1" cx="23" cy="52" r="1.8"/>
-              <circle class="snow-dot s2" cx="34" cy="55" r="1.8"/>
-              <circle class="snow-dot s3" cx="45" cy="51" r="1.8"/>
-            </g>
-            <g class="weather-layer weather-fog" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <path d="M13 35h34"/><path d="M17 42h30"/><path d="M22 49h24"/>
-            </g>
-            <g class="weather-layer weather-bolt" fill="currentColor">
-              <path d="m35 43-7 10h6l-3 8 10-12h-6l4-6Z"/>
-            </g>
-          </svg>
-        </div>
-        <div class="profile-weather-main">
-          <div id="weatherValue" class="profile-weather-value">—</div>
-          <div id="weatherCity" class="profile-weather-city">СПб</div>
-        </div>
-        <div class="profile-weather-info">
-          <div id="weatherCaption" class="profile-weather-caption">Проверяю погоду…</div>
-          <div id="weatherRain" class="profile-weather-rain">Проверяю дождь…</div>
-        </div>
-      </div>
+
 
     </section>
 
@@ -272,17 +232,46 @@
             </div>
           </div>
           <div id="feedFactsBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+          <div class="reaction-strip feed-reaction">
+            <button id="feedFactsLike" class="reaction-button" type="button" aria-label="Поставить лайк: полезные факты" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="feedFactsLikedBy" class="reaction-names"></span>
+          </div>
         </article>
 
-        <article id="feedEventsCard" class="feed-card feed-card-events" data-feed-card="events">
+        <article id="feedConcertsCard" class="feed-card feed-card-concerts" data-feed-card="concerts">
           <div class="feed-card-head">
-            <span class="feed-card-icon" aria-hidden="true">📍</span>
+            <span class="feed-card-icon" aria-hidden="true">🎤</span>
             <div class="feed-card-heading">
-              <span>Места и мероприятия</span>
-              <small id="feedEventsMeta">Сегодня</small>
+              <span>Концерты</span>
+              <small id="feedConcertsMeta">Сегодня</small>
             </div>
           </div>
-          <div id="feedEventsBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+          <div id="feedConcertsBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+          <div class="reaction-strip feed-reaction">
+            <button id="feedConcertsLike" class="reaction-button" type="button" aria-label="Поставить лайк: концерты" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="feedConcertsLikedBy" class="reaction-names"></span>
+          </div>
+        </article>
+
+        <article id="feedStandupCard" class="feed-card feed-card-standup" data-feed-card="standup">
+          <div class="feed-card-head">
+            <span class="feed-card-icon" aria-hidden="true">🎙</span>
+            <div class="feed-card-heading">
+              <span>Stand Up</span>
+              <small id="feedStandupMeta">Сегодня</small>
+            </div>
+          </div>
+          <div id="feedStandupBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+          <div class="reaction-strip feed-reaction">
+            <button id="feedStandupLike" class="reaction-button" type="button" aria-label="Поставить лайк: Stand Up" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="feedStandupLikedBy" class="reaction-names"></span>
+          </div>
         </article>
 
         <article id="feedCinemaCard" class="feed-card feed-card-cinema" data-feed-card="cinema">
@@ -290,10 +279,16 @@
             <span class="feed-card-icon" aria-hidden="true">🎬</span>
             <div class="feed-card-heading">
               <span>Кинопремьеры</span>
-              <small id="feedCinemaMeta">Актуальная неделя</small>
+              <small id="feedCinemaMeta">До следующей подборки</small>
             </div>
           </div>
           <div id="feedCinemaBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+          <div class="reaction-strip feed-reaction">
+            <button id="feedCinemaLike" class="reaction-button" type="button" aria-label="Поставить лайк: кинопремьеры" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="feedCinemaLikedBy" class="reaction-names"></span>
+          </div>
         </article>
       </div>
     </section>

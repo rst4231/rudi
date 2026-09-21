@@ -9,6 +9,7 @@
       let currentActor = '';
       let currentPartnerReactionKey = '';
       let currentDailyReactionTargets = [];
+      let currentFeedReactionTargets = [];
       let partnerProfileName = '';
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
@@ -669,9 +670,8 @@
         const partnerMood=mood?.querySelector('.mood-partner');
         const moodPrompt=document.getElementById('moodPrompt');
         const moodMessage=document.getElementById('moodMessage');
-        const weather=profile.querySelector('.profile-weather');
         const dateHeading=document.getElementById('profileMeta');
-        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!weather||!dateHeading) return;
+        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!dateHeading) return;
 
         const selfPerson=selfIdentity.querySelector('.person');
         const partnerPerson=partnerIdentity.querySelector('.person');
@@ -700,15 +700,11 @@
         selfIdentity.appendChild(selfMood);
         partnerIdentity.replaceChildren(partnerAvatar,partnerPerson,partnerMood);
 
-        const common=document.createElement('div');
-        common.className='profile-split-card profile-common-card';
-        common.append(weather);
-
-        profile.className='profile-common-tile';
+        profile.className='profile-common-tile profile-date-only-tile';
         profile.dataset.homeTile='profile-common';
-        profile.setAttribute('aria-label','Погода');
+        profile.setAttribute('aria-label','Сегодня');
         dateHeading.className='profile-date-heading';
-        profile.replaceChildren(dateHeading,common);
+        profile.replaceChildren(dateHeading);
 
         const selfCard=document.createElement('section');
         selfCard.className='profile-split-card profile-person-card profile-self-card';
@@ -3251,6 +3247,10 @@
         bindReaction('partnerMessageLike','partnerMessageLikedBy',()=>currentPartnerReactionKey?{type:'partner-message',key:currentPartnerReactionKey}:null);
         bindReaction('dailyIdeaLike','dailyIdeaLikedBy',()=>currentDailyReactionTargets.find(target=>target.type==='daily-idea')||null);
         bindReaction('watchLike','watchLikedBy',()=>currentDailyReactionTargets.find(target=>target.type==='watch')||null);
+        bindReaction('feedFactsLike','feedFactsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('facts:'))||null);
+        bindReaction('feedConcertsLike','feedConcertsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('concerts:'))||null);
+        bindReaction('feedStandupLike','feedStandupLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('standup:'))||null);
+        bindReaction('feedCinemaLike','feedCinemaLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('cinema:'))||null);
       }
 
       async function refreshDailyReactions(){
@@ -3260,6 +3260,19 @@
           for(const reaction of data.reactions||[]){
             if(reaction.type==='daily-idea') renderReaction(reaction,'dailyIdeaLike','dailyIdeaLikedBy');
             if(reaction.type==='watch') renderReaction(reaction,'watchLike','watchLikedBy');
+          }
+        }catch(_){}
+      }
+
+      async function refreshFeedReactions(){
+        if(!currentActor||!currentFeedReactionTargets.length) return;
+        try{
+          const data=await reactionsRequest('list',{targets:currentFeedReactionTargets});
+          for(const reaction of data.reactions||[]){
+            if(reaction.key.startsWith('facts:')) renderReaction(reaction,'feedFactsLike','feedFactsLikedBy');
+            if(reaction.key.startsWith('concerts:')) renderReaction(reaction,'feedConcertsLike','feedConcertsLikedBy');
+            if(reaction.key.startsWith('standup:')) renderReaction(reaction,'feedStandupLike','feedStandupLikedBy');
+            if(reaction.key.startsWith('cinema:')) renderReaction(reaction,'feedCinemaLike','feedCinemaLikedBy');
           }
         }catch(_){}
       }
@@ -3642,24 +3655,35 @@
         return template.content;
       }
 
-      function renderFeedSection(name,section){
-        const body=document.getElementById(
-          name==='facts'?'feedFactsBody':name==='events'?'feedEventsBody':'feedCinemaBody'
-        );
-        const meta=document.getElementById(
-          name==='facts'?'feedFactsMeta':name==='events'?'feedEventsMeta':'feedCinemaMeta'
-        );
+      function feedDomIds(name){
+        return {
+          facts:['feedFactsBody','feedFactsMeta','feedFactsCard'],
+          concerts:['feedConcertsBody','feedConcertsMeta','feedConcertsCard'],
+          standup:['feedStandupBody','feedStandupMeta','feedStandupCard'],
+          cinema:['feedCinemaBody','feedCinemaMeta','feedCinemaCard']
+        }[name]||[];
+      }
+
+      function renderFeedSection(name,section,partsOverride){
+        const [bodyId,metaId,cardId]=feedDomIds(name);
+        const body=document.getElementById(bodyId);
+        const meta=document.getElementById(metaId);
+        const card=document.getElementById(cardId);
         if(!body) return;
         body.replaceChildren();
-        const parts=Array.isArray(section?.parts)?section.parts.filter(Boolean):[];
+        const parts=(Array.isArray(partsOverride)?partsOverride:Array.isArray(section?.parts)?section.parts:[]).filter(Boolean);
+        const reaction=card?.querySelector('.feed-reaction');
+        if(reaction) reaction.hidden=!parts.length;
         if(!parts.length){
           const empty=document.createElement('div');
           empty.className='feed-empty';
           empty.textContent=name==='cinema'
-            ?'Свежая подборка кино пока не готова.'
-            :name==='events'
-              ?'Свежих мест и мероприятий пока нет.'
-              :'Новый полезный факт появится после следующего обновления.';
+            ?'Подборка появится после первой публикации кинопремьер.'
+            :name==='concerts'
+              ?'На сегодня концертов не найдено.'
+              :name==='standup'
+                ?'На сегодня событий Stand Up не найдено.'
+                :'Новый полезный факт появится после следующего обновления.';
           body.appendChild(empty);
           if(meta) meta.textContent='Нет свежих данных';
           return;
@@ -3678,9 +3702,19 @@
 
       function renderFeed(payload){
         const sections=payload?.sections&&typeof payload.sections==='object'?payload.sections:{};
+        const eventParts=Array.isArray(sections.events?.parts)?sections.events.parts:[];
         renderFeedSection('facts',sections.facts);
-        renderFeedSection('events',sections.events);
+        renderFeedSection('concerts',sections.events,eventParts[0]?[eventParts[0]]:[]);
+        renderFeedSection('standup',sections.events,eventParts[1]?[eventParts[1]]:[]);
         renderFeedSection('cinema',sections.cinema);
+
+        currentFeedReactionTargets=[
+          ...(sections.facts?.parts?.length?[{type:'feed',key:'facts:'+String(sections.facts.updatedAt||payload?.date||'')}]:[]),
+          ...(eventParts[0]?[{type:'feed',key:'concerts:'+String(sections.events?.updatedAt||payload?.date||'')}]:[]),
+          ...(eventParts[1]?[{type:'feed',key:'standup:'+String(sections.events?.updatedAt||payload?.date||'')}]:[]),
+          ...(sections.cinema?.parts?.length?[{type:'feed',key:'cinema:'+String(sections.cinema.updatedAt||'current')}]:[])
+        ].filter(target=>target.key.length<220);
+        refreshFeedReactions();
 
         const updated=document.getElementById('feedUpdated');
         const status=document.getElementById('feedStatus');
@@ -3710,8 +3744,9 @@
           renderFeed(payload);
         }catch(_){
           if(status) status.textContent='Не удалось обновить Ленту. Уже сохранённые актуальные материалы не удаляются из-за временного сбоя.';
-          for(const name of ['facts','events','cinema']){
-            const body=document.getElementById(name==='facts'?'feedFactsBody':name==='events'?'feedEventsBody':'feedCinemaBody');
+          for(const name of ['facts','concerts','standup','cinema']){
+            const [bodyId]=feedDomIds(name);
+            const body=document.getElementById(bodyId);
             if(body&&body.querySelector('.feed-skeleton')){
               body.replaceChildren();
               const empty=document.createElement('div');
@@ -3823,7 +3858,12 @@
 
         setProductsBadge(items.length>0);
         if(clear) clear.disabled=!items.length;
-        if(boughtAll) boughtAll.disabled=!items.some(item=>Boolean(item.checked));
+        if(boughtAll){
+          const checkedCount=items.filter(item=>Boolean(item.checked)).length;
+          boughtAll.disabled=!items.length;
+          boughtAll.dataset.checkedCount=String(checkedCount);
+          boughtAll.classList.toggle('has-selection',checkedCount>0);
+        }
         if(status){
           status.textContent=items.length
             ?items.length+' '+(items.length===1?'позиция':(items.length>=2&&items.length<=4?'позиции':'позиций'))
@@ -4018,11 +4058,22 @@
 
         boughtAll.addEventListener('click',async()=>{
           if(boughtAll.disabled) return;
+          const checkedCount=Number(boughtAll.dataset.checkedCount||0);
+          if(checkedCount<=0){
+            const status=document.getElementById('productsStatus');
+            if(status){
+              status.hidden=false;
+              status.textContent='Сначала отметьте купленные продукты галочками';
+            }
+            try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+            return;
+          }
           boughtAll.disabled=true;
           try{
             renderProducts(await productsRequest('buy-checked'));
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
+            boughtAll.disabled=false;
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }
         });
@@ -4148,7 +4199,6 @@
         setupWishlist();
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
-        loadWeather(config.weather);
         loadTickTickNext();
         loadWorkCalendar().then(()=>prefetchCalendarView('next-month'));
         loadSharedAlbum();
