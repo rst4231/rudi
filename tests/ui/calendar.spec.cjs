@@ -14,7 +14,14 @@ async function mockRudi(page){
     taskCompleted:false,
     completionCalls:0,
     workCalendarCalls:0,
-    tickCalendarCalls:0
+    tickCalendarCalls:0,
+    buyCalls:0,
+    products:[{
+      id:'milk',text:'Молоко',addedBy:'Рустам',category:'Молочное и яйца',
+      weeklyAmount:'2 л',checked:false,createdAt:'2026-09-21T06:00:00.000Z'
+    }],
+    productHistory:[],
+    reactions:{}
   };
 
   await page.route('https://telegram.org/js/telegram-web-app.js?63',route=>route.fulfill({
@@ -117,7 +124,46 @@ async function mockRudi(page){
     if(path==='/api/shared-album') return ok({ok:true,photos:[],url:''});
     if(path==='/api/wishlist') return ok({ok:true,items:[]});
     if(path==='/api/mood') return ok({ok:true,items:[]});
-    if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='reactions') return ok({ok:true,reactions:[]});
+    if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='products'){
+      const operation=String(body.operation||'list');
+      if(operation==='toggle'){
+        const item=state.products.find(row=>row.id===body.id);
+        if(item) item.checked=!item.checked;
+      }
+      if(operation==='buy-checked'){
+        const checked=state.products.filter(item=>item.checked);
+        if(checked.length){
+          state.buyCalls++;
+          state.productHistory.unshift(...checked.map(item=>({
+            id:'history-'+item.id,
+            text:item.text,
+            addedBy:item.addedBy,
+            boughtBy:'Рустам',
+            category:item.category,
+            weeklyAmount:item.weeklyAmount,
+            boughtAt:'2026-09-21T08:00:00.000Z'
+          })));
+          const ids=new Set(checked.map(item=>item.id));
+          state.products=state.products.filter(item=>!ids.has(item.id));
+        }
+      }
+      return ok({ok:true,actor:'Рустам',initialized:true,items:state.products,history:state.productHistory});
+    }
+    if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='reactions'){
+      const operation=String(body.operation||'list');
+      if(operation==='set'){
+        const target=body.target||{};
+        const key=String(target.type||'')+':'+String(target.key||'');
+        state.reactions[key]=body.liked?['Рустам']:[];
+        return ok({ok:true,reaction:{...target,likedBy:state.reactions[key],count:state.reactions[key].length}});
+      }
+      const reactions=(Array.isArray(body.targets)?body.targets:[]).map(target=>{
+        const key=String(target.type||'')+':'+String(target.key||'');
+        const likedBy=state.reactions[key]||[];
+        return {...target,likedBy,count:likedBy.length};
+      });
+      return ok({ok:true,reactions});
+    }
     if(path==='/api/partner-message') return ok({ok:true,message:null});
     return ok({ok:true,items:[],tasks:[],photos:[]});
   });
@@ -187,8 +233,13 @@ test('feed is a first-class tab with fresh badge and no duplicate cinema button 
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.locator('#feedTitle')).toHaveText('Лента');
   await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
-  await expect(page.locator('#feedEventsBody')).toContainText('Мероприятие сегодня');
+  await expect(page.locator('#feedConcertsBody')).toContainText('Концерт сегодня');
+  await expect(page.locator('#feedStandupBody')).toContainText('Stand Up сегодня');
   await expect(page.locator('#feedCinemaBody')).toContainText('Тестовый фильм');
+  await expect(page.locator('.profile-weather')).toHaveCount(0);
+
+  await page.locator('#feedFactsLike').click();
+  await expect(page.locator('#feedFactsLikedBy')).toHaveText('Нравится: Рустам');
   await expect(page.locator('#feedTabBadge')).toBeHidden();
 
   const tabs=page.locator('#appTabBar [role="tab"]');
@@ -206,4 +257,25 @@ test('feed deep link opens the feed directly',async({page})=>{
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.getByRole('tab',{name:'Лента'})).toHaveClass(/active/);
   await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
+});
+
+
+test('products bought button stays interactive and completes checked products',async({page})=>{
+  const state=await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await page.getByRole('tab',{name:'Продукты'}).click();
+
+  const bought=page.getByRole('button',{name:'Купил'});
+  await expect(bought).toBeEnabled();
+  await bought.click();
+  await expect(page.locator('#productsStatus')).toContainText('Сначала отметьте купленные продукты');
+
+  await page.getByRole('button',{name:'Отметить'}).click();
+  await expect(bought).toBeEnabled();
+  await bought.click();
+
+  await expect.poll(()=>state.buyCalls).toBe(1);
+  await expect(page.locator('#productsHistory')).toContainText('Молоко');
+  await expect(page.locator('#productsGroups')).not.toContainText('Молоко');
 });
