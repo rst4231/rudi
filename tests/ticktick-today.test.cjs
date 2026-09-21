@@ -48,8 +48,8 @@ test('Home shared tasks render all today tasks, empty state, checkboxes and succ
   const app=fs.readFileSync('public/app.js','utf8');
   assert.match(html,/id="ticktickTodayList"/);
   assert.match(html,/id="taskCompletionConfetti"/);
-  assert.match(app,/fetch\('\/api\/ticktick\/today'/);
-  assert.match(app,/fetch\('\/api\/ticktick\/task-complete'/);
+  assert.match(app,/managedJsonRequest\('ticktick-today','\/api\/ticktick\/today'/);
+  assert.match(app,/managedJsonRequest\('ticktick-task-complete:'\+id,'\/api\/ticktick\/task-complete'/);
   assert.match(app,/for\(const task of tasks\)/);
   assert.match(app,/Сегодня дел нет/);
   assert.match(app,/role','checkbox'/);
