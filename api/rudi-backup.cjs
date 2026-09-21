@@ -7,7 +7,7 @@ const { readToken, saveToken } = require('./ticktick-store.cjs');
 const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
 const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
 const { readCycleState, writeCycleState } = require('./cycle-store.cjs');
-const { readRecipients, saveRecipients } = require('./partner-notification-store.cjs');
+const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
 const {
   readChecklistAuditState,
   restoreChecklistAuditState,
@@ -101,10 +101,14 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readRecipients(options)),
   ]);
 
-  const mergedRecipients = {
-    'Рустам': Number(recipients?.['Рустам'] || previous?.recipients?.['Рустам'] || 0) || null,
-    'Диана': Number(recipients?.['Диана'] || previous?.recipients?.['Диана'] || 0) || null,
-  };
+  const mergedRecipients = normalizeRecipients({
+    'Рустам': recipients?.['Рустам'] || previous?.recipients?.['Рустам'],
+    'Диана': recipients?.['Диана'] || previous?.recipients?.['Диана'],
+    candidates: [
+      recipients?.['Рустам'], recipients?.['Диана'],
+      previous?.recipients?.['Рустам'], previous?.recipients?.['Диана'],
+    ],
+  });
 
   return {
     version: BACKUP_VERSION,
