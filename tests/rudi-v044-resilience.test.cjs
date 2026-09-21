@@ -13,7 +13,7 @@ const html=fs.readFileSync('public/index.html','utf8');
 test('stateful client requests carry encrypted backup fallback',()=>{
   assert.match(app,/currentStateBackupToken/);
   assert.match(app,/\/api\/cycle[\s\S]*?backupToken:currentStateBackupToken/);
-  assert.match(app,/\/api\/ticktick\/next[\s\S]*?backupToken:currentStateBackupToken/);
+  assert.match(app,/\/api\/ticktick\/today[\s\S]*?backupToken:currentStateBackupToken/);
   assert.match(app,/\/api\/work-calendar[\s\S]*?backupToken:currentStateBackupToken/);
   assert.match(app,/\/api\/shared-album[\s\S]*?backupToken:currentStateBackupToken/);
   assert.match(app,/rudiAction=products[\s\S]*?backupToken:currentStateBackupToken/);
