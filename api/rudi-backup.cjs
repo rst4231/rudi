@@ -7,7 +7,7 @@ const { readToken, saveToken } = require('./ticktick-store.cjs');
 const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
 const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
 const { readCycleState, writeCycleState } = require('./cycle-store.cjs');
-const { readRecipients, saveRecipients } = require('./partner-notification-store.cjs');
+const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
 const {
   readChecklistAuditState,
   restoreChecklistAuditState,
@@ -67,7 +67,25 @@ async function safeRead(task, fallback = null) {
   try { return await task(); } catch { return fallback; }
 }
 
+function newerVersionState(current, previous) {
+  const a = Number(current?.version || 0);
+  const b = Number(previous?.version || 0);
+  if (previous?.initialized && (!current?.initialized || b > a)) return previous;
+  return current || previous || null;
+}
+
+function newerTimestampState(current, previous, field) {
+  if (!current) return previous || null;
+  if (!previous) return current;
+  const a = Date.parse(String(current?.[field] || '')) || 0;
+  const b = Date.parse(String(previous?.[field] || '')) || 0;
+  return b > a ? previous : current;
+}
+
 async function createStateSnapshot(options = {}) {
+  const previous = options.previousSnapshot && typeof options.previousSnapshot === 'object'
+    ? options.previousSnapshot
+    : null;
   const [
     partnerMessage, wishlist, products, ticktickChecklistAudit,
     ticktickToken, calendarUrl, albumConfig, cycle, recipients,
@@ -83,18 +101,27 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readRecipients(options)),
   ]);
 
+  const mergedRecipients = normalizeRecipients({
+    'Рустам': recipients?.['Рустам'] || previous?.recipients?.['Рустам'],
+    'Диана': recipients?.['Диана'] || previous?.recipients?.['Диана'],
+    candidates: [
+      recipients?.['Рустам'], recipients?.['Диана'],
+      previous?.recipients?.['Рустам'], previous?.recipients?.['Диана'],
+    ],
+  });
+
   return {
     version: BACKUP_VERSION,
     createdAt: new Date(options.now || Date.now()).toISOString(),
-    partnerMessage,
-    wishlist,
-    products,
-    ticktickChecklistAudit,
-    ticktickToken,
-    calendarUrl,
-    albumConfig,
-    cycle,
-    recipients,
+    partnerMessage: newerTimestampState(partnerMessage, previous?.partnerMessage, 'updatedAt'),
+    wishlist: newerVersionState(wishlist, previous?.wishlist),
+    products: newerVersionState(products, previous?.products),
+    ticktickChecklistAudit: newerVersionState(ticktickChecklistAudit, previous?.ticktickChecklistAudit),
+    ticktickToken: newerTimestampState(ticktickToken, previous?.ticktickToken, 'savedAt'),
+    calendarUrl: calendarUrl || previous?.calendarUrl || '',
+    albumConfig: albumConfig?.url ? albumConfig : (previous?.albumConfig || null),
+    cycle: newerTimestampState(cycle, previous?.cycle, 'updatedAt'),
+    recipients: mergedRecipients,
   };
 }
 
@@ -113,8 +140,10 @@ async function restoreStateBackup(token, options = {}) {
   const currentMessageTime = Date.parse(String(currentMessage?.updatedAt || '')) || 0;
   const savedMessageTime = Date.parse(String(snapshot.partnerMessage?.updatedAt || '')) || snapshotTime;
   if (snapshot.partnerMessage && (!currentMessage || savedMessageTime > currentMessageTime)) {
-    await writePartnerMessage(snapshot.partnerMessage, options);
-    restored.push('partner-message');
+    try {
+      await writePartnerMessage(snapshot.partnerMessage, options);
+      restored.push('partner-message');
+    } catch {}
   }
 
   const currentWishlist = await safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] });
@@ -124,8 +153,10 @@ async function restoreStateBackup(token, options = {}) {
     snapshot.wishlist?.initialized &&
     (!currentWishlist?.initialized || savedWishlistVersion > currentWishlistVersion)
   ) {
-    await writeWishlist(snapshot.wishlist, options);
-    restored.push('wishlist');
+    try {
+      await writeWishlist(snapshot.wishlist, options);
+      restored.push('wishlist');
+    } catch {}
   }
 
   const currentProducts = await safeRead(() => readProductListRaw(options), { initialized: false, version: 0, items: [], history: [] });
@@ -135,36 +166,46 @@ async function restoreStateBackup(token, options = {}) {
     snapshot.products?.initialized &&
     (!currentProducts?.initialized || savedProductsVersion > currentProductsVersion)
   ) {
-    await restoreProductListSnapshot(snapshot.products, options);
-    restored.push('products');
+    try {
+      await restoreProductListSnapshot(snapshot.products, options);
+      restored.push('products');
+    } catch {}
   }
 
   const currentToken = await safeRead(() => readToken(options));
   const savedTokenTime = Date.parse(String(snapshot.ticktickToken?.savedAt || '')) || snapshotTime;
   const currentTokenTime = Date.parse(String(currentToken?.savedAt || '')) || 0;
   if (snapshot.ticktickToken?.accessToken && (!currentToken?.accessToken || savedTokenTime > currentTokenTime)) {
-    await saveToken(snapshot.ticktickToken, options);
-    restored.push('ticktick-token');
+    try {
+      await saveToken(snapshot.ticktickToken, options);
+      restored.push('ticktick-token');
+    } catch {}
   }
 
   const currentCalendarUrl = await safeRead(() => readCalendarUrl(options));
   if (snapshot.calendarUrl && !currentCalendarUrl) {
-    await saveCalendarUrl(snapshot.calendarUrl, options);
-    restored.push('work-calendar');
+    try {
+      await saveCalendarUrl(snapshot.calendarUrl, options);
+      restored.push('work-calendar');
+    } catch {}
   }
 
   const currentAlbumConfig = await safeRead(() => readAlbumConfig(options));
   if (snapshot.albumConfig?.url && !currentAlbumConfig?.url) {
-    await saveAlbumConfig(snapshot.albumConfig, options);
-    restored.push('shared-album');
+    try {
+      await saveAlbumConfig(snapshot.albumConfig, options);
+      restored.push('shared-album');
+    } catch {}
   }
 
   const currentCycle = await safeRead(() => readCycleState(options));
   const savedCycleTime = Date.parse(String(snapshot.cycle?.updatedAt || '')) || snapshotTime;
   const currentCycleTime = Date.parse(String(currentCycle?.updatedAt || '')) || 0;
   if (snapshot.cycle && (!currentCycle || savedCycleTime > currentCycleTime)) {
-    await writeCycleState(snapshot.cycle, options);
-    restored.push('cycle');
+    try {
+      await writeCycleState(snapshot.cycle, options);
+      restored.push('cycle');
+    } catch {}
   }
 
   const currentRecipients = await safeRead(() => readRecipients(options));
@@ -177,8 +218,10 @@ async function restoreStateBackup(token, options = {}) {
     Number.isInteger(mergedRecipients['Диана']) && mergedRecipients['Диана'] > 0 &&
     (!currentRecipients?.['Рустам'] || !currentRecipients?.['Диана'])
   ) {
-    await saveRecipients(mergedRecipients, options);
-    restored.push('recipients');
+    try {
+      await saveRecipients(mergedRecipients, options);
+      restored.push('recipients');
+    } catch {}
   }
 
   const currentChecklistAudit = await safeRead(
@@ -191,8 +234,10 @@ async function restoreStateBackup(token, options = {}) {
     snapshot.ticktickChecklistAudit?.initialized &&
     (!currentChecklistAudit?.initialized || savedChecklistAuditVersion > currentChecklistAuditVersion)
   ) {
-    await restoreChecklistAuditState(snapshot.ticktickChecklistAudit, options);
-    restored.push('ticktick-checklist-audit');
+    try {
+      await restoreChecklistAuditState(snapshot.ticktickChecklistAudit, options);
+      restored.push('ticktick-checklist-audit');
+    } catch {}
   }
 
   return { restored };

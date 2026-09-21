@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { allowedActor } = require('./rudi-access.cjs');
 
 const NAMESPACE = 'rudi-partner-notifications-v1';
 const KEY = 'recipients';
@@ -35,10 +36,27 @@ function decodeSetupKey(value) {
   return { 'Рустам': rustam, 'Диана': diana };
 }
 
+function normalizeRecipients(recipients) {
+  const result = { 'Рустам': null, 'Диана': null };
+  const candidates = [
+    recipients?.['Рустам'],
+    recipients?.['Диана'],
+    ...(Array.isArray(recipients?.candidates) ? recipients.candidates : []),
+  ];
+  for (const value of candidates) {
+    const id = Number(value);
+    if (!Number.isInteger(id) || id <= 0) continue;
+    const actor = allowedActor({ id });
+    if (actor === 'Рустам' || actor === 'Диана') result[actor] = id;
+  }
+  return result;
+}
+
 async function saveRecipient(actor, userId, options = {}) {
   if (!['Рустам', 'Диана'].includes(actor)) throw new Error('partner-notification-actor-invalid');
   const id = Number(userId);
   if (!Number.isInteger(id) || id <= 0) throw new Error('partner-notification-recipients-invalid');
+  if (allowedActor({ id }) !== actor) throw new Error('partner-notification-actor-mismatch');
   await cacheOf(options).set(ACTOR_KEY_PREFIX + actor, id, {
     ttl: TTL_SECONDS,
     tags: ['rudi-partner-notifications'],
@@ -47,10 +65,7 @@ async function saveRecipient(actor, userId, options = {}) {
 }
 
 async function saveRecipients(recipients, options = {}) {
-  const normalized = {
-    'Рустам': Number(recipients?.['Рустам']),
-    'Диана': Number(recipients?.['Диана']),
-  };
+  const normalized = normalizeRecipients(recipients);
   if (!Number.isInteger(normalized['Рустам']) || !Number.isInteger(normalized['Диана'])) {
     throw new Error('partner-notification-recipients-invalid');
   }
@@ -70,13 +85,13 @@ async function readRecipients(options = {}) {
     cache.get(ACTOR_KEY_PREFIX + 'Диана').catch(() => null),
     cache.get(KEY).catch(() => null),
   ]);
-  const rustam = Number(rustamDirect || legacy?.['Рустам']);
-  const diana = Number(dianaDirect || legacy?.['Диана']);
-  if (!Number.isInteger(rustam) && !Number.isInteger(diana)) return null;
-  return {
-    'Рустам': Number.isInteger(rustam) && rustam > 0 ? rustam : null,
-    'Диана': Number.isInteger(diana) && diana > 0 ? diana : null,
-  };
+  const normalized = normalizeRecipients({
+    'Рустам': rustamDirect || legacy?.['Рустам'],
+    'Диана': dianaDirect || legacy?.['Диана'],
+    candidates: [rustamDirect, dianaDirect, legacy?.['Рустам'], legacy?.['Диана']],
+  });
+  if (!normalized['Рустам'] && !normalized['Диана']) return null;
+  return normalized;
 }
 
 function recipientFor(actor, recipients) {
@@ -85,4 +100,4 @@ function recipientFor(actor, recipients) {
   return null;
 }
 
-module.exports = { decodeSetupKey, saveRecipient, saveRecipients, readRecipients, recipientFor };
+module.exports = { decodeSetupKey, normalizeRecipients, saveRecipient, saveRecipients, readRecipients, recipientFor };

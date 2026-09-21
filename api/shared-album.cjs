@@ -162,14 +162,14 @@ async function fetchLatestPhotos(config, options = {}) {
 
 async function getLatestPhotos(options = {}) {
   const cache = cacheOf(options);
-  const config = await readAlbumConfig({ ...options, albumCache: cache });
+  const config = options.albumConfig?.url ? { url: normalizeAlbumUrl(options.albumConfig.url), token: extractToken(options.albumConfig.token || options.albumConfig.url) } : await readAlbumConfig({ ...options, albumCache: cache });
   if (!config) return { configured: false, photos: [], albumUrl: null, title: 'Общий альбом' };
 
-  const cached = await cache.get(CACHE_KEY);
+  const cached = await cache.get(CACHE_KEY).catch(() => null);
   try {
     const fresh = await fetchLatestPhotos(config, options);
     const result = { configured: true, ...fresh, updatedAt: new Date(options.now || Date.now()).toISOString() };
-    await cache.set(CACHE_KEY, result, { ttl: DATA_TTL_SECONDS, tags: ['rudi-shared-album'] });
+    await cache.set(CACHE_KEY, result, { ttl: DATA_TTL_SECONDS, tags: ['rudi-shared-album'] }).catch(() => false);
     return result;
   } catch (error) {
     if (cached?.photos) return { ...cached, configured: true, stale: true };
