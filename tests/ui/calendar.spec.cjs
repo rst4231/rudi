@@ -195,6 +195,9 @@ test('feed is a first-class tab with fresh badge and no duplicate cinema button 
   await expect(tabs).toHaveCount(6);
   const labels=(await tabs.allTextContents()).map(value=>value.trim());
   expect(labels).toEqual(['Домой','Лента','Календарь','Продукты','Фото','Вишлист']);
+  const boxes=await tabs.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()));
+  const top=Math.round(boxes[0].top);
+  expect(boxes.every(box=>Math.abs(Math.round(box.top)-top)<=1)).toBe(true);
 });
 
 test('feed deep link opens the feed directly',async({page})=>{
