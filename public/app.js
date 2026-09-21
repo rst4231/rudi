@@ -781,8 +781,8 @@
             const endTime=String(current.endTime||'').trim();
             const endMatch=endTime.match(/^(\d{1,2}):(\d{2})$/u);
             rows.push({
-              label:'Диана работает',
-              time:endTime?'до '+endTime:'',
+              label:'Диана — '+dianaWorkStatusText(work),
+              time:'',
               minutes:endMatch?Number(endMatch[1])*60+Number(endMatch[2]):9700,
               icon:'💼'
             });
@@ -794,8 +794,8 @@
             }).filter(row=>row.minutes>=nowMinutes).sort((a,b)=>a.minutes-b.minutes)[0];
             if(upcoming){
               rows.push({
-                label:'Диана — работа',
-                time:upcoming.startTime,
+                label:'Диана — '+dianaWorkStatusText(work),
+                time:'',
                 minutes:upcoming.minutes,
                 icon:'💼'
               });
