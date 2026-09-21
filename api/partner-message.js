@@ -848,7 +848,8 @@ async function handleTickTick(req, res, action, options = {}) {
         console.warn('RUDI_TICKTICK_CHECKLIST_AUDIT_WARN', String(error?.message || error));
       }
 
-      if (body.completed) {
+      const wasCompleted = Number(updated?.previousItem?.status || 0) === 1;
+      if (body.completed && !wasCompleted) {
         await sendActivityNotification(
           checklistCompletedNotificationText(actor, updated?.item?.title, updated?.task?.title),
           'schedule',
