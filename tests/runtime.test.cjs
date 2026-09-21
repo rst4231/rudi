@@ -54,5 +54,6 @@ test('Vercel config exposes the expected RUDI routes and cron schedules', () => 
   assert.deepEqual(config.crons, [
     { path: '/api/daily', schedule: '30 21 * * *' },
     { path: '/api/stylist-leads-cron', schedule: '0 4 * * *' },
+    { path: '/api/daily-cron?route=feed-notify', schedule: '0 7 * * *' },
   ]);
 });
