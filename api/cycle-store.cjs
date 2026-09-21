@@ -103,22 +103,28 @@ async function bootstrapCycleState(value, options = {}) {
   return { created: true, state: await writeCycleState(value, options) };
 }
 
-async function recordCycleStart(value, options = {}) {
+function cycleStateWithStart(current, value) {
   const date = validDateKey(value);
   if (!date) throw new Error('cycle-date-invalid');
-  const current = await readCycleState(options);
-  if (!current) throw new Error('cycle-not-configured');
+  const normalized = normalizeCycleState(current);
+  if (!normalized) throw new Error('cycle-not-configured');
 
-  const history = [...new Set([...current.historyStarts, date])].sort().slice(-MAX_HISTORY);
-  const cycleLengthDays = averageCycleLength(history, current.cycleLengthDays);
+  const history = [...new Set([...normalized.historyStarts, date])].sort().slice(-MAX_HISTORY);
+  const cycleLengthDays = averageCycleLength(history, normalized.cycleLengthDays);
   const latest = history[history.length - 1];
 
-  return writeCycleState({
-    ...current,
+  return normalizeCycleState({
+    ...normalized,
     historyStarts: history,
     cycleLengthDays,
     nextPeriodStart: shiftDateKey(latest, cycleLengthDays),
-  }, options);
+  });
+}
+
+async function recordCycleStart(value, options = {}) {
+  const current = await readCycleState(options);
+  const next = cycleStateWithStart(current, value);
+  return writeCycleState(next, options);
 }
 
 module.exports = {
@@ -130,6 +136,7 @@ module.exports = {
   shiftDateKey,
   averageCycleLength,
   normalizeCycleState,
+  cycleStateWithStart,
   readCycleState,
   writeCycleState,
   bootstrapCycleState,
