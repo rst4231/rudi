@@ -3658,7 +3658,7 @@
           const line=lines[index];
           const plain=line.replace(/<[^>]*>/g,'').trim();
           if(index===0&&(
-            (name==='facts'&&/Полезные факты/iu.test(plain))||
+            (name==='facts'&&/Полезн(?:ый факт|ые факты)/iu.test(plain))||
             (name==='concerts'&&/Поп и хип-хоп концерты/iu.test(plain))||
             (name==='standup'&&/Stage StandUp Club/iu.test(plain))||
             (name==='cinema'&&/Кинопремьеры/iu.test(plain))
@@ -3742,7 +3742,8 @@
           const text=row.text;
           if(!text) continue;
           if(
-            /Поп и хип-хоп концерты|Stage StandUp Club/iu.test(text)&&!/^\d+\./u.test(text)||
+            /^(?:🎤\s*)?Поп и хип-хоп концерты$/iu.test(text)||
+            /^(?:🎙\s*)?Stage StandUp Club$/iu.test(text)||
             /^📅/u.test(text)||
             /^Найдено событий\/сеансов/iu.test(text)
           ) continue;
