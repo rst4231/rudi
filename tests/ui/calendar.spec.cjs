@@ -79,12 +79,23 @@ async function mockRudi(page){
         date:'2026-09-21',
         changedSections:['facts','events','cinema'],
         sections:{
-          facts:{parts:['💡 <b>Полезный факт</b>\\n🚶 <b>Движение</b>\\n\\nТестовая польза.\\n\\n<a href="https://example.com/study">Исследование →</a>'],updatedAt:'2026-09-21T06:40:00.000Z'},
+          facts:{parts:['💡 <b>Полезные факты</b>\\n🚶 <b>Движение</b>\\n\\nТестовая польза.\\n\\n<a href="https://example.com/study">Исследование →</a>'],updatedAt:'2026-09-21T06:40:00.000Z'},
           events:{parts:[
-            '🎤 <b>Концерт сегодня</b>\\n\\n<a href="https://example.com/concert">Подробнее →</a>',
+            '🎤 <b>Поп и хип-хоп концерты</b>\\n📅 Понедельник, 21 сентября\\n1. <b>Концерт сегодня</b>\\n🕒 18:30\\n📍 Тестовый клуб\\n<a href="https://example.com/concert">Подробнее →</a>',
             '🎙 <b>Stage StandUp Club</b>\\n📅 Понедельник, 21 сентября\\nНайдено событий/сеансов: <b>2</b>\\n1. <b>Первый стендап</b>\\n🕒 19:00\\n<a href="https://example.com/standup-1">Официальная страница →</a>\\n2. <b>Второй стендап</b>\\n🕒 20:00\\n<a href="https://example.com/standup-2">Официальная страница →</a>'
           ],updatedAt:'2026-09-21T06:41:00.000Z'},
-          cinema:{parts:['🎬 <b>Кинопремьеры</b>\\n\\n1. Тестовый фильм'],updatedAt:'2026-09-21T06:42:00.000Z'}
+          cinema:{
+            parts:['🎬 <b>Кинопремьеры</b>\\n\\n1. Тестовый фильм'],
+            items:[{
+              title:'Тестовый фильм',
+              posterUrl:'https://cdn.mirage.ru/images/film/7000/small/p7426.jpg',
+              releaseDate:'2026-09-21',
+              sources:['Мираж Синема'],
+              sourceUrls:[{name:'Мираж Синема',url:'https://example.com/movie'}],
+              kinopoiskUrl:'https://example.com/kinopoisk'
+            }],
+            updatedAt:'2026-09-21T06:42:00.000Z'
+          }
         }
       });
     }
@@ -223,7 +234,7 @@ test('calendar task completes in TickTick and refreshes in place with confetti',
 });
 
 
-test('feed is a first-class tab with fresh badge and no duplicate cinema button on home',async({page})=>{
+test('feed is structured, today-first and keeps six-tab layout',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
@@ -235,22 +246,31 @@ test('feed is a first-class tab with fresh badge and no duplicate cinema button 
   await page.getByRole('tab',{name:'Лента'}).click();
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.locator('#feedTitle')).toHaveText('Лента');
-  await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
-  await expect(page.locator('#feedConcertsBody')).toContainText('Концерт сегодня');
-  await expect(page.locator('#feedStandupBody')).toContainText('Stage StandUp Club');
-  await expect(page.locator('#feedCinemaBody')).toContainText('Тестовый фильм');
+  await expect(page.locator('#feedToday')).toBeVisible();
+  await expect(page.locator('#feedTodayLinks')).toContainText('1 концерт');
+  await expect(page.locator('#feedTodayLinks')).toContainText('2 Stand Up');
+  await expect(page.locator('#feedTodayLinks')).toContainText('Факт дня');
+
+  await expect(page.locator('#feedFactsBody')).toContainText('Движение');
+  await expect(page.locator('#feedFactsBody')).not.toContainText('Полезные факты');
+  await expect(page.locator('#feedConcertsBody .feed-event-item')).toHaveCount(1);
+  await expect(page.locator('#feedConcertsBody .feed-event-title')).toHaveText('Концерт сегодня');
+  await expect(page.locator('#feedStandupBody .feed-event-item')).toHaveCount(2);
+  await expect(page.locator('#feedStandupBody .feed-event-title').nth(0)).toHaveText('Первый стендап');
+  await expect(page.locator('#feedStandupBody .feed-event-title').nth(1)).toHaveText('Второй стендап');
+  await expect(page.locator('#feedStandupBody')).not.toContainText('Найдено событий/сеансов');
+  await expect(page.locator('#feedCinemaBody .feed-movie-card')).toHaveCount(1);
+  await expect(page.locator('#feedCinemaBody .feed-movie-title')).toHaveText('Тестовый фильм');
+  await expect(page.locator('#feedCinemaBody .feed-movie-meta')).toContainText('Мираж Синема');
   await expect(page.locator('.profile-weather')).toHaveCount(0);
 
-  const factPart=page.locator('#feedFactsBody .feed-part');
-  await expect(factPart.locator('br')).toHaveCount(5);
-  await expect(factPart.locator('a')).toHaveCSS('display','block');
+  const cardOrder=await page.locator('.feed-grid .feed-card').evaluateAll(nodes=>nodes.map(node=>node.id));
+  expect(cardOrder.slice(0,4)).toEqual(['feedConcertsCard','feedStandupCard','feedFactsCard','feedCinemaCard']);
 
-  const standupPart=page.locator('#feedStandupBody .feed-part');
-  await expect(standupPart).toContainText('Первый стендап');
-  await expect(standupPart).toContainText('Второй стендап');
-  expect(await standupPart.locator('br').count()).toBeGreaterThanOrEqual(8);
-  const standupText=await standupPart.innerText();
-  expect(standupText).toMatch(/Официальная страница →\s*\n+\s*2\. Второй стендап/);
+  await expect(page.locator('#feedFactsNew')).toBeVisible();
+  await page.locator('#feedFactsCard').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(850);
+  await expect(page.locator('#feedFactsNew')).toBeHidden();
 
   const shellPadding=await page.locator('.shell').evaluate(node=>parseFloat(getComputedStyle(node).paddingBottom));
   const tabHeight=(await page.locator('#appTabBar').boundingBox()).height;
@@ -274,7 +294,8 @@ test('feed deep link opens the feed directly',async({page})=>{
   await page.goto('/?tab=feed');
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.getByRole('tab',{name:'Лента'})).toHaveClass(/active/);
-  await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
+  await expect(page.locator('#feedFactsBody')).toContainText('Движение');
+  await expect(page.locator('#feedFactsBody')).not.toContainText('Полезные факты');
 });
 
 

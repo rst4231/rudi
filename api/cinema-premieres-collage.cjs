@@ -170,6 +170,17 @@ async function filterRecentCinemaRows(rows, dateKey, settings = {}, options = {}
   };
 }
 
+function cinemaFeedItems(rows, dateKey) {
+  return (rows || []).map((row) => ({
+    title: String(row?.title || '').trim(),
+    posterUrl: String(row?.posterUrl || '').trim(),
+    releaseDate: String(row?.releaseDate || dateKey || '').trim(),
+    sources: Array.isArray(row?.sources) ? row.sources : [],
+    sourceUrls: Array.isArray(row?.sourceUrls) ? row.sourceUrls : [],
+    kinopoiskUrl: String(row?.kinopoiskUrl || kinopoiskSearchUrl(row?.title || '')).trim(),
+  })).filter((row) => row.title);
+}
+
 async function publishWeeklyCinemaPremieres(options = {}) {
   const now = options.now || new Date();
   if (!legacy.isThursdayInMoscow(now)) return { skipped: 'not-thursday', date: legacy.moscowDateKey(now) };
@@ -243,6 +254,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
       mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
       manualCount: manualRows.length,
       titles: rows.map((row) => row.title),
+      feedItems: cinemaFeedItems(rows, dateKey),
       feedMessage: rows.length
         ? buildCinemaDigestCaption(rows, dateKey)
         : (complete ? '🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.' : ''),
@@ -265,6 +277,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
       mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
       manualCount: manualRows.length,
       titles: [],
+      feedItems: [],
       feedMessage: '🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.',
       replacedMessageIds: [],
       replacementCleanupError: null,
@@ -329,6 +342,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
     manualCount: manualRows.length,
     titles: rows.map((row) => row.title),
+    feedItems: cinemaFeedItems(rows, dateKey),
     feedMessage: rows.length
       ? buildCinemaDigestCaption(rows, dateKey)
       : (complete ? '🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.' : ''),
@@ -350,5 +364,6 @@ module.exports = {
   loadMiragePremieresWithFallback,
   recordCinemaSourceResults,
   filterRecentCinemaRows,
+  cinemaFeedItems,
   publishWeeklyCinemaPremieres,
 };

@@ -38,10 +38,36 @@ function cleanParts(parts) {
     .slice(0, 12);
 }
 
+function cleanItems(items) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => item && typeof item === 'object')
+    .slice(0, 12)
+    .map((item) => ({
+      title: String(item.title || '').trim().slice(0, 240),
+      posterUrl: String(item.posterUrl || '').trim().slice(0, 2000),
+      releaseDate: String(item.releaseDate || '').trim().slice(0, 20),
+      sources: (Array.isArray(item.sources) ? item.sources : [])
+        .map((value) => String(value || '').trim().slice(0, 160))
+        .filter(Boolean)
+        .slice(0, 4),
+      sourceUrls: (Array.isArray(item.sourceUrls) ? item.sourceUrls : [])
+        .filter((row) => row && typeof row === 'object')
+        .map((row) => ({
+          name: String(row.name || '').trim().slice(0, 160),
+          url: String(row.url || '').trim().slice(0, 2000),
+        }))
+        .filter((row) => row.url)
+        .slice(0, 4),
+      kinopoiskUrl: String(item.kinopoiskUrl || '').trim().slice(0, 2000),
+    }))
+    .filter((item) => item.title);
+}
+
 function normalizeSection(name, input, now = new Date()) {
   if (!input) return null;
   const parts = cleanParts(input.parts);
-  if (!parts.length) return null;
+  const items = cleanItems(input.items);
+  if (!parts.length && !items.length) return null;
   const updatedAt = String(input.updatedAt || now.toISOString());
   const updatedMs = new Date(updatedAt).getTime();
   const persistent = name === 'cinema';
@@ -52,6 +78,7 @@ function normalizeSection(name, input, now = new Date()) {
   return {
     name,
     parts,
+    items,
     updatedAt,
     expiresAt,
     source: String(input.source || 'daily').slice(0, 80),
@@ -59,7 +86,10 @@ function normalizeSection(name, input, now = new Date()) {
 }
 
 function sectionSignature(section) {
-  return JSON.stringify(section?.parts || []);
+  return JSON.stringify({
+    parts: section?.parts || [],
+    items: section?.items || [],
+  });
 }
 
 function normalizeSnapshot(value, now = new Date()) {

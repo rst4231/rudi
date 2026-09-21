@@ -89,3 +89,26 @@ test('cinema content stays until a newer cinema post replaces it', async () => {
   assert.deepEqual(replaced.sections.cinema.parts, ['new cinema post']);
   assert.equal(JSON.stringify(replaced).includes('old cinema post'), false);
 });
+
+
+test('cinema structured items persist together with fallback text', async () => {
+  const cache = memoryCache();
+  await updateFeedSections({
+    cinema: {
+      parts: ['fallback cinema'],
+      items: [{
+        title: 'Тестовый фильм',
+        posterUrl: 'https://cdn.mirage.ru/images/film/7000/small/p7426.jpg',
+        releaseDate: '2026-09-24',
+        sources: ['Мираж Синема'],
+        sourceUrls: [{ name: 'Мираж Синема', url: 'https://www.mirage.ru/film/7426/' }],
+        kinopoiskUrl: 'https://www.kinopoisk.ru/index.php?kp_query=test',
+      }],
+    },
+  }, { feedCache: cache, now: new Date('2026-09-24T06:00:00Z'), date: '2026-09-24' });
+
+  const snapshot = await readFeedSnapshot({ feedCache: cache, now: new Date('2026-10-01T06:00:00Z') });
+  assert.equal(snapshot.sections.cinema.items.length, 1);
+  assert.equal(snapshot.sections.cinema.items[0].title, 'Тестовый фильм');
+  assert.equal(snapshot.sections.cinema.items[0].sources[0], 'Мираж Синема');
+});

@@ -265,4 +265,8 @@ test('cinema can refresh feed data without sending anything to Telegram', async 
   assert.equal(result.posts, 0);
   assert.equal(telegramCalls, 0);
   assert.match(result.feedMessage, /Тестовый фильм/);
+  assert.equal(result.feedItems.length, 1);
+  assert.equal(result.feedItems[0].title, 'Тестовый фильм');
+  assert.equal(result.feedItems[0].releaseDate, '2026-08-27');
+  assert.deepEqual(result.feedItems[0].sources, ['Кинополис Мурино']);
 });
