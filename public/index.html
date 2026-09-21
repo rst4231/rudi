@@ -64,7 +64,7 @@
 
         <div class="profile-mood" role="group" aria-label="Настроение сегодня">
           <div class="mood-person mood-self">
-            <span class="mood-person-label">Моё</span>
+            <span class="mood-person-label" aria-hidden="true"></span>
             <div class="mood-self-buttons">
               <button class="mood-button" type="button" data-mood="low" aria-label="Не очень" title="Не очень"><span class="mood-emoji" aria-hidden="true">😔</span></button>
               <button class="mood-button" type="button" data-mood="ok" aria-label="Нормально" title="Нормально"><span class="mood-emoji" aria-hidden="true">😐</span></button>
@@ -72,7 +72,7 @@
             </div>
           </div>
           <div class="mood-person mood-partner">
-            <span id="partnerMoodLabel" class="mood-person-label">Диана</span>
+            <span id="partnerMoodLabel" class="mood-person-label" aria-hidden="true"></span>
             <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
               <span class="partner-mood-icon" data-partner-mood="low" hidden><span class="mood-emoji" aria-hidden="true">😔</span></span>

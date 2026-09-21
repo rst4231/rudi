@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
@@ -1554,15 +1555,17 @@ async function handler(req, res, options = {}) {
       updatedAt: new Date(options.now || Date.now()).toISOString(),
     }, options);
 
-    let notification = { sent: false };
-    try {
-      notification = await sendPartnerMessageNotification(actor, options);
-    } catch (error) {
+    const notificationTask = sendPartnerMessageNotification(actor, options).catch((error) => {
       console.error('RUDI_PARTNER_NOTIFICATION_ERROR', String(error?.message || error));
-      notification = { sent: false, error: 'notification-failed' };
+      return { sent: false, error: 'notification-failed' };
+    });
+    try {
+      waitUntil(notificationTask);
+    } catch (_) {
+      notificationTask.catch(() => {});
     }
 
-    return res.status(200).json({ ok: true, message, notification });
+    return res.status(200).json({ ok: true, message, notification: { sent: false, pending: true } });
   } catch (error) {
     const status = statusForError(error);
     if (status === 500) console.error('RUDI_PARTNER_MESSAGE_ERROR', error);

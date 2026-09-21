@@ -1039,10 +1039,6 @@
         greeting.className='home-dashboard-greeting';
         top.append(greeting,dateHeading);
 
-        const todayBlock=document.createElement('section');
-        todayBlock.className='home-dashboard-section home-today';
-        todayBlock.innerHTML='<div class="home-dashboard-label">Сегодня</div><div id="homeTodayRows" class="home-today-rows"></div>';
-
         const together=document.createElement('section');
         together.className='home-dashboard-section home-together';
         const togetherLabel=document.createElement('div');
@@ -1065,21 +1061,13 @@
         if(moodPrompt) together.appendChild(moodPrompt);
         if(moodMessage) together.appendChild(moodMessage);
 
-        const quick=document.createElement('div');
-        quick.className='home-quick-actions';
-        quick.innerHTML=
-          '<button type="button" data-home-quick="products"><span>＋</span>Продукт</button>'+
-          '<button type="button" data-home-quick="wishlist"><span>＋</span>Желание</button>'+
-          '<button type="button" data-home-quick="photos"><span>＋</span>Фото</button>'+
-          '<button type="button" data-home-quick="message"><span>💌</span>Послание</button>';
-
         const nearest=document.createElement('section');
         nearest.id='homeNearestBlock';
         nearest.className='home-dashboard-section home-nearest';
         nearest.hidden=true;
         nearest.innerHTML='<div class="home-dashboard-label">Ближайшее</div><div id="homeNearestRows" class="home-nearest-rows"></div>';
 
-        profile.replaceChildren(top,todayBlock,together,quick,nearest);
+        profile.replaceChildren(top,together,nearest);
 
         const newTile=document.createElement('section');
         newTile.id='homeNewTile';
@@ -3496,7 +3484,7 @@
         const count=document.getElementById('sharedAlbumCount');
         const open=document.getElementById('sharedAlbumOpen');
         const photos=(Array.isArray(payload?.photos)?payload.photos:[])
-          .slice(0,40)
+          .slice(0,100)
           .sort((a,b)=>sharedAlbumPhotoTime(b)-sharedAlbumPhotoTime(a));
         sharedAlbumPhotos=photos;
 
@@ -4025,7 +4013,7 @@
         const empty=document.getElementById('partnerMoodEmpty');
         const mood=String(value||'');
         const visiblePartner=partnerProfileName||partner||'Партнёр';
-        label.textContent=visiblePartner;
+        if(label) label.textContent='';
         holder.dataset.mood=mood;
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==mood;

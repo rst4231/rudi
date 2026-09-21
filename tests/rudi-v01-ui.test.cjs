@@ -23,3 +23,20 @@ test('Diana work status stays tied to current month when browsing next month',()
   assert.match(html,/if\(view==='month'\) renderPartnerWorkStatus\(days\)/);
   assert.match(html,/if\(requested==='next-month'\) refreshPartnerWorkStatus\(\)/);
 });
+
+
+test('home dashboard omits today and quick-action blocks',()=>{
+  assert.doesNotMatch(html,/todayBlock\.className='home-dashboard-section home-today'/);
+  assert.doesNotMatch(html,/quick\.className='home-quick-actions'/);
+  assert.match(html,/profile\.replaceChildren\(top,together,nearest\)/);
+});
+
+test('home mood labels are hidden and Diana mood is centered',()=>{
+  assert.match(html,/mood-person-label" aria-hidden="true"><\/span>/);
+  assert.match(html,/\.home-dashboard \.mood-partner\{[\s\S]*justify-content:center!important/);
+});
+
+test('partner message save does not wait for Telegram notification',()=>{
+  assert.match(html,/waitUntil\(notificationTask\)/);
+  assert.match(html,/pending: true/);
+});

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { fetchLatestPhotos } = require('../api/shared-album.cjs');
 
 test('shared album reports total photo count while only loading preview window', async () => {
-  const photos = Array.from({ length: 47 }, (_, index) => ({
+  const photos = Array.from({ length: 147 }, (_, index) => ({
     photoGuid: 'photo-' + index,
     mediaAssetType: 'image',
     dateCreated: new Date(Date.UTC(2026, 8, 21 - Math.min(index, 20), 12)).toISOString(),
@@ -61,8 +61,8 @@ test('shared album reports total photo count while only loading preview window',
     token: 'A5q2example',
   }, { fetchImpl });
 
-  assert.equal(result.totalCount, 47);
-  assert.equal(result.photos.length, 40);
+  assert.equal(result.totalCount, 147);
+  assert.equal(result.photos.length, 100);
   assert.equal(result.title, 'Наш альбом');
   assert.equal(result.photos[0].id, 'photo-0');
   assert.equal(result.photos[0].width, 1200);

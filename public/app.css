@@ -5156,3 +5156,16 @@ html[data-theme="dark"] .home-dashboard{
   grid-column:1/-1;
   margin-top:4px;
 }
+
+
+/* v1.0 compact mood row: labels removed, partner mood centered */
+.home-dashboard .mood-person-label{
+  display:none!important;
+}
+.home-dashboard .mood-partner{
+  justify-content:center!important;
+  gap:0!important;
+}
+.home-dashboard .mood-self{
+  justify-items:center!important;
+}
