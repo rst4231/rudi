@@ -3632,6 +3632,7 @@
       function normalizeFeedHtml(value,name=''){
         let raw=String(value||'')
           .trim()
+          .replace(/\\r\\n|\\n|\\r/g,'\n')
           .replace(/\r\n?/g,'\n')
           .replace(/\n{3,}/g,'\n\n');
         if(name==='standup'||name==='cinema'){
