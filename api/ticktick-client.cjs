@@ -223,10 +223,13 @@ async function updateTaskChecklistItem(accessToken, projectId, taskId, itemId, c
 
   const updated = await response.json().catch(() => null);
   const source = updated && typeof updated === 'object' ? updated : { ...task, ...body };
+  const previousItem = (Array.isArray(task?.items) ? task.items : [])
+    .find((row) => String(row?.id || '').trim() === String(itemId || '').trim());
   const item = (Array.isArray(source.items) ? source.items : body.items)
     .find((row) => String(row?.id || '').trim() === String(itemId || '').trim());
   return {
     task: source,
+    previousItem: previousItem || null,
     item: item || null,
   };
 }
