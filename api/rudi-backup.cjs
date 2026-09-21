@@ -68,6 +68,9 @@ async function safeRead(task, fallback = null) {
 }
 
 async function createStateSnapshot(options = {}) {
+  const previous = options.previousSnapshot && typeof options.previousSnapshot === 'object'
+    ? options.previousSnapshot
+    : null;
   const [
     partnerMessage, wishlist, products, ticktickChecklistAudit,
     ticktickToken, calendarUrl, albumConfig, cycle, recipients,
@@ -83,18 +86,25 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readRecipients(options)),
   ]);
 
+  const mergedRecipients = {
+    'Рустам': Number(recipients?.['Рустам'] || previous?.recipients?.['Рустам'] || 0) || null,
+    'Диана': Number(recipients?.['Диана'] || previous?.recipients?.['Диана'] || 0) || null,
+  };
+
   return {
     version: BACKUP_VERSION,
     createdAt: new Date(options.now || Date.now()).toISOString(),
-    partnerMessage,
-    wishlist,
-    products,
-    ticktickChecklistAudit,
-    ticktickToken,
-    calendarUrl,
-    albumConfig,
-    cycle,
-    recipients,
+    partnerMessage: partnerMessage || previous?.partnerMessage || null,
+    wishlist: wishlist?.initialized ? wishlist : (previous?.wishlist || wishlist),
+    products: products?.initialized ? products : (previous?.products || products),
+    ticktickChecklistAudit: ticktickChecklistAudit?.initialized
+      ? ticktickChecklistAudit
+      : (previous?.ticktickChecklistAudit || ticktickChecklistAudit),
+    ticktickToken: ticktickToken?.accessToken ? ticktickToken : (previous?.ticktickToken || null),
+    calendarUrl: calendarUrl || previous?.calendarUrl || '',
+    albumConfig: albumConfig?.url ? albumConfig : (previous?.albumConfig || null),
+    cycle: cycle || previous?.cycle || null,
+    recipients: mergedRecipients,
   };
 }
 
@@ -113,8 +123,10 @@ async function restoreStateBackup(token, options = {}) {
   const currentMessageTime = Date.parse(String(currentMessage?.updatedAt || '')) || 0;
   const savedMessageTime = Date.parse(String(snapshot.partnerMessage?.updatedAt || '')) || snapshotTime;
   if (snapshot.partnerMessage && (!currentMessage || savedMessageTime > currentMessageTime)) {
-    await writePartnerMessage(snapshot.partnerMessage, options);
-    restored.push('partner-message');
+    try {
+      await writePartnerMessage(snapshot.partnerMessage, options);
+      restored.push('partner-message');
+    } catch {}
   }
 
   const currentWishlist = await safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] });
@@ -124,8 +136,10 @@ async function restoreStateBackup(token, options = {}) {
     snapshot.wishlist?.initialized &&
     (!currentWishlist?.initialized || savedWishlistVersion > currentWishlistVersion)
   ) {
-    await writeWishlist(snapshot.wishlist, options);
-    restored.push('wishlist');
+    try {
+      await writeWishlist(snapshot.wishlist, options);
+      restored.push('wishlist');
+    } catch {}
   }
 
   const currentProducts = await safeRead(() => readProductListRaw(options), { initialized: false, version: 0, items: [], history: [] });
@@ -135,36 +149,46 @@ async function restoreStateBackup(token, options = {}) {
     snapshot.products?.initialized &&
     (!currentProducts?.initialized || savedProductsVersion > currentProductsVersion)
   ) {
-    await restoreProductListSnapshot(snapshot.products, options);
-    restored.push('products');
+    try {
+      await restoreProductListSnapshot(snapshot.products, options);
+      restored.push('products');
+    } catch {}
   }
 
   const currentToken = await safeRead(() => readToken(options));
   const savedTokenTime = Date.parse(String(snapshot.ticktickToken?.savedAt || '')) || snapshotTime;
   const currentTokenTime = Date.parse(String(currentToken?.savedAt || '')) || 0;
   if (snapshot.ticktickToken?.accessToken && (!currentToken?.accessToken || savedTokenTime > currentTokenTime)) {
-    await saveToken(snapshot.ticktickToken, options);
-    restored.push('ticktick-token');
+    try {
+      await saveToken(snapshot.ticktickToken, options);
+      restored.push('ticktick-token');
+    } catch {}
   }
 
   const currentCalendarUrl = await safeRead(() => readCalendarUrl(options));
   if (snapshot.calendarUrl && !currentCalendarUrl) {
-    await saveCalendarUrl(snapshot.calendarUrl, options);
-    restored.push('work-calendar');
+    try {
+      await saveCalendarUrl(snapshot.calendarUrl, options);
+      restored.push('work-calendar');
+    } catch {}
   }
 
   const currentAlbumConfig = await safeRead(() => readAlbumConfig(options));
   if (snapshot.albumConfig?.url && !currentAlbumConfig?.url) {
-    await saveAlbumConfig(snapshot.albumConfig, options);
-    restored.push('shared-album');
+    try {
+      await saveAlbumConfig(snapshot.albumConfig, options);
+      restored.push('shared-album');
+    } catch {}
   }
 
   const currentCycle = await safeRead(() => readCycleState(options));
   const savedCycleTime = Date.parse(String(snapshot.cycle?.updatedAt || '')) || snapshotTime;
   const currentCycleTime = Date.parse(String(currentCycle?.updatedAt || '')) || 0;
   if (snapshot.cycle && (!currentCycle || savedCycleTime > currentCycleTime)) {
-    await writeCycleState(snapshot.cycle, options);
-    restored.push('cycle');
+    try {
+      await writeCycleState(snapshot.cycle, options);
+      restored.push('cycle');
+    } catch {}
   }
 
   const currentRecipients = await safeRead(() => readRecipients(options));
@@ -177,8 +201,10 @@ async function restoreStateBackup(token, options = {}) {
     Number.isInteger(mergedRecipients['Диана']) && mergedRecipients['Диана'] > 0 &&
     (!currentRecipients?.['Рустам'] || !currentRecipients?.['Диана'])
   ) {
-    await saveRecipients(mergedRecipients, options);
-    restored.push('recipients');
+    try {
+      await saveRecipients(mergedRecipients, options);
+      restored.push('recipients');
+    } catch {}
   }
 
   const currentChecklistAudit = await safeRead(
@@ -191,8 +217,10 @@ async function restoreStateBackup(token, options = {}) {
     snapshot.ticktickChecklistAudit?.initialized &&
     (!currentChecklistAudit?.initialized || savedChecklistAuditVersion > currentChecklistAuditVersion)
   ) {
-    await restoreChecklistAuditState(snapshot.ticktickChecklistAudit, options);
-    restored.push('ticktick-checklist-audit');
+    try {
+      await restoreChecklistAuditState(snapshot.ticktickChecklistAudit, options);
+      restored.push('ticktick-checklist-audit');
+    } catch {}
   }
 
   return { restored };
