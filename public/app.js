@@ -30,6 +30,7 @@
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_CLOUD_META_KEY = 'rudi_state_backup_v2_meta';
       const STATE_BACKUP_CLOUD_CHUNK_PREFIX = 'rudi_state_backup_v2_';
+      const STATE_BACKUP_CLOUD_SLOT_PREFIX = 'rudi_state_backup_v2_slot_';
       const LEGACY_STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v1';
       const LEGACY_STATE_BACKUP_CLOUD_META_KEY = 'rudi_state_backup_v1_meta';
       const LEGACY_STATE_BACKUP_CLOUD_CHUNK_PREFIX = 'rudi_state_backup_v1_';
@@ -66,6 +67,18 @@
         const token=String(value||'').trim();
         if(!token) return;
         try{localStorage.setItem(STATE_BACKUP_STORAGE_KEY,token)}catch(_){}
+      }
+
+      function backupTokenChecksum(value){
+        const text=String(value||'');
+        let a=2166136261>>>0;
+        let b=2246822519>>>0;
+        for(let index=0;index<text.length;index++){
+          const code=text.charCodeAt(index);
+          a=Math.imul((a^code)>>>0,16777619)>>>0;
+          b=Math.imul((b^(code+index))>>>0,3266489917)>>>0;
+        }
+        return a.toString(16).padStart(8,'0')+b.toString(16).padStart(8,'0');
       }
 
       function cloudStorageGetItem(key){
@@ -119,7 +132,7 @@
         await withTimeout(cloudStorageRemoveItems(keys),1200,false);
       }
 
-      async function readCloudStateBackupToken(){
+      async function readCloudStateBackupToken(options={}){
         if(!tg?.CloudStorage?.getItem) return '';
         const rawMeta=await cloudStorageGetItem(STATE_BACKUP_CLOUD_META_KEY);
         if(!rawMeta) return '';
@@ -128,6 +141,29 @@
         const count=Number(meta?.count||0);
         const expectedLength=Number(meta?.length||0);
         if(!Number.isInteger(count)||count<1||count>128||!Number.isInteger(expectedLength)||expectedLength<1) return '';
+
+        const version=Number(meta?.version||0);
+        const slot=String(meta?.slot||'');
+        if(version>=3){
+          if(!['a','b'].includes(slot)) return '';
+          const checksum=String(meta?.checksum||'').trim().toLowerCase();
+          if(!/^[0-9a-f]{16}$/.test(checksum)) return '';
+          const keys=Array.from({length:count},(_,index)=>STATE_BACKUP_CLOUD_SLOT_PREFIX+slot+'_'+index);
+          let values={};
+          if(tg.CloudStorage.getItems){
+            values=await new Promise(resolve=>{
+              try{tg.CloudStorage.getItems(keys,(error,result)=>resolve(error?{}:(result||{})))}catch(_){resolve({})}
+            });
+          }else{
+            const rows=await Promise.all(keys.map(async key=>[key,await cloudStorageGetItem(key)]));
+            values=Object.fromEntries(rows);
+          }
+          const token=keys.map(key=>String(values?.[key]||'')).join('');
+          if(token.length!==expectedLength||backupTokenChecksum(token)!==checksum) return '';
+          return token;
+        }
+
+        if(options.allowLegacy===false) return '';
         const keys=Array.from({length:count},(_,index)=>STATE_BACKUP_CLOUD_CHUNK_PREFIX+index);
         let values={};
         if(tg.CloudStorage.getItems){
@@ -145,34 +181,57 @@
       async function writeCloudStateBackupToken(value){
         const token=String(value||'').trim();
         if(!token||!tg?.CloudStorage?.setItem) return false;
+
         const previousRaw=await cloudStorageGetItem(STATE_BACKUP_CLOUD_META_KEY);
-        let previousCount=0;
-        try{previousCount=Number(JSON.parse(previousRaw||'{}')?.count||0)}catch(_){}
+        let previousMeta={};
+        try{previousMeta=JSON.parse(previousRaw||'{}')||{}}catch(_){}
+        const previousVersion=Number(previousMeta?.version||0);
+        const previousCount=Number(previousMeta?.count||0);
+        const previousSlot=['a','b'].includes(String(previousMeta?.slot||''))?String(previousMeta.slot):'';
+        const nextSlot=previousSlot==='a'?'b':'a';
+
         const chunks=[];
         for(let index=0;index<token.length;index+=STATE_BACKUP_CLOUD_CHUNK_SIZE){
           chunks.push(token.slice(index,index+STATE_BACKUP_CLOUD_CHUNK_SIZE));
         }
         if(!chunks.length||chunks.length>128) return false;
+
+        const keys=chunks.map((_,index)=>STATE_BACKUP_CLOUD_SLOT_PREFIX+nextSlot+'_'+index);
         for(let index=0;index<chunks.length;index++){
-          const stored=await cloudStorageSetItem(STATE_BACKUP_CLOUD_CHUNK_PREFIX+index,chunks[index]);
+          const stored=await cloudStorageSetItem(keys[index],chunks[index]);
           if(!stored) return false;
         }
-        const meta=JSON.stringify({version:2,count:chunks.length,length:token.length,updatedAt:Date.now()});
+
+        const verificationRows=await Promise.all(keys.map(async key=>[key,await cloudStorageGetItem(key)]));
+        const verification=Object.fromEntries(verificationRows);
+        const restored=keys.map(key=>String(verification?.[key]||'')).join('');
+        const checksum=backupTokenChecksum(token);
+        if(restored.length!==token.length||backupTokenChecksum(restored)!==checksum) return false;
+
+        const meta=JSON.stringify({
+          version:3,
+          slot:nextSlot,
+          count:chunks.length,
+          length:token.length,
+          checksum,
+          updatedAt:Date.now()
+        });
         if(!await cloudStorageSetItem(STATE_BACKUP_CLOUD_META_KEY,meta)) return false;
-        if(previousCount>chunks.length){
-          await cloudStorageRemoveItems(Array.from({length:previousCount-chunks.length},(_,i)=>STATE_BACKUP_CLOUD_CHUNK_PREFIX+(chunks.length+i)));
+
+        if(previousVersion<3&&Number.isInteger(previousCount)&&previousCount>0&&previousCount<=128){
+          await cloudStorageRemoveItems(Array.from({length:previousCount},(_,index)=>STATE_BACKUP_CLOUD_CHUNK_PREFIX+index));
         }
         return true;
       }
 
       async function readStateBackupToken(){
-        const cloud=await readCloudStateBackupToken();
+        const local=readLocalStateBackupToken();
+        const cloud=await readCloudStateBackupToken({allowLegacy:!local});
         if(cloud){
           currentStateBackupToken=cloud;
           storeLocalStateBackupToken(cloud);
           return cloud;
         }
-        const local=readLocalStateBackupToken();
         if(local) currentStateBackupToken=local;
         return local;
       }
@@ -554,10 +613,7 @@
         selfCard.dataset.appTabSection='home';
         selfCard.dataset.homeTile='profile-self';
         selfCard.setAttribute('aria-label','Мой профиль');
-        const selfLabel=document.createElement('div');
-        selfLabel.className='profile-card-kicker';
-        selfLabel.textContent='Моё';
-        selfCard.append(selfLabel,selfIdentity);
+        selfCard.append(selfIdentity);
         if(moodPrompt) selfCard.appendChild(moodPrompt);
         if(moodMessage) selfCard.appendChild(moodMessage);
 
@@ -566,10 +622,7 @@
         partnerCard.dataset.appTabSection='home';
         partnerCard.dataset.homeTile='profile-partner';
         partnerCard.setAttribute('aria-label','Профиль партнёра');
-        const partnerLabel=document.createElement('div');
-        partnerLabel.className='profile-card-kicker';
-        partnerLabel.textContent='Партнёр';
-        partnerCard.append(partnerLabel,partnerIdentity);
+        partnerCard.append(partnerIdentity);
 
         profile.after(selfCard,partnerCard);
         document.body.dataset.profileSplitReady='1';

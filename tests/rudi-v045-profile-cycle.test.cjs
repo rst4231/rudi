@@ -33,9 +33,9 @@ test('cycle bootstrap is tolerant of Runtime Cache confirmation failures',()=>{
   assert.match(source,/confirmWrites: false/);
 });
 
-test('Telegram receives cache-busted v0.4.5 assets',()=>{
+test('Telegram receives cache-busted v0.4.6 assets',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.match(html,/\/app\.css\?v=0\.4\.5/);
-  assert.match(html,/\/app\.js\?v=0\.4\.5/);
-  assert.match(html,/>v0\.4\.5<\/div>/);
+  assert.match(html,/\/app\.css\?v=0\.4\.6/);
+  assert.match(html,/\/app\.js\?v=0\.4\.6/);
+  assert.match(html,/>v0\.4\.6<\/div>/);
 });
