@@ -67,6 +67,21 @@ async function safeRead(task, fallback = null) {
   try { return await task(); } catch { return fallback; }
 }
 
+function newerVersionState(current, previous) {
+  const a = Number(current?.version || 0);
+  const b = Number(previous?.version || 0);
+  if (previous?.initialized && (!current?.initialized || b > a)) return previous;
+  return current || previous || null;
+}
+
+function newerTimestampState(current, previous, field) {
+  if (!current) return previous || null;
+  if (!previous) return current;
+  const a = Date.parse(String(current?.[field] || '')) || 0;
+  const b = Date.parse(String(previous?.[field] || '')) || 0;
+  return b > a ? previous : current;
+}
+
 async function createStateSnapshot(options = {}) {
   const previous = options.previousSnapshot && typeof options.previousSnapshot === 'object'
     ? options.previousSnapshot
@@ -94,16 +109,14 @@ async function createStateSnapshot(options = {}) {
   return {
     version: BACKUP_VERSION,
     createdAt: new Date(options.now || Date.now()).toISOString(),
-    partnerMessage: partnerMessage || previous?.partnerMessage || null,
-    wishlist: wishlist?.initialized ? wishlist : (previous?.wishlist || wishlist),
-    products: products?.initialized ? products : (previous?.products || products),
-    ticktickChecklistAudit: ticktickChecklistAudit?.initialized
-      ? ticktickChecklistAudit
-      : (previous?.ticktickChecklistAudit || ticktickChecklistAudit),
-    ticktickToken: ticktickToken?.accessToken ? ticktickToken : (previous?.ticktickToken || null),
+    partnerMessage: newerTimestampState(partnerMessage, previous?.partnerMessage, 'updatedAt'),
+    wishlist: newerVersionState(wishlist, previous?.wishlist),
+    products: newerVersionState(products, previous?.products),
+    ticktickChecklistAudit: newerVersionState(ticktickChecklistAudit, previous?.ticktickChecklistAudit),
+    ticktickToken: newerTimestampState(ticktickToken, previous?.ticktickToken, 'savedAt'),
     calendarUrl: calendarUrl || previous?.calendarUrl || '',
     albumConfig: albumConfig?.url ? albumConfig : (previous?.albumConfig || null),
-    cycle: cycle || previous?.cycle || null,
+    cycle: newerTimestampState(cycle, previous?.cycle, 'updatedAt'),
     recipients: mergedRecipients,
   };
 }
