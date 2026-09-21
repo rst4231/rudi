@@ -14,6 +14,8 @@
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
       let currentSharedCalendarView = 'month';
+      const calendarViewCache = {month:null,'next-month':null};
+      let calendarConfettiTimer = 0;
       let sharedAlbumUrl = '';
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
@@ -477,6 +479,35 @@
         }
       }
 
+      function playCalendarConfetti(){
+        const host=document.getElementById('calendarConfetti');
+        if(!host) return;
+        try{
+          if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+        }catch(_){}
+        clearTimeout(calendarConfettiTimer);
+        host.classList.remove('is-active');
+        host.replaceChildren();
+        const palette=['var(--accent)','var(--love)','var(--green)','#f4c95d','#72c6ff','#d98cff'];
+        for(let index=0;index<34;index++){
+          const piece=document.createElement('i');
+          piece.className='calendar-confetti-piece';
+          piece.style.setProperty('--confetti-x',(3+Math.random()*94).toFixed(2)+'%');
+          piece.style.setProperty('--confetti-drift',((-70+Math.random()*140).toFixed(1))+'px');
+          piece.style.setProperty('--confetti-delay',(Math.random()*.48).toFixed(3)+'s');
+          piece.style.setProperty('--confetti-duration',(1.15+Math.random()*.9).toFixed(3)+'s');
+          piece.style.setProperty('--confetti-turn',(360+Math.round(Math.random()*720))+'deg');
+          piece.style.setProperty('--confetti-color',palette[index%palette.length]);
+          piece.classList.toggle('is-round',index%5===0);
+          host.appendChild(piece);
+        }
+        requestAnimationFrame(()=>host.classList.add('is-active'));
+        calendarConfettiTimer=setTimeout(()=>{
+          host.classList.remove('is-active');
+          host.replaceChildren();
+        },2500);
+      }
+
       function setupAppTabs(){
         applyAppTab('home',{scroll:false});
         document.querySelectorAll('[data-app-tab]').forEach(button=>{
@@ -490,6 +521,7 @@
             appTabScroll[currentAppTab]=window.scrollY||0;
             document.activeElement?.blur?.();
             applyAppTab(next,{scroll:true});
+            if(next==='schedule') playCalendarConfetti();
             if(next==='products'){
               loadProducts({silent:true});
               scheduleProductsRefresh(15000);
@@ -1896,7 +1928,8 @@
           const view=button.dataset.workView||'month';
           if(view===currentWorkCalendarView) return;
           setWorkCalendarRangeActive(view);
-          await loadWorkCalendar(view);
+          if(calendarViewCache[view]) renderWorkCalendar(calendarViewCache[view]);
+          await loadWorkCalendar(view,{silent:Boolean(calendarViewCache[view])});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         }));
       }
@@ -1935,6 +1968,8 @@
         selected.replaceChildren();
 
         const days=Array.isArray(payload?.days)?payload.days:[];
+        const tickDays=new Map((Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[]).map(day=>[String(day?.date||''),day]));
+        const holidayDays=new Map((Array.isArray(payload?.holidayDays)?payload.holidayDays:[]).map(day=>[String(day?.date||''),day]));
         if(!payload?.configured){
           status.hidden=false;
           status.textContent='Не подключён';
@@ -1952,7 +1987,7 @@
 
         const first=dateFromKey(days[0].date);
         const last=dateFromKey(days[days.length-1].date);
-        const view=String(payload?.view||currentWorkCalendarView||'week');
+        const view=String(payload?.view||currentWorkCalendarView||'month');
         const isMonth=view==='month'||view==='next-month';
         if(view==='month') renderPartnerWorkStatus(days);
         if(isMonth){
@@ -1991,19 +2026,33 @@
         for(const day of days){
           const date=dateFromKey(day.date);
           const events=Array.isArray(day.events)?day.events:[];
+          const tasks=(Array.isArray(tickDays.get(String(day.date))?.events)?tickDays.get(String(day.date)).events:[])
+            .filter(event=>!event?.completed);
+          const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
+            .slice(0,5)
+            .filter(Boolean);
           const times=events
             .map(event=>event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–')))
             .filter(Boolean);
           const timeText=times.join(' / ')||'Смена';
           const cell=document.createElement('button');
           cell.type='button';
-          cell.className='calendar-day-cell '+(day.working?'working':'off')+(day.date===today?' today':'');
-          cell.title=day.working?timeText:'Выходной';
+          cell.className='calendar-day-cell '+(day.working?'working':'off')+
+            (tasks.length?' has-tasks':'')+
+            (holidays.length?' has-holidays':'')+
+            (day.date===today?' today':'');
+          const tooltip=[
+            day.working?timeText:'Выходной',
+            tasks.length?tasks.map(event=>event.title).filter(Boolean).join(' · '):'',
+            holidays.length?holidays.join(' · '):''
+          ].filter(Boolean).join(' · ');
+          cell.title=tooltip;
           cell.setAttribute(
             'aria-label',
             (day.working?'Работа ':'Выходной ')+
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
-            (day.working?', '+timeText:'')
+            (tasks.length?', дел: '+tasks.length:'')+
+            (holidays.length?', праздников: '+holidays.length:'')
           );
 
           if(!isMonth){
@@ -2029,6 +2078,26 @@
             cell.appendChild(check);
           }
 
+          if(tasks.length||holidays.length){
+            const indicators=document.createElement('span');
+            indicators.className='calendar-day-indicators';
+            if(tasks.length){
+              const taskCount=document.createElement('span');
+              taskCount.className='calendar-task-count';
+              taskCount.textContent=String(tasks.length);
+              taskCount.setAttribute('aria-hidden','true');
+              indicators.appendChild(taskCount);
+            }
+            if(holidays.length){
+              const holidayMark=document.createElement('span');
+              holidayMark.className='calendar-holiday-mark';
+              holidayMark.textContent='✦';
+              holidayMark.setAttribute('aria-hidden','true');
+              indicators.appendChild(holidayMark);
+            }
+            cell.appendChild(indicators);
+          }
+
           const showDayDetails=(withHaptic=false)=>{
             container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
             cell.classList.add('selected');
@@ -2044,14 +2113,59 @@
             copy.className='work-selected-copy';
             const heading=document.createElement('strong');
             heading.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(date);
+
             const info=document.createElement('span');
-            if(day.working){
-              const titles=events.map(event=>event.title).filter(Boolean);
-              info.textContent=(times.length?times.join(' / '):'Смена')+(titles.length?' · '+titles.join(' · '):'');
-            }else{
-              info.textContent='Выходной';
-            }
+            info.className='work-selected-status';
+            const prefix=day.date===today?'Сегодня у Дианы ':'У Дианы ';
+            info.textContent=prefix+(day.working?'рабочий день':'выходной');
             copy.append(heading,info);
+
+            if(day.working){
+              const shift=document.createElement('span');
+              shift.className='work-selected-shift';
+              const titles=events.map(event=>event.title).filter(Boolean);
+              shift.textContent='Смена: '+(times.length?times.join(' / '):'по графику')+(titles.length?' · '+titles.join(' · '):'');
+              copy.appendChild(shift);
+            }
+
+            if(tasks.length){
+              const group=document.createElement('span');
+              group.className='calendar-selected-group calendar-selected-tasks';
+              const groupTitle=document.createElement('b');
+              groupTitle.textContent='Дела';
+              group.appendChild(groupTitle);
+              for(const event of tasks){
+                const row=document.createElement('span');
+                row.className='calendar-selected-row';
+                const range=event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–'));
+                const assignee=event.assigned&&event.assignee&&event.assignee!=='Не назначен'?' · '+event.assignee:'';
+                row.textContent=(range?range+' · ':'')+String(event.title||'Дело')+assignee;
+                group.appendChild(row);
+              }
+              copy.appendChild(group);
+            }
+
+            if(holidays.length){
+              const group=document.createElement('span');
+              group.className='calendar-selected-group calendar-selected-holidays';
+              const groupTitle=document.createElement('b');
+              groupTitle.textContent='Праздники';
+              group.appendChild(groupTitle);
+              for(const holiday of holidays){
+                const row=document.createElement('span');
+                row.className='calendar-selected-row calendar-holiday-row'+
+                  (holidayPartnerMatch(holiday,currentConfig?.holidayPartnerHighlights)?' partner-relevant':'');
+                const emoji=document.createElement('span');
+                emoji.className='calendar-holiday-emoji';
+                emoji.textContent=holidayEmoji(holiday);
+                const text=document.createElement('span');
+                text.textContent=String(holiday);
+                row.append(emoji,text);
+                group.appendChild(row);
+              }
+              copy.appendChild(group);
+            }
+
             selected.replaceChildren(icon,copy);
             selected.classList.toggle('is-off',!day.working);
             selected.hidden=false;
@@ -2065,7 +2179,6 @@
           container.appendChild(cell);
         }
       }
-
 
       async function refreshPartnerWorkStatus(){
         if(!tg?.initData) return;
@@ -2081,33 +2194,87 @@
         }catch(_){}
       }
 
-      async function loadWorkCalendar(view=currentWorkCalendarView){
+      async function fetchCalendarJson(url,body){
+        const response=await fetch(url,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(body),
+          cache:'no-store'
+        });
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok) throw new Error(payload.error||'calendar-request');
+        return payload;
+      }
+
+      async function fetchCombinedCalendar(view){
+        const requested=['month','next-month'].includes(view)?view:'month';
+        const base={initData:tg.initData,backupToken:currentStateBackupToken,view:requested};
+        const [workResult,tickResult,holidayResult]=await Promise.allSettled([
+          fetchCalendarJson('/api/work-calendar',base),
+          fetchCalendarJson('/api/ticktick/calendar',base),
+          fetchCalendarJson('/api/partner-message?rudiAction=holiday-calendar',{
+            initData:tg.initData,
+            view:requested
+          })
+        ]);
+        if(workResult.status!=='fulfilled') throw workResult.reason;
+        const work=workResult.value;
+        const tick=tickResult.status==='fulfilled'?tickResult.value:{};
+        const holidays=holidayResult.status==='fulfilled'?holidayResult.value:{};
+        return {
+          ...work,
+          view:requested,
+          ticktickDays:Array.isArray(tick?.days)?tick.days:[],
+          holidayDays:Array.isArray(holidays?.days)?holidays.days:[],
+          ticktickConnected:tick?.connected!==false,
+          holidaysReady:holidayResult.status==='fulfilled'
+        };
+      }
+
+      async function prefetchCalendarView(view){
+        const requested=['month','next-month'].includes(view)?view:'month';
+        if(calendarViewCache[requested]) return calendarViewCache[requested];
+        try{
+          const payload=await fetchCombinedCalendar(requested);
+          calendarViewCache[requested]=payload;
+          return payload;
+        }catch(_){
+          return null;
+        }
+      }
+
+      async function loadWorkCalendar(view=currentWorkCalendarView,{silent=false}={}){
         if(!tg?.initData) return;
         const requested=['month','next-month'].includes(view)?view:'month';
         currentWorkCalendarView=requested;
         setWorkCalendarRangeActive(requested);
         const status=document.getElementById('workCalendarStatus');
-        status.hidden=false;
-        status.textContent='Обновляю';
+        if(calendarViewCache[requested]) renderWorkCalendar(calendarViewCache[requested]);
+        if(!silent){
+          status.hidden=false;
+          status.textContent=calendarViewCache[requested]?'Обновляю':'Загружаю';
+        }
         try{
-          const response=await fetch('/api/work-calendar',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken,view:requested}),
-            cache:'no-store'
-          });
-          const payload=await response.json().catch(()=>({}));
-          if(!response.ok) throw new Error(payload.error||'calendar');
+          const payload=await fetchCombinedCalendar(requested);
+          calendarViewCache[requested]=payload;
           renderWorkCalendar(payload);
           if(requested==='next-month') refreshPartnerWorkStatus();
+          if(requested==='month'&&!calendarViewCache['next-month']){
+            setTimeout(()=>prefetchCalendarView('next-month'),80);
+          }
         }catch(_){
+          if(calendarViewCache[requested]){
+            renderWorkCalendar(calendarViewCache[requested]);
+            status.hidden=false;
+            status.textContent='Кэш';
+            return;
+          }
           status.hidden=false;
           status.textContent='Ошибка';
           const container=document.getElementById('workCalendarDays');
           container.innerHTML='<div class="wishlist-empty">Не удалось обновить график.</div>';
         }
       }
-
 
       function setSharedCalendarRangeActive(view){
         currentSharedCalendarView=['month','next-month'].includes(view)?view:'month';
@@ -3445,7 +3612,6 @@
         setupHomeLayoutEditor();
         setupAppTabs();
         ensureAppSurface({restoreTab:true});
-        holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
         currentConfig=config;
         setupProducts();
@@ -3487,14 +3653,13 @@
         setupStreakAndMood(config);
         setupTickTickDisclosure();
         setupTickTickConnect();
-        setupHolidayModal(config);
         setupWishlist();
         setupSharedAlbum();
         setupCinemaPremieresButton();
         setupWorkCalendarDisclosure();
         loadWeather(config.weather);
         loadTickTickNext();
-        loadWorkCalendar();
+        loadWorkCalendar().then(()=>prefetchCalendarView('next-month'));
         loadSharedAlbum();
         setTimeout(()=>refreshStateBackup(),2500);
       }
@@ -3507,7 +3672,7 @@
       });
       setInterval(()=>{if(currentActor) loadDianaCycle({silent:true})},30*60*1000);
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
-      setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
+      setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);

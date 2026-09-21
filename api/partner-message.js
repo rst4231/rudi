@@ -3,6 +3,7 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
+const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
@@ -1037,6 +1038,28 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({ ok: true, ...row });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'holiday-calendar') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+      const view = ['month', 'next-month'].includes(String(body.view || ''))
+        ? String(body.view)
+        : 'month';
+      const calendar = await getHolidayCalendar({
+        ...options,
+        view,
+      });
+      return res.status(200).json({ ok: true, ...calendar });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus : 502;
+      console.error('RUDI_HOLIDAY_CALENDAR_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
     }
   }
 

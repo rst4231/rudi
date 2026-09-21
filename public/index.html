@@ -249,16 +249,17 @@
       </div>
     </section>
 
-    <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="График работы Дианы">
+    <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="График">
+      <div id="calendarConfetti" class="calendar-confetti" aria-hidden="true"></div>
       <div id="workCalendarCard" class="work-calendar-card calendar-disclosure-card">
         <div class="work-calendar-head">
           <div class="calendar-heading-copy">
-            <div class="work-calendar-title">График Дианы</div>
+            <div class="work-calendar-title">График</div>
             <div id="workWeekLabel" class="work-calendar-month">Этот месяц</div>
           </div>
         </div>
         <span id="workCalendarStatus" class="section-status work-page-status" hidden></span>
-        <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика Дианы">
+        <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика">
           <button class="work-range-button active" type="button" data-work-view="month" aria-pressed="true">Этот месяц</button>
           <button class="work-range-button" type="button" data-work-view="next-month" aria-pressed="false">Следующий месяц</button>
         </div>
@@ -285,18 +286,11 @@
         </div>
       </article>
 
-      <button id="holidayButton" class="panel holiday-trigger schedule-holiday" type="button" aria-haspopup="dialog" aria-controls="holidayModal">
-        <span class="holiday-trigger-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 16.5 7.5"/><path d="m14.2 5.2 4.6 4.6"/><path d="M6 6.2h.01M9.3 3.8h.01M4.2 10h.01M17.8 14h.01M20.2 17.4h.01M14.7 18.8h.01"/><path d="M17.5 3.5c.3 1.1 1 1.8 2 2"/><path d="M4.5 14.7c1.2.1 2.1.7 2.6 1.7"/></svg>
-        </span>
-        <span class="holiday-trigger-copy">
-          <strong>Какой сегодня праздник</strong>
-          <small>5 актуальных праздников на сегодня</small>
-        </span>
-        <span class="holiday-trigger-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
-        </span>
-      </button>
+      <div class="year-progress schedule-year-progress" aria-label="Прогресс текущего года">
+        <div class="year-progress-head"><span>Год пройден</span><strong id="yearProgressPercent">0%</strong></div>
+        <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
+      </div>
+
     </section>
 
     <section class="section-block daily-section" data-app-tab-section="home" data-home-tile="daily" aria-labelledby="dailyTitle">
@@ -475,10 +469,6 @@
     </section>
 
     <footer class="footer">
-      <div class="year-progress" aria-label="Прогресс текущего года">
-        <div class="year-progress-head"><span>Год пройден</span><strong id="yearProgressPercent">0%</strong></div>
-        <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
-      </div>
       <div>© <span id="currentYear"></span></div>
       <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.4.6</div>
       <div class="home-layout-actions">
@@ -547,29 +537,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
         </button>
       </div>
-    </section>
-  </div>
-
-  <div id="holidayModal" class="holiday-modal" aria-hidden="true">
-    <button id="holidayBackdrop" class="holiday-backdrop" type="button" aria-label="Закрыть"></button>
-    <section class="holiday-sheet" role="dialog" aria-modal="true" aria-labelledby="holidayModalTitle">
-      <div class="holiday-sheet-handle" aria-hidden="true"></div>
-      <div class="holiday-sheet-head">
-        <div>
-          <div class="holiday-sheet-eyebrow">Сегодня</div>
-          <h2 id="holidayModalTitle">Праздники дня</h2>
-          <div id="holidayDate" class="holiday-sheet-date"></div>
-        </div>
-        <button id="holidayClose" class="holiday-close" type="button" aria-label="Закрыть">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg>
-        </button>
-      </div>
-      <div id="holidayLoading" class="holiday-loading">
-        <span class="holiday-spinner" aria-hidden="true"></span>
-        <span>Ищу праздники на сегодня…</span>
-      </div>
-      <div id="holidayList" class="holiday-list" aria-live="polite"></div>
-      <div class="holiday-source">Источник: КакойСегодняПраздник.рф · используется тот же отбор, что и в боте</div>
     </section>
   </div>
 
