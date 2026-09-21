@@ -13,6 +13,9 @@
     },
     "api/stylist-leads-cron.js": {
       "maxDuration": 300
+    },
+    "api/feed-notify-cron.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -189,7 +192,7 @@
       "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/daily-cron?route=feed-notify",
+      "path": "/api/feed-notify-cron",
       "schedule": "0 7 * * *"
     }
   ],
