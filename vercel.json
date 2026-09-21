@@ -87,6 +87,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/feed",
+      "destination": "/api/partner-message?rudiAction=feed"
+    },
+    {
       "source": "/api/mood",
       "destination": "/api/partner-message?rudiAction=mood"
     },
@@ -183,6 +187,10 @@
     {
       "path": "/api/stylist-leads-cron",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/daily-cron?route=feed-notify",
+      "schedule": "0 7 * * *"
     }
   ],
   "env": {
