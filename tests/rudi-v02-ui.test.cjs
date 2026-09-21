@@ -19,15 +19,15 @@ test('v0.2 shows per-person work status under the name', () => {
   assert.match(html, /setProfileWorkStatus\('Диана',working\?'Рабочий день':'Выходной'/);
 });
 
-test('date is centered above the quote and weather card', () => {
+test('date remains centered as a compact standalone home tile', () => {
   assert.match(html, /dateHeading\.className='profile-date-heading'/);
-  assert.match(html, /profile\.replaceChildren\(dateHeading,common\)/);
+  assert.match(html, /profile\.replaceChildren\(dateHeading\)/);
   assert.match(html, /\.profile-date-heading\{[\s\S]*?text-align:center/);
 });
 
-test('quote and weather card uses a lighter animated gradient', () => {
-  assert.match(html, /\.profile-common-card\{[\s\S]*?background-size:260% 260%/);
-  assert.match(html, /animation:rudiCommonGradient 9s ease-in-out infinite/);
+test('weather block is removed from the home screen and no longer loaded', () => {
+  assert.doesNotMatch(html, /class="profile-weather"/);
+  assert.doesNotMatch(html, /loadWeather\(config\.weather\)/);
 });
 
 test('footer exposes v0.2', () => {});
