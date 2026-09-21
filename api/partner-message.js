@@ -49,6 +49,7 @@ const {
   visibleChecklistItems,
   updateTaskChecklistItem,
   completeTickTickTask,
+  fetchTask,
   calendarDateKey,
 } = require('./ticktick-client.cjs');
 const {
@@ -63,7 +64,7 @@ const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot } = require('./feed-store.cjs');
-const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients } = require('./telegram-notifications.cjs');
+const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
 const CYCLE_BOOTSTRAP_HASH = '12818afbe0d73e63efcf5ab9f181ff8e6b9d48cdbcaf126bddeadac611818de5';
@@ -177,7 +178,7 @@ async function sendPartnerMessageNotification(actor, options = {}) {
 
   const sent = await telegramSendMessage(
     chatId,
-    `💌 ${recipientActor}, для вас оставлено новое послание.`,
+    `💌 <b>${recipientActor}, для вас оставлено новое послание</b>\n\n<i>Откройте RUDI, чтобы прочитать.</i>`,
     {
       ...options,
       tab: 'home',
@@ -207,11 +208,23 @@ async function sendActivityNotification(text, tab, options = {}) {
 }
 
 function boughtNotificationText(actor) {
-  return actor === 'Диана' ? 'Диана купила продукты.' : 'Рустам купил продукты.';
+  return `🛒 <b>${actor === 'Диана' ? 'Диана купила продукты' : 'Рустам купил продукты'}</b>`;
 }
 
 function wishlistNotificationText(owner, text) {
-  return `${owner} ${owner === 'Диана' ? 'добавила' : 'добавил'} в вишлист: ${String(text || '').trim()}.`;
+  const action = owner === 'Диана' ? 'добавила' : 'добавил';
+  return `🎁 <b>${owner} ${action} в вишлист</b>\n<i>${escapeTelegramHtml(String(text || '').trim())}</i>`;
+}
+
+function taskCompletedNotificationText(actor, title) {
+  const action = actor === 'Диана' ? 'выполнила задачу' : 'выполнил задачу';
+  return `✅ <b>${actor} ${action}</b>\n<i>${escapeTelegramHtml(String(title || 'Совместное дело').trim())}</i>`;
+}
+
+function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
+  const action = actor === 'Диана' ? 'выполнила пункт' : 'выполнил пункт';
+  const parent = String(taskTitle || '').trim();
+  return `☑️ <b>${actor} ${action}</b>\n<i>${escapeTelegramHtml(String(itemTitle || 'Пункт задачи').trim())}</i>${parent ? `\nЗадача: <i>${escapeTelegramHtml(parent)}</i>` : ''}`;
 }
 
 const MOOD_NOTICE = {
@@ -223,7 +236,7 @@ const MOOD_NOTICE = {
 function moodNotificationText(recipient, actor, mood) {
   const view = MOOD_NOTICE[String(mood || '')];
   if (!view) return '';
-  return `${recipient}, у ${actor} сейчас ${view.phrase} ${view.emoji}.`;
+  return `${view.emoji} <b>${recipient}, у ${actor} сейчас ${view.phrase}</b>\n<i>${view.emoji} Настроение обновлено в RUDI</i>`;
 }
 
 async function telegramBotCall(method, payload, options = {}) {
@@ -623,9 +636,10 @@ async function handleTickTick(req, res, action, options = {}) {
   if (action === 'task-complete') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     let body;
+    let actor;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      ({ actor } = authorizeInitData(body.initData, options));
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -650,8 +664,21 @@ async function handleTickTick(req, res, action, options = {}) {
     }
 
     try {
+      const task = await fetchTask(token.accessToken, config.projectId, taskId, options);
       await completeTickTickTask(token.accessToken, config.projectId, taskId, options);
-      return res.status(200).json({ ok: true, connected: true, writable: true, taskId, completed: true });
+      await sendActivityNotification(
+        taskCompletedNotificationText(actor, task?.title),
+        'schedule',
+        options
+      );
+      return res.status(200).json({
+        ok: true,
+        connected: true,
+        writable: true,
+        taskId,
+        completed: true,
+        title: String(task?.title || '').trim(),
+      });
     } catch (error) {
       const code = String(error?.message || error);
       if (code === 'ticktick-token-invalid') {
@@ -815,6 +842,14 @@ async function handleTickTick(req, res, action, options = {}) {
         auditPersisted = true;
       } catch (error) {
         console.warn('RUDI_TICKTICK_CHECKLIST_AUDIT_WARN', String(error?.message || error));
+      }
+
+      if (body.completed) {
+        await sendActivityNotification(
+          checklistCompletedNotificationText(actor, updated?.item?.title, updated?.task?.title),
+          'schedule',
+          options
+        );
       }
 
       return res.status(200).json({
@@ -1471,5 +1506,7 @@ module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
 module.exports.boughtNotificationText = boughtNotificationText;
 module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.moodNotificationText = moodNotificationText;
+module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
+module.exports.checklistCompletedNotificationText = checklistCompletedNotificationText;
 
 module.exports.correctRecipientsForSession = correctRecipientsForSession;
