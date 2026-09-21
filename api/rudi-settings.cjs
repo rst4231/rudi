@@ -51,11 +51,11 @@ function validateRudiSettings(input) {
   for (const section of SECTION_NAMES) {
     const row = input.sections[section];
     if (!isPlainObject(row)) throw new Error(`sections.${section} must be an object`);
-    const allowed = TOPIC_SECTIONS.has(section) ? ['enabled', 'topicId'] : ['enabled'];
+    const allowed = TOPIC_SECTIONS.has(section) ? ['enabled', 'topicId', 'publishToTelegram'] : ['enabled', 'publishToTelegram'];
     if (section === 'holidays') allowed.push('maxItems');
     assertKnownKeys(row, new Set(allowed), `sections.${section}`);
     if (typeof row.enabled !== 'boolean') throw new Error(`sections.${section}.enabled must be boolean`);
-    sections[section] = { enabled: row.enabled };
+    sections[section] = { enabled: row.enabled, publishToTelegram: row.publishToTelegram !== false };
     if (TOPIC_SECTIONS.has(section)) sections[section].topicId = positiveInteger(row.topicId, `sections.${section}.topicId`);
     if (section === 'holidays') {
       sections[section].maxItems = positiveInteger(row.maxItems ?? 5, 'sections.holidays.maxItems');
