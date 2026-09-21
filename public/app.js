@@ -2673,7 +2673,7 @@
           renderHomeDashboard();
           if(status){
             status.dataset.calendarReady='1';
-            setProfileWorkStatus('Диана','Нет данных графика','neutral');
+            setProfileWorkStatus('Диана','Отдыхаю','off');
           }
           return;
         }
