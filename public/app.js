@@ -741,33 +741,70 @@
         return rows.sort((a,b)=>a.minutes-b.minutes);
       }
 
+      function homeCurrentMinutes(){
+        const parts=Object.fromEntries(
+          new Intl.DateTimeFormat('en-GB',{
+            timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+          }).formatToParts(new Date()).filter(part=>part.type!=='literal').map(part=>[part.type,part.value])
+        );
+        return (Number(parts.hour)||0)*60+(Number(parts.minute)||0);
+      }
+
       function homeNearestRows(){
         const rows=[];
+        const nowMinutes=homeCurrentMinutes();
         const tasks=homeDashboardState.tasks.filter(homeTaskForActor);
         for(const task of tasks){
           const start=String(task?.startTime||'').trim();
           const match=start.match(/^(\d{1,2}):(\d{2})$/u);
+          const rawMinutes=match?Number(match[1])*60+Number(match[2]):9800;
           rows.push({
             label:String(task?.title||'Дело'),
             time:start,
-            minutes:match?Number(match[1])*60+Number(match[2]):9800,
+            minutes:rawMinutes<nowMinutes&&rawMinutes<1440?9600:rawMinutes,
             icon:'📅'
           });
         }
+
         const work=homeDashboardState.workDay;
         if(work?.working){
-          const first=(Array.isArray(work.events)?work.events:[])
-            .map(event=>String(event?.startTime||'').trim())
-            .find(Boolean);
-          const match=first?.match(/^(\d{1,2}):(\d{2})$/u);
-          rows.push({
-            label:'Диана — работа',
-            time:first||'',
-            minutes:match?Number(match[1])*60+Number(match[2]):9700,
-            icon:'💼'
+          const events=Array.isArray(work.events)?work.events:[];
+          const current=events.find(event=>{
+            const startMatch=String(event?.startTime||'').match(/^(\d{1,2}):(\d{2})$/u);
+            const endMatch=String(event?.endTime||'').match(/^(\d{1,2}):(\d{2})$/u);
+            if(!startMatch||!endMatch) return false;
+            const from=Number(startMatch[1])*60+Number(startMatch[2]);
+            const to=Number(endMatch[1])*60+Number(endMatch[2]);
+            return nowMinutes>=from&&nowMinutes<to;
           });
+          if(current){
+            const endTime=String(current.endTime||'').trim();
+            const endMatch=endTime.match(/^(\d{1,2}):(\d{2})$/u);
+            rows.push({
+              label:'Диана работает',
+              time:endTime?'до '+endTime:'',
+              minutes:endMatch?Number(endMatch[1])*60+Number(endMatch[2]):9700,
+              icon:'💼'
+            });
+          }else{
+            const upcoming=events.map(event=>{
+              const startTime=String(event?.startTime||'').trim();
+              const match=startTime.match(/^(\d{1,2}):(\d{2})$/u);
+              return {startTime,minutes:match?Number(match[1])*60+Number(match[2]):9999};
+            }).filter(row=>row.minutes>=nowMinutes).sort((a,b)=>a.minutes-b.minutes)[0];
+            if(upcoming){
+              rows.push({
+                label:'Диана — работа',
+                time:upcoming.startTime,
+                minutes:upcoming.minutes,
+                icon:'💼'
+              });
+            }
+          }
         }
+
         for(const event of homeEventRows()){
+          if(event.minutes<nowMinutes) continue;
           rows.push({
             label:event.title,
             time:event.time,
@@ -775,6 +812,7 @@
             icon:event.kind==='standup'?'🎙':'🎤'
           });
         }
+
         const staticNearest=homeDashboardState.nearestStatic;
         if(staticNearest){
           rows.push({
