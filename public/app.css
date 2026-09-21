@@ -5103,3 +5103,56 @@ html[data-theme="dark"] .home-dashboard{
   .home-quick-actions{gap:5px}
   .home-quick-actions button{min-height:44px;font-size:8.7px}
 }
+
+
+/* v1.0 home mood alignment */
+.home-dashboard .mood-partner{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:7px!important;
+  min-width:0!important;
+  width:100%;
+}
+.home-dashboard .mood-partner .mood-person-label{
+  flex:none;
+  min-width:0;
+  margin:0;
+}
+.home-dashboard .partner-mood-value{
+  position:relative;
+  flex:0 0 30px;
+  width:30px!important;
+  height:30px!important;
+  min-width:30px;
+  min-height:30px!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:hidden!important;
+  border-radius:10px;
+}
+.home-dashboard .partner-mood-icon,
+.home-dashboard .partner-mood-empty{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  place-items:center!important;
+  margin:0!important;
+  padding:0!important;
+}
+.home-dashboard .partner-mood-icon[hidden],
+.home-dashboard .partner-mood-empty[hidden]{
+  display:none!important;
+}
+.home-dashboard .partner-mood-icon .mood-emoji{
+  display:block;
+  font-size:18px!important;
+  line-height:30px!important;
+  transform:none!important;
+}
+.home-dashboard .home-together-grid .mood-person{
+  grid-column:1/-1;
+  margin-top:4px;
+}
