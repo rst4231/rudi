@@ -222,6 +222,14 @@
 
       <div id="feedStatus" class="feed-status" aria-live="polite"></div>
 
+      <section id="feedToday" class="feed-today" aria-labelledby="feedTodayTitle" hidden>
+        <div class="feed-today-head">
+          <strong id="feedTodayTitle">Сегодня</strong>
+          <span id="feedTodayDate"></span>
+        </div>
+        <div id="feedTodayLinks" class="feed-today-links"></div>
+      </section>
+
       <div class="feed-grid">
         <article id="feedFactsCard" class="feed-card feed-card-facts" data-feed-card="facts">
           <div class="feed-card-head">
@@ -230,6 +238,7 @@
               <span>Полезные факты</span>
               <small id="feedFactsMeta">Сегодня</small>
             </div>
+            <span id="feedFactsNew" class="feed-card-new" hidden>Новое</span>
           </div>
           <div id="feedFactsBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
           <div class="reaction-strip feed-reaction">
@@ -247,6 +256,7 @@
               <span>Концерты</span>
               <small id="feedConcertsMeta">Сегодня</small>
             </div>
+            <span id="feedConcertsNew" class="feed-card-new" hidden>Новое</span>
           </div>
           <div id="feedConcertsBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
           <div class="reaction-strip feed-reaction">
@@ -264,6 +274,7 @@
               <span>Stand Up</span>
               <small id="feedStandupMeta">Сегодня</small>
             </div>
+            <span id="feedStandupNew" class="feed-card-new" hidden>Новое</span>
           </div>
           <div id="feedStandupBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
           <div class="reaction-strip feed-reaction">
@@ -281,6 +292,7 @@
               <span>Кинопремьеры</span>
               <small id="feedCinemaMeta">До следующей подборки</small>
             </div>
+            <span id="feedCinemaNew" class="feed-card-new" hidden>Новое</span>
           </div>
           <div id="feedCinemaBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
           <div class="reaction-strip feed-reaction">
