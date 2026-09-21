@@ -15,11 +15,13 @@ test('Telegram products topic bypasses legacy list mutation paths', () => {
   assert.ok(runtimeIndex === -1 || nativeIndex < runtimeIndex);
 });
 
-test('Alice shopping sends a plain products chat message instead of entering shared-list runtime', () => {
+test('Alice shopping updates the shared list without posting into the Products Telegram topic', () => {
   const start = source.indexOf("if (req.query?.route === 'alice-shopping')");
   assert.ok(start > -1);
   const block = source.slice(start, source.indexOf("if (req.query?.route === 'init-products')", start));
-  assert.match(block, /sendAliceProductMessage/);
+  assert.match(block, /addSharedProducts/);
+  assert.doesNotMatch(block, /sendAliceProductMessage/);
+  assert.doesNotMatch(block, /deleteAliceProductMessage/);
   assert.doesNotMatch(block, /runProductsAddition/);
   assert.doesNotMatch(block, /runAliceShoppingWithPrompt/);
 });
@@ -32,4 +34,11 @@ test('ordinary chatter outside products topic still uses existing routing guards
 test('daily runtime behavior stays present outside products chat cutover', () => {
   assert.match(source, /markProductsRuntimeStale/);
   assert.match(source, /publishDailyLaborArticle/);
+});
+
+test('Products Telegram topic is silently ignored without bot callback replies', () => {
+  const start = source.indexOf("if (req.query?.route === 'telegram')");
+  const block = source.slice(start, source.indexOf("if (req.query?.route === 'alice-shopping')", start));
+  assert.match(block, /ignored: 'products-topic-silent'/);
+  assert.doesNotMatch(block, /acknowledgeLegacyProductsCallback/);
 });
