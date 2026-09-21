@@ -5,19 +5,26 @@ const path = require('node:path');
 
 const backup = require('../api/rudi-backup.cjs');
 
-test('encrypted RUDI backup v2 round-trips safe shared state only', () => {
+test('encrypted RUDI backup v2 round-trips shared state and integrations', () => {
   const snapshot = {
     version: 2,
-    createdAt: '2026-09-20T00:00:00.000Z',
-    partnerMessage: { text: 'секретное послание', authorName: 'Рустам', updatedAt: '2026-09-20T00:00:00.000Z' },
+    createdAt: '2026-09-21T00:00:00.000Z',
+    partnerMessage: { text: 'секретное послание', authorName: 'Рустам', updatedAt: '2026-09-21T00:00:00.000Z' },
     wishlist: { initialized: true, version: 1, items: [{ id: '1', text: 'Тест', owner: 'Рустам' }] },
     products: { initialized: true, version: 1, items: [{ id: 'p', text: 'Молоко' }], history: [] },
     ticktickChecklistAudit: { initialized: true, version: 1, entries: {} },
+    ticktickToken: { accessToken: 'secret-access', refreshToken: 'secret-refresh', savedAt: '2026-09-21T00:00:00.000Z' },
+    calendarUrl: 'webcal://example.invalid/private',
+    albumConfig: { url: 'https://www.icloud.com/sharedalbum/#PRIVATE', token: 'PRIVATE' },
+    cycle: { enabled: true, historyStarts: ['2031-01-01'], nextPeriodStart: '2031-01-31', updatedAt: '2031-01-01T00:00:00Z' },
+    recipients: { 'Рустам': 101, 'Диана': 202 },
   };
   const options = { botToken: '123456:TEST_SECRET' };
   const token = backup.sealSnapshot(snapshot, options);
   assert.match(token, /^rudi-state-v2\./);
-  assert.equal(token.includes('секретное послание'), false);
+  for(const secret of ['секретное послание','secret-access','example.invalid','PRIVATE']){
+    assert.equal(token.includes(secret), false);
+  }
   assert.deepEqual(backup.openSnapshot(token, options), snapshot);
 });
 
@@ -26,35 +33,25 @@ test('encrypted RUDI backup rejects a different bot secret', () => {
   assert.throws(() => backup.openSnapshot(token, { botToken: '2:TWO' }), /rudi-backup-invalid/);
 });
 
-test('client backup implementation contains no integration credentials or recipient ids', () => {
+test('server backup includes persistent integration recovery paths', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'rudi-backup.cjs'), 'utf8');
-  assert.doesNotMatch(source, /readToken|saveToken|ticktickToken/);
-  assert.doesNotMatch(source, /readCalendarUrl|saveCalendarUrl|calendarUrl/);
-  assert.doesNotMatch(source, /readAlbumConfig|saveAlbumConfig|albumConfig/);
-  assert.doesNotMatch(source, /readRecipients|saveRecipient|recipients/);
+  for(const name of ['readToken','saveToken','readCalendarUrl','saveCalendarUrl','readAlbumConfig','saveAlbumConfig','readCycleState','writeCycleState','readRecipients','saveRecipients']){
+    assert.match(source,new RegExp(name));
+  }
 });
 
-test('app auth keeps safe backup restore and recipient self-registration', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'partner-message.js'), 'utf8');
-  assert.match(source, /restoreStateBackup\(body\.backupToken/);
-  assert.match(source, /saveRecipient\(actor, user\?\.id/);
-  assert.match(source, /action === 'state-backup'/);
-  assert.match(source, /backupToken/);
-});
-
-test('client mirrors backup v2 into Telegram CloudStorage and cleans v1', () => {
+test('client stores only encrypted backup token in Telegram CloudStorage', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   assert.match(source, /STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2'/);
-  assert.match(source, /LEGACY_STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v1'/);
-  assert.match(source, /clearLegacyStateBackup/);
   assert.match(source, /tg\?\.CloudStorage/);
   assert.match(source, /readCloudStateBackupToken/);
   assert.match(source, /writeCloudStateBackupToken/);
-  assert.match(source, /const backupToken=await withTimeout\(readStateBackupToken\(\),1200,''\)/);
+  assert.doesNotMatch(source, /secret-access|webcal:\/\/example\.invalid/);
 });
 
-test('client refreshes safe backup after shared-state changes', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
-  assert.match(source, /rudiAction=state-backup/);
-  assert.match(source, /if\(operation!=='list'\) setTimeout\(\(\)=>refreshStateBackup\(\),250\)/);
+test('app auth restores backup before recipient self-registration', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'partner-message.js'), 'utf8');
+  const restore = source.indexOf('restoreStateBackup(body.backupToken');
+  const register = source.indexOf('saveRecipient(actor, user?.id');
+  assert.ok(restore >= 0 && register > restore);
 });

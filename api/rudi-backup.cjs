@@ -3,6 +3,11 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { readWishlist, writeWishlist } = require('./wishlist-store.cjs');
 const { readProductList, readProductListRaw, restoreProductListSnapshot } = require('./product-list-store.cjs');
+const { readToken, saveToken } = require('./ticktick-store.cjs');
+const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
+const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
+const { readCycleState, writeCycleState } = require('./cycle-store.cjs');
+const { readRecipients, saveRecipients } = require('./partner-notification-store.cjs');
 const {
   readChecklistAuditState,
   restoreChecklistAuditState,
@@ -63,11 +68,19 @@ async function safeRead(task, fallback = null) {
 }
 
 async function createStateSnapshot(options = {}) {
-  const [partnerMessage, wishlist, products, ticktickChecklistAudit] = await Promise.all([
+  const [
+    partnerMessage, wishlist, products, ticktickChecklistAudit,
+    ticktickToken, calendarUrl, albumConfig, cycle, recipients,
+  ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
     safeRead(() => readProductList(options), { initialized: false, version: 0, items: [], history: [] }),
     safeRead(() => readChecklistAuditState(options), { initialized: false, version: 0, entries: {} }),
+    safeRead(() => readToken(options)),
+    safeRead(() => readCalendarUrl(options)),
+    safeRead(() => readAlbumConfig(options)),
+    safeRead(() => readCycleState(options)),
+    safeRead(() => readRecipients(options)),
   ]);
 
   return {
@@ -77,6 +90,11 @@ async function createStateSnapshot(options = {}) {
     wishlist,
     products,
     ticktickChecklistAudit,
+    ticktickToken,
+    calendarUrl,
+    albumConfig,
+    cycle,
+    recipients,
   };
 }
 
@@ -119,6 +137,48 @@ async function restoreStateBackup(token, options = {}) {
   ) {
     await restoreProductListSnapshot(snapshot.products, options);
     restored.push('products');
+  }
+
+  const currentToken = await safeRead(() => readToken(options));
+  const savedTokenTime = Date.parse(String(snapshot.ticktickToken?.savedAt || '')) || snapshotTime;
+  const currentTokenTime = Date.parse(String(currentToken?.savedAt || '')) || 0;
+  if (snapshot.ticktickToken?.accessToken && (!currentToken?.accessToken || savedTokenTime > currentTokenTime)) {
+    await saveToken(snapshot.ticktickToken, options);
+    restored.push('ticktick-token');
+  }
+
+  const currentCalendarUrl = await safeRead(() => readCalendarUrl(options));
+  if (snapshot.calendarUrl && !currentCalendarUrl) {
+    await saveCalendarUrl(snapshot.calendarUrl, options);
+    restored.push('work-calendar');
+  }
+
+  const currentAlbumConfig = await safeRead(() => readAlbumConfig(options));
+  if (snapshot.albumConfig?.url && !currentAlbumConfig?.url) {
+    await saveAlbumConfig(snapshot.albumConfig, options);
+    restored.push('shared-album');
+  }
+
+  const currentCycle = await safeRead(() => readCycleState(options));
+  const savedCycleTime = Date.parse(String(snapshot.cycle?.updatedAt || '')) || snapshotTime;
+  const currentCycleTime = Date.parse(String(currentCycle?.updatedAt || '')) || 0;
+  if (snapshot.cycle && (!currentCycle || savedCycleTime > currentCycleTime)) {
+    await writeCycleState(snapshot.cycle, options);
+    restored.push('cycle');
+  }
+
+  const currentRecipients = await safeRead(() => readRecipients(options));
+  const mergedRecipients = {
+    'Рустам': Number(currentRecipients?.['Рустам'] || snapshot.recipients?.['Рустам'] || 0) || null,
+    'Диана': Number(currentRecipients?.['Диана'] || snapshot.recipients?.['Диана'] || 0) || null,
+  };
+  if (
+    Number.isInteger(mergedRecipients['Рустам']) && mergedRecipients['Рустам'] > 0 &&
+    Number.isInteger(mergedRecipients['Диана']) && mergedRecipients['Диана'] > 0 &&
+    (!currentRecipients?.['Рустам'] || !currentRecipients?.['Диана'])
+  ) {
+    await saveRecipients(mergedRecipients, options);
+    restored.push('recipients');
   }
 
   const currentChecklistAudit = await safeRead(

@@ -5,7 +5,10 @@ const NAMESPACE = 'rudi-partner-notifications-v1';
 const KEY = 'recipients';
 const ACTOR_KEY_PREFIX = 'recipient:';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
-const EXPECTED_SETUP_SHA256 = '85b08b8db9a03bd590ea69f49510dd81060cc0dc6bbeb643a6f52a3300acc1ea';
+const EXPECTED_SETUP_SHA256S = new Set([
+  '85b08b8db9a03bd590ea69f49510dd81060cc0dc6bbeb643a6f52a3300acc1ea',
+  'b1b631082076821d4c79a4527ed02a5632b1e7e4f40515116525f505e1589201',
+]);
 
 function cacheOf(options = {}) {
   return options.notificationCache || options.cache || createStrictRuntimeCache({ namespace: NAMESPACE });
@@ -21,7 +24,7 @@ function decodeSetupKey(value) {
   let raw;
   try { raw = Buffer.from(key, 'base64url').toString('utf8'); }
   catch { throw new Error('partner-notification-setup-key-invalid'); }
-  if (sha256(raw) !== EXPECTED_SETUP_SHA256) throw new Error('partner-notification-setup-key-invalid');
+  if (!EXPECTED_SETUP_SHA256S.has(sha256(raw))) throw new Error('partner-notification-setup-key-invalid');
   let data;
   try { data = JSON.parse(raw); } catch { throw new Error('partner-notification-setup-key-invalid'); }
   const rustam = Number(data?.['Рустам']);

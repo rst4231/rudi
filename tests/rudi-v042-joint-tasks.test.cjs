@@ -32,3 +32,21 @@ test('phase-based Diana mood is shown as one word below her status',()=>{
   assert.match(app,/setDianaCycleMood\(model\.phase\)/);
   assert.match(css,/\.profile-cycle-mood\{/);
 });
+
+test('v0.4.3 refreshes daily compliment and highlights mood choice',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  const html=fs.readFileSync('public/index.html','utf8');
+  assert.match(app,/function renderDailyCompliment\(config/);
+  assert.match(app,/currentComplimentDateKey===state\.key/);
+  assert.match(app,/renderDailyCompliment\(currentConfig\)/);
+  assert.match(html,/id="moodPrompt" class="mood-prompt">Выбери настроение<\/div>/);
+  assert.match(css,/\.profile-person-card \.mood-button\.selected\{[\s\S]*?transform:scale\(1\.11\)!important/);
+  assert.match(html,/id="appVersion"[^>]*>v0\.4\.3<\/div>/);
+});
+
+test('Telegram actor hashes map to the provided owners',()=>{
+  const access=fs.readFileSync('api/rudi-access.cjs','utf8');
+  assert.match(access,/bc4cb19bfbc2fc3438e53789abaff01aebf165d61ca65929ec839c6a045e83d2', 'Рустам'/);
+  assert.match(access,/aad6b2cb29f3c311312ad3675df3a93eea1c3476dd9968bd1bcb0bbd67ce5a62', 'Диана'/);
+});

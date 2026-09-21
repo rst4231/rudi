@@ -21,6 +21,8 @@
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
       let currentMoodDateKey = '';
+      let currentConfig = null;
+      let currentComplimentDateKey = '';
       let homeLayoutEditing = false;
       let homeTileHost = null;
       const HOME_TILE_DEFAULT_ORDER = ['profile-common','profile-self','profile-partner','cycle','priority','partner','daily'];
@@ -974,6 +976,38 @@
         if(/(й|н|р|м|л|в|г|д|т|с|б|п|к|ч|ш|ж|ф)$/.test(value)) return 'male';
         return 'neutral';
       }
+      function dailyComplimentStorageKey(){
+        return 'rudi-daily-compliment-v2';
+      }
+
+      function renderDailyCompliment(config,{force=false}={}){
+        const state=todayState();
+        if(!force&&currentComplimentDateKey===state.key) return;
+        const dayIndex=Math.floor(state.utc/DAY);
+        const type=detectNameType(firstName);
+        const compliments=config?.compliments||fallback.compliments;
+        const regularPool=compliments[type]||compliments.neutral||fallback.compliments.neutral;
+        const surpriseChance=Number(compliments.surpriseChance)||0;
+        const useSurprise=(compliments.surprises?.length||0)>0&&dailyStableUnit(dayIndex,17)<surpriseChance;
+        const pool=useSurprise?compliments.surprises:regularPool;
+        let value=dailyStableItem(pool,dayIndex,53);
+
+        let previous=null;
+        try{previous=JSON.parse(localStorage.getItem(dailyComplimentStorageKey())||'null')}catch(_){}
+        if(previous?.date!==state.key&&previous?.text===value){
+          const fallbackPool=(Array.isArray(pool)&&pool.length>1)?pool:regularPool;
+          if(Array.isArray(fallbackPool)&&fallbackPool.length>1){
+            const index=Math.max(0,fallbackPool.indexOf(value));
+            value=fallbackPool[(index+1)%fallbackPool.length];
+          }
+        }
+
+        const node=document.getElementById('compliment');
+        if(node) node.textContent=String(value||'');
+        currentComplimentDateKey=state.key;
+        try{localStorage.setItem(dailyComplimentStorageKey(),JSON.stringify({date:state.key,text:String(value||'')}))}catch(_){}
+      }
+
       function secureRandom(){if(window.crypto?.getRandomValues){const a=new Uint32Array(1);window.crypto.getRandomValues(a);return a[0]/4294967296}return Math.random()}
       function randomItem(list){return list[Math.floor(secureRandom()*list.length)]}
 
@@ -3339,16 +3373,11 @@
         ensureAppSurface({restoreTab:true});
         holidayItemsPromise=loadHolidayHighlights().catch(()=>null);
         const config=await loadConfig();
+        currentConfig=config;
         setupProducts();
         const {utc}=todayState();
         const dayIndex=Math.floor(utc/DAY);
-
-        const type=detectNameType(firstName);
-        const compliments=config.compliments||fallback.compliments;
-        const surpriseChance=Number(compliments.surpriseChance)||0;
-        const useSurprise=(compliments.surprises?.length||0)>0 && dailyStableUnit(dayIndex,17)<surpriseChance;
-        const pool=useSurprise ? compliments.surprises : (compliments[type]||compliments.neutral||fallback.compliments.neutral);
-        document.getElementById('compliment').textContent=dailyStableItem(pool,dayIndex,53);
+        renderDailyCompliment(config,{force:true});
 
         const ideas=config.dailyIdeas?.length?config.dailyIdeas:fallback.dailyIdeas;
         const watch=config.watchList?.length?config.watchList:fallback.watchList;
@@ -3407,7 +3436,7 @@
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView)},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
-      setInterval(()=>{if(currentActor) resetMoodForNewDay()},5000);
+      setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
 
       function ensureAppSurface({restoreTab=false}={}){
@@ -3431,6 +3460,7 @@
       async function refreshAfterResume(){
         ensureAppSurface();
         if(!currentActor) return;
+        if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
         resumeRefreshPromise=new Promise(resolve=>{
