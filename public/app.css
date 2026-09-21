@@ -4521,7 +4521,7 @@ html[data-theme="dark"] .profile-self-card .mood-prompt{
 
 
 /* 2026-09 RUDI feed */
-.app-tabbar{grid-template-columns:repeat(6,minmax(0,1fr))}
+.app-tabbar{grid-template-columns:repeat(6,minmax(0,1fr))!important}
 .app-tab-button{font-size:7.6px;letter-spacing:-.01em}
 body[data-app-tab="feed"] .feed-page{
   min-height:0;
