@@ -221,6 +221,35 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   }
 
   const complete = kinopolisResult.status === 'fulfilled' && mirageResult.status === 'fulfilled';
+  const publishToTelegram = settings?.sections?.cinema?.publishToTelegram !== false;
+  if (!publishToTelegram) {
+    if (fingerprints.length) {
+      await rememberFingerprints('cinema', fingerprints, recent.days, { cache: options.dedupeCache || options.controlCache, now });
+    }
+    if (complete) {
+      await cache.set(`done:${dateKey}`, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-cinema-premieres'], name: `cinema-premieres-${dateKey}` });
+    }
+    return {
+      date: dateKey,
+      topicId: Number(config.cinemaPremieres.topicId) || null,
+      messageId: null,
+      published: 0,
+      posts: 0,
+      telegramSuppressed: true,
+      complete,
+      duplicateSuppressions: recent.suppressed,
+      fingerprints,
+      kinopolisCount: kinopolisResult.status === 'fulfilled' ? kinopolisResult.value.length : null,
+      mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
+      manualCount: manualRows.length,
+      titles: rows.map((row) => row.title),
+      feedMessage: rows.length
+        ? buildCinemaDigestCaption(rows, dateKey)
+        : (complete ? '🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.' : ''),
+      replacedMessageIds: [],
+      replacementCleanupError: null,
+    };
+  }
   if (options.force && !rows.length) {
     return {
       skipped: 'no-premieres',

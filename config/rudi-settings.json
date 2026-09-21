@@ -4,26 +4,32 @@
   "sections": {
     "events": {
       "enabled": true,
-      "topicId": 19
+      "topicId": 19,
+      "publishToTelegram": false
     },
     "holidays": {
       "enabled": false,
       "topicId": 44,
-      "maxItems": 5
+      "maxItems": 5,
+      "publishToTelegram": true
     },
     "facts": {
       "enabled": true,
-      "topicId": 72
+      "topicId": 72,
+      "publishToTelegram": false
     },
     "clients": {
       "enabled": true,
-      "topicId": 126
+      "topicId": 126,
+      "publishToTelegram": true
     },
     "cinema": {
-      "enabled": true
+      "enabled": true,
+      "publishToTelegram": false
     },
     "labor": {
-      "enabled": true
+      "enabled": true,
+      "publishToTelegram": true
     }
   },
   "sources": {

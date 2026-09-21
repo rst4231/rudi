@@ -3629,9 +3629,21 @@
         }).format(date).replace(',',' ·');
       }
 
-      function sanitizeFeedHtml(value){
+      function normalizeFeedHtml(value,name=''){
+        let raw=String(value||'')
+          .trim()
+          .replace(/\\r\\n|\\n|\\r/g,'\n')
+          .replace(/\r\n?/g,'\n')
+          .replace(/\n{3,}/g,'\n\n');
+        if(name==='standup'||name==='cinema'){
+          raw=raw.replace(/\n(?=\d+\.\s)/g,'\n\n');
+        }
+        return raw.replace(/\n/g,'<br>');
+      }
+
+      function sanitizeFeedHtml(value,name=''){
         const template=document.createElement('template');
-        template.innerHTML=String(value||'');
+        template.innerHTML=normalizeFeedHtml(value,name);
         const allowed=new Set(['B','STRONG','I','EM','A','BR','P','UL','OL','LI','SPAN']);
         for(const element of [...template.content.querySelectorAll('*')]){
           if(!allowed.has(element.tagName)){
@@ -3691,7 +3703,8 @@
         for(const value of parts){
           const part=document.createElement('div');
           part.className='feed-part';
-          part.appendChild(sanitizeFeedHtml(value));
+          part.dataset.feedKind=name;
+          part.appendChild(sanitizeFeedHtml(value,name));
           body.appendChild(part);
         }
         if(meta){

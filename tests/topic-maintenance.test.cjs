@@ -23,6 +23,8 @@ function fakeCache(initial = {}) {
   };
 }
 
+const EVENT_SETTINGS = { sections: { events: { enabled: true, topicId: EVENTS_TOPIC_ID, publishToTelegram: true }, clients: { enabled: true, topicId: CLIENTS_TOPIC_ID, publishToTelegram: true } } };
+
 function telegramResponse(result, status = 200) {
   return new Response(JSON.stringify({ ok: status >= 200 && status < 300, result }), {
     status,
@@ -79,7 +81,7 @@ test('new event publication deletes all previous-day bot posts before sending to
   const response = await handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendMessage',
     { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'today event' }) },
-    { cache, now: new Date('2026-08-20T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-08-20T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   );
 
   assert.equal(response.status, 200);
@@ -97,7 +99,7 @@ test('outgoing managed topic messages are recorded for future cleanup', async ()
   const response = await handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendMessage',
     { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'x' }) },
-    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   );
 
   assert.equal(response.status, 200);
@@ -117,7 +119,7 @@ test('managed sendPhoto FormData messages are recorded for future cleanup', asyn
   const response = await handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendPhoto',
     { method: 'POST', body },
-    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   );
 
   assert.equal(response.status, 200);
@@ -162,7 +164,7 @@ test('publishing in the main forum also removes the obsolete couple topic once',
   await handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendMessage',
     { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'event' }) },
-    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-08-19T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   );
 
   assert.deepEqual(calls, ['deleteForumTopic', 'sendMessage']);

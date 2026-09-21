@@ -79,10 +79,10 @@ async function mockRudi(page){
         date:'2026-09-21',
         changedSections:['facts','events','cinema'],
         sections:{
-          facts:{parts:['💡 <b>Полезный факт</b>\\n\\nТестовая польза.'],updatedAt:'2026-09-21T06:40:00.000Z'},
+          facts:{parts:['💡 <b>Полезный факт</b>\\n🚶 <b>Движение</b>\\n\\nТестовая польза.\\n\\n<a href="https://example.com/study">Исследование →</a>'],updatedAt:'2026-09-21T06:40:00.000Z'},
           events:{parts:[
             '🎤 <b>Концерт сегодня</b>\\n\\n<a href="https://example.com/concert">Подробнее →</a>',
-            '🎙 <b>Stand Up сегодня</b>\\n\\n<a href="https://example.com/standup">Подробнее →</a>'
+            '🎙 <b>Stage StandUp Club</b>\\n📅 Понедельник, 21 сентября\\nНайдено событий/сеансов: <b>2</b>\\n1. <b>Первый стендап</b>\\n🕒 19:00\\n<a href="https://example.com/standup-1">Официальная страница →</a>\\n2. <b>Второй стендап</b>\\n🕒 20:00\\n<a href="https://example.com/standup-2">Официальная страница →</a>'
           ],updatedAt:'2026-09-21T06:41:00.000Z'},
           cinema:{parts:['🎬 <b>Кинопремьеры</b>\\n\\n1. Тестовый фильм'],updatedAt:'2026-09-21T06:42:00.000Z'}
         }
@@ -237,9 +237,24 @@ test('feed is a first-class tab with fresh badge and no duplicate cinema button 
   await expect(page.locator('#feedTitle')).toHaveText('Лента');
   await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
   await expect(page.locator('#feedConcertsBody')).toContainText('Концерт сегодня');
-  await expect(page.locator('#feedStandupBody')).toContainText('Stand Up сегодня');
+  await expect(page.locator('#feedStandupBody')).toContainText('Stage StandUp Club');
   await expect(page.locator('#feedCinemaBody')).toContainText('Тестовый фильм');
   await expect(page.locator('.profile-weather')).toHaveCount(0);
+
+  const factPart=page.locator('#feedFactsBody .feed-part');
+  await expect(factPart.locator('br')).toHaveCount(5);
+  await expect(factPart.locator('a')).toHaveCSS('display','block');
+
+  const standupPart=page.locator('#feedStandupBody .feed-part');
+  await expect(standupPart).toContainText('Первый стендап');
+  await expect(standupPart).toContainText('Второй стендап');
+  expect(await standupPart.locator('br').count()).toBeGreaterThanOrEqual(8);
+  const standupText=await standupPart.innerText();
+  expect(standupText).toMatch(/Официальная страница →\s*\n+\s*2\. Второй стендап/);
+
+  const shellPadding=await page.locator('.shell').evaluate(node=>parseFloat(getComputedStyle(node).paddingBottom));
+  const tabHeight=(await page.locator('#appTabBar').boundingBox()).height;
+  expect(shellPadding-tabHeight).toBeGreaterThanOrEqual(40);
 
   await page.locator('#feedFactsLike').click();
   await expect(page.locator('#feedFactsLikedBy')).toHaveText('Нравится: Рустам');

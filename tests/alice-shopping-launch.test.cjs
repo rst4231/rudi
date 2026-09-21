@@ -28,10 +28,11 @@ test('launch response asks for products and keeps Alice session open', () => {
   });
 });
 
-test('Alice route short-circuits blank launch before sending a Telegram product message', () => {
+test('Alice route short-circuits blank launch before mutating the shared products list', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
   const launchIndex = source.indexOf('if (isAliceShoppingLaunch(req))');
-  const sendIndex = source.indexOf('sendAliceProductMessage(req', launchIndex);
+  const addIndex = source.indexOf("addSharedProducts(items, 'Алиса')", launchIndex);
   assert.ok(launchIndex > -1);
-  assert.ok(sendIndex > launchIndex);
+  assert.ok(addIndex > launchIndex);
+  assert.equal(source.indexOf('sendAliceProductMessage(req', launchIndex), -1);
 });

@@ -14,8 +14,7 @@ const { isAliceShoppingLaunch, buildAliceShoppingLaunchResponse } = require('./a
 const { shouldIgnorePassiveTelegramMessage, isEmptyAliceShoppingRequest, isAliceClearIntent, markProductsRuntimeStale } = require('./products-state.cjs');
 const {
   isProductsTopicUpdate, cleanAliceProductText, getAliceProductDeleteTarget, splitAliceProductItems,
-  sendAliceProductMessage, deleteAliceProductMessage, buildAliceProductAddedResponse,
-  buildAliceProductDeletedResponse, buildAliceNoSharedListResponse, acknowledgeLegacyProductsCallback,
+  buildAliceProductAddedResponse, buildAliceProductDeletedResponse, buildAliceNoSharedListResponse,
 } = require('./products-chat.cjs');
 const { maybeSendEventCollage, compactEventTelegramRequest } = require('./event-collage.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
@@ -128,9 +127,7 @@ async function handler(req, res) {
       }
       if (isRemovedCoupleTopicUpdate(req)) return res.status(200).json({ ok: true, ignored: 'removed-couple-topic' });
       if (isProductsTopicUpdate(req)) {
-        try { await acknowledgeLegacyProductsCallback(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch }); }
-        catch (error) { console.warn('RUDI_PRODUCTS_LEGACY_CALLBACK_ACK_ERROR', String(error?.message || error)); }
-        return res.status(200).json({ ok: true, ignored: 'products-chat-native' });
+        return res.status(200).json({ ok: true, ignored: 'products-topic-silent' });
       }
       if (shouldIgnorePassiveTelegramMessage(req)) return res.status(200).json({ ok: true, ignored: 'passive-chat-message' });
       return await runRuntime(req, res);
@@ -149,18 +146,11 @@ async function handler(req, res) {
       const deleteTarget = getAliceProductDeleteTarget(req);
       if (deleteTarget) {
         const sharedDeletion = await removeSharedProductByText(deleteTarget);
-        let telegramDeletion = { deleted: false, text: deleteTarget };
-        try {
-          telegramDeletion = await deleteAliceProductMessage(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch });
-        } catch (error) {
-          console.warn('RUDI_ALICE_PRODUCTS_TELEGRAM_DELETE_WARN', String(error?.message || error));
-        }
-        return res.status(200).json(buildAliceProductDeletedResponse(req, sharedDeletion.deleted ? sharedDeletion : telegramDeletion));
+        return res.status(200).json(buildAliceProductDeletedResponse(req, sharedDeletion.deleted ? sharedDeletion : { deleted: false, text: deleteTarget }));
       }
 
       const items = splitAliceProductItems(req);
       if (!cleanAliceProductText(req) || !items.length) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
-      await sendAliceProductMessage(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch });
       await addSharedProducts(items, 'Алиса');
       return res.status(200).json(buildAliceProductAddedResponse(req));
     }

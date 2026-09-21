@@ -7,6 +7,7 @@ const {
   handleTelegramTopicRequest,
 } = require('../api/topic-maintenance.cjs');
 const { runWithPublicationContext } = require('../api/section-controls.cjs');
+const EVENT_SETTINGS = { sections: { events: { enabled: true, topicId: EVENTS_TOPIC_ID, publishToTelegram: true } } };
 
 function fakeCache(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -46,7 +47,7 @@ test('events delete the previous active batch even when the dated message key is
   const response = await handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendMessage',
     { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'today event' }) },
-    { cache, now: new Date('2026-08-20T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-08-20T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   );
 
   assert.equal(response.status, 200);
@@ -85,7 +86,7 @@ test('event replacement publishes the new post and queues stale messages when de
   const response = await handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendMessage',
     { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'new event post' }) },
-    { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   );
 
   assert.equal(response.status, 200);
@@ -117,7 +118,7 @@ test('same-day replacement deletes dated event messages when active tracking is 
   await runWithPublicationContext({ date: '2026-09-17' }, () => handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendMessage',
     { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'replacement' }) },
-    { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   ));
 
   assert.deepEqual(calls.map((call) => call.method), ['deleteMessages', 'sendMessage']);
@@ -151,7 +152,7 @@ test('same-day failed cleanup keeps stale ids separate from the newly published 
   const response = await runWithPublicationContext({ date: '2026-09-17' }, () => handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendMessage',
     { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'replacement after cleanup failure' }) },
-    { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl },
+    { cache, now: new Date('2026-09-17T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
   ));
 
   assert.equal(response.status, 200);
@@ -190,12 +191,12 @@ test('a same-day event publication replaces the previous active batch once and k
     await handleTelegramTopicRequest(
       'https://api.telegram.org/bot1:testtoken/sendMessage',
       { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'concerts' }) },
-      { cache, now: new Date('2026-09-15T10:00:00Z'), fetchImpl },
+      { cache, now: new Date('2026-09-15T10:00:00Z'), fetchImpl , settings: EVENT_SETTINGS },
     );
     await handleTelegramTopicRequest(
       'https://api.telegram.org/bot1:testtoken/sendMessage',
       { method: 'POST', body: JSON.stringify({ chat_id: -100123, message_thread_id: EVENTS_TOPIC_ID, text: 'standup' }) },
-      { cache, now: new Date('2026-09-15T10:00:01Z'), fetchImpl },
+      { cache, now: new Date('2026-09-15T10:00:01Z'), fetchImpl , settings: EVENT_SETTINGS },
     );
   });
 
