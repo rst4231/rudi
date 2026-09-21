@@ -75,8 +75,30 @@ function patchRetiredRuntime(source) {
   );
 }
 
+function syncWebVersion() {
+  if (!fs.existsSync(versionConfigPath)) throw new Error('Missing rudi-version.json');
+  if (!fs.existsSync(webIndexPath)) throw new Error('Missing public/index.html');
+
+  const versionConfig = JSON.parse(fs.readFileSync(versionConfigPath, 'utf8'));
+  const label = String(versionConfig.current || '').trim();
+  const assetVersion = label.replace(/^v/i, '');
+  if (!label || !assetVersion) throw new Error('Invalid RUDI version');
+
+  let html = fs.readFileSync(webIndexPath, 'utf8');
+  html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
+  html = html.replace(/\/calendar\.css\?v=[^"]+/g, '/calendar.css?v=' + assetVersion);
+  html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
+  html = html.replace(
+    /(<div id="appVersion" class="app-version" aria-label="Версия приложения">)[^<]*(<\/div>)/,
+    '$1' + label + '$2'
+  );
+  fs.writeFileSync(webIndexPath, html);
+  return label;
+}
+
 function buildRuntime() {
   assertProductionGitDeployment();
+  syncWebVersion();
   const parts = [];
 
   for (let index = 0; index < CHUNK_COUNT; index += 1) {
