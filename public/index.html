@@ -86,8 +86,6 @@
 
       <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
 
-      <div id="compliment" class="compliment profile-compliment"></div>
-
       <div class="profile-weather" aria-label="Погода">
         <div id="weatherVisual" class="weather-visual" data-weather="idle" aria-hidden="true">
           <svg viewBox="0 0 64 64" fill="none">
@@ -252,6 +250,54 @@
       </div>
     </section>
 
+    <section id="feedSection" class="feed-page" data-app-tab-section="feed" aria-labelledby="feedTitle">
+      <header class="feed-hero">
+        <div>
+          <div class="feed-eyebrow">RUDI · СЕГОДНЯ</div>
+          <h1 id="feedTitle">Лента</h1>
+          <p id="feedUpdated" class="feed-updated">Обновляю свежую подборку…</p>
+        </div>
+        <span id="feedFreshBadge" class="feed-fresh-badge" hidden>Новое</span>
+      </header>
+
+      <div id="feedStatus" class="feed-status" aria-live="polite"></div>
+
+      <div class="feed-grid">
+        <article id="feedFactsCard" class="feed-card feed-card-facts" data-feed-card="facts">
+          <div class="feed-card-head">
+            <span class="feed-card-icon" aria-hidden="true">💡</span>
+            <div class="feed-card-heading">
+              <span>Полезные факты</span>
+              <small id="feedFactsMeta">Сегодня</small>
+            </div>
+          </div>
+          <div id="feedFactsBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+        </article>
+
+        <article id="feedEventsCard" class="feed-card feed-card-events" data-feed-card="events">
+          <div class="feed-card-head">
+            <span class="feed-card-icon" aria-hidden="true">📍</span>
+            <div class="feed-card-heading">
+              <span>Места и мероприятия</span>
+              <small id="feedEventsMeta">Сегодня</small>
+            </div>
+          </div>
+          <div id="feedEventsBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+        </article>
+
+        <article id="feedCinemaCard" class="feed-card feed-card-cinema" data-feed-card="cinema">
+          <div class="feed-card-head">
+            <span class="feed-card-icon" aria-hidden="true">🎬</span>
+            <div class="feed-card-heading">
+              <span>Кинопремьеры</span>
+              <small id="feedCinemaMeta">Актуальная неделя</small>
+            </div>
+          </div>
+          <div id="feedCinemaBody" class="feed-card-body"><div class="feed-skeleton"></div></div>
+        </article>
+      </div>
+    </section>
+
     <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="График">
       <div id="calendarConfetti" class="calendar-confetti" aria-hidden="true"></div>
       <div id="workCalendarCard" class="work-calendar-card calendar-disclosure-card">
@@ -327,13 +373,7 @@
           </div>
           <div id="watchToday" class="suggestion-value"></div>
           <div id="watchRatingRow" class="watch-rating" hidden><span class="imdb-badge">IMDb</span><strong id="watchRating"></strong><span>/10</span></div>
-          <button id="cinemaPremieresButton" class="cinema-premieres-button" type="button">
-            <span class="cinema-premieres-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h16v11H4z"/><path d="m4 7.5 3-4h4l-3 4M11 7.5l3-4h4l-3 4"/><path d="m10 11 5 2.5-5 2.5v-5Z"/></svg>
-            </span>
-            <span>Кинопремьеры</span>
-            <svg class="cinema-premieres-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
-          </button>
+
           <div class="reaction-strip daily-reaction">
             <button id="watchLike" class="reaction-button" type="button" aria-label="Поставить лайк фильму" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
@@ -488,6 +528,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 10.5 8.5-7 8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
       </span>
       <span>Домой</span>
+    </button>
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="feed" aria-selected="false">
+      <span class="app-tab-icon feed-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5.5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z"/><path d="M7 9h6M7 12h10M7 15h8"/></svg>
+        <span id="feedTabBadge" class="app-tab-notification" hidden></span>
+      </span>
+      <span>Лента</span>
     </button>
     <button role="tab" class="app-tab-button" type="button" data-app-tab="schedule" aria-selected="false">
       <span class="app-tab-icon" aria-hidden="true">
