@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const html=['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
+const partnerSource=fs.readFileSync('api/partner-message.js','utf8');
 
 test('calendar keeps Diana work schedule and removes retired shared calendar',()=>{
   assert.match(html,/work-calendar-title">График<\/div>/);
@@ -24,7 +25,6 @@ test('Diana work status stays tied to current month when browsing next month',()
   assert.match(html,/if\(requested==='next-month'\) refreshPartnerWorkStatus\(\)/);
 });
 
-
 test('home dashboard omits today and quick-action blocks',()=>{
   assert.doesNotMatch(html,/todayBlock\.className='home-dashboard-section home-today'/);
   assert.doesNotMatch(html,/quick\.className='home-quick-actions'/);
@@ -37,6 +37,6 @@ test('home mood labels are hidden and Diana mood is centered',()=>{
 });
 
 test('partner message save does not wait for Telegram notification',()=>{
-  assert.match(html,/waitUntil\(notificationTask\)/);
-  assert.match(html,/pending: true/);
+  assert.match(partnerSource,/waitUntil\(notificationTask\)/);
+  assert.match(partnerSource,/pending: true/);
 });
