@@ -81,6 +81,68 @@ function normalizeCycleState(value) {
   };
 }
 
+
+function cycleViewForDate(value, dateKey) {
+  const state = normalizeCycleState(value);
+  const today = validDateKey(dateKey);
+  if (!state || !today) return null;
+
+  const cycleLength = state.cycleLengthDays;
+  const periodLength = state.periodLengthDays;
+  const ovulationDay = state.ovulationDay;
+  const fertileStart = state.fertileWindowStartDay;
+  const fertileEnd = state.fertileWindowEndDay;
+  const todayMs = Date.parse(today + 'T00:00:00Z');
+  const history = state.historyStarts
+    .map((date) => Date.parse(date + 'T00:00:00Z'))
+    .filter((date) => Number.isFinite(date) && date <= todayMs)
+    .sort((a, b) => a - b);
+  const latestActualStart = history.length ? history[history.length - 1] : null;
+
+  let nextStartKey = validDateKey(state.nextPeriodStart);
+  let nextStartMs = nextStartKey ? Date.parse(nextStartKey + 'T00:00:00Z') : NaN;
+  if (!Number.isFinite(nextStartMs) && Number.isFinite(latestActualStart)) {
+    nextStartMs = latestActualStart + cycleLength * DAY;
+  }
+  while (Number.isFinite(nextStartMs) && nextStartMs + (periodLength - 1) * DAY < todayMs) {
+    nextStartMs += cycleLength * DAY;
+  }
+
+  const periodActive = Number.isFinite(nextStartMs)
+    && todayMs >= nextStartMs
+    && todayMs <= nextStartMs + (periodLength - 1) * DAY;
+  const currentStartMs = Number.isFinite(nextStartMs)
+    ? (periodActive ? nextStartMs : nextStartMs - cycleLength * DAY)
+    : latestActualStart;
+  const cycleDay = Number.isFinite(currentStartMs)
+    ? Math.max(1, Math.min(cycleLength, Math.floor((todayMs - currentStartMs) / DAY) + 1))
+    : null;
+
+  let phase = 'Недостаточно данных';
+  if (periodActive) phase = 'Месячные';
+  else if (Number.isFinite(currentStartMs) && cycleDay) {
+    if (cycleDay >= fertileStart && cycleDay <= fertileEnd) phase = 'Фертильное окно';
+    else if (cycleDay < fertileStart) phase = 'Фолликулярная фаза';
+    else phase = 'Лютеиновая фаза';
+  }
+
+  const moodWord = phase === 'Месячные' ? 'Спокойная'
+    : phase === 'Фолликулярная фаза' ? 'Бодрая'
+    : phase === 'Фертильное окно' ? 'Энергичная'
+    : phase === 'Лютеиновая фаза' ? 'Чувствительная'
+    : '';
+
+  return {
+    phase,
+    moodWord,
+    cycleDay,
+    cycleLengthDays: cycleLength,
+    nextPeriodStart: Number.isFinite(nextStartMs)
+      ? new Date(nextStartMs).toISOString().slice(0, 10)
+      : '',
+  };
+}
+
 async function readCycleState(options = {}) {
   return normalizeCycleState(await cacheOf(options).get(STATE_KEY));
 }
@@ -136,6 +198,7 @@ module.exports = {
   shiftDateKey,
   averageCycleLength,
   normalizeCycleState,
+  cycleViewForDate,
   cycleStateWithStart,
   readCycleState,
   writeCycleState,
