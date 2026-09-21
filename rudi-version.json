@@ -1,15 +1,16 @@
 {
-  "current": "v0.4.3",
-  "versionBranch": "versions/v0.4.3",
+  "current": "v0.4.4",
+  "versionBranch": "versions/v0.4.4",
   "releaseCommit": null,
   "createdAt": "2026-09-21",
-  "basedOnProduction": "65269d3c7f64d4928d8925cc9d60c9172abb1ba5",
+  "basedOnProduction": "ed675061dc16192592f342d95cc7dba93384568c",
   "notes": [
-    "Зашифрованный backup RUDI теперь восстанавливает TickTick OAuth, календарь, фотоальбом, цикл Дианы и связь профилей после очистки Runtime Cache.",
-    "Продукты, желания, послания и TickTick checklist audit продолжают входить в тот же backup.",
-    "Исправлено сопоставление Telegram-профилей Рустама и Дианы.",
-    "Верхняя цитата проверяет смену московской даты и обновляется без перезапуска приложения.",
-    "Выбранный смайл настроения сделан заметнее, а до выбора показывается подсказка Выбери настроение.",
-    "Сохранены исправления v0.4.2, включая компактный блок Совместные дела."
+    "Stateful API requests now carry the encrypted Telegram CloudStorage backup and fall back to it when Vercel Runtime Cache is empty or unavailable.",
+    "Profile recipient IDs are classified by their allowed SHA-256 identity, so old swapped cache entries are automatically corrected.",
+    "Diana cycle reads and updates survive Runtime Cache loss and return a refreshed encrypted backup token.",
+    "Work calendar and shared album can read directly from encrypted backup and no longer fail only because a cache write failed.",
+    "TickTick OAuth state is server-signed instead of cache-backed; the OAuth token returns through an encrypted handoff and is merged into Telegram CloudStorage immediately.",
+    "Products and wishlist list views fall back to encrypted backup when Runtime Cache has no state.",
+    "All v0.4.3 fixes remain, including daily quote rotation and clearer mood selection."
   ]
 }
