@@ -16,8 +16,8 @@
       document.documentElement.dataset.theme = tg?.colorScheme || (dark ? 'dark' : 'light');
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=0.5.0">
-  <link rel="stylesheet" href="/calendar.css?v=0.5.0">
+  <link rel="stylesheet" href="/app.css?v=1.0.0">
+  <link rel="stylesheet" href="/calendar.css?v=1.0.0">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -352,7 +352,7 @@
     <section class="section-block daily-section" data-app-tab-section="home" data-home-tile="daily" aria-labelledby="dailyTitle">
       <div class="section-heading compact">
         <div>
-          <h2 id="dailyTitle">Сегодня</h2>
+          <h2 id="dailyTitle">На сегодня</h2>
         </div>
       </div>
       <div class="daily-grid">
@@ -534,7 +534,7 @@
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v0.5.0</div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v1.0</div>
       <div class="home-layout-actions">
         <button id="homeLayoutResetButton" class="home-layout-reset-button" type="button" hidden>Сбросить порядок</button>
         <button id="homeLayoutEditButton" class="home-layout-edit-button" type="button" aria-pressed="false">Изменить</button>
@@ -612,6 +612,6 @@
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app.js?v=0.5.0"></script>
+  <script src="/app.js?v=1.0.0"></script>
 </body>
 </html>

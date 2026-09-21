@@ -31,7 +31,20 @@
       let currentComplimentDateKey = '';
       let homeLayoutEditing = false;
       let homeTileHost = null;
-      const HOME_TILE_DEFAULT_ORDER = ['profile-common','profile-self','profile-partner','cycle','priority','partner','daily'];
+      const homeDashboardState={
+        tasks:[],
+        workDay:null,
+        feed:null,
+        feedResults:[],
+        moods:null,
+        cycle:null,
+        message:null,
+        wishlistCount:0,
+        photoCount:0,
+        productCount:0,
+        nearestStatic:null
+      };
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','cycle','new','priority','partner','daily'];
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_CLOUD_META_KEY = 'rudi_state_backup_v2_meta';
@@ -332,7 +345,7 @@
 
       function homeLayoutStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi-home-layout-v1-'+actor;
+        return 'rudi-home-layout-v2-'+actor;
       }
 
       function ensureHomeTileHost(){
@@ -352,7 +365,7 @@
 
       function normalizedHomeOrder(order){
         const source=Array.isArray(order)?order.map(String):[];
-        const requested=source.flatMap(id=>id==='profile'?['profile-common','profile-self','profile-partner']:[id]);
+        const requested=source.flatMap(id=>['profile','profile-common','profile-self','profile-partner'].includes(id)?['dashboard']:[id]);
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
         for(const id of HOME_TILE_DEFAULT_ORDER) if(!valid.includes(id)) valid.push(id);
         return valid;
@@ -454,8 +467,8 @@
           controls.className='home-order-controls';
           controls.setAttribute('aria-label','Изменить положение блока');
           controls.innerHTML=
-            '<button class="home-order-button" type="button" data-home-move="up" aria-label="Переместить блок вверх" title="Вверх">↑</button>'+
-            '<button class="home-order-button" type="button" data-home-move="down" aria-label="Переместить блок вниз" title="Вниз">↓</button>';
+            '<button class="home-order-button" type="button" data-home-move="up" aria-label="Переместить блок вверх" title="Вверх"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 14.5 5.5-5.5 5.5 5.5"/></svg></button>'+
+            '<button class="home-order-button" type="button" data-home-move="down" aria-label="Переместить блок вниз" title="Вниз"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 9.5 5.5 5.5 5.5-5.5"/></svg></button>';
           tile.appendChild(controls);
         }
         updateHomeOrderControls();
@@ -526,7 +539,7 @@
 
         document.querySelectorAll('[data-app-tab-section]').forEach(section=>{
           const available=section.dataset.tabAvailable!=='0';
-          section.hidden=section.dataset.appTabSection!==next||!available;
+          section.hidden=section.dataset.appTabSection!==next||!available||(section.dataset.homeEmpty==='1');
         });
 
         document.querySelectorAll('[data-app-tab]').forEach(button=>{
@@ -644,18 +657,332 @@
         node.title=word?'Ориентировочно по фазе цикла':'';
       }
 
+      function rustamWorkState(now=new Date()){
+        const parts=Object.fromEntries(
+          new Intl.DateTimeFormat('en-GB',{
+            timeZone:TZ,
+            weekday:'short',
+            hour:'2-digit',
+            minute:'2-digit',
+            hourCycle:'h23'
+          }).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value])
+        );
+        const workday=['Mon','Tue','Wed','Thu','Fri'].includes(String(parts.weekday||''));
+        const minutes=(Number(parts.hour)||0)*60+(Number(parts.minute)||0);
+        return workday&&minutes>=10*60&&minutes<18*60;
+      }
+
       function syncStaticProfileWorkStatus(){
-        const moscowDay=new Date(todayState().utc).getUTCDay();
-        const rustamWeekend=moscowDay===0||moscowDay===6;
+        const rustamWorking=rustamWorkState();
         setProfileWorkStatus(
           'Рустам',
-          rustamWeekend?'Выходной':'Рабочий день',
-          rustamWeekend?'off':'working'
+          rustamWorking?'Работаю':'Отдыхаю',
+          rustamWorking?'working':'off'
         );
         const diana=profileStatusElement('Диана');
         if(diana&&!diana.dataset.calendarReady){
           setProfileWorkStatus('Диана','Проверяю график…','neutral');
         }
+      }
+
+      function homeTaskForActor(task){
+        if(!task||task.completed) return false;
+        if(!task.assigned) return true;
+        const expected=currentActor==='Диана'?'ди':'rst';
+        return String(task.assignee||'').trim().toLocaleLowerCase('ru-RU')===expected;
+      }
+
+      function homeTaskCountLabel(count){
+        const n=Math.abs(Number(count)||0),mod100=n%100,mod10=n%10;
+        const word=mod100>=11&&mod100<=14?'дел':mod10===1?'дело':mod10>=2&&mod10<=4?'дела':'дел';
+        return n+' '+word;
+      }
+
+      function homeMoodView(value){
+        return {low:'😔',ok:'😐',great:'😄'}[String(value||'')]||'—';
+      }
+
+      function homeDashboardDateLabel(){
+        const text=new Intl.DateTimeFormat('ru-RU',{
+          weekday:'long',day:'numeric',month:'long',timeZone:TZ
+        }).format(new Date());
+        return text.charAt(0).toLocaleUpperCase('ru-RU')+text.slice(1);
+      }
+
+      function homeGreeting(){
+        const hour=Number(new Intl.DateTimeFormat('en-GB',{
+          timeZone:TZ,hour:'2-digit',hourCycle:'h23'
+        }).format(new Date()));
+        const greeting=hour<12?'Доброе утро':hour<18?'Добрый день':'Добрый вечер';
+        return greeting+', '+(currentActor||'');
+      }
+
+      function homeEventRows(){
+        const payload=homeDashboardState.feed;
+        const sections=payload?.sections||{};
+        const parts=Array.isArray(sections.events?.parts)?sections.events.parts:[];
+        const rows=[];
+        for(const [index,name] of [[0,'concerts'],[1,'standup']]){
+          const value=String(parts[index]||'');
+          if(!value) continue;
+          const items=parseFeedEventItems(value,name);
+          for(const item of items){
+            const detail=item.details.join(' ');
+            const match=detail.match(/(?:^|\s)(\d{1,2}):(\d{2})(?:\s|$)/u);
+            const minutes=match?Number(match[1])*60+Number(match[2]):9999;
+            rows.push({
+              title:item.title,
+              time:match?(String(match[1]).padStart(2,'0')+':'+match[2]):'',
+              minutes,
+              kind:name
+            });
+          }
+        }
+        return rows.sort((a,b)=>a.minutes-b.minutes);
+      }
+
+      function homeCurrentMinutes(){
+        const parts=Object.fromEntries(
+          new Intl.DateTimeFormat('en-GB',{
+            timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+          }).formatToParts(new Date()).filter(part=>part.type!=='literal').map(part=>[part.type,part.value])
+        );
+        return (Number(parts.hour)||0)*60+(Number(parts.minute)||0);
+      }
+
+      function homeNearestRows(){
+        const rows=[];
+        const nowMinutes=homeCurrentMinutes();
+        const tasks=homeDashboardState.tasks.filter(homeTaskForActor);
+        for(const task of tasks){
+          const start=String(task?.startTime||'').trim();
+          const match=start.match(/^(\d{1,2}):(\d{2})$/u);
+          const rawMinutes=match?Number(match[1])*60+Number(match[2]):9800;
+          rows.push({
+            label:String(task?.title||'Дело'),
+            time:start,
+            minutes:rawMinutes<nowMinutes&&rawMinutes<1440?9600:rawMinutes,
+            icon:'📅'
+          });
+        }
+
+        const work=homeDashboardState.workDay;
+        if(work?.working){
+          const events=Array.isArray(work.events)?work.events:[];
+          const current=events.find(event=>{
+            const startMatch=String(event?.startTime||'').match(/^(\d{1,2}):(\d{2})$/u);
+            const endMatch=String(event?.endTime||'').match(/^(\d{1,2}):(\d{2})$/u);
+            if(!startMatch||!endMatch) return false;
+            const from=Number(startMatch[1])*60+Number(startMatch[2]);
+            const to=Number(endMatch[1])*60+Number(endMatch[2]);
+            return nowMinutes>=from&&nowMinutes<to;
+          });
+          if(current){
+            const endTime=String(current.endTime||'').trim();
+            const endMatch=endTime.match(/^(\d{1,2}):(\d{2})$/u);
+            rows.push({
+              label:'Диана — '+dianaWorkStatusText(work),
+              time:'',
+              minutes:endMatch?Number(endMatch[1])*60+Number(endMatch[2]):9700,
+              icon:'💼'
+            });
+          }else{
+            const upcoming=events.map(event=>{
+              const startTime=String(event?.startTime||'').trim();
+              const match=startTime.match(/^(\d{1,2}):(\d{2})$/u);
+              return {startTime,minutes:match?Number(match[1])*60+Number(match[2]):9999};
+            }).filter(row=>row.minutes>=nowMinutes).sort((a,b)=>a.minutes-b.minutes)[0];
+            if(upcoming){
+              rows.push({
+                label:'Диана — '+dianaWorkStatusText(work),
+                time:'',
+                minutes:upcoming.minutes,
+                icon:'💼'
+              });
+            }
+          }
+        }
+
+        for(const event of homeEventRows()){
+          if(event.minutes<nowMinutes) continue;
+          rows.push({
+            label:event.title,
+            time:event.time,
+            minutes:event.minutes,
+            icon:event.kind==='standup'?'🎙':'🎤'
+          });
+        }
+
+        const staticNearest=homeDashboardState.nearestStatic;
+        if(staticNearest){
+          rows.push({
+            label:staticNearest.title,
+            time:staticNearest.days===0?'Сегодня':staticNearest.days===1?'Завтра':('Через '+staticNearest.days+' '+dayWord(staticNearest.days)),
+            minutes:12000+Math.max(0,Number(staticNearest.days)||0),
+            icon:'⭐'
+          });
+        }
+        return rows.sort((a,b)=>a.minutes-b.minutes).slice(0,3);
+      }
+
+      function homeNewStorageKey(kind){
+        return 'rudi-home-new-v1-'+(currentActor==='Диана'?'diana':'rustam')+'-'+kind;
+      }
+
+      function homeCountIsNew(kind,count){
+        const value=Math.max(0,Number(count)||0);
+        try{
+          const key=homeNewStorageKey(kind);
+          const raw=localStorage.getItem(key);
+          if(raw===null){
+            localStorage.setItem(key,String(value));
+            return false;
+          }
+          return value>Math.max(0,Number(raw)||0);
+        }catch(_){return false}
+      }
+
+      function markHomeCountSeen(kind,count){
+        try{localStorage.setItem(homeNewStorageKey(kind),String(Math.max(0,Number(count)||0)))}catch(_){}
+        renderHomeNew();
+      }
+
+      function partnerMessageIsNew(){
+        const message=homeDashboardState.message;
+        if(!message?.updatedAt||!message?.authorName||message.authorName===currentActor) return false;
+        const key=homeNewStorageKey('message');
+        try{
+          const raw=localStorage.getItem(key);
+          if(raw===null){
+            localStorage.setItem(key,String(message.updatedAt));
+            return false;
+          }
+          return String(raw)!==String(message.updatedAt);
+        }catch(_){return false}
+      }
+
+      function markPartnerMessageSeen(){
+        const value=String(homeDashboardState.message?.updatedAt||'');
+        if(value) try{localStorage.setItem(homeNewStorageKey('message'),value)}catch(_){}
+        renderHomeDashboard();
+      }
+
+      function renderHomeNew(){
+        const tile=document.getElementById('homeNewTile');
+        const list=document.getElementById('homeNewList');
+        if(!tile||!list) return;
+        list.replaceChildren();
+        const entries=[];
+        const feedVersion=String(homeDashboardState.feed?.version||'');
+        if(feedVersion&&feedVersion!==feedSeenVersion()) entries.push({icon:'📰',text:'Новое в Ленте',tab:'feed'});
+        if(homeCountIsNew('photos',homeDashboardState.photoCount)) entries.push({icon:'📷',text:'Новые фото',tab:'photos'});
+        if(homeCountIsNew('wishlist',homeDashboardState.wishlistCount)) entries.push({icon:'🎁',text:'Новое желание',tab:'wishlist'});
+        tile.dataset.homeEmpty=entries.length?'0':'1';
+        tile.hidden=!entries.length;
+        for(const entry of entries){
+          const button=document.createElement('button');
+          button.type='button';
+          button.className='home-new-item';
+          button.innerHTML='<span>'+entry.icon+'</span><strong>'+entry.text+'</strong><span class="home-new-arrow">›</span>';
+          button.addEventListener('click',()=>{
+            if(entry.tab==='photos') markHomeCountSeen('photos',homeDashboardState.photoCount);
+            if(entry.tab==='wishlist') markHomeCountSeen('wishlist',homeDashboardState.wishlistCount);
+            applyAppTab(entry.tab,{scroll:true});
+            if(entry.tab==='feed') loadFeed({silent:true});
+          });
+          list.appendChild(button);
+        }
+      }
+
+      function renderHomeDashboard(){
+        const dashboard=document.getElementById('homeDashboard');
+        if(!dashboard) return;
+        const greeting=document.getElementById('homeDashboardGreeting');
+        const date=document.getElementById('homeDashboardDate');
+        if(greeting) greeting.textContent=homeGreeting();
+        if(date) date.textContent=homeDashboardDateLabel();
+
+        const today=document.getElementById('homeTodayRows');
+        if(today){
+          today.replaceChildren();
+          const tasks=homeDashboardState.tasks.filter(homeTaskForActor);
+          const work=homeDashboardState.workDay;
+          const eventCount=homeEventRows().length;
+          const rows=[
+            {icon:'📅',text:tasks.length?homeTaskCountLabel(tasks.length):'Сегодня дел нет'},
+            ...(work?[{icon:work.working?'💼':'🛋',text:'Диана: '+dianaWorkStatusText(work)}]:[]),
+            ...(eventCount?[{icon:'🎙',text:eventCount+' '+(eventCount===1?'событие сегодня':eventCount<5?'события сегодня':'событий сегодня')}]:[]),
+            ...(homeDashboardState.productCount>0?[{icon:'🛒',text:'Купить: '+homeDashboardState.productCount+' '+(homeDashboardState.productCount===1?'позиция':homeDashboardState.productCount<5?'позиции':'позиций')}]:[])
+          ];
+          for(const row of rows){
+            const el=document.createElement('div');
+            el.className='home-today-row';
+            el.innerHTML='<span>'+row.icon+'</span><strong></strong>';
+            el.querySelector('strong').textContent=row.text;
+            today.appendChild(el);
+          }
+        }
+
+        const cycle=document.getElementById('homeCycleSummary');
+        if(cycle){
+          const word=dianaCycleMoodWord(homeDashboardState.cycle?.phase);
+          cycle.textContent=word?'🌸 Диана: '+word+(homeDashboardState.cycle?.phase?' · '+String(homeDashboardState.cycle.phase).toLocaleLowerCase('ru-RU'):''):'';
+          cycle.hidden=!word;
+        }
+
+        const message=document.getElementById('homeMessageNew');
+        if(message) message.hidden=!partnerMessageIsNew();
+
+        const nearest=document.getElementById('homeNearestRows');
+        const nearestWrap=document.getElementById('homeNearestBlock');
+        if(nearest&&nearestWrap){
+          nearest.replaceChildren();
+          const rows=homeNearestRows();
+          nearestWrap.hidden=!rows.length;
+          for(const row of rows){
+            const el=document.createElement('div');
+            el.className='home-nearest-row';
+            const time=row.time?'<time>'+row.time+'</time>':'';
+            el.innerHTML='<span class="home-nearest-icon">'+row.icon+'</span><strong></strong>'+time;
+            el.querySelector('strong').textContent=row.label;
+            nearest.appendChild(el);
+          }
+        }
+        renderHomeNew();
+      }
+
+      function openHomeQuickAction(action){
+        if(action==='products'){
+          applyAppTab('products',{scroll:true});
+          loadProducts({silent:true}).finally(()=>setTimeout(()=>document.getElementById('productsInput')?.focus(),120));
+          return;
+        }
+        if(action==='wishlist'){
+          applyAppTab('wishlist',{scroll:true});
+          markHomeCountSeen('wishlist',homeDashboardState.wishlistCount);
+          setTimeout(()=>document.getElementById('wishlistInput')?.focus(),120);
+          return;
+        }
+        if(action==='photos'){
+          applyAppTab('photos',{scroll:true});
+          markHomeCountSeen('photos',homeDashboardState.photoCount);
+          return;
+        }
+        if(action==='message'){
+          markPartnerMessageSeen();
+          const tile=document.querySelector('[data-home-tile="partner"]');
+          tile?.scrollIntoView({behavior:'smooth',block:'center'});
+          setTimeout(()=>document.getElementById('partnerEditButton')?.click(),260);
+        }
+      }
+
+      function setupHomeDashboardActions(){
+        document.querySelectorAll('[data-home-quick]').forEach(button=>{
+          if(button.dataset.bound==='1') return;
+          button.dataset.bound='1';
+          button.addEventListener('click',()=>openHomeQuickAction(button.dataset.homeQuick));
+        });
+        document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
       }
 
       function setupProfileSplit(){
@@ -693,38 +1020,80 @@
         dianaCycleMood.id='dianaCycleMood';
         dianaCycleMood.className='profile-cycle-mood';
         dianaCycleMood.hidden=true;
-        dianaCycleMood.title='Ориентировочно по фазе цикла';
         dianaPerson.appendChild(dianaCycleMood);
 
-        /* Avatar left, name/status center, mood controls in the free area on the right. */
         selfIdentity.appendChild(selfMood);
         partnerIdentity.replaceChildren(partnerAvatar,partnerPerson,partnerMood);
 
-        profile.className='profile-common-tile profile-date-only-tile';
-        profile.dataset.homeTile='profile-common';
-        profile.setAttribute('aria-label','Сегодня');
-        dateHeading.className='profile-date-heading';
-        profile.replaceChildren(dateHeading);
+        profile.id='homeDashboard';
+        profile.className='home-dashboard';
+        profile.dataset.homeTile='dashboard';
+        profile.setAttribute('aria-label','Главная сводка');
+        dateHeading.id='homeDashboardDate';
+        dateHeading.className='home-dashboard-date';
 
-        const selfCard=document.createElement('section');
-        selfCard.className='profile-split-card profile-person-card profile-self-card';
-        selfCard.dataset.appTabSection='home';
-        selfCard.dataset.homeTile='profile-self';
-        selfCard.setAttribute('aria-label','Мой профиль');
-        selfCard.append(selfIdentity);
-        if(moodPrompt) selfCard.appendChild(moodPrompt);
-        if(moodMessage) selfCard.appendChild(moodMessage);
+        const top=document.createElement('div');
+        top.className='home-dashboard-head';
+        const greeting=document.createElement('h1');
+        greeting.id='homeDashboardGreeting';
+        greeting.className='home-dashboard-greeting';
+        top.append(greeting,dateHeading);
 
-        const partnerCard=document.createElement('section');
-        partnerCard.className='profile-split-card profile-person-card profile-partner-card';
-        partnerCard.dataset.appTabSection='home';
-        partnerCard.dataset.homeTile='profile-partner';
-        partnerCard.setAttribute('aria-label','Профиль партнёра');
-        partnerCard.append(partnerIdentity);
+        const todayBlock=document.createElement('section');
+        todayBlock.className='home-dashboard-section home-today';
+        todayBlock.innerHTML='<div class="home-dashboard-label">Сегодня</div><div id="homeTodayRows" class="home-today-rows"></div>';
 
-        profile.after(selfCard,partnerCard);
+        const together=document.createElement('section');
+        together.className='home-dashboard-section home-together';
+        const togetherLabel=document.createElement('div');
+        togetherLabel.className='home-dashboard-label';
+        togetherLabel.textContent='Мы сегодня';
+        const peopleGrid=document.createElement('div');
+        peopleGrid.className='home-together-grid';
+        peopleGrid.append(selfIdentity,partnerIdentity);
+        const cycleSummary=document.createElement('div');
+        cycleSummary.id='homeCycleSummary';
+        cycleSummary.className='home-cycle-summary';
+        cycleSummary.hidden=true;
+        const messageNew=document.createElement('button');
+        messageNew.id='homeMessageNew';
+        messageNew.className='home-message-new';
+        messageNew.type='button';
+        messageNew.textContent='💌 Новое послание';
+        messageNew.hidden=true;
+        together.append(togetherLabel,peopleGrid,cycleSummary,messageNew);
+        if(moodPrompt) together.appendChild(moodPrompt);
+        if(moodMessage) together.appendChild(moodMessage);
+
+        const quick=document.createElement('div');
+        quick.className='home-quick-actions';
+        quick.innerHTML=
+          '<button type="button" data-home-quick="products"><span>＋</span>Продукт</button>'+
+          '<button type="button" data-home-quick="wishlist"><span>＋</span>Желание</button>'+
+          '<button type="button" data-home-quick="photos"><span>＋</span>Фото</button>'+
+          '<button type="button" data-home-quick="message"><span>💌</span>Послание</button>';
+
+        const nearest=document.createElement('section');
+        nearest.id='homeNearestBlock';
+        nearest.className='home-dashboard-section home-nearest';
+        nearest.hidden=true;
+        nearest.innerHTML='<div class="home-dashboard-label">Ближайшее</div><div id="homeNearestRows" class="home-nearest-rows"></div>';
+
+        profile.replaceChildren(top,todayBlock,together,quick,nearest);
+
+        const newTile=document.createElement('section');
+        newTile.id='homeNewTile';
+        newTile.className='panel home-new-tile';
+        newTile.dataset.appTabSection='home';
+        newTile.dataset.homeTile='new';
+        newTile.hidden=true;
+        newTile.innerHTML='<div class="home-dashboard-label">Новое в RUDI</div><div id="homeNewList" class="home-new-list"></div>';
+        document.getElementById('dianaCycleCard')?.after(newTile);
+
         document.body.dataset.profileSplitReady='1';
         syncStaticProfileWorkStatus();
+        setupHomeDashboardActions();
+        renderHomeDashboard();
       }
 
       function readBlockStates(){
@@ -1115,11 +1484,18 @@
       }
 
       function updateClock(){
-        const now = new Date();
-        const weekdayRaw = new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:TZ}).format(now);
-        const weekday = weekdayRaw.replace('.', '').toUpperCase();
-        const date = new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:TZ}).format(now);
-        document.getElementById('profileMeta').textContent = weekday+' · '+date;
+        const now=new Date();
+        const weekdayRaw=new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:TZ}).format(now);
+        const weekday=weekdayRaw.charAt(0).toLocaleUpperCase('ru-RU')+weekdayRaw.slice(1);
+        const date=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:TZ}).format(now);
+        const legacy=document.getElementById('profileMeta');
+        if(legacy) legacy.textContent=weekday+' · '+date;
+        const dashboardDate=document.getElementById('homeDashboardDate');
+        if(dashboardDate) dashboardDate.textContent=weekday+', '+date;
+        if(currentActor){
+          syncStaticProfileWorkStatus();
+          renderHomeDashboard();
+        }
       }
       updateClock();
       setInterval(updateClock,30000);
@@ -1312,7 +1688,9 @@
         const recordButton=document.getElementById('dianaCycleStartToday');
 
         if(!cfg||cfg.enabled===false){
+          homeDashboardState.cycle=null;
           setDianaCycleMood('');
+          renderHomeDashboard();
           countdown.textContent='—';
           countdownLabel.textContent='данные цикла недоступны';
           phase.textContent='Нет данных';
@@ -1327,7 +1705,9 @@
 
         if(recordButton) recordButton.disabled=false;
         const model=dianaCycleModel(cfg);
+        homeDashboardState.cycle=model;
         setDianaCycleMood(model.phase);
+        renderHomeDashboard();
         if(Number.isFinite(model.daysToNext)){
           if(model.daysToNext>0){
             countdown.textContent=String(model.daysToNext);
@@ -1899,6 +2279,8 @@
         }
 
         const tasks=Array.isArray(payload?.tasks)?payload.tasks.filter(task=>!task?.completed):[];
+        homeDashboardState.tasks=tasks;
+        renderHomeDashboard();
         if(!tasks.length){
           title.textContent='Сегодня дел нет';
           badge.hidden=true;badge.textContent='';
@@ -2257,27 +2639,53 @@
       }
 
 
+      function dianaWorkStatusText(row){
+        if(!row||!row.working) return 'Отдыхаю';
+        const events=(Array.isArray(row.events)?row.events:[])
+          .filter(event=>!event?.allDay)
+          .map(event=>({
+            start:String(event?.startTime||'').trim(),
+            end:String(event?.endTime||'').trim()
+          }))
+          .filter(event=>event.start||event.end);
+        if(!events.length) return 'Работаю';
+        const toMinutes=value=>{
+          const match=String(value||'').match(/^(\d{1,2}):(\d{2})$/u);
+          return match?Number(match[1])*60+Number(match[2]):null;
+        };
+        const starts=events.map(event=>({value:event.start,minutes:toMinutes(event.start)})).filter(row=>row.minutes!==null);
+        const ends=events.map(event=>({value:event.end,minutes:toMinutes(event.end)})).filter(row=>row.minutes!==null);
+        const start=starts.sort((a,b)=>a.minutes-b.minutes)[0]?.value||'';
+        const end=ends.sort((a,b)=>b.minutes-a.minutes)[0]?.value||'';
+        if(start&&end) return 'Работаю с '+start+' до '+end;
+        if(start) return 'Работаю с '+start;
+        if(end) return 'Работаю до '+end;
+        return 'Работаю';
+      }
+
       function renderPartnerWorkStatus(days){
         const status=profileStatusElement('Диана');
-        if(!status) return;
 
         const today=todayState().key;
         const row=(Array.isArray(days)?days:[]).find(day=>String(day?.date||'')===today);
         if(!row){
-          status.dataset.calendarReady='1';
-          setProfileWorkStatus('Диана','Нет данных графика','neutral');
+          homeDashboardState.workDay=null;
+          renderHomeDashboard();
+          if(status){
+            status.dataset.calendarReady='1';
+            setProfileWorkStatus('Диана','Отдыхаю','off');
+          }
           return;
         }
 
         const working=Boolean(row.working);
-        status.dataset.calendarReady='1';
-        setProfileWorkStatus('Диана',working?'Рабочий день':'Выходной',working?'working':'off');
-
-        const events=Array.isArray(row.events)?row.events:[];
-        const ranges=events
-          .map(event=>event?.allDay?'Весь день':([event?.startTime,event?.endTime].filter(Boolean).join('–')))
-          .filter(Boolean);
-        status.title=working&&ranges.length?ranges.join(' / '):'';
+        homeDashboardState.workDay={...row,working};
+        renderHomeDashboard();
+        if(status){
+          status.dataset.calendarReady='1';
+          setProfileWorkStatus('Диана',dianaWorkStatusText({...row,working}),working?'working':'off');
+          status.title='';
+        }
       }
 
       function workCalendarRenderSignature(payload){
@@ -3104,6 +3512,8 @@
         const totalCount=Number.isFinite(Number(payload?.totalCount))
           ?Math.max(0,Number(payload.totalCount))
           :photos.length;
+        homeDashboardState.photoCount=totalCount;
+        renderHomeNew();
         if(count) count.textContent=totalCount+' фото';
 
         if(payload.stale){
@@ -3264,11 +3674,13 @@
       }
 
       function renderWishlist(payload){
+        const items=Array.isArray(payload?.items)?payload.items:[];
+        homeDashboardState.wishlistCount=items.filter(item=>!item?.done).length;
+        renderHomeNew();
         const rustam=document.getElementById('wishlistRustam');
         const diana=document.getElementById('wishlistDiana');
         const status=document.getElementById('wishlistStatus');
         rustam.replaceChildren();diana.replaceChildren();
-        const items=Array.isArray(payload?.items)?payload.items:[];
         for(const [owner,container] of [['Рустам',rustam],['Диана',diana]]){
           const rows=items.filter(item=>item.owner===owner);
           if(!rows.length){
@@ -3363,6 +3775,8 @@
         }
         events.sort((a,b)=>a.target-b.target);
         const e=events[0];
+        homeDashboardState.nearestStatic=e||null;
+        renderHomeDashboard();
         if(!e) return;
         document.getElementById('nearestTitle').textContent=e.title;
         document.getElementById('nearestMeta').textContent=e.meta;
@@ -3485,6 +3899,8 @@
       }
 
       function renderPartnerMessage(message){
+        homeDashboardState.message=message||null;
+        renderHomeDashboard();
         const textEl=document.getElementById('partnerMessageText');
         const authorEl=document.getElementById('partnerMessageAuthor');
         const reactionStrip=document.getElementById('partnerMessageReaction');
@@ -3624,11 +4040,13 @@
       }
 
       function renderDailyMood(payload){
+        homeDashboardState.moods=payload||null;
         const mine=String(payload?.mine?.mood||'');
         const partnerMood=String(payload?.partnerMood?.mood||'');
         selectOwnMood(mine);
         renderPartnerMood(partnerMood,String(payload?.partner||''));
         document.getElementById('moodPrompt').hidden=Boolean(mine);
+        renderHomeDashboard();
       }
 
       async function moodRequest(operation,mood=''){
@@ -4347,6 +4765,9 @@
           renderFeedSection('cinema',sections.cinema,null,payload)
         ];
 
+        homeDashboardState.feed=payload||null;
+        homeDashboardState.feedResults=results;
+        renderHomeDashboard();
         sortFeedCards(results);
         renderFeedToday(payload,results);
         setTimeout(observeFeedCards,0);
@@ -4489,6 +4910,8 @@
       function renderProducts(payload){
         const items=Array.isArray(payload?.items)?payload.items:[];
         const history=Array.isArray(payload?.history)?payload.history:[];
+        homeDashboardState.productCount=items.length;
+        renderHomeDashboard();
         const groups=document.getElementById('productsGroups');
         const empty=document.getElementById('productsEmpty');
         const status=document.getElementById('productsStatus');
@@ -4861,6 +5284,7 @@
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
+      setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
 

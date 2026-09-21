@@ -222,6 +222,34 @@ test('access gate disappears before slow background bootstrap finishes',async({p
   await expect.poll(()=>state.bootstrapResolved,{timeout:3000}).toBe(true);
 });
 
+test('home dashboard is compact and reorder controls use aligned icons',async({page})=>{
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#homeDashboard')).toBeVisible();
+  await expect(page.locator('#homeDashboard')).toContainText('Сегодня');
+  await expect(page.locator('#homeDashboard')).toContainText('Мы сегодня');
+  await expect(page.locator('#dianaCycleCard')).toBeVisible();
+  await expect(page.locator('#appVersion')).toHaveText('v1.0');
+  const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
+  expect(homeOrder.slice(0,2)).toEqual(['dashboard','cycle']);
+
+  const dianaStatus=page.locator('#partnerWorkStatus');
+  await expect(dianaStatus).toHaveText('Работаю с 09:00 до 21:00');
+  await expect(page.locator('#selfWorkStatus')).toHaveText(/^(Работаю|Отдыхаю)$/);
+  await expect(page.locator('#selfWorkStatus')).not.toContainText(/10:00|18:00|Пн|Пт/);
+
+  await page.locator('#homeLayoutEditButton').click();
+  const controls=page.locator('.home-order-controls');
+  await expect(controls.first()).toBeVisible();
+  await expect(controls.first().locator('svg')).toHaveCount(2);
+  const buttons=controls.first().locator('.home-order-button');
+  const firstBox=await buttons.nth(0).boundingBox();
+  const secondBox=await buttons.nth(1).boundingBox();
+  expect(Math.abs(firstBox.width-secondBox.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(firstBox.height-secondBox.height)).toBeLessThanOrEqual(1);
+});
+
 test('iPhone calendar taps, spacing and silent refresh stay stable',async({page})=>{
   const state=await mockRudi(page);
   await page.goto('/');
