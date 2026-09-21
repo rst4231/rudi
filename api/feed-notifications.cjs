@@ -9,7 +9,7 @@ const { telegramSendMessage } = require('./telegram-notifications.cjs');
 
 const LABELS = {
   facts: 'интересные факты',
-  events: 'мероприятия',
+  events: 'концерты и Stand Up',
   cinema: 'кинопремьеры',
 };
 
