@@ -4606,7 +4606,8 @@ body[data-app-tab="feed"] .feed-page{
   opacity:.72;
 }
 .feed-card-facts::after{background:linear-gradient(90deg,#f0b53f,#f8dc7a)}
-.feed-card-events::after{background:linear-gradient(90deg,#55a7ff,#70d4c2)}
+.feed-card-concerts::after{background:linear-gradient(90deg,#55a7ff,#70d4c2)}
+.feed-card-standup::after{background:linear-gradient(90deg,#ff7e6f,#ffb067)}
 .feed-card-cinema::after{background:linear-gradient(90deg,#8a74ff,#d886ff)}
 .feed-card-head{
   display:flex;
@@ -4650,6 +4651,12 @@ body[data-app-tab="feed"] .feed-page{
   line-height:1.52;
   overflow-wrap:anywhere;
 }
+.feed-reaction{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);
+}
+.feed-reaction[hidden]{display:none!important}
 .feed-part{
   padding:12px 13px;
   border-radius:16px;
