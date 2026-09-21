@@ -644,13 +644,27 @@
         node.title=word?'Ориентировочно по фазе цикла':'';
       }
 
+      function rustamWorkState(now=new Date()){
+        const parts=Object.fromEntries(
+          new Intl.DateTimeFormat('en-GB',{
+            timeZone:TZ,
+            weekday:'short',
+            hour:'2-digit',
+            minute:'2-digit',
+            hourCycle:'h23'
+          }).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value])
+        );
+        const workday=['Mon','Tue','Wed','Thu','Fri'].includes(String(parts.weekday||''));
+        const minutes=(Number(parts.hour)||0)*60+(Number(parts.minute)||0);
+        return workday&&minutes>=10*60&&minutes<18*60;
+      }
+
       function syncStaticProfileWorkStatus(){
-        const moscowDay=new Date(todayState().utc).getUTCDay();
-        const rustamWeekend=moscowDay===0||moscowDay===6;
+        const rustamWorking=rustamWorkState();
         setProfileWorkStatus(
           'Рустам',
-          rustamWeekend?'Выходной':'Рабочий день',
-          rustamWeekend?'off':'working'
+          rustamWorking?'Работаю':'Отдыхаю',
+          rustamWorking?'working':'off'
         );
         const diana=profileStatusElement('Диана');
         if(diana&&!diana.dataset.calendarReady){
@@ -2271,7 +2285,7 @@
 
         const working=Boolean(row.working);
         status.dataset.calendarReady='1';
-        setProfileWorkStatus('Диана',working?'Рабочий день':'Выходной',working?'working':'off');
+        setProfileWorkStatus('Диана',working?'Работаю':'Отдыхаю',working?'working':'off');
 
         const events=Array.isArray(row.events)?row.events:[];
         const ranges=events
