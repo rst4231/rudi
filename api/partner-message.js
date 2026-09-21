@@ -233,6 +233,27 @@ function moodNotificationText(recipient, actor, mood) {
   return `${view.emoji} <b>${recipient}, у ${actorGenitive} сейчас ${view.phrase}</b>\n<i>${view.emoji} Настроение обновлено в RUDI</i>`;
 }
 
+async function sendMoodNotificationToPartner(actor, mood, options = {}) {
+  const recipient = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
+  if (!recipient) return { sent: false, reason: 'actor-invalid' };
+  try {
+    const recipients = options.recipients || await readRecipients(options);
+    const chatId = Number(recipients?.[recipient]);
+    if (!Number.isInteger(chatId) || chatId <= 0) {
+      return { sent: false, reason: 'recipient-not-configured' };
+    }
+    const result = await telegramSendMessage(
+      chatId,
+      moodNotificationText(recipient, actor, mood),
+      options
+    );
+    return { sent: true, recipient, ...result };
+  } catch (error) {
+    console.warn('RUDI_MOOD_NOTIFICATION_WARN', String(error?.message || error));
+    return { sent: false, recipient, error: String(error?.message || error) };
+  }
+}
+
 async function telegramBotCall(method, payload, options = {}) {
   const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -1259,11 +1280,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         row = await setDailyMood(date, actor, body.mood, options);
         const nextMood = row?.moods?.[actor]?.mood || '';
         if (nextMood && nextMood !== previousMood) {
-          await sendActivityNotification(
-            (recipient) => moodNotificationText(recipient, actor, nextMood),
-            'home',
-            options
-          );
+          await sendMoodNotificationToPartner(actor, nextMood, options);
         }
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
@@ -1552,6 +1569,7 @@ module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
 module.exports.boughtNotificationText = boughtNotificationText;
 module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.moodNotificationText = moodNotificationText;
+module.exports.sendMoodNotificationToPartner = sendMoodNotificationToPartner;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
 module.exports.checklistCompletedNotificationText = checklistCompletedNotificationText;
 module.exports.feedPreviewBaseUrl = feedPreviewBaseUrl;
