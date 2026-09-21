@@ -155,10 +155,10 @@ async function mockRudi(page,options={}){
           albumUrl:'https://www.icloud.com/sharedalbum/#A5q2example',
           totalCount:128,
           photos:[
-            {id:'today',url:'https://images.example.test/today.jpg',date:'2026-09-21T09:00:00.000Z',caption:'Сегодня'},
-            {id:'yesterday',url:'https://images.example.test/yesterday.jpg',date:'2026-09-20T09:00:00.000Z',caption:'Вчера'},
-            {id:'august',url:'https://images.example.test/august.jpg',date:'2026-08-21T09:00:00.000Z',caption:'Август'},
-            {id:'july',url:'https://images.example.test/july.jpg',date:'2026-07-10T09:00:00.000Z',caption:'Июль'}
+            {id:'today',url:'https://images.example.test/today.jpg',fullUrl:'https://images.example.test/today-full.jpg',date:'2026-09-21T09:00:00.000Z',caption:'Сегодня'},
+            {id:'yesterday',url:'https://images.example.test/yesterday.jpg',fullUrl:'https://images.example.test/yesterday-full.jpg',date:'2026-09-20T09:00:00.000Z',caption:'Вчера'},
+            {id:'august',url:'https://images.example.test/august.jpg',fullUrl:'https://images.example.test/august-full.jpg',date:'2026-08-21T09:00:00.000Z',caption:'Август'},
+            {id:'july',url:'https://images.example.test/july.jpg',fullUrl:'https://images.example.test/july-full.jpg',date:'2026-07-10T09:00:00.000Z',caption:'Июль'}
           ]
         });
       }
@@ -371,7 +371,7 @@ test('photos show total count, daily memory and date groups',async({page})=>{
   await expect(page.locator('.shared-album-group .shared-album-photo')).toHaveCount(4);
   await page.locator('#sharedAlbumMemoryButton').click();
   await expect(page.locator('#photoViewer')).toHaveClass(/open/);
-  await expect(page.locator('#photoViewerImage')).toHaveAttribute('src',/images\.example\.test/);
+  await expect(page.locator('#photoViewerImage')).toHaveAttribute('src',/-full\.jpg$/);
 });
 
 test('products bought button stays interactive and completes checked products',async({page})=>{
