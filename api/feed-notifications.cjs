@@ -39,7 +39,7 @@ async function sendDailyFeedNotifications(options = {}) {
     const chatId = Number(recipients?.[actor]);
     if (!Number.isInteger(chatId) || chatId <= 0) continue;
     if (await wasFeedNoticeSent(date, feed.version, actor, options)) continue;
-    const text = `${actor}, я обновил Ленту: добавил ${labels}.\n\nПосмотри в приложении.`;
+    const text = `📰 <b>${actor}, я обновил Ленту</b>\n<i>Добавил ${labels}.</i>\n\nПосмотри в приложении.`;
     try {
       const result = await telegramSendMessage(chatId, text, {
         ...options,
