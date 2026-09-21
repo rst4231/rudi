@@ -22,7 +22,8 @@ test('Calendar tab always refreshes the combined calendar',()=>{
 
 test('TickTick deals render as separate structured rows',()=>{
   assert.match(app,/row\.className='calendar-selected-row calendar-task-row'/);
-  assert.match(app,/complete\.className='calendar-task-complete'/);\n  assert.match(app,/time\.className='calendar-task-time'/);
+  assert.match(app,/complete\.className='calendar-task-complete'/);
+  assert.match(app,/time\.className='calendar-task-time'/);
   assert.match(app,/text\.className='calendar-task-title'/);
   assert.match(css,/\.calendar-selected-tasks \.calendar-task-row\{[\s\S]*?display:grid!important/);
 });

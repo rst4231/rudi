@@ -4,7 +4,7 @@ const fs=require('node:fs');
 
 const html=fs.readFileSync(require.resolve('../public/index.html'),'utf8');
 const app=fs.readFileSync(require.resolve('../public/app.js'),'utf8');
-const css=fs.readFileSync(require.resolve('../public/app.css'),'utf8');
+const css=fs.readFileSync(require.resolve('../public/app.css'),'utf8')+'\n'+fs.readFileSync(require.resolve('../public/calendar.css'),'utf8');
 
 test('calendar is unified around Diana schedule, TickTick tasks and holidays',()=>{
   assert.match(html,/work-calendar-title">График<\/div>/);
