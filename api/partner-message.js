@@ -237,7 +237,8 @@ const MOOD_NOTICE = {
 function moodNotificationText(recipient, actor, mood) {
   const view = MOOD_NOTICE[String(mood || '')];
   if (!view) return '';
-  return `${view.emoji} <b>${recipient}, у ${actor} сейчас ${view.phrase}</b>\n<i>${view.emoji} Настроение обновлено в RUDI</i>`;
+  const actorGenitive = actor === 'Рустам' ? 'Рустама' : actor === 'Диана' ? 'Дианы' : actor;
+  return `${view.emoji} <b>${recipient}, у ${actorGenitive} сейчас ${view.phrase}</b>\n<i>${view.emoji} Настроение обновлено в RUDI</i>`;
 }
 
 async function telegramBotCall(method, payload, options = {}) {
