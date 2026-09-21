@@ -343,7 +343,7 @@
 
       function homeLayoutStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi-home-layout-v1-'+actor;
+        return 'rudi-home-layout-v2-'+actor;
       }
 
       function ensureHomeTileHost(){
@@ -537,7 +537,7 @@
 
         document.querySelectorAll('[data-app-tab-section]').forEach(section=>{
           const available=section.dataset.tabAvailable!=='0';
-          section.hidden=section.dataset.appTabSection!==next||!available;
+          section.hidden=section.dataset.appTabSection!==next||!available||(section.dataset.homeEmpty==='1');
         });
 
         document.querySelectorAll('[data-app-tab]').forEach(button=>{
@@ -828,6 +828,7 @@
         if(feedVersion&&feedVersion!==feedSeenVersion()) entries.push({icon:'📰',text:'Новое в Ленте',tab:'feed'});
         if(homeCountIsNew('photos',homeDashboardState.photoCount)) entries.push({icon:'📷',text:'Новые фото',tab:'photos'});
         if(homeCountIsNew('wishlist',homeDashboardState.wishlistCount)) entries.push({icon:'🎁',text:'Новое желание',tab:'wishlist'});
+        tile.dataset.homeEmpty=entries.length?'0':'1';
         tile.hidden=!entries.length;
         for(const entry of entries){
           const button=document.createElement('button');
@@ -2588,6 +2589,8 @@
         const today=todayState().key;
         const row=(Array.isArray(days)?days:[]).find(day=>String(day?.date||'')===today);
         if(!row){
+          homeDashboardState.workDay=null;
+          renderHomeDashboard();
           status.dataset.calendarReady='1';
           setProfileWorkStatus('Диана','Нет данных графика','neutral');
           return;
