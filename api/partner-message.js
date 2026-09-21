@@ -1121,6 +1121,17 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      return res.status(200).json({ ok: true, actor });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'app-bootstrap') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor, user } = authorizeInitData(body.initData, options);
       const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
       const handoffSnapshot = backupSnapshotFromToken(body.ticktickHandoff, options);

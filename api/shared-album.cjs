@@ -107,6 +107,13 @@ function photoDate(photo) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function derivativeScore(item) {
+  const width = Number(item?.width || 0);
+  const height = Number(item?.height || 0);
+  const pixels = width > 0 && height > 0 ? width * height : 0;
+  return [pixels, Number(item?.fileSize || 0)];
+}
+
 function pickDerivative(photo) {
   const values = Object.values(photo?.derivatives || {}).filter((item) => item && item.checksum);
   if (!values.length) return null;
@@ -114,6 +121,16 @@ function pickDerivative(photo) {
     .filter((item) => Number(item.width || 0) <= 1600 && Number(item.height || 0) <= 1600)
     .sort((a, b) => Number(b.fileSize || 0) - Number(a.fileSize || 0));
   return suitable[0] || values.sort((a, b) => Number(b.fileSize || 0) - Number(a.fileSize || 0))[0];
+}
+
+function pickFullDerivative(photo) {
+  const values = Object.values(photo?.derivatives || {}).filter((item) => item && item.checksum);
+  if (!values.length) return null;
+  return values.sort((a, b) => {
+    const [aPixels, aBytes] = derivativeScore(a);
+    const [bPixels, bBytes] = derivativeScore(b);
+    return bPixels - aPixels || bBytes - aBytes;
+  })[0] || null;
 }
 
 function assetUrl(assetData, checksum) {
@@ -132,22 +149,33 @@ async function fetchLatestPhotos(config, options = {}) {
   let host = initialHost(token);
   const streamResult = await postICloud(host, token, 'webstream', { streamCtag: null }, options);
   host = streamResult.host;
-  const photos = (Array.isArray(streamResult.payload?.photos) ? streamResult.payload.photos : [])
+  const allPhotos = (Array.isArray(streamResult.payload?.photos) ? streamResult.payload.photos : [])
     .filter((photo) => photo?.mediaAssetType !== 'video' && photo?.photoGuid)
-    .sort((a, b) => photoDate(b) - photoDate(a))
-    .slice(0, 40);
+    .sort((a, b) => photoDate(b) - photoDate(a));
+  const totalCount = allPhotos.length;
+  const photos = allPhotos.slice(0, 40);
 
-  if (!photos.length) return { photos: [], albumUrl: config.url, title: String(streamResult.payload?.streamName || 'Общий альбом') };
+  if (!photos.length) return {
+    photos: [],
+    totalCount,
+    albumUrl: config.url,
+    title: String(streamResult.payload?.streamName || 'Общий альбом'),
+  };
 
   const assetResult = await postICloud(host, token, 'webasseturls', { photoGuids: photos.map((p) => p.photoGuid) }, options);
   const result = photos.map((photo) => {
     const derivative = pickDerivative(photo);
+    const fullDerivative = pickFullDerivative(photo) || derivative;
     const checksum = derivative?.checksum || '';
+    const fullChecksum = fullDerivative?.checksum || checksum;
     return {
       id: String(photo.photoGuid),
       url: assetUrl(assetResult.payload, checksum),
+      fullUrl: assetUrl(assetResult.payload, fullChecksum) || assetUrl(assetResult.payload, checksum),
       width: Number(derivative?.width || photo.width || 0) || null,
       height: Number(derivative?.height || photo.height || 0) || null,
+      fullWidth: Number(fullDerivative?.width || photo.width || 0) || null,
+      fullHeight: Number(fullDerivative?.height || photo.height || 0) || null,
       date: String(photo.batchDateCreated || photo.dateCreated || ''),
       caption: String(photo.caption || '').trim(),
     };
@@ -155,6 +183,7 @@ async function fetchLatestPhotos(config, options = {}) {
 
   return {
     photos: result,
+    totalCount,
     albumUrl: config.url,
     title: String(streamResult.payload?.streamName || 'Общий альбом').trim() || 'Общий альбом',
   };
@@ -163,7 +192,7 @@ async function fetchLatestPhotos(config, options = {}) {
 async function getLatestPhotos(options = {}) {
   const cache = cacheOf(options);
   const config = options.albumConfig?.url ? { url: normalizeAlbumUrl(options.albumConfig.url), token: extractToken(options.albumConfig.token || options.albumConfig.url) } : await readAlbumConfig({ ...options, albumCache: cache });
-  if (!config) return { configured: false, photos: [], albumUrl: null, title: 'Общий альбом' };
+  if (!config) return { configured: false, photos: [], totalCount: 0, albumUrl: null, title: 'Общий альбом' };
 
   const cached = await cache.get(CACHE_KEY).catch(() => null);
   try {

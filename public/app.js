@@ -920,24 +920,28 @@
         document.getElementById('appGateText').textContent=text;
       }
 
-      async function authenticateApp(){
-        if(!tg?.initData){
-          denyApp('Откройте RUDI в Telegram','Приложение доступно только через ваш Telegram-бот.');
-          return false;
-        }
+      async function loadAppBootstrap(){
+        if(!tg?.initData||!currentActor) return;
         try{
-          const backupToken=await withTimeout(readStateBackupToken(),1200,'');
-          const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-auth',{
+          const cloudToken=await withTimeout(readStateBackupToken(),1600,currentStateBackupToken||'');
+          const backupToken=String(cloudToken||currentStateBackupToken||readLocalStateBackupToken()||'');
+          const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-bootstrap',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken,ticktickHandoff:ticktickHandoffToken}),
+            body:JSON.stringify({
+              initData:tg.initData,
+              backupToken,
+              ticktickHandoff:ticktickHandoffToken
+            }),
             cache:'no-store'
-          },8000);
+          },10000);
           const payload=await response.json().catch(()=>({}));
-          if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
-          currentActor=String(payload.actor||'');
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'bootstrap');
+          if(payload.actor&&String(payload.actor)!==currentActor) return;
+          applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
+          cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
-          if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
+          if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
           if(ticktickHandoffToken){
             ticktickHandoffToken='';
             try{
@@ -947,10 +951,31 @@
               history.replaceState(null,'',url.pathname+(url.search||'')+(url.hash||''));
             }catch(_){}
           }
-          applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
-          cacheHolidayItems(payload.holidayHighlights);
+        }catch(error){
+          console.warn('RUDI_APP_BOOTSTRAP_WARN',String(error?.message||error));
+        }
+      }
+
+      async function authenticateApp(){
+        if(!tg?.initData){
+          denyApp('Откройте RUDI в Telegram','Приложение доступно только через ваш Telegram-бот.');
+          return false;
+        }
+        try{
+          const localBackupToken=readLocalStateBackupToken();
+          if(localBackupToken) currentStateBackupToken=localBackupToken;
+          const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-auth',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData}),
+            cache:'no-store'
+          },5000);
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
+          currentActor=String(payload.actor||'');
           document.body.classList.remove('auth-pending','auth-denied');
           document.body.classList.add('auth-ok');
+          setTimeout(()=>loadAppBootstrap(),0);
           return true;
         }catch(error){
           const code=String(error?.message||'');
@@ -2832,7 +2857,7 @@
         const next=document.getElementById('photoViewerNext');
         const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
-        const url=String(photo?.url||'').trim();
+        const url=String(photo?.fullUrl||photo?.url||'').trim();
         if(!viewer||!image||!caption||!prev||!next||!original||!url) return false;
 
         image.src=url;
@@ -2849,9 +2874,9 @@
         const preloadIndexes=[currentSharedAlbumPhotoIndex-1,currentSharedAlbumPhotoIndex+1];
         preloadIndexes.forEach(index=>{
           const adjacent=sharedAlbumPhotos[index];
-          if(adjacent?.url){
+          if(adjacent?.url||adjacent?.fullUrl){
             const preload=new Image();
-            preload.src=String(adjacent.url);
+            preload.src=String(adjacent.fullUrl||adjacent.url);
           }
         });
         return true;
@@ -2901,12 +2926,170 @@
         setTimeout(()=>close?.focus?.({preventScroll:true}),0);
       }
 
+      function sharedAlbumPhotoTime(photo){
+        const time=Date.parse(String(photo?.date||''));
+        return Number.isFinite(time)?time:0;
+      }
+
+      function sharedAlbumDateKey(value){
+        const date=value instanceof Date?value:new Date(value);
+        if(Number.isNaN(date.getTime())) return '';
+        const parts=new Intl.DateTimeFormat('en-CA',{
+          timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'
+        }).formatToParts(date);
+        const map=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+        return map.year+'-'+map.month+'-'+map.day;
+      }
+
+      function sharedAlbumYesterdayKey(){
+        const today=sharedAlbumDateKey(new Date());
+        if(!today) return '';
+        const [year,month,day]=today.split('-').map(Number);
+        return sharedAlbumDateKey(new Date(Date.UTC(year,month-1,day-1,12)));
+      }
+
+      function sharedAlbumMonthLabel(photo){
+        const time=sharedAlbumPhotoTime(photo);
+        if(!time) return 'Без даты';
+        const date=new Date(time);
+        const now=new Date();
+        const sameYear=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric'}).format(date)
+          ===new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric'}).format(now);
+        const label=new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,
+          month:'long',
+          ...(sameYear?{}:{year:'numeric'})
+        }).format(date);
+        return label.charAt(0).toLocaleUpperCase('ru-RU')+label.slice(1);
+      }
+
+      function sharedAlbumGroupLabel(photo){
+        const time=sharedAlbumPhotoTime(photo);
+        if(!time) return {key:'undated',label:'Без даты'};
+        const key=sharedAlbumDateKey(time);
+        if(!key) return {key:'undated',label:'Без даты'};
+        const today=sharedAlbumDateKey(new Date());
+        if(key===today) return {key:'today',label:'Сегодня'};
+        if(key===sharedAlbumYesterdayKey()) return {key:'yesterday',label:'Вчера'};
+        return {key:key.slice(0,7),label:sharedAlbumMonthLabel(photo)};
+      }
+
+      function sharedAlbumGroups(photos){
+        const groups=[];
+        const byKey=new Map();
+        for(const photo of photos){
+          const group=sharedAlbumGroupLabel(photo);
+          let row=byKey.get(group.key);
+          if(!row){
+            row={key:group.key,label:group.label,photos:[]};
+            byKey.set(group.key,row);
+            groups.push(row);
+          }
+          row.photos.push(photo);
+        }
+        return groups;
+      }
+
+      function sharedAlbumHash(value){
+        let hash=2166136261;
+        for(const char of String(value||'')){
+          hash^=char.codePointAt(0);
+          hash=Math.imul(hash,16777619);
+        }
+        return hash>>>0;
+      }
+
+      function sharedAlbumMemoryPhoto(photos){
+        const todayKey=sharedAlbumDateKey(new Date());
+        const todayMs=Date.parse(todayKey+'T12:00:00Z');
+        const candidates=photos.filter(photo=>{
+          const photoTime=sharedAlbumPhotoTime(photo);
+          if(!photoTime) return false;
+          const key=sharedAlbumDateKey(photoTime);
+          if(!key) return false;
+          const time=Date.parse(key+'T12:00:00Z');
+          return Number.isFinite(time)&&Number.isFinite(todayMs)&&todayMs-time>=7*DAY;
+        });
+        if(!candidates.length) return null;
+        return candidates[sharedAlbumHash(todayKey)%candidates.length]||null;
+      }
+
+      function sharedAlbumAgeLabel(photo){
+        const time=sharedAlbumPhotoTime(photo);
+        if(!time) return '';
+        const photoDate=new Date(time);
+        const now=new Date();
+        const photoParts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
+          timeZone:TZ,year:'numeric',month:'numeric',day:'numeric'
+        }).formatToParts(photoDate).map(part=>[part.type,Number(part.value)||part.value]));
+        const nowParts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
+          timeZone:TZ,year:'numeric',month:'numeric',day:'numeric'
+        }).formatToParts(now).map(part=>[part.type,Number(part.value)||part.value]));
+        const months=(Number(nowParts.year)-Number(photoParts.year))*12+(Number(nowParts.month)-Number(photoParts.month));
+        if(months>=12){
+          const years=Math.max(1,Math.floor(months/12));
+          const mod10=years%10,mod100=years%100;
+          const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';
+          return 'Это было '+years+' '+word+' назад';
+        }
+        if(months>=1){
+          const mod10=months%10,mod100=months%100;
+          const word=mod100>=11&&mod100<=14?'месяцев':mod10===1?'месяц':mod10>=2&&mod10<=4?'месяца':'месяцев';
+          return 'Это было '+months+' '+word+' назад';
+        }
+        const photoKey=sharedAlbumDateKey(photoDate);
+        const nowKey=sharedAlbumDateKey(now);
+        const days=Math.max(1,Math.round((Date.parse(nowKey+'T12:00:00Z')-Date.parse(photoKey+'T12:00:00Z'))/DAY));
+        const mod10=days%10,mod100=days%100;
+        const word=mod100>=11&&mod100<=14?'дней':mod10===1?'день':mod10>=2&&mod10<=4?'дня':'дней';
+        return 'Это было '+days+' '+word+' назад';
+      }
+
+      function sharedAlbumPhotoButton(photo,index){
+        const button=document.createElement('button');
+        button.className='shared-album-photo';
+        button.type='button';
+        button.setAttribute('aria-label','Открыть фото '+(index+1)+' крупно');
+        const img=document.createElement('img');
+        img.src=String(photo.url||'');
+        img.alt=photo.caption?String(photo.caption):'Фото из общего альбома';
+        img.loading='lazy';
+        img.decoding='async';
+        button.appendChild(img);
+        button.addEventListener('click',()=>openSharedAlbumPhoto(photo,index));
+        return button;
+      }
+
+      function renderSharedAlbumMemory(photos){
+        const wrap=document.getElementById('sharedAlbumMemory');
+        const image=document.getElementById('sharedAlbumMemoryImage');
+        const age=document.getElementById('sharedAlbumMemoryAge');
+        const button=document.getElementById('sharedAlbumMemoryButton');
+        if(!wrap||!image||!age||!button) return;
+        const photo=sharedAlbumMemoryPhoto(photos);
+        if(!photo){
+          wrap.hidden=true;
+          image.removeAttribute('src');
+          button.onclick=null;
+          return;
+        }
+        const index=photos.indexOf(photo);
+        image.src=String(photo.fullUrl||photo.url||'');
+        image.alt=photo.caption?String(photo.caption):'Воспоминание из общего альбома';
+        age.textContent=sharedAlbumAgeLabel(photo);
+        button.onclick=()=>openSharedAlbumPhoto(photo,index);
+        wrap.hidden=false;
+      }
+
       function renderSharedAlbum(payload){
         const section=document.getElementById('sharedAlbumSection');
         const grid=document.getElementById('sharedAlbumGrid');
         const status=document.getElementById('sharedAlbumStatus');
+        const count=document.getElementById('sharedAlbumCount');
         const open=document.getElementById('sharedAlbumOpen');
-        const photos=Array.isArray(payload?.photos)?payload.photos.slice(0,40):[];
+        const photos=(Array.isArray(payload?.photos)?payload.photos:[])
+          .slice(0,40)
+          .sort((a,b)=>sharedAlbumPhotoTime(b)-sharedAlbumPhotoTime(a));
         sharedAlbumPhotos=photos;
 
         if(!payload?.configured){
@@ -2918,6 +3101,11 @@
         applyAppTab(currentAppTab,{scroll:false});
         sharedAlbumUrl=String(payload.albumUrl||'');
         open.disabled=!sharedAlbumUrl;
+        const totalCount=Number.isFinite(Number(payload?.totalCount))
+          ?Math.max(0,Number(payload.totalCount))
+          :photos.length;
+        if(count) count.textContent=totalCount+' фото';
+
         if(payload.stale){
           status.hidden=false;
           status.textContent='Кэш';
@@ -2930,6 +3118,7 @@
         if(!photos.length){
           sharedAlbumPhotos=[];
           currentSharedAlbumPhotoIndex=-1;
+          renderSharedAlbumMemory([]);
           const empty=document.createElement('div');
           empty.className='wishlist-empty';
           empty.textContent='В альбоме пока нет фотографий.';
@@ -2937,20 +3126,30 @@
           return;
         }
 
-        photos.forEach((photo,index)=>{
-          const button=document.createElement('button');
-          button.className='shared-album-photo';
-          button.type='button';
-          button.setAttribute('aria-label','Открыть фото '+(index+1)+' крупно');
-          const img=document.createElement('img');
-          img.src=String(photo.url||'');
-          img.alt=photo.caption?String(photo.caption):'Фото из общего альбома';
-          img.loading='lazy';
-          img.decoding='async';
-          button.appendChild(img);
-          button.addEventListener('click',()=>openSharedAlbumPhoto(photo,index));
-          grid.appendChild(button);
-        });
+        renderSharedAlbumMemory(photos);
+        const groups=sharedAlbumGroups(photos);
+        for(const group of groups){
+          const sectionEl=document.createElement('section');
+          sectionEl.className='shared-album-group';
+
+          const head=document.createElement('div');
+          head.className='shared-album-group-head';
+          const title=document.createElement('strong');
+          title.textContent=group.label;
+          const meta=document.createElement('span');
+          meta.textContent=group.photos.length+' фото';
+          head.append(title,meta);
+
+          const groupGrid=document.createElement('div');
+          groupGrid.className='shared-album-grid';
+          for(const photo of group.photos){
+            const index=photos.indexOf(photo);
+            groupGrid.appendChild(sharedAlbumPhotoButton(photo,index));
+          }
+
+          sectionEl.append(head,groupGrid);
+          grid.appendChild(sectionEl);
+        }
       }
 
       async function loadSharedAlbum(){

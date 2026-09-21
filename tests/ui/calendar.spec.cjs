@@ -21,7 +21,9 @@ async function mockRudi(page,options={}){
       weeklyAmount:'2 л',checked:false,createdAt:'2026-09-21T06:00:00.000Z'
     }],
     productHistory:[],
-    reactions:{}
+    reactions:{},
+    bootstrapStarted:false,
+    bootstrapResolved:false
   };
 
   await page.route('https://telegram.org/js/telegram-web-app.js?63',route=>route.fulfill({
@@ -65,10 +67,17 @@ async function mockRudi(page,options={}){
     const ok=value=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(value)});
 
     if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='app-auth'){
+      return ok({ok:true,actor:'Рустам'});
+    }
+    if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='app-bootstrap'){
+      state.bootstrapStarted=true;
+      if(options.bootstrapDelayMs) await new Promise(resolve=>setTimeout(resolve,options.bootstrapDelayMs));
+      state.bootstrapResolved=true;
       return ok({
         ok:true,actor:'Рустам',
         selfProfile:{name:'Рустам'},partnerProfile:{name:'Диана'},
-        holidayHighlights:[]
+        holidayHighlights:[],
+        backupToken:''
       });
     }
     if(path==='/api/feed'){
@@ -138,7 +147,23 @@ async function mockRudi(page,options={}){
       return ok({ok:true,view:next?'next-month':'month',days});
     }
     if(path==='/api/cycle') return ok({ok:true,configured:true,enabled:true,historyStarts:['2026-08-20']});
-    if(path==='/api/shared-album') return ok({ok:true,photos:[],url:''});
+    if(path==='/api/shared-album'){
+      if(options.photoAlbum){
+        return ok({
+          ok:true,
+          configured:true,
+          albumUrl:'https://www.icloud.com/sharedalbum/#A5q2example',
+          totalCount:128,
+          photos:[
+            {id:'today',url:'https://images.example.test/today.jpg',fullUrl:'https://images.example.test/today-full.jpg',date:'2026-09-21T09:00:00.000Z',caption:'Сегодня'},
+            {id:'yesterday',url:'https://images.example.test/yesterday.jpg',fullUrl:'https://images.example.test/yesterday-full.jpg',date:'2026-09-20T09:00:00.000Z',caption:'Вчера'},
+            {id:'august',url:'https://images.example.test/august.jpg',fullUrl:'https://images.example.test/august-full.jpg',date:'2026-08-21T09:00:00.000Z',caption:'Август'},
+            {id:'july',url:'https://images.example.test/july.jpg',fullUrl:'https://images.example.test/july-full.jpg',date:'2026-07-10T09:00:00.000Z',caption:'Июль'}
+          ]
+        });
+      }
+      return ok({ok:true,configured:true,totalCount:0,photos:[],albumUrl:''});
+    }
     if(path==='/api/wishlist') return ok({ok:true,items:[]});
     if(path==='/api/mood') return ok({ok:true,items:[]});
     if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='products'){
@@ -187,6 +212,15 @@ async function mockRudi(page,options={}){
 
   return state;
 }
+
+test('access gate disappears before slow background bootstrap finishes',async({page})=>{
+  const state=await mockRudi(page,{bootstrapDelayMs:1500});
+  await page.goto('/');
+  await expect.poll(()=>state.bootstrapStarted,{timeout:1000}).toBe(true);
+  await expect(page.locator('body')).toHaveClass(/auth-ok/,{timeout:1000});
+  expect(state.bootstrapResolved).toBe(false);
+  await expect.poll(()=>state.bootstrapResolved,{timeout:3000}).toBe(true);
+});
 
 test('iPhone calendar taps, spacing and silent refresh stay stable',async({page})=>{
   const state=await mockRudi(page);
@@ -311,6 +345,34 @@ test('feed deep link opens the feed directly',async({page})=>{
   await expect(page.locator('#feedFactsBody')).not.toContainText('Полезные факты');
 });
 
+
+test('photos show total count, daily memory and date groups',async({page})=>{
+  await page.route('https://images.example.test/**',route=>route.fulfill({
+    status:200,
+    contentType:'image/svg+xml',
+    body:'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#ddd"/></svg>'
+  }));
+  await mockRudi(page,{photoAlbum:true});
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await page.getByRole('tab',{name:'Фото'}).click();
+
+  await expect(page.locator('#sharedAlbumTitle')).toHaveText('Наши фото');
+  await expect(page.locator('#sharedAlbumCount')).toHaveText('128 фото');
+  await expect(page.locator('#sharedAlbumMemory')).toBeVisible();
+  await expect(page.locator('#sharedAlbumMemoryAge')).toContainText('Это было');
+
+  const groupTitles=await page.locator('.shared-album-group-head strong').allTextContents();
+  expect(groupTitles).toContain('Сегодня');
+  expect(groupTitles).toContain('Вчера');
+  expect(groupTitles).toContain('Август');
+  expect(groupTitles).toContain('Июль');
+
+  await expect(page.locator('.shared-album-group .shared-album-photo')).toHaveCount(4);
+  await page.locator('#sharedAlbumMemoryButton').click();
+  await expect(page.locator('#photoViewer')).toHaveClass(/open/);
+  await expect(page.locator('#photoViewerImage')).toHaveAttribute('src',/-full\.jpg$/);
+});
 
 test('products bought button stays interactive and completes checked products',async({page})=>{
   const state=await mockRudi(page);
