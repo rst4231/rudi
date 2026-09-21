@@ -151,8 +151,8 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(diana.text,/Подарок Рустама/);
   assert.match(diana.text,/Чувствительная/);
 
-  assert.match(rustam.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
-  assert.match(diana.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
+  assert.equal(rustam.reply_markup, undefined);
+  assert.equal(diana.reply_markup, undefined);
 });
 
 test('Vercel cron sends the morning summary at 09:00 Moscow and not 10:00', () => {
