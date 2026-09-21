@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 
 const app=fs.readFileSync('public/app.js','utf8');
-const css=fs.readFileSync('public/app.css','utf8');
+const css=fs.readFileSync('public/app.css','utf8')+'\n'+fs.readFileSync('public/calendar.css','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 
 test('cycle renderer cannot unhide its Home-only card on Calendar tab',()=>{
@@ -28,10 +28,10 @@ test('TickTick deals render as separate structured rows',()=>{
 });
 
 test('Calendar block spacing is deliberately separated and assets are fresh',()=>{
-  assert.match(css,/body\[data-app-tab="schedule"\] \.work-page\{[\s\S]*?gap:18px!important/);
-  assert.match(css,/\.schedule-year-progress\{[\s\S]*?margin:0 6px 4px!important/);
-  assert.match(html,/app\.css\?v=0\.4\.6-calendar-tap-1/);
-  assert.match(html,/app\.js\?v=0\.4\.6-calendar-tap-1/);
+  assert.match(css,/body\[data-app-tab="schedule"\] \.work-page\{[\s\S]*?gap:26px!important/);
+  assert.match(css,/\.schedule-year-progress\{[\s\S]*?margin:2px 8px 10px!important/);
+  assert.match(html,/app\.css\?v=0\.5\.0/);
+  assert.match(html,/app\.js\?v=0\.5\.0/);
 });
 
 

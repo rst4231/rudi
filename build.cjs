@@ -6,7 +6,7 @@ const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
 const runtimeDir = path.join(__dirname, 'runtime');
 const outputPath = path.join(runtimeDir, 'generated-runtime.cjs');
-const eventsConfigPath = path.join(__dirname, 'config', 'events.json');
+const eventsConfigPath = path.join(__dirname, 'config', 'events.json');\nconst versionConfigPath = path.join(__dirname, 'rudi-version.json');\nconst webIndexPath = path.join(__dirname, 'public', 'index.html');
 
 function assertProductionGitDeployment(env = process.env) {
   const isVercelProduction = env?.VERCEL === '1' && (env?.VERCEL_TARGET_ENV || env?.VERCEL_ENV) === 'production';
@@ -98,4 +98,4 @@ if (require.main === module) {
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
+module.exports = { buildRuntime, syncWebVersion, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };

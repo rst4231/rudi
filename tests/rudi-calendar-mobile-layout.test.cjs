@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 
 const app=fs.readFileSync('public/app.js','utf8');
-const css=fs.readFileSync('public/app.css','utf8');
+const css=fs.readFileSync('public/app.css','utf8')+'\n'+fs.readFileSync('public/calendar.css','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 
 test('calendar selected details span the full mobile card width',()=>{
@@ -14,7 +14,7 @@ test('calendar selected details span the full mobile card width',()=>{
 });
 
 test('mobile calendar numbers are geometrically centered and stable',()=>{
-  assert.match(css,/iPhone calendar layout hotfix/);
+  assert.match(css,/single calendar stylesheet/);
   assert.match(css,/\.work-page \.calendar-day-cell \.calendar-date-number\{[\s\S]*?position:absolute!important;[\s\S]*?inset:0!important;[\s\S]*?place-items:center!important;/);
   assert.match(css,/font-variant-numeric:tabular-nums!important/);
   assert.match(css,/\.calendar-task-count\{[\s\S]*?top:3px!important;[\s\S]*?right:3px!important;/);
@@ -24,6 +24,6 @@ test('mobile calendar numbers are geometrically centered and stable',()=>{
 test('iPhone Telegram safe area has a user-agent fallback and fresh asset keys',()=>{
   assert.match(app,/iPhone\|iPad\|iPod/);
   assert.match(app,/tg\?\.platform==='ios'\|\|iosUserAgent/);
-  assert.match(html,/app\.css\?v=0\.4\.6-calendar-tap-1/);
-  assert.match(html,/app\.js\?v=0\.4\.6-calendar-tap-1/);
+  assert.match(html,/app\.css\?v=0\.5\.0/);
+  assert.match(html,/app\.js\?v=0\.5\.0/);
 });
