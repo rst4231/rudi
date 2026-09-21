@@ -40,7 +40,9 @@
         cycle:null,
         message:null,
         wishlistCount:0,
-        photoCount:0
+        photoCount:0,
+        productCount:0,
+        nearestStatic:null
       };
       const HOME_TILE_DEFAULT_ORDER = ['dashboard','cycle','new','priority','partner','daily'];
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
@@ -773,6 +775,15 @@
             icon:event.kind==='standup'?'🎙':'🎤'
           });
         }
+        const staticNearest=homeDashboardState.nearestStatic;
+        if(staticNearest){
+          rows.push({
+            label:staticNearest.title,
+            time:staticNearest.days===0?'Сегодня':staticNearest.days===1?'Завтра':('Через '+staticNearest.days+' '+dayWord(staticNearest.days)),
+            minutes:12000+Math.max(0,Number(staticNearest.days)||0),
+            icon:'⭐'
+          });
+        }
         return rows.sort((a,b)=>a.minutes-b.minutes).slice(0,3);
       }
 
@@ -861,8 +872,9 @@
           const eventCount=homeEventRows().length;
           const rows=[
             {icon:'📅',text:tasks.length?homeTaskCountLabel(tasks.length):'Сегодня дел нет'},
-            ...(work?[{icon:work.working?'💼':'🛋',text:'Диана '+(work.working?'работает':'отдыхает')}]:[]),
-            ...(eventCount?[{icon:'🎙',text:eventCount+' '+(eventCount===1?'событие сегодня':eventCount<5?'события сегодня':'событий сегодня')}]:[])
+            ...(work?[{icon:work.working?'💼':'🛋',text:'Диана: '+(work.working?'Работаю':'Отдыхаю')}]:[]),
+            ...(eventCount?[{icon:'🎙',text:eventCount+' '+(eventCount===1?'событие сегодня':eventCount<5?'события сегодня':'событий сегодня')}]:[]),
+            ...(homeDashboardState.productCount>0?[{icon:'🛒',text:'Купить: '+homeDashboardState.productCount+' '+(homeDashboardState.productCount===1?'позиция':homeDashboardState.productCount<5?'позиции':'позиций')}]:[])
           ];
           for(const row of rows){
             const el=document.createElement('div');
@@ -3696,6 +3708,8 @@
         }
         events.sort((a,b)=>a.target-b.target);
         const e=events[0];
+        homeDashboardState.nearestStatic=e||null;
+        renderHomeDashboard();
         if(!e) return;
         document.getElementById('nearestTitle').textContent=e.title;
         document.getElementById('nearestMeta').textContent=e.meta;
@@ -4829,6 +4843,8 @@
       function renderProducts(payload){
         const items=Array.isArray(payload?.items)?payload.items:[];
         const history=Array.isArray(payload?.history)?payload.history:[];
+        homeDashboardState.productCount=items.length;
+        renderHomeDashboard();
         const groups=document.getElementById('productsGroups');
         const empty=document.getElementById('productsEmpty');
         const status=document.getElementById('productsStatus');
