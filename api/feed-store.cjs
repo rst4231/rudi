@@ -141,18 +141,18 @@ async function updateFeedSections(input = {}, options = {}) {
   return snapshot;
 }
 
-function noticeKey(date, version) {
-  return `notice:${String(date || '')}:${String(version || '')}`;
+function noticeKey(date, version, actor = 'all') {
+  return `notice:${String(date || '')}:${String(version || '')}:${String(actor || 'all')}`;
 }
 
-async function wasFeedNoticeSent(date, version, options = {}) {
+async function wasFeedNoticeSent(date, version, actor, options = {}) {
   if (!date || !version) return false;
-  return Boolean(await cacheOf(options).get(noticeKey(date, version)));
+  return Boolean(await cacheOf(options).get(noticeKey(date, version, actor)));
 }
 
-async function markFeedNoticeSent(date, version, options = {}) {
+async function markFeedNoticeSent(date, version, actor, options = {}) {
   if (!date || !version) return false;
-  await cacheOf(options).set(noticeKey(date, version), true, {
+  await cacheOf(options).set(noticeKey(date, version, actor), true, {
     ttl: NOTICE_TTL_SECONDS,
     tags: ['rudi-feed-notices'],
     name: `rudi-feed-notice-${date}`,
