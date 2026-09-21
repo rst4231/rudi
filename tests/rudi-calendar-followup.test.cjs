@@ -30,6 +30,6 @@ test('TickTick deals render as separate structured rows',()=>{
 test('Calendar block spacing is deliberately separated and assets are fresh',()=>{
   assert.match(css,/body\[data-app-tab="schedule"\] \.work-page\{[\s\S]*?gap:18px!important/);
   assert.match(css,/\.schedule-year-progress\{[\s\S]*?margin:0 6px 4px!important/);
-  assert.match(html,/app\.css\?v=0\.4\.6-calendar-mobile-2/);
-  assert.match(html,/app\.js\?v=0\.4\.6-calendar-mobile-2/);
+  assert.match(html,/app\.css\?v=0\.4\.6-today-tasks-1/);
+  assert.match(html,/app\.js\?v=0\.4\.6-today-tasks-1/);
 });
