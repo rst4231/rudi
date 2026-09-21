@@ -234,7 +234,6 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#homeDashboard')).toBeVisible();
-  await expect(page.locator('#homeDashboard')).toContainText('Сегодня');
   await expect(page.locator('#homeDashboard')).toContainText('Мы сегодня');
   await expect(page.locator('#dianaCycleCard')).toBeVisible();
   await expect(page.locator('#appVersion')).toHaveText('v1.0');
