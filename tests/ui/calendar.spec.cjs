@@ -294,7 +294,8 @@ test('feed deep link opens the feed directly',async({page})=>{
   await page.goto('/?tab=feed');
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.getByRole('tab',{name:'Лента'})).toHaveClass(/active/);
-  await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
+  await expect(page.locator('#feedFactsBody')).toContainText('Движение');
+  await expect(page.locator('#feedFactsBody')).not.toContainText('Полезные факты');
 });
 
 
