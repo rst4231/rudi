@@ -347,7 +347,7 @@ async function getWorkWeek(options = {}) {
   const cache = cacheOf(options);
   const cacheKey = `range:${view}:${startKey}:${dayCount}`;
   const cached = await cache.get(cacheKey);
-  const calendarUrl = await readCalendarUrl({ ...options, cache });
+  const calendarUrl = options.calendarUrl ? normalizeCalendarUrl(options.calendarUrl) : await readCalendarUrl({ ...options, cache });
   if (!calendarUrl) return { configured: false, view, weekStart: startKey, days: [] };
 
   try {
