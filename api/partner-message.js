@@ -191,17 +191,9 @@ async function sendPartnerMessageNotification(actor, options = {}) {
   return { sent: true, messageId: sent.messageId || null };
 }
 
-async function sendActivityNotification(text, tab, options = {}) {
+async function sendActivityNotification(text, _tab, options = {}) {
   try {
-    return await sendToAllRecipients(text, {
-      ...options,
-      tab,
-      buttonText: tab === 'wishlist' ? 'Открыть вишлист'
-        : tab === 'products' ? 'Открыть продукты'
-        : tab === 'schedule' ? 'Открыть календарь'
-        : tab === 'home' ? 'Открыть RUDI'
-        : undefined,
-    });
+    return await sendToAllRecipients(text, options);
   } catch (error) {
     console.warn('RUDI_ACTIVITY_NOTIFICATION_WARN', String(error?.message || error));
     return [];
