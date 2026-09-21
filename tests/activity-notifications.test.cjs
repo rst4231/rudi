@@ -4,6 +4,7 @@ const {
   boughtNotificationText,
   wishlistNotificationText,
   moodNotificationText,
+  sendMoodNotificationToPartner,
   taskCompletedNotificationText,
   checklistCompletedNotificationText,
 } = require('../api/partner-message.js');
@@ -47,4 +48,39 @@ test('telegram sender enables HTML formatting and target app tab', async () => {
   assert.match(payload.reply_markup.inline_keyboard[0][0].web_app.url, /[?&]tab=schedule/);
   assert.equal(result.messageId, 77);
   assert.equal(escapeTelegramHtml('<&>'), '&lt;&amp;&gt;');
+});
+
+
+test('mood change notification goes only to the other partner', async () => {
+  const calls = [];
+  const fetchImpl = async (_url, init) => {
+    calls.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 91 + calls.length } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  const fromRustam = await sendMoodNotificationToPartner('Рустам', 'great', {
+    recipients: { 'Рустам': 111, 'Диана': 222 },
+    botToken: 'test-token',
+    fetchImpl,
+  });
+  assert.equal(fromRustam.sent, true);
+  assert.equal(fromRustam.recipient, 'Диана');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].chat_id, 222);
+  assert.match(calls[0].text, /Диана, у Рустама сейчас отличное настроение/);
+
+  calls.length = 0;
+  const fromDiana = await sendMoodNotificationToPartner('Диана', 'ok', {
+    recipients: { 'Рустам': 111, 'Диана': 222 },
+    botToken: 'test-token',
+    fetchImpl,
+  });
+  assert.equal(fromDiana.sent, true);
+  assert.equal(fromDiana.recipient, 'Рустам');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].chat_id, 111);
+  assert.match(calls[0].text, /Рустам, у Дианы сейчас нормальное настроение/);
 });
