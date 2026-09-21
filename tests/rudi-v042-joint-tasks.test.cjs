@@ -33,7 +33,7 @@ test('phase-based Diana mood is shown as one word below her status',()=>{
   assert.match(css,/\.profile-cycle-mood\{/);
 });
 
-test('v0.4.3 refreshes daily compliment and highlights mood choice',()=>{
+test('v0.4.4 keeps daily compliment refresh and highlighted mood choice',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const css=fs.readFileSync('public/app.css','utf8');
   const html=fs.readFileSync('public/index.html','utf8');
