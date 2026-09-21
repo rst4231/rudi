@@ -29,8 +29,11 @@ function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date())
 
   const cinema = nativeResults?.cinema;
   if (cinema && !cinema.failed && !['not-thursday', 'already-published'].includes(String(cinema.skipped || ''))) {
+    const feedMessage = String(cinema.feedMessage || '').trim();
     const titles = Array.isArray(cinema.titles) ? cinema.titles.map((value) => String(value || '').trim()).filter(Boolean) : [];
-    if (titles.length) {
+    if (feedMessage) {
+      sections.cinema = { parts: [feedMessage], source: 'weekly-cinema' };
+    } else if (titles.length) {
       const message = ['🎬 <b>Кинопремьеры</b>', '', ...titles.map((title) => '• ' + title)].join('\n');
       sections.cinema = { parts: [message], source: 'weekly-cinema' };
     } else if (Number(cinema.published || 0) === 0 && !cinema.skipped) {
