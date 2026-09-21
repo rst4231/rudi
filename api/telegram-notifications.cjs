@@ -3,6 +3,13 @@ const { readRecipients } = require('./partner-notification-store.cjs');
 
 const DEFAULT_APP_URL = 'https://spb-daily-guide-bot.vercel.app';
 
+function escapeTelegramHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function appUrlForTab(tab, options = {}) {
   const base = String(options.appUrl || options.env?.RUDI_APP_URL || process.env.RUDI_APP_URL || DEFAULT_APP_URL).trim();
   const url = new URL(base);
@@ -16,6 +23,7 @@ async function telegramSendMessage(chatId, text, options = {}) {
   const payload = {
     chat_id: chatId,
     text: String(text || '').trim(),
+    parse_mode: options.parseMode === false ? undefined : 'HTML',
     disable_notification: Boolean(options.disableNotification),
   };
   if (options.buttonText && options.tab) {
@@ -77,6 +85,7 @@ async function sendToAllRecipients(text, options = {}) {
 
 module.exports = {
   DEFAULT_APP_URL,
+  escapeTelegramHtml,
   appUrlForTab,
   telegramSendMessage,
   telegramDeleteMessage,
