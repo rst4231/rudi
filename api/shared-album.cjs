@@ -132,12 +132,18 @@ async function fetchLatestPhotos(config, options = {}) {
   let host = initialHost(token);
   const streamResult = await postICloud(host, token, 'webstream', { streamCtag: null }, options);
   host = streamResult.host;
-  const photos = (Array.isArray(streamResult.payload?.photos) ? streamResult.payload.photos : [])
+  const allPhotos = (Array.isArray(streamResult.payload?.photos) ? streamResult.payload.photos : [])
     .filter((photo) => photo?.mediaAssetType !== 'video' && photo?.photoGuid)
-    .sort((a, b) => photoDate(b) - photoDate(a))
-    .slice(0, 40);
+    .sort((a, b) => photoDate(b) - photoDate(a));
+  const totalCount = allPhotos.length;
+  const photos = allPhotos.slice(0, 40);
 
-  if (!photos.length) return { photos: [], albumUrl: config.url, title: String(streamResult.payload?.streamName || 'Общий альбом') };
+  if (!photos.length) return {
+    photos: [],
+    totalCount,
+    albumUrl: config.url,
+    title: String(streamResult.payload?.streamName || 'Общий альбом'),
+  };
 
   const assetResult = await postICloud(host, token, 'webasseturls', { photoGuids: photos.map((p) => p.photoGuid) }, options);
   const result = photos.map((photo) => {
@@ -155,6 +161,7 @@ async function fetchLatestPhotos(config, options = {}) {
 
   return {
     photos: result,
+    totalCount,
     albumUrl: config.url,
     title: String(streamResult.payload?.streamName || 'Общий альбом').trim() || 'Общий альбом',
   };
@@ -163,7 +170,7 @@ async function fetchLatestPhotos(config, options = {}) {
 async function getLatestPhotos(options = {}) {
   const cache = cacheOf(options);
   const config = options.albumConfig?.url ? { url: normalizeAlbumUrl(options.albumConfig.url), token: extractToken(options.albumConfig.token || options.albumConfig.url) } : await readAlbumConfig({ ...options, albumCache: cache });
-  if (!config) return { configured: false, photos: [], albumUrl: null, title: 'Общий альбом' };
+  if (!config) return { configured: false, photos: [], totalCount: 0, albumUrl: null, title: 'Общий альбом' };
 
   const cached = await cache.get(CACHE_KEY).catch(() => null);
   try {
