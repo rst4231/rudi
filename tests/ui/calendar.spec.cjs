@@ -21,7 +21,9 @@ async function mockRudi(page,options={}){
       weeklyAmount:'2 л',checked:false,createdAt:'2026-09-21T06:00:00.000Z'
     }],
     productHistory:[],
-    reactions:{}
+    reactions:{},
+    bootstrapStarted:false,
+    bootstrapResolved:false
   };
 
   await page.route('https://telegram.org/js/telegram-web-app.js?63',route=>route.fulfill({
@@ -65,10 +67,17 @@ async function mockRudi(page,options={}){
     const ok=value=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(value)});
 
     if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='app-auth'){
+      return ok({ok:true,actor:'Рустам'});
+    }
+    if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='app-bootstrap'){
+      state.bootstrapStarted=true;
+      if(options.bootstrapDelayMs) await new Promise(resolve=>setTimeout(resolve,options.bootstrapDelayMs));
+      state.bootstrapResolved=true;
       return ok({
         ok:true,actor:'Рустам',
         selfProfile:{name:'Рустам'},partnerProfile:{name:'Диана'},
-        holidayHighlights:[]
+        holidayHighlights:[],
+        backupToken:''
       });
     }
     if(path==='/api/feed'){
@@ -203,6 +212,15 @@ async function mockRudi(page,options={}){
 
   return state;
 }
+
+test('access gate disappears before slow background bootstrap finishes',async({page})=>{
+  const state=await mockRudi(page,{bootstrapDelayMs:1500});
+  await page.goto('/');
+  await expect.poll(()=>state.bootstrapStarted,{timeout:1000}).toBe(true);
+  await expect(page.locator('body')).toHaveClass(/auth-ok/,{timeout:1000});
+  expect(state.bootstrapResolved).toBe(false);
+  await expect.poll(()=>state.bootstrapResolved,{timeout:3000}).toBe(true);
+});
 
 test('iPhone calendar taps, spacing and silent refresh stay stable',async({page})=>{
   const state=await mockRudi(page);
