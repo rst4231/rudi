@@ -307,11 +307,28 @@ function mergedRecipientsWithBackup(current, snapshot) {
   return normalizeRecipients({
     'Рустам': current?.['Рустам'] || snapshot?.recipients?.['Рустам'],
     'Диана': current?.['Диана'] || snapshot?.recipients?.['Диана'],
-    candidates: [
-      current?.['Рустам'], current?.['Диана'],
-      snapshot?.recipients?.['Рустам'], snapshot?.recipients?.['Диана'],
-    ],
   });
+}
+
+function correctRecipientsForSession(recipients, actor, userId) {
+  const id = Number(userId);
+  const result = normalizeRecipients(recipients || {});
+  if (!['Рустам', 'Диана'].includes(actor) || !Number.isInteger(id) || id <= 0) return result;
+
+  const other = actor === 'Рустам' ? 'Диана' : 'Рустам';
+  const previousOwn = result[actor];
+  const previousOther = result[other];
+
+  if (previousOwn === id) return result;
+
+  result[actor] = id;
+  if (previousOther === id) {
+    result[other] = previousOwn && previousOwn !== id ? previousOwn : null;
+  } else if (!previousOther && previousOwn && previousOwn !== id) {
+    result[other] = previousOwn;
+  }
+
+  return normalizeRecipients(result);
 }
 
 function moscowDateKey(now = Date.now()) {
@@ -674,8 +691,17 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const state = decodeCycleBootstrapState(req.query?.key);
-      const result = await bootstrapCycleState(state, options);
-      return res.status(200).json({ ok: true, configured: true, created: result.created });
+      const current = await readCycleState(options).catch(() => null);
+      const stored = current || await writeCycleState(state, {
+        ...options,
+        cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+      }).catch(() => normalizeCycleState(state));
+      return res.status(200).json({
+        ok: true,
+        configured: true,
+        created: !current,
+        cycleReady: Boolean(stored),
+      });
     } catch (error) {
       const code = String(error?.message || error);
       return res.status(code === 'cycle-bootstrap-denied' ? 403 : 400).json({ ok: false, error: code });
@@ -835,17 +861,42 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       const date = moscowDateKey(options.now || Date.now());
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
-      const recipients = mergedRecipientsWithBackup(
-        await readRecipients(options).catch(() => null),
-        previousSnapshot
+      const recipients = correctRecipientsForSession(
+        mergedRecipientsWithBackup(
+          await readRecipients(options).catch(() => null),
+          previousSnapshot
+        ),
+        actor,
+        user?.id
       );
+      const correctedSnapshot = mergeBackupSnapshots(previousSnapshot, {
+        version: 2,
+        createdAt: new Date(options.now || Date.now()).toISOString(),
+        recipients,
+      });
+      try {
+        if (recipients?.['Рустам'] && recipients?.['Диана']) {
+          await saveRecipients(recipients, {
+            ...options,
+            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+          });
+        } else {
+          await saveRecipient(actor, user?.id, {
+            ...options,
+            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+          });
+        }
+      } catch (error) {
+        console.warn('RUDI_RECIPIENT_SESSION_FIX_WARN', String(error?.message || error));
+      }
+
       const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
       const partnerId = recipientFor(actor, recipients);
       const [holidays, selfProfile, partnerProfile, backupToken] = await Promise.all([
         holidaysPromise,
         readTelegramProfile(user?.id, actor, options),
         readTelegramProfile(partnerId, partnerActor, options),
-        createStateBackup({ ...options, previousSnapshot }).catch((error) => {
+        createStateBackup({ ...options, previousSnapshot: correctedSnapshot }).catch((error) => {
           console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
           return '';
         }),
@@ -868,9 +919,34 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor, user } = authorizeInitData(body.initData, options);
-      try { await saveRecipient(actor, user?.id, options); } catch {}
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-      const backupToken = await createStateBackup({ ...options, previousSnapshot });
+      const correctedRecipients = correctRecipientsForSession(
+        mergedRecipientsWithBackup(
+          await readRecipients(options).catch(() => null),
+          previousSnapshot
+        ),
+        actor,
+        user?.id
+      );
+      try {
+        if (correctedRecipients?.['Рустам'] && correctedRecipients?.['Диана']) {
+          await saveRecipients(correctedRecipients, {
+            ...options,
+            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+          });
+        } else {
+          await saveRecipient(actor, user?.id, {
+            ...options,
+            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+          });
+        }
+      } catch {}
+      const correctedSnapshot = mergeBackupSnapshots(previousSnapshot, {
+        version: 2,
+        createdAt: new Date(options.now || Date.now()).toISOString(),
+        recipients: correctedRecipients,
+      });
+      const backupToken = await createStateBackup({ ...options, previousSnapshot: correctedSnapshot });
       return res.status(200).json({ ok: true, backupToken });
     } catch (error) {
       const code = String(error?.message || error);
@@ -1161,3 +1237,5 @@ module.exports.statusForError = statusForError;
 module.exports.handleTickTick = handleTickTick;
 module.exports.handleRudiAction = handleRudiAction;
 module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
+
+module.exports.correctRecipientsForSession = correctRecipientsForSession;
