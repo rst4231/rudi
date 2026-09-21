@@ -33,9 +33,12 @@ test('cycle bootstrap is tolerant of Runtime Cache confirmation failures',()=>{
   assert.match(source,/confirmWrites: false/);
 });
 
-test('Telegram receives cache-busted v0.4.6 assets',()=>{
+test('Telegram receives cache-busted current release assets',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.match(html,/\/app\.css\?v=0\.4\.6/);
-  assert.match(html,/\/app\.js\?v=0\.4\.6/);
-  assert.match(html,/>v0\.4\.6<\/div>/);
+  const label=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current;
+  const asset=label.replace(/^v/,'').replace(/\./g,'\\.');
+  const escapedLabel=label.replace(/\./g,'\\.');
+  assert.match(html,new RegExp('/app\\.css\\?v='+asset));
+  assert.match(html,new RegExp('/app\\.js\\?v='+asset));
+  assert.match(html,new RegExp('>'+escapedLabel+'<\\/div>'));
 });
