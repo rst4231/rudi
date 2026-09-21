@@ -5,8 +5,8 @@ const STATE_KEY = 'current';
 const TTL_SECONDS = 60 * 60 * 24 * 8;
 const NOTICE_TTL_SECONDS = 60 * 60 * 24 * 14;
 const SECTION_TTL_MS = {
-  facts: 36 * 60 * 60 * 1000,
-  events: 36 * 60 * 60 * 1000,
+  facts: 25 * 60 * 60 * 1000,
+  events: 25 * 60 * 60 * 1000,
   cinema: 8 * 24 * 60 * 60 * 1000,
 };
 
