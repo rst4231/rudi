@@ -36,6 +36,11 @@
       const STATE_BACKUP_CLOUD_CHUNK_SIZE = 3500;
       let stateBackupRefreshPromise = null;
       let currentStateBackupToken = '';
+      let ticktickHandoffToken = '';
+      try{
+        const params=new URLSearchParams(window.location.search);
+        ticktickHandoffToken=String(params.get('ticktickHandoff')||'').trim();
+      }catch(_){}
 
       function withTimeout(promise,timeoutMs,fallback){
         return new Promise(resolve=>{
@@ -773,7 +778,7 @@
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-auth',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken}),
+            body:JSON.stringify({initData:tg.initData,backupToken,ticktickHandoff:ticktickHandoffToken}),
             cache:'no-store'
           },8000);
           const payload=await response.json().catch(()=>({}));
@@ -781,6 +786,15 @@
           currentActor=String(payload.actor||'');
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
+          if(ticktickHandoffToken){
+            ticktickHandoffToken='';
+            try{
+              const url=new URL(window.location.href);
+              url.searchParams.delete('ticktickHandoff');
+              url.searchParams.delete('ticktick');
+              history.replaceState(null,'',url.pathname+(url.search||'')+(url.hash||''));
+            }catch(_){}
+          }
           applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
           cacheHolidayItems(payload.holidayHighlights);
           document.body.classList.remove('auth-pending','auth-denied');
@@ -1174,6 +1188,7 @@
         },8000);
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'cycle-unavailable');
+        if(data.backupToken) await storeStateBackupToken(data.backupToken);
         return data;
       }
 
