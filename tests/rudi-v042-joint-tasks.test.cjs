@@ -42,7 +42,7 @@ test('v0.4.4 keeps daily compliment refresh and highlighted mood choice',()=>{
   assert.match(app,/renderDailyCompliment\(currentConfig\)/);
   assert.match(html,/id="moodPrompt" class="mood-prompt">Выбери настроение<\/div>/);
   assert.match(css,/\.profile-person-card \.mood-button\.selected\{[\s\S]*?transform:scale\(1\.11\)!important/);
-  assert.match(html,/id="appVersion"[^>]*>v0\.4\.3<\/div>/);
+  assert.match(html,/id="appVersion"[^>]*>v0\.4\.4<\/div>/);
 });
 
 test('Telegram actor hashes map to the provided owners',()=>{
