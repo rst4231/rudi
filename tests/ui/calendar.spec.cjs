@@ -237,7 +237,7 @@ test('feed is a first-class tab with fresh badge and no duplicate cinema button 
   await expect(page.locator('#feedTitle')).toHaveText('Лента');
   await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
   await expect(page.locator('#feedConcertsBody')).toContainText('Концерт сегодня');
-  await expect(page.locator('#feedStandupBody')).toContainText('Stand Up сегодня');
+  await expect(page.locator('#feedStandupBody')).toContainText('Stage StandUp Club');
   await expect(page.locator('#feedCinemaBody')).toContainText('Тестовый фильм');
   await expect(page.locator('.profile-weather')).toHaveCount(0);
 
