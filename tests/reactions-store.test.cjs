@@ -133,3 +133,20 @@ test('setReaction persists an unlike tombstone so a fresh read stays unliked', a
   assert.equal(persisted.count, 0);
   assert.equal(values.get(cacheKey(target, 'Рустам')).liked, false);
 });
+
+
+test('feed reactions accept versioned section keys', async () => {
+  const values = new Map();
+  const cache = {
+    async get(key) { return values.has(key) ? structuredClone(values.get(key)) : null; },
+    async set(key, value) { values.set(key, structuredClone(value)); },
+    async delete(key) { values.delete(key); },
+  };
+  const target = { type: 'feed', key: 'concerts:2026-09-21T06:41:00.000Z' };
+
+  const result = await setReaction(target, 'Диана', true, { reactionsCache: cache });
+  assert.deepEqual(result.likedBy, ['Диана']);
+
+  const persisted = await require('../api/reactions-store.cjs').readReaction(target, { reactionsCache: cache });
+  assert.deepEqual(persisted.likedBy, ['Диана']);
+});
