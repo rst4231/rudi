@@ -2665,24 +2665,27 @@
 
       function renderPartnerWorkStatus(days){
         const status=profileStatusElement('Диана');
-        if(!status) return;
 
         const today=todayState().key;
         const row=(Array.isArray(days)?days:[]).find(day=>String(day?.date||'')===today);
         if(!row){
           homeDashboardState.workDay=null;
           renderHomeDashboard();
-          status.dataset.calendarReady='1';
-          setProfileWorkStatus('Диана','Нет данных графика','neutral');
+          if(status){
+            status.dataset.calendarReady='1';
+            setProfileWorkStatus('Диана','Нет данных графика','neutral');
+          }
           return;
         }
 
         const working=Boolean(row.working);
         homeDashboardState.workDay={...row,working};
         renderHomeDashboard();
-        status.dataset.calendarReady='1';
-        setProfileWorkStatus('Диана',dianaWorkStatusText({...row,working}),working?'working':'off');
-        status.title='';
+        if(status){
+          status.dataset.calendarReady='1';
+          setProfileWorkStatus('Диана',dianaWorkStatusText({...row,working}),working?'working':'off');
+          status.title='';
+        }
       }
 
       function workCalendarRenderSignature(payload){
