@@ -5,6 +5,7 @@ const { isAllowedUserId } = require('./rudi-access.cjs');
 const NAMESPACE = 'rudi-partner-notifications-v1';
 const KEY = 'recipients';
 const ACTOR_KEY_PREFIX = 'recipient:';
+const MESSAGE_NOTICE_PREFIX = 'message-notice:';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const EXPECTED_SETUP_SHA256S = new Set([
   '85b08b8db9a03bd590ea69f49510dd81060cc0dc6bbeb643a6f52a3300acc1ea',
@@ -98,4 +99,37 @@ function recipientFor(actor, recipients) {
   return null;
 }
 
-module.exports = { decodeSetupKey, normalizeRecipients, saveRecipient, saveRecipients, readRecipients, recipientFor };
+async function readMessageNotice(actor, options = {}) {
+  if (!['Рустам', 'Диана'].includes(actor)) return null;
+  const value = await cacheOf(options).get(MESSAGE_NOTICE_PREFIX + actor).catch(() => null);
+  const messageId = Number(value?.messageId || value);
+  const chatId = Number(value?.chatId || 0);
+  if (!Number.isInteger(messageId) || messageId <= 0) return null;
+  return { messageId, chatId: Number.isInteger(chatId) && chatId ? chatId : null };
+}
+
+async function saveMessageNotice(actor, value, options = {}) {
+  if (!['Рустам', 'Диана'].includes(actor)) throw new Error('partner-notification-actor-invalid');
+  const messageId = Number(value?.messageId || value);
+  const chatId = Number(value?.chatId || 0);
+  if (!Number.isInteger(messageId) || messageId <= 0) throw new Error('partner-notification-message-invalid');
+  await cacheOf(options).set(MESSAGE_NOTICE_PREFIX + actor, {
+    messageId,
+    chatId: Number.isInteger(chatId) && chatId ? chatId : null,
+  }, {
+    ttl: TTL_SECONDS,
+    tags: ['rudi-partner-notifications'],
+  });
+  return true;
+}
+
+module.exports = {
+  decodeSetupKey,
+  normalizeRecipients,
+  saveRecipient,
+  saveRecipients,
+  readRecipients,
+  recipientFor,
+  readMessageNotice,
+  saveMessageNotice,
+};
