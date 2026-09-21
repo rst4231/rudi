@@ -5272,3 +5272,41 @@ body[data-app-tab="schedule"] .work-page{
 .ticktick-today-copy.has-details[aria-expanded="true"]::after{
   transform:translateY(-30%) rotate(225deg);
 }
+
+
+/* RUDI v0.4.6: calendar tap reliability and real spacing */
+body[data-app-tab="schedule"] .work-page{
+  gap:26px!important;
+}
+.work-page .calendar-day-cell{
+  position:relative!important;
+  z-index:1!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+.work-page .calendar-day-cell > *{
+  pointer-events:none!important;
+}
+.schedule-nearest{
+  margin:0!important;
+}
+.schedule-year-progress{
+  width:calc(100% - 16px)!important;
+  margin:2px 8px 10px!important;
+}
+body[data-app-tab="schedule"] .footer{
+  margin-top:22px!important;
+}
+@media(max-width:430px){
+  body[data-app-tab="schedule"] .work-page{
+    gap:24px!important;
+  }
+  .schedule-year-progress{
+    width:calc(100% - 16px)!important;
+    margin:2px 8px 12px!important;
+  }
+  body[data-app-tab="schedule"] .footer{
+    margin-top:20px!important;
+  }
+}

@@ -13,6 +13,7 @@
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
+      let currentSelectedWorkDate = '';
       let currentSharedCalendarView = 'month';
       const calendarViewCache = {month:null,'next-month':null};
       let calendarConfettiTimer = 0;
@@ -2285,6 +2286,7 @@
           }
 
           const showDayDetails=(withHaptic=false)=>{
+            currentSelectedWorkDate=String(day.date||'');
             container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
             cell.classList.add('selected');
 
@@ -2377,8 +2379,19 @@
           };
 
           cell.addEventListener('click',()=>showDayDetails(true));
-          if(day.date===today) showDayDetails(false);
+          cell.addEventListener('pointerup',event=>{
+            if(event.pointerType==='mouse') return;
+            if(Date.now()-Number(cell.dataset.lastPointerActivation||0)<350) return;
+            cell.dataset.lastPointerActivation=String(Date.now());
+            showDayDetails(true);
+          });
+          const preferredDate=currentSelectedWorkDate||today;
+          if(day.date===preferredDate) showDayDetails(false);
           container.appendChild(cell);
+        }
+
+        if(currentSelectedWorkDate&&!days.some(day=>String(day?.date||'')===currentSelectedWorkDate)){
+          currentSelectedWorkDate='';
         }
       }
 

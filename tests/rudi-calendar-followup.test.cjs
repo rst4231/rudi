@@ -30,6 +30,22 @@ test('TickTick deals render as separate structured rows',()=>{
 test('Calendar block spacing is deliberately separated and assets are fresh',()=>{
   assert.match(css,/body\[data-app-tab="schedule"\] \.work-page\{[\s\S]*?gap:18px!important/);
   assert.match(css,/\.schedule-year-progress\{[\s\S]*?margin:0 6px 4px!important/);
-  assert.match(html,/app\.css\?v=0\.4\.6-today-tasks-1/);
-  assert.match(html,/app\.js\?v=0\.4\.6-today-tasks-1/);
+  assert.match(html,/app\.css\?v=0\.4\.6-calendar-tap-1/);
+  assert.match(html,/app\.js\?v=0\.4\.6-calendar-tap-1/);
+});
+
+
+test('calendar day selection survives silent rerenders and iPhone taps stay clickable',()=>{
+  assert.match(app,/let currentSelectedWorkDate = ''/);
+  assert.match(app,/currentSelectedWorkDate=String\(day\.date\|\|''\)/);
+  assert.match(app,/const preferredDate=currentSelectedWorkDate\|\|today/);
+  assert.match(app,/cell\.addEventListener\('pointerup'/);
+  assert.match(css,/\.work-page \.calendar-day-cell\{[\s\S]*?pointer-events:auto!important;[\s\S]*?touch-action:manipulation!important/);
+  assert.match(css,/\.work-page \.calendar-day-cell > \*\{[\s\S]*?pointer-events:none!important/);
+});
+
+test('schedule sections have visible spacing instead of touching each other',()=>{
+  assert.match(css,/body\[data-app-tab="schedule"\] \.work-page\{[\s\S]*?gap:26px!important/);
+  assert.match(css,/\.schedule-year-progress\{[\s\S]*?margin:2px 8px 10px!important/);
+  assert.match(css,/body\[data-app-tab="schedule"\] \.footer\{[\s\S]*?margin-top:22px!important/);
 });
