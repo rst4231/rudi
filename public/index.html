@@ -38,6 +38,53 @@
   </div>
 
   <main class="shell">
+    <section id="homeDashboard" class="home-dashboard" data-app-tab-section="home" data-home-tile="dashboard" aria-labelledby="homeGreeting">
+      <header class="home-dashboard-head">
+        <div>
+          <div class="home-dashboard-kicker">RUDI · СЕГОДНЯ</div>
+          <h1 id="homeGreeting">Добрый вечер</h1>
+          <div id="homeDashboardDate" class="home-dashboard-date"></div>
+        </div>
+      </header>
+
+      <section class="home-summary-card" aria-labelledby="homeTodayTitle">
+        <div class="home-summary-head">
+          <strong id="homeTodayTitle">Сегодня</strong>
+          <button class="home-summary-link" type="button" data-home-open-tab="schedule">Календарь</button>
+        </div>
+        <div id="homeTodayList" class="home-summary-list" aria-live="polite"></div>
+      </section>
+
+      <section class="home-together-card" aria-labelledby="homeTogetherTitle">
+        <div class="home-summary-head">
+          <strong id="homeTogetherTitle">Мы сегодня</strong>
+        </div>
+        <div id="homeTogetherPeople" class="home-together-people"></div>
+        <div id="moodMessageHome" class="home-mood-message-slot"></div>
+      </section>
+
+      <div class="home-quick-actions" aria-label="Быстрые действия">
+        <button type="button" data-home-quick="products"><span>🛒</span><strong>Продукт</strong></button>
+        <button type="button" data-home-quick="wishlist"><span>🎁</span><strong>Желание</strong></button>
+        <button type="button" data-home-quick="photos"><span>📷</span><strong>Фото</strong></button>
+        <button type="button" data-home-quick="message"><span>💌</span><strong>Послание</strong></button>
+      </div>
+
+      <section id="homeNearestBlock" class="home-summary-card" aria-labelledby="homeNearestTitle">
+        <div class="home-summary-head">
+          <strong id="homeNearestTitle">Ближайшее</strong>
+        </div>
+        <div id="homeNearestList" class="home-nearest-list" aria-live="polite"></div>
+      </section>
+
+      <section id="homeNewBlock" class="home-summary-card home-new-card" aria-labelledby="homeNewTitle" hidden>
+        <div class="home-summary-head">
+          <strong id="homeNewTitle">Новое в RUDI</strong>
+        </div>
+        <div id="homeNewList" class="home-summary-list"></div>
+      </section>
+    </section>
+
     <section class="profile" data-app-tab-section="home" data-home-tile="profile" aria-label="Профиль">
       <div class="profile-people">
         <div class="identity identity-self">
@@ -352,7 +399,7 @@
     <section class="section-block daily-section" data-app-tab-section="home" data-home-tile="daily" aria-labelledby="dailyTitle">
       <div class="section-heading compact">
         <div>
-          <h2 id="dailyTitle">Сегодня</h2>
+          <h2 id="dailyTitle">На сегодня</h2>
         </div>
       </div>
       <div class="daily-grid">
