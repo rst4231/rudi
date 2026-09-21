@@ -13,6 +13,9 @@
     },
     "api/stylist-leads-cron.js": {
       "maxDuration": 300
+    },
+    "api/feed-notify-cron.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -86,6 +89,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/feed",
+      "destination": "/api/partner-message?rudiAction=feed"
+    },
     {
       "source": "/api/mood",
       "destination": "/api/partner-message?rudiAction=mood"
@@ -183,6 +190,10 @@
     {
       "path": "/api/stylist-leads-cron",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/feed-notify-cron",
+      "schedule": "0 7 * * *"
     }
   ],
   "env": {

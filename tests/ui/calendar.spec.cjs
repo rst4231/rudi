@@ -64,6 +64,20 @@ async function mockRudi(page){
         holidayHighlights:[]
       });
     }
+    if(path==='/api/feed'){
+      return ok({
+        ok:true,
+        version:'feed-v1',
+        updatedAt:'2026-09-21T06:45:00.000Z',
+        date:'2026-09-21',
+        changedSections:['facts','events','cinema'],
+        sections:{
+          facts:{parts:['💡 <b>Полезный факт</b>\\n\\nТестовая польза.'],updatedAt:'2026-09-21T06:40:00.000Z'},
+          events:{parts:['📍 <b>Мероприятие сегодня</b>\\n\\n<a href="https://example.com/event">Подробнее →</a>'],updatedAt:'2026-09-21T06:41:00.000Z'},
+          cinema:{parts:['🎬 <b>Кинопремьеры</b>\\n\\n1. Тестовый фильм'],updatedAt:'2026-09-21T06:42:00.000Z'}
+        }
+      });
+    }
     if(path==='/api/work-calendar'){
       state.workCalendarCalls++;
       const next=body.view==='next-month';
@@ -157,4 +171,36 @@ test('calendar task completes in TickTick and refreshes in place with confetti',
   await expect.poll(()=>state.completionCalls).toBe(1);
   await expect(page.locator('#workCalendarSelected')).not.toContainText('Купить продукты');
   await expect(day23).toHaveClass(/selected/);
+});
+
+
+test('feed is a first-class tab with fresh badge and no duplicate cinema button on home',async({page})=>{
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+
+  await expect(page.locator('#compliment')).toHaveCount(0);
+  await expect(page.locator('#cinemaPremieresButton')).toHaveCount(0);
+  await expect(page.locator('#feedTabBadge')).toBeVisible();
+
+  await page.getByRole('tab',{name:'Лента'}).click();
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
+  await expect(page.locator('#feedTitle')).toHaveText('Лента');
+  await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
+  await expect(page.locator('#feedEventsBody')).toContainText('Мероприятие сегодня');
+  await expect(page.locator('#feedCinemaBody')).toContainText('Тестовый фильм');
+  await expect(page.locator('#feedTabBadge')).toBeHidden();
+
+  const tabs=page.locator('#appTabBar [role="tab"]');
+  await expect(tabs).toHaveCount(6);
+  const labels=(await tabs.allTextContents()).map(value=>value.trim());
+  expect(labels).toEqual(['Домой','Лента','Календарь','Продукты','Фото','Вишлист']);
+});
+
+test('feed deep link opens the feed directly',async({page})=>{
+  await mockRudi(page);
+  await page.goto('/?tab=feed');
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
+  await expect(page.getByRole('tab',{name:'Лента'})).toHaveClass(/active/);
+  await expect(page.locator('#feedFactsBody')).toContainText('Полезный факт');
 });

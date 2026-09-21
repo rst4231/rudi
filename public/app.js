@@ -22,6 +22,7 @@
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
       let currentAppTab = 'home';
+      let requestedAppTab = '';
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
       let currentMoodDateKey = '';
@@ -30,7 +31,7 @@
       let homeLayoutEditing = false;
       let homeTileHost = null;
       const HOME_TILE_DEFAULT_ORDER = ['profile-common','profile-self','profile-partner','cycle','priority','partner','daily'];
-      const appTabScroll = {home:0,schedule:0,wishlist:0,photos:0,products:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_CLOUD_META_KEY = 'rudi_state_backup_v2_meta';
       const STATE_BACKUP_CLOUD_CHUNK_PREFIX = 'rudi_state_backup_v2_';
@@ -45,6 +46,7 @@
       try{
         const params=new URLSearchParams(window.location.search);
         ticktickHandoffToken=String(params.get('ticktickHandoff')||'').trim();
+        requestedAppTab=String(params.get('tab')||'').trim();
       }catch(_){}
 
       function withTimeout(promise,timeoutMs,fallback){
@@ -511,7 +513,7 @@
       }
 
       function applyAppTab(tab,{scroll=false}={}){
-        const allowed=['home','schedule','wishlist','photos','products'];
+        const allowed=['home','feed','schedule','wishlist','photos','products'];
         let next=allowed.includes(tab)?tab:'home';
         const candidates=[...document.querySelectorAll('[data-app-tab-section="'+next+'"]')];
         if(next!=='home'&&candidates.length&&candidates.every(section=>section.dataset.tabAvailable==='0')){
@@ -571,7 +573,7 @@
       }
 
       function setupAppTabs(){
-        applyAppTab('home',{scroll:false});
+        applyAppTab(requestedAppTab||'home',{scroll:false});
         document.querySelectorAll('[data-app-tab]').forEach(button=>{
           button.addEventListener('click',()=>{
             const next=button.dataset.appTab||'home';
@@ -584,6 +586,9 @@
             appTabScroll[currentAppTab]=window.scrollY||0;
             document.activeElement?.blur?.();
             applyAppTab(next,{scroll:true});
+            if(next==='feed'){
+              loadFeed({silent:true});
+            }
             if(next==='schedule'){
               playCalendarConfetti();
               loadWorkCalendar(currentWorkCalendarView,{silent:true});
@@ -664,10 +669,9 @@
         const partnerMood=mood?.querySelector('.mood-partner');
         const moodPrompt=document.getElementById('moodPrompt');
         const moodMessage=document.getElementById('moodMessage');
-        const compliment=document.getElementById('compliment');
         const weather=profile.querySelector('.profile-weather');
         const dateHeading=document.getElementById('profileMeta');
-        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!compliment||!weather||!dateHeading) return;
+        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!weather||!dateHeading) return;
 
         const selfPerson=selfIdentity.querySelector('.person');
         const partnerPerson=partnerIdentity.querySelector('.person');
@@ -698,11 +702,11 @@
 
         const common=document.createElement('div');
         common.className='profile-split-card profile-common-card';
-        common.append(compliment,weather);
+        common.append(weather);
 
         profile.className='profile-common-tile';
         profile.dataset.homeTile='profile-common';
-        profile.setAttribute('aria-label','Цитата и погода');
+        profile.setAttribute('aria-label','Погода');
         dateHeading.className='profile-date-heading';
         profile.replaceChildren(dateHeading,common);
 
@@ -3580,6 +3584,145 @@
         });
       }
 
+      function feedSeenStorageKey(){
+        return 'rudi-feed-seen-v1-'+(currentActor==='Диана'?'diana':'rustam');
+      }
+
+      function setFeedBadge(visible){
+        const badge=document.getElementById('feedTabBadge');
+        const fresh=document.getElementById('feedFreshBadge');
+        if(badge) badge.hidden=!visible;
+        if(fresh) fresh.hidden=!visible;
+      }
+
+      function feedSeenVersion(){
+        try{return String(localStorage.getItem(feedSeenStorageKey())||'')}catch(_){return ''}
+      }
+
+      function markFeedSeen(version){
+        const value=String(version||'').trim();
+        if(value){
+          try{localStorage.setItem(feedSeenStorageKey(),value)}catch(_){}
+        }
+        setFeedBadge(false);
+      }
+
+      function feedTimeLabel(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU',{
+          day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',
+          hourCycle:'h23',timeZone:TZ
+        }).format(date).replace(',',' ·');
+      }
+
+      function sanitizeFeedHtml(value){
+        const template=document.createElement('template');
+        template.innerHTML=String(value||'');
+        const allowed=new Set(['B','STRONG','I','EM','A','BR','P','UL','OL','LI','SPAN']);
+        for(const element of [...template.content.querySelectorAll('*')]){
+          if(!allowed.has(element.tagName)){
+            element.replaceWith(document.createTextNode(element.textContent||''));
+            continue;
+          }
+          for(const attr of [...element.attributes]){
+            if(element.tagName==='A'&&attr.name==='href') continue;
+            element.removeAttribute(attr.name);
+          }
+          if(element.tagName==='A'){
+            const href=String(element.getAttribute('href')||'').trim();
+            if(!/^https?:\/\//i.test(href)){
+              element.replaceWith(document.createTextNode(element.textContent||''));
+              continue;
+            }
+            element.target='_blank';
+            element.rel='noopener noreferrer';
+          }
+        }
+        return template.content;
+      }
+
+      function renderFeedSection(name,section){
+        const body=document.getElementById(
+          name==='facts'?'feedFactsBody':name==='events'?'feedEventsBody':'feedCinemaBody'
+        );
+        const meta=document.getElementById(
+          name==='facts'?'feedFactsMeta':name==='events'?'feedEventsMeta':'feedCinemaMeta'
+        );
+        if(!body) return;
+        body.replaceChildren();
+        const parts=Array.isArray(section?.parts)?section.parts.filter(Boolean):[];
+        if(!parts.length){
+          const empty=document.createElement('div');
+          empty.className='feed-empty';
+          empty.textContent=name==='cinema'
+            ?'Свежая подборка кино пока не готова.'
+            :name==='events'
+              ?'Свежих мест и мероприятий пока нет.'
+              :'Новый полезный факт появится после следующего обновления.';
+          body.appendChild(empty);
+          if(meta) meta.textContent='Нет свежих данных';
+          return;
+        }
+        for(const value of parts){
+          const part=document.createElement('div');
+          part.className='feed-part';
+          part.appendChild(sanitizeFeedHtml(value));
+          body.appendChild(part);
+        }
+        if(meta){
+          const label=feedTimeLabel(section?.updatedAt);
+          meta.textContent=label?('Обновлено '+label):'Актуально';
+        }
+      }
+
+      function renderFeed(payload){
+        const sections=payload?.sections&&typeof payload.sections==='object'?payload.sections:{};
+        renderFeedSection('facts',sections.facts);
+        renderFeedSection('events',sections.events);
+        renderFeedSection('cinema',sections.cinema);
+
+        const updated=document.getElementById('feedUpdated');
+        const status=document.getElementById('feedStatus');
+        const updatedLabel=feedTimeLabel(payload?.updatedAt);
+        if(updated) updated.textContent=updatedLabel?'Обновлено '+updatedLabel:'Свежая подборка RUDI';
+        if(status) status.textContent=Object.keys(sections).length?'':'Лента заполнится после ближайшего обновления.';
+
+        const version=String(payload?.version||'');
+        const unseen=Boolean(version&&version!==feedSeenVersion());
+        setFeedBadge(unseen&&currentAppTab!=='feed');
+        if(currentAppTab==='feed') markFeedSeen(version);
+      }
+
+      async function loadFeed({silent=false}={}){
+        if(!currentActor||!tg?.initData) return;
+        const status=document.getElementById('feedStatus');
+        if(status&&!silent) status.textContent='Обновляю Ленту…';
+        try{
+          const response=await fetch('/api/feed',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg.initData}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'feed-request-failed');
+          renderFeed(payload);
+        }catch(_){
+          if(status) status.textContent='Не удалось обновить Ленту. Уже сохранённые актуальные материалы не удаляются из-за временного сбоя.';
+          for(const name of ['facts','events','cinema']){
+            const body=document.getElementById(name==='facts'?'feedFactsBody':name==='events'?'feedEventsBody':'feedCinemaBody');
+            if(body&&body.querySelector('.feed-skeleton')){
+              body.replaceChildren();
+              const empty=document.createElement('div');
+              empty.className='feed-empty';
+              empty.textContent='Временно недоступно';
+              body.appendChild(empty);
+            }
+          }
+        }
+      }
+
       const PRODUCT_CATEGORY_ORDER=[
         'Мясо и рыба','Овощи и зелень','Фрукты и ягоды','Молочное и яйца',
         'Хлеб и выпечка','Бакалея','Сладкое и снеки','Напитки',
@@ -4004,12 +4147,12 @@
         setupTickTickConnect();
         setupWishlist();
         setupSharedAlbum();
-        setupCinemaPremieresButton();
         setupWorkCalendarDisclosure();
         loadWeather(config.weather);
         loadTickTickNext();
         loadWorkCalendar().then(()=>prefetchCalendarView('next-month'));
         loadSharedAlbum();
+        loadFeed({silent:true});
         setTimeout(()=>refreshStateBackup(),2500);
       }
 
@@ -4023,6 +4166,7 @@
       setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
       setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
+      setInterval(()=>{if(currentActor&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
@@ -4062,6 +4206,7 @@
             loadWorkCalendar(currentWorkCalendarView),
             loadSharedAlbum(),
             (currentAppTab==='products'?loadProducts({silent:true}):Promise.resolve()),
+            (currentAppTab==='feed'?loadFeed({silent:true}):Promise.resolve()),
             refreshDailyReactions(),
             refreshStateBackup()
           ]);

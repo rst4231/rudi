@@ -236,6 +236,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
       mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
       manualCount: manualRows.length,
       titles: [],
+      feedMessage: '🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.',
       replacedMessageIds: [],
       replacementCleanupError: null,
     };
@@ -299,6 +300,9 @@ async function publishWeeklyCinemaPremieres(options = {}) {
     mirageCount: mirageResult.status === 'fulfilled' ? mirageResult.value.length : null,
     manualCount: manualRows.length,
     titles: rows.map((row) => row.title),
+    feedMessage: rows.length
+      ? buildCinemaDigestCaption(rows, dateKey)
+      : (complete ? '🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.' : ''),
     replacedMessageIds,
     replacementCleanupError,
   };

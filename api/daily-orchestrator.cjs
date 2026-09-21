@@ -9,6 +9,54 @@ const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 const { moscowDateKey } = require('./preview-date.cjs');
 const { rankHolidayEntries, DEFAULT_MAX_ITEMS } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
+const { updateFeedSections } = require('./feed-store.cjs');
+
+function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date()) {
+  const results = payload?.results || {};
+  const sections = {};
+  const fact = String(results.facts?.preview?.message || '').trim();
+  if (fact) {
+    sections.facts = { parts: [fact], source: 'daily-facts' };
+  }
+
+  const events = [
+    results.events?.preview?.concerts,
+    results.events?.preview?.stage,
+  ].map((value) => String(value || '').trim()).filter(Boolean);
+  if (events.length) {
+    sections.events = { parts: events, source: 'daily-events' };
+  }
+
+  const cinema = nativeResults?.cinema;
+  if (cinema && !cinema.failed && !['not-thursday', 'already-published'].includes(String(cinema.skipped || ''))) {
+    const feedMessage = String(cinema.feedMessage || '').trim();
+    const titles = Array.isArray(cinema.titles) ? cinema.titles.map((value) => String(value || '').trim()).filter(Boolean) : [];
+    if (feedMessage) {
+      sections.cinema = { parts: [feedMessage], source: 'weekly-cinema' };
+    } else if (titles.length) {
+      const message = ['🎬 <b>Кинопремьеры</b>', '', ...titles.map((title) => '• ' + title)].join('\n');
+      sections.cinema = { parts: [message], source: 'weekly-cinema' };
+    } else if (Number(cinema.published || 0) === 0 && !cinema.skipped) {
+      sections.cinema = {
+        parts: ['🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.'],
+        source: 'weekly-cinema',
+      };
+    }
+  }
+
+  return sections;
+}
+
+async function updateFeedFromRun(payload, nativeResults, date, options = {}) {
+  const sections = feedSectionsFromRun(payload, nativeResults, options.now || new Date());
+  if (!Object.keys(sections).length) return null;
+  const updater = options.updateFeed || updateFeedSections;
+  return updater(sections, {
+    ...options,
+    date,
+    now: options.now || new Date(),
+  });
+}
 
 async function metric(section, name, amount, options = {}) {
   try {
@@ -118,6 +166,12 @@ async function runDailyOrchestrator(req, res, options = {}) {
     } catch (error) {
       failures.push({ section: 'journal', error: String(error?.message || error) });
     }
+
+    try {
+      await updateFeedFromRun(payload, nativeResults, date, options);
+    } catch (error) {
+      failures.push({ section: 'feed', error: String(error?.message || error) });
+    }
   }
 
   const summary = {
@@ -145,4 +199,4 @@ async function runDailyOrchestrator(req, res, options = {}) {
   return { runtime: payload, native: nativeResults, failures };
 }
 
-module.exports = { recordGeneratedPayload, runDailyOrchestrator };
+module.exports = { feedSectionsFromRun, updateFeedFromRun, recordGeneratedPayload, runDailyOrchestrator };
