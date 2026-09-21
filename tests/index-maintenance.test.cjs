@@ -5,12 +5,13 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 
-test('Alice shopping posts through products chat instead of legacy shared-list context', () => {
+test('Alice shopping updates shared products without Telegram topic posting', () => {
   assert.match(source, /route === 'alice-shopping'/);
-  assert.match(source, /sendAliceProductMessage/);
   const route = source.indexOf("if (req.query?.route === 'alice-shopping')");
   const end = source.indexOf("if (req.query?.route === 'init-products')", route);
   const block = source.slice(route, end);
+  assert.match(block, /addSharedProducts/);
+  assert.doesNotMatch(block, /sendAliceProductMessage/);
   assert.doesNotMatch(block, /runWithProductsContext/);
   assert.doesNotMatch(block, /runProductsAddition/);
 });
@@ -27,11 +28,12 @@ test('daily route authenticates cron before any cleanup or publication side effe
   assert.ok(auth < labor);
 });
 
-test('legacy products callbacks are intercepted by native products chat instead of mutating a list', () => {
+test('products topic updates are silently ignored without bot replies', () => {
   const route = source.indexOf("if (req.query?.route === 'telegram')");
   const native = source.indexOf('isProductsTopicUpdate(req)', route);
-  const ack = source.indexOf('acknowledgeLegacyProductsCallback', native);
-  assert.ok(route >= 0 && native > route && ack > native);
+  const silent = source.indexOf("products-topic-silent", native);
+  assert.ok(route >= 0 && native > route && silent > native);
+  assert.equal(source.indexOf('acknowledgeLegacyProductsCallback', native), -1);
 });
 
 test('removed couple topic is ignored on incoming updates and hidden from health', () => {
