@@ -3,7 +3,7 @@ const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
 
 async function handler(req, res) {
   if (!isCronRequestAuthorized(req)) {
-    console.error('RUDI_FEED_NOTIFY_CRON_UNAUTHORIZED');
+    console.error('RUDI_MORNING_SUMMARY_CRON_UNAUTHORIZED');
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
   }
 
