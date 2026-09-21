@@ -831,8 +831,9 @@
         const contentTop=Number(tg?.contentSafeAreaInset?.top)||0;
         const safeTop=Number(tg?.safeAreaInset?.top)||0;
         const telegramOpen=Boolean(tg?.initData);
-        const isIos=telegramOpen&&tg?.platform==='ios';
-        const toolbarReserve=isIos ? 92 : (telegramOpen ? 64 : 0);
+        const iosUserAgent=/iPhone|iPad|iPod/i.test(String(navigator?.userAgent||''));
+        const isIos=telegramOpen&&(tg?.platform==='ios'||iosUserAgent);
+        const toolbarReserve=isIos ? 96 : (telegramOpen ? 64 : 0);
         const reportedTop=Math.max(contentTop,safeTop);
         const top=Math.max(reportedTop,toolbarReserve);
         root.style.setProperty('--tg-content-safe-top',Math.max(0,top)+'px');
@@ -2128,6 +2129,9 @@
               copy.appendChild(shift);
             }
 
+            const details=document.createElement('div');
+            details.className='calendar-selected-details';
+
             if(tasks.length){
               const group=document.createElement('span');
               group.className='calendar-selected-group calendar-selected-tasks';
@@ -2142,7 +2146,7 @@
                 row.textContent=(range?range+' · ':'')+String(event.title||'Дело')+assignee;
                 group.appendChild(row);
               }
-              copy.appendChild(group);
+              details.appendChild(group);
             }
 
             if(holidays.length){
@@ -2163,10 +2167,11 @@
                 row.append(emoji,text);
                 group.appendChild(row);
               }
-              copy.appendChild(group);
+              details.appendChild(group);
             }
 
             selected.replaceChildren(icon,copy);
+            if(details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('is-off',!day.working);
             selected.hidden=false;
             if(withHaptic){
