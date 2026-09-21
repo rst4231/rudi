@@ -20,6 +20,7 @@ const {
   saveRecipient,
   saveRecipients,
   readRecipients,
+  normalizeRecipients,
   recipientFor,
 } = require('./partner-notification-store.cjs');
 const {
@@ -303,10 +304,14 @@ async function readTickTickTokenWithBackup(body, options = {}) {
 }
 
 function mergedRecipientsWithBackup(current, snapshot) {
-  return {
-    'Рустам': Number(current?.['Рустам'] || snapshot?.recipients?.['Рустам'] || 0) || null,
-    'Диана': Number(current?.['Диана'] || snapshot?.recipients?.['Диана'] || 0) || null,
-  };
+  return normalizeRecipients({
+    'Рустам': current?.['Рустам'] || snapshot?.recipients?.['Рустам'],
+    'Диана': current?.['Диана'] || snapshot?.recipients?.['Диана'],
+    candidates: [
+      current?.['Рустам'], current?.['Диана'],
+      snapshot?.recipients?.['Рустам'], snapshot?.recipients?.['Диана'],
+    ],
+  });
 }
 
 function moscowDateKey(now = Date.now()) {
