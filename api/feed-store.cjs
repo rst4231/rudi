@@ -121,11 +121,15 @@ async function updateFeedSections(input = {}, options = {}) {
     sections[name] = next;
   }
 
+  const date = String(options.date || moscowDateKey(now));
+  const pendingChangedSections = changedSections.length
+    ? changedSections
+    : (current.date === date ? current.changedSections : []);
   const snapshot = {
     version: changedSections.length ? `${now.getTime()}-${changedSections.join('-')}` : (current.version || String(now.getTime())),
     updatedAt: now.toISOString(),
-    date: String(options.date || moscowDateKey(now)),
-    changedSections,
+    date,
+    changedSections: pendingChangedSections,
     sections,
   };
 
