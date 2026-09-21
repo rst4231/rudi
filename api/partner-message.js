@@ -29,7 +29,7 @@ const {
   getLatestPhotos,
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
-const { readCycleState, bootstrapCycleState, recordCycleStart } = require('./cycle-store.cjs');
+const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction } = require('./reactions-store.cjs');
 const {
   getCredentials,
@@ -50,7 +50,7 @@ const {
   recordChecklistAudit,
   checklistAuditForItem,
 } = require('./ticktick-checklist-audit-store.cjs');
-const { createStateBackup, restoreStateBackup } = require('./rudi-backup.cjs');
+const { createStateBackup, restoreStateBackup, openSnapshot } = require('./rudi-backup.cjs');
 const { getCinemaPremieresCache, getTopicMaintenanceCache } = require('./stateful-cache.cjs');
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
@@ -239,6 +239,26 @@ async function readTelegramProfile(userId, fallbackName, options = {}) {
   }
 }
 
+function backupSnapshotFromToken(value, options = {}) {
+  const token = String(value || '').trim();
+  if (!token) return null;
+  try { return openSnapshot(token, options); } catch { return null; }
+}
+
+async function readTickTickTokenWithBackup(body, options = {}) {
+  const live = await readToken(options).catch(() => null);
+  if (live?.accessToken) return live;
+  const saved = backupSnapshotFromToken(body?.backupToken, options)?.ticktickToken;
+  return saved?.accessToken ? saved : null;
+}
+
+function mergedRecipientsWithBackup(current, snapshot) {
+  return {
+    'Рустам': Number(current?.['Рустам'] || snapshot?.recipients?.['Рустам'] || 0) || null,
+    'Диана': Number(current?.['Диана'] || snapshot?.recipients?.['Диана'] || 0) || null,
+  };
+}
+
 function moscowDateKey(now = Date.now()) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
@@ -299,8 +319,9 @@ async function handleTickTick(req, res, action, options = {}) {
 
   if (action === 'next') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    let body;
     try {
-      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       authorizeInitData(body.initData, options);
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
@@ -318,7 +339,7 @@ async function handleTickTick(req, res, action, options = {}) {
     const config = await loadTickTickConfig(options);
     if (!config.enabled) return res.status(200).json({ ok: true, enabled: false, connected: true, task: null });
 
-    const token = await readToken(options);
+    const token = await readTickTickTokenWithBackup(body, options);
     if (!token?.accessToken) {
       return res.status(401).json({
         ok: false,
@@ -423,7 +444,7 @@ async function handleTickTick(req, res, action, options = {}) {
       });
     }
 
-    const token = await readToken(options);
+    const token = await readTickTickTokenWithBackup(body, options);
     if (!token?.accessToken) {
       return res.status(401).json({
         ok: false,
@@ -495,7 +516,7 @@ async function handleTickTick(req, res, action, options = {}) {
       return res.status(409).json({ ok: false, enabled: false, error: 'ticktick-disabled' });
     }
 
-    const token = await readToken(options);
+    const token = await readTickTickTokenWithBackup(body, options);
     if (!token?.accessToken) {
       return res.status(401).json({
         ok: false,
@@ -603,8 +624,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeInitData(body.initData, options);
       const operation = String(body.operation || 'get').trim();
+      const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (operation === 'get') {
-        const cycle = await readCycleState(options);
+        const liveCycle = await readCycleState(options).catch(() => null);
+        const cycle = liveCycle || normalizeCycleState(backupSnapshot?.cycle);
         return res.status(200).json({ ok: true, actor, configured: Boolean(cycle), cycle });
       }
       if (operation === 'record-start') {
@@ -702,7 +725,11 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       authorizeInitData(body.initData, options);
-      const album = await getLatestPhotos(options);
+      const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      const album = await getLatestPhotos({
+        ...options,
+        albumConfig: backupSnapshot?.albumConfig || null,
+      });
       return res.status(200).json({ ok: true, ...album });
     } catch (error) {
       const status = statusForError(error) === 500 ? 502 : statusForError(error);
@@ -716,6 +743,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor, user } = authorizeInitData(body.initData, options);
+      const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
 
       if (body.backupToken) {
         try {
@@ -731,14 +759,17 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       const date = moscowDateKey(options.now || Date.now());
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
-      const recipients = await readRecipients(options).catch(() => null);
+      const recipients = mergedRecipientsWithBackup(
+        await readRecipients(options).catch(() => null),
+        backupSnapshot
+      );
       const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
       const partnerId = recipientFor(actor, recipients);
       const [holidays, selfProfile, partnerProfile, backupToken] = await Promise.all([
         holidaysPromise,
         readTelegramProfile(user?.id, actor, options),
         readTelegramProfile(partnerId, partnerActor, options),
-        createStateBackup(options).catch((error) => {
+        createStateBackup({ ...options, previousSnapshot: backupSnapshot }).catch((error) => {
           console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
           return '';
         }),
@@ -762,7 +793,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor, user } = authorizeInitData(body.initData, options);
       try { await saveRecipient(actor, user?.id, options); } catch {}
-      const backupToken = await createStateBackup(options);
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      const backupToken = await createStateBackup({ ...options, previousSnapshot });
       return res.status(200).json({ ok: true, backupToken });
     } catch (error) {
       const code = String(error?.message || error);
@@ -893,10 +925,15 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       authorizeInitData(body.initData, options);
+      const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
       const view = ['week','month','next-month'].includes(String(body.view || ''))
         ? String(body.view)
         : 'week';
-      const week = await getWorkWeek({ ...options, view });
+      const week = await getWorkWeek({
+        ...options,
+        view,
+        calendarUrl: backupSnapshot?.calendarUrl || '',
+      });
       return res.status(200).json({ ok: true, ...week });
     } catch (error) {
       const code = String(error?.message || error);
@@ -914,7 +951,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       const operation = String(body.operation || 'list').trim();
 
       if (operation === 'list') {
-        return res.status(200).json({ ok: true, actor, ...(await readProductList(options)) });
+        const live = await readProductList(options);
+        const saved = backupSnapshotFromToken(body.backupToken, options)?.products;
+        const state = live?.initialized ? live : (saved?.initialized ? saved : live);
+        return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'add') {
         const values = Array.isArray(body.items) && body.items.length ? body.items : [body.text];
@@ -962,7 +1002,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       const operation = String(body.operation || 'list').trim();
 
       if (operation === 'list') {
-        return res.status(200).json({ ok: true, owner, ...(await readWishlist(options)) });
+        const live = await readWishlist(options);
+        const saved = backupSnapshotFromToken(body.backupToken, options)?.wishlist;
+        const state = live?.initialized ? live : (saved?.initialized ? saved : live);
+        return res.status(200).json({ ok: true, owner, ...state });
       }
       if (operation === 'add') {
         const result = await addWish(body.text, body.url, owner, options);
