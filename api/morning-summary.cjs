@@ -61,7 +61,7 @@ function partnerGenitive(actor) {
 }
 
 function assigneeFor(actor) {
-  return actor === 'Рустам' ? 'RST' : 'Ди';
+  return actor === 'Рустам' ? 'rst' : 'ди';
 }
 
 function filterTasksForActor(tasks, actor) {
@@ -69,7 +69,7 @@ function filterTasksForActor(tasks, actor) {
   return (Array.isArray(tasks) ? tasks : []).filter((task) => {
     if (task?.completed) return false;
     if (!task?.assigned || task?.assignee === 'Не назначен') return true;
-    return String(task?.assignee || '') === expected;
+    return String(task?.assignee || '').trim().toLocaleLowerCase('ru-RU') === expected;
   });
 }
 
@@ -361,8 +361,6 @@ async function sendDailyMorningSummaries(options = {}) {
       const result = await telegramSendMessage(chatId, text, {
         ...options,
         fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,
-        tab: 'home',
-        buttonText: 'Открыть RUDI',
       });
       await writeSummaryMarker(actor, date, now.toISOString(), options);
       sent.push({ actor, ...result });
