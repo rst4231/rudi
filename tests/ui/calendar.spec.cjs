@@ -9,7 +9,7 @@ function monthDays(year,month){
   });
 }
 
-async function mockRudi(page){
+async function mockRudi(page,options={}){
   const state={
     taskCompleted:false,
     completionCalls:0,
@@ -84,7 +84,10 @@ async function mockRudi(page){
             '🎤 <b>Поп и хип-хоп концерты</b>\\n📅 Понедельник, 21 сентября\\n1. <b>Концерт сегодня</b>\\n🕒 18:30\\n📍 Тестовый клуб\\n<a href="https://example.com/concert">Подробнее →</a>',
             '🎙 <b>Stage StandUp Club</b>\\n📅 Понедельник, 21 сентября\\nНайдено событий/сеансов: <b>2</b>\\n1. <b>Первый стендап</b>\\n🕒 19:00\\n<a href="https://example.com/standup-1">Официальная страница →</a>\\n2. <b>Второй стендап</b>\\n🕒 20:00\\n<a href="https://example.com/standup-2">Официальная страница →</a>'
           ],updatedAt:'2026-09-21T06:41:00.000Z'},
-          cinema:{
+          cinema:options.legacyCinema?{
+            parts:['🎬 <b>Кинопремьеры — 18 сентября</b>\\n\\n1. <a href="https://example.com/kinopoisk-old">Старый фильм</a>\\nКинополис Мурино'],
+            updatedAt:'2026-09-18T06:42:00.000Z'
+          }:{
             parts:['🎬 <b>Кинопремьеры</b>\\n\\n1. Тестовый фильм'],
             items:[{
               title:'Тестовый фильм',
@@ -287,6 +290,16 @@ test('feed is structured, today-first and keeps six-tab layout',async({page})=>{
   const boxes=await tabs.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()));
   const top=Math.round(boxes[0].top);
   expect(boxes.every(box=>Math.abs(Math.round(box.top)-top)<=1)).toBe(true);
+});
+
+test('legacy cinema feed is upgraded to visual cards immediately',async({page})=>{
+  await mockRudi(page,{legacyCinema:true});
+  await page.goto('/?tab=feed');
+  await expect(page.locator('#feedCinemaBody .feed-movie-card')).toHaveCount(1);
+  await expect(page.locator('#feedCinemaBody .feed-movie-title')).toHaveText('Старый фильм');
+  await expect(page.locator('#feedCinemaBody .feed-movie-meta')).toContainText('Кинополис Мурино');
+  await expect(page.locator('#feedCinemaBody .feed-movie-poster')).toHaveClass(/is-fallback/);
+  await expect(page.locator('#feedCinemaBody .feed-movie-link')).toHaveAttribute('href','https://example.com/kinopoisk-old');
 });
 
 test('feed deep link opens the feed directly',async({page})=>{
