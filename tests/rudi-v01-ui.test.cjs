@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const html = ['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
 test('calendar keeps Diana work schedule and removes retired shared calendar', () => {
-  assert.match(html, /График Дианы/);
+  assert.match(html, /work-calendar-title\">График<\\/div>/);
   assert.doesNotMatch(html, /id="sharedCalendarCard"/);
   assert.doesNotMatch(html, /setupSharedCalendarDisclosure\(\);/);});
 
