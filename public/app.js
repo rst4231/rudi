@@ -2650,9 +2650,22 @@
         homeDashboardState.workDay={...row,working};
         renderHomeDashboard();
         status.dataset.calendarReady='1';
-        setProfileWorkStatus('Диана',working?'Работаю':'Отдыхаю',working?'working':'off');
 
         const events=Array.isArray(row.events)?row.events:[];
+        const timed=events.find(event=>!event?.allDay&&(event?.startTime||event?.endTime));
+        const startTime=String(timed?.startTime||'').trim();
+        const endTime=String(timed?.endTime||'').trim();
+        const workText=working
+          ?(startTime&&endTime
+            ?'Работаю с '+startTime+' до '+endTime
+            :startTime
+              ?'Работаю с '+startTime
+              :endTime
+                ?'Работаю до '+endTime
+                :'Работаю')
+          :'Отдыхаю';
+        setProfileWorkStatus('Диана',workText,working?'working':'off');
+
         const ranges=events
           .map(event=>event?.allDay?'Весь день':([event?.startTime,event?.endTime].filter(Boolean).join('–')))
           .filter(Boolean);
