@@ -525,11 +525,32 @@ async function handleTickTick(req, res, action, options = {}) {
     try {
       const now = options.now ? new Date(options.now) : new Date();
       const data = await fetchProjectData(token.accessToken, config.projectId, options);
-      const calendar = buildTickTickCalendar(data?.tasks || [], now, 'month');
+      const sourceTasks = Array.isArray(data?.tasks) ? data.tasks : [];
+      const sourceById = new Map(sourceTasks.map((task) => [String(task?.id || ''), task]));
+      const auditState = await readChecklistAuditState(options).catch(() => ({ entries: {} }));
+      const calendar = buildTickTickCalendar(sourceTasks, now, 'month');
       const today = calendarDateKey(now);
       const tasks = (calendar.days.find((day) => day.date === today)?.events || [])
         .filter((event) => !event.completed)
-        .map((event) => ({ ...event, date: today }));
+        .map((event) => {
+          const source = sourceById.get(String(event?.id || '')) || {};
+          const checklist = visibleChecklistItems(source.items, 50).map((item) => {
+            const audit = checklistAuditForItem(auditState, source.id, item?.id, false);
+            return {
+              id: String(item?.id || ''),
+              title: String(item?.title || '').trim().slice(0, 500),
+              completed: false,
+              changedBy: audit?.actor || '',
+              changedAt: audit?.changedAt || '',
+            };
+          }).filter((item) => item.title);
+          return {
+            ...event,
+            date: today,
+            description: String(source.desc || source.content || '').trim().slice(0, 5000),
+            checklist,
+          };
+        });
       return res.status(200).json({
         ok: true, connected: true, enabled: true,
         writable: tokenHasWriteScope(token) !== false,

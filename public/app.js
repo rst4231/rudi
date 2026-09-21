@@ -1731,7 +1731,7 @@
         }
       }
 
-      function renderTickTickTodayState(payload){
+      function renderTickTickTodayState(payload,{preserveExpanded=false}={}){
         const title=document.getElementById('ticktickTitle');
         const list=document.getElementById('ticktickTodayList');
         const date=document.getElementById('ticktickDate');
@@ -1739,8 +1739,10 @@
         const badge=document.getElementById('ticktickBadge');
         const connect=document.getElementById('ticktickConnect');
         const panel=document.getElementById('ticktickPanel');
+        const previousOpenTaskId=preserveExpanded?String(panel.dataset.openTaskId||''):'';
 
         renderTickTickDetails(null);
+        panel.dataset.openTaskId='';
         panel.classList.remove('expandable','expanded');
         connect.classList.remove('show');
         connect.textContent='Подключить TickTick';
@@ -1773,6 +1775,7 @@
         title.hidden=true;list.hidden=false;
         badge.hidden=false;
         badge.textContent=tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел');
+        let reopenTask=null;
 
         for(const task of tasks){
           const row=document.createElement('div');
@@ -1785,9 +1788,19 @@
           complete.setAttribute('role','checkbox');
           complete.setAttribute('aria-checked','false');
           complete.setAttribute('aria-label','Отметить выполненным: '+String(task?.title||'Дело'));
+          complete.addEventListener('click',event=>{
+            event.stopPropagation();
+            completeTickTickTodayTask(task,row,complete,payload?.writable!==false);
+          });
 
-          const copy=document.createElement('div');
+          const copy=document.createElement('button');
+          copy.type='button';
           copy.className='ticktick-today-copy';
+          const hasDetails=Boolean(String(task?.description||'').trim()||(Array.isArray(task?.checklist)&&task.checklist.length));
+          copy.classList.toggle('has-details',hasDetails);
+          copy.disabled=!hasDetails;
+          copy.setAttribute('aria-expanded','false');
+
           const taskTitle=document.createElement('div');
           taskTitle.className='ticktick-today-title';
           taskTitle.textContent=String(task?.title||'Дело');
@@ -1796,9 +1809,35 @@
           meta.textContent=tickTickTodayTaskMeta(task);
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);
+
+          if(hasDetails){
+            copy.addEventListener('click',event=>{
+              event.stopPropagation();
+              const alreadyOpen=panel.dataset.openTaskId===String(task.id)&&panel.classList.contains('expanded');
+              if(alreadyOpen){
+                panel.dataset.openTaskId='';
+                copy.setAttribute('aria-expanded','false');
+                renderTickTickDetails(null);
+                return;
+              }
+              panel.dataset.openTaskId=String(task.id);
+              list.querySelectorAll('.ticktick-today-copy[aria-expanded="true"]').forEach(node=>node.setAttribute('aria-expanded','false'));
+              copy.setAttribute('aria-expanded','true');
+              renderTickTickDetails(task,{writable:payload?.writable!==false,preserveExpanded:false});
+              setTickTickExpanded(true);
+            });
+          }
+
           row.append(complete,copy);
-          complete.addEventListener('click',()=>completeTickTickTodayTask(task,row,complete,payload?.writable!==false));
           list.appendChild(row);
+          if(previousOpenTaskId&&String(task.id)===previousOpenTaskId&&hasDetails) reopenTask={task,copy};
+        }
+
+        if(reopenTask){
+          panel.dataset.openTaskId=String(reopenTask.task.id);
+          reopenTask.copy.setAttribute('aria-expanded','true');
+          renderTickTickDetails(reopenTask.task,{writable:payload?.writable!==false,preserveExpanded:false});
+          setTickTickExpanded(true);
         }
         if(payload?.writable===false) showTickTickWritePermission();
       }
@@ -1854,9 +1893,9 @@
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
-          if(response.status===401){renderTickTickTodayState({...payload,connected:false});return}
+          if(response.status===401){renderTickTickTodayState({...payload,connected:false},{preserveExpanded});return}
           if(!response.ok) throw new Error(payload.error||'ticktick');
-          renderTickTickTodayState(payload);
+          renderTickTickTodayState(payload,{preserveExpanded});
         }catch(_){
           const title=document.getElementById('ticktickTitle');
           const list=document.getElementById('ticktickTodayList');

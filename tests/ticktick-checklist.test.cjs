@@ -146,5 +146,5 @@ test('RUDI refreshes TickTick checklist ids after each successful toggle', () =>
   assert.match(app, /const checklistRows=\[\.\.\.\(checklist\?\.querySelectorAll\('\.ticktick-check-item'\)\|\|\[\]\)\];/);
   assert.match(app, /await loadTickTickNext\(\{preserveExpanded:true\}\);/);
   assert.match(app, /async function loadTickTickNext\(\{preserveExpanded=false\}=\{\}\)/);
-  assert.match(app, /renderTickTickTodayState\(payload\)/);
+  assert.match(app, /renderTickTickTodayState\(payload,\{preserveExpanded\}\)/);
 });

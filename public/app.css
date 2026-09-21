@@ -5239,3 +5239,36 @@ body[data-app-tab="schedule"] .work-page{
   .ticktick-today-title{font-size:14px}.ticktick-today-meta{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){.task-completion-confetti{display:none!important}}
+
+
+/* RUDI v0.4.6: preserve today-task details */
+.ticktick-today-copy{
+  position:relative;
+  width:100%;
+  min-width:0;
+  margin:0;
+  padding:0 22px 0 0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.ticktick-today-copy:disabled{opacity:1;cursor:default}
+.ticktick-today-copy.has-details::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  right:2px;
+  width:7px;
+  height:7px;
+  border-right:1.7px solid var(--muted);
+  border-bottom:1.7px solid var(--muted);
+  transform:translateY(-65%) rotate(45deg);
+  transition:transform .18s ease;
+}
+.ticktick-today-copy.has-details[aria-expanded="true"]::after{
+  transform:translateY(-30%) rotate(225deg);
+}

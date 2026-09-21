@@ -62,3 +62,14 @@ test('today task routes are wired in Vercel',()=>{
   assert.equal(map.get('/api/ticktick/today'),'/api/partner-message?ticktickAction=today');
   assert.equal(map.get('/api/ticktick/task-complete'),'/api/partner-message?ticktickAction=task-complete');
 });
+
+
+test('today endpoint keeps description and checklist support in the UI',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const api=fs.readFileSync('api/partner-message.js','utf8');
+  assert.match(api,/description: String\(source\.desc \|\| source\.content/);
+  assert.match(api,/checklistAuditForItem\(auditState/);
+  assert.match(app,/panel\.dataset\.openTaskId/);
+  assert.match(app,/renderTickTickDetails\(task,\{writable:payload\?\.writable!==false/);
+  assert.match(app,/renderTickTickTodayState\(payload,\{preserveExpanded\}\)/);
+});
