@@ -31,11 +31,12 @@ function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date())
   if (cinema && !cinema.failed && !['not-thursday', 'already-published'].includes(String(cinema.skipped || ''))) {
     const feedMessage = String(cinema.feedMessage || '').trim();
     const titles = Array.isArray(cinema.titles) ? cinema.titles.map((value) => String(value || '').trim()).filter(Boolean) : [];
+    const feedItems = Array.isArray(cinema.feedItems) ? cinema.feedItems : [];
     if (feedMessage) {
-      sections.cinema = { parts: [feedMessage], source: 'weekly-cinema' };
+      sections.cinema = { parts: [feedMessage], items: feedItems, source: 'weekly-cinema' };
     } else if (titles.length) {
       const message = ['🎬 <b>Кинопремьеры</b>', '', ...titles.map((title) => '• ' + title)].join('\n');
-      sections.cinema = { parts: [message], source: 'weekly-cinema' };
+      sections.cinema = { parts: [message], items: feedItems, source: 'weekly-cinema' };
     } else if (Number(cinema.published || 0) === 0 && !cinema.skipped) {
       sections.cinema = {
         parts: ['🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.'],
