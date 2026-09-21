@@ -39,7 +39,6 @@ test('calendar day selection survives silent rerenders and iPhone taps stay clic
   assert.match(app,/let currentSelectedWorkDate = ''/);
   assert.match(app,/currentSelectedWorkDate=String\(day\.date\|\|''\)/);
   assert.match(app,/const preferredDate=currentSelectedWorkDate\|\|today/);
-  assert.match(app,/cell\.addEventListener\('pointerup'/);
   assert.match(css,/\.work-page \.calendar-day-cell\{[\s\S]*?pointer-events:auto!important;[\s\S]*?touch-action:manipulation!important/);
   assert.match(css,/\.work-page \.calendar-day-cell > \*\{[\s\S]*?pointer-events:none!important/);
 });

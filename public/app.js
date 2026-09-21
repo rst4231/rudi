@@ -2379,12 +2379,6 @@
           };
 
           cell.addEventListener('click',()=>showDayDetails(true));
-          cell.addEventListener('pointerup',event=>{
-            if(event.pointerType==='mouse') return;
-            if(Date.now()-Number(cell.dataset.lastPointerActivation||0)<350) return;
-            cell.dataset.lastPointerActivation=String(Date.now());
-            showDayDetails(true);
-          });
           const preferredDate=currentSelectedWorkDate||today;
           if(day.date===preferredDate) showDayDetails(false);
           container.appendChild(cell);
