@@ -241,6 +241,21 @@ test('feed is a first-class tab with fresh badge and no duplicate cinema button 
   await expect(page.locator('#feedCinemaBody')).toContainText('Тестовый фильм');
   await expect(page.locator('.profile-weather')).toHaveCount(0);
 
+  const factPart=page.locator('#feedFactsBody .feed-part');
+  await expect(factPart.locator('br')).toHaveCount(5);
+  await expect(factPart.locator('a')).toHaveCSS('display','block');
+
+  const standupPart=page.locator('#feedStandupBody .feed-part');
+  await expect(standupPart).toContainText('Первый стендап');
+  await expect(standupPart).toContainText('Второй стендап');
+  expect(await standupPart.locator('br').count()).toBeGreaterThanOrEqual(8);
+  const standupText=await standupPart.innerText();
+  expect(standupText).toMatch(/Официальная страница →\s*\n+\s*2\. Второй стендап/);
+
+  const shellPadding=await page.locator('.shell').evaluate(node=>parseFloat(getComputedStyle(node).paddingBottom));
+  const tabHeight=(await page.locator('#appTabBar').boundingBox()).height;
+  expect(shellPadding-tabHeight).toBeGreaterThanOrEqual(40);
+
   await page.locator('#feedFactsLike').click();
   await expect(page.locator('#feedFactsLikedBy')).toHaveText('Нравится: Рустам');
   await expect(page.locator('#feedTabBadge')).toBeHidden();
