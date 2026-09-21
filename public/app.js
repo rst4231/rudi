@@ -2857,7 +2857,7 @@
         const next=document.getElementById('photoViewerNext');
         const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
-        const url=String(photo?.url||'').trim();
+        const url=String(photo?.fullUrl||photo?.url||'').trim();
         if(!viewer||!image||!caption||!prev||!next||!original||!url) return false;
 
         image.src=url;
@@ -2874,9 +2874,9 @@
         const preloadIndexes=[currentSharedAlbumPhotoIndex-1,currentSharedAlbumPhotoIndex+1];
         preloadIndexes.forEach(index=>{
           const adjacent=sharedAlbumPhotos[index];
-          if(adjacent?.url){
+          if(adjacent?.url||adjacent?.fullUrl){
             const preload=new Image();
-            preload.src=String(adjacent.url);
+            preload.src=String(adjacent.fullUrl||adjacent.url);
           }
         });
         return true;
@@ -3074,7 +3074,7 @@
           return;
         }
         const index=photos.indexOf(photo);
-        image.src=String(photo.url||'');
+        image.src=String(photo.fullUrl||photo.url||'');
         image.alt=photo.caption?String(photo.caption):'Воспоминание из общего альбома';
         age.textContent=sharedAlbumAgeLabel(photo);
         button.onclick=()=>openSharedAlbumPhoto(photo,index);
