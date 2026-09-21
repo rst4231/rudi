@@ -4970,3 +4970,135 @@ html[data-theme="dark"] .feed-today{
   .feed-today{padding:13px 14px;border-radius:18px}
   .feed-cinema-track{grid-auto-columns:minmax(154px,70%)}
 }
+
+
+/* RUDI v1.0 home dashboard */
+.home-dashboard{
+  display:grid;
+  gap:12px;
+  padding:17px;
+  border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  border-radius:24px;
+  background:
+    radial-gradient(circle at 92% 4%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 34%),
+    color-mix(in srgb,var(--surface) 96%,transparent);
+  box-shadow:0 14px 34px rgba(20,24,36,.07);
+}
+.home-dashboard-head{display:grid;gap:3px}
+.home-dashboard-greeting{
+  margin:0;color:var(--text);font-size:22px;line-height:1.08;font-weight:850;letter-spacing:-.035em;
+}
+.home-dashboard-date{color:var(--muted);font-size:11px;line-height:1.3;font-weight:650}
+.home-dashboard-section{
+  display:grid;gap:8px;padding:12px 13px;border:1px solid color-mix(in srgb,var(--line) 70%,transparent);
+  border-radius:17px;background:color-mix(in srgb,var(--surface-strong) 74%,transparent);
+}
+.home-dashboard-label{
+  color:var(--muted);font-size:9px;line-height:1.1;font-weight:850;letter-spacing:.08em;text-transform:uppercase;
+}
+.home-today-rows{display:grid;gap:7px}
+.home-today-row{display:flex;align-items:center;gap:8px;min-width:0}
+.home-today-row>span{width:20px;flex:none;text-align:center;font-size:15px}
+.home-today-row strong{min-width:0;color:var(--text);font-size:12.5px;line-height:1.3;font-weight:730}
+.home-together{gap:10px}
+.home-together-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.home-together-grid .identity{
+  min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;
+  padding:10px;border:1px solid color-mix(in srgb,var(--line) 65%,transparent);border-radius:15px;
+  background:color-mix(in srgb,var(--surface) 76%,transparent);
+}
+.home-together-grid .identity .avatar{width:38px;height:38px}
+.home-together-grid .identity .name{font-size:12.5px;line-height:1.2}
+.home-together-grid .profile-work-status{margin-top:2px;font-size:9px}
+.home-together-grid .mood-person{grid-column:1/-1;margin-top:3px}
+.home-together-grid .mood-self-buttons{gap:5px}
+.home-together-grid .mood-button{width:30px;height:30px}
+.home-together-grid .mood-emoji{font-size:18px}
+.home-together-grid .partner-mood-value{min-height:30px}
+.home-cycle-summary{
+  padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--love-soft) 54%,transparent);
+  color:var(--text);font-size:10.5px;line-height:1.35;font-weight:690;
+}
+.home-cycle-summary[hidden],.home-message-new[hidden],.home-nearest[hidden],.home-new-tile[hidden]{display:none!important}
+.home-message-new{
+  width:max-content;max-width:100%;padding:7px 10px;border:0;border-radius:999px;
+  background:color-mix(in srgb,var(--love-soft) 72%,var(--surface));color:var(--text);
+  font:inherit;font-size:10px;font-weight:760;cursor:pointer;
+}
+.home-dashboard .mood-prompt{margin-top:0}
+.home-dashboard .mood-message{margin-top:0}
+.home-quick-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.home-quick-actions button{
+  min-width:0;min-height:46px;display:grid;place-items:center;align-content:center;gap:3px;
+  padding:6px 3px;border:1px solid color-mix(in srgb,var(--line) 72%,transparent);border-radius:14px;
+  background:color-mix(in srgb,var(--surface-strong) 82%,transparent);color:var(--text);
+  font:inherit;font-size:9px;line-height:1.05;font-weight:720;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.home-quick-actions button span{font-size:14px;line-height:1}
+.home-quick-actions button:active{transform:scale(.97)}
+.home-nearest-rows{display:grid;gap:7px}
+.home-nearest-row{
+  display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;
+}
+.home-nearest-icon{text-align:center;font-size:14px}
+.home-nearest-row strong{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);
+  font-size:11.5px;line-height:1.3;font-weight:700;
+}
+.home-nearest-row time{color:var(--muted);font-size:10px;font-weight:720}
+.home-new-tile{
+  display:grid;gap:9px;padding:13px 14px;border-radius:18px;
+}
+.home-new-list{display:grid;gap:6px}
+.home-new-item{
+  width:100%;display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:7px;
+  padding:9px 10px;border:0;border-radius:12px;background:color-mix(in srgb,var(--surface-strong) 76%,transparent);
+  color:var(--text);font:inherit;text-align:left;cursor:pointer;
+}
+.home-new-item strong{font-size:11px;line-height:1.3;font-weight:730}
+.home-new-arrow{color:var(--muted);font-size:18px;line-height:1}
+
+/* Cleaner block reordering */
+body.home-layout-editing [data-home-tile]{
+  outline:none!important;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 28%,var(--line)),0 10px 24px rgba(20,24,36,.06)!important;
+}
+body.home-layout-editing [data-home-tile] > .home-order-controls{
+  display:flex!important;
+}
+.home-order-controls{
+  right:8px!important;top:8px!important;
+  grid-template-columns:none!important;
+  display:none;
+  align-items:center;
+  gap:2px!important;
+  padding:3px;
+  border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--surface) 92%,transparent);
+  box-shadow:0 6px 16px rgba(20,24,36,.10),inset 0 1px 0 rgba(255,255,255,.10);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+.home-order-button{
+  width:29px!important;height:29px!important;padding:0!important;border:0!important;border-radius:9px!important;
+  background:transparent!important;box-shadow:none!important;color:var(--text)!important;
+}
+.home-order-button svg{
+  width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:2.25;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.home-order-button:not(:disabled):active{background:color-mix(in srgb,var(--accent-soft) 72%,transparent)!important}
+.home-order-button:disabled{opacity:.18!important}
+body.home-layout-editing [data-home-tile]{padding-top:50px!important}
+body.home-layout-editing .home-dashboard{padding-top:50px!important}
+
+html[data-theme="dark"] .home-dashboard{
+  box-shadow:0 16px 38px rgba(0,0,0,.18);
+}
+@media(max-width:430px){
+  .home-dashboard{padding:14px;border-radius:21px;gap:10px}
+  .home-dashboard-greeting{font-size:20px}
+  .home-dashboard-section{padding:11px 12px}
+  .home-quick-actions{gap:5px}
+  .home-quick-actions button{min-height:44px;font-size:8.7px}
+}
