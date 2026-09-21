@@ -850,15 +850,15 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (body.backupToken) {
         try {
-          const recovery = await restoreStateBackup(body.backupToken, options);
+          const recovery = await restoreStateBackup(body.backupToken, {
+            ...options,
+            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+          });
           if (recovery.restored?.length) console.info('RUDI_STATE_RESTORED', recovery.restored.join(','));
         } catch (error) {
           console.warn('RUDI_STATE_BACKUP_RESTORE_WARN', String(error?.message || error));
         }
       }
-
-      try { await saveRecipient(actor, user?.id, options); }
-      catch (error) { console.warn('RUDI_RECIPIENT_SELF_REGISTER_WARN', String(error?.message || error)); }
 
       const date = moscowDateKey(options.now || Date.now());
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
