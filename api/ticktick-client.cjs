@@ -310,8 +310,16 @@ function tickTickTaskDateKeys(task, timeZone = CALENDAR_TIMEZONE) {
   for (const raw of rawValues) {
     let key = '';
     if (task?.isAllDay) {
-      const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-      if (match) key = match[1];
+      const taskTimeZone = String(task?.timeZone || '').trim();
+      if (taskTimeZone) {
+        try {
+          key = calendarDateKey(raw, taskTimeZone);
+        } catch {}
+      }
+      if (!key) {
+        const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (match) key = match[1];
+      }
     }
     if (!key) key = calendarDateKey(raw, timeZone);
     if (key && !keys.includes(key)) keys.push(key);
