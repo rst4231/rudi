@@ -336,6 +336,13 @@ body[data-app-tab="schedule"] .work-page{
 .work-page .calendar-selected-tasks .calendar-task-row{
   width:100%!important;
   display:grid!important;
+  grid-template-columns:24px minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:7px!important;
+}
+.work-page .calendar-task-copy{
+  min-width:0!important;
+  display:grid!important;
   grid-template-columns:auto minmax(0,1fr)!important;
   align-items:start!important;
   gap:7px!important;
@@ -485,8 +492,7 @@ body[data-app-tab="schedule"] .footer{margin-top:22px!important}
   .work-page .calendar-selected-group{gap:6px!important;margin:6px 0 0!important;padding-top:6px!important}
   .work-page .calendar-selected-group > b{font-size:8.5px!important}
   .work-page .calendar-selected-row{font-size:9.5px!important;line-height:1.28!important}
-  .work-page .calendar-selected-tasks .calendar-task-row{gap:6px!important}
-  .work-page .calendar-task-complete{width:22px!important;height:22px!important;border-radius:7px!important}
+  .work-page .calendar-selected-tasks .calendar-task-row{grid-template-columns:22px minmax(0,1fr)!important;gap:6px!important}\n  .work-page .calendar-task-copy{gap:6px!important}\n  .work-page .calendar-task-complete{width:22px!important;height:22px!important;border-radius:7px!important}
   .work-page .calendar-task-complete svg{width:13px!important;height:13px!important}
   .work-page .calendar-selected-holidays .calendar-selected-row{grid-template-columns:15px minmax(0,1fr)!important;gap:5px!important}
   .calendar-holiday-emoji{width:15px!important;font-size:11px!important}

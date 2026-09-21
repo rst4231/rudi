@@ -678,6 +678,7 @@ async function handleTickTick(req, res, action, options = {}) {
         ok: true,
         connected: true,
         enabled: true,
+        writable: tokenHasWriteScope(token) !== false,
         project: data?.project?.name || 'Общий',
         ...calendar,
       });

@@ -22,7 +22,7 @@ test('Calendar tab always refreshes the combined calendar',()=>{
 
 test('TickTick deals render as separate structured rows',()=>{
   assert.match(app,/row\.className='calendar-selected-row calendar-task-row'/);
-  assert.match(app,/time\.className='calendar-task-time'/);
+  assert.match(app,/complete\.className='calendar-task-complete'/);\n  assert.match(app,/time\.className='calendar-task-time'/);
   assert.match(app,/text\.className='calendar-task-title'/);
   assert.match(css,/\.calendar-selected-tasks \.calendar-task-row\{[\s\S]*?display:grid!important/);
 });
@@ -47,4 +47,21 @@ test('schedule sections have visible spacing instead of touching each other',()=
   assert.match(css,/body\[data-app-tab="schedule"\] \.work-page\{[\s\S]*?gap:26px!important/);
   assert.match(css,/\.schedule-year-progress\{[\s\S]*?margin:2px 8px 10px!important/);
   assert.match(css,/body\[data-app-tab="schedule"\] \.footer\{[\s\S]*?margin-top:22px!important/);
+});
+
+
+test('managed request layer deduplicates hot calendar and TickTick reads',()=>{
+  assert.match(app,/const managedRequestState = new Map\(\)/);
+  assert.match(app,/managedJsonRequest\('ticktick-today'/);
+  assert.match(app,/fetchCalendarJson\('work-calendar:'\+requested/);
+  assert.match(app,/fetchCalendarJson\('ticktick-calendar:'\+requested/);
+  assert.match(app,/fetchCalendarJson\('holiday-calendar:'\+requested/);
+  assert.match(app,/if\(previous\?\.fingerprint===fingerprint&&previous\?\.promise\) return previous\.promise/);
+});
+
+test('calendar tasks complete through TickTick and refresh both surfaces',()=>{
+  assert.match(app,/completeCalendarTickTickTask\(event,row,complete,payload\?\.ticktickWritable!==false\)/);
+  assert.match(app,/requestTickTickTaskCompletion\(task\.id\)/);
+  assert.match(app,/refreshAfterTickTickTaskChange/);
+  assert.match(app,/currentWorkCalendarRenderSignature/);
 });

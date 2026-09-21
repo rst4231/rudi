@@ -14,6 +14,7 @@
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
       let currentSelectedWorkDate = '';
+      let currentWorkCalendarRenderSignature = '';
       let currentSharedCalendarView = 'month';
       const calendarViewCache = {month:null,'next-month':null};
       let calendarConfettiTimer = 0;
@@ -60,6 +61,66 @@
         const timer=setTimeout(()=>controller.abort(),Math.max(1000,Number(timeoutMs)||8000));
         try{return await fetch(input,{...init,signal:controller.signal})}
         finally{clearTimeout(timer)}
+      }
+
+      const managedRequestState = new Map();
+
+      function invalidateManagedRequests(...resources){
+        const prefixes=resources.flat().map(value=>String(value||'').trim()).filter(Boolean);
+        for(const [key,state] of managedRequestState.entries()){
+          if(!prefixes.some(prefix=>key===prefix||key.startsWith(prefix+':'))) continue;
+          try{state?.controller?.abort?.()}catch(_){}
+          managedRequestState.delete(key);
+        }
+      }
+
+      async function managedJsonRequest(resource,url,{method='POST',body=null,ttlMs=0,timeoutMs=10000,headers=null}={}){
+        const key=String(resource||url);
+        const fingerprint=method+'|'+url+'|'+JSON.stringify(body??null);
+        const now=Date.now();
+        const previous=managedRequestState.get(key);
+
+        if(previous?.fingerprint===fingerprint&&previous?.hasData&&previous.expiresAt>now) return previous.data;
+        if(previous?.fingerprint===fingerprint&&previous?.promise) return previous.promise;
+        try{previous?.controller?.abort?.()}catch(_){}
+
+        const controller=new AbortController();
+        const state={fingerprint,controller,promise:null,hasData:false,data:null,expiresAt:0};
+        const promise=(async()=>{
+          const timer=setTimeout(()=>controller.abort(),Math.max(1000,Number(timeoutMs)||10000));
+          try{
+            const response=await fetch(url,{
+              method,
+              headers:headers||{'Content-Type':'application/json'},
+              body:body==null?undefined:JSON.stringify(body),
+              cache:'no-store',
+              signal:controller.signal
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(!response.ok){
+              const error=new Error(payload?.error||('request-'+response.status));
+              error.status=response.status;
+              error.payload=payload;
+              throw error;
+            }
+            if(managedRequestState.get(key)===state){
+              state.hasData=true;
+              state.data=payload;
+              state.expiresAt=ttlMs>0?Date.now()+ttlMs:0;
+            }
+            return payload;
+          }finally{clearTimeout(timer)}
+        })();
+        state.promise=promise;
+        managedRequestState.set(key,state);
+        try{return await promise}
+        finally{
+          if(managedRequestState.get(key)===state){
+            state.promise=null;
+            state.controller=null;
+            if(!state.hasData) managedRequestState.delete(key);
+          }
+        }
       }
 
       function readLocalStateBackupToken(){
@@ -1687,6 +1748,64 @@
         return [time,assignee].filter(Boolean).join(' · ');
       }
 
+      async function requestTickTickTaskCompletion(taskId){
+        const id=String(taskId||'').trim();
+        if(!id) throw new Error('ticktick-task-complete-invalid');
+        return managedJsonRequest('ticktick-task-complete:'+id,'/api/ticktick/task-complete',{
+          body:{initData:tg?.initData||'',backupToken:currentStateBackupToken,taskId:id},
+          ttlMs:0,
+          timeoutMs:10000
+        });
+      }
+
+      function invalidateTickTickTaskViews(){
+        invalidateManagedRequests('ticktick-today','ticktick-calendar');
+        calendarViewCache.month=null;
+        calendarViewCache['next-month']=null;
+        currentWorkCalendarRenderSignature='';
+      }
+
+      async function refreshAfterTickTickTaskChange({preserveExpanded=false}={}){
+        invalidateTickTickTaskViews();
+        await Promise.allSettled([
+          loadTickTickNext({preserveExpanded,force:true}),
+          loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true})
+        ]);
+      }
+
+      async function completeCalendarTickTickTask(task,row,button,writable){
+        if(!task?.id||row?.dataset?.busy==='1') return;
+        if(writable===false){
+          const status=document.getElementById('workCalendarStatus');
+          status.hidden=false;
+          status.textContent='Нужно разрешение TickTick';
+          try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+          return;
+        }
+        row.dataset.busy='1';
+        row.classList.add('is-completing');
+        button.disabled=true;
+        try{
+          const payload=await requestTickTickTaskCompletion(task.id);
+          if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
+          button.setAttribute('aria-checked','true');
+          button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
+          playCalendarConfetti();
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          await new Promise(resolve=>setTimeout(resolve,300));
+          await refreshAfterTickTickTaskChange({preserveExpanded:false});
+        }catch(error){
+          const status=document.getElementById('workCalendarStatus');
+          status.hidden=false;
+          status.textContent=(Number(error?.status)===401||Number(error?.status)===403)?'Нужно разрешение TickTick':'Ошибка TickTick';
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }finally{
+          row.dataset.busy='0';
+          row.classList.remove('is-completing');
+          if(row.isConnected) button.disabled=false;
+        }
+      }
+
       async function completeTickTickTodayTask(task,row,button,writable){
         if(!task?.id||row?.dataset?.busy==='1') return;
         if(writable===false){
@@ -1698,18 +1817,8 @@
         row.classList.add('syncing');
         button.disabled=true;
         try{
-          const response=await fetch('/api/ticktick/task-complete',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,taskId:task.id}),
-            cache:'no-store'
-          });
-          const payload=await response.json().catch(()=>({}));
-          if((response.status===401||response.status===403)&&payload.reconnectRequired){
-            showTickTickWritePermission();
-            throw new Error(payload.error||'ticktick-write-permission-required');
-          }
-          if(!response.ok||!payload.ok) throw new Error(payload.error||'ticktick-task-complete');
+          const payload=await requestTickTickTaskCompletion(task.id);
+          if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
 
           row.classList.add('done');
           button.setAttribute('aria-checked','true');
@@ -1717,8 +1826,7 @@
           playTaskCompletionConfetti();
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           await new Promise(resolve=>setTimeout(resolve,420));
-          calendarViewCache.month=null;
-          await Promise.allSettled([loadTickTickNext(),loadWorkCalendar(currentWorkCalendarView,{silent:true})]);
+          await refreshAfterTickTickTaskChange({preserveExpanded:false});
         }catch(_){
           row.classList.remove('done');
           const badge=document.getElementById('ticktickBadge');
@@ -1884,20 +1992,22 @@
         });
       }
 
-      async function loadTickTickNext({preserveExpanded=false}={}){
+      async function loadTickTickNext({preserveExpanded=false,force=false}={}){
         if(!tg?.initData) return;
+        if(force) invalidateManagedRequests('ticktick-today');
         try{
-          const response=await fetch('/api/ticktick/today',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken}),
-            cache:'no-store'
+          const payload=await managedJsonRequest('ticktick-today','/api/ticktick/today',{
+            body:{initData:tg.initData,backupToken:currentStateBackupToken},
+            ttlMs:3000,
+            timeoutMs:10000
           });
-          const payload=await response.json().catch(()=>({}));
-          if(response.status===401){renderTickTickTodayState({...payload,connected:false},{preserveExpanded});return}
-          if(!response.ok) throw new Error(payload.error||'ticktick');
           renderTickTickTodayState(payload,{preserveExpanded});
-        }catch(_){
+        }catch(error){
+          if(error?.name==='AbortError') return;
+          if(Number(error?.status)===401){
+            renderTickTickTodayState({...error?.payload,connected:false},{preserveExpanded});
+            return;
+          }
           const title=document.getElementById('ticktickTitle');
           const list=document.getElementById('ticktickTodayList');
           title.hidden=false;title.textContent='Не удалось обновить TickTick.';
@@ -2145,7 +2255,27 @@
         status.title=working&&ranges.length?ranges.join(' / '):'';
       }
 
-      function renderWorkCalendar(payload){
+      function workCalendarRenderSignature(payload){
+        try{
+          return JSON.stringify({
+            view:String(payload?.view||'month'),
+            stale:Boolean(payload?.stale),
+            days:Array.isArray(payload?.days)?payload.days:[],
+            ticktickDays:Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[],
+            holidayDays:Array.isArray(payload?.holidayDays)?payload.holidayDays:[]
+          });
+        }catch(_){return String(Date.now())}
+      }
+
+      function renderWorkCalendar(payload,{force=false}={}){
+        const signature=workCalendarRenderSignature(payload);
+        if(!force&&signature===currentWorkCalendarRenderSignature){
+          const currentStatus=document.getElementById('workCalendarStatus');
+          if(payload?.stale){currentStatus.hidden=false;currentStatus.textContent='Кэш'}
+          else{currentStatus.hidden=true;currentStatus.textContent=''}
+          return false;
+        }
+        currentWorkCalendarRenderSignature=signature;
         const container=document.getElementById('workCalendarDays');
         const selected=document.getElementById('workCalendarSelected');
         const status=document.getElementById('workCalendarStatus');
@@ -2326,8 +2456,18 @@
               groupTitle.textContent='Дела';
               group.appendChild(groupTitle);
               for(const event of tasks){
-                const row=document.createElement('span');
+                const row=document.createElement('div');
                 row.className='calendar-selected-row calendar-task-row';
+                const complete=document.createElement('button');
+                complete.type='button';
+                complete.className='calendar-task-complete';
+                complete.setAttribute('role','checkbox');
+                complete.setAttribute('aria-checked','false');
+                complete.setAttribute('aria-label','Отметить выполненным: '+String(event.title||'Дело'));
+                complete.disabled=!event?.id||payload?.ticktickWritable===false;
+
+                const taskCopy=document.createElement('span');
+                taskCopy.className='calendar-task-copy';
                 const start=String(event.startTime||'').trim();
                 const end=String(event.endTime||'').trim();
                 const range=event.allDay?'Весь день':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
@@ -2337,12 +2477,17 @@
                   const time=document.createElement('span');
                   time.className='calendar-task-time';
                   time.textContent=range;
-                  row.appendChild(time);
+                  taskCopy.appendChild(time);
                 }
                 const text=document.createElement('span');
                 text.className='calendar-task-title';
                 text.textContent=String(event.title||'Дело')+assignee;
-                row.appendChild(text);
+                taskCopy.appendChild(text);
+                row.append(complete,taskCopy);
+                complete.addEventListener('click',clickEvent=>{
+                  clickEvent.stopPropagation();
+                  completeCalendarTickTickTask(event,row,complete,payload?.ticktickWritable!==false);
+                });
                 group.appendChild(row);
               }
               details.appendChild(group);
@@ -2387,44 +2532,36 @@
         if(currentSelectedWorkDate&&!days.some(day=>String(day?.date||'')===currentSelectedWorkDate)){
           currentSelectedWorkDate='';
         }
+        return true;
       }
 
       async function refreshPartnerWorkStatus(){
         if(!tg?.initData) return;
         try{
-          const response=await fetch('/api/work-calendar',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken,view:'month'}),
-            cache:'no-store'
-          });
-          const payload=await response.json().catch(()=>({}));
-          if(response.ok&&Array.isArray(payload?.days)) renderPartnerWorkStatus(payload.days);
+          const payload=await fetchCalendarJson(
+            'work-calendar:month',
+            '/api/work-calendar',
+            {initData:tg.initData,backupToken:currentStateBackupToken,view:'month'},
+            5000
+          );
+          if(Array.isArray(payload?.days)) renderPartnerWorkStatus(payload.days);
         }catch(_){}
       }
 
-      async function fetchCalendarJson(url,body){
-        const response=await fetch(url,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(body),
-          cache:'no-store'
-        });
-        const payload=await response.json().catch(()=>({}));
-        if(!response.ok) throw new Error(payload.error||'calendar-request');
-        return payload;
+      async function fetchCalendarJson(resource,url,body,ttlMs=5000){
+        return managedJsonRequest(resource,url,{body,ttlMs,timeoutMs:12000});
       }
 
       async function fetchCombinedCalendar(view){
         const requested=['month','next-month'].includes(view)?view:'month';
         const base={initData:tg.initData,backupToken:currentStateBackupToken,view:requested};
         const [workResult,tickResult,holidayResult]=await Promise.allSettled([
-          fetchCalendarJson('/api/work-calendar',base),
-          fetchCalendarJson('/api/ticktick/calendar',base),
-          fetchCalendarJson('/api/partner-message?rudiAction=holiday-calendar',{
+          fetchCalendarJson('work-calendar:'+requested,'/api/work-calendar',base,5000),
+          fetchCalendarJson('ticktick-calendar:'+requested,'/api/ticktick/calendar',base,3000),
+          fetchCalendarJson('holiday-calendar:'+requested,'/api/partner-message?rudiAction=holiday-calendar',{
             initData:tg.initData,
             view:requested
-          })
+          },60000)
         ]);
         if(workResult.status!=='fulfilled') throw workResult.reason;
         const work=workResult.value;
@@ -2436,6 +2573,7 @@
           ticktickDays:Array.isArray(tick?.days)?tick.days:[],
           holidayDays:Array.isArray(holidays?.days)?holidays.days:[],
           ticktickConnected:tick?.connected!==false,
+          ticktickWritable:tick?.writable!==false,
           holidaysReady:holidayResult.status==='fulfilled'
         };
       }
@@ -2452,9 +2590,10 @@
         }
       }
 
-      async function loadWorkCalendar(view=currentWorkCalendarView,{silent=false}={}){
+      async function loadWorkCalendar(view=currentWorkCalendarView,{silent=false,force=false}={}){
         if(!tg?.initData) return;
         const requested=['month','next-month'].includes(view)?view:'month';
+        if(force) invalidateManagedRequests('ticktick-calendar:'+requested);
         currentWorkCalendarView=requested;
         setWorkCalendarRangeActive(requested);
         const status=document.getElementById('workCalendarStatus');
@@ -2471,7 +2610,8 @@
           if(requested==='month'&&!calendarViewCache['next-month']){
             setTimeout(()=>prefetchCalendarView('next-month'),80);
           }
-        }catch(_){
+        }catch(error){
+          if(error?.name==='AbortError') return calendarViewCache[requested]||null;
           if(calendarViewCache[requested]){
             renderWorkCalendar(calendarViewCache[requested]);
             status.hidden=false;
