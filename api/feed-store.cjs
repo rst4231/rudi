@@ -1,0 +1,173 @@
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+
+const NAMESPACE = 'rudi-feed-v1';
+const STATE_KEY = 'current';
+const TTL_SECONDS = 60 * 60 * 24 * 8;
+const NOTICE_TTL_SECONDS = 60 * 60 * 24 * 14;
+const SECTION_TTL_MS = {
+  facts: 36 * 60 * 60 * 1000,
+  events: 36 * 60 * 60 * 1000,
+  cinema: 8 * 24 * 60 * 60 * 1000,
+};
+
+function cacheOf(options = {}) {
+  return options.feedCache || options.cache || createStrictRuntimeCache({
+    namespace: NAMESPACE,
+    confirmWrites: false,
+    ...(options.cacheOptions || {}),
+  });
+}
+
+function moscowDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function cleanParts(parts) {
+  return (Array.isArray(parts) ? parts : [parts])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .map((value) => value.slice(0, 20000))
+    .slice(0, 12);
+}
+
+function normalizeSection(name, input, now = new Date()) {
+  if (!input) return null;
+  const parts = cleanParts(input.parts);
+  if (!parts.length) return null;
+  const updatedAt = String(input.updatedAt || now.toISOString());
+  const updatedMs = new Date(updatedAt).getTime();
+  const ttlMs = Number(input.ttlMs || SECTION_TTL_MS[name] || SECTION_TTL_MS.facts);
+  const expiresAt = String(input.expiresAt || new Date((Number.isFinite(updatedMs) ? updatedMs : now.getTime()) + ttlMs).toISOString());
+  return {
+    name,
+    parts,
+    updatedAt,
+    expiresAt,
+    source: String(input.source || 'daily').slice(0, 80),
+  };
+}
+
+function sectionSignature(section) {
+  return JSON.stringify(section?.parts || []);
+}
+
+function normalizeSnapshot(value, now = new Date()) {
+  const source = value && typeof value === 'object' ? value : {};
+  const sections = {};
+  for (const name of ['facts', 'events', 'cinema']) {
+    const section = normalizeSection(name, source.sections?.[name], now);
+    if (!section) continue;
+    const expires = new Date(section.expiresAt).getTime();
+    if (Number.isFinite(expires) && expires <= now.getTime()) continue;
+    sections[name] = section;
+  }
+  return {
+    version: String(source.version || ''),
+    updatedAt: String(source.updatedAt || ''),
+    date: String(source.date || ''),
+    changedSections: Array.isArray(source.changedSections)
+      ? source.changedSections.filter((name) => ['facts', 'events', 'cinema'].includes(name))
+      : [],
+    sections,
+  };
+}
+
+async function readFeedSnapshot(options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const cache = cacheOf(options);
+  const raw = await cache.get(STATE_KEY);
+  const normalized = normalizeSnapshot(raw, now);
+  if (!Object.keys(normalized.sections).length) {
+    if (raw) await cache.delete(STATE_KEY).catch(() => false);
+    return normalized;
+  }
+  const before = Object.keys(raw?.sections || {}).length;
+  if (before !== Object.keys(normalized.sections).length) {
+    await cache.set(STATE_KEY, normalized, {
+      ttl: TTL_SECONDS,
+      tags: ['rudi-feed'],
+      name: 'rudi-feed-current',
+    });
+  }
+  return normalized;
+}
+
+async function updateFeedSections(input = {}, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const cache = cacheOf(options);
+  const current = await readFeedSnapshot({ ...options, now });
+  const sections = { ...current.sections };
+  const changedSections = [];
+
+  for (const name of ['facts', 'events', 'cinema']) {
+    if (!(name in input)) continue;
+    const next = normalizeSection(name, input[name], now);
+    if (!next) {
+      if (sections[name]) {
+        delete sections[name];
+        changedSections.push(name);
+      }
+      continue;
+    }
+    if (sectionSignature(sections[name]) !== sectionSignature(next)) changedSections.push(name);
+    sections[name] = next;
+  }
+
+  const snapshot = {
+    version: changedSections.length ? `${now.getTime()}-${changedSections.join('-')}` : (current.version || String(now.getTime())),
+    updatedAt: now.toISOString(),
+    date: String(options.date || moscowDateKey(now)),
+    changedSections,
+    sections,
+  };
+
+  if (!Object.keys(sections).length) {
+    await cache.delete(STATE_KEY).catch(() => false);
+    return snapshot;
+  }
+  await cache.set(STATE_KEY, snapshot, {
+    ttl: TTL_SECONDS,
+    tags: ['rudi-feed'],
+    name: 'rudi-feed-current',
+  });
+  return snapshot;
+}
+
+function noticeKey(date, version) {
+  return `notice:${String(date || '')}:${String(version || '')}`;
+}
+
+async function wasFeedNoticeSent(date, version, options = {}) {
+  if (!date || !version) return false;
+  return Boolean(await cacheOf(options).get(noticeKey(date, version)));
+}
+
+async function markFeedNoticeSent(date, version, options = {}) {
+  if (!date || !version) return false;
+  await cacheOf(options).set(noticeKey(date, version), true, {
+    ttl: NOTICE_TTL_SECONDS,
+    tags: ['rudi-feed-notices'],
+    name: `rudi-feed-notice-${date}`,
+  });
+  return true;
+}
+
+module.exports = {
+  NAMESPACE,
+  TTL_SECONDS,
+  SECTION_TTL_MS,
+  moscowDateKey,
+  normalizeSnapshot,
+  readFeedSnapshot,
+  updateFeedSections,
+  wasFeedNoticeSent,
+  markFeedNoticeSent,
+};
