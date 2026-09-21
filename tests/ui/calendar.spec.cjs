@@ -165,7 +165,14 @@ async function mockRudi(page,options={}){
       return ok({ok:true,configured:true,totalCount:0,photos:[],albumUrl:''});
     }
     if(path==='/api/wishlist') return ok({ok:true,items:[]});
-    if(path==='/api/mood') return ok({ok:true,items:[]});
+    if(path==='/api/mood') return ok({
+      ok:true,
+      date:'2026-09-21',
+      actor:'Рустам',
+      partner:'Диана',
+      mine:{mood:'ok'},
+      partnerMood:{mood:options.partnerMood||'ok'}
+    });
     if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='products'){
       const operation=String(body.operation||'list');
       if(operation==='toggle'){
@@ -223,7 +230,7 @@ test('access gate disappears before slow background bootstrap finishes',async({p
 });
 
 test('home dashboard is compact and reorder controls use aligned icons',async({page})=>{
-  await mockRudi(page);
+  await mockRudi(page,{partnerMood:'ok'});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#homeDashboard')).toBeVisible();
@@ -238,6 +245,14 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(dianaStatus).toHaveText('Работаю с 09:00 до 21:00');
   await expect(page.locator('#selfWorkStatus')).toHaveText(/^(Работаю|Отдыхаю)$/);
   await expect(page.locator('#selfWorkStatus')).not.toContainText(/10:00|18:00|Пн|Пт/);
+
+  const partnerMoodIcons=page.locator('#partnerMoodValue [data-partner-mood]');
+  await expect(partnerMoodIcons).toHaveCount(3);
+  await expect(page.locator('#partnerMoodValue [data-partner-mood="ok"]')).toBeVisible();
+  await expect(page.locator('#partnerMoodValue [data-partner-mood="low"]')).toBeHidden();
+  await expect(page.locator('#partnerMoodValue [data-partner-mood="great"]')).toBeHidden();
+  const partnerMoodBox=await page.locator('#partnerMoodValue').boundingBox();
+  expect(partnerMoodBox.height).toBeLessThanOrEqual(32);
 
   await page.locator('#homeLayoutEditButton').click();
   const controls=page.locator('.home-order-controls');
