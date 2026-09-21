@@ -62,3 +62,30 @@ test('same-day retry does not clear pending changed sections before notification
   assert.deepEqual(retry.changedSections, ['facts']);
   assert.equal(retry.version, first.version);
 });
+
+
+test('cinema content stays until a newer cinema post replaces it', async () => {
+  const cache = memoryCache();
+  await updateFeedSections({
+    cinema: { parts: ['old cinema post'] },
+    facts: { parts: ['daily fact'] },
+  }, { feedCache: cache, now: new Date('2026-09-01T00:00:00Z'), date: '2026-09-01' });
+
+  const later = await readFeedSnapshot({
+    feedCache: cache,
+    now: new Date('2026-10-15T00:00:00Z'),
+  });
+  assert.deepEqual(later.sections.cinema.parts, ['old cinema post']);
+  assert.equal(later.sections.facts, undefined);
+
+  await updateFeedSections({
+    cinema: { parts: ['new cinema post'] },
+  }, { feedCache: cache, now: new Date('2026-10-15T01:00:00Z'), date: '2026-10-15' });
+
+  const replaced = await readFeedSnapshot({
+    feedCache: cache,
+    now: new Date('2026-10-15T01:01:00Z'),
+  });
+  assert.deepEqual(replaced.sections.cinema.parts, ['new cinema post']);
+  assert.equal(JSON.stringify(replaced).includes('old cinema post'), false);
+});
