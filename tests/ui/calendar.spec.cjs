@@ -230,6 +230,9 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeDashboard')).toContainText('Сегодня');
   await expect(page.locator('#homeDashboard')).toContainText('Мы сегодня');
   await expect(page.locator('#dianaCycleCard')).toBeVisible();
+  await expect(page.locator('#appVersion')).toHaveText('v1.0');
+  const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
+  expect(homeOrder.slice(0,2)).toEqual(['dashboard','cycle']);
 
   const dianaStatus=page.locator('#partnerWorkStatus');
   await expect(dianaStatus).toHaveText('Работаю с 09:00 до 21:00');
