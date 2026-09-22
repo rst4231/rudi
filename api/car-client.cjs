@@ -346,4 +346,5 @@ module.exports = {
   carColumnIds,
   isCarTask,
   selectCurrentCarTasks,
+  loadCarTasks,
 };
