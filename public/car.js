@@ -172,11 +172,99 @@
     if(advice) advice.textContent=tyreAdvice(weather);
   }
 
+  function taskDateLabel(task){
+    const timing=String(task?.timing||'');
+    if(timing==='today') return 'Сегодня';
+    if(timing==='overdue') return task?.date ? 'Просрочено · '+new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(new Date(task.date+'T12:00:00')) : 'Просрочено';
+    if(timing==='upcoming' && task?.date){
+      const target=new Date(task.date+'T12:00:00');
+      const now=new Date();
+      const tomorrow=new Date(now);
+      tomorrow.setDate(now.getDate()+1);
+      const key=d=>d.toISOString().slice(0,10);
+      if(key(target)===key(tomorrow)) return 'Завтра';
+      return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(target);
+    }
+    return 'Без даты';
+  }
+
+  async function completeCarTask(task,button){
+    if(!task?.id || button?.disabled) return;
+    if(button){
+      button.disabled=true;
+      button.textContent='…';
+    }
+    try{
+      const data=await api('complete-task',{taskId:task.id});
+      state.car={...state.car,ticktick:data.ticktick};
+      renderTasks(state.car.ticktick);
+      setStatus('Задача отмечена выполненной','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      if(button){
+        button.disabled=false;
+        button.textContent='Выполнено';
+      }
+      setStatus('Не удалось отметить задачу в TickTick','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }
+  }
+
+  function renderTasks(ticktick){
+    const root=document.getElementById('carTasksList');
+    const meta=document.getElementById('carTasksMeta');
+    if(!root) return;
+    root.replaceChildren();
+
+    if(!ticktick?.available){
+      if(meta) meta.textContent='';
+      const empty=document.createElement('div');
+      empty.className='car-tasks-empty';
+      empty.textContent='TickTick временно недоступен';
+      root.appendChild(empty);
+      return;
+    }
+
+    const tasks=Array.isArray(ticktick?.tasks)?ticktick.tasks:[];
+    if(meta) meta.textContent=tasks.length ? String(tasks.length) : '';
+    if(!tasks.length){
+      const empty=document.createElement('div');
+      empty.className='car-tasks-empty';
+      empty.textContent='Актуальных задач по машине нет';
+      root.appendChild(empty);
+      return;
+    }
+
+    for(const task of tasks){
+      const row=document.createElement('article');
+      row.className='car-task-row';
+
+      const copy=document.createElement('div');
+      copy.className='car-task-copy';
+      const title=document.createElement('strong');
+      title.textContent=task.title||'Задача по машине';
+      const date=document.createElement('span');
+      date.className='car-task-date'+(task.timing==='overdue'?' is-overdue':'');
+      date.textContent=taskDateLabel(task)+(task.repeat?' · повтор':'');
+      copy.append(title,date);
+
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='car-task-done';
+      button.textContent='Выполнено';
+      button.addEventListener('click',()=>completeCarTask(task,button));
+
+      row.append(copy,button);
+      root.appendChild(row);
+    }
+  }
+
   function render() {
     if(!state.car) return;
     renderService(state.car);
     renderWeather(state.weather);
     renderRecommendations(state.car,state.weather);
+    renderTasks(state.car.ticktick);
   }
 
   function cachedWeather() {
