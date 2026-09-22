@@ -94,10 +94,11 @@ test('PIN enrollment gate stays locked while Telegram keyboard and focus events 
   assert.match(app, /window\.addEventListener\('focus',[\s\S]*?ensureAppSurface/);
 });
 
-test('Telegram PIN enrollment restores and stores the shared encrypted backup token', () => {
+test('Telegram PIN enrollment migrates backup auth into the shared durable server record', () => {
   assert.match(app,/async function browserAuthRequest[\s\S]*?backupToken:currentStateBackupToken/);
   assert.match(app,/async function browserAuthRequest[\s\S]*?if\(data\.backupToken\) await storeStateBackupToken\(data\.backupToken\)/);
   assert.match(app,/async function ensureTelegramPin[\s\S]*?readStateBackupToken\(\)[\s\S]*?browserAuthRequest\('status'\)/);
-  assert.match(partner,/operation === 'create-pin'[\s\S]*?backupSnapshotWithPin[\s\S]*?backupToken/);
-  assert.match(partner,/operation === 'status'[\s\S]*?backupPin\?\.salt && backupPin\?\.hash/);
+  assert.match(partner,/async function hydrateActorAuth[\s\S]*?saveDurablePinRecord\(actor, backupPin, dbOptions\)/);
+  assert.match(partner,/operation === 'create-pin'[\s\S]*?saveDurablePinRecord\(telegram\.actor, result\.record, durableAuthOptions\(options\)\)/);
+  assert.match(partner,/operation === 'status'[\s\S]*?hydrateActorAuth\(session\.actor, body\.backupToken, options\)[\s\S]*?Boolean\(hydrated\.durable\?\.pinRecord\)/);
 });
