@@ -26,6 +26,8 @@
       let requestedAppTab = '';
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
+      let productsRecoveryCandidate = '';
+      let productsRecoveryChecked = false;
       let currentMoodDateKey = '';
       let currentConfig = null;
       let currentComplimentDateKey = '';
@@ -256,6 +258,79 @@
         }
         const token=keys.map(key=>String(values?.[key]||'')).join('');
         return token.length===expectedLength?token:'';
+      }
+
+      function completeEncryptedBackupToken(value){
+        const raw=String(value||'');
+        if(!raw.startsWith('rudi-state-v2.')) return '';
+        let dots=0;
+        let thirdDot=-1;
+        for(let index=0;index<raw.length;index++){
+          if(raw[index]!=='.') continue;
+          dots+=1;
+          if(dots===3){thirdDot=index;break}
+        }
+        if(thirdDot<0) return '';
+        const end=thirdDot+1+22;
+        if(raw.length<end) return '';
+        const token=raw.slice(0,end);
+        return token.split('.').length===4?token:'';
+      }
+
+      async function readPreviousCloudStateBackupToken(){
+        if(!tg?.CloudStorage?.getItem) return '';
+        const rawMeta=await cloudStorageGetItem(STATE_BACKUP_CLOUD_META_KEY);
+        let meta;
+        try{meta=JSON.parse(rawMeta||'{}')}catch(_){return ''}
+        if(Number(meta?.version||0)<3) return '';
+        const activeSlot=String(meta?.slot||'');
+        if(!['a','b'].includes(activeSlot)) return '';
+        const previousSlot=activeSlot==='a'?'b':'a';
+        let raw='';
+        for(let index=0;index<128;index++){
+          const chunk=await cloudStorageGetItem(STATE_BACKUP_CLOUD_SLOT_PREFIX+previousSlot+'_'+index);
+          if(!chunk) break;
+          raw+=chunk;
+          const complete=completeEncryptedBackupToken(raw);
+          if(complete) return complete;
+        }
+        return '';
+      }
+
+      async function productsRecoveryRequest(operation,backupToken){
+        const response=await fetch('/api/partner-message?rudiAction=state-backup-recovery',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,backupToken}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok) throw new Error(data.error||'backup-recovery-failed');
+        return data;
+      }
+
+      function hideProductsRecovery(){
+        const panel=document.getElementById('productsRecovery');
+        if(panel) panel.hidden=true;
+      }
+
+      async function checkProductsRecovery(){
+        if(productsRecoveryChecked||homeDashboardState.productCount>0||!currentActor||!tg?.initData) return;
+        productsRecoveryChecked=true;
+        try{
+          const candidate=await readPreviousCloudStateBackupToken();
+          if(!candidate||candidate===currentStateBackupToken) return;
+          const preview=await productsRecoveryRequest('preview',candidate);
+          if(!preview.available||Number(preview.itemCount||0)<=0) return;
+          productsRecoveryCandidate=candidate;
+          const panel=document.getElementById('productsRecovery');
+          const text=document.getElementById('productsRecoveryText');
+          if(text){
+            const count=Number(preview.itemCount||0);
+            text.textContent='Найдена предыдущая резервная копия: '+count+' '+(count===1?'позиция':count<5?'позиции':'позиций')+'.';
+          }
+          if(panel) panel.hidden=false;
+        }catch(_){}
       }
 
       async function writeCloudStateBackupToken(value){
@@ -878,7 +953,7 @@
         if(homeCountIsNew('photos',homeDashboardState.photoCount)) entries.push({icon:'📷',text:'Новые фото',tab:'photos'});
         if(homeCountIsNew('wishlist',homeDashboardState.wishlistCount)) entries.push({icon:'🎁',text:'Новое желание',tab:'wishlist'});
         tile.dataset.homeEmpty=entries.length?'0':'1';
-        tile.hidden=!entries.length;
+        tile.hidden=currentAppTab!=='home'||!entries.length;
         for(const entry of entries){
           const button=document.createElement('button');
           button.type='button';
@@ -1332,7 +1407,7 @@
           currentActor=String(payload.actor||'');
           document.body.classList.remove('auth-pending','auth-denied');
           document.body.classList.add('auth-ok');
-          setTimeout(()=>loadAppBootstrap(),0);
+          await loadAppBootstrap();
           return true;
         }catch(error){
           const code=String(error?.message||'');
@@ -5056,12 +5131,20 @@
 
         productsLoadPromise=(async()=>{
           try{
-            renderProducts(await productsRequest('list'));
+            const data=await productsRequest('list');
+            renderProducts(data);
+            if(Array.isArray(data?.items)&&data.items.length){
+              hideProductsRecovery();
+            }else{
+              checkProductsRecovery();
+            }
+            return data;
           }catch(_){
             if(status&&!silent){
               status.hidden=false;
               status.textContent='Не удалось обновить список';
             }
+            return null;
           }
         })();
 
@@ -5090,10 +5173,33 @@
         const add=document.getElementById('productsAdd');
         const clear=document.getElementById('productsClear');
         const boughtAll=document.getElementById('productsBought');
+        const recoveryPanel=document.getElementById('productsRecovery');
+        const recoveryButton=document.getElementById('productsRecoveryButton');
+        const recoveryText=document.getElementById('productsRecoveryText');
         if(!form||!input||!add||!clear||!boughtAll) return;
 
         input.addEventListener('focus',()=>document.body.classList.add('keyboard-editing'));
         input.addEventListener('blur',()=>document.body.classList.remove('keyboard-editing'));
+
+        recoveryButton?.addEventListener('click',async()=>{
+          if(!productsRecoveryCandidate||recoveryButton.disabled) return;
+          recoveryButton.disabled=true;
+          const previousText=recoveryText?.textContent||'';
+          if(recoveryText) recoveryText.textContent='Восстанавливаю список…';
+          try{
+            const data=await productsRecoveryRequest('restore-products',productsRecoveryCandidate);
+            productsRecoveryCandidate='';
+            renderProducts(data);
+            if(recoveryPanel) recoveryPanel.hidden=true;
+            await refreshStateBackup();
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            if(recoveryText) recoveryText.textContent=String(error?.message||previousText||'Не удалось восстановить список');
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            recoveryButton.disabled=false;
+          }
+        });
 
         form.addEventListener('submit',async event=>{
           event.preventDefault();
@@ -5137,6 +5243,9 @@
           clear.disabled=true;
           try{
             renderProducts(await productsRequest('clear'));
+            productsRecoveryChecked=true;
+            productsRecoveryCandidate='';
+            hideProductsRecovery();
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
