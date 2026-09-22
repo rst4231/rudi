@@ -1710,6 +1710,9 @@
       }
 
       function creationOptionsFromJson(value){
+        if(typeof window.PublicKeyCredential?.parseCreationOptionsFromJSON==='function'){
+          return window.PublicKeyCredential.parseCreationOptionsFromJSON(value||{});
+        }
         const options={...(value||{})};
         options.challenge=base64UrlToBytes(options.challenge);
         if(options.user) options.user={...options.user,id:base64UrlToBytes(options.user.id)};
@@ -1720,6 +1723,9 @@
       }
 
       function requestOptionsFromJson(value){
+        if(typeof window.PublicKeyCredential?.parseRequestOptionsFromJSON==='function'){
+          return window.PublicKeyCredential.parseRequestOptionsFromJSON(value||{});
+        }
         const options={...(value||{})};
         options.challenge=base64UrlToBytes(options.challenge);
         if(Array.isArray(options.allowCredentials)){
@@ -1756,29 +1762,33 @@
         return result;
       }
 
-      async function registerFaceId(){
+      async function prepareFaceIdRegistration(){
         if(!passkeySupported()) throw new Error('rudi-passkey-browser-unsupported');
         const setup=await passkeyRequest('register-options');
-        const credential=await navigator.credentials.create({
-          publicKey:creationOptionsFromJson(setup.publicKey)
-        });
+        return {setup,publicKey:creationOptionsFromJson(setup.publicKey)};
+      }
+
+      async function finishFaceIdRegistration(prepared,credentialPromise){
+        const credential=await credentialPromise;
         if(!credential) throw new Error('rudi-passkey-cancelled');
         await passkeyRequest('register-verify',{
-          challenge:setup.publicKey.challenge,
+          challenge:prepared.setup.publicKey.challenge,
           response:credentialJson(credential)
         });
         return true;
       }
 
-      async function loginWithFaceId(){
+      async function prepareFaceIdAuthentication(){
         if(!passkeySupported()) throw new Error('rudi-passkey-browser-unsupported');
         const setup=await passkeyRequest('auth-options');
-        const credential=await navigator.credentials.get({
-          publicKey:requestOptionsFromJson(setup.publicKey)
-        });
+        return {setup,publicKey:requestOptionsFromJson(setup.publicKey)};
+      }
+
+      async function finishFaceIdAuthentication(prepared,credentialPromise){
+        const credential=await credentialPromise;
         if(!credential) throw new Error('rudi-passkey-cancelled');
         const verified=await passkeyRequest('auth-verify',{
-          challenge:setup.publicKey.challenge,
+          challenge:prepared.setup.publicKey.challenge,
           response:credentialJson(credential)
         });
         return String(verified.actor||'');
