@@ -12,6 +12,7 @@ const {
   readProductList,
   readProductListRaw,
   restoreProductListSnapshot,
+  normalizeProductListState,
   addProducts,
   removeProduct,
   toggleProductChecked,
@@ -1486,7 +1487,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'list') {
         const live = await readProductList(options).catch(() => ({ initialized: false, version: 0, items: [], history: [] }));
         const saved = backupSnapshotFromToken(body.backupToken, options)?.products;
-        const state = live?.initialized ? live : (saved?.initialized ? saved : live);
+        const state = normalizeProductListState(live?.initialized ? live : (saved?.initialized ? saved : live));
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'add') {
