@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const { normalizeActor } = require('./rudi-session.cjs');
+const { resolveTelegramBotToken } = require('./products-bought.cjs');
 
 const PASSKEY_TTL_SECONDS = 10 * 365 * 24 * 60 * 60;
 const CHALLENGE_TTL_SECONDS = 10 * 60;
@@ -41,10 +42,6 @@ function passkeysKey(actor) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
   return 'passkeys:' + safeActor;
-}
-
-function challengeKey(kind, actor, challenge) {
-  return ['challenge', String(kind || ''), String(actor || 'any'), String(challenge || '')].join(':');
 }
 
 function encodeBytes(value) {
@@ -116,34 +113,91 @@ function actorUserId(actor) {
   );
 }
 
-async function saveChallenge(kind, actor, challenge, rp, options = {}) {
-  const cache = resolveCache(options);
-  const key = challengeKey(kind, actor, challenge);
-  const record = {
-    kind,
-    actor: actor || '',
-    challenge: String(challenge || ''),
-    rpID: rp.rpID,
-    origin: rp.origin,
-    createdAt: new Date(options.now || Date.now()).toISOString(),
-  };
-  await cache.set(key, record, {
-    ttl: CHALLENGE_TTL_SECONDS,
-    tags: ['rudi-passkey-challenges'],
-    name: key,
-  });
-  return record;
+function resolveChallengeSecret(options = {}) {
+  return options.botToken || resolveTelegramBotToken(options.env || process.env);
 }
 
-async function consumeChallenge(kind, actor, challenge, options = {}) {
-  const cache = resolveCache(options);
-  const key = challengeKey(kind, actor, challenge);
-  const record = await cache.get(key);
-  if (!record || record.kind !== kind || String(record.challenge || '') !== String(challenge || '')) {
+function challengeSigningKey(options = {}) {
+  return crypto
+    .createHmac('sha256', resolveChallengeSecret(options))
+    .update('rudi-passkey-challenge-v2')
+    .digest();
+}
+
+function createChallengeToken(kind, actor, rp, options = {}) {
+  const now = Math.floor(Number(options.now || Date.now()) / 1000);
+  const payload = {
+    v: 2,
+    kind: String(kind || ''),
+    actor: String(actor || 'any'),
+    rpID: String(rp?.rpID || ''),
+    origin: String(rp?.origin || ''),
+    iat: now,
+    exp: now + CHALLENGE_TTL_SECONDS,
+    nonce: crypto.randomBytes(24).toString('base64url'),
+  };
+  const payloadBytes = Buffer.from(JSON.stringify(payload));
+  if (payloadBytes.length > 65535) throw new Error('rudi-passkey-challenge-invalid');
+  const length = Buffer.alloc(2);
+  length.writeUInt16BE(payloadBytes.length, 0);
+  const signature = crypto.createHmac('sha256', challengeSigningKey(options)).update(payloadBytes).digest();
+  return Buffer.concat([length, payloadBytes, signature]).toString('base64url');
+}
+
+function consumeChallenge(kind, actor, challenge, rp, options = {}) {
+  let packed;
+  try {
+    packed = Buffer.from(String(challenge || ''), 'base64url');
+  } catch {
     throw new Error('rudi-passkey-challenge-invalid');
   }
-  await cache.delete(key).catch(() => null);
-  return record;
+  if (packed.length < 35) throw new Error('rudi-passkey-challenge-invalid');
+
+  const payloadLength = packed.readUInt16BE(0);
+  const payloadStart = 2;
+  const payloadEnd = payloadStart + payloadLength;
+  const signatureEnd = payloadEnd + 32;
+  if (payloadLength < 2 || packed.length !== signatureEnd) throw new Error('rudi-passkey-challenge-invalid');
+
+  const payloadBytes = packed.subarray(payloadStart, payloadEnd);
+  const signature = packed.subarray(payloadEnd, signatureEnd);
+  const expected = crypto.createHmac('sha256', challengeSigningKey(options)).update(payloadBytes).digest();
+  if (signature.length !== expected.length || !crypto.timingSafeEqual(signature, expected)) {
+    throw new Error('rudi-passkey-challenge-invalid');
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(payloadBytes.toString('utf8'));
+  } catch {
+    throw new Error('rudi-passkey-challenge-invalid');
+  }
+
+  const now = Math.floor(Number(options.now || Date.now()) / 1000);
+  const expectedActor = String(actor || 'any');
+  if (
+    payload?.v !== 2
+    || payload?.kind !== String(kind || '')
+    || payload?.actor !== expectedActor
+    || payload?.rpID !== String(rp?.rpID || '')
+    || payload?.origin !== String(rp?.origin || '')
+    || !Number.isFinite(payload?.iat)
+    || !Number.isFinite(payload?.exp)
+    || payload.exp < now
+    || payload.iat > now + 60
+    || payload.exp - payload.iat > CHALLENGE_TTL_SECONDS
+  ) {
+    throw new Error('rudi-passkey-challenge-invalid');
+  }
+
+  return {
+    kind: payload.kind,
+    actor: payload.actor,
+    challenge: String(challenge || ''),
+    rpID: payload.rpID,
+    origin: payload.origin,
+    createdAt: new Date(payload.iat * 1000).toISOString(),
+  };
 }
 
 async function passkeyStatus(req, actor, options = {}) {
@@ -173,16 +227,15 @@ async function registrationOptions(req, actor, options = {}) {
     preferredAuthenticatorType: 'localDevice',
     supportedAlgorithmIDs: [-8, -7, -257],
   });
-  await saveChallenge('register', safeActor, result.challenge, rp, options);
+  result.challenge = createChallengeToken('register', safeActor, rp, options);
   return result;
 }
 
 async function verifyRegistration(req, actor, challenge, response, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
-  const stored = await consumeChallenge('register', safeActor, challenge, options);
   const rp = requestOrigin(req);
-  if (stored.rpID !== rp.rpID || stored.origin !== rp.origin) throw new Error('rudi-passkey-origin-mismatch');
+  const stored = consumeChallenge('register', safeActor, challenge, rp, options);
 
   const webauthn = await resolveWebAuthn(options);
   const verification = await webauthn.verifyRegistrationResponse({
@@ -232,7 +285,7 @@ async function authenticationOptions(req, options = {}) {
     allowCredentials: rows.map(row => ({ id: row.id, transports: row.transports })),
     userVerification: 'required',
   });
-  await saveChallenge('authenticate', 'any', result.challenge, rp, options);
+  result.challenge = createChallengeToken('authenticate', 'any', rp, options);
   return result;
 }
 
@@ -248,9 +301,8 @@ async function findPasskeyById(id, rpID, options = {}) {
 }
 
 async function verifyAuthentication(req, challenge, response, options = {}) {
-  const stored = await consumeChallenge('authenticate', 'any', challenge, options);
   const rp = requestOrigin(req);
-  if (stored.rpID !== rp.rpID || stored.origin !== rp.origin) throw new Error('rudi-passkey-origin-mismatch');
+  const stored = consumeChallenge('authenticate', 'any', challenge, rp, options);
 
   const passkey = await findPasskeyById(response?.id, stored.rpID, options);
   if (!passkey) throw new Error('rudi-passkey-credential-not-found');
@@ -283,6 +335,8 @@ async function verifyAuthentication(req, challenge, response, options = {}) {
 
 module.exports = {
   requestOrigin,
+  createChallengeToken,
+  consumeChallenge,
   encodeBytes,
   decodeBytes,
   readPasskeys,
