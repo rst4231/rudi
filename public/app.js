@@ -467,6 +467,51 @@
         await writeCloudStateBackupToken(token).catch(()=>false);
       }
 
+      function uiPreferencesMetaKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:ui-prefs-meta:v1:'+actor;
+      }
+
+      function localUiPreferences(){
+        let homeOrder=[];
+        let blockStates={};
+        let updatedAt='';
+        try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
+        try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
+        try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
+        return {
+          homeOrder:Array.isArray(homeOrder)?homeOrder:[],
+          blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
+          updatedAt
+        };
+      }
+
+      function applyRemoteUiPreferences(value){
+        const remote=value&&typeof value==='object'&&!Array.isArray(value)?value:null;
+        if(!remote) return false;
+        const local=localUiPreferences();
+        const remoteTime=Date.parse(String(remote.updatedAt||''))||0;
+        const localTime=Date.parse(String(local.updatedAt||''))||0;
+        if(localTime>remoteTime) return false;
+        try{
+          if(Array.isArray(remote.homeOrder)&&remote.homeOrder.length){
+            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remote.homeOrder));
+          }
+          if(remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)){
+            localStorage.setItem(blockStateStorageKey(),JSON.stringify(remote.blockStates));
+          }
+          if(remote.updatedAt) localStorage.setItem(uiPreferencesMetaKey(),String(remote.updatedAt));
+          return true;
+        }catch(_){return false}
+      }
+
+      let uiPreferencesBackupTimer=null;
+      function markUiPreferencesChanged(){
+        try{localStorage.setItem(uiPreferencesMetaKey(),new Date().toISOString())}catch(_){}
+        clearTimeout(uiPreferencesBackupTimer);
+        uiPreferencesBackupTimer=setTimeout(()=>refreshStateBackup(),180);
+      }
+
       async function refreshStateBackup(){
         if(!currentActor||!tg?.initData) return;
         if(stateBackupRefreshPromise) return stateBackupRefreshPromise;
@@ -475,7 +520,11 @@
             const response=await fetch('/api/partner-message?rudiAction=state-backup',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken}),
+              body:JSON.stringify({
+                initData:tg.initData,
+                backupToken:currentStateBackupToken,
+                uiPreferences:localUiPreferences()
+              }),
               cache:'no-store'
             });
             const payload=await response.json().catch(()=>({}));
@@ -485,6 +534,12 @@
         })();
         return stateBackupRefreshPromise;
       }
+
+      window.RUDI_STATE_BACKUP={
+        getToken:()=>String(currentStateBackupToken||''),
+        storeToken:(token)=>storeStateBackupToken(token),
+        refresh:()=>refreshStateBackup()
+      };
 
       function homeLayoutStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -566,6 +621,7 @@
         if(!host) return;
         const order=[...host.querySelectorAll(':scope > [data-home-tile]')].map(tile=>tile.dataset.homeTile).filter(Boolean);
         try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
+        markUiPreferencesChanged();
       }
 
       function updateHomeOrderControls(){
@@ -1376,6 +1432,7 @@
           const states=readBlockStates();
           states[key]=Boolean(collapsed);
           localStorage.setItem(blockStateStorageKey(),JSON.stringify(states));
+          markUiPreferencesChanged();
         }catch(_){}
       }
 
@@ -1576,6 +1633,7 @@
           if(!response.ok||!payload.ok) throw new Error(payload.error||'bootstrap');
           if(payload.actor&&String(payload.actor)!==currentActor) return;
           applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
+          applyRemoteUiPreferences(payload.uiPreferences);
           cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
@@ -1610,9 +1668,9 @@
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
+          await loadAppBootstrap();
           document.body.classList.remove('auth-pending','auth-denied');
           document.body.classList.add('auth-ok');
-          await loadAppBootstrap();
           return true;
         }catch(error){
           const code=String(error?.message||'');
@@ -3943,6 +4001,7 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok) throw new Error(data.error||'wishlist');
+        if(data.backupToken) await storeStateBackupToken(data.backupToken);
         if(operation!=='list'){
           setTimeout(()=>refreshStateBackup(),250);
           setTimeout(()=>loadActivityJournal({silent:true}),320);
@@ -4126,11 +4185,12 @@
         const response=await fetch('/api/partner-message?rudiAction=reactions',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'reactions-request-failed');
+        if(data.backupToken) await storeStateBackupToken(data.backupToken);
         if(operation!=='list') setTimeout(()=>loadActivityJournal({silent:true}),240);
         return data;
       }
@@ -4395,11 +4455,12 @@
         const response=await fetch('/api/mood',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,mood}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,mood}),
           cache:'no-store'
         });
         const payload=await response.json().catch(()=>({}));
         if(!response.ok) throw new Error(payload.error||'mood');
+        if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
         return payload;
       }
 
@@ -5186,6 +5247,7 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'products-request-failed');
+        if(data.backupToken) await storeStateBackupToken(data.backupToken);
         if(operation!=='list'){
           setTimeout(()=>refreshStateBackup(),250);
           setTimeout(()=>loadActivityJournal({silent:true}),320);
