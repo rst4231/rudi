@@ -44,7 +44,6 @@ test('Vercel config exposes the expected RUDI routes and cron schedules', () => 
   const routes = Object.fromEntries(config.rewrites.map((item) => [item.source, item.destination]));
   assert.equal(routes['/admin'], undefined);
   assert.equal(routes['/api/daily'], '/api/daily-cron?route=daily');
-  assert.equal(routes['/api/vacuum-watch'], '/api/feed-notify-cron?mode=vacuum');
   assert.equal(routes['/api/health'], '/api/index?route=health');
   assert.equal(routes['/api/telegram'], '/api/index?route=telegram');
   assert.equal(routes['/api/alice'], '/api/index?route=alice-shopping');
@@ -57,6 +56,5 @@ test('Vercel config exposes the expected RUDI routes and cron schedules', () => 
     { path: '/api/stylist-leads-cron', schedule: '0 4 * * *' },
     { path: '/api/feed-notify-cron', schedule: '10 4 * * *' },
     { path: '/api/for-di', schedule: '0 9 * * *' },
-    { path: '/api/vacuum-watch', schedule: '*/10 * * * *' },
   ]);
 });
