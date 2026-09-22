@@ -86,6 +86,7 @@ async function mockRudi(page,options={}){
         ok:true,actor:'Рустам',
         selfProfile:{name:'Рустам'},partnerProfile:{name:'Диана'},
         holidayHighlights:[],
+        uiPreferences:options.uiPreferences||null,
         backupToken:''
       });
     }
@@ -229,13 +230,29 @@ async function mockRudi(page,options={}){
   return state;
 }
 
-test('access gate disappears before slow background bootstrap finishes',async({page})=>{
+test('access gate stays until bootstrap and final home layout are ready',async({page})=>{
   const state=await mockRudi(page,{bootstrapDelayMs:1500});
   await page.goto('/');
   await expect.poll(()=>state.bootstrapStarted,{timeout:1000}).toBe(true);
-  await expect(page.locator('body')).toHaveClass(/auth-ok/,{timeout:1000});
+  await expect(page.locator('body')).toHaveClass(/auth-pending/,{timeout:1000});
   expect(state.bootstrapResolved).toBe(false);
   await expect.poll(()=>state.bootstrapResolved,{timeout:3000}).toBe(true);
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+});
+
+test('remote saved home layout is applied before the shell becomes visible',async({page})=>{
+  await mockRudi(page,{
+    uiPreferences:{
+      homeOrder:['smart-home','dashboard','priority','partner','new','car','activity'],
+      blockStates:{'smart-home':true},
+      updatedAt:'2026-09-21T09:00:00.000Z'
+    }
+  });
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
+  expect(order[0]).toBe('smart-home');
+  await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
 });
 
 test('home dashboard is compact and reorder controls use aligned icons',async({page})=>{
