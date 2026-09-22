@@ -16,6 +16,9 @@
     },
     "api/feed-notify-cron.js": {
       "maxDuration": 60
+    },
+    "api/for-di-cron.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -194,6 +197,10 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "10 4 * * *"
+    },
+    {
+      "path": "/api/for-di-cron",
+      "schedule": "0 9 * * *"
     }
   ],
   "env": {
