@@ -16,7 +16,6 @@ const {
   isProductsTopicUpdate, cleanAliceProductText, getAliceProductDeleteTarget, splitAliceProductItems,
   buildAliceProductAddedResponse, buildAliceProductDeletedResponse, buildAliceNoSharedListResponse,
 } = require('./products-chat.cjs');
-const { maybeSendEventCollage, compactEventTelegramRequest } = require('./event-collage.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
 const { withLaborPublicationLease } = require('./labor-publication-lock.cjs');
 const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
