@@ -1,5 +1,6 @@
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { syncForumTopicTitles } = require('./forum-topic-sync.cjs');
+const { queueForDiMessage } = require('./for-di-private.cjs');
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const LABOR_TOPIC_NAME = 'Трудовой кодекс';
@@ -189,14 +190,14 @@ async function publishLaborArticle(options = {}) {
   }
   if (!next) return { skipped: true, reason: 'article-pool-exhausted', topicId };
 
-  const sent = await telegramCall(token, 'sendMessage', {
-    chat_id: chatId, message_thread_id: topicId, text: next.text,
-    parse_mode: 'HTML', disable_web_page_preview: true,
-  }, fetchImpl);
+  await queueForDiMessage(next.text, {
+    now,
+    dateKey: todayKey,
+    forDiCache: options.forDiCache,
+  });
 
-  const messageId = Number(sent?.result?.message_id);
-  await recordArticlePublication(cache, next.id, todayKey, Number.isInteger(messageId) ? messageId : null, topicId, history);
-  return { articleId: next.id, topicId, messageId: Number.isInteger(messageId) ? messageId : null };
+  await recordArticlePublication(cache, next.id, todayKey, null, topicId, history);
+  return { articleId: next.id, topicId, messageId: null, queuedForPrivateDelivery: true };
 }
 
 async function replaceLaborArticle(options = {}) {
