@@ -48,7 +48,7 @@
         activity:[],
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','cycle','activity','new','priority','partner','daily'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','priority','partner','new','smart-home','activity'];
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
@@ -488,7 +488,7 @@
 
       function homeLayoutStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi-home-layout-v2-'+actor;
+        return 'rudi-home-layout-v3-'+actor;
       }
 
       function ensureHomeTileHost(){
