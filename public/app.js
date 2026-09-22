@@ -2760,7 +2760,7 @@
             const response=await fetch('/api/ticktick/connect',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({initData:tg?.initData||''}),
+              body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken}),
               cache:'no-store'
             });
             const payload=await response.json().catch(()=>({}));
@@ -4384,11 +4384,12 @@
             const r=await fetch('/api/partner-message',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({text,initData:tg.initData}),
+              body:JSON.stringify({text,initData:tg.initData,backupToken:currentStateBackupToken}),
               cache:'no-store'
             });
             const data=await r.json().catch(()=>({}));
             if(!r.ok) throw new Error(data.error||'save');
+            if(data.backupToken) await storeStateBackupToken(data.backupToken);
             currentMessage=data.message;
             renderPartnerMessage(currentMessage);
             closeEditor();
