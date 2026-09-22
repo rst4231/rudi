@@ -1647,7 +1647,7 @@
         const response=await fetchWithTimeout('/api/partner-message?rudiAction=browser-auth',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({operation,initData:telegramInitData(),...payload}),
+          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:currentStateBackupToken,...payload}),
           cache:'no-store'
         },8000);
         const data=await response.json().catch(()=>({}));
@@ -1656,6 +1656,7 @@
           error.status=response.status;
           throw error;
         }
+        if(data.backupToken) await storeStateBackupToken(data.backupToken);
         return data;
       }
 
@@ -1674,7 +1675,7 @@
         const response=await fetchWithTimeout('/api/partner-message?rudiAction=passkey',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({operation,initData:telegramInitData(),...payload}),
+          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:currentStateBackupToken,...payload}),
           cache:'no-store'
         },12000);
         const data=await response.json().catch(()=>({}));
@@ -1683,6 +1684,7 @@
           error.status=response.status;
           throw error;
         }
+        if(data.backupToken) await storeStateBackupToken(data.backupToken);
         return data;
       }
 
@@ -2009,6 +2011,8 @@
       async function ensureTelegramPin(){
         if(!telegramInitData()) return true;
         try{
+          const cloudToken=await withTimeout(readStateBackupToken(),1600,currentStateBackupToken||'');
+          if(cloudToken) currentStateBackupToken=cloudToken;
           const status=await browserAuthRequest('status');
           if(status.pinConfigured===false) return showPinSetup();
         }catch(error){
