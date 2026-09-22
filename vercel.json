@@ -16,9 +16,6 @@
     },
     "api/feed-notify-cron.js": {
       "maxDuration": 60
-    },
-    "api/for-di-cron.js": {
-      "maxDuration": 60
     }
   },
   "headers": [
@@ -95,6 +92,10 @@
     {
       "source": "/api/feed",
       "destination": "/api/partner-message?rudiAction=feed"
+    },
+    {
+      "source": "/api/for-di",
+      "destination": "/api/feed-notify-cron?mode=for-di"
     },
     {
       "source": "/api/mood",
@@ -199,7 +200,7 @@
       "schedule": "10 4 * * *"
     },
     {
-      "path": "/api/for-di-cron",
+      "path": "/api/for-di",
       "schedule": "0 9 * * *"
     }
   ],
