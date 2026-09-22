@@ -3,6 +3,7 @@ const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
+const { authorizeWithSession, setSessionCookie, clearSessionCookie, hasPin, savePin, verifyPin } = require('./rudi-session.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
@@ -159,6 +160,10 @@ function statusForError(error) {
   const code = String(error?.message || error || '');
   if (code === 'telegram-auth-required' || code === 'telegram-auth-invalid' || code === 'telegram-auth-expired' || code === 'telegram-user-invalid') return 401;
   if (code === 'rudi-access-denied') return 403;
+  if (code === 'rudi-session-required' || code === 'rudi-session-invalid' || code === 'rudi-session-expired' || code === 'rudi-pin-invalid') return 401;
+  if (code === 'rudi-pin-rate-limited') return 429;
+  if (code === 'rudi-pin-not-configured') return 409;
+  if (code === 'rudi-pin-format') return 400;
   if (code === 'message-empty' || code === 'message-too-long') return 400;
   return 500;
 }
@@ -168,6 +173,24 @@ function authorizeInitData(rawInitData, options = {}) {
   const auth = validateTelegramInitData(rawInitData, token, options.now || Date.now());
   const actor = assertAllowedTelegramUser(auth.user);
   return { ...auth, actor };
+}
+
+function authorizeRequest(req, rawInitData, options = {}) {
+  const botToken = options.botToken || resolveTelegramBotToken(options.env || process.env);
+  return authorizeWithSession(
+    req,
+    rawInitData,
+    (value) => authorizeInitData(value, { ...options, botToken }),
+    { botToken, now: options.now || Date.now() }
+  );
+}
+
+function browserAuthStoreOptions(options = {}) {
+  return {
+    cache: options.authCache,
+    cacheOptions: options.authCacheOptions,
+    now: options.now || Date.now(),
+  };
 }
 
 async function sendPartnerMessageNotification(actor, options = {}) {
@@ -603,7 +626,7 @@ async function handleTickTick(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
       if (!credentialsConfigured(options.env || process.env)) {
         return res.status(503).json({ ok: false, error: 'ticktick-not-configured' });
       }
@@ -656,7 +679,7 @@ async function handleTickTick(req, res, action, options = {}) {
     let body;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -753,7 +776,7 @@ async function handleTickTick(req, res, action, options = {}) {
     let body;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -826,7 +849,7 @@ async function handleTickTick(req, res, action, options = {}) {
     let actor;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      ({ actor } = authorizeInitData(body.initData, options));
+      ({ actor } = authorizeRequest(req, body.initData, options));
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -901,7 +924,7 @@ async function handleTickTick(req, res, action, options = {}) {
     let body;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -979,7 +1002,7 @@ async function handleTickTick(req, res, action, options = {}) {
     let body;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      ({ actor } = authorizeInitData(body.initData, options));
+      ({ actor } = authorizeRequest(req, body.initData, options));
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -1132,7 +1155,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
+      const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'get').trim();
       const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (operation === 'get') {
@@ -1171,7 +1194,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
 
       const cinemaCache = getCinemaPremieresCache();
       const topicCache = getTopicMaintenanceCache();
@@ -1244,7 +1267,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
       const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
       const album = await getLatestPhotos({
         ...options,
@@ -1276,12 +1299,52 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'browser-auth') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+    const operation = String(body.operation || 'status').trim();
+    const botToken = options.botToken || resolveTelegramBotToken(options.env || process.env);
+    try {
+      if (operation === 'login') {
+        const verified = await verifyPin(req, body.actor, body.pin, browserAuthStoreOptions(options));
+        setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
+        return res.status(200).json({ ok: true, actor: verified.actor, source: 'pin' });
+      }
+
+      if (operation === 'logout') {
+        clearSessionCookie(res);
+        return res.status(200).json({ ok: true });
+      }
+
+      if (operation === 'create-pin') {
+        const telegram = authorizeInitData(body.initData, options);
+        const result = await savePin(telegram.actor, body.pin, browserAuthStoreOptions(options));
+        setSessionCookie(res, telegram.actor, botToken, { now: options.now || Date.now() });
+        return res.status(200).json({ ok: true, actor: telegram.actor, configured: true, updatedAt: result.updatedAt });
+      }
+
+      if (operation === 'status') {
+        const session = authorizeRequest(req, body.initData, options);
+        const configured = await hasPin(session.actor, browserAuthStoreOptions(options)).catch(() => null);
+        return res.status(200).json({ ok: true, actor: session.actor, source: session.source, pinConfigured: configured });
+      }
+
+      return res.status(400).json({ ok: false, error: 'browser-auth-operation-invalid' });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
   if (action === 'app-auth') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
-      return res.status(200).json({ ok: true, actor });
+      const session = authorizeRequest(req, body.initData, options);
+      if (session.source === 'telegram') {
+        const botToken = options.botToken || resolveTelegramBotToken(options.env || process.env);
+        setSessionCookie(res, session.actor, botToken, { now: options.now || Date.now() });
+      }
+      return res.status(200).json({ ok: true, actor: session.actor, source: session.source });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -1291,7 +1354,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor, user } = authorizeInitData(body.initData, options);
+      const { actor, user } = authorizeRequest(req, body.initData, options);
       const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
       const handoffSnapshot = backupSnapshotFromToken(body.ticktickHandoff, options);
       const previousSnapshot = mergeBackupSnapshots(backupSnapshot, handoffSnapshot);
@@ -1329,8 +1392,8 @@ async function handleRudiAction(req, res, action, options = {}) {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
-        } else {
-          await saveRecipient(actor, user?.id, {
+        } else if (user?.id) {
+          await saveRecipient(actor, user.id, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
@@ -1368,7 +1431,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
       const snapshot = backupSnapshotFromToken(body.backupToken, options);
       if (!snapshot) return res.status(400).json({ ok: false, error: 'backup-invalid' });
 
@@ -1413,7 +1476,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor, user } = authorizeInitData(body.initData, options);
+      const { actor, user } = authorizeRequest(req, body.initData, options);
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
       const correctedRecipients = correctRecipientsForSession(
         mergedRecipientsWithBackup(
@@ -1429,8 +1492,8 @@ async function handleRudiAction(req, res, action, options = {}) {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
-        } else {
-          await saveRecipient(actor, user?.id, {
+        } else if (user?.id) {
+          await saveRecipient(actor, user.id, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
@@ -1466,7 +1529,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
+      const { actor } = authorizeRequest(req, body.initData, options);
       const journal = await readActivityJournal(options);
       return res.status(200).json({ ok: true, actor, ...journal });
     } catch (error) {
@@ -1478,7 +1541,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
+      const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (previousSnapshot?.reactions?.initialized) {
@@ -1521,7 +1584,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
+      const { actor } = authorizeRequest(req, body.initData, options);
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (previousSnapshot?.dailyMood?.initialized) {
         await restoreDailyMoodState(previousSnapshot.dailyMood, options).catch(()=>null);
@@ -1571,7 +1634,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
       const previousSnapshot=backupSnapshotFromToken(body.backupToken,options);
       if(previousSnapshot?.partnerMessage){
         await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
@@ -1587,7 +1650,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
+      const { actor } = authorizeRequest(req, body.initData, options);
       const current = await readFeedSnapshot(options);
       const feed = await refreshFeedFromPreviewIfNeeded(current, options);
       return res.status(200).json({ ok: true, actor, ...feed });
@@ -1602,7 +1665,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
       const date = moscowDateKey(options.now || Date.now());
       const row = await readHolidayHighlights(date, options);
       if (!row?.items?.length) return res.status(404).json({ ok: false, error: 'holiday-highlights-not-ready' });
@@ -1616,7 +1679,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
       const view = ['month', 'next-month'].includes(String(body.view || ''))
         ? String(body.view)
         : 'month';
@@ -1670,7 +1733,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeInitData(body.initData, options);
+      authorizeRequest(req, body.initData, options);
       const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
       const view = ['week','month','next-month'].includes(String(body.view || ''))
         ? String(body.view)
@@ -1717,7 +1780,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeInitData(body.initData, options);
+      const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (previousSnapshot?.products?.initialized) {
@@ -1797,7 +1860,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor: owner } = authorizeInitData(body.initData, options);
+      const { actor: owner } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (previousSnapshot?.wishlist?.initialized) {
@@ -1871,7 +1934,7 @@ async function handler(req, res, options = {}) {
 
   try {
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-    const { authorName, actor } = authorizeInitData(body.initData, options);
+    const { authorName, actor } = authorizeRequest(req, body.initData, options);
     const previousSnapshot=backupSnapshotFromToken(body.backupToken,options);
     if(previousSnapshot?.partnerMessage){
       await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
