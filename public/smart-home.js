@@ -272,7 +272,9 @@
     if(!wrap||!list)return;
 
     list.replaceChildren();
-    const scenarios=Array.isArray(data?.scenarios)?data.scenarios:[];
+    const scenarios=String(data?.actor||'')==='Рустам' && Array.isArray(data?.scenarios)
+      ? data.scenarios
+      : [];
     wrap.hidden=!scenarios.length;
 
     for(const scenario of scenarios){
