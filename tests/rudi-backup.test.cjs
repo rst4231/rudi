@@ -62,9 +62,11 @@ test('cache miss does not create a newer initialized empty product list', () => 
   assert.match(source, /if \(!items\.length\) return current;[\s\S]*return writeState\(\{ \.\.\.current, items \}, options\)/);
 });
 
-test('client completes bootstrap before exposing the app shell', () => {
+test('client completes bootstrap and final home layout before exposing the app shell', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
-  assert.match(source, /currentActor=String\(payload\.actor\|\|''\);\s*await loadAppBootstrap\(\);\s*document\.body\.classList\.remove\('auth-pending','auth-denied'\);\s*document\.body\.classList\.add\('auth-ok'\);/);
+  assert.match(source, /currentActor=String\(payload\.actor\|\|''\);\s*await loadAppBootstrap\(\);\s*return true;/);
+  assert.match(source, /setupProfileSplit\(\);\s*setupHomeLayoutEditor\(\);\s*setupPersistentCollapsibles\(\);[\s\S]*?ensureAppSurface\(\{restoreTab:true\}\)/);
+  assert.match(source, /body\.auth-pending \.shell,body\.auth-denied \.shell\{[\s\S]*?visibility:hidden/);
   assert.doesNotMatch(source, /setTimeout\(\(\)=>loadAppBootstrap\(\),0\)/);
 });
 
@@ -109,4 +111,16 @@ test('client syncs home order and collapse state through encrypted backup',()=>{
   assert.match(source,/uiPreferences:localUiPreferences\(\)/);
   assert.match(source,/markUiPreferencesChanged\(\)/);
   assert.match(source,/stateBackupRefreshQueued=true/);
+});
+
+
+test('persistent mutations refresh the encrypted backup immediately',()=>{
+  const api=fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  for(const operation of ["add","remove","toggle","bought","buy-checked","clear"]){
+    assert.match(api,new RegExp("operation === '"+operation+"'[\\s\\S]*?refreshBackupToken\\(previousSnapshot,options\\)"));
+  }
+  assert.match(api,/action === 'mood'[\s\S]*?refreshBackupToken\(previousSnapshot,options\)/);
+  assert.match(api,/action === 'reactions'[\s\S]*?refreshBackupToken\(previousSnapshot,options\)/);
+  assert.match(api,/sendWishlistNotificationToPartner\(owner, result\.item\?\.text, options\)/);
+  assert.doesNotMatch(api,/sendActivityNotification\(wishlistNotificationText/);
 });
