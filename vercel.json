@@ -184,6 +184,10 @@
     {
       "source": "/api/ticktick/task-complete",
       "destination": "/api/partner-message?ticktickAction=task-complete"
+    },
+    {
+      "source": "/api/rudi-jwks",
+      "destination": "/api/index?route=rudi-jwks"
     }
   ],
   "crons": [
