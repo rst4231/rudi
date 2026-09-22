@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="/app.css?v=1.2">
   <link rel="stylesheet" href="/calendar.css?v=1.2">
   <link rel="stylesheet" href="/smart-home.css?v=1.2">
+  <link rel="stylesheet" href="/car.css?v=1.2">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -210,6 +211,60 @@
         <div class="smart-home-section-title">Сценарии</div>
         <div id="smartHomeScenarioList" class="smart-home-scenarios"></div>
       </section>
+    </section>
+
+    <section id="carTile" class="panel car-tile" data-app-tab-section="home" data-home-tile="car" aria-labelledby="carTitle" hidden>
+      <div class="car-head">
+        <div>
+          <div class="home-dashboard-label">Авто</div>
+          <h2 id="carTitle">Машина</h2>
+          <div class="car-model">Changan UNI‑V · 2023</div>
+        </div>
+      </div>
+
+      <div id="carBody" class="car-body">
+        <div class="car-top-grid">
+          <article class="car-weather-card">
+            <span class="car-card-label">Погода и шины</span>
+            <strong id="carWeatherNow">—</strong>
+            <p id="carTyreAdvice">Проверяю прогноз…</p>
+          </article>
+
+          <article class="car-service-card">
+            <span class="car-card-label">Следующее ТО</span>
+            <strong id="carNextService">Добавь пробег</strong>
+            <p id="carServiceMeta">Расчёт по пробегу</p>
+          </article>
+        </div>
+
+        <div class="car-mileage-panel">
+          <div class="car-mileage-copy">
+            <span class="car-card-label">Текущий пробег</span>
+            <strong id="carMileageValue">Не указан</strong>
+            <small id="carMileageUpdated"></small>
+          </div>
+          <form id="carMileageForm" class="car-mileage-form">
+            <label for="carMileageInput">Пробег, км</label>
+            <div class="car-mileage-input-row">
+              <input id="carMileageInput" type="number" min="0" max="999999" step="1" inputmode="numeric" placeholder="Например 42150">
+              <button id="carMileageSave" type="submit">Сохранить</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="car-service-progress" aria-hidden="true">
+          <span id="carServiceProgress"></span>
+        </div>
+
+        <section class="car-recommendations" aria-labelledby="carRecommendationsTitle">
+          <div class="car-section-head">
+            <strong id="carRecommendationsTitle">Рекомендации</strong>
+          </div>
+          <div id="carRecommendationsList" class="car-recommendations-list"></div>
+        </section>
+
+        <div id="carStatus" class="car-status" aria-live="polite"></div>
+      </div>
     </section>
 
     <section id="feedSection" class="feed-page" data-app-tab-section="feed" aria-label="Лента">
@@ -671,6 +726,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <script src="/app.js?v=1.2"></script>
   <script src="/smart-home.js?v=1.2"></script>
+  <script src="/car.js?v=1.2"></script>
 <!-- deploy: ui-cleanup-20260921 -->
 </body>
 </html>
