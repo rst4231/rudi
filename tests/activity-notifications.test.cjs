@@ -5,6 +5,7 @@ const {
   wishlistNotificationText,
   moodNotificationText,
   sendMoodNotificationToPartner,
+  sendWishlistNotificationToPartner,
   taskCompletedNotificationText,
   checklistCompletedNotificationText,
 } = require('../api/partner-message.js');
@@ -81,4 +82,32 @@ test('mood change notification goes only to the other partner', async () => {
   assert.equal(fromDiana.recipient, 'Рустам');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].chat_id, 111);
+});
+
+
+test('wishlist addition notification goes only to the other partner',async()=>{
+  const calls=[];
+  const fetchImpl=async(_url,init)=>{
+    calls.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ok:true,result:{message_id:200+calls.length}}),{
+      status:200,headers:{'content-type':'application/json'}
+    });
+  };
+
+  const fromRustam=await sendWishlistNotificationToPartner('Рустам','Подарок',{
+    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
+  });
+  assert.equal(fromRustam.sent,true);
+  assert.equal(fromRustam.recipient,'Диана');
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].chat_id,222);
+
+  calls.length=0;
+  const fromDiana=await sendWishlistNotificationToPartner('Диана','Мечта',{
+    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
+  });
+  assert.equal(fromDiana.sent,true);
+  assert.equal(fromDiana.recipient,'Рустам');
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].chat_id,111);
 });
