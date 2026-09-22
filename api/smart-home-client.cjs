@@ -186,6 +186,66 @@ async function handleSmartHomeRequest(req, res) {
       return res.status(200).json({ok:true,requestId,status:actionStatus,activity});
     }
 
+    if (operation === 'capability') {
+      const deviceId = cleanId(body.deviceId,'device-id');
+      const deviceName = cleanName(body.deviceName) || 'Устройство';
+      const capabilityType = String(body.capabilityType || '');
+      const instance = String(body.instance || '');
+
+      const allowed =
+        (capabilityType === 'devices.capabilities.mode' && instance === 'work_speed') ||
+        (capabilityType === 'devices.capabilities.toggle' && instance === 'pause');
+      if (!allowed) throw new Error('bad-capability');
+
+      let value = body.value;
+      if (instance === 'pause') {
+        if (typeof value !== 'boolean') throw new Error('bad-value');
+      } else {
+        value = String(value || '');
+        if (!new Set(['fast','medium','slow','min']).has(value)) throw new Error('bad-value');
+      }
+
+      const result = await yandex('/devices/actions', {
+        method:'POST',
+        body:{devices:[{id:deviceId,actions:[{
+          type:capabilityType,
+          state:{instance,value}
+        }]}]},
+      });
+
+      const requestId = String(result?.request_id || '');
+      const actionStatus = String(result?.devices?.[0]?.capabilities?.[0]?.state?.action_result?.status || '');
+      let activity = null;
+
+      if (actionStatus === 'DONE') {
+        cache = null;
+        cacheAt = 0;
+        const female = session.actor === 'Диана';
+        let text = '';
+        if (instance === 'pause') {
+          const verb = value
+            ? (female ? 'поставила' : 'поставил')
+            : (female ? 'сняла' : 'снял');
+          text = session.actor + ' ' + verb + ' ' + deviceName + (value ? ' на паузу' : ' с паузы');
+        } else {
+          const labels = {fast:'быстрый',medium:'средний',slow:'медленный',min:'минимальный'};
+          const verb = female ? 'выбрала' : 'выбрал';
+          text = session.actor + ' ' + verb + ' ' + labels[value] + ' режим для ' + deviceName;
+        }
+        activity = {text,icon:'🏠',createdAt:new Date().toISOString()};
+        await appendActivity({
+          type:'smart-home',
+          actor:session.actor,
+          text:activity.text,
+          icon:activity.icon,
+          targetTab:'home',
+          dedupeKey:requestId ? 'smart-home:' + requestId : '',
+        }).catch(error => console.warn('RUDI_SMART_HOME_ACTIVITY_WARN', String(error?.message || error)));
+      }
+
+      return res.status(200).json({ok:true,requestId,status:actionStatus,activity});
+    }
+
     if (operation === 'scenario') {
       if (session.actor !== 'Рустам') {
         return res.status(403).json({ok:false,error:'smart-home-scenarios-forbidden'});
