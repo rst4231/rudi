@@ -89,6 +89,54 @@ function newerTimestampState(current, previous, field) {
   return b > a ? previous : current;
 }
 
+function normalizeUiPreferenceEntry(value) {
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const order=Array.isArray(source.homeOrder)
+    ? source.homeOrder.map(String).filter(Boolean).slice(0,32)
+    : [];
+  const rawBlocks=source.blockStates&&typeof source.blockStates==='object'&&!Array.isArray(source.blockStates)
+    ? source.blockStates
+    : {};
+  const blockStates={};
+  for(const [key,row] of Object.entries(rawBlocks)){
+    if(!/^[A-Za-z0-9:_-]{1,80}$/.test(String(key))) continue;
+    blockStates[String(key)]=Boolean(row);
+  }
+  return {
+    homeOrder:order,
+    blockStates,
+    updatedAt:String(source.updatedAt||''),
+  };
+}
+
+function normalizeUiPreferences(value) {
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  return {
+    'Рустам':normalizeUiPreferenceEntry(source['Рустам']),
+    'Диана':normalizeUiPreferenceEntry(source['Диана']),
+  };
+}
+
+function newerUiPreference(current, incoming) {
+  const a=normalizeUiPreferenceEntry(current);
+  const b=normalizeUiPreferenceEntry(incoming);
+  const at=Date.parse(a.updatedAt)||0;
+  const bt=Date.parse(b.updatedAt)||0;
+  if(bt>at) return b;
+  if(at>bt) return a;
+  if(!a.updatedAt&&b.updatedAt) return b;
+  return a;
+}
+
+function mergeUiPreferences(base, overlay) {
+  const a=normalizeUiPreferences(base);
+  const b=normalizeUiPreferences(overlay);
+  return {
+    'Рустам':newerUiPreference(a['Рустам'],b['Рустам']),
+    'Диана':newerUiPreference(a['Диана'],b['Диана']),
+  };
+}
+
 async function createStateSnapshot(options = {}) {
   const previous = options.previousSnapshot && typeof options.previousSnapshot === 'object'
     ? options.previousSnapshot
@@ -142,6 +190,7 @@ async function createStateSnapshot(options = {}) {
     carState: newerTimestampState(carState, previous?.carState, 'updatedAt'),
     dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
     reactions: newerVersionState(reactions, previous?.reactions),
+    uiPreferences: normalizeUiPreferences(previous?.uiPreferences),
     recipients: mergedRecipients,
   };
 }
@@ -367,4 +416,7 @@ module.exports = {
   createStateSnapshot,
   createStateBackup,
   restoreStateBackup,
+  normalizeUiPreferenceEntry,
+  normalizeUiPreferences,
+  mergeUiPreferences,
 };
