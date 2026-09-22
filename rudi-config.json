@@ -215,5 +215,15 @@
   "relationship": {
     "startedAt": "2024-08-13",
     "title": "Наша годовщина"
+  },
+  "car": {
+    "ticktickProjectId": "6a5490689ba59102ae9fd144",
+    "taskKeywords": [
+      "машин",
+      "авто",
+      "салон",
+      "яндекс карт"
+    ],
+    "taskLimit": 3
   }
 }
