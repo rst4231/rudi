@@ -17,6 +17,7 @@ function resolveCache(options = {}) {
   if (options.cache) return options.cache;
   return createStrictRuntimeCache({
     namespace: 'rudi-passkeys-v1',
+    confirmWrites: false,
     ...(options.cacheOptions || {}),
   });
 }
