@@ -111,3 +111,18 @@ test('smart home climate and devices have distinct SVG artwork',()=>{
   assert.match(smartCss,/\.smart-home-climate-card\.is-temperature/);
   assert.match(smartCss,/\.smart-home-climate-card\.is-humidity/);
 });
+
+
+test('compact device cards expose power state without technical type text',()=>{
+  assert.match(smart,/smart-home-state-dot/);
+  assert.match(smart,/power\.state\.value\?'is-on':'is-off'/);
+  assert.match(smart,/indicator\.setAttribute\('aria-label',power\.state\.value\?'Включено':'Выключено'\)/);
+  assert.doesNotMatch(smart,/replace\('devices\.types\.'/);
+  assert.doesNotMatch(smart,/if\(!parts\.length&&power\)parts\.push\(power\.state\.value\?'Включено':'Выключено'\)/);
+  assert.match(smartCss,/\.smart-home-state-dot\.is-on/);
+  assert.match(smartCss,/background:#36b66c/);
+  assert.match(smartCss,/\.smart-home-state-dot\.is-off/);
+  assert.match(smartCss,/background:#dc545b/);
+  assert.match(smartCss,/@media\(max-width:560px\)\{\s*\.smart-home-device-grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(smartCss,/\.smart-home-device-visual\{[\s\S]*?min-height:76px/);
+});
