@@ -380,7 +380,7 @@
       }
 
       async function checkProductsRecovery(){
-        if(productsRecoveryChecked||homeDashboardState.productCount>0||!currentActor||!tg?.initData) return;
+        if(productsRecoveryChecked||homeDashboardState.productCount>0||!currentActor) return;
         productsRecoveryChecked=true;
         try{
           const candidates=await readBackupRecoveryCandidates();
@@ -519,7 +519,7 @@
       }
 
       async function refreshStateBackup(){
-        if(!currentActor||!tg?.initData) return;
+        if(!currentActor) return;
         if(stateBackupRefreshPromise){
           stateBackupRefreshQueued=true;
           return stateBackupRefreshPromise;
@@ -530,7 +530,7 @@
               method:'POST',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({
-                initData:tg.initData,
+                initData:telegramInitData(),
                 backupToken:currentStateBackupToken,
                 uiPreferences:localUiPreferences()
               }),
@@ -835,7 +835,7 @@
       }
 
       function blockStateStorageKey(){
-        const userId=String(tg?.initDataUnsafe?.user?.id||'local');
+        const userId=String(tg?.initDataUnsafe?.user?.id||(currentActor==='Диана'?'diana':'rustam'));
         return 'rudi:block-state:v2:'+userId;
       }
 
@@ -1162,7 +1162,7 @@
       }
 
       async function loadActivityJournal({silent=false}={}){
-        if(!currentActor||!tg?.initData) return null;
+        if(!currentActor) return null;
         try{
           const payload=await activityRequest();
           renderActivityJournal(payload);
@@ -1622,15 +1622,183 @@
         return rows;
       }
 
-      function denyApp(title,text){
-        document.body.classList.remove('auth-pending','auth-ok');
-        document.body.classList.add('auth-denied');
+      function telegramInitData(){
+        return String(tg?.initData||'');
+      }
+
+      function clearAuthGateForm(){
+        document.querySelector('.rudi-auth-form')?.remove();
+      }
+
+      function setAuthGate(title,text,mode='auth-login'){
+        document.body.classList.remove('auth-pending','auth-ok','auth-denied','auth-login');
+        document.body.classList.add(mode);
         document.getElementById('appGateTitle').textContent=title;
         document.getElementById('appGateText').textContent=text;
+        clearAuthGateForm();
+      }
+
+      function denyApp(title,text){
+        setAuthGate(title,text,'auth-denied');
+      }
+
+      async function browserAuthRequest(operation,payload={}){
+        const response=await fetchWithTimeout('/api/partner-message?rudiAction=browser-auth',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({operation,initData:telegramInitData(),...payload}),
+          cache:'no-store'
+        },8000);
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+          const error=new Error(data.error||('browser-auth-'+response.status));
+          error.status=response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function pinInputNode(){
+        const input=document.createElement('input');
+        input.className='rudi-auth-pin';
+        input.type='password';
+        input.inputMode='numeric';
+        input.autocomplete='one-time-code';
+        input.pattern='[0-9]*';
+        input.maxLength=6;
+        input.placeholder='••••••';
+        input.setAttribute('aria-label','PIN-код из 6 цифр');
+        input.addEventListener('input',()=>{
+          input.value=String(input.value||'').replace(/\D/g,'').slice(0,6);
+        });
+        return input;
+      }
+
+      function showPinSetup(){
+        return new Promise(resolve=>{
+          setAuthGate('Создайте PIN для Safari','6 цифр. Он понадобится только для входа вне Telegram.');
+          const form=document.createElement('form');
+          form.className='rudi-auth-form';
+          const actor=document.createElement('div');
+          actor.className='rudi-auth-current';
+          actor.textContent=currentActor;
+          const input=pinInputNode();
+          const button=document.createElement('button');
+          button.className='rudi-auth-submit';
+          button.type='submit';
+          button.textContent='Сохранить PIN';
+          const status=document.createElement('div');
+          status.className='rudi-auth-status';
+          form.append(actor,input,button,status);
+          document.querySelector('.app-gate-card')?.appendChild(form);
+          setTimeout(()=>input.focus(),80);
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const pin=String(input.value||'');
+            if(!/^\d{6}$/.test(pin)){
+              status.textContent='Введите ровно 6 цифр.';
+              input.focus();
+              return;
+            }
+            button.disabled=true;
+            input.disabled=true;
+            status.textContent='Сохраняю…';
+            try{
+              await browserAuthRequest('create-pin',{pin});
+              status.textContent='PIN создан';
+              clearAuthGateForm();
+              document.body.classList.remove('auth-login');
+              document.body.classList.add('auth-pending');
+              resolve(true);
+            }catch(error){
+              status.textContent='Не удалось сохранить PIN. Попробуйте ещё раз.';
+              button.disabled=false;
+              input.disabled=false;
+              input.focus();
+            }
+          });
+        });
+      }
+
+      function showBrowserLogin(){
+        return new Promise(resolve=>{
+          setAuthGate('Вход в RUDI','Выберите профиль и введите свой PIN.');
+          const form=document.createElement('form');
+          form.className='rudi-auth-form';
+          const actors=document.createElement('div');
+          actors.className='rudi-auth-actors';
+          let selectedActor='';
+          for(const name of ['Рустам','Диана']){
+            const actorButton=document.createElement('button');
+            actorButton.type='button';
+            actorButton.className='rudi-auth-actor';
+            actorButton.textContent=name;
+            actorButton.addEventListener('click',()=>{
+              selectedActor=name;
+              for(const node of actors.querySelectorAll('.rudi-auth-actor')) node.classList.toggle('is-active',node===actorButton);
+              input.focus();
+            });
+            actors.appendChild(actorButton);
+          }
+          const input=pinInputNode();
+          const button=document.createElement('button');
+          button.className='rudi-auth-submit';
+          button.type='submit';
+          button.textContent='Войти';
+          const status=document.createElement('div');
+          status.className='rudi-auth-status';
+          form.append(actors,input,button,status);
+          document.querySelector('.app-gate-card')?.appendChild(form);
+
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            if(!selectedActor){
+              status.textContent='Сначала выберите Рустама или Диану.';
+              return;
+            }
+            const pin=String(input.value||'');
+            if(!/^\d{6}$/.test(pin)){
+              status.textContent='Введите PIN из 6 цифр.';
+              input.focus();
+              return;
+            }
+            button.disabled=true;
+            input.disabled=true;
+            status.textContent='Проверяю…';
+            try{
+              const data=await browserAuthRequest('login',{actor:selectedActor,pin});
+              clearAuthGateForm();
+              document.body.classList.remove('auth-login');
+              document.body.classList.add('auth-pending');
+              resolve(String(data.actor||selectedActor));
+            }catch(error){
+              const code=String(error?.message||'');
+              status.textContent=code==='rudi-pin-rate-limited'
+                ?'Слишком много попыток. Попробуйте позже.'
+                :code==='rudi-pin-not-configured'
+                  ?'PIN ещё не создан. Сначала откройте RUDI через Telegram.'
+                  :'Неверный PIN.';
+              button.disabled=false;
+              input.disabled=false;
+              input.select();
+            }
+          });
+        });
+      }
+
+      async function ensureTelegramPin(){
+        if(!telegramInitData()) return true;
+        try{
+          const status=await browserAuthRequest('status');
+          if(status.pinConfigured===false) return showPinSetup();
+        }catch(error){
+          console.warn('RUDI_PIN_STATUS_WARN',String(error?.message||error));
+        }
+        return true;
       }
 
       async function loadAppBootstrap(){
-        if(!tg?.initData||!currentActor) return;
+        if(!currentActor) return;
         try{
           const cloudToken=await withTimeout(readStateBackupToken(),1600,currentStateBackupToken||'');
           const backupToken=String(cloudToken||currentStateBackupToken||readLocalStateBackupToken()||'');
@@ -1638,7 +1806,7 @@
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({
-              initData:tg.initData,
+              initData:telegramInitData(),
               backupToken,
               ticktickHandoff:ticktickHandoffToken
             }),
@@ -1668,34 +1836,36 @@
       }
 
       async function authenticateApp(){
-        if(!tg?.initData){
-          denyApp('Откройте RUDI в Telegram','Приложение доступно только через ваш Telegram-бот.');
-          return false;
-        }
         try{
           const localBackupToken=readLocalStateBackupToken();
           if(localBackupToken) currentStateBackupToken=localBackupToken;
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-auth',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData}),
+            body:JSON.stringify({initData:telegramInitData()}),
             cache:'no-store'
           },5000);
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
-          await loadAppBootstrap();
-          return true;
         }catch(error){
           const code=String(error?.message||'');
-          denyApp(
-            code==='rudi-access-denied'?'Доступ закрыт':'Не удалось проверить доступ',
-            code==='rudi-access-denied'
-              ?'RUDI работает только для Рустама и Дианы.'
-              :'Закройте приложение и откройте его снова из Telegram.'
-          );
-          return false;
+          if(!telegramInitData()&&['rudi-session-required','rudi-session-invalid','rudi-session-expired'].includes(code)){
+            currentActor=await showBrowserLogin();
+          }else{
+            denyApp(
+              code==='rudi-access-denied'?'Доступ закрыт':'Не удалось проверить доступ',
+              code==='rudi-access-denied'
+                ?'RUDI работает только для Рустама и Дианы.'
+                :'Обновите страницу и попробуйте снова.'
+            );
+            return false;
+          }
         }
+        if(!currentActor) return false;
+        if(telegramInitData()) await ensureTelegramPin();
+        await loadAppBootstrap();
+        return true;
       }
 
       const preventGestureZoom=event=>event.preventDefault();
@@ -1725,6 +1895,14 @@
       const avatarImage = document.getElementById('avatarImage');
       const initials = document.getElementById('initials');
       let firstName = '';
+
+      function applySessionIdentity(){
+        if(user||!currentActor) return;
+        firstName=currentActor;
+        displayName.textContent=currentActor;
+        initials.textContent=currentActor.charAt(0).toUpperCase();
+        avatar.classList.remove('has-photo');
+      }
 
       if(user){
         const fullName = [user.first_name,user.last_name].filter(Boolean).join(' ').trim() || 'Пользователь';
@@ -2140,7 +2318,7 @@
 
       async function loadDianaCycle({silent=false}={}){
         const card=document.getElementById('dianaCycleCard');
-        if(!card||!currentActor||!tg?.initData) return;
+        if(!card||!currentActor) return;
         try{
           const data=await cycleRequest('get');
           renderDianaCycle(data.configured?data.cycle:null);
@@ -2792,11 +2970,11 @@
       }
 
       async function loadTickTickNext({preserveExpanded=false,force=false}={}){
-        if(!tg?.initData) return;
+        if(!currentActor) return;
         if(force) invalidateManagedRequests('ticktick-today');
         try{
           const payload=await managedJsonRequest('ticktick-today','/api/ticktick/today',{
-            body:{initData:tg.initData,backupToken:currentStateBackupToken},
+            body:{initData:telegramInitData(),backupToken:currentStateBackupToken},
             ttlMs:3000,
             timeoutMs:10000
           });
@@ -3361,12 +3539,12 @@
       }
 
       async function refreshPartnerWorkStatus(){
-        if(!tg?.initData) return;
+        if(!currentActor) return;
         try{
           const payload=await fetchCalendarJson(
             'work-calendar:month',
             '/api/work-calendar',
-            {initData:tg.initData,backupToken:currentStateBackupToken,view:'month'},
+            {initData:telegramInitData(),backupToken:currentStateBackupToken,view:'month'},
             5000
           );
           if(Array.isArray(payload?.days)) renderPartnerWorkStatus(payload.days);
@@ -3379,12 +3557,12 @@
 
       async function fetchCombinedCalendar(view){
         const requested=['month','next-month'].includes(view)?view:'month';
-        const base={initData:tg.initData,backupToken:currentStateBackupToken,view:requested};
+        const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested};
         const [workResult,tickResult,holidayResult]=await Promise.allSettled([
           fetchCalendarJson('work-calendar:'+requested,'/api/work-calendar',base,5000),
           fetchCalendarJson('ticktick-calendar:'+requested,'/api/ticktick/calendar',base,3000),
           fetchCalendarJson('holiday-calendar:'+requested,'/api/partner-message?rudiAction=holiday-calendar',{
-            initData:tg.initData,
+            initData:telegramInitData(),
             view:requested
           },60000)
         ]);
@@ -3416,7 +3594,7 @@
       }
 
       async function loadWorkCalendar(view=currentWorkCalendarView,{silent=false,force=false}={}){
-        if(!tg?.initData) return;
+        if(!currentActor) return;
         const requested=['month','next-month'].includes(view)?view:'month';
         if(force) invalidateManagedRequests('ticktick-calendar:'+requested);
         currentWorkCalendarView=requested;
@@ -3593,7 +3771,7 @@
       }
 
       async function loadSharedCalendar(view=currentSharedCalendarView){
-        if(!tg?.initData) return;
+        if(!currentActor) return;
         const requested=['month','next-month'].includes(view)?view:'month';
         currentSharedCalendarView=requested;
         setSharedCalendarRangeActive(requested);
@@ -3605,7 +3783,7 @@
           const response=await fetch('/api/ticktick/calendar',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken,view:requested}),
+            body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -3970,7 +4148,7 @@
       }
 
       async function loadSharedAlbum(){
-        if(!tg?.initData) return;
+        if(!currentActor) return;
         const status=document.getElementById('sharedAlbumStatus');
         status.hidden=false;
         status.textContent='Обновляю';
@@ -3978,7 +4156,7 @@
           const response=await fetch('/api/shared-album',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData,backupToken:currentStateBackupToken}),
+            body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -4365,7 +4543,7 @@
         const status=document.getElementById('partnerStatus');
         let currentMessage=null;
 
-        const canEdit=Boolean(tg?.initData);
+        const canEdit=Boolean(currentActor);
         if(!canEdit){
           editButton.disabled=true;
           editButton.style.opacity='.45';
@@ -4398,7 +4576,7 @@
             const r=await fetch('/api/partner-message',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({text,initData:tg.initData,backupToken:currentStateBackupToken}),
+              body:JSON.stringify({text,initData:telegramInitData(),backupToken:currentStateBackupToken}),
               cache:'no-store'
             });
             const data=await r.json().catch(()=>({}));
@@ -4480,7 +4658,7 @@
       }
 
       async function refreshDailyMood(){
-        if(!currentActor||!tg?.initData) return;
+        if(!currentActor) return;
         try{
           const payload=await moodRequest('get');
           currentMoodDateKey=String(payload?.date||todayState().key);
@@ -5212,14 +5390,14 @@
       }
 
       async function loadFeed({silent=false}={}){
-        if(!currentActor||!tg?.initData) return;
+        if(!currentActor) return;
         const status=document.getElementById('feedStatus');
         if(status&&!silent) status.textContent='Обновляю Ленту…';
         try{
           const response=await fetch('/api/feed',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg.initData}),
+            body:JSON.stringify({initData:telegramInitData()}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -5480,7 +5658,7 @@
       }
 
       async function loadProducts({silent=false}={}){
-        if(!currentActor||!tg?.initData) return;
+        if(!currentActor) return;
         if(productsLoadPromise) return productsLoadPromise;
 
         const status=document.getElementById('productsStatus');
@@ -5674,6 +5852,7 @@
       async function init(){
         const allowed=await authenticateApp();
         if(!allowed) return;
+        applySessionIdentity();
         setupProfileSplit();
         setupHomeLayoutEditor();
         setupPersistentCollapsibles();
@@ -5735,7 +5914,7 @@
       init().catch(error=>{
         console.error('RUDI_INIT_ERROR',error);
         if(!document.body.classList.contains('auth-ok')){
-          denyApp('Не удалось открыть RUDI','Закройте приложение и откройте его снова из Telegram.');
+          denyApp('Не удалось открыть RUDI','Обновите страницу и попробуйте снова.');
         }
       });
       setInterval(()=>{if(currentActor) loadDianaCycle({silent:true})},30*60*1000);
@@ -5755,7 +5934,7 @@
         document.body.classList.remove('keyboard-editing');
         if(!currentActor) return;
 
-        document.body.classList.remove('auth-pending','auth-denied');
+        document.body.classList.remove('auth-pending','auth-denied','auth-login');
         document.body.classList.add('auth-ok');
         syncStaticProfileWorkStatus();
 
