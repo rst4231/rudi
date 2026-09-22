@@ -26,14 +26,17 @@ function splitImplicitProductSequence(value) {
 
   const groups = [];
   let current = [];
+  let currentHasProductStart = false;
   for (const word of words) {
     const restored = restoreCompoundProducts(word);
     const startsProduct = IMPLICIT_PRODUCT_START.test(restored);
-    if (startsProduct && current.length) {
+    if (startsProduct && current.length && currentHasProductStart) {
       groups.push(current.join(' '));
       current = [];
+      currentHasProductStart = false;
     }
     current.push(word);
+    if (startsProduct) currentHasProductStart = true;
   }
   if (current.length) groups.push(current.join(' '));
 
