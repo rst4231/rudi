@@ -217,7 +217,7 @@
 
     if(power){
       if(/камера/.test(name)) parts.push(power.state.value?'Онлайн':'Выключено');
-      else if(/пылесос/.test(name)) parts.push(power.state.value?'Убирает':'Готов к уборке');
+      else if(/пылесос/.test(name)) parts.push(power.state.value?'Включён':'Выключен');
       else parts.push(power.state.value?'Включено':'Выключено');
     }
 
