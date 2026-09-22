@@ -23,6 +23,7 @@ const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { handleSmartHomeRequest } = require('./smart-home-client.cjs');
+const { handleCarRequest } = require('./car-client.cjs');
 const {
   handleFeedbackCallback,
   cleanupLegacyFeedbackKeyboards,
@@ -115,6 +116,7 @@ async function publishDailyLaborArticle() {
 async function handler(req, res) {
   try {
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
+    if (req.query?.route === 'car') return handleCarRequest(req, res);
     if (req.query?.route === 'telegram') {
       if (await handleFeedbackCallback(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch, env: process.env })) {
         return res.status(200).json({ ok: true, handled: 'feedback' });
