@@ -161,6 +161,6 @@ test('scenario section has dedicated styled controls',()=>{
 
 
 test('vacuum power no longer claims active cleaning',()=>{
-  assert.match(smart,/пылесос'\)\) parts\.push\(power\.state\.value\?'Включён':'Выключен'\)/);
+  assert.match(smart,/else if\(\/пылесос\/\.test\(name\)\) parts\.push\(power\.state\.value\?'Включён':'Выключен'\)/);
   assert.doesNotMatch(smart,/power\.state\.value\?'Убирает'/);
 });
