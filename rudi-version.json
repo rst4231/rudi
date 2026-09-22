@@ -5,9 +5,11 @@
   "createdAt": "2026-09-22",
   "basedOnProduction": "1deb9f781e0ce33e04b4487d903890c798a8a9b8",
   "notes": [
-    "Исправлена миграция существующего PIN: если Postgres ещё пустой, RUDI сначала переносит PIN-хэш из восстановленного Runtime Cache, затем из Telegram backup.",
-    "Safari-login использует ту же миграцию и не требует повторно создавать PIN.",
-    "Neon Postgres остаётся единым серверным источником истины для Telegram и Safari.",
+    "PIN и Passkey используют единый постоянный Neon Postgres источник истины для Telegram и браузера.",
+    "Существующий PIN автоматически мигрирует из восстановленного Runtime Cache или Telegram backup в Postgres, если серверная запись ещё пустая.",
+    "Исправлена регистрация Face ID на iPhone: WebAuthn challenge подготавливается до нажатия, а navigator.credentials.create/get вызываются сразу из пользовательского клика.",
+    "Для WebAuthn используется нативный parseCreationOptionsFromJSON/parseRequestOptionsFromJSON при поддержке браузером.",
+    "Регистрационные параметры Passkey приведены к совместимым с iOS рекомендациям, при этом серверная проверка user verification остаётся обязательной.",
     "Автоматический Git deploy остаётся выключенным после релиза."
   ]
 }
