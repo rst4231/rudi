@@ -187,17 +187,40 @@
       </div>
 
       <div class="smart-home-climate" aria-label="Климат и погода">
-        <div class="smart-home-climate-card">
+        <div class="smart-home-climate-card is-weather">
+          <span class="smart-home-climate-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <circle cx="11" cy="10" r="5" fill="currentColor" opacity=".26"/>
+              <path d="M11 2.5v2.2M11 15.3v2.2M3.5 10h2.2M16.3 10h2.2M5.7 4.7l1.6 1.6M14.7 13.7l1.6 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M9 23.5h13.2a5.3 5.3 0 0 0 .5-10.6 7.3 7.3 0 0 0-13.4 2.8A4 4 0 0 0 9 23.5Z" fill="currentColor" opacity=".17"/>
+              <path d="M9 23.5h13.2a5.3 5.3 0 0 0 .5-10.6 7.3 7.3 0 0 0-13.4 2.8A4 4 0 0 0 9 23.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            </svg>
+          </span>
           <span>Погода</span>
           <strong id="smartHomeWeather">—</strong>
           <small id="smartHomeWeatherText">Загружаю…</small>
         </div>
-        <div class="smart-home-climate-card">
+        <div class="smart-home-climate-card is-temperature">
+          <span class="smart-home-climate-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M13 7.5a4 4 0 0 1 8 0v11.3a7 7 0 1 1-8 0V7.5Z" fill="currentColor" opacity=".14"/>
+              <path d="M13 7.5a4 4 0 0 1 8 0v11.3a7 7 0 1 1-8 0V7.5Z" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M17 9v12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <circle cx="17" cy="24" r="3.1" fill="currentColor"/>
+            </svg>
+          </span>
           <span>Температура дома</span>
           <strong id="smartHomeTemperature">—</strong>
           <small>Датчик климата</small>
         </div>
-        <div class="smart-home-climate-card">
+        <div class="smart-home-climate-card is-humidity">
+          <span class="smart-home-climate-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M16 4.5C12.7 9 8.4 13.9 8.4 19.1a7.6 7.6 0 1 0 15.2 0C23.6 13.9 19.3 9 16 4.5Z" fill="currentColor" opacity=".15"/>
+              <path d="M16 4.5C12.7 9 8.4 13.9 8.4 19.1a7.6 7.6 0 1 0 15.2 0C23.6 13.9 19.3 9 16 4.5Z" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M12.8 20.2a3.8 3.8 0 0 0 3.8 3.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
           <span>Влажность дома</span>
           <strong id="smartHomeHumidity">—</strong>
           <small id="smartHomeHumidityHint">Датчик климата</small>
