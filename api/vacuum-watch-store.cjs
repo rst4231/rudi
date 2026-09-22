@@ -11,7 +11,8 @@ function cacheOf(options = {}) {
 }
 
 function iso(value) {
-  const date = new Date(value || 0);
+  if (!value) return '';
+  const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : date.toISOString();
 }
 
