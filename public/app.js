@@ -1464,11 +1464,6 @@
           hostSelector:'.partner-head'
         });
         setupPersistentCollapsible({
-          selector:'.daily-section',key:'daily',
-          bodySelectors:['.daily-grid'],
-          hostSelector:'.section-heading'
-        });
-        setupPersistentCollapsible({
           selector:'#smartHomeTile',key:'smart-home',
           bodySelectors:['.smart-home-climate','#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
           hostSelector:'.smart-home-head'
