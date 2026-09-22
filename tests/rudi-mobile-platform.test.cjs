@@ -35,7 +35,7 @@ test('installed RUDI icon uses the supplied photo instead of a generated letter 
   assert.match(html,/rel="apple-touch-icon"[^>]+href="\/apple-touch-icon-v176\.jpg\?v=1\.7\.6"/);
   assert.equal(fs.existsSync('public/favicon-v176.png'),true);
   assert.equal(fs.existsSync('public/apple-touch-icon-v176.jpg'),true);
-  assert.equal(manifest.icons[0].src,'/apple-touch-icon-v176.jpg?v=1.7.6');
+  assert.equal(manifest.icons[0].src,'/icon-192-v176.jpg');
 });
 
 test('car header uses the detailed supplied UNI-V asset and has no header arrow', () => {
