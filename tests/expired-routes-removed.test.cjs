@@ -13,6 +13,7 @@ const removed = [
   'api/repair-event-post.js',
   'api/repair-labor-20260823.js',
   'api/retire-products-list.js',
+  'api/cinema-topic-migrate.js',
 ];
 
 test('expired one-time recovery handlers are absent', () => {
