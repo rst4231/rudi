@@ -83,3 +83,13 @@ test('passkey enrollment requires an authenticated RUDI user while passkey login
   assert.match(block, /operation === 'register-options'/);
   assert.match(block, /operation === 'register-verify'/);
 });
+
+test('PIN enrollment gate stays locked while Telegram keyboard and focus events fire', () => {
+  assert.match(app, /let appAccessReady = false;/);
+  assert.match(app, /async function authenticateApp\(\)\{\s*appAccessReady=false;/);
+  assert.match(app, /if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*await loadAppBootstrap\(\);\s*appAccessReady=true;\s*return true;/);
+  assert.match(app, /function ensureAppSurface\([\s\S]*?if\(!currentActor\|\|!appAccessReady\) return;/);
+  assert.match(app, /async function refreshAfterResume\(\)[\s\S]*?if\(!currentActor\|\|!appAccessReady\) return;/);
+  assert.match(app, /tg\?\.onEvent\?\.\('viewportChanged',[\s\S]*?ensureAppSurface/);
+  assert.match(app, /window\.addEventListener\('focus',[\s\S]*?ensureAppSurface/);
+});
