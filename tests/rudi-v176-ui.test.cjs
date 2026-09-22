@@ -26,8 +26,8 @@ test('browser pull-to-refresh is available only outside Telegram',()=>{
 });
 
 test('iPhone home icon uses the supplied RUDI photo',()=>{
-  assert.match(html,/rel="icon"[^>]+href="\/favicon-v176\.png\?v=1\.7\.6"/);
-  assert.match(html,/rel="apple-touch-icon"[^>]+href="\/apple-touch-icon-v176\.jpg\?v=1\.7\.6"/);
+  assert.match(html,/rel="icon"[^>]+href="\/favicon-v176\.png\?v=1\.7\.8"/);
+  assert.match(html,/rel="apple-touch-icon"[^>]+href="\/apple-touch-icon-v176\.jpg\?v=1\.7\.8"/);
   assert.equal(manifest.icons[0].src,'/icon-192-v176.jpg');
   assert.ok(fs.existsSync('public/favicon-v176.png'));
   assert.ok(fs.existsSync('public/apple-touch-icon-v176.jpg'));
@@ -36,7 +36,7 @@ test('iPhone home icon uses the supplied RUDI photo',()=>{
 
 test('car header uses detailed Changan asset and has no header chevron',()=>{
   assert.match(html,/class="car-head-visual"/);
-  assert.match(html,/src="\/changan-uni-v-header\.jpg\?v=1\.7\.6"/);
+  assert.match(html,/src="\/changan-uni-v-header\.jpg\?v=1\.7\.8"/);
   const start=html.indexOf('<div class="car-head">');
   const end=html.indexOf('<div id="carBody"',start);
   const header=html.slice(start,end);
