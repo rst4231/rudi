@@ -294,12 +294,12 @@ async function loadEnvironmentSnapshot(options = {}) {
 }
 
 async function loadTodayCarTasks(options = {}) {
-  if (typeof options.loadCarTasksImpl === 'function') {
-    return options.loadCarTasksImpl(options);
-  }
   try {
-    const result = await loadCarTasks({ now:options.now || new Date() });
-    return (Array.isArray(result?.tasks) ? result.tasks : []).filter((task) => task?.timing === 'today');
+    const result = typeof options.loadCarTasksImpl === 'function'
+      ? await options.loadCarTasksImpl(options)
+      : await loadCarTasks({ now:options.now || new Date() });
+    const tasks = Array.isArray(result) ? result : (Array.isArray(result?.tasks) ? result.tasks : []);
+    return tasks.filter((task) => task?.timing === 'today');
   } catch (error) {
     console.warn('RUDI_MORNING_CAR_TASKS_WARN', String(error?.message || error));
     return [];
