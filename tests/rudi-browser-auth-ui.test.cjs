@@ -113,3 +113,28 @@ test('existing PIN migrates from restored runtime cache into durable Postgres au
   assert.match(partner,/operation === 'login'[\s\S]*?hydrateActorAuth\(actor, body\.backupToken, options\)/);
   assert.match(partner,/if \(!hydrated\.durable\?\.pinRecord\) throw new Error\('rudi-pin-not-configured'\)/);
 });
+
+
+test('browser theme follows device outside Telegram and updates live', () => {
+  assert.match(app,/const telegramOpen=Boolean\(tg\?\.initData\)/);
+  assert.match(app,/const theme=telegramOpen&&tg\?\.colorScheme[\s\S]*?media\.matches\?'dark':'light'/);
+  assert.match(app,/handleSystemThemeChange/);
+  assert.match(app,/media\.addEventListener\?\.\('change',handleSystemThemeChange\)/);
+});
+
+test('browser pull to refresh only activates outside Telegram from the page top', () => {
+  assert.match(app,/touchstart/);
+  assert.match(app,/touchmove/);
+  assert.match(app,/touchend/);
+  assert.match(app,/if\(tg\?\.initData\) return/);
+  assert.match(app,/window\.scrollY>0/);
+  assert.match(app,/window\.location\.reload\(\)/);
+});
+
+test('home screen icon and detailed car header are wired in v1.7.6', () => {
+  assert.match(indexHtml,/apple-touch-icon-v176\.jpg\?v=1\.7\.6/);
+  assert.match(indexHtml,/manifest\.webmanifest\?v=1\.7\.6/);
+  assert.match(indexHtml,/car-head-visual/);
+  assert.match(indexHtml,/data:image\/jpeg;base64/);
+  assert.doesNotMatch(indexHtml,/car-head-chevron|car-chevron/);
+});
