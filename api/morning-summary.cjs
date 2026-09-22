@@ -205,6 +205,16 @@ function workDayBlock(workDay) {
   return '💼 <b>Сегодня рабочий день</b>' + range;
 }
 
+function dianaWorkDayBlock(workDay) {
+  if (!workDay) return '';
+  if (!workDay.working) return '🛋 <b>Диана сегодня не работает</b>';
+  const event = Array.isArray(workDay.events) ? workDay.events[0] : null;
+  const range = event?.startTime && event?.endTime
+    ? '\nСмена: ' + escapeTelegramHtml(event.startTime) + '–' + escapeTelegramHtml(event.endTime)
+    : '';
+  return '💼 <b>Диана сегодня работает</b>' + range;
+}
+
 function smartHomeProperty(device, instance) {
   const item = (Array.isArray(device?.properties) ? device.properties : [])
     .find((row) => String(row?.parameters?.instance || '') === String(instance || ''));
@@ -350,8 +360,10 @@ function buildMorningSummary(actor, data = {}) {
     '☀️ <b>' + actor + ', доброе утро</b>\n' + escapeTelegramHtml(String(data.dateLabel || '')),
   ];
 
-  if (actor === 'Диана' && data.workDay) {
-    blocks.push(workDayBlock(data.workDay));
+  if (data.workDay) {
+    blocks.push(actor === 'Диана'
+      ? workDayBlock(data.workDay)
+      : dianaWorkDayBlock(data.workDay));
   }
 
   const environment = environmentBlock(data);
@@ -578,6 +590,7 @@ module.exports = {
   wishlistLines,
   messageIsNewForActor,
   workDayBlock,
+  dianaWorkDayBlock,
   homeClimateFromSnapshot,
   tyreAdviceForWeather,
   environmentBlock,
