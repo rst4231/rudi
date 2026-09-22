@@ -24,6 +24,6 @@ test('mobile calendar numbers are geometrically centered and stable',()=>{
 test('iPhone Telegram safe area has a user-agent fallback and fresh asset keys',()=>{
   assert.match(app,/iPhone\|iPad\|iPod/);
   assert.match(app,/tg\?\.platform==='ios'\|\|iosUserAgent/);
-  assert.match(html,/app\.css\?v=1\.4/);
-  assert.match(html,/app\.js\?v=1\.4/);
+  assert.match(html,/app\.css\?v=1\.5/);
+  assert.match(html,/app\.js\?v=1\.5/);
 });
