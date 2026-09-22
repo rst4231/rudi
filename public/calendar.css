@@ -1,5 +1,5 @@
 /* RUDI v0.5.0 — single calendar stylesheet */
-body:not([data-app-tab="home"]) #dianaCycleCard{display:none!important}
+body:not([data-app-tab="schedule"]) #dianaCycleCard{display:none!important}
 
 body[data-app-tab="schedule"] .work-page{
   width:100%!important;
