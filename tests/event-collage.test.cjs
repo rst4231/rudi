@@ -60,3 +60,13 @@ test('text-only event sanitizer has no image-processing dependency', () => {
   assert.doesNotMatch(source, /sharp/);
   assert.doesNotMatch(source, /sendPhoto/);
 });
+
+test('obsolete concert and Stage image helpers are removed', () => {
+  for (const relative of [
+    'api/event-collage.cjs',
+    'api/event-collage-base.cjs',
+    'api/stage-poster.cjs',
+  ]) {
+    assert.equal(fs.existsSync(path.join(root, relative)), false, `${relative} must stay removed`);
+  }
+});
