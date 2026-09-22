@@ -87,7 +87,11 @@ function syncWebVersion() {
   let html = fs.readFileSync(webIndexPath, 'utf8');
   html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
   html = html.replace(/\/calendar\.css\?v=[^"]+/g, '/calendar.css?v=' + assetVersion);
+  html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
+  html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
+  html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
+  html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
   html = html.replace(
     /(<div id="appVersion" class="app-version" aria-label="Версия приложения">)[^<]*(<\/div>)/,
     '$1' + label + '$2'
