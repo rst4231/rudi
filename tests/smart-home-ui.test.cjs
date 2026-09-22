@@ -26,7 +26,7 @@ test('smart home starts with weather and climate and uses device cards',()=>{
   assert.ok(html.indexOf('id="smartHomeTemperature"',start)<rooms);
   assert.ok(html.indexOf('id="smartHomeHumidity"',start)<rooms);
   assert.match(smart,/function deviceCard\(device\)/);
-  assert.match(smart,/smart-home-device-grid/);
+  assert.match(smart,/smart-home-device-list/);
   assert.match(smartCss,/\.smart-home-device-card/);
   assert.match(smartCss,/\.smart-home-power-icon/);
 });
@@ -113,16 +113,35 @@ test('smart home climate and devices have distinct SVG artwork',()=>{
 });
 
 
-test('compact device cards expose power state without technical type text',()=>{
+test('smart home uses compact rows with clear power states and no technical type text',()=>{
   assert.match(smart,/smart-home-state-dot/);
   assert.match(smart,/power\.state\.value\?'is-on':'is-off'/);
   assert.match(smart,/indicator\.setAttribute\('aria-label',power\.state\.value\?'Включено':'Выключено'\)/);
   assert.doesNotMatch(smart,/replace\('devices\.types\.'/);
-  assert.doesNotMatch(smart,/if\(!parts\.length&&power\)parts\.push\(power\.state\.value\?'Включено':'Выключено'\)/);
+  assert.match(smart,/list\.className='smart-home-device-list'/);
+  assert.match(smartCss,/\.smart-home-device-list/);
+  assert.match(smartCss,/\.smart-home-device-row/);
   assert.match(smartCss,/\.smart-home-state-dot\.is-on/);
-  assert.match(smartCss,/background:#36b66c/);
+  assert.match(smartCss,/background:#24bf70/);
   assert.match(smartCss,/\.smart-home-state-dot\.is-off/);
-  assert.match(smartCss,/background:#dc545b/);
-  assert.match(smartCss,/@media\(max-width:560px\)\{\s*\.smart-home-device-grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(smartCss,/\.smart-home-device-visual\{[\s\S]*?min-height:76px/);
+  assert.match(smartCss,/background:#ff5059/);
+  assert.match(smartCss,/\.smart-home-climate\{[\s\S]*?linear-gradient\(145deg,#344153,#25303f 54%,#1f2936\)/);
+  assert.doesNotMatch(smart,/device-arrow|smart-home-device-arrow/);
+});
+
+
+test('vacuum speed list opens from the row or power button',()=>{
+  assert.match(smart,/expandedVacuumIds:new Set\(\)/);
+  assert.match(smart,/state\.expandedVacuumIds\.add\(deviceId\);\s*toggleDevice\(device,button,power\)/);
+  assert.match(smart,/card\.addEventListener\('click',toggleExpanded\)/);
+  assert.match(smart,/controls\.hidden=!expanded/);
+  assert.match(smart,/smart-home-speed-current/);
+  assert.match(smartCss,/\.smart-home-speed-control\[hidden\]\{display:none!important\}/);
+});
+
+test('devices with on-off capability, including camera, get a power control',()=>{
+  assert.match(smart,/const power=onOff\(device\)/);
+  assert.match(smart,/if\(power\)\{[\s\S]*?smart-home-power-icon/);
+  assert.match(smart,/smart-home-device-svg is-camera/);
+  assert.doesNotMatch(smart,/name==='камера'.*power/);
 });
