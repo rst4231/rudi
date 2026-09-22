@@ -99,3 +99,22 @@ test('browser auth cache does not fail successful writes on immediate cache visi
   assert.match(sessionSource,/namespace: 'rudi-browser-auth-v1',[\s\S]*?confirmWrites: false/);
   assert.match(passkeySource,/namespace: 'rudi-passkeys-v1',[\s\S]*?confirmWrites: false/);
 });
+
+test('PIN remains verifiable from encrypted backup record after runtime cache is gone', async () => {
+  const firstCache = memoryCache();
+  const saved = await savePin('Рустам', '482913', { cache:firstCache, now:Date.UTC(2026,8,22,12,0,0) });
+  assert.ok(saved.record?.salt);
+  assert.ok(saved.record?.hash);
+  assert.doesNotMatch(JSON.stringify(saved.record), /482913/);
+
+  const emptyCache = memoryCache();
+  assert.equal(await hasPin('Рустам', { cache:emptyCache }), false);
+
+  const req = { headers:{ 'x-forwarded-for':'127.0.0.1', 'user-agent':'backup-test' } };
+  const verified = await verifyPin(req, 'Рустам', '482913', { cache:emptyCache, pinRecord:saved.record });
+  assert.equal(verified.actor, 'Рустам');
+  await assert.rejects(
+    () => verifyPin(req, 'Рустам', '111111', { cache:emptyCache, pinRecord:saved.record }),
+    /rudi-pin-invalid/
+  );
+});

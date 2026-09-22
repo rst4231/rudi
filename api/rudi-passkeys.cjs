@@ -93,6 +93,23 @@ async function writePasskeys(actor, rows, options = {}) {
   return value;
 }
 
+async function restorePasskeys(actor, rows, options = {}) {
+  const safeActor = normalizeActor(actor);
+  if (!safeActor) throw new Error('rudi-access-denied');
+  const incoming = (Array.isArray(rows) ? rows : []).map(normalizePasskey).filter(row => row?.actor === safeActor);
+  if (!incoming.length) return readPasskeys(safeActor, options);
+  const current = await readPasskeys(safeActor, options).catch(() => []);
+  const merged = new Map();
+  for (const row of [...current, ...incoming]) {
+    const key = row.rpID + '\0' + row.id;
+    const previous = merged.get(key);
+    const previousTime = Date.parse(String(previous?.updatedAt || previous?.createdAt || '')) || 0;
+    const rowTime = Date.parse(String(row.updatedAt || row.createdAt || '')) || 0;
+    if (!previous || rowTime >= previousTime) merged.set(key, row);
+  }
+  return writePasskeys(safeActor, [...merged.values()], options);
+}
+
 function actorUserId(actor) {
   return new Uint8Array(
     crypto.createHash('sha256').update('rudi-passkey-user-v1\0' + normalizeActor(actor)).digest().subarray(0, 24)
@@ -269,6 +286,7 @@ module.exports = {
   encodeBytes,
   decodeBytes,
   readPasskeys,
+  restorePasskeys,
   passkeyStatus,
   registrationOptions,
   verifyRegistration,
