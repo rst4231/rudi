@@ -404,6 +404,7 @@ const MOOD_ACTIVITY = {
   low: { label: 'Не очень', emoji: '😔' },
   ok: { label: 'Нормально', emoji: '😐' },
   great: { label: 'Отлично', emoji: '😄' },
+  love: { label: 'Нежное', emoji: '🥰' },
 };
 
 function moodActivityText(actor, previousMood, nextMood) {
@@ -432,6 +433,7 @@ const MOOD_NOTICE = {
   low: { phrase: 'настроение не очень', emoji: '😔' },
   ok: { phrase: 'нормальное настроение', emoji: '😐' },
   great: { phrase: 'отличное настроение', emoji: '😄' },
+  love: { phrase: 'особенно нежное настроение', emoji: '🥰' },
 };
 
 function moodNotificationText(recipient, actor, mood) {
