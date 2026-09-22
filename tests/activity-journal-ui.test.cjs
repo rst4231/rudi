@@ -8,7 +8,7 @@ const api=fs.readFileSync('api/partner-message.js','utf8');
 const backup=fs.readFileSync('api/rudi-backup.cjs','utf8');
 
 test('home contains a shared activity journal tile',()=>{
-  assert.match(app,/data\.homeTile='activity'/);
+  assert.match(app,/activityTile\\.dataset\\.homeTile='activity'/);
   assert.match(app,/Что произошло у нас/);
   assert.match(app,/function renderActivityJournal\(payload\)/);
   assert.match(app,/function loadActivityJournal/);
