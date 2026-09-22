@@ -187,6 +187,9 @@ async function handleSmartHomeRequest(req, res) {
     }
 
     if (operation === 'scenario') {
+      if (session.actor !== 'Рустам') {
+        return res.status(403).json({ok:false,error:'smart-home-scenarios-forbidden'});
+      }
       const scenarioId = cleanId(body.scenarioId,'scenario-id');
       const result = await yandex('/scenarios/' + encodeURIComponent(scenarioId) + '/actions',{method:'POST'});
       cache = null;
