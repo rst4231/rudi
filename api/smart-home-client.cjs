@@ -264,4 +264,4 @@ async function handleSmartHomeRequest(req, res) {
   }
 }
 
-module.exports = { handleSmartHomeRequest };
+module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home };
