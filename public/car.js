@@ -315,7 +315,7 @@
   }
 
   async function loadCar() {
-    if(!tg?.initData || state.loading) return;
+    if(!document.body.classList.contains('auth-ok') || state.loading) return;
     state.loading=true;
     try {
       const data=await api('get');
@@ -372,7 +372,7 @@
     let attempts=0;
     const wait=()=>{
       attempts++;
-      if(document.body.classList.contains('auth-ok') && tg?.initData) {
+      if(document.body.classList.contains('auth-ok')) {
         loadCar();
         return;
       }
