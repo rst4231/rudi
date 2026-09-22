@@ -1,8 +1,29 @@
 .car-tile{
   position:relative;
+  isolation:isolate;
   padding:18px;
-  border-radius:24px;
+  border-radius:26px;
   overflow:hidden;
+  color:#f6f7f9;
+  border:1px solid rgba(154,160,170,.18);
+  background:
+    radial-gradient(circle at 10% 0%,rgba(255,255,255,.08),transparent 26%),
+    radial-gradient(circle at 92% 8%,rgba(217,56,56,.11),transparent 24%),
+    linear-gradient(145deg,#202329 0%,#111317 46%,#090a0d 100%);
+  box-shadow:
+    0 20px 46px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.07);
+}
+.car-tile::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:auto -70px -110px auto;
+  width:220px;
+  height:220px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(210,43,43,.12),rgba(210,43,43,0) 68%);
+  pointer-events:none;
 }
 .car-tile[hidden]{display:none!important}
 .car-head{
@@ -10,22 +31,82 @@
   align-items:flex-start;
   justify-content:space-between;
   gap:14px;
-  margin-bottom:14px;
+  margin-bottom:12px;
+}
+.car-head .home-dashboard-label{
+  color:#aeb3bc;
 }
 .car-head h2{
   margin:3px 0 4px;
+  color:#fff;
   font-size:21px;
   line-height:1.15;
   letter-spacing:-.03em;
 }
 .car-model{
-  color:var(--muted);
+  color:#9ba1ab;
   font-size:11px;
   line-height:1.3;
 }
 .car-body{
   display:grid;
   gap:12px;
+}
+.car-hero{
+  position:relative;
+  min-height:142px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:20px;
+  background:
+    radial-gradient(circle at 50% 82%,rgba(255,255,255,.07),transparent 40%),
+    linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+}
+.car-hero::before{
+  content:"";
+  position:absolute;
+  inset:auto 7% 14px 7%;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
+}
+.car-hero-badge{
+  position:absolute;
+  z-index:2;
+  left:13px;
+  top:11px;
+  padding:5px 8px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:9px;
+  background:rgba(255,255,255,.045);
+  color:#d7dae0;
+  font-size:8.5px;
+  line-height:1;
+  font-weight:850;
+  letter-spacing:.15em;
+}
+.car-hero-svg{
+  width:100%;
+  height:128px;
+  display:block;
+  margin-top:4px;
+  filter:drop-shadow(0 14px 18px rgba(0,0,0,.28));
+}
+.car-hero-caption{
+  position:absolute;
+  left:14px;
+  bottom:11px;
+  display:grid;
+  gap:2px;
+}
+.car-hero-caption span{
+  color:#fff;
+  font-size:11px;
+  font-weight:820;
+  letter-spacing:.01em;
+}
+.car-hero-caption small{
+  color:#8f959f;
+  font-size:8.5px;
 }
 .car-top-grid{
   display:grid;
@@ -35,21 +116,59 @@
 .car-weather-card,
 .car-service-card,
 .car-mileage-panel{
-  border:1px solid var(--line);
+  border:1px solid rgba(255,255,255,.075);
   border-radius:17px;
-  background:var(--soft);
+  background:rgba(255,255,255,.04);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
 }
 .car-weather-card,
 .car-service-card{
   min-width:0;
   padding:12px;
 }
+.car-card-title,
+.car-section-title{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+}
+.car-card-title{margin-bottom:7px}
+.car-card-icon,
+.car-section-icon{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+}
+.car-card-icon{
+  width:27px;
+  height:27px;
+}
+.car-card-icon svg,
+.car-section-icon svg{
+  width:18px;
+  height:18px;
+  display:block;
+}
+.car-card-icon.is-weather{
+  color:#e8b04f;
+  background:rgba(232,176,79,.12);
+}
+.car-card-icon.is-service{
+  color:#e56d66;
+  background:rgba(229,109,102,.12);
+}
+.car-card-icon.is-mileage{
+  color:#7fa7d9;
+  background:rgba(127,167,217,.12);
+}
 .car-card-label{
   display:block;
-  margin-bottom:5px;
-  color:var(--muted);
-  font-size:9px;
-  line-height:1.2;
+  margin:0;
+  color:#8f96a2;
+  font-size:8.5px;
+  line-height:1.15;
   font-weight:800;
   letter-spacing:.055em;
   text-transform:uppercase;
@@ -58,7 +177,7 @@
 .car-service-card strong{
   display:block;
   margin-bottom:5px;
-  color:var(--text);
+  color:#fff;
   font-size:16px;
   line-height:1.2;
   letter-spacing:-.025em;
@@ -66,7 +185,7 @@
 .car-weather-card p,
 .car-service-card p{
   margin:0;
-  color:var(--muted);
+  color:#9ba1aa;
   font-size:10px;
   line-height:1.42;
 }
@@ -77,13 +196,11 @@
   align-items:end;
   padding:13px;
 }
-.car-mileage-copy{
-  min-width:0;
-}
+.car-mileage-copy{min-width:0}
 .car-mileage-copy strong{
   display:block;
   margin-top:2px;
-  color:var(--text);
+  color:#fff;
   font-size:24px;
   line-height:1;
   letter-spacing:-.04em;
@@ -92,7 +209,7 @@
   display:block;
   min-height:13px;
   margin-top:5px;
-  color:var(--muted);
+  color:#8e949f;
   font-size:9px;
 }
 .car-mileage-form{
@@ -100,7 +217,7 @@
   gap:5px;
 }
 .car-mileage-form label{
-  color:var(--muted);
+  color:#8e949f;
   font-size:9px;
   font-weight:750;
 }
@@ -113,17 +230,18 @@
   min-width:0;
   height:36px;
   padding:0 10px;
-  border:1px solid var(--line);
+  border:1px solid rgba(255,255,255,.10);
   border-radius:11px;
   outline:none;
-  background:var(--surface-strong);
-  color:var(--text);
+  background:rgba(255,255,255,.055);
+  color:#fff;
   font:inherit;
   font-size:12px;
 }
+.car-mileage-input-row input::placeholder{color:#686f7b}
 .car-mileage-input-row input:focus{
-  border-color:color-mix(in srgb,var(--accent) 40%,var(--line));
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 10%,transparent);
+  border-color:rgba(209,63,63,.48);
+  box-shadow:0 0 0 3px rgba(209,63,63,.10);
 }
 .car-mileage-input-row button{
   min-width:78px;
@@ -131,28 +249,31 @@
   padding:0 11px;
   border:0;
   border-radius:11px;
-  background:var(--accent);
+  background:linear-gradient(180deg,#d74b4b,#b82f34);
   color:#fff;
   font:inherit;
   font-size:10px;
   font-weight:800;
+  box-shadow:0 5px 12px rgba(183,46,51,.22);
 }
 .car-mileage-input-row button:disabled{opacity:.55}
 .car-service-progress{
   height:6px;
   overflow:hidden;
   border-radius:999px;
-  background:var(--soft);
+  background:rgba(255,255,255,.055);
 }
 .car-service-progress span{
   display:block;
   width:0;
   height:100%;
   border-radius:inherit;
-  background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 62%,#8d78ff));
+  background:linear-gradient(90deg,#9b2d32,#eb665e);
+  box-shadow:0 0 10px rgba(226,80,75,.22);
   transition:width .3s ease;
 }
-.car-recommendations{
+.car-recommendations,
+.car-tasks{
   display:grid;
   gap:8px;
 }
@@ -162,13 +283,35 @@
   justify-content:space-between;
   padding:0 2px;
 }
-.car-section-head strong{
+.car-section-title{
+  color:#dfe2e6;
+}
+.car-section-title strong{
   font-size:12px;
   line-height:1.2;
 }
-.car-recommendations-list{
+.car-section-icon{
+  width:27px;
+  height:27px;
+}
+.car-section-icon.is-recommendation{
+  color:#e5ae4b;
+  background:rgba(229,174,75,.11);
+}
+.car-section-icon.is-task{
+  color:#7fa7d9;
+  background:rgba(127,167,217,.11);
+}
+.car-recommendations-list,
+.car-tasks-list{
   display:grid;
   gap:7px;
+}
+.car-recommendation,
+.car-task-row{
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:14px;
+  background:rgba(255,255,255,.035);
 }
 .car-recommendation{
   display:grid;
@@ -176,16 +319,13 @@
   gap:9px;
   align-items:start;
   padding:10px 11px;
-  border:1px solid var(--line);
-  border-radius:14px;
-  background:var(--surface-strong);
 }
 .car-recommendation-dot{
   width:8px;
   height:8px;
   margin-top:4px;
   border-radius:50%;
-  background:var(--accent);
+  background:#d74b4b;
 }
 .car-recommendation.is-warn .car-recommendation-dot{background:#e49a38}
 .car-recommendation.is-cold .car-recommendation-dot{background:#57a8e9}
@@ -195,27 +335,19 @@
 .car-recommendation strong{
   display:block;
   margin-bottom:2px;
-  color:var(--text);
+  color:#f4f5f7;
   font-size:11px;
   line-height:1.25;
 }
 .car-recommendation p{
   margin:0;
-  color:var(--muted);
+  color:#9aa0aa;
   font-size:9.5px;
   line-height:1.42;
 }
-.car-tasks{
-  display:grid;
-  gap:8px;
-}
 .car-tasks-meta{
-  color:var(--muted);
+  color:#818895;
   font-size:10px;
-}
-.car-tasks-list{
-  display:grid;
-  gap:7px;
 }
 .car-task-row{
   display:grid;
@@ -223,9 +355,6 @@
   gap:10px;
   align-items:center;
   padding:10px 11px;
-  border:1px solid var(--line);
-  border-radius:14px;
-  background:var(--surface-strong);
 }
 .car-task-copy{
   min-width:0;
@@ -234,27 +363,25 @@
 }
 .car-task-copy strong{
   overflow:hidden;
-  color:var(--text);
+  color:#f5f6f8;
   font-size:11px;
   line-height:1.3;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 .car-task-date{
-  color:var(--muted);
+  color:#858c97;
   font-size:9px;
   line-height:1.2;
 }
-.car-task-date.is-overdue{
-  color:#d8843d;
-}
+.car-task-date.is-overdue{color:#d88a48}
 .car-task-done{
   min-height:32px;
   padding:0 10px;
-  border:1px solid color-mix(in srgb,var(--accent) 22%,var(--line));
+  border:1px solid rgba(220,76,76,.25);
   border-radius:10px;
-  background:color-mix(in srgb,var(--accent) 10%,var(--surface-strong));
-  color:var(--accent);
+  background:rgba(210,60,60,.10);
+  color:#ef8680;
   font:inherit;
   font-size:9.5px;
   font-weight:800;
@@ -262,9 +389,9 @@
 .car-task-done:disabled{opacity:.55}
 .car-tasks-empty{
   padding:11px;
-  border:1px dashed var(--line);
+  border:1px dashed rgba(255,255,255,.09);
   border-radius:14px;
-  color:var(--muted);
+  color:#8c939d;
   font-size:10px;
   line-height:1.35;
   text-align:center;
@@ -272,19 +399,28 @@
 .car-status{
   padding:8px 10px;
   border-radius:12px;
-  background:var(--soft);
-  color:var(--muted);
+  background:rgba(255,255,255,.045);
+  color:#9ba1aa;
   font-size:10px;
   line-height:1.35;
 }
 .car-status[hidden]{display:none!important}
 .car-status.is-success{
-  color:#2f8c59;
-  background:rgba(54,181,109,.10);
+  color:#74c996;
+  background:rgba(54,181,109,.09);
 }
 .car-status.is-error{
-  color:#c54e58;
-  background:rgba(220,77,91,.10);
+  color:#ef8188;
+  background:rgba(220,77,91,.09);
+}
+.car-tile .home-collapse-button,
+.car-tile .home-order-button{
+  color:#bfc4cb;
+  border-color:rgba(255,255,255,.08);
+  background:rgba(255,255,255,.045);
+}
+.car-tile .home-order-controls{
+  background:rgba(255,255,255,.025);
 }
 @media(max-width:560px){
   .car-mileage-panel{
@@ -293,11 +429,15 @@
   }
 }
 @media(max-width:430px){
-  .car-tile{padding:16px}
+  .car-tile{padding:16px;border-radius:24px}
+  .car-hero{min-height:130px}
+  .car-hero-svg{height:118px}
   .car-top-grid{gap:6px}
   .car-weather-card,.car-service-card{padding:10px;border-radius:15px}
   .car-weather-card strong,.car-service-card strong{font-size:14px}
   .car-weather-card p,.car-service-card p{font-size:9px}
+  .car-card-icon{width:25px;height:25px}
+  .car-card-icon svg{width:16px;height:16px}
   .car-mileage-copy strong{font-size:22px}
   .car-task-row{padding:9px 10px}
   .car-task-copy strong{font-size:10.5px}
