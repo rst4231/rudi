@@ -55,3 +55,26 @@ test('app auth restores backup before recipient self-registration', () => {
   const register = source.indexOf('saveRecipient(actor, user?.id');
   assert.ok(restore >= 0 && register > restore);
 });
+
+
+test('cache miss does not create a newer initialized empty product list', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'product-list-store.cjs'), 'utf8');
+  assert.match(source, /if \(!items\.length\) return current;[\s\S]*return writeState\(\{ \.\.\.current, items \}, options\)/);
+});
+
+test('client completes backup recovery before stateful loaders start', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(source, /document\.body\.classList\.add\('auth-ok'\);\s*await loadAppBootstrap\(\);\s*return true;/);
+  assert.doesNotMatch(source, /setTimeout\(\(\)=>loadAppBootstrap\(\),0\)/);
+});
+
+test('previous backup slot can be previewed safely and New in RUDI stays home-only', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const api = fs.readFileSync(path.join(__dirname, '..', 'api', 'partner-message.js'), 'utf8');
+  assert.match(app, /async function readPreviousCloudStateBackupToken\(\)/);
+  assert.match(app, /rudiAction=state-backup-recovery/);
+  assert.match(app, /tile\.hidden=currentAppTab!==['"]home['"]\|\|!entries\.length/);
+  assert.match(api, /if \(action === 'state-backup-recovery'\)/);
+  assert.match(api, /product-list-not-empty/);
+  assert.match(api, /RUDI_PRODUCTS_BACKUP_RECOVERED/);
+});
