@@ -224,6 +224,9 @@
       "салон",
       "яндекс карт"
     ],
-    "taskLimit": 3
+    "taskLimit": 3,
+    "taskColumnKeywords": [
+      "машин"
+    ]
   }
 }
