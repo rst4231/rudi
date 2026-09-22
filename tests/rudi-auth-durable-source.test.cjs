@@ -1,0 +1,49 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+const api = fs.readFileSync('api/partner-message.js','utf8');
+const store = fs.readFileSync('api/rudi-auth-db.cjs','utf8');
+const jwks = fs.readFileSync('api/rudi-jwks.js','utf8');
+
+test('Safari PIN login reads one durable server record and does not require Telegram backup', () => {
+  const start=api.indexOf("if (action === 'browser-auth')");
+  const end=api.indexOf("if (action === 'app-auth')",start);
+  assert.ok(start>=0&&end>start);
+  const block=api.slice(start,end);
+  assert.match(block,/operation === 'login'[\s\S]*?readAuthRecord\(actor, durableAuthOptions\(options\)\)/);
+  assert.match(block,/if \(!durable\?\.pinRecord\) throw new Error\('rudi-pin-not-configured'\)/);
+  assert.match(block,/pinRecord: durable\.pinRecord/);
+  const loginBlock=block.slice(block.indexOf("operation === 'login'"),block.indexOf("operation === 'logout'"));
+  assert.doesNotMatch(loginBlock,/backupToken|backupSnapshotFromToken|CloudStorage/);
+});
+
+test('Telegram PIN creation writes the same hash into durable Postgres before reporting success', () => {
+  const start=api.indexOf("operation === 'create-pin'");
+  const end=api.indexOf("operation === 'status'",start);
+  assert.ok(start>=0&&end>start);
+  const block=api.slice(start,end);
+  const hashWrite=block.indexOf("savePin(telegram.actor");
+  const durableWrite=block.indexOf("saveDurablePinRecord(telegram.actor");
+  const response=block.indexOf("return res.status(200)");
+  assert.ok(hashWrite>=0&&durableWrite>hashWrite&&response>durableWrite);
+});
+
+test('Telegram status migrates an existing encrypted backup PIN into durable server auth', () => {
+  assert.match(api,/async function hydrateActorAuth[\s\S]*?backupPin[\s\S]*?saveDurablePinRecord\(actor, backupPin, dbOptions\)/);
+  assert.match(api,/operation === 'status'[\s\S]*?hydrateActorAuth\(session\.actor, body\.backupToken, options\)[\s\S]*?Boolean\(hydrated\.durable\?\.pinRecord\)/);
+});
+
+test('Face ID passkeys use the same durable server auth record', () => {
+  assert.match(api,/saveDurablePasskeys\(verified\.actor, rows, durableAuthOptions\(options\)\)/);
+  assert.match(api,/saveDurablePasskeys\(session\.actor, rows, durableAuthOptions\(options\)\)/);
+  assert.match(api,/hydrateAllDurablePasskeys/);
+});
+
+test('durable auth store is server-only and uses signed Neon Data API requests', () => {
+  assert.match(store,/signDataApiJwt/);
+  assert.match(store,/authorization: 'Bearer ' \+ token/);
+  assert.match(store,/rudi_browser_auth/);
+  assert.doesNotMatch(store,/123456|password\s*:/i);
+  assert.match(jwks,/publicJwks/);
+});
