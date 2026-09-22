@@ -165,3 +165,21 @@ test('photo-memory reactions are accepted and persisted per photo key', async ()
   const persisted = await require('../api/reactions-store.cjs').readReaction(target, { reactionsCache: cache });
   assert.deepEqual(persisted.likedBy, ['Диана']);
 });
+
+
+test('reaction snapshot restores likes after cache eviction',async()=>{
+  const mod=require('../api/reactions-store.cjs');
+  const values=new Map();
+  const cache={
+    async get(key){return values.has(key)?structuredClone(values.get(key)):null},
+    async set(key,value){values.set(key,structuredClone(value));return true},
+    async delete(key){values.delete(key)},
+  };
+  const target={type:'daily-idea',key:'day:2026-09-22'};
+  await mod.setReaction(target,'Рустам',true,{reactionsCache:cache,now:Date.parse('2026-09-22T10:00:00Z')});
+  const snapshot=await mod.readReactionState({reactionsCache:cache});
+  values.clear();
+  await mod.restoreReactionState(snapshot,{reactionsCache:cache});
+  const restored=await mod.readReaction(target,{reactionsCache:cache});
+  assert.deepEqual(restored.likedBy,['Рустам']);
+});
