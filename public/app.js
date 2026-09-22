@@ -64,6 +64,7 @@
       const LEGACY_STATE_BACKUP_CLOUD_CHUNK_PREFIX = 'rudi_state_backup_v1_';
       const STATE_BACKUP_CLOUD_CHUNK_SIZE = 3500;
       let stateBackupRefreshPromise = null;
+      let stateBackupRefreshQueued = false;
       let currentStateBackupToken = '';
       let ticktickHandoffToken = '';
       try{
@@ -514,7 +515,10 @@
 
       async function refreshStateBackup(){
         if(!currentActor||!tg?.initData) return;
-        if(stateBackupRefreshPromise) return stateBackupRefreshPromise;
+        if(stateBackupRefreshPromise){
+          stateBackupRefreshQueued=true;
+          return stateBackupRefreshPromise;
+        }
         stateBackupRefreshPromise=(async()=>{
           try{
             const response=await fetch('/api/partner-message?rudiAction=state-backup',{
@@ -530,7 +534,13 @@
             const payload=await response.json().catch(()=>({}));
             if(response.ok&&payload.ok&&payload.backupToken) await storeStateBackupToken(payload.backupToken);
           }catch(_){}
-          finally{stateBackupRefreshPromise=null}
+          finally{
+            stateBackupRefreshPromise=null;
+            if(stateBackupRefreshQueued){
+              stateBackupRefreshQueued=false;
+              setTimeout(()=>refreshStateBackup(),0);
+            }
+          }
         })();
         return stateBackupRefreshPromise;
       }
