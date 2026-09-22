@@ -29,11 +29,23 @@ test('Alice list splitting prefers the original utterance so punctuation is not 
   ]);
 });
 
-test('Alice does not split an utterance by spaces when no list separator is present', () => {
-  const req = aliceReq('добавь мороженое кефир масло');
-  assert.deepEqual(productsChat.splitAliceProductItems(req), [
-    'мороженое кефир масло',
-  ]);
+test('Alice splits common spoken product lists even when punctuation is absent', () => {
+  assert.deepEqual(
+    productsChat.splitAliceProductItems(aliceReq('добавь мороженое кефир масло')),
+    ['мороженое', 'кефир', 'масло'],
+  );
+  assert.deepEqual(
+    productsChat.splitAliceProductItems(aliceReq('картошка орехи чай зеленый')),
+    ['картошка', 'орехи', 'чай зеленый'],
+  );
+  assert.deepEqual(
+    productsChat.splitAliceProductItems(aliceReq('молоко хлеб яйца сыр')),
+    ['молоко', 'хлеб', 'яйца', 'сыр'],
+  );
+  assert.deepEqual(
+    productsChat.splitAliceProductItems(aliceReq('сыр творожный масло сливочное')),
+    ['сыр творожный', 'масло сливочное'],
+  );
 });
 
 test('products message cache does not require an immediate read-after-write confirmation', async () => {
