@@ -373,6 +373,11 @@
     const wait=()=>{
       attempts++;
       if(document.body.classList.contains('auth-ok')) {
+        const actor=String(document.body.dataset.rudiActor||'');
+        if(actor&&actor!=='Рустам') {
+          document.getElementById('carTile')?.remove();
+          return;
+        }
         loadCar();
         return;
       }
