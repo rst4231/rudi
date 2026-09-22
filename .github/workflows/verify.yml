@@ -2,7 +2,7 @@ name: Verify RUDI
 
 on:
   push:
-    branches: [main, rudi-scenarios-ui-20260922]
+    branches: [main]
     paths:
       - 'runtime/**'
       - 'api/**'
