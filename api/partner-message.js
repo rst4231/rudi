@@ -36,9 +36,9 @@ const {
   readAlbumConfig,
   getLatestPhotos,
 } = require('./shared-album.cjs');
-const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cjs');
+const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyMoodState } = require('./daily-mood-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
-const { readReactions, setReaction, toggleReaction } = require('./reactions-store.cjs');
+const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState } = require('./reactions-store.cjs');
 const {
   readActivityJournal,
   appendActivity,
@@ -66,7 +66,7 @@ const {
   recordChecklistAudit,
   checklistAuditForItem,
 } = require('./ticktick-checklist-audit-store.cjs');
-const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot } = require('./rudi-backup.cjs');
+const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot, mergeUiPreferences, normalizeUiPreferences } = require('./rudi-backup.cjs');
 const { getCinemaPremieresCache, getTopicMaintenanceCache } = require('./stateful-cache.cjs');
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
@@ -216,6 +216,32 @@ function boughtNotificationText(actor) {
 function wishlistNotificationText(owner, text) {
   const action = owner === 'Диана' ? 'добавила' : 'добавил';
   return `🎁 <b>${owner} ${action} в вишлист</b>\n<i>${escapeTelegramHtml(String(text || '').trim())}</i>`;
+}
+
+async function sendWishlistNotificationToPartner(owner, text, options = {}) {
+  const recipient = owner === 'Рустам' ? 'Диана' : owner === 'Диана' ? 'Рустам' : '';
+  if (!recipient) return { sent:false, reason:'actor-invalid' };
+  try {
+    const recipients = options.recipients || await readRecipients(options);
+    const chatId = Number(recipients?.[recipient]);
+    if (!Number.isInteger(chatId) || chatId <= 0) return { sent:false, reason:'recipient-not-configured' };
+    const result = await telegramSendMessage(chatId, wishlistNotificationText(owner,text), {
+      ...options,
+      tab:'wishlist',
+      buttonText:'Открыть вишлист',
+    });
+    return { sent:true, recipient, ...result };
+  } catch (error) {
+    console.warn('RUDI_WISHLIST_NOTIFICATION_WARN', String(error?.message || error));
+    return { sent:false, recipient, error:String(error?.message || error) };
+  }
+}
+
+async function refreshBackupToken(previousSnapshot, options = {}) {
+  return createStateBackup({ ...options, previousSnapshot }).catch((error) => {
+    console.warn('RUDI_STATE_BACKUP_REFRESH_WARN', String(error?.message || error));
+    return '';
+  });
 }
 
 function activityVerb(actor, male, female) {
@@ -433,18 +459,36 @@ function verifyTickTickOAuthState(value, options = {}) {
 function mergeBackupSnapshots(base, overlay) {
   if (!base) return overlay || null;
   if (!overlay) return base;
+
+  const newerVersion=(left,right)=>{
+    if(!left) return right||null;
+    if(!right) return left;
+    return Number(right?.version||0)>Number(left?.version||0)?right:left;
+  };
+  const newerTime=(left,right,field='updatedAt')=>{
+    if(!left) return right||null;
+    if(!right) return left;
+    const a=Date.parse(String(left?.[field]||''))||0;
+    const b=Date.parse(String(right?.[field]||''))||0;
+    return b>a?right:left;
+  };
+
   return {
     ...base,
     ...overlay,
-    partnerMessage: overlay.partnerMessage || base.partnerMessage || null,
-    wishlist: overlay.wishlist || base.wishlist || null,
-    products: overlay.products || base.products || null,
-    ticktickChecklistAudit: overlay.ticktickChecklistAudit || base.ticktickChecklistAudit || null,
+    partnerMessage: newerTime(base.partnerMessage, overlay.partnerMessage),
+    wishlist: newerVersion(base.wishlist, overlay.wishlist),
+    products: newerVersion(base.products, overlay.products),
+    ticktickChecklistAudit: newerVersion(base.ticktickChecklistAudit, overlay.ticktickChecklistAudit),
     ticktickToken: overlay.ticktickToken || base.ticktickToken || null,
     calendarUrl: overlay.calendarUrl || base.calendarUrl || '',
     albumConfig: overlay.albumConfig || base.albumConfig || null,
-    cycle: overlay.cycle || base.cycle || null,
-    activityJournal: overlay.activityJournal || base.activityJournal || null,
+    cycle: newerVersion(base.cycle, overlay.cycle),
+    activityJournal: newerVersion(base.activityJournal, overlay.activityJournal),
+    carState: newerTime(base.carState, overlay.carState),
+    dailyMood: newerVersion(base.dailyMood, overlay.dailyMood),
+    reactions: newerVersion(base.reactions, overlay.reactions),
+    uiPreferences: mergeUiPreferences(base.uiPreferences, overlay.uiPreferences),
     recipients: {
       'Рустам': Number(overlay.recipients?.['Рустам'] || base.recipients?.['Рустам'] || 0) || null,
       'Диана': Number(overlay.recipients?.['Диана'] || base.recipients?.['Диана'] || 0) || null,
@@ -1312,6 +1356,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         selfProfile,
         partnerProfile,
         holidayHighlights: holidays?.items || [],
+        uiPreferences: normalizeUiPreferences(correctedSnapshot?.uiPreferences)?.[actor] || null,
         backupToken,
       });
     } catch (error) {
@@ -1391,10 +1436,20 @@ async function handleRudiAction(req, res, action, options = {}) {
           });
         }
       } catch {}
+      const incomingUi = body.uiPreferences && typeof body.uiPreferences === 'object'
+        ? {
+            [actor]: {
+              homeOrder:Array.isArray(body.uiPreferences.homeOrder)?body.uiPreferences.homeOrder:[],
+              blockStates:body.uiPreferences.blockStates&&typeof body.uiPreferences.blockStates==='object'?body.uiPreferences.blockStates:{},
+              updatedAt:String(body.uiPreferences.updatedAt||new Date(options.now || Date.now()).toISOString()),
+            },
+          }
+        : null;
       const correctedSnapshot = mergeBackupSnapshots(previousSnapshot, {
         version: 2,
         createdAt: new Date(options.now || Date.now()).toISOString(),
         recipients: correctedRecipients,
+        uiPreferences: incomingUi,
       });
       const backupToken = await createStateBackup({ ...options, previousSnapshot: correctedSnapshot });
       return res.status(200).json({ ok: true, backupToken });
@@ -1425,6 +1480,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeInitData(body.initData, options);
       const operation = String(body.operation || 'list').trim();
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      if (previousSnapshot?.reactions?.initialized) {
+        await restoreReactionState(previousSnapshot.reactions, options).catch(()=>null);
+      }
 
       if (operation === 'list') {
         const reactions = await readReactions(body.targets, options);
@@ -1436,7 +1495,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         if (body.liked === true && !before?.likedBy?.includes(actor) && reaction?.likedBy?.includes(actor)) {
           await recordLikeActivity(body.target, actor, options);
         }
-        return res.status(200).json({ ok: true, actor, reaction });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, reaction, backupToken });
       }
       if (operation === 'toggle') {
         const before = (await readReactions([body.target], options).catch(() => []))[0];
@@ -1444,7 +1504,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         if (!before?.likedBy?.includes(actor) && reaction?.likedBy?.includes(actor)) {
           await recordLikeActivity(body.target, actor, options);
         }
-        return res.status(200).json({ ok: true, actor, reaction });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, reaction, backupToken });
       }
       return res.status(400).json({ ok: false, error: 'reaction-operation-invalid' });
     } catch (error) {
@@ -1461,9 +1522,14 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeInitData(body.initData, options);
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      if (previousSnapshot?.dailyMood?.initialized) {
+        await restoreDailyMoodState(previousSnapshot.dailyMood, options).catch(()=>null);
+      }
       const date = moscowDateKey(options.now || Date.now());
       const operation = String(body.operation || 'get').trim();
       let row;
+      let backupToken='';
 
       if (operation === 'set') {
         const before = await readDailyMood(date, options).catch(() => null);
@@ -1483,13 +1549,14 @@ async function handleRudiAction(req, res, action, options = {}) {
             }, options);
           }
         }
+        backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
       } else {
         return res.status(400).json({ ok: false, error: 'mood-operation-invalid' });
       }
 
-      return res.status(200).json({ ok: true, ...moodView(row, actor) });
+      return res.status(200).json({ ok: true, ...moodView(row, actor), backupToken });
     } catch (error) {
       const code = String(error?.message || error);
       const authStatus = statusForError(error);
@@ -1648,6 +1715,13 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeInitData(body.initData, options);
       const operation = String(body.operation || 'list').trim();
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      if (previousSnapshot?.products?.initialized) {
+        const liveBefore=await readProductListRaw(options).catch(()=>({initialized:false,items:[]}));
+        if(!liveBefore?.initialized || !(liveBefore.items||[]).length) {
+          await restoreProductListSnapshot(previousSnapshot.products,options).catch(()=>null);
+        }
+      }
 
       if (operation === 'list') {
         const live = await readProductList(options).catch(() => ({ initialized: false, version: 0, items: [], history: [] }));
@@ -1715,6 +1789,14 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor: owner } = authorizeInitData(body.initData, options);
       const operation = String(body.operation || 'list').trim();
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      if (previousSnapshot?.wishlist?.initialized) {
+        const liveBefore=await readWishlist(options).catch(()=>({initialized:false,items:[]}));
+        if(!liveBefore?.initialized || !(liveBefore.items||[]).length) {
+          // readWishlist currently returns normalized state; the add/toggle/remove functions will reuse restored cache after app bootstrap.
+          await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
+        }
+      }
 
       if (operation === 'list') {
         const live = await readWishlist(options).catch(() => ({ initialized: false, version: 0, items: [] }));
@@ -1724,7 +1806,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'add') {
         const result = await addWish(body.text, body.url, owner, options);
-        await sendActivityNotification(wishlistNotificationText(owner, result.item?.text), 'wishlist', options);
+        await sendWishlistNotificationToPartner(owner, result.item?.text, options);
         await recordActivity({
           type: 'wishlist',
           actor: owner,
@@ -1732,15 +1814,18 @@ async function handleRudiAction(req, res, action, options = {}) {
           icon: '🎁',
           targetTab: 'wishlist',
         }, options);
-        return res.status(200).json({ ok: true, owner, ...result.state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, owner, ...result.state, backupToken });
       }
       if (operation === 'toggle') {
         const result = await toggleWish(body.id, options);
-        return res.status(200).json({ ok: true, owner, ...result.state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, owner, ...result.state, backupToken });
       }
       if (operation === 'remove') {
         const state = await removeWish(body.id, options);
-        return res.status(200).json({ ok: true, owner, ...state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, owner, ...state, backupToken });
       }
       return res.status(400).json({ ok: false, error: 'wishlist-operation-invalid' });
     } catch (error) {
@@ -1821,6 +1906,7 @@ module.exports.handleRudiAction = handleRudiAction;
 module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
 module.exports.boughtNotificationText = boughtNotificationText;
 module.exports.wishlistNotificationText = wishlistNotificationText;
+module.exports.sendWishlistNotificationToPartner = sendWishlistNotificationToPartner;
 module.exports.moodNotificationText = moodNotificationText;
 module.exports.sendMoodNotificationToPartner = sendMoodNotificationToPartner;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
