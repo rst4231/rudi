@@ -43,6 +43,13 @@ test('personal summary shows Diana workday only to Diana and cycle status to bot
     cycle:{moodWord:'Чувствительная',phase:'Лютеиновая фаза'},
     productCount:7,
     feedLines:['• новый полезный факт','• 2 Stand Up'],
+    environment:{
+      home:{temperature:23.2,humidity:56},
+      weather:{temperature:16,code:2,minForecast:8,maxForecast:17,avgMean:12},
+    },
+    carTasksToday:[
+      {id:'car-1',title:'Проверить давление в шинах',timing:'today'},
+    ],
   };
 
   const rustam = buildMorningSummary('Рустам', common);
@@ -55,6 +62,12 @@ test('personal summary shows Diana workday only to Diana and cycle status to bot
   assert.match(rustam, /лютеиновая фаза/);
   assert.match(rustam, /Как лучше сегодня с Дианой/);
   assert.match(rustam, /говорить мягче/);
+  assert.match(rustam, /Дом и погода/);
+  assert.match(rustam, /Дома: 23\.2°C · влажность 56%/);
+  assert.match(rustam, /На улице: 16°C · облачно/);
+  assert.match(rustam, /Машина/);
+  assert.match(rustam, /Шины:/);
+  assert.match(rustam, /Проверить давление в шинах/);
 
   const diana = buildMorningSummary('Диана', common);
   assert.match(diana, /Задача Дианы/);
@@ -65,6 +78,11 @@ test('personal summary shows Diana workday only to Diana and cycle status to bot
   assert.match(diana, /Твой статус по циклу/);
   assert.match(diana, /Чувствительная/);
   assert.doesNotMatch(diana, /Как лучше сегодня с Дианой/);
+  assert.match(diana, /Дом и погода/);
+  assert.match(diana, /Дома: 23\.2°C · влажность 56%/);
+  assert.match(diana, /На улице: 16°C · облачно/);
+  assert.doesNotMatch(diana, /Шины:/);
+  assert.doesNotMatch(diana, /Проверить давление в шинах/);
 });
 
 test('daily summary replaces feed notice, personalizes new partner activity, and sends once per day', async () => {
@@ -113,6 +131,14 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
       {id:'2',text:'Подарок Рустама',owner:'Рустам',done:false,createdAt:'2026-09-20T13:00:00Z'},
     ]}),
     readProductsImpl:async()=>({items:[{id:'1'},{id:'2'}]}),
+    loadEnvironmentImpl:async()=>({
+      home:{temperature:22.8,humidity:54},
+      weather:{temperature:11,code:3,minForecast:4,maxForecast:12,avgMean:7},
+    }),
+    loadCarTasksImpl:async()=>({tasks:[
+      {id:'today-car',title:'🚗 Чек-ап машины',timing:'today'},
+      {id:'future-car',title:'Обновить Яндекс Карты',timing:'upcoming'},
+    ]}),
     readFeedImpl:async()=>({
       date:'2026-09-21',
       changedSections:['facts','events'],
@@ -146,6 +172,11 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(rustam.text,/Как лучше сегодня с Дианой/);
   assert.match(rustam.text,/говорить мягче/);
   assert.match(rustam.text,/2 Stand Up/);
+  assert.match(rustam.text,/Дома: 22\.8°C · влажность 54%/);
+  assert.match(rustam.text,/На улице: 11°C · пасмурно/);
+  assert.match(rustam.text,/Шины:/);
+  assert.match(rustam.text,/Чек-ап машины/);
+  assert.doesNotMatch(rustam.text,/Обновить Яндекс Карты/);
   assert.doesNotMatch(rustam.text,/я обновил Ленту/);
 
   assert.match(diana.text,/Диана, доброе утро/);
@@ -155,6 +186,10 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.doesNotMatch(diana.text,/Новое послание от Дианы/);
   assert.match(diana.text,/Подарок Рустама/);
   assert.match(diana.text,/Чувствительная/);
+  assert.match(diana.text,/Дома: 22\.8°C · влажность 54%/);
+  assert.match(diana.text,/На улице: 11°C · пасмурно/);
+  assert.doesNotMatch(diana.text,/Шины:/);
+  assert.doesNotMatch(diana.text,/Чек-ап машины/);
   assert.doesNotMatch(diana.text,/Как лучше сегодня с Дианой/);
 
   assert.match(rustam.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
@@ -169,4 +204,17 @@ test('Vercel cron sends the morning summary at 07:10 Moscow', () => {
   const cronSource=fs.readFileSync(path.join(__dirname,'..','api','feed-notify-cron.js'),'utf8');
   assert.match(cronSource,/sendDailyMorningSummaries/);
   assert.doesNotMatch(cronSource,/sendDailyFeedNotifications/);
+});
+
+
+test('today-only car task filter excludes future car tasks from Rustam summary', async () => {
+  const { loadTodayCarTasks } = require('../api/morning-summary.cjs');
+  const tasks = await loadTodayCarTasks({
+    loadCarTasksImpl: async () => ({tasks:[
+      {id:'1',title:'Сегодня',timing:'today'},
+      {id:'2',title:'Завтра',timing:'upcoming'},
+      {id:'3',title:'Просрочено',timing:'overdue'},
+    ]}),
+  });
+  assert.deepEqual(tasks.map(row=>row.id),['1']);
 });
