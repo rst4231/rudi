@@ -16,6 +16,9 @@ const {
   readChecklistAuditState,
   restoreChecklistAuditState,
 } = require('./ticktick-checklist-audit-store.cjs');
+const { readCarState, restoreCarState } = require('./car-store.cjs');
+const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-store.cjs');
+const { readReactionState, restoreReactionState } = require('./reactions-store.cjs');
 
 const BACKUP_VERSION = 2;
 const BACKUP_PREFIX = 'rudi-state-v2';
@@ -107,6 +110,9 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readReactionState(options), { initialized:false, version:0, entries:{} }),
     safeRead(() => readRecipients(options)),
     safeRead(() => readActivityJournal(options), { initialized: false, version: 0, items: [], markers: {} }),
+    safeRead(() => readCarState(options)),
+    safeRead(() => readDailyMoodState(options), { initialized:false, version:0, days:{} }),
+    safeRead(() => readReactionState(options), { initialized:false, version:0, entries:{} }),
   ]);
 
   const mergedRecipients = normalizeRecipients({
@@ -133,6 +139,9 @@ async function createStateSnapshot(options = {}) {
     dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
     reactions: newerVersionState(reactions, previous?.reactions),
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
+    carState: newerTimestampState(carState, previous?.carState, 'updatedAt'),
+    dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
+    reactions: newerVersionState(reactions, previous?.reactions),
     recipients: mergedRecipients,
   };
 }
@@ -254,6 +263,44 @@ async function restoreStateBackup(token, options = {}) {
   if (
     snapshot.reactions?.initialized
     && (!currentReactions?.initialized || Number(snapshot.reactions.version || 0) > Number(currentReactions.version || 0))
+  ) {
+    try {
+      await restoreReactionState(snapshot.reactions, options);
+      restored.push('reactions');
+    } catch {}
+  }
+
+  const currentCar = await safeRead(() => readCarState(options));
+  const savedCarTime = Date.parse(String(snapshot.carState?.updatedAt || '')) || snapshotTime;
+  const currentCarTime = Date.parse(String(currentCar?.updatedAt || '')) || 0;
+  if (snapshot.carState?.mileage != null && (currentCar?.mileage == null || savedCarTime > currentCarTime)) {
+    try {
+      await restoreCarState(snapshot.carState, options);
+      restored.push('car-state');
+    } catch {}
+  }
+
+  const currentMood = await safeRead(
+    () => readDailyMoodState(options),
+    { initialized:false, version:0, days:{} }
+  );
+  if (
+    snapshot.dailyMood?.initialized &&
+    (!currentMood?.initialized || Number(snapshot.dailyMood?.version || 0) > Number(currentMood?.version || 0))
+  ) {
+    try {
+      await restoreDailyMoodState(snapshot.dailyMood, options);
+      restored.push('daily-mood');
+    } catch {}
+  }
+
+  const currentReactions = await safeRead(
+    () => readReactionState(options),
+    { initialized:false, version:0, entries:{} }
+  );
+  if (
+    snapshot.reactions?.initialized &&
+    (!currentReactions?.initialized || Number(snapshot.reactions?.version || 0) > Number(currentReactions?.version || 0))
   ) {
     try {
       await restoreReactionState(snapshot.reactions, options);
