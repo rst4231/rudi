@@ -103,18 +103,18 @@ test('car UI is private, movable, collapsible and can complete TickTick tasks',(
 });
 
 
-test('car block is black UNI-V themed with SVG dashboard icons',()=>{
+test('car block keeps dashboard icons without the decorative car hero',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   const css=fs.readFileSync('public/car.css','utf8');
-  assert.match(html,/class="car-hero"/);
-  assert.match(html,/class="car-hero-svg"/);
-  assert.match(html,/Changan UNI‑V/);
-  assert.match(html,/2023 · чёрный/);
+  assert.doesNotMatch(html,/class="car-hero"/);
+  assert.doesNotMatch(html,/class="car-hero-svg"/);
+  assert.doesNotMatch(html,/>UNI‑V<\/div>/);
+  assert.doesNotMatch(html,/2023 · чёрный/);
+  assert.match(html,/Changan UNI‑V · 2023/);
   assert.match(html,/car-card-icon is-weather/);
   assert.match(html,/car-card-icon is-service/);
   assert.match(html,/car-card-icon is-mileage/);
   assert.match(html,/car-section-icon is-recommendation/);
   assert.match(html,/car-section-icon is-task/);
-  assert.match(css,/linear-gradient\(145deg,#202329 0%,#111317 46%,#090a0d 100%\)/);
-  assert.match(css,/\.car-hero-svg/);
+  assert.doesNotMatch(css,/\.car-hero-svg/);
 });
