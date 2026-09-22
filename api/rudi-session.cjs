@@ -201,7 +201,7 @@ async function savePin(actor, pin, options = {}) {
     tags: ['rudi-browser-auth'],
     name: pinKey(safeActor),
   });
-  return { actor: safeActor, configured: true, updatedAt: record.updatedAt };
+  return { actor: safeActor, configured: true, updatedAt: record.updatedAt, record };
 }
 
 function requestFingerprint(req, actor) {
@@ -249,7 +249,7 @@ async function verifyPin(req, actor, pin, options = {}) {
   const safePin = normalizePin(pin);
   await assertLoginAllowed(req, safeActor, options);
 
-  const record = await readPinRecord(safeActor, options);
+  const record = normalizePinRecord(options.pinRecord) || await readPinRecord(safeActor, options);
   if (!record?.salt || !record?.hash) throw new Error('rudi-pin-not-configured');
 
   const actual = Buffer.from(await derivePinHash(safePin, record.salt), 'base64url');
@@ -262,7 +262,7 @@ async function verifyPin(req, actor, pin, options = {}) {
     throw new Error('rudi-pin-invalid');
   }
   await clearFailedLogins(req, safeActor, options);
-  return { actor: safeActor };
+  return { actor: safeActor, record };
 }
 
 function authorizeWithSession(req, rawInitData, telegramAuthorize, options = {}) {
