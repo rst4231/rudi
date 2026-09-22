@@ -1624,6 +1624,7 @@
         if(currentActor){
           syncStaticProfileWorkStatus();
           renderHomeDashboard();
+          if(currentConfig) renderAnniversary(currentConfig);
         }
       }
       updateClock();
@@ -1665,6 +1666,55 @@
         let year=parts.year;
         if(target<utc){year++;target=Date.UTC(year,month-1,day)}
         return {year,days:Math.round((target-utc)/DAY),target};
+      }
+
+      function countWord(value,one,few,many){
+        const n=Math.abs(Number(value)||0);
+        const mod10=n%10, mod100=n%100;
+        if(mod10===1&&mod100!==11) return one;
+        if(mod10>=2&&mod10<=4&&(mod100<12||mod100>14)) return few;
+        return many;
+      }
+
+      function relationshipDuration(start,parts,utc){
+        let years=Math.max(0,parts.year-start.year);
+        if(Date.UTC(start.year+years,start.month-1,start.day)>utc) years=Math.max(0,years-1);
+        let months=0;
+        while(months<11&&Date.UTC(start.year+years,start.month-1+months+1,start.day)<=utc) months++;
+        const cursor=Date.UTC(start.year+years,start.month-1+months,start.day);
+        const days=Math.max(0,Math.floor((utc-cursor)/DAY));
+        return {years,months,days,totalDays:Math.max(0,Math.floor((utc-Date.UTC(start.year,start.month-1,start.day))/DAY))};
+      }
+
+      function renderAnniversary(config){
+        const card=document.getElementById('anniversaryCard');
+        if(!card) return;
+        const raw=String(config?.relationship?.startedAt||'').trim();
+        const match=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if(!match){card.hidden=true;return}
+        const start={year:Number(match[1]),month:Number(match[2]),day:Number(match[3])};
+        const {parts,utc}=todayState();
+        const startUtc=Date.UTC(start.year,start.month-1,start.day);
+        if(!Number.isFinite(startUtc)||startUtc>utc){card.hidden=true;return}
+
+        const duration=relationshipDuration(start,parts,utc);
+        const values=[];
+        if(duration.years) values.push(duration.years+' '+countWord(duration.years,'год','года','лет'));
+        if(duration.months) values.push(duration.months+' '+countWord(duration.months,'месяц','месяца','месяцев'));
+        values.push(duration.days+' '+dayWord(duration.days));
+
+        const title=String(config?.relationship?.title||'Наша годовщина').trim()||'Наша годовщина';
+        const next=nextOccurrence(start.month,start.day);
+        document.getElementById('anniversaryTitle').textContent='♥ '+title+' ♥';
+        document.getElementById('anniversaryTogether').textContent=values.join(' ');
+        document.getElementById('anniversarySince').textContent='Вместе с '+new Intl.DateTimeFormat('ru-RU',{
+          day:'numeric',month:'long',year:'numeric',timeZone:'UTC'
+        }).format(new Date(startUtc));
+        document.getElementById('anniversaryDays').textContent=duration.totalDays+' '+dayWord(duration.totalDays)+' вместе';
+        document.getElementById('anniversaryNext').textContent=next.days===0
+          ?'Сегодня наша годовщина ♥'
+          :'До годовщины · '+next.days+' '+dayWord(next.days);
+        card.hidden=false;
       }
       function detectNameType(name){
         const value=String(name||'').trim().toLowerCase();
@@ -5418,6 +5468,7 @@
         refreshDailyReactions();
 
         renderNearest(config);
+        renderAnniversary(config);
         setupDianaCycleActions();
         loadDianaCycle();
         setupPersistentCollapsibles();
