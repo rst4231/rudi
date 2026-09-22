@@ -9,11 +9,15 @@
     "test:ui": "playwright test"
   },
   "dependencies": {
+    "@simplewebauthn/server": "14.0.2",
     "@vercel/functions": "3.9.8",
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }

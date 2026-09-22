@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
+const { authorizeWithSession } = require('./rudi-session.cjs');
 const { readCarState, writeMileage, restoreCarState } = require('./car-store.cjs');
 const { readToken } = require('./ticktick-store.cjs');
 const { fetchProjectData, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
@@ -60,7 +61,7 @@ function authenticate(rawInitData, botToken) {
 
 function statusFor(error) {
   const code = String(error?.message || error || '');
-  if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid') return 401;
+  if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid' || code.startsWith('rudi-session')) return 401;
   if (code === 'rudi-access-denied') return 403;
   if (code === 'car-mileage-invalid' || code === 'car-task-invalid') return 400;
   if (code === 'ticktick-not-connected') return 503;
@@ -290,7 +291,13 @@ async function handleCarRequest(req, res) {
   const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
   let session;
   try {
-    session = authenticate(body.initData, resolveTelegramBotToken(process.env));
+    const botToken = resolveTelegramBotToken(process.env);
+    session = authorizeWithSession(
+      req,
+      body.initData,
+      (value) => authenticate(value, botToken),
+      { botToken }
+    );
   } catch (error) {
     return res.status(statusFor(error)).json({ ok:false, error:String(error?.message || error) });
   }
