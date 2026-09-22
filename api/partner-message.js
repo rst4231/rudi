@@ -3,7 +3,7 @@ const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
-const { authorizeWithSession, setSessionCookie, clearSessionCookie, savePin, verifyPin, restorePinRecord } = require('./rudi-session.cjs');
+const { authorizeWithSession, setSessionCookie, clearSessionCookie, savePin, verifyPin, restorePinRecord, readPinRecord } = require('./rudi-session.cjs');
 const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication, restorePasskeys, readPasskeys } = require('./rudi-passkeys.cjs');
 const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveDurablePasskeys } = require('./rudi-auth-db.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
@@ -213,9 +213,23 @@ async function hydrateActorAuth(actor, backupToken, options = {}) {
   const snapshot = backupSnapshotFromToken(backupToken, options);
   let durable = await readAuthRecord(actor, dbOptions);
 
+  if (!durable?.pinRecord) {
+    const cachedPin = await readPinRecord(actor, storeOptions).catch(() => null);
+    if (cachedPin?.salt && cachedPin?.hash) {
+      durable = await saveDurablePinRecord(actor, cachedPin, dbOptions);
+    }
+  }
+
   const backupPin = snapshot?.browserAuth?.pins?.[actor] || null;
   if (!durable?.pinRecord && backupPin?.salt && backupPin?.hash) {
     durable = await saveDurablePinRecord(actor, backupPin, dbOptions);
+  }
+
+  if (!(durable?.passkeys?.length)) {
+    const cachedPasskeys = await readPasskeys(actor, storeOptions).catch(() => []);
+    if (cachedPasskeys.length) {
+      durable = await saveDurablePasskeys(actor, cachedPasskeys, dbOptions);
+    }
   }
 
   const backupPasskeys = Array.isArray(snapshot?.browserAuth?.passkeys?.[actor])
@@ -1424,11 +1438,11 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       if (operation === 'login') {
         const actor = String(body.actor || '');
-        const durable = await readAuthRecord(actor, durableAuthOptions(options));
-        if (!durable?.pinRecord) throw new Error('rudi-pin-not-configured');
+        const hydrated = await hydrateActorAuth(actor, body.backupToken, options);
+        if (!hydrated.durable?.pinRecord) throw new Error('rudi-pin-not-configured');
         const verified = await verifyPin(req, actor, body.pin, {
           ...browserAuthStoreOptions(options),
-          pinRecord: durable.pinRecord,
+          pinRecord: hydrated.durable.pinRecord,
         });
         setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
         return res.status(200).json({ ok: true, actor: verified.actor, source: 'pin' });

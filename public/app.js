@@ -1710,6 +1710,9 @@
       }
 
       function creationOptionsFromJson(value){
+        if(typeof window.PublicKeyCredential?.parseCreationOptionsFromJSON==='function'){
+          return window.PublicKeyCredential.parseCreationOptionsFromJSON(value||{});
+        }
         const options={...(value||{})};
         options.challenge=base64UrlToBytes(options.challenge);
         if(options.user) options.user={...options.user,id:base64UrlToBytes(options.user.id)};
@@ -1720,6 +1723,9 @@
       }
 
       function requestOptionsFromJson(value){
+        if(typeof window.PublicKeyCredential?.parseRequestOptionsFromJSON==='function'){
+          return window.PublicKeyCredential.parseRequestOptionsFromJSON(value||{});
+        }
         const options={...(value||{})};
         options.challenge=base64UrlToBytes(options.challenge);
         if(Array.isArray(options.allowCredentials)){
@@ -1756,29 +1762,33 @@
         return result;
       }
 
-      async function registerFaceId(){
+      async function prepareFaceIdRegistration(){
         if(!passkeySupported()) throw new Error('rudi-passkey-browser-unsupported');
         const setup=await passkeyRequest('register-options');
-        const credential=await navigator.credentials.create({
-          publicKey:creationOptionsFromJson(setup.publicKey)
-        });
+        return {setup,publicKey:creationOptionsFromJson(setup.publicKey)};
+      }
+
+      async function finishFaceIdRegistration(prepared,credentialPromise){
+        const credential=await credentialPromise;
         if(!credential) throw new Error('rudi-passkey-cancelled');
         await passkeyRequest('register-verify',{
-          challenge:setup.publicKey.challenge,
+          challenge:prepared.setup.publicKey.challenge,
           response:credentialJson(credential)
         });
         return true;
       }
 
-      async function loginWithFaceId(){
+      async function prepareFaceIdAuthentication(){
         if(!passkeySupported()) throw new Error('rudi-passkey-browser-unsupported');
         const setup=await passkeyRequest('auth-options');
-        const credential=await navigator.credentials.get({
-          publicKey:requestOptionsFromJson(setup.publicKey)
-        });
+        return {setup,publicKey:requestOptionsFromJson(setup.publicKey)};
+      }
+
+      async function finishFaceIdAuthentication(prepared,credentialPromise){
+        const credential=await credentialPromise;
         if(!credential) throw new Error('rudi-passkey-cancelled');
         const verified=await passkeyRequest('auth-verify',{
-          challenge:setup.publicKey.challenge,
+          challenge:prepared.setup.publicKey.challenge,
           response:credentialJson(credential)
         });
         return String(verified.actor||'');
@@ -1803,7 +1813,8 @@
           const button=document.createElement('button');
           button.className='rudi-auth-submit rudi-auth-faceid';
           button.type='button';
-          button.textContent='Включить Face ID';
+          button.textContent='Готовим Face ID…';
+          button.disabled=true;
           const skip=document.createElement('button');
           skip.className='rudi-auth-secondary';
           skip.type='button';
@@ -1812,30 +1823,61 @@
           status.className='rudi-auth-status';
           form.append(button,skip,status);
           document.querySelector('.app-gate-card')?.appendChild(form);
+
+          let prepared=null;
+          prepareFaceIdRegistration().then(value=>{
+            prepared=value;
+            button.textContent='Включить Face ID';
+            button.disabled=false;
+          }).catch(error=>{
+            console.warn('RUDI_PASSKEY_PREPARE_REGISTRATION',String(error?.name||''),String(error?.message||error));
+            status.textContent='Не удалось подготовить Face ID. Попробуйте ещё раз.';
+            button.textContent='Включить Face ID';
+            button.disabled=true;
+          });
+
           skip.addEventListener('click',()=>{
             clearAuthGateForm();
             document.body.classList.remove('auth-login');
             document.body.classList.add('auth-pending');
             resolve(false);
           });
-          button.addEventListener('click',async()=>{
+
+          button.addEventListener('click',()=>{
+            if(!prepared) return;
             button.disabled=true;
             skip.disabled=true;
             status.textContent='Подтвердите Face ID на iPhone…';
+
+            let credentialPromise;
             try{
-              await registerFaceId();
+              credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey});
+            }catch(error){
+              status.textContent='Не удалось запустить Face ID.';
+              button.disabled=false;
+              skip.disabled=false;
+              return;
+            }
+
+            finishFaceIdRegistration(prepared,credentialPromise).then(()=>{
               status.textContent='Face ID включён';
               clearAuthGateForm();
               document.body.classList.remove('auth-login');
               document.body.classList.add('auth-pending');
               resolve(true);
-            }catch(error){
-              status.textContent=String(error?.name||'')==='NotAllowedError'
+            }).catch(error=>{
+              console.warn('RUDI_PASSKEY_REGISTER',String(error?.name||''),String(error?.message||error));
+              const name=String(error?.name||'');
+              status.textContent=name==='NotAllowedError'
                 ?'Face ID не был подтверждён.'
-                :'Не удалось включить Face ID.';
+                :name==='SecurityError'
+                  ?'Face ID недоступен для этого адреса.'
+                  :name==='NotSupportedError'
+                    ?'Этот браузер не поддерживает Face ID для RUDI.'
+                    :'Не удалось включить Face ID.';
               button.disabled=false;
               skip.disabled=false;
-            }
+            });
           });
         });
       }
@@ -1918,11 +1960,11 @@
           faceIdButton.type='button';
           faceIdButton.className='rudi-auth-submit rudi-auth-faceid';
           faceIdButton.textContent='Войти с Face ID';
-          faceIdButton.hidden=!passkeySupported();
+          faceIdButton.hidden=true;
           const divider=document.createElement('div');
           divider.className='rudi-auth-divider';
           divider.textContent='или PIN';
-          divider.hidden=!passkeySupported();
+          divider.hidden=true;
           const actors=document.createElement('div');
           actors.className='rudi-auth-actors';
           let selectedActor='';
@@ -1948,27 +1990,52 @@
           form.append(faceIdButton,divider,actors,input,button,status);
           document.querySelector('.app-gate-card')?.appendChild(form);
 
-          faceIdButton.addEventListener('click',async()=>{
+          let preparedFaceIdLogin=null;
+          if(passkeySupported()){
+            prepareFaceIdAuthentication().then(value=>{
+              preparedFaceIdLogin=value;
+              faceIdButton.hidden=false;
+              divider.hidden=false;
+            }).catch(error=>{
+              if(String(error?.message||'')!=='rudi-passkey-not-configured'){
+                console.warn('RUDI_PASSKEY_PREPARE_LOGIN',String(error?.name||''),String(error?.message||error));
+              }
+            });
+          }
+
+          faceIdButton.addEventListener('click',()=>{
+            if(!preparedFaceIdLogin) return;
             faceIdButton.disabled=true;
             button.disabled=true;
             status.textContent='Подтвердите Face ID на iPhone…';
+
+            let credentialPromise;
             try{
-              const actor=await loginWithFaceId();
+              credentialPromise=navigator.credentials.get({publicKey:preparedFaceIdLogin.publicKey});
+            }catch(error){
+              status.textContent='Не удалось запустить Face ID.';
+              faceIdButton.disabled=false;
+              button.disabled=false;
+              return;
+            }
+
+            finishFaceIdAuthentication(preparedFaceIdLogin,credentialPromise).then(actor=>{
               lastBrowserAuthMethod='passkey';
               clearAuthGateForm();
               document.body.classList.remove('auth-login');
               document.body.classList.add('auth-pending');
               resolve(actor);
-            }catch(error){
-              const code=String(error?.message||'');
-              status.textContent=code==='rudi-passkey-not-configured'
-                ?'Face ID ещё не настроен. Войдите по PIN.'
-                :String(error?.name||'')==='NotAllowedError'
-                  ?'Face ID не был подтверждён.'
+            }).catch(error=>{
+              console.warn('RUDI_PASSKEY_LOGIN',String(error?.name||''),String(error?.message||error));
+              const name=String(error?.name||'');
+              status.textContent=name==='NotAllowedError'
+                ?'Face ID не был подтверждён.'
+                :name==='SecurityError'
+                  ?'Face ID недоступен для этого адреса.'
                   :'Не удалось войти с Face ID.';
               faceIdButton.disabled=false;
               button.disabled=false;
-            }
+            });
           });
 
           form.addEventListener('submit',async event=>{

@@ -8,16 +8,19 @@ const jwks = fs.readFileSync('api/rudi-jwks.cjs','utf8');
 const index = fs.readFileSync('api/index.js','utf8');
 const vercel = JSON.parse(fs.readFileSync('vercel.json','utf8'));
 
-test('Safari PIN login reads one durable server record and does not require Telegram backup', () => {
+test('Safari PIN login hydrates the durable record before verification', () => {
   const start=api.indexOf("if (action === 'browser-auth')");
   const end=api.indexOf("if (action === 'app-auth')",start);
   assert.ok(start>=0&&end>start);
   const block=api.slice(start,end);
-  assert.match(block,/operation === 'login'[\s\S]*?readAuthRecord\(actor, durableAuthOptions\(options\)\)/);
-  assert.match(block,/if \(!durable\?\.pinRecord\) throw new Error\('rudi-pin-not-configured'\)/);
-  assert.match(block,/pinRecord: durable\.pinRecord/);
-  const loginBlock=block.slice(block.indexOf("operation === 'login'"),block.indexOf("operation === 'logout'"));
-  assert.doesNotMatch(loginBlock,/backupToken|backupSnapshotFromToken|CloudStorage/);
+  assert.match(block,/operation === 'login'[\s\S]*?hydrateActorAuth\(actor, body\.backupToken, options\)/);
+  assert.match(block,/if \(!hydrated\.durable\?\.pinRecord\) throw new Error\('rudi-pin-not-configured'\)/);
+  assert.match(block,/pinRecord: hydrated\.durable\.pinRecord/);
+});
+
+test('durable auth hydration migrates cache first and encrypted backup second', () => {
+  assert.match(api,/async function hydrateActorAuth[\s\S]*?readPinRecord\(actor, storeOptions\)[\s\S]*?saveDurablePinRecord\(actor, cachedPin, dbOptions\)/);
+  assert.match(api,/async function hydrateActorAuth[\s\S]*?backupPin[\s\S]*?saveDurablePinRecord\(actor, backupPin, dbOptions\)/);
 });
 
 test('Telegram PIN creation writes the same hash into durable Postgres before reporting success', () => {

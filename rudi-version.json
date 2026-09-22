@@ -1,15 +1,15 @@
 {
-  "current": "v1.7.4",
-  "versionBranch": "fix/server-auth-source",
+  "current": "v1.7.5",
+  "versionBranch": "fix/migrate-existing-pin",
   "releaseCommit": null,
   "createdAt": "2026-09-22",
   "basedOnProduction": "1deb9f781e0ce33e04b4487d903890c798a8a9b8",
   "notes": [
-    "PIN и Passkey используют единый постоянный серверный источник истины в Neon Postgres для Telegram и Safari.",
-    "Существующий PIN из зашифрованного Telegram backup автоматически мигрирует в серверную запись при первом открытии Telegram после обновления.",
-    "Safari больше не зависит от Telegram CloudStorage для проверки наличия PIN.",
-    "Neon Data API принимает только короткоживущие JWT RUDI через ES256/JWKS; пароль базы в коде не хранится.",
-    "Зашифрованный RUDI backup остаётся резервной копией авторизации.",
-    "Автоматический Git deploy остаётся выключенным до явного подтверждения пользователя."
+    "PIN и Passkey используют единый постоянный Neon Postgres источник истины для Telegram и браузера.",
+    "Существующий PIN автоматически мигрирует из восстановленного Runtime Cache или Telegram backup в Postgres, если серверная запись ещё пустая.",
+    "Исправлена регистрация Face ID на iPhone: WebAuthn challenge подготавливается до нажатия, а navigator.credentials.create/get вызываются сразу из пользовательского клика.",
+    "Для WebAuthn используется нативный parseCreationOptionsFromJSON/parseRequestOptionsFromJSON при поддержке браузером.",
+    "Регистрационные параметры Passkey приведены к совместимым с iOS рекомендациям, при этом серверная проверка user verification остаётся обязательной.",
+    "Автоматический Git deploy остаётся выключенным после релиза."
   ]
 }
