@@ -92,7 +92,7 @@ function syncWebVersion() {
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
-  html = html.replace(/\/changan-uni-v-header\.jpg\?v=[^"]+/g, '/changan-uni-v-header.jpg?v=' + assetVersion);
+  html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
   html = html.replace(
     /(<div id="appVersion" class="app-version" aria-label="Версия приложения">)[^<]*(<\/div>)/,
     '$1' + label + '$2'
