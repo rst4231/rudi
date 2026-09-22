@@ -40,6 +40,11 @@ const { readDailyMood, setDailyMood, moodView } = require('./daily-mood-store.cj
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction } = require('./reactions-store.cjs');
 const {
+  readActivityJournal,
+  appendActivity,
+  observeActivityMarker,
+} = require('./activity-journal-store.cjs');
+const {
   getCredentials,
   credentialsConfigured,
   buildAuthorizeUrl,
@@ -213,6 +218,32 @@ function wishlistNotificationText(owner, text) {
   return `🎁 <b>${owner} ${action} в вишлист</b>\n<i>${escapeTelegramHtml(String(text || '').trim())}</i>`;
 }
 
+function activityVerb(actor, male, female) {
+  return actor === 'Диана' ? female : male;
+}
+
+function compactActivityValues(values) {
+  const rows = (Array.isArray(values) ? values : [values])
+    .map((value) => String(value || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (!rows.length) return '';
+  const visible = rows.slice(0, 3).join(', ');
+  return rows.length > 3 ? visible + ' +' + (rows.length - 3) : visible;
+}
+
+function activityDigest(value) {
+  return crypto.createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex').slice(0, 24);
+}
+
+async function recordActivity(input, options = {}) {
+  try {
+    return await appendActivity(input, options);
+  } catch (error) {
+    console.warn('RUDI_ACTIVITY_JOURNAL_WARN', String(error?.message || error));
+    return null;
+  }
+}
+
 function taskCompletedNotificationText(actor, title) {
   const action = actor === 'Диана' ? 'выполнила задачу' : 'выполнил задачу';
   return `✅ <b>${actor} ${action}</b>\n<i>${escapeTelegramHtml(String(title || 'Совместное дело').trim())}</i>`;
@@ -368,6 +399,7 @@ function mergeBackupSnapshots(base, overlay) {
     calendarUrl: overlay.calendarUrl || base.calendarUrl || '',
     albumConfig: overlay.albumConfig || base.albumConfig || null,
     cycle: overlay.cycle || base.cycle || null,
+    activityJournal: overlay.activityJournal || base.activityJournal || null,
     recipients: {
       'Рустам': Number(overlay.recipients?.['Рустам'] || base.recipients?.['Рустам'] || 0) || null,
       'Диана': Number(overlay.recipients?.['Диана'] || base.recipients?.['Диана'] || 0) || null,
@@ -1113,6 +1145,24 @@ async function handleRudiAction(req, res, action, options = {}) {
         ...options,
         albumConfig: backupSnapshot?.albumConfig || null,
       });
+      if (album?.configured) {
+        const signature = [
+          Number(album.totalCount || album.photos?.length || 0),
+          String(album.photos?.[0]?.id || ''),
+        ].join(':');
+        await observeActivityMarker(
+          'shared-album',
+          signature,
+          {
+            type: 'photo',
+            text: 'В общем альбоме появилось новое фото',
+            icon: '📷',
+            targetTab: 'photos',
+            dedupeKey: 'photo:' + signature,
+          },
+          options
+        ).catch(() => null);
+      }
       return res.status(200).json({ ok: true, ...album });
     } catch (error) {
       const status = statusForError(error) === 500 ? 502 : statusForError(error);
@@ -1296,6 +1346,18 @@ async function handleRudiAction(req, res, action, options = {}) {
   }
 
 
+  if (action === 'activity') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeInitData(body.initData, options);
+      const journal = await readActivityJournal(options);
+      return res.status(200).json({ ok: true, actor, ...journal });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
   if (action === 'reactions') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -1308,7 +1370,24 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, reactions });
       }
       if (operation === 'set') {
+        const before = body.target?.type === 'photo-memory'
+          ? (await readReactions([body.target], options).catch(() => []))[0]
+          : null;
         const reaction = await setReaction(body.target, actor, body.liked, options);
+        if (
+          body.target?.type === 'photo-memory' &&
+          body.liked === true &&
+          !before?.likedBy?.includes(actor)
+        ) {
+          await recordActivity({
+            type: 'photo-like',
+            actor,
+            text: actor + ' ' + activityVerb(actor, 'лайкнул', 'лайкнула') + ' фото-воспоминание',
+            icon: '❤️',
+            targetTab: 'photos',
+            dedupeKey: 'photo-like:' + String(body.target?.key || '') + ':' + actor,
+          }, options);
+        }
         return res.status(200).json({ ok: true, actor, reaction });
       }
       if (operation === 'toggle') {
@@ -1468,6 +1547,30 @@ async function handleRudiAction(req, res, action, options = {}) {
         view,
         calendarUrl: backupSnapshot?.calendarUrl || '',
       });
+      if (view === 'month' && week?.configured && Array.isArray(week.days)) {
+        const signature = activityDigest(week.days.map((day) => ({
+          date: day.date,
+          working: Boolean(day.working),
+          events: (day.events || []).map((event) => ({
+            title: event.title,
+            allDay: Boolean(event.allDay),
+            startTime: event.startTime || '',
+            endTime: event.endTime || '',
+          })),
+        })));
+        await observeActivityMarker(
+          'work-calendar:' + String(week.weekStart || ''),
+          signature,
+          {
+            type: 'calendar',
+            text: 'График Дианы обновился',
+            icon: '📅',
+            targetTab: 'schedule',
+            dedupeKey: 'calendar:' + String(week.weekStart || '') + ':' + signature,
+          },
+          options
+        ).catch(() => null);
+      }
       return res.status(200).json({ ok: true, ...week });
     } catch (error) {
       const code = String(error?.message || error);
@@ -1493,6 +1596,16 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'add') {
         const values = Array.isArray(body.items) && body.items.length ? body.items : [body.text];
         const state = await addProducts(values, actor, options);
+        const added = compactActivityValues(values);
+        if (added) {
+          await recordActivity({
+            type: 'products',
+            actor,
+            text: actor + ' ' + activityVerb(actor, 'добавил', 'добавила') + ' в продукты: ' + added,
+            icon: '🛒',
+            targetTab: 'products',
+          }, options);
+        }
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'remove') {
@@ -1550,6 +1663,13 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'add') {
         const result = await addWish(body.text, body.url, owner, options);
         await sendActivityNotification(wishlistNotificationText(owner, result.item?.text), 'wishlist', options);
+        await recordActivity({
+          type: 'wishlist',
+          actor: owner,
+          text: owner + ' ' + activityVerb(owner, 'добавил', 'добавила') + ' желание: ' + String(result.item?.text || '').trim(),
+          icon: '🎁',
+          targetTab: 'wishlist',
+        }, options);
         return res.status(200).json({ ok: true, owner, ...result.state });
       }
       if (operation === 'toggle') {
@@ -1601,6 +1721,15 @@ async function handler(req, res, options = {}) {
       text,
       authorName: actor || authorName,
       updatedAt: new Date(options.now || Date.now()).toISOString(),
+    }, options);
+
+    await recordActivity({
+      type: 'partner-message',
+      actor,
+      text: actor + ' ' + activityVerb(actor, 'оставил', 'оставила') + ' послание',
+      icon: '💌',
+      targetTab: 'home',
+      dedupeKey: 'message:' + String(message?.updatedAt || ''),
     }, options);
 
     const notificationTask = sendPartnerMessageNotification(actor, options).catch((error) => {

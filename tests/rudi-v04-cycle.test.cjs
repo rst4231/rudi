@@ -8,7 +8,7 @@ const vercel=JSON.parse(fs.readFileSync('vercel.json','utf8'));
 
 test('Diana cycle card stays prominent, movable and persistent collapsible',()=>{
   assert.match(html,/data-home-tile="cycle"/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','cycle','new','priority','partner','daily'\]/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','cycle','activity','new','priority','partner','daily'\]/);
   assert.match(app,/selector:'#dianaCycleCard',key:'diana-cycle'/);
   assert.match(app,/bodySelectors:\['#dianaCycleBody'\]/);
 });

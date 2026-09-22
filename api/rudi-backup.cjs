@@ -7,6 +7,7 @@ const { readToken, saveToken } = require('./ticktick-store.cjs');
 const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
 const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
 const { readCycleState, writeCycleState } = require('./cycle-store.cjs');
+const { readActivityJournal, restoreActivityJournalState } = require('./activity-journal-store.cjs');
 const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
 const {
   readChecklistAuditState,
@@ -88,7 +89,7 @@ async function createStateSnapshot(options = {}) {
     : null;
   const [
     partnerMessage, wishlist, products, ticktickChecklistAudit,
-    ticktickToken, calendarUrl, albumConfig, cycle, recipients,
+    ticktickToken, calendarUrl, albumConfig, cycle, recipients, activityJournal,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
@@ -99,6 +100,7 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readAlbumConfig(options)),
     safeRead(() => readCycleState(options)),
     safeRead(() => readRecipients(options)),
+    safeRead(() => readActivityJournal(options), { initialized: false, version: 0, items: [], markers: {} }),
   ]);
 
   const mergedRecipients = normalizeRecipients({
@@ -121,6 +123,7 @@ async function createStateSnapshot(options = {}) {
     calendarUrl: calendarUrl || previous?.calendarUrl || '',
     albumConfig: albumConfig?.url ? albumConfig : (previous?.albumConfig || null),
     cycle: newerTimestampState(cycle, previous?.cycle, 'updatedAt'),
+    activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
     recipients: mergedRecipients,
   };
 }
@@ -205,6 +208,21 @@ async function restoreStateBackup(token, options = {}) {
     try {
       await writeCycleState(snapshot.cycle, options);
       restored.push('cycle');
+    } catch {}
+  }
+
+  const currentActivityJournal = await safeRead(
+    () => readActivityJournal(options),
+    { initialized: false, version: 0, items: [], markers: {} }
+  );
+  const savedActivityVersion = Number(snapshot.activityJournal?.version || 0);
+  if (
+    snapshot.activityJournal?.initialized &&
+    (!currentActivityJournal?.initialized || savedActivityVersion > Number(currentActivityJournal?.version || 0))
+  ) {
+    try {
+      await restoreActivityJournalState(snapshot.activityJournal, options);
+      restored.push('activity-journal');
     } catch {}
   }
 

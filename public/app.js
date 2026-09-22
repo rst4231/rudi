@@ -45,9 +45,10 @@
         wishlistCount:0,
         photoCount:0,
         productCount:0,
+        activity:[],
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','cycle','new','priority','partner','daily'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','cycle','activity','new','priority','partner','daily'];
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
@@ -1009,6 +1010,91 @@
         renderHomeDashboard();
       }
 
+      async function activityRequest(){
+        const response=await fetch('/api/partner-message?rudiAction=activity',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||''}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok) throw new Error(data.error||'activity-request-failed');
+        return data;
+      }
+
+      function activityTimeLabel(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return '';
+        const now=new Date();
+        const key=sharedAlbumDateKey(date);
+        const today=sharedAlbumDateKey(now);
+        const yesterday=sharedAlbumYesterdayKey();
+        const time=new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).format(date);
+        if(key===today) return 'Сегодня · '+time;
+        if(key===yesterday) return 'Вчера · '+time;
+        return new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,day:'numeric',month:'short'
+        }).format(date).replace('.','')+' · '+time;
+      }
+
+      function renderActivityJournal(payload){
+        const list=document.getElementById('homeActivityList');
+        const empty=document.getElementById('homeActivityEmpty');
+        if(!list||!empty) return;
+        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,6);
+        homeDashboardState.activity=items;
+        list.replaceChildren();
+        empty.hidden=items.length>0;
+        for(const item of items){
+          const row=document.createElement(item.targetTab?'button':'div');
+          if(item.targetTab){
+            row.type='button';
+            row.addEventListener('click',()=>{
+              applyAppTab(String(item.targetTab||'home'),{scroll:true});
+              if(item.targetTab==='products') loadProducts({silent:true});
+              if(item.targetTab==='photos') loadSharedAlbum();
+              if(item.targetTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
+            });
+          }
+          row.className='home-activity-row';
+          const icon=document.createElement('span');
+          icon.className='home-activity-icon';
+          icon.textContent=String(item.icon||'•');
+          const copy=document.createElement('span');
+          copy.className='home-activity-copy';
+          const textNode=document.createElement('strong');
+          textNode.textContent=String(item.text||'');
+          const time=document.createElement('time');
+          time.textContent=activityTimeLabel(item.createdAt);
+          copy.append(textNode,time);
+          const arrow=document.createElement('span');
+          arrow.className='home-activity-arrow';
+          arrow.textContent=item.targetTab?'›':'';
+          row.append(icon,copy,arrow);
+          list.appendChild(row);
+        }
+      }
+
+      async function loadActivityJournal({silent=false}={}){
+        if(!currentActor||!tg?.initData) return null;
+        try{
+          const payload=await activityRequest();
+          renderActivityJournal(payload);
+          return payload;
+        }catch(_){
+          if(!silent){
+            const empty=document.getElementById('homeActivityEmpty');
+            if(empty&&!homeDashboardState.activity.length){
+              empty.hidden=false;
+              empty.textContent='Не удалось обновить события';
+            }
+          }
+          return null;
+        }
+      }
+
       function renderHomeNew(){
         const tile=document.getElementById('homeNewTile');
         const list=document.getElementById('homeNewList');
@@ -1219,6 +1305,20 @@
         newTile.hidden=true;
         newTile.innerHTML='<div class="home-dashboard-label">Новое в RUDI</div><div id="homeNewList" class="home-new-list"></div>';
         document.getElementById('dianaCycleCard')?.after(newTile);
+
+        const activityTile=document.createElement('section');
+        activityTile.id='homeActivityTile';
+        activityTile.className='panel home-activity-tile';
+        activityTile.dataset.appTabSection='home';
+        activityTile.dataset.homeTile='activity';
+        activityTile.innerHTML=
+          '<div class="home-activity-head">'+
+            '<div><div class="home-dashboard-label">Вместе</div><h2>Что произошло у нас</h2></div>'+
+            '<span class="home-activity-dot" aria-hidden="true"></span>'+
+          '</div>'+
+          '<div id="homeActivityList" class="home-activity-list" aria-live="polite"></div>'+
+          '<div id="homeActivityEmpty" class="home-activity-empty">Пока здесь тихо — новые события появятся автоматически.</div>';
+        newTile.after(activityTile);
 
         document.body.dataset.profileSplitReady='1';
         syncStaticProfileWorkStatus();
@@ -3219,6 +3319,7 @@
           const payload=await fetchCombinedCalendar(requested);
           calendarViewCache[requested]=payload;
           renderWorkCalendar(payload);
+          if(requested==='month') setTimeout(()=>loadActivityJournal({silent:true}),180);
           if(requested==='next-month') refreshPartnerWorkStatus();
           if(requested==='month'&&!calendarViewCache['next-month']){
             setTimeout(()=>prefetchCalendarView('next-month'),80);
@@ -3771,6 +3872,7 @@
           const payload=await response.json().catch(()=>({}));
           if(!response.ok) throw new Error(payload.error||'album');
           renderSharedAlbum(payload);
+          setTimeout(()=>loadActivityJournal({silent:true}),180);
         }catch(_){
           status.hidden=false;
           status.textContent='Ошибка';
@@ -3801,7 +3903,10 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok) throw new Error(data.error||'wishlist');
-        if(operation!=='list') setTimeout(()=>refreshStateBackup(),250);
+        if(operation!=='list'){
+          setTimeout(()=>refreshStateBackup(),250);
+          setTimeout(()=>loadActivityJournal({silent:true}),320);
+        }
         return data;
       }
 
@@ -3986,6 +4091,7 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'reactions-request-failed');
+        if(operation!=='list') setTimeout(()=>loadActivityJournal({silent:true}),240);
         return data;
       }
 
@@ -4187,6 +4293,7 @@
             renderPartnerMessage(currentMessage);
             closeEditor();
             setTimeout(()=>refreshStateBackup(),250);
+            setTimeout(()=>loadActivityJournal({silent:true}),320);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
             status.textContent=String(error?.message||'Ошибка сохранения');
@@ -5038,7 +5145,10 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'products-request-failed');
-        if(operation!=='list') setTimeout(()=>refreshStateBackup(),250);
+        if(operation!=='list'){
+          setTimeout(()=>refreshStateBackup(),250);
+          setTimeout(()=>loadActivityJournal({silent:true}),320);
+        }
         return data;
       }
 
@@ -5448,6 +5558,7 @@
         if(!allowed) return;
         setupProfileSplit();
         setupHomeLayoutEditor();
+        loadActivityJournal();
         setupAppTabs();
         ensureAppSurface({restoreTab:true});
         const config=await loadConfig();
@@ -5514,6 +5625,7 @@
       setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
+      setInterval(()=>{if(currentActor) loadActivityJournal({silent:true})},60*1000);
       setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
@@ -5555,6 +5667,7 @@
             (currentAppTab==='products'?loadProducts({silent:true}):Promise.resolve()),
             (currentAppTab==='feed'?loadFeed({silent:true}):Promise.resolve()),
             refreshDailyReactions(),
+            loadActivityJournal({silent:true}),
             refreshStateBackup()
           ]);
         }).finally(()=>{
