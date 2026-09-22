@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { compactEventCaption } = require('../api/event-collage.cjs');
+const { compactEventCaption } = require('../api/event-text-sanitizer.cjs');
 
 test('Stage digest keeps event details compact and removes ticket and hall noise', () => {
   const source = [
