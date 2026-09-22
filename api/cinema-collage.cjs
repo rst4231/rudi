@@ -1,4 +1,6 @@
 const { validatePosterUrl } = require('./poster-proxy.js');
+const jpeg = require('jpeg-js');
+const { PNG } = require('pngjs');
 
 const RU_MONTHS = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -80,21 +82,76 @@ async function fetchPosterBuffer(url, options = {}) {
   return buffer;
 }
 
-function fallbackPoster(title, width, height) {
-  const safeTitle = escapeXml(String(title || 'Афиша недоступна').slice(0, 42));
-  const fontSize = Math.max(24, Math.round(width * 0.07));
-  return Buffer.from(`
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="100%" height="100%" fill="#1d1d1f"/>
-      <text x="50%" y="46%" text-anchor="middle" font-family="Arial, sans-serif"
-        font-size="${fontSize}" font-weight="700" fill="white">${safeTitle}</text>
-      <text x="50%" y="54%" text-anchor="middle" font-family="Arial, sans-serif"
-        font-size="${Math.round(fontSize * 0.7)}" fill="#b7b7b7">Афиша недоступна</text>
-    </svg>`);
+function decodeImageBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 8) throw new Error('poster-buffer-invalid');
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
+  const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  if (isJpeg) {
+    const decoded = jpeg.decode(buffer, { useTArray: true, formatAsRGBA: true });
+    if (!decoded?.width || !decoded?.height || !decoded?.data?.length) throw new Error('poster-jpeg-decode-failed');
+    return decoded;
+  }
+  if (isPng) {
+    const decoded = PNG.sync.read(buffer);
+    if (!decoded?.width || !decoded?.height || !decoded?.data?.length) throw new Error('poster-png-decode-failed');
+    return decoded;
+  }
+  throw new Error('poster-format-unsupported');
+}
+
+function createRgbaCanvas(width, height, value = 17) {
+  const data = Buffer.alloc(width * height * 4);
+  for (let offset = 0; offset < data.length; offset += 4) {
+    data[offset] = value;
+    data[offset + 1] = value;
+    data[offset + 2] = value;
+    data[offset + 3] = 255;
+  }
+  return data;
+}
+
+function resizeContainRgba(image, width, height) {
+  const target = createRgbaCanvas(width, height);
+  const sourceWidth = Number(image?.width) || 0;
+  const sourceHeight = Number(image?.height) || 0;
+  const source = image?.data;
+  if (!sourceWidth || !sourceHeight || !source?.length) return target;
+
+  const scale = Math.min(width / sourceWidth, height / sourceHeight);
+  const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
+  const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
+  const left = Math.floor((width - drawWidth) / 2);
+  const top = Math.floor((height - drawHeight) / 2);
+
+  for (let y = 0; y < drawHeight; y += 1) {
+    const sourceY = Math.min(sourceHeight - 1, Math.floor((y * sourceHeight) / drawHeight));
+    for (let x = 0; x < drawWidth; x += 1) {
+      const sourceX = Math.min(sourceWidth - 1, Math.floor((x * sourceWidth) / drawWidth));
+      const src = (sourceY * sourceWidth + sourceX) * 4;
+      const dst = ((top + y) * width + left + x) * 4;
+      const alpha = (source[src + 3] ?? 255) / 255;
+      target[dst] = Math.round(source[src] * alpha + target[dst] * (1 - alpha));
+      target[dst + 1] = Math.round(source[src + 1] * alpha + target[dst + 1] * (1 - alpha));
+      target[dst + 2] = Math.round(source[src + 2] * alpha + target[dst + 2] * (1 - alpha));
+      target[dst + 3] = 255;
+    }
+  }
+  return target;
+}
+
+function compositeRgba(canvas, canvasWidth, tile, tileWidth, tileHeight, left, top) {
+  for (let y = 0; y < tileHeight; y += 1) {
+    const sourceStart = y * tileWidth * 4;
+    const targetStart = ((top + y) * canvasWidth + left) * 4;
+    tile.copy(canvas, targetStart, sourceStart, sourceStart + tileWidth * 4);
+  }
+}
+
+function fallbackPoster(width, height) {
+  return createRgbaCanvas(width, height, 29);
 }
 
 async function buildCinemaCollage(rows, options = {}) {
-  const sharp = require('sharp');
   const items = (rows || []).filter((row) => row?.title).slice(0, 12);
   if (!items.length) throw new Error('cinema-collage-empty');
 
@@ -109,18 +166,14 @@ async function buildCinemaCollage(rows, options = {}) {
     try {
       if (!row.posterUrl) throw new Error('poster-unavailable');
       const poster = await fetchPosterBuffer(row.posterUrl, options);
-      return await sharp(poster)
-        .rotate()
-        .resize(tileWidth, tileHeight, { fit: 'contain', position: 'centre', background: '#111111' })
-        .jpeg({ quality: 88, chromaSubsampling: '4:4:4' })
-        .toBuffer();
+      return resizeContainRgba(decodeImageBuffer(poster), tileWidth, tileHeight);
     } catch (error) {
       console.warn('RUDI_CINEMA_COLLAGE_POSTER_ERROR', row?.title, String(error?.message || error));
-      return sharp(fallbackPoster(row?.title, tileWidth, tileHeight)).jpeg({ quality: 88 }).toBuffer();
+      return fallbackPoster(tileWidth, tileHeight);
     }
   }));
 
-  const composite = [];
+  const canvas = createRgbaCanvas(canvasWidth, canvasHeight);
   for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
     const startIndex = rowIndex * columns;
     const countInRow = Math.min(columns, tiles.length - startIndex);
@@ -128,25 +181,20 @@ async function buildCinemaCollage(rows, options = {}) {
     const rowLeft = Math.round((canvasWidth - rowWidth) / 2);
     for (let columnIndex = 0; columnIndex < countInRow; columnIndex += 1) {
       const index = startIndex + columnIndex;
-      composite.push({
-        input: tiles[index],
-        left: rowLeft + columnIndex * (tileWidth + gap),
-        top: rowIndex * (tileHeight + gap),
-      });
+      compositeRgba(
+        canvas,
+        canvasWidth,
+        tiles[index],
+        tileWidth,
+        tileHeight,
+        rowLeft + columnIndex * (tileWidth + gap),
+        rowIndex * (tileHeight + gap),
+      );
     }
   }
 
-  return sharp({
-    create: {
-      width: canvasWidth,
-      height: canvasHeight,
-      channels: 3,
-      background: '#111111',
-    },
-  })
-    .composite(composite)
-    .jpeg({ quality: 88, chromaSubsampling: '4:4:4', mozjpeg: true })
-    .toBuffer();
+  const encoded = jpeg.encode({ data: canvas, width: canvasWidth, height: canvasHeight }, 88);
+  return Buffer.from(encoded.data);
 }
 
 module.exports = {
@@ -155,4 +203,6 @@ module.exports = {
   collageGrid,
   buildCinemaCollage,
   fetchPosterBuffer,
+  decodeImageBuffer,
+  resizeContainRgba,
 };
