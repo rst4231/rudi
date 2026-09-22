@@ -240,10 +240,23 @@
     const copy=document.createElement('div');
     copy.className='smart-home-device-card-copy';
 
+    const titleRow=document.createElement('div');
+    titleRow.className='smart-home-device-title-row';
+
     const title=document.createElement('strong');
     title.textContent=device.name||'Устройство';
+    titleRow.appendChild(title);
+
+    if(power){
+      const indicator=document.createElement('span');
+      indicator.className='smart-home-state-dot '+(power.state.value?'is-on':'is-off');
+      indicator.setAttribute('aria-label',power.state.value?'Включено':'Выключено');
+      indicator.title=power.state.value?'Включено':'Выключено';
+      titleRow.appendChild(indicator);
+    }
 
     const meta=document.createElement('span');
+    meta.className='smart-home-device-meta';
     const battery=property(device,'battery_level');
     const temp=property(device,'temperature');
     const humidity=property(device,'humidity');
@@ -251,11 +264,10 @@
     if(Number.isFinite(Number(temp)))parts.push(Number(temp).toFixed(1)+'°C');
     if(Number.isFinite(Number(humidity)))parts.push(Math.round(Number(humidity))+'%');
     if(Number.isFinite(Number(battery)))parts.push('Батарея '+Math.round(Number(battery))+'%');
-    if(!parts.length&&power)parts.push(power.state.value?'Включено':'Выключено');
-    if(!parts.length)parts.push('Данные');
     meta.textContent=parts.join(' · ');
+    meta.hidden=!parts.length;
 
-    copy.append(title,meta);
+    copy.append(titleRow,meta);
     card.append(visual,copy);
 
     const speed=capability(device,'devices.capabilities.mode','work_speed');
