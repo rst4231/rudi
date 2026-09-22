@@ -42,3 +42,14 @@ test('Telegram receives cache-busted current release assets',()=>{
   assert.match(html,new RegExp('/app\\.js\\?v='+asset));
   assert.match(html,new RegExp('>'+escapedLabel+'<\\/div>'));
 });
+
+
+test('home cycle summary includes a daily recommendation and opens full cycle in Calendar',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(app,/function dianaCycleDailyAdvice\(phase\)/);
+  assert.match(app,/homeCycleAdvice/);
+  assert.match(app,/homeCycleOpen/);
+  assert.match(app,/Показать полностью/);
+  assert.match(app,/applyAppTab\('schedule',\{scroll:true\}\)/);
+  assert.match(app,/dianaCycleCard.*scrollIntoView/s);
+});
