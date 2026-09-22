@@ -176,10 +176,19 @@
 
     <section id="smartHomeTile" class="panel smart-home-tile" data-app-tab-section="home" data-home-tile="smart-home" aria-labelledby="smartHomeTitle">
       <div class="smart-home-head">
-        <div>
-          <div class="home-dashboard-label">Дом</div>
-          <h2 id="smartHomeTitle">Умный дом</h2>
-          <div id="smartHomeUpdated" class="smart-home-updated">Подключаю устройства…</div>
+        <div class="smart-home-title-wrap">
+          <span class="smart-home-title-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M5 14.5 16 5l11 9.5V27H9V14.5Z" fill="currentColor" opacity=".18"/>
+              <path d="M5 14.5 16 5l11 9.5V27H9V14.5Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>
+              <path d="M13 27v-7h6v7" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>
+              <circle cx="24.5" cy="8" r="2.5" fill="currentColor" opacity=".32"/>
+            </svg>
+          </span>
+          <div>
+            <h2 id="smartHomeTitle">Умный дом</h2>
+            <div id="smartHomeUpdated" class="smart-home-updated">Подключаю устройства…</div>
+          </div>
         </div>
         <button id="smartHomeRefresh" class="smart-home-refresh" type="button" aria-label="Обновить умный дом" title="Обновить">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
