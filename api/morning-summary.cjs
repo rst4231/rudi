@@ -92,6 +92,23 @@ function lowerFirst(value) {
   return text ? text[0].toLowerCase() + text.slice(1) : '';
 }
 
+function cycleGuidanceForRustam(phase) {
+  const value = String(phase || '');
+  if (value === 'Месячные') {
+    return 'Сегодня лучше не торопить с делами, предложить помощь и оставить больше пространства для отдыха.';
+  }
+  if (value === 'Фолликулярная фаза') {
+    return 'Можно смелее предлагать активные планы и совместные дела, если у Дианы есть на них настроение.';
+  }
+  if (value === 'Фертильное окно') {
+    return 'Подойдут более активные совместные планы и общение, но ориентируйся прежде всего на её реальное настроение.';
+  }
+  if (value === 'Лютеиновая фаза') {
+    return 'Лучше говорить мягче, не давить с решениями и не раздувать мелкие споры. Если Диане хочется тишины или отдыха, дай это пространство.';
+  }
+  return '';
+}
+
 function countWord(count, one, few, many) {
   const n = Math.abs(Number(count) || 0) % 100;
   const n1 = n % 10;
@@ -225,6 +242,16 @@ function buildMorningSummary(actor, data = {}) {
       + '<b>' + escapeTelegramHtml(data.cycle.moodWord) + '</b>'
       + (data.cycle.phase ? ' · ' + escapeTelegramHtml(lowerFirst(data.cycle.phase)) : '')
     );
+  }
+
+  if (actor === 'Рустам' && data.cycle?.phase) {
+    const guidance = cycleGuidanceForRustam(data.cycle.phase);
+    if (guidance) {
+      blocks.push(
+        '🤍 <b>Как лучше сегодня с Дианой</b>\n'
+        + escapeTelegramHtml(guidance)
+      );
+    }
   }
 
   if (data.newMessage) {
@@ -390,6 +417,7 @@ module.exports = {
   assigneeFor,
   filterTasksForActor,
   moodLabel,
+  cycleGuidanceForRustam,
   eventCount,
   feedSummaryLines,
   wishlistLines,
