@@ -6,13 +6,13 @@ const app=fs.readFileSync('public/app.js','utf8');
 const css=fs.readFileSync('public/app.css','utf8')+'\n'+fs.readFileSync('public/calendar.css','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 
-test('cycle renderer cannot unhide its Home-only card on Calendar tab',()=>{
+test('cycle card is scoped to Calendar tab',()=>{
   const start=app.indexOf('function renderDianaCycle');
   const end=app.indexOf('async function cycleRequest',start);
   const block=app.slice(start,end);
   assert.ok(start>=0&&end>start);
   assert.doesNotMatch(block,/card\.hidden=false/);
-  assert.match(css,/body:not\(\[data-app-tab="home"\]\) #dianaCycleCard\{[\s\S]*?display:none!important/);
+  assert.match(css,/body:not\(\[data-app-tab="schedule"\]\) #dianaCycleCard\{[\s\S]*?display:none!important/);
 });
 
 test('Calendar tab always refreshes the combined calendar',()=>{
