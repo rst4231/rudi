@@ -5112,9 +5112,18 @@ html[data-theme="dark"] .feed-today{
 .home-together-grid .mood-emoji{font-size:18px}
 .home-together-grid .partner-mood-value{min-height:30px}
 .home-cycle-summary{
-  padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--love-soft) 54%,transparent);
+  display:grid;gap:6px;padding:9px 10px;border-radius:12px;
+  background:color-mix(in srgb,var(--love-soft) 54%,transparent);
   color:var(--text);font-size:10.5px;line-height:1.35;font-weight:690;
 }
+.home-cycle-status{font-size:10.8px;line-height:1.35;font-weight:780}
+.home-cycle-advice{color:var(--muted);font-size:9.8px;line-height:1.4;font-weight:580}
+.home-cycle-open{
+  width:max-content;max-width:100%;margin-top:1px;padding:0;border:0;background:transparent;
+  color:color-mix(in srgb,var(--love) 78%,var(--text));font:inherit;font-size:9.8px;
+  line-height:1.25;font-weight:800;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.home-cycle-open:active{opacity:.62}
 .home-cycle-summary[hidden],.home-message-new[hidden],.home-nearest[hidden],.home-new-tile[hidden]{display:none!important}
 .home-message-new{
   width:max-content;max-width:100%;padding:7px 10px;border:0;border-radius:999px;
