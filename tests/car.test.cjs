@@ -9,7 +9,7 @@ const {
   isCarTask,
   selectCurrentCarTasks,
 }=require('../api/car-client.cjs');
-const {readCarState,writeMileage}=require('../api/car-store.cjs');
+const {readCarState,writeMileage,restoreCarState}=require('../api/car-store.cjs');
 
 test('UNI-V service schedule uses 5k first service then 10k intervals',()=>{
   assert.deepEqual(serviceScheduleForMileage(0),{number:0,mileage:5000});
@@ -124,4 +124,25 @@ test('car task completion button is green',()=>{
   const css=fs.readFileSync('public/car.css','utf8');
   assert.match(css,/\.car-task-done\{[\s\S]*?background:rgba\(73,185,116,.13\)/);
   assert.match(css,/\.car-task-done\{[\s\S]*?color:#76d69b/);
+});
+
+
+test('car state restores mileage after a cache miss',async()=>{
+  const memory=new Map();
+  const cache={
+    get:async key=>memory.get(key),
+    set:async(key,value)=>{memory.set(key,structuredClone(value));return true;},
+  };
+  await restoreCarState({mileage:42150,updatedAt:'2026-09-22T10:00:00.000Z'},{cache});
+  assert.equal((await readCarState({cache})).mileage,42150);
+});
+
+test('car client sends and stores durable backup token',()=>{
+  const car=fs.readFileSync('public/car.js','utf8');
+  const client=fs.readFileSync('api/car-client.cjs','utf8');
+  assert.match(car,/window\.RUDI_STATE_BACKUP/);
+  assert.match(car,/backupToken/);
+  assert.match(car,/storeToken/);
+  assert.match(client,/restoreCarState\(previousSnapshot\.carState\)/);
+  assert.match(client,/createStateBackup\(\{previousSnapshot\}\)/);
 });
