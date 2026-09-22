@@ -93,3 +93,11 @@ test('PIN enrollment gate stays locked while Telegram keyboard and focus events 
   assert.match(app, /tg\?\.onEvent\?\.\('viewportChanged',[\s\S]*?ensureAppSurface/);
   assert.match(app, /window\.addEventListener\('focus',[\s\S]*?ensureAppSurface/);
 });
+
+test('Telegram PIN enrollment restores and stores the shared encrypted backup token', () => {
+  assert.match(app,/async function browserAuthRequest[\s\S]*?backupToken:currentStateBackupToken/);
+  assert.match(app,/async function browserAuthRequest[\s\S]*?if\(data\.backupToken\) await storeStateBackupToken\(data\.backupToken\)/);
+  assert.match(app,/async function ensureTelegramPin[\s\S]*?readStateBackupToken\(\)[\s\S]*?browserAuthRequest\('status'\)/);
+  assert.match(partner,/operation === 'create-pin'[\s\S]*?backupSnapshotWithPin[\s\S]*?backupToken/);
+  assert.match(partner,/operation === 'status'[\s\S]*?backupPin\?\.salt && backupPin\?\.hash/);
+});
