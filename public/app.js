@@ -49,6 +49,11 @@
       const HOME_TILE_DEFAULT_ORDER = ['dashboard','cycle','new','priority','partner','daily'];
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
+      const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
+      const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
+      const STATE_BACKUP_LOCAL_HISTORY_MIN_AGE = 6*60*60*1000;
+      const STATE_BACKUP_LOCAL_HISTORY_MAX_CHARS = 3*1024*1024;
+      const STATE_BACKUP_CLOUD_SLOTS = ['a','b','c','d'];
       const STATE_BACKUP_CLOUD_META_KEY = 'rudi_state_backup_v2_meta';
       const STATE_BACKUP_CLOUD_CHUNK_PREFIX = 'rudi_state_backup_v2_';
       const STATE_BACKUP_CLOUD_SLOT_PREFIX = 'rudi_state_backup_v2_slot_';
@@ -145,10 +150,46 @@
         try{return String(localStorage.getItem(STATE_BACKUP_STORAGE_KEY)||'').trim()}catch(_){return ''}
       }
 
+      function readLocalStateBackupHistory(){
+        try{
+          const rows=JSON.parse(localStorage.getItem(STATE_BACKUP_LOCAL_HISTORY_KEY)||'[]');
+          return (Array.isArray(rows)?rows:[])
+            .map(row=>({token:String(row?.token||'').trim(),updatedAt:Number(row?.updatedAt||0)}))
+            .filter(row=>row.token)
+            .sort((a,b)=>b.updatedAt-a.updatedAt)
+            .slice(0,STATE_BACKUP_LOCAL_HISTORY_LIMIT);
+        }catch(_){return []}
+      }
+
+      function writeLocalStateBackupHistory(rows){
+        const source=(Array.isArray(rows)?rows:[]).filter(row=>row?.token);
+        const kept=[];
+        let totalChars=0;
+        for(const row of source){
+          const token=String(row.token||'').trim();
+          if(!token||kept.some(item=>item.token===token)) continue;
+          if(kept.length>=STATE_BACKUP_LOCAL_HISTORY_LIMIT) break;
+          if(totalChars+token.length>STATE_BACKUP_LOCAL_HISTORY_MAX_CHARS) break;
+          kept.push({token,updatedAt:Number(row.updatedAt||Date.now())});
+          totalChars+=token.length;
+        }
+        try{localStorage.setItem(STATE_BACKUP_LOCAL_HISTORY_KEY,JSON.stringify(kept))}catch(_){}
+      }
+
       function storeLocalStateBackupToken(value){
         const token=String(value||'').trim();
         if(!token) return;
-        try{localStorage.setItem(STATE_BACKUP_STORAGE_KEY,token)}catch(_){}
+        try{
+          const previous=String(localStorage.getItem(STATE_BACKUP_STORAGE_KEY)||'').trim();
+          if(previous&&previous!==token){
+            const history=readLocalStateBackupHistory();
+            const newest=history[0];
+            if(!newest||Date.now()-Number(newest.updatedAt||0)>=STATE_BACKUP_LOCAL_HISTORY_MIN_AGE){
+              writeLocalStateBackupHistory([{token:previous,updatedAt:Date.now()},...history]);
+            }
+          }
+          localStorage.setItem(STATE_BACKUP_STORAGE_KEY,token);
+        }catch(_){}
       }
 
       function backupTokenChecksum(value){
@@ -227,7 +268,7 @@
         const version=Number(meta?.version||0);
         const slot=String(meta?.slot||'');
         if(version>=3){
-          if(!['a','b'].includes(slot)) return '';
+          if(!STATE_BACKUP_CLOUD_SLOTS.includes(slot)) return '';
           const checksum=String(meta?.checksum||'').trim().toLowerCase();
           if(!/^[0-9a-f]{16}$/.test(checksum)) return '';
           const keys=Array.from({length:count},(_,index)=>STATE_BACKUP_CLOUD_SLOT_PREFIX+slot+'_'+index);
@@ -277,24 +318,45 @@
         return token.split('.').length===4?token:'';
       }
 
-      async function readPreviousCloudStateBackupToken(){
-        if(!tg?.CloudStorage?.getItem) return '';
-        const rawMeta=await cloudStorageGetItem(STATE_BACKUP_CLOUD_META_KEY);
-        let meta;
-        try{meta=JSON.parse(rawMeta||'{}')}catch(_){return ''}
-        if(Number(meta?.version||0)<3) return '';
-        const activeSlot=String(meta?.slot||'');
-        if(!['a','b'].includes(activeSlot)) return '';
-        const previousSlot=activeSlot==='a'?'b':'a';
+      async function readBackupTokenFromCloudSlot(slot){
+        if(!STATE_BACKUP_CLOUD_SLOTS.includes(String(slot||''))) return '';
         let raw='';
         for(let index=0;index<128;index++){
-          const chunk=await cloudStorageGetItem(STATE_BACKUP_CLOUD_SLOT_PREFIX+previousSlot+'_'+index);
+          const chunk=await cloudStorageGetItem(STATE_BACKUP_CLOUD_SLOT_PREFIX+slot+'_'+index);
           if(!chunk) break;
           raw+=chunk;
           const complete=completeEncryptedBackupToken(raw);
           if(complete) return complete;
         }
         return '';
+      }
+
+      async function readPreviousCloudStateBackupTokens(){
+        if(!tg?.CloudStorage?.getItem) return [];
+        const rawMeta=await cloudStorageGetItem(STATE_BACKUP_CLOUD_META_KEY);
+        let meta;
+        try{meta=JSON.parse(rawMeta||'{}')}catch(_){return []}
+        if(Number(meta?.version||0)<3) return [];
+        const activeSlot=String(meta?.slot||'');
+        if(!STATE_BACKUP_CLOUD_SLOTS.includes(activeSlot)) return [];
+        const activeIndex=STATE_BACKUP_CLOUD_SLOTS.indexOf(activeSlot);
+        const ordered=STATE_BACKUP_CLOUD_SLOTS
+          .slice(1)
+          .map((_,offset)=>STATE_BACKUP_CLOUD_SLOTS[(activeIndex-1-offset+STATE_BACKUP_CLOUD_SLOTS.length)%STATE_BACKUP_CLOUD_SLOTS.length]);
+        const tokens=[];
+        for(const slot of ordered){
+          const token=await readBackupTokenFromCloudSlot(slot);
+          if(token&&!tokens.includes(token)) tokens.push(token);
+        }
+        return tokens;
+      }
+
+      async function readBackupRecoveryCandidates(){
+        const cloud=await readPreviousCloudStateBackupTokens().catch(()=>[]);
+        const local=readLocalStateBackupHistory().map(row=>row.token);
+        return [...cloud,...local]
+          .map(value=>String(value||'').trim())
+          .filter((value,index,rows)=>value&&value!==currentStateBackupToken&&rows.indexOf(value)===index);
       }
 
       async function productsRecoveryRequest(operation,backupToken){
@@ -318,18 +380,21 @@
         if(productsRecoveryChecked||homeDashboardState.productCount>0||!currentActor||!tg?.initData) return;
         productsRecoveryChecked=true;
         try{
-          const candidate=await readPreviousCloudStateBackupToken();
-          if(!candidate||candidate===currentStateBackupToken) return;
-          const preview=await productsRecoveryRequest('preview',candidate);
-          if(!preview.available||Number(preview.itemCount||0)<=0) return;
-          productsRecoveryCandidate=candidate;
-          const panel=document.getElementById('productsRecovery');
-          const text=document.getElementById('productsRecoveryText');
-          if(text){
-            const count=Number(preview.itemCount||0);
-            text.textContent='Найдена предыдущая резервная копия: '+count+' '+(count===1?'позиция':count<5?'позиции':'позиций')+'.';
+          const candidates=await readBackupRecoveryCandidates();
+          for(const candidate of candidates){
+            let preview;
+            try{preview=await productsRecoveryRequest('preview',candidate)}catch(_){continue}
+            if(!preview.available||Number(preview.itemCount||0)<=0) continue;
+            productsRecoveryCandidate=candidate;
+            const panel=document.getElementById('productsRecovery');
+            const text=document.getElementById('productsRecoveryText');
+            if(text){
+              const count=Number(preview.itemCount||0);
+              text.textContent='Найдена резервная копия: '+count+' '+(count===1?'позиция':count<5?'позиции':'позиций')+'.';
+            }
+            if(panel) panel.hidden=false;
+            return;
           }
-          if(panel) panel.hidden=false;
         }catch(_){}
       }
 
@@ -342,8 +407,9 @@
         try{previousMeta=JSON.parse(previousRaw||'{}')||{}}catch(_){}
         const previousVersion=Number(previousMeta?.version||0);
         const previousCount=Number(previousMeta?.count||0);
-        const previousSlot=['a','b'].includes(String(previousMeta?.slot||''))?String(previousMeta.slot):'';
-        const nextSlot=previousSlot==='a'?'b':'a';
+        const previousSlot=STATE_BACKUP_CLOUD_SLOTS.includes(String(previousMeta?.slot||''))?String(previousMeta.slot):'';
+        const previousIndex=STATE_BACKUP_CLOUD_SLOTS.indexOf(previousSlot);
+        const nextSlot=STATE_BACKUP_CLOUD_SLOTS[(previousIndex>=0?previousIndex+1:0)%STATE_BACKUP_CLOUD_SLOTS.length];
 
         const chunks=[];
         for(let index=0;index<token.length;index+=STATE_BACKUP_CLOUD_CHUNK_SIZE){
@@ -364,7 +430,7 @@
         if(restored.length!==token.length||backupTokenChecksum(restored)!==checksum) return false;
 
         const meta=JSON.stringify({
-          version:3,
+          version:4,
           slot:nextSlot,
           count:chunks.length,
           length:token.length,
