@@ -67,7 +67,8 @@
     const empty=document.getElementById('homeActivityEmpty');
     if(!list)return;
 
-    const row=document.createElement('div');
+    const row=document.createElement('button');
+    row.type='button';
     row.className='home-activity-row';
 
     const icon=document.createElement('span');
@@ -78,11 +79,15 @@
     copy.className='home-activity-copy';
     const text=document.createElement('strong');
     text.textContent=activity.text;
-    const time=document.createElement('small');
+    const time=document.createElement('time');
     time.textContent='Только что';
     copy.append(text,time);
 
-    row.append(icon,copy);
+    const arrow=document.createElement('span');
+    arrow.className='home-activity-arrow';
+    arrow.textContent='›';
+
+    row.append(icon,copy,arrow);
     list.prepend(row);
     while(list.children.length>6)list.lastElementChild?.remove();
     if(empty)empty.hidden=true;
