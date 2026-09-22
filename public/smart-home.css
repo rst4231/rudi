@@ -1,0 +1,213 @@
+.smart-home-tile{
+  position:relative;
+  padding:18px;
+  border-radius:24px;
+  overflow:hidden;
+}
+.smart-home-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:13px;
+}
+.smart-home-head h2{
+  margin:3px 0 4px;
+  font-size:21px;
+  line-height:1.15;
+  letter-spacing:-.03em;
+}
+.smart-home-updated{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.3;
+}
+.smart-home-refresh{
+  width:36px;height:36px;
+  display:grid;place-items:center;
+  flex:0 0 auto;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--surface-strong);
+  color:var(--text);
+}
+.smart-home-refresh svg{width:17px;height:17px}
+.smart-home-refresh.is-loading svg{animation:smart-home-spin .75s linear infinite}
+.smart-home-climate{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+  margin-bottom:14px;
+}
+.smart-home-climate-card{
+  min-width:0;
+  padding:11px 10px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--soft);
+}
+.smart-home-climate-card span,
+.smart-home-climate-card strong,
+.smart-home-climate-card small{display:block}
+.smart-home-climate-card span{
+  margin-bottom:5px;
+  color:var(--muted);
+  font-size:8.5px;
+  line-height:1.15;
+  font-weight:780;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+}
+.smart-home-climate-card strong{
+  font-size:17px;
+  line-height:1.15;
+  letter-spacing:-.025em;
+}
+.smart-home-climate-card small{
+  margin-top:4px;
+  overflow:hidden;
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.25;
+  text-overflow:ellipsis;
+}
+.smart-home-status{
+  margin:0 0 11px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:var(--soft);
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.35;
+}
+.smart-home-status[hidden]{display:none!important}
+.smart-home-status.is-success{color:#2f8c59;background:rgba(54,181,109,.10)}
+.smart-home-status.is-error{color:#c54e58;background:rgba(220,77,91,.10)}
+.smart-home-rooms{display:grid;gap:14px}
+.smart-home-room{display:grid;gap:7px}
+.smart-home-room-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:0 2px;
+}
+.smart-home-room-head strong{font-size:12px}
+.smart-home-room-head span{color:var(--muted);font-size:10px}
+.smart-home-device-list{
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:var(--surface-strong);
+}
+.smart-home-device{
+  min-height:54px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:10px 11px;
+  border-bottom:1px solid var(--line);
+}
+.smart-home-device:last-child{border-bottom:0}
+.smart-home-device-copy{min-width:0;display:grid;gap:3px}
+.smart-home-device-copy strong{
+  overflow:hidden;
+  font-size:13px;
+  line-height:1.2;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.smart-home-device-copy span{
+  overflow:hidden;
+  color:var(--muted);
+  font-size:9.5px;
+  line-height:1.2;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.smart-home-power{
+  min-width:52px;
+  height:31px;
+  padding:0 10px;
+  border:0;
+  border-radius:10px;
+  font:inherit;
+  font-size:10.5px;
+  font-weight:800;
+}
+.smart-home-power.is-off{background:var(--soft);color:var(--text)}
+.smart-home-power.is-on{background:rgba(73,111,245,.15);color:#4a67de}
+html[data-theme="dark"] .smart-home-power.is-on{color:#aebaff}
+.smart-home-readonly{
+  min-width:44px;
+  padding:6px 8px;
+  border-radius:9px;
+  background:var(--soft);
+  color:var(--muted);
+  font-size:10px;
+  font-weight:720;
+  text-align:center;
+}
+.smart-home-scenarios-wrap{
+  display:grid;
+  gap:8px;
+  margin-top:14px;
+  padding-top:13px;
+  border-top:1px solid var(--line);
+}
+.smart-home-section-title{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.smart-home-scenarios{
+  display:flex;
+  gap:7px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.smart-home-scenarios::-webkit-scrollbar{display:none}
+.smart-home-scenario{
+  flex:0 0 auto;
+  min-height:34px;
+  padding:0 11px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:var(--surface-strong);
+  color:var(--text);
+  font:inherit;
+  font-size:10.5px;
+  font-weight:720;
+}
+.smart-home-scenario:disabled{opacity:.4}
+body[data-app-tab="feed"] .daily-section{
+  margin:0;
+  padding:14px;
+  border-radius:21px;
+  background:linear-gradient(145deg,rgba(153,130,255,.065),var(--surface));
+  border-color:color-mix(in srgb,#9b84f4 17%,var(--line));
+  box-shadow:0 8px 22px rgba(18,23,37,.045);
+}
+body[data-app-tab="feed"] .daily-section .section-heading{
+  padding:0 2px 8px;
+}
+body[data-app-tab="feed"] .daily-section .section-heading h2{
+  font-size:16px;
+}
+body[data-app-tab="feed"] .daily-grid .suggestion{
+  background:var(--surface-strong);
+}
+body[data-app-tab="schedule"] #dianaCycleCard{margin:0}
+@media(max-width:430px){
+  .smart-home-tile{padding:16px}
+  .smart-home-climate{gap:5px}
+  .smart-home-climate-card{padding:9px 7px;border-radius:14px}
+  .smart-home-climate-card span{font-size:7.5px}
+  .smart-home-climate-card strong{font-size:15px}
+  .smart-home-climate-card small{font-size:8px}
+}
+@keyframes smart-home-spin{to{transform:rotate(360deg)}}
