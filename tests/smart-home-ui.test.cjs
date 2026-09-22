@@ -11,11 +11,11 @@ const client=fs.readFileSync('api/smart-home-client.cjs','utf8');
 test('smart home is a movable Home tile before the activity journal',()=>{
   assert.match(html,/id="smartHomeTile"[^>]*data-app-tab-section="home"[^>]*data-home-tile="smart-home"/);
   assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','activity'\]/);
-  assert.match(app,/return 'rudi-home-layout-v3-'+actor/);
+  assert.match(app,/return 'rudi-home-layout-v3-'\+actor/);
 });
 
 test('smart home starts with weather and indoor climate and lists devices',()=>{
-  const start=html.indexOf('id="smartHomeClimate"');
+  const start=html.indexOf('class="smart-home-climate"');
   const rooms=html.indexOf('id="smartHomeRooms"');
   assert.ok(start>=0&&rooms>start);
   assert.ok(html.indexOf('id="smartHomeWeather"',start)<rooms);
