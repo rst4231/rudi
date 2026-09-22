@@ -4,10 +4,11 @@ const fs=require('node:fs');
 const {createStrictRuntimeCache}=require('../api/strict-runtime-cache.cjs');
 const app=fs.readFileSync('public/app.js','utf8');
 
-test('CloudStorage backup uses verified double-buffered slots',()=>{
+test('CloudStorage backup uses verified multi-generation slots',()=>{
   assert.match(app,/STATE_BACKUP_CLOUD_SLOT_PREFIX/);
+  assert.match(app,/STATE_BACKUP_CLOUD_SLOTS = \['a','b','c','d'\]/);
   assert.match(app,/function backupTokenChecksum/);
-  assert.match(app,/version:3/);
+  assert.match(app,/version:4/);
 });
 
 test('v1 dashboard reuses identities without redundant role kickers',()=>{
