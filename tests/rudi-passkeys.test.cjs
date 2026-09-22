@@ -35,7 +35,10 @@ test('registration stores only public credential material and enables status', a
   const webauthn={
     async generateRegistrationOptions(input){
       assert.equal(input.userName,'Рустам');
-      assert.equal(input.authenticatorSelection.userVerification,'required');
+      assert.equal(input.authenticatorSelection.userVerification,'preferred');
+      assert.equal(input.authenticatorSelection.residentKey,'preferred');
+      assert.equal(input.preferredAuthenticatorType,'localDevice');
+      assert.deepEqual(input.supportedAlgorithmIDs,[-8,-7,-257]);
       return { challenge:'reg-challenge', user:{id:'abc',name:'Рустам',displayName:'Рустам'} };
     },
     async verifyRegistrationResponse(input){
