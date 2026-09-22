@@ -154,6 +154,10 @@
       "destination": "/api/partner-message?ticktickAction=checklist-toggle"
     },
     {
+      "source": "/api/vacuum-watch",
+      "destination": "/api/feed-notify-cron?mode=vacuum"
+    },
+    {
       "source": "/api/daily",
       "destination": "/api/daily-cron?route=daily"
     },
@@ -202,6 +206,10 @@
     {
       "path": "/api/for-di",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/vacuum-watch",
+      "schedule": "*/10 * * * *"
     }
   ],
   "env": {
