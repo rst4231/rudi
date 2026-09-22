@@ -68,13 +68,26 @@ test('client completes backup recovery before stateful loaders start', () => {
   assert.doesNotMatch(source, /setTimeout\(\(\)=>loadAppBootstrap\(\),0\)/);
 });
 
-test('previous backup slot can be previewed safely and New in RUDI stays home-only', () => {
+test('multiple previous backups can be previewed safely and New in RUDI stays home-only', () => {
   const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   const api = fs.readFileSync(path.join(__dirname, '..', 'api', 'partner-message.js'), 'utf8');
-  assert.match(app, /async function readPreviousCloudStateBackupToken\(\)/);
+  assert.match(app, /STATE_BACKUP_CLOUD_SLOTS = \['a','b','c','d'\]/);
+  assert.match(app, /STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10/);
+  assert.match(app, /async function readPreviousCloudStateBackupTokens\(\)/);
+  assert.match(app, /async function readBackupRecoveryCandidates\(\)/);
+  assert.match(app, /version:4,/);
   assert.match(app, /rudiAction=state-backup-recovery/);
   assert.match(app, /tile\.hidden=currentAppTab!==['"]home['"]\|\|!entries\.length/);
   assert.match(api, /if \(action === 'state-backup-recovery'\)/);
   assert.match(api, /product-list-not-empty/);
   assert.match(api, /RUDI_PRODUCTS_BACKUP_RECOVERED/);
+});
+
+test('local backup history is bounded and spaced so one bad state cannot immediately erase every copy', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /STATE_BACKUP_LOCAL_HISTORY_MIN_AGE = 6\*60\*60\*1000/);
+  assert.match(app, /STATE_BACKUP_LOCAL_HISTORY_MAX_CHARS = 3\*1024\*1024/);
+  assert.match(app, /function readLocalStateBackupHistory\(\)/);
+  assert.match(app, /function writeLocalStateBackupHistory\(rows\)/);
+  assert.match(app, /Date\.now\(\)-Number\(newest\.updatedAt\|\|0\)>=STATE_BACKUP_LOCAL_HISTORY_MIN_AGE/);
 });
