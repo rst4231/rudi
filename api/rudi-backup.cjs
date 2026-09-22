@@ -12,6 +12,8 @@ const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-stor
 const { readReactionState, restoreReactionState } = require('./reactions-store.cjs');
 const { readActivityJournal, restoreActivityJournalState } = require('./activity-journal-store.cjs');
 const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
+const { readPinRecord, restorePinRecord } = require('./rudi-session.cjs');
+const { readPasskeys, restorePasskeys } = require('./rudi-passkeys.cjs');
 const {
   readChecklistAuditState,
   restoreChecklistAuditState,
@@ -134,6 +136,31 @@ function mergeUiPreferences(base, overlay) {
   };
 }
 
+function newerPinRecord(current, previous) {
+  if (!current) return previous || null;
+  if (!previous) return current;
+  const currentTime = Date.parse(String(current.updatedAt || '')) || 0;
+  const previousTime = Date.parse(String(previous.updatedAt || '')) || 0;
+  return previousTime > currentTime ? previous : current;
+}
+
+function mergePasskeyRows(current, previous) {
+  const merged = new Map();
+  for (const row of [...(Array.isArray(previous) ? previous : []), ...(Array.isArray(current) ? current : [])]) {
+    if (!row || typeof row !== 'object') continue;
+    const actor = String(row.actor || '');
+    const id = String(row.id || '');
+    const rpID = String(row.rpID || '');
+    if (!actor || !id || !rpID) continue;
+    const key = actor + '\0' + rpID + '\0' + id;
+    const existing = merged.get(key);
+    const existingTime = Date.parse(String(existing?.updatedAt || existing?.createdAt || '')) || 0;
+    const rowTime = Date.parse(String(row.updatedAt || row.createdAt || '')) || 0;
+    if (!existing || rowTime >= existingTime) merged.set(key, row);
+  }
+  return [...merged.values()];
+}
+
 async function createStateSnapshot(options = {}) {
   const previous = options.previousSnapshot && typeof options.previousSnapshot === 'object'
     ? options.previousSnapshot
@@ -141,6 +168,7 @@ async function createStateSnapshot(options = {}) {
   const [
     partnerMessage, wishlist, products, ticktickChecklistAudit,
     ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal,
+    rustamPin, dianaPin, rustamPasskeys, dianaPasskeys,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
@@ -155,6 +183,10 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readReactionState(options), { initialized:false, version:0, entries:{} }),
     safeRead(() => readRecipients(options)),
     safeRead(() => readActivityJournal(options), { initialized: false, version: 0, items: [], markers: {} }),
+    safeRead(() => readPinRecord('Рустам', options)),
+    safeRead(() => readPinRecord('Диана', options)),
+    safeRead(() => readPasskeys('Рустам', options), []),
+    safeRead(() => readPasskeys('Диана', options), []),
   ]);
 
   const mergedRecipients = normalizeRecipients({
@@ -183,6 +215,16 @@ async function createStateSnapshot(options = {}) {
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
     uiPreferences: normalizeUiPreferences(previous?.uiPreferences),
     recipients: mergedRecipients,
+    browserAuth: {
+      pins: {
+        'Рустам': newerPinRecord(rustamPin, previous?.browserAuth?.pins?.['Рустам']),
+        'Диана': newerPinRecord(dianaPin, previous?.browserAuth?.pins?.['Диана']),
+      },
+      passkeys: {
+        'Рустам': mergePasskeyRows(rustamPasskeys, previous?.browserAuth?.passkeys?.['Рустам']),
+        'Диана': mergePasskeyRows(dianaPasskeys, previous?.browserAuth?.passkeys?.['Диана']),
+      },
+    },
   };
 }
 
@@ -341,6 +383,31 @@ async function restoreStateBackup(token, options = {}) {
     } catch {}
   }
 
+  for (const actor of ['Рустам', 'Диана']) {
+    const savedPin = snapshot.browserAuth?.pins?.[actor] || null;
+    if (savedPin?.salt && savedPin?.hash) {
+      try {
+        const currentPin = await readPinRecord(actor, options);
+        const currentTime = Date.parse(String(currentPin?.updatedAt || '')) || 0;
+        const savedTime = Date.parse(String(savedPin.updatedAt || '')) || 0;
+        if (!currentPin || savedTime >= currentTime) {
+          await restorePinRecord(actor, savedPin, options);
+          restored.push('browser-pin:' + actor);
+        }
+      } catch {}
+    }
+
+    const savedPasskeys = Array.isArray(snapshot.browserAuth?.passkeys?.[actor])
+      ? snapshot.browserAuth.passkeys[actor]
+      : [];
+    if (savedPasskeys.length) {
+      try {
+        await restorePasskeys(actor, savedPasskeys, options);
+        restored.push('passkeys:' + actor);
+      } catch {}
+    }
+  }
+
   const currentChecklistAudit = await safeRead(
     () => readChecklistAuditState(options),
     { initialized: false, version: 0, entries: {} }
@@ -372,4 +439,6 @@ module.exports = {
   normalizeUiPreferenceEntry,
   normalizeUiPreferences,
   mergeUiPreferences,
+  newerPinRecord,
+  mergePasskeyRows,
 };
