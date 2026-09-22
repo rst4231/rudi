@@ -62,9 +62,9 @@ test('cache miss does not create a newer initialized empty product list', () => 
   assert.match(source, /if \(!items\.length\) return current;[\s\S]*return writeState\(\{ \.\.\.current, items \}, options\)/);
 });
 
-test('client completes backup recovery before stateful loaders start', () => {
+test('client completes bootstrap before exposing the app shell', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
-  assert.match(source, /document\.body\.classList\.add\('auth-ok'\);\s*await loadAppBootstrap\(\);\s*return true;/);
+  assert.match(source, /currentActor=String\(payload\.actor\|\|''\);\s*await loadAppBootstrap\(\);\s*document\.body\.classList\.remove\('auth-pending','auth-denied'\);\s*document\.body\.classList\.add\('auth-ok'\);/);
   assert.doesNotMatch(source, /setTimeout\(\(\)=>loadAppBootstrap\(\),0\)/);
 });
 
@@ -90,4 +90,23 @@ test('local backup history is bounded and spaced so one bad state cannot immedia
   assert.match(app, /function readLocalStateBackupHistory\(\)/);
   assert.match(app, /function writeLocalStateBackupHistory\(rows\)/);
   assert.match(app, /Date\.now\(\)-Number\(newest\.updatedAt\|\|0\)>=STATE_BACKUP_LOCAL_HISTORY_MIN_AGE/);
+});
+
+
+test('backup includes car mood reactions and UI preferences',()=>{
+  const source = fs.readFileSync(path.join(__dirname, '..', 'api', 'rudi-backup.cjs'), 'utf8');
+  for(const token of ['readCarState','restoreCarState','readDailyMoodState','restoreDailyMoodState','readReactionState','restoreReactionState','uiPreferences']){
+    assert.match(source,new RegExp(token));
+  }
+  assert.match(source,/normalizeUiPreferences/);
+  assert.match(source,/mergeUiPreferences/);
+});
+
+test('client syncs home order and collapse state through encrypted backup',()=>{
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(source,/function localUiPreferences\(\)/);
+  assert.match(source,/function applyRemoteUiPreferences\(value\)/);
+  assert.match(source,/uiPreferences:localUiPreferences\(\)/);
+  assert.match(source,/markUiPreferencesChanged\(\)/);
+  assert.match(source,/stateBackupRefreshQueued=true/);
 });
