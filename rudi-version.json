@@ -1,15 +1,14 @@
 {
-  "current": "v1.7.5",
-  "versionBranch": "fix/migrate-existing-pin",
+  "current": "v1.7.6",
+  "versionBranch": "fix/stateless-passkey-challenge",
   "releaseCommit": null,
   "createdAt": "2026-09-22",
   "basedOnProduction": "1deb9f781e0ce33e04b4487d903890c798a8a9b8",
   "notes": [
-    "PIN и Passkey используют единый постоянный Neon Postgres источник истины для Telegram и браузера.",
-    "Существующий PIN автоматически мигрирует из восстановленного Runtime Cache или Telegram backup в Postgres, если серверная запись ещё пустая.",
-    "Исправлена регистрация Face ID на iPhone: WebAuthn challenge подготавливается до нажатия, а navigator.credentials.create/get вызываются сразу из пользовательского клика.",
-    "Для WebAuthn используется нативный parseCreationOptionsFromJSON/parseRequestOptionsFromJSON при поддержке браузером.",
-    "Регистрационные параметры Passkey приведены к совместимым с iOS рекомендациям, при этом серверная проверка user verification остаётся обязательной.",
-    "Автоматический Git deploy остаётся выключенным после релиза."
+    "WebAuthn challenge больше не хранится в Runtime Cache: он стал подписанным stateless-токеном на 10 минут.",
+    "Регистрация и вход по Face ID теперь работают между разными Vercel serverless-инстансами без зависимости от видимости кэша.",
+    "Challenge привязан к операции, пользователю, RP ID и origin и проверяется HMAC-подписью и сроком жизни.",
+    "PIN и Passkey по-прежнему используют единый постоянный Neon Postgres источник истины.",
+    "Автоматический Git deploy будет снова выключен после релиза."
   ]
 }
