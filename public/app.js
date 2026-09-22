@@ -791,6 +791,15 @@
         return '';
       }
 
+      function dianaCycleDailyAdvice(phase){
+        const value=String(phase||'');
+        if(value==='Месячные') return 'Лучше снизить темп и оставить больше времени на отдых и комфорт.';
+        if(value==='Фолликулярная фаза') return 'Хороший день для активности, новых дел и более насыщенного темпа.';
+        if(value==='Фертильное окно') return 'Можно планировать активный день, встречи и совместные дела, если есть настроение.';
+        if(value==='Лютеиновая фаза') return 'Лучше спокойнее с нагрузкой, мягче в общении и без лишнего давления.';
+        return '';
+      }
+
       function setDianaCycleMood(phase){
         const node=document.getElementById('dianaCycleMood');
         if(!node) return;
@@ -1153,8 +1162,12 @@
 
         const cycle=document.getElementById('homeCycleSummary');
         if(cycle){
-          const word=dianaCycleMoodWord(homeDashboardState.cycle?.phase);
-          cycle.textContent=word?'🌸 Диана: '+word+(homeDashboardState.cycle?.phase?' · '+String(homeDashboardState.cycle.phase).toLocaleLowerCase('ru-RU'):''):'';
+          const phaseValue=homeDashboardState.cycle?.phase;
+          const word=dianaCycleMoodWord(phaseValue);
+          const status=document.getElementById('homeCycleStatus');
+          const advice=document.getElementById('homeCycleAdvice');
+          if(status) status.textContent=word?'🌸 Диана: '+word+(phaseValue?' · '+String(phaseValue).toLocaleLowerCase('ru-RU'):''):'';
+          if(advice) advice.textContent=dianaCycleDailyAdvice(phaseValue);
           cycle.hidden=!word;
         }
 
@@ -1211,6 +1224,10 @@
           button.addEventListener('click',()=>openHomeQuickAction(button.dataset.homeQuick));
         });
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
+        document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
+          applyAppTab('schedule',{scroll:true});
+          setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
+        });
       }
 
       function setupProfileSplit(){
@@ -1279,6 +1296,18 @@
         cycleSummary.id='homeCycleSummary';
         cycleSummary.className='home-cycle-summary';
         cycleSummary.hidden=true;
+        const cycleStatus=document.createElement('div');
+        cycleStatus.id='homeCycleStatus';
+        cycleStatus.className='home-cycle-status';
+        const cycleAdvice=document.createElement('div');
+        cycleAdvice.id='homeCycleAdvice';
+        cycleAdvice.className='home-cycle-advice';
+        const cycleOpen=document.createElement('button');
+        cycleOpen.id='homeCycleOpen';
+        cycleOpen.className='home-cycle-open';
+        cycleOpen.type='button';
+        cycleOpen.textContent='Показать полностью';
+        cycleSummary.append(cycleStatus,cycleAdvice,cycleOpen);
         const messageNew=document.createElement('button');
         messageNew.id='homeMessageNew';
         messageNew.className='home-message-new';
