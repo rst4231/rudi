@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 
 const {
   requestOrigin,
+  createChallengeToken,
+  consumeChallenge,
   passkeyStatus,
   registrationOptions,
   verifyRegistration,
@@ -42,7 +44,8 @@ test('registration stores only public credential material and enables status', a
       return { challenge:'reg-challenge', user:{id:'abc',name:'Рустам',displayName:'Рустам'} };
     },
     async verifyRegistrationResponse(input){
-      assert.equal(input.expectedChallenge,'reg-challenge');
+      assert.equal(typeof input.expectedChallenge,'string');
+      assert.ok(input.expectedChallenge.length>40);
       assert.equal(input.requireUserVerification,true);
       return {
         verified:true,
@@ -54,7 +57,7 @@ test('registration stores only public credential material and enables status', a
       };
     },
   };
-  const opts={cache,webauthn,now:Date.UTC(2026,8,22)};
+  const opts={cache,webauthn,botToken:'123456:test-secret',now:Date.UTC(2026,8,22)};
   const generated=await registrationOptions(req(),'Рустам',opts);
   const saved=await verifyRegistration(req(),'Рустам',generated.challenge,{id:'cred-r'},opts);
   assert.equal(saved.actor,'Рустам');
@@ -89,7 +92,7 @@ test('authentication resolves the credential owner and advances counter', async 
       return {verified:true,authenticationInfo:{newCounter:3}};
     },
   };
-  const opts={cache,webauthn,now:Date.UTC(2026,8,22)};
+  const opts={cache,webauthn,botToken:'123456:test-secret',now:Date.UTC(2026,8,22)};
   const reg=await registrationOptions(req(),'Диана',opts);
   await verifyRegistration(req(),'Диана',reg.challenge,{id:'cred-d'},opts);
   const auth=await authenticationOptions(req(),opts);
@@ -97,4 +100,77 @@ test('authentication resolves the credential owner and advances counter', async 
   assert.equal(verified.actor,'Диана');
   const rows=await cache.get('passkeys:Диана');
   assert.equal(rows[0].counter,3);
+});
+
+
+test('registration challenge survives a different empty serverless cache', async () => {
+  const optionsCache=memoryCache();
+  const verifyCache=memoryCache();
+  const botToken='123456:stateless-test';
+  const now=Date.UTC(2026,8,22,18,0,0);
+  const webauthn={
+    async generateRegistrationOptions(){
+      return {challenge:'ignored-by-rudi',user:{id:'abc',name:'Рустам',displayName:'Рустам'}};
+    },
+    async verifyRegistrationResponse(input){
+      assert.ok(input.expectedChallenge.length>40);
+      assert.equal(input.expectedOrigin,'https://spb-daily-guide-bot.vercel.app');
+      assert.equal(input.expectedRPID,'spb-daily-guide-bot.vercel.app');
+      return {
+        verified:true,
+        registrationInfo:{
+          credential:{id:'cred-stateless',publicKey:new Uint8Array([4,5,6]),counter:0,transports:['internal']},
+          credentialDeviceType:'singleDevice',
+          credentialBackedUp:false,
+        },
+      };
+    },
+  };
+
+  const generated=await registrationOptions(req(),'Рустам',{
+    cache:optionsCache,webauthn,botToken,now
+  });
+
+  assert.notEqual(generated.challenge,'ignored-by-rudi');
+  assert.equal(await optionsCache.get('challenge:register:Рустам:'+generated.challenge),null);
+
+  const result=await verifyRegistration(
+    req(),
+    'Рустам',
+    generated.challenge,
+    {id:'cred-stateless'},
+    {cache:verifyCache,webauthn,botToken,now:now+1000}
+  );
+  assert.equal(result.configured,true);
+  assert.equal(result.credentialId,'cred-stateless');
+});
+
+test('signed passkey challenge rejects tampering, wrong origin and expiration', () => {
+  const botToken='123456:stateless-test';
+  const now=Date.UTC(2026,8,22,18,0,0);
+  const rp={rpID:'spb-daily-guide-bot.vercel.app',origin:'https://spb-daily-guide-bot.vercel.app'};
+  const token=createChallengeToken('register','Рустам',rp,{botToken,now});
+
+  assert.equal(
+    consumeChallenge('register','Рустам',token,rp,{botToken,now:now+1000}).actor,
+    'Рустам'
+  );
+
+  const tampered=token.slice(0,-1)+(token.endsWith('A')?'B':'A');
+  assert.throws(
+    ()=>consumeChallenge('register','Рустам',tampered,rp,{botToken,now:now+1000}),
+    /rudi-passkey-challenge-invalid/
+  );
+  assert.throws(
+    ()=>consumeChallenge(
+      'register','Рустам',token,
+      {rpID:rp.rpID,origin:'https://evil.example'},
+      {botToken,now:now+1000}
+    ),
+    /rudi-passkey-challenge-invalid/
+  );
+  assert.throws(
+    ()=>consumeChallenge('register','Рустам',token,rp,{botToken,now:now+11*60*1000}),
+    /rudi-passkey-challenge-invalid/
+  );
 });
