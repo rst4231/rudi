@@ -10,6 +10,7 @@
       let currentPartnerReactionKey = '';
       let currentDailyReactionTargets = [];
       let currentFeedReactionTargets = [];
+      let currentPhotoMemoryReactionTarget = null;
       let partnerProfileName = '';
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
@@ -3647,6 +3648,12 @@
         return button;
       }
 
+      function sharedAlbumMemoryReactionTarget(photo){
+        const source=String(photo?.id||photo?.url||'').trim();
+        if(!source) return null;
+        return {type:'photo-memory',key:'photo:'+sharedAlbumHash(source).toString(16)};
+      }
+
       function renderSharedAlbumMemory(photos){
         const wrap=document.getElementById('sharedAlbumMemory');
         const image=document.getElementById('sharedAlbumMemoryImage');
@@ -3655,6 +3662,8 @@
         if(!wrap||!image||!age||!button) return;
         const photo=sharedAlbumMemoryPhoto(photos);
         if(!photo){
+          currentPhotoMemoryReactionTarget=null;
+          renderReaction({likedBy:[]},'sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy');
           wrap.hidden=true;
           image.removeAttribute('src');
           button.onclick=null;
@@ -3665,6 +3674,12 @@
         image.alt=photo.caption?String(photo.caption):'Воспоминание из общего альбома';
         age.textContent=sharedAlbumAgeLabel(photo);
         button.onclick=()=>openSharedAlbumPhoto(photo,index);
+        currentPhotoMemoryReactionTarget=sharedAlbumMemoryReactionTarget(photo);
+        if(currentPhotoMemoryReactionTarget){
+          refreshReaction(currentPhotoMemoryReactionTarget,'sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy');
+        }else{
+          renderReaction({likedBy:[]},'sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy');
+        }
         wrap.hidden=false;
       }
 
@@ -4043,6 +4058,7 @@
         bindReaction('feedConcertsLike','feedConcertsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('concerts:'))||null);
         bindReaction('feedStandupLike','feedStandupLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('standup:'))||null);
         bindReaction('feedCinemaLike','feedCinemaLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('cinema:'))||null);
+        bindReaction('sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy',()=>currentPhotoMemoryReactionTarget);
       }
 
       async function refreshDailyReactions(){

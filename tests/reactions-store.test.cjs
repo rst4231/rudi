@@ -150,3 +150,18 @@ test('feed reactions accept versioned section keys', async () => {
   const persisted = await require('../api/reactions-store.cjs').readReaction(target, { reactionsCache: cache });
   assert.deepEqual(persisted.likedBy, ['Диана']);
 });
+
+
+test('photo-memory reactions are accepted and persisted per photo key', async () => {
+  const values = new Map();
+  const cache = {
+    async get(key) { return values.has(key) ? structuredClone(values.get(key)) : null; },
+    async set(key, value) { values.set(key, structuredClone(value)); },
+    async delete(key) { values.delete(key); },
+  };
+  const target = { type: 'photo-memory', key: 'photo:7f4ac201' };
+  const result = await setReaction(target, 'Диана', true, { reactionsCache: cache });
+  assert.deepEqual(result.likedBy, ['Диана']);
+  const persisted = await require('../api/reactions-store.cjs').readReaction(target, { reactionsCache: cache });
+  assert.deepEqual(persisted.likedBy, ['Диана']);
+});
