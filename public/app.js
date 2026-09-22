@@ -1658,6 +1658,192 @@
         return data;
       }
 
+      let lastBrowserAuthMethod='';
+
+      function passkeySupported(){
+        return Boolean(
+          window.isSecureContext
+          && window.PublicKeyCredential
+          && navigator?.credentials?.create
+          && navigator?.credentials?.get
+        );
+      }
+
+      async function passkeyRequest(operation,payload={}){
+        const response=await fetchWithTimeout('/api/partner-message?rudiAction=passkey',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({operation,initData:telegramInitData(),...payload}),
+          cache:'no-store'
+        },12000);
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+          const error=new Error(data.error||('passkey-'+response.status));
+          error.status=response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function base64UrlToBytes(value){
+        const text=String(value||'').replace(/-/g,'+').replace(/_/g,'/');
+        const padded=text+'='.repeat((4-text.length%4)%4);
+        const binary=atob(padded);
+        const bytes=new Uint8Array(binary.length);
+        for(let index=0;index<binary.length;index++) bytes[index]=binary.charCodeAt(index);
+        return bytes;
+      }
+
+      function bytesToBase64Url(value){
+        if(value==null) return null;
+        const bytes=value instanceof ArrayBuffer
+          ? new Uint8Array(value)
+          : ArrayBuffer.isView(value)
+            ? new Uint8Array(value.buffer,value.byteOffset,value.byteLength)
+            : new Uint8Array(value);
+        let binary='';
+        for(let index=0;index<bytes.length;index++) binary+=String.fromCharCode(bytes[index]);
+        return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+      }
+
+      function creationOptionsFromJson(value){
+        const options={...(value||{})};
+        options.challenge=base64UrlToBytes(options.challenge);
+        if(options.user) options.user={...options.user,id:base64UrlToBytes(options.user.id)};
+        if(Array.isArray(options.excludeCredentials)){
+          options.excludeCredentials=options.excludeCredentials.map(row=>({...row,id:base64UrlToBytes(row.id)}));
+        }
+        return options;
+      }
+
+      function requestOptionsFromJson(value){
+        const options={...(value||{})};
+        options.challenge=base64UrlToBytes(options.challenge);
+        if(Array.isArray(options.allowCredentials)){
+          options.allowCredentials=options.allowCredentials.map(row=>({...row,id:base64UrlToBytes(row.id)}));
+        }
+        return options;
+      }
+
+      function credentialJson(credential){
+        const response=credential?.response;
+        const result={
+          id:String(credential?.id||''),
+          rawId:bytesToBase64Url(credential?.rawId),
+          type:String(credential?.type||'public-key'),
+          authenticatorAttachment:credential?.authenticatorAttachment||undefined,
+          clientExtensionResults:credential?.getClientExtensionResults?.()||{},
+          response:{
+            clientDataJSON:bytesToBase64Url(response?.clientDataJSON)
+          }
+        };
+        if(response?.attestationObject){
+          result.response.attestationObject=bytesToBase64Url(response.attestationObject);
+          if(typeof response.getTransports==='function') result.response.transports=response.getTransports();
+          if(typeof response.getPublicKeyAlgorithm==='function') result.response.publicKeyAlgorithm=response.getPublicKeyAlgorithm();
+          if(typeof response.getPublicKey==='function'){
+            const publicKey=response.getPublicKey();
+            if(publicKey) result.response.publicKey=bytesToBase64Url(publicKey);
+          }
+        }else{
+          result.response.authenticatorData=bytesToBase64Url(response?.authenticatorData);
+          result.response.signature=bytesToBase64Url(response?.signature);
+          result.response.userHandle=response?.userHandle?bytesToBase64Url(response.userHandle):null;
+        }
+        return result;
+      }
+
+      async function registerFaceId(){
+        if(!passkeySupported()) throw new Error('rudi-passkey-browser-unsupported');
+        const setup=await passkeyRequest('register-options');
+        const credential=await navigator.credentials.create({
+          publicKey:creationOptionsFromJson(setup.publicKey)
+        });
+        if(!credential) throw new Error('rudi-passkey-cancelled');
+        await passkeyRequest('register-verify',{
+          challenge:setup.publicKey.challenge,
+          response:credentialJson(credential)
+        });
+        return true;
+      }
+
+      async function loginWithFaceId(){
+        if(!passkeySupported()) throw new Error('rudi-passkey-browser-unsupported');
+        const setup=await passkeyRequest('auth-options');
+        const credential=await navigator.credentials.get({
+          publicKey:requestOptionsFromJson(setup.publicKey)
+        });
+        if(!credential) throw new Error('rudi-passkey-cancelled');
+        const verified=await passkeyRequest('auth-verify',{
+          challenge:setup.publicKey.challenge,
+          response:credentialJson(credential)
+        });
+        return String(verified.actor||'');
+      }
+
+      async function faceIdConfigured(){
+        if(!passkeySupported()||!currentActor) return false;
+        try{
+          const status=await passkeyRequest('status');
+          return Boolean(status.configured);
+        }catch(_){
+          return false;
+        }
+      }
+
+      function showFaceIdSetup(){
+        return new Promise(resolve=>{
+          if(!passkeySupported()) return resolve(false);
+          setAuthGate('Включить Face ID?','После этого в Safari можно будет входить без PIN.');
+          const form=document.createElement('div');
+          form.className='rudi-auth-form';
+          const button=document.createElement('button');
+          button.className='rudi-auth-submit rudi-auth-faceid';
+          button.type='button';
+          button.textContent='Включить Face ID';
+          const skip=document.createElement('button');
+          skip.className='rudi-auth-secondary';
+          skip.type='button';
+          skip.textContent='Не сейчас';
+          const status=document.createElement('div');
+          status.className='rudi-auth-status';
+          form.append(button,skip,status);
+          document.querySelector('.app-gate-card')?.appendChild(form);
+          skip.addEventListener('click',()=>{
+            clearAuthGateForm();
+            document.body.classList.remove('auth-login');
+            document.body.classList.add('auth-pending');
+            resolve(false);
+          });
+          button.addEventListener('click',async()=>{
+            button.disabled=true;
+            skip.disabled=true;
+            status.textContent='Подтвердите Face ID на iPhone…';
+            try{
+              await registerFaceId();
+              status.textContent='Face ID включён';
+              clearAuthGateForm();
+              document.body.classList.remove('auth-login');
+              document.body.classList.add('auth-pending');
+              resolve(true);
+            }catch(error){
+              status.textContent=String(error?.name||'')==='NotAllowedError'
+                ?'Face ID не был подтверждён.'
+                :'Не удалось включить Face ID.';
+              button.disabled=false;
+              skip.disabled=false;
+            }
+          });
+        });
+      }
+
+      async function maybeOfferFaceIdSetup(){
+        if(telegramInitData()||!passkeySupported()||lastBrowserAuthMethod!=='pin') return false;
+        const configured=await faceIdConfigured();
+        if(configured) return false;
+        return showFaceIdSetup();
+      }
+
       function pinInputNode(){
         const input=document.createElement('input');
         input.className='rudi-auth-pin';
@@ -1725,6 +1911,15 @@
           setAuthGate('Вход в RUDI','Выберите профиль и введите свой PIN.');
           const form=document.createElement('form');
           form.className='rudi-auth-form';
+          const faceIdButton=document.createElement('button');
+          faceIdButton.type='button';
+          faceIdButton.className='rudi-auth-submit rudi-auth-faceid';
+          faceIdButton.textContent='Войти с Face ID';
+          faceIdButton.hidden=!passkeySupported();
+          const divider=document.createElement('div');
+          divider.className='rudi-auth-divider';
+          divider.textContent='или PIN';
+          divider.hidden=!passkeySupported();
           const actors=document.createElement('div');
           actors.className='rudi-auth-actors';
           let selectedActor='';
@@ -1747,8 +1942,31 @@
           button.textContent='Войти';
           const status=document.createElement('div');
           status.className='rudi-auth-status';
-          form.append(actors,input,button,status);
+          form.append(faceIdButton,divider,actors,input,button,status);
           document.querySelector('.app-gate-card')?.appendChild(form);
+
+          faceIdButton.addEventListener('click',async()=>{
+            faceIdButton.disabled=true;
+            button.disabled=true;
+            status.textContent='Подтвердите Face ID на iPhone…';
+            try{
+              const actor=await loginWithFaceId();
+              lastBrowserAuthMethod='passkey';
+              clearAuthGateForm();
+              document.body.classList.remove('auth-login');
+              document.body.classList.add('auth-pending');
+              resolve(actor);
+            }catch(error){
+              const code=String(error?.message||'');
+              status.textContent=code==='rudi-passkey-not-configured'
+                ?'Face ID ещё не настроен. Войдите по PIN.'
+                :String(error?.name||'')==='NotAllowedError'
+                  ?'Face ID не был подтверждён.'
+                  :'Не удалось войти с Face ID.';
+              faceIdButton.disabled=false;
+              button.disabled=false;
+            }
+          });
 
           form.addEventListener('submit',async event=>{
             event.preventDefault();
@@ -1767,6 +1985,7 @@
             status.textContent='Проверяю…';
             try{
               const data=await browserAuthRequest('login',{actor:selectedActor,pin});
+              lastBrowserAuthMethod='pin';
               clearAuthGateForm();
               document.body.classList.remove('auth-login');
               document.body.classList.add('auth-pending');
@@ -1852,6 +2071,7 @@
           const code=String(error?.message||'');
           if(!telegramInitData()&&['rudi-session-required','rudi-session-invalid','rudi-session-expired'].includes(code)){
             currentActor=await showBrowserLogin();
+            await maybeOfferFaceIdSetup();
           }else{
             denyApp(
               code==='rudi-access-denied'?'Доступ закрыт':'Не удалось проверить доступ',
