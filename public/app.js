@@ -3635,15 +3635,17 @@
           return match?Number(match[1])*60+Number(match[2]):null;
         };
         const events=Array.isArray(row.events)?row.events:[];
-        if(events.some(event=>event?.allDay)) return true;
-        return events.some(event=>{
-          const start=toMinutes(event?.startTime);
-          const end=toMinutes(event?.endTime);
-          if(start===null||end===null||start===end) return false;
-          return end>start
+        const timedEvents=events.map(event=>({
+          event,
+          start:toMinutes(event?.startTime),
+          end:toMinutes(event?.endTime)
+        })).filter(item=>item.start!==null&&item.end!==null&&item.start!==item.end);
+        if(timedEvents.length){
+          return timedEvents.some(({start,end})=>end>start
             ?nowMinutes>=start&&nowMinutes<end
-            :nowMinutes>=start||nowMinutes<end;
-        });
+            :nowMinutes>=start||nowMinutes<end);
+        }
+        return events.some(event=>event?.allDay);
       }
 
       function dianaWorkStatusText(row){

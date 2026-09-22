@@ -5525,3 +5525,21 @@ html[data-theme="dark"] .home-dashboard{
 .home-dashboard .mood-self{
   justify-items:center!important;
 }
+
+
+/* RUDI v1.8.1 dark-card reorder arrows */
+body.home-layout-editing .smart-home-tile > .home-order-controls,
+body.home-layout-editing .car-tile > .home-order-controls{
+  background:rgba(7,10,16,.58)!important;
+  border-color:rgba(255,255,255,.14)!important;
+  box-shadow:0 7px 18px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.07)!important;
+}
+body.home-layout-editing .smart-home-tile > .home-order-controls .home-order-button,
+body.home-layout-editing .car-tile > .home-order-controls .home-order-button,
+.car-tile .car-head-title-row .block-collapse-button{
+  color:#fff!important;
+}
+body.home-layout-editing .smart-home-tile > .home-order-controls .home-order-button:disabled,
+body.home-layout-editing .car-tile > .home-order-controls .home-order-button:disabled{
+  opacity:.32!important;
+}
