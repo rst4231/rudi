@@ -5,30 +5,62 @@ const fs=require('node:fs');
 const html=fs.readFileSync('public/index.html','utf8');
 const app=fs.readFileSync('public/app.js','utf8');
 const smart=fs.readFileSync('public/smart-home.js','utf8');
+const smartCss=fs.readFileSync('public/smart-home.css','utf8');
 const api=fs.readFileSync('api/index.js','utf8');
 const client=fs.readFileSync('api/smart-home-client.cjs','utf8');
 
-test('smart home is a movable Home tile before the activity journal',()=>{
+test('smart home is movable and persistently collapsible',()=>{
   assert.match(html,/id="smartHomeTile"[^>]*data-app-tab-section="home"[^>]*data-home-tile="smart-home"/);
   assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','activity'\]/);
   assert.match(app,/return 'rudi-home-layout-v3-'\+actor/);
+  assert.match(app,/selector:'#smartHomeTile',key:'smart-home'/);
+  assert.match(app,/hostSelector:'\.smart-home-head'/);
+  assert.match(app,/bodySelectors:\['\.smart-home-climate','#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'\]/);
 });
 
-test('smart home starts with weather and indoor climate and lists devices',()=>{
+test('smart home starts with weather and climate and uses device cards',()=>{
   const start=html.indexOf('class="smart-home-climate"');
   const rooms=html.indexOf('id="smartHomeRooms"');
   assert.ok(start>=0&&rooms>start);
   assert.ok(html.indexOf('id="smartHomeWeather"',start)<rooms);
   assert.ok(html.indexOf('id="smartHomeTemperature"',start)<rooms);
   assert.ok(html.indexOf('id="smartHomeHumidity"',start)<rooms);
-  assert.match(smart,/button\.textContent=cap\.state\.value\?'Выкл':'Вкл'/);
-  assert.match(smart,/renderDevices\(state\.data\)/);
+  assert.match(smart,/function deviceCard\(device\)/);
+  assert.match(smart,/smart-home-device-grid/);
+  assert.match(smartCss,/\.smart-home-device-card/);
+  assert.match(smartCss,/\.smart-home-power-icon/);
 });
 
-test('smart home actions are written to the shared activity journal',()=>{
+test('audio is hidden for both users and Diana has extra device restrictions',()=>{
+  assert.match(smart,/function isAudioDevice\(device\)/);
+  assert.match(smart,/headphone\|smart\[_-\]\?speaker\|speaker\|audio/);
+  assert.match(smart,/String\(data\?\.actor\|\|''\)!=='Диана'/);
+  assert.match(smart,/name==='камера' \|\| name==='переключатель'/);
+});
+
+test('scenarios are Rustam-only in UI and backend',()=>{
+  assert.match(smart,/String\(data\?\.actor\|\|''\)==='Рустам'/);
+  assert.match(client,/operation === 'scenario'/);
+  assert.match(client,/session\.actor !== 'Рустам'/);
+  assert.match(client,/smart-home-scenarios-forbidden/);
+});
+
+test('vacuum supports power pause and four work speeds',()=>{
+  assert.match(smart,/devices\.capabilities\.toggle','pause'/);
+  assert.match(smart,/devices\.capabilities\.mode','work_speed'/);
+  assert.match(smart,/fast:'Быстрый',medium:'Средний',slow:'Медленный',min:'Минимальный'/);
+  assert.match(smart,/smart-home-pause-icon/);
+  assert.match(smart,/smart-home-speed-option/);
+  assert.match(client,/capabilityType === 'devices\.capabilities\.mode' && instance === 'work_speed'/);
+  assert.match(client,/capabilityType === 'devices\.capabilities\.toggle' && instance === 'pause'/);
+});
+
+test('smart home actions include the actor in the shared activity journal',()=>{
   assert.match(client,/appendActivity/);
   assert.match(client,/type:'smart-home'/);
   assert.match(client,/targetTab:'home'/);
+  assert.match(client,/session\.actor \+ ' ' \+ verb \+ ' ' \+ deviceName/);
+  assert.match(client,/выбрала' : 'выбрал'/);
   assert.match(smart,/prependActivity\(result\.activity\)/);
 });
 
@@ -41,8 +73,15 @@ test('smart home reuses the existing Vercel function and avoids hot polling',()=
   assert.doesNotMatch(smart,/setInterval\(/);
 });
 
-test('today lives in Feed and Diana cycle lives in Calendar above anniversary',()=>{
-  assert.match(html,/class="section-block daily-section"[^>]*data-app-tab-section="feed"/);
+test('daily cards replace the Feed hero and are never collapsible',()=>{
+  assert.match(html,/class="feed-daily-top"/);
+  assert.doesNotMatch(html,/<h1 id="feedTitle">Лента<\/h1>/);
+  assert.doesNotMatch(html,/>На сегодня<\/h2>/);
+  assert.doesNotMatch(html,/class="section-block daily-section"/);
+  assert.doesNotMatch(app,/selector:'\.daily-section',key:'daily'/);
+});
+
+test('Diana cycle lives in Calendar above anniversary',()=>{
   assert.match(html,/id="dianaCycleCard"[^>]*data-app-tab-section="schedule"/);
   assert.ok(html.indexOf('id="dianaCycleCard"')<html.indexOf('id="anniversaryCard"'));
 });
