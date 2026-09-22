@@ -5,7 +5,7 @@ const TTL_SECONDS = 60 * 60 * 72;
 const SNAPSHOT_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const STATE_KEY = 'state';
 const MAX_SNAPSHOT_DAYS = 120;
-const ALLOWED_MOODS = new Set(['low', 'ok', 'great', 'love']);
+const ALLOWED_MOODS = new Set(['low', 'ok', 'great']);
 const ACTORS = ['Рустам', 'Диана'];
 
 function cacheOf(options = {}) {

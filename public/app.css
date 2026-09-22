@@ -560,7 +560,7 @@
     }
     .nearest-content{
       display:grid;
-      grid-template-columns:minmax(0,1fr);
+      grid-template-columns:minmax(0,1fr) auto;
       align-items:center;
       gap:16px;
     }
@@ -5213,6 +5213,26 @@ html[data-theme="dark"] .feed-today{
   margin:0;color:var(--text);font-size:22px;line-height:1.08;font-weight:850;letter-spacing:-.035em;
 }
 .home-dashboard-date{grid-column:1;color:var(--muted);font-size:11px;line-height:1.3;font-weight:650}
+.home-dashboard-refresh{
+  grid-column:2;
+  grid-row:1/3;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+  border-radius:11px;
+  background:color-mix(in srgb,var(--soft) 82%,transparent);
+  color:var(--muted);
+  box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 7%,transparent);
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.home-dashboard-refresh svg{width:17px;height:17px}
+.home-dashboard-refresh:active{transform:scale(.96)}
+.home-dashboard-refresh.is-refreshing svg{animation:rudiManualRefreshSpin .72s linear infinite}
+@keyframes rudiManualRefreshSpin{to{transform:rotate(360deg)}}
 .home-dashboard-section{
   display:grid;gap:8px;padding:12px 13px;border:1px solid color-mix(in srgb,var(--line) 70%,transparent);
   border-radius:17px;background:color-mix(in srgb,var(--surface-strong) 74%,transparent);
@@ -5504,18 +5524,4 @@ html[data-theme="dark"] .home-dashboard{
 }
 .home-dashboard .mood-self{
   justify-items:center!important;
-}
-
-
-/* v1.8.4: dashboard tap collapse + love mood */
-.home-dashboard.rudi-tap-collapsible{cursor:pointer}
-.home-dashboard.rudi-tap-collapsible button,
-.home-dashboard.rudi-tap-collapsible a,
-.home-dashboard.rudi-tap-collapsible input,
-.home-dashboard.rudi-tap-collapsible textarea,
-.home-dashboard.rudi-tap-collapsible select{cursor:initial}
-.profile .partner-mood-value[data-mood="love"],
-.home-dashboard .partner-mood-value[data-mood="love"]{
-  color:#ffb6cb;
-  background:rgba(235,112,151,.16);
 }

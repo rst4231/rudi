@@ -933,7 +933,7 @@
       }
 
       function homeMoodView(value){
-        return {low:'😔',ok:'😐',great:'😄',love:'🥰'}[String(value||'')]||'—';
+        return {low:'😔',ok:'😐',great:'😄'}[String(value||'')]||'—';
       }
 
       function homeDashboardDateLabel(){
@@ -1364,7 +1364,26 @@
         const greeting=document.createElement('h1');
         greeting.id='homeDashboardGreeting';
         greeting.className='home-dashboard-greeting';
-        top.append(greeting,dateHeading);
+        const refreshButton=document.createElement('button');
+        refreshButton.type='button';
+        refreshButton.id='homeDashboardRefresh';
+        refreshButton.className='home-dashboard-refresh';
+        refreshButton.setAttribute('aria-label','Обновить данные');
+        refreshButton.setAttribute('title','Обновить');
+        refreshButton.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>';
+        refreshButton.addEventListener('click',async()=>{
+          if(refreshButton.classList.contains('is-refreshing')) return;
+          refreshButton.classList.add('is-refreshing');
+          refreshButton.disabled=true;
+          try{
+            await refreshAfterResume();
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          }finally{
+            refreshButton.disabled=false;
+            setTimeout(()=>refreshButton.classList.remove('is-refreshing'),180);
+          }
+        });
+        top.append(greeting,refreshButton,dateHeading);
 
         const together=document.createElement('section');
         together.className='home-dashboard-section home-together';
@@ -1511,7 +1530,7 @@
         host.appendChild(button);
       }
 
-      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,tapToToggle=false,showButton=true}){
+      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
         const body=wrapCollapseBody(section,bodySelectors);
@@ -1519,38 +1538,21 @@
         if(!body||!host) return;
         section.dataset.collapseReady='1';
         section.classList.add('rudi-collapsible');
-        const button=showButton?collapseButton('Свернуть или развернуть блок'):null;
-        if(button) addHeaderCollapseButton(section,host,button);
+        const button=collapseButton('Свернуть или развернуть блок');
+        addHeaderCollapseButton(section,host,button);
 
         const apply=collapsed=>{
           section.classList.toggle('is-collapsed',collapsed);
-          section.setAttribute('aria-expanded',collapsed?'false':'true');
-          button?.setAttribute('aria-expanded',collapsed?'false':'true');
+          button.setAttribute('aria-expanded',collapsed?'false':'true');
           body.setAttribute('aria-hidden',collapsed?'true':'false');
         };
-        const toggle=()=>{
+        apply(getBlockCollapsed(key,defaultCollapsed));
+        button.addEventListener('click',()=>{
           const collapsed=!section.classList.contains('is-collapsed');
           apply(collapsed);
           setBlockCollapsed(key,collapsed);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        };
-        apply(getBlockCollapsed(key,defaultCollapsed));
-        button?.addEventListener('click',event=>{
-          event.preventDefault();
-          event.stopPropagation();
-          toggle();
         });
-        if(tapToToggle){
-          section.classList.add('rudi-tap-collapsible');
-          section.addEventListener('click',event=>{
-            if(homeLayoutEditing) return;
-            const target=event.target;
-            if(!(target instanceof Element)) return;
-            if(target.closest('button,a,input,textarea,select,label,[role="button"],[contenteditable="true"],.home-order-controls')) return;
-            if(String(window.getSelection?.()||'').trim()) return;
-            toggle();
-          });
-        }
 
         if(key==='partner'){
           section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{
@@ -1563,13 +1565,6 @@
       }
 
       function setupPersistentCollapsibles(){
-        setupPersistentCollapsible({
-          selector:'#homeDashboard',key:'dashboard',
-          bodySelectors:['.home-together','#homeNearestBlock'],
-          hostSelector:'.home-dashboard-head',
-          tapToToggle:true,
-          showButton:false
-        });
         setupPersistentCollapsible({
           selector:'#dianaCycleCard',key:'diana-cycle',
           bodySelectors:['#dianaCycleBody'],
@@ -1633,10 +1628,6 @@
           great:[
             'Вот это настрой! Сохрани его — сегодня у тебя есть хороший разгон.',
             'Отличная энергия. Используй её на что-нибудь, чем вечером будешь доволен.'
-          ],
-          love:[
-            'Сегодня особенно хочется тепла. Самое время обнять друг друга или сделать что-нибудь приятное.',
-            'Нежный настрой пойман. Пусть сегодня будет хотя бы один момент только для вас двоих.'
           ]
         }
       };
@@ -5054,11 +5045,11 @@
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==mood;
         });
-        empty.hidden=['low','ok','great','love'].includes(mood);
+        empty.hidden=['low','ok','great'].includes(mood);
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
-            mood==='low'?'не очень':mood==='ok'?'нормально':mood==='great'?'отлично':mood==='love'?'нежное':'настроение ещё не выбрано'
+            mood==='low'?'не очень':mood==='ok'?'нормально':mood==='great'?'отлично':'настроение ещё не выбрано'
           )
         );
       }
@@ -5155,7 +5146,7 @@
             showMoodMessage(mood);
             setTimeout(()=>loadActivityJournal({silent:true}),180);
             try{
-              if(mood==='great'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
+              if(mood==='great') tg?.HapticFeedback?.notificationOccurred?.('success');
               else tg?.HapticFeedback?.selectionChanged?.();
             }catch(_){}
           }catch(_){
