@@ -192,9 +192,10 @@ function normalizeTask(task,todayKey) {
   };
 }
 
-function selectCurrentCarTasks(tasks, config, now = new Date(), allowedColumns = new Set()) {
+function selectCurrentCarTasks(tasks, config, now = new Date(), allowedColumns = new Set(), excludedIds = new Set()) {
   const todayKey = moscowDateKey(now);
   const candidates = (Array.isArray(tasks) ? tasks : [])
+    .filter(task => !excludedIds.has(String(task?.id || '')))
     .filter(task => Number(task?.status ?? 0) === 0)
     .filter(task => isCarTask(task,config,allowedColumns))
     .map(task => normalizeTask(task,todayKey))
@@ -228,7 +229,8 @@ async function loadCarTasks(options = {}) {
 
   const project = await fetchProjectData(token.accessToken,config.ticktickProjectId);
   const allowedColumns = carColumnIds(project,config);
-  const tasks = selectCurrentCarTasks(project?.tasks,config,options.now || new Date(),allowedColumns);
+  const excludedIds = new Set((Array.isArray(options.excludeIds) ? options.excludeIds : []).map(String));
+  const tasks = selectCurrentCarTasks(project?.tasks,config,options.now || new Date(),allowedColumns,excludedIds);
 
   tasksMemo = {
     available:true,
@@ -262,7 +264,7 @@ async function completeCarTask(taskId) {
   tasksMemo = null;
   tasksMemoAt = 0;
 
-  const refreshed = await loadCarTasks({force:true}).catch(() => ({
+  const refreshed = await loadCarTasks({force:true,excludeIds:[id]}).catch(() => ({
     available:true,
     projectId:config.ticktickProjectId,
     tasks:[],
