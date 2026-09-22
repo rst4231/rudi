@@ -10,6 +10,8 @@ const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = requir
 const { readWishlist, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
 const {
   readProductList,
+  readProductListRaw,
+  restoreProductListSnapshot,
   addProducts,
   removeProduct,
   toggleProductChecked,
@@ -1202,6 +1204,51 @@ async function handleRudiAction(req, res, action, options = {}) {
       });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'state-backup-recovery') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      authorizeInitData(body.initData, options);
+      const snapshot = backupSnapshotFromToken(body.backupToken, options);
+      if (!snapshot) return res.status(400).json({ ok: false, error: 'backup-invalid' });
+
+      const saved = snapshot.products;
+      const savedItems = Array.isArray(saved?.items) ? saved.items : [];
+      const savedHistory = Array.isArray(saved?.history) ? saved.history : [];
+      const operation = String(body.operation || 'preview').trim();
+
+      if (operation === 'preview') {
+        return res.status(200).json({
+          ok: true,
+          available: Boolean(saved?.initialized && savedItems.length),
+          itemCount: savedItems.length,
+          historyCount: savedHistory.length,
+          createdAt: String(snapshot.createdAt || ''),
+        });
+      }
+
+      if (operation === 'restore-products') {
+        if (!saved?.initialized || !savedItems.length) {
+          return res.status(400).json({ ok: false, error: 'backup-products-empty' });
+        }
+        const current = await readProductListRaw(options).catch(() => ({ initialized: false, version: 0, items: [], history: [] }));
+        if (Array.isArray(current?.items) && current.items.length) {
+          return res.status(409).json({ ok: false, error: 'product-list-not-empty' });
+        }
+        const restored = await restoreProductListSnapshot(saved, options);
+        console.info('RUDI_PRODUCTS_BACKUP_RECOVERED', savedItems.length);
+        return res.status(200).json({ ok: true, restored: true, ...restored });
+      }
+
+      return res.status(400).json({ ok: false, error: 'backup-recovery-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const status = statusForError(error);
+      if (status === 500) console.error('RUDI_STATE_BACKUP_RECOVERY_ERROR', code);
+      return res.status(status === 500 ? 400 : status).json({ ok: false, error: code });
     }
   }
 
