@@ -53,6 +53,8 @@ test('personal summary shows Diana workday only to Diana and cycle status to bot
   assert.match(rustam, /Диана по циклу/);
   assert.match(rustam, /Чувствительная/);
   assert.match(rustam, /лютеиновая фаза/);
+  assert.match(rustam, /Как лучше сегодня с Дианой/);
+  assert.match(rustam, /говорить мягче/);
 
   const diana = buildMorningSummary('Диана', common);
   assert.match(diana, /Задача Дианы/);
@@ -62,6 +64,7 @@ test('personal summary shows Diana workday only to Diana and cycle status to bot
   assert.match(diana, /09:00–21:00/);
   assert.match(diana, /Твой статус по циклу/);
   assert.match(diana, /Чувствительная/);
+  assert.doesNotMatch(diana, /Как лучше сегодня с Дианой/);
 });
 
 test('daily summary replaces feed notice, personalizes new partner activity, and sends once per day', async () => {
@@ -140,6 +143,8 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(rustam.text,/Подарок Дианы/);
   assert.doesNotMatch(rustam.text,/Подарок Рустама/);
   assert.match(rustam.text,/Чувствительная/);
+  assert.match(rustam.text,/Как лучше сегодня с Дианой/);
+  assert.match(rustam.text,/говорить мягче/);
   assert.match(rustam.text,/2 Stand Up/);
   assert.doesNotMatch(rustam.text,/я обновил Ленту/);
 
@@ -150,6 +155,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.doesNotMatch(diana.text,/Новое послание от Дианы/);
   assert.match(diana.text,/Подарок Рустама/);
   assert.match(diana.text,/Чувствительная/);
+  assert.doesNotMatch(diana.text,/Как лучше сегодня с Дианой/);
 
   assert.match(rustam.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
   assert.match(diana.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
