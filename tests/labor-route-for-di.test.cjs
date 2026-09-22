@@ -25,11 +25,14 @@ test('labor posts use topic 126 and never recreate topic 696', async () => {
     token: 'test-token',
     chatId: -1004476323368,
     cache,
+    forDiCache: cache,
     fetchImpl,
     now: new Date('2026-09-04T18:00:00Z'),
     forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
   });
 
   assert.equal(result.topicId, 126);
+  assert.equal(result.queuedForPrivateDelivery, true);
+  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
   assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
 });
