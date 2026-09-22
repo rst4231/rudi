@@ -432,3 +432,13 @@
   .car-task-copy strong{font-size:10.5px}
   .car-task-done{min-height:30px;padding:0 9px;font-size:9px}
 }
+
+
+/* RUDI v1.8.1 white car arrows */
+.car-head-title-row .block-collapse-button,
+.car-tile .home-order-button{color:#fff!important}
+.car-tile .home-order-controls{
+  border-color:rgba(255,255,255,.13)!important;
+  background:rgba(13,16,23,.72)!important;
+}
+/* end RUDI v1.8.1 white car arrows */
