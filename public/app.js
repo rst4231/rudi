@@ -2261,6 +2261,7 @@
           item.changedAt=String(payload.item?.changedAt||'');
           await loadTickTickNext({preserveExpanded:true});
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          setTimeout(()=>loadActivityJournal({silent:true}),180);
           setTimeout(()=>refreshStateBackup(),250);
         }catch(_){
           const badge=document.getElementById('ticktickBadge');
@@ -2454,7 +2455,8 @@
         invalidateTickTickTaskViews();
         await Promise.allSettled([
           loadTickTickNext({preserveExpanded,force:true}),
-          loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true})
+          loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}),
+          loadActivityJournal({silent:true})
         ]);
       }
 
@@ -4430,6 +4432,7 @@
             const payload=await moodRequest('set',mood);
             renderDailyMood(payload);
             showMoodMessage(mood);
+            setTimeout(()=>loadActivityJournal({silent:true}),180);
             try{
               if(mood==='great') tg?.HapticFeedback?.notificationOccurred?.('success');
               else tg?.HapticFeedback?.selectionChanged?.();

@@ -244,6 +244,51 @@ async function recordActivity(input, options = {}) {
   }
 }
 
+function reactionActivityView(target) {
+  const type = String(target?.type || '').trim();
+  const key = String(target?.key || '').trim();
+  if (type === 'partner-message') return { label: 'послание', targetTab: 'home' };
+  if (type === 'daily-idea') return { label: 'идею дня', targetTab: 'home' };
+  if (type === 'watch') return { label: 'фильм дня', targetTab: 'home' };
+  if (type === 'photo-memory') return { label: 'фото-воспоминание', targetTab: 'photos' };
+  if (type === 'feed') {
+    if (key.startsWith('facts:')) return { label: 'факты в Ленте', targetTab: 'feed' };
+    if (key.startsWith('concerts:')) return { label: 'концерты в Ленте', targetTab: 'feed' };
+    if (key.startsWith('standup:')) return { label: 'стендап в Ленте', targetTab: 'feed' };
+    if (key.startsWith('cinema:')) return { label: 'кино в Ленте', targetTab: 'feed' };
+    return { label: 'материал в Ленте', targetTab: 'feed' };
+  }
+  return { label: 'материал', targetTab: 'home' };
+}
+
+async function recordLikeActivity(target, actor, options = {}) {
+  const view = reactionActivityView(target);
+  return recordActivity({
+    type: 'like',
+    actor,
+    text: actor + ' ' + activityVerb(actor, 'лайкнул', 'лайкнула') + ' ' + view.label,
+    icon: '❤️',
+    targetTab: view.targetTab,
+  }, options);
+}
+
+const MOOD_ACTIVITY = {
+  low: { label: 'Не очень', emoji: '😔' },
+  ok: { label: 'Нормально', emoji: '😐' },
+  great: { label: 'Отлично', emoji: '😄' },
+};
+
+function moodActivityText(actor, previousMood, nextMood) {
+  const next = MOOD_ACTIVITY[nextMood];
+  if (!next) return '';
+  const previous = MOOD_ACTIVITY[previousMood];
+  if (!previous) {
+    return actor + ' ' + activityVerb(actor, 'отметил', 'отметила') + ' настроение: ' + next.emoji + ' ' + next.label;
+  }
+  return actor + ' ' + activityVerb(actor, 'изменил', 'изменила') + ' настроение: '
+    + previous.emoji + ' ' + previous.label + ' → ' + next.emoji + ' ' + next.label;
+}
+
 function taskCompletedNotificationText(actor, title) {
   const action = actor === 'Диана' ? 'выполнила задачу' : 'выполнил задачу';
   return `✅ <b>${actor} ${action}</b>\n<i>${escapeTelegramHtml(String(title || 'Совместное дело').trim())}</i>`;
@@ -771,6 +816,13 @@ async function handleTickTick(req, res, action, options = {}) {
           'schedule',
           options
         );
+        await recordActivity({
+          type: 'task-complete',
+          actor,
+          text: actor + ' ' + activityVerb(actor, 'выполнил', 'выполнила') + ' задачу: ' + String(task?.title || 'Совместное дело').trim(),
+          icon: '✅',
+          targetTab: 'schedule',
+        }, options);
       }
       return res.status(200).json({
         ok: true,
@@ -952,6 +1004,15 @@ async function handleTickTick(req, res, action, options = {}) {
           'schedule',
           options
         );
+        const itemTitle = String(updated?.item?.title || 'Пункт задачи').trim();
+        const taskTitle = String(updated?.task?.title || '').trim();
+        await recordActivity({
+          type: 'checklist-complete',
+          actor,
+          text: actor + ' ' + activityVerb(actor, 'выполнил', 'выполнила') + ' пункт: ' + itemTitle + (taskTitle ? ' · ' + taskTitle : ''),
+          icon: '☑️',
+          targetTab: 'schedule',
+        }, options);
       }
 
       return res.status(200).json({
@@ -1370,28 +1431,19 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, reactions });
       }
       if (operation === 'set') {
-        const before = body.target?.type === 'photo-memory'
-          ? (await readReactions([body.target], options).catch(() => []))[0]
-          : null;
+        const before = (await readReactions([body.target], options).catch(() => []))[0];
         const reaction = await setReaction(body.target, actor, body.liked, options);
-        if (
-          body.target?.type === 'photo-memory' &&
-          body.liked === true &&
-          !before?.likedBy?.includes(actor)
-        ) {
-          await recordActivity({
-            type: 'photo-like',
-            actor,
-            text: actor + ' ' + activityVerb(actor, 'лайкнул', 'лайкнула') + ' фото-воспоминание',
-            icon: '❤️',
-            targetTab: 'photos',
-            dedupeKey: 'photo-like:' + String(body.target?.key || '') + ':' + actor,
-          }, options);
+        if (body.liked === true && !before?.likedBy?.includes(actor) && reaction?.likedBy?.includes(actor)) {
+          await recordLikeActivity(body.target, actor, options);
         }
         return res.status(200).json({ ok: true, actor, reaction });
       }
       if (operation === 'toggle') {
+        const before = (await readReactions([body.target], options).catch(() => []))[0];
         const reaction = await toggleReaction(body.target, actor, options);
+        if (!before?.likedBy?.includes(actor) && reaction?.likedBy?.includes(actor)) {
+          await recordLikeActivity(body.target, actor, options);
+        }
         return res.status(200).json({ ok: true, actor, reaction });
       }
       return res.status(400).json({ ok: false, error: 'reaction-operation-invalid' });
@@ -1420,6 +1472,16 @@ async function handleRudiAction(req, res, action, options = {}) {
         const nextMood = row?.moods?.[actor]?.mood || '';
         if (nextMood && nextMood !== previousMood) {
           await sendMoodNotificationToPartner(actor, nextMood, options);
+          const activityText = moodActivityText(actor, previousMood, nextMood);
+          if (activityText) {
+            await recordActivity({
+              type: 'mood',
+              actor,
+              text: activityText,
+              icon: MOOD_ACTIVITY[nextMood]?.emoji || '🙂',
+              targetTab: 'home',
+            }, options);
+          }
         }
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);

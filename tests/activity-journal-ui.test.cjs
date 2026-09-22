@@ -21,10 +21,17 @@ test('activity journal is wired to real RUDI events',()=>{
   assert.match(api,/if \(action === 'activity'\)/);
   assert.match(api,/type: 'products'/);
   assert.match(api,/type: 'wishlist'/);
-  assert.match(api,/type: 'photo-like'/);
+  assert.match(api,/function reactionActivityView\(target\)/);
+  assert.match(api,/function recordLikeActivity\(target, actor/);
   assert.match(api,/График Дианы обновился/);
   assert.match(api,/В общем альбоме появилось новое фото/);
   assert.match(api,/type: 'partner-message'/);
+  assert.match(api,/type: 'task-complete'/);
+  assert.match(api,/type: 'checklist-complete'/);
+  assert.match(api,/type: 'mood'/);
+  assert.match(api,/Нормально/);
+  assert.match(api,/Отлично/);
+  assert.match(app,/setTimeout\(\(\)=>loadActivityJournal\(\{silent:true\}\),180\)/);
 });
 
 test('activity journal is included in encrypted RUDI backup',()=>{
