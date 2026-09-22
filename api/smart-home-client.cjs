@@ -165,8 +165,11 @@ async function handleSmartHomeRequest(req, res) {
       if (actionStatus === 'DONE') {
         cache = null;
         cacheAt = 0;
+        const verb = session.actor === 'Диана'
+          ? (body.value ? 'включила' : 'выключила')
+          : (body.value ? 'включил' : 'выключил');
         activity = {
-          text:deviceName + ' ' + (body.value ? 'включён' : 'выключен'),
+          text:session.actor + ' ' + verb + ' ' + deviceName,
           icon:'🏠',
           createdAt:new Date().toISOString(),
         };
