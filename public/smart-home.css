@@ -157,6 +157,38 @@
 }
 .smart-home-power-icon:active{transform:scale(.92)}
 .smart-home-power-icon:disabled{opacity:.55}
+.smart-home-power-icon.is-busy,
+.smart-home-pause-icon.is-busy{opacity:.5}
+.smart-home-pause-icon{
+  position:absolute;
+  top:59px;
+  right:11px;
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  color:#8f9bb5;
+  background:rgba(143,155,181,.13);
+  transition:transform .16s ease,background-color .18s ease,color .18s ease,opacity .18s ease;
+}
+.smart-home-pause-icon svg{
+  width:21px;
+  height:21px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.smart-home-pause-icon.is-on{
+  color:#6b55ff;
+  background:rgba(116,88,255,.15);
+}
+.smart-home-pause-icon:active{transform:scale(.92)}
+.smart-home-pause-icon:disabled{opacity:.55}
 .smart-home-device-card-copy{
   display:grid;
   gap:4px;
@@ -180,6 +212,44 @@
   text-overflow:ellipsis;
   white-space:nowrap;
 }
+.smart-home-speed-control{
+  display:grid;
+  gap:6px;
+  padding:0 11px 11px;
+}
+.smart-home-speed-label{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:760;
+  text-transform:uppercase;
+  letter-spacing:.045em;
+}
+.smart-home-speed-options{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px;
+}
+.smart-home-speed-option{
+  min-width:0;
+  min-height:30px;
+  padding:0 7px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface-strong);
+  color:var(--muted);
+  font:inherit;
+  font-size:9px;
+  font-weight:720;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.smart-home-speed-option.is-active{
+  color:#6b55ff;
+  border-color:rgba(107,85,255,.22);
+  background:rgba(116,88,255,.12);
+}
+.smart-home-speed-option:disabled{opacity:.55}
 html[data-theme="light"] .smart-home-device-card{
   background:#f3f4f6;
   border-color:rgba(76,85,105,.08);
@@ -262,6 +332,8 @@ body[data-app-tab="schedule"] #dianaCycleCard{margin:0}
   .smart-home-device-visual > svg{height:76px}
   .smart-home-power-icon{top:9px;right:9px;width:38px;height:38px}
   .smart-home-power-icon svg{width:21px;height:21px}
+  .smart-home-pause-icon{top:53px;right:9px;width:38px;height:38px}
+  .smart-home-pause-icon svg{width:20px;height:20px}
   .smart-home-device-card-copy{padding:4px 11px 11px}
   .smart-home-device-card-copy strong{font-size:13px}
   .smart-home-device-card-copy span{font-size:9px}
