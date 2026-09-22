@@ -37,9 +37,27 @@
     node.hidden=!node.textContent;
   }
 
+  function isAudioDevice(device){
+    const type=String(device?.type||'').toLowerCase();
+    const name=String(device?.name||'').toLowerCase();
+    return /headphone|smart[_-]?speaker|speaker|audio/.test(type)
+      || /наушник/.test(name);
+  }
+
+  function isHiddenForActor(device,data){
+    if(isAudioDevice(device)) return true;
+    if(String(data?.actor||'')!=='Диана') return false;
+    const name=String(device?.name||'').trim().toLowerCase();
+    return name==='камера' || name==='переключатель';
+  }
+
+  function visibleDevices(data){
+    return (Array.isArray(data?.devices)?data.devices:[]).filter(device=>!isHiddenForActor(device,data));
+  }
+
   function setUpdated(){
     const node=document.getElementById('smartHomeUpdated');
-    if(node) node.textContent='Обновлено только что · '+(state.data?.devices?.length||0)+' устройств';
+    if(node) node.textContent='Обновлено только что · '+visibleDevices(state.data).length+' устройств';
   }
 
   function roomGroups(data){
@@ -47,7 +65,7 @@
     const homes=new Map((data?.households||[]).map(home=>[home.id,home]));
     const groups=new Map();
 
-    for(const device of data?.devices||[]){
+    for(const device of visibleDevices(data)){
       const home=homes.get(device.householdId);
       const room=rooms.get(device.room)||(home?.type==='households.types.portable'?'Портативные':'Без комнаты');
       if(!groups.has(room))groups.set(room,[]);
@@ -121,45 +139,67 @@
     }
   }
 
-  function deviceRow(device){
-    const row=document.createElement('div');
-    row.className='smart-home-device';
+  function deviceArt(device){
+    const type=String(device?.type||'').toLowerCase();
+    const name=String(device?.name||'').toLowerCase();
 
-    const copy=document.createElement('div');
-    copy.className='smart-home-device-copy';
-    const title=document.createElement('strong');
-    title.textContent=device.name||'Устройство';
+    if(/vacuum/.test(type)||/пылесос/.test(name)){
+      return '<svg viewBox="0 0 120 92" aria-hidden="true"><ellipse cx="60" cy="51" rx="42" ry="24" fill="currentColor" opacity=".13"/><ellipse cx="60" cy="43" rx="38" ry="23" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="47" cy="38" r="5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M31 52c16 7 42 8 60 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+    }
+    if(/switch/.test(type)||/переключатель/.test(name)){
+      return '<svg viewBox="0 0 120 92" aria-hidden="true"><rect x="33" y="14" width="54" height="64" rx="13" fill="currentColor" opacity=".10"/><rect x="35" y="12" width="50" height="62" rx="13" fill="none" stroke="currentColor" stroke-width="3"/><path d="M46 44h28" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+    }
+    if(/socket/.test(type)||/камера/.test(name)||/розет/.test(name)){
+      return '<svg viewBox="0 0 120 92" aria-hidden="true"><rect x="36" y="14" width="48" height="55" rx="12" fill="currentColor" opacity=".10"/><rect x="38" y="12" width="44" height="54" rx="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="60" cy="36" r="8" fill="none" stroke="currentColor" stroke-width="3"/><path d="M51 68v11M69 68v11" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>';
+    }
+    if(/light/.test(type)||/лента|торшер|свет/.test(name)){
+      return '<svg viewBox="0 0 120 92" aria-hidden="true"><path d="M60 13v11M37 26l8 8M83 26l-8 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M42 51c0-12 8-21 18-21s18 9 18 21c0 7-4 11-9 15H51c-5-4-9-8-9-15Z" fill="currentColor" opacity=".12"/><path d="M42 51c0-12 8-21 18-21s18 9 18 21c0 7-4 11-9 15H51c-5-4-9-8-9-15Z" fill="none" stroke="currentColor" stroke-width="3"/><path d="M52 74h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+    }
+    if(/sensor/.test(type)||/датчик/.test(name)){
+      return '<svg viewBox="0 0 120 92" aria-hidden="true"><rect x="30" y="15" width="60" height="58" rx="15" fill="currentColor" opacity=".10"/><rect x="32" y="13" width="56" height="58" rx="15" fill="none" stroke="currentColor" stroke-width="3"/><path d="M48 45h24" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="60" cy="31" r="5" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
+    }
+    return '<svg viewBox="0 0 120 92" aria-hidden="true"><rect x="31" y="14" width="58" height="58" rx="15" fill="currentColor" opacity=".10"/><rect x="33" y="12" width="54" height="58" rx="15" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="60" cy="41" r="10" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
+  }
 
-    const meta=document.createElement('span');
-    const battery=property(device,'battery_level');
-    const parts=[];
-    if(Number.isFinite(Number(battery)))parts.push('Батарея '+Math.round(Number(battery))+'%');
-    meta.textContent=parts.join(' · ')||String(device.type||'').replace('devices.types.','').replaceAll('_',' ');
+  function deviceCard(device){
+    const card=document.createElement('article');
+    card.className='smart-home-device-card';
 
-    copy.append(title,meta);
-    row.appendChild(copy);
+    const visual=document.createElement('div');
+    visual.className='smart-home-device-visual';
+    visual.innerHTML=deviceArt(device);
 
     const cap=onOff(device);
     if(cap){
       const button=document.createElement('button');
       button.type='button';
-      button.className='smart-home-power '+(cap.state.value?'is-on':'is-off');
-      button.textContent=cap.state.value?'Выкл':'Вкл';
+      button.className='smart-home-power-icon '+(cap.state.value?'is-on':'is-off');
       button.setAttribute('aria-label',(cap.state.value?'Выключить ':'Включить ')+(device.name||'устройство'));
+      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a7 7 0 1 0 10.8 0"/></svg>';
       button.addEventListener('click',()=>toggleDevice(device,button,cap));
-      row.appendChild(button);
-    }else{
-      const status=document.createElement('span');
-      status.className='smart-home-readonly';
-      const temp=property(device,'temperature');
-      const humidity=property(device,'humidity');
-      if(Number.isFinite(Number(temp))) status.textContent=Number(temp).toFixed(1)+'°';
-      else if(Number.isFinite(Number(humidity))) status.textContent=Math.round(Number(humidity))+'%';
-      else status.textContent='Данные';
-      row.appendChild(status);
+      visual.appendChild(button);
     }
 
-    return row;
+    const copy=document.createElement('div');
+    copy.className='smart-home-device-card-copy';
+    const title=document.createElement('strong');
+    title.textContent=device.name||'Устройство';
+
+    const meta=document.createElement('span');
+    const battery=property(device,'battery_level');
+    const temp=property(device,'temperature');
+    const humidity=property(device,'humidity');
+    const parts=[];
+    if(Number.isFinite(Number(temp)))parts.push(Number(temp).toFixed(1)+'°C');
+    if(Number.isFinite(Number(humidity)))parts.push(Math.round(Number(humidity))+'%');
+    if(Number.isFinite(Number(battery)))parts.push('Батарея '+Math.round(Number(battery))+'%');
+    if(!parts.length&&cap)parts.push(cap.state.value?'Включено':'Выключено');
+    if(!parts.length)parts.push('Данные');
+    meta.textContent=parts.join(' · ');
+
+    copy.append(title,meta);
+    card.append(visual,copy);
+    return card;
   }
 
   function renderDevices(data){
@@ -180,10 +220,10 @@
       head.append(title,count);
 
       const list=document.createElement('div');
-      list.className='smart-home-device-list';
+      list.className='smart-home-device-grid';
       devices
         .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ru'))
-        .forEach(device=>list.appendChild(deviceRow(device)));
+        .forEach(device=>list.appendChild(deviceCard(device)));
 
       section.append(head,list);
       root.appendChild(section);
