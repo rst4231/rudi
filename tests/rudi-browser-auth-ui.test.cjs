@@ -59,15 +59,18 @@ test('browser-local block state is separated for Rustam and Diana', () => {
   assert.doesNotMatch(app, /initDataUnsafe\?\.user\?\.id\|\|'local'/);
 });
 
-test('Face ID passkeys use native WebAuthn and fall back safely to PIN', () => {
+test('Face ID passkeys preserve the native iOS user gesture and fall back safely to PIN', () => {
   assert.match(app, /function passkeySupported\(\)/);
-  assert.match(app, /navigator\.credentials\.create/);
-  assert.match(app, /navigator\.credentials\.get/);
-  assert.match(app, /loginWithFaceId\(\)/);
-  assert.match(app, /registerFaceId\(\)/);
+  assert.match(app, /PublicKeyCredential\?\.parseCreationOptionsFromJSON/);
+  assert.match(app, /PublicKeyCredential\?\.parseRequestOptionsFromJSON/);
+  assert.match(app, /prepareFaceIdRegistration\(\)/);
+  assert.match(app, /finishFaceIdRegistration\(prepared,credentialPromise\)/);
+  assert.match(app, /prepareFaceIdAuthentication\(\)/);
+  assert.match(app, /finishFaceIdAuthentication\(preparedFaceIdLogin,credentialPromise\)/);
+  assert.match(app, /credentialPromise=navigator\.credentials\.create\(\{publicKey:prepared\.publicKey\}\)/);
+  assert.match(app, /credentialPromise=navigator\.credentials\.get\(\{publicKey:preparedFaceIdLogin\.publicKey\}\)/);
   assert.match(app, /Войти с Face ID/);
   assert.match(app, /Включить Face ID/);
-  assert.match(app, /Face ID ещё не настроен\. Войдите по PIN\./);
   assert.match(partner, /action === 'passkey'/);
   assert.match(partner, /setSessionCookie\(res, verified\.actor/);
 });
