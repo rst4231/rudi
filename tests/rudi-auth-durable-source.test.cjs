@@ -4,7 +4,9 @@ const fs = require('node:fs');
 
 const api = fs.readFileSync('api/partner-message.js','utf8');
 const store = fs.readFileSync('api/rudi-auth-db.cjs','utf8');
-const jwks = fs.readFileSync('api/rudi-jwks.js','utf8');
+const jwks = fs.readFileSync('api/rudi-jwks.cjs','utf8');
+const index = fs.readFileSync('api/index.js','utf8');
+const vercel = JSON.parse(fs.readFileSync('vercel.json','utf8'));
 
 test('Safari PIN login reads one durable server record and does not require Telegram backup', () => {
   const start=api.indexOf("if (action === 'browser-auth')");
@@ -46,4 +48,6 @@ test('durable auth store is server-only and uses signed Neon Data API requests',
   assert.match(store,/rudi_browser_auth/);
   assert.doesNotMatch(store,/123456|password\s*:/i);
   assert.match(jwks,/publicJwks/);
+  assert.match(index,/route === 'rudi-jwks'/);
+  assert.ok(vercel.rewrites.some((row)=>row.source==='/api/rudi-jwks'&&row.destination==='/api/index?route=rudi-jwks'));
 });
