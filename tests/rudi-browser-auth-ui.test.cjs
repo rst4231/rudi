@@ -58,3 +58,28 @@ test('browser-local block state is separated for Rustam and Diana', () => {
   assert.match(app, /currentActor==='Диана'\?'diana':'rustam'/);
   assert.doesNotMatch(app, /initDataUnsafe\?\.user\?\.id\|\|'local'/);
 });
+
+test('Face ID passkeys use native WebAuthn and fall back safely to PIN', () => {
+  assert.match(app, /function passkeySupported\(\)/);
+  assert.match(app, /navigator\.credentials\.create/);
+  assert.match(app, /navigator\.credentials\.get/);
+  assert.match(app, /loginWithFaceId\(\)/);
+  assert.match(app, /registerFaceId\(\)/);
+  assert.match(app, /Войти с Face ID/);
+  assert.match(app, /Включить Face ID/);
+  assert.match(app, /Face ID ещё не настроен\. Войдите по PIN\./);
+  assert.match(partner, /action === 'passkey'/);
+  assert.match(partner, /setSessionCookie\(res, verified\.actor/);
+});
+
+test('passkey enrollment requires an authenticated RUDI user while passkey login can establish a session', () => {
+  const start=partner.indexOf("if (action === 'passkey')");
+  const end=partner.indexOf("if (action === 'browser-auth')",start);
+  assert.ok(start>=0&&end>start);
+  const block=partner.slice(start,end);
+  assert.match(block, /operation === 'auth-options'/);
+  assert.match(block, /operation === 'auth-verify'/);
+  assert.match(block, /const session = authorizeRequest\(req, body\.initData, options\)/);
+  assert.match(block, /operation === 'register-options'/);
+  assert.match(block, /operation === 'register-verify'/);
+});
