@@ -11,6 +11,7 @@ const TASKS_TTL_MS = 60 * 1000;
 const FALLBACK_CAR_TASK_CONFIG = {
   ticktickProjectId: '6a5490689ba59102ae9fd144',
   taskKeywords: ['машин','авто','салон','яндекс карт'],
+  taskColumnKeywords: ['машин'],
   taskLimit: 3,
 };
 
@@ -116,8 +117,12 @@ function normalizeCarTaskConfig(value) {
     .map(value => String(value || '').trim().toLocaleLowerCase('ru-RU'))
     .filter(Boolean)
     .slice(0,20);
+  const columnKeywords = (Array.isArray(source.taskColumnKeywords) ? source.taskColumnKeywords : FALLBACK_CAR_TASK_CONFIG.taskColumnKeywords)
+    .map(value => String(value || '').trim().toLocaleLowerCase('ru-RU'))
+    .filter(Boolean)
+    .slice(0,20);
   const taskLimit = Math.min(6,Math.max(1,Number(source.taskLimit) || FALLBACK_CAR_TASK_CONFIG.taskLimit));
-  return { ticktickProjectId:projectId, taskKeywords:keywords, taskLimit };
+  return { ticktickProjectId:projectId, taskKeywords:keywords, taskColumnKeywords:columnKeywords, taskLimit };
 }
 
 async function loadCarTaskConfig() {
@@ -138,7 +143,22 @@ async function loadCarTaskConfig() {
   return configMemo;
 }
 
-function isCarTask(task, config) {
+function carColumnIds(project, config) {
+  const keywords = Array.isArray(config?.taskColumnKeywords) ? config.taskColumnKeywords : [];
+  return new Set(
+    (Array.isArray(project?.columns) ? project.columns : [])
+      .filter(column => {
+        const name = String(column?.name || '').toLocaleLowerCase('ru-RU');
+        return keywords.some(keyword => name.includes(keyword));
+      })
+      .map(column => String(column?.id || '').trim())
+      .filter(Boolean)
+  );
+}
+
+function isCarTask(task, config, allowedColumns = new Set()) {
+  const columnId = String(task?.columnId || '').trim();
+  if (columnId && allowedColumns.has(columnId)) return true;
   const title = String(task?.title || '').toLocaleLowerCase('ru-RU');
   return Boolean(title) && config.taskKeywords.some(keyword => title.includes(keyword));
 }
@@ -172,11 +192,11 @@ function normalizeTask(task,todayKey) {
   };
 }
 
-function selectCurrentCarTasks(tasks, config, now = new Date()) {
+function selectCurrentCarTasks(tasks, config, now = new Date(), allowedColumns = new Set()) {
   const todayKey = moscowDateKey(now);
   const candidates = (Array.isArray(tasks) ? tasks : [])
     .filter(task => Number(task?.status ?? 0) === 0)
-    .filter(task => isCarTask(task,config))
+    .filter(task => isCarTask(task,config,allowedColumns))
     .map(task => normalizeTask(task,todayKey))
     .filter(task => task.id && task._bucket < 9)
     .sort((a,b) =>
@@ -207,7 +227,8 @@ async function loadCarTasks(options = {}) {
   if (!token?.accessToken) throw new Error('ticktick-not-connected');
 
   const project = await fetchProjectData(token.accessToken,config.ticktickProjectId);
-  const tasks = selectCurrentCarTasks(project?.tasks,config,options.now || new Date());
+  const allowedColumns = carColumnIds(project,config);
+  const tasks = selectCurrentCarTasks(project?.tasks,config,options.now || new Date(),allowedColumns);
 
   tasksMemo = {
     available:true,
@@ -231,10 +252,11 @@ async function completeCarTask(taskId) {
   if (!token?.accessToken) throw new Error('ticktick-not-connected');
 
   const project = await fetchProjectData(token.accessToken,config.ticktickProjectId);
+  const allowedColumns = carColumnIds(project,config);
   const task = (Array.isArray(project?.tasks) ? project.tasks : [])
     .find(row => String(row?.id || '') === id && Number(row?.status ?? 0) === 0);
 
-  if (!task || !isCarTask(task,config)) throw new Error('car-task-invalid');
+  if (!task || !isCarTask(task,config,allowedColumns)) throw new Error('car-task-invalid');
 
   await completeTickTickTask(token.accessToken,config.ticktickProjectId,id);
   tasksMemo = null;
@@ -319,6 +341,7 @@ module.exports = {
   dayOffset,
   normalizeTitle,
   normalizeCarTaskConfig,
+  carColumnIds,
   isCarTask,
   selectCurrentCarTasks,
 };
