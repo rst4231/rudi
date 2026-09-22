@@ -31,8 +31,8 @@ test('browser has guarded pull-to-refresh and Telegram does not', () => {
 });
 
 test('installed RUDI icon uses the supplied photo instead of a generated letter icon', () => {
-  assert.match(html,/rel="icon"[^>]+href="\\/favicon-v176\\.png\\?v=1\\.7\\.6"/);
-  assert.match(html,/rel="apple-touch-icon"[^>]+href="\\/apple-touch-icon-v176\\.jpg\\?v=1\\.7\\.6"/);
+  assert.match(html,/rel="icon"[^>]+href="\/favicon-v176\.png\?v=1\.7\.6"/);
+  assert.match(html,/rel="apple-touch-icon"[^>]+href="\/apple-touch-icon-v176\.jpg\?v=1\.7\.6"/);
   assert.equal(fs.existsSync('public/favicon-v176.png'),true);
   assert.equal(fs.existsSync('public/apple-touch-icon-v176.jpg'),true);
   assert.equal(manifest.icons[0].src,'/apple-touch-icon-v176.jpg?v=1.7.6');
@@ -44,7 +44,7 @@ test('car header uses the detailed supplied UNI-V asset and has no header arrow'
   const header=html.slice(start,end);
   assert.ok(start>=0 && end>start);
   assert.match(header,/class="car-head-visual"/);
-  assert.match(header,/src="\\/changan-uni-v-header\\.jpg\\?v=1\\.7\\.6"/);
+  assert.match(header,/src="\/changan-uni-v-header\.jpg\?v=1\.7\.6"/);
   assert.doesNotMatch(header,/chevron|arrow|›|→/i);
   assert.match(carCss,/\.car-head-visual/);
   assert.match(carCss,/aspect-ratio:350\/165/);
