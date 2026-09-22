@@ -933,7 +933,7 @@
       }
 
       function homeMoodView(value){
-        return {low:'😔',ok:'😐',great:'😄'}[String(value||'')]||'—';
+        return {low:'😔',ok:'😐',great:'😄',love:'🥰'}[String(value||'')]||'—';
       }
 
       function homeDashboardDateLabel(){
@@ -1530,7 +1530,7 @@
         host.appendChild(button);
       }
 
-      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false}){
+      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,tapToToggle=false,showButton=true}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
         const body=wrapCollapseBody(section,bodySelectors);
@@ -1538,21 +1538,38 @@
         if(!body||!host) return;
         section.dataset.collapseReady='1';
         section.classList.add('rudi-collapsible');
-        const button=collapseButton('Свернуть или развернуть блок');
-        addHeaderCollapseButton(section,host,button);
+        const button=showButton?collapseButton('Свернуть или развернуть блок'):null;
+        if(button) addHeaderCollapseButton(section,host,button);
 
         const apply=collapsed=>{
           section.classList.toggle('is-collapsed',collapsed);
-          button.setAttribute('aria-expanded',collapsed?'false':'true');
+          section.setAttribute('aria-expanded',collapsed?'false':'true');
+          button?.setAttribute('aria-expanded',collapsed?'false':'true');
           body.setAttribute('aria-hidden',collapsed?'true':'false');
         };
-        apply(getBlockCollapsed(key,defaultCollapsed));
-        button.addEventListener('click',()=>{
+        const toggle=()=>{
           const collapsed=!section.classList.contains('is-collapsed');
           apply(collapsed);
           setBlockCollapsed(key,collapsed);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        };
+        apply(getBlockCollapsed(key,defaultCollapsed));
+        button?.addEventListener('click',event=>{
+          event.preventDefault();
+          event.stopPropagation();
+          toggle();
         });
+        if(tapToToggle){
+          section.classList.add('rudi-tap-collapsible');
+          section.addEventListener('click',event=>{
+            if(homeLayoutEditing) return;
+            const target=event.target;
+            if(!(target instanceof Element)) return;
+            if(target.closest('button,a,input,textarea,select,label,[role="button"],[contenteditable="true"],.home-order-controls')) return;
+            if(String(window.getSelection?.()||'').trim()) return;
+            toggle();
+          });
+        }
 
         if(key==='partner'){
           section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{
@@ -1565,6 +1582,13 @@
       }
 
       function setupPersistentCollapsibles(){
+        setupPersistentCollapsible({
+          selector:'#homeDashboard',key:'dashboard',
+          bodySelectors:['.home-together','#homeNearestBlock'],
+          hostSelector:'.home-dashboard-head',
+          tapToToggle:true,
+          showButton:false
+        });
         setupPersistentCollapsible({
           selector:'#dianaCycleCard',key:'diana-cycle',
           bodySelectors:['#dianaCycleBody'],
@@ -1628,6 +1652,10 @@
           great:[
             'Вот это настрой! Сохрани его — сегодня у тебя есть хороший разгон.',
             'Отличная энергия. Используй её на что-нибудь, чем вечером будешь доволен.'
+          ],
+          love:[
+            'Сегодня особенно хочется тепла. Самое время обнять друг друга или сделать что-нибудь приятное.',
+            'Нежный настрой пойман. Пусть сегодня будет хотя бы один момент только для вас двоих.'
           ]
         }
       };
@@ -5045,11 +5073,11 @@
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==mood;
         });
-        empty.hidden=['low','ok','great'].includes(mood);
+        empty.hidden=['low','ok','great','love'].includes(mood);
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
-            mood==='low'?'не очень':mood==='ok'?'нормально':mood==='great'?'отлично':'настроение ещё не выбрано'
+            mood==='low'?'не очень':mood==='ok'?'нормально':mood==='great'?'отлично':mood==='love'?'нежное':'настроение ещё не выбрано'
           )
         );
       }
@@ -5146,7 +5174,7 @@
             showMoodMessage(mood);
             setTimeout(()=>loadActivityJournal({silent:true}),180);
             try{
-              if(mood==='great') tg?.HapticFeedback?.notificationOccurred?.('success');
+              if(mood==='great'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
               else tg?.HapticFeedback?.selectionChanged?.();
             }catch(_){}
           }catch(_){
