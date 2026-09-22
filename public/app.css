@@ -5525,3 +5525,17 @@ html[data-theme="dark"] .home-dashboard{
 .home-dashboard .mood-self{
   justify-items:center!important;
 }
+
+
+/* v1.8.4: dashboard tap collapse + love mood */
+.home-dashboard.rudi-tap-collapsible{cursor:pointer}
+.home-dashboard.rudi-tap-collapsible button,
+.home-dashboard.rudi-tap-collapsible a,
+.home-dashboard.rudi-tap-collapsible input,
+.home-dashboard.rudi-tap-collapsible textarea,
+.home-dashboard.rudi-tap-collapsible select{cursor:initial}
+.profile .partner-mood-value[data-mood="love"],
+.home-dashboard .partner-mood-value[data-mood="love"]{
+  color:#ffb6cb;
+  background:rgba(235,112,151,.16);
+}
