@@ -245,10 +245,10 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeDashboard')).toBeVisible();
   await expect(page.locator('#homeDashboard')).toContainText('Мы сегодня');
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.1');
+  await expect(page.locator('#appVersion')).toHaveText('v1.2');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
-  expect(homeOrder.slice(-2)).toEqual(['smart-home','activity']);
+  expect(homeOrder.slice(-3)).toEqual(['smart-home','car','activity']);
 
   const dianaStatus=page.locator('#partnerWorkStatus');
   await expect(dianaStatus).toHaveText('Работаю с 09:00 до 21:00');
@@ -334,7 +334,8 @@ test('feed is structured, today-first and keeps six-tab layout',async({page})=>{
 
   await page.getByRole('tab',{name:'Лента'}).click();
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
-  await expect(page.locator('#feedTitle')).toHaveText('Лента');
+  await expect(page.locator('.feed-daily-top')).toBeVisible();
+  await expect(page.locator('#feedTitle')).toHaveCount(0);
   await expect(page.locator('#feedToday')).toBeVisible();
   await expect(page.locator('#feedTodayLinks')).toContainText('1 концерт');
   await expect(page.locator('#feedTodayLinks')).toContainText('2 Stand Up');
