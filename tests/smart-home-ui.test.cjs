@@ -145,3 +145,16 @@ test('devices with on-off capability, including camera, get a power control',()=
   assert.match(smart,/smart-home-device-svg is-camera/);
   assert.doesNotMatch(smart,/name==='камера'.*power/);
 });
+
+
+test('scenario section has dedicated styled controls',()=>{
+  assert.match(html,/id="smartHomeScenarios"[^>]*class="smart-home-scenarios-wrap"/);
+  assert.match(html,/class="smart-home-section-icon"/);
+  assert.match(html,/Быстрые действия дома/);
+  assert.match(smart,/button\.className='smart-home-scenario'/);
+  assert.match(smartCss,/\.smart-home-scenarios-wrap\{/);
+  assert.match(smartCss,/\.smart-home-scenarios\{/);
+  assert.match(smartCss,/\.smart-home-scenario\{/);
+  assert.match(smartCss,/border-radius:999px/);
+  assert.match(smartCss,/\.smart-home-scenario:disabled\{/);
+});
