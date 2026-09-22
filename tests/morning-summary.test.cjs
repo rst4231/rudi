@@ -155,10 +155,10 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(diana.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
 });
 
-test('Vercel cron sends the morning summary at 09:00 Moscow and not 10:00', () => {
+test('Vercel cron sends the morning summary at 07:10 Moscow', () => {
   const config=JSON.parse(fs.readFileSync(path.join(__dirname,'..','vercel.json'),'utf8'));
   const row=config.crons.find(item=>item.path==='/api/feed-notify-cron');
-  assert.equal(row.schedule,'0 6 * * *');
+  assert.equal(row.schedule,'10 4 * * *');
 
   const cronSource=fs.readFileSync(path.join(__dirname,'..','api','feed-notify-cron.js'),'utf8');
   assert.match(cronSource,/sendDailyMorningSummaries/);
