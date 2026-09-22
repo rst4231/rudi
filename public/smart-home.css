@@ -411,4 +411,30 @@ html[data-theme="dark"] .smart-home-pause-icon{
   background:rgba(142,153,174,.12);
   color:#8995aa;
 }
+@media(max-width:430px){
+  .smart-home-tile{padding:14px;border-radius:23px}
+  .smart-home-title-icon{width:42px;height:42px;border-radius:13px}
+  .smart-home-title-icon svg{width:25px;height:25px}
+  .smart-home-head{gap:9px}
+  .smart-home-head h2{font-size:18px}
+  .smart-home-updated{font-size:9px}
+  .smart-home-climate{padding:9px 5px;border-radius:17px}
+  .smart-home-climate-card{grid-template-columns:28px minmax(0,1fr);column-gap:5px;padding:3px 6px}
+  .smart-home-climate-icon{width:27px;height:27px}
+  .smart-home-climate-icon svg{width:22px;height:22px}
+  .smart-home-climate-card strong{font-size:15px}
+  .smart-home-climate-card small{font-size:7.5px}
+  .smart-home-room-head strong{font-size:13px}
+  .smart-home-device-row{min-height:62px;grid-template-columns:43px minmax(0,1fr) auto;gap:8px;padding:7px 8px}
+  .smart-home-device-visual{width:42px;height:42px;border-radius:12px}
+  .smart-home-device-visual > svg{width:34px;height:31px}
+  .smart-home-device-title-row strong{font-size:12px}
+  .smart-home-device-meta{font-size:9px}
+  .smart-home-device-actions{gap:4px}
+  .smart-home-power-icon,.smart-home-pause-icon{width:34px;height:34px}
+  .smart-home-power-icon svg,.smart-home-pause-icon svg{width:18px;height:18px}
+  .smart-home-speed-control{padding:0 8px 8px 59px}
+  .smart-home-speed-options{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .smart-home-speed-option{min-height:27px;font-size:8px}
+}
 @keyframes smart-home-spin{to{transform:rotate(360deg)}}
