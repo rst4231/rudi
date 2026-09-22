@@ -18,6 +18,7 @@
   </script>
   <link rel="stylesheet" href="/app.css?v=1.0.0">
   <link rel="stylesheet" href="/calendar.css?v=1.0.0">
+  <link rel="stylesheet" href="/smart-home.css?v=1.1">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -88,44 +89,6 @@
 
 
 
-    </section>
-
-    <section id="dianaCycleCard" class="panel cycle-card" data-app-tab-section="home" data-home-tile="cycle" aria-labelledby="dianaCycleTitle">
-      <div class="cycle-head">
-        <div class="cycle-head-copy">
-          <div class="cycle-kicker">ЦИКЛ</div>
-          <h2 id="dianaCycleTitle">Цикл Дианы</h2>
-        </div>
-        <span class="cycle-badge">Прогноз</span>
-      </div>
-      <div id="dianaCycleBody" class="cycle-body">
-        <div class="cycle-summary">
-          <div class="cycle-countdown-wrap">
-            <strong id="dianaCycleCountdown" class="cycle-countdown">—</strong>
-            <span id="dianaCycleCountdownLabel" class="cycle-countdown-label">до следующих месячных</span>
-          </div>
-          <div class="cycle-phase-wrap">
-            <span class="cycle-phase-label">Сейчас</span>
-            <strong id="dianaCyclePhase" class="cycle-phase">—</strong>
-            <span id="dianaCycleDay" class="cycle-day">—</span>
-          </div>
-        </div>
-        <div class="cycle-progress" aria-hidden="true"><span id="dianaCycleProgress"></span></div>
-        <div class="cycle-grid">
-          <div class="cycle-info-card period">
-            <span class="cycle-info-dot"></span>
-            <div><span>Месячные</span><strong id="dianaCyclePeriod">—</strong></div>
-          </div>
-          <div class="cycle-info-card ovulation">
-            <span class="cycle-info-dot"></span>
-            <div><span>Овуляция</span><strong id="dianaCycleOvulation">—</strong></div>
-          </div>
-        </div>
-        <div id="dianaCycleNote" class="cycle-note">Ориентировочный прогноз по истории цикла.</div>
-        <div id="dianaCycleActions" class="cycle-actions" hidden>
-          <button id="dianaCycleStartToday" class="cycle-record-button" type="button">Отметить начало сегодня</button>
-        </div>
-      </div>
     </section>
 
     <section class="section-block priority-section" data-app-tab-section="home" data-home-tile="priority" aria-labelledby="priorityTitle">
@@ -210,6 +173,45 @@
       </div>
     </section>
 
+    <section id="smartHomeTile" class="panel smart-home-tile" data-app-tab-section="home" data-home-tile="smart-home" aria-labelledby="smartHomeTitle">
+      <div class="smart-home-head">
+        <div>
+          <div class="home-dashboard-label">Дом</div>
+          <h2 id="smartHomeTitle">Умный дом</h2>
+          <div id="smartHomeUpdated" class="smart-home-updated">Подключаю устройства…</div>
+        </div>
+        <button id="smartHomeRefresh" class="smart-home-refresh" type="button" aria-label="Обновить умный дом" title="Обновить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+        </button>
+      </div>
+
+      <div class="smart-home-climate" aria-label="Климат и погода">
+        <div class="smart-home-climate-card">
+          <span>Погода</span>
+          <strong id="smartHomeWeather">—</strong>
+          <small id="smartHomeWeatherText">Загружаю…</small>
+        </div>
+        <div class="smart-home-climate-card">
+          <span>Температура дома</span>
+          <strong id="smartHomeTemperature">—</strong>
+          <small>Датчик климата</small>
+        </div>
+        <div class="smart-home-climate-card">
+          <span>Влажность дома</span>
+          <strong id="smartHomeHumidity">—</strong>
+          <small id="smartHomeHumidityHint">Датчик климата</small>
+        </div>
+      </div>
+
+      <div id="smartHomeStatus" class="smart-home-status" aria-live="polite"></div>
+      <div id="smartHomeRooms" class="smart-home-rooms"></div>
+
+      <section id="smartHomeScenarios" class="smart-home-scenarios-wrap" hidden>
+        <div class="smart-home-section-title">Сценарии</div>
+        <div id="smartHomeScenarioList" class="smart-home-scenarios"></div>
+      </section>
+    </section>
+
     <section id="feedSection" class="feed-page" data-app-tab-section="feed" aria-labelledby="feedTitle">
       <header class="feed-hero">
         <div>
@@ -229,6 +231,50 @@
         </div>
         <div id="feedTodayLinks" class="feed-today-links"></div>
       </section>
+
+    <section class="section-block daily-section" data-app-tab-section="feed" aria-labelledby="dailyTitle">
+      <div class="section-heading compact">
+        <div>
+          <h2 id="dailyTitle">На сегодня</h2>
+        </div>
+      </div>
+      <div class="daily-grid">
+        <article class="panel suggestion daily-card idea-card">
+          <div class="daily-card-head">
+            <span class="daily-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 18.3h5.2"/><path d="M10 21h4"/><path d="M8.2 14.4A6 6 0 1 1 15.8 14.4c-.9.7-1.4 1.5-1.5 2.3h-4.6c-.1-.8-.6-1.6-1.5-2.3Z"/><path d="M12 3V1.8M4.8 6.2 3.9 5.3M19.2 6.2l.9-.9"/></svg>
+            </span>
+            <div class="panel-label">Идея дня</div>
+          </div>
+          <div id="dailyIdea" class="idea-text"></div>
+          <div class="reaction-strip daily-reaction">
+            <button id="dailyIdeaLike" class="reaction-button" type="button" aria-label="Поставить лайк идее дня" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="dailyIdeaLikedBy" class="reaction-names"></span>
+          </div>
+        </article>
+        <article class="panel suggestion daily-card watch-card" role="link" tabindex="0" aria-label="Открыть предложенный фильм на Кинопоиске">
+          <div class="daily-card-head">
+            <span class="daily-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3V9Z"/></svg>
+            </span>
+            <div class="panel-label">Что посмотреть</div>
+          </div>
+          <div id="watchToday" class="suggestion-value"></div>
+          <div id="watchRatingRow" class="watch-rating" hidden><span class="imdb-badge">IMDb</span><strong id="watchRating"></strong><span>/10</span></div>
+
+          <div class="reaction-strip daily-reaction">
+            <button id="watchLike" class="reaction-button" type="button" aria-label="Поставить лайк фильму" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
+            </button>
+            <span id="watchLikedBy" class="reaction-names"></span>
+          </div>
+        </article>
+        
+      </div>
+    </section>
+
 
       <div class="feed-grid">
         <article id="feedFactsCard" class="feed-card feed-card-facts" data-feed-card="facts">
@@ -342,6 +388,45 @@
         </div>
       </article>
 
+    <section id="dianaCycleCard" class="panel cycle-card" data-app-tab-section="schedule" aria-labelledby="dianaCycleTitle">
+      <div class="cycle-head">
+        <div class="cycle-head-copy">
+          <div class="cycle-kicker">ЦИКЛ</div>
+          <h2 id="dianaCycleTitle">Цикл Дианы</h2>
+        </div>
+        <span class="cycle-badge">Прогноз</span>
+      </div>
+      <div id="dianaCycleBody" class="cycle-body">
+        <div class="cycle-summary">
+          <div class="cycle-countdown-wrap">
+            <strong id="dianaCycleCountdown" class="cycle-countdown">—</strong>
+            <span id="dianaCycleCountdownLabel" class="cycle-countdown-label">до следующих месячных</span>
+          </div>
+          <div class="cycle-phase-wrap">
+            <span class="cycle-phase-label">Сейчас</span>
+            <strong id="dianaCyclePhase" class="cycle-phase">—</strong>
+            <span id="dianaCycleDay" class="cycle-day">—</span>
+          </div>
+        </div>
+        <div class="cycle-progress" aria-hidden="true"><span id="dianaCycleProgress"></span></div>
+        <div class="cycle-grid">
+          <div class="cycle-info-card period">
+            <span class="cycle-info-dot"></span>
+            <div><span>Месячные</span><strong id="dianaCyclePeriod">—</strong></div>
+          </div>
+          <div class="cycle-info-card ovulation">
+            <span class="cycle-info-dot"></span>
+            <div><span>Овуляция</span><strong id="dianaCycleOvulation">—</strong></div>
+          </div>
+        </div>
+        <div id="dianaCycleNote" class="cycle-note">Ориентировочный прогноз по истории цикла.</div>
+        <div id="dianaCycleActions" class="cycle-actions" hidden>
+          <button id="dianaCycleStartToday" class="cycle-record-button" type="button">Отметить начало сегодня</button>
+        </div>
+      </div>
+    </section>
+
+
       <article id="anniversaryCard" class="panel anniversary-card" hidden aria-label="Наша годовщина">
         <span class="anniversary-heart anniversary-heart-one" aria-hidden="true">♥</span>
         <span class="anniversary-heart anniversary-heart-two" aria-hidden="true">♥</span>
@@ -360,49 +445,6 @@
         <div class="year-progress-track"><span id="yearProgressBar" class="year-progress-bar"></span></div>
       </div>
 
-    </section>
-
-    <section class="section-block daily-section" data-app-tab-section="home" data-home-tile="daily" aria-labelledby="dailyTitle">
-      <div class="section-heading compact">
-        <div>
-          <h2 id="dailyTitle">На сегодня</h2>
-        </div>
-      </div>
-      <div class="daily-grid">
-        <article class="panel suggestion daily-card idea-card">
-          <div class="daily-card-head">
-            <span class="daily-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 18.3h5.2"/><path d="M10 21h4"/><path d="M8.2 14.4A6 6 0 1 1 15.8 14.4c-.9.7-1.4 1.5-1.5 2.3h-4.6c-.1-.8-.6-1.6-1.5-2.3Z"/><path d="M12 3V1.8M4.8 6.2 3.9 5.3M19.2 6.2l.9-.9"/></svg>
-            </span>
-            <div class="panel-label">Идея дня</div>
-          </div>
-          <div id="dailyIdea" class="idea-text"></div>
-          <div class="reaction-strip daily-reaction">
-            <button id="dailyIdeaLike" class="reaction-button" type="button" aria-label="Поставить лайк идее дня" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-            </button>
-            <span id="dailyIdeaLikedBy" class="reaction-names"></span>
-          </div>
-        </article>
-        <article class="panel suggestion daily-card watch-card" role="link" tabindex="0" aria-label="Открыть предложенный фильм на Кинопоиске">
-          <div class="daily-card-head">
-            <span class="daily-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3V9Z"/></svg>
-            </span>
-            <div class="panel-label">Что посмотреть</div>
-          </div>
-          <div id="watchToday" class="suggestion-value"></div>
-          <div id="watchRatingRow" class="watch-rating" hidden><span class="imdb-badge">IMDb</span><strong id="watchRating"></strong><span>/10</span></div>
-
-          <div class="reaction-strip daily-reaction">
-            <button id="watchLike" class="reaction-button" type="button" aria-label="Поставить лайк фильму" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>
-            </button>
-            <span id="watchLikedBy" class="reaction-names"></span>
-          </div>
-        </article>
-        
-      </div>
     </section>
 
     <section id="sharedAlbumSection" class="section-block shared-album-section" data-app-tab-section="photos" data-tab-available="1" aria-labelledby="sharedAlbumTitle">
@@ -636,6 +678,7 @@
 
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <script src="/app.js?v=1.0.0"></script>
+  <script src="/smart-home.js?v=1.1"></script>
 <!-- deploy: ui-cleanup-20260921 -->
 </body>
 </html>
