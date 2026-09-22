@@ -31,7 +31,7 @@ test('morning summary task filter uses RST for Rustam, Ди for Diana, and inclu
   assert.deepEqual(filterTasksForActor(tasks, 'Диана').map(row=>row.id), ['d','u']);
 });
 
-test('personal summary shows Diana workday only to Diana and cycle status to both', () => {
+test('personal summary shows Diana schedule to Rustam, own workday to Diana, and cycle status to both', () => {
   const common = {
     dateLabel:'22 сентября',
     tasks,
@@ -57,6 +57,8 @@ test('personal summary shows Diana workday only to Diana and cycle status to bot
   assert.match(rustam, /Совместная задача/);
   assert.doesNotMatch(rustam, /Задача Дианы/);
   assert.doesNotMatch(rustam, /Сегодня рабочий день/);
+  assert.match(rustam, /Диана сегодня работает/);
+  assert.match(rustam, /09:00–21:00/);
   assert.match(rustam, /Диана по циклу/);
   assert.match(rustam, /Чувствительная/);
   assert.match(rustam, /лютеиновая фаза/);
@@ -163,6 +165,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   const diana=calls.find(row=>row.chat_id===2);
 
   assert.match(rustam.text,/Рустам, доброе утро/);
+  assert.match(rustam.text,/Диана сегодня не работает/);
   assert.match(rustam.text,/Задача Рустама/);
   assert.doesNotMatch(rustam.text,/Задача Дианы/);
   assert.match(rustam.text,/Новое послание от Дианы/);
