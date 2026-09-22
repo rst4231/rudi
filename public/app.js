@@ -908,7 +908,13 @@
           rustamWorking?'working':'off'
         );
         const diana=profileStatusElement('Диана');
-        if(diana&&!diana.dataset.calendarReady){
+        if(!diana) return;
+        if(diana.dataset.calendarReady&&homeDashboardState.workDay){
+          const workingNow=dianaWorkingNow(homeDashboardState.workDay);
+          setProfileWorkStatus('Диана',workingNow?'Работаю':'Отдыхаю',workingNow?'working':'off');
+          return;
+        }
+        if(!diana.dataset.calendarReady){
           setProfileWorkStatus('Диана','Проверяю график…','neutral');
         }
       }
@@ -3622,28 +3628,26 @@
       }
 
 
-      function dianaWorkStatusText(row){
-        if(!row||!row.working) return 'Отдыхаю';
-        const events=(Array.isArray(row.events)?row.events:[])
-          .filter(event=>!event?.allDay)
-          .map(event=>({
-            start:String(event?.startTime||'').trim(),
-            end:String(event?.endTime||'').trim()
-          }))
-          .filter(event=>event.start||event.end);
-        if(!events.length) return 'Работаю';
+      function dianaWorkingNow(row,nowMinutes=homeCurrentMinutes()){
+        if(!row||!row.working) return false;
         const toMinutes=value=>{
           const match=String(value||'').match(/^(\d{1,2}):(\d{2})$/u);
           return match?Number(match[1])*60+Number(match[2]):null;
         };
-        const starts=events.map(event=>({value:event.start,minutes:toMinutes(event.start)})).filter(row=>row.minutes!==null);
-        const ends=events.map(event=>({value:event.end,minutes:toMinutes(event.end)})).filter(row=>row.minutes!==null);
-        const start=starts.sort((a,b)=>a.minutes-b.minutes)[0]?.value||'';
-        const end=ends.sort((a,b)=>b.minutes-a.minutes)[0]?.value||'';
-        if(start&&end) return 'Работаю с '+start+' до '+end;
-        if(start) return 'Работаю с '+start;
-        if(end) return 'Работаю до '+end;
-        return 'Работаю';
+        const events=Array.isArray(row.events)?row.events:[];
+        if(events.some(event=>event?.allDay)) return true;
+        return events.some(event=>{
+          const start=toMinutes(event?.startTime);
+          const end=toMinutes(event?.endTime);
+          if(start===null||end===null||start===end) return false;
+          return end>start
+            ?nowMinutes>=start&&nowMinutes<end
+            :nowMinutes>=start||nowMinutes<end;
+        });
+      }
+
+      function dianaWorkStatusText(row){
+        return dianaWorkingNow(row)?'Работаю':'Отдыхаю';
       }
 
       function renderPartnerWorkStatus(days){
@@ -3662,11 +3666,12 @@
         }
 
         const working=Boolean(row.working);
+        const workingNow=dianaWorkingNow({...row,working});
         homeDashboardState.workDay={...row,working};
         renderHomeDashboard();
         if(status){
           status.dataset.calendarReady='1';
-          setProfileWorkStatus('Диана',dianaWorkStatusText({...row,working}),working?'working':'off');
+          setProfileWorkStatus('Диана',workingNow?'Работаю':'Отдыхаю',workingNow?'working':'off');
           status.title='';
         }
       }
