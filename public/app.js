@@ -1685,8 +1685,6 @@
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
           await loadAppBootstrap();
-          document.body.classList.remove('auth-pending','auth-denied');
-          document.body.classList.add('auth-ok');
           return true;
         }catch(error){
           const code=String(error?.message||'');
@@ -5678,6 +5676,7 @@
         if(!allowed) return;
         setupProfileSplit();
         setupHomeLayoutEditor();
+        setupPersistentCollapsibles();
         loadActivityJournal();
         setupAppTabs();
         ensureAppSurface({restoreTab:true});
