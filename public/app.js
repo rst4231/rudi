@@ -1358,7 +1358,26 @@
         const greeting=document.createElement('h1');
         greeting.id='homeDashboardGreeting';
         greeting.className='home-dashboard-greeting';
-        top.append(greeting,dateHeading);
+        const refreshButton=document.createElement('button');
+        refreshButton.type='button';
+        refreshButton.id='homeDashboardRefresh';
+        refreshButton.className='home-dashboard-refresh';
+        refreshButton.setAttribute('aria-label','Обновить данные');
+        refreshButton.setAttribute('title','Обновить');
+        refreshButton.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>';
+        refreshButton.addEventListener('click',async()=>{
+          if(refreshButton.classList.contains('is-refreshing')) return;
+          refreshButton.classList.add('is-refreshing');
+          refreshButton.disabled=true;
+          try{
+            await refreshAfterResume();
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          }finally{
+            refreshButton.disabled=false;
+            setTimeout(()=>refreshButton.classList.remove('is-refreshing'),180);
+          }
+        });
+        top.append(greeting,refreshButton,dateHeading);
 
         const together=document.createElement('section');
         together.className='home-dashboard-section home-together';
@@ -1475,7 +1494,22 @@
       }
 
       function addHeaderCollapseButton(section,host,button){
-        if(host.classList.contains('section-heading')||host.classList.contains('partner-head')||host.classList.contains('smart-home-head')||host.classList.contains('car-head')){
+        if(host.classList.contains('car-head')){
+          const copy=host.querySelector('.car-head-copy');
+          const title=copy?.querySelector('h2');
+          if(copy&&title){
+            let row=copy.querySelector('.car-head-title-row');
+            if(!row){
+              row=document.createElement('div');
+              row.className='car-head-title-row';
+              title.parentNode.insertBefore(row,title);
+              row.appendChild(title);
+            }
+            row.appendChild(button);
+            return;
+          }
+        }
+        if(host.classList.contains('section-heading')||host.classList.contains('partner-head')||host.classList.contains('smart-home-head')){
           let actions=host.querySelector(':scope > .block-head-actions');
           if(!actions){
             actions=document.createElement('div');
@@ -2238,8 +2272,9 @@
         }
         if(!currentActor) return false;
         if(telegramInitData()) await ensureTelegramPin();
-        await loadAppBootstrap();
         appAccessReady=true;
+        ensureAppSurface();
+        await loadAppBootstrap();
         return true;
       }
 
