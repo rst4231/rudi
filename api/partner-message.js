@@ -1572,6 +1572,10 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       authorizeInitData(body.initData, options);
+      const previousSnapshot=backupSnapshotFromToken(body.backupToken,options);
+      if(previousSnapshot?.partnerMessage){
+        await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
+      }
       const message = await readPartnerMessage(options);
       return res.status(200).json({ ok: true, message });
     } catch (error) {
@@ -1742,20 +1746,24 @@ async function handleRudiAction(req, res, action, options = {}) {
             targetTab: 'products',
           }, options);
         }
-        return res.status(200).json({ ok: true, actor, ...state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'remove') {
         const state = await removeProduct(body.id, options);
-        return res.status(200).json({ ok: true, actor, ...state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'toggle') {
         const state = await toggleProductChecked(body.id, options);
-        return res.status(200).json({ ok: true, actor, ...state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'bought') {
         const state = await markProductBought(body.id, actor, options);
         await sendActivityNotification(boughtNotificationText(actor), 'products', options);
-        return res.status(200).json({ ok: true, actor, ...state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'buy-checked') {
         const before = await readProductList(options);
@@ -1764,11 +1772,13 @@ async function handleRudiAction(req, res, action, options = {}) {
         if (checkedCount > 0) {
           await sendActivityNotification(boughtNotificationText(actor), 'products', options);
         }
-        return res.status(200).json({ ok: true, actor, ...state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'clear') {
         const state = await clearProducts(options);
-        return res.status(200).json({ ok: true, actor, ...state });
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       return res.status(400).json({ ok: false, error: 'products-operation-invalid' });
     } catch (error) {
@@ -1862,6 +1872,10 @@ async function handler(req, res, options = {}) {
   try {
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
     const { authorName, actor } = authorizeInitData(body.initData, options);
+    const previousSnapshot=backupSnapshotFromToken(body.backupToken,options);
+    if(previousSnapshot?.partnerMessage){
+      await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
+    }
     const text = normalizeMessageText(body.text);
 
     const message = await writePartnerMessage({
@@ -1889,7 +1903,8 @@ async function handler(req, res, options = {}) {
       notificationTask.catch(() => {});
     }
 
-    return res.status(200).json({ ok: true, message, notification: { sent: false, pending: true } });
+    const backupToken=await refreshBackupToken(previousSnapshot,options);
+    return res.status(200).json({ ok: true, message, backupToken, notification: { sent: false, pending: true } });
   } catch (error) {
     const status = statusForError(error);
     if (status === 500) console.error('RUDI_PARTNER_MESSAGE_ERROR', error);
