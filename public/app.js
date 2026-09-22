@@ -490,18 +490,23 @@
       function applyRemoteUiPreferences(value){
         const remote=value&&typeof value==='object'&&!Array.isArray(value)?value:null;
         if(!remote) return false;
+        const hasRemoteOrder=Array.isArray(remote.homeOrder)&&remote.homeOrder.length>0;
+        const hasRemoteBlocks=remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)&&Object.keys(remote.blockStates).length>0;
+        const remoteStamp=String(remote.updatedAt||'');
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks) return false;
+
         const local=localUiPreferences();
-        const remoteTime=Date.parse(String(remote.updatedAt||''))||0;
+        const remoteTime=Date.parse(remoteStamp)||0;
         const localTime=Date.parse(String(local.updatedAt||''))||0;
         if(localTime>remoteTime) return false;
         try{
-          if(Array.isArray(remote.homeOrder)&&remote.homeOrder.length){
+          if(hasRemoteOrder){
             localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remote.homeOrder));
           }
-          if(remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)){
+          if(hasRemoteBlocks){
             localStorage.setItem(blockStateStorageKey(),JSON.stringify(remote.blockStates));
           }
-          if(remote.updatedAt) localStorage.setItem(uiPreferencesMetaKey(),String(remote.updatedAt));
+          if(remoteStamp) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
           return true;
         }catch(_){return false}
       }
@@ -1643,7 +1648,8 @@
           if(!response.ok||!payload.ok) throw new Error(payload.error||'bootstrap');
           if(payload.actor&&String(payload.actor)!==currentActor) return;
           applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
-          applyRemoteUiPreferences(payload.uiPreferences);
+          const appliedRemoteUi=applyRemoteUiPreferences(payload.uiPreferences);
+          if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')) markUiPreferencesChanged();
           cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
