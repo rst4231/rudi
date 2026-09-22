@@ -20,9 +20,10 @@
       const tg = window.Telegram?.WebApp;
       const telegramOpen = Boolean(tg?.initData);
       const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.dataset.theme = telegramOpen && tg?.colorScheme
+      document.documentElement.dataset.theme = telegramOpen && (tg?.colorScheme === 'dark' || tg?.colorScheme === 'light')
         ? tg.colorScheme
         : (dark ? 'dark' : 'light');
+      document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
   <link rel="stylesheet" href="/app.css?v=1.7.6">
