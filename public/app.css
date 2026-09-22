@@ -3001,6 +3001,11 @@
     .product-icon-action.copied{background:color-mix(in srgb,var(--green) 14%,var(--surface));color:var(--green)}
     .product-icon-action.danger{color:color-mix(in srgb,var(--red) 72%,var(--muted))}
     .products-empty,.products-history-empty{padding:16px 8px;color:var(--muted);font-size:10px;line-height:1.4;text-align:center}
+    .products-recovery{display:grid;gap:9px;margin:4px 0 10px;padding:11px;border:1px solid color-mix(in srgb,var(--accent) 20%,var(--line));border-radius:13px;background:color-mix(in srgb,var(--accent-soft) 58%,var(--surface));text-align:center}
+    .products-recovery[hidden]{display:none!important}
+    .products-recovery-text{color:var(--text);font-size:10px;line-height:1.4;font-weight:650}
+    .products-recovery-button{justify-self:center;min-height:34px;padding:0 14px;border:0;border-radius:10px;background:var(--accent);color:#fff;font:inherit;font-size:10px;font-weight:780;cursor:pointer}
+    .products-recovery-button:disabled{opacity:.55;cursor:default}
     .products-history{margin-top:14px;padding-top:11px;border-top:1px solid var(--line)}
     .products-history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
     .products-history-head strong{font-size:10.5px;font-weight:820}

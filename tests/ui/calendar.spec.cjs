@@ -10,6 +10,15 @@ function monthDays(year,month){
 }
 
 async function mockRudi(page,options={}){
+  await page.addInitScript(({fixedNow})=>{
+    const RealDate=Date;
+    class FixedDate extends RealDate{
+      constructor(...args){super(...(args.length?args:[fixedNow]))}
+      static now(){return fixedNow}
+    }
+    window.Date=FixedDate;
+  },{fixedNow:Date.parse('2026-09-21T12:00:00+03:00')});
+
   const state={
     taskCompleted:false,
     completionCalls:0,
