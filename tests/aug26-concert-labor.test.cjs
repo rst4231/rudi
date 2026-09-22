@@ -45,7 +45,7 @@ test('event venue config blocks explicit Sevkabel and Brusnitsyn identifiers wit
   assert.equal(blocked.has('брус'), false);
 });
 
-test('Labor routes to For Di topic 126 and retires legacy topic 696', async () => {
+test('Labor queues privately for Diana and retires legacy topic 696', async () => {
   const calls = [];
   const now = new Date('2026-08-26T09:00:00Z');
   const cache = getLaborCache({
@@ -60,13 +60,15 @@ test('Labor routes to For Di topic 126 and retires legacy topic 696', async () =
     token: '1:test',
     chatId: -1001,
     cache,
+    forDiCache: memoryCache(),
     fetchImpl: telegramStub(calls),
     forumTopicsConfig: { version: 1, clients: 126, labor: 696, names: { clients: 'Для Ди' } },
     now,
   });
 
   assert.equal(result.topicId, 126);
-  assert.equal(calls.find((call) => call.method === 'sendMessage').body.message_thread_id, 126);
+  assert.equal(result.queuedForPrivateDelivery, true);
+  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
   assert.equal(calls.find((call) => call.method === 'deleteForumTopic').body.message_thread_id, 696);
 });
 
