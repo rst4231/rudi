@@ -7,5 +7,5 @@ const root = path.join(__dirname, '..');
 
 test('RUDI stays within the serverless JS entrypoint budget', () => {
   const apiFiles = fs.readdirSync(path.join(root, 'api')).filter((name) => name.endsWith('.js'));
-  assert.ok(apiFiles.length <= 9, `expected at most 9 serverless JS entrypoints, got ${apiFiles.length}`);
+  assert.ok(apiFiles.length <= 8, `expected at most 8 serverless JS entrypoints, got ${apiFiles.length}`);
 });
