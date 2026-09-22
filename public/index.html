@@ -212,32 +212,8 @@
       </section>
     </section>
 
-    <section id="feedSection" class="feed-page" data-app-tab-section="feed" aria-labelledby="feedTitle">
-      <header class="feed-hero">
-        <div>
-          <div class="feed-eyebrow">RUDI · СЕГОДНЯ</div>
-          <h1 id="feedTitle">Лента</h1>
-          <p id="feedUpdated" class="feed-updated">Обновляю свежую подборку…</p>
-        </div>
-        <span id="feedFreshBadge" class="feed-fresh-badge" hidden>Новое</span>
-      </header>
-
-      <div id="feedStatus" class="feed-status" aria-live="polite"></div>
-
-      <section id="feedToday" class="feed-today" aria-labelledby="feedTodayTitle" hidden>
-        <div class="feed-today-head">
-          <strong id="feedTodayTitle">Сегодня</strong>
-          <span id="feedTodayDate"></span>
-        </div>
-        <div id="feedTodayLinks" class="feed-today-links"></div>
-      </section>
-
-    <section class="section-block daily-section" data-app-tab-section="feed" aria-labelledby="dailyTitle">
-      <div class="section-heading compact">
-        <div>
-          <h2 id="dailyTitle">На сегодня</h2>
-        </div>
-      </div>
+    <section id="feedSection" class="feed-page" data-app-tab-section="feed" aria-label="Лента">
+      <section class="feed-daily-top" aria-label="Рекомендации на сегодня">
       <div class="daily-grid">
         <article class="panel suggestion daily-card idea-card">
           <div class="daily-card-head">
@@ -273,7 +249,23 @@
         </article>
         
       </div>
-    </section>
+        <div class="feed-daily-meta">
+          <p id="feedUpdated" class="feed-updated">Обновляю свежую подборку…</p>
+          <span id="feedFreshBadge" class="feed-fresh-badge" hidden>Новое</span>
+        </div>
+      </section>
+
+      <div id="feedStatus" class="feed-status" aria-live="polite"></div>
+
+      <section id="feedToday" class="feed-today" aria-labelledby="feedTodayTitle" hidden>
+        <div class="feed-today-head">
+          <strong id="feedTodayTitle">Сегодня</strong>
+          <span id="feedTodayDate"></span>
+        </div>
+        <div id="feedTodayLinks" class="feed-today-links"></div>
+      </section>
+
+
 
 
       <div class="feed-grid">
