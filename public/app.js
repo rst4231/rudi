@@ -7,6 +7,7 @@
       const tg = window.Telegram?.WebApp;
       const DAY = 86400000;
       let currentActor = '';
+      let appAccessReady = false;
       let currentPartnerReactionKey = '';
       let currentDailyReactionTargets = [];
       let currentFeedReactionTargets = [];
@@ -2055,6 +2056,7 @@
       }
 
       async function authenticateApp(){
+        appAccessReady=false;
         try{
           const localBackupToken=readLocalStateBackupToken();
           if(localBackupToken) currentStateBackupToken=localBackupToken;
@@ -2085,6 +2087,7 @@
         if(!currentActor) return false;
         if(telegramInitData()) await ensureTelegramPin();
         await loadAppBootstrap();
+        appAccessReady=true;
         return true;
       }
 
@@ -6152,7 +6155,7 @@
         applyTheme();
         updateTelegramSafeArea();
         document.body.classList.remove('keyboard-editing');
-        if(!currentActor) return;
+        if(!currentActor||!appAccessReady) return;
 
         document.body.classList.remove('auth-pending','auth-denied','auth-login');
         document.body.classList.add('auth-ok');
@@ -6168,7 +6171,7 @@
       let resumeRefreshPromise=null;
       async function refreshAfterResume(){
         ensureAppSurface();
-        if(!currentActor) return;
+        if(!currentActor||!appAccessReady) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
@@ -6209,7 +6212,7 @@
           return;
         }
         ensureAppSurface();
-        if(currentActor&&currentAppTab==='products'){
+        if(appAccessReady&&currentActor&&currentAppTab==='products'){
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
         }
