@@ -4,6 +4,7 @@ const fs = require('node:fs');
 
 const app = fs.readFileSync('public/app.js','utf8');
 const css = fs.readFileSync('public/app.css','utf8');
+const indexHtml = fs.readFileSync('public/index.html','utf8');
 const smart = fs.readFileSync('public/smart-home.js','utf8');
 const car = fs.readFileSync('public/car.js','utf8');
 const partner = fs.readFileSync('api/partner-message.js','utf8');
