@@ -1065,6 +1065,7 @@
     }
     @media(max-width:430px){
       body{padding-left:12px;padding-right:12px}
+      .feed-daily-top .daily-grid .suggestion{min-height:108px;padding:14px}
       .shell{gap:16px}
       .profile{padding:18px;border-radius:26px}
       .avatar{width:62px;height:62px;border-radius:20px}
@@ -4680,6 +4681,50 @@ body[data-app-tab="feed"] .shell{
 .feed-page{
   display:grid;
   gap:14px;
+}
+.feed-daily-top{
+  display:grid;
+  gap:8px;
+}
+.feed-daily-top .daily-grid{
+  gap:10px;
+}
+.feed-daily-top .daily-grid .suggestion{
+  min-height:116px;
+  padding:15px;
+  border-radius:22px;
+  background:
+    linear-gradient(145deg,color-mix(in srgb,var(--surface) 94%,rgba(126,113,190,.035)),var(--surface));
+  border-color:color-mix(in srgb,var(--line) 82%,transparent);
+  box-shadow:0 10px 24px rgba(18,23,37,.055);
+}
+.feed-daily-top .idea-card{
+  background:
+    radial-gradient(circle at 8% 0%,rgba(245,187,73,.12),transparent 42%),
+    var(--surface);
+}
+.feed-daily-top .watch-card{
+  background:
+    radial-gradient(circle at 92% 0%,rgba(118,97,255,.13),transparent 42%),
+    var(--surface);
+}
+.feed-daily-meta{
+  min-height:22px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:0 2px;
+}
+.feed-daily-meta .feed-updated{
+  min-width:0;
+  margin:0;
+  color:var(--muted);
+  font-size:10.5px;
+  line-height:1.3;
+}
+.feed-daily-meta .feed-fresh-badge{
+  padding:5px 8px;
 }
 .feed-hero{
   position:relative;
