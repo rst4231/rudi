@@ -37,3 +37,13 @@ test('Greek yogurt is dairy and stale saved categories are corrected on read', (
   assert.equal(normalized.items[0].category, 'Молочное и яйца');
   assert.equal(normalized.items[0].weeklyAmount, '8 шт.');
 });
+
+
+test('substring collisions stay in their real categories', () => {
+  assert.equal(categorizeProduct('йогурт'), 'Молочное и яйца');
+  assert.equal(categorizeProduct('сливки'), 'Молочное и яйца');
+  assert.equal(categorizeProduct('масло сливочное'), 'Молочное и яйца');
+  assert.equal(categorizeProduct('лимонад'), 'Напитки');
+  assert.equal(categorizeProduct('батончик'), 'Сладкое и снеки');
+  assert.equal(categorizeProduct('паста зубная'), 'Гигиена');
+});
