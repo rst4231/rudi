@@ -1593,13 +1593,18 @@
       };
 
       function applyTheme(){
-        const theme = tg?.colorScheme || (media.matches ? 'dark' : 'light');
-        root.dataset.theme = theme;
-        metaTheme.setAttribute('content',theme === 'dark' ? '#0b0d12' : '#f4f5f7');
+        const telegramOpen=Boolean(tg?.initData);
+        const theme=telegramOpen&&tg?.colorScheme
+          ? tg.colorScheme
+          : (media.matches?'dark':'light');
+        root.dataset.theme=theme;
+        root.style.colorScheme=theme;
+        metaTheme?.setAttribute('content',theme==='dark'?'#0b0d12':'#f4f5f7');
+        if(!telegramOpen) return;
         try{
-          tg?.setHeaderColor?.(theme === 'dark' ? '#0b0d12' : '#f4f5f7');
-          tg?.setBackgroundColor?.(theme === 'dark' ? '#0b0d12' : '#f4f5f7');
-          tg?.setBottomBarColor?.(theme === 'dark' ? '#0b0d12' : '#f4f5f7');
+          tg?.setHeaderColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
+          tg?.setBackgroundColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
+          tg?.setBottomBarColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
         }catch(_){}
       }
 
@@ -2181,7 +2186,9 @@
       tg?.onEvent?.('contentSafeAreaChanged',()=>{updateTelegramSafeArea();setTimeout(()=>ensureAppSurface(),0)});
       tg?.onEvent?.('viewportChanged',()=>setTimeout(()=>ensureAppSurface(),0));
       tg?.onEvent?.('fullscreenChanged',()=>setTimeout(()=>ensureAppSurface(),0));
-      media.addEventListener?.('change',()=>{if(!tg?.initData) applyTheme()});
+      const handleSystemThemeChange=()=>{if(!tg?.initData) applyTheme()};
+      media.addEventListener?.('change',handleSystemThemeChange);
+      media.addListener?.(handleSystemThemeChange);
 
       const user = tg?.initDataUnsafe?.user;
       const displayName = document.getElementById('displayName');
