@@ -122,6 +122,7 @@ function resolveCache(options = {}) {
   if (options.cache) return options.cache;
   return createStrictRuntimeCache({
     namespace: 'rudi-browser-auth-v1',
+    confirmWrites: false,
     ...(options.cacheOptions || {}),
   });
 }
