@@ -411,7 +411,7 @@
 
     if(tempNode)tempNode.textContent=Number.isFinite(Number(temp))?Number(temp).toFixed(1)+'°C':'—';
     if(humidityNode)humidityNode.textContent=Number.isFinite(Number(humidity))?Math.round(Number(humidity))+'%':'—';
-    if(humidityHint)humidityHint.textContent=Number.isFinite(Number(battery))?'Датчик · '+Math.round(Number(battery))+'%':'Датчик климата';
+    if(humidityHint)humidityHint.textContent='Влажность';
   }
 
   async function runScenario(scenario,button){
