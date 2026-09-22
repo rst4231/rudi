@@ -503,7 +503,7 @@
   }
 
   async function loadHome({force=false,silent=false}={}){
-    if(!tg?.initData||state.loading)return;
+    if(!document.body.classList.contains('auth-ok')||state.loading)return;
     if(!force&&state.data&&Date.now()-state.lastLoadedAt<HOME_STALE_MS){
       renderClimate(state.data);
       renderDevices(state.data);
@@ -542,7 +542,7 @@
     let attempts=0;
     const waitForAuth=()=>{
       attempts++;
-      if(document.body.classList.contains('auth-ok')&&tg?.initData){
+      if(document.body.classList.contains('auth-ok')){
         loadHome();
         return;
       }
