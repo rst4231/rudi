@@ -4,7 +4,8 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession, setSessionCookie, clearSessionCookie, hasPin, savePin, verifyPin, restorePinRecord } = require('./rudi-session.cjs');
-const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication, restorePasskeys } = require('./rudi-passkeys.cjs');
+const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication, restorePasskeys, readPasskeys } = require('./rudi-passkeys.cjs');
+const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveDurablePasskeys } = require('./rudi-auth-db.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
@@ -165,6 +166,7 @@ function statusForError(error) {
   if (code === 'rudi-pin-rate-limited') return 429;
   if (code === 'rudi-pin-not-configured') return 409;
   if (code === 'rudi-pin-format') return 400;
+  if (code === 'rudi-auth-db-unavailable') return 503;
   if (code === 'rudi-passkey-not-configured') return 409;
   if (code === 'rudi-passkey-challenge-invalid' || code === 'rudi-passkey-origin-mismatch' || code === 'rudi-passkey-credential-not-found' || code === 'rudi-passkey-registration-failed' || code === 'rudi-passkey-registration-invalid' || code === 'rudi-passkey-authentication-failed') return 400;
   if (code === 'rudi-passkey-host-invalid' || code === 'rudi-passkey-origin-invalid') return 400;
@@ -195,6 +197,50 @@ function browserAuthStoreOptions(options = {}) {
     cacheOptions: options.authCacheOptions,
     now: options.now || Date.now(),
   };
+}
+
+function durableAuthOptions(options = {}) {
+  return {
+    fetchImpl: options.fetchImpl || globalThis.fetch,
+    botToken: options.botToken || resolveTelegramBotToken(options.env || process.env),
+    now: options.now || Date.now(),
+  };
+}
+
+async function hydrateActorAuth(actor, backupToken, options = {}) {
+  const storeOptions = browserAuthStoreOptions(options);
+  const dbOptions = durableAuthOptions(options);
+  const snapshot = backupSnapshotFromToken(backupToken, options);
+  let durable = await readAuthRecord(actor, dbOptions);
+
+  const backupPin = snapshot?.browserAuth?.pins?.[actor] || null;
+  if (!durable?.pinRecord && backupPin?.salt && backupPin?.hash) {
+    durable = await saveDurablePinRecord(actor, backupPin, dbOptions);
+  }
+
+  const backupPasskeys = Array.isArray(snapshot?.browserAuth?.passkeys?.[actor])
+    ? snapshot.browserAuth.passkeys[actor]
+    : [];
+  if (!(durable?.passkeys?.length) && backupPasskeys.length) {
+    durable = await saveDurablePasskeys(actor, backupPasskeys, dbOptions);
+  }
+
+  if (durable?.pinRecord) {
+    await restorePinRecord(actor, durable.pinRecord, storeOptions).catch(() => null);
+  }
+  if (durable?.passkeys?.length) {
+    await restorePasskeys(actor, durable.passkeys, storeOptions).catch(() => null);
+  }
+
+  return { durable, snapshot };
+}
+
+async function hydrateAllDurablePasskeys(backupToken, options = {}) {
+  const result = {};
+  for (const actor of ['Рустам', 'Диана']) {
+    result[actor] = await hydrateActorAuth(actor, backupToken, options);
+  }
+  return result;
 }
 
 async function restoreBrowserAuthFromBackup(actor, backupToken, options = {}) {
@@ -1354,14 +1400,16 @@ async function handleRudiAction(req, res, action, options = {}) {
     const storeOptions = browserAuthStoreOptions(options);
     try {
       if (operation === 'auth-options') {
-        await restoreAllPasskeysFromBackup(body.backupToken, options);
+        await hydrateAllDurablePasskeys(body.backupToken, options);
         const publicKey = await authenticationOptions(req, storeOptions);
         return res.status(200).json({ ok: true, publicKey });
       }
 
       if (operation === 'auth-verify') {
-        await restoreAllPasskeysFromBackup(body.backupToken, options);
+        await hydrateAllDurablePasskeys(body.backupToken, options);
         const verified = await verifyAuthentication(req, body.challenge, body.response, storeOptions);
+        const rows = await readPasskeys(verified.actor, storeOptions);
+        await saveDurablePasskeys(verified.actor, rows, durableAuthOptions(options));
         setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
         const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
         const backupToken = await createStateBackup({ ...options, previousSnapshot });
@@ -1369,7 +1417,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       const session = authorizeRequest(req, body.initData, options);
-      await restoreBrowserAuthFromBackup(session.actor, body.backupToken, options);
+      await hydrateActorAuth(session.actor, body.backupToken, options);
 
       if (operation === 'status') {
         const status = await passkeyStatus(req, session.actor, storeOptions);
@@ -1383,6 +1431,8 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (operation === 'register-verify') {
         const result = await verifyRegistration(req, session.actor, body.challenge, body.response, storeOptions);
+        const rows = await readPasskeys(session.actor, storeOptions);
+        await saveDurablePasskeys(session.actor, rows, durableAuthOptions(options));
         const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
         const backupToken = await createStateBackup({ ...options, previousSnapshot });
         return res.status(200).json({ ok: true, ...result, backupToken });
@@ -1401,16 +1451,15 @@ async function handleRudiAction(req, res, action, options = {}) {
     const botToken = options.botToken || resolveTelegramBotToken(options.env || process.env);
     try {
       if (operation === 'login') {
-        const previousSnapshot = await restoreBrowserAuthFromBackup(String(body.actor || ''), body.backupToken, options)
-          || backupSnapshotFromToken(body.backupToken, options);
-        const pinRecord = previousSnapshot?.browserAuth?.pins?.[String(body.actor || '')] || null;
-        const verified = await verifyPin(req, body.actor, body.pin, { ...browserAuthStoreOptions(options), pinRecord });
-        setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
-        const backupToken = await createStateBackup({
-          ...options,
-          previousSnapshot: backupSnapshotWithPin(previousSnapshot, verified.actor, verified.record),
+        const actor = String(body.actor || '');
+        const durable = await readAuthRecord(actor, durableAuthOptions(options));
+        if (!durable?.pinRecord) throw new Error('rudi-pin-not-configured');
+        const verified = await verifyPin(req, actor, body.pin, {
+          ...browserAuthStoreOptions(options),
+          pinRecord: durable.pinRecord,
         });
-        return res.status(200).json({ ok: true, actor: verified.actor, source: 'pin', backupToken });
+        setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
+        return res.status(200).json({ ok: true, actor: verified.actor, source: 'pin' });
       }
 
       if (operation === 'logout') {
@@ -1420,9 +1469,9 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (operation === 'create-pin') {
         const telegram = authorizeInitData(body.initData, options);
-        const previousSnapshot = await restoreBrowserAuthFromBackup(telegram.actor, body.backupToken, options)
-          || backupSnapshotFromToken(body.backupToken, options);
+        const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
         const result = await savePin(telegram.actor, body.pin, browserAuthStoreOptions(options));
+        await saveDurablePinRecord(telegram.actor, result.record, durableAuthOptions(options));
         setSessionCookie(res, telegram.actor, botToken, { now: options.now || Date.now() });
         const backupToken = await createStateBackup({
           ...options,
@@ -1433,11 +1482,8 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (operation === 'status') {
         const session = authorizeRequest(req, body.initData, options);
-        const snapshot = await restoreBrowserAuthFromBackup(session.actor, body.backupToken, options);
-        const backupPin = snapshot?.browserAuth?.pins?.[session.actor];
-        const configured = backupPin?.salt && backupPin?.hash
-          ? true
-          : await hasPin(session.actor, browserAuthStoreOptions(options)).catch(() => null);
+        const hydrated = await hydrateActorAuth(session.actor, body.backupToken, options);
+        const configured = Boolean(hydrated.durable?.pinRecord);
         return res.status(200).json({ ok: true, actor: session.actor, source: session.source, pinConfigured: configured });
       }
 
