@@ -27,20 +27,35 @@ async function readCarState(options = {}) {
   return normalizeState(await cache.get(KEY));
 }
 
+async function writeCarState(value, options = {}) {
+  const state=normalizeState(value);
+  if(state.mileage==null) throw new Error('car-mileage-invalid');
+  const cache=getCarCache(options);
+  await cache.set(KEY,state,{
+    ttl:TTL_SECONDS,
+    tags:['rudi-car-state','rudi-durable-state'],
+    name:KEY,
+  });
+  return state;
+}
+
 async function writeMileage(mileage, options = {}) {
   const normalized = normalizeMileage(mileage);
   if (normalized == null) throw new Error('car-mileage-invalid');
-  const cache = getCarCache(options);
-  const state = {
-    mileage: normalized,
-    updatedAt: new Date(options.now || Date.now()).toISOString(),
-  };
-  await cache.set(KEY, state, {
-    ttl: TTL_SECONDS,
-    tags: ['rudi-car-state'],
-    name: KEY,
-  });
-  return state;
+  return writeCarState({
+    mileage:normalized,
+    updatedAt:new Date(options.now || Date.now()).toISOString(),
+  },options);
+}
+
+async function restoreCarState(value, options = {}) {
+  const incoming=normalizeState(value);
+  if(incoming.mileage==null) return readCarState(options);
+  const current=await readCarState(options);
+  const currentTime=Date.parse(String(current.updatedAt||''))||0;
+  const incomingTime=Date.parse(String(incoming.updatedAt||''))||0;
+  if(current.mileage!=null&&currentTime>=incomingTime) return current;
+  return writeCarState(incoming,options);
 }
 
 module.exports = {
@@ -50,5 +65,7 @@ module.exports = {
   normalizeMileage,
   normalizeState,
   readCarState,
+  writeCarState,
   writeMileage,
+  restoreCarState,
 };
