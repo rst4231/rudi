@@ -1578,6 +1578,19 @@
     .rudi-auth-pin:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 13%,transparent)}
     .rudi-auth-submit{border-color:transparent;background:var(--accent);color:#fff}
     .rudi-auth-submit:disabled{opacity:.55}
+    .rudi-auth-faceid{font-weight:820}
+    .rudi-auth-secondary{
+      min-height:42px;border:0;background:transparent;color:var(--muted);
+      font:inherit;font-size:13px;font-weight:700;
+    }
+    .rudi-auth-secondary:disabled{opacity:.5}
+    .rudi-auth-divider{
+      display:flex;align-items:center;gap:10px;color:var(--muted);
+      font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    }
+    .rudi-auth-divider::before,.rudi-auth-divider::after{
+      content:"";height:1px;flex:1;background:var(--line);
+    }
     .rudi-auth-status{min-height:18px;color:var(--muted);font-size:12px;font-weight:650;line-height:1.4}
 
     .profile-weather{
