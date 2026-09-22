@@ -1,3 +1,4 @@
+const fs = require('node:fs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -89,4 +90,12 @@ test('authorization prefers signed Telegram initData and falls back to browser c
   assert.equal(browser.actor, 'Диана');
   assert.equal(browser.source, 'session');
   assert.equal(browser.user, null);
+});
+
+
+test('browser auth cache does not fail successful writes on immediate cache visibility', () => {
+  const sessionSource=fs.readFileSync('api/rudi-session.cjs','utf8');
+  const passkeySource=fs.readFileSync('api/rudi-passkeys.cjs','utf8');
+  assert.match(sessionSource,/namespace: 'rudi-browser-auth-v1',[\s\S]*?confirmWrites: false/);
+  assert.match(passkeySource,/namespace: 'rudi-passkeys-v1',[\s\S]*?confirmWrites: false/);
 });
