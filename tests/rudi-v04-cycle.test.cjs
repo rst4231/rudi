@@ -6,9 +6,10 @@ const app=fs.readFileSync('public/app.js','utf8');
 const config=JSON.parse(fs.readFileSync('rudi-config.json','utf8'));
 const vercel=JSON.parse(fs.readFileSync('vercel.json','utf8'));
 
-test('Diana cycle card stays prominent, movable and persistent collapsible',()=>{
-  assert.match(html,/data-home-tile="cycle"/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','cycle','activity','new','priority','partner','daily'\]/);
+test('Diana cycle card lives in Calendar above anniversary and stays collapsible',()=>{
+  assert.match(html,/id="dianaCycleCard"[\s\S]*?data-app-tab-section="schedule"/);
+  assert.doesNotMatch(html,/id="dianaCycleCard"[^>]*data-home-tile=/);
+  assert.ok(html.indexOf('id="dianaCycleCard"') < html.indexOf('id="anniversaryCard"'));
   assert.match(app,/selector:'#dianaCycleCard',key:'diana-cycle'/);
   assert.match(app,/bodySelectors:\['#dianaCycleBody'\]/);
 });
