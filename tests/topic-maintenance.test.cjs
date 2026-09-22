@@ -127,7 +127,7 @@ test('managed sendPhoto FormData messages are recorded for future cleanup', asyn
   assert.equal(await cache.get('topic:19:chat-id'), -100123);
 });
 
-test('clients FormData media is sanitized and forwarded instead of being suppressed', async () => {
+test('clients FormData media caption is queued privately instead of forum delivery', async () => {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push({ url: String(url), init });
@@ -139,16 +139,18 @@ test('clients FormData media is sanitized and forwarded instead of being suppres
   body.set('caption', 'Старый заголовок\n\n💡 <b>Совет дня от маркетолога</b>\nПолезный совет');
   body.set('photo', new Blob([Buffer.from('fake-image')], { type: 'image/jpeg' }), 'client.jpg');
 
+  const forDiCache = fakeCache();
   const response = await handleTelegramTopicRequest(
     'https://api.telegram.org/bot1:testtoken/sendPhoto',
     { method: 'POST', body },
-    { fetchImpl },
+    { fetchImpl, forDiCache },
   );
 
   assert.equal(response.status, 200);
-  assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /sendPhoto$/);
-  assert.equal(calls[0].init.body.get('caption'), '💡 <b>Совет дня от маркетолога</b>\nПолезный совет');
+  assert.equal(calls.length, 0);
+  const queued = await forDiCache.get('for-di:messages:' + dateKeyInMoscow(new Date()));
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].text, '💡 <b>Совет дня от маркетолога</b>\nПолезный совет');
 });
 
 test('publishing in the main forum also removes the obsolete couple topic once', async () => {
