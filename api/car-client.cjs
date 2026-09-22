@@ -1,9 +1,10 @@
 const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
-const { readCarState, writeMileage } = require('./car-store.cjs');
+const { readCarState, writeMileage, restoreCarState } = require('./car-store.cjs');
 const { readToken } = require('./ticktick-store.cjs');
 const { fetchProjectData, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
+const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
 
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
 const CONFIG_TTL_MS = 5 * 60 * 1000;
@@ -299,6 +300,15 @@ async function handleCarRequest(req, res) {
   }
 
   const operation = String(body.operation || 'get');
+  let previousSnapshot=null;
+  if(body.backupToken){
+    try{
+      previousSnapshot=openSnapshot(String(body.backupToken),{});
+      if(previousSnapshot?.carState?.mileage!=null){
+        await restoreCarState(previousSnapshot.carState).catch(()=>null);
+      }
+    }catch(_){}
+  }
   try {
     if (operation === 'get') {
       const [state,tasks] = await Promise.all([readCarState(),carTasksSafe()]);
@@ -315,12 +325,14 @@ async function handleCarRequest(req, res) {
 
     if (operation === 'set-mileage') {
       const state = await writeMileage(body.mileage);
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
       return res.status(200).json({
         ok:true,
         actor:session.actor,
         visible:true,
         state,
         nextService:serviceScheduleForMileage(state.mileage),
+        backupToken,
       });
     }
 
