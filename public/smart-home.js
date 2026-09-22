@@ -17,6 +17,17 @@
     return item?.state?.value;
   }
 
+  function capability(device,type,instance){
+    return (device?.capabilities||[]).find(cap=>
+      cap?.type===type &&
+      String(cap?.state?.instance||cap?.parameters?.instance||'')===String(instance||'')
+    ) || null;
+  }
+
+  function speedLabel(value){
+    return ({fast:'Быстрый',medium:'Средний',slow:'Медленный',min:'Минимальный'})[String(value||'')] || String(value||'');
+  }
+
   async function api(operation,payload={}){
     const response=await fetch(API,{
       method:'POST',
@@ -115,8 +126,7 @@
     const next=!Boolean(cap.state.value);
     if(button.disabled)return;
     button.disabled=true;
-    const old=button.textContent;
-    button.textContent='…';
+    button.classList.add('is-busy');
 
     try{
       const result=await api('switch',{
@@ -132,9 +142,40 @@
       setStatus(device.name+' '+(next?'включён':'выключен'),'success');
       try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(_){
-      button.textContent=old;
       button.disabled=false;
+      button.classList.remove('is-busy');
       setStatus('Не удалось изменить состояние '+device.name,'error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }
+  }
+
+  async function runCapability(device,cap,value,control){
+    if(!cap||control?.disabled)return;
+    if(control){
+      control.disabled=true;
+      control.classList.add('is-busy');
+    }
+    try{
+      const result=await api('capability',{
+        deviceId:device.id,
+        deviceName:device.name,
+        capabilityType:cap.type,
+        instance:cap.state?.instance||cap.parameters?.instance,
+        value
+      });
+      if(result.status&&result.status!=='DONE') throw new Error('action-not-done');
+      if(!cap.state)cap.state={instance:cap.parameters?.instance||''};
+      cap.state.value=value;
+      renderDevices(state.data);
+      prependActivity(result.activity);
+      setStatus(device.name+': команда выполнена','success');
+      try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+    }catch(_){
+      if(control){
+        control.disabled=false;
+        control.classList.remove('is-busy');
+      }
+      setStatus('Не удалось изменить режим '+device.name,'error');
       try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }
   }
@@ -169,19 +210,33 @@
     visual.className='smart-home-device-visual';
     visual.innerHTML=deviceArt(device);
 
-    const cap=onOff(device);
-    if(cap){
+    const power=onOff(device);
+    if(power){
       const button=document.createElement('button');
       button.type='button';
-      button.className='smart-home-power-icon '+(cap.state.value?'is-on':'is-off');
-      button.setAttribute('aria-label',(cap.state.value?'Выключить ':'Включить ')+(device.name||'устройство'));
+      button.className='smart-home-power-icon '+(power.state.value?'is-on':'is-off');
+      button.setAttribute('aria-label',(power.state.value?'Выключить ':'Включить ')+(device.name||'устройство'));
       button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a7 7 0 1 0 10.8 0"/></svg>';
-      button.addEventListener('click',()=>toggleDevice(device,button,cap));
+      button.addEventListener('click',()=>toggleDevice(device,button,power));
+      visual.appendChild(button);
+    }
+
+    const pause=capability(device,'devices.capabilities.toggle','pause');
+    if(pause){
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='smart-home-pause-icon '+(pause.state?.value?'is-on':'is-off');
+      button.setAttribute('aria-label',pause.state?.value?'Продолжить уборку':'Поставить уборку на паузу');
+      button.innerHTML=pause.state?.value
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>'
+        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';
+      button.addEventListener('click',()=>runCapability(device,pause,!Boolean(pause.state?.value),button));
       visual.appendChild(button);
     }
 
     const copy=document.createElement('div');
     copy.className='smart-home-device-card-copy';
+
     const title=document.createElement('strong');
     title.textContent=device.name||'Устройство';
 
@@ -193,12 +248,41 @@
     if(Number.isFinite(Number(temp)))parts.push(Number(temp).toFixed(1)+'°C');
     if(Number.isFinite(Number(humidity)))parts.push(Math.round(Number(humidity))+'%');
     if(Number.isFinite(Number(battery)))parts.push('Батарея '+Math.round(Number(battery))+'%');
-    if(!parts.length&&cap)parts.push(cap.state.value?'Включено':'Выключено');
+    if(!parts.length&&power)parts.push(power.state.value?'Включено':'Выключено');
     if(!parts.length)parts.push('Данные');
     meta.textContent=parts.join(' · ');
 
     copy.append(title,meta);
     card.append(visual,copy);
+
+    const speed=capability(device,'devices.capabilities.mode','work_speed');
+    const modes=Array.isArray(speed?.parameters?.modes)?speed.parameters.modes:[];
+    if(speed&&modes.length){
+      const controls=document.createElement('div');
+      controls.className='smart-home-speed-control';
+
+      const label=document.createElement('span');
+      label.className='smart-home-speed-label';
+      label.textContent='Скорость';
+
+      const options=document.createElement('div');
+      options.className='smart-home-speed-options';
+
+      for(const mode of modes){
+        const value=String(mode?.value||'');
+        if(!value)continue;
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='smart-home-speed-option'+(String(speed.state?.value||'')===value?' is-active':'');
+        button.textContent=speedLabel(value);
+        button.addEventListener('click',()=>runCapability(device,speed,value,button));
+        options.appendChild(button);
+      }
+
+      controls.append(label,options);
+      card.appendChild(controls);
+    }
+
     return card;
   }
 
