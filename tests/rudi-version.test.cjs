@@ -3,13 +3,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {syncWebVersion}=require('../build.cjs');
 
-test('v1.0 is the single source for UI version and cache bust',()=>{
+test('v1.1 is the single source for UI version and cache bust',()=>{
   const config=JSON.parse(fs.readFileSync('rudi-version.json','utf8'));
-  assert.equal(config.current,'v1.0');
+  assert.equal(config.current,'v1.1');
   syncWebVersion();
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.match(html,/app\.css\?v=1\.0/);
-  assert.match(html,/calendar\.css\?v=1\.0/);
-  assert.match(html,/app\.js\?v=1\.0/);
-  assert.match(html,/>v1\.0<\/div>/);
+  assert.match(html,/app\.css\?v=1\.1/);
+  assert.match(html,/calendar\.css\?v=1\.1/);
+  assert.match(html,/app\.js\?v=1\.1/);
+  assert.match(html,/smart-home\.css\?v=1\.1/);\n  assert.match(html,/smart-home\.js\?v=1\.1/);\n  assert.match(html,/>v1\.1<\/div>/);
 });
