@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru" data-theme="dark">
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
@@ -9,18 +9,27 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>RUDI</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=1.7.5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="RUDI">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-v176.png?v=1.7.6">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-v176.jpg?v=1.7.6">
+  <link rel="manifest" href="/manifest.webmanifest?v=1.7.6">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
+      const telegramOpen = Boolean(tg?.initData);
       const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.dataset.theme = tg?.colorScheme || (dark ? 'dark' : 'light');
+      document.documentElement.dataset.theme = telegramOpen && (tg?.colorScheme === 'dark' || tg?.colorScheme === 'light')
+        ? tg.colorScheme
+        : (dark ? 'dark' : 'light');
+      document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=1.7.5">
-  <link rel="stylesheet" href="/calendar.css?v=1.7.5">
-  <link rel="stylesheet" href="/smart-home.css?v=1.7.5">
-  <link rel="stylesheet" href="/car.css?v=1.7.5">
+  <link rel="stylesheet" href="/app.css?v=1.7.6">
+  <link rel="stylesheet" href="/calendar.css?v=1.7.6">
+  <link rel="stylesheet" href="/smart-home.css?v=1.7.6">
+  <link rel="stylesheet" href="/car.css?v=1.7.6">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -260,10 +269,13 @@
 
     <section id="carTile" class="panel car-tile" data-app-tab-section="home" data-home-tile="car" aria-labelledby="carTitle" hidden>
       <div class="car-head">
-        <div>
+        <div class="car-head-copy">
           <div class="home-dashboard-label">Авто</div>
           <h2 id="carTitle">Машина</h2>
           <div class="car-model">Changan UNI‑V · 2023</div>
+        </div>
+        <div class="car-head-visual" aria-hidden="true">
+          <img src="/changan-uni-v-header.jpg?v=1.7.6" alt="">
         </div>
       </div>
 
@@ -714,7 +726,7 @@
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v1.7.5</div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v1.7.6</div>
       <div class="home-layout-actions">
         <button id="homeLayoutResetButton" class="home-layout-reset-button" type="button" hidden>Сбросить порядок</button>
         <button id="homeLayoutEditButton" class="home-layout-edit-button" type="button" aria-pressed="false">Изменить</button>
@@ -792,9 +804,9 @@
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app.js?v=1.7.5"></script>
-  <script src="/smart-home.js?v=1.7.5"></script>
-  <script src="/car.js?v=1.7.5"></script>
+  <script src="/app.js?v=1.7.6"></script>
+  <script src="/smart-home.js?v=1.7.6"></script>
+  <script src="/car.js?v=1.7.6"></script>
 <!-- deploy: ui-cleanup-20260921 -->
 </body>
 </html>

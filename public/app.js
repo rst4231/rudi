@@ -1593,14 +1593,95 @@
       };
 
       function applyTheme(){
-        const theme = tg?.colorScheme || (media.matches ? 'dark' : 'light');
-        root.dataset.theme = theme;
-        metaTheme.setAttribute('content',theme === 'dark' ? '#0b0d12' : '#f4f5f7');
+        const telegramOpen=Boolean(tg?.initData);
+        const theme=telegramOpen&&tg?.colorScheme
+          ? tg.colorScheme
+          : (media.matches?'dark':'light');
+        root.dataset.theme=theme;
+        root.style.colorScheme=theme;
+        metaTheme?.setAttribute('content',theme==='dark'?'#0b0d12':'#f4f5f7');
+        if(!telegramOpen) return;
         try{
-          tg?.setHeaderColor?.(theme === 'dark' ? '#0b0d12' : '#f4f5f7');
-          tg?.setBackgroundColor?.(theme === 'dark' ? '#0b0d12' : '#f4f5f7');
-          tg?.setBottomBarColor?.(theme === 'dark' ? '#0b0d12' : '#f4f5f7');
+          tg?.setHeaderColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
+          tg?.setBackgroundColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
+          tg?.setBottomBarColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
         }catch(_){}
+      }
+
+      function setupBrowserPullToRefresh(){
+        if(tg?.initData||!('ontouchstart' in window)) return;
+        if(document.querySelector('.pull-refresh-indicator')) return;
+
+        const indicator=document.createElement('div');
+        indicator.className='pull-refresh-indicator';
+        indicator.setAttribute('aria-hidden','true');
+        indicator.innerHTML='<span class="pull-refresh-spinner" aria-hidden="true"></span><span class="pull-refresh-label">Потяните для обновления</span>';
+        document.body.appendChild(indicator);
+
+        const label=indicator.querySelector('.pull-refresh-label');
+        const threshold=112;
+        const maxDistance=142;
+        let startY=0;
+        let distance=0;
+        let tracking=false;
+        let armed=false;
+        let refreshing=false;
+
+        const scrollTop=()=>Math.max(
+          Number(window.scrollY||0),
+          Number(document.scrollingElement?.scrollTop||0),
+          Number(document.documentElement?.scrollTop||0),
+          Number(document.body?.scrollTop||0)
+        );
+
+        const reset=()=>{
+          tracking=false;
+          armed=false;
+          distance=0;
+          indicator.classList.remove('is-visible','is-armed');
+          indicator.style.setProperty('--pull-distance','0px');
+          if(label) label.textContent='Потяните для обновления';
+        };
+
+        document.addEventListener('touchstart',event=>{
+          if(refreshing||event.touches?.length!==1||scrollTop()>0) return;
+          if(event.target?.closest?.('input,textarea,select,[contenteditable="true"]')) return;
+          startY=event.touches[0].clientY;
+          distance=0;
+          tracking=true;
+          armed=false;
+        },{passive:true});
+
+        document.addEventListener('touchmove',event=>{
+          if(!tracking||refreshing||event.touches?.length!==1) return;
+          if(scrollTop()>0){reset();return}
+          const delta=event.touches[0].clientY-startY;
+          if(delta<=0){reset();return}
+
+          const resisted=Math.min(maxDistance,Math.max(0,delta*.58));
+          distance=resisted;
+          armed=delta>=threshold;
+          indicator.style.setProperty('--pull-distance',resisted.toFixed(1)+'px');
+          indicator.classList.toggle('is-visible',delta>12);
+          indicator.classList.toggle('is-armed',armed);
+          if(label) label.textContent=armed?'Отпустите для обновления':'Потяните для обновления';
+          if(delta>14) event.preventDefault();
+        },{passive:false});
+
+        const finish=()=>{
+          if(!tracking||refreshing) return;
+          if(!armed){reset();return}
+          tracking=false;
+          refreshing=true;
+          indicator.classList.add('is-visible','is-refreshing');
+          indicator.classList.remove('is-armed');
+          indicator.style.setProperty('--pull-distance','72px');
+          if(label) label.textContent='Обновляю…';
+          setTimeout(()=>window.location.reload(),180);
+        };
+
+        document.addEventListener('touchend',finish,{passive:true});
+        document.addEventListener('touchcancel',()=>{if(!refreshing) reset()},{passive:true});
       }
 
       function updateTelegramSafeArea(){
@@ -2171,6 +2252,7 @@
       },{passive:false});
 
       applyTheme();
+      setupBrowserPullToRefresh();
       tg?.ready?.();
       tg?.expand?.();
       updateTelegramSafeArea();
@@ -2181,7 +2263,9 @@
       tg?.onEvent?.('contentSafeAreaChanged',()=>{updateTelegramSafeArea();setTimeout(()=>ensureAppSurface(),0)});
       tg?.onEvent?.('viewportChanged',()=>setTimeout(()=>ensureAppSurface(),0));
       tg?.onEvent?.('fullscreenChanged',()=>setTimeout(()=>ensureAppSurface(),0));
-      media.addEventListener?.('change',()=>{if(!tg?.initData) applyTheme()});
+      const handleSystemThemeChange=()=>{if(!tg?.initData) applyTheme()};
+      if(typeof media.addEventListener==='function') media.addEventListener('change',handleSystemThemeChange);
+      else media.addListener?.(handleSystemThemeChange);
 
       const user = tg?.initDataUnsafe?.user;
       const displayName = document.getElementById('displayName');
