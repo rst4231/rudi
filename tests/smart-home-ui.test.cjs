@@ -11,7 +11,7 @@ const client=fs.readFileSync('api/smart-home-client.cjs','utf8');
 
 test('smart home is movable and persistently collapsible',()=>{
   assert.match(html,/id="smartHomeTile"[^>]*data-app-tab-section="home"[^>]*data-home-tile="smart-home"/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','activity'\]/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','car','activity'\]/);
   assert.match(app,/return 'rudi-home-layout-v3-'\+actor/);
   assert.match(app,/selector:'#smartHomeTile',key:'smart-home'/);
   assert.match(app,/hostSelector:'\.smart-home-head'/);
@@ -84,4 +84,13 @@ test('daily cards replace the Feed hero and are never collapsible',()=>{
 test('Diana cycle lives in Calendar above anniversary',()=>{
   assert.match(html,/id="dianaCycleCard"[^>]*data-app-tab-section="schedule"/);
   assert.ok(html.indexOf('id="dianaCycleCard"')<html.indexOf('id="anniversaryCard"'));
+});
+
+
+test('car tile follows smart home and uses the same movable collapsible system',()=>{
+  assert.match(html,/id="carTile"[^>]*data-app-tab-section="home"[^>]*data-home-tile="car"/);
+  assert.match(app,/selector:'#carTile',key:'car'/);
+  assert.match(app,/bodySelectors:\['#carBody'\]/);
+  assert.match(app,/hostSelector:'\.car-head'/);
+  assert.match(app,/requested\.splice\(smartIndex\+1,0,'car'\)/);
 });
