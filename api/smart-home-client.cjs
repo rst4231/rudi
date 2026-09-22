@@ -3,7 +3,6 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession } = require('./rudi-session.cjs');
 const { appendActivity } = require('./activity-journal-store.cjs');
-const { markVacuumManualAction } = require('./vacuum-watch-store.cjs');
 
 const BASE = 'https://api.iot.yandex.net/v1.0';
 const CACHE_MS = 30000;
@@ -80,7 +79,6 @@ function cap(c) {
     type:String(c?.type || ''),
     parameters:c?.parameters && typeof c.parameters === 'object' ? c.parameters : {},
     state:c?.state && typeof c.state === 'object' ? c.state : null,
-    lastUpdated:Number(c?.last_updated || 0),
   };
 }
 
@@ -89,7 +87,6 @@ function prop(p) {
     type:String(p?.type || ''),
     parameters:p?.parameters && typeof p.parameters === 'object' ? p.parameters : {},
     state:p?.state && typeof p.state === 'object' ? p.state : null,
-    lastUpdated:Number(p?.last_updated || 0),
   };
 }
 
@@ -104,7 +101,7 @@ function normalize(data) {
     })),
     devices:(Array.isArray(data?.devices)?data.devices:[]).map(x => ({
       id:String(x?.id||''), name:String(x?.name||''), type:String(x?.type||''),
-      state:String(x?.state||''), room:String(x?.room||''), householdId:String(x?.household_id||''),
+      room:String(x?.room||''), householdId:String(x?.household_id||''),
       capabilities:(Array.isArray(x?.capabilities)?x.capabilities:[]).map(cap),
       properties:(Array.isArray(x?.properties)?x.properties:[]).map(prop),
     })),
@@ -129,23 +126,6 @@ function cleanId(value, name) {
 
 function cleanName(value) {
   return String(value || '').replace(/\s+/g,' ').trim().slice(0,80);
-}
-
-function isVacuumName(value) {
-  return /пылесос|vacuum/i.test(String(value || ''));
-}
-
-async function deviceStatus(value) {
-  const deviceId = cleanId(value, 'device-id');
-  const data = await yandex('/devices/' + encodeURIComponent(deviceId));
-  return {
-    id:String(data?.id || deviceId),
-    name:String(data?.name || ''),
-    type:String(data?.type || ''),
-    state:String(data?.state || ''),
-    capabilities:(Array.isArray(data?.capabilities) ? data.capabilities : []).map(cap),
-    properties:(Array.isArray(data?.properties) ? data.properties : []).map(prop),
-  };
 }
 
 async function handleSmartHomeRequest(req, res) {
@@ -190,9 +170,6 @@ async function handleSmartHomeRequest(req, res) {
       let activity = null;
 
       if (actionStatus === 'DONE') {
-        if (isVacuumName(deviceName)) {
-          await markVacuumManualAction({ now:Date.now(), source:'switch' }).catch(error => console.warn('RUDI_VACUUM_MANUAL_MARK_WARN', String(error?.message || error)));
-        }
         cache = null;
         cacheAt = 0;
         const verb = session.actor === 'Диана'
@@ -248,9 +225,6 @@ async function handleSmartHomeRequest(req, res) {
       let activity = null;
 
       if (actionStatus === 'DONE') {
-        if (isVacuumName(deviceName)) {
-          await markVacuumManualAction({ now:Date.now(), source:'capability' }).catch(error => console.warn('RUDI_VACUUM_MANUAL_MARK_WARN', String(error?.message || error)));
-        }
         cache = null;
         cacheAt = 0;
         const female = session.actor === 'Диана';
@@ -284,12 +258,7 @@ async function handleSmartHomeRequest(req, res) {
         return res.status(403).json({ok:false,error:'smart-home-scenarios-forbidden'});
       }
       const scenarioId = cleanId(body.scenarioId,'scenario-id');
-      const snapshot = await home();
-      const scenario = (snapshot.scenarios || []).find(item => item.id === scenarioId);
       const result = await yandex('/scenarios/' + encodeURIComponent(scenarioId) + '/actions',{method:'POST'});
-      if (/уборк|пылесос|clean/i.test(String(scenario?.name || ''))) {
-        await markVacuumManualAction({ now:Date.now(), source:'scenario' }).catch(error => console.warn('RUDI_VACUUM_MANUAL_MARK_WARN', String(error?.message || error)));
-      }
       cache = null;
       cacheAt = 0;
       return res.status(200).json({ok:true,requestId:String(result?.request_id || '')});
@@ -302,4 +271,4 @@ async function handleSmartHomeRequest(req, res) {
   }
 }
 
-module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home, readSmartHomeDeviceStatus: deviceStatus };
+module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home };
