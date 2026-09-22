@@ -167,11 +167,11 @@ async function registrationOptions(req, actor, options = {}) {
     attestationType: 'none',
     excludeCredentials: existing.map(row => ({ id: row.id, transports: row.transports })),
     authenticatorSelection: {
-      authenticatorAttachment: 'platform',
-      residentKey: 'required',
-      userVerification: 'required',
+      residentKey: 'preferred',
+      userVerification: 'preferred',
     },
-    supportedAlgorithmIDs: [-7, -257],
+    preferredAuthenticatorType: 'localDevice',
+    supportedAlgorithmIDs: [-8, -7, -257],
   });
   await saveChallenge('register', safeActor, result.challenge, rp, options);
   return result;
