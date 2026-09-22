@@ -354,6 +354,14 @@ function buildMorningSummary(actor, data = {}) {
     blocks.push(workDayBlock(data.workDay));
   }
 
+  const environment = environmentBlock(data);
+  if (environment) blocks.push(environment);
+
+  if (actor === 'Рустам') {
+    const car = rustamCarBlock(data);
+    if (car) blocks.push(car);
+  }
+
   if (data.tasks === null) {
     blocks.push('📅 <b>Дела</b>\nНе удалось проверить TickTick.');
   } else {
@@ -477,6 +485,8 @@ async function collectMorningData(options = {}) {
     wishlist,
     products,
     feed,
+    environment,
+    carTasksToday,
   ] = await Promise.all([
     loadTodayTasks({ ...options, now }),
     loadDianaWorkDay({ ...options, now }),
@@ -486,6 +496,8 @@ async function collectMorningData(options = {}) {
     (options.readWishlistImpl || readWishlist)(options).catch(() => ({ items: [] })),
     (options.readProductsImpl || readProductList)(options).catch(() => ({ items: [] })),
     (options.readFeedImpl || readFeedSnapshot)({ ...options, now }).catch(() => ({ sections: {} })),
+    loadEnvironmentSnapshot({ ...options, now }).catch(() => ({ home:null, weather:null })),
+    loadTodayCarTasks({ ...options, now }).catch(() => []),
   ]);
 
   return {
@@ -500,6 +512,8 @@ async function collectMorningData(options = {}) {
     wishlistItems: wishlist?.items || [],
     productCount: Array.isArray(products?.items) ? products.items.length : 0,
     feedLines: feedSummaryLines(feed, date),
+    environment: environment || {home:null,weather:null},
+    carTasksToday: Array.isArray(carTasksToday) ? carTasksToday : [],
   };
 }
 
@@ -564,6 +578,12 @@ module.exports = {
   wishlistLines,
   messageIsNewForActor,
   workDayBlock,
+  homeClimateFromSnapshot,
+  tyreAdviceForWeather,
+  environmentBlock,
+  rustamCarBlock,
+  loadEnvironmentSnapshot,
+  loadTodayCarTasks,
   buildMorningSummary,
   loadTodayTasks,
   loadDianaWorkDay,
