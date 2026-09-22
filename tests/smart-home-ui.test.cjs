@@ -94,3 +94,20 @@ test('car tile follows smart home and uses the same movable collapsible system',
   assert.match(app,/hostSelector:'\.car-head'/);
   assert.match(app,/requested\.splice\(smartIndex\+1,0,'car'\)/);
 });
+
+
+test('smart home climate and devices have distinct SVG artwork',()=>{
+  assert.match(html,/class="smart-home-climate-card is-weather"/);
+  assert.match(html,/class="smart-home-climate-card is-temperature"/);
+  assert.match(html,/class="smart-home-climate-card is-humidity"/);
+  assert.match(html,/class="smart-home-climate-icon"/);
+  assert.match(smart,/smart-home-device-svg is-vacuum/);
+  assert.match(smart,/smart-home-device-svg is-camera/);
+  assert.match(smart,/smart-home-device-svg is-socket/);
+  assert.match(smart,/smart-home-device-svg is-light/);
+  assert.match(smart,/smart-home-device-svg is-sensor/);
+  assert.match(smartCss,/\.smart-home-tile::before/);
+  assert.match(smartCss,/\.smart-home-climate-card\.is-weather/);
+  assert.match(smartCss,/\.smart-home-climate-card\.is-temperature/);
+  assert.match(smartCss,/\.smart-home-climate-card\.is-humidity/);
+});
