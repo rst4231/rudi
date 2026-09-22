@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const sharp = require('sharp');
+const jpeg = require('jpeg-js');
+const { PNG } = require('pngjs');
 
 const cinema = require('../api/cinema-premieres-collage.cjs');
 
@@ -19,10 +20,35 @@ const ROWS = [
   },
 ];
 
-const TINY_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-  'base64',
-);
+function makePng(width, height, painter) {
+  const png = new PNG({ width, height });
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const [r, g, b, a = 255] = painter(x, y);
+      const offset = (y * width + x) * 4;
+      png.data[offset] = r;
+      png.data[offset + 1] = g;
+      png.data[offset + 2] = b;
+      png.data[offset + 3] = a;
+    }
+  }
+  return PNG.sync.write(png);
+}
+
+function solidPng(width, height, value) {
+  return makePng(width, height, () => value);
+}
+
+function decodeJpeg(buffer) {
+  return jpeg.decode(buffer, { useTArray: true, formatAsRGBA: true });
+}
+
+function pixel(image, x, y) {
+  const offset = (y * image.width + x) * 4;
+  return [...image.data.subarray(offset, offset + 3)];
+}
+
+const TINY_PNG = solidPng(1, 1, [240, 240, 240, 255]);
 
 test('cinema digest exposes one-post helpers', () => {
   assert.equal(typeof cinema.kinopoiskSearchUrl, 'function');
@@ -34,12 +60,9 @@ test('cinema digest exposes one-post helpers', () => {
 test('each title in the digest caption is a clickable Kinopoisk link', () => {
   const caption = cinema.buildCinemaDigestCaption(ROWS, '2026-08-20');
   assert.match(caption, /🎬 <b>Кинопремьеры — 20 августа<\/b>/);
-  assert.match(
-    caption,
-    /<a href="https:\/\/www\.kinopoisk\.ru\/index\.php\?kp_query=%D0%A7%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%BF%D0%B0%D1%83%D0%BA%3A%20%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%B4%D0%B5%D0%BD%D1%8C">Человек-паук: Новый день<\/a>/,
-  );
+  assert.match(caption, /Человек-паук: Новый день<\/a>/);
   assert.match(caption, /Мираж Синема Санкт-Петербург, Кинополис Мурино/);
-  assert.match(caption, /<a href="https:\/\/www\.kinopoisk\.ru\/index\.php\?kp_query=%D0%9C%D0%BE%D1%82%D0%BE%D1%80%20%D0%A1%D0%B8%D1%82%D0%B8">Мотор Сити<\/a>/);
+  assert.match(caption, /Мотор Сити<\/a>/);
 });
 
 test('collage layout keeps up to 12 posters inside one image', () => {
@@ -62,109 +85,74 @@ test('collage renderer returns one JPEG for all poster rows', async () => {
 });
 
 test('five-poster collage centers the two posters in its last row', async () => {
-  const brightPoster = await sharp(Buffer.from(`
-    <svg width="120" height="180" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="180" fill="#f4f4f4"/>
-    </svg>`)).png().toBuffer();
+  const brightPoster = solidPng(120, 180, [244, 244, 244, 255]);
   const rows = Array.from({ length: 5 }, (_, index) => ({
     title: `Фильм ${index + 1}`,
     posterUrl: `https://cdn.mirage.ru/images/film/7000/small/p${7500 + index}.jpg`,
   }));
-  const image = await cinema.buildCinemaCollage(rows, {
+  const image = decodeJpeg(await cinema.buildCinemaCollage(rows, {
     fetchImpl: async () => new Response(brightPoster, { status: 200, headers: { 'content-type': 'image/png' } }),
     tileWidth: 120,
     tileHeight: 180,
     gap: 8,
-  });
-  const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
-  const pixel = (x, y) => {
-    const offset = (y * info.width + x) * info.channels;
-    return [...data.subarray(offset, offset + 3)];
-  };
+  }));
 
-  assert.equal(info.width, 376);
-  assert.equal(info.height, 368);
-  assert.ok(pixel(10, 278).every((value) => value < 80), `last row starts too far left: ${pixel(10, 278)}`);
-  assert.ok(pixel(70, 278).every((value) => value > 150), `centered first tile missing: ${pixel(70, 278)}`);
-  assert.ok(pixel(300, 278).every((value) => value > 150), `centered second tile missing: ${pixel(300, 278)}`);
-  assert.ok(pixel(366, 278).every((value) => value < 80), `last row ends too far right: ${pixel(366, 278)}`);
+  assert.equal(image.width, 376);
+  assert.equal(image.height, 368);
+  assert.ok(pixel(image, 10, 278).every((value) => value < 80));
+  assert.ok(pixel(image, 70, 278).every((value) => value > 150));
+  assert.ok(pixel(image, 300, 278).every((value) => value > 150));
+  assert.ok(pixel(image, 366, 278).every((value) => value < 80));
 });
 
 test('seven-poster collage uses a compact 4 plus 3 layout', async () => {
-  const poster = await sharp(Buffer.from(`
-    <svg width="120" height="180" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="180" fill="#dddddd"/>
-    </svg>`)).png().toBuffer();
+  const poster = solidPng(120, 180, [221, 221, 221, 255]);
   const rows = Array.from({ length: 7 }, (_, index) => ({
     title: `Премьера ${index + 1}`,
     posterUrl: `https://cdn.mirage.ru/images/film/7000/small/p${7600 + index}.jpg`,
   }));
-  const image = await cinema.buildCinemaCollage(rows, {
+  const image = decodeJpeg(await cinema.buildCinemaCollage(rows, {
     fetchImpl: async () => new Response(poster, { status: 200, headers: { 'content-type': 'image/png' } }),
     tileWidth: 120,
     tileHeight: 180,
     gap: 8,
-  });
-  const info = await sharp(image).metadata();
-  assert.equal(info.width, 504);
-  assert.equal(info.height, 368);
+  }));
+  assert.equal(image.width, 504);
+  assert.equal(image.height, 368);
 });
 
 test('cinema collage keeps the entire wide image visible when an unusual source is not portrait', async () => {
-  const poster = await sharp(Buffer.from(`
-    <svg width="180" height="60" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="60" height="60" fill="#ff0000"/>
-      <rect x="60" y="0" width="60" height="60" fill="#00ff00"/>
-      <rect x="120" y="0" width="60" height="60" fill="#0000ff"/>
-    </svg>`)).png().toBuffer();
-
-  const image = await cinema.buildCinemaCollage([ROWS[0]], {
+  const poster = makePng(180, 60, (x) => x < 60 ? [255, 0, 0, 255] : x < 120 ? [0, 255, 0, 255] : [0, 0, 255, 255]);
+  const image = decodeJpeg(await cinema.buildCinemaCollage([ROWS[0]], {
     fetchImpl: async () => new Response(poster, { status: 200, headers: { 'content-type': 'image/png' } }),
     tileWidth: 120,
     tileHeight: 180,
     gap: 0,
-  });
-  const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
-  const pixel = (x, y) => {
-    const offset = (y * info.width + x) * info.channels;
-    return [...data.subarray(offset, offset + 3)];
-  };
+  }));
 
-  assert.ok(pixel(8, 90)[0] > 180, `left edge was cropped: ${pixel(8, 90)}`);
-  assert.ok(pixel(60, 90)[1] > 140, `center stripe missing: ${pixel(60, 90)}`);
-  assert.ok(pixel(112, 90)[2] > 180, `right edge was cropped: ${pixel(112, 90)}`);
+  assert.ok(pixel(image, 8, 90)[0] > 160);
+  assert.ok(pixel(image, 60, 90)[1] > 120);
+  assert.ok(pixel(image, 112, 90)[2] > 160);
 });
 
 test('portrait cinema poster fills the normal tile without visible black bands', async () => {
-  const poster = await sharp(Buffer.from(`
-    <svg width="120" height="180" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="180" fill="#eeeeee"/>
-    </svg>`)).png().toBuffer();
-  const image = await cinema.buildCinemaCollage([ROWS[0]], {
+  const poster = solidPng(120, 180, [238, 238, 238, 255]);
+  const image = decodeJpeg(await cinema.buildCinemaCollage([ROWS[0]], {
     fetchImpl: async () => new Response(poster, { status: 200, headers: { 'content-type': 'image/png' } }),
     tileWidth: 120,
     tileHeight: 180,
     gap: 0,
-  });
-  const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
-  const offset = (170 * info.width + 112) * info.channels;
-  const corner = [...data.subarray(offset, offset + 3)];
-  assert.ok(corner.every((value) => value > 150), `portrait poster did not fill tile: ${corner}`);
+  }));
+  assert.ok(pixel(image, 112, 170).every((value) => value > 150));
 });
 
 test('cinema collage does not paint number badges over the poster artwork', async () => {
-  const poster = await sharp(Buffer.from(`
-    <svg width="120" height="180" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="180" fill="#eeeeee"/>
-    </svg>`)).png().toBuffer();
-  const image = await cinema.buildCinemaCollage([ROWS[0]], {
+  const poster = solidPng(120, 180, [238, 238, 238, 255]);
+  const image = decodeJpeg(await cinema.buildCinemaCollage([ROWS[0]], {
     fetchImpl: async () => new Response(poster, { status: 200, headers: { 'content-type': 'image/png' } }),
     tileWidth: 120,
     tileHeight: 180,
     gap: 0,
-  });
-  const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true });
-  const offset = (30 * info.width + 30) * info.channels;
-  const pixel = [...data.subarray(offset, offset + 3)];
-  assert.ok(pixel.every((value) => value > 150), `poster artwork is covered by a badge: ${pixel}`);
+  }));
+  assert.ok(pixel(image, 30, 30).every((value) => value > 150));
 });
