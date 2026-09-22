@@ -2,7 +2,7 @@ name: Verify RUDI
 
 on:
   push:
-    branches: [main, rudi-smart-home-compact-20260922]
+    branches: [main]
     paths:
       - 'runtime/**'
       - 'api/**'
