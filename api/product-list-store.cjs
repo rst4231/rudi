@@ -215,6 +215,9 @@ async function initializeFromLegacy(options = {}) {
     });
     if (items.length >= MAX_ACTIVE) break;
   }
+  // Do not turn a cache miss with no legacy data into a fresh, initialized empty list.
+  // A fresh empty version can incorrectly outrank a valid encrypted backup during recovery.
+  if (!items.length) return current;
   return writeState({ ...current, items }, options);
 }
 
