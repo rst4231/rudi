@@ -1393,7 +1393,7 @@ async function handleRudiAction(req, res, action, options = {}) {
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
         } else if (user?.id) {
-          await saveRecipient(actor, user.id, {
+          await saveRecipient(actor, user?.id, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
@@ -1493,7 +1493,7 @@ async function handleRudiAction(req, res, action, options = {}) {
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
         } else if (user?.id) {
-          await saveRecipient(actor, user.id, {
+          await saveRecipient(actor, user?.id, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
