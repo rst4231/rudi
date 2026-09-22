@@ -3,7 +3,7 @@ const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
-const { authorizeWithSession, setSessionCookie, clearSessionCookie, hasPin, savePin, verifyPin, restorePinRecord } = require('./rudi-session.cjs');
+const { authorizeWithSession, setSessionCookie, clearSessionCookie, savePin, verifyPin, restorePinRecord } = require('./rudi-session.cjs');
 const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication, restorePasskeys, readPasskeys } = require('./rudi-passkeys.cjs');
 const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveDurablePasskeys } = require('./rudi-auth-db.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
@@ -241,34 +241,6 @@ async function hydrateAllDurablePasskeys(backupToken, options = {}) {
     result[actor] = await hydrateActorAuth(actor, backupToken, options);
   }
   return result;
-}
-
-async function restoreBrowserAuthFromBackup(actor, backupToken, options = {}) {
-  const snapshot = backupSnapshotFromToken(backupToken, options);
-  if (!snapshot) return null;
-  const storeOptions = browserAuthStoreOptions(options);
-  const pin = snapshot.browserAuth?.pins?.[actor] || null;
-  if (pin?.salt && pin?.hash) {
-    await restorePinRecord(actor, pin, storeOptions).catch(() => null);
-  }
-  const passkeys = Array.isArray(snapshot.browserAuth?.passkeys?.[actor])
-    ? snapshot.browserAuth.passkeys[actor]
-    : [];
-  if (passkeys.length) await restorePasskeys(actor, passkeys, storeOptions).catch(() => null);
-  return snapshot;
-}
-
-async function restoreAllPasskeysFromBackup(backupToken, options = {}) {
-  const snapshot = backupSnapshotFromToken(backupToken, options);
-  if (!snapshot) return null;
-  const storeOptions = browserAuthStoreOptions(options);
-  for (const actor of ['Рустам','Диана']) {
-    const passkeys = Array.isArray(snapshot.browserAuth?.passkeys?.[actor])
-      ? snapshot.browserAuth.passkeys[actor]
-      : [];
-    if (passkeys.length) await restorePasskeys(actor, passkeys, storeOptions).catch(() => null);
-  }
-  return snapshot;
 }
 
 function backupSnapshotWithPin(snapshot, actor, record) {
