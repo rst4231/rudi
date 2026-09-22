@@ -54,6 +54,7 @@ function parsePayload(init = {}) {
     try { return JSON.parse(init.body); } catch { return null; }
   }
   if (init.body instanceof URLSearchParams) return Object.fromEntries(init.body.entries());
+  if (typeof FormData !== 'undefined' && init.body instanceof FormData) return Object.fromEntries(init.body.entries());
   return null;
 }
 
