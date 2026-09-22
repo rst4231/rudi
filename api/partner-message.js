@@ -225,6 +225,21 @@ async function restoreAllPasskeysFromBackup(backupToken, options = {}) {
   return snapshot;
 }
 
+function backupSnapshotWithPin(snapshot, actor, record) {
+  const base = snapshot && typeof snapshot === 'object' ? snapshot : {};
+  const pins = {
+    ...(base.browserAuth?.pins || {}),
+    [actor]: record,
+  };
+  return {
+    ...base,
+    browserAuth: {
+      ...(base.browserAuth || {}),
+      pins,
+    },
+  };
+}
+
 async function sendPartnerMessageNotification(actor, options = {}) {
   const recipients = await readRecipients(options);
   const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
@@ -1386,11 +1401,15 @@ async function handleRudiAction(req, res, action, options = {}) {
     const botToken = options.botToken || resolveTelegramBotToken(options.env || process.env);
     try {
       if (operation === 'login') {
-        await restoreBrowserAuthFromBackup(String(body.actor || ''), body.backupToken, options);
-        const verified = await verifyPin(req, body.actor, body.pin, browserAuthStoreOptions(options));
+        const previousSnapshot = await restoreBrowserAuthFromBackup(String(body.actor || ''), body.backupToken, options)
+          || backupSnapshotFromToken(body.backupToken, options);
+        const pinRecord = previousSnapshot?.browserAuth?.pins?.[String(body.actor || '')] || null;
+        const verified = await verifyPin(req, body.actor, body.pin, { ...browserAuthStoreOptions(options), pinRecord });
         setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
-        const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-        const backupToken = await createStateBackup({ ...options, previousSnapshot });
+        const backupToken = await createStateBackup({
+          ...options,
+          previousSnapshot: backupSnapshotWithPin(previousSnapshot, verified.actor, verified.record),
+        });
         return res.status(200).json({ ok: true, actor: verified.actor, source: 'pin', backupToken });
       }
 
@@ -1405,14 +1424,20 @@ async function handleRudiAction(req, res, action, options = {}) {
           || backupSnapshotFromToken(body.backupToken, options);
         const result = await savePin(telegram.actor, body.pin, browserAuthStoreOptions(options));
         setSessionCookie(res, telegram.actor, botToken, { now: options.now || Date.now() });
-        const backupToken = await createStateBackup({ ...options, previousSnapshot });
+        const backupToken = await createStateBackup({
+          ...options,
+          previousSnapshot: backupSnapshotWithPin(previousSnapshot, telegram.actor, result.record),
+        });
         return res.status(200).json({ ok: true, actor: telegram.actor, configured: true, updatedAt: result.updatedAt, backupToken });
       }
 
       if (operation === 'status') {
         const session = authorizeRequest(req, body.initData, options);
-        await restoreBrowserAuthFromBackup(session.actor, body.backupToken, options);
-        const configured = await hasPin(session.actor, browserAuthStoreOptions(options)).catch(() => null);
+        const snapshot = await restoreBrowserAuthFromBackup(session.actor, body.backupToken, options);
+        const backupPin = snapshot?.browserAuth?.pins?.[session.actor];
+        const configured = backupPin?.salt && backupPin?.hash
+          ? true
+          : await hasPin(session.actor, browserAuthStoreOptions(options)).catch(() => null);
         return res.status(200).json({ ok: true, actor: session.actor, source: session.source, pinConfigured: configured });
       }
 
