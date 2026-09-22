@@ -22,6 +22,7 @@ const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
+const handleRudiJwks = require('./rudi-jwks.cjs');
 const { handleSmartHomeRequest } = require('./smart-home-client.cjs');
 const { handleCarRequest } = require('./car-client.cjs');
 const {
@@ -115,6 +116,7 @@ async function publishDailyLaborArticle() {
 
 async function handler(req, res) {
   try {
+    if (req.query?.route === 'rudi-jwks') return handleRudiJwks(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
     if (req.query?.route === 'car') return handleCarRequest(req, res);
     if (req.query?.route === 'telegram') {
