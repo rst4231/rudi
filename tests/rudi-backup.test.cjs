@@ -64,9 +64,10 @@ test('cache miss does not create a newer initialized empty product list', () => 
 
 test('client completes bootstrap and final home layout before exposing the app shell', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.css'), 'utf8');
   assert.match(source, /currentActor=String\(payload\.actor\|\|''\);\s*await loadAppBootstrap\(\);\s*return true;/);
   assert.match(source, /setupProfileSplit\(\);\s*setupHomeLayoutEditor\(\);\s*setupPersistentCollapsibles\(\);[\s\S]*?ensureAppSurface\(\{restoreTab:true\}\)/);
-  assert.match(source, /body\.auth-pending \.shell,body\.auth-denied \.shell\{[\s\S]*?visibility:hidden/);
+  assert.match(css, /body\.auth-pending \.shell,body\.auth-denied \.shell\{[\s\S]*?visibility:hidden/);
   assert.doesNotMatch(source, /setTimeout\(\(\)=>loadAppBootstrap\(\),0\)/);
 });
 
