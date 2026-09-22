@@ -6262,9 +6262,16 @@
         }
       }
 
+      function applyActorVisibility(){
+        document.body.dataset.rudiActor=currentActor;
+        if(currentActor==='Рустам') return;
+        document.getElementById('carTile')?.remove();
+      }
+
       async function init(){
         const allowed=await authenticateApp();
         if(!allowed) return;
+        applyActorVisibility();
         applySessionIdentity();
         setupProfileSplit();
         setupHomeLayoutEditor();
