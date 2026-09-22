@@ -15,6 +15,8 @@ const {
 } = require('./ticktick-client.cjs');
 const { readFeedSnapshot, moscowDateKey } = require('./feed-store.cjs');
 const { telegramSendMessage, escapeTelegramHtml } = require('./telegram-notifications.cjs');
+const { readSmartHomeSnapshot } = require('./smart-home-client.cjs');
+const { loadCarTasks } = require('./car-client.cjs');
 
 const NAMESPACE = 'rudi-morning-summary-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -201,6 +203,145 @@ function workDayBlock(workDay) {
     ? '\nСмена: ' + escapeTelegramHtml(event.startTime) + '–' + escapeTelegramHtml(event.endTime)
     : '';
   return '💼 <b>Сегодня рабочий день</b>' + range;
+}
+
+function smartHomeProperty(device, instance) {
+  const item = (Array.isArray(device?.properties) ? device.properties : [])
+    .find((row) => String(row?.parameters?.instance || '') === String(instance || ''));
+  return item?.state?.value;
+}
+
+function homeClimateFromSnapshot(snapshot) {
+  const device = (Array.isArray(snapshot?.devices) ? snapshot.devices : []).find((row) =>
+    Number.isFinite(Number(smartHomeProperty(row, 'temperature')))
+    || Number.isFinite(Number(smartHomeProperty(row, 'humidity')))
+  );
+  if (!device) return null;
+  const temperature = Number(smartHomeProperty(device, 'temperature'));
+  const humidity = Number(smartHomeProperty(device, 'humidity'));
+  return {
+    temperature: Number.isFinite(temperature) ? temperature : null,
+    humidity: Number.isFinite(humidity) ? humidity : null,
+  };
+}
+
+function weatherCodeLabel(code) {
+  const labels = {
+    0:'ясно',1:'в основном ясно',2:'облачно',3:'пасмурно',
+    45:'туман',48:'туман',51:'морось',53:'морось',55:'морось',
+    61:'дождь',63:'дождь',65:'сильный дождь',
+    71:'снег',73:'снег',75:'сильный снег',
+    80:'ливень',81:'ливень',82:'сильный ливень',95:'гроза',
+  };
+  return labels[Number(code)] || '';
+}
+
+function tyreAdviceForWeather(weather) {
+  if (!weather) return '';
+  const avg = Number(weather.avgMean);
+  const min = Number(weather.minForecast);
+
+  if (Number.isFinite(min) && min <= 0) {
+    return 'В прогнозе есть заморозки — если стоят летние шины, пора планировать переход на зимние.';
+  }
+  if (Number.isFinite(avg) && avg <= 7) {
+    return 'Средняя температура на неделе около +7°C или ниже — пора планировать зимние шины.';
+  }
+  if (Number.isFinite(avg) && avg >= 10 && Number.isFinite(min) && min > 5) {
+    return 'Температура устойчиво выше +7°C — по погоде условия подходят для летних шин.';
+  }
+  return 'Температура пограничная — с переобувкой лучше ориентироваться на устойчивые значения выше или ниже +7°C.';
+}
+
+async function loadEnvironmentSnapshot(options = {}) {
+  if (typeof options.loadEnvironmentImpl === 'function') {
+    return options.loadEnvironmentImpl(options);
+  }
+
+  const homePromise = (options.readSmartHomeImpl || readSmartHomeSnapshot)(false)
+    .then(homeClimateFromSnapshot)
+    .catch((error) => {
+      console.warn('RUDI_MORNING_SMART_HOME_WARN', String(error?.message || error));
+      return null;
+    });
+
+  const weatherPromise = (async () => {
+    try {
+      const fetchImpl = options.weatherFetchImpl || globalThis.fetch;
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code&daily=temperature_2m_min,temperature_2m_max&forecast_days=7&timezone=Europe%2FMoscow';
+      const response = await fetchImpl(url, { cache:'no-store' });
+      if (!response.ok) throw new Error('weather-http-' + response.status);
+      const data = await response.json();
+      const mins = (data.daily?.temperature_2m_min || []).map(Number).filter(Number.isFinite);
+      const maxs = (data.daily?.temperature_2m_max || []).map(Number).filter(Number.isFinite);
+      const means = mins.map((min,index) => (min + Number(maxs[index])) / 2).filter(Number.isFinite);
+      const temperature = Number(data.current?.temperature_2m);
+      return {
+        temperature: Number.isFinite(temperature) ? temperature : null,
+        code: Number(data.current?.weather_code),
+        minForecast: mins.length ? Math.min(...mins) : null,
+        maxForecast: maxs.length ? Math.max(...maxs) : null,
+        avgMean: means.length ? means.reduce((a,b)=>a+b,0) / means.length : null,
+      };
+    } catch (error) {
+      console.warn('RUDI_MORNING_WEATHER_WARN', String(error?.message || error));
+      return null;
+    }
+  })();
+
+  const [home,weather] = await Promise.all([homePromise,weatherPromise]);
+  return { home, weather };
+}
+
+async function loadTodayCarTasks(options = {}) {
+  if (typeof options.loadCarTasksImpl === 'function') {
+    return options.loadCarTasksImpl(options);
+  }
+  try {
+    const result = await loadCarTasks({ now:options.now || new Date() });
+    return (Array.isArray(result?.tasks) ? result.tasks : []).filter((task) => task?.timing === 'today');
+  } catch (error) {
+    console.warn('RUDI_MORNING_CAR_TASKS_WARN', String(error?.message || error));
+    return [];
+  }
+}
+
+function environmentBlock(data = {}) {
+  const home = data.environment?.home || null;
+  const weather = data.environment?.weather || null;
+  const lines = [];
+
+  if (home && (home.temperature != null || home.humidity != null)) {
+    const parts = [];
+    if (home.temperature != null) parts.push(Number(home.temperature).toFixed(1) + '°C');
+    if (home.humidity != null) parts.push('влажность ' + Math.round(Number(home.humidity)) + '%');
+    if (parts.length) lines.push('Дома: ' + parts.join(' · '));
+  }
+
+  if (weather?.temperature != null) {
+    const condition = weatherCodeLabel(weather.code);
+    lines.push('На улице: ' + Math.round(Number(weather.temperature)) + '°C' + (condition ? ' · ' + condition : ''));
+  }
+
+  return lines.length ? '🌡 <b>Дом и погода</b>\n' + lines.map(escapeTelegramHtml).join('\n') : '';
+}
+
+function rustamCarBlock(data = {}) {
+  const lines = [];
+  const tyre = tyreAdviceForWeather(data.environment?.weather);
+  if (tyre) lines.push('Шины: ' + tyre);
+
+  const tasks = Array.isArray(data.carTasksToday) ? data.carTasksToday : [];
+  if (tasks.length) {
+    lines.push('Задачи на сегодня:');
+    for (const task of tasks.slice(0,4)) {
+      lines.push('• ' + String(task?.title || 'Задача по машине').trim());
+    }
+  }
+
+  return lines.length
+    ? '🚗 <b>Машина</b>\n' + lines.map(escapeTelegramHtml).join('\n')
+    : '';
 }
 
 function buildMorningSummary(actor, data = {}) {
