@@ -38,7 +38,7 @@ function telegramStub(calls, options = {}) {
   };
 }
 
-test('routes future Labor posts to Clients topic 126 and deletes legacy Labor topic 696', async () => {
+test('queues future Labor posts privately and retires legacy topic 696', async () => {
   const calls = [];
   const now = new Date('2026-09-04T18:00:00Z');
   const cache = memoryCache({
@@ -50,6 +50,7 @@ test('routes future Labor posts to Clients topic 126 and deletes legacy Labor to
     token: '1:test',
     chatId: -1004476323368,
     cache,
+    forDiCache: cache,
     fetchImpl: telegramStub(calls),
     now,
     forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
@@ -60,21 +61,24 @@ test('routes future Labor posts to Clients topic 126 and deletes legacy Labor to
     chat_id: -1004476323368,
     message_thread_id: 696,
   });
-  assert.equal(calls.find((call) => call.method === 'sendMessage')?.body.message_thread_id, 126);
+  assert.equal(result.queuedForPrivateDelivery, true);
+  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
   assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
 });
 
-test('continues publishing to topic 126 when legacy Labor topic 696 is already deleted', async () => {
+test('keeps private Labor delivery when legacy topic 696 is already deleted', async () => {
   const calls = [];
   const result = await publishLaborArticle({
     token: '1:test',
     chatId: -1004476323368,
     cache: memoryCache(),
+    forDiCache: memoryCache(),
     fetchImpl: telegramStub(calls, { deletedAlready: true }),
     now: new Date('2026-09-05T09:00:00Z'),
     forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
   });
 
   assert.equal(result.topicId, 126);
-  assert.equal(calls.find((call) => call.method === 'sendMessage')?.body.message_thread_id, 126);
+  assert.equal(result.queuedForPrivateDelivery, true);
+  assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
 });
