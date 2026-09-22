@@ -1,0 +1,238 @@
+.car-tile{
+  position:relative;
+  padding:18px;
+  border-radius:24px;
+  overflow:hidden;
+}
+.car-tile[hidden]{display:none!important}
+.car-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+.car-head h2{
+  margin:3px 0 4px;
+  font-size:21px;
+  line-height:1.15;
+  letter-spacing:-.03em;
+}
+.car-model{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.3;
+}
+.car-body{
+  display:grid;
+  gap:12px;
+}
+.car-top-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.car-weather-card,
+.car-service-card,
+.car-mileage-panel{
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:var(--soft);
+}
+.car-weather-card,
+.car-service-card{
+  min-width:0;
+  padding:12px;
+}
+.car-card-label{
+  display:block;
+  margin-bottom:5px;
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.2;
+  font-weight:800;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+.car-weather-card strong,
+.car-service-card strong{
+  display:block;
+  margin-bottom:5px;
+  color:var(--text);
+  font-size:16px;
+  line-height:1.2;
+  letter-spacing:-.025em;
+}
+.car-weather-card p,
+.car-service-card p{
+  margin:0;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.42;
+}
+.car-mileage-panel{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(190px,.9fr);
+  gap:12px;
+  align-items:end;
+  padding:13px;
+}
+.car-mileage-copy{
+  min-width:0;
+}
+.car-mileage-copy strong{
+  display:block;
+  margin-top:2px;
+  color:var(--text);
+  font-size:24px;
+  line-height:1;
+  letter-spacing:-.04em;
+}
+.car-mileage-copy small{
+  display:block;
+  min-height:13px;
+  margin-top:5px;
+  color:var(--muted);
+  font-size:9px;
+}
+.car-mileage-form{
+  display:grid;
+  gap:5px;
+}
+.car-mileage-form label{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:750;
+}
+.car-mileage-input-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:6px;
+}
+.car-mileage-input-row input{
+  min-width:0;
+  height:36px;
+  padding:0 10px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  outline:none;
+  background:var(--surface-strong);
+  color:var(--text);
+  font:inherit;
+  font-size:12px;
+}
+.car-mileage-input-row input:focus{
+  border-color:color-mix(in srgb,var(--accent) 40%,var(--line));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 10%,transparent);
+}
+.car-mileage-input-row button{
+  min-width:78px;
+  height:36px;
+  padding:0 11px;
+  border:0;
+  border-radius:11px;
+  background:var(--accent);
+  color:#fff;
+  font:inherit;
+  font-size:10px;
+  font-weight:800;
+}
+.car-mileage-input-row button:disabled{opacity:.55}
+.car-service-progress{
+  height:6px;
+  overflow:hidden;
+  border-radius:999px;
+  background:var(--soft);
+}
+.car-service-progress span{
+  display:block;
+  width:0;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 62%,#8d78ff));
+  transition:width .3s ease;
+}
+.car-recommendations{
+  display:grid;
+  gap:8px;
+}
+.car-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 2px;
+}
+.car-section-head strong{
+  font-size:12px;
+  line-height:1.2;
+}
+.car-recommendations-list{
+  display:grid;
+  gap:7px;
+}
+.car-recommendation{
+  display:grid;
+  grid-template-columns:10px minmax(0,1fr);
+  gap:9px;
+  align-items:start;
+  padding:10px 11px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--surface-strong);
+}
+.car-recommendation-dot{
+  width:8px;
+  height:8px;
+  margin-top:4px;
+  border-radius:50%;
+  background:var(--accent);
+}
+.car-recommendation.is-warn .car-recommendation-dot{background:#e49a38}
+.car-recommendation.is-cold .car-recommendation-dot{background:#57a8e9}
+.car-recommendation.is-rain .car-recommendation-dot{background:#5c8fd8}
+.car-recommendation.is-temp .car-recommendation-dot{background:#8c74d8}
+.car-recommendation.is-ok .car-recommendation-dot{background:#47a76f}
+.car-recommendation strong{
+  display:block;
+  margin-bottom:2px;
+  color:var(--text);
+  font-size:11px;
+  line-height:1.25;
+}
+.car-recommendation p{
+  margin:0;
+  color:var(--muted);
+  font-size:9.5px;
+  line-height:1.42;
+}
+.car-status{
+  padding:8px 10px;
+  border-radius:12px;
+  background:var(--soft);
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.35;
+}
+.car-status[hidden]{display:none!important}
+.car-status.is-success{
+  color:#2f8c59;
+  background:rgba(54,181,109,.10);
+}
+.car-status.is-error{
+  color:#c54e58;
+  background:rgba(220,77,91,.10);
+}
+@media(max-width:560px){
+  .car-mileage-panel{
+    grid-template-columns:1fr;
+    align-items:stretch;
+  }
+}
+@media(max-width:430px){
+  .car-tile{padding:16px}
+  .car-top-grid{gap:6px}
+  .car-weather-card,.car-service-card{padding:10px;border-radius:15px}
+  .car-weather-card strong,.car-service-card strong{font-size:14px}
+  .car-weather-card p,.car-service-card p{font-size:9px}
+  .car-mileage-copy strong{font-size:22px}
+}
