@@ -48,7 +48,7 @@
         activity:[],
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','priority','partner','new','smart-home','activity'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','priority','partner','new','smart-home','car','activity'];
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
@@ -509,6 +509,10 @@
       function normalizedHomeOrder(order){
         const source=Array.isArray(order)?order.map(String):[];
         const requested=source.flatMap(id=>['profile','profile-common','profile-self','profile-partner'].includes(id)?['dashboard']:[id]);
+        if(!requested.includes('car')){
+          const smartIndex=requested.indexOf('smart-home');
+          if(smartIndex>=0) requested.splice(smartIndex+1,0,'car');
+        }
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
         for(const id of HOME_TILE_DEFAULT_ORDER) if(!valid.includes(id)) valid.push(id);
         return valid;
@@ -1398,7 +1402,7 @@
       }
 
       function addHeaderCollapseButton(section,host,button){
-        if(host.classList.contains('section-heading')||host.classList.contains('partner-head')||host.classList.contains('smart-home-head')){
+        if(host.classList.contains('section-heading')||host.classList.contains('partner-head')||host.classList.contains('smart-home-head')||host.classList.contains('car-head')){
           let actions=host.querySelector(':scope > .block-head-actions');
           if(!actions){
             actions=document.createElement('div');
@@ -1467,6 +1471,11 @@
           selector:'#smartHomeTile',key:'smart-home',
           bodySelectors:['.smart-home-climate','#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
           hostSelector:'.smart-home-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#carTile',key:'car',
+          bodySelectors:['#carBody'],
+          hostSelector:'.car-head'
         });
         setupPersistentCollapsible({
           selector:'#workCalendarCard',key:'calendar-work',
