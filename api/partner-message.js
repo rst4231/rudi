@@ -4,6 +4,7 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession, setSessionCookie, clearSessionCookie, hasPin, savePin, verifyPin } = require('./rudi-session.cjs');
+const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication } = require('./rudi-passkeys.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
@@ -164,6 +165,9 @@ function statusForError(error) {
   if (code === 'rudi-pin-rate-limited') return 429;
   if (code === 'rudi-pin-not-configured') return 409;
   if (code === 'rudi-pin-format') return 400;
+  if (code === 'rudi-passkey-not-configured') return 409;
+  if (code === 'rudi-passkey-challenge-invalid' || code === 'rudi-passkey-origin-mismatch' || code === 'rudi-passkey-credential-not-found' || code === 'rudi-passkey-registration-failed' || code === 'rudi-passkey-registration-invalid' || code === 'rudi-passkey-authentication-failed') return 400;
+  if (code === 'rudi-passkey-host-invalid' || code === 'rudi-passkey-origin-invalid') return 400;
   if (code === 'message-empty' || code === 'message-too-long') return 400;
   return 500;
 }
@@ -1296,6 +1300,47 @@ async function handleRudiAction(req, res, action, options = {}) {
       const status = statusForError(error) === 500 ? 502 : statusForError(error);
       console.error('RUDI_SHARED_ALBUM_ERROR', String(error?.message || error));
       return res.status(status).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'passkey') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+    const operation = String(body.operation || 'status').trim();
+    const botToken = options.botToken || resolveTelegramBotToken(options.env || process.env);
+    const storeOptions = browserAuthStoreOptions(options);
+    try {
+      if (operation === 'auth-options') {
+        const publicKey = await authenticationOptions(req, storeOptions);
+        return res.status(200).json({ ok: true, publicKey });
+      }
+
+      if (operation === 'auth-verify') {
+        const verified = await verifyAuthentication(req, body.challenge, body.response, storeOptions);
+        setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
+        return res.status(200).json({ ok: true, actor: verified.actor, source: 'passkey' });
+      }
+
+      const session = authorizeRequest(req, body.initData, options);
+
+      if (operation === 'status') {
+        const status = await passkeyStatus(req, session.actor, storeOptions);
+        return res.status(200).json({ ok: true, actor: session.actor, ...status });
+      }
+
+      if (operation === 'register-options') {
+        const publicKey = await registrationOptions(req, session.actor, storeOptions);
+        return res.status(200).json({ ok: true, actor: session.actor, publicKey });
+      }
+
+      if (operation === 'register-verify') {
+        const result = await verifyRegistration(req, session.actor, body.challenge, body.response, storeOptions);
+        return res.status(200).json({ ok: true, ...result });
+      }
+
+      return res.status(400).json({ ok: false, error: 'passkey-operation-invalid' });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
   }
 
