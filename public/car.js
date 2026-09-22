@@ -31,14 +31,19 @@
   }
 
   async function api(operation,payload={}) {
+    const backup=window.RUDI_STATE_BACKUP;
+    const backupToken=typeof backup?.getToken==='function'?backup.getToken():'';
     const response = await fetch(API, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+      body:JSON.stringify({initData:tg?.initData||'',backupToken,operation,...payload}),
       cache:'no-store'
     });
     const data = await response.json().catch(()=>({}));
     if(!response.ok || !data.ok) throw new Error(data.error || 'car-request-failed');
+    if(data.backupToken&&typeof backup?.storeToken==='function'){
+      await backup.storeToken(data.backupToken).catch(()=>false);
+    }
     return data;
   }
 
