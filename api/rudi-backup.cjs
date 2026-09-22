@@ -7,6 +7,9 @@ const { readToken, saveToken } = require('./ticktick-store.cjs');
 const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
 const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
 const { readCycleState, writeCycleState } = require('./cycle-store.cjs');
+const { readCarState, restoreCarState } = require('./car-store.cjs');
+const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-store.cjs');
+const { readReactionState, restoreReactionState } = require('./reactions-store.cjs');
 const { readActivityJournal, restoreActivityJournalState } = require('./activity-journal-store.cjs');
 const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
 const {
@@ -89,7 +92,7 @@ async function createStateSnapshot(options = {}) {
     : null;
   const [
     partnerMessage, wishlist, products, ticktickChecklistAudit,
-    ticktickToken, calendarUrl, albumConfig, cycle, recipients, activityJournal,
+    ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
@@ -99,6 +102,9 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readCalendarUrl(options)),
     safeRead(() => readAlbumConfig(options)),
     safeRead(() => readCycleState(options)),
+    safeRead(() => readCarState(options)),
+    safeRead(() => readDailyMoodState(options), { initialized:false, version:0, days:{} }),
+    safeRead(() => readReactionState(options), { initialized:false, version:0, entries:{} }),
     safeRead(() => readRecipients(options)),
     safeRead(() => readActivityJournal(options), { initialized: false, version: 0, items: [], markers: {} }),
   ]);
@@ -123,6 +129,9 @@ async function createStateSnapshot(options = {}) {
     calendarUrl: calendarUrl || previous?.calendarUrl || '',
     albumConfig: albumConfig?.url ? albumConfig : (previous?.albumConfig || null),
     cycle: newerTimestampState(cycle, previous?.cycle, 'updatedAt'),
+    carState: newerTimestampState(carState?.mileage == null ? null : carState, previous?.carState, 'updatedAt'),
+    dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
+    reactions: newerVersionState(reactions, previous?.reactions),
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
     recipients: mergedRecipients,
   };
@@ -208,6 +217,47 @@ async function restoreStateBackup(token, options = {}) {
     try {
       await writeCycleState(snapshot.cycle, options);
       restored.push('cycle');
+    } catch {}
+  }
+
+  const currentCar = await safeRead(() => readCarState(options), { mileage:null, updatedAt:'' });
+  const savedCarTime = Date.parse(String(snapshot.carState?.updatedAt || '')) || snapshotTime;
+  const currentCarTime = Date.parse(String(currentCar?.updatedAt || '')) || 0;
+  if (
+    snapshot.carState?.mileage != null
+    && (currentCar?.mileage == null || savedCarTime > currentCarTime)
+  ) {
+    try {
+      await restoreCarState(snapshot.carState, options);
+      restored.push('car-state');
+    } catch {}
+  }
+
+  const currentMood = await safeRead(
+    () => readDailyMoodState(options),
+    { initialized:false, version:0, days:{} }
+  );
+  if (
+    snapshot.dailyMood?.initialized
+    && (!currentMood?.initialized || Number(snapshot.dailyMood.version || 0) > Number(currentMood.version || 0))
+  ) {
+    try {
+      await restoreDailyMoodState(snapshot.dailyMood, options);
+      restored.push('daily-mood');
+    } catch {}
+  }
+
+  const currentReactions = await safeRead(
+    () => readReactionState(options),
+    { initialized:false, version:0, entries:{} }
+  );
+  if (
+    snapshot.reactions?.initialized
+    && (!currentReactions?.initialized || Number(snapshot.reactions.version || 0) > Number(currentReactions.version || 0))
+  ) {
+    try {
+      await restoreReactionState(snapshot.reactions, options);
+      restored.push('reactions');
     } catch {}
   }
 
