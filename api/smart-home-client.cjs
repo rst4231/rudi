@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
+const { authorizeWithSession } = require('./rudi-session.cjs');
 const { appendActivity } = require('./activity-journal-store.cjs');
 const { markVacuumManualAction } = require('./vacuum-watch-store.cjs');
 
@@ -42,7 +43,7 @@ function auth(raw, botToken) {
 
 function status(error) {
   const code = String(error?.message || error || '');
-  if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid') return 401;
+  if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid' || code.startsWith('rudi-session')) return 401;
   if (code === 'rudi-access-denied') return 403;
   if (code === 'yandex-iot-not-configured') return 503;
   if (code.startsWith('bad-')) return 400;
@@ -154,7 +155,13 @@ async function handleSmartHomeRequest(req, res) {
   const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
   let session;
   try {
-    session = auth(body.initData, resolveTelegramBotToken(process.env));
+    const botToken = resolveTelegramBotToken(process.env);
+    session = authorizeWithSession(
+      req,
+      body.initData,
+      (value) => auth(value, botToken),
+      { botToken }
+    );
   } catch (error) {
     return res.status(status(error)).json({ok:false,error:String(error?.message || error)});
   }
