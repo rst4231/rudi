@@ -96,6 +96,8 @@ test('car UI is private, movable, collapsible and can complete TickTick tasks',(
   assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','car','activity'\]/);
   assert.match(app,/selector:'#carTile',key:'car'/);
   assert.match(client,/session\.actor !== 'Рустам'/);
+  assert.match(app,/function applyActorVisibility\(\)[\s\S]*?currentActor==='Рустам'[\s\S]*?getElementById\('carTile'\)\?\.remove\(\)/);
+  assert.match(car,/dataset\.rudiActor[\s\S]*?actor&&actor!=='Рустам'[\s\S]*?getElementById\('carTile'\)\?\.remove\(\)/);
   assert.match(api,/req\.query\?\.route === 'car'/);
   assert.match(car,/api\('complete-task',\{taskId:task\.id\}\)/);
   assert.match(car,/Задача отмечена выполненной/);
