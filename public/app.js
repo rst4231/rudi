@@ -1398,7 +1398,7 @@
       }
 
       function addHeaderCollapseButton(section,host,button){
-        if(host.classList.contains('section-heading')||host.classList.contains('partner-head')){
+        if(host.classList.contains('section-heading')||host.classList.contains('partner-head')||host.classList.contains('smart-home-head')){
           let actions=host.querySelector(':scope > .block-head-actions');
           if(!actions){
             actions=document.createElement('div');
@@ -1467,6 +1467,11 @@
           selector:'.daily-section',key:'daily',
           bodySelectors:['.daily-grid'],
           hostSelector:'.section-heading'
+        });
+        setupPersistentCollapsible({
+          selector:'#smartHomeTile',key:'smart-home',
+          bodySelectors:['.smart-home-climate','#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
+          hostSelector:'.smart-home-head'
         });
         setupPersistentCollapsible({
           selector:'#workCalendarCard',key:'calendar-work',
