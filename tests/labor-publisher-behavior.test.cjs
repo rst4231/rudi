@@ -11,7 +11,7 @@ function memoryCache(seed = {}) {
   };
 }
 
-test('publisher returns Telegram message id and records the actual article selected for the date', async () => {
+test('publisher queues the selected Labor article for Diana without forum send', async () => {
   const calls = [];
   const fetchImpl = async (url, init) => {
     const method = String(url).split('/').at(-1);
@@ -24,11 +24,16 @@ test('publisher returns Telegram message id and records the actual article selec
     }
     return new Response(JSON.stringify({ ok: true, result: true }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
+  const forDiCache = memoryCache();
   const result = await labor.publishLaborArticle({
-    token: '1:test', chatId: -1001, cache: memoryCache(), fetchImpl,
+    token: '1:test', chatId: -1001, cache: memoryCache(), forDiCache, fetchImpl,
     now: new Date('2026-08-23T09:00:00Z'),
   });
-  assert.equal(result.messageId, 701);
+  assert.equal(result.messageId, null);
+  assert.equal(result.queuedForPrivateDelivery, true);
   assert.notEqual(result.articleId, 'contract:worker');
-  assert.equal(calls.filter((call) => call.method === 'sendMessage').length, 1);
+  assert.equal(calls.filter((call) => call.method === 'sendMessage').length, 0);
+  const queued = await forDiCache.get('for-di:messages:2026-08-23');
+  assert.equal(queued.length, 1);
+  assert.match(queued[0].text, /Трудовой кодекс/);
 });
