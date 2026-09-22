@@ -125,3 +125,39 @@ test('persistent mutations refresh the encrypted backup immediately',()=>{
   assert.match(api,/sendWishlistNotificationToPartner\(owner, result\.item\?\.text, options\)/);
   assert.doesNotMatch(api,/sendActivityNotification\(wishlistNotificationText/);
 });
+
+test('encrypted RUDI backup can carry PIN hash and passkeys without exposing PIN plaintext', () => {
+  const snapshot={
+    version:2,
+    createdAt:'2026-09-22T16:00:00.000Z',
+    browserAuth:{
+      pins:{
+        'Рустам':{version:1,salt:'salt-value',hash:'scrypt-hash-value',updatedAt:'2026-09-22T16:00:00.000Z'},
+        'Диана':null,
+      },
+      passkeys:{
+        'Рустам':[{actor:'Рустам',id:'cred-1',publicKey:'public-key',counter:0,rpID:'spb-daily-guide-bot.vercel.app'}],
+        'Диана':[],
+      },
+    },
+  };
+  const options={botToken:'123456:TEST_SECRET'};
+  const token=backup.sealSnapshot(snapshot,options);
+  assert.equal(token.includes('scrypt-hash-value'),false);
+  assert.equal(token.includes('public-key'),false);
+  assert.deepEqual(backup.openSnapshot(token,options),snapshot);
+});
+
+test('browser auth is included in the same encrypted recovery system as products and mood', () => {
+  const server=fs.readFileSync(path.join(__dirname,'..','api','rudi-backup.cjs'),'utf8');
+  const api=fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  for(const token of ['readPinRecord','restorePinRecord','readPasskeys','restorePasskeys','browserAuth']){
+    assert.match(server,new RegExp(token));
+  }
+  assert.match(api,/backupSnapshotWithPin/);
+  assert.match(api,/backupPin\?\.salt && backupPin\?\.hash/);
+  assert.match(app,/backupToken:currentStateBackupToken/);
+  assert.match(app,/const cloudToken=await withTimeout\(readStateBackupToken\(\),1600,currentStateBackupToken\|\|''\)/);
+  assert.match(app,/if\(data\.backupToken\) await storeStateBackupToken\(data\.backupToken\)/);
+});
