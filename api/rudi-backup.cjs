@@ -16,9 +16,6 @@ const {
   readChecklistAuditState,
   restoreChecklistAuditState,
 } = require('./ticktick-checklist-audit-store.cjs');
-const { readCarState, restoreCarState } = require('./car-store.cjs');
-const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-store.cjs');
-const { readReactionState, restoreReactionState } = require('./reactions-store.cjs');
 
 const BACKUP_VERSION = 2;
 const BACKUP_PREFIX = 'rudi-state-v2';
