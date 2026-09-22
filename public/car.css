@@ -40,25 +40,40 @@
   z-index:2;
   min-width:0;
 }
+.car-head-title-row{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  min-width:0;
+}
+.car-head-title-row .block-collapse-button{
+  width:24px;
+  height:24px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#9ba1ab;
+}
+.car-head-title-row .block-collapse-button svg{width:17px;height:17px}
 .car-head-visual{
   position:relative;
   z-index:1;
   width:100%;
   min-width:0;
   justify-self:end;
-  overflow:hidden;
-  border-radius:16px;
+  overflow:visible;
+  border-radius:0;
+  background:transparent;
   pointer-events:none;
-  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14%,#000 91%,transparent 100%);
-  mask-image:linear-gradient(90deg,transparent 0,#000 14%,#000 91%,transparent 100%);
+  -webkit-mask-image:none;
+  mask-image:none;
 }
 .car-head-visual img{
   display:block;
   width:100%;
-  height:auto;
-  aspect-ratio:350/165;
-  object-fit:cover;
-  object-position:center;
+  height:88px;
+  object-fit:contain;
+  object-position:right center;
   filter:contrast(1.04) saturate(.92);
 }
 .car-head .home-dashboard-label{
@@ -404,7 +419,7 @@
 @media(max-width:430px){
   .car-tile{padding:16px;border-radius:24px}
   .car-head{grid-template-columns:minmax(0,1fr) minmax(132px,45%);min-height:72px;gap:7px}
-  .car-head-visual{border-radius:14px}
+  .car-head-visual img{height:78px}
   .car-top-grid{gap:6px}
   .car-weather-card,.car-service-card{padding:10px;border-radius:15px}
   .car-weather-card strong,.car-service-card strong{font-size:14px}
