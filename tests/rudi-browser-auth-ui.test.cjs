@@ -102,3 +102,11 @@ test('Telegram PIN enrollment migrates backup auth into the shared durable serve
   assert.match(partner,/operation === 'create-pin'[\s\S]*?saveDurablePinRecord\(telegram\.actor, result\.record, durableAuthOptions\(options\)\)/);
   assert.match(partner,/operation === 'status'[\s\S]*?hydrateActorAuth\(session\.actor, body\.backupToken, options\)[\s\S]*?Boolean\(hydrated\.durable\?\.pinRecord\)/);
 });
+
+
+test('existing PIN migrates from restored runtime cache into durable Postgres auth', () => {
+  assert.match(partner,/readPinRecord/);
+  assert.match(partner,/async function hydrateActorAuth[\s\S]*?readPinRecord\(actor, storeOptions\)[\s\S]*?saveDurablePinRecord\(actor, cachedPin, dbOptions\)/);
+  assert.match(partner,/operation === 'login'[\s\S]*?hydrateActorAuth\(actor, body\.backupToken, options\)/);
+  assert.match(partner,/if \(!hydrated\.durable\?\.pinRecord\) throw new Error\('rudi-pin-not-configured'\)/);
+});
