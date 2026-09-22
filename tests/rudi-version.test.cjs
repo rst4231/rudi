@@ -11,5 +11,7 @@ test('v1.1 is the single source for UI version and cache bust',()=>{
   assert.match(html,/app\.css\?v=1\.1/);
   assert.match(html,/calendar\.css\?v=1\.1/);
   assert.match(html,/app\.js\?v=1\.1/);
-  assert.match(html,/smart-home\.css\?v=1\.1/);\n  assert.match(html,/smart-home\.js\?v=1\.1/);\n  assert.match(html,/>v1\.1<\/div>/);
+  assert.match(html,/smart-home\.css\?v=1\.1/);
+  assert.match(html,/smart-home\.js\?v=1\.1/);
+  assert.match(html,/>v1\.1<\/div>/);
 });
