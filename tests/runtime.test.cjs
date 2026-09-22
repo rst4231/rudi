@@ -55,5 +55,6 @@ test('Vercel config exposes the expected RUDI routes and cron schedules', () => 
     { path: '/api/daily', schedule: '30 21 * * *' },
     { path: '/api/stylist-leads-cron', schedule: '0 4 * * *' },
     { path: '/api/feed-notify-cron', schedule: '10 4 * * *' },
+    { path: '/api/for-di-cron', schedule: '0 9 * * *' },
   ]);
 });
