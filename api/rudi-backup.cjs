@@ -106,6 +106,7 @@ function normalizeUiPreferenceEntry(value) {
     homeOrder:order,
     blockStates,
     activitySeenId:String(source.activitySeenId||'').trim().slice(0,80),
+    marketTickerEnabled:Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled')?Boolean(source.marketTickerEnabled):true,
     updatedAt:String(source.updatedAt||''),
   };
 }

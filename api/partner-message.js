@@ -49,6 +49,7 @@ const {
 } = require('./activity-journal-store.cjs');
 const { readLuluState, markLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
+const { readMarketTicker } = require('./market-ticker.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -1715,6 +1716,23 @@ async function handleRudiAction(req, res, action, options = {}) {
       const status = statusForError(error);
       if (status === 500) console.error('RUDI_STATE_BACKUP_RECOVERY_ERROR', code);
       return res.status(status === 500 ? 400 : status).json({ ok: false, error: code });
+    }
+  }
+
+  if (action === 'market-ticker') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const ticker = await readMarketTicker({
+        ...options,
+        marketTickerCache: options.marketTickerCache,
+      });
+      return res.status(200).json({ ok: true, actor, ...ticker });
+    } catch (error) {
+      const code = String(error?.message || error);
+      console.warn('RUDI_MARKET_TICKER_WARN', code);
+      return res.status(502).json({ ok: false, error: 'market-ticker-unavailable' });
     }
   }
 

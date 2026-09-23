@@ -123,3 +123,18 @@ test('mood support message keeps high contrast on dark profile cards', () => {
   assert.match(css,/\.profile-person-card > \.mood-message\.show\[data-mood="great"\]/);
 });
 
+
+
+test('market ticker is movable, theme-safe and persisted', () => {
+  assert.match(html,/data-home-tile="markets"/);
+  assert.match(html,/id="marketTickerToggle"/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \[[^\]]*'markets'\]/);
+  assert.match(app,/marketTickerEnabledStorageKey/);
+  assert.match(app,/marketTickerEnabled:marketTickerEnabledValue/);
+  assert.match(app,/rudiAction=market-ticker/);
+  assert.match(css,/--market-text:#23262e/);
+  assert.match(css,/--market-text:#f5f7fb/);
+  assert.match(css,/--market-up:#147a45/);
+  assert.match(css,/--market-down:#b83b4b/);
+  assert.match(css,/@media\(prefers-reduced-motion:reduce\)[\s\S]*?\.market-ticker-track\.is-ready/);
+});

@@ -6214,3 +6214,178 @@ button:disabled{transition:opacity var(--rudi-motion-base) ease}
 }
 /* end RUDI v1.10.3 mood support contrast */
 
+/* RUDI v1.11.0: movable market ticker */
+:root{
+  --market-bg:rgba(255,255,255,.92);
+  --market-text:#23262e;
+  --market-muted:#6c727d;
+  --market-line:rgba(28,33,43,.11);
+  --market-up:#147a45;
+  --market-down:#b83b4b;
+}
+html[data-theme="dark"]{
+  --market-bg:rgba(18,21,29,.94);
+  --market-text:#f5f7fb;
+  --market-muted:#9aa2b1;
+  --market-line:rgba(255,255,255,.10);
+  --market-up:#65e59d;
+  --market-down:#ff7d8a;
+}
+.market-ticker-tile{
+  position:relative;
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+  border:1px solid var(--market-line);
+  border-radius:15px;
+  background:var(--market-bg);
+  color:var(--market-text);
+  box-shadow:0 7px 20px rgba(25,31,42,.06);
+}
+html[data-theme="dark"] .market-ticker-tile{box-shadow:0 9px 24px rgba(0,0,0,.18)}
+.market-ticker-tile[hidden]{display:none!important}
+.market-ticker-viewport{
+  width:100%;
+  overflow:hidden;
+  padding:9px 0;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+}
+.market-ticker-track{
+  width:max-content;
+  min-width:100%;
+  display:flex;
+  align-items:center;
+  color:var(--market-text);
+}
+.market-ticker-track.is-ready{
+  animation:marketTickerScroll 24s linear infinite;
+  will-change:transform;
+}
+.market-ticker-viewport:hover .market-ticker-track,
+.market-ticker-viewport:focus-within .market-ticker-track{animation-play-state:paused}
+.market-ticker-group{
+  flex:none;
+  min-width:max-content;
+  display:flex;
+  align-items:center;
+  gap:22px;
+  padding-right:42px;
+}
+.market-ticker-loading{
+  padding-left:15px;
+  color:var(--market-muted);
+  font-size:10.5px;
+  font-weight:700;
+}
+.market-ticker-item{
+  display:inline-flex;
+  align-items:baseline;
+  gap:6px;
+  white-space:nowrap;
+  font-size:11px;
+  line-height:1;
+}
+.market-ticker-label{
+  color:var(--market-muted);
+  font-size:9.5px;
+  font-weight:850;
+  letter-spacing:.055em;
+}
+.market-ticker-value{
+  color:var(--market-text);
+  font-size:11.5px;
+  font-weight:850;
+  letter-spacing:-.015em;
+}
+.market-ticker-change{font-size:9.5px;font-weight:850}
+.market-ticker-change.is-up{color:var(--market-up)}
+.market-ticker-change.is-down{color:var(--market-down)}
+.market-ticker-change.is-flat{color:var(--market-muted)}
+.market-ticker-a11y{
+  position:absolute!important;
+  width:1px!important;height:1px!important;
+  padding:0!important;margin:-1px!important;
+  overflow:hidden!important;clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;border:0!important;
+}
+@keyframes marketTickerScroll{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(-50%,0,0)}
+}
+.market-ticker-setting{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  color:var(--muted);
+}
+.market-ticker-setting-label{
+  color:var(--muted);
+  font-size:10.5px;
+  line-height:1;
+  font-weight:700;
+}
+.market-ticker-toggle{
+  position:relative;
+  width:34px;
+  height:20px;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--soft);
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background-color .18s ease,border-color .18s ease;
+}
+.market-ticker-toggle-thumb{
+  position:absolute;
+  width:14px;height:14px;
+  left:2px;top:2px;
+  border-radius:50%;
+  background:var(--muted);
+  box-shadow:0 2px 5px rgba(0,0,0,.15);
+  transition:transform .18s ease,background-color .18s ease;
+}
+.market-ticker-toggle[aria-checked="true"]{
+  border-color:color-mix(in srgb,var(--accent) 44%,var(--line));
+  background:var(--accent-soft);
+}
+.market-ticker-toggle[aria-checked="true"] .market-ticker-toggle-thumb{
+  transform:translateX(14px);
+  background:var(--accent);
+}
+.market-ticker-toggle:focus-visible{
+  outline:2px solid color-mix(in srgb,var(--accent) 58%,transparent);
+  outline-offset:2px;
+}
+body.home-layout-editing .market-ticker-tile{min-height:38px}
+@media(max-width:430px){
+  .market-ticker-viewport{padding:8px 0}
+  .market-ticker-group{gap:18px;padding-right:34px}
+  .market-ticker-item{gap:5px}
+  .market-ticker-label{font-size:9px}
+  .market-ticker-value{font-size:11px}
+  .market-ticker-change{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){
+  .market-ticker-track.is-ready{
+    width:100%;
+    min-width:0;
+    display:block;
+    transform:none!important;
+    animation:none!important;
+    will-change:auto;
+  }
+  .market-ticker-group{
+    min-width:0;
+    width:100%;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:8px 16px;
+    padding:0 12px;
+  }
+  .market-ticker-group:nth-child(2){display:none!important}
+}
+/* end RUDI v1.11.0 market ticker */
+

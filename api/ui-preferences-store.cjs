@@ -40,6 +40,9 @@ function normalizeUiPreferencesState(value) {
   }
 
   const activitySeenId = String(source.activitySeenId || '').trim().slice(0, 80);
+  const marketTickerEnabled = Object.prototype.hasOwnProperty.call(source, 'marketTickerEnabled')
+    ? Boolean(source.marketTickerEnabled)
+    : true;
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const parsed = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   return {
@@ -48,6 +51,7 @@ function normalizeUiPreferencesState(value) {
     homeOrder,
     blockStates,
     activitySeenId,
+    marketTickerEnabled,
     updatedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
   };
 }
@@ -87,6 +91,9 @@ async function saveUiPreferences(actor, value, options = {}) {
       activitySeenId: Object.prototype.hasOwnProperty.call(source,'activitySeenId')
         ? incoming.activitySeenId
         : current.activitySeenId,
+      marketTickerEnabled: Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled')
+        ? incoming.marketTickerEnabled
+        : current.marketTickerEnabled,
       updatedAt,
     }, options);
   });
@@ -97,13 +104,15 @@ async function seedUiPreferences(actor, value, options = {}) {
     const current = await readUiPreferences(actor, options);
     if (current.initialized) return current;
     const incoming = normalizeUiPreferencesState(value);
-    if (!incoming.homeOrder.length && !Object.keys(incoming.blockStates).length && !incoming.activitySeenId) return current;
+    const hasMarketTickerEnabled = Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled');
+    if (!incoming.homeOrder.length && !Object.keys(incoming.blockStates).length && !incoming.activitySeenId && !hasMarketTickerEnabled) return current;
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
       activitySeenId: incoming.activitySeenId,
+      marketTickerEnabled: incoming.marketTickerEnabled,
       updatedAt: incoming.updatedAt || new Date(options.now || Date.now()).toISOString(),
     }, options);
   });

@@ -104,6 +104,7 @@ test('backup includes car mood reactions and UI preferences',()=>{
   }
   assert.match(source,/normalizeUiPreferences/);
   assert.match(source,/mergeUiPreferences/);
+  assert.match(source,/marketTickerEnabled/);
 });
 
 test('client syncs home order and collapse state through shared server UI state and backup',()=>{

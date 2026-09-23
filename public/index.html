@@ -705,9 +705,26 @@
       </article>
     </section>
 
+    <section id="marketTickerTile" class="market-ticker-tile" data-app-tab-section="home" data-home-tile="markets" data-tab-available="1" aria-label="Курсы валют и криптовалют">
+      <div class="market-ticker-viewport">
+        <div id="marketTickerTrack" class="market-ticker-track" aria-hidden="true">
+          <div class="market-ticker-group">
+            <span class="market-ticker-loading">Курсы загружаются…</span>
+          </div>
+        </div>
+      </div>
+      <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
+    </section>
+
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
       <div id="appVersion" class="app-version" aria-label="Версия приложения">v1.8.7</div>
+      <div class="market-ticker-setting">
+        <span class="market-ticker-setting-label">Показывать курсы</span>
+        <button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать бегущую строку курсов">
+          <span class="market-ticker-toggle-thumb" aria-hidden="true"></span>
+        </button>
+      </div>
       <div class="home-layout-actions">
         <button id="homeLayoutResetButton" class="home-layout-reset-button" type="button" hidden>Сбросить порядок</button>
         <button id="homeLayoutEditButton" class="home-layout-edit-button" type="button" aria-pressed="false">Изменить</button>

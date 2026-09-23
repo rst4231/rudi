@@ -23,6 +23,7 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
     homeOrder:['dashboard','rustam','diana','lulu','nearest','smart-home'],
     blockStates:{car:true},
     activitySeenId:'event-1',
+    marketTickerEnabled:false,
   },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T08:00:00Z')});
   assert.equal(first.version,1);
 
@@ -36,6 +37,7 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
   assert.deepEqual(saved.homeOrder,['dashboard','rustam','diana','lulu','nearest','car','smart-home']);
   assert.equal(saved.blockStates['smart-home'],true);
   assert.equal(saved.activitySeenId,'event-1');
+  assert.equal(saved.marketTickerEnabled,false);
 
   await saveUiPreferences('Диана',{
     homeOrder:['dashboard','diana','rustam','lulu','nearest'],
@@ -43,6 +45,7 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
   },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T08:02:00Z')});
   const diana=await readUiPreferences('Диана',{uiPreferencesCache:cache});
   assert.deepEqual(diana.homeOrder,['dashboard','diana','rustam','lulu','nearest']);
+  assert.equal(diana.marketTickerEnabled,true);
   assert.notDeepEqual(diana.homeOrder,saved.homeOrder);
 });
 
@@ -59,4 +62,21 @@ test('app and API use shared UI preferences instead of device-only layout',()=>{
   assert.match(api,/action === 'ui-preferences'/);
   assert.match(api,/saveUiPreferences\(actor, body\.uiPreferences/);
   assert.match(api,/readUiPreferences\(actor, options\)/);
+});
+
+
+test('ticker visibility survives layout-only saves',async()=>{
+  const cache=memoryCache();
+  await saveUiPreferences('Рустам',{
+    homeOrder:['dashboard','rustam','markets'],
+    blockStates:{},
+    marketTickerEnabled:false,
+  },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T09:00:00Z')});
+  await saveUiPreferences('Рустам',{
+    homeOrder:['dashboard','markets','rustam'],
+    blockStates:{rustam:true},
+  },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T09:01:00Z')});
+  const saved=await readUiPreferences('Рустам',{uiPreferencesCache:cache});
+  assert.equal(saved.marketTickerEnabled,false);
+  assert.deepEqual(saved.homeOrder,['dashboard','markets','rustam']);
 });

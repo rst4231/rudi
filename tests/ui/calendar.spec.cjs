@@ -234,6 +234,18 @@ async function mockRudi(page,options={}){
       });
       return ok({ok:true,reactions});
     }
+    if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='market-ticker'){
+      return ok({
+        ok:true,
+        updatedAt:'2026-09-21T09:00:00.000Z',
+        partial:false,
+        items:[
+          {id:'usd-rub',label:'USD/RUB',value:84.32,change24h:null,source:'ЦБ РФ'},
+          {id:'btcusdt',label:'BTC',value:68420,change24h:2.4,source:'Bybit'},
+          {id:'ethusdt',label:'ETH',value:2190.5,change24h:-1.2,source:'Bybit'}
+        ]
+      });
+    }
     if(path==='/api/partner-message') return ok({ok:true,message:null});
     return ok({ok:true,items:[],tasks:[],photos:[]});
   });
@@ -282,10 +294,10 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.10.3');
+  await expect(page.locator('#appVersion')).toHaveText('v1.11.0');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
-  expect(homeOrder.slice(-3)).toEqual(['new','smart-home','car']);
+  expect(homeOrder.slice(-4)).toEqual(['new','smart-home','car','markets']);
 
   const dianaStatus=page.locator('#partnerWorkStatus');
   await expect(dianaStatus).toHaveText('Работаю · 09:00–21:00');
@@ -305,6 +317,70 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('.home-order-controls').first()).toBeHidden();
 });
 
+
+
+test('market ticker renders with readable themes, no overflow and persistent toggle',async({page})=>{
+  await page.setViewportSize({width:320,height:760});
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+
+  const ticker=page.locator('#marketTickerTile');
+  const toggle=page.getByRole('switch',{name:'Показывать бегущую строку курсов'});
+  await expect(ticker).toBeVisible();
+  await expect(ticker).toContainText('USD/RUB');
+  await expect(ticker).toContainText('BTC');
+  await expect(ticker).toContainText('ETH');
+  await expect(toggle).toHaveAttribute('aria-checked','true');
+
+  const noOverflow=await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1);
+  expect(noOverflow).toBe(true);
+
+  await page.evaluate(()=>{document.documentElement.dataset.theme='light'});
+  expect(await ticker.locator('.market-ticker-value').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(35, 38, 46)');
+  expect(await ticker.locator('.market-ticker-change.is-up').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(20, 122, 69)');
+  expect(await ticker.locator('.market-ticker-change.is-down').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(184, 59, 75)');
+
+  await page.evaluate(()=>{document.documentElement.dataset.theme='dark'});
+  expect(await ticker.locator('.market-ticker-value').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(245, 247, 251)');
+  expect(await ticker.locator('.market-ticker-change.is-up').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(101, 229, 157)');
+  expect(await ticker.locator('.market-ticker-change.is-down').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(255, 125, 138)');
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked','false');
+  await expect(ticker).toBeHidden();
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.getByRole('switch',{name:'Показывать бегущую строку курсов'})).toHaveAttribute('aria-checked','false');
+  await expect(page.locator('#marketTickerTile')).toBeHidden();
+});
+
+test('saved market ticker position is restored from shared home order',async({page})=>{
+  await mockRudi(page,{
+    uiPreferences:{
+      homeOrder:['dashboard','rustam','diana','lulu','nearest','markets','priority','partner','new','smart-home','car'],
+      blockStates:{},
+      marketTickerEnabled:true,
+      updatedAt:'2026-09-21T09:00:00.000Z'
+    }
+  });
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
+  expect(order.indexOf('markets')).toBeLessThan(order.indexOf('priority'));
+});
+
+test('market ticker stops moving with reduced motion',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  const track=page.locator('#marketTickerTrack');
+  await expect(track).toHaveClass(/is-ready/);
+  expect(await track.evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+  await expect(track.locator('.market-ticker-group')).toHaveCount(2);
+  expect(await track.locator('.market-ticker-group').nth(1).evaluate(el=>getComputedStyle(el).display)).toBe('none');
+});
 
 
 test('mood support message stays visible when own profile card is collapsed',async({page})=>{
