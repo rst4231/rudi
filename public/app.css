@@ -5643,6 +5643,10 @@ html[data-theme="dark"] .partner-message .partner-edit{
 }
 .profile-person-card .profile-work-status.is-working{color:#ffb171}
 .profile-person-card .profile-work-status.is-off{color:#60d894}
+html[data-theme="light"] .profile-person-card .profile-work-status.is-working{color:#ffc08a}
+html[data-theme="light"] .profile-person-card .profile-work-status.is-off{color:#79e3aa}
+html[data-theme="dark"] .profile-person-card .profile-work-status.is-working{color:#ffb171}
+html[data-theme="dark"] .profile-person-card .profile-work-status.is-off{color:#60d894}
 .profile-person-card .mood-person{
   width:auto!important;
   min-width:30px!important;
