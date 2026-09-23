@@ -25,13 +25,12 @@ test('stylist leads cron rejects unauthorized requests when CRON_SECRET is confi
   }
 });
 
-test('stylist leads config monitors 20-30 enabled Saint Petersburg public sources', () => {
+test('stylist lead search is disabled in config', () => {
   const filename = path.join(__dirname, '..', 'config', 'stylist-leads.json');
   assert.equal(fs.existsSync(filename), true);
   const config = JSON.parse(fs.readFileSync(filename, 'utf8'));
-  const enabled = config.sources.filter((source) => source.enabled !== false);
-  assert.equal(enabled.length >= 20 && enabled.length <= 30, true);
-  assert.equal(enabled.every((source) => source.city === 'Санкт-Петербург'), true);
+  assert.equal(config.enabled, false);
+  assert.equal(config.webSearch?.enabled, false);
   assert.equal(config.topicId, 126);
 });
 
