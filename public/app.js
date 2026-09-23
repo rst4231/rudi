@@ -6949,6 +6949,111 @@
       let currentRecipeSet=[];
       let currentRecipeContext=null;
       const recipeDetailCache=new Map();
+      const RECIPE_CACHE_TTL_MS=7*DAY;
+      const RECIPE_CACHE_MAX_ENTRIES=8;
+
+      function recipeCacheStorageKey(){
+        const actor=currentActor==='Диана'?'diana':currentActor==='Рустам'?'rustam':'shared';
+        return 'rudi-recipe-cache-v1-'+actor;
+      }
+
+      function recipeContextKey(context){
+        const source=context&&typeof context==='object'?context:{};
+        return [
+          String(source.ingredients||'').trim().toLowerCase().replace(/\s+/g,' '),
+          String(source.equipment||'').trim(),
+          String(source.meal||'').trim(),
+          String(source.cuisine||'').trim(),
+          String(Number(source.timeMinutes)||0)
+        ].join('|');
+      }
+
+      function recipeDetailCacheKey(context,recipe){
+        return recipeContextKey(context)+'|'+String(recipe?.title||'').trim().toLowerCase();
+      }
+
+      function readRecipeCacheEntries(){
+        try{
+          const parsed=JSON.parse(localStorage.getItem(recipeCacheStorageKey())||'{}');
+          const now=Date.now();
+          const entries=(Array.isArray(parsed?.entries)?parsed.entries:[])
+            .filter(entry=>entry&&typeof entry==='object')
+            .filter(entry=>now-Number(entry.updatedAt||0)<=RECIPE_CACHE_TTL_MS)
+            .filter(entry=>Array.isArray(entry.recipes)&&entry.recipes.length)
+            .sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0))
+            .slice(0,RECIPE_CACHE_MAX_ENTRIES);
+          if(entries.length!==(Array.isArray(parsed?.entries)?parsed.entries.length:0)){
+            localStorage.setItem(recipeCacheStorageKey(),JSON.stringify({version:1,entries}));
+          }
+          return entries;
+        }catch(_){return []}
+      }
+
+      function writeRecipeCacheEntries(entries){
+        try{
+          const clean=(Array.isArray(entries)?entries:[])
+            .filter(entry=>entry&&typeof entry==='object'&&entry.key)
+            .sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0))
+            .slice(0,RECIPE_CACHE_MAX_ENTRIES);
+          localStorage.setItem(recipeCacheStorageKey(),JSON.stringify({version:1,entries:clean}));
+        }catch(_){}
+      }
+
+      function findRecipeCacheEntry(context){
+        const key=recipeContextKey(context);
+        return readRecipeCacheEntries().find(entry=>entry.key===key)||null;
+      }
+
+      function saveRecipeCacheEntry(entry){
+        if(!entry?.key) return;
+        const rows=readRecipeCacheEntries().filter(row=>row.key!==entry.key);
+        writeRecipeCacheEntries([{...entry,updatedAt:Date.now()},...rows]);
+      }
+
+      function saveCurrentRecipeCache(selectedTitle=''){
+        if(!currentRecipeContext||!Array.isArray(currentRecipeSet)||!currentRecipeSet.length) return;
+        const details=[];
+        currentRecipeSet.forEach(recipe=>{
+          const detail=recipeDetailCache.get(recipeDetailCacheKey(currentRecipeContext,recipe));
+          if(detail) details.push({title:String(recipe.title||''),recipe:detail});
+        });
+        saveRecipeCacheEntry({
+          key:recipeContextKey(currentRecipeContext),
+          context:{...currentRecipeContext},
+          recipes:currentRecipeSet.map(recipe=>({...recipe})),
+          details,
+          selectedTitle:String(selectedTitle||'')
+        });
+      }
+
+      function setRecipeChoiceValue(attribute,value){
+        document.querySelectorAll('['+attribute+']').forEach(button=>{
+          button.setAttribute('aria-pressed',String(button.getAttribute(attribute)||'')===String(value||'')?'true':'false');
+        });
+      }
+
+      function restoreRecipeCacheEntry(entry,{restoreInputs=true}={}){
+        if(!entry?.context||!Array.isArray(entry.recipes)||!entry.recipes.length) return false;
+        currentRecipeContext={...entry.context};
+        currentRecipeSet=entry.recipes.slice(0,4).map(recipe=>({...recipe}));
+        recipeDetailCache.clear();
+        (Array.isArray(entry.details)?entry.details:[]).forEach(row=>{
+          const suggestion=currentRecipeSet.find(recipe=>String(recipe.title||'')===String(row?.title||''));
+          if(suggestion&&row?.recipe){
+            recipeDetailCache.set(recipeDetailCacheKey(currentRecipeContext,suggestion),row.recipe);
+          }
+        });
+        if(restoreInputs){
+          const input=document.getElementById('recipeIngredients');
+          if(input) input.value=String(currentRecipeContext.ingredients||'');
+          setRecipeChoiceValue('data-recipe-equipment',currentRecipeContext.equipment);
+          setRecipeChoiceValue('data-recipe-meal',currentRecipeContext.meal);
+          setRecipeChoiceValue('data-recipe-cuisine',currentRecipeContext.cuisine);
+          setRecipeChoiceValue('data-recipe-time',String(currentRecipeContext.timeMinutes||15));
+        }
+        renderRecipeSuggestions(currentRecipeSet);
+        return true;
+      }
 
       function recipeChoiceValue(attribute){
         const button=document.querySelector('['+attribute+'][aria-pressed="true"]');
@@ -7099,19 +7204,13 @@
         const details=document.getElementById('recipeDetails');
         if(!recipe||!currentRecipeContext||button?.dataset.loading==='1') return;
 
-        const cacheKey=[
-          currentRecipeContext.ingredients,
-          currentRecipeContext.equipment,
-          currentRecipeContext.meal,
-          currentRecipeContext.cuisine,
-          currentRecipeContext.timeMinutes,
-          recipe.title
-        ].join('|');
+        const cacheKey=recipeDetailCacheKey(currentRecipeContext,recipe);
 
         selectRecipeSuggestion(recipe.id);
         const cached=recipeDetailCache.get(cacheKey);
         if(cached){
           renderRecipeDetails(cached,recipe.id);
+          saveCurrentRecipeCache(recipe.title);
           if(status) status.textContent='';
           return;
         }
@@ -7132,6 +7231,7 @@
           });
           if(data.recipe){
             recipeDetailCache.set(cacheKey,data.recipe);
+            saveCurrentRecipeCache(recipe.title);
             renderRecipeDetails(data.recipe,recipe.id);
             if(status) status.textContent='';
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
@@ -7203,6 +7303,11 @@
         input.addEventListener('focus',()=>document.body.classList.add('keyboard-editing'));
         input.addEventListener('blur',()=>document.body.classList.remove('keyboard-editing'));
 
+        const latestCachedRecipe=readRecipeCacheEntries()[0];
+        if(latestCachedRecipe&&restoreRecipeCacheEntry(latestCachedRecipe)){
+          if(status) status.textContent='Последние рецепты восстановлены из кэша.';
+        }
+
         generate.addEventListener('click',async()=>{
           const ingredients=input.value.trim();
           if(!ingredients){
@@ -7230,16 +7335,25 @@
           if(details) details.hidden=true;
 
           try{
-            const data=await recipeRequest(payload);
-            currentRecipeContext={
+            const context={
               ingredients:payload.ingredients,
               equipment:payload.equipment,
               meal:payload.meal,
               cuisine:payload.cuisine,
               timeMinutes:payload.timeMinutes
             };
+            const cachedEntry=findRecipeCacheEntry(context);
+            if(cachedEntry&&restoreRecipeCacheEntry(cachedEntry,{restoreInputs:false})){
+              if(status) status.textContent='Восстановлено из кэша. Выберите блюдо — повторный запрос к ИИ не нужен.';
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              return;
+            }
+
+            const data=await recipeRequest(payload);
+            currentRecipeContext=context;
             recipeDetailCache.clear();
             renderRecipeSuggestions(data.recipes);
+            saveCurrentRecipeCache('');
             if(status) status.textContent='Готово. Выберите блюдо, чтобы получить подробный рецепт.';
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
