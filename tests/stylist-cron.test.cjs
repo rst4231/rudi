@@ -34,10 +34,10 @@ test('stylist lead search is disabled in config', () => {
   assert.equal(config.topicId, 126);
 });
 
-test('vercel config schedules stylist scanner for 07:00 Moscow (04:00 UTC)', () => {
+test('vercel config does not schedule stylist scanner', () => {
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
   const cron = config.crons.find((item) => item.path === '/api/stylist-leads-cron');
-  assert.deepEqual(cron, { path: '/api/stylist-leads-cron', schedule: '0 4 * * *' });
-  assert.equal(config.functions['api/stylist-leads-cron.js'].maxDuration, 300);
+  assert.equal(cron, undefined);
+  assert.equal(config.functions['api/stylist-leads-cron.js'], undefined);
   assert.equal(config.git.deploymentEnabled, false);
 });
