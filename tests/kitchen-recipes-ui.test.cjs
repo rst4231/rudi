@@ -20,6 +20,8 @@ test('recipe generator has manual ingredients and all requested selectors', () =
   for (const value of ['oven','stove','multicooker']) assert.match(html, new RegExp('data-recipe-equipment="' + value + '"'));
   for (const value of ['breakfast','lunch','dinner']) assert.match(html, new RegExp('data-recipe-meal="' + value + '"'));
   for (const value of ['russian','italian','mexican','georgian']) assert.match(html, new RegExp('data-recipe-cuisine="' + value + '"'));
+  for (const value of ['5','10','15','30','45']) assert.match(html, new RegExp('data-recipe-time="' + value + '"'));
+  assert.match(js, /timeMinutes:Number\(recipeChoiceValue\('data-recipe-time'\)\|\|15\)/);
   assert.match(html, /id="recipeGenerate"/);
 });
 
@@ -34,4 +36,16 @@ test('recipe results are rendered as text, without image generation', () => {
   assert.match(js, /function renderRecipeDetails\(recipe\)/);
   assert.doesNotMatch(html, /recipeImage|recipe-image|Сгенерировать изображение/i);
   assert.match(css, /\/\* Kitchen recipe generator \*\//);
+});
+
+
+test('market ticker setting is visible only on Home', () => {
+  assert.match(js, /marketTickerSetting\.hidden=next!=='home'/);
+  assert.match(css, /body:not\(\[data-app-tab="home"\]\) \.market-ticker-setting/);
+});
+
+test('Photos taps do not scale the whole album card and memory like has a larger hit area', () => {
+  assert.doesNotMatch(css, /\.daily-card:active,\.shared-album-card:active\{transform:scale\(\.992\)\}/);
+  assert.match(css, /body\[data-app-tab="photos"\] \.shared-album-card:active[\s\S]*?transform:none!important/);
+  assert.match(css, /body\[data-app-tab="photos"\] \.shared-album-memory-reaction \.reaction-button\{[\s\S]*?width:38px;[\s\S]*?height:38px/);
 });
