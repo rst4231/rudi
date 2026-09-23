@@ -230,11 +230,11 @@ async function mockRudi(page,options={}){
   return state;
 }
 
-test('access gate stays until bootstrap and final home layout are ready',async({page})=>{
+test('authenticated shell opens while bootstrap finishes in the background',async({page})=>{
   const state=await mockRudi(page,{bootstrapDelayMs:1500});
   await page.goto('/');
   await expect.poll(()=>state.bootstrapStarted,{timeout:1000}).toBe(true);
-  await expect(page.locator('body')).toHaveClass(/auth-pending/,{timeout:1000});
+  await expect(page.locator('body')).toHaveClass(/auth-ok/,{timeout:1000});
   expect(state.bootstrapResolved).toBe(false);
   await expect.poll(()=>state.bootstrapResolved,{timeout:3000}).toBe(true);
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
@@ -260,15 +260,19 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#homeDashboard')).toBeVisible();
-  await expect(page.locator('#homeDashboard')).toContainText('Мы сегодня');
+  await expect(page.locator('#homeDashboard')).not.toContainText('Мы сегодня');
+  await expect(page.locator('#homeRustamTile')).toBeVisible();
+  await expect(page.locator('#homeDianaTile')).toBeVisible();
+  await expect(page.locator('#homeLuluTile')).toBeVisible();
+  await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.7.6');
+  await expect(page.locator('#appVersion')).toHaveText('v1.9.5');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-3)).toEqual(['smart-home','car','activity']);
 
   const dianaStatus=page.locator('#partnerWorkStatus');
-  await expect(dianaStatus).toHaveText('Работаю с 09:00 до 21:00');
+  await expect(dianaStatus).toHaveText('Работаю');
   await expect(page.locator('#selfWorkStatus')).toHaveText(/^(Работаю|Отдыхаю)$/);
   await expect(page.locator('#selfWorkStatus')).not.toContainText(/10:00|18:00|Пн|Пт/);
 
