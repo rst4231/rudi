@@ -5885,3 +5885,223 @@ html[data-theme="dark"] .partner-message .partner-edit{
   z-index:502;
 }
 /* end RUDI v1.9.8 activity popover stacking */
+
+/* RUDI v1.9.9 motion system */
+:root{
+  --rudi-motion-fast:160ms;
+  --rudi-motion-base:240ms;
+  --rudi-motion-slow:320ms;
+  --rudi-motion-ease:cubic-bezier(.22,.8,.22,1);
+  --rudi-motion-soft:cubic-bezier(.2,.72,.2,1);
+}
+@keyframes rudiViewEnter{
+  from{opacity:.01;transform:translate3d(0,8px,0) scale(.995)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes rudiListEnter{
+  from{opacity:.01;transform:translate3d(0,7px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes rudiDataRefresh{
+  0%{opacity:.56;transform:translate3d(0,2px,0)}
+  100%{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes rudiPhotoSwap{
+  from{opacity:.28;transform:scale(.986)}
+  to{opacity:1;transform:scale(1)}
+}
+@keyframes rudiNotificationDotIn{
+  0%{opacity:0;transform:scale(.35)}
+  58%{opacity:1;transform:scale(1.18)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes rudiRefreshDone{
+  0%{transform:translate(-50%,calc(-56px + var(--pull-distance))) scale(.96)}
+  60%{transform:translate(-50%,calc(-56px + var(--pull-distance))) scale(1.035)}
+  100%{transform:translate(-50%,calc(-56px + var(--pull-distance))) scale(1)}
+}
+
+[data-app-tab-section].rudi-view-enter{
+  animation:rudiViewEnter var(--rudi-motion-slow) var(--rudi-motion-ease) both;
+}
+.rudi-list-enter{
+  animation:rudiListEnter var(--rudi-motion-base) var(--rudi-motion-ease) both;
+  animation-delay:var(--rudi-motion-delay,0ms);
+}
+.rudi-data-refresh{
+  animation:rudiDataRefresh var(--rudi-motion-base) var(--rudi-motion-soft) both;
+}
+#photoViewerImage.rudi-photo-swap{
+  animation:rudiPhotoSwap var(--rudi-motion-base) var(--rudi-motion-ease) both;
+}
+
+.panel,.profile,.card,.section-block,.profile-person-card,.lulu-card,
+.home-nearest-block,.home-new-block,.smart-home-card,.car-card,.feed-card{
+  transition:
+    background-color var(--rudi-motion-base) ease,
+    border-color var(--rudi-motion-base) ease,
+    box-shadow var(--rudi-motion-base) ease,
+    opacity var(--rudi-motion-base) ease;
+}
+
+.rudi-collapsible{
+  transition:
+    box-shadow var(--rudi-motion-base) ease,
+    border-color var(--rudi-motion-base) ease,
+    background-color var(--rudi-motion-base) ease;
+}
+.rudi-collapse-body{
+  transition:
+    grid-template-rows var(--rudi-motion-slow) var(--rudi-motion-ease),
+    opacity var(--rudi-motion-base) ease,
+    margin var(--rudi-motion-base) ease;
+}
+.rudi-collapse-body-inner{
+  opacity:1;
+  transform:translate3d(0,0,0);
+  transition:
+    opacity var(--rudi-motion-base) ease,
+    transform var(--rudi-motion-slow) var(--rudi-motion-ease);
+}
+.rudi-collapsible.is-collapsed > .rudi-collapse-body .rudi-collapse-body-inner{
+  opacity:.72;
+  transform:translate3d(0,-6px,0);
+}
+.block-collapse-button{
+  transition:
+    transform var(--rudi-motion-fast) var(--rudi-motion-ease),
+    background-color var(--rudi-motion-base) ease,
+    border-color var(--rudi-motion-base) ease,
+    color var(--rudi-motion-base) ease;
+}
+.block-collapse-button:active{transform:scale(.92)}
+
+.app-tab-icon{
+  transform:translate3d(0,0,0) scale(1);
+  transition:
+    transform var(--rudi-motion-base) var(--rudi-motion-ease),
+    background-color var(--rudi-motion-base) ease;
+}
+.app-tab-button.active .app-tab-icon{transform:translate3d(0,-1px,0) scale(1.045)}
+.app-tab-button{
+  transition:
+    background-color var(--rudi-motion-base) ease,
+    color var(--rudi-motion-base) ease,
+    transform var(--rudi-motion-fast) var(--rudi-motion-ease),
+    opacity var(--rudi-motion-base) ease;
+}
+
+button,[role="button"],a{
+  transition-property:opacity,filter,background-color,border-color,color,box-shadow;
+  transition-duration:var(--rudi-motion-fast);
+  transition-timing-function:ease;
+}
+button:active:not(:disabled),[role="button"]:active{filter:brightness(.97)}
+button:disabled{transition:opacity var(--rudi-motion-base) ease}
+
+.home-activity-notifications-button{
+  transition:
+    transform var(--rudi-motion-fast) var(--rudi-motion-ease),
+    background-color var(--rudi-motion-base) ease,
+    border-color var(--rudi-motion-base) ease,
+    box-shadow var(--rudi-motion-base) ease;
+}
+.home-activity-notifications-button:active{transform:scale(.92)}
+.home-activity-notifications-button[aria-expanded="true"]{transform:scale(.96)}
+.home-activity-notification-dot:not([hidden]){
+  animation:rudiNotificationDotIn var(--rudi-motion-slow) var(--rudi-motion-ease) both;
+}
+.home-activity-notifications-panel{
+  opacity:0;
+  visibility:hidden;
+  transform:translate3d(0,-7px,0) scale(.975);
+  transform-origin:top right;
+  transition:
+    opacity 190ms ease,
+    transform var(--rudi-motion-base) var(--rudi-motion-ease),
+    visibility 190ms ease;
+}
+.home-activity-notifications-panel.is-open{
+  opacity:1;
+  visibility:visible;
+  transform:translate3d(0,0,0) scale(1);
+}
+
+.pull-refresh-indicator{
+  transition:
+    opacity var(--rudi-motion-fast) ease,
+    transform var(--rudi-motion-fast) var(--rudi-motion-ease),
+    color var(--rudi-motion-fast) ease;
+}
+.pull-refresh-indicator.is-done{
+  animation:rudiRefreshDone var(--rudi-motion-base) var(--rudi-motion-ease) both;
+}
+
+.wish-item,.product-item,.product-history-item,.feed-event-item,.feed-movie-card,
+.home-today-row,.home-nearest-row,.home-new-item,.home-activity-row,
+.calendar-day-cell,.work-selected,.shared-album-group,.shared-album-photo{
+  transition:
+    opacity var(--rudi-motion-base) ease,
+    transform var(--rudi-motion-fast) var(--rudi-motion-ease),
+    background-color var(--rudi-motion-base) ease,
+    border-color var(--rudi-motion-base) ease,
+    color var(--rudi-motion-base) ease,
+    box-shadow var(--rudi-motion-base) ease;
+}
+.wish-item:active,.product-item:active,.shared-album-photo:active{transform:scale(.988)}
+.calendar-day-cell:active{transform:scale(.94)}
+.feed-today-chip,.work-calendar-range,.shared-calendar-range{
+  transition:
+    transform var(--rudi-motion-fast) var(--rudi-motion-ease),
+    background-color var(--rudi-motion-base) ease,
+    border-color var(--rudi-motion-base) ease,
+    color var(--rudi-motion-base) ease;
+}
+
+.photo-viewer{
+  transition:opacity var(--rudi-motion-base) ease,visibility var(--rudi-motion-base) ease;
+}
+.photo-viewer-dialog{
+  transform:translate3d(0,8px,0) scale(.97);
+  transition:transform var(--rudi-motion-slow) var(--rudi-motion-ease);
+}
+.photo-viewer.open .photo-viewer-dialog{transform:translate3d(0,0,0) scale(1)}
+.holiday-modal{transition:opacity var(--rudi-motion-base) ease}
+.holiday-sheet{transition:transform var(--rudi-motion-slow) var(--rudi-motion-ease)}
+
+[class*="skeleton"]{
+  animation-timing-function:cubic-bezier(.4,0,.2,1)!important;
+}
+.app-gate{
+  transition:opacity var(--rudi-motion-base) ease,visibility var(--rudi-motion-base) ease;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .home-activity-notifications-button:hover,
+  .block-collapse-button:hover,
+  .product-icon-action:hover,
+  .wish-toggle:hover,
+  .wish-remove:hover{
+    filter:brightness(1.035);
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  [data-app-tab-section].rudi-view-enter,
+  .rudi-list-enter,
+  .rudi-data-refresh,
+  #photoViewerImage.rudi-photo-swap,
+  .home-activity-notification-dot:not([hidden]),
+  .pull-refresh-indicator.is-done{
+    animation:none!important;
+  }
+  .rudi-collapse-body,
+  .rudi-collapse-body-inner,
+  .home-activity-notifications-panel,
+  .photo-viewer-dialog,
+  .app-tab-icon{
+    transition-duration:0.01ms!important;
+  }
+}
+/* end RUDI v1.9.9 motion system */
+

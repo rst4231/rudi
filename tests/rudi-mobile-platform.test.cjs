@@ -69,3 +69,17 @@ test('Face ID challenge is stateless and does not depend on Runtime Cache', () =
   assert.doesNotMatch(passkeys,/function challengeKey/);
   assert.doesNotMatch(passkeys,/async function saveChallenge/);
 });
+
+test('RUDI has a restrained app-wide motion system with reduced-motion support', () => {
+  assert.match(app,/function rudiMotionReduced\(\)/);
+  assert.match(app,/function animateRudiView\(section\)/);
+  assert.match(app,/function animateRudiCollection\(root,selector=/);
+  assert.match(app,/restartRudiMotion\(image,'rudi-photo-swap',360\)/);
+  assert.match(app,/panel\.classList\.add\('is-open'\)/);
+  assert.match(css,/--rudi-motion-base:240ms/);
+  assert.match(css,/@keyframes rudiViewEnter/);
+  assert.match(css,/\.rudi-collapse-body-inner\{[\s\S]*?transition:/);
+  assert.match(css,/\.home-activity-notifications-panel\.is-open/);
+  assert.match(css,/@media \(prefers-reduced-motion:reduce\)/);
+});
+

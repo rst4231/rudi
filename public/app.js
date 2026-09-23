@@ -859,6 +859,46 @@
         });
       }
 
+      function rudiMotionReduced(){
+        try{return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)}
+        catch(_){return false}
+      }
+
+      function restartRudiMotion(element,className='rudi-data-refresh',duration=420){
+        if(!element||rudiMotionReduced()) return;
+        element.classList.remove(className);
+        void element.offsetWidth;
+        element.classList.add(className);
+        setTimeout(()=>element.classList.remove(className),Math.max(180,Number(duration)||420));
+      }
+
+      function animateRudiCollection(root,selector=':scope > *',limit=16){
+        if(!root||rudiMotionReduced()||root.closest?.('[hidden]')) return;
+        const nodes=[...root.querySelectorAll(selector)].slice(0,Math.max(0,Number(limit)||0));
+        if(!nodes.length) return;
+        requestAnimationFrame(()=>{
+          nodes.forEach((node,index)=>{
+            const delay=Math.min(index,10)*22;
+            node.style.setProperty('--rudi-motion-delay',delay+'ms');
+            node.classList.remove('rudi-list-enter');
+            void node.offsetWidth;
+            node.classList.add('rudi-list-enter');
+            setTimeout(()=>{
+              node.classList.remove('rudi-list-enter');
+              node.style.removeProperty('--rudi-motion-delay');
+            },560+delay);
+          });
+        });
+      }
+
+      function animateRudiView(section){
+        if(!section||section.hidden||rudiMotionReduced()) return;
+        section.classList.remove('rudi-view-enter');
+        void section.offsetWidth;
+        section.classList.add('rudi-view-enter');
+        setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
+      }
+
       function applyAppTab(tab,{scroll=false}={}){
         const allowed=['home','feed','schedule','wishlist','photos','products'];
         let next=allowed.includes(tab)?tab:'home';
@@ -867,6 +907,7 @@
           next='home';
         }
         if(next!=='home'&&homeLayoutEditing) setHomeLayoutEditing(false);
+        const changed=next!==currentAppTab;
         currentAppTab=next;
         document.body.dataset.appTab=next;
         if(next!=='home') setActivityNotificationsOpen(false);
@@ -875,6 +916,10 @@
           const available=section.dataset.tabAvailable!=='0';
           section.hidden=section.dataset.appTabSection!==next||!available||(section.dataset.homeEmpty==='1');
         });
+
+        if(changed){
+          document.querySelectorAll('[data-app-tab-section="'+next+'"]:not([hidden])').forEach(animateRudiView);
+        }
 
         document.querySelectorAll('[data-app-tab]').forEach(button=>{
           const active=button.dataset.appTab===next;
@@ -1408,13 +1453,23 @@
         updateActivityNotificationBadge();
       }
 
+      let activityNotificationsCloseTimer=null;
       function setActivityNotificationsOpen(open){
         const panel=document.getElementById('homeActivityNotificationsPanel');
         const button=document.getElementById('homeActivityNotificationsButton');
         if(!panel||!button) return;
         const next=Boolean(open);
         const dashboard=document.getElementById('homeDashboard');
-        panel.hidden=!next;
+        clearTimeout(activityNotificationsCloseTimer);
+        if(next){
+          panel.hidden=false;
+          requestAnimationFrame(()=>panel.classList.add('is-open'));
+        }else{
+          panel.classList.remove('is-open');
+          activityNotificationsCloseTimer=setTimeout(()=>{
+            if(!panel.classList.contains('is-open')) panel.hidden=true;
+          },230);
+        }
         button.setAttribute('aria-expanded',next?'true':'false');
         dashboard?.classList.toggle('activity-notifications-open',next);
         if(next) markActivityNotificationsSeen();
@@ -1428,11 +1483,11 @@
         button.addEventListener('click',event=>{
           event.preventDefault();
           event.stopPropagation();
-          setActivityNotificationsOpen(panel.hidden);
+          setActivityNotificationsOpen(!panel.classList.contains('is-open'));
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
         document.addEventListener('click',event=>{
-          if(panel.hidden) return;
+          if(panel.hidden||!panel.classList.contains('is-open')) return;
           if(event.target.closest?.('#homeActivityNotifications')) return;
           setActivityNotificationsOpen(false);
         });
@@ -1478,6 +1533,7 @@
           row.append(icon,copy,arrow);
           list.appendChild(row);
         }
+        animateRudiCollection(list,'.home-activity-row',10);
         const panel=document.getElementById('homeActivityNotificationsPanel');
         if(panel&&!panel.hidden) markActivityNotificationsSeen();
         else updateActivityNotificationBadge();
@@ -2035,7 +2091,7 @@
           tracking=false;
           armed=false;
           distance=0;
-          indicator.classList.remove('is-visible','is-armed','is-refreshing');
+          indicator.classList.remove('is-visible','is-armed','is-refreshing','is-done');
           indicator.style.setProperty('--pull-distance','0px');
           if(label) label.textContent='Потяните для обновления';
         };
@@ -2080,6 +2136,8 @@
               const delay=Math.max(0,420-(Date.now()-startedAt));
               setTimeout(()=>{
                 if(label) label.textContent='Обновлено';
+                indicator.classList.remove('is-refreshing');
+                indicator.classList.add('is-done');
                 setTimeout(()=>{
                   refreshing=false;
                   reset();
@@ -4332,6 +4390,7 @@
             if(details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('is-off',!day.working);
             selected.hidden=false;
+            restartRudiMotion(selected,'rudi-data-refresh',360);
             if(withHaptic){
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
             }
@@ -4570,6 +4629,7 @@
             copy.append(heading,info);
             selected.replaceChildren(icon,copy);
             selected.hidden=false;
+            restartRudiMotion(selected,'rudi-data-refresh',360);
             if(withHaptic){
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
             }
@@ -4652,6 +4712,7 @@
 
         image.src=url;
         image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
+        restartRudiMotion(image,'rudi-photo-swap',360);
 
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
@@ -4956,6 +5017,7 @@
           sectionEl.append(head,groupGrid);
           grid.appendChild(sectionEl);
         }
+        animateRudiCollection(grid,'.shared-album-group',7);
       }
 
       async function loadSharedAlbum(){
@@ -5093,6 +5155,8 @@
             rows.forEach(item=>container.appendChild(wishItemElement(item)));
           }
         }
+        animateRudiCollection(rustam,'.wish-item',8);
+        animateRudiCollection(diana,'.wish-item',8);
         status.hidden=true;
         status.textContent='';
       }
@@ -6138,6 +6202,8 @@
         renderHomeDashboard();
         sortFeedCards(results);
         renderFeedToday(payload,results);
+        animateRudiCollection(document.querySelector('.feed-grid'),'.feed-card',4);
+        animateRudiCollection(document.getElementById('feedTodayLinks'),'.feed-today-chip',8);
         setTimeout(observeFeedCards,0);
 
         currentFeedReactionTargets=[
@@ -6411,6 +6477,9 @@
           row.appendChild(copy);
           historyList.appendChild(row);
         }
+        animateRudiCollection(groups,'.product-category',7);
+        animateRudiCollection(groups,'.product-item',14);
+        animateRudiCollection(historyList,'.product-history-item',10);
       }
 
       function productsRefreshDelay(){
