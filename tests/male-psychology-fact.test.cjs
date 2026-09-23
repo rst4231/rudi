@@ -58,3 +58,17 @@ test('unseen selector is deterministic for the same date', () => {
   assert.equal(one.id,two.id);
   assert.notEqual(one.id,'a');
 });
+
+test('daily male psychology fact refuses degraded rotation when persistent history fails', async () => {
+  const brokenCache = {
+    async get() { throw new Error('cache-down'); },
+    async set() { throw new Error('cache-down'); },
+  };
+  const value = await readDailyMalePsychologyFact({
+    cache: brokenCache,
+    catalog,
+    now:'2026-09-23T12:00:00Z',
+  });
+  assert.equal(value,null);
+});
+

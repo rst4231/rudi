@@ -31,6 +31,7 @@
       let productsRecoveryChecked = false;
       let currentMoodDateKey = '';
       let currentConfig = null;
+      let currentMalePsychologyFact = null;
       let currentComplimentDateKey = '';
       let homeLayoutEditing = false;
       let homeTileHost = null;
@@ -1687,6 +1688,7 @@
       }
 
       function renderMalePsychologyFact(fact){
+        currentMalePsychologyFact=fact&&typeof fact==='object'?fact:null;
         const card=document.getElementById('malePsychologyFact');
         if(!card) return;
         const id=String(fact?.id||'').trim();
@@ -1880,6 +1882,7 @@
           '<a id="malePsychologyFactSource" class="male-psychology-fact-source" href="#" target="_blank" rel="noopener noreferrer"></a>'+
           '<div id="malePsychologyFactDisclaimer" class="male-psychology-fact-disclaimer"></div>';
         rustamCard.details.appendChild(maleFact);
+        renderMalePsychologyFact(currentMalePsychologyFact);
 
         dianaCard.details.appendChild(cycleSummary);
         if(moodPrompt){

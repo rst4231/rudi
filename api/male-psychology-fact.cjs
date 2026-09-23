@@ -140,8 +140,8 @@ async function readDailyMalePsychologyFact(options = {}) {
   if (!catalog.enabled || !catalog.facts.length) return null;
 
   if (!cache) {
-    const fact = fallbackFact(catalog.facts, dateKey);
-    return fact ? { ...fact, dateKey, disclaimer: catalog.disclaimer, degraded: true } : null;
+    console.warn('RUDI_MALE_PSYCHOLOGY_CACHE_UNAVAILABLE');
+    return null;
   }
 
   try {
@@ -174,8 +174,7 @@ async function readDailyMalePsychologyFact(options = {}) {
     return record;
   } catch (error) {
     console.warn('RUDI_MALE_PSYCHOLOGY_CACHE_WARN', String(error?.message || error));
-    const fact = fallbackFact(catalog.facts, dateKey);
-    return fact ? { ...fact, dateKey, disclaimer: catalog.disclaimer, degraded: true } : null;
+    return null;
   }
 }
 
