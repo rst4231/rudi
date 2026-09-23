@@ -47,9 +47,14 @@
         photoCount:0,
         productCount:0,
         activity:[],
+        lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','nearest','priority','partner','new','smart-home','car','activity'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'];
+      function preferredHomeDefaultOrder(){
+        const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
+        return ['dashboard',...people,'lulu','nearest','priority','partner','new','smart-home','car','activity'];
+      }
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
@@ -580,17 +585,23 @@
       function normalizedHomeOrder(order){
         const source=Array.isArray(order)?order.map(String):[];
         const requested=source.flatMap(id=>{
-          if(['profile','profile-common','profile-self','profile-partner','dashboard'].includes(id)){
-            return ['dashboard','rustam','diana','nearest'];
-          }
+          if(['profile','profile-common','profile-self','profile-partner'].includes(id)) return ['dashboard'];
           return [id];
         });
+        const defaults=preferredHomeDefaultOrder();
+        const partnerId=currentActor==='Диана'?'rustam':'diana';
+        if(!source.length){
+          requested.push(...defaults);
+        }else if(!requested.includes('lulu')){
+          const partnerIndex=requested.indexOf(partnerId);
+          if(partnerIndex>=0) requested.splice(partnerIndex+1,0,'lulu');
+        }
         if(!requested.includes('car')){
           const smartIndex=requested.indexOf('smart-home');
           if(smartIndex>=0) requested.splice(smartIndex+1,0,'car');
         }
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
-        for(const id of HOME_TILE_DEFAULT_ORDER) if(!valid.includes(id)) valid.push(id);
+        for(const id of defaults) if(!valid.includes(id)) valid.push(id);
         return valid;
       }
 
@@ -661,7 +672,7 @@
 
       function resetHomeOrder(){
         try{localStorage.removeItem(homeLayoutStorageKey())}catch(_){}
-        applyHomeOrder(HOME_TILE_DEFAULT_ORDER,{animate:true});
+        applyHomeOrder(preferredHomeDefaultOrder(),{animate:true});
         saveHomeOrder();
         updateHomeOrderControls();
         try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
@@ -1209,7 +1220,75 @@
         }).format(date).replace('.','')+' · '+time;
       }
 
+      function luluWalkTimeLabel(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return 'пока не отмечена';
+        const key=sharedAlbumDateKey(date);
+        const today=sharedAlbumDateKey(new Date());
+        const yesterday=sharedAlbumYesterdayKey();
+        const time=new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).format(date);
+        if(key===today) return 'сегодня в '+time;
+        if(key===yesterday) return 'вчера в '+time;
+        return new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,day:'numeric',month:'short'
+        }).format(date).replace('.','')+' в '+time;
+      }
+
+      function renderLulu(value){
+        const state=value&&typeof value==='object'?value:{};
+        homeDashboardState.lulu=state;
+        const status=document.getElementById('luluWalkStatus');
+        const meta=document.getElementById('luluWalkMeta');
+        const walk=state.lastWalk&&typeof state.lastWalk==='object'?state.lastWalk:null;
+        const label=luluWalkTimeLabel(walk?.walkedAt);
+        if(status) status.textContent='Последняя прогулка: '+label;
+        if(meta){
+          const actor=String(walk?.actor||'').trim();
+          meta.textContent=actor
+            ? 'Последний раз гулял'+(actor==='Диана'?'а':'')+' '+actor+' · '+label
+            : 'После прогулки здесь появится, кто гулял и во сколько.';
+        }
+      }
+
+      async function luluRequest(operation){
+        const response=await fetch('/api/partner-message?rudiAction=lulu',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation}),
+          cache:'no-store'
+        });
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok||!payload.ok) throw new Error(payload.error||'lulu-request-failed');
+        return payload;
+      }
+
+      async function markLuluWalk(){
+        const button=document.getElementById('luluWalkButton');
+        if(!button||button.disabled) return;
+        const previous=button.textContent;
+        button.disabled=true;
+        button.textContent='Отмечаю…';
+        try{
+          const payload=await luluRequest('walk');
+          renderLulu(payload.lulu);
+          if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
+          setTimeout(()=>loadActivityJournal({silent:true}),120);
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          button.textContent='Прогулка отмечена';
+          setTimeout(()=>{if(button.isConnected) button.textContent=previous},1100);
+        }catch(_){
+          button.textContent='Не удалось отметить';
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          setTimeout(()=>{if(button.isConnected) button.textContent=previous},1200);
+        }finally{
+          button.disabled=false;
+        }
+      }
+
       function renderActivityJournal(payload){
+        renderLulu(payload?.lulu);
         const list=document.getElementById('homeActivityList');
         const empty=document.getElementById('homeActivityEmpty');
         if(!list||!empty) return;
@@ -1385,6 +1464,7 @@
           button.addEventListener('click',()=>openHomeQuickAction(button.dataset.homeQuick));
         });
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
+        document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
           applyAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
@@ -1420,6 +1500,13 @@
         partnerStatus.id='partnerWorkStatus';
         partnerStatus.className='profile-work-status is-neutral';
         partnerPerson.appendChild(partnerStatus);
+
+        const dianaPerson=currentActor==='Диана'?selfPerson:partnerPerson;
+        const dianaCycleMood=document.createElement('div');
+        dianaCycleMood.id='dianaCycleMood';
+        dianaCycleMood.className='profile-cycle-mood';
+        dianaCycleMood.hidden=true;
+        dianaPerson.appendChild(dianaCycleMood);
 
         selfIdentity.appendChild(selfMood);
         partnerIdentity.replaceChildren(partnerAvatar,partnerPerson,partnerMood);
@@ -1500,6 +1587,24 @@
           (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodMessage);
         }
 
+        const luluTile=document.createElement('section');
+        luluTile.id='homeLuluTile';
+        luluTile.className='panel lulu-card';
+        luluTile.dataset.appTabSection='home';
+        luluTile.dataset.homeTile='lulu';
+        luluTile.setAttribute('aria-label','Lulu');
+        luluTile.innerHTML=
+          '<div class="lulu-head">'+
+            '<div class="lulu-identity">'+
+              '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.5" alt="Lulu" width="58" height="58">'+
+              '<div class="lulu-copy"><h2>Lulu</h2><div id="luluWalkStatus" class="lulu-walk-status">Последняя прогулка: пока не отмечена</div></div>'+
+            '</div>'+
+          '</div>'+
+          '<div id="luluBody" class="lulu-body">'+
+            '<button id="luluWalkButton" class="lulu-walk-button" type="button">Отметить прогулку</button>'+
+            '<div id="luluWalkMeta" class="lulu-walk-meta">После прогулки здесь появится, кто гулял и во сколько.</div>'+
+          '</div>';
+
         const nearest=document.createElement('section');
         nearest.id='homeNearestBlock';
         nearest.className='panel home-nearest-tile';
@@ -1510,7 +1615,7 @@
           '<div class="home-nearest-head"><div class="home-nearest-title">Ближайшее</div></div>'+
           '<div id="homeNearestRows" class="home-nearest-rows"></div>';
 
-        profile.after(rustamCard.tile,dianaCard.tile,nearest);
+        profile.after(selfCard.tile,partnerCard.tile,luluTile,nearest);
 
         const newTile=document.createElement('section');
         newTile.id='homeNewTile';
@@ -1659,6 +1764,11 @@
           selector:'#homeDianaTile',key:'profile-diana',
           bodySelectors:['#homeDianaDetails'],
           hostSelector:'.profile-person-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#homeLuluTile',key:'lulu',
+          bodySelectors:['#luluBody'],
+          hostSelector:'.lulu-head'
         });
         setupPersistentCollapsible({
           selector:'#homeNearestBlock',key:'nearest',

@@ -5766,3 +5766,32 @@ html[data-theme="dark"] .partner-message .partner-edit{
   .home-nearest-tile{padding:13px 14px;border-radius:18px}
 }
 /* end RUDI v1.9.4 separate home cards */
+
+
+/* RUDI v1.9.5: Lulu walk card */
+.lulu-card{
+  position:relative;isolation:isolate;display:grid;gap:10px;padding:14px 15px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.10);border-radius:22px;
+  background:radial-gradient(circle at 92% 0%,rgba(148,112,86,.16),transparent 34%),
+    linear-gradient(145deg,#27231f 0%,#1b1917 56%,#11100f 100%);
+  color:#f7f8fc;box-shadow:0 16px 34px rgba(8,10,16,.18),inset 0 1px 0 rgba(255,255,255,.065)
+}
+.lulu-head{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lulu-identity{min-width:0;display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:11px}
+.lulu-avatar{width:52px;height:52px;display:block;object-fit:contain;object-position:center;border-radius:15px;background:rgba(255,255,255,.045);filter:drop-shadow(0 8px 13px rgba(0,0,0,.24))}
+.lulu-copy{min-width:0;display:grid;gap:4px}
+.lulu-copy h2{margin:0;color:#f8f9fd;font-size:19px;line-height:1.05;font-weight:850;letter-spacing:-.028em}
+.lulu-walk-status{overflow:hidden;color:rgba(239,242,249,.72);font-size:11px;line-height:1.3;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.lulu-body{display:grid;gap:7px}
+.lulu-walk-button{min-height:42px;border:1px solid rgba(211,173,132,.20);border-radius:13px;background:linear-gradient(135deg,rgba(171,125,82,.24),rgba(120,88,62,.14));color:#f8eee5;font:inherit;font-size:12px;font-weight:820;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.lulu-walk-button:disabled{opacity:.62}
+.lulu-walk-meta{color:rgba(239,242,249,.58);font-size:10px;line-height:1.4}
+.lulu-card .block-collapse-button{width:30px;height:30px;flex:none;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:rgba(255,255,255,.045);color:#f5f6fa}
+.lulu-card.is-collapsed{gap:0}.lulu-card.is-collapsed .lulu-head{min-height:52px}
+@media(max-width:430px){
+  .lulu-card{padding:12px 13px;border-radius:20px}
+  .lulu-identity{grid-template-columns:48px minmax(0,1fr);gap:10px}
+  .lulu-avatar{width:48px;height:48px;border-radius:14px}
+  .lulu-copy h2{font-size:18px}.lulu-walk-status{font-size:10.5px}
+}
+/* end RUDI v1.9.5 Lulu walk card */
