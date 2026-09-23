@@ -107,6 +107,7 @@ function normalizeUiPreferenceEntry(value) {
     blockStates,
     activitySeenId:String(source.activitySeenId||'').trim().slice(0,80),
     marketTickerEnabled:Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled')?Boolean(source.marketTickerEnabled):true,
+    themeMode:['system','light','dark'].includes(String(source.themeMode||'').trim())?String(source.themeMode).trim():'system',
     updatedAt:String(source.updatedAt||''),
   };
 }
