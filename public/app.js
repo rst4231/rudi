@@ -9,7 +9,6 @@
       let currentActor = '';
       let appAccessReady = false;
       let currentPartnerReactionKey = '';
-      let currentDailyReactionTargets = [];
       let currentFeedReactionTargets = [];
       let currentPhotoMemoryReactionTarget = null;
       let partnerProfileName = '';
@@ -50,14 +49,14 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','partner','new','smart-home','car','activity'];
+        return ['dashboard',...people,'lulu','nearest','priority','partner','new','smart-home','car'];
       }
       function homeTopOrderMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi-home-top-order-v3-'+actor;
+        return 'rudi-home-top-order-v4-'+actor;
       }
 
       function migrateHomeTopOrderOnce(order){
@@ -70,7 +69,7 @@
           ?['diana','rustam','lulu','nearest']
           :['rustam','diana','lulu','nearest'];
         const middle=source.filter(id=>id!=='dashboard'&&id!=='activity'&&!top.includes(id));
-        const next=['dashboard',...top,...middle,'activity'];
+        const next=['dashboard',...top,...middle];
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
@@ -498,16 +497,28 @@
         return 'rudi:ui-prefs-meta:v1:'+actor;
       }
 
+      function activitySeenStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:activity-seen:v1:'+actor;
+      }
+
+      function currentActivitySeenId(){
+        try{return String(localStorage.getItem(activitySeenStorageKey())||'')}catch(_){return ''}
+      }
+
       function localUiPreferences(){
         let homeOrder=[];
         let blockStates={};
+        let activitySeenId='';
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
+        try{activitySeenId=String(localStorage.getItem(activitySeenStorageKey())||'')}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
+          activitySeenId,
           updatedAt
         };
       }
@@ -517,14 +528,18 @@
         if(!remote||(!force&&uiPreferencesDirty)) return false;
         const hasRemoteOrder=Array.isArray(remote.homeOrder)&&remote.homeOrder.length>0;
         const hasRemoteBlocks=remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)&&Object.keys(remote.blockStates).length>0;
+        const hasRemoteActivitySeen=Object.prototype.hasOwnProperty.call(remote,'activitySeenId');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteActivitySeen) return false;
         try{
           if(hasRemoteOrder){
             localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remote.homeOrder));
           }
           if(hasRemoteBlocks){
             localStorage.setItem(blockStateStorageKey(),JSON.stringify(remote.blockStates));
+          }
+          if(hasRemoteActivitySeen){
+            localStorage.setItem(activitySeenStorageKey(),String(remote.activitySeenId||''));
           }
           if(remoteStamp) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
           return true;
@@ -809,6 +824,13 @@
         loadHomeOrder();
         ensureHomeOrderControls();
 
+        if(tg?.initData){
+          button.hidden=true;
+          if(reset) reset.hidden=true;
+          setHomeLayoutEditing(false);
+          return;
+        }
+
         if(button.dataset.homeLayoutBound!=='1'){
           button.dataset.homeLayoutBound='1';
           button.addEventListener('click',()=>setHomeLayoutEditing(!homeLayoutEditing));
@@ -846,6 +868,7 @@
         if(next!=='home'&&homeLayoutEditing) setHomeLayoutEditing(false);
         currentAppTab=next;
         document.body.dataset.appTab=next;
+        if(next!=='home') setActivityNotificationsOpen(false);
 
         document.querySelectorAll('[data-app-tab-section]').forEach(section=>{
           const available=section.dataset.tabAvailable!=='0';
@@ -1362,12 +1385,65 @@
         }
       }
 
+      function activityNotificationsHaveUnread(){
+        const latest=homeDashboardState.activity?.[0];
+        return Boolean(latest?.id&&String(latest.id)!==currentActivitySeenId());
+      }
+
+      function updateActivityNotificationBadge(){
+        const dot=document.getElementById('homeActivityNotificationDot');
+        if(dot) dot.hidden=!activityNotificationsHaveUnread();
+      }
+
+      function markActivityNotificationsSeen(){
+        const latest=homeDashboardState.activity?.[0];
+        const id=String(latest?.id||'').trim();
+        if(!id||id===currentActivitySeenId()){
+          updateActivityNotificationBadge();
+          return;
+        }
+        try{localStorage.setItem(activitySeenStorageKey(),id)}catch(_){}
+        markUiPreferencesChanged();
+        updateActivityNotificationBadge();
+      }
+
+      function setActivityNotificationsOpen(open){
+        const panel=document.getElementById('homeActivityNotificationsPanel');
+        const button=document.getElementById('homeActivityNotificationsButton');
+        if(!panel||!button) return;
+        const next=Boolean(open);
+        panel.hidden=!next;
+        button.setAttribute('aria-expanded',next?'true':'false');
+        if(next) markActivityNotificationsSeen();
+      }
+
+      function setupActivityNotifications(){
+        const button=document.getElementById('homeActivityNotificationsButton');
+        const panel=document.getElementById('homeActivityNotificationsPanel');
+        if(!button||!panel||button.dataset.bound==='1') return;
+        button.dataset.bound='1';
+        button.addEventListener('click',event=>{
+          event.preventDefault();
+          event.stopPropagation();
+          setActivityNotificationsOpen(panel.hidden);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        document.addEventListener('click',event=>{
+          if(panel.hidden) return;
+          if(event.target.closest?.('#homeActivityNotifications')) return;
+          setActivityNotificationsOpen(false);
+        });
+        document.addEventListener('keydown',event=>{
+          if(event.key==='Escape') setActivityNotificationsOpen(false);
+        });
+      }
+
       function renderActivityJournal(payload){
         renderLulu(payload?.lulu);
         const list=document.getElementById('homeActivityList');
         const empty=document.getElementById('homeActivityEmpty');
         if(!list||!empty) return;
-        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,6);
+        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,10);
         homeDashboardState.activity=items;
         list.replaceChildren();
         empty.hidden=items.length>0;
@@ -1399,6 +1475,7 @@
           row.append(icon,copy,arrow);
           list.appendChild(row);
         }
+        updateActivityNotificationBadge();
       }
 
       async function loadActivityJournal({silent=false}={}){
@@ -1534,6 +1611,7 @@
       }
 
       function setupHomeDashboardActions(){
+        setupActivityNotifications();
         document.querySelectorAll('[data-home-quick]').forEach(button=>{
           if(button.dataset.bound==='1') return;
           button.dataset.bound='1';
@@ -1599,7 +1677,22 @@
         const greeting=document.createElement('h1');
         greeting.id='homeDashboardGreeting';
         greeting.className='home-dashboard-greeting';
-        top.append(greeting,dateHeading);
+
+        const notifications=document.createElement('div');
+        notifications.id='homeActivityNotifications';
+        notifications.className='home-activity-notifications';
+        notifications.innerHTML=
+          '<button id="homeActivityNotificationsButton" class="home-activity-notifications-button" type="button" aria-label="Что нового произошло" aria-expanded="false">'+
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>'+
+            '<span id="homeActivityNotificationDot" class="home-activity-notification-dot" hidden></span>'+
+          '</button>'+
+          '<div id="homeActivityNotificationsPanel" class="home-activity-notifications-panel" hidden>'+
+            '<div class="home-activity-notifications-title">Что произошло у нас</div>'+
+            '<div id="homeActivityList" class="home-activity-list" aria-live="polite"></div>'+
+            '<div id="homeActivityEmpty" class="home-activity-empty">Пока здесь тихо — новые события появятся автоматически.</div>'+
+          '</div>';
+
+        top.append(greeting,notifications,dateHeading);
 
         const messageNew=document.createElement('button');
         messageNew.id='homeMessageNew';
@@ -1701,20 +1794,6 @@
         newTile.hidden=true;
         newTile.innerHTML='<div class="home-dashboard-label">Новое в RUDI</div><div id="homeNewList" class="home-new-list"></div>';
         document.getElementById('dianaCycleCard')?.after(newTile);
-
-        const activityTile=document.createElement('section');
-        activityTile.id='homeActivityTile';
-        activityTile.className='panel home-activity-tile';
-        activityTile.dataset.appTabSection='home';
-        activityTile.dataset.homeTile='activity';
-        activityTile.innerHTML=
-          '<div class="home-activity-head">'+
-            '<div><div class="home-dashboard-label">Вместе</div><h2>Что произошло у нас</h2></div>'+
-            '<span class="home-activity-dot" aria-hidden="true"></span>'+
-          '</div>'+
-          '<div id="homeActivityList" class="home-activity-list" aria-live="polite"></div>'+
-          '<div id="homeActivityEmpty" class="home-activity-empty">Пока здесь тихо — новые события появятся автоматически.</div>';
-        newTile.after(activityTile);
 
         document.body.dataset.profileSplitReady='1';
         syncStaticProfileWorkStatus();
@@ -1881,10 +1960,6 @@
           {id:'diana',name:'Диана',year:1996,month:6,day:30}
         ],
         importantDates:[{id:'new-year',title:'Новый год',month:1,day:1,recurring:true}],
-        dailyIdeas:['Сделать небольшую прогулку без телефона.','Попробовать сегодня новый рецепт.','Устроить вечером час без соцсетей.','Написать близкому человеку что-нибудь приятное.'],
-        watchList:['Достать ножи','Интерстеллар','Одержимость','Зелёная книга'],
-        watchMinImdbRating:7,
-        watchRatings:{'Достать ножи':7.9,'Интерстеллар':8.7,'Одержимость':8.5,'Зелёная книга':8.2},
         cookList:['Паста карбонара','Шакшука','Курица терияки с рисом','Сырники'],
         compliments:{
           male:['Сегодня ты выглядишь особенно уверенно.','У тебя отличный настрой — это чувствуется.','Сегодня определённо твой день.'],
@@ -1936,7 +2011,7 @@
         document.body.appendChild(indicator);
 
         const label=indicator.querySelector('.pull-refresh-label');
-        const threshold=112;
+        const threshold=224;
         const maxDistance=142;
         let startY=0;
         let distance=0;
@@ -4794,7 +4869,7 @@
         const count=document.getElementById('sharedAlbumCount');
         const open=document.getElementById('sharedAlbumOpen');
         const photos=(Array.isArray(payload?.photos)?payload.photos:[])
-          .slice(0,100)
+          .slice(0,250)
           .sort((a,b)=>sharedAlbumPhotoTime(b)-sharedAlbumPhotoTime(a));
         sharedAlbumPhotos=photos;
 
@@ -5163,24 +5238,11 @@
 
       function setupReactions(){
         bindReaction('partnerMessageLike','partnerMessageLikedBy',()=>currentPartnerReactionKey?{type:'partner-message',key:currentPartnerReactionKey}:null);
-        bindReaction('dailyIdeaLike','dailyIdeaLikedBy',()=>currentDailyReactionTargets.find(target=>target.type==='daily-idea')||null);
-        bindReaction('watchLike','watchLikedBy',()=>currentDailyReactionTargets.find(target=>target.type==='watch')||null);
         bindReaction('feedFactsLike','feedFactsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('facts:'))||null);
         bindReaction('feedConcertsLike','feedConcertsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('concerts:'))||null);
         bindReaction('feedStandupLike','feedStandupLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('standup:'))||null);
         bindReaction('feedCinemaLike','feedCinemaLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('cinema:'))||null);
         bindReaction('sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy',()=>currentPhotoMemoryReactionTarget);
-      }
-
-      async function refreshDailyReactions(){
-        if(!currentActor||!currentDailyReactionTargets.length) return;
-        try{
-          const data=await reactionsRequest('list',{targets:currentDailyReactionTargets});
-          for(const reaction of data.reactions||[]){
-            if(reaction.type==='daily-idea') renderReaction(reaction,'dailyIdeaLike','dailyIdeaLikedBy');
-            if(reaction.type==='watch') renderReaction(reaction,'watchLike','watchLikedBy');
-          }
-        }catch(_){}
       }
 
       async function refreshFeedReactions(){
@@ -5494,33 +5556,6 @@
           event.preventDefault();
           event.stopPropagation();
           openCinemaPremieresTopic();
-        });
-      }
-
-      function setupWatchSuggestion(config,title){
-        const card=document.querySelector('.watch-card');
-        if(!card) return;
-        const links=config?.watchLinks&&typeof config.watchLinks==='object'?config.watchLinks:{};
-        const url=String(links?.[title]||'').trim();
-        card.classList.toggle('is-link',Boolean(url));
-        card.setAttribute('aria-disabled',url?'false':'true');
-        if(!url) return;
-
-        const open=()=>{
-          try{
-            if(tg?.openLink) tg.openLink(url);
-            else window.open(url,'_blank','noopener,noreferrer');
-          }catch(_){
-            window.open(url,'_blank','noopener,noreferrer');
-          }
-        };
-
-        card.addEventListener('click',event=>{if(event.target.closest('button')) return;open()});
-        card.addEventListener('keydown',event=>{
-          if(event.key==='Enter'||event.key===' '){
-            event.preventDefault();
-            open();
-          }
         });
       }
 
@@ -6583,35 +6618,8 @@
         const config=await configPromise;
         currentConfig=config;
         setupProducts();
-        const {utc}=todayState();
-        const dayIndex=Math.floor(utc/DAY);
         renderDailyCompliment(config,{force:true});
-
-        const ideas=config.dailyIdeas?.length?config.dailyIdeas:fallback.dailyIdeas;
-        const watch=config.watchList?.length?config.watchList:fallback.watchList;
-        const watchRatings=config.watchRatings&&typeof config.watchRatings==='object'?config.watchRatings:fallback.watchRatings;
-        const watchMin=Math.max(7,Number(config.watchMinImdbRating??fallback.watchMinImdbRating)||7);
-        const eligibleWatch=watch.filter(title=>Number(watchRatings?.[title])>=watchMin);
-        const watchTitle=String(eligibleWatch.length?eligibleWatch[Math.abs(dayIndex+3)%eligibleWatch.length]:'').trim();
-        const watchRating=Number(watchRatings?.[watchTitle]);
-        const ideaText=String(ideas[Math.abs(dayIndex)%ideas.length]||'').trim();
-        document.getElementById('dailyIdea').textContent=ideaText;
-        const watchCard=document.querySelector('.watch-card');
-        if(watchCard) watchCard.hidden=!watchTitle;
-        document.getElementById('watchToday').textContent=watchTitle;
-        const watchRatingRow=document.getElementById('watchRatingRow');
-        const watchRatingEl=document.getElementById('watchRating');
-        if(watchRatingRow) watchRatingRow.hidden=!(watchTitle&&Number.isFinite(watchRating)&&watchRating>=watchMin);
-        if(watchRatingEl) watchRatingEl.textContent=Number.isFinite(watchRating)?watchRating.toFixed(1):'';
-        if(watchTitle) setupWatchSuggestion(config,watchTitle);
-
-        const todayKey=todayState().key;
-        currentDailyReactionTargets=[
-          {type:'daily-idea',key:'day:'+todayKey},
-          ...(watchTitle?[{type:'watch',key:'day:'+todayKey}]:[])
-        ];
         setupReactions();
-        refreshDailyReactions();
 
         renderNearest(config);
         renderAnniversary(config);
@@ -6685,7 +6693,6 @@
             loadSharedAlbum(),
             (currentAppTab==='products'?loadProducts({silent:true}):Promise.resolve()),
             (currentAppTab==='feed'?loadFeed({silent:true}):Promise.resolve()),
-            refreshDailyReactions(),
             loadActivityJournal({silent:true}),
             syncUiPreferencesFromServer().then(()=>refreshStateBackup())
           ]);
