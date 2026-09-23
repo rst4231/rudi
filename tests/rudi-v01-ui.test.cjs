@@ -16,7 +16,8 @@ test('Diana work status uses the calendar and shows working or resting state',()
   assert.match(html,/function dianaWorkStatusText\(row\)/);
   assert.match(html,/Работаю/);
   assert.match(html,/Отдыхаю/);
-  assert.match(html,/return dianaWorkingNow\(row\)\?'Работаю':'Отдыхаю'/);
+  assert.match(html,/const activeShift=dianaActiveShiftLabel\(row\)/);
+  assert.match(html,/return 'Работаю'\+\(activeShift\?' · '\+activeShift:''\)/);
   assert.match(html,/renderPartnerWorkStatus\(days\)/);
 });
 
