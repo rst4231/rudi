@@ -1,8 +1,6 @@
 (() => {
   const tg = window.Telegram?.WebApp;
   const API = '/api/index?route=car';
-  const WEATHER_KEY = 'rudi-car-weather-v1';
-  const WEATHER_TTL_MS = 30 * 60 * 1000;
   const state = { car:null, weather:null, loading:false };
 
   function formatKm(value) {
@@ -174,7 +172,7 @@
         ? Math.round(Number(weather.temperature))+'°C · '+weatherLabel(weather.code)
         : 'Погода недоступна';
     }
-    if(advice) advice.textContent=tyreAdvice(weather);
+    if(advice) advice.textContent=(weather?.stale?'Сохранённый прогноз · ':'')+tyreAdvice(weather);
   }
 
   function taskDateLabel(task){
@@ -272,33 +270,16 @@
     renderTasks(state.car.ticktick);
   }
 
-  function cachedWeather() {
-    try {
-      const value=JSON.parse(localStorage.getItem(WEATHER_KEY)||'null');
-      if(value && Date.now()-Number(value.savedAt||0)<WEATHER_TTL_MS) return value;
-    } catch(_){}
-    return null;
-  }
-
   async function loadWeather() {
-    const cached=cachedWeather();
-    if(cached) {
-      state.weather=cached;
-      render();
-      return;
-    }
-
     try {
-      const url='https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code,precipitation&daily=temperature_2m_min,temperature_2m_max,precipitation_sum&forecast_days=7&timezone=Europe%2FMoscow';
-      const response=await fetch(url,{cache:'no-store'});
-      if(!response.ok) throw new Error('weather');
-      const data=await response.json();
+      const data=await window.RUDI_WEATHER.get();
       const mins=(data.daily?.temperature_2m_min||[]).map(Number).filter(Number.isFinite);
       const maxs=(data.daily?.temperature_2m_max||[]).map(Number).filter(Number.isFinite);
       const means=mins.map((min,index)=>(min+Number(maxs[index]))/2).filter(Number.isFinite);
       const precipitation=(data.daily?.precipitation_sum||[]).map(Number).filter(Number.isFinite);
       const value={
-        savedAt:Date.now(),
+        savedAt:data.fetchedAt,
+        stale:data.stale,
         temperature:Number(data.current?.temperature_2m),
         code:Number(data.current?.weather_code),
         minForecast:mins.length?Math.min(...mins):null,
@@ -307,7 +288,6 @@
         precipitationSum:precipitation.reduce((a,b)=>a+b,0)
       };
       state.weather=value;
-      try{localStorage.setItem(WEATHER_KEY,JSON.stringify(value))}catch(_){}
     } catch(_) {
       state.weather=null;
     }

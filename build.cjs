@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { createHash } = require('node:crypto');
 
-const WEB_ASSETS = ['app.css', 'calendar.css', 'smart-home.css', 'car.css', 'app.js', 'smart-home.js', 'car.js'];
+const WEB_ASSETS = ['app.css', 'calendar.css', 'smart-home.css', 'car.css', 'app.js', 'weather.js', 'smart-home.js', 'car.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -100,6 +100,7 @@ function syncWebVersion() {
   html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
+  html = html.replace(/\/weather\.js\?v=[^"]+/g, '/weather.js?v=' + assetVersion);
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
   html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
   html = html.replace(

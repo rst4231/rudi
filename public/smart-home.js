@@ -2,7 +2,6 @@
   const tg = window.Telegram?.WebApp;
   const API = '/api/index?route=smart-home';
   const HOME_STALE_MS = 5 * 60 * 1000;
-  const WEATHER_STALE_MS = 15 * 60 * 1000;
   const state = { loading:false, lastLoadedAt:0, data:null, expandedVacuumIds:new Set() };
 
   function onOff(device){
@@ -454,14 +453,6 @@
     }
   }
 
-  function weatherCache(){
-    try{
-      const saved=JSON.parse(localStorage.getItem('rudi-smart-home-weather-v1')||'null');
-      if(saved&&Date.now()-Number(saved.at||0)<WEATHER_STALE_MS)return saved;
-    }catch(_){}
-    return null;
-  }
-
   function renderWeather(value){
     const weather=document.getElementById('smartHomeWeather');
     const text=document.getElementById('smartHomeWeatherText');
@@ -470,18 +461,8 @@
   }
 
   async function loadWeather(){
-    const cached=weatherCache();
-    if(cached){
-      renderWeather(cached);
-      return;
-    }
-
     try{
-      const url='https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code,precipitation,rain&forecast_days=1&timezone=Europe%2FMoscow';
-      const response=await fetch(url,{cache:'no-store'});
-      if(!response.ok)throw new Error('weather');
-
-      const data=await response.json();
+      const data=await window.RUDI_WEATHER.get();
       const c=data.current||{};
       const labels={
         0:'Ясно',1:'Преимущественно ясно',2:'Облачно',3:'Пасмурно',
@@ -491,11 +472,10 @@
         80:'Ливень',81:'Ливень',82:'Сильный ливень',95:'Гроза'
       };
       const value={
-        at:Date.now(),
+        at:data.fetchedAt,
         temperature:Number(c.temperature_2m),
-        text:(labels[c.weather_code]||'Погода')+((Number(c.rain||0)>0||Number(c.precipitation||0)>0)?' · осадки':'')
+        text:(data.stale?'Сохранённый прогноз · ':'')+(labels[c.weather_code]||'Погода')+((Number(c.rain||0)>0||Number(c.precipitation||0)>0)?' · осадки':'')
       };
-      try{localStorage.setItem('rudi-smart-home-weather-v1',JSON.stringify(value))}catch(_){}
       renderWeather(value);
     }catch(_){
       renderWeather(null);

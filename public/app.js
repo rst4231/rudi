@@ -1364,26 +1364,7 @@
         const greeting=document.createElement('h1');
         greeting.id='homeDashboardGreeting';
         greeting.className='home-dashboard-greeting';
-        const refreshButton=document.createElement('button');
-        refreshButton.type='button';
-        refreshButton.id='homeDashboardRefresh';
-        refreshButton.className='home-dashboard-refresh';
-        refreshButton.setAttribute('aria-label','Обновить данные');
-        refreshButton.setAttribute('title','Обновить');
-        refreshButton.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>';
-        refreshButton.addEventListener('click',async()=>{
-          if(refreshButton.classList.contains('is-refreshing')) return;
-          refreshButton.classList.add('is-refreshing');
-          refreshButton.disabled=true;
-          try{
-            await refreshAfterResume();
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          }finally{
-            refreshButton.disabled=false;
-            setTimeout(()=>refreshButton.classList.remove('is-refreshing'),180);
-          }
-        });
-        top.append(greeting,refreshButton,dateHeading);
+        top.append(greeting,dateHeading);
 
         const together=document.createElement('section');
         together.className='home-dashboard-section home-together';

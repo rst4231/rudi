@@ -24,6 +24,7 @@ const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require(
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const handleRudiJwks = require('./rudi-jwks.cjs');
 const { handleSmartHomeRequest } = require('./smart-home-client.cjs');
+const { handleWeatherRequest } = require('./weather.cjs');
 const { handleCarRequest } = require('./car-client.cjs');
 const {
   handleFeedbackCallback,
@@ -118,6 +119,7 @@ async function handler(req, res) {
   try {
     if (req.query?.route === 'rudi-jwks') return handleRudiJwks(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
+    if (req.query?.route === 'weather') return handleWeatherRequest(req, res);
     if (req.query?.route === 'car') return handleCarRequest(req, res);
     if (req.query?.route === 'telegram') {
       if (await handleFeedbackCallback(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch, env: process.env })) {
