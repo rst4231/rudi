@@ -73,3 +73,66 @@ test('only Telegram messages targeting topic 126 enter the private queue', async
   assert.equal(result.sent, 1);
   assert.equal(sent[0].text, 'Для Ди');
 });
+
+
+test('For Di plain-text entries disable Telegram HTML parsing', async () => {
+  const cache = memoryCache();
+  const now = new Date('2026-09-23T07:00:00Z');
+  await queueForDiMessage('Клиент написал: <пример>', {
+    now,
+    forDiCache: cache,
+    parseMode: false,
+    source: 'stylist',
+  });
+  const sent = [];
+  const result = await sendForDiPrivateMessages({
+    now: new Date('2026-09-23T09:00:00Z'),
+    forDiCache: cache,
+    recipients: { 'Диана': 222 },
+    botToken: 'test-token',
+    fetchImpl: async (_url, init) => {
+      sent.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ ok:true, result:{ message_id:1 } }), {
+        status:200, headers:{'content-type':'application/json'}
+      });
+    },
+  });
+  assert.equal(result.sent, 1);
+  assert.equal(sent[0].text, 'Клиент написал: <пример>');
+  assert.equal(sent[0].parse_mode, undefined);
+});
+
+test('For Di delivery continues after one bad message and reports the failed item', async () => {
+  const cache = memoryCache();
+  const now = new Date('2026-09-23T07:00:00Z');
+  await queueForDiMessage('Первое', { now, forDiCache: cache, source:'one' });
+  await queueForDiMessage('Второе', { now, forDiCache: cache, source:'two' });
+  const calls=[];
+  await assert.rejects(
+    () => sendForDiPrivateMessages({
+      now:new Date('2026-09-23T09:00:00Z'),
+      forDiCache:cache,
+      recipients:{'Диана':222},
+      botToken:'test-token',
+      fetchImpl:async(_url,init)=>{
+        const payload=JSON.parse(init.body);
+        calls.push(payload);
+        if(payload.text==='Первое') {
+          return new Response(JSON.stringify({ok:false,description:'Bad Request'}), {
+            status:400,headers:{'content-type':'application/json'}
+          });
+        }
+        return new Response(JSON.stringify({ok:true,result:{message_id:2}}), {
+          status:200,headers:{'content-type':'application/json'}
+        });
+      },
+    }),
+    (error) => {
+      assert.equal(error.message, 'for-di-private-delivery-failed:1');
+      assert.equal(error.result.sent, 1);
+      assert.equal(error.result.failed.length, 1);
+      return true;
+    }
+  );
+  assert.equal(calls.length, 2);
+});
