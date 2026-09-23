@@ -172,9 +172,9 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(rustam.text,/Новое послание от Дианы/);
   assert.match(rustam.text,/Подарок Дианы/);
   assert.doesNotMatch(rustam.text,/Подарок Рустама/);
-  assert.match(rustam.text,/Чувствительная/);
+  assert.match(rustam.text,/Вдумчивая/);
   assert.match(rustam.text,/Как лучше сегодня с Дианой/);
-  assert.match(rustam.text,/говорить мягче/);
+  assert.match(rustam.text,/не торопи с разговорами и решениями/i);
   assert.match(rustam.text,/2 Stand Up/);
   assert.match(rustam.text,/Дома: 22\.8°C · влажность 54%/);
   assert.match(rustam.text,/На улице: 11°C · пасмурно/);
@@ -189,7 +189,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(diana.text,/Сегодня выходной/);
   assert.doesNotMatch(diana.text,/Новое послание от Дианы/);
   assert.match(diana.text,/Подарок Рустама/);
-  assert.match(diana.text,/Чувствительная/);
+  assert.match(diana.text,/Вдумчивая/);
   assert.match(diana.text,/Дома: 22\.8°C · влажность 54%/);
   assert.match(diana.text,/На улице: 11°C · пасмурно/);
   assert.doesNotMatch(diana.text,/Шины:/);

@@ -126,11 +126,47 @@ function cycleViewForDate(value, dateKey) {
     else phase = 'Лютеиновая фаза';
   }
 
-  const moodWord = phase === 'Месячные' ? 'Спокойная'
-    : phase === 'Фолликулярная фаза' ? 'Бодрая'
-    : phase === 'Фертильное окно' ? 'Энергичная'
-    : phase === 'Лютеиновая фаза' ? 'Чувствительная'
-    : '';
+  const pickStatus = (items, seed = 0) => {
+    if (!Array.isArray(items) || !items.length) return '';
+    const value = Number.isFinite(Number(seed)) ? Math.abs(Math.round(Number(seed))) : 0;
+    return items[value % items.length];
+  };
+  const daysToNext = Number.isFinite(nextStartMs)
+    ? Math.max(0, Math.round((nextStartMs - todayMs) / DAY))
+    : null;
+
+  let moodWord = '';
+  if (phase === 'Месячные') {
+    moodWord = cycleDay <= 2
+      ? pickStatus(['Спокойная','Нежная','Уютная'], cycleDay)
+      : pickStatus(['Нежная','Спокойная','Вдумчивая'], cycleDay);
+  } else if (phase === 'Фолликулярная фаза') {
+    if (cycleDay <= periodLength + 2) {
+      moodWord = pickStatus(['Бодрая','Лёгкая','Собранная'], cycleDay);
+    } else if (cycleDay >= fertileStart - 2) {
+      moodWord = pickStatus(['Энергичная','Активная','Воодушевлённая'], cycleDay);
+    } else {
+      moodWord = pickStatus(['Бодрая','Активная','Собранная','Воодушевлённая'], cycleDay);
+    }
+  } else if (phase === 'Фертильное окно') {
+    if (cycleDay === ovulationDay) {
+      moodWord = pickStatus(['Яркая','Энергичная','Сияющая'], cycleDay);
+    } else if (cycleDay < ovulationDay) {
+      moodWord = pickStatus(['Энергичная','Яркая','Активная','Общительная'], cycleDay);
+    } else {
+      moodWord = pickStatus(['Уверенная','Собранная','Уравновешенная'], cycleDay);
+    }
+  } else if (phase === 'Лютеиновая фаза') {
+    if (Number.isFinite(daysToNext) && daysToNext <= 2) {
+      moodWord = pickStatus(['Нежная','Спокойная','Чувствительная'], cycleDay);
+    } else if (Number.isFinite(daysToNext) && daysToNext <= 5) {
+      moodWord = pickStatus(['Чувствительная','Вдумчивая','Спокойная'], cycleDay);
+    } else if (cycleDay <= ovulationDay + 3) {
+      moodWord = pickStatus(['Уравновешенная','Собранная','Спокойная'], cycleDay);
+    } else {
+      moodWord = pickStatus(['Уравновешенная','Вдумчивая','Спокойная','Собранная'], cycleDay);
+    }
+  }
 
   return {
     phase,
