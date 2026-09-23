@@ -258,3 +258,38 @@ test('today-only car task filter excludes future car tasks from Rustam summary',
   });
   assert.deepEqual(tasks.map(row=>row.id),['1']);
 });
+
+
+test('morning summary reports missing recipients as failure instead of false success', async () => {
+  const summaryCache=memoryCache();
+  const calls=[];
+  const options={
+    now:new Date('2026-09-23T03:00:00Z'),
+    summaryCache,
+    recipients:{'Рустам':1,'Диана':null},
+    botToken:'test-token',
+    telegramFetchImpl:async(_url,init)=>{
+      const payload=JSON.parse(init.body);
+      calls.push(payload);
+      return new Response(JSON.stringify({ok:true,result:{message_id:700+calls.length}}),{
+        status:200,headers:{'content-type':'application/json'}
+      });
+    },
+    loadTasksImpl:async()=>[],
+    loadWorkDayImpl:async()=>null,
+    readMoodImpl:async()=>({date:'2026-09-23',moods:{}}),
+    readCycleImpl:async()=>null,
+    readPartnerMessageImpl:async()=>null,
+    readWishlistImpl:async()=>({items:[]}),
+    readProductsImpl:async()=>({items:[]}),
+    readFeedImpl:async()=>({sections:{}}),
+    loadEnvironmentImpl:async()=>({home:null,weather:null}),
+    loadCarTasksImpl:async()=>[],
+  };
+
+  await assert.rejects(
+    () => sendDailyMorningSummaries(options),
+    /morning-summary-failed:Диана:recipient-not-configured/
+  );
+  assert.equal(calls.length,1);
+});
