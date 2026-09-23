@@ -11,12 +11,12 @@ test('calendar keeps Diana work schedule and removes retired shared calendar',()
 
 test('work calendar persists collapse state',()=>assert.match(html,/key:'calendar-work'/));
 
-test('Diana work status uses calendar hours and resting label',()=>{
+test('Diana work status uses the calendar and shows working or resting state',()=>{
   assert.match(html,/function renderPartnerWorkStatus\(days\)/);
   assert.match(html,/function dianaWorkStatusText\(row\)/);
   assert.match(html,/Работаю/);
   assert.match(html,/Отдыхаю/);
-  assert.match(html,/return 'Работаю с '\+start\+' до '\+end/);
+  assert.match(html,/return dianaWorkingNow\(row\)\?'Работаю':'Отдыхаю'/);
   assert.match(html,/renderPartnerWorkStatus\(days\)/);
 });
 

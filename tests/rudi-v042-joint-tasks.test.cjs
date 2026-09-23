@@ -21,15 +21,17 @@ test('footer version matches rudi-version metadata',()=>{
   assert.match(html,new RegExp('id="appVersion"[^>]*>'+escaped+'<\\/div>'));
 });
 
-test('phase-based Diana mood is shown as one word below her status',()=>{
+test('Diana cycle status uses detailed one-word states and practical advice',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const css=fs.readFileSync('public/app.css','utf8');
-  assert.match(app,/if\(value==='Месячные'\) return 'Спокойная'/);
-  assert.match(app,/if\(value==='Фолликулярная фаза'\) return 'Бодрая'/);
-  assert.match(app,/if\(value==='Фертильное окно'\) return 'Энергичная'/);
-  assert.match(app,/if\(value==='Лютеиновая фаза'\) return 'Чувствительная'/);
+  assert.match(app,/function dianaCycleStatus\(modelOrPhase\)/);
+  assert.match(app,/\['Спокойная','Нежная','Уютная'\]/);
+  assert.match(app,/\['Бодрая','Активная','Собранная','Воодушевлённая'\]/);
+  assert.match(app,/\['Энергичная','Яркая','Активная','Общительная'\]/);
+  assert.match(app,/\['Чувствительная','Вдумчивая','Спокойная'\]/);
+  assert.match(app,/const adviceByStatus=/);
   assert.match(app,/dianaCycleMood\.id='dianaCycleMood'/);
-  assert.match(app,/setDianaCycleMood\(model\.phase\)/);
+  assert.match(app,/setDianaCycleMood\(model\)/);
   assert.match(css,/\.profile-cycle-mood\{/);
 });
 

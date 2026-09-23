@@ -15,7 +15,10 @@ test('smart home is movable and persistently collapsible',()=>{
   assert.match(app,/return 'rudi-home-layout-v3-'\+actor/);
   assert.match(app,/selector:'#smartHomeTile',key:'smart-home'/);
   assert.match(app,/hostSelector:'\.smart-home-head'/);
-  assert.match(app,/bodySelectors:\['\.smart-home-climate','#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'\]/);
+  assert.match(app,/bodySelectors:\['#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'\]/);
+  assert.match(smartCss,/\.smart-home-tile\.is-collapsed \.smart-home-title-wrap\{display:flex\}/);
+  assert.match(smartCss,/\.smart-home-tile\.is-collapsed \.smart-home-title-icon,[\s\S]*?\.smart-home-updated\{display:none!important\}/);
+  assert.match(smartCss,/\.smart-home-tile\.is-collapsed \.smart-home-climate\{/);
 });
 
 test('smart home starts with weather and climate and uses device cards',()=>{
