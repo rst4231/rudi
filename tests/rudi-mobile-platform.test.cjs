@@ -21,7 +21,7 @@ test('browser theme follows the device while Telegram follows Telegram theme', (
 test('browser has guarded pull-to-refresh and Telegram does not', () => {
   assert.match(app,/function setupBrowserPullToRefresh\(\)/);
   assert.match(app,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
-  assert.match(app,/const threshold=112/);
+  assert.match(app,/const threshold=224/);
   assert.match(app,/touchstart/);
   assert.match(app,/touchmove/);
   assert.match(app,/Отпустите для обновления/);
