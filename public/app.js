@@ -7295,9 +7295,8 @@
             }
             try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           }catch(_){
-            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }finally{
             clear.disabled=false;
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }
         });
 
