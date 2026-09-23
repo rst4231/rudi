@@ -347,6 +347,42 @@ async function clearProducts(options = {}) {
   });
 }
 
+async function restoreProducts(values, options = {}) {
+  return enqueue(async () => {
+    const state = await readProductList(options);
+    const source = Array.isArray(values) ? values : [values];
+    const existingIds = new Set(state.items.map((item) => String(item.id || '')));
+    const existingText = new Set(state.items.map((item) => keyOf(item.text)));
+    const restored = [];
+
+    for (const raw of source) {
+      const item = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+      let text = '';
+      try { text = normalizeText(item.text); } catch { continue; }
+      const textKey = keyOf(text);
+      if (!textKey || existingText.has(textKey)) continue;
+      const id = String(item.id || '').trim() || crypto.randomUUID();
+      if (existingIds.has(id)) continue;
+      restored.push({
+        id,
+        text,
+        addedBy: String(item.addedBy || ''),
+        category: categorizeProduct(text),
+        weeklyAmount: estimateWeeklyAmount(text),
+        checked: Boolean(item.checked),
+        createdAt: String(item.createdAt || new Date(options.now || Date.now()).toISOString()),
+      });
+      existingIds.add(id);
+      existingText.add(textKey);
+      if (restored.length + state.items.length >= MAX_ACTIVE) break;
+    }
+
+    if (!restored.length) return state;
+    state.items = [...restored, ...state.items].slice(0, MAX_ACTIVE);
+    return writeState(state, options);
+  });
+}
+
 function resetMutationQueueForTests() {
   mutationQueue = Promise.resolve();
 }
@@ -354,7 +390,7 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
   readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, removeProductByText,
-  toggleProductChecked, markCheckedProductsBought, markProductBought, clearProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
+  toggleProductChecked, markCheckedProductsBought, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   normalizeProductListState: normalizeState,
   resetMutationQueueForTests,
 };
