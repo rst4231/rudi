@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   queueForDiMessage,
   queueForDiTelegramRequest,
+  hasQueuedForDiSource,
   sendForDiPrivateMessages,
 } = require('../api/for-di-private.cjs');
 
@@ -135,4 +136,26 @@ test('For Di delivery continues after one bad message and reports the failed ite
     }
   );
   assert.equal(calls.length, 2);
+});
+
+
+test('For Di queue can detect whether today already has a stylist status', async () => {
+  const cache=memoryCache();
+  const now=new Date('2026-09-23T07:00:00Z');
+  assert.equal(await hasQueuedForDiSource(['stylist','stylist-empty'],{now,forDiCache:cache}),false);
+  await queueForDiMessage('Трудовой кодекс',{now,forDiCache:cache,source:'labor',parseMode:false});
+  assert.equal(await hasQueuedForDiSource(['stylist','stylist-empty'],{now,forDiCache:cache}),false);
+  await queueForDiMessage('Новых запросов нет',{now,forDiCache:cache,source:'stylist-empty',parseMode:false});
+  assert.equal(await hasQueuedForDiSource(['stylist','stylist-empty'],{now,forDiCache:cache}),true);
+});
+
+test('For Di cron is scheduled for 12:00 Moscow and has stylist catch-up diagnostics', () => {
+  const fs=require('node:fs');
+  const path=require('node:path');
+  const config=JSON.parse(fs.readFileSync(path.join(__dirname,'..','vercel.json'),'utf8'));
+  assert.deepEqual(config.crons.find((row)=>row.path==='/api/for-di'),{path:'/api/for-di',schedule:'0 9 * * *'});
+  const source=fs.readFileSync(path.join(__dirname,'..','api','feed-notify-cron.js'),'utf8');
+  assert.match(source,/hasQueuedForDiSource/);
+  assert.match(source,/privateOnly:\s*true/);
+  assert.match(source,/RUDI_FOR_DI_RESULT/);
 });
