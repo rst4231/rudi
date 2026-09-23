@@ -105,6 +105,7 @@ function normalizeUiPreferenceEntry(value) {
   return {
     homeOrder:order,
     blockStates,
+    activitySeenId:String(source.activitySeenId||'').trim().slice(0,80),
     updatedAt:String(source.updatedAt||''),
   };
 }
