@@ -10,7 +10,7 @@ const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
-const { readWishlist, addWish, toggleWish, removeWish } = require('./wishlist-store.cjs');
+const { readWishlist, addWish, toggleWish, removeWish, restoreWish } = require('./wishlist-store.cjs');
 const {
   readProductList,
   readProductListRaw,
@@ -22,6 +22,7 @@ const {
   markCheckedProductsBought,
   markProductBought,
   clearProducts,
+  restoreProducts,
 } = require('./product-list-store.cjs');
 const {
   decodeSetupKey: decodeNotificationSetupKey,
@@ -2162,7 +2163,14 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'remove') {
+        const before = await readProductList(options);
+        const removedItem = (before.items || []).find((item) => item.id === String(body.id || '')) || null;
         const state = await removeProduct(body.id, options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, actor, ...state, removedItem, backupToken });
+      }
+      if (operation === 'restore') {
+        const state = await restoreProducts(body.items || body.item, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
@@ -2188,9 +2196,11 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'clear') {
+        const before = await readProductList(options);
+        const removedItems = Array.isArray(before.items) ? before.items : [];
         const state = await clearProducts(options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
-        return res.status(200).json({ ok: true, actor, ...state, backupToken });
+        return res.status(200).json({ ok: true, actor, ...state, removedItems, backupToken });
       }
       return res.status(400).json({ ok: false, error: 'products-operation-invalid' });
     } catch (error) {
@@ -2245,7 +2255,14 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, owner, ...result.state, backupToken });
       }
       if (operation === 'remove') {
+        const before = await readWishlist(options);
+        const removedItem = (before.items || []).find((item) => item.id === String(body.id || '')) || null;
         const state = await removeWish(body.id, options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ ok: true, owner, ...state, removedItem, backupToken });
+      }
+      if (operation === 'restore') {
+        const state = await restoreWish(body.item, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, owner, ...state, backupToken });
       }
