@@ -11,9 +11,6 @@
     "api/daily-cron.js": {
       "maxDuration": 300
     },
-    "api/stylist-leads-cron.js": {
-      "maxDuration": 300
-    },
     "api/feed-notify-cron.js": {
       "maxDuration": 60
     }
@@ -203,10 +200,6 @@
     {
       "path": "/api/daily",
       "schedule": "30 21 * * *"
-    },
-    {
-      "path": "/api/stylist-leads-cron",
-      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/feed-notify-cron",
