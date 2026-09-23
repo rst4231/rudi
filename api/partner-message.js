@@ -343,6 +343,31 @@ function luluWalkNotificationText(actor, walkedAt, now = Date.now()) {
   return `🐾 <b>${actor} ${action} с Lulu</b>\nПоследняя прогулка: <b>${escapeTelegramHtml(luluWalkStatusLabel(walkedAt, now))}</b>`;
 }
 
+async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) {
+  const recipient = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
+  if (!recipient) return { sent:false, reason:'actor-invalid' };
+  try {
+    const recipients = options.recipients || await readRecipients(options);
+    const chatId = Number(recipients?.[recipient]);
+    if (!Number.isInteger(chatId) || chatId <= 0) {
+      return { sent:false, recipient, reason:'recipient-not-configured' };
+    }
+    const result = await telegramSendMessage(
+      chatId,
+      luluWalkNotificationText(actor, walkedAt, options.now || Date.now()),
+      {
+        ...options,
+        tab:'home',
+        buttonText:'Открыть RUDI',
+      }
+    );
+    return { sent:true, recipient, ...result };
+  } catch (error) {
+    console.warn('RUDI_LULU_NOTIFICATION_WARN', String(error?.message || error));
+    return { sent:false, recipient, error:String(error?.message || error) };
+  }
+}
+
 function boughtNotificationText(actor) {
   return `🛒 <b>${actor === 'Диана' ? 'Диана купила продукты' : 'Рустам купил продукты'}</b>`;
 }
@@ -1295,9 +1320,9 @@ async function handleRudiAction(req, res, action, options = {}) {
           createdAt: walkedAt,
         }, options);
 
-        const notificationTask = sendActivityNotification(
-          luluWalkNotificationText(actor, walkedAt, options.now || Date.now()),
-          'home',
+        const notificationTask = sendLuluWalkNotificationToPartner(
+          actor,
+          walkedAt,
           options
         );
         try { waitUntil(notificationTask); } catch (_) { notificationTask.catch(() => {}); }
@@ -2357,6 +2382,7 @@ module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
 module.exports.checklistCompletedNotificationText = checklistCompletedNotificationText;
 module.exports.luluWalkStatusLabel = luluWalkStatusLabel;
 module.exports.luluWalkNotificationText = luluWalkNotificationText;
+module.exports.sendLuluWalkNotificationToPartner = sendLuluWalkNotificationToPartner;
 module.exports.feedPreviewBaseUrl = feedPreviewBaseUrl;
 module.exports.refreshFeedFromPreviewIfNeeded = refreshFeedFromPreviewIfNeeded;
 
