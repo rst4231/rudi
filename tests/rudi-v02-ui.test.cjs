@@ -3,10 +3,12 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const html=['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
-test('v1 home dashboard consolidates profiles into one movable tile',()=>{
-  assert.match(html,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','car','activity'\]/);
+test('home dashboard splits people and Lulu into movable tiles',()=>{
+  assert.match(html,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'\]/);
   assert.match(html,/profile\.dataset\.homeTile='dashboard'/);
-  assert.match(html,/profile\.replaceChildren\(top,together,nearest\)/);
+  assert.match(html,/profile\.replaceChildren\(top,messageNew\)/);
+  assert.match(html,/makePersonTile\(selfActor,selfIdentity\)/);
+  assert.match(html,/profile\.after\(selfCard\.tile,partnerCard\.tile,luluTile,nearest\)/);
 });
 
 test('v1 home dashboard omits retired today and quick action rows',()=>{
@@ -26,6 +28,7 @@ test('weather block is removed from the home screen and no longer loaded',()=>{
   assert.doesNotMatch(html,/loadWeather\(config\.weather\)/);
 });
 
-test('old saved profile tiles migrate into dashboard',()=>{
-  assert.match(html,/\['profile','profile-common','profile-self','profile-partner'\]\.includes\(id\)\?\['dashboard'\]/);
+test('old saved profile tiles migrate into the new home layout',()=>{
+  assert.match(html,/\['profile','profile-common','profile-self','profile-partner'\]\.includes\(id\)\) return \['dashboard'\]/);
+  assert.match(html,/requested\.splice\(partnerIndex\+1,0,'lulu'\)/);
 });
