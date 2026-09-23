@@ -2371,20 +2371,106 @@
         }
       };
 
+      function resolvedSystemTheme(){
+        const telegramOpen=Boolean(tg?.initData);
+        if(telegramOpen&&(tg?.colorScheme==='dark'||tg?.colorScheme==='light')) return tg.colorScheme;
+        return media.matches?'dark':'light';
+      }
+
+      function updateThemeSettingControls(){
+        const mode=currentThemeMode();
+        document.querySelectorAll('[data-theme-mode]').forEach(button=>{
+          const active=button.dataset.themeMode===mode;
+          button.classList.toggle('active',active);
+          button.setAttribute('aria-pressed',active?'true':'false');
+        });
+      }
+
       function applyTheme(){
         const telegramOpen=Boolean(tg?.initData);
-        const theme=telegramOpen&&tg?.colorScheme
-          ? tg.colorScheme
-          : (media.matches?'dark':'light');
+        const mode=currentThemeMode();
+        const theme=mode==='system'?resolvedSystemTheme():mode;
         root.dataset.theme=theme;
+        root.dataset.themeMode=mode;
         root.style.colorScheme=theme;
         metaTheme?.setAttribute('content',theme==='dark'?'#0b0d12':'#f4f5f7');
+        updateThemeSettingControls();
         if(!telegramOpen) return;
         try{
           tg?.setHeaderColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
           tg?.setBackgroundColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
           tg?.setBottomBarColor?.(theme==='dark'?'#0b0d12':'#f4f5f7');
         }catch(_){}
+      }
+
+      function setThemeMode(mode,{persist=true}={}){
+        const next=['system','light','dark'].includes(String(mode||''))?String(mode):'system';
+        if(currentActor){
+          try{localStorage.setItem(themeModeStorageKey(),next)}catch(_){}
+        }
+        applyTheme();
+        if(persist&&currentActor) markUiPreferencesChanged();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setupThemeSetting(){
+        document.querySelectorAll('[data-theme-mode]').forEach(button=>{
+          if(button.dataset.themeBound==='1') return;
+          button.dataset.themeBound='1';
+          button.addEventListener('click',()=>setThemeMode(button.dataset.themeMode));
+        });
+        updateThemeSettingControls();
+      }
+
+      function isStandalonePwa(){
+        return Boolean(
+          window.matchMedia?.('(display-mode: standalone)')?.matches
+          || window.navigator?.standalone===true
+        );
+      }
+
+      function appVersionLabel(){
+        return String(document.querySelector('meta[name="rudi-version"]')?.getAttribute('content')||'').trim();
+      }
+
+      function updatePwaInstallUi(){
+        const button=document.getElementById('settingsPwaInstall');
+        const status=document.getElementById('settingsPwaStatus');
+        if(!button||!status) return;
+        if(isStandalonePwa()){
+          button.disabled=true;
+          status.textContent='Установлено';
+          return;
+        }
+        button.disabled=false;
+        if(deferredPwaInstallPrompt) status.textContent='Можно установить';
+        else if(/iphone|ipad|ipod/i.test(navigator.userAgent||'')) status.textContent='Через «Поделиться»';
+        else status.textContent='Добавить на устройство';
+      }
+
+      async function installPwa(){
+        if(isStandalonePwa()){
+          updatePwaInstallUi();
+          return;
+        }
+        if(deferredPwaInstallPrompt){
+          const prompt=deferredPwaInstallPrompt;
+          deferredPwaInstallPrompt=null;
+          try{
+            await prompt.prompt();
+            await prompt.userChoice;
+          }catch(_){}
+          updatePwaInstallUi();
+          return;
+        }
+        const ios=/iphone|ipad|ipod/i.test(navigator.userAgent||'');
+        const message=ios
+          ?'В Safari нажмите «Поделиться» → «На экран Домой».'
+          :(tg?.initData
+            ?'Откройте RUDI в обычном браузере и выберите установку приложения.'
+            :'В меню браузера выберите «Установить приложение» или «Добавить на главный экран».');
+        try{tg?.showAlert?.(message)}catch(_){}
+        if(!tg?.showAlert) window.alert(message);
       }
 
       function setupBrowserPullToRefresh(){
