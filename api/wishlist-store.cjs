@@ -117,8 +117,29 @@ async function removeWish(id, options = {}) {
   return writeWishlist(state, options);
 }
 
+async function restoreWish(value, options = {}) {
+  const state = await readWishlist(options);
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const text = normalizeWishText(source.text);
+  const url = normalizeWishUrl(source.url, { allowEmpty: true });
+  const id = String(source.id || '').trim() || crypto.randomUUID();
+  if (state.items.some((row) => row.id === id)) return state;
+  if (state.items.length >= MAX_ITEMS) throw new Error('wishlist-full');
+  const now = new Date(options.now || Date.now()).toISOString();
+  state.items.unshift({
+    id,
+    text,
+    url,
+    owner: source.owner === 'Диана' ? 'Диана' : 'Рустам',
+    done: Boolean(source.done),
+    createdAt: String(source.createdAt || now),
+    updatedAt: String(source.updatedAt || source.createdAt || now),
+  });
+  return writeWishlist(state, options);
+}
+
 module.exports = {
   NAMESPACE, MAX_ITEMS, MAX_TEXT, MAX_URL,
   readWishlist, writeWishlist, normalizeWishText, normalizeWishUrl,
-  addWish, toggleWish, removeWish,
+  addWish, toggleWish, removeWish, restoreWish,
 };
