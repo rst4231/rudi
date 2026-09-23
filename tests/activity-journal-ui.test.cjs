@@ -12,9 +12,11 @@ test('home contains a shared activity journal tile',()=>{
   assert.match(app,/Что произошло у нас/);
   assert.match(app,/function renderActivityJournal\(payload\)/);
   assert.match(app,/function loadActivityJournal/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','car','activity'\]/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'\]/);
   assert.match(css,/\.home-activity-tile/);
   assert.match(css,/\.home-activity-row/);
+  assert.match(app,/luluTile\.dataset\.homeTile='lulu'/);
+  assert.match(app,/renderLulu\(payload\?\.lulu\)/);
 });
 
 test('activity journal is wired to real RUDI events',()=>{
