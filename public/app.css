@@ -5795,3 +5795,78 @@ html[data-theme="dark"] .partner-message .partner-edit{
   .lulu-copy h2{font-size:18px}.lulu-walk-status{font-size:10.5px}
 }
 /* end RUDI v1.9.5 Lulu walk card */
+
+
+/* RUDI v1.9.7: activity notification bell */
+.home-activity-notifications{
+  position:relative;
+  z-index:35;
+  justify-self:end;
+  align-self:start;
+  grid-column:2;
+  grid-row:1;
+}
+.home-activity-notifications-button{
+  position:relative;
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid color-mix(in srgb,var(--line) 80%,transparent);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--surface-strong) 82%,transparent);
+  color:var(--text);
+  cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 6px 16px rgba(20,24,36,.08);
+  -webkit-tap-highlight-color:transparent;
+}
+.home-activity-notifications-button svg{
+  width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.home-activity-notification-dot{
+  position:absolute;
+  top:5px;
+  right:5px;
+  width:7px;
+  height:7px;
+  border:2px solid var(--surface-strong);
+  border-radius:999px;
+  background:#ef3f55;
+  box-sizing:content-box;
+}
+.home-activity-notification-dot[hidden]{display:none!important}
+.home-activity-notifications-panel{
+  position:absolute;
+  top:44px;
+  right:0;
+  width:min(330px,calc(100vw - 42px));
+  max-height:min(430px,68vh);
+  overflow:auto;
+  padding:10px 12px 8px;
+  border:1px solid color-mix(in srgb,var(--line) 86%,transparent);
+  border-radius:18px;
+  background:color-mix(in srgb,var(--surface-strong) 97%,transparent);
+  color:var(--text);
+  box-shadow:0 20px 50px rgba(20,24,36,.18);
+  backdrop-filter:blur(24px) saturate(1.25);
+  -webkit-backdrop-filter:blur(24px) saturate(1.25);
+}
+.home-activity-notifications-panel[hidden]{display:none!important}
+.home-activity-notifications-title{
+  padding:3px 2px 8px;
+  color:var(--text);
+  font-size:13px;
+  line-height:1.2;
+  font-weight:820;
+  letter-spacing:-.015em;
+}
+.home-activity-notifications-panel .home-activity-row{padding:9px 1px}
+.home-activity-notifications-panel .home-activity-empty{margin-bottom:2px}
+#homeLayoutEditButton[hidden],#homeLayoutResetButton[hidden]{display:none!important}
+@media(max-width:430px){
+  .home-activity-notifications-button{width:34px;height:34px;border-radius:11px}
+  .home-activity-notifications-panel{top:42px;width:min(320px,calc(100vw - 34px))}
+}
+/* end RUDI v1.9.7 activity notification bell */
