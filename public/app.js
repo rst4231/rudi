@@ -7086,11 +7086,11 @@
 
       function recipeErrorText(error){
         const code=String(error?.message||'');
-        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит Gemini на сегодня закончился. Попробуйте позже.';
-        if(code==='gemini-api-key-missing') return 'Gemini пока не подключён к приложению.';
-        if(code==='recipe-ai-timeout') return 'Gemini отвечает слишком долго. Попробуйте ещё раз.';
-        if(code==='recipe-ai-busy') return 'Gemini сейчас перегружен. Попробуйте ещё раз через несколько секунд.';
-        if(code==='recipe-ai-unavailable') return 'Gemini временно недоступен. Попробуйте ещё раз.';
+        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит ИИ на сегодня закончился. Попробуйте позже.';
+        if(code==='groq-api-key-missing') return 'Groq пока не подключён к приложению.';
+        if(code==='recipe-ai-timeout') return 'ИИ отвечает слишком долго. Попробуйте ещё раз.';
+        if(code==='recipe-ai-busy') return 'ИИ сейчас перегружен. Попробуйте ещё раз через несколько секунд.';
+        if(code==='recipe-ai-unavailable') return 'ИИ временно недоступен. Попробуйте ещё раз.';
         return 'Не удалось сгенерировать рецепт. Попробуйте ещё раз.';
       }
 
