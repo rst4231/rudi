@@ -1,8 +1,13 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {PREVIEW_MAX_EDGE,VIEWER_MAX_EDGE,pickDerivative,pickViewerDerivative}=require('../api/shared-album.cjs');
+const {
+  PREVIEW_MAX_EDGE,
+  VIEWER_MAX_EDGE,
+  pickDerivative,
+  pickViewerDerivative,
+}=require('../api/shared-album.cjs');
 
-test('shared album preview selector keeps grid images compact',()=>{
+test('shared album preview and viewer selectors keep image sizes bounded',()=>{
   const photo={derivatives:{
     tiny:{checksum:'tiny',width:320,height:240,fileSize:20000},
     preview:{checksum:'preview',width:640,height:480,fileSize:60000},
@@ -11,6 +16,6 @@ test('shared album preview selector keeps grid images compact',()=>{
   }};
   assert.equal(PREVIEW_MAX_EDGE,640);
   assert.equal(VIEWER_MAX_EDGE,1800);
-  assert.equal(pickDerivative(photo,PREVIEW_MAX_EDGE).checksum,'preview');
+  assert.equal(pickDerivative(photo).checksum,'preview');
   assert.equal(pickViewerDerivative(photo).checksum,'large');
 });
