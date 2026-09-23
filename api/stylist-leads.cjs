@@ -102,6 +102,46 @@ async function runStylistLeads(options = {}) {
   }
   const lookbackHours = Math.max(1, Number(config.lookbackHours || 30));
   const prefiltered = await filterFreshLeads(scan.posts || [], { now, lookbackHours, seenFingerprints: new Set(), matching: config.matching || {} });
+  const maxLeads = Math.max(1, Number(config.maxLeadsPerRun || 8));
+  const queuePrivate = options.queueForDiMessageImpl || queueForDiMessage;
+
+  if (options.privateOnly === true) {
+    const leads = prefiltered.slice(0, maxLeads);
+    let privateQueued = 0;
+    for (const lead of leads) {
+      await queuePrivate(formatLeadMessage(lead), {
+        now,
+        forDiCache: options.forDiCache,
+        parseMode: false,
+        source: 'stylist',
+      });
+      privateQueued += 1;
+    }
+    let privateEmptyQueued = false;
+    if (!leads.length && (config.sendEmpty !== false || options.forcePrivateSummary === true)) {
+      await queuePrivate(formatEmptyNotice(lookbackHours), {
+        now,
+        forDiCache: options.forDiCache,
+        parseMode: false,
+        source: 'stylist-empty',
+      });
+      privateQueued += 1;
+      privateEmptyQueued = true;
+    }
+    return {
+      ok: true,
+      privateOnly: true,
+      sourcesChecked,
+      sourceErrors,
+      postsScanned: Array.isArray(scan.posts) ? scan.posts.length : 0,
+      matchingCandidates: prefiltered.length,
+      leadsSent: 0,
+      emptyNoticeSent: false,
+      privateQueued,
+      privateEmptyQueued,
+    };
+  }
+
   const cache = getStylistLeadsCache(options);
   const seenFingerprints = new Set();
   for (const lead of prefiltered) {
@@ -112,12 +152,10 @@ async function runStylistLeads(options = {}) {
     }
   }
   const fresh = prefiltered.filter((lead) => !seenFingerprints.has(lead.fingerprint));
-  const maxLeads = Math.max(1, Number(config.maxLeadsPerRun || 8));
   const leads = fresh.slice(0, maxLeads);
   const chatId = await resolveStylistChatId(options);
   const topicId = Number.isInteger(Number(config.topicId)) && Number(config.topicId) > 0 ? Number(config.topicId) : DEFAULT_TOPIC_ID;
   const sendMessage = options.sendMessage || ((payload) => defaultTelegramSend(payload, options));
-  const queuePrivate = options.queueForDiMessageImpl || queueForDiMessage;
   let leadsSent = 0;
   let privateQueued = 0;
   for (const lead of leads) {
