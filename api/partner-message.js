@@ -405,8 +405,6 @@ function reactionActivityView(target) {
   const type = String(target?.type || '').trim();
   const key = String(target?.key || '').trim();
   if (type === 'partner-message') return { label: 'послание', targetTab: 'home' };
-  if (type === 'daily-idea') return { label: 'идею дня', targetTab: 'home' };
-  if (type === 'watch') return { label: 'фильм дня', targetTab: 'home' };
   if (type === 'photo-memory') return { label: 'фото-воспоминание', targetTab: 'photos' };
   if (type === 'feed') {
     if (key.startsWith('facts:')) return { label: 'факты в Ленте', targetTab: 'feed' };
