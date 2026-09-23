@@ -7803,11 +7803,11 @@
         applyActorVisibility();
         applySessionIdentity();
         setupProfileSplit();
-        setupThemeSetting();
-        setupUndoSnackbar();
         setupHomeLayoutEditor();
         setupMarketTicker();
         setupPersistentCollapsibles();
+        setupThemeSetting();
+        setupUndoSnackbar();
         loadActivityJournal();
         setupAppTabs();
         const config=await configPromise;
