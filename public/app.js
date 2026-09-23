@@ -1117,6 +1117,12 @@
         const changed=next!==currentAppTab;
         currentAppTab=next;
         document.body.dataset.appTab=next;
+        const marketTickerSetting=document.querySelector('.market-ticker-setting');
+        if(marketTickerSetting){
+          marketTickerSetting.hidden=next!=='home';
+          marketTickerSetting.setAttribute('aria-hidden',next==='home'?'false':'true');
+        }
+        applyMarketTickerVisibility();
         if(next!=='home') setActivityNotificationsOpen(false);
 
         document.querySelectorAll('[data-app-tab-section]').forEach(section=>{
@@ -7117,6 +7123,8 @@
         if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит Gemini на сегодня закончился. Попробуйте позже.';
         if(code==='gemini-api-key-missing') return 'Gemini пока не подключён к приложению.';
         if(code==='recipe-ai-timeout') return 'Gemini отвечает слишком долго. Попробуйте ещё раз.';
+        if(code==='recipe-ai-busy') return 'Gemini сейчас перегружен. Попробуйте ещё раз через несколько секунд.';
+        if(code==='recipe-ai-unavailable') return 'Gemini временно недоступен. Попробуйте ещё раз.';
         return 'Не удалось сгенерировать рецепты. Попробуйте ещё раз.';
       }
 
@@ -7130,6 +7138,7 @@
         setupRecipeChoice('[data-recipe-choice="equipment"]','data-recipe-equipment');
         setupRecipeChoice('[data-recipe-choice="meal"]','data-recipe-meal');
         setupRecipeChoice('[data-recipe-choice="cuisine"]','data-recipe-cuisine');
+        setupRecipeChoice('[data-recipe-choice="time"]','data-recipe-time');
 
         input.addEventListener('focus',()=>document.body.classList.add('keyboard-editing'));
         input.addEventListener('blur',()=>document.body.classList.remove('keyboard-editing'));
@@ -7147,7 +7156,8 @@
             ingredients,
             equipment:recipeChoiceValue('data-recipe-equipment'),
             meal:recipeChoiceValue('data-recipe-meal'),
-            cuisine:recipeChoiceValue('data-recipe-cuisine')
+            cuisine:recipeChoiceValue('data-recipe-cuisine'),
+            timeMinutes:Number(recipeChoiceValue('data-recipe-time')||15)
           };
 
           generate.disabled=true;
