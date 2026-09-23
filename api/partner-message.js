@@ -48,6 +48,7 @@ const {
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
 const { readLuluState, markLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
+const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -1615,10 +1616,23 @@ async function handleRudiAction(req, res, action, options = {}) {
         actor,
         user?.id
       );
+      const backupUiPreferences = normalizeUiPreferences(previousSnapshot?.uiPreferences)?.[actor] || null;
+      let sharedUiPreferences = await readUiPreferences(actor, options).catch(() => null);
+      if (!sharedUiPreferences?.initialized && backupUiPreferences) {
+        sharedUiPreferences = await seedUiPreferences(actor, backupUiPreferences, {
+          ...options,
+          cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+        }).catch(() => sharedUiPreferences);
+      }
+      const effectiveUiPreferences = sharedUiPreferences?.initialized
+        ? sharedUiPreferences
+        : backupUiPreferences;
+
       const correctedSnapshot = mergeBackupSnapshots(previousSnapshot, {
         version: 2,
         createdAt: new Date(options.now || Date.now()).toISOString(),
         recipients,
+        uiPreferences: effectiveUiPreferences ? { [actor]: effectiveUiPreferences } : null,
       });
       try {
         if (recipients?.['Рустам'] && recipients?.['Диана']) {
@@ -1653,7 +1667,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         selfProfile,
         partnerProfile,
         holidayHighlights: holidays?.items || [],
-        uiPreferences: normalizeUiPreferences(correctedSnapshot?.uiPreferences)?.[actor] || null,
+        uiPreferences: effectiveUiPreferences || null,
         backupToken,
       });
     } catch (error) {
@@ -1706,6 +1720,31 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'ui-preferences') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      const backupUiPreferences = normalizeUiPreferences(previousSnapshot?.uiPreferences)?.[actor] || null;
+      let uiPreferences = await readUiPreferences(actor, options).catch(() => null);
+      if (!uiPreferences?.initialized && backupUiPreferences) {
+        uiPreferences = await seedUiPreferences(actor, backupUiPreferences, {
+          ...options,
+          cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+        }).catch(() => uiPreferences);
+      }
+      return res.status(200).json({
+        ok: true,
+        actor,
+        uiPreferences: uiPreferences?.initialized ? uiPreferences : backupUiPreferences,
+      });
+    } catch (error) {
+      const code = String(error?.message || error);
+      return res.status(statusForError(error)).json({ ok: false, error: code });
+    }
+  }
+
   if (action === 'state-backup') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -1733,14 +1772,17 @@ async function handleRudiAction(req, res, action, options = {}) {
           });
         }
       } catch {}
-      const incomingUi = body.uiPreferences && typeof body.uiPreferences === 'object'
-        ? {
-            [actor]: {
-              homeOrder:Array.isArray(body.uiPreferences.homeOrder)?body.uiPreferences.homeOrder:[],
-              blockStates:body.uiPreferences.blockStates&&typeof body.uiPreferences.blockStates==='object'?body.uiPreferences.blockStates:{},
-              updatedAt:String(body.uiPreferences.updatedAt||new Date(options.now || Date.now()).toISOString()),
-            },
-          }
+      let sharedUiPreferences;
+      if (body.uiPreferences && typeof body.uiPreferences === 'object') {
+        sharedUiPreferences = await saveUiPreferences(actor, body.uiPreferences, {
+          ...options,
+          cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+        });
+      } else {
+        sharedUiPreferences = await readUiPreferences(actor, options).catch(() => null);
+      }
+      const incomingUi = sharedUiPreferences?.initialized
+        ? { [actor]: sharedUiPreferences }
         : null;
       const correctedSnapshot = mergeBackupSnapshots(previousSnapshot, {
         version: 2,
@@ -1749,7 +1791,11 @@ async function handleRudiAction(req, res, action, options = {}) {
         uiPreferences: incomingUi,
       });
       const backupToken = await createStateBackup({ ...options, previousSnapshot: correctedSnapshot });
-      return res.status(200).json({ ok: true, backupToken });
+      return res.status(200).json({
+        ok: true,
+        backupToken,
+        uiPreferences: sharedUiPreferences?.initialized ? sharedUiPreferences : null,
+      });
     } catch (error) {
       const code = String(error?.message || error);
       const status = statusForError(error);
