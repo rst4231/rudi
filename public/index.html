@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
+  <meta name="rudi-version" content="v1.12.6">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -769,12 +770,13 @@
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v1.12.6</div>
-      <div class="market-ticker-setting">
-        <span class="market-ticker-setting-label">Показывать курсы</span>
-        <button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать бегущую строку курсов">
-          <span class="market-ticker-toggle-thumb" aria-hidden="true"></span>
-        </button>
+      <div class="theme-setting" role="group" aria-label="Тема приложения">
+        <span class="theme-setting-label">Тема</span>
+        <div class="theme-setting-options">
+          <button class="theme-setting-option" type="button" data-theme-mode="system" aria-pressed="true">Системная</button>
+          <button class="theme-setting-option" type="button" data-theme-mode="light" aria-pressed="false">Светлая</button>
+          <button class="theme-setting-option" type="button" data-theme-mode="dark" aria-pressed="false">Тёмная</button>
+        </div>
       </div>
       <div class="home-layout-actions">
         <button id="homeLayoutResetButton" class="home-layout-reset-button" type="button" hidden>Сбросить порядок</button>
