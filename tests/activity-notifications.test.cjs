@@ -10,6 +10,7 @@ const {
   checklistCompletedNotificationText,
   luluWalkStatusLabel,
   luluWalkNotificationText,
+  sendLuluWalkNotificationToPartner,
 } = require('../api/partner-message.js');
 const {
   telegramSendMessage,
@@ -35,8 +36,9 @@ test('telegram sender enables HTML formatting and target app tab', async () => {
   let payload;
   const result = await telegramSendMessage(123, '✅ <b>Готово</b>', {
     botToken: 'test-token',
-    tab: 'schedule',
-    buttonText: 'Открыть календарь',
+    tab: 'wishlist',
+    item: 'wish-123',
+    buttonText: 'Открыть вишлист',
     fetchImpl: async (_url, init) => {
       payload = JSON.parse(init.body);
       return new Response(JSON.stringify({ ok: true, result: { message_id: 77 } }), {
@@ -47,8 +49,9 @@ test('telegram sender enables HTML formatting and target app tab', async () => {
   });
 
   assert.equal(payload.parse_mode, 'HTML');
-  assert.equal(payload.reply_markup.inline_keyboard[0][0].text, 'Открыть календарь');
-  assert.match(payload.reply_markup.inline_keyboard[0][0].web_app.url, /[?&]tab=schedule/);
+  assert.equal(payload.reply_markup.inline_keyboard[0][0].text, 'Открыть вишлист');
+  assert.match(payload.reply_markup.inline_keyboard[0][0].web_app.url, /[?&]tab=wishlist/);
+  assert.match(payload.reply_markup.inline_keyboard[0][0].web_app.url, /[?&]item=wish-123/);
   assert.equal(result.messageId, 77);
   assert.equal(escapeTelegramHtml('<&>'), '&lt;&amp;&gt;');
 });
@@ -122,4 +125,33 @@ test('Lulu walk notification includes walker and Moscow time',()=>{
   assert.match(luluWalkNotificationText('Рустам',walkedAt,now),/Рустам погулял с Lulu/);
   assert.match(luluWalkNotificationText('Диана',walkedAt,now),/Диана погуляла с Lulu/);
   assert.match(luluWalkNotificationText('Рустам',walkedAt,now),/09:42/);
+});
+
+
+test('Lulu walk notification goes only to the other partner',async()=>{
+  const calls=[];
+  const fetchImpl=async(_url,init)=>{
+    calls.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ok:true,result:{message_id:300+calls.length}}),{
+      status:200,headers:{'content-type':'application/json'}
+    });
+  };
+  const walkedAt='2026-09-23T06:42:00.000Z';
+
+  const fromRustam=await sendLuluWalkNotificationToPartner('Рустам',walkedAt,{
+    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl,
+  });
+  assert.equal(fromRustam.sent,true);
+  assert.equal(fromRustam.recipient,'Диана');
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].chat_id,222);
+
+  calls.length=0;
+  const fromDiana=await sendLuluWalkNotificationToPartner('Диана',walkedAt,{
+    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl,
+  });
+  assert.equal(fromDiana.sent,true);
+  assert.equal(fromDiana.recipient,'Рустам');
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].chat_id,111);
 });
