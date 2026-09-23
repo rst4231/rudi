@@ -7663,11 +7663,29 @@
 
 
       const DATE_IDEAS_CACHE_PREFIX='rudi:date-ideas:v1:';
+      const DATE_IDEAS_EXPANDED_PREFIX='rudi:date-ideas-expanded:v1:';
       let currentDateGenerationQuota=null;
       let dateQuotaRefreshTimer=0;
 
       function dateIdeasCacheKey(){
         return DATE_IDEAS_CACHE_PREFIX+(currentActor==='Диана'?'diana':'rustam');
+      }
+
+      function dateIdeasExpandedKey(){
+        return DATE_IDEAS_EXPANDED_PREFIX+(currentActor==='Диана'?'diana':'rustam');
+      }
+
+      function readDateIdeasExpanded(hasIdeas=false){
+        try{
+          const saved=localStorage.getItem(dateIdeasExpandedKey());
+          if(saved==='1') return true;
+          if(saved==='0') return false;
+        }catch(_){}
+        return Boolean(hasIdeas);
+      }
+
+      function writeDateIdeasExpanded(expanded){
+        try{localStorage.setItem(dateIdeasExpandedKey(),expanded?'1':'0')}catch(_){}
       }
 
       function normalizeDateIdeasCache(value){
@@ -7699,6 +7717,30 @@
 
       function datePeriodLabel(period){
         return period==='morning'?'Утро':period==='day'?'День':period==='evening'?'Вечер':'';
+      }
+
+      function setDateIdeasExpanded(expanded,{persist=true}={}){
+        const generate=document.getElementById('dateIdeaButton');
+        const choices=document.getElementById('dateTimeChoices');
+        const results=document.getElementById('dateIdeaResults');
+        const status=document.getElementById('dateIdeaStatus');
+        const hasIdeas=Boolean(readDateIdeasCache());
+        if(!generate||!choices||!results) return;
+
+        const open=Boolean(expanded);
+        choices.hidden=!open;
+        results.hidden=!open||!hasIdeas;
+        if(status) status.hidden=!open;
+        generate.setAttribute('aria-expanded',open?'true':'false');
+
+        const title=generate.querySelector('.quick-access-copy strong');
+        const subtitle=generate.querySelector('.quick-access-copy small');
+        if(title) title.textContent=hasIdeas?(open?'Свернуть':'Развернуть'):(open?'Свернуть':'Сгенерировать свидание');
+        if(subtitle) subtitle.textContent=hasIdeas
+          ? (open?'Скрыть идеи и выбор времени':'Показать сохранённые идеи')
+          : '3 необычные идеи';
+
+        if(persist) writeDateIdeasExpanded(open);
       }
 
       function renderDateIdeas(payload){
@@ -7838,13 +7880,14 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
-        if(readDateIdeasCache()) renderDateIdeas(readDateIdeasCache());
+        const cachedIdeas=readDateIdeasCache();
+        if(cachedIdeas) renderDateIdeas(cachedIdeas);
+        setDateIdeasExpanded(readDateIdeasExpanded(Boolean(cachedIdeas)),{persist:false});
         loadDateGenerationStatus();
 
         generate.addEventListener('click',()=>{
-          const open=choices.hidden;
-          choices.hidden=!open;
-          generate.setAttribute('aria-expanded',open?'true':'false');
+          const open=generate.getAttribute('aria-expanded')!=='true';
+          setDateIdeasExpanded(open);
           if(open&&status){
             status.textContent=currentDateGenerationQuota
               ? dateQuotaText(currentDateGenerationQuota)
@@ -7866,6 +7909,7 @@
               const next={period,ideas:data.ideas,generatedAt:new Date().toISOString()};
               if(!renderDateIdeas(next)) throw new Error('date-ai-no-ideas');
               writeDateIdeasCache(next);
+              setDateIdeasExpanded(true);
               currentDateGenerationQuota=data.quota||currentDateGenerationQuota;
               scheduleDateQuotaRefresh();
               if(status) status.textContent='Готово · '+dateQuotaText(currentDateGenerationQuota);

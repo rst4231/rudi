@@ -36,6 +36,12 @@ test('date generator asks Groq for exactly three structured ideas and excludes p
       assert.equal(body.response_format.json_schema.schema.properties.ideas.maxItems,3);
       assert.match(body.messages[0].content,/вечер/);
       assert.match(body.messages[0].content,/Старое свидание/);
+      assert.match(body.messages[0].content,/только для Рустама и Дианы/);
+      assert.match(body.messages[0].content,/Не добавляй ведущих/);
+      assert.match(body.messages[0].content,/Никто не должен вручать им карты, письма, задания, кристаллы/);
+      assert.match(body.messages[0].content,/Не придумывай квесты, тайники, загадки/);
+      assert.match(body.messages[0].content,/выполнима парой самостоятельно/);
+      assert.match(body.messages[0].content,/практичный совет для реальной пары/);
       return {ok:true,status:200,async json(){return responsePayload()}};
     }
   });

@@ -662,8 +662,10 @@ test('quick access opens wishlist and generates cached date ideas only after per
   await expect(page.locator('.wishlist-page-title')).toHaveText('Наш вишлист');
 
   await page.getByRole('tab',{name:'Домой'}).click();
+  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Сгенерировать свидание');
   await page.locator('#dateIdeaButton').click();
   await expect(page.locator('#dateTimeChoices')).toBeVisible();
+  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
   expect(state.dateIdeaCalls).toBe(0);
   await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 5 из 5');
 
@@ -673,11 +675,33 @@ test('quick access opens wishlist and generates cached date ideas only after per
   await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
   await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
   await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 4 из 5');
+  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
+
+  await page.locator('#dateIdeaButton').click();
+  await expect(page.locator('#dateTimeChoices')).toBeHidden();
+  await expect(page.locator('#dateIdeaResults')).toBeHidden();
+  await expect(page.locator('#dateIdeaStatus')).toBeHidden();
+  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Развернуть');
 
   await page.reload();
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
   await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
+  await expect(page.locator('#dateIdeaResults')).toBeHidden();
+  await expect(page.locator('#dateTimeChoices')).toBeHidden();
+  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Развернуть');
+  expect(state.dateIdeaCalls).toBe(1);
+
+  await page.locator('#dateIdeaButton').click();
+  await expect(page.locator('#dateIdeaResults')).toBeVisible();
+  await expect(page.locator('#dateTimeChoices')).toBeVisible();
   await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 4 из 5');
+  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
+
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#dateIdeaResults')).toBeVisible();
+  await expect(page.locator('#dateTimeChoices')).toBeVisible();
+  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
   expect(state.dateIdeaCalls).toBe(1);
 });
