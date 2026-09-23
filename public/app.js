@@ -1493,7 +1493,8 @@
         if(nearest&&nearestWrap){
           nearest.replaceChildren();
           const rows=homeNearestRows();
-          nearestWrap.hidden=!rows.length;
+          nearestWrap.dataset.homeEmpty=rows.length?'0':'1';
+          nearestWrap.hidden=currentAppTab!=='home'||!rows.length;
           for(const row of rows){
             const el=document.createElement('div');
             el.className='home-nearest-row';
@@ -1670,7 +1671,7 @@
         luluTile.innerHTML=
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
-              '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.5" alt="Lulu" width="58" height="58">'+
+              '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Lulu" width="58" height="58">'+
               '<div class="lulu-copy"><h2>Lulu</h2><div id="luluWalkStatus" class="lulu-walk-status">Последняя прогулка: пока не отмечена</div></div>'+
             '</div>'+
           '</div>'+
