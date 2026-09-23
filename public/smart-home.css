@@ -583,12 +583,21 @@ html[data-theme="dark"] .smart-home-scenario{
 
 
 /* RUDI v1.9.0: climate stays visible in collapsed smart-home card */
-.smart-home-tile.is-collapsed .smart-home-title-wrap{display:none}
+.smart-home-tile.is-collapsed .smart-home-title-wrap{display:flex}
+.smart-home-tile.is-collapsed .smart-home-title-icon,
+.smart-home-tile.is-collapsed .smart-home-updated{display:none!important}
+.smart-home-tile.is-collapsed .smart-home-title-wrap h2{
+  margin:0;
+  font-size:18px;
+  line-height:1.2;
+  font-weight:780;
+  letter-spacing:-.02em;
+}
 .smart-home-tile.is-collapsed .smart-home-head{
   min-height:30px;
   height:30px;
   margin-bottom:8px;
-  justify-content:flex-end;
+  justify-content:space-between;
 }
 .smart-home-tile.is-collapsed .smart-home-head .block-head-actions{margin-left:auto}
 .smart-home-tile.is-collapsed .smart-home-climate{
