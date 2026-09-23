@@ -123,13 +123,19 @@ test('browser theme follows device outside Telegram and updates live', () => {
   assert.match(app,/if\(typeof media\.addEventListener==='function'\) media\.addEventListener\('change',handleSystemThemeChange\)/);
 });
 
-test('browser pull to refresh only activates outside Telegram from the page top', () => {
-  assert.match(app,/touchstart/);
-  assert.match(app,/touchmove/);
-  assert.match(app,/touchend/);
-  assert.match(app,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
-  assert.match(app,/if\(scrollTop\(\)>0\)\{reset\(\);return\}/);
-  assert.match(app,/window\.location\.reload\(\)/);
+test('browser pull to refresh only activates outside Telegram from the page top and keeps auth surface', () => {
+  const start=app.indexOf('function setupBrowserPullToRefresh()');
+  const end=app.indexOf('function updateTelegramSafeArea()',start);
+  const pull=app.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(pull,/touchstart/);
+  assert.match(pull,/touchmove/);
+  assert.match(pull,/touchend/);
+  assert.match(pull,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
+  assert.match(pull,/if\(scrollTop\(\)>0\)\{reset\(\);return\}/);
+  assert.match(pull,/!appAccessReady\|\|!currentActor/);
+  assert.match(pull,/refreshAfterResume\(\)/);
+  assert.doesNotMatch(pull,/window\.location\.reload\(\)/);
 });
 
 test('home screen icon and detailed car header use the current supplied assets', () => {
