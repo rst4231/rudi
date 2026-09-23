@@ -25,6 +25,10 @@
       let currentSharedAlbumPhotoIndex = -1;
       let currentAppTab = 'home';
       let requestedAppTab = '';
+      let requestedItemId = '';
+      let deferredPwaInstallPrompt = null;
+      let undoSnackbarTimer = 0;
+      let undoSnackbarAction = null;
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
       let productsRecoveryCandidate = '';
@@ -96,7 +100,18 @@
         const params=new URLSearchParams(window.location.search);
         ticktickHandoffToken=String(params.get('ticktickHandoff')||'').trim();
         requestedAppTab=String(params.get('tab')||'').trim();
+        requestedItemId=String(params.get('item')||'').trim();
       }catch(_){}
+
+      window.addEventListener('beforeinstallprompt',event=>{
+        event.preventDefault();
+        deferredPwaInstallPrompt=event;
+        updatePwaInstallUi();
+      });
+      window.addEventListener('appinstalled',()=>{
+        deferredPwaInstallPrompt=null;
+        updatePwaInstallUi();
+      });
 
       function withTimeout(promise,timeoutMs,fallback){
         return new Promise(resolve=>{
@@ -508,6 +523,19 @@
         return 'rudi:market-ticker-enabled:v1:'+actor;
       }
 
+      function themeModeStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:theme-mode:v1:'+actor;
+      }
+
+      function currentThemeMode(){
+        if(!currentActor) return 'system';
+        try{
+          const value=String(localStorage.getItem(themeModeStorageKey())||'system');
+          return ['system','light','dark'].includes(value)?value:'system';
+        }catch(_){return 'system'}
+      }
+
       function marketTickerEnabled(){
         try{
           const value=localStorage.getItem(marketTickerEnabledStorageKey());
@@ -524,6 +552,7 @@
         let blockStates={};
         let activitySeenId='';
         let marketTickerEnabledValue=true;
+        let themeModeValue='system';
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
@@ -532,12 +561,14 @@
           const stored=localStorage.getItem(marketTickerEnabledStorageKey());
           marketTickerEnabledValue=stored===null?true:stored!=='0';
         }catch(_){}
+        try{themeModeValue=currentThemeMode()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           activitySeenId,
           marketTickerEnabled:marketTickerEnabledValue,
+          themeMode:themeModeValue,
           updatedAt
         };
       }
@@ -549,8 +580,9 @@
         const hasRemoteBlocks=remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)&&Object.keys(remote.blockStates).length>0;
         const hasRemoteActivitySeen=Object.prototype.hasOwnProperty.call(remote,'activitySeenId');
         const hasRemoteMarketTicker=Object.prototype.hasOwnProperty.call(remote,'marketTickerEnabled');
+        const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode) return false;
         try{
           if(hasRemoteOrder){
             localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remote.homeOrder));
@@ -563,6 +595,10 @@
           }
           if(hasRemoteMarketTicker){
             localStorage.setItem(marketTickerEnabledStorageKey(),remote.marketTickerEnabled===false?'0':'1');
+          }
+          if(hasRemoteThemeMode){
+            const mode=['system','light','dark'].includes(String(remote.themeMode||''))?String(remote.themeMode):'system';
+            localStorage.setItem(themeModeStorageKey(),mode);
           }
           if(remoteStamp) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
           return true;
@@ -589,6 +625,8 @@
         updateHomeOrderControls();
         updateActivityNotificationBadge();
         applyMarketTickerVisibility();
+        applyTheme();
+        updateThemeSettingControls();
       }
 
       function markUiPreferencesChanged(){
