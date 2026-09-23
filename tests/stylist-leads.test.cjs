@@ -289,3 +289,47 @@ test('runStylistLeads does not publish to the topic if Diana private queue write
   }),/private queue down/);
   assert.equal(topicCalls,0);
 });
+
+
+test('private-only stylist catch-up queues recent leads without publishing or consulting seen markers', async () => {
+  const config={
+    version:1,enabled:true,topicId:126,lookbackHours:30,maxLeadsPerRun:5,sendEmpty:true,
+    sources:[{id:'event',handle:'event',title:'Event',city:'Санкт-Петербург',enabled:true,priority:100}],
+  };
+  const post={source:config.sources[0],id:'99',text:'Ищу стилиста по одежде в СПб',datetime:'2026-09-23T03:00:00Z',link:'https://t.me/event/99'};
+  const queued=[];
+  let topicCalls=0;
+  let seenReads=0;
+  const result=await api.runStylistLeads({
+    now:new Date('2026-09-23T09:00:00Z'),
+    config,
+    privateOnly:true,
+    forcePrivateSummary:true,
+    cache:{async get(){seenReads+=1;return {sentAt:'before'}},async set(){return true}},
+    scanImpl:async()=>({posts:[post],errors:[],sourcesChecked:1}),
+    queueForDiMessageImpl:async(text,options)=>{queued.push({text,options});return {text}},
+    sendMessage:async()=>{topicCalls+=1;return {ok:true}},
+  });
+  assert.equal(result.privateOnly,true);
+  assert.equal(result.privateQueued,1);
+  assert.equal(queued.length,1);
+  assert.equal(queued[0].options.source,'stylist');
+  assert.equal(topicCalls,0);
+  assert.equal(seenReads,0);
+});
+
+test('private-only stylist catch-up always queues an empty daily status when forced', async () => {
+  const config={version:1,enabled:true,topicId:126,lookbackHours:30,maxLeadsPerRun:5,sendEmpty:false,sources:[]};
+  const queued=[];
+  const result=await api.runStylistLeads({
+    now:new Date('2026-09-23T09:00:00Z'),
+    config,
+    privateOnly:true,
+    forcePrivateSummary:true,
+    scanImpl:async()=>({posts:[],errors:[],sourcesChecked:0}),
+    queueForDiMessageImpl:async(text,options)=>{queued.push({text,options});return {text}},
+  });
+  assert.equal(result.privateEmptyQueued,true);
+  assert.equal(result.privateQueued,1);
+  assert.equal(queued[0].options.source,'stylist-empty');
+});
