@@ -50,14 +50,14 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','activity','priority','partner','new','smart-home','car'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','partner','new','smart-home','car','activity'];
+        return ['dashboard',...people,'lulu','nearest','activity','priority','partner','new','smart-home','car'];
       }
       function homeTopOrderMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi-home-top-order-v1-'+actor;
+        return 'rudi-home-top-order-v2-'+actor;
       }
 
       function migrateHomeTopOrderOnce(order){
@@ -67,8 +67,8 @@
           if(localStorage.getItem(homeTopOrderMigrationKey())==='1') return source;
         }catch(_){}
         const top=currentActor==='Диана'
-          ?['diana','rustam','lulu','nearest']
-          :['rustam','diana','lulu','nearest'];
+          ?['diana','rustam','lulu','nearest','activity']
+          :['rustam','diana','lulu','nearest','activity'];
         const next=['dashboard',...top,...source.filter(id=>id!=='dashboard'&&!top.includes(id))];
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
