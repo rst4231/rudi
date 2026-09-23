@@ -33,7 +33,7 @@ test('Kitchen blocks use persistent RUDI collapse state', () => {
 
 test('recipe results are rendered as text, without image generation', () => {
   assert.match(js, /function renderRecipeSuggestions\(recipes\)/);
-  assert.match(js, /function renderRecipeDetails\(recipe\)/);
+  assert.match(js, /function renderRecipeDetails\(recipe,selectedId/);
   assert.doesNotMatch(html, /recipeImage|recipe-image|Сгенерировать изображение/i);
   assert.match(css, /\/\* Kitchen recipe generator \*\//);
 });
@@ -48,4 +48,13 @@ test('Photos taps do not scale the whole album card and memory like has a larger
   assert.doesNotMatch(css, /\.daily-card:active,\.shared-album-card:active\{transform:scale\(\.992\)\}/);
   assert.match(css, /body\[data-app-tab="photos"\] \.shared-album-card:active[\s\S]*?transform:none!important/);
   assert.match(css, /body\[data-app-tab="photos"\] \.shared-album-memory-reaction \.reaction-button\{[\s\S]*?width:38px;[\s\S]*?height:38px/);
+});
+
+
+test('recipe requests are split into suggestions and detail', () => {
+  assert.match(js, /operation:'suggestions'/);
+  assert.match(js, /operation:'detail'/);
+  assert.match(js, /currentRecipeContext/);
+  assert.match(js, /recipeDetailCache/);
+  assert.match(js, /Готовлю подробный рецепт/);
 });
