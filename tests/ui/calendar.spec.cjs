@@ -273,9 +273,10 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   expect(homeOrder.slice(-3)).toEqual(['new','smart-home','car']);
 
   const dianaStatus=page.locator('#partnerWorkStatus');
-  await expect(dianaStatus).toHaveText('Работаю');
+  await expect(dianaStatus).toHaveText('Работаю · 09:00–21:00');
+  await expect(page.locator('#homeNearestRows')).not.toContainText('Диана');
   await expect(page.locator('#selfWorkStatus')).toHaveText(/^(Работаю|Отдыхаю)$/);
-  await expect(page.locator('#selfWorkStatus')).not.toContainText(/10:00|18:00|Пн|Пт/);
+  await expect(page.locator('#selfWorkStatus')).not.toContainText(/09:00|21:00|Пн|Пт/);
 
   const partnerMoodIcons=page.locator('#partnerMoodValue [data-partner-mood]');
   await expect(partnerMoodIcons).toHaveCount(3);
