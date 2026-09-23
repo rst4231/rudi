@@ -18,7 +18,7 @@ test('Joint Tasks behavior remains present',()=>{
 test('footer version matches rudi-version metadata',()=>{
   const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current;
   const escaped=version.replace(/\./g,'\\.');
-  assert.match(html,new RegExp('id="appVersion"[^>]*>'+escaped+'<\\/div>'));
+  assert.match(html,new RegExp('<meta name="rudi-version" content="'+escaped+'">'));
 });
 
 test('Diana cycle status uses detailed one-word states and practical advice',()=>{
@@ -45,7 +45,7 @@ test('current release keeps daily compliment refresh and highlighted mood choice
   assert.match(html,/id="moodPrompt" class="mood-prompt">Выбери настроение<\/div>/);
   assert.match(css,/\.profile-person-card \.mood-button\.selected\{[\s\S]*?transform:scale\(1\.11\)!important/);
   const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.replace(/\./g,'\\.');
-  assert.match(html,new RegExp('id="appVersion"[^>]*>'+version+'<\\/div>'));
+  assert.match(html,new RegExp('<meta name="rudi-version" content="'+version+'">'));
 });
 
 test('Telegram actor hashes map to the provided owners',()=>{

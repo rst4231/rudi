@@ -7131,3 +7131,154 @@ body.keyboard-editing .undo-snackbar{display:none!important}
   .lulu-walk-button,.lulu-walk-button.is-saving svg{transition:none!important;animation:none!important}
 }
 /* end RUDI v1.13.0 Lulu compact walk action */
+
+
+/* RUDI v1.13.1 compact theme settings and romantic message */
+.home-settings-theme-row{
+  align-items:center;
+}
+.settings-theme-options{
+  width:166px;
+  flex:none;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:3px;
+  padding:3px;
+  border:1px solid color-mix(in srgb,var(--line) 76%,transparent);
+  border-radius:11px;
+  background:color-mix(in srgb,var(--soft) 74%,transparent);
+}
+.settings-theme-option{
+  min-width:0;
+  min-height:27px;
+  padding:5px 4px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--muted);
+  font:inherit;
+  font-size:8.8px;
+  line-height:1;
+  font-weight:760;
+  white-space:nowrap;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background-color .16s ease,color .16s ease,transform .14s ease,box-shadow .16s ease;
+}
+.settings-theme-option:active{transform:scale(.96)}
+.settings-theme-option.active,
+.settings-theme-option[aria-pressed="true"]{
+  background:var(--surface-strong);
+  color:var(--text);
+  box-shadow:0 2px 7px rgba(20,24,36,.07);
+}
+html[data-theme="dark"] .settings-theme-option.active,
+html[data-theme="dark"] .settings-theme-option[aria-pressed="true"]{
+  background:rgba(255,255,255,.09);
+  box-shadow:none;
+}
+@media(max-width:360px){
+  .settings-theme-options{width:154px}
+  .settings-theme-option{font-size:8.3px;padding-inline:3px}
+}
+
+.partner-message{
+  --message-rose:#e97999;
+  --message-peach:#e7a06f;
+  --message-lilac:#a48be0;
+  --message-gold:#d4ad68;
+  position:relative;
+  overflow:hidden;
+  border-color:color-mix(in srgb,var(--message-rose) 24%,var(--line))!important;
+  background:
+    radial-gradient(circle at 8% 0%,color-mix(in srgb,var(--message-rose) 15%,transparent),transparent 36%),
+    radial-gradient(circle at 95% 92%,color-mix(in srgb,var(--message-lilac) 14%,transparent),transparent 40%),
+    linear-gradient(145deg,color-mix(in srgb,#fff8fa 82%,var(--surface-strong)),color-mix(in srgb,#fbf8ff 76%,var(--surface)))!important;
+  box-shadow:
+    0 16px 42px rgba(93,58,79,.08),
+    inset 0 1px 0 rgba(255,255,255,.72)!important;
+}
+.partner-message::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:linear-gradient(118deg,rgba(255,255,255,.30),transparent 28%,transparent 72%,rgba(255,255,255,.16));
+  opacity:.55;
+}
+html[data-theme="dark"] .partner-message{
+  --message-rose:#f28eaa;
+  --message-peach:#efaa7f;
+  --message-lilac:#b59af0;
+  --message-gold:#e1bc73;
+  border-color:color-mix(in srgb,var(--message-rose) 20%,var(--line))!important;
+  background:
+    radial-gradient(circle at 8% 0%,rgba(242,142,170,.13),transparent 37%),
+    radial-gradient(circle at 96% 94%,rgba(181,154,240,.12),transparent 42%),
+    linear-gradient(145deg,rgba(35,27,34,.96),rgba(25,24,34,.95))!important;
+  box-shadow:
+    0 18px 46px rgba(0,0,0,.24),
+    inset 0 1px 0 rgba(255,255,255,.055)!important;
+}
+html[data-theme="dark"] .partner-message::before{
+  background:linear-gradient(118deg,rgba(255,255,255,.045),transparent 28%,transparent 72%,rgba(255,255,255,.025));
+  opacity:1;
+}
+.partner-message .love-hearts{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+  z-index:0;
+}
+.partner-message .love-heart{
+  opacity:.18!important;
+  filter:drop-shadow(0 4px 10px rgba(84,49,68,.08));
+}
+.partner-message .love-heart:nth-child(1){color:var(--message-rose)!important;opacity:.19!important}
+.partner-message .love-heart:nth-child(2){color:var(--message-peach)!important;opacity:.20!important}
+.partner-message .love-heart:nth-child(3){color:var(--message-lilac)!important;opacity:.17!important}
+.partner-message .love-heart:nth-child(4){color:var(--message-gold)!important;opacity:.18!important}
+html[data-theme="dark"] .partner-message .love-heart{filter:none}
+.partner-message .partner-title{
+  color:color-mix(in srgb,var(--text) 86%,var(--message-rose));
+  letter-spacing:.08em;
+}
+.partner-message .partner-title::before{
+  content:"♡";
+  color:var(--message-rose);
+  font-size:13px;
+  line-height:1;
+  transform:translateY(-.5px);
+}
+.partner-message .partner-text{
+  max-width:94%;
+  color:color-mix(in srgb,var(--text) 94%,var(--message-rose));
+  text-shadow:none;
+}
+.partner-message .partner-empty{
+  color:color-mix(in srgb,var(--muted) 86%,var(--message-lilac));
+}
+.partner-message .partner-author{
+  border-color:color-mix(in srgb,var(--message-lilac) 20%,var(--line));
+  background:color-mix(in srgb,var(--message-lilac) 7%,transparent);
+  color:color-mix(in srgb,var(--text) 74%,var(--message-lilac));
+}
+.partner-message .partner-edit{
+  border-color:color-mix(in srgb,var(--message-rose) 22%,var(--line));
+  background:color-mix(in srgb,var(--message-rose) 8%,var(--surface-strong));
+  color:color-mix(in srgb,var(--message-rose) 78%,var(--text));
+}
+html[data-theme="dark"] .partner-message .partner-edit{
+  background:rgba(242,142,170,.07);
+  color:#f3a0b8;
+}
+.partner-message .partner-editor textarea{
+  border-color:color-mix(in srgb,var(--message-lilac) 18%,var(--line));
+  background:color-mix(in srgb,var(--surface-strong) 92%,transparent);
+}
+@media(prefers-reduced-motion:reduce){
+  .settings-theme-option{transition:none!important}
+}
+/* end RUDI v1.13.1 */

@@ -2238,6 +2238,14 @@
           '</button>'+
           '<div id="homeSettingsPanel" class="home-settings-panel" hidden>'+
             '<div class="home-settings-title">Настройки</div>'+
+            '<div class="home-settings-row home-settings-theme-row">'+
+              '<div class="home-settings-copy"><strong>Тема</strong><small>Вид приложения</small></div>'+
+              '<div class="settings-theme-options" role="group" aria-label="Тема приложения">'+
+                '<button class="settings-theme-option" type="button" data-theme-mode="system" aria-pressed="true" title="Системная">Авто</button>'+
+                '<button class="settings-theme-option" type="button" data-theme-mode="light" aria-pressed="false" title="Светлая">Светлая</button>'+
+                '<button class="settings-theme-option" type="button" data-theme-mode="dark" aria-pressed="false" title="Тёмная">Тёмная</button>'+
+              '</div>'+
+            '</div>'+
             '<div class="home-settings-row">'+
               '<div class="home-settings-copy"><strong>Курсы</strong><small>Показывать на главной</small></div>'+
               '<button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать курсы"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+

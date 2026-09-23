@@ -68,5 +68,5 @@ test('Diana cycle record returns a refreshed backup even if cache persistence fa
 
 test('footer exposes current release version',()=>{
   const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.replace(/\./g,'\\.');
-  assert.match(html,new RegExp('id="appVersion"[^>]*>'+version+'<\\/div>'));
+  assert.match(html,new RegExp('<meta name="rudi-version" content="'+version+'">'));
 });
