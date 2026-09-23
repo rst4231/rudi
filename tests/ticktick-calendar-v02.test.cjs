@@ -69,3 +69,25 @@ test('all-day Buy groceries task stays on 23 September, not 22', () => {
   assert.equal(calendar.days.find(day=>day.date==='2026-09-23').events[0].title,'🛒 Купить продукты');
   assert.equal(calendar.days.find(day=>day.date==='2026-09-22').events.length,0);
 });
+
+
+test('Diana profile status keeps the active shift time after resync', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  assert.match(js, /function dianaWorkStatusText\(row\)[\s\S]*?dianaActiveShiftLabel\(row\)[\s\S]*?'Работаю'\+\(activeShift\?' · '\+activeShift:''\)/);
+  assert.match(js, /if\(diana\.dataset\.calendarReady&&homeDashboardState\.workDay\)[\s\S]*?dianaWorkStatusText\(homeDashboardState\.workDay\)/);
+  assert.match(js, /const statusText=dianaWorkStatusText\(workRow\)/);
+});
+
+test('Diana work status stays readable in light and dark themes', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.css'), 'utf8');
+
+  assert.match(css, /html\[data-theme="light"\] \.profile-person-card \.profile-work-status\.is-working\{color:#ffc08a\}/);
+  assert.match(css, /html\[data-theme="dark"\] \.profile-person-card \.profile-work-status\.is-working\{color:#ffb171\}/);
+  assert.match(css, /html\[data-theme="light"\] \.profile-person-card \.profile-work-status\.is-off\{color:#79e3aa\}/);
+  assert.match(css, /html\[data-theme="dark"\] \.profile-person-card \.profile-work-status\.is-off\{color:#60d894\}/);
+});
