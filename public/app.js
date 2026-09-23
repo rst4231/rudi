@@ -1144,9 +1144,73 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products'];
+
+      function routeFromLocation(){
+        try{
+          const params=new URLSearchParams(window.location.search);
+          const tab=String(params.get('tab')||'home').trim();
+          return {
+            tab:APP_TABS.includes(tab)?tab:'home',
+            item:String(params.get('item')||'').trim()
+          };
+        }catch(_){return {tab:'home',item:''}}
+      }
+
+      function updateAppRoute(tab,{item='',replace=false}={}){
+        try{
+          const next=APP_TABS.includes(tab)?tab:'home';
+          const url=new URL(window.location.href);
+          if(next==='home') url.searchParams.delete('tab');
+          else url.searchParams.set('tab',next);
+          if(item&&(next==='wishlist'||next==='products')) url.searchParams.set('item',String(item));
+          else url.searchParams.delete('item');
+          const target=url.pathname+(url.search||'')+(url.hash||'');
+          const current=window.location.pathname+window.location.search+window.location.hash;
+          if(target===current) return;
+          history[replace?'replaceState':'pushState']({rudiTab:next,rudiItem:item||''},'',target);
+        }catch(_){}
+      }
+
+      function focusDeepLinkedItem(tab,item){
+        const id=String(item||'').trim();
+        if(!id||(tab!=='wishlist'&&tab!=='products')) return;
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          const target=[...document.querySelectorAll('[data-rudi-item-id]')]
+            .find(node=>String(node.dataset.rudiItemId||'')===id);
+          if(!target) return;
+          target.classList.add('rudi-deep-link-target');
+          target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+          setTimeout(()=>target.classList.remove('rudi-deep-link-target'),2200);
+        }));
+      }
+
+      function runTabSideEffects(tab,{item=''}={}){
+        if(tab==='feed') loadFeed({silent:true});
+        if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
+        if(tab==='products'){
+          loadProducts({silent:true}).finally(()=>focusDeepLinkedItem('products',item));
+          scheduleProductsRefresh(15000);
+        }
+        if(tab==='wishlist'){
+          wishlistRequest('list').then(data=>{
+            renderWishlist(data);
+            focusDeepLinkedItem('wishlist',item);
+          }).catch(()=>{});
+        }
+        if(tab==='photos') loadSharedAlbum();
+      }
+
+      function navigateToAppTab(tab,{scroll=true,item='',replace=false}={}){
+        appTabScroll[currentAppTab]=window.scrollY||0;
+        document.activeElement?.blur?.();
+        applyAppTab(tab,{scroll});
+        updateAppRoute(currentAppTab,{item,replace});
+        runTabSideEffects(currentAppTab,{item});
+      }
+
       function applyAppTab(tab,{scroll=false}={}){
-        const allowed=['home','feed','schedule','wishlist','photos','products'];
-        let next=allowed.includes(tab)?tab:'home';
+        let next=APP_TABS.includes(tab)?tab:'home';
         const candidates=[...document.querySelectorAll('[data-app-tab-section="'+next+'"]')];
         if(next!=='home'&&candidates.length&&candidates.every(section=>section.dataset.tabAvailable==='0')){
           next='home';
@@ -1217,33 +1281,40 @@
       }
 
       function setupAppTabs(){
-        applyAppTab(requestedAppTab||'home',{scroll:false});
+        const initial=routeFromLocation();
+        const initialTab=requestedAppTab||initial.tab||'home';
+        const initialItem=requestedItemId||initial.item||'';
+        applyAppTab(initialTab,{scroll:false});
+        updateAppRoute(currentAppTab,{item:initialItem,replace:true});
+        runTabSideEffects(currentAppTab,{item:initialItem});
+
         document.querySelectorAll('[data-app-tab]').forEach(button=>{
+          if(button.dataset.routeBound==='1') return;
+          button.dataset.routeBound='1';
           button.addEventListener('click',()=>{
             const next=button.dataset.appTab||'home';
             if(next===currentAppTab){
               appTabScroll[next]=window.scrollY||0;
+              updateAppRoute(next,{replace:true});
               if(next==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               return;
             }
-            appTabScroll[currentAppTab]=window.scrollY||0;
-            document.activeElement?.blur?.();
-            applyAppTab(next,{scroll:true});
-            if(next==='feed'){
-              loadFeed({silent:true});
-            }
-            if(next==='schedule'){
-              playCalendarConfetti();
-              loadWorkCalendar(currentWorkCalendarView,{silent:true});
-            }
-            if(next==='products'){
-              loadProducts({silent:true});
-              scheduleProductsRefresh(15000);
-            }
+            if(next==='schedule') playCalendarConfetti();
+            navigateToAppTab(next,{scroll:true});
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         });
+
+        if(window.__rudiPopstateBound!=='1'){
+          window.__rudiPopstateBound='1';
+          window.addEventListener('popstate',()=>{
+            const route=routeFromLocation();
+            applyAppTab(route.tab,{scroll:true});
+            runTabSideEffects(currentAppTab,{item:route.item});
+            focusDeepLinkedItem(currentAppTab,route.item);
+          });
+        }
       }
 
       function blockStateStorageKey(){
@@ -1649,6 +1720,101 @@
         }
       }
 
+      function updateSettingsVersion(){
+        const version=document.getElementById('settingsAppVersion');
+        if(version) version.textContent=appVersionLabel()||'—';
+      }
+
+      let settingsPanelCloseTimer=null;
+      function setSettingsOpen(open){
+        const panel=document.getElementById('homeSettingsPanel');
+        const button=document.getElementById('homeSettingsButton');
+        if(!panel||!button) return;
+        const next=Boolean(open);
+        clearTimeout(settingsPanelCloseTimer);
+        if(next){
+          setActivityNotificationsOpen(false);
+          panel.hidden=false;
+          updateSettingsVersion();
+          updatePwaInstallUi();
+          requestAnimationFrame(()=>panel.classList.add('is-open'));
+        }else{
+          panel.classList.remove('is-open');
+          settingsPanelCloseTimer=setTimeout(()=>{
+            if(!panel.classList.contains('is-open')) panel.hidden=true;
+          },230);
+        }
+        button.setAttribute('aria-expanded',next?'true':'false');
+        document.getElementById('homeDashboard')?.classList.toggle('settings-open',next);
+      }
+
+      function setupSettingsPanel(){
+        const button=document.getElementById('homeSettingsButton');
+        const panel=document.getElementById('homeSettingsPanel');
+        if(!button||!panel||button.dataset.bound==='1') return;
+        button.dataset.bound='1';
+        button.addEventListener('click',event=>{
+          event.preventDefault();
+          event.stopPropagation();
+          setSettingsOpen(!panel.classList.contains('is-open'));
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        document.getElementById('settingsPwaInstall')?.addEventListener('click',installPwa);
+        document.addEventListener('click',event=>{
+          if(panel.hidden||!panel.classList.contains('is-open')) return;
+          if(event.target.closest?.('#homeSettings')) return;
+          setSettingsOpen(false);
+        });
+        document.addEventListener('keydown',event=>{
+          if(event.key==='Escape') setSettingsOpen(false);
+        });
+        updateSettingsVersion();
+        updatePwaInstallUi();
+      }
+
+      function hideUndoSnackbar(){
+        clearTimeout(undoSnackbarTimer);
+        undoSnackbarTimer=0;
+        undoSnackbarAction=null;
+        const bar=document.getElementById('undoSnackbar');
+        if(!bar) return;
+        bar.classList.remove('is-open');
+        setTimeout(()=>{if(!bar.classList.contains('is-open')) bar.hidden=true},190);
+      }
+
+      function showUndoSnackbar(text,undo){
+        const bar=document.getElementById('undoSnackbar');
+        const copy=document.getElementById('undoSnackbarText');
+        if(!bar||typeof undo!=='function') return;
+        clearTimeout(undoSnackbarTimer);
+        undoSnackbarAction=undo;
+        if(copy) copy.textContent=String(text||'Удалено');
+        bar.hidden=false;
+        requestAnimationFrame(()=>bar.classList.add('is-open'));
+        undoSnackbarTimer=setTimeout(hideUndoSnackbar,6000);
+      }
+
+      function setupUndoSnackbar(){
+        const button=document.getElementById('undoSnackbarButton');
+        if(!button||button.dataset.bound==='1') return;
+        button.dataset.bound='1';
+        button.addEventListener('click',async()=>{
+          const action=undoSnackbarAction;
+          if(typeof action!=='function') return;
+          button.disabled=true;
+          clearTimeout(undoSnackbarTimer);
+          try{
+            await action();
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            button.disabled=false;
+            hideUndoSnackbar();
+          }
+        });
+      }
+
       function activityNotificationsHaveUnread(){
         const latest=homeDashboardState.activity?.[0];
         return Boolean(latest?.id&&String(latest.id)!==currentActivitySeenId());
@@ -1680,6 +1846,7 @@
         const dashboard=document.getElementById('homeDashboard');
         clearTimeout(activityNotificationsCloseTimer);
         if(next){
+          setSettingsOpen(false);
           panel.hidden=false;
           requestAnimationFrame(()=>panel.classList.add('is-open'));
         }else{
@@ -1728,7 +1895,7 @@
           if(item.targetTab){
             row.type='button';
             row.addEventListener('click',()=>{
-              applyAppTab(String(item.targetTab||'home'),{scroll:true});
+              navigateToAppTab(String(item.targetTab||'home'),{scroll:true});
               if(item.targetTab==='products') loadProducts({silent:true});
               if(item.targetTab==='photos') loadSharedAlbum();
               if(item.targetTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
@@ -1795,7 +1962,7 @@
           button.addEventListener('click',()=>{
             if(entry.tab==='photos') markHomeCountSeen('photos',homeDashboardState.photoCount);
             if(entry.tab==='wishlist') markHomeCountSeen('wishlist',homeDashboardState.wishlistCount);
-            applyAppTab(entry.tab,{scroll:true});
+            navigateToAppTab(entry.tab,{scroll:true});
             if(entry.tab==='feed') loadFeed({silent:true});
           });
           list.appendChild(button);
@@ -1866,18 +2033,18 @@
 
       function openHomeQuickAction(action){
         if(action==='products'){
-          applyAppTab('products',{scroll:true});
+          navigateToAppTab('products',{scroll:true});
           loadProducts({silent:true}).finally(()=>setTimeout(()=>document.getElementById('productsInput')?.focus(),120));
           return;
         }
         if(action==='wishlist'){
-          applyAppTab('wishlist',{scroll:true});
+          navigateToAppTab('wishlist',{scroll:true});
           markHomeCountSeen('wishlist',homeDashboardState.wishlistCount);
           setTimeout(()=>document.getElementById('wishlistInput')?.focus(),120);
           return;
         }
         if(action==='photos'){
-          applyAppTab('photos',{scroll:true});
+          navigateToAppTab('photos',{scroll:true});
           markHomeCountSeen('photos',homeDashboardState.photoCount);
           return;
         }
@@ -1891,6 +2058,7 @@
 
       function setupHomeDashboardActions(){
         setupActivityNotifications();
+        setupSettingsPanel();
         document.querySelectorAll('[data-home-quick]').forEach(button=>{
           if(button.dataset.bound==='1') return;
           button.dataset.bound='1';
@@ -1899,7 +2067,7 @@
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
-          applyAppTab('schedule',{scroll:true});
+          navigateToAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
         });
       }
@@ -2041,6 +2209,9 @@
         greeting.id='homeDashboardGreeting';
         greeting.className='home-dashboard-greeting';
 
+        const tools=document.createElement('div');
+        tools.className='home-dashboard-tools';
+
         const notifications=document.createElement('div');
         notifications.id='homeActivityNotifications';
         notifications.className='home-activity-notifications';
@@ -2055,7 +2226,31 @@
             '<div id="homeActivityEmpty" class="home-activity-empty">Пока здесь тихо — новые события появятся автоматически.</div>'+
           '</div>';
 
-        top.append(greeting,notifications,dateHeading);
+        const settings=document.createElement('div');
+        settings.id='homeSettings';
+        settings.className='home-settings';
+        settings.innerHTML=
+          '<button id="homeSettingsButton" class="home-settings-button" type="button" aria-label="Настройки" aria-expanded="false">'+
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.4v-4h.1A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.66 3.8l.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2.4h4v.1A1.7 1.7 0 0 0 15 4.2a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7 1Z"/></svg>'+
+          '</button>'+
+          '<div id="homeSettingsPanel" class="home-settings-panel" hidden>'+
+            '<div class="home-settings-title">Настройки</div>'+
+            '<div class="home-settings-row">'+
+              '<div class="home-settings-copy"><strong>Курсы</strong><small>Показывать на главной</small></div>'+
+              '<button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать курсы"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+            '</div>'+
+            '<div class="home-settings-row">'+
+              '<div class="home-settings-copy"><strong>PWA</strong><small id="settingsPwaStatus">Добавить на устройство</small></div>'+
+              '<button id="settingsPwaInstall" class="settings-pwa-install" type="button">Установить</button>'+
+            '</div>'+
+            '<div class="home-settings-row">'+
+              '<div class="home-settings-copy"><strong>Версия</strong><small>Текущая сборка RUDI</small></div>'+
+              '<span id="settingsAppVersion" class="home-settings-version"></span>'+
+            '</div>'+
+          '</div>';
+
+        tools.append(notifications,settings);
+        top.append(greeting,tools,dateHeading);
 
         const messageNew=document.createElement('button');
         messageNew.id='homeMessageNew';
@@ -5532,6 +5727,7 @@
         const row=document.createElement('div');
         const url=String(item?.url||'').trim();
         row.className='wish-item'+(item.done?' done':'')+(url?' has-link':'');
+        row.dataset.rudiItemId=String(item.id||'');
         if(url){
           row.tabIndex=0;
           row.setAttribute('role','link');
@@ -5558,7 +5754,19 @@
           try{renderWishlist(await wishlistRequest('toggle',{id:item.id}));}catch(_){}
         });
         remove.addEventListener('click',async()=>{
-          try{renderWishlist(await wishlistRequest('remove',{id:item.id}));}catch(_){}
+          remove.disabled=true;
+          try{
+            const data=await wishlistRequest('remove',{id:item.id});
+            renderWishlist(data);
+            const removed=data?.removedItem||item;
+            showUndoSnackbar('Удалено',async()=>{
+              const restored=await wishlistRequest('restore',{item:removed});
+              renderWishlist(restored);
+            });
+            try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+          }catch(_){
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{remove.disabled=false}
         });
 
         if(url){
@@ -5602,6 +5810,10 @@
         animateRudiCollection(diana,'.wish-item',8);
         status.hidden=true;
         status.textContent='';
+        if(currentAppTab==='wishlist'){
+          const route=routeFromLocation();
+          focusDeepLinkedItem('wishlist',route.item);
+        }
       }
 
       function setupWishlist(){
@@ -6846,6 +7058,7 @@
           for(const item of byCategory.get(category)){
             const row=document.createElement('div');
             row.className='product-item'+(item.checked?' is-checked':'');
+            row.dataset.rudiItemId=String(item.id||'');
 
             const check=document.createElement('button');
             check.type='button';
@@ -6888,7 +7101,13 @@
             remove.addEventListener('click',async()=>{
               remove.disabled=true;
               try{
-                renderProducts(await productsRequest('remove',{id:item.id}));
+                const data=await productsRequest('remove',{id:item.id});
+                renderProducts(data);
+                const removed=data?.removedItem||item;
+                showUndoSnackbar('Удалено',async()=>{
+                  const restored=await productsRequest('restore',{item:removed});
+                  renderProducts(restored);
+                });
                 try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
               }catch(_){
                 try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
@@ -6923,6 +7142,10 @@
         animateRudiCollection(groups,'.product-category',7);
         animateRudiCollection(groups,'.product-item',14);
         animateRudiCollection(historyList,'.product-history-item',10);
+        if(currentAppTab==='products'){
+          const route=routeFromLocation();
+          focusDeepLinkedItem('products',route.item);
+        }
       }
 
       function productsRefreshDelay(){
@@ -7060,16 +7283,26 @@
         });
 
         clear.addEventListener('click',async()=>{
-          if(clear.disabled||!(await confirmProductsClear())) return;
+          if(clear.disabled) return;
           clear.disabled=true;
           try{
-            renderProducts(await productsRequest('clear'));
+            const data=await productsRequest('clear');
+            renderProducts(data);
             productsRecoveryChecked=true;
             productsRecoveryCandidate='';
             hideProductsRecovery();
-            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            const removed=Array.isArray(data?.removedItems)?data.removedItems:[];
+            if(removed.length){
+              showUndoSnackbar('Удалено',async()=>{
+                const restored=await productsRequest('restore',{items:removed});
+                renderProducts(restored);
+              });
+            }
+            try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           }catch(_){
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            clear.disabled=false;
           }
         });
 
@@ -7567,6 +7800,8 @@
         applyActorVisibility();
         applySessionIdentity();
         setupProfileSplit();
+        setupThemeSetting();
+        setupUndoSnackbar();
         setupHomeLayoutEditor();
         setupMarketTicker();
         setupPersistentCollapsibles();
