@@ -29,9 +29,11 @@ function normalizeWalk(value) {
 function normalizeLuluState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const lastWalk = normalizeWalk(source.lastWalk);
+  const rawUpdatedAt = String(source.updatedAt || '').trim();
+  const updatedDate = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   const updatedAt = lastWalk
     ? lastWalk.walkedAt
-    : (Number.isNaN(new Date(source.updatedAt || 0).getTime()) ? '' : new Date(source.updatedAt).toISOString());
+    : (updatedDate && !Number.isNaN(updatedDate.getTime()) ? updatedDate.toISOString() : '');
   return {
     initialized: Boolean(source.initialized),
     version: Math.max(0, Number(source.version || 0)),
