@@ -9,7 +9,7 @@ test('shared album preview selector keeps grid images compact',()=>{
     large:{checksum:'large',width:1600,height:1200,fileSize:400000},
     original:{checksum:'original',width:4032,height:3024,fileSize:3500000}
   }};
-  assert.equal(PREVIEW_MAX_EDGE,720);
+  assert.equal(PREVIEW_MAX_EDGE,640);
   assert.equal(VIEWER_MAX_EDGE,1800);
   assert.equal(pickDerivativeForMax(photo,PREVIEW_MAX_EDGE).checksum,'preview');
   assert.equal(pickDerivativeForMax(photo,VIEWER_MAX_EDGE).checksum,'large');
