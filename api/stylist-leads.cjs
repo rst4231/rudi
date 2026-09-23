@@ -1,4 +1,5 @@
 const { createHash } = require('node:crypto');
+const { queueForDiMessage } = require('./for-di-private.cjs');
 
 const DEFAULT_CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/config/stylist-leads.json';
 const DEFAULT_TOPIC_ID = 126;
@@ -116,12 +117,22 @@ async function runStylistLeads(options = {}) {
   const chatId = await resolveStylistChatId(options);
   const topicId = Number.isInteger(Number(config.topicId)) && Number(config.topicId) > 0 ? Number(config.topicId) : DEFAULT_TOPIC_ID;
   const sendMessage = options.sendMessage || ((payload) => defaultTelegramSend(payload, options));
+  const queuePrivate = options.queueForDiMessageImpl || queueForDiMessage;
   let leadsSent = 0;
+  let privateQueued = 0;
   for (const lead of leads) {
+    const text = formatLeadMessage(lead);
+    await queuePrivate(text, {
+      now,
+      forDiCache: options.forDiCache,
+      parseMode: false,
+      source: 'stylist',
+    });
+    privateQueued += 1;
     await sendMessage({
       chat_id: chatId,
       message_thread_id: topicId,
-      text: formatLeadMessage(lead),
+      text,
       disable_web_page_preview: true,
     });
     await cache.set(`seen:${lead.fingerprint}`, {
@@ -134,10 +145,18 @@ async function runStylistLeads(options = {}) {
   }
   let emptyNoticeSent = false;
   if (!leads.length && config.sendEmpty !== false) {
+    const text = formatEmptyNotice(lookbackHours);
+    await queuePrivate(text, {
+      now,
+      forDiCache: options.forDiCache,
+      parseMode: false,
+      source: 'stylist-empty',
+    });
+    privateQueued += 1;
     await sendMessage({
       chat_id: chatId,
       message_thread_id: topicId,
-      text: formatEmptyNotice(lookbackHours),
+      text,
       disable_web_page_preview: true,
     });
     emptyNoticeSent = true;
@@ -150,6 +169,7 @@ async function runStylistLeads(options = {}) {
     matchingCandidates: prefiltered.length,
     leadsSent,
     emptyNoticeSent,
+    privateQueued,
   };
 }
 
