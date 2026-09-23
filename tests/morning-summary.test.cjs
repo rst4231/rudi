@@ -293,3 +293,45 @@ test('morning summary reports missing recipients as failure instead of false suc
   );
   assert.equal(calls.length,1);
 });
+
+
+test('morning summary retries Telegram 400 as plain text without Web App button', async () => {
+  const summaryCache=memoryCache();
+  const calls=[];
+  const telegramFetchImpl=async(_url,init)=>{
+    const payload=JSON.parse(init.body);
+    calls.push(payload);
+    if(calls.length===1){
+      return new Response(JSON.stringify({ok:false,description:'Bad Request: cannot parse entities'}),{
+        status:400,headers:{'content-type':'application/json'}
+      });
+    }
+    return new Response(JSON.stringify({ok:true,result:{message_id:801}}),{
+      status:200,headers:{'content-type':'application/json'}
+    });
+  };
+  const result=await sendDailyMorningSummaries({
+    now:new Date('2026-09-23T03:00:00Z'),
+    summaryCache,
+    recipients:{'Рустам':1,'Диана':null},
+    botToken:'test-token',
+    telegramFetchImpl,
+    loadTasksImpl:async()=>[],
+    loadWorkDayImpl:async()=>null,
+    readMoodImpl:async()=>({date:'2026-09-23',moods:{}}),
+    readCycleImpl:async()=>null,
+    readPartnerMessageImpl:async()=>null,
+    readWishlistImpl:async()=>({items:[]}),
+    readProductsImpl:async()=>({items:[]}),
+    readFeedImpl:async()=>({sections:{}}),
+    loadEnvironmentImpl:async()=>({home:null,weather:null}),
+    loadCarTasksImpl:async()=>[],
+  }).catch((error)=>error.result);
+  assert.equal(result.sent,1);
+  assert.equal(calls.length,2);
+  assert.equal(calls[0].parse_mode,'HTML');
+  assert.ok(calls[0].reply_markup);
+  assert.equal(calls[1].parse_mode,undefined);
+  assert.equal(calls[1].reply_markup,undefined);
+  assert.doesNotMatch(calls[1].text,/<b>|<\/b>/);
+});
