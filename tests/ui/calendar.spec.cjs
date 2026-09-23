@@ -60,6 +60,19 @@ async function mockRudi(page,options={}){
       weather:{enabled:false},
       importantDates:[{id:'new-year',title:'Новый год',month:1,day:1,recurring:true}],
       birthdays:[],
+      malePsychology:{
+        enabled:true,
+        startDate:'2026-09-21',
+        disclaimer:'Тестовая оговорка.',
+        facts:[{
+          id:'ui-fact-1',
+          sequence:1,
+          title:'Тестовый научный факт',
+          text:'Факт уже находится в карточке к первому показу интерфейса.',
+          sourceLabel:'PubMed',
+          sourceUrl:'https://pubmed.ncbi.nlm.nih.gov/25581005/'
+        }]
+      },
       cycle:{enabled:true,cycleLengthDays:30,periodLengthDays:5,historyStarts:['2026-08-20']}
     })
   }));
@@ -260,6 +273,8 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await mockRudi(page,{partnerMood:'ok'});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#malePsychologyFact')).toBeVisible();
+  await expect(page.locator('#malePsychologyFactTitle')).toHaveText('Тестовый научный факт');
   await expect(page.locator('#homeDashboard')).toBeVisible();
   await expect(page.locator('#homeDashboard')).not.toContainText('Мы сегодня');
   await expect(page.locator('#homeRustamTile')).toBeVisible();
