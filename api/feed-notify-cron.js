@@ -16,8 +16,16 @@ async function handler(req, res) {
       : await sendDailyMorningSummaries({ force });
     return res.status(200).json({ ok: true, mode, ...result });
   } catch (error) {
-    console.error(mode === 'for-di' ? 'RUDI_FOR_DI_CRON_ERROR' : 'RUDI_MORNING_SUMMARY_CRON_ERROR', String(error?.message || error));
-    return res.status(500).json({ ok: false, error: mode === 'for-di' ? 'for-di-delivery-failed' : 'morning-summary-failed' });
+    console.error(
+      mode === 'for-di' ? 'RUDI_FOR_DI_CRON_ERROR' : 'RUDI_MORNING_SUMMARY_CRON_ERROR',
+      String(error?.message || error),
+      error?.result ? JSON.stringify(error.result) : ''
+    );
+    return res.status(500).json({
+      ok: false,
+      error: mode === 'for-di' ? 'for-di-delivery-failed' : 'morning-summary-failed',
+      ...(error?.result || {}),
+    });
   }
 }
 
