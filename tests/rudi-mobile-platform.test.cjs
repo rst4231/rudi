@@ -48,7 +48,7 @@ test('car header uses the detailed supplied UNI-V asset and has no header arrow'
   assert.match(header,/src="\/changan-uni-v-header\.webp\?v=\d+\.\d+\.\d+"/);
   assert.doesNotMatch(header,/chevron|arrow|›|→/i);
   assert.match(carCss,/\.car-head-visual/);
-  assert.match(carCss,/aspect-ratio:350\/165/);
+  assert.match(carCss,/\.car-head-visual img\{[\s\S]*?height:88px;[\s\S]*?object-fit:contain/);
 });
 
 test('Face ID challenge is stateless and does not depend on Runtime Cache', () => {

@@ -42,5 +42,5 @@ test('car header uses detailed Changan asset and has no header chevron',()=>{
   const header=html.slice(start,end);
   assert.doesNotMatch(header,/chevron|<svg|›|&gt;/i);
   assert.match(carCss,/\.car-head-visual/);
-  assert.ok(fs.existsSync('public/changan-uni-v-header.jpg'));
+  assert.ok(fs.existsSync('public/changan-uni-v-header.webp'));
 });
