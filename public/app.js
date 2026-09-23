@@ -54,10 +54,10 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','new','quick-access','smart-home','car','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','partner','new','smart-home','car','markets'];
+        return ['dashboard',...people,'lulu','nearest','priority','partner','new','quick-access','smart-home','car','markets'];
       }
       function homeTopOrderMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -741,6 +741,11 @@
         }else if(!requested.includes('lulu')){
           const partnerIndex=requested.indexOf(partnerId);
           if(partnerIndex>=0) requested.splice(partnerIndex+1,0,'lulu');
+        }
+        if(!requested.includes('quick-access')){
+          const smartIndex=requested.indexOf('smart-home');
+          if(smartIndex>=0) requested.splice(smartIndex,0,'quick-access');
+          else requested.push('quick-access');
         }
         if(!requested.includes('car')){
           const smartIndex=requested.indexOf('smart-home');
@@ -7656,6 +7661,158 @@
         host.hidden=!currentRecipeSet.length;
       }
 
+
+      const DATE_IDEAS_CACHE_PREFIX='rudi:date-ideas:v1:';
+
+      function dateIdeasCacheKey(){
+        return DATE_IDEAS_CACHE_PREFIX+(currentActor==='Диана'?'diana':'rustam');
+      }
+
+      function normalizeDateIdeasCache(value){
+        const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+        const ideas=(Array.isArray(source.ideas)?source.ideas:[])
+          .map((idea,index)=>({
+            id:String(idea?.id||('date-'+(index+1))).slice(0,80),
+            title:String(idea?.title||'').trim().slice(0,140),
+            description:String(idea?.description||'').trim().slice(0,700),
+            duration:String(idea?.duration||'').trim().slice(0,80)
+          }))
+          .filter(idea=>idea.title&&idea.description)
+          .slice(0,3);
+        if(ideas.length!==3) return null;
+        const period=['morning','day','evening'].includes(String(source.period||''))?String(source.period):'';
+        return {period,ideas,generatedAt:String(source.generatedAt||'')};
+      }
+
+      function readDateIdeasCache(){
+        try{return normalizeDateIdeasCache(JSON.parse(localStorage.getItem(dateIdeasCacheKey())||'null'))}
+        catch(_){return null}
+      }
+
+      function writeDateIdeasCache(value){
+        const normalized=normalizeDateIdeasCache(value);
+        if(!normalized) return;
+        try{localStorage.setItem(dateIdeasCacheKey(),JSON.stringify(normalized))}catch(_){}
+      }
+
+      function datePeriodLabel(period){
+        return period==='morning'?'Утро':period==='day'?'День':period==='evening'?'Вечер':'';
+      }
+
+      function renderDateIdeas(payload){
+        const host=document.getElementById('dateIdeaResults');
+        const normalized=normalizeDateIdeasCache(payload);
+        if(!host||!normalized) return false;
+        host.replaceChildren();
+        const head=document.createElement('div');
+        head.className='date-idea-results-head';
+        const title=document.createElement('strong');
+        title.textContent='Идеи на '+datePeriodLabel(normalized.period).toLowerCase();
+        const meta=document.createElement('span');
+        meta.textContent='3 варианта';
+        head.append(title,meta);
+        host.appendChild(head);
+        normalized.ideas.forEach((idea,index)=>{
+          const card=document.createElement('article');
+          card.className='date-idea-card';
+          const number=document.createElement('span');
+          number.className='date-idea-number';
+          number.textContent=String(index+1);
+          const copy=document.createElement('div');
+          copy.className='date-idea-copy';
+          const heading=document.createElement('strong');
+          heading.textContent=idea.title;
+          const description=document.createElement('p');
+          description.textContent=idea.description;
+          copy.append(heading,description);
+          if(idea.duration){
+            const duration=document.createElement('small');
+            duration.textContent=idea.duration;
+            copy.appendChild(duration);
+          }
+          card.append(number,copy);
+          host.appendChild(card);
+        });
+        host.hidden=false;
+        return true;
+      }
+
+      function dateIdeaErrorText(error){
+        const code=String(error?.message||'');
+        if(code==='date-ai-quota'||Number(error?.status)===429) return 'Лимит ИИ на сегодня закончился. Последние идеи сохранены.';
+        if(code==='groq-api-key-missing') return 'ИИ временно недоступен. Последние идеи сохранены.';
+        if(code==='date-ai-timeout') return 'ИИ отвечает слишком долго. Попробуйте ещё раз — прошлые идеи не пропали.';
+        return 'Не удалось придумать новые варианты. Последние идеи сохранены.';
+      }
+
+      async function dateIdeasRequest(period,exclude=[]){
+        const response=await fetch('/api/partner-message?rudiAction=dates',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',period,exclude}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+          const error=new Error(data.error||'date-request-failed');
+          error.status=response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function setupQuickAccess(){
+        const wishlist=document.getElementById('quickWishlistButton');
+        const generate=document.getElementById('dateIdeaButton');
+        const choices=document.getElementById('dateTimeChoices');
+        const status=document.getElementById('dateIdeaStatus');
+        if(!wishlist||!generate||!choices||generate.dataset.dateBound==='1') return;
+        generate.dataset.dateBound='1';
+
+        wishlist.addEventListener('click',()=>{
+          navigateToAppTab('wishlist',{scroll:true});
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+
+        if(readDateIdeasCache()){
+          renderDateIdeas(readDateIdeasCache());
+          if(status) status.textContent='Последние идеи сохранены.';
+        }
+
+        generate.addEventListener('click',()=>{
+          const open=choices.hidden;
+          choices.hidden=!open;
+          generate.setAttribute('aria-expanded',open?'true':'false');
+          if(open&&status&&!readDateIdeasCache()) status.textContent='Когда удобнее устроить свидание?';
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+
+        choices.querySelectorAll('[data-date-period]').forEach(button=>{
+          button.addEventListener('click',async()=>{
+            const period=String(button.dataset.datePeriod||'');
+            if(!['morning','day','evening'].includes(period)) return;
+            const previous=readDateIdeasCache();
+            const exclude=previous?.ideas?.map(idea=>idea.title).filter(Boolean)||[];
+            choices.querySelectorAll('button').forEach(item=>item.disabled=true);
+            if(status) status.textContent='Придумываю 3 необычных варианта на '+datePeriodLabel(period).toLowerCase()+'…';
+            try{
+              const data=await dateIdeasRequest(period,exclude);
+              const next={period,ideas:data.ideas,generatedAt:new Date().toISOString()};
+              if(!renderDateIdeas(next)) throw new Error('date-ai-no-ideas');
+              writeDateIdeasCache(next);
+              if(status) status.textContent='Готово. Эти идеи сохранены до следующей генерации.';
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            }catch(error){
+              if(previous) renderDateIdeas(previous);
+              if(status) status.textContent=dateIdeaErrorText(error);
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }finally{
+              choices.querySelectorAll('button').forEach(item=>item.disabled=false);
+            }
+          });
+        });
+      }
+
       function setupRecipeGenerator(){
         const input=document.getElementById('recipeIngredients');
         const generate=document.getElementById('recipeGenerate');
@@ -7811,6 +7968,7 @@
         setupUndoSnackbar();
         loadActivityJournal();
         setupAppTabs();
+        setupQuickAccess();
         const config=await configPromise;
         currentConfig=config;
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));

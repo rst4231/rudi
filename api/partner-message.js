@@ -42,6 +42,7 @@ const {
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyMoodState } = require('./daily-mood-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
+const { generateDateIdeas } = require('./date-ai.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState } = require('./reactions-store.cjs');
 const {
@@ -2103,6 +2104,33 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+
+
+  if (action === 'dates') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const result = await generateDateIdeas({
+        period: body.period,
+        exclude: body.exclude,
+      }, {
+        env: options.env || process.env,
+        fetch: options.fetch || global.fetch,
+      });
+      return res.status(200).json({ ok: true, actor, period: String(body.period || ''), ...result });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'date-period-invalid' ? 400
+        : code === 'date-ai-quota' ? 429
+        : code === 'groq-api-key-missing' ? 503
+        : 502;
+      if (status >= 500) console.error('RUDI_DATE_AI_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
 
   if (action === 'recipes') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });

@@ -32,7 +32,9 @@ async function mockRudi(page,options={}){
     productHistory:[],
     reactions:{},
     bootstrapStarted:false,
-    bootstrapResolved:false
+    bootstrapResolved:false,
+    dateIdeaCalls:0,
+    lastDatePeriod:''
   };
 
   await page.route('https://telegram.org/js/telegram-web-app.js?63',route=>route.fulfill({
@@ -194,6 +196,19 @@ async function mockRudi(page,options={}){
       mine:{mood:'ok'},
       partnerMood:{mood:options.partnerMood||'ok'}
     });
+    if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='dates'){
+      state.dateIdeaCalls++;
+      state.lastDatePeriod=String(body.period||'');
+      return ok({
+        ok:true,
+        period:state.lastDatePeriod,
+        ideas:[
+          {id:'date-1',title:'Маршрут вслепую',description:'Вы по очереди выбираете следующую точку прогулки по монетке и выполняете маленькие задания.',duration:'1,5–2 часа'},
+          {id:'date-2',title:'Фотоохота вдвоём',description:'Составьте список необычных кадров и отправляйтесь искать их по городу, не показывая друг другу результат до финала.',duration:'2 часа'},
+          {id:'date-3',title:'Домашний обмен мирами',description:'Каждый готовит для другого короткий сюрприз из музыки, вкуса и истории, а потом вы меняетесь ролями.',duration:'1–2 часа'}
+        ]
+      });
+    }
     if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='products'){
       const operation=String(body.operation||'list');
       if(operation==='toggle'){
@@ -298,7 +313,7 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#settingsAppVersion')).toHaveText(releaseVersion||'');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
-  expect(homeOrder.slice(-4)).toEqual(['new','smart-home','car','markets']);
+  expect(homeOrder.slice(-5)).toEqual(['new','quick-access','smart-home','car','markets']);
 
   const dianaStatus=page.locator('#partnerWorkStatus');
   await expect(dianaStatus).toHaveText('Работаю · 09:00–21:00');
@@ -473,7 +488,7 @@ test('calendar task completes in TickTick and refreshes in place with confetti',
 });
 
 
-test('feed is structured, today-first and keeps six-tab layout',async({page})=>{
+test('feed is structured, today-first and keeps five-tab layout',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
@@ -525,9 +540,9 @@ test('feed is structured, today-first and keeps six-tab layout',async({page})=>{
   await expect(page.locator('#feedTabBadge')).toBeHidden();
 
   const tabs=page.locator('#appTabBar [role="tab"]');
-  await expect(tabs).toHaveCount(6);
+  await expect(tabs).toHaveCount(5);
   const labels=(await tabs.allTextContents()).map(value=>value.trim());
-  expect(labels).toEqual(['Домой','Лента','Календарь','Кухня','Фото','Вишлист']);
+  expect(labels).toEqual(['Домой','Лента','Календарь','Кухня','Фото']);
   const boxes=await tabs.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()));
   const top=Math.round(boxes[0].top);
   expect(boxes.every(box=>Math.abs(Math.round(box.top)-top)<=1)).toBe(true);
@@ -616,4 +631,38 @@ test('nearest card stays on Home only',async({page})=>{
 
   await page.locator('[data-app-tab="home"]').click();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
+});
+
+
+test('quick access opens wishlist and generates cached date ideas only after period choice',async({page})=>{
+  const state=await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+
+  const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
+  expect(order.indexOf('quick-access')).toBeLessThan(order.indexOf('smart-home'));
+  await expect(page.locator('#appTabBar [role="tab"]')).toHaveCount(5);
+  await expect(page.locator('#appTabBar [data-app-tab="wishlist"]')).toHaveCount(0);
+
+  await page.locator('#quickWishlistButton').click();
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','wishlist');
+  await expect(page.locator('.wishlist-page-title')).toHaveText('Наш вишлист');
+
+  await page.getByRole('tab',{name:'Домой'}).click();
+  await page.locator('#dateIdeaButton').click();
+  await expect(page.locator('#dateTimeChoices')).toBeVisible();
+  expect(state.dateIdeaCalls).toBe(0);
+
+  await page.locator('[data-date-period="evening"]').click();
+  await expect.poll(()=>state.dateIdeaCalls).toBe(1);
+  expect(state.lastDatePeriod).toBe('evening');
+  await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
+  await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
+  await expect(page.locator('#dateIdeaStatus')).toContainText('сохранены');
+
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
+  await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
+  expect(state.dateIdeaCalls).toBe(1);
 });

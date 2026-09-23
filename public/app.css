@@ -7283,3 +7283,122 @@ html[data-theme="dark"] .partner-message .partner-edit{
   .settings-theme-option{transition:none!important}
 }
 /* end RUDI v1.13.1 */
+
+
+/* RUDI v1.14.0 — quick access + five-tab navigation */
+.quick-access-tile{
+  display:grid;
+  gap:12px;
+  padding:16px;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 42%),
+    var(--surface);
+}
+.quick-access-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.quick-access-head h2{margin:2px 0 0;font-size:19px;line-height:1.12;letter-spacing:-.025em}
+.quick-access-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.quick-access-button{
+  min-width:0;
+  min-height:72px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:11px 12px;
+  border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  border-radius:17px;
+  background:color-mix(in srgb,var(--surface-strong) 91%,transparent);
+  color:var(--text);
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .16s ease,border-color .18s ease,background-color .18s ease;
+}
+.quick-access-button:active{transform:scale(.975)}
+.quick-access-button.is-wishlist{background:linear-gradient(145deg,color-mix(in srgb,var(--love-soft) 68%,var(--surface-strong)),var(--surface-strong))}
+.quick-access-button.is-date{background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 64%,var(--surface-strong)),var(--surface-strong))}
+.quick-access-icon{
+  width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:11px;
+  background:color-mix(in srgb,var(--surface) 80%,transparent);
+}
+.quick-access-icon svg{width:21px;height:21px}
+.quick-access-copy{min-width:0;display:grid;gap:3px}
+.quick-access-copy strong{font-size:12.5px;line-height:1.18;font-weight:800}
+.quick-access-copy small{color:var(--muted);font-size:9.5px;line-height:1.2;font-weight:600}
+.date-time-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.date-time-choices[hidden]{display:none!important}
+.date-time-choices button{
+  min-height:38px;
+  padding:8px;
+  border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));
+  border-radius:12px;
+  background:color-mix(in srgb,var(--accent-soft) 50%,var(--surface));
+  color:var(--text);
+  font:inherit;
+  font-size:11px;
+  font-weight:780;
+  cursor:pointer;
+}
+.date-time-choices button:active{transform:scale(.97)}
+.date-time-choices button:disabled{opacity:.55;cursor:wait}
+.date-idea-status{min-height:0;color:var(--muted);font-size:10.5px;line-height:1.35}
+.date-idea-status:empty{display:none}
+.date-idea-results{display:grid;gap:8px}
+.date-idea-results[hidden]{display:none!important}
+.date-idea-results-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:2px}
+.date-idea-results-head strong{font-size:12px;font-weight:800}
+.date-idea-results-head span{color:var(--muted);font-size:9.5px;font-weight:680}
+.date-idea-card{
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr);
+  gap:10px;
+  padding:11px 12px;
+  border:1px solid color-mix(in srgb,var(--line) 74%,transparent);
+  border-radius:15px;
+  background:color-mix(in srgb,var(--surface-strong) 90%,transparent);
+}
+.date-idea-number{
+  width:28px;height:28px;display:grid;place-items:center;border-radius:9px;
+  background:color-mix(in srgb,var(--accent-soft) 78%,transparent);
+  color:var(--accent);
+  font-size:10px;
+  font-weight:850;
+}
+.date-idea-copy{min-width:0;display:grid;gap:4px}
+.date-idea-copy strong{font-size:12.5px;line-height:1.22;font-weight:800}
+.date-idea-copy p{margin:0;color:var(--text);font-size:11px;line-height:1.42}
+.date-idea-copy small{color:var(--muted);font-size:9.5px;font-weight:650}
+
+.app-tabbar{
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  width:min(calc(100% - 20px),540px);
+  min-height:70px;
+  gap:5px;
+  padding:6px 7px;
+}
+.app-tab-button{
+  min-height:56px;
+  gap:4px;
+  padding:6px 4px;
+  border-radius:16px;
+  font-size:9.8px!important;
+  letter-spacing:0!important;
+  font-weight:720;
+}
+.app-tab-icon{width:29px;height:29px;border-radius:10px}
+.app-tab-icon svg{width:22px;height:22px}
+@media(max-width:430px){
+  .quick-access-actions{gap:7px}
+  .quick-access-button{min-height:68px;padding:10px}
+  .quick-access-copy strong{font-size:11.5px}
+  .app-tabbar{width:calc(100% - 16px);min-height:68px;padding:5px 6px;gap:4px}
+  .app-tab-button{min-height:55px;font-size:9.3px!important}
+  .app-tab-icon{width:28px;height:28px}
+  .app-tab-icon svg{width:21px;height:21px}
+}
+@media(max-width:350px){
+  .quick-access-actions{grid-template-columns:1fr}
+  .quick-access-button{min-height:60px}
+  .app-tab-button{font-size:8.7px!important;padding-inline:2px}
+}

@@ -57,3 +57,20 @@ test('partner message has distinct romantic styling for light and dark themes',(
   assert.match(css,/\.partner-message \.love-heart:nth-child\(3\)\{color:var\(--message-lilac\)/);
   assert.match(css,/\.partner-message \.love-heart:nth-child\(4\)\{color:var\(--message-gold\)/);
 });
+
+
+test('quick access owns wishlist entry, date generator and five-tab bottom navigation',()=>{
+  assert.match(html,/id="quickAccessTile"[\s\S]*?data-home-tile="quick-access"/);
+  assert.match(html,/id="quickWishlistButton"/);
+  assert.match(html,/id="dateIdeaButton"/);
+  assert.match(html,/data-date-period="morning"/);
+  assert.match(html,/data-date-period="day"/);
+  assert.match(html,/data-date-period="evening"/);
+  assert.doesNotMatch(html,/data-app-tab="wishlist" aria-selected="false"/);
+  assert.match(app,/DATE_IDEAS_CACHE_PREFIX='rudi:date-ideas:v1:'/);
+  assert.match(app,/setupQuickAccess\(\)/);
+  assert.match(app,/navigateToAppTab\('wishlist'/);
+  assert.match(app,/rudiAction=dates/);
+  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)!important/);
+  assert.match(api,/action === 'dates'/);
+});
