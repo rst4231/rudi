@@ -1413,8 +1413,10 @@
         const button=document.getElementById('homeActivityNotificationsButton');
         if(!panel||!button) return;
         const next=Boolean(open);
+        const dashboard=document.getElementById('homeDashboard');
         panel.hidden=!next;
         button.setAttribute('aria-expanded',next?'true':'false');
+        dashboard?.classList.toggle('activity-notifications-open',next);
         if(next) markActivityNotificationsSeen();
       }
 
@@ -2033,13 +2035,13 @@
           tracking=false;
           armed=false;
           distance=0;
-          indicator.classList.remove('is-visible','is-armed');
+          indicator.classList.remove('is-visible','is-armed','is-refreshing');
           indicator.style.setProperty('--pull-distance','0px');
           if(label) label.textContent='Потяните для обновления';
         };
 
         document.addEventListener('touchstart',event=>{
-          if(refreshing||event.touches?.length!==1||scrollTop()>0) return;
+          if(refreshing||!appAccessReady||!currentActor||event.touches?.length!==1||scrollTop()>0) return;
           if(event.target?.closest?.('input,textarea,select,[contenteditable="true"]')) return;
           startY=event.touches[0].clientY;
           distance=0;
@@ -2072,7 +2074,25 @@
           indicator.classList.remove('is-armed');
           indicator.style.setProperty('--pull-distance','72px');
           if(label) label.textContent='Обновляю…';
-          setTimeout(()=>window.location.reload(),180);
+          const startedAt=Date.now();
+          Promise.resolve(refreshAfterResume())
+            .then(()=>{
+              const delay=Math.max(0,420-(Date.now()-startedAt));
+              setTimeout(()=>{
+                if(label) label.textContent='Обновлено';
+                setTimeout(()=>{
+                  refreshing=false;
+                  reset();
+                },220);
+              },delay);
+            })
+            .catch(()=>{
+              if(label) label.textContent='Не удалось обновить';
+              setTimeout(()=>{
+                refreshing=false;
+                reset();
+              },900);
+            });
         };
 
         document.addEventListener('touchend',finish,{passive:true});

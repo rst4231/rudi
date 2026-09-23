@@ -18,16 +18,27 @@ test('browser theme follows the device while Telegram follows Telegram theme', (
   assert.match(html,/prefers-color-scheme: dark/);
 });
 
-test('browser has guarded pull-to-refresh and Telegram does not', () => {
-  assert.match(app,/function setupBrowserPullToRefresh\(\)/);
-  assert.match(app,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
-  assert.match(app,/const threshold=224/);
-  assert.match(app,/touchstart/);
-  assert.match(app,/touchmove/);
-  assert.match(app,/Отпустите для обновления/);
-  assert.match(app,/window\.location\.reload\(\)/);
+test('browser has guarded in-place pull-to-refresh and Telegram does not', () => {
+  const start=app.indexOf('function setupBrowserPullToRefresh()');
+  const end=app.indexOf('function updateTelegramSafeArea()',start);
+  const pull=app.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(pull,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
+  assert.match(pull,/const threshold=224/);
+  assert.match(pull,/!appAccessReady\|\|!currentActor/);
+  assert.match(pull,/touchstart/);
+  assert.match(pull,/touchmove/);
+  assert.match(pull,/Отпустите для обновления/);
+  assert.match(pull,/refreshAfterResume\(\)/);
+  assert.doesNotMatch(pull,/window\.location\.reload\(\)/);
   assert.match(css,/\.pull-refresh-indicator/);
   assert.match(css,/\.pull-refresh-indicator\.is-refreshing/);
+});
+
+test('activity notification popover is lifted above movable home cards while open', () => {
+  assert.match(app,/dashboard\?\.classList\.toggle\('activity-notifications-open',next\)/);
+  assert.match(css,/\.home-dashboard-summary\.activity-notifications-open\{[\s\S]*?z-index:500/);
+  assert.match(css,/\.home-dashboard-summary\.activity-notifications-open \.home-activity-notifications-panel\{[\s\S]*?z-index:502/);
 });
 
 test('installed RUDI icon uses the supplied photo instead of a generated letter icon', () => {
