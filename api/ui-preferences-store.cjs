@@ -97,7 +97,7 @@ async function seedUiPreferences(actor, value, options = {}) {
     const current = await readUiPreferences(actor, options);
     if (current.initialized) return current;
     const incoming = normalizeUiPreferencesState(value);
-    if (!incoming.homeOrder.length && !Object.keys(incoming.blockStates).length) return current;
+    if (!incoming.homeOrder.length && !Object.keys(incoming.blockStates).length && !incoming.activitySeenId) return current;
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
