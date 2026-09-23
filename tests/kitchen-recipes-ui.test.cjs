@@ -58,3 +58,20 @@ test('recipe requests are split into suggestions and detail', () => {
   assert.match(js, /recipeDetailCache/);
   assert.match(js, /Готовлю подробный рецепт/);
 });
+
+
+test('recipe cache survives app restarts and avoids repeat AI calls for the same context', () => {
+  assert.match(js, /RECIPE_CACHE_TTL_MS=7\*DAY/);
+  assert.match(js, /RECIPE_CACHE_MAX_ENTRIES=8/);
+  assert.match(js, /localStorage\.getItem\(recipeCacheStorageKey\(\)\)/);
+  assert.match(js, /localStorage\.setItem\(recipeCacheStorageKey\(\)/);
+  assert.match(js, /findRecipeCacheEntry\(context\)/);
+  assert.match(js, /restoreRecipeCacheEntry\(cachedEntry,\{restoreInputs:false\}\)/);
+  assert.match(js, /saveCurrentRecipeCache\(recipe\.title\)/);
+  assert.match(js, /Последние рецепты восстановлены из кэша/);
+});
+
+test('fasting tracker button is removed from Kitchen without leaving its tool container', () => {
+  assert.doesNotMatch(html, /Трекер голодания/);
+  assert.doesNotMatch(html, /gemini\.google\.com\/share\/a09a924c005c/);
+});
