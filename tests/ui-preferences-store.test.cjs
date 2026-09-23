@@ -22,6 +22,7 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
   const first=await saveUiPreferences('Рустам',{
     homeOrder:['dashboard','rustam','diana','lulu','nearest','smart-home'],
     blockStates:{car:true},
+    activitySeenId:'event-1',
   },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T08:00:00Z')});
   assert.equal(first.version,1);
 
@@ -34,6 +35,7 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
   assert.equal(second.version,2);
   assert.deepEqual(saved.homeOrder,['dashboard','rustam','diana','lulu','nearest','car','smart-home']);
   assert.equal(saved.blockStates['smart-home'],true);
+  assert.equal(saved.activitySeenId,'event-1');
 
   await saveUiPreferences('Диана',{
     homeOrder:['dashboard','diana','rustam','lulu','nearest'],
@@ -48,6 +50,8 @@ test('app and API use shared UI preferences instead of device-only layout',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const api=fs.readFileSync('api/partner-message.js','utf8');
   assert.match(app,/uiPreferencesDirty/);
+  assert.match(app,/activitySeenId/);
+  assert.match(app,/markActivityNotificationsSeen/);
   assert.match(app,/syncUiPreferencesFromServer/);
   assert.match(app,/rudiAction=ui-preferences/);
   assert.match(app,/syncUiPreferencesFromServer\(\)\.then\(\(\)=>refreshStateBackup\(\)\)/);
