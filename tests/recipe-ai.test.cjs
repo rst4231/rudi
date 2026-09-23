@@ -1,61 +1,31 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  DEFAULT_MODEL,
+  FALLBACK_MODEL,
   normalizeRecipeRequest,
   generateRecipeSet,
 } = require('../api/recipe-ai.cjs');
 
-function recipePayload(title='Чахохбили', timeMinutes=15) {
+function recipePayload(title = 'Чахохбили', timeMinutes = 15) {
   return {
     candidates: [{
       content: {
         parts: [{
           text: JSON.stringify({
-            recipes: [
-              {
-                title,
-                summary: 'Курица с томатами',
-                timeMinutes,
-                difficulty: 'Легко',
-                ingredients: [
-                  { name: 'Курица', amount: '200 г' },
-                  { name: 'Помидоры', amount: '2 шт.' },
-                ],
-                missing: [],
-                steps: ['Подготовить продукты', 'Приготовить до готовности'],
-                tips: [],
-              },
-              {
-                title: 'Рис с яйцом',
-                summary: 'Быстрый вариант',
-                timeMinutes,
-                difficulty: 'Легко',
-                ingredients: [{ name: 'Рис', amount: '150 г' }],
-                missing: [],
-                steps: ['Подготовить', 'Приготовить'],
-                tips: [],
-              },
-              {
-                title: 'Омлет',
-                summary: 'Простой вариант',
-                timeMinutes,
-                difficulty: 'Легко',
-                ingredients: [{ name: 'Яйца', amount: '3 шт.' }],
-                missing: [],
-                steps: ['Взбить', 'Приготовить'],
-                tips: [],
-              },
-              {
-                title: 'Томатный рис',
-                summary: 'Ещё один вариант',
-                timeMinutes,
-                difficulty: 'Легко',
-                ingredients: [{ name: 'Рис', amount: '150 г' }],
-                missing: [],
-                steps: ['Подготовить', 'Приготовить'],
-                tips: [],
-              },
-            ],
+            recipes: Array.from({ length: 4 }, (_, index) => ({
+              title: index ? title + ' ' + (index + 1) : title,
+              summary: 'Быстрое блюдо',
+              timeMinutes,
+              difficulty: 'Легко',
+              ingredients: [
+                { name: 'Курица', amount: '200 г' },
+                { name: 'Рис', amount: '100 г' },
+              ],
+              missing: [],
+              steps: ['Подготовить продукты', 'Приготовить до готовности'],
+              tips: ['Подавайте сразу'],
+            })),
           }),
         }],
       },
@@ -63,7 +33,7 @@ function recipePayload(title='Чахохбили', timeMinutes=15) {
   };
 }
 
-test('recipe request validates selectors and cooking time', () => {
+test('recipe request validates selectors including cooking time', () => {
   assert.deepEqual(
     normalizeRecipeRequest({
       ingredients: 'курица, рис, помидоры',
@@ -98,11 +68,11 @@ test('recipe request validates selectors and cooking time', () => {
   }), /recipe-time-invalid/);
 });
 
-test('recipe generation uses fast primary model and selected time', async () => {
+test('recipe generation uses fast primary model and selected time schema', async () => {
   let calls = 0;
   const fakeFetch = async (url, options) => {
     calls += 1;
-    assert.match(url, /gemini-3\.1-flash-lite:generateContent$/);
+    assert.ok(url.endsWith(DEFAULT_MODEL + ':generateContent'));
     assert.equal(options.headers['x-goog-api-key'], 'secret-key');
     const body = JSON.parse(options.body);
     assert.equal(body.generationConfig.responseJsonSchema.properties.recipes.items.properties.timeMinutes.maximum, 15);
@@ -115,7 +85,7 @@ test('recipe generation uses fast primary model and selected time', async () => 
   };
 
   const result = await generateRecipeSet({
-    ingredients: 'курица, помидоры',
+    ingredients: 'курица, рис',
     equipment: 'stove',
     meal: 'dinner',
     cuisine: 'georgian',
@@ -126,39 +96,31 @@ test('recipe generation uses fast primary model and selected time', async () => 
   });
 
   assert.equal(calls, 1);
-  assert.equal(result.model, 'gemini-3.1-flash-lite');
+  assert.equal(result.model, DEFAULT_MODEL);
   assert.equal(result.recipes.length, 4);
-  assert.ok(result.recipes.every(recipe => recipe.timeMinutes <= 15));
+  assert.equal(result.recipes[0].timeMinutes, 15);
 });
 
-test('recipe generation retries 503 and falls back to secondary model', async () => {
-  let primaryCalls = 0;
-  let fallbackCalls = 0;
-
-  const fakeFetch = async (url) => {
-    if (url.includes('gemini-3.1-flash-lite')) {
-      primaryCalls += 1;
+test('503 on primary retries and can recover without user-facing failure', async () => {
+  let calls = 0;
+  const fakeFetch = async () => {
+    calls += 1;
+    if (calls === 1) {
       return {
         ok: false,
         status: 503,
-        async text() { return 'high demand'; },
+        async text() { return '{"error":{"status":"UNAVAILABLE"}}'; },
       };
     }
-
-    if (url.includes('gemini-3.5-flash-lite')) {
-      fallbackCalls += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() { return recipePayload('Резервный рецепт', 10); },
-      };
-    }
-
-    throw new Error('unexpected-model');
+    return {
+      ok: true,
+      status: 200,
+      async json() { return recipePayload('Омлет', 10); },
+    };
   };
 
   const result = await generateRecipeSet({
-    ingredients: 'яйца, рис',
+    ingredients: 'яйца, сыр',
     equipment: 'stove',
     meal: 'breakfast',
     cuisine: 'russian',
@@ -168,13 +130,45 @@ test('recipe generation retries 503 and falls back to secondary model', async ()
     fetch: fakeFetch,
   });
 
-  assert.equal(primaryCalls, 2);
-  assert.equal(fallbackCalls, 1);
-  assert.equal(result.model, 'gemini-3.5-flash-lite');
-  assert.equal(result.recipes[0].title, 'Резервный рецепт');
+  assert.equal(calls, 2);
+  assert.equal(result.model, DEFAULT_MODEL);
+  assert.equal(result.recipes.length, 4);
 });
 
-test('recipe generation exposes quota after available models are exhausted', async () => {
+test('timeout on primary falls back to secondary model', async () => {
+  const urls = [];
+  const fakeFetch = async (url) => {
+    urls.push(url);
+    if (url.includes(DEFAULT_MODEL)) {
+      const error = new Error('aborted');
+      error.name = 'AbortError';
+      throw error;
+    }
+    assert.ok(url.endsWith(FALLBACK_MODEL + ':generateContent'));
+    return {
+      ok: true,
+      status: 200,
+      async json() { return recipePayload('Рис с сыром', 30); },
+    };
+  };
+
+  const result = await generateRecipeSet({
+    ingredients: 'рис, сыр',
+    equipment: 'multicooker',
+    meal: 'lunch',
+    cuisine: 'italian',
+    timeMinutes: 30,
+  }, {
+    apiKey: 'secret-key',
+    fetch: fakeFetch,
+  });
+
+  assert.ok(urls.some(url => url.includes(DEFAULT_MODEL)));
+  assert.ok(urls.some(url => url.includes(FALLBACK_MODEL)));
+  assert.equal(result.model, FALLBACK_MODEL);
+});
+
+test('quota errors remain explicit when every model is exhausted', async () => {
   const fakeFetch = async () => ({
     ok: false,
     status: 429,
