@@ -6947,6 +6947,8 @@
       }
 
       let currentRecipeSet=[];
+      let currentRecipeContext=null;
+      const recipeDetailCache=new Map();
 
       function recipeChoiceValue(attribute){
         const button=document.querySelector('['+attribute+'][aria-pressed="true"]');
@@ -6990,14 +6992,16 @@
         return heading;
       }
 
-      function renderRecipeDetails(recipe){
-        const details=document.getElementById('recipeDetails');
-        const suggestions=document.getElementById('recipeSuggestions');
-        if(!details||!recipe) return;
-        suggestions?.querySelectorAll('.recipe-suggestion').forEach((button,index)=>{
-          button.classList.toggle('is-selected',currentRecipeSet[index]?.id===recipe.id);
+      function selectRecipeSuggestion(selectedId){
+        document.querySelectorAll('#recipeSuggestions .recipe-suggestion').forEach(button=>{
+          button.classList.toggle('is-selected',button.dataset.recipeId===selectedId);
         });
+      }
 
+      function renderRecipeDetails(recipe,selectedId=''){
+        const details=document.getElementById('recipeDetails');
+        if(!details||!recipe) return;
+        selectRecipeSuggestion(selectedId);
         details.replaceChildren();
 
         const head=document.createElement('div');
@@ -7080,6 +7084,71 @@
         setTimeout(()=>details.scrollIntoView({behavior:'smooth',block:'nearest'}),40);
       }
 
+      function recipeErrorText(error){
+        const code=String(error?.message||'');
+        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит Gemini на сегодня закончился. Попробуйте позже.';
+        if(code==='gemini-api-key-missing') return 'Gemini пока не подключён к приложению.';
+        if(code==='recipe-ai-timeout') return 'Gemini отвечает слишком долго. Попробуйте ещё раз.';
+        if(code==='recipe-ai-busy') return 'Gemini сейчас перегружен. Попробуйте ещё раз через несколько секунд.';
+        if(code==='recipe-ai-unavailable') return 'Gemini временно недоступен. Попробуйте ещё раз.';
+        return 'Не удалось сгенерировать рецепт. Попробуйте ещё раз.';
+      }
+
+      async function openRecipeDetails(recipe,button){
+        const status=document.getElementById('recipeStatus');
+        const details=document.getElementById('recipeDetails');
+        if(!recipe||!currentRecipeContext||button?.dataset.loading==='1') return;
+
+        const cacheKey=[
+          currentRecipeContext.ingredients,
+          currentRecipeContext.equipment,
+          currentRecipeContext.meal,
+          currentRecipeContext.cuisine,
+          currentRecipeContext.timeMinutes,
+          recipe.title
+        ].join('|');
+
+        selectRecipeSuggestion(recipe.id);
+        const cached=recipeDetailCache.get(cacheKey);
+        if(cached){
+          renderRecipeDetails(cached,recipe.id);
+          if(status) status.textContent='';
+          return;
+        }
+
+        if(button){
+          button.dataset.loading='1';
+          button.classList.add('is-loading');
+        }
+        if(details) details.hidden=true;
+        if(status) status.textContent='Готовлю подробный рецепт…';
+
+        try{
+          const data=await recipeRequest({
+            operation:'detail',
+            ...currentRecipeContext,
+            title:recipe.title,
+            summary:recipe.summary
+          });
+          if(data.recipe){
+            recipeDetailCache.set(cacheKey,data.recipe);
+            renderRecipeDetails(data.recipe,recipe.id);
+            if(status) status.textContent='';
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }else{
+            throw new Error('recipe-ai-no-recipe');
+          }
+        }catch(error){
+          if(status) status.textContent=recipeErrorText(error);
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }finally{
+          if(button){
+            delete button.dataset.loading;
+            button.classList.remove('is-loading');
+          }
+        }
+      }
+
       function renderRecipeSuggestions(recipes){
         const host=document.getElementById('recipeSuggestions');
         const details=document.getElementById('recipeDetails');
@@ -7095,6 +7164,7 @@
           const button=document.createElement('button');
           button.type='button';
           button.className='recipe-suggestion';
+          button.dataset.recipeId=String(recipe.id||('recipe-'+(index+1)));
           const copy=document.createElement('span');
           copy.className='recipe-suggestion-copy';
           const title=document.createElement('strong');
@@ -7110,22 +7180,12 @@
           arrow.textContent='›';
           button.append(copy,meta,arrow);
           button.addEventListener('click',()=>{
-            renderRecipeDetails(recipe);
+            openRecipeDetails(recipe,button);
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
           host.appendChild(button);
         });
         host.hidden=!currentRecipeSet.length;
-      }
-
-      function recipeErrorText(error){
-        const code=String(error?.message||'');
-        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит Gemini на сегодня закончился. Попробуйте позже.';
-        if(code==='gemini-api-key-missing') return 'Gemini пока не подключён к приложению.';
-        if(code==='recipe-ai-timeout') return 'Gemini отвечает слишком долго. Попробуйте ещё раз.';
-        if(code==='recipe-ai-busy') return 'Gemini сейчас перегружен. Попробуйте ещё раз через несколько секунд.';
-        if(code==='recipe-ai-unavailable') return 'Gemini временно недоступен. Попробуйте ещё раз.';
-        return 'Не удалось сгенерировать рецепты. Попробуйте ещё раз.';
       }
 
       function setupRecipeGenerator(){
@@ -7153,6 +7213,7 @@
           }
 
           const payload={
+            operation:'suggestions',
             ingredients,
             equipment:recipeChoiceValue('data-recipe-equipment'),
             meal:recipeChoiceValue('data-recipe-meal'),
@@ -7162,19 +7223,28 @@
 
           generate.disabled=true;
           const previousText=generate.textContent;
-          generate.textContent='Генерирую…';
-          if(status) status.textContent='Подбираю варианты из ваших продуктов…';
+          generate.textContent='Подбираю…';
+          if(status) status.textContent='Подбираю 4 варианта блюд…';
           document.getElementById('recipeSuggestions')?.setAttribute('hidden','');
           const details=document.getElementById('recipeDetails');
           if(details) details.hidden=true;
 
           try{
             const data=await recipeRequest(payload);
+            currentRecipeContext={
+              ingredients:payload.ingredients,
+              equipment:payload.equipment,
+              meal:payload.meal,
+              cuisine:payload.cuisine,
+              timeMinutes:payload.timeMinutes
+            };
+            recipeDetailCache.clear();
             renderRecipeSuggestions(data.recipes);
-            if(status) status.textContent='Готово. Выберите блюдо, чтобы открыть подробный рецепт.';
+            if(status) status.textContent='Готово. Выберите блюдо, чтобы получить подробный рецепт.';
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
             currentRecipeSet=[];
+            currentRecipeContext=null;
             if(status) status.textContent=recipeErrorText(error);
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
