@@ -24,6 +24,7 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
     blockStates:{car:true},
     activitySeenId:'event-1',
     marketTickerEnabled:false,
+    themeMode:'dark',
   },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T08:00:00Z')});
   assert.equal(first.version,1);
 
@@ -38,14 +39,17 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
   assert.equal(saved.blockStates['smart-home'],true);
   assert.equal(saved.activitySeenId,'event-1');
   assert.equal(saved.marketTickerEnabled,false);
+  assert.equal(saved.themeMode,'dark');
 
   await saveUiPreferences('Диана',{
     homeOrder:['dashboard','diana','rustam','lulu','nearest'],
     blockStates:{lulu:true},
+    themeMode:'light',
   },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T08:02:00Z')});
   const diana=await readUiPreferences('Диана',{uiPreferencesCache:cache});
   assert.deepEqual(diana.homeOrder,['dashboard','diana','rustam','lulu','nearest']);
   assert.equal(diana.marketTickerEnabled,true);
+  assert.equal(diana.themeMode,'light');
   assert.notDeepEqual(diana.homeOrder,saved.homeOrder);
 });
 
