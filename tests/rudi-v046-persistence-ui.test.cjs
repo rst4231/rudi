@@ -15,7 +15,9 @@ test('v1 dashboard reuses identities without redundant role kickers',()=>{
   assert.doesNotMatch(app,/selfLabel\.textContent='Моё'/);
   assert.doesNotMatch(app,/partnerLabel\.textContent='Партнёр'/);
   assert.match(app,/selfIdentity\.appendChild\(selfMood\)/);
-  assert.match(app,/peopleGrid\.append\(selfIdentity,partnerIdentity\)/);
+  assert.match(app,/const selfCard=makePersonTile\(selfActor,selfIdentity\)/);
+  assert.match(app,/const partnerCard=makePersonTile\(partnerActor,partnerIdentity\)/);
+  assert.match(app,/profile\.after\(selfCard\.tile,partnerCard\.tile,luluTile,nearest\)/);
 });
 
 test('official Runtime Cache waits for eventual write visibility before retrying the write',async()=>{
