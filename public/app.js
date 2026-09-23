@@ -1686,6 +1686,67 @@
         });
       }
 
+      function renderMalePsychologyFact(fact){
+        const card=document.getElementById('malePsychologyFact');
+        if(!card) return;
+        const id=String(fact?.id||'').trim();
+        const title=String(fact?.title||'').trim();
+        const text=String(fact?.text||'').trim();
+        const sourceUrl=String(fact?.sourceUrl||'').trim();
+        if(!id||!title||!text||!/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/?$/i.test(sourceUrl)){
+          card.hidden=true;
+          return;
+        }
+        const titleNode=document.getElementById('malePsychologyFactTitle');
+        const textNode=document.getElementById('malePsychologyFactText');
+        const source=document.getElementById('malePsychologyFactSource');
+        const disclaimer=document.getElementById('malePsychologyFactDisclaimer');
+        if(titleNode) titleNode.textContent=title;
+        if(textNode) textNode.textContent=text;
+        if(source){
+          source.href=sourceUrl;
+          source.textContent=String(fact?.sourceLabel||'Открыть исследование в PubMed');
+          if(source.dataset.bound!=='1'){
+            source.dataset.bound='1';
+            source.addEventListener('click',event=>{
+              if(!tg?.openLink) return;
+              event.preventDefault();
+              try{tg.openLink(source.href)}catch(_){window.open(source.href,'_blank','noopener,noreferrer')}
+            });
+          }
+        }
+        if(disclaimer) disclaimer.textContent=String(fact?.disclaimer||'Это средняя групповая закономерность, а не описание каждого мужчины.');
+        card.dataset.factId=id;
+        card.hidden=false;
+        restartRudiMotion(card,'rudi-data-refresh',360);
+      }
+
+      let malePsychologyLoadPromise=null;
+      async function loadMalePsychologyFact(){
+        if(!currentActor) return null;
+        if(malePsychologyLoadPromise) return malePsychologyLoadPromise;
+        malePsychologyLoadPromise=(async()=>{
+          try{
+            const response=await fetchWithTimeout('/api/partner-message?rudiAction=male-psychology-fact',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({initData:telegramInitData()}),
+              cache:'no-store'
+            },5000);
+            const payload=await response.json().catch(()=>({}));
+            if(!response.ok||!payload.ok) throw new Error(payload.error||'male-psychology-fact');
+            renderMalePsychologyFact(payload.malePsychologyFact);
+            return payload.malePsychologyFact||null;
+          }catch(error){
+            console.warn('RUDI_MALE_PSYCHOLOGY_UI_WARN',String(error?.message||error));
+            return null;
+          }finally{
+            malePsychologyLoadPromise=null;
+          }
+        })();
+        return malePsychologyLoadPromise;
+      }
+
       function setupProfileSplit(){
         const profile=document.querySelector('.profile');
         if(!profile||document.body.dataset.profileSplitReady==='1') return;
@@ -1807,6 +1868,18 @@
         const partnerCard=makePersonTile(partnerActor,partnerIdentity);
         const rustamCard=selfActor==='Рустам'?selfCard:partnerCard;
         const dianaCard=selfActor==='Диана'?selfCard:partnerCard;
+
+        const maleFact=document.createElement('article');
+        maleFact.id='malePsychologyFact';
+        maleFact.className='male-psychology-fact';
+        maleFact.hidden=true;
+        maleFact.innerHTML=
+          '<div class="male-psychology-fact-kicker"><span aria-hidden="true">🧠</span> Научный факт дня</div>'+
+          '<strong id="malePsychologyFactTitle" class="male-psychology-fact-title"></strong>'+
+          '<div id="malePsychologyFactText" class="male-psychology-fact-text"></div>'+
+          '<a id="malePsychologyFactSource" class="male-psychology-fact-source" href="#" target="_blank" rel="noopener noreferrer"></a>'+
+          '<div id="malePsychologyFactDisclaimer" class="male-psychology-fact-disclaimer"></div>';
+        rustamCard.details.appendChild(maleFact);
 
         dianaCard.details.appendChild(cycleSummary);
         if(moodPrompt){
@@ -2665,6 +2738,7 @@
           if(appliedRemoteUi) applyMountedUiPreferences();
           if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged();
           cacheHolidayItems(payload.holidayHighlights);
+          renderMalePsychologyFact(payload.malePsychologyFact);
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
           if(ticktickHandoffToken){
@@ -6786,6 +6860,7 @@
             (currentAppTab==='products'?loadProducts({silent:true}):Promise.resolve()),
             (currentAppTab==='feed'?loadFeed({silent:true}):Promise.resolve()),
             loadActivityJournal({silent:true}),
+            loadMalePsychologyFact(),
             syncUiPreferencesFromServer().then(()=>refreshStateBackup())
           ]);
         }).finally(()=>{

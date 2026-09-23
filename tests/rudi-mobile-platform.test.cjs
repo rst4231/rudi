@@ -83,3 +83,13 @@ test('RUDI has a restrained app-wide motion system with reduced-motion support',
   assert.match(css,/@media \(prefers-reduced-motion:reduce\)/);
 });
 
+test('Rustam expandable card has a sourced non-repeating male psychology daily fact UI', () => {
+  assert.match(app,/id='malePsychologyFact'/);
+  assert.match(app,/Научный факт дня/);
+  assert.match(app,/function renderMalePsychologyFact\(fact\)/);
+  assert.match(app,/rudiAction=male-psychology-fact/);
+  assert.match(app,/renderMalePsychologyFact\(payload\.malePsychologyFact\)/);
+  assert.match(css,/\.male-psychology-fact\{/);
+  assert.match(css,/\.male-psychology-fact-disclaimer\{/);
+});
+
