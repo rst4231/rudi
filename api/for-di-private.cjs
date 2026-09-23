@@ -10,6 +10,7 @@ const MAX_MESSAGES_PER_DAY = 20;
 function cacheOf(options = {}) {
   return options.forDiCache || options.cache || createStrictRuntimeCache({
     namespace: 'rudi-for-di-private-v1',
+    confirmWrites: false,
     ...(options.cacheOptions || {}),
   });
 }
@@ -73,6 +74,8 @@ async function queueForDiMessage(text, options = {}) {
   const entry = {
     fingerprint: id,
     text: normalized,
+    parseMode: options.parseMode === false ? false : true,
+    source: String(options.source || '').trim() || null,
     createdAt: new Date(now).toISOString(),
   };
   const next = [...rows, entry].slice(-MAX_MESSAGES_PER_DAY);
@@ -104,19 +107,39 @@ async function sendForDiPrivateMessages(options = {}) {
   }
 
   let sent = 0;
+  let skippedAlreadySent = 0;
+  const failed = [];
   for (const row of messages) {
     const id = String(row.fingerprint || fingerprint(row.text));
     const marker = sentKey(dateKey, id);
-    if (await cache.get(marker).catch(() => null)) continue;
-    await telegramSendMessage(dianaChatId, row.text, {
-      ...options,
-      disableNotification: false,
-    });
-    await cache.set(marker, true, { ttl: TTL_SECONDS, tags: ['rudi-for-di-private'] });
-    sent += 1;
+    if (await cache.get(marker).catch(() => null)) {
+      skippedAlreadySent += 1;
+      continue;
+    }
+    try {
+      await telegramSendMessage(dianaChatId, row.text, {
+        ...options,
+        parseMode: row.parseMode === false ? false : options.parseMode,
+        disableNotification: false,
+      });
+      await cache.set(marker, true, { ttl: TTL_SECONDS, tags: ['rudi-for-di-private'] });
+      sent += 1;
+    } catch (error) {
+      failed.push({
+        fingerprint: id,
+        source: row.source || null,
+        error: String(error?.message || error),
+      });
+    }
   }
 
-  return { dateKey, queued: messages.length, sent };
+  const result = { dateKey, queued: messages.length, sent, skippedAlreadySent, failed };
+  if (failed.length) {
+    const error = new Error('for-di-private-delivery-failed:' + failed.length);
+    error.result = result;
+    throw error;
+  }
+  return result;
 }
 
 module.exports = {
