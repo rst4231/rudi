@@ -7402,3 +7402,70 @@ html[data-theme="dark"] .partner-message .partner-edit{
   .quick-access-button{min-height:60px}
   .app-tab-button{font-size:8.7px!important;padding-inline:2px}
 }
+
+
+/* RUDI v1.14.2 — larger bottom navigation + tactile press feedback */
+.app-tab-button{
+  gap:6px!important;
+  font-size:11.8px!important;
+  font-weight:720!important;
+  letter-spacing:-.01em!important;
+  transform:translate3d(0,0,0) scale(1);
+  transition:
+    transform .14s cubic-bezier(.2,.8,.2,1),
+    color .18s ease,
+    background-color .18s ease,
+    opacity .18s ease!important;
+}
+.app-tab-icon{
+  width:46px!important;
+  height:46px!important;
+  border-radius:14px!important;
+  transform:translate3d(0,0,0) scale(1);
+  transition:
+    transform .16s cubic-bezier(.2,.9,.2,1),
+    background-color .18s ease!important;
+}
+.app-tab-icon svg{
+  width:35px!important;
+  height:35px!important;
+  transition:transform .16s cubic-bezier(.2,.9,.2,1)!important;
+}
+.app-tab-button:active:not(:disabled){
+  transform:translate3d(0,1px,0) scale(.92)!important;
+}
+.app-tab-button:active:not(:disabled) .app-tab-icon{
+  transform:translate3d(0,1px,0) scale(.86)!important;
+}
+.app-tab-button.active .app-tab-icon{
+  animation:appTabSelectPop .24s cubic-bezier(.2,.9,.2,1);
+}
+@keyframes appTabSelectPop{
+  0%{transform:translate3d(0,1px,0) scale(.88)}
+  58%{transform:translate3d(0,-2px,0) scale(1.09)}
+  100%{transform:translate3d(0,-1px,0) scale(1.045)}
+}
+@media(max-width:430px){
+  .app-tab-button{
+    gap:6px!important;
+    font-size:11.5px!important;
+    padding-inline:2px!important;
+  }
+  .app-tab-icon{width:45px!important;height:45px!important}
+  .app-tab-icon svg{width:34px!important;height:34px!important}
+}
+@media(max-width:350px){
+  .app-tab-button{font-size:10.6px!important}
+  .app-tab-icon{width:42px!important;height:42px!important}
+  .app-tab-icon svg{width:32px!important;height:32px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-tab-button,.app-tab-icon,.app-tab-icon svg{
+    transition:none!important;
+    animation:none!important;
+  }
+  .app-tab-button:active:not(:disabled),
+  .app-tab-button:active:not(:disabled) .app-tab-icon{
+    transform:none!important;
+  }
+}
