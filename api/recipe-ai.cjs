@@ -97,7 +97,9 @@ function normalizeRecipe(recipe, index, maxTime = 45) {
   const title = cleanText(source.title, 100);
   const summary = cleanText(source.summary, 220);
   const difficulty = cleanText(source.difficulty, 40) || 'Средне';
-  const timeMinutes = Math.max(5, Math.min(maxTime, Math.round(Number(source.timeMinutes) || maxTime)));
+  const rawTimeMinutes = Math.round(Number(source.timeMinutes) || 0);
+  if (!Number.isFinite(rawTimeMinutes) || rawTimeMinutes < 1 || rawTimeMinutes > maxTime) return null;
+  const timeMinutes = Math.max(1, rawTimeMinutes);
   const ingredients = (Array.isArray(source.ingredients) ? source.ingredients : [])
     .map((row) => ({
       name: cleanText(row?.name, 100),
@@ -128,7 +130,7 @@ function normalizeRecipeSet(payload, maxTime = 45) {
     .map((recipe, index) => normalizeRecipe(recipe, index, maxTime))
     .filter(Boolean)
     .slice(0, 4);
-  if (!recipes.length) throw new Error('recipe-ai-no-recipes');
+  if (recipes.length < 4) throw new Error('recipe-ai-no-recipes');
   return { recipes };
 }
 
