@@ -335,3 +335,9 @@ test('morning summary retries Telegram 400 as plain text without Web App button'
   assert.equal(calls[1].reply_markup,undefined);
   assert.doesNotMatch(calls[1].text,/<b>|<\/b>/);
 });
+
+
+test('morning summary cache tolerates Vercel eventual consistency', () => {
+  const source=fs.readFileSync(path.join(__dirname,'..','api','morning-summary.cjs'),'utf8');
+  assert.match(source,/namespace:\s*NAMESPACE,[\s\S]*?confirmWrites:\s*false/);
+});
