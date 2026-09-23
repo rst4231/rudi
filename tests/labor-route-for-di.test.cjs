@@ -26,6 +26,7 @@ test('labor posts use topic 126 and never recreate topic 696', async () => {
     chatId: -1004476323368,
     cache,
     forDiCache: cache,
+    forDiCache: cache,
     fetchImpl,
     now: new Date('2026-09-04T18:00:00Z'),
     forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
@@ -35,4 +36,9 @@ test('labor posts use topic 126 and never recreate topic 696', async () => {
   assert.equal(result.queuedForPrivateDelivery, true);
   assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
   assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
+  const queued = await cache.get('for-di:messages:2026-09-04');
+  assert.equal(Array.isArray(queued), true);
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].source, 'labor');
+  assert.equal(queued[0].parseMode, false);
 });
