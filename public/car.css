@@ -447,9 +447,10 @@
 /* RUDI v1.9.0: current mileage in collapsed car card */
 .car-model::after{display:none}
 .car-tile.is-collapsed .car-model::after{
-  content:attr(data-mileage);
+  content:attr(data-mileage) "\A" attr(data-service);
   display:block;
   margin-top:5px;
+  white-space:pre-line;
   color:#f1f3f7;
   font-size:12px;
   line-height:1.2;

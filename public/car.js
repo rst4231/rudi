@@ -71,7 +71,12 @@
     const progress=document.getElementById('carServiceProgress');
     const modelNode=document.querySelector('#carTile .car-model');
 
-    if(modelNode) modelNode.dataset.mileage=mileage==null?'Пробег не указан':'Пробег · '+formatKm(mileage);
+    if(modelNode){
+      modelNode.dataset.mileage=mileage==null?'Пробег не указан':'Пробег · '+formatKm(mileage);
+      modelNode.dataset.service=next
+        ? 'Следующее ТО · ТО-'+next.number+' на '+formatKm(next.mileage)
+        : 'Следующее ТО · не определено';
+    }
     if(mileageNode) mileageNode.textContent=mileage==null?'Не указан':formatKm(mileage);
     if(updatedNode) updatedNode.textContent=formatUpdated(car?.state?.updatedAt);
     if(input && document.activeElement!==input) input.value=mileage==null?'':String(mileage);
