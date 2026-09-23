@@ -564,6 +564,7 @@
           body?.setAttribute('aria-hidden',collapsed?'true':'false');
         });
         updateHomeOrderControls();
+        updateActivityNotificationBadge();
       }
 
       function markUiPreferencesChanged(){
@@ -1475,7 +1476,9 @@
           row.append(icon,copy,arrow);
           list.appendChild(row);
         }
-        updateActivityNotificationBadge();
+        const panel=document.getElementById('homeActivityNotificationsPanel');
+        if(panel&&!panel.hidden) markActivityNotificationsSeen();
+        else updateActivityNotificationBadge();
       }
 
       async function loadActivityJournal({silent=false}={}){
