@@ -1225,7 +1225,10 @@
           marketTickerSetting.setAttribute('aria-hidden',next==='home'?'false':'true');
         }
         applyMarketTickerVisibility();
-        if(next!=='home') setActivityNotificationsOpen(false);
+        if(next!=='home'){
+          setActivityNotificationsOpen(false);
+          setSettingsOpen(false);
+        }
 
         document.querySelectorAll('[data-app-tab-section]').forEach(section=>{
           const available=section.dataset.tabAvailable!=='0';
