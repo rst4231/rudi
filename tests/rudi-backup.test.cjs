@@ -105,7 +105,7 @@ test('backup includes car mood reactions and UI preferences',()=>{
   assert.match(source,/mergeUiPreferences/);
 });
 
-test('client syncs home order and collapse state through encrypted backup',()=>{
+test('client syncs home order and collapse state through shared server UI state and backup',()=>{
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   assert.match(source,/function localUiPreferences\(\)/);
   assert.match(source,/function applyRemoteUiPreferences\(value,\{force=false\}=\{\}\)/);
