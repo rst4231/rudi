@@ -33,6 +33,27 @@ function markerKey(actor) {
   return 'last:' + String(actor || '');
 }
 
+function recoveryMarkerKey(value) {
+  return 'recovery:' + String(value || '').trim();
+}
+
+async function wasRecoverySent(value, options = {}) {
+  const key = recoveryMarkerKey(value);
+  if (key === 'recovery:') return false;
+  return Boolean(await cacheOf(options).get(key).catch(() => null));
+}
+
+async function markRecoverySent(value, options = {}) {
+  const key = recoveryMarkerKey(value);
+  if (key === 'recovery:') return false;
+  await cacheOf(options).set(key, true, {
+    ttl: TTL_SECONDS,
+    tags: ['rudi-morning-summary'],
+    name: 'morning-summary-' + key,
+  });
+  return true;
+}
+
 async function readSummaryMarker(actor, options = {}) {
   const value = await cacheOf(options).get(markerKey(actor)).catch(() => null);
   if (!value || typeof value !== 'object') return null;
@@ -532,6 +553,19 @@ async function collectMorningData(options = {}) {
 async function sendDailyMorningSummaries(options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const date = moscowDateKey(now);
+  const recoveryKey = String(options.recoveryKey || '').trim();
+  if (recoveryKey && await wasRecoverySent(recoveryKey, options)) {
+    return {
+      sent: 0,
+      failed: [],
+      missingRecipients: [],
+      skippedAlreadySent: [],
+      skippedRecovery: true,
+      forced: Boolean(options.force),
+      recoveryKey,
+      date,
+    };
+  }
   const recipients = options.recipients || await readRecipients(options);
   const common = await collectMorningData({ ...options, now });
   const sent = [];
@@ -580,12 +614,16 @@ async function sendDailyMorningSummaries(options = {}) {
     throw new Error('morning-summary-failed:' + failed.map((row) => row.actor).join(','));
   }
 
+  if (recoveryKey) await markRecoverySent(recoveryKey, options);
+
   return {
     sent: sent.length,
     failed,
     missingRecipients,
     skippedAlreadySent,
+    skippedRecovery: false,
     forced: Boolean(options.force),
+    recoveryKey: recoveryKey || null,
     date,
   };
 }
@@ -617,5 +655,7 @@ module.exports = {
   collectMorningData,
   readSummaryMarker,
   writeSummaryMarker,
+  wasRecoverySent,
+  markRecoverySent,
   sendDailyMorningSummaries,
 };
