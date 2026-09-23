@@ -289,7 +289,7 @@ test('morning summary reports missing recipients as failure instead of false suc
 
   await assert.rejects(
     () => sendDailyMorningSummaries(options),
-    /morning-summary-failed:Диана:recipient-not-configured/
+    /morning-summary-recipients-missing:Диана/
   );
   assert.equal(calls.length,1);
 });
