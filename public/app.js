@@ -6106,16 +6106,30 @@
           editButton.title='Редактирование доступно внутри Telegram';
         }
 
+        const setPartnerKeyboardEditing=active=>{
+          document.body.classList.toggle('keyboard-editing',Boolean(active));
+        };
         const closeEditor=()=>{
+          if(document.activeElement===input) input.blur();
+          setPartnerKeyboardEditing(false);
           editor.classList.remove('open');
           status.textContent='';
         };
+
+        input.addEventListener('focus',()=>setPartnerKeyboardEditing(true));
+        input.addEventListener('blur',()=>setTimeout(()=>{
+          if(document.activeElement!==input) setPartnerKeyboardEditing(false);
+        },0));
 
         editButton.addEventListener('click',()=>{
           if(!canEdit) return;
           input.value=currentMessage?.text||'';
           editor.classList.add('open');
-          setTimeout(()=>input.focus(),0);
+          setTimeout(()=>{
+            input.focus({preventScroll:true});
+            setPartnerKeyboardEditing(true);
+            requestAnimationFrame(()=>editor.scrollIntoView({block:'nearest',inline:'nearest'}));
+          },0);
         });
 
         cancelButton.addEventListener('click',closeEditor);
@@ -8159,7 +8173,9 @@
       function ensureAppSurface({restoreTab=false}={}){
         applyTheme();
         updateTelegramSafeArea();
-        document.body.classList.remove('keyboard-editing');
+        const activeElement=document.activeElement;
+        const textEditing=Boolean(activeElement?.matches?.('input,textarea,select,[contenteditable="true"]'));
+        document.body.classList.toggle('keyboard-editing',textEditing);
         if(!currentActor||!appAccessReady) return;
 
         document.body.classList.remove('auth-pending','auth-denied','auth-login');
