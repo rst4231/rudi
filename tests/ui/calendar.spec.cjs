@@ -251,7 +251,8 @@ test('remote saved home layout is applied before the shell becomes visible',asyn
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(order[0]).toBe('smart-home');
+  expect(order.slice(0,4)).toEqual(['rustam','diana','lulu','nearest']);
+  expect(order).toContain('smart-home');
   await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
 });
 
