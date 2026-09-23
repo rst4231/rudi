@@ -63,7 +63,7 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.match(rustam, /Чувствительная/);
   assert.match(rustam, /лютеиновая фаза/);
   assert.match(rustam, /Как лучше сегодня с Дианой/);
-  assert.match(rustam, /говорить мягче/);
+  assert.match(rustam, /говори мягче/i);
   assert.match(rustam, /Дом и погода/);
   assert.match(rustam, /Дома: 23\.2°C · влажность 56%/);
   assert.match(rustam, /На улице: 16°C · облачно/);

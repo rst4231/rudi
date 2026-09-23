@@ -91,7 +91,7 @@ test('passkey enrollment requires an authenticated RUDI user while passkey login
 test('PIN enrollment gate stays locked while Telegram keyboard and focus events fire', () => {
   assert.match(app, /let appAccessReady = false;/);
   assert.match(app, /async function authenticateApp\(\)\{\s*appAccessReady=false;/);
-  assert.match(app, /if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*await loadAppBootstrap\(\);\s*appAccessReady=true;\s*return true;/);
+  assert.match(app, /if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*appAccessReady=true;\s*ensureAppSurface\(\);\s*await loadAppBootstrap\(\);\s*return true;/);
   assert.match(app, /function ensureAppSurface\([\s\S]*?if\(!currentActor\|\|!appAccessReady\) return;/);
   assert.match(app, /async function refreshAfterResume\(\)[\s\S]*?if\(!currentActor\|\|!appAccessReady\) return;/);
   assert.match(app, /tg\?\.onEvent\?\.\('viewportChanged',[\s\S]*?ensureAppSurface/);
@@ -132,10 +132,10 @@ test('browser pull to refresh only activates outside Telegram from the page top'
   assert.match(app,/window\.location\.reload\(\)/);
 });
 
-test('home screen icon and detailed car header are wired in v1.7.6', () => {
-  assert.match(indexHtml,/apple-touch-icon-v176\.jpg\?v=1\.7\.6/);
-  assert.match(indexHtml,/manifest\.webmanifest\?v=1\.7\.6/);
+test('home screen icon and detailed car header use the current supplied assets', () => {
+  assert.match(indexHtml,/apple-touch-icon-v176\.jpg\?v=\d+\.\d+\.\d+/);
+  assert.match(indexHtml,/manifest\.webmanifest\?v=\d+\.\d+\.\d+/);
   assert.match(indexHtml,/car-head-visual/);
-  assert.match(indexHtml,/changan-uni-v-header\.jpg\?v=1\.7\.6/);
+  assert.match(indexHtml,/changan-uni-v-header\.webp\?v=\d+\.\d+\.\d+/);
   assert.doesNotMatch(indexHtml,/car-head-chevron|car-chevron/);
 });
