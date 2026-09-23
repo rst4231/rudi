@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "enabled": true,
+  "enabled": false,
   "timezone": "Europe/Moscow",
   "topicId": 126,
   "lookbackHours": 30,
