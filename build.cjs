@@ -104,7 +104,7 @@ function syncWebVersion() {
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
   html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
   html = html.replace(
-    /(<div id="appVersion" class="app-version" aria-label="Версия приложения">)[^<]*(<\/div>)/,
+    /(<meta name="rudi-version" content=")[^"]*(")/,
     '$1' + label + '$2'
   );
   fs.writeFileSync(webIndexPath, html);
