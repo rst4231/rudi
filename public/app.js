@@ -1676,16 +1676,18 @@
         const state=value&&typeof value==='object'?value:{};
         homeDashboardState.lulu=state;
         const status=document.getElementById('luluWalkStatus');
-        const meta=document.getElementById('luluWalkMeta');
         const walk=state.lastWalk&&typeof state.lastWalk==='object'?state.lastWalk:null;
-        const label=luluWalkTimeLabel(walk?.walkedAt);
-        if(status) status.textContent='Последняя прогулка: '+label;
-        if(meta){
-          const actor=String(walk?.actor||'').trim();
-          meta.textContent=actor
-            ? 'Последний раз гулял'+(actor==='Диана'?'а':'')+' '+actor+' · '+label
-            : 'После прогулки здесь появится, кто гулял и во сколько.';
+        if(!status) return;
+        const actor=String(walk?.actor||'').trim();
+        const date=new Date(String(walk?.walkedAt||''));
+        if(!actor||Number.isNaN(date.getTime())){
+          status.textContent='Прогулка · пока не отмечена';
+          return;
         }
+        const time=new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).format(date);
+        status.textContent='Прогулка · '+time+' · '+actor;
       }
 
       async function luluRequest(operation){
@@ -1703,23 +1705,19 @@
       async function markLuluWalk(){
         const button=document.getElementById('luluWalkButton');
         if(!button||button.disabled) return;
-        const previous=button.textContent;
         button.disabled=true;
-        button.textContent='Отмечаю…';
+        button.classList.add('is-saving');
         try{
           const payload=await luluRequest('walk');
           renderLulu(payload.lulu);
           if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
           setTimeout(()=>loadActivityJournal({silent:true}),120);
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-          button.textContent='Прогулка отмечена';
-          setTimeout(()=>{if(button.isConnected) button.textContent=previous},1100);
         }catch(_){
-          button.textContent='Не удалось отметить';
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          setTimeout(()=>{if(button.isConnected) button.textContent=previous},1200);
         }finally{
           button.disabled=false;
+          button.classList.remove('is-saving');
         }
       }
 
