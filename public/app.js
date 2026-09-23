@@ -883,7 +883,7 @@
         });
       }
 
-      const MARKET_TICKER_LOCAL_CACHE_KEY='rudi:market-ticker-cache:v1';
+      const MARKET_TICKER_LOCAL_CACHE_KEY='rudi:market-ticker-cache:v2';
       let marketTickerLoadPromise=null;
 
       function readMarketTickerLocalCache(){
@@ -899,6 +899,7 @@
       }
 
       function marketTickerNumber(value,{crypto=false}={}){
+        if(value===null||value===undefined||value==='') return '—';
         const num=Number(value);
         if(!Number.isFinite(num)) return '—';
         if(crypto){
@@ -957,8 +958,16 @@
         const a11y=document.getElementById('marketTickerA11y');
         const tile=document.getElementById('marketTickerTile');
         if(!track||!tile) return;
-        const items=Array.isArray(payload?.items)?payload.items.filter(item=>Number.isFinite(Number(item?.value))):[];
-        if(!items.length){
+        const actual=Array.isArray(payload?.items)
+          ?payload.items.filter(item=>Number.isFinite(Number(item?.value))&&Number(item.value)>0)
+          :[];
+        const byId=new Map(actual.map(item=>[String(item.id||''),item]));
+        const items=[
+          byId.get('usd-rub')||{id:'usd-rub',label:'USD/RUB',value:null,change24h:null,unavailable:true},
+          byId.get('btcusdt')||{id:'btcusdt',label:'BTC',value:null,change24h:null,unavailable:true},
+          byId.get('ethusdt')||{id:'ethusdt',label:'ETH',value:null,change24h:null,unavailable:true}
+        ];
+        if(!actual.length){
           track.classList.remove('is-ready');
           const group=document.createElement('div');
           group.className='market-ticker-group';
@@ -971,12 +980,15 @@
           tile.dataset.marketState='error';
           return;
         }
+        const full=items.every(item=>!item.unavailable);
         const first=createMarketTickerGroup(items);
-        track.replaceChildren(first,first.cloneNode(true));
-        track.classList.add('is-ready');
-        tile.dataset.marketState=payload?.partial?'partial':'ready';
+        track.classList.toggle('is-ready',full);
+        if(full) track.replaceChildren(first,first.cloneNode(true));
+        else track.replaceChildren(first);
+        tile.dataset.marketState=full?'ready':'partial';
         if(a11y){
           a11y.textContent=items.map(item=>{
+            if(item.unavailable) return String(item.label||'')+' нет данных';
             const change=marketTickerChange(item.change24h);
             return String(item.label||'')+' '+marketTickerNumber(item.value,{crypto:item.id!=='usd-rub'})+(change?' '+change.text:'');
           }).join(', ');
@@ -1015,7 +1027,7 @@
         if(marketTickerLoadPromise) return marketTickerLoadPromise;
         marketTickerLoadPromise=(async()=>{
           try{
-            const payload=await managedJsonRequest('market-ticker','/api/partner-message?rudiAction=market-ticker',{
+            const payload=await managedJsonRequest('market-ticker-v2','/api/partner-message?rudiAction=market-ticker',{
               method:'POST',
               body:{initData:telegramInitData()},
               ttlMs:4*60*1000,

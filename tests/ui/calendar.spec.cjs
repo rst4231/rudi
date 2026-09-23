@@ -239,7 +239,7 @@ async function mockRudi(page,options={}){
         ok:true,
         updatedAt:'2026-09-21T09:00:00.000Z',
         partial:false,
-        items:[
+        items:options.marketItems||[
           {id:'usd-rub',label:'USD/RUB',value:84.32,change24h:null,source:'ЦБ РФ'},
           {id:'btcusdt',label:'BTC',value:68420,change24h:2.4,source:'Bybit'},
           {id:'ethusdt',label:'ETH',value:2190.5,change24h:-1.2,source:'Bybit'}
@@ -294,7 +294,7 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.11.0');
+  await expect(page.locator('#appVersion')).toHaveText('v1.11.1');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-4)).toEqual(['new','smart-home','car','markets']);
@@ -353,6 +353,23 @@ test('market ticker renders with readable themes, no overflow and persistent tog
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.getByRole('switch',{name:'Показывать бегущую строку курсов'})).toHaveAttribute('aria-checked','false');
   await expect(page.locator('#marketTickerTile')).toBeHidden();
+});
+
+test('partial market ticker never duplicates the only available quote',async({page})=>{
+  await mockRudi(page,{marketItems:[
+    {id:'usd-rub',label:'USD/RUB',value:84.32,change24h:null,source:'ЦБ РФ'}
+  ]});
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  const ticker=page.locator('#marketTickerTile');
+  await expect(ticker.locator('.market-ticker-group')).toHaveCount(1);
+  await expect(ticker).toContainText('USD/RUB');
+  await expect(ticker).toContainText('BTC');
+  await expect(ticker).toContainText('ETH');
+  await expect(ticker.locator('.market-ticker-value')).toHaveCount(3);
+  expect(await ticker.locator('.market-ticker-value').nth(1).textContent()).toBe('—');
+  expect(await ticker.locator('.market-ticker-value').nth(2).textContent()).toBe('—');
+  await expect(page.locator('#marketTickerTrack')).not.toHaveClass(/is-ready/);
 });
 
 test('saved market ticker position is restored from shared home order',async({page})=>{

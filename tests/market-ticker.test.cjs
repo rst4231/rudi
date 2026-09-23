@@ -63,3 +63,41 @@ test('market ticker combines CBR and Bybit and reuses server cache',async()=>{
   assert.equal(second.cached,true);
   assert.equal(calls,3);
 });
+
+
+test('market ticker falls back to CoinGecko when Bybit is unavailable',async()=>{
+  const cache=memoryCache();
+  const calls=[];
+  const fetchImpl=async(url)=>{
+    const value=String(url);
+    calls.push(value);
+    if(value.includes('XML_daily.asp')){
+      return {
+        ok:true,status:200,
+        async text(){return '<ValCurs><Valute><CharCode>USD</CharCode><Nominal>1</Nominal><Value>84,3200</Value></Valute></ValCurs>';}
+      };
+    }
+    if(value.includes('api.bybit.com')){
+      return {ok:false,status:403,async json(){return {};}};
+    }
+    if(value.includes('api.coingecko.com')){
+      return {
+        ok:true,status:200,
+        async json(){
+          return {
+            bitcoin:{usd:68555,usd_24h_change:1.7},
+            ethereum:{usd:2201.25,usd_24h_change:-0.8}
+          };
+        }
+      };
+    }
+    throw new Error('unexpected-url');
+  };
+
+  const result=await readMarketTicker({marketTickerCache:cache,fetchImpl});
+  assert.deepEqual(result.items.map(item=>item.id),['usd-rub','btcusdt','ethusdt']);
+  assert.equal(result.items[1].source,'CoinGecko');
+  assert.equal(result.items[2].source,'CoinGecko');
+  assert.equal(result.partial,false);
+  assert.equal(calls.filter(url=>url.includes('api.coingecko.com')).length,1);
+});
