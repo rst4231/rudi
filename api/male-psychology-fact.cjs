@@ -1,12 +1,4 @@
-const { createHash } = require('node:crypto');
-const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
-
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
-const CACHE_NAMESPACE = 'rudi-male-psychology-v1';
-const CATALOG_TTL_SECONDS = 5 * 60;
-const DATE_TTL_SECONDS = 3 * 24 * 60 * 60;
-const HISTORY_TTL_SECONDS = 10 * 365 * 24 * 60 * 60;
-const MAX_USED_IDS = 2000;
 
 function moscowDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
@@ -24,15 +16,16 @@ function cleanText(value, limit = 1000) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, limit);
 }
 
-function normalizeFact(value) {
+function normalizeFact(value, fallbackSequence = 0) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const id = cleanText(value.id, 120);
   const title = cleanText(value.title, 180);
   const text = cleanText(value.text, 900);
   const sourceLabel = cleanText(value.sourceLabel || 'PubMed', 160);
   const sourceUrl = cleanText(value.sourceUrl, 500);
-  if (!id || !title || !text || !/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/?$/i.test(sourceUrl)) return null;
-  return { id, title, text, sourceLabel, sourceUrl };
+  const sequence = Math.max(1, Math.trunc(Number(value.sequence || fallbackSequence || 0)));
+  if (!id || !title || !text || !sequence || !/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/?$/i.test(sourceUrl)) return null;
+  return { id, sequence, title, text, sourceLabel, sourceUrl };
 }
 
 function normalizeCatalog(value) {
@@ -40,16 +33,23 @@ function normalizeCatalog(value) {
   const section = root.malePsychology && typeof root.malePsychology === 'object' && !Array.isArray(root.malePsychology)
     ? root.malePsychology
     : {};
-  const seen = new Set();
+  const seenIds = new Set();
+  const seenSequences = new Set();
   const facts = [];
-  for (const row of Array.isArray(section.facts) ? section.facts : []) {
-    const fact = normalizeFact(row);
-    if (!fact || seen.has(fact.id)) continue;
-    seen.add(fact.id);
+  (Array.isArray(section.facts) ? section.facts : []).forEach((row,index) => {
+    const fact = normalizeFact(row,index+1);
+    if (!fact || seenIds.has(fact.id) || seenSequences.has(fact.sequence)) return;
+    seenIds.add(fact.id);
+    seenSequences.add(fact.sequence);
     facts.push(fact);
-  }
+  });
+  facts.sort((a,b)=>a.sequence-b.sequence);
+  const startDate = /^\d{4}-\d{2}-\d{2}$/.test(String(section.startDate||''))
+    ? String(section.startDate)
+    : '2026-09-23';
   return {
     enabled: section.enabled !== false,
+    startDate,
     disclaimer: cleanText(
       section.disclaimer || 'Это данные о средних групповых закономерностях. Они не описывают каждого мужчину.',
       320
@@ -58,24 +58,26 @@ function normalizeCatalog(value) {
   };
 }
 
-function buildCache(options = {}) {
-  if (options.cache && typeof options.cache.get === 'function' && typeof options.cache.set === 'function') return options.cache;
-  return createStrictRuntimeCache({
-    namespace: CACHE_NAMESPACE,
-    confirmWrites: false,
-    ...(options.cacheOptions || {}),
-  });
+function dayOffset(startDate, dateKey) {
+  const start = Date.parse(String(startDate) + 'T00:00:00.000Z');
+  const current = Date.parse(String(dateKey) + 'T00:00:00.000Z');
+  if (!Number.isFinite(start) || !Number.isFinite(current)) return -1;
+  return Math.floor((current-start)/86400000);
 }
 
-async function fetchCatalog(options = {}, cache = null) {
-  if (options.catalog) return normalizeCatalog({ malePsychology: options.catalog });
-  if (cache) {
-    try {
-      const cached = await cache.get('catalog');
-      if (cached && typeof cached === 'object' && Array.isArray(cached.facts)) return cached;
-    } catch (_) {}
-  }
+function factForDate(catalog, dateKey) {
+  const normalized = catalog?.facts ? catalog : normalizeCatalog({ malePsychology: catalog });
+  if (!normalized?.enabled || !normalized.facts?.length) return null;
+  const offset = dayOffset(normalized.startDate,dateKey);
+  if (offset < 0) return null;
+  const sequence = offset + 1;
+  const fact = normalized.facts.find((row)=>row.sequence===sequence) || null;
+  if (!fact) return null;
+  return { ...fact, dateKey, disclaimer: normalized.disclaimer };
+}
 
+async function fetchCatalog(options = {}) {
+  if (options.catalog) return normalizeCatalog({ malePsychology: options.catalog });
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('male-psychology-fetch-unavailable');
   const controller = new AbortController();
@@ -87,104 +89,41 @@ async function fetchCatalog(options = {}, cache = null) {
       signal: controller.signal,
     });
     if (!response.ok) throw new Error('male-psychology-config-http-' + response.status);
-    const parsed = await response.json();
-    const catalog = normalizeCatalog(parsed);
-    if (cache) {
-      await cache.set('catalog', catalog, {
-        ttl: CATALOG_TTL_SECONDS,
-        tags: ['rudi-male-psychology-catalog'],
-        name: 'male-psychology-catalog',
-      }).catch(() => null);
-    }
-    return catalog;
+    return normalizeCatalog(await response.json());
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function rankForDate(dateKey, id) {
-  return createHash('sha256').update(String(dateKey) + ':' + String(id)).digest('hex');
-}
-
-function chooseUnseenFact(facts, usedIds, dateKey) {
-  const used = usedIds instanceof Set ? usedIds : new Set(Array.isArray(usedIds) ? usedIds : []);
-  return (Array.isArray(facts) ? facts : [])
-    .filter((fact) => fact?.id && !used.has(fact.id))
-    .map((fact) => ({ fact, rank: rankForDate(dateKey, fact.id) }))
-    .sort((a, b) => a.rank.localeCompare(b.rank))[0]?.fact || null;
-}
-
-function fallbackFact(facts, dateKey) {
-  const rows = (Array.isArray(facts) ? facts : [])
-    .map((fact) => ({ fact, rank: rankForDate('stable-order', fact.id) }))
-    .sort((a, b) => a.rank.localeCompare(b.rank))
-    .map((row) => row.fact);
-  if (!rows.length) return null;
-  const dayNumber = Math.floor(Date.parse(dateKey + 'T00:00:00.000Z') / 86400000);
-  return rows[Math.abs(dayNumber) % rows.length] || rows[0];
-}
-
 async function readDailyMalePsychologyFact(options = {}) {
   const dateKey = moscowDateKey(options.now || Date.now());
-  let cache = null;
-  try { cache = buildCache(options); } catch (_) {}
-
   let catalog;
   try {
-    catalog = await fetchCatalog(options, cache);
+    catalog = await fetchCatalog(options);
   } catch (error) {
     if (options.catalog) throw error;
     console.warn('RUDI_MALE_PSYCHOLOGY_CONFIG_WARN', String(error?.message || error));
     return null;
   }
-  if (!catalog.enabled || !catalog.facts.length) return null;
-
-  if (!cache) {
-    console.warn('RUDI_MALE_PSYCHOLOGY_CACHE_UNAVAILABLE');
-    return null;
-  }
-
-  try {
-    const existing = await cache.get('date:' + dateKey);
-    if (existing?.id && existing?.text) return existing;
-
-    const rawUsed = await cache.get('used-ids');
-    const used = new Set((Array.isArray(rawUsed) ? rawUsed : []).map((id) => String(id || '').trim()).filter(Boolean));
-    const fact = chooseUnseenFact(catalog.facts, used, dateKey);
-    if (!fact) {
-      console.warn('RUDI_MALE_PSYCHOLOGY_BANK_EXHAUSTED', 'used=' + used.size, 'catalog=' + catalog.facts.length);
-      return null;
+  const fact = factForDate(catalog,dateKey);
+  if (!fact) {
+    const offset = dayOffset(catalog.startDate,dateKey);
+    if (offset >= catalog.facts.length) {
+      console.warn('RUDI_MALE_PSYCHOLOGY_BANK_EXHAUSTED','offset='+offset,'catalog='+catalog.facts.length);
     }
-
-    const record = { ...fact, dateKey, disclaimer: catalog.disclaimer };
-    await cache.set('date:' + dateKey, record, {
-      ttl: DATE_TTL_SECONDS,
-      tags: ['rudi-male-psychology-date'],
-      name: 'male-psychology-' + dateKey,
-    });
-    used.add(fact.id);
-    const nextUsed = [...used].slice(-MAX_USED_IDS);
-    await cache.set('used-ids', nextUsed, {
-      ttl: HISTORY_TTL_SECONDS,
-      tags: ['rudi-male-psychology-history'],
-      name: 'male-psychology-used-ids',
-    });
-    const remaining = catalog.facts.length - nextUsed.filter((id) => catalog.facts.some((row) => row.id === id)).length;
-    if (remaining <= 10) console.warn('RUDI_MALE_PSYCHOLOGY_BANK_LOW', 'remaining=' + Math.max(0, remaining));
-    return record;
-  } catch (error) {
-    console.warn('RUDI_MALE_PSYCHOLOGY_CACHE_WARN', String(error?.message || error));
     return null;
   }
+  const remaining = catalog.facts.filter((row)=>row.sequence>fact.sequence).length;
+  if (remaining <= 10) console.warn('RUDI_MALE_PSYCHOLOGY_BANK_LOW','remaining='+remaining);
+  return fact;
 }
 
 module.exports = {
   CONFIG_URL,
-  CACHE_NAMESPACE,
   moscowDateKey,
   normalizeFact,
   normalizeCatalog,
-  chooseUnseenFact,
-  fallbackFact,
+  dayOffset,
+  factForDate,
   readDailyMalePsychologyFact,
 };

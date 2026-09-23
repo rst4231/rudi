@@ -265,7 +265,7 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.10.0');
+  await expect(page.locator('#appVersion')).toHaveText('v1.10.1');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-3)).toEqual(['new','smart-home','car']);

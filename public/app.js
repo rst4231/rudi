@@ -1687,6 +1687,33 @@
         });
       }
 
+      function malePsychologyFactFromConfig(config,dateKey=todayState().key){
+        const section=config?.malePsychology;
+        const facts=Array.isArray(section?.facts)?section.facts:[];
+        const startDate=/^\d{4}-\d{2}-\d{2}$/.test(String(section?.startDate||''))?String(section.startDate):'2026-09-23';
+        const start=Date.parse(startDate+'T00:00:00.000Z');
+        const current=Date.parse(String(dateKey||'')+'T00:00:00.000Z');
+        if(!Number.isFinite(start)||!Number.isFinite(current)) return null;
+        const sequence=Math.floor((current-start)/DAY)+1;
+        if(sequence<1) return null;
+        const fact=facts
+          .map((row,index)=>({...row,sequence:Math.max(1,Math.trunc(Number(row?.sequence||index+1)))}))
+          .find((row)=>row.sequence===sequence);
+        if(!fact) return null;
+        const sourceUrl=String(fact.sourceUrl||'').trim();
+        if(!/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/?$/i.test(sourceUrl)) return null;
+        return {
+          id:String(fact.id||'').trim(),
+          sequence,
+          title:String(fact.title||'').trim(),
+          text:String(fact.text||'').trim(),
+          sourceLabel:String(fact.sourceLabel||'PubMed').trim(),
+          sourceUrl,
+          dateKey:String(dateKey||''),
+          disclaimer:String(section?.disclaimer||'Это данные о средних групповых закономерностях. Они не описывают каждого мужчину.')
+        };
+      }
+
       function renderMalePsychologyFact(fact){
         currentMalePsychologyFact=fact&&typeof fact==='object'?fact:null;
         const card=document.getElementById('malePsychologyFact');
@@ -1729,16 +1756,11 @@
         if(malePsychologyLoadPromise) return malePsychologyLoadPromise;
         malePsychologyLoadPromise=(async()=>{
           try{
-            const response=await fetchWithTimeout('/api/partner-message?rudiAction=male-psychology-fact',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({initData:telegramInitData()}),
-              cache:'no-store'
-            },5000);
-            const payload=await response.json().catch(()=>({}));
-            if(!response.ok||!payload.ok) throw new Error(payload.error||'male-psychology-fact');
-            renderMalePsychologyFact(payload.malePsychologyFact);
-            return payload.malePsychologyFact||null;
+            const config=await loadConfig();
+            currentConfig=config;
+            const fact=malePsychologyFactFromConfig(config);
+            renderMalePsychologyFact(fact);
+            return fact;
           }catch(error){
             console.warn('RUDI_MALE_PSYCHOLOGY_UI_WARN',String(error?.message||error));
             return null;
@@ -2741,7 +2763,6 @@
           if(appliedRemoteUi) applyMountedUiPreferences();
           if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged();
           cacheHolidayItems(payload.holidayHighlights);
-          renderMalePsychologyFact(payload.malePsychologyFact);
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
           if(ticktickHandoffToken){
@@ -2790,7 +2811,6 @@
         if(!currentActor) return false;
         if(telegramInitData()) await ensureTelegramPin();
         appAccessReady=true;
-        ensureAppSurface();
         await loadAppBootstrap();
         return true;
       }
@@ -6786,6 +6806,7 @@
         ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;
+        renderMalePsychologyFact(malePsychologyFactFromConfig(config));
         setupProducts();
         renderDailyCompliment(config,{force:true});
         setupReactions();

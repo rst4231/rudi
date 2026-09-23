@@ -49,7 +49,6 @@ const {
 } = require('./activity-journal-store.cjs');
 const { readLuluState, markLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
-const { readDailyMalePsychologyFact } = require('./male-psychology-fact.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -1584,24 +1583,6 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
-  if (action === 'male-psychology-fact') {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-    try {
-      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeRequest(req, body.initData, options);
-      const malePsychologyFact = await readDailyMalePsychologyFact({
-        ...options,
-        cache: options.malePsychologyCache,
-      }).catch((error) => {
-        console.warn('RUDI_MALE_PSYCHOLOGY_READ_WARN', String(error?.message || error));
-        return null;
-      });
-      return res.status(200).json({ ok: true, actor, malePsychologyFact });
-    } catch (error) {
-      return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
-    }
-  }
-
   if (action === 'app-bootstrap') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -1625,13 +1606,6 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       const date = moscowDateKey(options.now || Date.now());
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
-      const malePsychologyPromise = readDailyMalePsychologyFact({
-        ...options,
-        cache: options.malePsychologyCache,
-      }).catch((error) => {
-        console.warn('RUDI_MALE_PSYCHOLOGY_READ_WARN', String(error?.message || error));
-        return null;
-      });
       const recipients = correctRecipientsForSession(
         mergedRecipientsWithBackup(
           await readRecipients(options).catch(() => null),
@@ -1676,9 +1650,8 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
       const partnerId = recipientFor(actor, recipients);
-      const [holidays, malePsychologyFact, selfProfile, partnerProfile, backupToken] = await Promise.all([
+      const [holidays, selfProfile, partnerProfile, backupToken] = await Promise.all([
         holidaysPromise,
-        malePsychologyPromise,
         readTelegramProfile(user?.id, actor, options),
         readTelegramProfile(partnerId, partnerActor, options),
         createStateBackup({ ...options, previousSnapshot: correctedSnapshot }).catch((error) => {
@@ -1692,7 +1665,6 @@ async function handleRudiAction(req, res, action, options = {}) {
         selfProfile,
         partnerProfile,
         holidayHighlights: holidays?.items || [],
-        malePsychologyFact,
         uiPreferences: effectiveUiPreferences || null,
         backupToken,
       });
