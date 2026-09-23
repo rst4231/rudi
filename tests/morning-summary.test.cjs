@@ -159,6 +159,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
 
   assert.equal(first.sent,2);
   assert.equal(second.sent,0);
+  assert.deepEqual(second.skippedAlreadySent,['Рустам','Диана']);
   assert.equal(calls.length,2);
 
   const rustam=calls.find(row=>row.chat_id===1);
@@ -199,10 +200,46 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(diana.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
 });
 
-test('Vercel cron sends the morning summary at 07:10 Moscow', () => {
+test('forced morning summary recovery resends even after today marker', async () => {
+  const summaryCache=memoryCache();
+  const now=new Date('2026-09-23T05:00:00Z');
+  await writeSummaryMarker('Рустам','2026-09-23','2026-09-23T03:00:00.000Z',{summaryCache});
+  await writeSummaryMarker('Диана','2026-09-23','2026-09-23T03:00:00.000Z',{summaryCache});
+  const calls=[];
+  const telegramFetchImpl=async(_url,init)=>{
+    const payload=JSON.parse(init.body);
+    calls.push(payload);
+    return new Response(JSON.stringify({ok:true,result:{message_id:200+calls.length}}),{
+      status:200,headers:{'content-type':'application/json'}
+    });
+  };
+  const result=await sendDailyMorningSummaries({
+    now,
+    force:true,
+    summaryCache,
+    recipients:{'Рустам':1,'Диана':2},
+    botToken:'test-token',
+    telegramFetchImpl,
+    loadTasksImpl:async()=>[],
+    loadWorkDayImpl:async()=>null,
+    readMoodImpl:async()=>({date:'2026-09-23',moods:{}}),
+    readCycleImpl:async()=>null,
+    readPartnerMessageImpl:async()=>null,
+    readWishlistImpl:async()=>({items:[]}),
+    readProductsImpl:async()=>({items:[]}),
+    readFeedImpl:async()=>({sections:{}}),
+    loadEnvironmentImpl:async()=>({home:null,weather:null}),
+    loadCarTasksImpl:async()=>({tasks:[]}),
+  });
+  assert.equal(result.sent,2);
+  assert.equal(result.forced,true);
+  assert.equal(calls.length,2);
+});
+
+test('Vercel cron sends the morning summary at 06:00 Moscow', () => {
   const config=JSON.parse(fs.readFileSync(path.join(__dirname,'..','vercel.json'),'utf8'));
   const row=config.crons.find(item=>item.path==='/api/feed-notify-cron');
-  assert.equal(row.schedule,'10 4 * * *');
+  assert.equal(row.schedule,'0 3 * * *');
 
   const cronSource=fs.readFileSync(path.join(__dirname,'..','api','feed-notify-cron.js'),'utf8');
   assert.match(cronSource,/sendDailyMorningSummaries/);
