@@ -78,6 +78,7 @@ test('suggestions use Gemini 3.5 Flash-Lite and keep the first response lightwei
     const body = JSON.parse(options.body);
     const itemSchema = body.generationConfig.responseJsonSchema.properties.recipes.items.properties;
     assert.equal(body.generationConfig.maxOutputTokens, 700);
+    assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'minimal');
     assert.equal(itemSchema.timeMinutes.maximum, 15);
     assert.equal('ingredients' in itemSchema, false);
     assert.equal('steps' in itemSchema, false);
@@ -108,6 +109,7 @@ test('detail is generated only after a dish is selected', async () => {
     assert.ok(url.endsWith(DEFAULT_MODEL + ':generateContent'));
     const body = JSON.parse(options.body);
     assert.equal(body.generationConfig.maxOutputTokens, 1800);
+    assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'minimal');
     assert.ok(body.generationConfig.responseJsonSchema.properties.recipe.properties.ingredients);
     assert.match(body.contents[0].parts[0].text, /Выбранное блюдо: Чахохбили/);
     return {
@@ -166,7 +168,7 @@ test('503 on primary suggestions retries and can recover', async () => {
   assert.equal(result.recipes.length, 4);
 });
 
-test('timeout on primary falls back to Gemini 3.5 Flash', async () => {
+test('timeout on primary falls back to Gemini 3.6 Flash', async () => {
   const urls = [];
   const fakeFetch = async (url) => {
     urls.push(url);
@@ -175,7 +177,7 @@ test('timeout on primary falls back to Gemini 3.5 Flash', async () => {
       error.name = 'AbortError';
       throw error;
     }
-    assert.equal(FALLBACK_MODEL, 'gemini-3.5-flash');
+    assert.equal(FALLBACK_MODEL, 'gemini-3.6-flash');
     assert.ok(url.endsWith(FALLBACK_MODEL + ':generateContent'));
     return {
       ok: true,
