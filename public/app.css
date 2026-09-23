@@ -6171,3 +6171,46 @@ button:disabled{transition:opacity var(--rudi-motion-base) ease}
 }
 /* end RUDI v1.10.0 male psychology fact */
 
+/* RUDI v1.10.3: readable mood support message on dark profile cards */
+.profile-person-card > .mood-message.show{
+  margin:8px 0 0!important;
+  padding:9px 11px!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  border-radius:12px!important;
+  color:#f7f8fc!important;
+  background:rgba(22,26,36,.94)!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.045),
+    0 7px 18px rgba(0,0,0,.14)!important;
+  font-size:10.8px!important;
+  line-height:1.38!important;
+  font-weight:700!important;
+  letter-spacing:-.005em!important;
+  text-shadow:0 1px 1px rgba(0,0,0,.28);
+}
+.profile-person-card > .mood-message.show[data-mood="low"]{
+  border-color:rgba(151,165,197,.22)!important;
+  background:
+    linear-gradient(135deg,rgba(106,125,168,.18),transparent 76%),
+    rgba(22,26,36,.94)!important;
+}
+.profile-person-card > .mood-message.show[data-mood="ok"]{
+  border-color:rgba(137,142,255,.24)!important;
+  background:
+    linear-gradient(135deg,rgba(105,103,235,.18),transparent 76%),
+    rgba(22,26,36,.94)!important;
+}
+.profile-person-card > .mood-message.show[data-mood="great"]{
+  border-color:rgba(241,183,76,.24)!important;
+  background:
+    linear-gradient(135deg,rgba(218,155,58,.18),transparent 76%),
+    rgba(22,26,36,.94)!important;
+}
+@media(max-width:430px){
+  .profile-person-card > .mood-message.show{
+    font-size:10.5px!important;
+    padding:8px 10px!important;
+  }
+}
+/* end RUDI v1.10.3 mood support contrast */
+
