@@ -153,7 +153,7 @@ async function fetchLatestPhotos(config, options = {}) {
     .filter((photo) => photo?.mediaAssetType !== 'video' && photo?.photoGuid)
     .sort((a, b) => photoDate(b) - photoDate(a));
   const totalCount = allPhotos.length;
-  const photos = allPhotos.slice(0, 100);
+  const photos = allPhotos.slice(0, 250);
 
   if (!photos.length) return {
     photos: [],
