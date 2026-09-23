@@ -3251,7 +3251,7 @@
     .year-progress-bar::after{content:"";position:absolute;inset:0;width:36%;transform:translateX(-150%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);animation:progressSheen 4.8s ease-in-out infinite}
 
     .daily-card,.products-card,.shared-album-card,.wishlist-card,.work-calendar-card{transition:transform .24s cubic-bezier(.2,.8,.2,1),box-shadow .24s ease,border-color .24s ease}
-    .daily-card:active,.shared-album-card:active{transform:scale(.992)}
+    .daily-card:active{transform:scale(.992)}
     .products-section:not([hidden]) .products-card{animation:modernCardIn .42s cubic-bezier(.18,.82,.2,1) both}
     .daily-section:not([hidden]) .daily-card{animation:modernCardIn .42s cubic-bezier(.18,.82,.2,1) both}
     .daily-section:not([hidden]) .daily-card:nth-child(2){animation-delay:.055s}
@@ -6519,6 +6519,16 @@ body.home-layout-editing .market-ticker-tile{min-height:38px}
     .recipe-cuisine-row{
       grid-template-columns:repeat(2,minmax(0,1fr));
     }
+    .recipe-time-row{
+      grid-template-columns:repeat(5,minmax(0,1fr));
+      gap:5px;
+    }
+    .recipe-time-row button{
+      padding-left:4px;
+      padding-right:4px;
+      font-size:9px;
+      white-space:nowrap;
+    }
     .recipe-choice-row button{
       min-width:0;
       min-height:36px;
@@ -6792,3 +6802,53 @@ body.home-layout-editing .market-ticker-tile{min-height:38px}
         gap:8px;
       }
     }
+
+
+/* RUDI v1.12.1 interaction fixes */
+.market-ticker-setting[hidden],
+body:not([data-app-tab="home"]) .market-ticker-setting{
+  display:none!important;
+}
+body[data-app-tab="photos"] .shared-album-card,
+body[data-app-tab="photos"] .shared-album-memory-photo,
+body[data-app-tab="photos"] .shared-album-photo,
+body[data-app-tab="photos"] .shared-album-memory-reaction .reaction-button{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+body[data-app-tab="photos"] .shared-album-card:active,
+body[data-app-tab="photos"] .shared-album-memory-photo:active,
+body[data-app-tab="photos"] .shared-album-photo:active,
+body[data-app-tab="photos"] .shared-album-memory-reaction .reaction-button:active{
+  transform:none!important;
+}
+body[data-app-tab="photos"] .shared-album-memory-reaction{
+  min-height:40px;
+  align-items:center;
+  gap:8px;
+}
+body[data-app-tab="photos"] .shared-album-memory-reaction .reaction-button{
+  width:38px;
+  height:38px;
+  border-radius:12px;
+}
+body[data-app-tab="photos"] .shared-album-memory-reaction .reaction-button svg{
+  width:19px;
+  height:19px;
+}
+body[data-app-tab="photos"] .shared-album-memory-reaction .reaction-names{
+  min-height:16px;
+  display:flex;
+  align-items:center;
+}
+@media(max-width:390px){
+  .recipe-time-row{
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    gap:4px;
+  }
+  .recipe-time-row button{
+    min-height:33px;
+    font-size:8.5px;
+  }
+}
+/* end RUDI v1.12.1 interaction fixes */
