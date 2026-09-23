@@ -153,9 +153,10 @@ test('web client-intent filter accepts pain-language that signals a real client 
   assert.equal(webApi.isLikelyWebClientIntent(text), true);
 });
 
-test('stylist lead config enables Tavily web search with a bounded daily query set and no embedded API key', () => {
+test('stylist lead web search remains configured but disabled and has no embedded API key', () => {
   const config = require('../config/stylist-leads.json');
-  assert.equal(config.webSearch?.enabled, true);
+  assert.equal(config.enabled, false);
+  assert.equal(config.webSearch?.enabled, false);
   assert.equal(config.webSearch?.provider, 'tavily');
   assert.equal(config.webSearch?.searchDepth, 'basic');
   assert.equal(config.webSearch?.timeRange, 'day');
