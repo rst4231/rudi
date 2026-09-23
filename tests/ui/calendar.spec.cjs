@@ -228,14 +228,16 @@ async function mockRudi(page,options={}){
   return state;
 }
 
-test('authenticated shell opens while bootstrap finishes in the background',async({page})=>{
+test('authenticated shell stays hidden until bootstrap and dynamic layout are ready',async({page})=>{
   const state=await mockRudi(page,{bootstrapDelayMs:1500});
   await page.goto('/');
   await expect.poll(()=>state.bootstrapStarted,{timeout:1000}).toBe(true);
-  await expect(page.locator('body')).toHaveClass(/auth-ok/,{timeout:1000});
+  await expect(page.locator('body')).toHaveClass(/auth-pending/,{timeout:1000});
   expect(state.bootstrapResolved).toBe(false);
   await expect.poll(()=>state.bootstrapResolved,{timeout:3000}).toBe(true);
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#homeRustamTile')).toBeVisible();
+  await expect(page.locator('#homeDianaTile')).toBeVisible();
 });
 
 test('remote saved home layout is applied before the shell becomes visible',async({page})=>{
