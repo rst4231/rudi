@@ -8,6 +8,8 @@ const {
   sendWishlistNotificationToPartner,
   taskCompletedNotificationText,
   checklistCompletedNotificationText,
+  luluWalkStatusLabel,
+  luluWalkNotificationText,
 } = require('../api/partner-message.js');
 const {
   telegramSendMessage,
@@ -110,4 +112,14 @@ test('wishlist addition notification goes only to the other partner',async()=>{
   assert.equal(fromDiana.recipient,'Рустам');
   assert.equal(calls.length,1);
   assert.equal(calls[0].chat_id,111);
+});
+
+
+test('Lulu walk notification includes walker and Moscow time',()=>{
+  const now=Date.parse('2026-09-23T07:45:00.000Z');
+  const walkedAt='2026-09-23T06:42:00.000Z';
+  assert.equal(luluWalkStatusLabel(walkedAt,now),'сегодня в 09:42');
+  assert.match(luluWalkNotificationText('Рустам',walkedAt,now),/Рустам погулял с Lulu/);
+  assert.match(luluWalkNotificationText('Диана',walkedAt,now),/Диана погуляла с Lulu/);
+  assert.match(luluWalkNotificationText('Рустам',walkedAt,now),/09:42/);
 });
