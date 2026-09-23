@@ -126,7 +126,7 @@ test('persistent mutations refresh the encrypted backup immediately',()=>{
   }
   assert.match(api,/action === 'mood'[\s\S]*?refreshBackupToken\(previousSnapshot,options\)/);
   assert.match(api,/action === 'reactions'[\s\S]*?refreshBackupToken\(previousSnapshot,options\)/);
-  assert.match(api,/sendWishlistNotificationToPartner\(owner, result\.item\?\.text, options\)/);
+  assert.match(api,/sendWishlistNotificationToPartner\(owner, result\.item\?\.text, \{[\s\S]*?\.\.\.options,[\s\S]*?item: result\.item\?\.id,[\s\S]*?\}\)/);
   assert.doesNotMatch(api,/sendActivityNotification\(wishlistNotificationText/);
 });
 

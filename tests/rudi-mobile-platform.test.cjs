@@ -10,10 +10,11 @@ const car = fs.readFileSync('public/car.js','utf8');
 const passkeys = fs.readFileSync('api/rudi-passkeys.cjs','utf8');
 const manifest = JSON.parse(fs.readFileSync('public/manifest.webmanifest','utf8'));
 
-test('browser theme follows the device while Telegram follows Telegram theme', () => {
-  assert.match(app,/const telegramOpen=Boolean\(tg\?\.initData\)/);
-  assert.match(app,/telegramOpen&&tg\?\.colorScheme/);
-  assert.match(app,/media\.matches\?'dark':'light'/);
+test('system theme follows device or Telegram while manual theme can override it', () => {
+  assert.match(app,/function resolvedSystemTheme\(\)/);
+  assert.match(app,/if\(telegramOpen&&\(tg\?\.colorScheme==='dark'\|\|tg\?\.colorScheme==='light'\)\) return tg\.colorScheme/);
+  assert.match(app,/return media\.matches\?'dark':'light'/);
+  assert.match(app,/const theme=mode==='system'\?resolvedSystemTheme\(\):mode/);
   assert.match(app,/handleSystemThemeChange=.*if\(!tg\?\.initData\) applyTheme\(\)/);
   assert.match(html,/const telegramOpen = Boolean\(tg\?\.initData\)/);
   assert.match(html,/prefers-color-scheme: dark/);
@@ -127,7 +128,7 @@ test('mood support message keeps high contrast on dark profile cards', () => {
 
 test('market ticker is movable, theme-safe and persisted', () => {
   assert.match(html,/data-home-tile="markets"/);
-  assert.match(html,/id="marketTickerToggle"/);
+  assert.match(app,/id="marketTickerToggle"/);
   assert.match(app,/HOME_TILE_DEFAULT_ORDER = \[[^\]]*'markets'\]/);
   assert.match(app,/marketTickerEnabledStorageKey/);
   assert.match(app,/marketTickerEnabled:marketTickerEnabledValue/);

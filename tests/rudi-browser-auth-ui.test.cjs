@@ -118,9 +118,12 @@ test('existing PIN migrates from restored runtime cache into durable Postgres au
 });
 
 
-test('browser theme follows device outside Telegram and updates live', () => {
+test('system theme follows device outside Telegram and updates live', () => {
+  assert.match(app,/function resolvedSystemTheme\(\)/);
   assert.match(app,/const telegramOpen=Boolean\(tg\?\.initData\)/);
-  assert.match(app,/const theme=telegramOpen&&tg\?\.colorScheme[\s\S]*?media\.matches\?'dark':'light'/);
+  assert.match(app,/if\(telegramOpen&&\(tg\?\.colorScheme==='dark'\|\|tg\?\.colorScheme==='light'\)\) return tg\.colorScheme/);
+  assert.match(app,/return media\.matches\?'dark':'light'/);
+  assert.match(app,/const theme=mode==='system'\?resolvedSystemTheme\(\):mode/);
   assert.match(app,/handleSystemThemeChange/);
   assert.match(app,/if\(typeof media\.addEventListener==='function'\) media\.addEventListener\('change',handleSystemThemeChange\)/);
 });

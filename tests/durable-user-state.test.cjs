@@ -31,7 +31,7 @@ test('wishlist addition notifies partner only, never the actor themself',()=>{
   const source=fs.readFileSync('api/partner-message.js','utf8');
   assert.match(source,/async function sendWishlistNotificationToPartner\(owner, text/);
   assert.match(source,/owner === 'Рустам' \? 'Диана' : owner === 'Диана' \? 'Рустам'/);
-  assert.match(source,/await sendWishlistNotificationToPartner\(owner, result\.item\?\.text, options\)/);
+  assert.match(source,/await sendWishlistNotificationToPartner\(owner, result\.item\?\.text, \{[\s\S]*?\.\.\.options,[\s\S]*?item: result\.item\?\.id,[\s\S]*?\}\)/);
   assert.doesNotMatch(source,/sendActivityNotification\(wishlistNotificationText\(owner/);
 });
 
