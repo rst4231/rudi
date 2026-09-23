@@ -128,6 +128,13 @@ test('system theme follows device outside Telegram and updates live', () => {
   assert.match(app,/if\(typeof media\.addEventListener==='function'\) media\.addEventListener\('change',handleSystemThemeChange\)/);
 });
 
+test('browser session resolves its own Telegram profile from saved recipient id', () => {
+  assert.match(partner,/const selfId = Number\(user\?\.id\) \|\| Number\(recipients\?\.\[actor\]\) \|\| 0/);
+  assert.match(partner,/readTelegramProfile\(selfId, actor, options\)/);
+  assert.match(app,/applyTelegramProfiles\(payload\.selfProfile,payload\.partnerProfile\)/);
+  assert.match(app,/selfProfile\?\.photoDataUrl/);
+});
+
 test('browser pull to refresh only activates outside Telegram from the page top and keeps auth surface', () => {
   const start=app.indexOf('function setupBrowserPullToRefresh()');
   const end=app.indexOf('function updateTelegramSafeArea()',start);
