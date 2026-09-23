@@ -6795,10 +6795,10 @@
         setupPersistentCollapsibles();
         loadActivityJournal();
         setupAppTabs();
-        ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
+        ensureAppSurface({restoreTab:true});
         setupProducts();
         renderDailyCompliment(config,{force:true});
         setupReactions();
