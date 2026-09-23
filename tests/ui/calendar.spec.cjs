@@ -294,7 +294,7 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.11.1');
+  await expect(page.locator('#appVersion')).toHaveText('v1.12.1');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-4)).toEqual(['new','smart-home','car','markets']);
@@ -523,7 +523,7 @@ test('feed is structured, today-first and keeps six-tab layout',async({page})=>{
   const tabs=page.locator('#appTabBar [role="tab"]');
   await expect(tabs).toHaveCount(6);
   const labels=(await tabs.allTextContents()).map(value=>value.trim());
-  expect(labels).toEqual(['Домой','Лента','Календарь','Продукты','Фото','Вишлист']);
+  expect(labels).toEqual(['Домой','Лента','Календарь','Кухня','Фото','Вишлист']);
   const boxes=await tabs.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()));
   const top=Math.round(boxes[0].top);
   expect(boxes.every(box=>Math.abs(Math.round(box.top)-top)<=1)).toBe(true);
@@ -581,7 +581,7 @@ test('products bought button stays interactive and completes checked products',a
   const state=await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await page.getByRole('tab',{name:'Продукты'}).click();
+  await page.getByRole('tab',{name:'Кухня'}).click();
 
   const bought=page.getByRole('button',{name:'Купил'});
   await expect(bought).toBeEnabled();
