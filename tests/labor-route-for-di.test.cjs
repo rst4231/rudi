@@ -4,13 +4,11 @@ const { publishLaborArticle } = require('../api/labor-code.cjs');
 
 test('labor posts use topic 126 and never recreate topic 696', async () => {
   const calls = [];
+  const rows = new Map([['labor:topic-id', 696]]);
   const cache = {
-    async get(key) {
-      if (key === 'labor:topic-id') return 696;
-      return null;
-    },
-    async set() { return true; },
-    async delete() { return true; },
+    async get(key) { return rows.has(key) ? structuredClone(rows.get(key)) : null; },
+    async set(key, value) { rows.set(key, structuredClone(value)); return true; },
+    async delete(key) { rows.delete(key); return true; },
   };
   const fetchImpl = async (url, init) => {
     const method = String(url).split('/').at(-1);
@@ -25,7 +23,6 @@ test('labor posts use topic 126 and never recreate topic 696', async () => {
     token: 'test-token',
     chatId: -1004476323368,
     cache,
-    forDiCache: cache,
     forDiCache: cache,
     fetchImpl,
     now: new Date('2026-09-04T18:00:00Z'),
