@@ -594,12 +594,23 @@ async function sendDailyMorningSummaries(options = {}) {
     });
 
     try {
-      const result = await telegramSendMessage(chatId, text, {
-        ...options,
-        fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,
-        tab: 'home',
-        buttonText: 'Открыть RUDI',
-      });
+      let result;
+      try {
+        result = await telegramSendMessage(chatId, text, {
+          ...options,
+          fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,
+          tab: 'home',
+          buttonText: 'Открыть RUDI',
+        });
+      } catch (error) {
+        if (Number(error?.status || 0) !== 400) throw error;
+        console.warn('RUDI_MORNING_SUMMARY_RICH_SEND_WARN', actor, String(error?.message || error));
+        result = await telegramSendMessage(chatId, stripHtml(text), {
+          ...options,
+          fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,
+          parseMode: false,
+        });
+      }
       await writeSummaryMarker(actor, date, now.toISOString(), options);
       sent.push({ actor, ...result });
     } catch (error) {
@@ -607,11 +618,23 @@ async function sendDailyMorningSummaries(options = {}) {
     }
   }
 
-  if (missingRecipients.length) {
-    throw new Error('morning-summary-recipients-missing:' + missingRecipients.join(','));
-  }
-  if (failed.length) {
-    throw new Error('morning-summary-failed:' + failed.map((row) => row.actor).join(','));
+  if (missingRecipients.length || failed.length) {
+    const result = {
+      sent: sent.length,
+      failed,
+      missingRecipients,
+      skippedAlreadySent,
+      forced: Boolean(options.force),
+      recoveryKey: recoveryKey || null,
+      date,
+    };
+    const error = new Error(
+      missingRecipients.length
+        ? 'morning-summary-recipients-missing:' + missingRecipients.join(',')
+        : 'morning-summary-failed:' + failed.map((row) => row.actor).join(',')
+    );
+    error.result = result;
+    throw error;
   }
 
   if (recoveryKey) await markRecoverySent(recoveryKey, options);
