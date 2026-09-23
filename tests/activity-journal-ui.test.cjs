@@ -7,13 +7,17 @@ const css=fs.readFileSync('public/app.css','utf8');
 const api=fs.readFileSync('api/partner-message.js','utf8');
 const backup=fs.readFileSync('api/rudi-backup.cjs','utf8');
 
-test('home contains a shared activity journal tile',()=>{
-  assert.match(app,/activityTile\.dataset\.homeTile='activity'/);
+test('home exposes activity history through notification bell',()=>{
+  assert.doesNotMatch(app,/activityTile\.dataset\.homeTile='activity'/);
+  assert.match(app,/homeActivityNotificationsButton/);
+  assert.match(app,/homeActivityNotificationDot/);
+  assert.match(app,/homeActivityNotificationsPanel/);
   assert.match(app,/Что произошло у нас/);
   assert.match(app,/function renderActivityJournal\(payload\)/);
   assert.match(app,/function loadActivityJournal/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'\]/);
-  assert.match(css,/\.home-activity-tile/);
+  assert.match(app,/function markActivityNotificationsSeen\(\)/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car'\]/);
+  assert.match(css,/\.home-activity-notifications-button/);
   assert.match(css,/\.home-activity-row/);
   assert.match(app,/luluTile\.dataset\.homeTile='lulu'/);
   assert.match(app,/renderLulu\(payload\?\.lulu\)/);
