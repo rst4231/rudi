@@ -117,3 +117,9 @@ test('mood support message is outside collapsible profile details', () => {
   assert.doesNotMatch(app,/\(selfActor==='Диана'\?dianaCard\.details:rustamCard\.details\)\.appendChild\(moodMessage\)/);
 });
 
+test('mood support message keeps high contrast on dark profile cards', () => {
+  assert.match(css,/RUDI v1\.10\.3: readable mood support message/);
+  assert.match(css,/\.profile-person-card > \.mood-message\.show\{[\s\S]*?color:#f7f8fc!important/);
+  assert.match(css,/\.profile-person-card > \.mood-message\.show\[data-mood="great"\]/);
+});
+
