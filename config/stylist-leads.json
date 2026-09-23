@@ -9,7 +9,7 @@
   "concurrency": 5,
   "sendEmpty": true,
   "webSearch": {
-    "enabled": true,
+    "enabled": false,
     "provider": "tavily",
     "searchDepth": "basic",
     "timeRange": "day",
