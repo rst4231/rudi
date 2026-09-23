@@ -9,7 +9,7 @@ const backup=fs.readFileSync('api/rudi-backup.cjs','utf8');
 
 test('Lulu is a movable collapsible home card with the supplied image',()=>{
   assert.match(app,/luluTile\.dataset\.homeTile='lulu'/);
-  assert.match(app,/\/lulu-card\.webp\?v=1\.9\.5/);
+  assert.match(app,/\/lulu-card\.webp\?v=1\.9\.6/);
   assert.match(app,/id="luluWalkStatus"/);
   assert.match(app,/id="luluWalkButton"/);
   assert.match(app,/selector:'#homeLuluTile',key:'lulu'/);
