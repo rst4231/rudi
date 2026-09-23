@@ -1,6 +1,7 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
-const { sendForDiPrivateMessages } = require('./for-di-private.cjs');
+const { sendForDiPrivateMessages, hasQueuedForDiSource } = require('./for-di-private.cjs');
+const { runStylistLeadScan } = require('./stylist-web-search.cjs');
 
 async function handler(req, res) {
   if (!isCronRequestAuthorized(req)) {
@@ -27,11 +28,37 @@ async function handler(req, res) {
         return res.status(200).json({ ok: true, mode, skipped: 'recovery-date-mismatch', recoveryDate, today });
       }
     }
-    const result = mode === 'for-di'
-      ? await sendForDiPrivateMessages()
-      : await sendDailyMorningSummaries({ force, recoveryKey });
-    console.log('RUDI_MORNING_SUMMARY_RESULT', JSON.stringify({ mode, force, recoveryDate, recoveryKey, ...result }));
-    return res.status(200).json({ ok: true, mode, force, recoveryDate: recoveryDate || null, ...result });
+    let stylistCatchup = null;
+    let result;
+    if (mode === 'for-di') {
+      const stylistQueued = await hasQueuedForDiSource(['stylist', 'stylist-empty']);
+      if (!stylistQueued) {
+        try {
+          stylistCatchup = await runStylistLeadScan({
+            privateOnly: true,
+            forcePrivateSummary: true,
+          });
+        } catch (error) {
+          stylistCatchup = { failed: true, error: String(error?.message || error) };
+          console.warn('RUDI_FOR_DI_STYLIST_CATCHUP_WARN', stylistCatchup.error);
+        }
+      } else {
+        stylistCatchup = { skipped: 'already-queued' };
+      }
+      result = await sendForDiPrivateMessages();
+    } else {
+      result = await sendDailyMorningSummaries({ force, recoveryKey });
+    }
+    const logLabel = mode === 'for-di' ? 'RUDI_FOR_DI_RESULT' : 'RUDI_MORNING_SUMMARY_RESULT';
+    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, stylistCatchup, ...result }));
+    return res.status(200).json({
+      ok: true,
+      mode,
+      force,
+      recoveryDate: recoveryDate || null,
+      ...(mode === 'for-di' ? { stylistCatchup } : {}),
+      ...result,
+    });
   } catch (error) {
     console.error(
       mode === 'for-di' ? 'RUDI_FOR_DI_CRON_ERROR' : 'RUDI_MORNING_SUMMARY_CRON_ERROR',
