@@ -5512,3 +5512,20 @@ html[data-theme="dark"] .home-dashboard{
 .home-dashboard .mood-self{
   justify-items:center!important;
 }
+
+
+/* RUDI v1.8.9: Послание background */
+.partner-message{
+  background-image:url("/poslanie-background.png?v=1.8.9")!important;
+  background-size:cover!important;
+  background-position:center center!important;
+  background-repeat:no-repeat!important;
+}
+.partner-message::before{
+  background:none!important;
+}
+html[data-theme="dark"] .partner-message{
+  background-image:
+    linear-gradient(rgba(11,13,18,.58),rgba(11,13,18,.58)),
+    url("/poslanie-background.png?v=1.8.9")!important;
+}
