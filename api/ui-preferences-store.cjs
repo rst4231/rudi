@@ -43,6 +43,9 @@ function normalizeUiPreferencesState(value) {
   const marketTickerEnabled = Object.prototype.hasOwnProperty.call(source, 'marketTickerEnabled')
     ? Boolean(source.marketTickerEnabled)
     : true;
+  const themeMode = ['system', 'light', 'dark'].includes(String(source.themeMode || '').trim())
+    ? String(source.themeMode).trim()
+    : 'system';
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const parsed = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   return {
@@ -52,6 +55,7 @@ function normalizeUiPreferencesState(value) {
     blockStates,
     activitySeenId,
     marketTickerEnabled,
+    themeMode,
     updatedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
   };
 }
@@ -94,6 +98,9 @@ async function saveUiPreferences(actor, value, options = {}) {
       marketTickerEnabled: Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled')
         ? incoming.marketTickerEnabled
         : current.marketTickerEnabled,
+      themeMode: Object.prototype.hasOwnProperty.call(source,'themeMode')
+        ? incoming.themeMode
+        : current.themeMode,
       updatedAt,
     }, options);
   });
@@ -103,9 +110,11 @@ async function seedUiPreferences(actor, value, options = {}) {
   return enqueueMutation(async () => {
     const current = await readUiPreferences(actor, options);
     if (current.initialized) return current;
-    const incoming = normalizeUiPreferencesState(value);
+    const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    const incoming = normalizeUiPreferencesState(source);
     const hasMarketTickerEnabled = Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled');
-    if (!incoming.homeOrder.length && !Object.keys(incoming.blockStates).length && !incoming.activitySeenId && !hasMarketTickerEnabled) return current;
+    const hasThemeMode = Object.prototype.hasOwnProperty.call(source,'themeMode');
+    if (!incoming.homeOrder.length && !Object.keys(incoming.blockStates).length && !incoming.activitySeenId && !hasMarketTickerEnabled && !hasThemeMode) return current;
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
@@ -113,6 +122,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       blockStates: incoming.blockStates,
       activitySeenId: incoming.activitySeenId,
       marketTickerEnabled: incoming.marketTickerEnabled,
+      themeMode: incoming.themeMode,
       updatedAt: incoming.updatedAt || new Date(options.now || Date.now()).toISOString(),
     }, options);
   });
