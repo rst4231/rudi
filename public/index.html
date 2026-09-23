@@ -746,6 +746,17 @@
             </div>
           </fieldset>
 
+          <fieldset class="recipe-choice-group">
+            <legend>Сколько готовить</legend>
+            <div class="recipe-choice-row recipe-time-row" data-recipe-choice="time">
+              <button type="button" data-recipe-time="5" aria-pressed="false">5 мин</button>
+              <button type="button" data-recipe-time="10" aria-pressed="false">10 мин</button>
+              <button type="button" data-recipe-time="15" aria-pressed="true">15 мин</button>
+              <button type="button" data-recipe-time="30" aria-pressed="false">30 мин</button>
+              <button type="button" data-recipe-time="45" aria-pressed="false">45 мин</button>
+            </div>
+          </fieldset>
+
           <button id="recipeGenerate" class="recipe-generate" type="button">Сгенерировать</button>
           <div id="recipeStatus" class="recipe-status" aria-live="polite"></div>
           <div id="recipeSuggestions" class="recipe-suggestions" hidden></div>
@@ -767,7 +778,7 @@
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
-      <div id="appVersion" class="app-version" aria-label="Версия приложения">v1.12.0</div>
+      <div id="appVersion" class="app-version" aria-label="Версия приложения">v1.12.1</div>
       <div class="market-ticker-setting">
         <span class="market-ticker-setting-label">Показывать курсы</span>
         <button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать бегущую строку курсов">
