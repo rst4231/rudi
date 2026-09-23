@@ -14,6 +14,9 @@ function appUrlForTab(tab, options = {}) {
   const base = String(options.appUrl || options.env?.RUDI_APP_URL || process.env.RUDI_APP_URL || DEFAULT_APP_URL).trim();
   const url = new URL(base);
   if (tab) url.searchParams.set('tab', String(tab));
+  if (options.item && (String(tab) === 'wishlist' || String(tab) === 'products')) {
+    url.searchParams.set('item', String(options.item));
+  }
   return url.toString();
 }
 
