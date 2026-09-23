@@ -25,6 +25,7 @@ const ACTORS = ['Рустам', 'Диана'];
 function cacheOf(options = {}) {
   return options.summaryCache || createStrictRuntimeCache({
     namespace: NAMESPACE,
+    confirmWrites: false,
     ...(options.summaryCacheOptions || {}),
   });
 }
