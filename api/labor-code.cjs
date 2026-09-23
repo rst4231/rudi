@@ -194,6 +194,8 @@ async function publishLaborArticle(options = {}) {
     now,
     dateKey: todayKey,
     forDiCache: options.forDiCache,
+    parseMode: false,
+    source: 'labor',
   });
 
   await recordArticlePublication(cache, next.id, todayKey, null, topicId, history);
