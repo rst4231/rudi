@@ -2087,6 +2087,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         equipment: body.equipment,
         meal: body.meal,
         cuisine: body.cuisine,
+        timeMinutes: body.timeMinutes,
       }, {
         env: options.env || process.env,
         fetch: options.fetch || global.fetch,
@@ -2099,7 +2100,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         : code === 'recipe-ingredients-required'
           || code === 'recipe-equipment-invalid'
           || code === 'recipe-meal-invalid'
-          || code === 'recipe-cuisine-invalid' ? 400
+          || code === 'recipe-cuisine-invalid'
+          || code === 'recipe-time-invalid' ? 400
         : code === 'recipe-ai-quota' ? 429
         : code === 'gemini-api-key-missing' ? 503
         : 502;
