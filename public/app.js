@@ -55,6 +55,24 @@
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
         return ['dashboard',...people,'lulu','nearest','priority','partner','new','smart-home','car','activity'];
       }
+      function homeTopOrderMigrationKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi-home-top-order-v1-'+actor;
+      }
+
+      function migrateHomeTopOrderOnce(order){
+        const source=Array.isArray(order)?order.map(String):[];
+        if(!source.length) return source;
+        try{
+          if(localStorage.getItem(homeTopOrderMigrationKey())==='1') return source;
+        }catch(_){}
+        const top=currentActor==='Диана'
+          ?['diana','rustam','lulu','nearest']
+          :['rustam','diana','lulu','nearest'];
+        const next=[...top,...source.filter(id=>!top.includes(id))];
+        try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
+        return next;
+      }
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
@@ -507,7 +525,8 @@
         if(localTime>remoteTime) return false;
         try{
           if(hasRemoteOrder){
-            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remote.homeOrder));
+            const migratedOrder=migrateHomeTopOrderOnce(remote.homeOrder);
+            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(migratedOrder));
           }
           if(hasRemoteBlocks){
             localStorage.setItem(blockStateStorageKey(),JSON.stringify(remote.blockStates));
@@ -645,14 +664,19 @@
       function loadHomeOrder(){
         let order=[];
         try{order=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
+        order=migrateHomeTopOrderOnce(order);
         applyHomeOrder(order);
+        if(order.length) try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
       }
 
       function saveHomeOrder(){
         const host=ensureHomeTileHost();
         if(!host) return;
         const order=[...host.querySelectorAll(':scope > [data-home-tile]')].map(tile=>tile.dataset.homeTile).filter(Boolean);
-        try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
+        try{
+          localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order));
+          localStorage.setItem(homeTopOrderMigrationKey(),'1');
+        }catch(_){}
         markUiPreferencesChanged();
       }
 
