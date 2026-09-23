@@ -1875,7 +1875,8 @@
           (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodPrompt);
         }
         if(moodMessage){
-          (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodMessage);
+          const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
+          ownCard.tile.insertBefore(moodMessage,ownCard.details);
         }
 
         const luluTile=document.createElement('section');

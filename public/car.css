@@ -444,20 +444,67 @@
 /* end RUDI v1.8.1 white car arrows */
 
 
-/* RUDI v1.9.0: current mileage in collapsed car card */
-.car-model::after{display:none}
-.car-tile.is-collapsed .car-model::after{
-  content:attr(data-mileage) "\A" attr(data-service);
-  display:block;
-  margin-top:5px;
-  white-space:pre-line;
-  color:#f1f3f7;
-  font-size:12px;
-  line-height:1.2;
-  font-weight:760;
-  letter-spacing:-.01em;
+/* RUDI v1.10.2: premium collapsed mileage + service metrics */
+.car-model::after{display:none!important}
+.car-collapsed-metrics{display:none}
+.car-tile.is-collapsed .car-head{margin-bottom:0}
+.car-tile.is-collapsed .car-collapsed-metrics{
+  display:grid;
+  grid-template-columns:minmax(0,.72fr) 1px minmax(0,1.28fr);
+  align-items:end;
+  gap:11px;
+  margin-top:11px;
+  max-width:430px;
+}
+.car-collapsed-metric{
+  min-width:0;
+  display:grid;
+  gap:4px;
+}
+.car-collapsed-metric-label{
+  color:#8f96a2;
+  font-size:8px;
+  line-height:1;
+  font-weight:820;
+  letter-spacing:.095em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.car-collapsed-metric strong{
+  min-width:0;
+  font-size:16px;
+  line-height:1.05;
+  font-weight:850;
+  letter-spacing:-.035em;
+}
+.car-collapsed-metric.is-mileage strong{color:#67b9ff}
+.car-collapsed-metric.is-service strong{color:#ff934e}
+.car-collapsed-metrics-divider{
+  width:1px;
+  height:36px;
+  align-self:end;
+  background:rgba(196,204,219,.22);
 }
 @media(max-width:430px){
-  .car-tile.is-collapsed .car-model::after{font-size:11.5px}
+  .car-tile.is-collapsed .car-collapsed-metrics{
+    grid-template-columns:minmax(0,.78fr) 1px minmax(0,1.22fr);
+    gap:8px;
+    margin-top:9px;
+  }
+  .car-collapsed-metric-label{font-size:7.2px;letter-spacing:.07em}
+  .car-collapsed-metric strong{font-size:13px;line-height:1.08}
+  .car-collapsed-metrics-divider{height:32px}
 }
-/* end RUDI v1.9.0 collapsed mileage */
+@media(max-width:360px){
+  .car-tile.is-collapsed .car-collapsed-metrics{
+    grid-template-columns:1fr;
+    gap:7px;
+  }
+  .car-collapsed-metrics-divider{display:none}
+  .car-collapsed-metric{
+    grid-template-columns:auto minmax(0,1fr);
+    align-items:baseline;
+    gap:8px;
+  }
+}
+/* end RUDI v1.10.2 collapsed mileage + service metrics */

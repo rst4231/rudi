@@ -6,6 +6,7 @@ const app = fs.readFileSync('public/app.js','utf8');
 const html = fs.readFileSync('public/index.html','utf8');
 const css = fs.readFileSync('public/app.css','utf8');
 const carCss = fs.readFileSync('public/car.css','utf8');
+const car = fs.readFileSync('public/car.js','utf8');
 const passkeys = fs.readFileSync('api/rudi-passkeys.cjs','utf8');
 const manifest = JSON.parse(fs.readFileSync('public/manifest.webmanifest','utf8'));
 
@@ -99,5 +100,20 @@ test('daily psychology fact comes from public config and startup shell waits for
   assert.doesNotMatch(app,/rudiAction=male-psychology-fact/);
   assert.match(app,/appAccessReady=true;\s*await loadAppBootstrap\(\);\s*return true;/);
   assert.doesNotMatch(app,/appAccessReady=true;\s*ensureAppSurface\(\);\s*await loadAppBootstrap/);
+});
+
+test('collapsed car card separates mileage and service into colored premium metrics', () => {
+  assert.match(html,/id="carCollapsedMileageValue"/);
+  assert.match(html,/id="carCollapsedServiceValue"/);
+  assert.match(car,/collapsedMileageNode\.textContent=mileage==null\?'Не указан':formatKm\(mileage\)/);
+  assert.match(car,/collapsedServiceNode\.textContent=next[\s\S]*?'ТО-'\+next\.number\+' на '\+formatKm\(next\.mileage\)/);
+  assert.match(carCss,/\.car-collapsed-metric\.is-mileage strong\{color:#67b9ff\}/);
+  assert.match(carCss,/\.car-collapsed-metric\.is-service strong\{color:#ff934e\}/);
+  assert.match(carCss,/\.car-collapsed-metrics-divider/);
+});
+
+test('mood support message is outside collapsible profile details', () => {
+  assert.match(app,/ownCard\.tile\.insertBefore\(moodMessage,ownCard\.details\)/);
+  assert.doesNotMatch(app,/\(selfActor==='Диана'\?dianaCard\.details:rustamCard\.details\)\.appendChild\(moodMessage\)/);
 });
 

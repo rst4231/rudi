@@ -282,7 +282,7 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.10.1');
+  await expect(page.locator('#appVersion')).toHaveText('v1.10.2');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-3)).toEqual(['new','smart-home','car']);
@@ -303,6 +303,26 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
 
   await expect(page.locator('#homeLayoutEditButton')).toBeHidden();
   await expect(page.locator('.home-order-controls').first()).toBeHidden();
+});
+
+
+
+test('mood support message stays visible when own profile card is collapsed',async({page})=>{
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+
+  const rustam=page.locator('#homeRustamTile');
+  const collapse=rustam.locator('.block-collapse-button').first();
+  await collapse.click();
+  await expect(rustam).toHaveClass(/is-collapsed/);
+
+  await rustam.locator('.mood-button[data-mood="great"]').click();
+  const message=page.locator('#moodMessage');
+  await expect(message).toBeVisible();
+  await expect(message).not.toHaveText('');
+  await expect(rustam.locator(':scope > #moodMessage')).toHaveCount(1);
+  await expect(rustam.locator('.rudi-collapse-body #moodMessage')).toHaveCount(0);
 });
 
 test('iPhone calendar taps, spacing and silent refresh stay stable',async({page})=>{
