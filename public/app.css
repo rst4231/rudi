@@ -3532,8 +3532,15 @@
     .partner-message{
       padding:12px 13px!important;
       border-color:color-mix(in srgb,var(--line) 88%,transparent)!important;
-      background:color-mix(in srgb,var(--surface) 97%,transparent)!important;
+      background:
+        linear-gradient(90deg,rgba(255,255,255,.08),rgba(255,255,255,.01)),
+        url('/poslanie-background.png?v=1.8.9') center / cover no-repeat!important;
       box-shadow:0 7px 19px rgba(20,24,36,.045)!important;
+    }
+    html[data-theme="dark"] .partner-message{
+      background:
+        linear-gradient(rgba(11,13,18,.58),rgba(11,13,18,.58)),
+        url('/poslanie-background.png?v=1.8.9') center / cover no-repeat!important;
     }
     .partner-message .love-hearts{display:none!important}
     .partner-head{margin-bottom:2px!important}
