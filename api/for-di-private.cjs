@@ -92,12 +92,26 @@ async function queueForDiTelegramRequest(input, init = {}, options = {}) {
   return queueForDiMessage(text, options);
 }
 
-async function sendForDiPrivateMessages(options = {}) {
+async function readForDiMessages(options = {}) {
   const now = options.now || new Date();
   const dateKey = options.dateKey || dateKeyInMoscow(now);
   const cache = cacheOf(options);
   const rows = await cache.get(messageKey(dateKey)).catch(() => null);
   const messages = Array.isArray(rows) ? rows.filter((row) => String(row?.text || '').trim()) : [];
+  return { dateKey, messages };
+}
+
+async function hasQueuedForDiSource(sources, options = {}) {
+  const wanted = new Set((Array.isArray(sources) ? sources : [sources]).map((value) => String(value || '').trim()).filter(Boolean));
+  if (!wanted.size) return false;
+  const { messages } = await readForDiMessages(options);
+  return messages.some((row) => wanted.has(String(row?.source || '').trim()));
+}
+
+async function sendForDiPrivateMessages(options = {}) {
+  const now = options.now || new Date();
+  const { dateKey, messages } = await readForDiMessages({ ...options, now });
+  const cache = cacheOf(options);
   if (!messages.length) return { dateKey, queued: 0, sent: 0, skipped: 'empty' };
 
   const recipients = options.recipients || await readRecipients(options);
@@ -147,5 +161,7 @@ module.exports = {
   dateKeyInMoscow,
   queueForDiMessage,
   queueForDiTelegramRequest,
+  readForDiMessages,
+  hasQueuedForDiSource,
   sendForDiPrivateMessages,
 };
