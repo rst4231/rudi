@@ -536,13 +536,21 @@ async function sendDailyMorningSummaries(options = {}) {
   const common = await collectMorningData({ ...options, now });
   const sent = [];
   const failed = [];
+  const missingRecipients = [];
+  const skippedAlreadySent = [];
 
   for (const actor of ACTORS) {
     const chatId = Number(recipients?.[actor]);
-    if (!Number.isInteger(chatId) || chatId <= 0) continue;
+    if (!Number.isInteger(chatId) || chatId <= 0) {
+      missingRecipients.push(actor);
+      continue;
+    }
 
     const marker = await readSummaryMarker(actor, options);
-    if (marker?.date === date) continue;
+    if (!options.force && marker?.date === date) {
+      skippedAlreadySent.push(actor);
+      continue;
+    }
 
     const since = marker?.sentAt || '';
     const text = buildMorningSummary(actor, {
@@ -565,13 +573,19 @@ async function sendDailyMorningSummaries(options = {}) {
     }
   }
 
-  if (failed.length && !sent.length) {
+  if (missingRecipients.length) {
+    throw new Error('morning-summary-recipients-missing:' + missingRecipients.join(','));
+  }
+  if (failed.length) {
     throw new Error('morning-summary-failed:' + failed.map((row) => row.actor).join(','));
   }
 
   return {
     sent: sent.length,
     failed,
+    missingRecipients,
+    skippedAlreadySent,
+    forced: Boolean(options.force),
     date,
   };
 }
