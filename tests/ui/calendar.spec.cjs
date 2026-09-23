@@ -251,7 +251,7 @@ test('remote saved home layout is applied before the shell becomes visible',asyn
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(order.slice(0,4)).toEqual(['rustam','diana','lulu','nearest']);
+  expect(order.slice(0,5)).toEqual(['dashboard','rustam','diana','lulu','nearest']);
   expect(order).toContain('smart-home');
   await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
 });
@@ -267,7 +267,7 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.9.5');
+  await expect(page.locator('#appVersion')).toHaveText('v1.9.6');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-3)).toEqual(['smart-home','car','activity']);
@@ -467,4 +467,21 @@ test('products bought button stays interactive and completes checked products',a
   await expect.poll(()=>state.buyCalls).toBe(1);
   await expect(page.locator('#productsHistory')).toContainText('Молоко');
   await expect(page.locator('#productsGroups')).not.toContainText('Молоко');
+});
+
+
+test('nearest card stays on Home only',async({page})=>{
+  await mockRudi(page,{partnerMood:'ok'});
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#homeNearestBlock')).toBeVisible();
+
+  await page.locator('[data-app-tab="feed"]').click();
+  await expect(page.locator('#homeNearestBlock')).toBeHidden();
+
+  await page.locator('[data-app-tab="products"]').click();
+  await expect(page.locator('#homeNearestBlock')).toBeHidden();
+
+  await page.locator('[data-app-tab="home"]').click();
+  await expect(page.locator('#homeNearestBlock')).toBeVisible();
 });
