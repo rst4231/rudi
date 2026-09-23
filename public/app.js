@@ -69,7 +69,7 @@
         const top=currentActor==='Диана'
           ?['diana','rustam','lulu','nearest']
           :['rustam','diana','lulu','nearest'];
-        const next=[...top,...source.filter(id=>!top.includes(id))];
+        const next=['dashboard',...top,...source.filter(id=>id!=='dashboard'&&!top.includes(id))];
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
