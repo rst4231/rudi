@@ -87,8 +87,8 @@ test('Rustam expandable card has a sourced non-repeating male psychology daily f
   assert.match(app,/id='malePsychologyFact'/);
   assert.match(app,/Научный факт дня/);
   assert.match(app,/function renderMalePsychologyFact\(fact\)/);
-  assert.match(app,/rudiAction=male-psychology-fact/);
-  assert.match(app,/renderMalePsychologyFact\(payload\.malePsychologyFact\)/);
+  assert.doesNotMatch(app,/rudiAction=male-psychology-fact/);
+  assert.match(app,/renderMalePsychologyFact\(malePsychologyFactFromConfig\(config\)\)/);
   assert.match(css,/\.male-psychology-fact\{/);
   assert.match(css,/\.male-psychology-fact-disclaimer\{/);
 });
