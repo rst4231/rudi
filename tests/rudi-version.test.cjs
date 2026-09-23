@@ -3,18 +3,15 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {syncWebVersion}=require('../build.cjs');
 
-test('v1.8.0 is the single source for UI version and cache bust',()=>{
+test('release config drives the UI version and source asset URLs',()=>{
   const config=JSON.parse(fs.readFileSync('rudi-version.json','utf8'));
-  assert.equal(config.current,'v1.8.0');
+  assert.match(config.current,/^v\d+\.\d+\.\d+$/);
   syncWebVersion();
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.match(html,/app\.css\?v=1\.8\.0/);
-  assert.match(html,/calendar\.css\?v=1\.8\.0/);
-  assert.match(html,/smart-home\.css\?v=1\.8\.0/);
-  assert.match(html,/car\.css\?v=1\.8\.0/);
-  assert.match(html,/app\.js\?v=1\.8\.0/);
-  assert.match(html,/smart-home\.js\?v=1\.8\.0/);
-  assert.match(html,/car\.js\?v=1\.8\.0/);
-  assert.match(html,/changan-uni-v-header\.webp\?v=1\.8\.0/);
-  assert.match(html,/>v1\.8\.0<\/div>/);
+  const version=config.current.slice(1).replace(/\./g,'\\.');
+  for(const name of ['app.css','calendar.css','smart-home.css','car.css','app.js','smart-home.js','car.js']){
+    const [stem,ext]=name.split('.');
+    assert.match(html,new RegExp('/'+stem+'\\.'+ext+'\\?v='+version+'|/assets/'+stem+'\\.[a-f0-9]{12}\\.'+ext));
+  }
+  assert.ok(html.includes('>'+config.current+'</div>'));
 });

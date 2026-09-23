@@ -11,12 +11,12 @@ test('/api/admin endpoint is removed and Git deploys stay disabled', () => {
 
 test('frontend shell is split and Telegram SDK no longer blocks the head', () => {
   const html = fs.readFileSync('public/index.html','utf8');
-  assert.match(html, /href="\/app\.css(?:\?v=[^"]+)?"/);
-  assert.match(html, /src="\/app\.js(?:\?v=[^"]+)?"/);
+  assert.match(html, /href="\/(?:app\.css(?:\?v=[^"]+)?|assets\/app\.[a-f0-9]{12}\.css)"/);
+  assert.match(html, /src="\/(?:app\.js(?:\?v=[^"]+)?|assets\/app\.[a-f0-9]{12}\.js)"/);
   assert.doesNotMatch(html, /<style>[\s\S]{1000}/);
   const sdk = html.indexOf('telegram-web-app.js?63');
   const mainEnd = html.indexOf('</main>');
-  assert.ok(sdk > mainEnd);
+  assert.ok(sdk > mainEnd || /<script defer src="https:\/\/telegram\.org\/js\/telegram-web-app\.js\?63"><\/script>/.test(html));
 });
 
 test('product polling is reduced to the visible products tab', () => {

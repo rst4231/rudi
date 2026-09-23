@@ -1,6 +1,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
+const { createHash } = require('node:crypto');
+
+const WEB_ASSETS = ['app.css', 'calendar.css', 'smart-home.css', 'car.css', 'app.js', 'smart-home.js', 'car.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -85,6 +88,12 @@ function syncWebVersion() {
   if (!label || !assetVersion) throw new Error('Invalid RUDI version');
 
   let html = fs.readFileSync(webIndexPath, 'utf8');
+  for (const name of WEB_ASSETS) {
+    const ext = path.extname(name);
+    const stem = path.basename(name, ext);
+    const pattern = new RegExp('/assets/' + stem + '\\.[a-f0-9]{12}\\' + ext, 'g');
+    html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
+  }
   html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
   html = html.replace(/\/calendar\.css\?v=[^"]+/g, '/calendar.css?v=' + assetVersion);
   html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
@@ -99,6 +108,23 @@ function syncWebVersion() {
   );
   fs.writeFileSync(webIndexPath, html);
   return label;
+}
+
+function buildWebAssets() {
+  const publicDir = path.dirname(webIndexPath);
+  const assetDir = path.join(publicDir, 'assets');
+  fs.mkdirSync(assetDir, { recursive: true });
+  let html = fs.readFileSync(webIndexPath, 'utf8');
+  for (const name of WEB_ASSETS) {
+    const content = fs.readFileSync(path.join(publicDir, name));
+    const hash = createHash('sha256').update(content).digest('hex').slice(0, 12);
+    const ext = path.extname(name);
+    const fileName = path.basename(name, ext) + '.' + hash + ext;
+    fs.writeFileSync(path.join(assetDir, fileName), content);
+    const pattern = new RegExp('/' + name.replace('.', '\\.') + '\\?v=[^"\\s]+', 'g');
+    html = html.replace(pattern, '/assets/' + fileName);
+  }
+  fs.writeFileSync(webIndexPath, html);
 }
 
 function buildRuntime() {
@@ -124,7 +150,8 @@ function buildRuntime() {
 
 if (require.main === module) {
   const result = buildRuntime();
+  buildWebAssets();
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, syncWebVersion, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
+module.exports = { buildRuntime, syncWebVersion, buildWebAssets, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };

@@ -2580,12 +2580,27 @@
       }
 
       async function loadConfig(){
+        const key='rudi-config-cache-v1';
+        const merge=value=>({...fallback,...value,compliments:{...fallback.compliments,...value.compliments},weather:{...fallback.weather,...value.weather},cycle:{...fallback.cycle,...value.cycle}});
+        let saved=null;
         try{
-          const response=await fetch(CONFIG_URL+'?t='+Date.now(),{cache:'no-store'});
-          if(!response.ok) throw new Error('config');
-          const remote=await response.json();
-          return {...fallback,...remote,compliments:{...fallback.compliments,...remote.compliments},weather:{...fallback.weather,...remote.weather},cycle:{...fallback.cycle,...remote.cycle}};
-        }catch(_){return fallback}
+          const cached=JSON.parse(localStorage.getItem(key)||'null');
+          if(cached?.value&&typeof cached.value==='object'&&!Array.isArray(cached.value)) saved=cached;
+        }catch(_){}
+        if(saved&&Date.now()-Number(saved.savedAt||0)<5*60*1000) return merge(saved.value);
+
+        const refresh=(async()=>{
+          try{
+            const response=await fetchWithTimeout(CONFIG_URL+'?t='+Date.now(),{cache:'no-store'},4000);
+            if(!response.ok) throw new Error('config');
+            const remote=await response.json();
+            if(!remote||typeof remote!=='object'||Array.isArray(remote)) throw new Error('config-invalid');
+            try{localStorage.setItem(key,JSON.stringify({savedAt:Date.now(),value:remote}))}catch(_){}
+            return merge(remote);
+          }catch(_){return saved?merge(saved.value):fallback}
+        })();
+        // Public editorial settings may revalidate without holding up the app.
+        return saved?merge(saved.value):withTimeout(refresh,1200,fallback);
       }
 
       function parseCycleDate(value){
@@ -4031,7 +4046,7 @@
           renderWorkCalendar(payload);
           if(requested==='month') setTimeout(()=>loadActivityJournal({silent:true}),180);
           if(requested==='next-month') refreshPartnerWorkStatus();
-          if(requested==='month'&&!calendarViewCache['next-month']){
+          if(currentAppTab==='schedule'&&requested==='month'&&!calendarViewCache['next-month']){
             setTimeout(()=>prefetchCalendarView('next-month'),80);
           }
         }catch(error){
@@ -6276,6 +6291,7 @@
       }
 
       async function init(){
+        const configPromise=loadConfig();
         const allowed=await authenticateApp();
         if(!allowed) return;
         applyActorVisibility();
@@ -6286,7 +6302,7 @@
         loadActivityJournal();
         setupAppTabs();
         ensureAppSurface({restoreTab:true});
-        const config=await loadConfig();
+        const config=await configPromise;
         currentConfig=config;
         setupProducts();
         const {utc}=todayState();
@@ -6332,7 +6348,7 @@
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
         loadTickTickNext();
-        loadWorkCalendar().then(()=>prefetchCalendarView('next-month'));
+        loadWorkCalendar();
         loadSharedAlbum();
         loadFeed({silent:true});
         setTimeout(()=>refreshStateBackup(),2500);
@@ -6402,9 +6418,9 @@
         return resumeRefreshPromise;
       }
 
-      window.addEventListener('pageshow',()=>{
+      window.addEventListener('pageshow',event=>{
         ensureAppSurface();
-        refreshAfterResume();
+        if(event.persisted) refreshAfterResume();
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();

@@ -38,8 +38,8 @@ test('Telegram receives cache-busted current release assets',()=>{
   const label=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current;
   const asset=label.replace(/^v/,'').replace(/\./g,'\\.');
   const escapedLabel=label.replace(/\./g,'\\.');
-  assert.match(html,new RegExp('/app\\.css\\?v='+asset));
-  assert.match(html,new RegExp('/app\\.js\\?v='+asset));
+  assert.match(html,new RegExp('/app\\.css\\?v='+asset+'|/assets/app\\.[a-f0-9]{12}\\.css'));
+  assert.match(html,new RegExp('/app\\.js\\?v='+asset+'|/assets/app\\.[a-f0-9]{12}\\.js'));
   assert.match(html,new RegExp('>'+escapedLabel+'<\\/div>'));
 });
 
