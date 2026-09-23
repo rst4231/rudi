@@ -7663,6 +7663,8 @@
 
 
       const DATE_IDEAS_CACHE_PREFIX='rudi:date-ideas:v1:';
+      let currentDateGenerationQuota=null;
+      let dateQuotaRefreshTimer=0;
 
       function dateIdeasCacheKey(){
         return DATE_IDEAS_CACHE_PREFIX+(currentActor==='Диана'?'diana':'rustam');
@@ -7737,28 +7739,90 @@
         return true;
       }
 
-      function dateIdeaErrorText(error){
-        const code=String(error?.message||'');
-        if(code==='date-ai-quota'||Number(error?.status)===429) return 'Лимит ИИ на сегодня закончился. Последние идеи сохранены.';
-        if(code==='groq-api-key-missing') return 'ИИ временно недоступен. Последние идеи сохранены.';
-        if(code==='date-ai-timeout') return 'ИИ отвечает слишком долго. Попробуйте ещё раз — прошлые идеи не пропали.';
-        return 'Не удалось придумать новые варианты. Последние идеи сохранены.';
+      function formatDateQuotaTime(value){
+        const parsed=new Date(String(value||''));
+        if(Number.isNaN(parsed.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU',{
+          day:'numeric',
+          month:'short',
+          hour:'2-digit',
+          minute:'2-digit',
+          timeZone:TZ
+        }).format(parsed).replace(',', ' в');
       }
 
-      async function dateIdeasRequest(period,exclude=[]){
+      function dateQuotaText(quota){
+        const available=Math.max(0,Number(quota?.available??5));
+        const max=Math.max(1,Number(quota?.max||5));
+        const nextAt=formatDateQuotaTime(quota?.nextRefillAt||quota?.blockedUntil);
+        if(available<=0){
+          return nextAt
+            ? 'Все '+max+' генераций использованы · ещё одна станет доступна '+nextAt
+            : 'Все '+max+' генераций использованы';
+        }
+        const base='Осталось '+available+' из '+max+' генераций';
+        return nextAt&&available<max ? base+' · ещё 1 вернётся '+nextAt : base;
+      }
+
+      function syncDateChoiceAvailability(){
+        const blocked=Number(currentDateGenerationQuota?.available??1)<=0;
+        document.querySelectorAll('#dateTimeChoices [data-date-period]').forEach(button=>{
+          button.disabled=blocked;
+        });
+      }
+
+      function scheduleDateQuotaRefresh(){
+        clearTimeout(dateQuotaRefreshTimer);
+        const nextAt=new Date(String(currentDateGenerationQuota?.nextRefillAt||'')).getTime();
+        const delay=nextAt-Date.now();
+        if(!Number.isFinite(nextAt)||delay<=0) return;
+        dateQuotaRefreshTimer=setTimeout(()=>loadDateGenerationStatus(),Math.min(delay+1200,2147483000));
+      }
+
+      async function dateIdeasRequest({operation='generate',period='',exclude=[]}={}){
         const response=await fetch('/api/partner-message?rudiAction=dates',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',period,exclude}),
+          body:JSON.stringify({initData:tg?.initData||'',operation,period,exclude}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){
           const error=new Error(data.error||'date-request-failed');
           error.status=response.status;
+          error.payload=data;
           throw error;
         }
         return data;
+      }
+
+      async function loadDateGenerationStatus(){
+        const status=document.getElementById('dateIdeaStatus');
+        try{
+          const data=await dateIdeasRequest({operation:'status'});
+          currentDateGenerationQuota=data.quota||null;
+          syncDateChoiceAvailability();
+          scheduleDateQuotaRefresh();
+          if(status) status.textContent=dateQuotaText(currentDateGenerationQuota);
+          return currentDateGenerationQuota;
+        }catch(_){
+          return currentDateGenerationQuota;
+        }
+      }
+
+      function dateIdeaErrorText(error){
+        const code=String(error?.message||'');
+        const quota=error?.payload?.quota||error?.quota||currentDateGenerationQuota;
+        if(code==='date-generation-limit'){
+          currentDateGenerationQuota=quota||currentDateGenerationQuota;
+          syncDateChoiceAvailability();
+          scheduleDateQuotaRefresh();
+          return dateQuotaText(currentDateGenerationQuota)+'. Последние идеи сохранены.';
+        }
+        if(code==='date-ai-quota'||Number(error?.status)===429) return 'Лимит AI-провайдера временно исчерпан. Попробуйте позже — последние идеи сохранены.';
+        if(code==='groq-api-key-missing') return 'ИИ временно недоступен. Последние идеи сохранены.';
+        if(code==='date-ai-timeout') return 'ИИ отвечает слишком долго. Попробуйте ещё раз — прошлые идеи не пропали.';
+        return 'Не удалось придумать новые варианты. Последние идеи сохранены.';
       }
 
       function setupQuickAccess(){
@@ -7774,16 +7838,18 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
-        if(readDateIdeasCache()){
-          renderDateIdeas(readDateIdeasCache());
-          if(status) status.textContent='Последние идеи сохранены.';
-        }
+        if(readDateIdeasCache()) renderDateIdeas(readDateIdeasCache());
+        loadDateGenerationStatus();
 
         generate.addEventListener('click',()=>{
           const open=choices.hidden;
           choices.hidden=!open;
           generate.setAttribute('aria-expanded',open?'true':'false');
-          if(open&&status&&!readDateIdeasCache()) status.textContent='Когда удобнее устроить свидание?';
+          if(open&&status){
+            status.textContent=currentDateGenerationQuota
+              ? dateQuotaText(currentDateGenerationQuota)
+              : 'Когда удобнее устроить свидание?';
+          }
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
@@ -7796,18 +7862,20 @@
             choices.querySelectorAll('button').forEach(item=>item.disabled=true);
             if(status) status.textContent='Придумываю 3 необычных варианта на '+datePeriodLabel(period).toLowerCase()+'…';
             try{
-              const data=await dateIdeasRequest(period,exclude);
+              const data=await dateIdeasRequest({period,exclude});
               const next={period,ideas:data.ideas,generatedAt:new Date().toISOString()};
               if(!renderDateIdeas(next)) throw new Error('date-ai-no-ideas');
               writeDateIdeasCache(next);
-              if(status) status.textContent='Готово. Эти идеи сохранены до следующей генерации.';
+              currentDateGenerationQuota=data.quota||currentDateGenerationQuota;
+              scheduleDateQuotaRefresh();
+              if(status) status.textContent='Готово · '+dateQuotaText(currentDateGenerationQuota);
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(error){
               if(previous) renderDateIdeas(previous);
               if(status) status.textContent=dateIdeaErrorText(error);
               try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
             }finally{
-              choices.querySelectorAll('button').forEach(item=>item.disabled=false);
+              syncDateChoiceAvailability();
             }
           });
         });

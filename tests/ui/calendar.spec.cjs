@@ -34,6 +34,7 @@ async function mockRudi(page,options={}){
     bootstrapStarted:false,
     bootstrapResolved:false,
     dateIdeaCalls:0,
+    dateQuotaUsed:0,
     lastDatePeriod:''
   };
 
@@ -197,11 +198,23 @@ async function mockRudi(page,options={}){
       partnerMood:{mood:options.partnerMood||'ok'}
     });
     if(path==='/api/partner-message'&&url.searchParams.get('rudiAction')==='dates'){
+      const quota=()=>({
+        max:5,
+        available:5-state.dateQuotaUsed,
+        used:state.dateQuotaUsed,
+        nextRefillAt:state.dateQuotaUsed?'2026-09-22T09:00:00.000Z':'',
+        blockedUntil:state.dateQuotaUsed>=5?'2026-09-22T09:00:00.000Z':''
+      });
+      if(String(body.operation||'generate')==='status'){
+        return ok({ok:true,operation:'status',quota:quota()});
+      }
       state.dateIdeaCalls++;
+      state.dateQuotaUsed=Math.min(5,state.dateQuotaUsed+1);
       state.lastDatePeriod=String(body.period||'');
       return ok({
         ok:true,
         period:state.lastDatePeriod,
+        quota:quota(),
         ideas:[
           {id:'date-1',title:'Маршрут вслепую',description:'Вы по очереди выбираете следующую точку прогулки по монетке и выполняете маленькие задания.',duration:'1,5–2 часа'},
           {id:'date-2',title:'Фотоохота вдвоём',description:'Составьте список необычных кадров и отправляйтесь искать их по городу, не показывая друг другу результат до финала.',duration:'2 часа'},
@@ -652,17 +665,19 @@ test('quick access opens wishlist and generates cached date ideas only after per
   await page.locator('#dateIdeaButton').click();
   await expect(page.locator('#dateTimeChoices')).toBeVisible();
   expect(state.dateIdeaCalls).toBe(0);
+  await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 5 из 5');
 
   await page.locator('[data-date-period="evening"]').click();
   await expect.poll(()=>state.dateIdeaCalls).toBe(1);
   expect(state.lastDatePeriod).toBe('evening');
   await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
   await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
-  await expect(page.locator('#dateIdeaStatus')).toContainText('сохранены');
+  await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 4 из 5');
 
   await page.reload();
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
   await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
+  await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 4 из 5');
   expect(state.dateIdeaCalls).toBe(1);
 });

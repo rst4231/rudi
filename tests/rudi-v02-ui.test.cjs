@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const html=['public/index.html','public/app.css','public/app.js'].map(file=>fs.readFileSync(file,'utf8')).join('\n');
 
 test('home dashboard splits people and Lulu into movable tiles',()=>{
-  assert.match(html,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','markets'\]/);
+  assert.match(html,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','quick-access','smart-home','car','markets'\]/);
   assert.match(html,/profile\.dataset\.homeTile='dashboard'/);
   assert.match(html,/profile\.replaceChildren\(top,messageNew\)/);
   assert.match(html,/makePersonTile\(selfActor,selfIdentity\)/);
