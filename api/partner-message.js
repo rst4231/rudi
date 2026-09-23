@@ -47,6 +47,7 @@ const {
   appendActivity,
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
+const { readLuluState, markLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -309,6 +310,33 @@ async function sendActivityNotification(text, _tab, options = {}) {
     console.warn('RUDI_ACTIVITY_NOTIFICATION_WARN', String(error?.message || error));
     return [];
   }
+}
+
+function luluWalkStatusLabel(value, now = Date.now()) {
+  const date = new Date(String(value || ''));
+  if (Number.isNaN(date.getTime())) return 'время не указано';
+  const time = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+  const key = moscowDateKey(date.getTime());
+  const today = moscowDateKey(now);
+  const yesterday = moscowDateKey(Number(now) - 24 * 60 * 60 * 1000);
+  if (key === today) return 'сегодня в ' + time;
+  if (key === yesterday) return 'вчера в ' + time;
+  const day = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    day: 'numeric',
+    month: 'short',
+  }).format(date).replace('.', '');
+  return day + ' в ' + time;
+}
+
+function luluWalkNotificationText(actor, walkedAt, now = Date.now()) {
+  const action = actor === 'Диана' ? 'погуляла' : 'погулял';
+  return `🐶 <b>${actor} ${action} с Lulu</b>\nПоследняя прогулка: <b>${escapeTelegramHtml(luluWalkStatusLabel(walkedAt, now))}</b>`;
 }
 
 function boughtNotificationText(actor) {
@@ -587,6 +615,7 @@ function mergeBackupSnapshots(base, overlay) {
     albumConfig: overlay.albumConfig || base.albumConfig || null,
     cycle: newerVersion(base.cycle, overlay.cycle),
     activityJournal: newerVersion(base.activityJournal, overlay.activityJournal),
+    luluState: newerVersion(base.luluState, overlay.luluState),
     carState: newerTime(base.carState, overlay.carState),
     dailyMood: newerVersion(base.dailyMood, overlay.dailyMood),
     reactions: newerVersion(base.reactions, overlay.reactions),
@@ -1227,6 +1256,67 @@ async function handleRudiAction(req, res, action, options = {}) {
     } catch (error) {
       const code = String(error?.message || error);
       return res.status(code === 'cycle-bootstrap-denied' ? 403 : 400).json({ ok: false, error: code });
+    }
+  }
+
+  if (action === 'lulu') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const operation = String(body.operation || 'get').trim();
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+
+      if (previousSnapshot?.luluState?.initialized) {
+        await restoreLuluState(previousSnapshot.luluState, {
+          ...options,
+          cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+        }).catch(() => null);
+      }
+
+      if (operation === 'get') {
+        const lulu = await readLuluState(options);
+        return res.status(200).json({ ok: true, actor, lulu });
+      }
+
+      if (operation === 'walk') {
+        const lulu = await markLuluWalk(actor, options);
+        const walkedAt = String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
+        const actionWord = actor === 'Диана' ? 'погуляла' : 'погулял';
+        await recordActivity({
+          type: 'lulu-walk',
+          actor,
+          text: actor + ' ' + actionWord + ' с Lulu',
+          icon: '🐶',
+          targetTab: 'home',
+          dedupeKey: 'lulu-walk:' + walkedAt,
+          createdAt: walkedAt,
+        }, options);
+
+        const notificationTask = sendActivityNotification(
+          luluWalkNotificationText(actor, walkedAt, options.now || Date.now()),
+          'home',
+          options
+        );
+        try { waitUntil(notificationTask); } catch (_) { notificationTask.catch(() => {}); }
+
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        return res.status(200).json({
+          ok: true,
+          actor,
+          lulu,
+          backupToken,
+          notification: { sent: false, pending: true },
+        });
+      }
+
+      return res.status(400).json({ ok: false, error: 'lulu-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus : code.startsWith('lulu-') ? 400 : 500;
+      if (status === 500) console.error('RUDI_LULU_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
     }
   }
 
@@ -2133,6 +2223,8 @@ module.exports.moodNotificationText = moodNotificationText;
 module.exports.sendMoodNotificationToPartner = sendMoodNotificationToPartner;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
 module.exports.checklistCompletedNotificationText = checklistCompletedNotificationText;
+module.exports.luluWalkStatusLabel = luluWalkStatusLabel;
+module.exports.luluWalkNotificationText = luluWalkNotificationText;
 module.exports.feedPreviewBaseUrl = feedPreviewBaseUrl;
 module.exports.refreshFeedFromPreviewIfNeeded = refreshFeedFromPreviewIfNeeded;
 

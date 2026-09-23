@@ -11,6 +11,7 @@ const { readCarState, restoreCarState } = require('./car-store.cjs');
 const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-store.cjs');
 const { readReactionState, restoreReactionState } = require('./reactions-store.cjs');
 const { readActivityJournal, restoreActivityJournalState } = require('./activity-journal-store.cjs');
+const { readLuluState, restoreLuluState } = require('./lulu-store.cjs');
 const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
 const { readPinRecord, restorePinRecord } = require('./rudi-session.cjs');
 const { readPasskeys, restorePasskeys } = require('./rudi-passkeys.cjs');
@@ -167,7 +168,7 @@ async function createStateSnapshot(options = {}) {
     : null;
   const [
     partnerMessage, wishlist, products, ticktickChecklistAudit,
-    ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal,
+    ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal, luluState,
     rustamPin, dianaPin, rustamPasskeys, dianaPasskeys,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
@@ -183,6 +184,7 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readReactionState(options), { initialized:false, version:0, entries:{} }),
     safeRead(() => readRecipients(options)),
     safeRead(() => readActivityJournal(options), { initialized: false, version: 0, items: [], markers: {} }),
+    safeRead(() => readLuluState(options), { initialized: false, version: 0, lastWalk: null, updatedAt: '' }),
     safeRead(() => readPinRecord('Рустам', options)),
     safeRead(() => readPinRecord('Диана', options)),
     safeRead(() => readPasskeys('Рустам', options), []),
@@ -213,6 +215,7 @@ async function createStateSnapshot(options = {}) {
     dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
     reactions: newerVersionState(reactions, previous?.reactions),
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
+    luluState: newerVersionState(luluState, previous?.luluState),
     uiPreferences: normalizeUiPreferences(previous?.uiPreferences),
     recipients: mergedRecipients,
     browserAuth: {
@@ -364,6 +367,21 @@ async function restoreStateBackup(token, options = {}) {
     try {
       await restoreActivityJournalState(snapshot.activityJournal, options);
       restored.push('activity-journal');
+    } catch {}
+  }
+
+  const currentLulu = await safeRead(
+    () => readLuluState(options),
+    { initialized: false, version: 0, lastWalk: null, updatedAt: '' }
+  );
+  const savedLuluVersion = Number(snapshot.luluState?.version || 0);
+  if (
+    snapshot.luluState?.initialized &&
+    (!currentLulu?.initialized || savedLuluVersion > Number(currentLulu?.version || 0))
+  ) {
+    try {
+      await restoreLuluState(snapshot.luluState, options);
+      restored.push('lulu-state');
     } catch {}
   }
 
