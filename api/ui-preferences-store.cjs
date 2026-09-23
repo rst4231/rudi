@@ -39,6 +39,7 @@ function normalizeUiPreferencesState(value) {
     }
   }
 
+  const activitySeenId = String(source.activitySeenId || '').trim().slice(0, 80);
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const parsed = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   return {
@@ -46,6 +47,7 @@ function normalizeUiPreferencesState(value) {
     version: Math.max(0, Number(source.version || 0)),
     homeOrder,
     blockStates,
+    activitySeenId,
     updatedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
   };
 }
@@ -74,13 +76,17 @@ async function persistUiPreferences(actor, value, options = {}) {
 async function saveUiPreferences(actor, value, options = {}) {
   return enqueueMutation(async () => {
     const current = await readUiPreferences(actor, options);
-    const incoming = normalizeUiPreferencesState(value);
+    const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    const incoming = normalizeUiPreferencesState(source);
     const updatedAt = new Date(options.now || Date.now()).toISOString();
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
+      activitySeenId: Object.prototype.hasOwnProperty.call(source,'activitySeenId')
+        ? incoming.activitySeenId
+        : current.activitySeenId,
       updatedAt,
     }, options);
   });
@@ -97,6 +103,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       version: 1,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
+      activitySeenId: incoming.activitySeenId,
       updatedAt: incoming.updatedAt || new Date(options.now || Date.now()).toISOString(),
     }, options);
   });
