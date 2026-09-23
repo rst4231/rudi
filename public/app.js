@@ -5360,11 +5360,12 @@
         const photoIndex=currentSharedAlbumPhotoIndex;
         if(!viewer||!image||!caption||!prev||!next||!original||!previewUrl) return false;
 
+        image.onload=null;
         image.onerror=null;
         image.dataset.photoIndex=String(photoIndex);
         image.src=previewUrl;
         image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
-        restartRudiMotion(image,'rudi-photo-swap',280);
+        restartRudiMotion(image,'rudi-photo-swap',360);
 
         if(fullUrl&&fullUrl!==previewUrl){
           const fullImage=new Image();
@@ -5376,7 +5377,6 @@
               if(currentSharedAlbumPhotoIndex===photoIndex) image.src=previewUrl;
             };
             image.src=fullUrl;
-            restartRudiMotion(image,'rudi-photo-swap',220);
           };
           fullImage.src=fullUrl;
         }
@@ -5389,15 +5389,18 @@
         next.disabled=currentSharedAlbumPhotoIndex>=sharedAlbumPhotos.length-1;
         original.disabled=!sharedAlbumOriginalUrl(photo);
 
-        [photoIndex-1,photoIndex+1].forEach(index=>{
-          const adjacent=sharedAlbumPhotos[index];
-          const adjacentPreview=String(adjacent?.url||adjacent?.fullUrl||'').trim();
-          if(adjacentPreview){
+        const preloadAdjacent=()=>{
+          [photoIndex-1,photoIndex+1].forEach(index=>{
+            const adjacent=sharedAlbumPhotos[index];
+            const adjacentUrl=String(adjacent?.url||adjacent?.fullUrl||'').trim();
+            if(!adjacentUrl) return;
             const preload=new Image();
             preload.decoding='async';
-            preload.src=adjacentPreview;
-          }
-        });
+            preload.src=adjacentUrl;
+          });
+        };
+        if(typeof requestIdleCallback==='function') requestIdleCallback(preloadAdjacent,{timeout:900});
+        else setTimeout(preloadAdjacent,120);
         return true;
       }
 
@@ -5570,19 +5573,17 @@
         button.type='button';
         button.setAttribute('aria-label','Открыть фото '+(index+1)+' крупно');
         const img=document.createElement('img');
-        const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
-        const fallbackUrl=String(photo?.fullUrl||'').trim();
-        img.src=previewUrl;
+        img.src=String(photo.url||'');
         img.alt=photo.caption?String(photo.caption):'Фото из общего альбома';
-        img.loading='lazy';
+        img.loading=index<12?'eager':'lazy';
         img.decoding='async';
-        img.fetchPriority='low';
         img.draggable=false;
+        if(index<6) img.fetchPriority='high';
         img.addEventListener('error',()=>{
-          if(!img.dataset.fullFallbackTried&&fallbackUrl&&fallbackUrl!==previewUrl){
-            img.dataset.fullFallbackTried='1';
-            img.src=fallbackUrl;
-          }
+          const fallback=String(photo.fullUrl||'').trim();
+          if(!fallback||img.dataset.fallbackTried==='1') return;
+          img.dataset.fallbackTried='1';
+          img.src=fallback;
         });
         button.appendChild(img);
         button.addEventListener('click',()=>openSharedAlbumPhoto(photo,index));
@@ -5611,7 +5612,7 @@
           return;
         }
         const index=photos.indexOf(photo);
-        image.src=String(photo.fullUrl||photo.url||'');
+        image.src=String(photo.url||photo.fullUrl||'');
         image.alt=photo.caption?String(photo.caption):'Воспоминание из общего альбома';
         age.textContent=sharedAlbumAgeLabel(photo);
         button.onclick=()=>openSharedAlbumPhoto(photo,index);
