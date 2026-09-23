@@ -294,7 +294,8 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.12.6');
+  const releaseVersion=await page.locator('meta[name="rudi-version"]').getAttribute('content');
+  await expect(page.locator('#settingsAppVersion')).toHaveText(releaseVersion||'');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-4)).toEqual(['new','smart-home','car','markets']);
@@ -326,7 +327,9 @@ test('market ticker renders with readable themes, no overflow and persistent tog
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
 
   const ticker=page.locator('#marketTickerTile');
-  const toggle=page.getByRole('switch',{name:'Показывать бегущую строку курсов'});
+  await page.locator('#homeSettingsButton').click();
+  const toggle=page.getByRole('switch',{name:'Показывать курсы'});
+  await expect(toggle).toBeVisible();
   await expect(ticker).toBeVisible();
   await expect(ticker).toContainText('USD/RUB');
   await expect(ticker).toContainText('BTC');
@@ -351,7 +354,8 @@ test('market ticker renders with readable themes, no overflow and persistent tog
   await expect(ticker).toBeHidden();
   await page.reload();
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await expect(page.getByRole('switch',{name:'Показывать бегущую строку курсов'})).toHaveAttribute('aria-checked','false');
+  await page.locator('#homeSettingsButton').click();
+  await expect(page.getByRole('switch',{name:'Показывать курсы'})).toHaveAttribute('aria-checked','false');
   await expect(page.locator('#marketTickerTile')).toBeHidden();
 });
 
