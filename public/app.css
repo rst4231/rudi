@@ -5559,3 +5559,210 @@ html[data-theme="dark"] .partner-message .partner-edit{
   background:rgba(13,16,23,.72)!important;
 }
 /* end RUDI v1.9.0 dark message readability */
+
+
+/* RUDI v1.9.4: separate movable person and nearest cards */
+.home-dashboard-summary{
+  display:grid!important;
+  gap:8px!important;
+  padding:15px 16px!important;
+  border-radius:22px!important;
+}
+.home-dashboard-summary .home-dashboard-head{
+  min-height:44px;
+}
+.home-dashboard-summary .home-message-new{
+  margin-top:0!important;
+}
+
+.profile-person-card{
+  position:relative;
+  isolation:isolate;
+  display:grid;
+  gap:10px;
+  padding:14px 15px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:22px;
+  color:#f7f8fc;
+  box-shadow:0 16px 34px rgba(8,10,16,.18),inset 0 1px 0 rgba(255,255,255,.065);
+}
+.profile-rustam-card{
+  background:
+    radial-gradient(circle at 92% 0%,rgba(81,112,190,.16),transparent 34%),
+    linear-gradient(145deg,#202630 0%,#151a22 56%,#0e1117 100%);
+}
+.profile-diana-card{
+  background:
+    radial-gradient(circle at 92% 0%,rgba(183,90,146,.15),transparent 34%),
+    linear-gradient(145deg,#27232b 0%,#1b1820 56%,#111015 100%);
+}
+.profile-person-head{
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+}
+.profile-person-card .identity{
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:46px minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:10px!important;
+  text-align:left!important;
+}
+.profile-person-card .avatar{
+  width:46px!important;
+  height:46px!important;
+  border-radius:14px!important;
+  border-width:2px!important;
+  box-shadow:0 8px 18px rgba(0,0,0,.20)!important;
+}
+.profile-person-card .person{
+  min-width:0;
+  display:grid!important;
+  gap:3px!important;
+  justify-items:start!important;
+  text-align:left!important;
+}
+.profile-person-card .name,
+.profile-person-card .partner-header-name{
+  color:#f8f9fd!important;
+  font-size:18px!important;
+  line-height:1.08!important;
+  font-weight:840!important;
+  letter-spacing:-.028em!important;
+  text-align:left!important;
+}
+.profile-person-card .profile-work-status{
+  color:rgba(239,242,249,.68);
+  font-size:10px;
+  line-height:1.2;
+  font-weight:740;
+}
+.profile-person-card .profile-work-status.is-working{color:#ffb171}
+.profile-person-card .profile-work-status.is-off{color:#60d894}
+.profile-person-card .mood-person{
+  width:auto!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:4px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+}
+.profile-person-card .mood-self-buttons{
+  display:flex!important;
+  align-items:center!important;
+  gap:3px!important;
+  margin:0!important;
+}
+.profile-person-card .mood-button{
+  width:29px!important;
+  height:29px!important;
+  border-radius:10px!important;
+}
+.profile-person-card .mood-emoji{font-size:18px!important}
+.profile-person-card .partner-mood-value{
+  width:31px!important;
+  height:31px!important;
+  min-width:31px!important;
+  min-height:31px!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.profile-person-card .partner-mood-icon .mood-emoji{font-size:20px!important}
+.profile-person-card .mood-person-label,
+.profile-person-card .mood-prompt{display:none!important}
+.profile-person-card .block-collapse-button{
+  width:30px;
+  height:30px;
+  flex:none;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:10px;
+  background:rgba(255,255,255,.045);
+  color:#f5f6fa;
+}
+.profile-person-card .profile-person-details{
+  display:grid;
+  gap:8px;
+}
+.profile-person-card .mood-message{margin:0!important}
+.profile-person-card .mood-message:not(.show){display:none!important}
+.profile-diana-card .home-cycle-summary{
+  margin:0!important;
+  padding:11px 12px!important;
+  border:1px solid rgba(238,122,178,.20)!important;
+  border-radius:15px!important;
+  background:
+    linear-gradient(135deg,rgba(165,74,126,.24),rgba(110,55,92,.12)),
+    rgba(255,255,255,.025)!important;
+}
+.profile-diana-card .home-cycle-status{
+  color:#f2bad7!important;
+  font-weight:820!important;
+}
+.profile-diana-card .home-cycle-advice{
+  color:rgba(248,239,245,.78)!important;
+}
+.profile-diana-card .home-cycle-open{
+  color:#f0c3da!important;
+  border-color:rgba(238,122,178,.18)!important;
+  background:rgba(255,255,255,.045)!important;
+}
+.profile-person-card.is-collapsed{
+  gap:0;
+}
+.profile-person-card.is-collapsed .profile-person-head{
+  min-height:48px;
+}
+
+.home-nearest-tile{
+  position:relative;
+  display:grid;
+  gap:9px;
+  padding:14px 15px;
+  border-radius:20px;
+  background:
+    radial-gradient(circle at 94% 0%,rgba(107,122,255,.11),transparent 35%),
+    color-mix(in srgb,var(--surface) 96%,transparent);
+}
+.home-nearest-head{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.home-nearest-title{
+  color:var(--text);
+  font-size:15px;
+  line-height:1.15;
+  font-weight:820;
+  letter-spacing:-.018em;
+}
+.home-nearest-head .block-collapse-button{
+  width:30px;
+  height:30px;
+  flex:none;
+}
+.home-nearest-tile .home-nearest-rows{display:grid;gap:7px}
+.home-nearest-tile.is-collapsed{gap:0}
+
+@media(max-width:430px){
+  .profile-person-card{padding:12px 13px;border-radius:20px}
+  .profile-person-card .identity{grid-template-columns:43px minmax(0,1fr) auto!important;gap:9px!important}
+  .profile-person-card .avatar{width:43px!important;height:43px!important;border-radius:13px!important}
+  .profile-person-card .name,.profile-person-card .partner-header-name{font-size:17px!important}
+  .profile-person-card .mood-button{width:27px!important;height:27px!important}
+  .profile-person-card .mood-emoji{font-size:17px!important}
+  .home-nearest-tile{padding:13px 14px;border-radius:18px}
+}
+/* end RUDI v1.9.4 separate home cards */

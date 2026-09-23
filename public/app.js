@@ -49,7 +49,7 @@
         activity:[],
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','priority','partner','new','smart-home','car','activity'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','nearest','priority','partner','new','smart-home','car','activity'];
       const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
@@ -579,7 +579,12 @@
 
       function normalizedHomeOrder(order){
         const source=Array.isArray(order)?order.map(String):[];
-        const requested=source.flatMap(id=>['profile','profile-common','profile-self','profile-partner'].includes(id)?['dashboard']:[id]);
+        const requested=source.flatMap(id=>{
+          if(['profile','profile-common','profile-self','profile-partner','dashboard'].includes(id)){
+            return ['dashboard','rustam','diana','nearest'];
+          }
+          return [id];
+        });
         if(!requested.includes('car')){
           const smartIndex=requested.indexOf('smart-home');
           if(smartIndex>=0) requested.splice(smartIndex+1,0,'car');
@@ -1416,18 +1421,11 @@
         partnerStatus.className='profile-work-status is-neutral';
         partnerPerson.appendChild(partnerStatus);
 
-        const dianaPerson=currentActor==='Диана'?selfPerson:partnerPerson;
-        const dianaCycleMood=document.createElement('div');
-        dianaCycleMood.id='dianaCycleMood';
-        dianaCycleMood.className='profile-cycle-mood';
-        dianaCycleMood.hidden=true;
-        dianaPerson.appendChild(dianaCycleMood);
-
         selfIdentity.appendChild(selfMood);
         partnerIdentity.replaceChildren(partnerAvatar,partnerPerson,partnerMood);
 
         profile.id='homeDashboard';
-        profile.className='home-dashboard';
+        profile.className='home-dashboard home-dashboard-summary';
         profile.dataset.homeTile='dashboard';
         profile.setAttribute('aria-label','Главная сводка');
         dateHeading.id='homeDashboardDate';
@@ -1440,14 +1438,14 @@
         greeting.className='home-dashboard-greeting';
         top.append(greeting,dateHeading);
 
-        const together=document.createElement('section');
-        together.className='home-dashboard-section home-together';
-        const togetherLabel=document.createElement('div');
-        togetherLabel.className='home-dashboard-label';
-        togetherLabel.textContent='Мы сегодня';
-        const peopleGrid=document.createElement('div');
-        peopleGrid.className='home-together-grid';
-        peopleGrid.append(selfIdentity,partnerIdentity);
+        const messageNew=document.createElement('button');
+        messageNew.id='homeMessageNew';
+        messageNew.className='home-message-new';
+        messageNew.type='button';
+        messageNew.textContent='💌 Новое послание';
+        messageNew.hidden=true;
+        profile.replaceChildren(top,messageNew);
+
         const cycleSummary=document.createElement('div');
         cycleSummary.id='homeCycleSummary';
         cycleSummary.className='home-cycle-summary';
@@ -1464,23 +1462,55 @@
         cycleOpen.type='button';
         cycleOpen.textContent='Показать полностью';
         cycleSummary.append(cycleStatus,cycleAdvice,cycleOpen);
-        const messageNew=document.createElement('button');
-        messageNew.id='homeMessageNew';
-        messageNew.className='home-message-new';
-        messageNew.type='button';
-        messageNew.textContent='💌 Новое послание';
-        messageNew.hidden=true;
-        together.append(togetherLabel,peopleGrid,cycleSummary,messageNew);
-        if(moodPrompt) together.appendChild(moodPrompt);
-        if(moodMessage) together.appendChild(moodMessage);
+
+        const makePersonTile=(actor,identity)=>{
+          const tile=document.createElement('section');
+          const slug=actor==='Диана'?'diana':'rustam';
+          tile.id=actor==='Диана'?'homeDianaTile':'homeRustamTile';
+          tile.className='panel profile-person-card profile-'+slug+'-card';
+          tile.dataset.appTabSection='home';
+          tile.dataset.homeTile=slug;
+          tile.setAttribute('aria-label',actor);
+
+          const head=document.createElement('div');
+          head.className='profile-person-head';
+          head.appendChild(identity);
+          tile.appendChild(head);
+
+          const details=document.createElement('div');
+          details.id=actor==='Диана'?'homeDianaDetails':'homeRustamDetails';
+          details.className='profile-person-details';
+          tile.appendChild(details);
+          return {tile,details};
+        };
+
+        const selfActor=currentActor==='Диана'?'Диана':'Рустам';
+        const partnerActor=selfActor==='Диана'?'Рустам':'Диана';
+        const selfCard=makePersonTile(selfActor,selfIdentity);
+        const partnerCard=makePersonTile(partnerActor,partnerIdentity);
+        const rustamCard=selfActor==='Рустам'?selfCard:partnerCard;
+        const dianaCard=selfActor==='Диана'?selfCard:partnerCard;
+
+        dianaCard.details.appendChild(cycleSummary);
+        if(moodPrompt){
+          moodPrompt.hidden=true;
+          (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodPrompt);
+        }
+        if(moodMessage){
+          (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodMessage);
+        }
 
         const nearest=document.createElement('section');
         nearest.id='homeNearestBlock';
-        nearest.className='home-dashboard-section home-nearest';
+        nearest.className='panel home-nearest-tile';
+        nearest.dataset.appTabSection='home';
+        nearest.dataset.homeTile='nearest';
         nearest.hidden=true;
-        nearest.innerHTML='<div class="home-dashboard-label">Ближайшее</div><div id="homeNearestRows" class="home-nearest-rows"></div>';
+        nearest.innerHTML=
+          '<div class="home-nearest-head"><div class="home-nearest-title">Ближайшее</div></div>'+
+          '<div id="homeNearestRows" class="home-nearest-rows"></div>';
 
-        profile.replaceChildren(top,together,nearest);
+        profile.after(rustamCard.tile,dianaCard.tile,nearest);
 
         const newTile=document.createElement('section');
         newTile.id='homeNewTile';
@@ -1620,6 +1650,21 @@
       }
 
       function setupPersistentCollapsibles(){
+        setupPersistentCollapsible({
+          selector:'#homeRustamTile',key:'profile-rustam',
+          bodySelectors:['#homeRustamDetails'],
+          hostSelector:'.profile-person-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#homeDianaTile',key:'profile-diana',
+          bodySelectors:['#homeDianaDetails'],
+          hostSelector:'.profile-person-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#homeNearestBlock',key:'nearest',
+          bodySelectors:['#homeNearestRows'],
+          hostSelector:'.home-nearest-head'
+        });
         setupPersistentCollapsible({
           selector:'#dianaCycleCard',key:'diana-cycle',
           bodySelectors:['#dianaCycleBody'],
