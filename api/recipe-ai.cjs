@@ -1,6 +1,7 @@
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
-const FALLBACK_MODEL = 'gemini-3.5-flash';
+const FALLBACK_MODEL = 'gemini-3.6-flash';
 const COOK_TIMES = [5, 10, 15, 30, 45];
+const ALLOWED_MODELS = new Set(['gemini-3.5-flash-lite', 'gemini-3.6-flash']);
 
 const EQUIPMENT = {
   oven: 'духовка',
@@ -286,6 +287,9 @@ async function callGeminiModel({ model, mode, request, apiKey, fetchImpl, timeou
             parts: [{ text: isDetail ? detailPrompt(request) : suggestionPrompt(request) }],
           }],
           generationConfig: {
+            thinkingConfig: {
+              thinkingLevel: 'minimal',
+            },
             responseMimeType: 'application/json',
             responseJsonSchema: isDetail ? detailSchema(request.timeMinutes) : suggestionSchema(request.timeMinutes),
             maxOutputTokens: isDetail ? 1800 : 700,
@@ -347,16 +351,18 @@ async function runWithFallback(mode, input, options = {}) {
   const fetchImpl = options.fetch || global.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('recipe-ai-fetch-unavailable');
 
-  const primaryModel = cleanText(options.model || env.GEMINI_RECIPE_MODEL || DEFAULT_MODEL, 100) || DEFAULT_MODEL;
-  const fallbackModel = cleanText(options.fallbackModel || env.GEMINI_RECIPE_FALLBACK_MODEL || FALLBACK_MODEL, 100) || FALLBACK_MODEL;
+  const requestedPrimary = cleanText(options.model || env.GEMINI_RECIPE_MODEL || DEFAULT_MODEL, 100) || DEFAULT_MODEL;
+  const requestedFallback = cleanText(options.fallbackModel || env.GEMINI_RECIPE_FALLBACK_MODEL || FALLBACK_MODEL, 100) || FALLBACK_MODEL;
+  const primaryModel = ALLOWED_MODELS.has(requestedPrimary) ? requestedPrimary : DEFAULT_MODEL;
+  const fallbackModel = ALLOWED_MODELS.has(requestedFallback) ? requestedFallback : FALLBACK_MODEL;
   const models = [...new Set([primaryModel, fallbackModel].filter(Boolean))];
   let lastError = null;
 
   for (let modelIndex = 0; modelIndex < models.length; modelIndex += 1) {
     const model = models[modelIndex];
     const timeoutMs = mode === 'detail'
-      ? (modelIndex === 0 ? 8000 : 10000)
-      : (modelIndex === 0 ? 5000 : 7000);
+      ? (modelIndex === 0 ? 15000 : 20000)
+      : (modelIndex === 0 ? 12000 : 16000);
     const maxAttempts = modelIndex === 0 ? 2 : 1;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -369,6 +375,7 @@ async function runWithFallback(mode, input, options = {}) {
       } catch (error) {
         lastError = error;
         const code = String(error?.message || error);
+        console.warn('RUDI_RECIPE_AI_ATTEMPT_FAIL', mode, model, 'attempt', attempt + 1, code);
         if (code === 'recipe-ai-busy' && attempt + 1 < maxAttempts) {
           await sleep(250 * (2 ** attempt));
           continue;
