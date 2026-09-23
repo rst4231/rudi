@@ -1,7 +1,7 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
-const { sendForDiPrivateMessages, hasQueuedForDiSource } = require('./for-di-private.cjs');
-const { runStylistLeadScan } = require('./stylist-web-search.cjs');
+const { sendForDiPrivateMessages } = require('./for-di-private.cjs');
+const { publishDailyLaborArticle } = require('./index.js');
 
 async function handler(req, res) {
   if (!isCronRequestAuthorized(req)) {
@@ -28,35 +28,27 @@ async function handler(req, res) {
         return res.status(200).json({ ok: true, mode, skipped: 'recovery-date-mismatch', recoveryDate, today });
       }
     }
-    let stylistCatchup = null;
+    let laborCatchup = null;
     let result;
     if (mode === 'for-di') {
-      const stylistQueued = await hasQueuedForDiSource(['stylist', 'stylist-empty']);
-      if (!stylistQueued) {
-        try {
-          stylistCatchup = await runStylistLeadScan({
-            privateOnly: true,
-            forcePrivateSummary: true,
-          });
-        } catch (error) {
-          stylistCatchup = { failed: true, error: String(error?.message || error) };
-          console.warn('RUDI_FOR_DI_STYLIST_CATCHUP_WARN', stylistCatchup.error);
-        }
-      } else {
-        stylistCatchup = { skipped: 'already-queued' };
+      try {
+        laborCatchup = await publishDailyLaborArticle();
+      } catch (error) {
+        laborCatchup = { failed: true, error: String(error?.message || error) };
+        console.warn('RUDI_FOR_DI_LABOR_CATCHUP_WARN', laborCatchup.error);
       }
       result = await sendForDiPrivateMessages();
     } else {
       result = await sendDailyMorningSummaries({ force, recoveryKey });
     }
     const logLabel = mode === 'for-di' ? 'RUDI_FOR_DI_RESULT' : 'RUDI_MORNING_SUMMARY_RESULT';
-    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, stylistCatchup, ...result }));
+    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, laborCatchup, ...result }));
     return res.status(200).json({
       ok: true,
       mode,
       force,
       recoveryDate: recoveryDate || null,
-      ...(mode === 'for-di' ? { stylistCatchup } : {}),
+      ...(mode === 'for-di' ? { laborCatchup } : {}),
       ...result,
     });
   } catch (error) {
