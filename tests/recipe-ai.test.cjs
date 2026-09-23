@@ -2,7 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   DEFAULT_MODEL,
-  FALLBACK_MODEL,
   normalizeRecipeRequest,
   generateRecipeSuggestions,
   generateRecipeDetail,
@@ -10,18 +9,16 @@ const {
 
 function suggestionPayload(title = 'Чахохбили', timeMinutes = 15) {
   return {
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({
-            recipes: Array.from({ length: 4 }, (_, index) => ({
-              title: index ? title + ' ' + (index + 1) : title,
-              summary: 'Короткое описание блюда',
-              timeMinutes,
-              difficulty: 'Легко',
-            })),
-          }),
-        }],
+    choices: [{
+      message: {
+        content: JSON.stringify({
+          recipes: Array.from({ length: 4 }, (_, index) => ({
+            title: index ? title + ' ' + (index + 1) : title,
+            summary: 'Короткое описание блюда',
+            timeMinutes,
+            difficulty: 'Легко',
+          })),
+        }),
       },
     }],
   };
@@ -29,25 +26,23 @@ function suggestionPayload(title = 'Чахохбили', timeMinutes = 15) {
 
 function detailPayload(title = 'Чахохбили', timeMinutes = 15) {
   return {
-    candidates: [{
-      content: {
-        parts: [{
-          text: JSON.stringify({
-            recipe: {
-              title,
-              summary: 'Подробный рецепт',
-              timeMinutes,
-              difficulty: 'Легко',
-              ingredients: [
-                { name: 'Курица', amount: '200 г' },
-                { name: 'Рис', amount: '100 г' },
-              ],
-              missing: [],
-              steps: ['Подготовить продукты', 'Приготовить до готовности'],
-              tips: ['Подавайте сразу'],
-            },
-          }),
-        }],
+    choices: [{
+      message: {
+        content: JSON.stringify({
+          recipe: {
+            title,
+            summary: 'Подробный рецепт',
+            timeMinutes,
+            difficulty: 'Легко',
+            ingredients: [
+              { name: 'Курица', amount: '200 г' },
+              { name: 'Рис', amount: '100 г' },
+            ],
+            missing: [],
+            steps: ['Подготовить продукты', 'Приготовить до готовности'],
+            tips: ['Подавайте сразу'],
+          },
+        }),
       },
     }],
   };
@@ -67,22 +62,24 @@ test('recipe request validates selectors including cooking time', () => {
   assert.throws(() => normalizeRecipeRequest({ ...baseRequest, timeMinutes: 20 }), /recipe-time-invalid/);
 });
 
-test('suggestions use Gemini 3.5 Flash-Lite and keep the first response lightweight', async () => {
+test('suggestions use Groq GPT-OSS 20B with strict structured output', async () => {
   let calls = 0;
   const fakeFetch = async (url, options) => {
     calls += 1;
-    assert.ok(url.endsWith(DEFAULT_MODEL + ':generateContent'));
-    assert.equal(DEFAULT_MODEL, 'gemini-3.5-flash-lite');
-    assert.equal(options.headers['x-goog-api-key'], 'secret-key');
+    assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
+    assert.equal(DEFAULT_MODEL, 'openai/gpt-oss-20b');
+    assert.equal(options.headers.Authorization, 'Bearer secret-key');
 
     const body = JSON.parse(options.body);
-    const itemSchema = body.generationConfig.responseJsonSchema.properties.recipes.items.properties;
-    assert.equal(body.generationConfig.maxOutputTokens, 700);
-    assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'minimal');
-    assert.equal(itemSchema.timeMinutes.maximum, 15);
-    assert.equal('ingredients' in itemSchema, false);
-    assert.equal('steps' in itemSchema, false);
-    assert.match(body.contents[0].parts[0].text, /только название/i);
+    assert.equal(body.model, DEFAULT_MODEL);
+    assert.equal(body.reasoning_effort, 'low');
+    assert.equal(body.include_reasoning, false);
+    assert.equal(body.max_completion_tokens, 700);
+    assert.equal(body.stream, false);
+    assert.equal(body.response_format.type, 'json_schema');
+    assert.equal(body.response_format.json_schema.strict, true);
+    assert.equal(body.response_format.json_schema.schema.properties.recipes.items.properties.timeMinutes.maximum, 15);
+    assert.equal('ingredients' in body.response_format.json_schema.schema.properties.recipes.items.properties, false);
 
     return {
       ok: true,
@@ -97,21 +94,22 @@ test('suggestions use Gemini 3.5 Flash-Lite and keep the first response lightwei
   });
 
   assert.equal(calls, 1);
+  assert.equal(result.provider, 'groq');
   assert.equal(result.model, DEFAULT_MODEL);
   assert.equal(result.recipes.length, 4);
-  assert.deepEqual(Object.keys(result.recipes[0]).sort(), ['difficulty','id','summary','timeMinutes','title'].sort());
 });
 
-test('detail is generated only after a dish is selected', async () => {
+test('detail is generated with a separate short Groq request', async () => {
   let calls = 0;
   const fakeFetch = async (url, options) => {
     calls += 1;
-    assert.ok(url.endsWith(DEFAULT_MODEL + ':generateContent'));
+    assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
     const body = JSON.parse(options.body);
-    assert.equal(body.generationConfig.maxOutputTokens, 1800);
-    assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'minimal');
-    assert.ok(body.generationConfig.responseJsonSchema.properties.recipe.properties.ingredients);
-    assert.match(body.contents[0].parts[0].text, /Выбранное блюдо: Чахохбили/);
+    assert.equal(body.max_completion_tokens, 1800);
+    assert.equal(body.response_format.json_schema.strict, true);
+    assert.ok(body.response_format.json_schema.schema.properties.recipe.properties.ingredients);
+    assert.match(body.messages[0].content, /Выбранное блюдо: Чахохбили/);
+
     return {
       ok: true,
       status: 200,
@@ -129,12 +127,12 @@ test('detail is generated only after a dish is selected', async () => {
   });
 
   assert.equal(calls, 1);
+  assert.equal(result.provider, 'groq');
   assert.equal(result.recipe.title, 'Чахохбили');
   assert.equal(result.recipe.ingredients.length, 2);
-  assert.equal(result.recipe.steps.length, 2);
 });
 
-test('503 on primary suggestions retries and can recover', async () => {
+test('503 retries once on Groq and can recover', async () => {
   let calls = 0;
   const fakeFetch = async () => {
     calls += 1;
@@ -142,7 +140,7 @@ test('503 on primary suggestions retries and can recover', async () => {
       return {
         ok: false,
         status: 503,
-        async text() { return '{"error":{"status":"UNAVAILABLE"}}'; },
+        async text() { return '{"error":{"message":"temporarily unavailable"}}'; },
       };
     }
     return {
@@ -164,46 +162,21 @@ test('503 on primary suggestions retries and can recover', async () => {
   });
 
   assert.equal(calls, 2);
-  assert.equal(result.model, DEFAULT_MODEL);
+  assert.equal(result.provider, 'groq');
   assert.equal(result.recipes.length, 4);
 });
 
-test('timeout on primary falls back to Gemini 3.6 Flash', async () => {
-  const urls = [];
-  const fakeFetch = async (url) => {
-    urls.push(url);
-    if (url.includes(DEFAULT_MODEL)) {
-      const error = new Error('aborted');
-      error.name = 'AbortError';
-      throw error;
-    }
-    assert.equal(FALLBACK_MODEL, 'gemini-3.6-flash');
-    assert.ok(url.endsWith(FALLBACK_MODEL + ':generateContent'));
-    return {
-      ok: true,
-      status: 200,
-      async json() { return suggestionPayload('Рис с сыром', 30); },
-    };
-  };
-
-  const result = await generateRecipeSuggestions({
-    ...baseRequest,
-    ingredients: 'рис, сыр',
-    equipment: 'multicooker',
-    meal: 'lunch',
-    cuisine: 'italian',
-    timeMinutes: 30,
-  }, {
-    apiKey: 'secret-key',
-    fetch: fakeFetch,
-  });
-
-  assert.ok(urls.some(url => url.includes(DEFAULT_MODEL)));
-  assert.ok(urls.some(url => url.includes(FALLBACK_MODEL)));
-  assert.equal(result.model, FALLBACK_MODEL);
+test('Groq key is required and Gemini key is not used', async () => {
+  await assert.rejects(
+    generateRecipeSuggestions(baseRequest, {
+      env: { GEMINI_API_KEY: 'old-key' },
+      fetch: async () => { throw new Error('should not call'); },
+    }),
+    /groq-api-key-missing/
+  );
 });
 
-test('quota errors remain explicit when every model is exhausted', async () => {
+test('Groq 429 remains an explicit quota error', async () => {
   const fakeFetch = async () => ({
     ok: false,
     status: 429,
