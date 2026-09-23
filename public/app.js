@@ -2280,6 +2280,16 @@
           bodySelectors:['#workCalendarStatus','#workCalendarRanges','#workCalendarDays','#workCalendarSelected'],
           hostSelector:'.work-calendar-head'
         });
+        setupPersistentCollapsible({
+          selector:'#productsListCard',key:'kitchen-products',
+          bodySelectors:['#productsListBody'],
+          hostSelector:'.kitchen-block-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#recipeIdeasCard',key:'kitchen-recipes',
+          bodySelectors:['#recipeGeneratorBody'],
+          hostSelector:'.kitchen-block-head'
+        });
       }
 
       const fallback = {
@@ -6930,6 +6940,240 @@
         scheduleProductsRefresh(15000);
       }
 
+      let currentRecipeSet=[];
+
+      function recipeChoiceValue(attribute){
+        const button=document.querySelector('['+attribute+'][aria-pressed="true"]');
+        if(!button) return '';
+        return String(button.getAttribute(attribute)||'');
+      }
+
+      function setupRecipeChoice(groupSelector,attribute){
+        const group=document.querySelector(groupSelector);
+        if(!group||group.dataset.recipeBound==='1') return;
+        group.dataset.recipeBound='1';
+        const buttons=Array.from(group.querySelectorAll('button['+attribute+']'));
+        buttons.forEach(button=>{
+          button.addEventListener('click',()=>{
+            buttons.forEach(item=>item.setAttribute('aria-pressed',item===button?'true':'false'));
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+      }
+
+      async function recipeRequest(payload){
+        const response=await fetch('/api/partner-message?rudiAction=recipes',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',...payload}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+          const error=new Error(data.error||'recipe-request-failed');
+          error.status=response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function recipeSectionTitle(text){
+        const heading=document.createElement('h4');
+        heading.className='recipe-detail-heading';
+        heading.textContent=text;
+        return heading;
+      }
+
+      function renderRecipeDetails(recipe){
+        const details=document.getElementById('recipeDetails');
+        const suggestions=document.getElementById('recipeSuggestions');
+        if(!details||!recipe) return;
+        suggestions?.querySelectorAll('.recipe-suggestion').forEach((button,index)=>{
+          button.classList.toggle('is-selected',currentRecipeSet[index]?.id===recipe.id);
+        });
+
+        details.replaceChildren();
+
+        const head=document.createElement('div');
+        head.className='recipe-detail-head';
+        const title=document.createElement('h3');
+        title.textContent=String(recipe.title||'Рецепт');
+        const meta=document.createElement('div');
+        meta.className='recipe-detail-meta';
+        const time=document.createElement('span');
+        time.textContent='≈ '+String(recipe.timeMinutes||30)+' мин';
+        const difficulty=document.createElement('span');
+        difficulty.textContent=String(recipe.difficulty||'Средне');
+        meta.append(time,difficulty);
+        head.append(title,meta);
+        details.appendChild(head);
+
+        if(recipe.summary){
+          const summary=document.createElement('p');
+          summary.className='recipe-detail-summary';
+          summary.textContent=String(recipe.summary);
+          details.appendChild(summary);
+        }
+
+        const missing=Array.isArray(recipe.missing)?recipe.missing.filter(Boolean):[];
+        if(missing.length){
+          const missingBox=document.createElement('div');
+          missingBox.className='recipe-missing';
+          const strong=document.createElement('strong');
+          strong.textContent='Нужно докупить';
+          const value=document.createElement('span');
+          value.textContent=missing.join(', ');
+          missingBox.append(strong,value);
+          details.appendChild(missingBox);
+        }
+
+        const ingredients=Array.isArray(recipe.ingredients)?recipe.ingredients:[];
+        if(ingredients.length){
+          details.appendChild(recipeSectionTitle('Ингредиенты'));
+          const list=document.createElement('div');
+          list.className='recipe-ingredients-list';
+          ingredients.forEach(item=>{
+            const row=document.createElement('div');
+            row.className='recipe-ingredient-row';
+            const name=document.createElement('span');
+            name.textContent=String(item?.name||'');
+            const amount=document.createElement('strong');
+            amount.textContent=String(item?.amount||'');
+            row.append(name,amount);
+            list.appendChild(row);
+          });
+          details.appendChild(list);
+        }
+
+        const steps=Array.isArray(recipe.steps)?recipe.steps.filter(Boolean):[];
+        if(steps.length){
+          details.appendChild(recipeSectionTitle('Как приготовить'));
+          const list=document.createElement('ol');
+          list.className='recipe-steps';
+          steps.forEach(value=>{
+            const item=document.createElement('li');
+            item.textContent=String(value);
+            list.appendChild(item);
+          });
+          details.appendChild(list);
+        }
+
+        const tips=Array.isArray(recipe.tips)?recipe.tips.filter(Boolean):[];
+        if(tips.length){
+          const tip=document.createElement('div');
+          tip.className='recipe-tip';
+          const strong=document.createElement('strong');
+          strong.textContent='Совет';
+          const value=document.createElement('span');
+          value.textContent=tips.join(' ');
+          tip.append(strong,value);
+          details.appendChild(tip);
+        }
+
+        details.hidden=false;
+        setTimeout(()=>details.scrollIntoView({behavior:'smooth',block:'nearest'}),40);
+      }
+
+      function renderRecipeSuggestions(recipes){
+        const host=document.getElementById('recipeSuggestions');
+        const details=document.getElementById('recipeDetails');
+        if(!host) return;
+        currentRecipeSet=(Array.isArray(recipes)?recipes:[]).slice(0,4);
+        host.replaceChildren();
+        if(details){
+          details.hidden=true;
+          details.replaceChildren();
+        }
+
+        currentRecipeSet.forEach((recipe,index)=>{
+          const button=document.createElement('button');
+          button.type='button';
+          button.className='recipe-suggestion';
+          const copy=document.createElement('span');
+          copy.className='recipe-suggestion-copy';
+          const title=document.createElement('strong');
+          title.textContent=String(recipe.title||('Блюдо '+(index+1)));
+          const summary=document.createElement('small');
+          summary.textContent=String(recipe.summary||'Открыть подробный рецепт');
+          copy.append(title,summary);
+          const meta=document.createElement('span');
+          meta.className='recipe-suggestion-meta';
+          meta.textContent='≈ '+String(recipe.timeMinutes||30)+' мин';
+          const arrow=document.createElement('span');
+          arrow.className='recipe-suggestion-arrow';
+          arrow.textContent='›';
+          button.append(copy,meta,arrow);
+          button.addEventListener('click',()=>{
+            renderRecipeDetails(recipe);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+          host.appendChild(button);
+        });
+        host.hidden=!currentRecipeSet.length;
+      }
+
+      function recipeErrorText(error){
+        const code=String(error?.message||'');
+        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит Gemini на сегодня закончился. Попробуйте позже.';
+        if(code==='gemini-api-key-missing') return 'Gemini пока не подключён к приложению.';
+        if(code==='recipe-ai-timeout') return 'Gemini отвечает слишком долго. Попробуйте ещё раз.';
+        return 'Не удалось сгенерировать рецепты. Попробуйте ещё раз.';
+      }
+
+      function setupRecipeGenerator(){
+        const input=document.getElementById('recipeIngredients');
+        const generate=document.getElementById('recipeGenerate');
+        const status=document.getElementById('recipeStatus');
+        if(!input||!generate||generate.dataset.recipeBound==='1') return;
+        generate.dataset.recipeBound='1';
+
+        setupRecipeChoice('[data-recipe-choice="equipment"]','data-recipe-equipment');
+        setupRecipeChoice('[data-recipe-choice="meal"]','data-recipe-meal');
+        setupRecipeChoice('[data-recipe-choice="cuisine"]','data-recipe-cuisine');
+
+        input.addEventListener('focus',()=>document.body.classList.add('keyboard-editing'));
+        input.addEventListener('blur',()=>document.body.classList.remove('keyboard-editing'));
+
+        generate.addEventListener('click',async()=>{
+          const ingredients=input.value.trim();
+          if(!ingredients){
+            if(status) status.textContent='Сначала напишите, какие продукты у вас есть.';
+            input.focus();
+            try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+            return;
+          }
+
+          const payload={
+            ingredients,
+            equipment:recipeChoiceValue('data-recipe-equipment'),
+            meal:recipeChoiceValue('data-recipe-meal'),
+            cuisine:recipeChoiceValue('data-recipe-cuisine')
+          };
+
+          generate.disabled=true;
+          const previousText=generate.textContent;
+          generate.textContent='Генерирую…';
+          if(status) status.textContent='Подбираю варианты из ваших продуктов…';
+          document.getElementById('recipeSuggestions')?.setAttribute('hidden','');
+          const details=document.getElementById('recipeDetails');
+          if(details) details.hidden=true;
+
+          try{
+            const data=await recipeRequest(payload);
+            renderRecipeSuggestions(data.recipes);
+            if(status) status.textContent='Готово. Выберите блюдо, чтобы открыть подробный рецепт.';
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            currentRecipeSet=[];
+            if(status) status.textContent=recipeErrorText(error);
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            generate.disabled=false;
+            generate.textContent=previousText;
+          }
+        });
+      }
+
       function renderLatestUpdate(config){
         const updates=(Array.isArray(config?.updates)?config.updates:[])
           .filter(item=>item?.date)
@@ -7008,6 +7252,7 @@
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
         ensureAppSurface({restoreTab:true});
         setupProducts();
+        setupRecipeGenerator();
         renderDailyCompliment(config,{force:true});
         setupReactions();
 
