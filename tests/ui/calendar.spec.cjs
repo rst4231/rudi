@@ -32,8 +32,14 @@ async function mockRudi(page,options={}){
     productHistory:[],
     reactions:{},
     bootstrapStarted:false,
-    bootstrapResolved:false
+    bootstrapResolved:false,
+    pageErrors:[],
+    consoleErrors:[]
   };
+  page.on('pageerror',error=>state.pageErrors.push(String(error?.message||error)));
+  page.on('console',message=>{
+    if(message.type()==='error') state.consoleErrors.push(message.text());
+  });
 
   await page.route('https://telegram.org/js/telegram-web-app.js?63',route=>route.fulfill({
     contentType:'application/javascript',
@@ -256,6 +262,10 @@ async function mockRudi(page,options={}){
 test('authenticated shell stays hidden until bootstrap and dynamic layout are ready',async({page})=>{
   const state=await mockRudi(page,{bootstrapDelayMs:1500});
   await page.goto('/');
+  await page.waitForTimeout(550);
+  if(!state.bootstrapStarted){
+    throw new Error('bootstrap-not-started; pageErrors='+JSON.stringify(state.pageErrors)+'; consoleErrors='+JSON.stringify(state.consoleErrors));
+  }
   await expect.poll(()=>state.bootstrapStarted,{timeout:1000}).toBe(true);
   await expect(page.locator('body')).toHaveClass(/auth-pending/,{timeout:1000});
   expect(state.bootstrapResolved).toBe(false);
