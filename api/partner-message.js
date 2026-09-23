@@ -40,6 +40,7 @@ const {
   getLatestPhotos,
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyMoodState } = require('./daily-mood-store.cjs');
+const { generateRecipeSet } = require('./recipe-ai.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState } = require('./reactions-store.cjs');
 const {
@@ -2071,6 +2072,38 @@ async function handleRudiAction(req, res, action, options = {}) {
       const code = String(error?.message || error);
       const status = statusForError(error) === 500 ? 502 : statusForError(error);
       console.error('RUDI_WORK_CALENDAR_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
+
+  if (action === 'recipes') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const result = await generateRecipeSet({
+        ingredients: body.ingredients,
+        equipment: body.equipment,
+        meal: body.meal,
+        cuisine: body.cuisine,
+      }, {
+        env: options.env || process.env,
+        fetch: options.fetch || global.fetch,
+      });
+      return res.status(200).json({ ok: true, actor, ...result });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'recipe-ingredients-required'
+          || code === 'recipe-equipment-invalid'
+          || code === 'recipe-meal-invalid'
+          || code === 'recipe-cuisine-invalid' ? 400
+        : code === 'recipe-ai-quota' ? 429
+        : code === 'gemini-api-key-missing' ? 503
+        : 502;
+      if (status >= 500) console.error('RUDI_RECIPE_AI_ERROR', code);
       return res.status(status).json({ ok: false, error: code });
     }
   }
