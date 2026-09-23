@@ -1303,7 +1303,9 @@
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               return;
             }
-            if(next==='schedule') playCalendarConfetti();
+            if(next==='schedule'){
+              playCalendarConfetti();
+            }
             navigateToAppTab(next,{scroll:true});
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
