@@ -16,7 +16,7 @@ test('home exposes activity history through notification bell',()=>{
   assert.match(app,/function renderActivityJournal\(payload\)/);
   assert.match(app,/function loadActivityJournal/);
   assert.match(app,/function markActivityNotificationsSeen\(\)/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car'\]/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','markets'\]/);
   assert.match(css,/\.home-activity-notifications-button/);
   assert.match(css,/\.home-activity-row/);
   assert.match(app,/luluTile\.dataset\.homeTile='lulu'/);
