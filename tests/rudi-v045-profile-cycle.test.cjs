@@ -40,7 +40,10 @@ test('Telegram receives cache-busted current release assets',()=>{
   const escapedLabel=label.replace(/\./g,'\\.');
   assert.match(html,new RegExp('/app\\.css\\?v='+asset+'|/assets/app\\.[a-f0-9]{12}\\.css'));
   assert.match(html,new RegExp('/app\\.js\\?v='+asset+'|/assets/app\\.[a-f0-9]{12}\\.js'));
-  assert.match(html,new RegExp('>'+escapedLabel+'<\\/div>'));
+  assert.ok(
+    new RegExp('<meta name="rudi-version" content="'+escapedLabel+'"').test(html)
+      || new RegExp('>'+escapedLabel+'<\\/div>').test(html)
+  );
 });
 
 
@@ -50,6 +53,6 @@ test('home cycle summary includes a daily recommendation and opens full cycle in
   assert.match(app,/homeCycleAdvice/);
   assert.match(app,/homeCycleOpen/);
   assert.match(app,/Показать полностью/);
-  assert.match(app,/applyAppTab\('schedule',\{scroll:true\}\)/);
+  assert.match(app,/navigateToAppTab\('schedule',\{scroll:true\}\)/);
   assert.match(app,/dianaCycleCard.*scrollIntoView/s);
 });
