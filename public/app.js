@@ -5355,34 +5355,31 @@
         const next=document.getElementById('photoViewerNext');
         const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
-        const url=String(photo?.fullUrl||photo?.url||'').trim();
-        if(!viewer||!image||!caption||!prev||!next||!original||!url) return false;
+        const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
+        const fullUrl=String(photo?.fullUrl||previewUrl).trim();
+        const photoIndex=currentSharedAlbumPhotoIndex;
+        if(!viewer||!image||!caption||!prev||!next||!original||!previewUrl) return false;
 
-        image.dataset.fallbackTried='0';
-        image.onload=()=>{
-          const preloadAdjacent=()=>{
-            const preloadIndexes=[currentSharedAlbumPhotoIndex-1,currentSharedAlbumPhotoIndex+1];
-            preloadIndexes.forEach(index=>{
-              const adjacent=sharedAlbumPhotos[index];
-              const adjacentUrl=String(adjacent?.fullUrl||adjacent?.url||'').trim();
-              if(!adjacentUrl) return;
-              const preload=new Image();
-              preload.decoding='async';
-              preload.src=adjacentUrl;
-            });
-          };
-          if(typeof requestIdleCallback==='function') requestIdleCallback(preloadAdjacent,{timeout:900});
-          else setTimeout(preloadAdjacent,120);
-        };
-        image.onerror=()=>{
-          const fallback=String(photo?.url||'').trim();
-          if(!fallback||image.dataset.fallbackTried==='1') return;
-          image.dataset.fallbackTried='1';
-          image.src=fallback;
-        };
-        image.src=url;
+        image.onerror=null;
+        image.dataset.photoIndex=String(photoIndex);
+        image.src=previewUrl;
         image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
-        restartRudiMotion(image,'rudi-photo-swap',360);
+        restartRudiMotion(image,'rudi-photo-swap',280);
+
+        if(fullUrl&&fullUrl!==previewUrl){
+          const fullImage=new Image();
+          fullImage.decoding='async';
+          fullImage.onload=()=>{
+            if(currentSharedAlbumPhotoIndex!==photoIndex) return;
+            image.onerror=()=>{
+              image.onerror=null;
+              if(currentSharedAlbumPhotoIndex===photoIndex) image.src=previewUrl;
+            };
+            image.src=fullUrl;
+            restartRudiMotion(image,'rudi-photo-swap',220);
+          };
+          fullImage.src=fullUrl;
+        }
 
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
@@ -5392,6 +5389,15 @@
         next.disabled=currentSharedAlbumPhotoIndex>=sharedAlbumPhotos.length-1;
         original.disabled=!sharedAlbumOriginalUrl(photo);
 
+        [photoIndex-1,photoIndex+1].forEach(index=>{
+          const adjacent=sharedAlbumPhotos[index];
+          const adjacentPreview=String(adjacent?.url||adjacent?.fullUrl||'').trim();
+          if(adjacentPreview){
+            const preload=new Image();
+            preload.decoding='async';
+            preload.src=adjacentPreview;
+          }
+        });
         return true;
       }
 
@@ -5564,16 +5570,19 @@
         button.type='button';
         button.setAttribute('aria-label','Открыть фото '+(index+1)+' крупно');
         const img=document.createElement('img');
-        img.src=String(photo.url||'');
+        const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
+        const fallbackUrl=String(photo?.fullUrl||'').trim();
+        img.src=previewUrl;
         img.alt=photo.caption?String(photo.caption):'Фото из общего альбома';
-        img.loading=index<12?'eager':'lazy';
+        img.loading='lazy';
         img.decoding='async';
-        if(index<6) img.fetchPriority='high';
+        img.fetchPriority='low';
+        img.draggable=false;
         img.addEventListener('error',()=>{
-          const fallback=String(photo.fullUrl||'').trim();
-          if(!fallback||img.dataset.fallbackTried==='1') return;
-          img.dataset.fallbackTried='1';
-          img.src=fallback;
+          if(!img.dataset.fullFallbackTried&&fallbackUrl&&fallbackUrl!==previewUrl){
+            img.dataset.fullFallbackTried='1';
+            img.src=fallbackUrl;
+          }
         });
         button.appendChild(img);
         button.addEventListener('click',()=>openSharedAlbumPhoto(photo,index));
@@ -5602,7 +5611,7 @@
           return;
         }
         const index=photos.indexOf(photo);
-        image.src=String(photo.url||photo.fullUrl||'');
+        image.src=String(photo.fullUrl||photo.url||'');
         image.alt=photo.caption?String(photo.caption):'Воспоминание из общего альбома';
         age.textContent=sharedAlbumAgeLabel(photo);
         button.onclick=()=>openSharedAlbumPhoto(photo,index);
@@ -5686,7 +5695,6 @@
           sectionEl.append(head,groupGrid);
           grid.appendChild(sectionEl);
         }
-        animateRudiCollection(grid,'.shared-album-group',7);
       }
 
       async function loadSharedAlbum(){

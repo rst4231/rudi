@@ -172,6 +172,21 @@ async function mockRudi(page,options={}){
     }
     if(path==='/api/cycle') return ok({ok:true,configured:true,enabled:true,historyStarts:['2026-08-20']});
     if(path==='/api/shared-album'){
+      if(options.photoAlbumMany){
+        return ok({
+          ok:true,
+          configured:true,
+          albumUrl:'https://www.icloud.com/sharedalbum/#A5q2example',
+          totalCount:80,
+          photos:Array.from({length:80},(_,index)=>({
+            id:'photo-'+index,
+            url:'https://images.example.test/photo-'+index+'.jpg',
+            fullUrl:'https://images.example.test/photo-'+index+'-full.jpg',
+            date:new Date(Date.UTC(2026,8,21-index)).toISOString(),
+            caption:'Фото '+index
+          }))
+        });
+      }
       if(options.photoAlbum){
         return ok({
           ok:true,
@@ -704,4 +719,35 @@ test('quick access opens wishlist and generates cached date ideas only after per
   await expect(page.locator('#dateTimeChoices')).toBeVisible();
   await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
   expect(state.dateIdeaCalls).toBe(1);
+});
+
+
+test('photo thumbnails stay rendered after long scrolling and viewer upgrades preview to full size',async({page})=>{
+  await page.route('https://images.example.test/**',route=>route.fulfill({
+    status:200,
+    contentType:'image/svg+xml',
+    body:'<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><rect width="320" height="240" fill="#bbb"/></svg>'
+  }));
+  await mockRudi(page,{photoAlbumMany:true});
+  await page.goto('/?tab=photos');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+
+  const thumbs=page.locator('.shared-album-photo img');
+  await expect(thumbs).toHaveCount(80);
+  const last=thumbs.last();
+  await last.scrollIntoViewIfNeeded();
+  await expect.poll(()=>last.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+
+  await page.evaluate(()=>window.scrollTo(0,0));
+  const first=thumbs.first();
+  await first.scrollIntoViewIfNeeded();
+  await expect.poll(()=>first.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+
+  const transition=await page.locator('.shared-album-photo').first().evaluate(el=>getComputedStyle(el).transitionProperty);
+  expect(transition).not.toContain('transform');
+
+  await page.locator('.shared-album-photo').last().click();
+  await expect(page.locator('#photoViewer')).toHaveClass(/open/);
+  await expect.poll(()=>page.locator('#photoViewerImage').getAttribute('src')).toMatch(/photo-79(?:-full)?\.jpg$/);
+  await expect(page.locator('#photoViewerImage')).toHaveAttribute('src',/photo-79-full\.jpg$/);
 });

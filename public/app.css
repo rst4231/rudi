@@ -7469,3 +7469,29 @@ html[data-theme="dark"] .partner-message .partner-edit{
     transform:none!important;
   }
 }
+
+
+/* RUDI v1.14.3 — shared album scroll stability */
+.shared-album-group{
+  transform:none!important;
+  animation:none!important;
+  will-change:auto!important;
+}
+.shared-album-photo{
+  transform:none!important;
+  will-change:auto!important;
+  transition:
+    filter .14s ease,
+    border-color .14s ease,
+    opacity .14s ease!important;
+}
+.shared-album-photo:active{
+  transform:none!important;
+  filter:brightness(.93);
+}
+.shared-album-photo img{
+  transform:none!important;
+  animation:none!important;
+  will-change:auto!important;
+  backface-visibility:visible!important;
+}
