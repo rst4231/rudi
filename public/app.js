@@ -784,11 +784,22 @@
       function applyHomeOrder(order,{animate=false}={}){
         const host=ensureHomeTileHost();
         if(!host) return;
+        const targetOrder=normalizedHomeOrder(order);
+        const currentTiles=[...host.querySelectorAll(':scope > [data-home-tile]')];
+        const currentOrder=currentTiles.map(tile=>tile.dataset.homeTile);
+        if(currentOrder.length===targetOrder.length&&currentOrder.every((id,index)=>id===targetOrder[index])) return;
+
+        const activeElement=document.activeElement;
+        const focusedHomeTile=activeElement?.closest?.('[data-home-tile]');
+        if(focusedHomeTile?.parentElement===host) return;
+
         const before=animate?homeTileRects(host):null;
-        const tiles=new Map([...host.querySelectorAll(':scope > [data-home-tile]')].map(tile=>[tile.dataset.homeTile,tile]));
-        for(const id of normalizedHomeOrder(order)){
-          const tile=tiles.get(id);
-          if(tile) host.appendChild(tile);
+        const tiles=new Map(currentTiles.map(tile=>[tile.dataset.homeTile,tile]));
+        const orderedTiles=targetOrder.map(id=>tiles.get(id)).filter(Boolean);
+        for(let index=0;index<orderedTiles.length;index+=1){
+          const tile=orderedTiles[index];
+          const currentAtIndex=host.querySelectorAll(':scope > [data-home-tile]')[index]||null;
+          if(currentAtIndex!==tile) host.insertBefore(tile,currentAtIndex);
         }
         if(animate) animateHomeReorder(host,before);
       }
