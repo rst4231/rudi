@@ -42,7 +42,12 @@ async function telegramSendMessage(chatId, text, options = {}) {
   });
   const data = await response.json().catch(() => null);
   if (!response?.ok || !data?.ok) {
-    throw new Error(`telegram-sendMessage-http-${response?.status || 0}`);
+    const status = Number(response?.status || 0);
+    const description = String(data?.description || data?.error || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+    const error = new Error(`telegram-sendMessage-http-${status}${description ? ': ' + description : ''}`);
+    error.status = status;
+    error.telegramDescription = description;
+    throw error;
   }
   return {
     chatId: Number(chatId),
