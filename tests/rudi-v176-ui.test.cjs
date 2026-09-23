@@ -16,11 +16,15 @@ test('browser theme follows device theme outside Telegram',()=>{
   assert.match(app,/if\(!tg\?\.initData\) applyTheme\(\)/);
 });
 
-test('browser pull-to-refresh is available only outside Telegram',()=>{
-  assert.match(app,/function setupBrowserPullToRefresh\(\)/);
-  assert.match(app,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
-  assert.match(app,/Отпустите для обновления/);
-  assert.match(app,/window\.location\.reload\(\)/);
+test('browser pull-to-refresh is available only outside Telegram and refreshes in place',()=>{
+  const start=app.indexOf('function setupBrowserPullToRefresh()');
+  const end=app.indexOf('function updateTelegramSafeArea()',start);
+  const pull=app.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(pull,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
+  assert.match(pull,/Отпустите для обновления/);
+  assert.match(pull,/refreshAfterResume\(\)/);
+  assert.doesNotMatch(pull,/window\.location\.reload\(\)/);
   assert.match(css,/\.pull-refresh-indicator/);
   assert.match(css,/@keyframes rudiPullRefreshSpin/);
 });
