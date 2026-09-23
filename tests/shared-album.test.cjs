@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { fetchLatestPhotos } = require('../api/shared-album.cjs');
+const { fetchLatestPhotos, getLatestPhotos, PREVIEW_MAX_EDGE, VIEWER_MAX_EDGE } = require('../api/shared-album.cjs');
 
 test('shared album reports total photo count while only loading preview window', async () => {
   const photos = Array.from({ length: 300 }, (_, index) => ({
@@ -9,11 +9,17 @@ test('shared album reports total photo count while only loading preview window',
     dateCreated: new Date(Date.UTC(2026, 8, 21 - Math.min(index, 20), 12)).toISOString(),
     caption: 'Фото ' + index,
     derivatives: {
+      thumb: {
+        checksum: 'thumb-' + index,
+        width: 640,
+        height: 480,
+        fileSize: 500 + index,
+      },
       preview: {
         checksum: 'preview-' + index,
-        width: 1200,
-        height: 900,
-        fileSize: 1000 + index,
+        width: 1600,
+        height: 1200,
+        fileSize: 2000 + index,
       },
       full: {
         checksum: 'full-' + index,
@@ -37,6 +43,10 @@ test('shared album reports total photo count while only loading preview window',
       const items = {};
       for (const id of requested) {
         const index = Number(String(id).split('-').at(-1));
+        items['thumb-' + index] = {
+          url_location: 'photos',
+          url_path: '/photo-' + index + '-thumb.jpg',
+        };
         items['preview-' + index] = {
           url_location: 'photos',
           url_path: '/photo-' + index + '-preview.jpg',
@@ -65,10 +75,42 @@ test('shared album reports total photo count while only loading preview window',
   assert.equal(result.photos.length, 250);
   assert.equal(result.title, 'Наш альбом');
   assert.equal(result.photos[0].id, 'photo-0');
-  assert.equal(result.photos[0].width, 1200);
-  assert.equal(result.photos[0].height, 900);
-  assert.equal(result.photos[0].fullWidth, 4032);
-  assert.equal(result.photos[0].fullHeight, 3024);
-  assert.match(result.photos[0].url, /-preview\.jpg$/);
-  assert.match(result.photos[0].fullUrl, /-full\.jpg$/);
+  assert.equal(PREVIEW_MAX_EDGE, 720);
+  assert.equal(VIEWER_MAX_EDGE, 1800);
+  assert.equal(result.photos[0].width, 640);
+  assert.equal(result.photos[0].height, 480);
+  assert.equal(result.photos[0].fullWidth, 1600);
+  assert.equal(result.photos[0].fullHeight, 1200);
+  assert.match(result.photos[0].url, /-thumb\.jpg$/);
+  assert.match(result.photos[0].fullUrl, /-preview\.jpg$/);
+});
+
+
+test('shared album reuses very fresh signed asset URLs instead of refetching iCloud', async () => {
+  const cacheData = new Map();
+  const albumCache = {
+    async get(key) { return cacheData.get(key) ?? null; },
+    async set(key, value) { cacheData.set(key, value); return true; },
+  };
+  cacheData.set('album-config', {
+    url: 'https://www.icloud.com/sharedalbum/#A5q2example',
+    token: 'A5q2example',
+  });
+  cacheData.set('album-latest', {
+    configured: true,
+    photos: [{ id: 'cached-photo', url: 'https://cdn.example.test/cached.jpg' }],
+    totalCount: 1,
+    albumUrl: 'https://www.icloud.com/sharedalbum/#A5q2example',
+    title: 'Наш альбом',
+    updatedAt: '2026-09-23T18:00:00.000Z',
+  });
+  let fetchCalls = 0;
+  const result = await getLatestPhotos({
+    albumCache,
+    now: Date.parse('2026-09-23T18:01:00.000Z'),
+    fetchImpl: async () => { fetchCalls += 1; throw new Error('should-not-fetch'); },
+  });
+  assert.equal(fetchCalls, 0);
+  assert.equal(result.cached, true);
+  assert.equal(result.photos[0].id, 'cached-photo');
 });

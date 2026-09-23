@@ -6,6 +6,9 @@ const CONFIG_KEY = 'album-config';
 const CACHE_KEY = 'album-latest';
 const CONFIG_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const DATA_TTL_SECONDS = 60 * 15;
+const FRESH_ASSET_REUSE_MS = 3 * 60 * 1000;
+const PREVIEW_MAX_EDGE = 720;
+const VIEWER_MAX_EDGE = 1800;
 const EXPECTED_SETUP_SHA256 = '89bb9543fa407ae3542bdf4f1b63578e827933ae4583eb032b1d9f29add5cf80';
 const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
@@ -114,23 +117,34 @@ function derivativeScore(item) {
   return [pixels, Number(item?.fileSize || 0)];
 }
 
-function pickDerivative(photo) {
-  const values = Object.values(photo?.derivatives || {}).filter((item) => item && item.checksum);
-  if (!values.length) return null;
-  const suitable = values
-    .filter((item) => Number(item.width || 0) <= 1600 && Number(item.height || 0) <= 1600)
-    .sort((a, b) => Number(b.fileSize || 0) - Number(a.fileSize || 0));
-  return suitable[0] || values.sort((a, b) => Number(b.fileSize || 0) - Number(a.fileSize || 0))[0];
+function derivativeEdge(item) {
+  return Math.max(Number(item?.width || 0), Number(item?.height || 0));
 }
 
-function pickFullDerivative(photo) {
+function pickDerivativeForMax(photo, maxEdge) {
   const values = Object.values(photo?.derivatives || {}).filter((item) => item && item.checksum);
   if (!values.length) return null;
-  return values.sort((a, b) => {
-    const [aPixels, aBytes] = derivativeScore(a);
-    const [bPixels, bBytes] = derivativeScore(b);
-    return bPixels - aPixels || bBytes - aBytes;
-  })[0] || null;
+
+  const sized = values.filter((item) => derivativeEdge(item) > 0);
+  const within = sized
+    .filter((item) => derivativeEdge(item) <= maxEdge)
+    .sort((a, b) => {
+      const [aPixels, aBytes] = derivativeScore(a);
+      const [bPixels, bBytes] = derivativeScore(b);
+      return bPixels - aPixels || bBytes - aBytes;
+    });
+  if (within.length) return within[0];
+
+  const above = sized
+    .filter((item) => derivativeEdge(item) > maxEdge)
+    .sort((a, b) => {
+      const [aPixels, aBytes] = derivativeScore(a);
+      const [bPixels, bBytes] = derivativeScore(b);
+      return aPixels - bPixels || aBytes - bBytes;
+    });
+  if (above.length) return above[0];
+
+  return values.sort((a, b) => Number(a.fileSize || 0) - Number(b.fileSize || 0))[0] || null;
 }
 
 function assetUrl(assetData, checksum) {
@@ -164,8 +178,8 @@ async function fetchLatestPhotos(config, options = {}) {
 
   const assetResult = await postICloud(host, token, 'webasseturls', { photoGuids: photos.map((p) => p.photoGuid) }, options);
   const result = photos.map((photo) => {
-    const derivative = pickDerivative(photo);
-    const fullDerivative = pickFullDerivative(photo) || derivative;
+    const derivative = pickDerivativeForMax(photo, PREVIEW_MAX_EDGE);
+    const fullDerivative = pickDerivativeForMax(photo, VIEWER_MAX_EDGE) || derivative;
     const checksum = derivative?.checksum || '';
     const fullChecksum = fullDerivative?.checksum || checksum;
     return {
@@ -195,9 +209,15 @@ async function getLatestPhotos(options = {}) {
   if (!config) return { configured: false, photos: [], totalCount: 0, albumUrl: null, title: 'Общий альбом' };
 
   const cached = await cache.get(CACHE_KEY).catch(() => null);
+  const now = Number(options.now || Date.now());
+  const cachedAt = Date.parse(String(cached?.updatedAt || ''));
+  const reuseMs = Math.max(0, Number(options.freshAssetReuseMs ?? FRESH_ASSET_REUSE_MS));
+  if (cached?.photos && Number.isFinite(cachedAt) && now - cachedAt >= 0 && now - cachedAt < reuseMs) {
+    return { ...cached, configured: true, cached: true };
+  }
   try {
     const fresh = await fetchLatestPhotos(config, options);
-    const result = { configured: true, ...fresh, updatedAt: new Date(options.now || Date.now()).toISOString() };
+    const result = { configured: true, ...fresh, updatedAt: new Date(now).toISOString() };
     await cache.set(CACHE_KEY, result, { ttl: DATA_TTL_SECONDS, tags: ['rudi-shared-album'] }).catch(() => false);
     return result;
   } catch (error) {
@@ -207,5 +227,15 @@ async function getLatestPhotos(options = {}) {
 }
 
 module.exports = {
-  decodeSetupKey, saveAlbumConfig, readAlbumConfig, initialHost, fetchLatestPhotos, getLatestPhotos,
+  DATA_TTL_SECONDS,
+  FRESH_ASSET_REUSE_MS,
+  PREVIEW_MAX_EDGE,
+  VIEWER_MAX_EDGE,
+  decodeSetupKey,
+  saveAlbumConfig,
+  readAlbumConfig,
+  initialHost,
+  pickDerivativeForMax,
+  fetchLatestPhotos,
+  getLatestPhotos,
 };
