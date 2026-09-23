@@ -226,3 +226,66 @@ test('runStylistLeads does not send a false empty notice when every source faile
   }), /all stylist lead sources failed/i);
   assert.equal(sent.length, 0);
 });
+
+
+test('runStylistLeads queues each lead for Diana private delivery before topic publication', async () => {
+  const config = {
+    version:1,enabled:true,topicId:126,lookbackHours:30,maxLeadsPerRun:5,sendEmpty:true,
+    sources:[{id:'event',handle:'event',title:'Event',city:'Санкт-Петербург',enabled:true,priority:100}],
+  };
+  const post={source:config.sources[0],id:'77',text:'Ищу стилиста по одежде в СПб <срочно>',datetime:'2026-09-23T03:00:00Z',link:'https://t.me/event/77'};
+  const order=[];
+  const queued=[];
+  const sent=[];
+  const result=await api.runStylistLeads({
+    now:new Date('2026-09-23T04:00:00Z'),
+    config,
+    cache:{async get(){return null},async set(){return true}},
+    chatId:'-1001234567890',
+    scanImpl:async()=>({posts:[post],errors:[],sourcesChecked:1}),
+    queueForDiMessageImpl:async(text,options)=>{order.push('queue');queued.push({text,options});return {text}},
+    sendMessage:async(payload)=>{order.push('send');sent.push(payload);return {ok:true}},
+  });
+  assert.deepEqual(order,['queue','send']);
+  assert.equal(result.privateQueued,1);
+  assert.equal(queued.length,1);
+  assert.equal(queued[0].options.parseMode,false);
+  assert.equal(queued[0].options.source,'stylist');
+  assert.match(queued[0].text,/event\/77/);
+  assert.equal(sent.length,1);
+});
+
+test('runStylistLeads queues the empty stylist notice for Diana too', async () => {
+  const config={version:1,enabled:true,topicId:126,lookbackHours:30,maxLeadsPerRun:5,sendEmpty:true,sources:[]};
+  const queued=[];
+  const result=await api.runStylistLeads({
+    now:new Date('2026-09-23T04:00:00Z'),
+    config,
+    cache:{async get(){return null},async set(){return true}},
+    chatId:'-1001234567890',
+    scanImpl:async()=>({posts:[],errors:[],sourcesChecked:0}),
+    queueForDiMessageImpl:async(text,options)=>{queued.push({text,options});return {text}},
+    sendMessage:async()=>({ok:true}),
+  });
+  assert.equal(result.privateQueued,1);
+  assert.equal(queued.length,1);
+  assert.equal(queued[0].options.source,'stylist-empty');
+  assert.equal(queued[0].options.parseMode,false);
+  assert.match(queued[0].text,/новых запросов/i);
+});
+
+test('runStylistLeads does not publish to the topic if Diana private queue write fails', async () => {
+  const config={version:1,enabled:true,topicId:126,lookbackHours:30,maxLeadsPerRun:5,sendEmpty:true,sources:[]};
+  const post={source:{id:'event',title:'Event'},id:'88',text:'Ищу стилиста по одежде в СПб',datetime:'2026-09-23T03:00:00Z',link:'https://t.me/event/88'};
+  let topicCalls=0;
+  await assert.rejects(()=>api.runStylistLeads({
+    now:new Date('2026-09-23T04:00:00Z'),
+    config,
+    cache:{async get(){return null},async set(){return true}},
+    chatId:'-1001234567890',
+    scanImpl:async()=>({posts:[post],errors:[],sourcesChecked:1}),
+    queueForDiMessageImpl:async()=>{throw new Error('private queue down')},
+    sendMessage:async()=>{topicCalls+=1;return {ok:true}},
+  }),/private queue down/);
+  assert.equal(topicCalls,0);
+});
