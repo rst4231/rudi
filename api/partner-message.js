@@ -336,7 +336,7 @@ function luluWalkStatusLabel(value, now = Date.now()) {
 
 function luluWalkNotificationText(actor, walkedAt, now = Date.now()) {
   const action = actor === 'Диана' ? 'погуляла' : 'погулял';
-  return `🐶 <b>${actor} ${action} с Lulu</b>\nПоследняя прогулка: <b>${escapeTelegramHtml(luluWalkStatusLabel(walkedAt, now))}</b>`;
+  return `🐾 <b>${actor} ${action} с Lulu</b>\nПоследняя прогулка: <b>${escapeTelegramHtml(luluWalkStatusLabel(walkedAt, now))}</b>`;
 }
 
 function boughtNotificationText(actor) {
@@ -1287,7 +1287,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           type: 'lulu-walk',
           actor,
           text: actor + ' ' + actionWord + ' с Lulu',
-          icon: '🐶',
+          icon: '🐾',
           targetTab: 'home',
           dedupeKey: 'lulu-walk:' + walkedAt,
           createdAt: walkedAt,
@@ -1764,8 +1764,11 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
-      const journal = await readActivityJournal(options);
-      return res.status(200).json({ ok: true, actor, ...journal });
+      const [journal, lulu] = await Promise.all([
+        readActivityJournal(options),
+        readLuluState(options),
+      ]);
+      return res.status(200).json({ ok: true, actor, ...journal, lulu });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
