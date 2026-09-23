@@ -58,8 +58,6 @@ async function mockRudi(page,options={}){
     contentType:'application/json',
     body:JSON.stringify({
       weather:{enabled:false},
-      dailyIdeas:['Прогулка'],
-      watchList:[],
       importantDates:[{id:'new-year',title:'Новый год',month:1,day:1,recurring:true}],
       birthdays:[],
       cycle:{enabled:true,cycleLengthDays:30,periodLengthDays:5,historyStarts:['2026-08-20']}
@@ -243,7 +241,7 @@ test('authenticated shell opens while bootstrap finishes in the background',asyn
 test('remote saved home layout is applied before the shell becomes visible',async({page})=>{
   await mockRudi(page,{
     uiPreferences:{
-      homeOrder:['smart-home','dashboard','priority','partner','new','car','activity'],
+      homeOrder:['smart-home','dashboard','priority','partner','new','car'],
       blockStates:{'smart-home':true},
       updatedAt:'2026-09-21T09:00:00.000Z'
     }
@@ -267,10 +265,10 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.9.6');
+  await expect(page.locator('#appVersion')).toHaveText('v1.9.7');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
-  expect(homeOrder.slice(-3)).toEqual(['smart-home','car','activity']);
+  expect(homeOrder.slice(-3)).toEqual(['new','smart-home','car']);
 
   const dianaStatus=page.locator('#partnerWorkStatus');
   await expect(dianaStatus).toHaveText('Работаю');
@@ -285,15 +283,8 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   const partnerMoodBox=await page.locator('#partnerMoodValue').boundingBox();
   expect(partnerMoodBox.height).toBeLessThanOrEqual(32);
 
-  await page.locator('#homeLayoutEditButton').click();
-  const controls=page.locator('.home-order-controls');
-  await expect(controls.first()).toBeVisible();
-  await expect(controls.first().locator('svg')).toHaveCount(2);
-  const buttons=controls.first().locator('.home-order-button');
-  const firstBox=await buttons.nth(0).boundingBox();
-  const secondBox=await buttons.nth(1).boundingBox();
-  expect(Math.abs(firstBox.width-secondBox.width)).toBeLessThanOrEqual(1);
-  expect(Math.abs(firstBox.height-secondBox.height)).toBeLessThanOrEqual(1);
+  await expect(page.locator('#homeLayoutEditButton')).toBeHidden();
+  await expect(page.locator('.home-order-controls').first()).toBeHidden();
 });
 
 test('iPhone calendar taps, spacing and silent refresh stay stable',async({page})=>{
@@ -357,6 +348,10 @@ test('feed is structured, today-first and keeps six-tab layout',async({page})=>{
   await page.getByRole('tab',{name:'Лента'}).click();
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.locator('.feed-daily-top')).toBeVisible();
+  await expect(page.locator('.idea-card')).toHaveCount(0);
+  await expect(page.locator('.watch-card')).toHaveCount(0);
+  await expect(page.locator('#dailyIdea')).toHaveCount(0);
+  await expect(page.locator('#watchToday')).toHaveCount(0);
   await expect(page.locator('#feedTitle')).toHaveCount(0);
   await expect(page.locator('#feedToday')).toBeVisible();
   await expect(page.locator('#feedTodayLinks')).toContainText('1 концерт');
