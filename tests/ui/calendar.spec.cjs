@@ -282,7 +282,7 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#homeLuluTile')).toBeVisible();
   await expect(page.locator('#homeNearestBlock')).toBeVisible();
   await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  await expect(page.locator('#appVersion')).toHaveText('v1.10.2');
+  await expect(page.locator('#appVersion')).toHaveText('v1.10.3');
   const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
   expect(homeOrder[0]).toBe('dashboard');
   expect(homeOrder.slice(-3)).toEqual(['new','smart-home','car']);
@@ -321,6 +321,8 @@ test('mood support message stays visible when own profile card is collapsed',asy
   const message=page.locator('#moodMessage');
   await expect(message).toBeVisible();
   await expect(message).not.toHaveText('');
+  expect(await message.evaluate(el=>getComputedStyle(el).color)).toBe('rgb(247, 248, 252)');
+  expect(await message.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(10.5);
   await expect(rustam.locator(':scope > #moodMessage')).toHaveCount(1);
   await expect(rustam.locator('.rudi-collapse-body #moodMessage')).toHaveCount(0);
 });
