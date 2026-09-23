@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { fetchLatestPhotos, getLatestPhotos, PREVIEW_MAX_EDGE, VIEWER_MAX_EDGE } = require('../api/shared-album.cjs');
+const { fetchLatestPhotos, getLatestPhotos, PREVIEW_MAX_EDGE, VIEWER_MAX_EDGE, FRESH_CACHE_MS } = require('../api/shared-album.cjs');
 
 test('shared album reports total photo count while only loading preview window', async () => {
   const photos = Array.from({ length: 300 }, (_, index) => ({
@@ -75,7 +75,7 @@ test('shared album reports total photo count while only loading preview window',
   assert.equal(result.photos.length, 250);
   assert.equal(result.title, 'Наш альбом');
   assert.equal(result.photos[0].id, 'photo-0');
-  assert.equal(PREVIEW_MAX_EDGE, 720);
+  assert.equal(PREVIEW_MAX_EDGE, 640);
   assert.equal(VIEWER_MAX_EDGE, 1800);
   assert.equal(result.photos[0].width, 640);
   assert.equal(result.photos[0].height, 480);
@@ -107,9 +107,10 @@ test('shared album reuses very fresh signed asset URLs instead of refetching iCl
   let fetchCalls = 0;
   const result = await getLatestPhotos({
     albumCache,
-    now: Date.parse('2026-09-23T18:01:00.000Z'),
+    now: Date.parse('2026-09-23T18:00:30.000Z'),
     fetchImpl: async () => { fetchCalls += 1; throw new Error('should-not-fetch'); },
   });
+  assert.equal(FRESH_CACHE_MS, 60000);
   assert.equal(fetchCalls, 0);
   assert.equal(result.cached, true);
   assert.equal(result.photos[0].id, 'cached-photo');

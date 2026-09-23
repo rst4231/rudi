@@ -76,7 +76,7 @@ test('RUDI has a restrained app-wide motion system with reduced-motion support',
   assert.match(app,/function rudiMotionReduced\(\)/);
   assert.match(app,/function animateRudiView\(section\)/);
   assert.match(app,/function animateRudiCollection\(root,selector=/);
-  assert.match(app,/restartRudiMotion\(image,'rudi-photo-swap',360\)/);
+  assert.match(app,/restartRudiMotion\(image,'rudi-photo-swap',280\)/);
   assert.match(app,/panel\.classList\.add\('is-open'\)/);
   assert.match(css,/--rudi-motion-base:240ms/);
   assert.match(css,/@keyframes rudiViewEnter/);
