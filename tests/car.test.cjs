@@ -93,7 +93,7 @@ test('car UI is private, movable, collapsible and can complete TickTick tasks',(
   const client=fs.readFileSync('api/car-client.cjs','utf8');
 
   assert.match(html,/id="carTile"[^>]*data-home-tile="car"[^>]*hidden/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'\]/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car'\]/);
   assert.match(app,/selector:'#carTile',key:'car'/);
   assert.match(client,/session\.actor !== 'Рустам'/);
   assert.match(app,/function applyActorVisibility\(\)[\s\S]*?currentActor==='Рустам'[\s\S]*?getElementById\('carTile'\)\?\.remove\(\)/);
