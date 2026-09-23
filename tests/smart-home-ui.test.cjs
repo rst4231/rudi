@@ -11,7 +11,7 @@ const client=fs.readFileSync('api/smart-home-client.cjs','utf8');
 
 test('smart home is movable and persistently collapsible',()=>{
   assert.match(html,/id="smartHomeTile"[^>]*data-app-tab-section="home"[^>]*data-home-tile="smart-home"/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','priority','partner','new','smart-home','car','activity'\]/);
+  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','smart-home','car','activity'\]/);
   assert.match(app,/return 'rudi-home-layout-v3-'\+actor/);
   assert.match(app,/selector:'#smartHomeTile',key:'smart-home'/);
   assert.match(app,/hostSelector:'\.smart-home-head'/);
