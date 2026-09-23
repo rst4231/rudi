@@ -511,22 +511,16 @@
         };
       }
 
-      function applyRemoteUiPreferences(value){
+      function applyRemoteUiPreferences(value,{force=false}={}){
         const remote=value&&typeof value==='object'&&!Array.isArray(value)?value:null;
-        if(!remote) return false;
+        if(!remote||(!force&&uiPreferencesDirty)) return false;
         const hasRemoteOrder=Array.isArray(remote.homeOrder)&&remote.homeOrder.length>0;
         const hasRemoteBlocks=remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)&&Object.keys(remote.blockStates).length>0;
         const remoteStamp=String(remote.updatedAt||'');
         if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks) return false;
-
-        const local=localUiPreferences();
-        const remoteTime=Date.parse(remoteStamp)||0;
-        const localTime=Date.parse(String(local.updatedAt||''))||0;
-        if(localTime>remoteTime) return false;
         try{
           if(hasRemoteOrder){
-            const migratedOrder=migrateHomeTopOrderOnce(remote.homeOrder);
-            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(migratedOrder));
+            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remote.homeOrder));
           }
           if(hasRemoteBlocks){
             localStorage.setItem(blockStateStorageKey(),JSON.stringify(remote.blockStates));
@@ -537,7 +531,27 @@
       }
 
       let uiPreferencesBackupTimer=null;
+      let uiPreferencesDirty=false;
+      let uiPreferencesSyncPromise=null;
+
+      function applyMountedUiPreferences(){
+        loadHomeOrder();
+        const states=readBlockStates();
+        document.querySelectorAll('.rudi-collapsible[data-collapse-key]').forEach(section=>{
+          const key=String(section.dataset.collapseKey||'');
+          if(!key||!Object.prototype.hasOwnProperty.call(states,key)) return;
+          const collapsed=Boolean(states[key]);
+          section.classList.toggle('is-collapsed',collapsed);
+          const button=section.querySelector('.block-collapse-button');
+          const body=section.querySelector(':scope > .rudi-collapse-body');
+          button?.setAttribute('aria-expanded',collapsed?'false':'true');
+          body?.setAttribute('aria-hidden',collapsed?'true':'false');
+        });
+        updateHomeOrderControls();
+      }
+
       function markUiPreferencesChanged(){
+        uiPreferencesDirty=true;
         try{localStorage.setItem(uiPreferencesMetaKey(),new Date().toISOString())}catch(_){}
         clearTimeout(uiPreferencesBackupTimer);
         uiPreferencesBackupTimer=setTimeout(()=>refreshStateBackup(),180);
@@ -550,6 +564,8 @@
           return stateBackupRefreshPromise;
         }
         stateBackupRefreshPromise=(async()=>{
+          const outgoing=uiPreferencesDirty?localUiPreferences():null;
+          const outgoingStamp=String(outgoing?.updatedAt||'');
           try{
             const response=await fetch('/api/partner-message?rudiAction=state-backup',{
               method:'POST',
@@ -557,12 +573,19 @@
               body:JSON.stringify({
                 initData:telegramInitData(),
                 backupToken:currentStateBackupToken,
-                uiPreferences:localUiPreferences()
+                uiPreferences:outgoing
               }),
               cache:'no-store'
             });
             const payload=await response.json().catch(()=>({}));
-            if(response.ok&&payload.ok&&payload.backupToken) await storeStateBackupToken(payload.backupToken);
+            if(response.ok&&payload.ok){
+              if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
+              const currentStamp=String(localUiPreferences().updatedAt||'');
+              if(outgoingStamp&&currentStamp===outgoingStamp) uiPreferencesDirty=false;
+              if(payload.uiPreferences&&!uiPreferencesDirty&&applyRemoteUiPreferences(payload.uiPreferences,{force:true})){
+                applyMountedUiPreferences();
+              }
+            }
           }catch(_){}
           finally{
             stateBackupRefreshPromise=null;
@@ -573,6 +596,31 @@
           }
         })();
         return stateBackupRefreshPromise;
+      }
+
+      async function syncUiPreferencesFromServer(){
+        if(!currentActor||uiPreferencesDirty) return null;
+        if(uiPreferencesSyncPromise) return uiPreferencesSyncPromise;
+        uiPreferencesSyncPromise=(async()=>{
+          try{
+            const response=await fetch('/api/partner-message?rudiAction=ui-preferences',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                initData:telegramInitData(),
+                backupToken:currentStateBackupToken
+              }),
+              cache:'no-store'
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(response.ok&&payload.ok&&payload.uiPreferences&&!uiPreferencesDirty){
+              if(applyRemoteUiPreferences(payload.uiPreferences,{force:true})) applyMountedUiPreferences();
+            }
+            return payload;
+          }catch(_){return null}
+          finally{uiPreferencesSyncPromise=null}
+        })();
+        return uiPreferencesSyncPromise;
       }
 
       window.RUDI_STATE_BACKUP={
@@ -664,9 +712,11 @@
       function loadHomeOrder(){
         let order=[];
         try{order=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
+        const before=JSON.stringify(order);
         order=migrateHomeTopOrderOnce(order);
         applyHomeOrder(order);
         if(order.length) try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
+        if(order.length&&JSON.stringify(order)!==before) markUiPreferencesChanged();
       }
 
       function saveHomeOrder(){
@@ -1751,6 +1801,7 @@
         const host=section.querySelector(hostSelector);
         if(!body||!host) return;
         section.dataset.collapseReady='1';
+        section.dataset.collapseKey=key;
         section.classList.add('rudi-collapsible');
         const button=collapseButton('Свернуть или развернуть блок');
         addHeaderCollapseButton(section,host,button);
@@ -2453,7 +2504,8 @@
           if(payload.actor&&String(payload.actor)!==currentActor) return;
           applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
           const appliedRemoteUi=applyRemoteUiPreferences(payload.uiPreferences);
-          if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')) markUiPreferencesChanged();
+          if(appliedRemoteUi) applyMountedUiPreferences();
+          if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged();
           cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
@@ -6633,7 +6685,7 @@
             (currentAppTab==='feed'?loadFeed({silent:true}):Promise.resolve()),
             refreshDailyReactions(),
             loadActivityJournal({silent:true}),
-            refreshStateBackup()
+            syncUiPreferencesFromServer().then(()=>refreshStateBackup())
           ]);
         }).finally(()=>{
           resumeRefreshPromise=null;
