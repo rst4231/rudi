@@ -580,3 +580,32 @@ html[data-theme="dark"] .smart-home-scenario{
   .smart-home-tile.is-collapsed .smart-home-head{min-height:88px}
 }
 /* end RUDI v1.8.1 smart-home hero */
+
+
+/* RUDI v1.9.0: climate stays visible in collapsed smart-home card */
+.smart-home-tile.is-collapsed .smart-home-title-wrap{display:none}
+.smart-home-tile.is-collapsed .smart-home-head{
+  min-height:30px;
+  height:30px;
+  margin-bottom:8px;
+  justify-content:flex-end;
+}
+.smart-home-tile.is-collapsed .smart-home-head .block-head-actions{margin-left:auto}
+.smart-home-tile.is-collapsed .smart-home-climate{
+  position:relative;
+  z-index:2;
+  margin:0;
+  padding:9px 6px;
+  border-color:rgba(255,255,255,.08);
+  background:rgba(18,23,32,.72);
+  backdrop-filter:blur(9px);
+  -webkit-backdrop-filter:blur(9px);
+}
+.smart-home-tile.is-collapsed .smart-home-climate-card{padding-top:3px;padding-bottom:3px}
+.smart-home-tile.is-collapsed .smart-home-climate-card small{color:rgba(235,239,246,.76)}
+@media(max-width:430px){
+  .smart-home-tile.is-collapsed{min-height:118px}
+  .smart-home-tile.is-collapsed .smart-home-head{min-height:28px;height:28px;margin-bottom:7px}
+  .smart-home-tile.is-collapsed .smart-home-climate{padding:8px 4px}
+}
+/* end RUDI v1.9.0 smart-home collapsed climate */

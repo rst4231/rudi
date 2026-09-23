@@ -5529,3 +5529,33 @@ html[data-theme="dark"] .partner-message{
     linear-gradient(rgba(11,13,18,.58),rgba(11,13,18,.58)),
     url("/poslanie-background.png?v=1.8.9")!important;
 }
+
+
+/* RUDI v1.9.0: clearer message card in dark theme */
+html[data-theme="dark"] .partner-message{
+  background:
+    linear-gradient(rgba(9,11,16,.68),rgba(9,11,16,.68)),
+    url('/poslanie-background.png?v=1.8.9') center / cover no-repeat!important;
+}
+html[data-theme="dark"] .partner-message .partner-title,
+html[data-theme="dark"] .partner-message .partner-text{
+  color:#f5f7fb!important;
+  opacity:1!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.38)!important;
+}
+html[data-theme="dark"] .partner-message .partner-empty{
+  color:#dde2eb!important;
+  opacity:1!important;
+}
+html[data-theme="dark"] .partner-message .partner-author,
+html[data-theme="dark"] .partner-message .reaction-names{
+  color:#c9d0dc!important;
+  opacity:1!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.32)!important;
+}
+html[data-theme="dark"] .partner-message .partner-edit{
+  color:#f3f5fa!important;
+  border-color:rgba(255,255,255,.13)!important;
+  background:rgba(13,16,23,.72)!important;
+}
+/* end RUDI v1.9.0 dark message readability */

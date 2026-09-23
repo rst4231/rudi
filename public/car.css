@@ -442,3 +442,21 @@
   background:rgba(13,16,23,.72)!important;
 }
 /* end RUDI v1.8.1 white car arrows */
+
+
+/* RUDI v1.9.0: current mileage in collapsed car card */
+.car-model::after{display:none}
+.car-tile.is-collapsed .car-model::after{
+  content:attr(data-mileage);
+  display:block;
+  margin-top:5px;
+  color:#f1f3f7;
+  font-size:12px;
+  line-height:1.2;
+  font-weight:760;
+  letter-spacing:-.01em;
+}
+@media(max-width:430px){
+  .car-tile.is-collapsed .car-model::after{font-size:11.5px}
+}
+/* end RUDI v1.9.0 collapsed mileage */

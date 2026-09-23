@@ -858,31 +858,111 @@
         node.hidden=!String(text||'').trim();
       }
 
-      function dianaCycleMoodWord(phase){
-        const value=String(phase||'');
-        if(value==='Месячные') return 'Спокойная';
-        if(value==='Фолликулярная фаза') return 'Бодрая';
-        if(value==='Фертильное окно') return 'Энергичная';
-        if(value==='Лютеиновая фаза') return 'Чувствительная';
-        return '';
+      function dianaCycleStatus(modelOrPhase){
+        const model=modelOrPhase&&typeof modelOrPhase==='object'
+          ?modelOrPhase
+          :{phase:String(modelOrPhase||'')};
+        const phase=String(model.phase||'');
+        const day=Number(model.cycleDay);
+        const periodLength=Math.max(1,Number(model.periodLength)||5);
+        const fertileStart=Number(model.fertileStart);
+        const ovulationDay=Number(model.ovulationDay);
+        const daysToNext=Number(model.daysToNext);
+
+        if(phase==='Месячные'){
+          if(Number.isFinite(day)&&day<=2){
+            return {
+              label:'Первые дни цикла',
+              advice:'Сейчас начало цикла. Лучше оставить больше запаса на отдых и комфорт, если Диане это нужно.'
+            };
+          }
+          return {
+            label:'Месячные',
+            advice:'Сейчас идут месячные. Лучше не перегружать день и ориентироваться на самочувствие Дианы.'
+          };
+        }
+
+        if(phase==='Фолликулярная фаза'){
+          if(Number.isFinite(day)&&day<=periodLength+2){
+            return {
+              label:'После месячных',
+              advice:'Период сразу после месячных. Можно постепенно возвращаться к обычному темпу, ориентируясь на самочувствие.'
+            };
+          }
+          if(Number.isFinite(day)&&Number.isFinite(fertileStart)&&day>=fertileStart-2){
+            return {
+              label:'Перед фертильными днями',
+              advice:'По календарю приближается фертильное окно. Это ориентир по циклу, а не оценка настроения или самочувствия.'
+            };
+          }
+          return {
+            label:'Фолликулярная фаза',
+            advice:'Сейчас фолликулярная фаза. План на день лучше подстраивать под реальное настроение и самочувствие Дианы.'
+          };
+        }
+
+        if(phase==='Фертильное окно'){
+          if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day===ovulationDay){
+            return {
+              label:'Овуляция ориентировочно',
+              advice:'По календарю сегодня ориентировочный день овуляции. Дата расчётная и может отличаться от фактической.'
+            };
+          }
+          if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day<ovulationDay){
+            return {
+              label:'Фертильные дни',
+              advice:'Сейчас расчётное фертильное окно. Даты ориентировочные и не подходят для контрацепции.'
+            };
+          }
+          return {
+            label:'После овуляции',
+            advice:'По календарю овуляция уже прошла. Это только ориентир по фазе цикла.'
+          };
+        }
+
+        if(phase==='Лютеиновая фаза'){
+          if(Number.isFinite(daysToNext)&&daysToNext<=2){
+            return {
+              label:'Скоро месячные',
+              advice:'До ожидаемых месячных осталось совсем немного. Лучше оставить больше гибкости в планах и ориентироваться на самочувствие.'
+            };
+          }
+          if(Number.isFinite(daysToNext)&&daysToNext<=5){
+            return {
+              label:'Перед месячными',
+              advice:'По календарю приближаются месячные. Спокойный темп и меньше лишней нагрузки могут быть удобнее, если Диане так комфортно.'
+            };
+          }
+          if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day<=ovulationDay+3){
+            return {
+              label:'После овуляции',
+              advice:'Начало лютеиновой фазы. Календарь показывает фазу, но не определяет настроение или самочувствие.'
+            };
+          }
+          return {
+            label:'Лютеиновая фаза',
+            advice:'Сейчас лютеиновая фаза. Лучше ориентироваться на фактическое состояние Дианы, а не только на календарный прогноз.'
+          };
+        }
+
+        return {label:'',advice:''};
       }
 
-      function dianaCycleDailyAdvice(phase){
-        const value=String(phase||'');
-        if(value==='Месячные') return 'Лучше снизить темп и оставить больше времени на отдых и комфорт.';
-        if(value==='Фолликулярная фаза') return 'Хороший день для активности, новых дел и более насыщенного темпа.';
-        if(value==='Фертильное окно') return 'Можно планировать активный день, встречи и совместные дела, если есть настроение.';
-        if(value==='Лютеиновая фаза') return 'Лучше спокойнее с нагрузкой, мягче в общении и без лишнего давления.';
-        return '';
+      function dianaCycleMoodWord(modelOrPhase){
+        return dianaCycleStatus(modelOrPhase).label;
       }
 
-      function setDianaCycleMood(phase){
+      function dianaCycleDailyAdvice(modelOrPhase){
+        return dianaCycleStatus(modelOrPhase).advice;
+      }
+
+      function setDianaCycleMood(modelOrPhase){
         const node=document.getElementById('dianaCycleMood');
         if(!node) return;
-        const word=dianaCycleMoodWord(phase);
+        const word=dianaCycleMoodWord(modelOrPhase);
         node.textContent=word;
         node.hidden=!word;
-        node.title=word?'Ориентировочно по фазе цикла':'';
+        node.title=word?'Ориентировочный статус по календарю цикла':'';
       }
 
       function rustamWorkState(now=new Date()){
@@ -1244,12 +1324,12 @@
 
         const cycle=document.getElementById('homeCycleSummary');
         if(cycle){
-          const phaseValue=homeDashboardState.cycle?.phase;
-          const word=dianaCycleMoodWord(phaseValue);
+          const cycleModel=homeDashboardState.cycle;
+          const word=dianaCycleMoodWord(cycleModel);
           const status=document.getElementById('homeCycleStatus');
           const advice=document.getElementById('homeCycleAdvice');
-          if(status) status.textContent=word?'🌸 Диана: '+word+(phaseValue?' · '+String(phaseValue).toLocaleLowerCase('ru-RU'):''):'';
-          if(advice) advice.textContent=dianaCycleDailyAdvice(phaseValue);
+          if(status) status.textContent=word?'🌸 Диана: '+word:'';
+          if(advice) advice.textContent=dianaCycleDailyAdvice(cycleModel);
           cycle.hidden=!word;
         }
 
@@ -1552,18 +1632,8 @@
           hostSelector:'.cycle-head'
         });
         setupPersistentCollapsible({
-          selector:'.priority-section',key:'priority',
-          bodySelectors:['.priority-grid'],
-          hostSelector:'.section-heading'
-        });
-        setupPersistentCollapsible({
-          selector:'.partner-message',key:'partner',
-          bodySelectors:['#partnerMessageText','#partnerMessageAuthor','#partnerMessageReaction','#partnerEditor'],
-          hostSelector:'.partner-head'
-        });
-        setupPersistentCollapsible({
           selector:'#smartHomeTile',key:'smart-home',
-          bodySelectors:['.smart-home-climate','#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
+          bodySelectors:['#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
           hostSelector:'.smart-home-head'
         });
         setupPersistentCollapsible({
@@ -2689,7 +2759,7 @@
         if(recordButton) recordButton.disabled=false;
         const model=dianaCycleModel(cfg);
         homeDashboardState.cycle=model;
-        setDianaCycleMood(model.phase);
+        setDianaCycleMood(model);
         renderHomeDashboard();
         if(Number.isFinite(model.daysToNext)){
           if(model.daysToNext>0){
