@@ -160,7 +160,59 @@ async function generateRecipeSet(input, options = {}) {
           }],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 0.7,
+            responseJsonSchema: {
+              type: 'object',
+              properties: {
+                recipes: {
+                  type: 'array',
+                  minItems: 4,
+                  maxItems: 4,
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string' },
+                      summary: { type: 'string' },
+                      timeMinutes: { type: 'integer', minimum: 5, maximum: 240 },
+                      difficulty: { type: 'string' },
+                      ingredients: {
+                        type: 'array',
+                        minItems: 1,
+                        maxItems: 24,
+                        items: {
+                          type: 'object',
+                          properties: {
+                            name: { type: 'string' },
+                            amount: { type: 'string' },
+                          },
+                          required: ['name', 'amount'],
+                          additionalProperties: false,
+                        },
+                      },
+                      missing: {
+                        type: 'array',
+                        maxItems: 12,
+                        items: { type: 'string' },
+                      },
+                      steps: {
+                        type: 'array',
+                        minItems: 1,
+                        maxItems: 16,
+                        items: { type: 'string' },
+                      },
+                      tips: {
+                        type: 'array',
+                        maxItems: 6,
+                        items: { type: 'string' },
+                      },
+                    },
+                    required: ['title', 'summary', 'timeMinutes', 'difficulty', 'ingredients', 'missing', 'steps', 'tips'],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ['recipes'],
+              additionalProperties: false,
+            },
             maxOutputTokens: 5200,
           },
         }),
