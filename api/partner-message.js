@@ -2118,7 +2118,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           || code === 'recipe-time-invalid'
           || code === 'recipe-title-required' ? 400
         : code === 'recipe-ai-quota' ? 429
-        : code === 'gemini-api-key-missing' ? 503
+        : code === 'groq-api-key-missing' ? 503
         : 502;
       if (status >= 500) console.error('RUDI_RECIPE_AI_ERROR', code);
       return res.status(status).json({ ok: false, error: code });
