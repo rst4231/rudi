@@ -13,5 +13,5 @@ test('release config drives the UI version and source asset URLs',()=>{
     const [stem,ext]=name.split('.');
     assert.match(html,new RegExp('/'+stem+'\\.'+ext+'\\?v='+version+'|/assets/'+stem+'\\.[a-f0-9]{12}\\.'+ext));
   }
-  assert.ok(html.includes('>'+config.current+'</div>'));
+  assert.ok(html.includes('<meta name="rudi-version" content="'+config.current+'">'));
 });
