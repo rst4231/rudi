@@ -138,3 +138,29 @@ test('market ticker is movable, theme-safe and persisted', () => {
   assert.match(css,/--market-down:#b83b4b/);
   assert.match(css,/@media\(prefers-reduced-motion:reduce\)[\s\S]*?\.market-ticker-track\.is-ready/);
 });
+
+test('market ticker palette keeps WCAG text contrast in both themes', () => {
+  const luminance=hex=>{
+    const rgb=hex.replace('#','').match(/.{2}/g).map(value=>parseInt(value,16)/255);
+    const linear=rgb.map(value=>value<=0.04045?value/12.92:Math.pow((value+0.055)/1.055,2.4));
+    return 0.2126*linear[0]+0.7152*linear[1]+0.0722*linear[2];
+  };
+  const ratio=(foreground,background)=>{
+    const high=Math.max(luminance(foreground),luminance(background));
+    const low=Math.min(luminance(foreground),luminance(background));
+    return (high+0.05)/(low+0.05);
+  };
+  for(const [foreground,background] of [
+    ['#23262e','#ffffff'],
+    ['#6c727d','#ffffff'],
+    ['#147a45','#ffffff'],
+    ['#b83b4b','#ffffff'],
+    ['#f5f7fb','#12151d'],
+    ['#9aa2b1','#12151d'],
+    ['#65e59d','#12151d'],
+    ['#ff7d8a','#12151d'],
+  ]){
+    assert.ok(ratio(foreground,background)>=4.5,foreground+' on '+background+' must stay readable');
+  }
+});
+
