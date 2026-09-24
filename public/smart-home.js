@@ -543,6 +543,8 @@
     });
   }
 
+  window.RUDI_SMART_HOME={refresh:()=>loadHome({force:true,silent:true})};
+
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
   else start();
 })();
