@@ -1517,7 +1517,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'auth-verify') {
         await hydrateAllDurablePasskeys(body.backupToken, options);
         const verified = await verifyAuthentication(req, body.challenge, body.response, storeOptions);
-        const rows = await readPasskeys(verified.actor, storeOptions);
+        const rows = Array.isArray(verified.passkeys) ? verified.passkeys : await readPasskeys(verified.actor, storeOptions);
         await saveDurablePasskeys(verified.actor, rows, durableAuthOptions(options));
         setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
         const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
@@ -1540,11 +1540,12 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (operation === 'register-verify') {
         const result = await verifyRegistration(req, session.actor, body.challenge, body.response, storeOptions);
-        const rows = await readPasskeys(session.actor, storeOptions);
+        const rows = Array.isArray(result.passkeys) ? result.passkeys : await readPasskeys(session.actor, storeOptions);
         await saveDurablePasskeys(session.actor, rows, durableAuthOptions(options));
         const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
         const backupToken = await createStateBackup({ ...options, previousSnapshot });
-        return res.status(200).json({ ok: true, ...result, backupToken });
+        const { passkeys: _passkeys, ...publicResult } = result;
+        return res.status(200).json({ ok: true, ...publicResult, backupToken });
       }
 
       return res.status(400).json({ ok: false, error: 'passkey-operation-invalid' });
