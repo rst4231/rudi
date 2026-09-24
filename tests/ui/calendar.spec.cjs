@@ -801,3 +801,32 @@ test('assistant text input keeps focus and background stays locked',async({page}
   await expect(page.locator('body')).not.toHaveClass(/voice-assistant-open/);
   expect(await page.locator('body').evaluate(el=>getComputedStyle(el).position)).not.toBe('fixed');
 });
+
+
+test('assistant modal keeps focus and freezes background scroll',async({page})=>{
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+
+  await page.evaluate(()=>window.scrollTo(0,Math.min(420,document.documentElement.scrollHeight-window.innerHeight)));
+  const before=await page.evaluate(()=>window.scrollY);
+
+  await page.locator('#voiceAssistantFab').click();
+  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
+  await expect(page.locator('#voiceAssistantBackdrop')).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/voice-assistant-open/);
+  await expect(page.locator('body')).toHaveCSS('position','fixed');
+
+  const input=page.locator('#voiceAssistantTextInput');
+  await input.focus();
+  await input.fill('Проверка курсора');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('Проверка курсора');
+  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
+
+  await page.locator('#voiceAssistantClose').click();
+  await expect(page.locator('#voiceAssistantPanel')).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/voice-assistant-open/);
+  const after=await page.evaluate(()=>window.scrollY);
+  expect(Math.abs(after-before)).toBeLessThanOrEqual(2);
+});
