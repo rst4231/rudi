@@ -1780,6 +1780,8 @@
         }
       }
 
+      let settingsFaceIdStatusSequence=0;
+
       async function updateSettingsFaceIdUi(){
         const status=document.getElementById('settingsFaceIdStatus');
         const button=document.getElementById('settingsFaceIdConnect');
@@ -1800,9 +1802,11 @@
           return;
         }
 
+        const sequence=++settingsFaceIdStatusSequence;
         status.textContent='Проверяю…';
         try{
           const faceStatus=await passkeyRequest('status');
+          if(sequence!==settingsFaceIdStatusSequence) return;
           const configured=Boolean(faceStatus.configured);
           if(configured){
             status.textContent='Включён';
@@ -1815,6 +1819,7 @@
           button.textContent='Подключить';
           button.disabled=false;
         }catch(_){
+          if(sequence!==settingsFaceIdStatusSequence) return;
           status.textContent='Не удалось проверить';
           button.textContent='Повторить';
           button.disabled=false;
@@ -1826,6 +1831,7 @@
         const button=document.getElementById('settingsFaceIdConnect');
         if(!status||!button||button.disabled) return;
 
+        const sequence=++settingsFaceIdStatusSequence;
         button.disabled=true;
         status.textContent='Подготавливаю…';
         try{
@@ -1833,6 +1839,7 @@
           status.textContent='Подтвердите Face ID…';
           const credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey});
           await finishFaceIdRegistration(prepared,credentialPromise);
+          if(sequence!==settingsFaceIdStatusSequence) return;
           status.textContent='Включён';
           button.textContent='Включён';
           button.classList.add('is-enabled');
