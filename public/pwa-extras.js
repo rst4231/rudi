@@ -10,7 +10,7 @@
       const url=new URL(window.location.href);
       if(tab&&tab!=='home') url.searchParams.set('tab',tab);
       else url.searchParams.delete('tab');
-      if(item&&(tab==='wishlist'||tab==='products')) url.searchParams.set('item',String(item));
+      if(item&&['wishlist','products','saves','schedule'].includes(tab)) url.searchParams.set('item',String(item));
       else url.searchParams.delete('item');
       const target=url.pathname+(url.search||'')+(url.hash||'');
       const current=window.location.pathname+window.location.search+window.location.hash;
@@ -33,6 +33,134 @@
     toast.classList.add('is-open');
     clearTimeout(showMiniToast.timer);
     showMiniToast.timer=setTimeout(()=>toast.classList.remove('is-open'),1800);
+  }
+
+  const RUDI_SYNC_DB='rudi-background-sync-v1';
+  const RUDI_SYNC_STORE='outbox';
+  const RUDI_SYNC_TAG='rudi-outbox';
+  const nativeFetch=window.fetch.bind(window);
+
+  function openOutboxDb(){
+    return new Promise((resolve,reject)=>{
+      if(!('indexedDB' in window)) return reject(new Error('indexeddb-unavailable'));
+      const request=indexedDB.open(RUDI_SYNC_DB,1);
+      request.onupgradeneeded=()=>{
+        const db=request.result;
+        if(!db.objectStoreNames.contains(RUDI_SYNC_STORE)){
+          const store=db.createObjectStore(RUDI_SYNC_STORE,{keyPath:'id'});
+          store.createIndex('createdAt','createdAt',{unique:false});
+        }
+      };
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error||new Error('indexeddb-open-failed'));
+    });
+  }
+
+  function readRequestBody(init={}){
+    if(typeof init.body!=='string') return null;
+    try{return JSON.parse(init.body)}catch(_){return null}
+  }
+
+  function queueableMutation(input,init={}){
+    const method=String(init.method||((input&&typeof input==='object'&&input.method)||'GET')).toUpperCase();
+    if(method!=='POST') return null;
+    let url;
+    try{url=new URL(typeof input==='string'?input:input?.url||'',window.location.href)}catch(_){return null}
+    if(url.origin!==window.location.origin) return null;
+    const body=readRequestBody(init);
+    if(!body||typeof body!=='object') return null;
+
+    const action=String(url.searchParams.get('rudiAction')||'');
+    const operation=String(body.operation||'').trim().toLowerCase();
+    const readOps=new Set(['list','get','status','read','preview']);
+
+    let queue=false;
+    if(url.pathname==='/api/wishlist') queue=!readOps.has(operation||'list');
+    else if(url.pathname==='/api/partner-message'&&!action) queue=Boolean(String(body.text||'').trim());
+    else if(action==='products'||action==='saves'||action==='reactions'||action==='mood'||action==='lulu'||action==='cycle'||action==='ui-preferences'){
+      queue=!readOps.has(operation||'get');
+    }
+    if(!queue) return null;
+
+    const headers={};
+    try{
+      new Headers(init.headers||{}).forEach((value,key)=>{headers[key]=value});
+    }catch(_){}
+    if(!headers['content-type']) headers['content-type']='application/json';
+
+    return {
+      url:url.pathname+url.search,
+      method,
+      headers,
+      body:init.body,
+      credentials:'include'
+    };
+  }
+
+  async function enqueueOfflineMutation(descriptor){
+    const db=await openOutboxDb();
+    const row={
+      id:(crypto?.randomUUID?.()||('sync-'+Date.now()+'-'+Math.random().toString(36).slice(2))),
+      ...descriptor,
+      createdAt:Date.now()
+    };
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(RUDI_SYNC_STORE,'readwrite');
+      tx.objectStore(RUDI_SYNC_STORE).put(row);
+      tx.oncomplete=()=>resolve(true);
+      tx.onerror=()=>reject(tx.error||new Error('outbox-write-failed'));
+    });
+    db.close();
+    return row;
+  }
+
+  async function requestOutboxFlush(){
+    if(!('serviceWorker' in navigator)) return false;
+    try{
+      const registration=await navigator.serviceWorker.ready;
+      if(registration.sync?.register){
+        await registration.sync.register(RUDI_SYNC_TAG);
+        return true;
+      }
+      registration.active?.postMessage({type:'FLUSH_OUTBOX'});
+      return true;
+    }catch(_){return false}
+  }
+
+  function installBackgroundSync(){
+    if(window.__rudiBackgroundSyncInstalled==='1') return;
+    window.__rudiBackgroundSyncInstalled='1';
+
+    window.fetch=async(input,init={})=>{
+      const queued=queueableMutation(input,init);
+      if(queued&&navigator.onLine===false){
+        try{
+          await enqueueOfflineMutation(queued);
+          await requestOutboxFlush();
+          showMiniToast('Нет сети · действие отправится позже');
+          const error=new TypeError('rudi-offline-queued');
+          error.rudiQueued=true;
+          throw error;
+        }catch(error){
+          if(error?.rudiQueued) throw error;
+        }
+      }
+      return nativeFetch(input,init);
+    };
+
+    window.addEventListener('online',()=>{
+      requestOutboxFlush();
+    });
+
+    navigator.serviceWorker?.addEventListener?.('message',event=>{
+      const data=event.data||{};
+      if(data.type==='RUDI_SYNC_COMPLETE'&&Number(data.sent||0)>0){
+        showMiniToast('Изменения синхронизированы');
+        window.dispatchEvent(new CustomEvent('rudi-background-sync-complete',{detail:data}));
+      }else if(data.type==='RUDI_SYNC_PENDING'){
+        showMiniToast('Жду сеть для синхронизации');
+      }
+    });
   }
 
   function installServiceWorker(){
@@ -155,12 +283,18 @@
           '<div class="rudi-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="rudiSearchInput" type="search" autocomplete="off" placeholder="Поиск по RUDI…" aria-label="Поиск по RUDI"></div>'+
           '<button id="rudiSearchClose" class="rudi-search-close" type="button" aria-label="Закрыть">×</button>'+
         '</div>'+
-        '<div id="rudiSearchHint" class="rudi-search-hint">Ищет по продуктам, желаниям, ленте, фото и календарю</div>'+
+        '<div id="rudiSearchHint" class="rudi-search-hint">Ищет по всей базе RUDI</div>'+
         '<div id="rudiSearchResults" class="rudi-search-results"></div>'+
       '</section>';
     document.body.appendChild(overlay);
 
+    let searchTimer=0;
+    let searchSequence=0;
+    let searchController=null;
+
     const close=()=>{
+      clearTimeout(searchTimer);
+      searchController?.abort?.();
       overlay.classList.remove('is-open');
       setTimeout(()=>{if(!overlay.classList.contains('is-open')) overlay.hidden=true},180);
       document.body.classList.remove('rudi-modal-open');
@@ -187,37 +321,30 @@
       }
     });
 
-    function renderSearch(value){
+    function resultKey(entry){
+      return [entry.tab,entry.item,entry.kind,entry.title,entry.text].map(value=>String(value||'')).join('|');
+    }
+
+    function paintResults(entries,{emptyText='Ничего не найдено'}={}){
       const host=byId('rudiSearchResults');
-      const hint=byId('rudiSearchHint');
       if(!host) return;
-      const query=normalize(value);
       host.replaceChildren();
-      if(!query){
-        if(hint) hint.hidden=false;
-        return;
-      }
-      if(hint) hint.hidden=true;
-      const terms=query.split(' ').filter(Boolean);
-      const matches=collectSearchEntries()
-        .filter(entry=>terms.every(term=>entry.haystack.includes(term)))
-        .slice(0,24);
-      if(!matches.length){
+      if(!entries.length){
         const empty=document.createElement('div');
         empty.className='rudi-search-empty';
-        empty.textContent='Ничего не найдено';
+        empty.textContent=emptyText;
         host.appendChild(empty);
         return;
       }
-      matches.forEach(entry=>{
+      entries.slice(0,30).forEach(entry=>{
         const button=document.createElement('button');
         button.type='button';
         button.className='rudi-search-result';
-        button.innerHTML='<span class="rudi-search-kind">'+esc(entry.kind)+'</span><strong>'+esc(entry.title||entry.kind)+'</strong>'+(entry.text&&entry.text!==entry.title?'<small>'+esc(entry.text.slice(0,150))+'</small>':'');
+        button.innerHTML='<span class="rudi-search-kind">'+esc(entry.kind||'RUDI')+'</span><strong>'+esc(entry.title||entry.kind||'Результат')+'</strong>'+(entry.text&&entry.text!==entry.title?'<small>'+esc(String(entry.text).slice(0,170))+'</small>':'');
         button.addEventListener('click',()=>{
           const node=entry.node;
           close();
-          routeTo(entry.tab,entry.item||'');
+          routeTo(entry.tab||'home',entry.item||'');
           setTimeout(()=>{
             if(node?.isConnected){
               node.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
@@ -228,6 +355,83 @@
         });
         host.appendChild(button);
       });
+    }
+
+    async function remoteSearch(query,sequence,localEntries){
+      searchController?.abort?.();
+      searchController=new AbortController();
+      const hint=byId('rudiSearchHint');
+      if(hint){
+        hint.hidden=false;
+        hint.textContent='Ищу по всей базе…';
+      }
+      try{
+        const response=await fetch('/api/partner-message?rudiAction=search',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            initData:window.Telegram?.WebApp?.initData||'',
+            backupToken:window.RUDI_STATE_BACKUP?.getToken?.()||'',
+            query
+          }),
+          cache:'no-store',
+          signal:searchController.signal
+        });
+        const data=await response.json().catch(()=>({}));
+        if(sequence!==searchSequence) return;
+        const remote=response.ok&&data.ok&&Array.isArray(data.results)?data.results:[];
+        const merged=[];
+        const seen=new Set();
+        for(const entry of [...remote,...localEntries]){
+          const key=resultKey(entry);
+          if(seen.has(key)) continue;
+          seen.add(key);
+          merged.push(entry);
+        }
+        paintResults(merged);
+      }catch(error){
+        if(String(error?.name||'')!=='AbortError'&&sequence===searchSequence){
+          paintResults(localEntries);
+        }
+      }finally{
+        if(sequence===searchSequence&&hint){
+          hint.hidden=true;
+          hint.textContent='Ищет по всей базе RUDI';
+        }
+      }
+    }
+
+    function renderSearch(value){
+      const hint=byId('rudiSearchHint');
+      const query=normalize(value);
+      clearTimeout(searchTimer);
+      searchController?.abort?.();
+      searchSequence+=1;
+      const sequence=searchSequence;
+
+      if(!query){
+        paintResults([],{emptyText:''});
+        const empty=byId('rudiSearchResults')?.querySelector('.rudi-search-empty');
+        empty?.remove();
+        if(hint){
+          hint.hidden=false;
+          hint.textContent='Ищет по всей базе RUDI';
+        }
+        return;
+      }
+
+      const terms=query.split(' ').filter(Boolean);
+      const localEntries=collectSearchEntries()
+        .filter(entry=>terms.every(term=>entry.haystack.includes(term)))
+        .slice(0,18);
+      paintResults(localEntries,{emptyText:query.length<2?'Введите ещё один символ':'Ищу…'});
+
+      if(query.length<2){
+        if(hint) hint.hidden=true;
+        return;
+      }
+
+      searchTimer=setTimeout(()=>remoteSearch(query,sequence,localEntries),180);
     }
     return overlay;
   }
@@ -626,6 +830,7 @@
   }
 
   installServiceWorker();
+  installBackgroundSync();
   installConnectivityBanner();
   installBadgeSync();
   ensureSearchOverlay();
