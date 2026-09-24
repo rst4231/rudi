@@ -41,6 +41,7 @@
       let voiceAssistantSpeechToken = 0;
       let voiceAssistantSpeechUtterance = null;
       let voiceAssistantGreeting = '';
+      let voiceAssistantPageLock = null;
       let appViewTransitionActive = false;
       let requestedAppTab = '';
       let requestedItemId = '';
@@ -1422,6 +1423,7 @@
       function voiceAssistantElements(){
         return {
           launcher:document.getElementById('voiceAssistantLauncher'),
+          backdrop:document.getElementById('voiceAssistantBackdrop'),
           fab:document.getElementById('voiceAssistantFab'),
           greeting:document.getElementById('voiceAssistantGreeting'),
           panelGreeting:document.getElementById('voiceAssistantPanelGreeting'),
@@ -1844,15 +1846,43 @@
         }
       }
 
+      function lockVoiceAssistantPage(){
+        if(voiceAssistantPageLock) return;
+        const y=Math.max(0,Math.round(window.scrollY||window.pageYOffset||0));
+        voiceAssistantPageLock={
+          y,
+          position:document.body.style.position,
+          top:document.body.style.top,
+          left:document.body.style.left,
+          right:document.body.style.right,
+          width:document.body.style.width
+        };
+        document.body.classList.add('voice-assistant-open');
+        document.body.style.position='fixed';
+        document.body.style.top='-'+y+'px';
+        document.body.style.left='0';
+        document.body.style.right='0';
+        document.body.style.width='100%';
+      }
+
+      function unlockVoiceAssistantPage(){
+        const lock=voiceAssistantPageLock;
+        voiceAssistantPageLock=null;
+        document.body.classList.remove('voice-assistant-open','voice-assistant-input-active');
+        if(!lock) return;
+        document.body.style.position=lock.position;
+        document.body.style.top=lock.top;
+        document.body.style.left=lock.left;
+        document.body.style.right=lock.right;
+        document.body.style.width=lock.width;
+        window.scrollTo(0,lock.y);
+      }
+
       function updateVoiceAssistantViewport(){
         const {panel,input}=voiceAssistantElements();
         if(!panel) return;
         const viewport=window.visualViewport;
         const height=Math.max(1,Math.round(viewport?.height||window.innerHeight||document.documentElement.clientHeight||1));
-        const offsetTop=Math.max(0,Math.round(viewport?.offsetTop||0));
-        const layoutHeight=Math.max(height,Math.round(window.innerHeight||height));
-        const keyboardInset=viewport?Math.max(0,layoutHeight-height-offsetTop):0;
-        panel.style.setProperty('--voice-assistant-keyboard-inset',keyboardInset+'px');
         panel.style.setProperty('--voice-assistant-viewport-height',height+'px');
         const active=document.activeElement===input;
         document.body.classList.toggle('voice-assistant-input-active',active);
@@ -1867,10 +1897,12 @@
       function closeVoiceAssistant(){
         stopVoiceAssistantRecording();releaseVoiceAssistantStream();
         stopVoiceAssistantSpeech();
-        const {panel,launcher}=voiceAssistantElements();
+        const {panel,launcher,backdrop,input}=voiceAssistantElements();
+        if(document.activeElement===input) input?.blur?.();
         if(panel) panel.hidden=true;
+        if(backdrop) backdrop.hidden=true;
         if(launcher) launcher.hidden=false;
-        document.body.classList.remove('voice-assistant-input-active');
+        unlockVoiceAssistantPage();
         updateVoiceAssistantViewport();
       }
 
@@ -1880,7 +1912,7 @@
       }
 
       function setupVoiceAssistant(){
-        const {launcher,fab,panel,close,talk,dialogue,form,input,send}=voiceAssistantElements();
+        const {launcher,fab,backdrop,panel,close,talk,dialogue,form,input,send}=voiceAssistantElements();
         const voiceToggle=document.getElementById('voiceAssistantVoiceToggle');
         if(!fab||!panel||fab.dataset.bound==='1') return;
         fab.dataset.bound='1';
@@ -1891,6 +1923,8 @@
         if(send) send.disabled=!String(input?.value||'').trim();
 
         fab.addEventListener('click',()=>{
+          lockVoiceAssistantPage();
+          if(backdrop) backdrop.hidden=false;
           panel.hidden=false;
           if(launcher) launcher.hidden=true;
           syncVoiceAssistantGreeting();
@@ -1948,7 +1982,6 @@
 
         window.addEventListener('resize',updateVoiceAssistantViewport,{passive:true});
         window.visualViewport?.addEventListener?.('resize',updateVoiceAssistantViewport,{passive:true});
-        window.visualViewport?.addEventListener?.('scroll',updateVoiceAssistantViewport,{passive:true});
         try{window.speechSynthesis?.addEventListener?.('voiceschanged',()=>preferredVoiceAssistantVoice(),{passive:true})}catch(_){}
         updateVoiceAssistantViewport();
         syncVoiceAssistantVisibility(currentAppTab);

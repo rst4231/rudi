@@ -774,3 +774,30 @@ test('photo thumbnails stay rendered after long scrolling and viewer upgrades pr
   await expect.poll(()=>page.locator('#photoViewerImage').getAttribute('src')).toMatch(/photo-79(?:-full)?\.jpg$/);
   await expect(page.locator('#photoViewerImage')).toHaveAttribute('src',/photo-79-full\.jpg$/);
 });
+
+
+test('assistant text input keeps focus and background stays locked',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+
+  await page.locator('#voiceAssistantFab').click();
+  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
+  await expect(page.locator('#voiceAssistantBackdrop')).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/voice-assistant-open/);
+  expect(await page.locator('body').evaluate(el=>getComputedStyle(el).position)).toBe('fixed');
+
+  const input=page.locator('#voiceAssistantTextInput');
+  await input.click();
+  await input.fill('Проверка клавиатуры');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('Проверка клавиатуры');
+  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/voice-assistant-input-active/);
+
+  await page.locator('#voiceAssistantClose').click();
+  await expect(page.locator('#voiceAssistantPanel')).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/voice-assistant-open/);
+  expect(await page.locator('body').evaluate(el=>getComputedStyle(el).position)).not.toBe('fixed');
+});

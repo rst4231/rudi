@@ -54,3 +54,19 @@ test('keyboard editing never hides the open assistant panel',()=>{
   assert.doesNotMatch(css,/body\.keyboard-editing \.voice-assistant-panel\s*\{[^}]*display\s*:\s*none/i);
   assert.match(css,/body\.keyboard-editing \.voice-assistant-fab\{display:none!important\}/);
 });
+
+
+test('assistant modal locks the background in Telegram and PWA',()=>{
+  assert.match(html,/id="voiceAssistantBackdrop"/);
+  assert.match(app,/function lockVoiceAssistantPage\(/);
+  assert.match(app,/document\.body\.style\.position='fixed'/);
+  assert.match(app,/function unlockVoiceAssistantPage\(/);
+  assert.match(css,/body\.voice-assistant-open\{[^}]*overflow:hidden!important/s);
+  assert.match(css,/\.voice-assistant-backdrop\{/);
+});
+
+test('mobile assistant uses stable visible viewport height instead of keyboard bottom offsets',()=>{
+  assert.match(css,/height:calc\(var\(--voice-assistant-viewport-height,100dvh\) - 16px\)!important/);
+  assert.doesNotMatch(app,/--voice-assistant-keyboard-inset/);
+  assert.doesNotMatch(app,/visualViewport\?\.addEventListener\?\.\('scroll'/);
+});

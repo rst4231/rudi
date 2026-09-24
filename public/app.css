@@ -7864,3 +7864,48 @@ body.voice-assistant-input-active .voice-assistant-panel{bottom:calc(8px + max(e
 html[data-theme="dark"] .voice-assistant-greeting{background:rgba(23,27,38,.94);border-color:rgba(255,255,255,.09)}
 @media(max-width:600px){.voice-assistant-launcher{right:18px}.voice-assistant-panel{width:calc(100vw - 20px)}}
 @media(prefers-reduced-motion:reduce){.voice-assistant-fab{animation:none!important}}
+
+
+/* Voice assistant keyboard stability v1.18.16 */
+.voice-assistant-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:4290;
+  background:rgba(8,11,18,.34);
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+  touch-action:none;
+  overscroll-behavior:none;
+}
+.voice-assistant-backdrop[hidden]{display:none!important}
+body.voice-assistant-open{
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+  touch-action:none;
+}
+body.voice-assistant-open .voice-assistant-panel,
+body.voice-assistant-open .voice-assistant-dialogue,
+body.voice-assistant-open .voice-assistant-text-input,
+body.voice-assistant-open .voice-assistant-talk,
+body.voice-assistant-open .voice-assistant-icon-button{
+  touch-action:auto;
+}
+@media(max-width:600px){
+  .voice-assistant-panel{
+    top:8px!important;
+    bottom:auto!important;
+    left:8px!important;
+    right:8px!important;
+    width:auto!important;
+    height:calc(var(--voice-assistant-viewport-height,100dvh) - 16px)!important;
+    max-height:none!important;
+    transform:none!important;
+    border-radius:22px;
+  }
+  body.voice-assistant-input-active .voice-assistant-panel{
+    top:8px!important;
+    bottom:auto!important;
+    height:calc(var(--voice-assistant-viewport-height,100dvh) - 16px)!important;
+    max-height:none!important;
+  }
+}
