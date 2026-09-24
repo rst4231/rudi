@@ -59,14 +59,6 @@ body.keyboard-editing .rudi-quick-add,body.photo-viewer-open .rudi-quick-add,bod
 .rudi-quick-actions button strong{font-size:11.5px}
 .rudi-mini-toast{position:fixed;z-index:7000;left:50%;bottom:calc(92px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)));transform:translate(-50%,12px);opacity:0;pointer-events:none;padding:9px 13px;border:1px solid var(--line);border-radius:999px;background:var(--surface-strong);color:var(--text);box-shadow:0 12px 30px rgba(12,15,24,.2);font-size:11px;font-weight:760;transition:opacity .16s ease,transform .16s ease}
 .rudi-mini-toast.is-open{opacity:1;transform:translate(-50%,0)}
-.photo-viewer-share,.recipe-share-button,.wish-share{
-  display:grid;place-items:center;border:1px solid var(--line);background:var(--soft);color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent;
-}
-.photo-viewer-share{min-height:42px;grid-template-columns:auto 18px;gap:7px;padding:9px 12px;border-radius:12px;font:inherit;font-size:11px;font-weight:760}
-.photo-viewer-share svg,.recipe-share-button svg,.wish-share svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.recipe-detail-head{grid-template-columns:minmax(0,1fr) auto auto!important}
-.recipe-share-button{width:34px;height:34px;padding:0;border-radius:11px}
-.wish-share{width:34px;height:34px;min-width:34px;padding:0;border-radius:10px}
 @media(max-width:430px){
   .rudi-search-overlay{padding-inline:8px}
   .rudi-search-dialog{border-radius:20px}
@@ -98,11 +90,10 @@ body.keyboard-editing .rudi-quick-add,body.photo-viewer-open .rudi-quick-add,bod
 }
 .date-idea-save:active,.recipe-save-button:active{transform:scale(.96)}
 .date-idea-save.is-saved,.recipe-save-button.is-saved{color:#2f8f6d;background:color-mix(in srgb,#6dc6a4 15%,var(--surface));border-color:color-mix(in srgb,#4fae8a 32%,var(--line))}
-.recipe-detail-head{grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center}
+.recipe-detail-head{grid-template-columns:minmax(0,1fr) auto!important;align-items:center}
 .recipe-detail-head h3{grid-column:1/-1}
 .recipe-detail-meta{grid-column:1;grid-row:2}
 .recipe-save-button{grid-column:2;grid-row:2}
-.recipe-share-button{grid-column:3;grid-row:2}
 
 .saves-page{
   display:grid;gap:12px;width:100%;max-width:720px;margin:0 auto;padding:6px 0 14px;
