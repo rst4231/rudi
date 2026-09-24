@@ -658,12 +658,20 @@
         if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode) return false;
 
         let localOrder=[];
-        try{localOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
+        let localStamp='';
+        try{
+          localOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]');
+          localStamp=String(localStorage.getItem(uiPreferencesMetaKey())||'');
+        }catch(_){}
         const hasLocalOrder=Array.isArray(localOrder)&&localOrder.length>0;
         const localNormalized=hasLocalOrder?normalizedHomeOrder(localOrder):[];
         const remoteNormalized=hasRemoteOrder?normalizedHomeOrder(remote.homeOrder):[];
+        const localTime=Date.parse(localStamp)||0;
+        const remoteTime=Date.parse(remoteStamp)||0;
+        const localLayoutIsNewer=localTime>remoteTime||(localTime===remoteTime&&hasLocalOrder);
         const keepLocalOrder=hasLocalOrder&&hasRemoteOrder
-          &&JSON.stringify(localNormalized)!==JSON.stringify(remoteNormalized);
+          &&JSON.stringify(localNormalized)!==JSON.stringify(remoteNormalized)
+          &&localLayoutIsNewer;
 
         try{
           if(hasRemoteOrder&&!keepLocalOrder){
