@@ -3624,6 +3624,13 @@
         setAuthGate(title,text,'auth-denied');
       }
 
+      function showAuthenticatedApp(){
+        if(!currentActor||!appAccessReady) return false;
+        document.body.classList.remove('auth-pending','auth-denied','auth-login');
+        document.body.classList.add('auth-ok');
+        return true;
+      }
+
       function setLoadingGate(){
         document.body.classList.remove('auth-pending','auth-ok','auth-denied','auth-login');
         document.body.classList.add('auth-pending');
@@ -4172,6 +4179,7 @@
         if(!currentActor) return false;
         if(telegramInitData()) await ensureTelegramPin();
         appAccessReady=true;
+        showAuthenticatedApp();
         loadAppBootstrap().catch(error=>{
           console.warn('RUDI_APP_BOOTSTRAP_BACKGROUND_WARN',String(error?.message||error));
         });
@@ -9081,10 +9089,7 @@
         const activeElement=document.activeElement;
         const textEditing=Boolean(activeElement?.matches?.('input,textarea,select,[contenteditable="true"]'));
         document.body.classList.toggle('keyboard-editing',textEditing);
-        if(!currentActor||!appAccessReady) return;
-
-        document.body.classList.remove('auth-pending','auth-denied','auth-login');
-        document.body.classList.add('auth-ok');
+        if(!showAuthenticatedApp()) return;
         syncStaticProfileWorkStatus();
 
         if(restoreTab){

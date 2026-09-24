@@ -108,6 +108,16 @@ test('passkey enrollment requires an authenticated RUDI user while passkey login
   assert.match(block, /operation === 'register-verify'/);
 });
 
+test('successful authentication dismisses the loading gate before the rest of app setup', () => {
+  assert.match(app,/function showAuthenticatedApp\(\)[\s\S]*?if\(!currentActor\|\|!appAccessReady\) return false;[\s\S]*?classList\.add\('auth-ok'\)/);
+  assert.match(app,/appAccessReady=true;\s*showAuthenticatedApp\(\);\s*loadAppBootstrap\(\)/);
+  const initStart=app.indexOf('async function init(){');
+  const initEnd=app.indexOf('init().catch(',initStart);
+  const initBlock=app.slice(initStart,initEnd);
+  assert.match(initBlock,/const allowed=await authenticateApp\(\);/);
+  assert.match(initBlock,/setupProfileSplit\(\)/);
+});
+
 test('PIN enrollment gate stays locked while Telegram keyboard and focus events fire', () => {
   assert.match(app, /let appAccessReady = false;/);
   assert.match(app, /async function authenticateApp\(\)\{\s*appAccessReady=false;/);
