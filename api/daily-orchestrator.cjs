@@ -10,6 +10,7 @@ const { moscowDateKey } = require('./preview-date.cjs');
 const { rankHolidayEntries, DEFAULT_MAX_ITEMS } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { updateFeedSections } = require('./feed-store.cjs');
+const { sendForDiPrivateMessages } = require('./for-di-private.cjs');
 
 function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date()) {
   const results = payload?.results || {};
@@ -187,6 +188,16 @@ async function runDailyOrchestrator(req, res, options = {}) {
     } catch (error) {
       failures.push({ section: 'feed', error: String(error?.message || error) });
     }
+  }
+
+  try {
+    nativeResults.forDi = await (options.publishForDi || sendForDiPrivateMessages)({
+      now: options.now || new Date(),
+      cacheOptions: options.cacheOptions,
+    });
+  } catch (error) {
+    nativeResults.forDi = { failed: true, error: String(error?.message || error) };
+    failures.push({ section: 'for-di', error: String(error?.message || error) });
   }
 
   const summary = {
