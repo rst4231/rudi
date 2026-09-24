@@ -32,6 +32,9 @@
       let voiceAssistantBusy = false;
       let voiceAssistantHistory = [];
       let voiceAssistantLastAnswer = '';
+      let voiceAssistantVoiceEnabled = false;
+      let voiceAssistantSpeechToken = 0;
+      let voiceAssistantSpeechUtterance = null;
       let appViewTransitionActive = false;
       let requestedAppTab = '';
       let requestedItemId = '';
@@ -1465,25 +1468,101 @@
         return chunks.slice(0,12);
       }
 
-      function speakVoiceAssistant(text){
+      function preferredVoiceAssistantVoice(){
+        try{
+          const voices=window.speechSynthesis?.getVoices?.()||[];
+          return voices.find(item=>/^ru(?:-|_)/i.test(item.lang||'')&&item.localService)
+            ||voices.find(item=>/^ru(?:-|_)/i.test(item.lang||''))
+            ||null;
+        }catch(_){return null}
+      }
+
+      function stopVoiceAssistantSpeech(){
+        voiceAssistantSpeechToken+=1;
+        voiceAssistantSpeechUtterance=null;
+        try{window.speechSynthesis?.cancel?.()}catch(_){}
+      }
+
+      function primeVoiceAssistantSpeech(){
         if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined') return false;
+        try{
+          const synth=window.speechSynthesis;
+          synth.resume?.();
+          const utterance=new SpeechSynthesisUtterance('\u00A0');
+          utterance.lang='ru-RU';
+          utterance.volume=0;
+          utterance.rate=1;
+          synth.speak(utterance);
+          return true;
+        }catch(_){return false}
+      }
+
+      function speakVoiceAssistant(text){
+        if(!voiceAssistantVoiceEnabled||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined') return false;
         const chunks=splitVoiceAssistantSpeech(text);
         if(!chunks.length) return false;
         try{
-          window.speechSynthesis.cancel();
-          const voices=window.speechSynthesis.getVoices?.()||[];
-          const voice=voices.find(item=>/^ru(?:-|_)/i.test(item.lang||''))||null;
-          chunks.forEach((chunk,index)=>{
-            const utterance=new SpeechSynthesisUtterance(chunk);
-            utterance.lang='ru-RU';utterance.rate=.98;utterance.pitch=1;if(voice) utterance.voice=voice;
-            if(index===chunks.length-1){
-              utterance.onend=()=>setVoiceAssistantStatus('Можно говорить дальше','idle');
-              utterance.onerror=()=>setVoiceAssistantStatus('Ответ готов','idle');
+          stopVoiceAssistantSpeech();
+          const synth=window.speechSynthesis;
+          const voice=preferredVoiceAssistantVoice();
+          const token=voiceAssistantSpeechToken;
+          let index=0;
+          const next=()=>{
+            if(token!==voiceAssistantSpeechToken) return;
+            if(index>=chunks.length){
+              voiceAssistantSpeechUtterance=null;
+              setVoiceAssistantStatus('Можно говорить дальше','idle');
+              return;
             }
-            window.speechSynthesis.speak(utterance);
-          });
+            const utterance=new SpeechSynthesisUtterance(chunks[index]);
+            voiceAssistantSpeechUtterance=utterance;
+            utterance.lang=voice?.lang||'ru-RU';
+            utterance.rate=.96;
+            utterance.pitch=1;
+            utterance.volume=1;
+            if(voice) utterance.voice=voice;
+            utterance.onstart=()=>setVoiceAssistantStatus('Озвучиваю…','idle');
+            utterance.onend=()=>{
+              if(token!==voiceAssistantSpeechToken) return;
+              voiceAssistantSpeechUtterance=null;
+              index+=1;
+              setTimeout(next,40);
+            };
+            utterance.onerror=event=>{
+              if(token!==voiceAssistantSpeechToken) return;
+              voiceAssistantSpeechUtterance=null;
+              const reason=String(event?.error||'');
+              if(reason==='canceled'||reason==='interrupted') return;
+              setVoiceAssistantStatus('Ответ готов','idle');
+            };
+            synth.resume?.();
+            synth.speak(utterance);
+            setTimeout(()=>{try{if(token===voiceAssistantSpeechToken&&synth.paused) synth.resume()}catch(_){}},100);
+          };
+          setTimeout(next,20);
           return true;
-        }catch(_){return false}
+        }catch(_){
+          voiceAssistantSpeechUtterance=null;
+          return false;
+        }
+      }
+
+      function setVoiceAssistantVoiceEnabled(enabled){
+        voiceAssistantVoiceEnabled=Boolean(enabled);
+        const button=document.getElementById('voiceAssistantVoiceToggle');
+        if(button){
+          button.classList.toggle('is-active',voiceAssistantVoiceEnabled);
+          button.setAttribute('aria-pressed',voiceAssistantVoiceEnabled?'true':'false');
+          button.setAttribute('aria-label',voiceAssistantVoiceEnabled?'Отключить голосовые ответы':'Включить голосовые ответы');
+          button.title=voiceAssistantVoiceEnabled?'Голос включён':'Только текст';
+        }
+        if(voiceAssistantVoiceEnabled){
+          primeVoiceAssistantSpeech();
+          if(voiceAssistantLastAnswer) setVoiceAssistantStatus('Голос включён','idle');
+        }else{
+          stopVoiceAssistantSpeech();
+          setVoiceAssistantStatus('Ответы только текстом','idle');
+        }
       }
 
       function voiceAssistantBlobBase64(blob){
@@ -1516,8 +1595,12 @@
             voiceAssistantHistory=voiceAssistantHistory.slice(-8);
             voiceAssistantLastAnswer=answer;
             const {replay}=voiceAssistantElements();if(replay) replay.hidden=false;
-            setVoiceAssistantStatus('Отвечаю…','idle');
-            if(!speakVoiceAssistant(answer)) setVoiceAssistantStatus('Ответ готов','idle');
+            if(voiceAssistantVoiceEnabled){
+              setVoiceAssistantStatus('Отвечаю…','idle');
+              if(!speakVoiceAssistant(answer)) setVoiceAssistantStatus('Ответ готов','idle');
+            }else{
+              setVoiceAssistantStatus('Ответ готов','idle');
+            }
           }else setVoiceAssistantStatus('Не удалось получить ответ','idle');
         }catch(error){
           const code=String(error?.message||error);
@@ -1538,7 +1621,7 @@
       async function startVoiceAssistantRecording(){
         if(voiceAssistantBusy) return;
         if(!voiceAssistantSupported()){setVoiceAssistantStatus('На этом устройстве запись голоса недоступна.','idle');return}
-        try{window.speechSynthesis?.cancel?.()}catch(_){}
+        stopVoiceAssistantSpeech();
         releaseVoiceAssistantStream();voiceAssistantChunks=[];
         try{
           const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
@@ -1566,7 +1649,7 @@
 
       function closeVoiceAssistant(){
         stopVoiceAssistantRecording();releaseVoiceAssistantStream();
-        try{window.speechSynthesis?.cancel?.()}catch(_){}
+        stopVoiceAssistantSpeech();
         const {panel,fab}=voiceAssistantElements();if(panel) panel.hidden=true;if(fab) fab.hidden=currentAppTab!=='home';
       }
 
@@ -1577,13 +1660,44 @@
       }
 
       function setupVoiceAssistant(){
-        const {fab,panel,close,talk,replay}=voiceAssistantElements();
+        const {fab,panel,close,talk,dialogue}=voiceAssistantElements();
+        const voiceToggle=document.getElementById('voiceAssistantVoiceToggle');
         if(!fab||!panel||fab.dataset.bound==='1') return;
         fab.dataset.bound='1';
-        fab.addEventListener('click',()=>{panel.hidden=false;fab.hidden=true;setVoiceAssistantStatus(voiceAssistantHistory.length?'Можно говорить дальше':'Готов слушать','idle');startVoiceAssistantRecording()});
+
+        setVoiceAssistantVoiceEnabled(false);
+
+        fab.addEventListener('click',()=>{
+          panel.hidden=false;
+          fab.hidden=true;
+          setVoiceAssistantStatus(voiceAssistantHistory.length?'Можно говорить дальше':'Готов слушать','idle');
+        });
         close?.addEventListener('click',()=>closeVoiceAssistant());
-        talk?.addEventListener('click',()=>{if(voiceAssistantRecorder?.state==='recording') stopVoiceAssistantRecording();else startVoiceAssistantRecording()});
-        replay?.addEventListener('click',()=>{if(voiceAssistantLastAnswer) speakVoiceAssistant(voiceAssistantLastAnswer)});
+        talk?.addEventListener('click',()=>{
+          if(voiceAssistantRecorder?.state==='recording') stopVoiceAssistantRecording();
+          else startVoiceAssistantRecording();
+        });
+        voiceToggle?.addEventListener('click',()=>{
+          setVoiceAssistantVoiceEnabled(!voiceAssistantVoiceEnabled);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+
+        let dialogueTouchY=0;
+        dialogue?.addEventListener('touchstart',event=>{
+          if(event.touches?.length===1) dialogueTouchY=event.touches[0].clientY;
+        },{passive:true});
+        dialogue?.addEventListener('touchmove',event=>{
+          if(event.touches?.length!==1) return;
+          const y=event.touches[0].clientY;
+          const delta=y-dialogueTouchY;
+          const atTop=dialogue.scrollTop<=0;
+          const atBottom=Math.ceil(dialogue.scrollTop+dialogue.clientHeight)>=dialogue.scrollHeight;
+          if((atTop&&delta>0)||(atBottom&&delta<0)) event.preventDefault();
+          event.stopPropagation();
+          dialogueTouchY=y;
+        },{passive:false});
+
+        try{window.speechSynthesis?.addEventListener?.('voiceschanged',()=>preferredVoiceAssistantVoice(),{passive:true})}catch(_){}
         syncVoiceAssistantVisibility(currentAppTab);
       }
 
@@ -3306,6 +3420,7 @@
 
         document.addEventListener('touchstart',event=>{
           if(refreshing||!appAccessReady||!currentActor||event.touches?.length!==1||scrollTop()>0) return;
+          if(event.target?.closest?.('.voice-assistant-panel,[data-no-pull-refresh="true"]')) return;
           if(event.target?.closest?.('input,textarea,select,[contenteditable="true"]')) return;
           startY=event.touches[0].clientY;
           distance=0;
@@ -3315,6 +3430,7 @@
 
         document.addEventListener('touchmove',event=>{
           if(!tracking||refreshing||event.touches?.length!==1) return;
+          if(event.target?.closest?.('.voice-assistant-panel,[data-no-pull-refresh="true"]')){reset();return}
           if(scrollTop()>0){reset();return}
           const delta=event.touches[0].clientY-startY;
           if(delta<=0){reset();return}
