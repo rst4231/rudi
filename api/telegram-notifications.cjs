@@ -1,7 +1,7 @@
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readRecipients } = require('./partner-notification-store.cjs');
 
-const DEFAULT_APP_URL = 'https://spb-daily-guide-bot.vercel.app';
+const DEFAULT_APP_URL = 'https://rudi-proxy.onrender.com';
 
 function escapeTelegramHtml(value) {
   return String(value ?? '')

@@ -13,9 +13,20 @@ const {
   sendLuluWalkNotificationToPartner,
 } = require('../api/partner-message.js');
 const {
+  DEFAULT_APP_URL,
+  appUrlForTab,
   telegramSendMessage,
   escapeTelegramHtml,
 } = require('../api/telegram-notifications.cjs');
+
+test('RUDI user-facing Telegram links use the Render fallback by default and remain externally configurable', () => {
+  assert.equal(DEFAULT_APP_URL, 'https://rudi-proxy.onrender.com');
+  assert.equal(appUrlForTab('feed'), 'https://rudi-proxy.onrender.com/?tab=feed');
+  assert.equal(
+    appUrlForTab('wishlist', { env: { RUDI_APP_URL: 'https://example.test/rudi' }, item: 'wish-1' }),
+    'https://example.test/rudi?tab=wishlist&item=wish-1'
+  );
+});
 
 test('activity notification copy is rich, gender-aware and escapes user content', () => {
   assert.match(boughtNotificationText('Рустам'), /^🛒 <b>Рустам купил продукты<\/b>$/);
