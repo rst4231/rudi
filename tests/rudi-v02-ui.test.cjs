@@ -28,7 +28,8 @@ test('weather block is removed from the home screen and no longer loaded',()=>{
   assert.doesNotMatch(html,/loadWeather\(config\.weather\)/);
 });
 
-test('old saved profile tiles migrate into the new home layout',()=>{
+test('old saved profile tiles migrate without rearranging the saved home order',()=>{
   assert.match(html,/\['profile','profile-common','profile-self','profile-partner'\]\.includes\(id\)\) return \['dashboard'\]/);
-  assert.match(html,/requested\.splice\(partnerIndex\+1,0,'lulu'\)/);
+  assert.match(html,/for\(const id of defaults\) if\(!valid\.includes\(id\)\) valid\.push\(id\)/);
+  assert.doesNotMatch(html,/requested\.splice\(partnerIndex\+1,0,'lulu'\)/);
 });
