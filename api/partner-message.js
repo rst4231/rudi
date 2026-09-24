@@ -45,6 +45,7 @@ const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai
 const { generateDateIdeas } = require('./date-ai.cjs');
 const { readDateGenerationQuota, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
+const { readForDiFeed, toggleForDiLike } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState } = require('./reactions-store.cjs');
 const {
@@ -2129,6 +2130,57 @@ async function handleRudiAction(req, res, action, options = {}) {
   }
 
 
+
+  if (action === 'for-di-feed') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const operation = String(body.operation || 'list').trim();
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+
+      if (previousSnapshot?.forDiFeed?.initialized) {
+        const liveBefore = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
+        if (!liveBefore?.initialized || !(liveBefore.items || []).length) {
+          await restoreStateBackup(body.backupToken, {
+            ...options,
+            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+          }).catch(() => null);
+        }
+      }
+
+      if (operation === 'list') {
+        const live = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
+        const saved = previousSnapshot?.forDiFeed;
+        const state = live?.initialized ? live : (saved?.initialized ? saved : live);
+        return res.status(200).json({ ok:true, actor, ...state });
+      }
+
+      if (operation === 'toggle-like') {
+        const result = await toggleForDiLike(body.id, actor, options);
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        await recordLikeActivity({ type:'feed', key:'for-di:' + String(body.id || '') }, actor, options).catch(() => null);
+        return res.status(200).json({
+          ok:true,
+          actor,
+          ...result.state,
+          item:result.item,
+          backupToken,
+        });
+      }
+
+      return res.status(400).json({ ok:false, error:'for-di-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'for-di-item-not-found' ? 404
+        : code.startsWith('for-di-') ? 400
+        : 500;
+      if (status === 500) console.error('RUDI_FOR_DI_FEED_ERROR', code);
+      return res.status(status).json({ ok:false, error:code });
+    }
+  }
 
   if (action === 'saves') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
