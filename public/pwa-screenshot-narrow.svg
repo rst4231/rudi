@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1334" viewBox="0 0 750 1334">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="750" y2="1334"><stop stop-color="#f4f5f7"/><stop offset="1" stop-color="#edf0f8"/></linearGradient></defs>
+  <rect width="750" height="1334" fill="url(#bg)"/>
+  <rect x="32" y="42" width="686" height="166" rx="34" fill="#fff" stroke="#dfe3eb"/>
+  <text x="66" y="95" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#15171c">Доброе утро, Рустам</text>
+  <text x="66" y="130" font-family="Arial,sans-serif" font-size="15" fill="#7b818c">Четверг, 24 сентября</text>
+  <circle cx="654" cy="96" r="22" fill="#eef0ff"/><path d="M645 96h18M654 87v18" stroke="#5266d9" stroke-width="3" stroke-linecap="round"/>
+  <rect x="32" y="228" width="333" height="180" rx="30" fill="#131720"/>
+  <text x="60" y="278" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#fff">Рустам</text>
+  <text x="60" y="315" font-family="Arial,sans-serif" font-size="14" fill="#aab2c1">Сегодня всё спокойно</text>
+  <rect x="385" y="228" width="333" height="180" rx="30" fill="#17141f"/>
+  <text x="413" y="278" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#fff">Диана</text>
+  <text x="413" y="315" font-family="Arial,sans-serif" font-size="14" fill="#b8adc8">Работает · 09:00–21:00</text>
+  <rect x="32" y="430" width="686" height="174" rx="30" fill="#fff" stroke="#dfe3eb"/>
+  <text x="60" y="475" font-family="Arial,sans-serif" font-size="14" fill="#7b818c">ДЛЯ НАС</text>
+  <text x="60" y="512" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#15171c">Быстрый доступ</text>
+  <rect x="60" y="535" width="300" height="46" rx="15" fill="#fff1f7"/><text x="82" y="565" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#15171c">♡  Вишлист</text>
+  <rect x="390" y="535" width="298" height="46" rx="15" fill="#eef1ff"/><text x="412" y="565" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#15171c">⌁  Свидание</text>
+  <rect x="32" y="626" width="686" height="282" rx="30" fill="#fff" stroke="#dfe3eb"/>
+  <text x="60" y="676" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#15171c">Ближайшее</text>
+  <rect x="60" y="708" width="630" height="58" rx="17" fill="#f5f6f9"/><text x="82" y="744" font-family="Arial,sans-serif" font-size="15" fill="#15171c">📅 Совместные дела на сегодня</text>
+  <rect x="60" y="782" width="630" height="58" rx="17" fill="#f5f6f9"/><text x="82" y="818" font-family="Arial,sans-serif" font-size="15" fill="#15171c">🐾 Lulu · прогулка отмечена</text>
+  <rect x="60" y="856" width="630" height="28" rx="14" fill="#eef1ff"/>
+  <rect x="24" y="1210" width="702" height="92" rx="32" fill="#fff" stroke="#dfe3eb"/>
+  <g font-family="Arial,sans-serif" font-size="12" fill="#646b78" text-anchor="middle">
+    <text x="94" y="1268">Домой</text><text x="234" y="1268">Лента</text><text x="375" y="1268">Календарь</text><text x="516" y="1268">Кухня</text><text x="657" y="1268">Фото</text>
+  </g>
+</svg>
