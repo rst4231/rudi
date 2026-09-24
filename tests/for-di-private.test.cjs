@@ -149,15 +149,15 @@ test('For Di queue can detect whether today already has a stylist status', async
   assert.equal(await hasQueuedForDiSource(['stylist','stylist-empty'],{now,forDiCache:cache}),true);
 });
 
-test('For Di cron is scheduled for 12:00 Moscow and guarantees labor before delivery', () => {
+test('For Di publishes on the same daily run as Feed and has no separate cron', () => {
   const fs=require('node:fs');
   const path=require('node:path');
   const config=JSON.parse(fs.readFileSync(path.join(__dirname,'..','vercel.json'),'utf8'));
-  assert.deepEqual(config.crons.find((row)=>row.path==='/api/for-di'),{path:'/api/for-di',schedule:'0 9 * * *'});
-  const source=fs.readFileSync(path.join(__dirname,'..','api','feed-notify-cron.js'),'utf8');
-  const labor=source.indexOf('publishDailyLaborArticle()');
-  const delivery=source.indexOf('sendForDiPrivateMessages()');
-  assert.ok(labor >= 0 && delivery >= 0 && labor < delivery);
-  assert.doesNotMatch(source,/runStylistLeadScan|hasQueuedForDiSource/);
-  assert.match(source,/RUDI_FOR_DI_RESULT/);
+  assert.equal(config.crons.some((row)=>row.path==='/api/for-di'),false);
+  assert.deepEqual(config.crons.find((row)=>row.path==='/api/daily'),{path:'/api/daily',schedule:'30 21 * * *'});
+  const source=fs.readFileSync(path.join(__dirname,'..','api','daily-orchestrator.cjs'),'utf8');
+  const feed=source.indexOf('updateFeedFromRun');
+  const delivery=source.indexOf('sendForDiPrivateMessages');
+  assert.ok(feed >= 0 && delivery >= 0);
+  assert.match(source,/nativeResults\.forDi/);
 });
