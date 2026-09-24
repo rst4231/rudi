@@ -1,11 +1,24 @@
 const config = require('../rudi-config.json');
 const { readDailyMood } = require('./daily-mood-store.cjs');
-const { readProductList, addProducts } = require('./product-list-store.cjs');
-const { readWishlist, addWish } = require('./wishlist-store.cjs');
+const {
+  readProductList,
+  addProducts,
+  removeProduct: removeProductById,
+  toggleProductChecked,
+  markProductBought,
+} = require('./product-list-store.cjs');
+const {
+  readWishlist,
+  addWish: addWishFn,
+  toggleWish,
+  removeWish: removeWishById,
+} = require('./wishlist-store.cjs');
 const { readCycleState, cycleViewForDate } = require('./cycle-store.cjs');
 const { readPartnerMessage } = require('./partner-message-store.cjs');
 const { readFeedSnapshot } = require('./feed-store.cjs');
-const { readLuluState } = require('./lulu-store.cjs');
+const { readLuluState, markLuluWalk } = require('./lulu-store.cjs');
+const { readSavedItems, removeSavedItem } = require('./saved-items-store.cjs');
+const { readForDiFeed } = require('./for-di-feed-store.cjs');
 const { readCarState } = require('./car-store.cjs');
 const { readActivityJournal } = require('./activity-journal-store.cjs');
 const { getWorkWeek } = require('./work-calendar.cjs');
@@ -183,61 +196,167 @@ function selectDevice(devices,target) {
   return {device:ranked[0].device,candidates:[]};
 }
 
-function contextNeeds(transcript) {
+
+const MOOD_LABELS = Object.freeze({
+  sadness:'грусть',
+  fear:'тревога',
+  anger:'злость',
+  joy:'радость',
+  love:'любовь',
+});
+
+const APP_TAB_LABELS = Object.freeze({
+  home:'главная',
+  feed:'лента',
+  schedule:'график',
+  wishlist:'вишлист',
+  photos:'фото',
+  products:'продукты',
+  saves:'сохранённое',
+  'for-di':'для Ди',
+});
+
+function moodForAssistant(value) {
+  const code=String(value?.mood||'').trim();
+  if(!code) return null;
+  return {value:MOOD_LABELS[code]||'не указано',updatedAt:String(value?.updatedAt||'')};
+}
+
+function effectiveTopicText(transcript, history=[]) {
+  const current=normalizeText(transcript);
+  if(!current) return '';
+  const followUp=current.length<=48&&/^(?:а\s+)?(?:завтра|сегодня|сейчас|у\s+дианы|а\s+у\s+дианы|что\s+здесь|что\s+тут|а\s+погода|а\s+дела|а\s+работа)/u.test(current);
+  if(!followUp) return current;
+  const previous=[...(Array.isArray(history)?history:[])].reverse().find(item=>item?.role==='user'&&String(item?.content||'').trim());
+  return previous ? normalizeText(previous.content)+' '+current : current;
+}
+
+function navigationIntent(transcript) {
   const text=normalizeText(transcript);
+  if(!/(?:^|\s)(?:открой|открыть|покажи|перейди|перейти|зайди|зайти)(?:\s|$)/u.test(text)) return null;
+  const rows=[
+    ['for-di',/(?:для\s+ди|для\s+дианы)/u],
+    ['wishlist',/(?:вишлист|wishlist|желани)/u],
+    ['products',/(?:продукт|покупк)/u],
+    ['schedule',/(?:график|календар|расписан)/u],
+    ['photos',/(?:фото|альбом)/u],
+    ['saves',/(?:сохраненн|сохраненк|сохранен)/u],
+    ['feed',/(?:лент|событи|концерт|стендап|stand\s*up|кино)/u],
+    ['home',/(?:главн|домой|домашн)/u],
+  ];
+  for(const [tab,re] of rows) if(re.test(text)) return {tab,label:APP_TAB_LABELS[tab]};
+  return null;
+}
+
+function matchNamedItem(items, target, getText=(item)=>item?.text) {
+  const needle=normalizeText(target);
+  const rows=(Array.isArray(items)?items:[]).filter(Boolean);
+  if(!needle) return {item:null,candidates:[]};
+  const exact=rows.filter(item=>normalizeText(getText(item))===needle);
+  if(exact.length===1) return {item:exact[0],candidates:[]};
+  if(exact.length>1) return {item:null,candidates:exact};
+  const partial=rows.filter(item=>{
+    const value=normalizeText(getText(item));
+    return value&&(value.includes(needle)||needle.includes(value));
+  });
+  if(partial.length===1) return {item:partial[0],candidates:[]};
+  return {item:null,candidates:partial.slice(0,6)};
+}
+
+function removeProductIntent(transcript) {
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:удали|удалить|убери|убрать)\s+(.+?)\s+(?:из|со)\s+(?:списка\s+)?(?:продуктов|покупок)$/iu,
+    /^(?:удали|удалить|убери|убрать)\s+(?:из|со)\s+(?:списка\s+)?(?:продуктов|покупок)\s+(.+)$/iu,
+  ]) {
+    const m=raw.match(re);
+    if(m?.[1]) return {target:m[1].trim()};
+  }
+  return null;
+}
+
+function productToggleIntent(transcript) {
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:отметь|поставь\s+галочку\s+(?:на|для))\s+(.+?)\s+(?:в|на)\s+(?:списке\s+)?(?:продуктов|покупок)$/iu,
+    /^(?:отметь|поставь\s+галочку\s+(?:на|для))\s+(?:в|на)\s+(?:списке\s+)?(?:продуктов|покупок)\s+(.+)$/iu,
+  ]) {
+    const m=raw.match(re);
+    if(m?.[1]) return {target:m[1].trim()};
+  }
+  return null;
+}
+
+function productBoughtIntent(transcript) {
+  const raw=cleanCommandText(transcript);
+  const m=raw.match(/^(?:отметь|пометь)\s+(.+?)\s+(?:как\s+)?(?:купленн(?:ым|ой|ое)|куплено)(?:\s+в\s+(?:продуктах|покупках))?$/iu);
+  return m?.[1]?{target:m[1].trim()}:null;
+}
+
+function removeWishIntent(transcript) {
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:удали|удалить|убери|убрать)\s+(.+?)\s+(?:из|со)\s+(?:моего\s+)?(?:вишлиста|wishlist|списка\s+желаний)$/iu,
+    /^(?:удали|удалить|убери|убрать)\s+(?:из|со)\s+(?:моего\s+)?(?:вишлиста|wishlist|списка\s+желаний)\s+(.+)$/iu,
+  ]) {
+    const m=raw.match(re);
+    if(m?.[1]) return {target:m[1].trim()};
+  }
+  return null;
+}
+
+function toggleWishIntent(transcript) {
+  const raw=cleanCommandText(transcript);
+  const m=raw.match(/^(?:отметь|пометь)\s+(.+?)\s+(?:в|на)\s+(?:моем\s+)?(?:вишлисте|wishlist|списке\s+желаний)\s+(?:выполненн(?:ым|ой)|исполненн(?:ым|ой))$/iu);
+  return m?.[1]?{target:m[1].trim()}:null;
+}
+
+function removeSavedIntent(transcript) {
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:удали|удалить|убери|убрать)\s+(.+?)\s+(?:из|со)\s+сохраненн(?:ого|ых|ое)$/iu,
+    /^(?:удали|удалить|убери|убрать)\s+(?:из|со)\s+сохраненн(?:ого|ых|ое)\s+(.+)$/iu,
+  ]) {
+    const m=raw.match(re);
+    if(m?.[1]) return {target:m[1].trim()};
+  }
+  return null;
+}
+
+function luluWalkIntent(transcript) {
+  const text=normalizeText(transcript);
+  return /(?:погулял|погуляла|погуляли|гулял|гуляла).*?(?:лулу|lulu|собак)|(?:отметь|запиши).*?прогулк.*?(?:лулу|lulu|собак)/u.test(text);
+}
+
+function contextNeeds(transcript, options = {}) {
+  const text=effectiveTopicText(transcript,options.history);
+  const current=normalizeText(transcript);
   const broadToday=/(?:^|\s)(что у нас сегодня|что сегодня|планы на сегодня)(?:\s|$)/u.test(text);
   const statusDiana=/(статус.*диан|диан.*статус|какой статус)/u.test(text);
-  const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|пылесос|устройств|умн.*дом)/u.test(text);
+  const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|пылесос|камер|устройств|умн.*дом)/u.test(text);
+  const contextual=/^(?:что\s+здесь|что\s+тут|что\s+в\s+этом\s+разделе)$/u.test(current);
+  const tab=String(options.ui?.tab||'');
   return {
     mood:/(настроен|как диан.*себя|как себя диан)/u.test(text),
-    products:/(продукт|покупк|список покуп)/u.test(text),
+    products:/(продукт|покупк|список покуп)/u.test(text)||(contextual&&tab==='products'),
     productHistory:/(что покупал|что купил|покупали|последн.*покуп)/u.test(text),
-    wishlist:/(виш|wishlist|желани|хотелк)/u.test(text),
-    cycle:statusDiana||/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text),
+    wishlist:/(виш|wishlist|желани|хотелк)/u.test(text)||(contextual&&tab==='wishlist'),
+    cycle:statusDiana||/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text)||(contextual&&tab==='schedule'),
     message:/(послан|сообщени.*послан)/u.test(text),
-    feed:/(лент|мероприят|событи.*лент|концерт|стендап|stand up|кино|кинопремьер|премьер|факт)/u.test(text),
+    feed:/(лент|мероприят|событи.*лент|концерт|стендап|stand\s*up|кино|кинопремьер|премьер|факт)/u.test(text)||(contextual&&tab==='feed'),
     lulu:/(лулу|lulu|выгул|гулял.*собак|собак.*гулял)/u.test(text),
     car:/(пробег|машин|авто|changan|uni v|уни в)/u.test(text),
     relationship:/(годовщин|сколько .* вместе|вместе с|лет вместе|месяц.*вместе|дн.*вместе)/u.test(text),
     activity:/(последн.*гулял|когда .* гулял|что произошло|последн.*активност)/u.test(text),
-    calendar:statusDiana||broadToday||/(диан.*работ|работ.*диан|выходн|смен|рабоч.*день|календар|ближайш.*событ|событ.*календар|завтра.*диан|диан.*завтра)/u.test(text),
-    holidays:broadToday||/(праздник|праздники)/u.test(text),
-    tasks:broadToday||/(совместн.*дел|дела.*сегодня|дела.*завтра|что.*завтра|план.*завтра|задач|ticktick|ближайш.*событ|календар)/u.test(text),
+    calendar:statusDiana||broadToday||/(диан.*работ|работ.*диан|выходн|смен|рабоч.*день|календар|ближайш.*событ|событ.*календар|завтра.*диан|диан.*завтра)/u.test(text)||(contextual&&tab==='schedule'),
+    holidays:broadToday||/(праздник|праздники)/u.test(text)||(contextual&&tab==='schedule'),
+    tasks:broadToday||/(совместн.*дел|дела.*сегодня|дела.*завтра|что.*завтра|план.*завтра|задач|ticktick|ближайш.*событ|календар)/u.test(text)||(contextual&&tab==='schedule'),
     market:/(курс|доллар|usd|рубл|биткоин|bitcoin|btc|эфир|ethereum|eth|крипт)/u.test(text),
     weather:/(погод|прогноз|дожд|снег|температур.*улиц)/u.test(text),
+    saves:/(сохраненн|сохраненк|сохранен)/u.test(text)||(contextual&&tab==='saves'),
+    forDi:/(для\s+ди|для\s+дианы)/u.test(text)||(contextual&&tab==='for-di'),
     smart,
   };
-}
-
-function cleanCommandText(value){
-  return String(value||'').replace(/\s+/g,' ').replace(/\s+пожалуйста\s*$/iu,'').trim();
-}
-
-function splitCommandItems(value){
-  return String(value||'').split(/\s*(?:,|;|\s+и\s+)\s*/u).map(x=>x.trim()).filter(Boolean).slice(0,12);
-}
-
-function addProductIntent(transcript){
-  const raw=cleanCommandText(transcript);
-  const patterns=[
-    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)$/iu,
-    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)\s+(.+)$/iu,
-  ];
-  for(const re of patterns){const m=raw.match(re);if(m?.[1]) return {items:splitCommandItems(m[1])}}
-  return null;
-}
-
-function addWishIntent(transcript,actor){
-  const raw=cleanCommandText(transcript);
-  const patterns=[
-    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?$/iu,
-    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?\s+(.+)$/iu,
-  ];
-  let items=[];
-  for(const re of patterns){const m=raw.match(re);if(m?.[1]){items=splitCommandItems(m[1]);break}}
-  if(!items.length) return null;
-  const owner=/дианин|вишлист\s+дианы|список желаний\s+дианы|диане\s+в/iu.test(raw)?'Диана':String(actor||'Рустам');
-  return {items,owner:owner==='Диана'?'Диана':'Рустам'};
 }
 
 function weatherLabel(code){
@@ -266,7 +385,9 @@ async function readAssistantContext(transcript, options = {}) {
   const today=dateKey(now,timeZone);
   const tomorrow=shiftDateKey(today,1);
   const actor=String(options.actor||'Рустам');
-  const wanted=contextNeeds(transcript);
+  const history=Array.isArray(options.history)?options.history:[];
+  const ui=options.ui&&typeof options.ui==='object'?options.ui:{};
+  const wanted=contextNeeds(transcript,{history,ui});
   const year=Number(today.slice(0,4));
   const nextNewYear=(year+1)+'-01-01';
   const context={
@@ -279,7 +400,12 @@ async function readAssistantContext(transcript, options = {}) {
       nextNewYear,
       daysUntilNewYear:Math.max(0,Math.round((Date.parse(nextNewYear+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/DAY))
     },
-    actor
+    actor,
+    ui:{
+      tab:APP_TAB_LABELS[String(ui.tab||'')]?String(ui.tab):'',
+      tabLabel:APP_TAB_LABELS[String(ui.tab||'')]||'',
+      selectedDate:String(ui.selectedDate||'').slice(0,20),
+    }
   };
 
   const jobs=[];
@@ -288,7 +414,12 @@ async function readAssistantContext(transcript, options = {}) {
 
   if(wanted.mood) jobs.push(
     readDailyMood(today,options)
-      .then(row=>{context.mood=row?.moods||null})
+      .then(row=>{
+        context.mood={
+          'Рустам':moodForAssistant(row?.moods?.['Рустам']),
+          'Диана':moodForAssistant(row?.moods?.['Диана']),
+        };
+      })
       .catch(()=>{context.mood=null})
   );
 
@@ -443,6 +574,32 @@ async function readAssistantContext(transcript, options = {}) {
       .catch(error=>{context.weather={city:'Санкт-Петербург',error:String(error?.message||error)}})
   );
 
+  if(wanted.saves) jobs.push(
+    readSavedItems(options)
+      .then(saved=>{
+        context.savedItems=(saved?.items||[]).slice(0,24).map(item=>({
+          id:item.id,
+          type:item.type,
+          title:String(item?.payload?.title||item?.payload?.name||'').slice(0,180),
+          savedBy:item.savedBy||'',
+          createdAt:item.createdAt||'',
+        }));
+      })
+      .catch(()=>{context.savedItems=[]})
+  );
+
+  if(wanted.forDi) jobs.push(
+    readForDiFeed(options)
+      .then(feed=>{
+        context.forDi=(feed?.items||[]).slice(0,12).map(item=>({
+          text:String(item.text||'').slice(0,320),
+          dateKey:item.dateKey||'',
+          source:item.source||null,
+        }));
+      })
+      .catch(()=>{context.forDi=[]})
+  );
+
   if(wanted.smart) jobs.push(
     readSmartHomeSnapshot(false)
       .then(smart=>{
@@ -467,31 +624,110 @@ async function readAssistantContext(transcript, options = {}) {
 async function executeAssistantAction(transcript, context, options = {}) {
   const actor=String(options.actor||'Рустам');
 
-  const productIntent=addProductIntent(transcript);
-  if(productIntent?.items?.length){
+  const nav=navigationIntent(transcript);
+  if(nav) return {type:'app-navigate',performed:true,status:'CLIENT_PENDING',tab:nav.tab,label:nav.label};
+
+  const addProduct=addProductIntent(transcript);
+  if(addProduct?.items?.length){
     try{
       const before=await readProductList(options);
-      const beforeIds=new Set((before?.items||[]).map(x=>x.id));
-      const state=await addProducts(productIntent.items,actor,options);
-      const added=(state?.items||[]).filter(x=>!beforeIds.has(x.id)).map(x=>x.text);
-      return {type:'products-add',performed:true,items:added,requested:productIntent.items};
+      const ids=new Set((before?.items||[]).map(item=>item.id));
+      const state=await addProducts(addProduct.items,actor,options);
+      const added=(state?.items||[]).filter(item=>!ids.has(item.id)).map(item=>item.text);
+      return {type:'products-add',performed:true,items:added,requested:addProduct.items};
     }catch(error){
-      return {type:'products-add',performed:false,error:String(error?.message||error),requested:productIntent.items};
+      return {type:'products-add',performed:false,error:String(error?.message||error),requested:addProduct.items};
     }
   }
 
-  const wishIntent=addWishIntent(transcript,actor);
-  if(wishIntent?.items?.length){
+  const productRemove=removeProductIntent(transcript);
+  if(productRemove){
+    try{
+      const state=await readProductList(options);
+      const match=matchNamedItem(state?.items,productRemove.target);
+      if(!match.item) return {type:'products-remove',performed:false,error:match.candidates.length?'ambiguous':'not-found',candidates:match.candidates.map(item=>item.text)};
+      await removeProductById(match.item.id,options);
+      return {type:'products-remove',performed:true,item:match.item.text};
+    }catch(error){return {type:'products-remove',performed:false,error:String(error?.message||error)}}
+  }
+
+  const bought=productBoughtIntent(transcript);
+  if(bought){
+    try{
+      const state=await readProductList(options);
+      const match=matchNamedItem(state?.items,bought.target);
+      if(!match.item) return {type:'products-bought',performed:false,error:match.candidates.length?'ambiguous':'not-found',candidates:match.candidates.map(item=>item.text)};
+      await markProductBought(match.item.id,actor,options);
+      return {type:'products-bought',performed:true,item:match.item.text};
+    }catch(error){return {type:'products-bought',performed:false,error:String(error?.message||error)}}
+  }
+
+  const productToggle=productToggleIntent(transcript);
+  if(productToggle){
+    try{
+      const state=await readProductList(options);
+      const match=matchNamedItem(state?.items,productToggle.target);
+      if(!match.item) return {type:'products-toggle',performed:false,error:match.candidates.length?'ambiguous':'not-found',candidates:match.candidates.map(item=>item.text)};
+      await toggleProductChecked(match.item.id,options);
+      return {type:'products-toggle',performed:true,item:match.item.text,checked:!Boolean(match.item.checked)};
+    }catch(error){return {type:'products-toggle',performed:false,error:String(error?.message||error)}}
+  }
+
+  const addWish=addWishIntent(transcript,actor);
+  if(addWish?.items?.length){
+    if(addWish.owner!==actor) return {type:'wishlist-add',performed:false,error:'wishlist-owner-forbidden'};
     const added=[];
     try{
-      for(const item of wishIntent.items){
-        const result=await addWish(item,'',wishIntent.owner,options);
+      for(const item of addWish.items){
+        const result=await addWishFn(item,'',actor,options);
         if(result?.item?.text) added.push(result.item.text);
       }
-      return {type:'wishlist-add',performed:true,owner:wishIntent.owner,items:added};
+      return {type:'wishlist-add',performed:true,owner:actor,items:added};
     }catch(error){
-      return {type:'wishlist-add',performed:false,owner:wishIntent.owner,items:added,error:String(error?.message||error)};
+      return {type:'wishlist-add',performed:false,owner:actor,items:added,error:String(error?.message||error)};
     }
+  }
+
+  const wishRemove=removeWishIntent(transcript);
+  if(wishRemove){
+    try{
+      const state=await readWishlist(options);
+      const own=(state?.items||[]).filter(item=>item.owner===actor);
+      const match=matchNamedItem(own,wishRemove.target);
+      if(!match.item) return {type:'wishlist-remove',performed:false,error:match.candidates.length?'ambiguous':'not-found',candidates:match.candidates.map(item=>item.text)};
+      await removeWishById(match.item.id,options);
+      return {type:'wishlist-remove',performed:true,item:match.item.text,owner:actor};
+    }catch(error){return {type:'wishlist-remove',performed:false,error:String(error?.message||error)}}
+  }
+
+  const wishToggle=toggleWishIntent(transcript);
+  if(wishToggle){
+    try{
+      const state=await readWishlist(options);
+      const own=(state?.items||[]).filter(item=>item.owner===actor);
+      const match=matchNamedItem(own,wishToggle.target);
+      if(!match.item) return {type:'wishlist-toggle',performed:false,error:match.candidates.length?'ambiguous':'not-found',candidates:match.candidates.map(item=>item.text)};
+      const result=await toggleWish(match.item.id,options);
+      return {type:'wishlist-toggle',performed:true,item:match.item.text,done:Boolean(result?.item?.done),owner:actor};
+    }catch(error){return {type:'wishlist-toggle',performed:false,error:String(error?.message||error)}}
+  }
+
+  const savedRemove=removeSavedIntent(transcript);
+  if(savedRemove){
+    try{
+      const state=await readSavedItems(options);
+      const match=matchNamedItem(state?.items,savedRemove.target,item=>item?.payload?.title||item?.payload?.name||'');
+      if(!match.item) return {type:'saved-remove',performed:false,error:match.candidates.length?'ambiguous':'not-found',candidates:match.candidates.map(item=>item?.payload?.title||item?.payload?.name||'').filter(Boolean)};
+      await removeSavedItem(match.item.id,options);
+      return {type:'saved-remove',performed:true,item:String(match.item?.payload?.title||match.item?.payload?.name||'')};
+    }catch(error){return {type:'saved-remove',performed:false,error:String(error?.message||error)}}
+  }
+
+  if(luluWalkIntent(transcript)){
+    try{
+      const lulu=await markLuluWalk(actor,options);
+      return {type:'lulu-walk',performed:true,walkedAt:lulu?.lastWalk?.walkedAt||'',actor};
+    }catch(error){return {type:'lulu-walk',performed:false,error:String(error?.message||error)}}
   }
 
   const intent=commandIntent(transcript);
@@ -499,12 +735,7 @@ async function executeAssistantAction(transcript, context, options = {}) {
   const devices=context?.smartHome?.devices||[];
   const selected=selectDevice(devices,intent.target);
   if(!selected.device){
-    return {
-      type:'smart-home',
-      performed:false,
-      error:'device-not-found-or-ambiguous',
-      candidates:selected.candidates.map(x=>x.name).filter(Boolean),
-    };
+    return {type:'smart-home',performed:false,error:'device-not-found-or-ambiguous',candidates:selected.candidates.map(item=>item.name).filter(Boolean)};
   }
 
   const device=selected.device;
@@ -553,4 +784,8 @@ async function executeAssistantAction(transcript, context, options = {}) {
   return {type:'smart-home',performed:false,device:device.name,error:'action-not-supported'};
 }
 
-module.exports={safeTimeZone,dateKey,shiftDateKey,relationshipView,contextNeeds,compactValue,addProductIntent,addWishIntent,readAssistantContext,executeAssistantAction,commandIntent,selectDevice};
+module.exports={
+  safeTimeZone,dateKey,shiftDateKey,relationshipView,contextNeeds,compactValue,
+  addProductIntent,addWishIntent,removeProductIntent,removeWishIntent,navigationIntent,
+  effectiveTopicText,moodForAssistant,readAssistantContext,executeAssistantAction,commandIntent,selectDevice,matchNamedItem
+};
