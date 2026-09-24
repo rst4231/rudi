@@ -107,7 +107,7 @@ test('wishlist addition notification goes only to the other partner',async()=>{
   assert.equal(fromRustam.recipient,'Диана');
   assert.equal(calls.length,1);
   assert.equal(calls[0].chat_id,222);
-  assert.equal(calls[0].reply_markup,undefined);
+  assert.ok(calls[0].reply_markup);
 
   calls.length=0;
   const fromDiana=await sendWishlistNotificationToPartner('Диана','Мечта',{
@@ -147,6 +147,7 @@ test('Lulu walk notification goes only to the other partner',async()=>{
   assert.equal(fromRustam.recipient,'Диана');
   assert.equal(calls.length,1);
   assert.equal(calls[0].chat_id,222);
+  assert.equal(calls[0].reply_markup,undefined);
 
   calls.length=0;
   const fromDiana=await sendLuluWalkNotificationToPartner('Диана',walkedAt,{
