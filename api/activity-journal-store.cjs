@@ -28,7 +28,7 @@ function cleanActor(value) {
 
 function cleanTab(value) {
   const tab = cleanText(value, 20);
-  return new Set(['home', 'feed', 'schedule', 'wishlist', 'photos', 'products']).has(tab) ? tab : '';
+  return new Set(['home', 'feed', 'schedule', 'wishlist', 'photos', 'products', 'saves']).has(tab) ? tab : '';
 }
 
 function normalizeItem(input) {
