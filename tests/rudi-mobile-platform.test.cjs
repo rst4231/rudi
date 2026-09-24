@@ -99,7 +99,7 @@ test('daily psychology fact comes from public config and startup shell waits for
   assert.match(app,/function malePsychologyFactFromConfig\(config,dateKey=todayState\(\)\.key\)/);
   assert.match(app,/renderMalePsychologyFact\(malePsychologyFactFromConfig\(config\)\)/);
   assert.doesNotMatch(app,/rudiAction=male-psychology-fact/);
-  assert.match(app,/appAccessReady=true;\s*await loadAppBootstrap\(\);\s*return true;/);
+  assert.match(app,/appAccessReady=true;\s*loadAppBootstrap\(\)\.catch\([\s\S]*?\);\s*return true;/);
   assert.doesNotMatch(app,/appAccessReady=true;\s*ensureAppSurface\(\);\s*await loadAppBootstrap/);
 });
 
