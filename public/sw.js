@@ -1,4 +1,7 @@
 const CACHE_NAME='rudi-shell-v1.17.4';
+const SHELL_CACHE_PREFIX='rudi-shell-';
+const NAVIGATION_TIMEOUT_MS=3500;
+const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
   '/',
   '/manifest.webmanifest',
@@ -10,6 +13,26 @@ const PRECACHE=[
 const SYNC_DB='rudi-background-sync-v1';
 const SYNC_STORE='outbox';
 const SYNC_TAG='rudi-outbox';
+
+function fetchWithTimeout(request,timeoutMs){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  return fetch(request,{signal:controller.signal}).finally(()=>clearTimeout(timer));
+}
+
+function shellCacheVersion(name){
+  const match=String(name||'').match(/v(\d+)\.(\d+)\.(\d+)$/);
+  return match?match.slice(1).map(Number):[0,0,0];
+}
+
+function compareShellCaches(a,b){
+  const av=shellCacheVersion(a);
+  const bv=shellCacheVersion(b);
+  for(let index=0;index<3;index+=1){
+    if(av[index]!==bv[index]) return bv[index]-av[index];
+  }
+  return 0;
+}
 
 function openOutboxDb(){
   return new Promise((resolve,reject)=>{
@@ -97,14 +120,18 @@ self.addEventListener('install',event=>{
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache=>cache.addAll(PRECACHE))
-      .catch(()=>undefined)
   );
 });
 
 self.addEventListener('activate',event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>Promise.all(keys.filter(key=>key.startsWith('rudi-shell-')&&key!==CACHE_NAME).map(key=>caches.delete(key))))
+      .then(keys=>{
+        const shellKeys=keys.filter(key=>key.startsWith(SHELL_CACHE_PREFIX)).sort(compareShellCaches);
+        const previous=shellKeys.find(key=>key!==CACHE_NAME);
+        const keep=new Set([CACHE_NAME,previous].filter(Boolean));
+        return Promise.all(shellKeys.filter(key=>!keep.has(key)).map(key=>caches.delete(key)));
+      })
       .then(()=>self.clients.claim())
   );
 });
@@ -117,19 +144,20 @@ self.addEventListener('fetch',event=>{
   if(url.pathname.startsWith('/api/')) return;
 
   if(request.mode==='navigate'){
-    event.respondWith(
-      fetch(request)
-        .then(response=>{
-          if(response&&response.ok){
-            const copy=response.clone();
-            caches.open(CACHE_NAME).then(cache=>cache.put('/',copy)).catch(()=>{});
-          }
-          return response;
-        })
-        .catch(async()=>{
-          return (await caches.match(request)) || (await caches.match('/')) || Response.error();
-        })
-    );
+    const network=fetchWithTimeout(request,NAVIGATION_TIMEOUT_MS)
+      .then(response=>{
+        if(response&&response.ok){
+          const copy=response.clone();
+          caches.open(CACHE_NAME).then(cache=>cache.put('/',copy)).catch(()=>{});
+        }
+        return response;
+      });
+    event.waitUntil(network.then(()=>undefined).catch(()=>undefined));
+    event.respondWith((async()=>{
+      const cached=(await caches.match(request)) || (await caches.match('/'));
+      if(cached) return cached;
+      try{return await network}catch(_){return Response.error()}
+    })());
     return;
   }
 
@@ -144,7 +172,7 @@ self.addEventListener('fetch',event=>{
 
   event.respondWith(
     caches.match(request).then(cached=>{
-      const network=fetch(request).then(response=>{
+      const network=fetchWithTimeout(request,STATIC_TIMEOUT_MS).then(response=>{
         if(response&&response.ok){
           const copy=response.clone();
           caches.open(CACHE_NAME).then(cache=>cache.put(request,copy)).catch(()=>{});
