@@ -1,9 +1,9 @@
-const URL = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code,precipitation,rain&daily=temperature_2m_min,temperature_2m_max,precipitation_sum&forecast_days=7&timezone=Europe%2FMoscow';
+const URL = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code,precipitation,rain&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_sum&forecast_days=7&timezone=Europe%2FMoscow';
 const FRESH = 15 * 60 * 1000;
 const MAX_AGE = 2 * 60 * 60 * 1000;
 function valid(data) {
   const daily = data?.daily;
-  const keys = ['temperature_2m_min', 'temperature_2m_max', 'precipitation_sum'];
+  const keys = ['weather_code', 'temperature_2m_min', 'temperature_2m_max', 'precipitation_sum'];
   return Number.isFinite(data?.current?.temperature_2m) && Number.isFinite(data?.current?.weather_code)
     && keys.every(key => Array.isArray(daily?.[key]) && daily[key].length > 0 && daily[key].every(Number.isFinite))
     && keys.every(key => daily[key].length === daily.temperature_2m_min.length);
@@ -43,4 +43,4 @@ async function handleWeatherRequest(req, res) {
     return res.status(503).json({error: 'Weather temporarily unavailable'});
   }
 }
-module.exports = {createWeatherService, handleWeatherRequest};
+module.exports = {createWeatherService, getWeather, handleWeatherRequest};

@@ -164,6 +164,66 @@ async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рус�
   return { requestId, status:actionStatus, activity };
 }
 
+async function runSmartHomeCapability(deviceId, deviceName, capabilityType, instance, value, actor='Рустам') {
+  const id = cleanId(deviceId,'device-id');
+  const name = cleanName(deviceName) || 'Устройство';
+  const type = String(capabilityType || '');
+  const key = String(instance || '');
+
+  const allowed =
+    (type === 'devices.capabilities.mode' && key === 'work_speed') ||
+    (type === 'devices.capabilities.toggle' && key === 'pause');
+  if (!allowed) throw new Error('bad-capability');
+
+  let nextValue = value;
+  if (key === 'pause') {
+    if (typeof nextValue !== 'boolean') throw new Error('bad-value');
+  } else {
+    nextValue = String(nextValue || '');
+    if (!new Set(['fast','medium','slow','min']).has(nextValue)) throw new Error('bad-value');
+  }
+
+  const result = await yandex('/devices/actions', {
+    method:'POST',
+    body:{devices:[{id,actions:[{
+      type,
+      state:{instance:key,value:nextValue}
+    }]}]},
+  });
+
+  const requestId = String(result?.request_id || '');
+  const actionStatus = String(result?.devices?.[0]?.capabilities?.[0]?.state?.action_result?.status || '');
+  let activity = null;
+
+  if (actionStatus === 'DONE') {
+    cache = null;
+    cacheAt = 0;
+    const female = actor === 'Диана';
+    let text = '';
+    if (key === 'pause') {
+      const verb = nextValue
+        ? (female ? 'поставила' : 'поставил')
+        : (female ? 'продолжила' : 'продолжил');
+      text = actor + ' ' + verb + ' уборку · ' + name;
+    } else {
+      const labels = {fast:'быстрый',medium:'средний',slow:'медленный',min:'минимальный'};
+      const verb = female ? 'выбрала' : 'выбрал';
+      text = actor + ' ' + verb + ' ' + labels[nextValue] + ' режим для ' + name;
+    }
+    activity = {text,icon:'🏠',createdAt:new Date().toISOString()};
+    await appendActivity({
+      type:'smart-home',
+      actor,
+      text:activity.text,
+      icon:activity.icon,
+      targetTab:'home',
+      dedupeKey:requestId ? 'smart-home:' + requestId : '',
+    }).catch(error => console.warn('RUDI_SMART_HOME_ACTIVITY_WARN', String(error?.message || error)));
+  }
+
+  return { requestId, status:actionStatus, activity };
+}
+
 async function handleSmartHomeRequest(req, res) {
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
   if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
@@ -194,63 +254,15 @@ async function handleSmartHomeRequest(req, res) {
     }
 
     if (operation === 'capability') {
-      const deviceId = cleanId(body.deviceId,'device-id');
-      const deviceName = cleanName(body.deviceName) || 'Устройство';
-      const capabilityType = String(body.capabilityType || '');
-      const instance = String(body.instance || '');
-
-      const allowed =
-        (capabilityType === 'devices.capabilities.mode' && instance === 'work_speed') ||
-        (capabilityType === 'devices.capabilities.toggle' && instance === 'pause');
-      if (!allowed) throw new Error('bad-capability');
-
-      let value = body.value;
-      if (instance === 'pause') {
-        if (typeof value !== 'boolean') throw new Error('bad-value');
-      } else {
-        value = String(value || '');
-        if (!new Set(['fast','medium','slow','min']).has(value)) throw new Error('bad-value');
-      }
-
-      const result = await yandex('/devices/actions', {
-        method:'POST',
-        body:{devices:[{id:deviceId,actions:[{
-          type:capabilityType,
-          state:{instance,value}
-        }]}]},
-      });
-
-      const requestId = String(result?.request_id || '');
-      const actionStatus = String(result?.devices?.[0]?.capabilities?.[0]?.state?.action_result?.status || '');
-      let activity = null;
-
-      if (actionStatus === 'DONE') {
-        cache = null;
-        cacheAt = 0;
-        const female = session.actor === 'Диана';
-        let text = '';
-        if (instance === 'pause') {
-          const verb = value
-            ? (female ? 'поставила' : 'поставил')
-            : (female ? 'сняла' : 'снял');
-          text = session.actor + ' ' + verb + ' ' + deviceName + (value ? ' на паузу' : ' с паузы');
-        } else {
-          const labels = {fast:'быстрый',medium:'средний',slow:'медленный',min:'минимальный'};
-          const verb = female ? 'выбрала' : 'выбрал';
-          text = session.actor + ' ' + verb + ' ' + labels[value] + ' режим для ' + deviceName;
-        }
-        activity = {text,icon:'🏠',createdAt:new Date().toISOString()};
-        await appendActivity({
-          type:'smart-home',
-          actor:session.actor,
-          text:activity.text,
-          icon:activity.icon,
-          targetTab:'home',
-          dedupeKey:requestId ? 'smart-home:' + requestId : '',
-        }).catch(error => console.warn('RUDI_SMART_HOME_ACTIVITY_WARN', String(error?.message || error)));
-      }
-
-      return res.status(200).json({ok:true,requestId,status:actionStatus,activity});
+      const result = await runSmartHomeCapability(
+        body.deviceId,
+        body.deviceName,
+        body.capabilityType,
+        body.instance,
+        body.value,
+        session.actor
+      );
+      return res.status(200).json({ok:true,...result});
     }
 
     if (operation === 'scenario') {
@@ -271,4 +283,4 @@ async function handleSmartHomeRequest(req, res) {
   }
 }
 
-module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home, switchSmartHomeDevice };
+module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home, switchSmartHomeDevice, runSmartHomeCapability };
