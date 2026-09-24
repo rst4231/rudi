@@ -12,6 +12,7 @@ const outputPath = path.join(runtimeDir, 'generated-runtime.cjs');
 const eventsConfigPath = path.join(__dirname, 'config', 'events.json');
 const versionConfigPath = path.join(__dirname, 'rudi-version.json');
 const webIndexPath = path.join(__dirname, 'public', 'index.html');
+const webServiceWorkerPath = path.join(__dirname, 'public', 'sw.js');
 
 function assertProductionGitDeployment(env = process.env) {
   const isVercelProduction = env?.VERCEL === '1' && (env?.VERCEL_TARGET_ENV || env?.VERCEL_ENV) === 'production';
@@ -78,14 +79,23 @@ function patchRetiredRuntime(source) {
   );
 }
 
-function syncWebVersion() {
+function resolveVersionLabel(env = process.env, versionConfig = null) {
+  const config = versionConfig || JSON.parse(fs.readFileSync(versionConfigPath, 'utf8'));
+  const fallback = String(config?.current || '').trim();
+  const commitMessage = String(env?.VERCEL_GIT_COMMIT_MESSAGE || '').trim();
+  const releaseMatch = commitMessage.match(/\bRUDI\s+(v\d+\.\d+\.\d+)\b/i);
+  const label = releaseMatch?.[1] || fallback;
+  if (!/^v\d+\.\d+\.\d+$/.test(label)) throw new Error('Invalid RUDI version');
+  return label;
+}
+
+function syncWebVersion(env = process.env) {
   if (!fs.existsSync(versionConfigPath)) throw new Error('Missing rudi-version.json');
   if (!fs.existsSync(webIndexPath)) throw new Error('Missing public/index.html');
 
   const versionConfig = JSON.parse(fs.readFileSync(versionConfigPath, 'utf8'));
-  const label = String(versionConfig.current || '').trim();
+  const label = resolveVersionLabel(env, versionConfig);
   const assetVersion = label.replace(/^v/i, '');
-  if (!label || !assetVersion) throw new Error('Invalid RUDI version');
 
   let html = fs.readFileSync(webIndexPath, 'utf8');
   for (const name of WEB_ASSETS) {
@@ -111,6 +121,11 @@ function syncWebVersion() {
     '$1' + label + '$2'
   );
   fs.writeFileSync(webIndexPath, html);
+  if (fs.existsSync(webServiceWorkerPath)) {
+    let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
+    serviceWorker = serviceWorker.replace(/const CACHE_NAME='rudi-shell-v[^']+';/, "const CACHE_NAME='rudi-shell-" + label + "';");
+    fs.writeFileSync(webServiceWorkerPath, serviceWorker);
+  }
   return label;
 }
 
@@ -158,4 +173,4 @@ if (require.main === module) {
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, syncWebVersion, buildWebAssets, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
+module.exports = { buildRuntime, resolveVersionLabel, syncWebVersion, buildWebAssets, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
