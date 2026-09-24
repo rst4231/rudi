@@ -77,7 +77,7 @@
     let queue=false;
     if(url.pathname==='/api/wishlist') queue=!readOps.has(operation||'list');
     else if(url.pathname==='/api/partner-message'&&!action) queue=Boolean(String(body.text||'').trim());
-    else if(action==='products'||action==='saves'||action==='reactions'||action==='mood'||action==='lulu'||action==='cycle'||action==='ui-preferences'){
+    else if(action==='products'||action==='saves'||action==='for-di-feed'||action==='reactions'||action==='mood'||action==='lulu'||action==='cycle'||action==='ui-preferences'){
       queue=!readOps.has(operation||'get');
     }
     if(!queue) return null;
@@ -835,10 +835,190 @@
     }
   };
 
+
+  let forDiState=[];
+  let forDiActor='';
+  let forDiLoadPromise=null;
+
+  async function forDiRequest(operation,payload={}){
+    const response=await fetch('/api/partner-message?rudiAction=for-di-feed',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        initData:window.Telegram?.WebApp?.initData||'',
+        backupToken:window.RUDI_STATE_BACKUP?.getToken?.()||'',
+        operation,
+        ...payload
+      }),
+      cache:'no-store'
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok){
+      const error=new Error(data.error||'for-di-request-failed');
+      error.status=response.status;
+      throw error;
+    }
+    if(data.backupToken) await window.RUDI_STATE_BACKUP?.storeToken?.(data.backupToken);
+    return data;
+  }
+
+  function forDiDateLabel(value){
+    const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!match) return String(value||'');
+    const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]));
+    if(Number.isNaN(date.getTime())) return String(value||'');
+    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(date);
+  }
+
+  function forDiTimeLabel(value){
+    const date=new Date(String(value||''));
+    if(Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(date);
+  }
+
+  function forDiSourceLabel(value){
+    const source=String(value||'').trim();
+    if(source==='labor') return 'Трудовой кодекс';
+    if(source==='stylist-leads') return 'Клиенты для стилиста';
+    if(source==='clients-advice') return 'Работа с клиентами';
+    return source ? source : 'Для Ди';
+  }
+
+  function renderForDiLike(item){
+    const likes=Array.isArray(item?.likes)?item.likes.filter(Boolean):[];
+    const active=likes.includes(forDiActor);
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='for-di-like'+(active?' is-active':'');
+    button.setAttribute('aria-pressed',active?'true':'false');
+    button.setAttribute('aria-label',active?'Убрать лайк':'Поставить лайк');
+    button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg><span>'+esc(likes.length?likes.join(', '):'')+'</span>';
+    button.addEventListener('click',async()=>{
+      if(button.disabled) return;
+      button.disabled=true;
+      try{
+        const data=await forDiRequest('toggle-like',{id:item.id});
+        forDiActor=String(data.actor||forDiActor);
+        forDiState=Array.isArray(data.items)?data.items:forDiState;
+        renderForDi();
+        try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }catch(_){
+        button.disabled=false;
+        showMiniToast('Не удалось поставить лайк');
+        try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+      }
+    });
+    return button;
+  }
+
+  function renderForDi(){
+    const list=byId('forDiList');
+    const empty=byId('forDiEmpty');
+    const count=byId('forDiTotalCount');
+    const status=byId('forDiStatus');
+    if(!list) return;
+
+    list.replaceChildren();
+    const rows=[...forDiState].sort((a,b)=>{
+      const at=Date.parse(String(a?.createdAt||''))||0;
+      const bt=Date.parse(String(b?.createdAt||''))||0;
+      return bt-at;
+    });
+
+    if(count) count.textContent=rows.length?String(rows.length):'';
+    if(empty) empty.hidden=rows.length>0;
+    if(status) status.textContent=rows.length
+      ?'Материалы сохраняются здесь каждый день вместо личных сообщений'
+      :'Материалы появятся здесь в 12:00';
+
+    const groups=new Map();
+    rows.forEach(item=>{
+      const key=String(item?.dateKey||'').trim()||'Без даты';
+      if(!groups.has(key)) groups.set(key,[]);
+      groups.get(key).push(item);
+    });
+
+    groups.forEach((items,dateKey)=>{
+      const group=document.createElement('section');
+      group.className='for-di-day';
+      const heading=document.createElement('div');
+      heading.className='for-di-day-title';
+      heading.textContent=forDiDateLabel(dateKey);
+      group.appendChild(heading);
+
+      const stack=document.createElement('div');
+      stack.className='for-di-day-items';
+      items.forEach(item=>{
+        const card=document.createElement('article');
+        card.className='for-di-card';
+        card.dataset.rudiItemId=String(item.id||'');
+
+        const meta=document.createElement('div');
+        meta.className='for-di-card-meta';
+        const source=document.createElement('span');
+        source.className='for-di-source';
+        source.textContent=forDiSourceLabel(item.source);
+        const time=document.createElement('time');
+        time.textContent=forDiTimeLabel(item.createdAt);
+        meta.append(source,time);
+
+        const body=document.createElement('div');
+        body.className='for-di-card-text';
+        body.textContent=String(item.text||'');
+
+        const footer=document.createElement('div');
+        footer.className='for-di-card-footer';
+        footer.appendChild(renderForDiLike(item));
+
+        card.append(meta,body,footer);
+        stack.appendChild(card);
+      });
+      group.appendChild(stack);
+      list.appendChild(group);
+    });
+  }
+
+  async function loadForDi(){
+    if(forDiLoadPromise) return forDiLoadPromise;
+    const status=byId('forDiStatus');
+    if(status&&!forDiState.length) status.textContent='Загружаю материалы…';
+    forDiLoadPromise=(async()=>{
+      try{
+        const data=await forDiRequest('list');
+        forDiActor=String(data.actor||forDiActor);
+        forDiState=Array.isArray(data.items)?data.items:[];
+        renderForDi();
+        return forDiState;
+      }catch(error){
+        if(status) status.textContent=navigator.onLine===false
+          ?'Нет сети. Материалы будут доступны после подключения.'
+          :'Не удалось загрузить материалы';
+        throw error;
+      }finally{
+        forDiLoadPromise=null;
+      }
+    })();
+    return forDiLoadPromise;
+  }
+
+  function setupForDiPage(){
+    const back=byId('forDiBackButton');
+    if(back&&back.dataset.bound!=='1'){
+      back.dataset.bound='1';
+      back.addEventListener('click',()=>routeTo('home'));
+    }
+  }
+
+  window.RUDI_FOR_DI={
+    load:loadForDi,
+    refresh:loadForDi
+  };
+
   function installDynamicExtras(){
     installSearchButton();
     ensureQuickAdd();
     setupSavesPage();
+    setupForDiPage();
   }
 
   installServiceWorker();
