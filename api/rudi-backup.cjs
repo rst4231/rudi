@@ -3,6 +3,7 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { readWishlist, writeWishlist } = require('./wishlist-store.cjs');
 const { readSavedItems, writeSavedItems } = require('./saved-items-store.cjs');
+const { readForDiFeed, writeForDiFeed } = require('./for-di-feed-store.cjs');
 const { readProductList, readProductListRaw, restoreProductListSnapshot } = require('./product-list-store.cjs');
 const { readToken, saveToken } = require('./ticktick-store.cjs');
 const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
@@ -171,7 +172,7 @@ async function createStateSnapshot(options = {}) {
     ? options.previousSnapshot
     : null;
   const [
-    partnerMessage, wishlist, products, savedItems, ticktickChecklistAudit,
+    partnerMessage, wishlist, products, savedItems, forDiFeed, ticktickChecklistAudit,
     ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal, luluState,
     rustamPin, dianaPin, rustamPasskeys, dianaPasskeys,
   ] = await Promise.all([
@@ -179,6 +180,7 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
     safeRead(() => readProductList(options), { initialized: false, version: 0, items: [], history: [] }),
     safeRead(() => readSavedItems(options), { initialized: false, version: 0, items: [] }),
+    safeRead(() => readForDiFeed(options), { initialized: false, version: 0, items: [] }),
     safeRead(() => readChecklistAuditState(options), { initialized: false, version: 0, entries: {} }),
     safeRead(() => readToken(options)),
     safeRead(() => readCalendarUrl(options)),
@@ -212,6 +214,7 @@ async function createStateSnapshot(options = {}) {
     wishlist: newerVersionState(wishlist, previous?.wishlist),
     products: newerVersionState(products, previous?.products),
     savedItems: newerVersionState(savedItems, previous?.savedItems),
+    forDiFeed: newerVersionState(forDiFeed, previous?.forDiFeed),
     ticktickChecklistAudit: newerVersionState(ticktickChecklistAudit, previous?.ticktickChecklistAudit),
     ticktickToken: newerTimestampState(ticktickToken, previous?.ticktickToken, 'savedAt'),
     calendarUrl: calendarUrl || previous?.calendarUrl || '',
@@ -294,6 +297,19 @@ async function restoreStateBackup(token, options = {}) {
     try {
       await writeSavedItems(snapshot.savedItems, options);
       restored.push('saved-items');
+    } catch {}
+  }
+
+  const currentForDiFeed = await safeRead(() => readForDiFeed(options), { initialized: false, version: 0, items: [] });
+  const currentForDiVersion = Number(currentForDiFeed?.version || 0);
+  const savedForDiVersion = Number(snapshot.forDiFeed?.version || 0);
+  if (
+    snapshot.forDiFeed?.initialized &&
+    (!currentForDiFeed?.initialized || savedForDiVersion > currentForDiVersion)
+  ) {
+    try {
+      await writeForDiFeed(snapshot.forDiFeed, options);
+      restored.push('for-di-feed');
     } catch {}
   }
 
