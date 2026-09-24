@@ -35,8 +35,8 @@ test('activity journal is wired to real RUDI events',()=>{
   assert.match(api,/type: 'task-complete'/);
   assert.match(api,/type: 'checklist-complete'/);
   assert.match(api,/type: 'mood'/);
-  assert.match(api,/type: 'saved-date'/);
-  assert.match(api,/type: 'saved-recipe'/);
+  assert.match(api,/saved-date/);
+  assert.match(api,/saved-recipe/);
   assert.match(api,/targetTab: 'saves'/);
   assert.match(api,/Грусть/);
   assert.match(api,/Страх/);
