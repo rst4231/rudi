@@ -1,6 +1,6 @@
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { syncForumTopicTitles } = require('./forum-topic-sync.cjs');
-const { queueForDiMessage, publishForDiToRudi } = require('./for-di-private.cjs');
+const { queueForDiMessage } = require('./for-di-private.cjs');
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const LABOR_TOPIC_NAME = 'Трудовой кодекс';
@@ -202,63 +202,6 @@ async function publishLaborArticle(options = {}) {
   return { articleId: next.id, topicId, messageId: null, queuedForPrivateDelivery: true };
 }
 
-async function publishLaborArticleToRudi(options = {}) {
-  const cache = options.cache || getRuntimeCache();
-  const now = options.now || new Date();
-  const todayKey = dateKeyInMoscow(now);
-  const publishedKey = `labor:rudi-published:${todayKey}`;
-  const already = await cache.get(publishedKey).catch(() => null);
-  if (already && options.force !== true) {
-    return {
-      skipped: true,
-      reason: 'already-published',
-      articleId: typeof already === 'string' ? already : already?.articleId,
-      dateKey: todayKey,
-      telegramDelivery: false,
-    };
-  }
-
-  const history = await readArticleHistory(cache);
-  const explicitExcludes = Array.isArray(options.excludeIds) ? options.excludeIds.filter(Boolean) : [];
-  const exclusions = new Set([...history.used, ...history.recent, ...explicitExcludes]);
-  let next = selectArticleForDate(now, { excludeIds: [...exclusions] });
-  if (!next) {
-    next = selectArticleForDate(now, { excludeIds: [...new Set([...history.recent, ...explicitExcludes].filter(Boolean))] });
-  }
-  if (!next) return { skipped: true, reason: 'article-pool-exhausted', dateKey: todayKey, telegramDelivery: false };
-
-  await queueForDiMessage(next.text, {
-    now,
-    dateKey: todayKey,
-    forDiCache: options.forDiCache,
-    parseMode: false,
-    source: 'labor',
-  });
-
-  const published = await publishForDiToRudi({
-    ...options,
-    now,
-    dateKey: todayKey,
-  });
-
-  history.used.add(next.id);
-  const recent = [...history.recent.filter((id) => id !== next.id), next.id].slice(-RECENT_ARTICLE_LIMIT);
-  await Promise.all([
-    cache.set('labor:used-article-ids', [...history.used], { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] }),
-    cache.set('labor:recent-article-ids', recent, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] }),
-    cache.set(publishedKey, { articleId: next.id, publishedAt: new Date(now).toISOString() }, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-history'] }),
-  ]);
-
-  return {
-    articleId: next.id,
-    dateKey: todayKey,
-    published: Number(published?.published || 0),
-    total: Number(published?.total || 0),
-    sent: 0,
-    telegramDelivery: false,
-  };
-}
-
 async function replaceLaborArticle(options = {}) {
   return publishLaborArticle({ ...options, force: true });
 }
@@ -269,7 +212,6 @@ module.exports = {
   allArticleVariants,
   selectArticleForDate,
   publishLaborArticle,
-  publishLaborArticleToRudi,
   replaceLaborArticle,
   ensureLaborTopic,
   deleteLegacyLaborTopicOnce,
