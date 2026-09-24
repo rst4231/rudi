@@ -2422,10 +2422,7 @@
               '<div class="home-settings-copy"><strong>PWA</strong><small id="settingsPwaStatus">Добавить на устройство</small></div>'+
               '<button id="settingsPwaInstall" class="settings-pwa-install" type="button">Установить</button>'+
             '</div>'+
-            '<div id="settingsFaceIdRow" class="home-settings-row">'+
-              '<div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus">Проверяю…</small></div>'+
-              '<button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить</button>'+
-            '</div>'+
+
             '<div class="home-settings-row">'+
               '<div class="home-settings-copy"><strong>Версия</strong><small>Текущая сборка RUDI</small></div>'+
               '<span id="settingsAppVersion" class="home-settings-version"></span>'+
