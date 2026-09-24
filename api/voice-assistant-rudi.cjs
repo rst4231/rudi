@@ -263,6 +263,49 @@ function matchNamedItem(items, target, getText=(item)=>item?.text) {
   return {item:null,candidates:partial.slice(0,6)};
 }
 
+function cleanCommandText(value){
+  return String(value||'').replace(/\s+/g,' ').replace(/\s+пожалуйста\s*$/iu,'').trim();
+}
+
+function splitCommandItems(value){
+  return String(value||'')
+    .split(/\s*(?:,|;|\s+и\s+)\s*/u)
+    .map(item=>item.trim())
+    .filter(Boolean)
+    .slice(0,12);
+}
+
+function addProductIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  const patterns=[
+    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)$/iu,
+    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)\s+(.+)$/iu,
+  ];
+  for(const re of patterns){
+    const match=raw.match(re);
+    if(match?.[1]) return {items:splitCommandItems(match[1])};
+  }
+  return null;
+}
+
+function addWishIntent(transcript,actor){
+  const raw=cleanCommandText(transcript);
+  const patterns=[
+    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?$/iu,
+    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?\s+(.+)$/iu,
+  ];
+  let items=[];
+  for(const re of patterns){
+    const match=raw.match(re);
+    if(match?.[1]){items=splitCommandItems(match[1]);break;}
+  }
+  if(!items.length) return null;
+  const owner=/дианин|вишлист\s+дианы|список желаний\s+дианы|диане\s+в/iu.test(raw)
+    ?'Диана'
+    :String(actor||'Рустам');
+  return {items,owner:owner==='Диана'?'Диана':'Рустам'};
+}
+
 function removeProductIntent(transcript) {
   const raw=cleanCommandText(transcript);
   for(const re of [
