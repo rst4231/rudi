@@ -1580,7 +1580,7 @@
           const audioBase64=await voiceAssistantBlobBase64(blob);
           const response=await fetch('/api/partner-message?rudiAction=voice-assistant',{
             method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:telegramInitData(),mimeType:String(blob.type||'audio/webm').split(';')[0],audioBase64,history:voiceAssistantHistory.slice(-8)}),
+            body:JSON.stringify({initData:telegramInitData(),mimeType:String(blob.type||'audio/webm').split(';')[0],audioBase64,history:voiceAssistantHistory.slice(-8),timeZone:(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||TZ}catch(_){return TZ}})()}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -1588,6 +1588,16 @@
             const requestError=new Error(payload.error||'voice-assistant-failed');
             requestError.retryAfterSeconds=Math.max(1,Number(payload.retryAfterSeconds)||20);
             throw requestError;
+          }
+          const actionType=String(payload.actionResult?.type||'');
+          if(actionType==='products-add'){
+            invalidateManagedRequests('products');
+            loadProducts({silent:true}).catch(()=>{});
+          }else if(actionType==='wishlist-add'){
+            invalidateManagedRequests('wishlist');
+            loadWishlist({silent:true}).catch(()=>{});
+          }else if(actionType.startsWith('smart-home')){
+            window.RUDI_SMART_HOME?.refresh?.();
           }
           const transcript=String(payload.transcript||'').trim();
           const answer=String(payload.answer||'').trim();

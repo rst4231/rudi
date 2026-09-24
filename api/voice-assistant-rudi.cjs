@@ -1,7 +1,7 @@
 const config = require('../rudi-config.json');
 const { readDailyMood } = require('./daily-mood-store.cjs');
-const { readProductList } = require('./product-list-store.cjs');
-const { readWishlist } = require('./wishlist-store.cjs');
+const { readProductList, addProducts } = require('./product-list-store.cjs');
+const { readWishlist, addWish } = require('./wishlist-store.cjs');
 const { readCycleState, cycleViewForDate } = require('./cycle-store.cjs');
 const { readPartnerMessage } = require('./partner-message-store.cjs');
 const { readFeedSnapshot } = require('./feed-store.cjs');
@@ -11,24 +11,46 @@ const { readActivityJournal } = require('./activity-journal-store.cjs');
 const { getWorkWeek } = require('./work-calendar.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
-const { readSmartHomeSnapshot, switchSmartHomeDevice } = require('./smart-home-client.cjs');
+const { readSmartHomeSnapshot, switchSmartHomeDevice, runSmartHomeCapability } = require('./smart-home-client.cjs');
 const { readToken } = require('./ticktick-store.cjs');
 const { loadTickTickConfig, fetchProjectData, buildTickTickCalendar, chooseNextTask } = require('./ticktick-client.cjs');
+const { getWeather } = require('./weather.cjs');
 
 const DAY = 86400000;
 
-function dateKey(value = new Date()) {
+function safeTimeZone(value) {
+  const candidate=String(value||'').trim();
+  if(candidate){
+    try{new Intl.DateTimeFormat('en-US',{timeZone:candidate}).format(new Date());return candidate}catch(_){}
+  }
+  return 'Europe/Moscow';
+}
+
+function dateKey(value = new Date(), timeZone='Europe/Moscow') {
   const date = value instanceof Date ? value : new Date(value);
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
-    timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'
+    timeZone:safeTimeZone(timeZone),year:'numeric',month:'2-digit',day:'2-digit'
   }).formatToParts(date).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
   return [parts.year,parts.month,parts.day].join('-');
 }
 
-function relationshipView(now = new Date()) {
+function shiftDateKey(key,days){
+  const [y,m,d]=String(key||'').split('-').map(Number);
+  const value=new Date(Date.UTC(y,m-1,d+Number(days||0)));
+  return [value.getUTCFullYear(),String(value.getUTCMonth()+1).padStart(2,'0'),String(value.getUTCDate()).padStart(2,'0')].join('-');
+}
+
+function localDateTime(value,timeZone){
+  return new Intl.DateTimeFormat('ru-RU',{
+    timeZone:safeTimeZone(timeZone),year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+  }).format(value instanceof Date?value:new Date(value));
+}
+
+function relationshipView(now = new Date(), timeZone='Europe/Moscow') {
   const startedAt = String(config?.relationship?.startedAt || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startedAt)) return null;
-  const today = dateKey(now);
+  const today = dateKey(now,timeZone);
   const start = Date.parse(startedAt + 'T00:00:00Z');
   const current = Date.parse(today + 'T00:00:00Z');
   if (!Number.isFinite(start) || !Number.isFinite(current) || current < start) return null;
@@ -89,20 +111,24 @@ async function tickTickView(options = {}) {
     const data=await fetchProjectData(token.accessToken,cfg.projectId,options);
     const tasks=Array.isArray(data?.tasks)?data.tasks:[];
     const now=options.now?new Date(options.now):new Date();
-    const calendar=buildTickTickCalendar(tasks,now,'month');
-    const today=dateKey(now);
-    const todayEvents=(calendar.days.find(day=>day.date===today)?.events||[]).filter(x=>!x.completed);
+    const timeZone=safeTimeZone(options.timeZone);
+    const today=dateKey(now,timeZone);
+    const tomorrow=shiftDateKey(today,1);
+    const current=buildTickTickCalendar(tasks,now,'month',timeZone);
+    const nextMonth=buildTickTickCalendar(tasks,now,'next-month',timeZone);
+    const dayFor=(key)=>current.days.find(day=>day.date===key)||nextMonth.days.find(day=>day.date===key)||{date:key,events:[]};
+    const todayEvents=(dayFor(today).events||[]).filter(x=>!x.completed);
+    const tomorrowEvents=(dayFor(tomorrow).events||[]).filter(x=>!x.completed);
     const next=chooseNextTask(tasks,now);
     return {
       connected:true,
       enabled:true,
       project:String(data?.project?.name||'Общий'),
+      todayDate:today,
+      tomorrowDate:tomorrow,
       today:todayEvents.slice(0,20),
-      next:next?{
-        title:String(next.title||''),
-        startDate:next.startDate||next.dueDate||null,
-        dueDate:next.dueDate||null,
-      }:null,
+      tomorrow:tomorrowEvents.slice(0,20),
+      next:next?{title:String(next.title||''),startDate:next.startDate||next.dueDate||null,dueDate:next.dueDate||null}:null,
     };
   } catch (error) {
     return {connected:true,error:String(error?.message||error)};
@@ -118,20 +144,28 @@ function onOffState(device) {
   return typeof cap?.state?.value==='boolean'?cap.state.value:null;
 }
 
+function tokenPresent(text,words){
+  const padded=' '+String(text||'').trim()+' ';
+  return words.some(word=>padded.includes(' '+word+' '));
+}
+
 function commandIntent(transcript) {
   const normalized=normalizeText(transcript);
-  const on=/\b(включи|включить|зажги|вруби)\b/u.test(normalized);
-  const off=/\b(выключи|выключить|погаси|выруби)\b/u.test(normalized);
+  const pause=/(?:^|\s)(?:поставь|поставить)\s+(?:пылесос\s+)?на\s+паузу(?:\s|$)/u.test(normalized);
+  const resume=tokenPresent(normalized,['продолжи','продолжить','возобнови','возобновить'])&&/пылесос|уборк/u.test(normalized);
+  if(pause||resume) return {kind:'pause',value:pause,target:'пылесос'};
+  const on=tokenPresent(normalized,['включи','включить','зажги','вруби','запусти','запустить']);
+  const off=tokenPresent(normalized,['выключи','выключить','погаси','выруби','останови','остановить']);
   if(!on&&!off) return null;
   const value=on&&!off;
   const target=normalized
-    .replace(/\b(включи|включить|зажги|вруби|выключи|выключить|погаси|выруби|пожалуйста|устройство|умного|дома|умный|дом)\b/gu,' ')
+    .replace(/(?:^|\s)(включи|включить|зажги|вруби|запусти|запустить|выключи|выключить|погаси|выруби|останови|остановить|пожалуйста|устройство|умного|дома|умный|дом)(?=\s|$)/gu,' ')
     .replace(/\s+/g,' ').trim();
-  return {value,target};
+  return {kind:'switch',value,target};
 }
 
 function selectDevice(devices,target) {
-  const source=(Array.isArray(devices)?devices:[]).filter(hasOnOff);
+  const source=(Array.isArray(devices)?devices:[]).filter(device=>hasOnOff(device)||(device.capabilities||[]).some(cap=>cap.instance==='pause'||cap.instance==='work_speed'));
   if(!source.length) return {device:null,candidates:[]};
   const needle=normalizeText(target);
   if(!needle) return {device:null,candidates:source.slice(0,5)};
@@ -151,26 +185,63 @@ function selectDevice(devices,target) {
 
 function contextNeeds(transcript) {
   const text=normalizeText(transcript);
-  const broadToday=/\b(что у нас сегодня|что сегодня|планы на сегодня)\b/u.test(text);
-  const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|устройств|умн.*дом)/u.test(text);
+  const broadToday=/(?:^|\s)(что у нас сегодня|что сегодня|планы на сегодня)(?:\s|$)/u.test(text);
+  const statusDiana=/(статус.*диан|диан.*статус|какой статус)/u.test(text);
+  const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|пылесос|устройств|умн.*дом)/u.test(text);
   return {
     mood:/(настроен|как диан.*себя|как себя диан)/u.test(text),
-    products:/(списк.*продукт|продукт.*спис|покупк|что купить|есть .* в продукт|есть ли .* продукт)/u.test(text),
+    products:/(продукт|покупк|список покуп)/u.test(text),
     productHistory:/(что покупал|что купил|покупали|последн.*покуп)/u.test(text),
     wishlist:/(виш|wishlist|желани|хотелк)/u.test(text),
-    cycle:/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text),
+    cycle:statusDiana||/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text),
     message:/(послан|сообщени.*послан)/u.test(text),
-    feed:/(лент|концерт|стендап|stand up|кино|кинопремьер|премьер|факт)/u.test(text),
+    feed:/(лент|мероприят|событи.*лент|концерт|стендап|stand up|кино|кинопремьер|премьер|факт)/u.test(text),
     lulu:/(лулу|lulu|выгул|гулял.*собак|собак.*гулял)/u.test(text),
     car:/(пробег|машин|авто|changan|uni v|уни в)/u.test(text),
     relationship:/(годовщин|сколько .* вместе|вместе с|лет вместе|месяц.*вместе|дн.*вместе)/u.test(text),
     activity:/(последн.*гулял|когда .* гулял|что произошло|последн.*активност)/u.test(text),
-    calendar:broadToday||/(диан.*работ|работ.*диан|выходн|смен|рабоч.*день|календар|ближайш.*событ|событ.*календар)/u.test(text),
+    calendar:statusDiana||broadToday||/(диан.*работ|работ.*диан|выходн|смен|рабоч.*день|календар|ближайш.*событ|событ.*календар|завтра.*диан|диан.*завтра)/u.test(text),
     holidays:broadToday||/(праздник|праздники)/u.test(text),
-    tasks:broadToday||/(совместн.*дел|дела.*сегодня|задач|ticktick|ближайш.*событ|календар)/u.test(text),
+    tasks:broadToday||/(совместн.*дел|дела.*сегодня|дела.*завтра|что.*завтра|план.*завтра|задач|ticktick|ближайш.*событ|календар)/u.test(text),
     market:/(курс|доллар|usd|рубл|биткоин|bitcoin|btc|эфир|ethereum|eth|крипт)/u.test(text),
+    weather:/(погод|прогноз|дожд|снег|температур.*улиц)/u.test(text),
     smart,
   };
+}
+
+function cleanCommandText(value){
+  return String(value||'').replace(/\s+/g,' ').replace(/\s+пожалуйста\s*$/iu,'').trim();
+}
+
+function splitCommandItems(value){
+  return String(value||'').split(/\s*(?:,|;|\s+и\s+)\s*/u).map(x=>x.trim()).filter(Boolean).slice(0,12);
+}
+
+function addProductIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  const patterns=[
+    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)$/iu,
+    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)\s+(.+)$/iu,
+  ];
+  for(const re of patterns){const m=raw.match(re);if(m?.[1]) return {items:splitCommandItems(m[1])}}
+  return null;
+}
+
+function addWishIntent(transcript,actor){
+  const raw=cleanCommandText(transcript);
+  const patterns=[
+    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?$/iu,
+    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?\s+(.+)$/iu,
+  ];
+  let items=[];
+  for(const re of patterns){const m=raw.match(re);if(m?.[1]){items=splitCommandItems(m[1]);break}}
+  if(!items.length) return null;
+  const owner=/дианин|вишлист\s+дианы|список желаний\s+дианы|диане\s+в/iu.test(raw)?'Диана':String(actor||'Рустам');
+  return {items,owner:owner==='Диана'?'Диана':'Рустам'};
+}
+
+function weatherLabel(code){
+  return ({0:'Ясно',1:'Преимущественно ясно',2:'Облачно',3:'Пасмурно',45:'Туман',48:'Туман',51:'Морось',53:'Морось',55:'Морось',61:'Дождь',63:'Дождь',65:'Сильный дождь',71:'Снег',73:'Снег',75:'Сильный снег',80:'Ливень',81:'Ливень',82:'Сильный ливень',95:'Гроза',96:'Гроза',99:'Гроза'})[Number(code)]||'Погода';
 }
 
 function compactValue(value, options = {}, depth = 0) {
@@ -191,14 +262,29 @@ function compactValue(value, options = {}, depth = 0) {
 
 async function readAssistantContext(transcript, options = {}) {
   const now=options.now?new Date(options.now):new Date();
-  const today=dateKey(now);
+  const timeZone=safeTimeZone(options.timeZone);
+  const today=dateKey(now,timeZone);
+  const tomorrow=shiftDateKey(today,1);
   const actor=String(options.actor||'Рустам');
   const wanted=contextNeeds(transcript);
-  const context={currentDate:today,actor};
+  const year=Number(today.slice(0,4));
+  const nextNewYear=(year+1)+'-01-01';
+  const context={
+    currentDate:today,
+    tomorrowDate:tomorrow,
+    timeZone,
+    localDateTime:localDateTime(now,timeZone),
+    calendarBasics:{
+      newYearDate:'01-01',
+      nextNewYear,
+      daysUntilNewYear:Math.max(0,Math.round((Date.parse(nextNewYear+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/DAY))
+    },
+    actor
+  };
 
   const jobs=[];
 
-  if(wanted.relationship) context.relationship=relationshipView(now);
+  if(wanted.relationship) context.relationship=relationshipView(now,timeZone);
 
   if(wanted.mood) jobs.push(
     readDailyMood(today,options)
@@ -249,11 +335,13 @@ async function readAssistantContext(transcript, options = {}) {
   if(wanted.feed) jobs.push(
     readFeedSnapshot(options)
       .then(feed=>{
-        context.feed=feed?{
-          date:feed.date,
-          updatedAt:feed.updatedAt,
-          sections:compactValue(feed.sections,{arrayLimit:10,stringLimit:280,maxDepth:5}),
-        }:null;
+        const text=normalizeText(transcript);
+        const all=feed?.sections||{};
+        let sections=all;
+        if(/мероприят|концерт|стендап|stand up|событи.*лент/u.test(text)) sections={events:all.events};
+        else if(/кино|кинопремьер|премьер/u.test(text)) sections={cinema:all.cinema};
+        else if(/факт/u.test(text)) sections={facts:all.facts};
+        context.feed=feed?{date:feed.date,updatedAt:feed.updatedAt,sections:compactValue(sections,{arrayLimit:10,stringLimit:280,maxDepth:5})}:null;
       })
       .catch(()=>{context.feed=null})
   );
@@ -282,12 +370,13 @@ async function readAssistantContext(transcript, options = {}) {
   );
 
   if(wanted.calendar) jobs.push(
-    getWorkWeek({...options,now,view:'week'})
+    getWorkWeek({...options,now,timeZone,view:'week'})
       .then(calendar=>{
         context.workCalendar={
           configured:Boolean(calendar?.configured),
           stale:Boolean(calendar?.stale),
           today:(calendar?.days||[]).find(day=>day.date===today)||null,
+          tomorrow:(calendar?.days||[]).find(day=>day.date===tomorrow)||null,
           days:(calendar?.days||[]).slice(0,7).map(day=>({
             date:day.date,
             working:Boolean(day.working),
@@ -311,7 +400,7 @@ async function readAssistantContext(transcript, options = {}) {
   );
 
   if(wanted.tasks) jobs.push(
-    tickTickView({...options,now}).then(value=>{context.sharedTasks=compactValue(value,{arrayLimit:12,stringLimit:240,maxDepth:4})})
+    tickTickView({...options,now,timeZone}).then(value=>{context.sharedTasks=compactValue(value,{arrayLimit:12,stringLimit:240,maxDepth:4})})
   );
 
   if(wanted.market) jobs.push(
@@ -320,13 +409,47 @@ async function readAssistantContext(transcript, options = {}) {
       .catch(error=>{context.market={error:String(error?.message||error),items:[]}})
   );
 
+  if(wanted.weather) jobs.push(
+    getWeather()
+      .then(data=>{
+        const daily=data?.daily||{};
+        const dates=Array.isArray(daily.time)?daily.time:[];
+        const pick=(key,fallbackIndex)=>{
+          const index=Math.max(0,dates.indexOf(key));
+          const i=dates.includes(key)?dates.indexOf(key):fallbackIndex;
+          return {
+            date:key,
+            weatherCode:daily.weather_code?.[i] ?? null,
+            condition:weatherLabel(daily.weather_code?.[i]),
+            min:daily.temperature_2m_min?.[i] ?? null,
+            max:daily.temperature_2m_max?.[i] ?? null,
+            precipitation:daily.precipitation_sum?.[i] ?? null,
+          };
+        };
+        context.weather={
+          city:'Санкт-Петербург',
+          stale:Boolean(data?.stale),
+          current:{
+            temperature:data?.current?.temperature_2m ?? null,
+            weatherCode:data?.current?.weather_code ?? null,
+            condition:weatherLabel(data?.current?.weather_code),
+            precipitation:data?.current?.precipitation ?? null,
+            rain:data?.current?.rain ?? null,
+          },
+          today:pick(today,0),
+          tomorrow:pick(tomorrow,1),
+        };
+      })
+      .catch(error=>{context.weather={city:'Санкт-Петербург',error:String(error?.message||error)}})
+  );
+
   if(wanted.smart) jobs.push(
     readSmartHomeSnapshot(false)
       .then(smart=>{
         const all=(smart?.devices||[]).map(deviceSummary);
         const devices=commandIntent(transcript)
-          ? all.filter(hasOnOff)
-          : all.filter(device=>hasOnOff(device)||(device.properties||[]).some(prop=>/temperature|humidity/.test(prop.instance)));
+          ? all.filter(device=>hasOnOff(device)||(device.capabilities||[]).some(cap=>cap.instance==='pause'||cap.instance==='work_speed'))
+          : all.filter(device=>hasOnOff(device)||(device.capabilities||[]).some(cap=>cap.instance==='pause'||cap.instance==='work_speed')||(device.properties||[]).some(prop=>/temperature|humidity/.test(prop.instance)));
         context.smartHome={
           error:smart?.error||'',
           rooms:(smart?.rooms||[]).slice(0,15).map(x=>({id:x.id,name:x.name})),
@@ -342,49 +465,92 @@ async function readAssistantContext(transcript, options = {}) {
 }
 
 async function executeAssistantAction(transcript, context, options = {}) {
+  const actor=String(options.actor||'Рустам');
+
+  const productIntent=addProductIntent(transcript);
+  if(productIntent?.items?.length){
+    try{
+      const before=await readProductList(options);
+      const beforeIds=new Set((before?.items||[]).map(x=>x.id));
+      const state=await addProducts(productIntent.items,actor,options);
+      const added=(state?.items||[]).filter(x=>!beforeIds.has(x.id)).map(x=>x.text);
+      return {type:'products-add',performed:true,items:added,requested:productIntent.items};
+    }catch(error){
+      return {type:'products-add',performed:false,error:String(error?.message||error),requested:productIntent.items};
+    }
+  }
+
+  const wishIntent=addWishIntent(transcript,actor);
+  if(wishIntent?.items?.length){
+    const added=[];
+    try{
+      for(const item of wishIntent.items){
+        const result=await addWish(item,'',wishIntent.owner,options);
+        if(result?.item?.text) added.push(result.item.text);
+      }
+      return {type:'wishlist-add',performed:true,owner:wishIntent.owner,items:added};
+    }catch(error){
+      return {type:'wishlist-add',performed:false,owner:wishIntent.owner,items:added,error:String(error?.message||error)};
+    }
+  }
+
   const intent=commandIntent(transcript);
   if(!intent) return null;
   const devices=context?.smartHome?.devices||[];
   const selected=selectDevice(devices,intent.target);
   if(!selected.device){
     return {
-      type:'smart-home-switch',
+      type:'smart-home',
       performed:false,
-      requestedState:intent.value,
       error:'device-not-found-or-ambiguous',
       candidates:selected.candidates.map(x=>x.name).filter(Boolean),
     };
   }
-  const current=onOffState(selected.device);
-  if(current===intent.value){
-    return {
-      type:'smart-home-switch',
-      performed:true,
-      changed:false,
-      device:selected.device.name,
-      state:intent.value,
-      status:'ALREADY',
-    };
+
+  const device=selected.device;
+  const pauseCap=(device.capabilities||[]).find(cap=>cap.instance==='pause');
+  if(intent.kind==='pause'){
+    if(!pauseCap) return {type:'smart-home-pause',performed:false,device:device.name,error:'pause-not-supported'};
+    try{
+      const result=await runSmartHomeCapability(device.id,device.name,'devices.capabilities.toggle','pause',Boolean(intent.value),actor);
+      return {type:'smart-home-pause',performed:String(result?.status||'')==='DONE',device:device.name,paused:Boolean(intent.value),status:String(result?.status||'')};
+    }catch(error){
+      return {type:'smart-home-pause',performed:false,device:device.name,error:String(error?.message||error)};
+    }
   }
-  try{
-    const result=await switchSmartHomeDevice(selected.device.id,selected.device.name,intent.value,String(options.actor||'Рустам'));
-    return {
-      type:'smart-home-switch',
-      performed:String(result?.status||'')==='DONE',
-      changed:true,
-      device:selected.device.name,
-      state:intent.value,
-      status:String(result?.status||''),
-    };
-  }catch(error){
-    return {
-      type:'smart-home-switch',
-      performed:false,
-      device:selected.device.name,
-      state:intent.value,
-      error:String(error?.message||error),
-    };
+
+  const current=onOffState(device);
+  if(intent.kind==='switch'&&current===intent.value){
+    if(intent.value&&pauseCap?.value===true){
+      try{
+        const result=await runSmartHomeCapability(device.id,device.name,'devices.capabilities.toggle','pause',false,actor);
+        return {type:'smart-home-switch',performed:String(result?.status||'')==='DONE',changed:true,device:device.name,state:true,resumed:true,status:String(result?.status||'')};
+      }catch(error){
+        return {type:'smart-home-switch',performed:false,device:device.name,error:String(error?.message||error)};
+      }
+    }
+    return {type:'smart-home-switch',performed:true,changed:false,device:device.name,state:intent.value,status:'ALREADY'};
   }
+
+  if(hasOnOff(device)){
+    try{
+      const result=await switchSmartHomeDevice(device.id,device.name,intent.value,actor);
+      return {type:'smart-home-switch',performed:String(result?.status||'')==='DONE',changed:true,device:device.name,state:intent.value,status:String(result?.status||'')};
+    }catch(error){
+      return {type:'smart-home-switch',performed:false,device:device.name,state:intent.value,error:String(error?.message||error)};
+    }
+  }
+
+  if(pauseCap){
+    try{
+      const result=await runSmartHomeCapability(device.id,device.name,'devices.capabilities.toggle','pause',!intent.value,actor);
+      return {type:'smart-home-switch',performed:String(result?.status||'')==='DONE',device:device.name,state:intent.value,status:String(result?.status||'')};
+    }catch(error){
+      return {type:'smart-home-switch',performed:false,device:device.name,error:String(error?.message||error)};
+    }
+  }
+
+  return {type:'smart-home',performed:false,device:device.name,error:'action-not-supported'};
 }
 
-module.exports={dateKey,relationshipView,contextNeeds,compactValue,readAssistantContext,executeAssistantAction,commandIntent,selectDevice};
+module.exports={safeTimeZone,dateKey,shiftDateKey,relationshipView,contextNeeds,compactValue,addProductIntent,addWishIntent,readAssistantContext,executeAssistantAction,commandIntent,selectDevice};

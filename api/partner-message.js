@@ -2018,8 +2018,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         actor,
         env: options.env || process.env,
         fetchImpl: options.fetchImpl || globalThis.fetch,
-        contextProvider: (transcript) => readAssistantContext(transcript, { ...options, actor, backupToken:body.backupToken }),
-        actionProvider: (transcript, context) => executeAssistantAction(transcript, context, { ...options, actor }),
+        contextProvider: (transcript) => readAssistantContext(transcript, { ...options, actor, backupToken:body.backupToken, timeZone:body.timeZone }),
+        actionProvider: (transcript, context) => executeAssistantAction(transcript, context, { ...options, actor, backupToken:body.backupToken, timeZone:body.timeZone }),
       });
       return res.status(200).json({ ok: true, actor, ...result });
     } catch (error) {
