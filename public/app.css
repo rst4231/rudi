@@ -7881,7 +7881,6 @@ html[data-theme="dark"] .voice-assistant-greeting{background:rgba(23,27,38,.94);
 body.voice-assistant-open{
   overflow:hidden!important;
   overscroll-behavior:none!important;
-  touch-action:none;
 }
 body.voice-assistant-open .voice-assistant-panel,
 body.voice-assistant-open .voice-assistant-dialogue,
