@@ -2048,7 +2048,7 @@
         if(!panel||!button) return;
         if(window.matchMedia('(max-width:430px)').matches){
           const rect=button.getBoundingClientRect();
-          const top=Math.max(8,Math.round(rect.bottom+8));
+          const top=Math.max(6,Math.round(rect.bottom+3));
           panel.style.setProperty('--activity-panel-top',top+'px');
         }else{
           panel.style.removeProperty('--activity-panel-top');
