@@ -155,7 +155,7 @@ function contextNeeds(transcript) {
   const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|устройств|умн.*дом)/u.test(text);
   return {
     mood:/(настроен|как диан.*себя|как себя диан)/u.test(text),
-    products:/(список продукт|продукт.*спис|покупк|что купить|есть .* в продукт|есть ли .* продукт)/u.test(text),
+    products:/(списк.*продукт|продукт.*спис|покупк|что купить|есть .* в продукт|есть ли .* продукт)/u.test(text),
     productHistory:/(что покупал|что купил|покупали|последн.*покуп)/u.test(text),
     wishlist:/(виш|wishlist|желани|хотелк)/u.test(text),
     cycle:/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text),

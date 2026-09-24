@@ -3,14 +3,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 
 const app=fs.readFileSync('public/app.js','utf8');
-const html=fs.readFileSync('public/index.html','utf8');
 const css=fs.readFileSync('public/app.css','utf8');
 const voice=fs.readFileSync('api/voice-assistant.cjs','utf8');
 const context=fs.readFileSync('api/voice-assistant-rudi.cjs','utf8');
 const smart=fs.readFileSync('api/smart-home-client.cjs','utf8');
 
 test('assistant opens idle and voice is opt-in',()=>{
-  assert.match(html,/id="voiceAssistantVoiceToggle"/);
+  assert.match(app,/voiceAssistantVoiceToggle/);
   assert.match(app,/let voiceAssistantVoiceEnabled = false/);
   const start=app.indexOf("fab.addEventListener('click'");
   const block=app.slice(start,start+350);
@@ -62,8 +61,10 @@ test('assistant smart-home actions go through safe device switch helper',()=>{
 });
 
 test('calendar and holiday routing rules are explicit',()=>{
-  assert.match(context,/calendarNeeded=needs/);
-  assert.match(context,/holidaysNeeded=needs/);
+  assert.match(context,/calendar:.*диан\.\*работ|calendar:broadToday/);
+  assert.match(context,/holidays:broadToday/);
+  assert.match(context,/getWorkWeek/);
+  assert.match(context,/getHolidayCalendar/);
   assert.match(voice,/На вопросы о работе Дианы отвечай по workCalendar/);
   assert.match(voice,/На вопросы о праздниках — только по holidays/);
 });
