@@ -176,7 +176,9 @@ test('browser pull to refresh only activates outside Telegram from the page top 
   assert.match(pull,/touchmove/);
   assert.match(pull,/touchend/);
   assert.match(pull,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
-  assert.match(pull,/if\(scrollTop\(\)>0\)\{reset\(\);return\}/);
+  assert.match(pull,/const topTolerance=standalone\?8:2/);
+  assert.match(pull,/if\(scrollTop\(\)>topTolerance\)\{reset\(\);return\}/);
+  assert.match(pull,/const threshold=standalone\?120:180/);
   assert.match(pull,/!appAccessReady\|\|!currentActor/);
   assert.match(pull,/refreshAfterResume\(\)/);
   assert.doesNotMatch(pull,/window\.location\.reload\(\)/);
