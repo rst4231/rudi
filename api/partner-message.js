@@ -87,6 +87,7 @@ const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
 const { runVoiceAssistant } = require('./voice-assistant.cjs');
+const { readAssistantContext, executeAssistantAction } = require('./voice-assistant-rudi.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
@@ -2017,6 +2018,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         actor,
         env: options.env || process.env,
         fetchImpl: options.fetchImpl || globalThis.fetch,
+        contextProvider: (transcript) => readAssistantContext(transcript, { ...options, actor, backupToken:body.backupToken }),
+        actionProvider: (transcript, context) => executeAssistantAction(transcript, context, { ...options, actor }),
       });
       return res.status(200).json({ ok: true, actor, ...result });
     } catch (error) {
