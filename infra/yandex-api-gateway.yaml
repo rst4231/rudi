@@ -11,7 +11,6 @@ x-yc-apigateway:
     allowedHeaders: "*"
     exposedHeaders:
       - "content-type"
-      - "set-cookie"
       - "x-rudi-offline"
       - "x-rudi-snapshot-at"
     credentials: true
@@ -21,12 +20,6 @@ x-yc-apigateway:
 paths:
   /api/{path+}:
     x-yc-apigateway-any-method:
-      parameters:
-        - name: path
-          in: path
-          required: true
-          schema:
-            type: string
       x-yc-apigateway-integration:
         type: http
         url: "https://spb-daily-guide-bot.vercel.app/api/{path}"
@@ -38,3 +31,9 @@ paths:
         timeouts:
           connect: 2
           read: 20
+    parameters:
+      - name: path
+        in: path
+        required: false
+        schema:
+          type: string
