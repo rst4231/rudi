@@ -134,12 +134,6 @@ async function publishForDiToRudi(options = {}) {
   };
 }
 
-// Kept as a compatibility alias for the manual recovery endpoint.
-// Scheduled publishing now runs with the main daily feed and never sends a Telegram DM.
-async function sendForDiPrivateMessages(options = {}) {
-  return publishForDiToRudi(options);
-}
-
 module.exports = {
   FOR_DI_TOPIC_ID,
   dateKeyInMoscow,
@@ -148,5 +142,4 @@ module.exports = {
   readForDiMessages,
   hasQueuedForDiSource,
   publishForDiToRudi,
-  sendForDiPrivateMessages,
 };
