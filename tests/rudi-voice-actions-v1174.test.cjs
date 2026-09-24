@@ -46,8 +46,8 @@ test('device timezone is accepted with Moscow fallback and tomorrow crosses mont
 test('client sends device timezone and refreshes mutated RUDI sections',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   assert.match(app,/resolvedOptions\(\)\.timeZone\|\|TZ/);
-  assert.match(app,/actionType==='products-add'[\s\S]*?loadProducts/);
-  assert.match(app,/actionType==='wishlist-add'[\s\S]*?loadWishlist/);
+  assert.match(app,/actionType\.startsWith\('products-'\)[\s\S]*?loadProducts/);
+  assert.match(app,/actionType\.startsWith\('wishlist-'\)[\s\S]*?wishlistRequest\('list'\)/);
   assert.match(app,/actionType\.startsWith\('smart-home'\)[\s\S]*?RUDI_SMART_HOME/);
 });
 
