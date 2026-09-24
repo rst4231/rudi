@@ -844,8 +844,30 @@
         <span id="forDiTotalCount" class="for-di-total-count"></span>
       </div>
       <div id="forDiStatus" class="for-di-status" role="status" aria-live="polite">Материалы появляются вместе с ежедневным обновлением ленты</div>
-      <div id="forDiList" class="for-di-list"></div>
-      <div id="forDiEmpty" class="for-di-empty">Пока здесь ничего нет</div>
+
+      <section class="for-di-category" data-for-di-category="labor">
+        <button class="for-di-category-head" type="button" data-for-di-toggle="labor" aria-expanded="true">
+          <span class="for-di-category-icon" aria-hidden="true">§</span>
+          <span class="for-di-category-copy"><strong>Трудовой кодекс</strong><small id="forDiLaborCount">0</small></span>
+          <svg class="for-di-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
+        </button>
+        <div id="forDiLaborBody" class="for-di-category-body">
+          <div id="forDiLaborList" class="for-di-list"></div>
+          <div id="forDiLaborEmpty" class="for-di-empty">Пока здесь ничего нет</div>
+        </div>
+      </section>
+
+      <section class="for-di-category" data-for-di-category="stylist">
+        <button class="for-di-category-head" type="button" data-for-di-toggle="stylist" aria-expanded="true">
+          <span class="for-di-category-icon is-stylist" aria-hidden="true">✦</span>
+          <span class="for-di-category-copy"><strong>Развитие стилиста</strong><small id="forDiStylistCount">0</small></span>
+          <svg class="for-di-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
+        </button>
+        <div id="forDiStylistBody" class="for-di-category-body">
+          <div id="forDiStylistList" class="for-di-list"></div>
+          <div id="forDiStylistEmpty" class="for-di-empty">Пока здесь ничего нет</div>
+        </div>
+      </section>
     </section>
 
     <section id="marketTickerTile" class="market-ticker-tile" data-app-tab-section="home" data-home-tile="markets" data-tab-available="1" aria-label="Курсы валют и криптовалют">
