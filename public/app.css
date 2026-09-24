@@ -7006,6 +7006,27 @@ html[data-theme="dark"] .theme-setting-option[aria-pressed="true"]{
   cursor:pointer;
 }
 .settings-pwa-install:disabled{opacity:.55;cursor:default}
+.settings-faceid-action{
+  min-height:31px;
+  padding:6px 10px;
+  border:1px solid color-mix(in srgb,var(--accent) 34%,var(--line));
+  border-radius:999px;
+  background:color-mix(in srgb,var(--accent-soft) 68%,var(--surface));
+  color:var(--accent);
+  font:inherit;
+  font-size:9.5px;
+  line-height:1;
+  font-weight:780;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.settings-faceid-action:disabled{opacity:.55;cursor:default}
+.settings-faceid-action.is-enabled{
+  opacity:1;
+  border-color:color-mix(in srgb,var(--green) 34%,var(--line));
+  background:color-mix(in srgb,var(--green-soft) 72%,var(--surface));
+  color:var(--green);
+}
 .home-dashboard-summary.activity-notifications-open,
 .home-dashboard-summary.settings-open{
   position:relative;
