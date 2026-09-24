@@ -69,3 +69,10 @@ test('calendar and holiday routing rules are explicit',()=>{
   assert.match(voice,/На вопросы о работе Дианы отвечай по workCalendar/);
   assert.match(voice,/На вопросы о праздниках — только по holidays/);
 });
+
+
+test('assistant prompt speaks from a female persona',()=>{
+  assert.match(voice,/Ты девушка-ассистент приложения RUDI/);
+  assert.match(voice,/от женского лица/);
+  assert.match(voice,/я готова/);
+});
