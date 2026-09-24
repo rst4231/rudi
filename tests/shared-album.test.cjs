@@ -76,13 +76,13 @@ test('shared album reports total photo count while only loading preview window',
   assert.equal(result.title, 'Наш альбом');
   assert.equal(result.photos[0].id, 'photo-0');
   assert.equal(PREVIEW_MAX_EDGE, 640);
-  assert.equal(VIEWER_MAX_EDGE, 1800);
+  assert.equal(VIEWER_MAX_EDGE, null);
   assert.equal(result.photos[0].width, 640);
   assert.equal(result.photos[0].height, 480);
-  assert.equal(result.photos[0].fullWidth, 1600);
-  assert.equal(result.photos[0].fullHeight, 1200);
+  assert.equal(result.photos[0].fullWidth, 4032);
+  assert.equal(result.photos[0].fullHeight, 3024);
   assert.match(result.photos[0].url, /-thumb\.jpg$/);
-  assert.match(result.photos[0].fullUrl, /-preview\.jpg$/);
+  assert.match(result.photos[0].fullUrl, /-full\.jpg$/);
 });
 
 
