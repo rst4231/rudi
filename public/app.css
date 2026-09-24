@@ -3804,6 +3804,43 @@
       user-select:none;
       -webkit-user-drag:none;
     }
+    .photo-viewer-loading{
+      position:absolute;
+      left:50%;
+      bottom:14px;
+      z-index:3;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      max-width:calc(100% - 96px);
+      min-height:34px;
+      padding:8px 11px;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:999px;
+      background:rgba(14,16,22,.74);
+      color:rgba(255,255,255,.9);
+      box-shadow:0 8px 26px rgba(0,0,0,.28);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      font-size:10.5px;
+      line-height:1.2;
+      font-weight:700;
+      text-align:center;
+      transform:translateX(-50%);
+      pointer-events:none;
+    }
+    .photo-viewer-loading[hidden]{display:none!important}
+    .photo-viewer-loading-spinner{
+      width:14px;
+      height:14px;
+      flex:0 0 14px;
+      border:2px solid rgba(255,255,255,.24);
+      border-top-color:rgba(255,255,255,.9);
+      border-radius:50%;
+      animation:photoViewerLoadingSpin .75s linear infinite;
+    }
+    .photo-viewer-loading[data-state="error"] .photo-viewer-loading-spinner{display:none}
+    @keyframes photoViewerLoadingSpin{to{transform:rotate(360deg)}}
     .photo-viewer-close{
       position:absolute;
       top:10px;
