@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   filterTasksForActor,
+  feedSummaryLines,
+  buildCarRecommendations,
   buildMorningSummary,
   sendDailyMorningSummaries,
   writeSummaryMarker,
@@ -50,6 +52,7 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
     carTasksToday:[
       {id:'car-1',title:'Проверить давление в шинах',timing:'today'},
     ],
+    carState:{mileage:44000,updatedAt:'2026-09-22T04:00:00.000Z'},
   };
 
   const rustam = buildMorningSummary('Рустам', common);
@@ -69,6 +72,8 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.match(rustam, /На улице: 16°C · облачно/);
   assert.match(rustam, /Машина/);
   assert.match(rustam, /Шины:/);
+  assert.match(rustam, /Рекомендации:/);
+  assert.match(rustam, /ТО скоро:/);
   assert.match(rustam, /Проверить давление в шинах/);
 
   const diana = buildMorningSummary('Диана', common);
@@ -85,6 +90,28 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.match(diana, /На улице: 16°C · облачно/);
   assert.doesNotMatch(diana, /Шины:/);
   assert.doesNotMatch(diana, /Проверить давление в шинах/);
+});
+
+test('feed summary keeps Today in Feed when current content exists without changedSections', () => {
+  const date='2026-09-24';
+  const lines=feedSummaryLines({
+    date,
+    changedSections:[],
+    sections:{
+      facts:{parts:['Факт дня'],updatedAt:'2026-09-24T00:10:00+03:00'},
+      cinema:{items:[{title:'Премьера'}],updatedAt:'2026-09-17T00:10:00+03:00'},
+    },
+  },date);
+  assert.match(lines.join('\n'),/полезный факт/);
+  assert.match(lines.join('\n'),/кинопремьеры/);
+});
+
+test('car recommendations in morning summary match recommendation block rules', () => {
+  const items=buildCarRecommendations(
+    {mileage:44000},
+    {minForecast:2,maxForecast:15,precipitationSum:8,avgMean:7}
+  );
+  assert.deepEqual(items.map(row=>row.title),['ТО скоро','Похолодание','Осадки']);
 });
 
 test('daily summary replaces feed notice, personalizes new partner activity, and sends once per day', async () => {
@@ -135,8 +162,9 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
     readProductsImpl:async()=>({items:[{id:'1'},{id:'2'}]}),
     loadEnvironmentImpl:async()=>({
       home:{temperature:22.8,humidity:54},
-      weather:{temperature:11,code:3,minForecast:4,maxForecast:12,avgMean:7},
+      weather:{temperature:11,code:3,minForecast:4,maxForecast:12,avgMean:7,precipitationSum:0},
     }),
+    readCarStateImpl:async()=>({mileage:44000,updatedAt:'2026-09-21T02:00:00.000Z'}),
     loadCarTasksImpl:async()=>({tasks:[
       {id:'today-car',title:'🚗 Чек-ап машины',timing:'today'},
       {id:'future-car',title:'Обновить Яндекс Карты',timing:'upcoming'},
@@ -179,6 +207,8 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(rustam.text,/Дома: 22\.8°C · влажность 54%/);
   assert.match(rustam.text,/На улице: 11°C · пасмурно/);
   assert.match(rustam.text,/Шины:/);
+  assert.match(rustam.text,/Рекомендации:/);
+  assert.match(rustam.text,/ТО скоро:/);
   assert.match(rustam.text,/Чек-ап машины/);
   assert.doesNotMatch(rustam.text,/Обновить Яндекс Карты/);
   assert.doesNotMatch(rustam.text,/я обновил Ленту/);
@@ -229,6 +259,7 @@ test('forced morning summary recovery resends even after today marker', async ()
     readProductsImpl:async()=>({items:[]}),
     readFeedImpl:async()=>({sections:{}}),
     loadEnvironmentImpl:async()=>({home:null,weather:null}),
+    readCarStateImpl:async()=>null,
     loadCarTasksImpl:async()=>({tasks:[]}),
   });
   assert.equal(result.sent,2);
@@ -284,6 +315,7 @@ test('morning summary reports missing recipients as failure instead of false suc
     readProductsImpl:async()=>({items:[]}),
     readFeedImpl:async()=>({sections:{}}),
     loadEnvironmentImpl:async()=>({home:null,weather:null}),
+    readCarStateImpl:async()=>null,
     loadCarTasksImpl:async()=>[],
   };
 

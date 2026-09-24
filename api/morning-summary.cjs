@@ -16,7 +16,8 @@ const {
 const { readFeedSnapshot, moscowDateKey } = require('./feed-store.cjs');
 const { telegramSendMessage, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 const { readSmartHomeSnapshot } = require('./smart-home-client.cjs');
-const { loadCarTasks } = require('./car-client.cjs');
+const { loadCarTasks, serviceScheduleForMileage } = require('./car-client.cjs');
+const { readCarState } = require('./car-store.cjs');
 
 const NAMESPACE = 'rudi-morning-summary-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -173,12 +174,28 @@ function eventCount(value) {
   return numbered.length;
 }
 
-function feedSummaryLines(feed, date) {
-  if (!feed || feed.date !== date) return [];
-  const lines = [];
-  if (feed.sections?.facts?.parts?.length) lines.push('• новый полезный факт');
+function feedSectionUpdatedOnDate(section, date) {
+  const updatedAt = String(section?.updatedAt || '').trim();
+  const parsed = Date.parse(updatedAt);
+  if (!Number.isFinite(parsed)) return false;
+  return moscowDateKey(new Date(parsed)) === date;
+}
 
-  const eventParts = Array.isArray(feed.sections?.events?.parts) ? feed.sections.events.parts : [];
+function feedSummaryLines(feed, date) {
+  if (!feed || !date) return [];
+  const sections = feed.sections || {};
+  const feedIsToday = String(feed.date || '') === String(date);
+  const lines = [];
+
+  const facts = sections.facts;
+  if ((feedIsToday || feedSectionUpdatedOnDate(facts, date))
+    && (facts?.parts?.length || facts?.items?.length)) {
+    lines.push('• новый полезный факт');
+  }
+
+  const events = sections.events;
+  const eventsAreToday = feedIsToday || feedSectionUpdatedOnDate(events, date);
+  const eventParts = eventsAreToday && Array.isArray(events?.parts) ? events.parts : [];
   const concerts = String(eventParts[0] || '');
   if (concerts && !/не найден/iu.test(stripHtml(concerts))) {
     const count = eventCount(concerts);
@@ -195,8 +212,17 @@ function feedSummaryLines(feed, date) {
       : '• Stand Up на сегодня');
   }
 
-  if ((feed.changedSections || []).includes('cinema') && feed.sections?.cinema?.parts?.length) {
+  const cinema = sections.cinema;
+  const cinemaChangedToday = (feed.changedSections || []).includes('cinema')
+    || feedSectionUpdatedOnDate(cinema, date);
+  if (cinemaChangedToday && (cinema?.parts?.length || cinema?.items?.length)) {
     lines.push('• новые кинопремьеры');
+  } else if (feedIsToday && (cinema?.parts?.length || cinema?.items?.length)) {
+    lines.push('• кинопремьеры');
+  }
+
+  if (!lines.length && feedIsToday && Object.keys(sections).length) {
+    lines.push('• материалы на сегодня уже в Ленте');
   }
   return lines;
 }
@@ -313,13 +339,14 @@ async function loadEnvironmentSnapshot(options = {}) {
   const weatherPromise = (async () => {
     try {
       const fetchImpl = options.weatherFetchImpl || globalThis.fetch;
-      const url = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code&daily=temperature_2m_min,temperature_2m_max&forecast_days=7&timezone=Europe%2FMoscow';
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code&daily=temperature_2m_min,temperature_2m_max,precipitation_sum&forecast_days=7&timezone=Europe%2FMoscow';
       const response = await fetchImpl(url, { cache:'no-store' });
       if (!response.ok) throw new Error('weather-http-' + response.status);
       const data = await response.json();
       const mins = (data.daily?.temperature_2m_min || []).map(Number).filter(Number.isFinite);
       const maxs = (data.daily?.temperature_2m_max || []).map(Number).filter(Number.isFinite);
       const means = mins.map((min,index) => (min + Number(maxs[index])) / 2).filter(Number.isFinite);
+      const precipitation = (data.daily?.precipitation_sum || []).map(Number).filter(Number.isFinite);
       const temperature = Number(data.current?.temperature_2m);
       return {
         temperature: Number.isFinite(temperature) ? temperature : null,
@@ -327,6 +354,7 @@ async function loadEnvironmentSnapshot(options = {}) {
         minForecast: mins.length ? Math.min(...mins) : null,
         maxForecast: maxs.length ? Math.max(...maxs) : null,
         avgMean: means.length ? means.reduce((a,b)=>a+b,0) / means.length : null,
+        precipitationSum: precipitation.length ? precipitation.reduce((a,b)=>a+b,0) : 0,
       };
     } catch (error) {
       console.warn('RUDI_MORNING_WEATHER_WARN', String(error?.message || error));
@@ -349,6 +377,57 @@ async function loadTodayCarTasks(options = {}) {
     console.warn('RUDI_MORNING_CAR_TASKS_WARN', String(error?.message || error));
     return [];
   }
+}
+
+async function loadMorningCarState(options = {}) {
+  try {
+    return typeof options.readCarStateImpl === 'function'
+      ? await options.readCarStateImpl(options)
+      : await readCarState(options);
+  } catch (error) {
+    console.warn('RUDI_MORNING_CAR_STATE_WARN', String(error?.message || error));
+    return null;
+  }
+}
+
+function formatCarKm(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number).toLocaleString('ru-RU') + ' км' : '';
+}
+
+function buildCarRecommendations(carState, weather) {
+  const items = [];
+  const mileage = Number(carState?.mileage);
+  const nextService = serviceScheduleForMileage(mileage);
+  const remaining = Number.isFinite(mileage) && Number.isFinite(Number(nextService?.mileage))
+    ? Math.max(0, Number(nextService.mileage) - mileage)
+    : null;
+
+  if (remaining === 0 && carState?.mileage != null) {
+    items.push({title:'ТО по пробегу',text:'Ты на регламентном рубеже. Проверь, пройдено ли это ТО, и при необходимости запишись.'});
+  } else if (Number.isFinite(remaining) && remaining <= 1000) {
+    items.push({title:'ТО скоро',text:'До следующего ТО осталось ' + formatCarKm(remaining) + '. Лучше уже выбрать дату сервиса.'});
+  } else if (Number.isFinite(remaining) && remaining <= 2500) {
+    items.push({title:'Планируй ТО',text:'До следующего ТО ' + formatCarKm(remaining) + '. Можно заранее подобрать удобное окно у сервиса.'});
+  }
+
+  if (weather) {
+    if (Number(weather.minForecast) <= 3) {
+      items.push({title:'Похолодание',text:'Ночью около +3°C или ниже. Проверь омывающую жидкость, состояние аккумулятора и давление в шинах.'});
+    }
+    if (Number(weather.precipitationSum) >= 5) {
+      items.push({title:'Осадки',text:'На неделе ожидаются осадки. Проверь щётки, омыватель и учитывай увеличенный тормозной путь.'});
+    }
+    const spread = Number(weather.maxForecast) - Number(weather.minForecast);
+    if (Number.isFinite(spread) && spread >= 10) {
+      items.push({title:'Перепад температуры',text:'Температура заметно меняется. После похолодания проверь давление в шинах на холодных колёсах.'});
+    }
+  }
+
+  if (!items.length) {
+    items.push({title:'Всё спокойно',text:'По погоде и пробегу срочных действий нет. Следи за давлением, жидкостями и необычными звуками.'});
+  }
+  return items.slice(0,3);
 }
 
 function environmentBlock(data = {}) {
@@ -375,6 +454,14 @@ function rustamCarBlock(data = {}) {
   const lines = [];
   const tyre = tyreAdviceForWeather(data.environment?.weather);
   if (tyre) lines.push('Шины: ' + tyre);
+
+  const recommendations = buildCarRecommendations(data.carState, data.environment?.weather);
+  if (recommendations.length) {
+    lines.push('Рекомендации:');
+    for (const item of recommendations) {
+      lines.push('• ' + item.title + ': ' + item.text);
+    }
+  }
 
   const tasks = Array.isArray(data.carTasksToday) ? data.carTasksToday : [];
   if (tasks.length) {
@@ -534,6 +621,7 @@ async function collectMorningData(options = {}) {
     feed,
     environment,
     carTasksToday,
+    carState,
   ] = await Promise.all([
     loadTodayTasks({ ...options, now }),
     loadDianaWorkDay({ ...options, now }),
@@ -545,6 +633,7 @@ async function collectMorningData(options = {}) {
     (options.readFeedImpl || readFeedSnapshot)({ ...options, now }).catch(() => ({ sections: {} })),
     loadEnvironmentSnapshot({ ...options, now }).catch(() => ({ home:null, weather:null })),
     loadTodayCarTasks({ ...options, now }).catch(() => []),
+    loadMorningCarState({ ...options, now }).catch(() => null),
   ]);
 
   return {
@@ -561,6 +650,7 @@ async function collectMorningData(options = {}) {
     feedLines: feedSummaryLines(feed, date),
     environment: environment || {home:null,weather:null},
     carTasksToday: Array.isArray(carTasksToday) ? carTasksToday : [],
+    carState: carState && typeof carState === 'object' ? carState : null,
   };
 }
 
@@ -675,6 +765,7 @@ module.exports = {
   moodLabel,
   cycleGuidanceForRustam,
   eventCount,
+  feedSectionUpdatedOnDate,
   feedSummaryLines,
   wishlistLines,
   messageIsNewForActor,
@@ -683,9 +774,11 @@ module.exports = {
   homeClimateFromSnapshot,
   tyreAdviceForWeather,
   environmentBlock,
+  buildCarRecommendations,
   rustamCarBlock,
   loadEnvironmentSnapshot,
   loadTodayCarTasks,
+  loadMorningCarState,
   buildMorningSummary,
   loadTodayTasks,
   loadDianaWorkDay,
