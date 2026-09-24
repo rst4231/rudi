@@ -2213,6 +2213,20 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'add') {
         const result = await addSavedItem(body.type, body.payload, actor, options);
+        if (!result.duplicate && result.item) {
+          const type = String(result.item.type || body.type || '').trim();
+          const title = String(result.item.payload?.title || body.payload?.title || '').replace(/\s+/g, ' ').trim();
+          const savedLabel = type === 'recipe' ? 'рецепт' : type === 'date' ? 'свидание' : 'сохранение';
+          const savedVerb = activityVerb(actor, 'сохранил', 'сохранила');
+          await recordActivity({
+            type: type === 'recipe' ? 'saved-recipe' : type === 'date' ? 'saved-date' : 'saved-item',
+            actor,
+            text: actor + ' ' + savedVerb + ' ' + savedLabel + (title ? ': ' + title : ''),
+            icon: type === 'recipe' ? '🍳' : type === 'date' ? '💞' : '🔖',
+            targetTab: 'home',
+            dedupeKey: 'saved:' + String(result.item.id || activityDigest(result.item)),
+          }, options);
+        }
         const backupToken = await refreshBackupToken(previousSnapshot, options);
         return res.status(200).json({
           ok: true,
