@@ -147,9 +147,21 @@ body[data-app-tab="schedule"] .work-page{
 .work-page .calendar-day-cell.today{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 65%,transparent)!important}
 .work-page .calendar-day-cell.selected{
   border-color:#ff6a00!important;
-  background:linear-gradient(145deg,#ff7416,#f35f00)!important;
-  color:#fff!important;
-  box-shadow:inset 0 0 0 2px rgba(255,255,255,.80),0 0 0 2px #ff6a00,0 7px 16px rgba(255,100,0,.18)!important;
+  background:color-mix(in srgb,var(--surface) 92%,var(--soft))!important;
+  color:var(--text)!important;
+  box-shadow:0 0 0 2px #ff6a00,0 7px 16px rgba(255,100,0,.12)!important;
+}
+.work-page .calendar-day-cell.off.selected{
+  border-color:#ff6a00!important;
+  background:color-mix(in srgb,var(--green-soft) 54%,var(--surface))!important;
+  color:color-mix(in srgb,var(--green) 72%,var(--text))!important;
+}
+.work-page .calendar-day-cell.working.selected{
+  border-color:#ff6a00!important;
+  background:
+    linear-gradient(145deg,rgba(255,127,45,.13),rgba(255,127,45,.045)),
+    color-mix(in srgb,var(--surface) 90%,transparent)!important;
+  color:#d75f08!important;
 }
 .work-page .calendar-work-dot{
   position:absolute!important;
@@ -161,7 +173,7 @@ body[data-app-tab="schedule"] .work-page{
   background:#ff6a00!important;
   box-shadow:none!important;
 }
-.work-page .calendar-day-cell.selected .calendar-work-dot{background:#fff!important}
+.work-page .calendar-day-cell.selected .calendar-work-dot{background:#ff6a00!important}
 .work-page .calendar-check{
   position:absolute!important;
   right:4px!important;
@@ -208,8 +220,8 @@ body[data-app-tab="schedule"] .work-page{
   line-height:1!important;
   font-weight:900!important;
 }
-.calendar-day-cell.selected .calendar-task-count{background:#fff!important;color:var(--accent)!important}
-.calendar-day-cell.selected .calendar-holiday-mark{color:#fff!important}
+.calendar-day-cell.selected .calendar-task-count{background:color-mix(in srgb,var(--accent) 88%,white)!important;color:#fff!important}
+.calendar-day-cell.selected .calendar-holiday-mark{color:#e0a62f!important}
 
 .calendar-confetti{
   position:absolute!important;
@@ -253,12 +265,12 @@ body[data-app-tab="schedule"] .work-page{
   gap:10px!important;
   margin-top:14px!important;
   padding:12px!important;
-  border:1px solid rgba(255,126,46,.30)!important;
+  border:1px solid color-mix(in srgb,#6674f4 28%,var(--line))!important;
   border-radius:17px!important;
   background:
-    linear-gradient(135deg,rgba(255,126,46,.10),rgba(255,126,46,.025)),
-    color-mix(in srgb,var(--surface) 94%,transparent)!important;
-  box-shadow:none!important;
+    linear-gradient(135deg,rgba(102,116,244,.12),rgba(139,92,246,.055) 58%,rgba(255,255,255,.015)),
+    color-mix(in srgb,var(--surface) 95%,transparent)!important;
+  box-shadow:0 10px 28px rgba(75,84,180,.08)!important;
 }
 .work-page .work-calendar-selected[hidden]{display:none!important}
 .work-page .work-selected-icon{
