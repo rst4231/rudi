@@ -141,7 +141,7 @@ test('camera first observation is silent, later state change sends one Telegram 
     const second=await observeCameraStatus({
       devices:[{id:'camera_123456',name:'Камера',type:'devices.types.camera'}],
     },{
-      cameraStatusCache,notificationCache,fetchImpl:telegramFetch,
+      cameraStatusCache,cameraRecipients,fetchImpl:telegramFetch,
       botToken:'123456:abcdefghijklmnopqrstuvwxyz0123456789',
     });
     assert.equal(second.changed,true);
