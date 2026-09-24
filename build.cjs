@@ -129,21 +129,41 @@ function syncWebVersion(env = process.env) {
   return label;
 }
 
+function syncServiceWorkerPrecache(assetPaths) {
+  if (!fs.existsSync(webServiceWorkerPath)) return;
+  const basePrecache = [
+    '/',
+    '/manifest.webmanifest',
+    '/icon-192-v176.jpg',
+    '/icon-512.svg',
+    '/icon-maskable.svg',
+  ];
+  const precache = [...new Set([...basePrecache, ...assetPaths])];
+  let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
+  const pattern = /const PRECACHE=\[[\s\S]*?\];/;
+  if (!pattern.test(serviceWorker)) throw new Error('Missing service worker precache block');
+  serviceWorker = serviceWorker.replace(pattern, 'const PRECACHE=' + JSON.stringify(precache, null, 2) + ';');
+  fs.writeFileSync(webServiceWorkerPath, serviceWorker);
+}
+
 function buildWebAssets() {
   const publicDir = path.dirname(webIndexPath);
   const assetDir = path.join(publicDir, 'assets');
   fs.mkdirSync(assetDir, { recursive: true });
   let html = fs.readFileSync(webIndexPath, 'utf8');
+  const assetPaths = [];
   for (const name of WEB_ASSETS) {
     const content = fs.readFileSync(path.join(publicDir, name));
     const hash = createHash('sha256').update(content).digest('hex').slice(0, 12);
     const ext = path.extname(name);
     const fileName = path.basename(name, ext) + '.' + hash + ext;
     fs.writeFileSync(path.join(assetDir, fileName), content);
+    assetPaths.push('/assets/' + fileName);
     const pattern = new RegExp('/' + name.replace('.', '\\.') + '\\?v=[^"\\s]+', 'g');
     html = html.replace(pattern, '/assets/' + fileName);
   }
   fs.writeFileSync(webIndexPath, html);
+  syncServiceWorkerPrecache(assetPaths);
 }
 
 function buildRuntime() {
@@ -173,4 +193,4 @@ if (require.main === module) {
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, resolveVersionLabel, syncWebVersion, buildWebAssets, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
+module.exports = { buildRuntime, resolveVersionLabel, syncWebVersion, buildWebAssets, syncServiceWorkerPrecache, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
