@@ -148,6 +148,15 @@
     document.querySelectorAll('.calendar-day-cell').forEach(node=>{
       add({tab:'schedule',kind:'Календарь',title:node.getAttribute('aria-label')||node.title||'Дата',text:node.title||'',node});
     });
+    document.querySelectorAll('.saved-item').forEach(node=>{
+      add({
+        tab:'saves',
+        kind:node.classList.contains('saved-date-item')?'Свидание':'Рецепт',
+        title:node.querySelector('.saved-item-head > strong')?.textContent||'Сохранение',
+        text:node.textContent||'',
+        node
+      });
+    });
     document.querySelectorAll('[data-home-tile]').forEach(node=>{
       const title=node.querySelector('h1,h2,.section-heading h2,.home-dashboard-label,.partner-title,.home-nearest-title')?.textContent||node.getAttribute('aria-label')||'';
       if(title) add({tab:'home',kind:'Главная',title,text:node.textContent||'',node});
@@ -395,6 +404,7 @@
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         initData:window.Telegram?.WebApp?.initData||'',
+        backupToken:window.RUDI_STATE_BACKUP?.getToken?.()||'',
         operation,
         ...payload
       }),
@@ -406,6 +416,7 @@
       error.status=response.status;
       throw error;
     }
+    if(data.backupToken) window.RUDI_STATE_BACKUP?.storeToken?.(data.backupToken);
     return data;
   }
 
