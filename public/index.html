@@ -911,7 +911,7 @@
         <strong>Голосовой ассистент</strong>
       </div>
       <div class="voice-assistant-head-actions">
-        <button id="voiceAssistantReplay" class="voice-assistant-icon-button" type="button" aria-label="Озвучить последний ответ" hidden>
+        <button id="voiceAssistantVoiceToggle" class="voice-assistant-icon-button" type="button" aria-label="Включить голосовые ответы" aria-pressed="false" title="Только текст">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/><path d="M15 9.2a4 4 0 0 1 0 5.6M17.8 6.7a7.5 7.5 0 0 1 0 10.6"/></svg>
         </button>
         <button id="voiceAssistantClose" class="voice-assistant-icon-button" type="button" aria-label="Закрыть голосового ассистента">
@@ -920,7 +920,7 @@
       </div>
     </div>
     <div id="voiceAssistantDialogue" class="voice-assistant-dialogue" aria-live="polite">
-      <div id="voiceAssistantEmpty" class="voice-assistant-empty">Нажмите микрофон и говорите. RUDI ответит текстом и голосом.</div>
+      <div id="voiceAssistantEmpty" class="voice-assistant-empty">Нажмите «Говорить» и задайте вопрос. По умолчанию RUDI отвечает текстом — голос можно включить кнопкой динамика.</div>
     </div>
     <div id="voiceAssistantStatus" class="voice-assistant-status" aria-live="polite">Готов слушать</div>
     <button id="voiceAssistantTalk" class="voice-assistant-talk" type="button">
