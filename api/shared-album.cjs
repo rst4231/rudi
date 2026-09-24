@@ -8,7 +8,7 @@ const CONFIG_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const DATA_TTL_SECONDS = 60 * 15;
 const FRESH_CACHE_MS = 60 * 1000;
 const PREVIEW_MAX_EDGE = 640;
-const VIEWER_MAX_EDGE = null;
+const VIEWER_MAX_EDGE = 1800;
 const EXPECTED_SETUP_SHA256 = '89bb9543fa407ae3542bdf4f1b63578e827933ae4583eb032b1d9f29add5cf80';
 const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
@@ -147,11 +147,14 @@ function pickViewerDerivative(photo) {
     height: Number(item.height || 0),
     bytes: Number(item.fileSize || 0),
   }));
+  const bounded = rows
+    .filter((row) => row.width > 0 && row.height > 0 && Math.max(row.width, row.height) <= VIEWER_MAX_EDGE)
+    .sort((a, b) => (b.width * b.height) - (a.width * a.height) || b.bytes - a.bytes);
+  if (bounded.length) return bounded[0].item;
   const sized = rows
     .filter((row) => row.width > 0 && row.height > 0)
-    .sort((a, b) => (b.width * b.height) - (a.width * a.height) || b.bytes - a.bytes);
-  if (sized.length) return sized[0].item;
-  return rows.sort((a, b) => b.bytes - a.bytes)[0]?.item || values[0];
+    .sort((a, b) => (a.width * a.height) - (b.width * b.height) || a.bytes - b.bytes);
+  return sized[0]?.item || rows.sort((a, b) => b.bytes - a.bytes)[0]?.item || values[0];
 }
 
 function assetUrl(assetData, checksum) {
