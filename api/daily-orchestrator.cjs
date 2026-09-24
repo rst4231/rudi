@@ -10,7 +10,6 @@ const { moscowDateKey } = require('./preview-date.cjs');
 const { rankHolidayEntries, DEFAULT_MAX_ITEMS } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { updateFeedSections } = require('./feed-store.cjs');
-const { publishForDiToRudi } = require('./for-di-private.cjs');
 
 function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date()) {
   const results = payload?.results || {};
@@ -128,7 +127,7 @@ async function runDailyOrchestrator(req, res, options = {}) {
     failures.push({ section: 'cleanup', error: String(error?.message || error) });
   }
 
-  for (const section of ['labor', 'cinema']) {
+  for (const section of ['cinema']) {
     if (settings.sections?.[section]?.enabled === false) continue;
     try {
       nativeResults[section] = await (options.runNative || ((name, runOptions) => runNativeSection(name, runOptions)))(section, {
@@ -190,15 +189,6 @@ async function runDailyOrchestrator(req, res, options = {}) {
     }
   }
 
-  try {
-    nativeResults.forDi = await (options.publishForDi || publishForDiToRudi)({
-      now: options.now || new Date(),
-      cacheOptions: options.cacheOptions,
-    });
-  } catch (error) {
-    nativeResults.forDi = { failed: true, error: String(error?.message || error) };
-    failures.push({ section: 'for-di', error: String(error?.message || error) });
-  }
 
   const summary = {
     date,
