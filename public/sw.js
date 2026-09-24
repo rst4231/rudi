@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v1.16.3';
+const CACHE_NAME='rudi-shell-v1.16.4';
 const PRECACHE=[
   '/',
   '/manifest.webmanifest',
@@ -99,7 +99,6 @@ self.addEventListener('install',event=>{
       .then(cache=>cache.addAll(PRECACHE))
       .catch(()=>undefined)
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate',event=>{

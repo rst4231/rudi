@@ -40,6 +40,154 @@
   const RUDI_SYNC_TAG='rudi-outbox';
   const nativeFetch=window.fetch.bind(window);
 
+  const RUDI_SNAPSHOT_DB='rudi-offline-snapshot-v1';
+  const RUDI_SNAPSHOT_STORE='responses';
+  const RUDI_SNAPSHOT_READ_OPS=new Set(['list','get','status','read','preview']);
+  const RUDI_SNAPSHOT_READ_ACTIONS=new Set([
+    'app-bootstrap',
+    'market-ticker',
+    'holidays',
+    'holiday-calendar',
+    'partner-message-read',
+    'cinema-topic-link'
+  ]);
+
+  function openSnapshotDb(){
+    return new Promise((resolve,reject)=>{
+      if(!('indexedDB' in window)) return reject(new Error('snapshot-indexeddb-unavailable'));
+      const request=indexedDB.open(RUDI_SNAPSHOT_DB,1);
+      request.onupgradeneeded=()=>{
+        const db=request.result;
+        if(!db.objectStoreNames.contains(RUDI_SNAPSHOT_STORE)){
+          const store=db.createObjectStore(RUDI_SNAPSHOT_STORE,{keyPath:'key'});
+          store.createIndex('updatedAt','updatedAt',{unique:false});
+        }
+      };
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error||new Error('snapshot-open-failed'));
+    });
+  }
+
+  function offlineSnapshotScope(){
+    const telegramId=String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id||'').trim();
+    if(telegramId) return 'tg:'+telegramId;
+    const actor=String(document.body?.dataset?.rudiActor||'').trim();
+    if(actor) return 'actor:'+actor;
+    try{
+      const cached=JSON.parse(localStorage.getItem('rudi-offline-access-v1')||'null');
+      if(cached?.actor) return 'actor:'+String(cached.actor);
+    }catch(_){}
+    return '';
+  }
+
+  function snapshotRequestBody(init={}){
+    if(typeof init.body!=='string') return {};
+    try{
+      const value=JSON.parse(init.body);
+      if(!value||typeof value!=='object'||Array.isArray(value)) return {};
+      const clean={...value};
+      for(const key of ['initData','backupToken','token','password','credential','assertion']){
+        if(Object.prototype.hasOwnProperty.call(clean,key)) delete clean[key];
+      }
+      return clean;
+    }catch(_){return {}}
+  }
+
+  function snapshotRequestKey(input,init={}){
+    const method=String(init.method||((input&&typeof input==='object'&&input.method)||'GET')).toUpperCase();
+    let url;
+    try{url=new URL(typeof input==='string'?input:input?.url||'',window.location.href)}catch(_){return ''}
+    if(url.origin!==window.location.origin||!url.pathname.startsWith('/api/')) return '';
+
+    const action=String(url.searchParams.get('rudiAction')||'').trim().toLowerCase();
+    if(['app-auth','browser-auth','passkey'].includes(action)) return '';
+
+    const body=snapshotRequestBody(init);
+    const operation=String(body.operation||'').trim().toLowerCase();
+    let cacheable=method==='GET';
+    if(method==='POST'){
+      cacheable=RUDI_SNAPSHOT_READ_ACTIONS.has(action)||RUDI_SNAPSHOT_READ_OPS.has(operation);
+      if(url.pathname==='/api/wishlist'&&(!operation||operation==='list')) cacheable=true;
+    }
+    if(!cacheable) return '';
+
+    const scope=offlineSnapshotScope();
+    if(!scope) return '';
+
+    const query=new URLSearchParams();
+    [...url.searchParams.entries()]
+      .filter(([key])=>!/token|auth|initdata|cachebust|^_$|^t$/i.test(key))
+      .sort(([a,av],[b,bv])=>a.localeCompare(b)||av.localeCompare(bv))
+      .forEach(([key,value])=>query.append(key,value));
+
+    return [
+      scope,
+      method,
+      url.pathname,
+      query.toString(),
+      JSON.stringify(body,Object.keys(body).sort())
+    ].join('|');
+  }
+
+  async function readOfflineSnapshot(key){
+    if(!key) return null;
+    const db=await openSnapshotDb();
+    try{
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction(RUDI_SNAPSHOT_STORE,'readonly');
+        const request=tx.objectStore(RUDI_SNAPSHOT_STORE).get(key);
+        request.onsuccess=()=>resolve(request.result||null);
+        request.onerror=()=>reject(request.error||new Error('snapshot-read-failed'));
+      });
+    }finally{db.close()}
+  }
+
+  async function writeOfflineSnapshot(key,response){
+    if(!key||!response?.ok) return false;
+    const clone=response.clone();
+    const type=String(clone.headers.get('content-type')||'').toLowerCase();
+    if(type&&!type.includes('json')) return false;
+    const payload=await clone.json().catch(()=>null);
+    if(payload===null) return false;
+
+    const db=await openSnapshotDb();
+    try{
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction(RUDI_SNAPSHOT_STORE,'readwrite');
+        tx.objectStore(RUDI_SNAPSHOT_STORE).put({
+          key,
+          payload,
+          updatedAt:Date.now()
+        });
+        tx.oncomplete=()=>resolve(true);
+        tx.onerror=()=>reject(tx.error||new Error('snapshot-write-failed'));
+      });
+      return true;
+    }finally{db.close()}
+  }
+
+  function offlineSnapshotResponse(row){
+    if(!row) return null;
+    document.body.dataset.offlineMode='1';
+    window.dispatchEvent(new CustomEvent('rudi-offline-snapshot-used',{
+      detail:{updatedAt:Number(row.updatedAt||0)}
+    }));
+    return new Response(JSON.stringify(row.payload),{
+      status:200,
+      headers:{
+        'Content-Type':'application/json; charset=utf-8',
+        'X-RUDI-Offline':'1',
+        'X-RUDI-Snapshot-At':String(row.updatedAt||'')
+      }
+    });
+  }
+
+  async function snapshotFallback(key){
+    if(!key) return null;
+    try{return offlineSnapshotResponse(await readOfflineSnapshot(key))}
+    catch(_){return null}
+  }
+
   function openOutboxDb(){
     return new Promise((resolve,reject)=>{
       if(!('indexedDB' in window)) return reject(new Error('indexeddb-unavailable'));
@@ -135,6 +283,7 @@
 
     window.fetch=async(input,init={})=>{
       const queued=queueableMutation(input,init);
+      const snapshotKey=snapshotRequestKey(input,init);
       const queueAndThrow=async(message)=>{
         await enqueueOfflineMutation(queued);
         await requestOutboxFlush();
@@ -148,13 +297,26 @@
         return queueAndThrow('Нет сети · действие отправится позже');
       }
 
+      if(snapshotKey&&navigator.onLine===false){
+        const cached=await snapshotFallback(snapshotKey);
+        if(cached) return cached;
+      }
+
       try{
-        return await nativeFetch(input,init);
+        const response=await nativeFetch(input,init);
+        if(snapshotKey&&response?.ok){
+          writeOfflineSnapshot(snapshotKey,response).catch(()=>{});
+        }
+        return response;
       }catch(error){
         const aborted=Boolean(init?.signal?.aborted)||String(error?.name||'')==='AbortError';
         const networkFailure=String(error?.name||'')==='TypeError';
         if(queued&&!aborted&&networkFailure){
           return queueAndThrow('Сеть нестабильна · действие отправится позже');
+        }
+        if(snapshotKey&&!aborted&&networkFailure){
+          const cached=await snapshotFallback(snapshotKey);
+          if(cached) return cached;
         }
         throw error;
       }
@@ -177,10 +339,86 @@
 
   function installServiceWorker(){
     if(!('serviceWorker' in navigator)) return;
-    window.addEventListener('load',()=>{
-      navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(error=>{
-        console.warn('RUDI_SW_REGISTER_WARN',String(error?.message||error));
+    const hadController=Boolean(navigator.serviceWorker.controller);
+    let reloadScheduled=false;
+    let pendingRegistration=null;
+    let updateTimer=0;
+
+    const editingNow=()=>{
+      const active=document.activeElement;
+      return Boolean(
+        document.body.classList.contains('keyboard-editing')
+        || active?.matches?.('input,textarea,select,[contenteditable="true"]')
+      );
+    };
+
+    const activateWhenSafe=registration=>{
+      if(!registration?.waiting) return;
+      pendingRegistration=registration;
+      clearTimeout(updateTimer);
+      if(editingNow()){
+        updateTimer=setTimeout(()=>activateWhenSafe(registration),1200);
+        return;
+      }
+      pendingRegistration=null;
+      try{
+        sessionStorage.setItem('rudi:sw-refresh-pending','1');
+      }catch(_){}
+      registration.waiting.postMessage({type:'SKIP_WAITING'});
+    };
+
+    const watchRegistration=registration=>{
+      if(registration.waiting&&navigator.serviceWorker.controller){
+        activateWhenSafe(registration);
+      }
+      registration.addEventListener('updatefound',()=>{
+        const worker=registration.installing;
+        if(!worker) return;
+        worker.addEventListener('statechange',()=>{
+          if(worker.state==='installed'&&navigator.serviceWorker.controller){
+            activateWhenSafe(registration);
+          }
+        });
       });
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(reloadScheduled||!hadController) return;
+      reloadScheduled=true;
+      try{sessionStorage.setItem('rudi:sw-updated','1')}catch(_){}
+      window.location.reload();
+    });
+
+    window.addEventListener('focusout',()=>{
+      if(pendingRegistration) setTimeout(()=>activateWhenSafe(pendingRegistration),80);
+    });
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible'&&pendingRegistration){
+        activateWhenSafe(pendingRegistration);
+      }
+    });
+
+    try{
+      if(sessionStorage.getItem('rudi:sw-updated')==='1'){
+        sessionStorage.removeItem('rudi:sw-updated');
+        sessionStorage.removeItem('rudi:sw-refresh-pending');
+        setTimeout(()=>showMiniToast('RUDI обновлён'),250);
+      }
+    }catch(_){}
+
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('/sw.js',{scope:'/'})
+        .then(registration=>{
+          watchRegistration(registration);
+          registration.update().catch(()=>{});
+          window.addEventListener('online',()=>registration.update().catch(()=>{}));
+          document.addEventListener('visibilitychange',()=>{
+            if(document.visibilityState==='visible') registration.update().catch(()=>{});
+          });
+        })
+        .catch(error=>{
+          console.warn('RUDI_SW_REGISTER_WARN',String(error?.message||error));
+        });
     },{once:true});
   }
 
@@ -200,8 +438,17 @@
       const offline=navigator.onLine===false;
       banner.hidden=!offline;
       document.body.classList.toggle('rudi-offline',offline);
-      if(!offline) document.body.dataset.offlineMode='0';
+      if(!offline){
+        document.body.dataset.offlineMode='0';
+        banner.textContent='Нет сети · RUDI работает из сохранённых данных';
+      }
     };
+    window.addEventListener('rudi-offline-snapshot-used',event=>{
+      const updatedAt=Number(event.detail?.updatedAt||0);
+      if(!updatedAt) return;
+      const time=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(new Date(updatedAt));
+      banner.textContent='Нет сети · показаны данные на '+time;
+    });
     window.addEventListener('online',sync);
     window.addEventListener('offline',sync);
     sync();
@@ -1071,11 +1318,61 @@
     refresh:loadForDi
   };
 
+
+  let recipeWakeLock=null;
+  let recipeWakeLockListenersInstalled=false;
+
+  function recipeScreenIsOpen(){
+    const details=byId('recipeDetails');
+    if(!details||details.hidden||details.closest('[hidden]')) return false;
+    return document.visibilityState==='visible';
+  }
+
+  async function syncRecipeWakeLock(){
+    if(!navigator.wakeLock?.request) return;
+    const shouldHold=recipeScreenIsOpen();
+    if(shouldHold&&!recipeWakeLock){
+      try{
+        const lock=await navigator.wakeLock.request('screen');
+        recipeWakeLock=lock;
+        lock.addEventListener('release',()=>{
+          if(recipeWakeLock===lock) recipeWakeLock=null;
+          if(recipeScreenIsOpen()) setTimeout(()=>syncRecipeWakeLock(),200);
+        },{once:true});
+      }catch(_){}
+      return;
+    }
+    if(!shouldHold&&recipeWakeLock){
+      const lock=recipeWakeLock;
+      recipeWakeLock=null;
+      try{await lock.release()}catch(_){}
+    }
+  }
+
+  function setupRecipeWakeLock(){
+    const details=byId('recipeDetails');
+    if(details&&details.dataset.wakeLockBound!=='1'){
+      details.dataset.wakeLockBound='1';
+      const observer=new MutationObserver(()=>syncRecipeWakeLock());
+      observer.observe(details,{attributes:true,attributeFilter:['hidden','class','style']});
+      const section=details.closest('[data-app-tab-section]');
+      if(section) observer.observe(section,{attributes:true,attributeFilter:['hidden','class','style']});
+      setTimeout(()=>syncRecipeWakeLock(),0);
+    }
+    if(!recipeWakeLockListenersInstalled){
+      recipeWakeLockListenersInstalled=true;
+      document.addEventListener('visibilitychange',()=>syncRecipeWakeLock());
+      window.addEventListener('popstate',()=>setTimeout(()=>syncRecipeWakeLock(),0));
+      document.addEventListener('click',()=>setTimeout(()=>syncRecipeWakeLock(),0),true);
+    }
+  }
+
   function installDynamicExtras(){
     installSearchButton();
     ensureQuickAdd();
     setupSavesPage();
     setupForDiPage();
+    setupRecipeWakeLock();
   }
 
   installServiceWorker();
