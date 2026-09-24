@@ -7,6 +7,18 @@ function cleanText(value, max = 1200) {
   return String(value || '').replace(/\r\n?/g, '\n').trim().slice(0, max);
 }
 
+function stripPresentationMarkup(value, max = 2200) {
+  return String(value || '')
+    .replace(/<br\s*\/?\s*>/giu, '\n')
+    .replace(/<\/?[a-z][^>]*>/giu, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/gu, '$1')
+    .replace(/[*_`#]+/gu, '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, max);
+}
+
 function normalizeHistory(input) {
   return (Array.isArray(input) ? input : [])
     .map((item) => ({
@@ -115,7 +127,8 @@ async function answerTranscript(transcript, history, options = {}) {
         'Ты голосовой ассистент приложения RUDI.',
         'Разговаривай с пользователем по-русски естественно, спокойно и по делу.',
         'Пользователя зовут ' + actor + '.',
-        'Ответ предназначен одновременно для текста на экране и озвучивания, поэтому не используй Markdown, таблицы, ссылки и длинные списки.',
+        'Ответ предназначен одновременно для текста на экране и озвучивания, поэтому не используй Markdown, HTML-теги, таблицы, ссылки и длинные списки. Никогда не возвращай <b>, <strong>, <br> и другие служебные метки.',
+        'Никогда не показывай внутренние коды RUDI вроде joy, sadness, fear, anger, love. Если такой код встретился в данных, переведи его на естественный русский.',
         'Обычно отвечай 1–4 короткими предложениями. Если вопрос требует деталей, можно немного подробнее.',
         'Не утверждай, что изменил данные RUDI или выполнил действие в приложении, если такой функции тебе явно не дали.',
         'Персональные и приватные факты о пользователях и RUDI бери только из блока ДАННЫЕ RUDI ниже. Если такого персонального факта там нет, скажи, что в RUDI он не найден. Для обычных общих вопросов используй свои знания и отвечай нормально, даже если в RUDI нет данных. Для свежих внешних данных без live-источника не выдумывай актуальное состояние.',
@@ -139,10 +152,10 @@ async function answerTranscript(transcript, history, options = {}) {
     body: JSON.stringify({
       model: CHAT_MODEL,
       messages,
-      reasoning_effort: 'low',
+      reasoning_effort: options.actionResult ? 'low' : 'medium',
       include_reasoning: false,
-      temperature: 0.55,
-      max_completion_tokens: 280,
+      temperature: 0.45,
+      max_completion_tokens: 320,
       stream: false,
     }),
   }, options.chatTimeoutMs || 18000, fetchImpl);
@@ -150,7 +163,7 @@ async function answerTranscript(transcript, history, options = {}) {
   if (response.status === 429) throw rateLimitError('chat', response);
   if (!response.ok) throw new Error('voice-chat-provider');
   const payload = await response.json().catch(() => null);
-  const answer = cleanText(payload?.choices?.[0]?.message?.content, 2200);
+  const answer = stripPresentationMarkup(payload?.choices?.[0]?.message?.content, 2200);
   if (!answer) throw new Error('voice-ai-empty');
   return answer;
 }
@@ -159,13 +172,14 @@ async function runVoiceAssistant(input = {}, options = {}) {
   const mimeType = normalizeMimeType(input.mimeType);
   const bytes = decodeAudio(input.audioBase64);
   const transcript = await transcribeAudio(bytes, mimeType, options);
+  const history = normalizeHistory(input.history);
   const context = typeof options.contextProvider === 'function'
-    ? await options.contextProvider(transcript)
+    ? await options.contextProvider(transcript, history, input.ui || null)
     : null;
   const actionResult = typeof options.actionProvider === 'function'
-    ? await options.actionProvider(transcript, context)
+    ? await options.actionProvider(transcript, context, history, input.ui || null)
     : null;
-  const answer = await answerTranscript(transcript, input.history, { ...options, context, actionResult });
+  const answer = await answerTranscript(transcript, history, { ...options, context, actionResult });
   return {
     transcript,
     answer,
@@ -180,6 +194,7 @@ module.exports = {
   CHAT_MODEL,
   MAX_AUDIO_BYTES,
   normalizeHistory,
+  stripPresentationMarkup,
   normalizeMimeType,
   decodeAudio,
   transcribeAudio,
