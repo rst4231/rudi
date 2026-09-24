@@ -2042,13 +2042,33 @@
 
       let activityNotificationsCloseTimer=null;
 
+      function activityFixedContainingBlockTop(panel){
+        let node=panel?.parentElement||null;
+        while(node&&node!==document.body&&node!==document.documentElement){
+          try{
+            const style=getComputedStyle(node);
+            const createsFixedBlock=
+              style.transform!=='none'||
+              style.perspective!=='none'||
+              style.filter!=='none'||
+              style.backdropFilter!=='none'||
+              style.webkitBackdropFilter!=='none'||
+              String(style.contain||'').includes('paint');
+            if(createsFixedBlock) return node.getBoundingClientRect().top||0;
+          }catch(_){}
+          node=node.parentElement;
+        }
+        return 0;
+      }
+
       function positionActivityNotificationsPanel(){
         const panel=document.getElementById('homeActivityNotificationsPanel');
         const button=document.getElementById('homeActivityNotificationsButton');
         if(!panel||!button) return;
         if(window.matchMedia('(max-width:430px)').matches){
           const rect=button.getBoundingClientRect();
-          const top=Math.max(6,Math.round(rect.bottom+3));
+          const containingTop=activityFixedContainingBlockTop(panel);
+          const top=Math.max(6,Math.round(rect.bottom+3-containingTop));
           panel.style.setProperty('--activity-panel-top',top+'px');
         }else{
           panel.style.removeProperty('--activity-panel-top');
