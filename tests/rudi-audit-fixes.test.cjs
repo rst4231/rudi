@@ -14,9 +14,10 @@ test('frontend shell is split and Telegram SDK no longer blocks the head', () =>
   assert.match(html, /href="\/(?:app\.css(?:\?v=[^"]+)?|assets\/app\.[a-f0-9]{12}\.css)"/);
   assert.match(html, /src="\/(?:app\.js(?:\?v=[^"]+)?|assets\/app\.[a-f0-9]{12}\.js)"/);
   assert.doesNotMatch(html, /<style>[\s\S]{1000}/);
-  const sdk = html.indexOf('telegram-web-app.js?63');
-  const mainEnd = html.indexOf('</main>');
-  assert.ok(sdk > mainEnd || /<script defer src="https:\/\/telegram\.org\/js\/telegram-web-app\.js\?63"><\/script>/.test(html));
+  assert.doesNotMatch(html, /<script defer src="https:\/\/telegram\.org\/js\/telegram-web-app\.js\?63"><\/script>/);
+  assert.match(html, /window\.__rudiTelegramSdkReady/);
+  assert.match(html, /script\.async=true/);
+  assert.match(html, /setTimeout\(\(\)=>finish\(false\),1800\)/);
 });
 
 test('product polling is reduced to the visible products tab', () => {
