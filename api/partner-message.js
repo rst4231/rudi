@@ -86,6 +86,7 @@ const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
+const { runVoiceAssistant } = require('./voice-assistant.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
@@ -2003,6 +2004,31 @@ async function handleRudiAction(req, res, action, options = {}) {
       const status = statusForError(error);
       if (status === 500) console.error('RUDI_GLOBAL_SEARCH_ERROR', String(error?.message || error));
       return res.status(status).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'voice-assistant') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const result = await runVoiceAssistant(body, {
+        ...options,
+        actor,
+        env: options.env || process.env,
+        fetchImpl: options.fetchImpl || globalThis.fetch,
+      });
+      return res.status(200).json({ ok: true, actor, ...result });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : ['voice-audio-type', 'voice-audio-invalid', 'voice-audio-empty', 'voice-audio-too-large', 'voice-no-speech'].includes(code) ? 400
+        : code === 'voice-ai-quota' ? 429
+        : code === 'groq-api-key-missing' ? 503
+        : 502;
+      if (status >= 500) console.error('RUDI_VOICE_ASSISTANT_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
     }
   }
 

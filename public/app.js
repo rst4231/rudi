@@ -25,6 +25,13 @@
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
       let currentAppTab = 'home';
+      let voiceAssistantRecorder = null;
+      let voiceAssistantStream = null;
+      let voiceAssistantChunks = [];
+      let voiceAssistantRecordingTimer = 0;
+      let voiceAssistantBusy = false;
+      let voiceAssistantHistory = [];
+      let voiceAssistantLastAnswer = '';
       let appViewTransitionActive = false;
       let requestedAppTab = '';
       let requestedItemId = '';
@@ -1320,6 +1327,7 @@
         const changed=next!==currentAppTab;
         currentAppTab=next;
         document.body.dataset.appTab=next;
+        syncVoiceAssistantVisibility(next);
         const marketTickerSetting=document.querySelector('.market-ticker-setting');
         if(marketTickerSetting){
           marketTickerSetting.hidden=next!=='home';
@@ -1382,6 +1390,201 @@
           host.classList.remove('is-active');
           host.replaceChildren();
         },2500);
+      }
+
+      function voiceAssistantElements(){
+        return {
+          fab:document.getElementById('voiceAssistantFab'),
+          panel:document.getElementById('voiceAssistantPanel'),
+          close:document.getElementById('voiceAssistantClose'),
+          talk:document.getElementById('voiceAssistantTalk'),
+          label:document.getElementById('voiceAssistantTalkLabel'),
+          dialogue:document.getElementById('voiceAssistantDialogue'),
+          empty:document.getElementById('voiceAssistantEmpty'),
+          status:document.getElementById('voiceAssistantStatus'),
+          replay:document.getElementById('voiceAssistantReplay')
+        };
+      }
+
+      function voiceAssistantSupported(){
+        return Boolean(navigator.mediaDevices?.getUserMedia&&window.MediaRecorder);
+      }
+
+      function setVoiceAssistantStatus(text,state='idle'){
+        const {status,talk,label}=voiceAssistantElements();
+        if(status){status.textContent=String(text||'');status.dataset.state=state}
+        if(talk){
+          talk.classList.toggle('is-recording',state==='recording');
+          talk.classList.toggle('is-busy',state==='busy');
+          talk.disabled=state==='busy';
+        }
+        if(label) label.textContent=state==='recording'?'Закончить':state==='busy'?'Обрабатываю…':voiceAssistantHistory.length?'Сказать ещё':'Говорить';
+      }
+
+      function renderVoiceAssistantMessage(role,text){
+        const {dialogue,empty}=voiceAssistantElements();
+        if(!dialogue) return;
+        if(empty) empty.hidden=true;
+        const row=document.createElement('div');
+        row.className='voice-assistant-message '+(role==='user'?'is-user':'is-assistant');
+        const label=document.createElement('span');
+        label.className='voice-assistant-message-label';
+        label.textContent=role==='user'?'Вы':'RUDI';
+        const body=document.createElement('div');
+        body.className='voice-assistant-message-text';
+        body.textContent=String(text||'');
+        row.append(label,body);
+        dialogue.appendChild(row);
+        requestAnimationFrame(()=>{dialogue.scrollTop=dialogue.scrollHeight});
+      }
+
+      function voiceAssistantMimeType(){
+        for(const type of ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']){
+          try{if(MediaRecorder.isTypeSupported?.(type)) return type}catch(_){}
+        }
+        return '';
+      }
+
+      function releaseVoiceAssistantStream(){
+        clearTimeout(voiceAssistantRecordingTimer);
+        voiceAssistantRecordingTimer=0;
+        try{voiceAssistantStream?.getTracks?.().forEach(track=>track.stop())}catch(_){}
+        voiceAssistantStream=null;
+      }
+
+      function splitVoiceAssistantSpeech(text){
+        const raw=String(text||'').replace(/\s+/g,' ').trim();
+        if(!raw) return [];
+        const parts=raw.match(/[^.!?…]+[.!?…]?/g)||[raw];
+        const chunks=[];let current='';
+        for(const part of parts){
+          const next=(current+' '+part).trim();
+          if(next.length>220&&current){chunks.push(current);current=part.trim()}else current=next;
+        }
+        if(current) chunks.push(current);
+        return chunks.slice(0,12);
+      }
+
+      function speakVoiceAssistant(text){
+        if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined') return false;
+        const chunks=splitVoiceAssistantSpeech(text);
+        if(!chunks.length) return false;
+        try{
+          window.speechSynthesis.cancel();
+          const voices=window.speechSynthesis.getVoices?.()||[];
+          const voice=voices.find(item=>/^ru(?:-|_)/i.test(item.lang||''))||null;
+          chunks.forEach((chunk,index)=>{
+            const utterance=new SpeechSynthesisUtterance(chunk);
+            utterance.lang='ru-RU';utterance.rate=.98;utterance.pitch=1;if(voice) utterance.voice=voice;
+            if(index===chunks.length-1){
+              utterance.onend=()=>setVoiceAssistantStatus('Можно говорить дальше','idle');
+              utterance.onerror=()=>setVoiceAssistantStatus('Ответ готов','idle');
+            }
+            window.speechSynthesis.speak(utterance);
+          });
+          return true;
+        }catch(_){return false}
+      }
+
+      function voiceAssistantBlobBase64(blob){
+        return new Promise((resolve,reject)=>{
+          const reader=new FileReader();
+          reader.onload=()=>{const value=String(reader.result||'');resolve(value.includes(',')?value.slice(value.indexOf(',')+1):value)};
+          reader.onerror=()=>reject(reader.error||new Error('voice-read-error'));
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function sendVoiceAssistantAudio(blob){
+        if(voiceAssistantBusy||!blob?.size) return;
+        voiceAssistantBusy=true;setVoiceAssistantStatus('Распознаю речь…','busy');
+        try{
+          const audioBase64=await voiceAssistantBlobBase64(blob);
+          const response=await fetch('/api/partner-message?rudiAction=voice-assistant',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:telegramInitData(),mimeType:String(blob.type||'audio/webm').split(';')[0],audioBase64,history:voiceAssistantHistory.slice(-8)}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'voice-assistant-failed');
+          const transcript=String(payload.transcript||'').trim();
+          const answer=String(payload.answer||'').trim();
+          if(transcript){renderVoiceAssistantMessage('user',transcript);voiceAssistantHistory.push({role:'user',content:transcript})}
+          if(answer){
+            renderVoiceAssistantMessage('assistant',answer);
+            voiceAssistantHistory.push({role:'assistant',content:answer});
+            voiceAssistantHistory=voiceAssistantHistory.slice(-8);
+            voiceAssistantLastAnswer=answer;
+            const {replay}=voiceAssistantElements();if(replay) replay.hidden=false;
+            setVoiceAssistantStatus('Отвечаю…','idle');
+            if(!speakVoiceAssistant(answer)) setVoiceAssistantStatus('Ответ готов','idle');
+          }else setVoiceAssistantStatus('Не удалось получить ответ','idle');
+        }catch(error){
+          const code=String(error?.message||error);
+          const message=code==='voice-no-speech'?'Речь не распознана. Попробуйте ещё раз.':code==='voice-ai-quota'?'Бесплатный лимит Groq временно исчерпан.':code==='voice-audio-too-large'?'Запись слишком длинная.':/permission|notallowed/i.test(code)?'Нужен доступ к микрофону.':'Не удалось обработать голос. Попробуйте ещё раз.';
+          setVoiceAssistantStatus(message,'idle');
+        }finally{
+          voiceAssistantBusy=false;
+          const {label}=voiceAssistantElements();if(label) label.textContent=voiceAssistantHistory.length?'Сказать ещё':'Говорить';
+        }
+      }
+
+      function stopVoiceAssistantRecording(){
+        clearTimeout(voiceAssistantRecordingTimer);voiceAssistantRecordingTimer=0;
+        const recorder=voiceAssistantRecorder;if(!recorder) return;
+        try{if(recorder.state!=='inactive') recorder.stop()}catch(_){}
+      }
+
+      async function startVoiceAssistantRecording(){
+        if(voiceAssistantBusy) return;
+        if(!voiceAssistantSupported()){setVoiceAssistantStatus('На этом устройстве запись голоса недоступна.','idle');return}
+        try{window.speechSynthesis?.cancel?.()}catch(_){}
+        releaseVoiceAssistantStream();voiceAssistantChunks=[];
+        try{
+          const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+          voiceAssistantStream=stream;
+          const mimeType=voiceAssistantMimeType();
+          const recorder=mimeType?new MediaRecorder(stream,{mimeType,audioBitsPerSecond:48000}):new MediaRecorder(stream,{audioBitsPerSecond:48000});
+          voiceAssistantRecorder=recorder;
+          recorder.addEventListener('dataavailable',event=>{if(event.data?.size) voiceAssistantChunks.push(event.data)});
+          recorder.addEventListener('stop',()=>{
+            const type=recorder.mimeType||mimeType||voiceAssistantChunks[0]?.type||'audio/webm';
+            const blob=new Blob(voiceAssistantChunks,{type});
+            voiceAssistantRecorder=null;voiceAssistantChunks=[];releaseVoiceAssistantStream();
+            if(blob.size<256){setVoiceAssistantStatus('Ничего не услышал. Попробуйте ещё раз.','idle');return}
+            sendVoiceAssistantAudio(blob);
+          },{once:true});
+          recorder.start(250);setVoiceAssistantStatus('Слушаю…','recording');
+          voiceAssistantRecordingTimer=setTimeout(()=>stopVoiceAssistantRecording(),30000);
+          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+        }catch(error){
+          releaseVoiceAssistantStream();
+          const code=String(error?.name||error?.message||error);
+          setVoiceAssistantStatus(/NotAllowed|Permission/i.test(code)?'Разрешите RUDI доступ к микрофону.':'Не удалось включить микрофон.','idle');
+        }
+      }
+
+      function closeVoiceAssistant(){
+        stopVoiceAssistantRecording();releaseVoiceAssistantStream();
+        try{window.speechSynthesis?.cancel?.()}catch(_){}
+        const {panel,fab}=voiceAssistantElements();if(panel) panel.hidden=true;if(fab) fab.hidden=currentAppTab!=='home';
+      }
+
+      function syncVoiceAssistantVisibility(tab=currentAppTab){
+        const {fab,panel}=voiceAssistantElements();const home=tab==='home';
+        if(fab) fab.hidden=!home||Boolean(panel&&!panel.hidden);
+        if(!home&&panel&&!panel.hidden) closeVoiceAssistant();
+      }
+
+      function setupVoiceAssistant(){
+        const {fab,panel,close,talk,replay}=voiceAssistantElements();
+        if(!fab||!panel||fab.dataset.bound==='1') return;
+        fab.dataset.bound='1';
+        fab.addEventListener('click',()=>{panel.hidden=false;fab.hidden=true;setVoiceAssistantStatus(voiceAssistantHistory.length?'Можно говорить дальше':'Готов слушать','idle');startVoiceAssistantRecording()});
+        close?.addEventListener('click',()=>closeVoiceAssistant());
+        talk?.addEventListener('click',()=>{if(voiceAssistantRecorder?.state==='recording') stopVoiceAssistantRecording();else startVoiceAssistantRecording()});
+        replay?.addEventListener('click',()=>{if(voiceAssistantLastAnswer) speakVoiceAssistant(voiceAssistantLastAnswer)});
+        syncVoiceAssistantVisibility(currentAppTab);
       }
 
       function setupAppTabs(){
@@ -8608,6 +8811,7 @@
         setupExtendedSettings();
         setupUndoSnackbar();
         loadActivityJournal();
+        setupVoiceAssistant();
         setupAppTabs();
         setupQuickAccess();
         ensureAppSurface({restoreTab:true});
