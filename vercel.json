@@ -207,7 +207,7 @@
     },
     {
       "path": "/api/for-di",
-      "schedule": "0 9 * * *"
+      "schedule": "30 21 * * *"
     }
   ],
   "env": {
