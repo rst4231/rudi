@@ -912,26 +912,39 @@
     return button;
   }
 
-  function renderForDi(){
-    const list=byId('forDiList');
-    const empty=byId('forDiEmpty');
-    const count=byId('forDiTotalCount');
-    const status=byId('forDiStatus');
-    if(!list) return;
+  function forDiCollapseKey(type){
+    const actor=forDiActor==='Диана'?'diana':'rustam';
+    return 'rudi:for-di:collapsed:v1:'+actor+':'+type;
+  }
 
-    list.replaceChildren();
-    const rows=[...forDiState].sort((a,b)=>{
-      const at=Date.parse(String(a?.createdAt||''))||0;
-      const bt=Date.parse(String(b?.createdAt||''))||0;
-      return bt-at;
-    });
+  function applyForDiCategoryState(type,collapsed){
+    const section=document.querySelector('[data-for-di-category="'+type+'"]');
+    const toggle=document.querySelector('[data-for-di-toggle="'+type+'"]');
+    const body=byId(type==='labor'?'forDiLaborBody':'forDiStylistBody');
+    if(!section||!toggle||!body) return;
+    section.classList.toggle('is-collapsed',Boolean(collapsed));
+    toggle.setAttribute('aria-expanded',collapsed?'false':'true');
+    body.hidden=Boolean(collapsed);
+  }
 
-    if(count) count.textContent=rows.length?String(rows.length):'';
-    if(empty) empty.hidden=rows.length>0;
-    if(status) status.textContent=rows.length
-      ?'Материалы сохраняются здесь каждый день вместо личных сообщений'
-      :'Материалы появятся вместе с обновлением ленты';
+  function restoreForDiCategoryState(type){
+    let collapsed=false;
+    try{collapsed=localStorage.getItem(forDiCollapseKey(type))==='1'}catch(_){}
+    applyForDiCategoryState(type,collapsed);
+  }
 
+  function toggleForDiCategory(type){
+    const section=document.querySelector('[data-for-di-category="'+type+'"]');
+    if(!section) return;
+    const collapsed=!section.classList.contains('is-collapsed');
+    applyForDiCategoryState(type,collapsed);
+    try{localStorage.setItem(forDiCollapseKey(type),collapsed?'1':'0')}catch(_){}
+    try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+  }
+
+  function renderForDiRows(host,rows){
+    if(!host) return;
+    host.replaceChildren();
     const groups=new Map();
     rows.forEach(item=>{
       const key=String(item?.dateKey||'').trim()||'Без даты';
@@ -975,8 +988,46 @@
         stack.appendChild(card);
       });
       group.appendChild(stack);
-      list.appendChild(group);
+      host.appendChild(group);
     });
+  }
+
+  function renderForDi(){
+    const laborList=byId('forDiLaborList');
+    const stylistList=byId('forDiStylistList');
+    const laborEmpty=byId('forDiLaborEmpty');
+    const stylistEmpty=byId('forDiStylistEmpty');
+    const laborCount=byId('forDiLaborCount');
+    const stylistCount=byId('forDiStylistCount');
+    const totalCount=byId('forDiTotalCount');
+    const status=byId('forDiStatus');
+    if(!laborList||!stylistList) return;
+
+    const laborRows=[...forDiState]
+      .filter(item=>String(item?.source||'').trim()==='labor')
+      .sort((a,b)=>{
+        const at=Date.parse(String(a?.createdAt||''))||0;
+        const bt=Date.parse(String(b?.createdAt||''))||0;
+        return bt-at;
+      });
+
+    const stylistRows=[];
+
+    renderForDiRows(laborList,laborRows);
+    stylistList.replaceChildren();
+
+    if(laborEmpty) laborEmpty.hidden=laborRows.length>0;
+    if(stylistEmpty) stylistEmpty.hidden=stylistRows.length>0;
+    if(laborCount) laborCount.textContent=String(laborRows.length);
+    if(stylistCount) stylistCount.textContent='0';
+    if(totalCount) totalCount.textContent=laborRows.length?String(laborRows.length):'';
+
+    if(status) status.textContent=laborRows.length
+      ?'Материалы сохраняются здесь вместе с ежедневным обновлением ленты'
+      :'Материалы появятся вместе с обновлением ленты';
+
+    restoreForDiCategoryState('labor');
+    restoreForDiCategoryState('stylist');
   }
 
   async function loadForDi(){
@@ -1008,6 +1059,11 @@
       back.dataset.bound='1';
       back.addEventListener('click',()=>routeTo('home'));
     }
+    document.querySelectorAll('[data-for-di-toggle]').forEach(button=>{
+      if(button.dataset.forDiBound==='1') return;
+      button.dataset.forDiBound='1';
+      button.addEventListener('click',()=>toggleForDiCategory(String(button.dataset.forDiToggle||'')));
+    });
   }
 
   window.RUDI_FOR_DI={
