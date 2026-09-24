@@ -1,0 +1,40 @@
+openapi: "3.0.0"
+info:
+  title: RUDI API Proxy
+  version: "1.0.0"
+
+x-yc-apigateway:
+  cors:
+    origin:
+      - "https://spb-daily-guide-bot.vercel.app"
+    methods: "*"
+    allowedHeaders: "*"
+    exposedHeaders:
+      - "content-type"
+      - "set-cookie"
+      - "x-rudi-offline"
+      - "x-rudi-snapshot-at"
+    credentials: true
+    maxAge: 3600
+    optionsSuccessStatus: 204
+
+paths:
+  /api/{path+}:
+    x-yc-apigateway-any-method:
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      x-yc-apigateway-integration:
+        type: http
+        url: "https://spb-daily-guide-bot.vercel.app/api/{path}"
+        headers:
+          Host: "spb-daily-guide-bot.vercel.app"
+          "*": "*"
+        query:
+          "*": "*"
+        timeouts:
+          connect: 2
+          read: 20
