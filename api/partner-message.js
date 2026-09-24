@@ -502,7 +502,7 @@ function moodNotificationText(recipient, actor, mood) {
   const view = MOOD_NOTICE[String(mood || '')];
   if (!view) return '';
   const actorGenitive = actor === 'Рустам' ? 'Рустама' : actor === 'Диана' ? 'Дианы' : actor;
-  return `${view.emoji} <b>${recipient}, у ${actorGenitive} сейчас ${view.phrase}</b>\n<i>${view.emoji} Настроение обновлено в RUDI</i>`;
+  return `${view.emoji} <b>${recipient}, у ${actorGenitive} сейчас ${view.phrase}</b>`;
 }
 
 async function sendMoodNotificationToPartner(actor, mood, options = {}) {
