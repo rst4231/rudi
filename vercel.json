@@ -204,10 +204,6 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/for-di",
-      "schedule": "30 21 * * *"
     }
   ],
   "env": {
