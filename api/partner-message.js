@@ -84,6 +84,7 @@ const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
+const { searchGlobalData } = require('./global-search.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
@@ -1974,6 +1975,26 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({ ok: true, message });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'search') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const query = String(body.query || '').trim().slice(0, 240);
+      const backupSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      const results = await searchGlobalData(query, {
+        ...options,
+        backupSnapshot,
+        calendarUrl: backupSnapshot?.calendarUrl || '',
+      });
+      return res.status(200).json({ ok: true, actor, query, results });
+    } catch (error) {
+      const status = statusForError(error);
+      if (status === 500) console.error('RUDI_GLOBAL_SEARCH_ERROR', String(error?.message || error));
+      return res.status(status).json({ ok: false, error: String(error?.message || error) });
     }
   }
 
