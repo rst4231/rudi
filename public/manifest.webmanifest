@@ -1,17 +1,80 @@
 {
+  "id": "/",
   "name": "RUDI",
   "short_name": "RUDI",
+  "description": "Личное приложение Рустама и Дианы: дела, календарь, кухня, фото, вишлист и домашние функции.",
+  "lang": "ru",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f4f5f7",
   "theme_color": "#0b0d12",
+  "categories": ["lifestyle", "productivity"],
   "icons": [
     {
       "src": "/icon-192-v176.jpg",
       "sizes": "192x192",
       "type": "image/jpeg",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Кухня",
+      "short_name": "Кухня",
+      "description": "Открыть список продуктов и рецепты",
+      "url": "/?tab=products",
+      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+    },
+    {
+      "name": "Календарь",
+      "short_name": "Календарь",
+      "description": "Открыть календарь RUDI",
+      "url": "/?tab=schedule",
+      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+    },
+    {
+      "name": "Вишлист",
+      "short_name": "Вишлист",
+      "description": "Открыть общий вишлист",
+      "url": "/?tab=wishlist",
+      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+    },
+    {
+      "name": "Сохранения",
+      "short_name": "Сохранения",
+      "description": "Открыть сохранённые свидания и рецепты",
+      "url": "/?tab=saves",
+      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/pwa-screenshot-narrow.svg",
+      "sizes": "750x1334",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "Главная RUDI"
+    },
+    {
+      "src": "/pwa-screenshot-wide.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "RUDI на большом экране"
     }
   ]
 }
