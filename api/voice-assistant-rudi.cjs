@@ -395,7 +395,7 @@ function contextNeeds(transcript, options = {}) {
     holidays:broadToday||/(праздник|праздники)/u.test(text)||(contextual&&tab==='schedule'),
     tasks:broadToday||/(совместн.*дел|дела.*сегодня|дела.*завтра|что.*завтра|план.*завтра|задач|ticktick|ближайш.*событ|календар)/u.test(text)||(contextual&&tab==='schedule'),
     market:/(курс|доллар|usd|рубл|биткоин|bitcoin|btc|эфир|ethereum|eth|крипт)/u.test(text),
-    weather:/(погод|прогноз|дожд|снег|температур.*улиц)/u.test(text),
+    weather:/(погод|прогноз|дожд|снег|температур.*улиц|мыть.*машин|мойк.*машин|машин.*мойк)/u.test(text),
     saves:/(сохраненн|сохраненк|сохранен)/u.test(text)||(contextual&&tab==='saves'),
     forDi:/(для\s+ди|для\s+дианы)/u.test(text)||(contextual&&tab==='for-di'),
     smart,
