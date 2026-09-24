@@ -3500,7 +3500,9 @@
         document.body.appendChild(indicator);
 
         const label=indicator.querySelector('.pull-refresh-label');
-        const threshold=224;
+        const standalone=isStandalonePwa();
+        const threshold=standalone?120:180;
+        const topTolerance=standalone?8:2;
         const maxDistance=142;
         let startY=0;
         let distance=0;
@@ -3525,19 +3527,19 @@
         };
 
         document.addEventListener('touchstart',event=>{
-          if(refreshing||!appAccessReady||!currentActor||event.touches?.length!==1||scrollTop()>0) return;
+          if(refreshing||!appAccessReady||!currentActor||event.touches?.length!==1||scrollTop()>topTolerance) return;
           if(event.target?.closest?.('.voice-assistant-panel,[data-no-pull-refresh="true"]')) return;
           if(event.target?.closest?.('input,textarea,select,[contenteditable="true"]')) return;
           startY=event.touches[0].clientY;
           distance=0;
           tracking=true;
           armed=false;
-        },{passive:true});
+        },{passive:false,capture:true});
 
         document.addEventListener('touchmove',event=>{
           if(!tracking||refreshing||event.touches?.length!==1) return;
           if(event.target?.closest?.('.voice-assistant-panel,[data-no-pull-refresh="true"]')){reset();return}
-          if(scrollTop()>0){reset();return}
+          if(scrollTop()>topTolerance){reset();return}
           const delta=event.touches[0].clientY-startY;
           if(delta<=0){reset();return}
 
@@ -3549,7 +3551,7 @@
           indicator.classList.toggle('is-armed',armed);
           if(label) label.textContent=armed?'Отпустите для обновления':'Потяните для обновления';
           if(delta>14) event.preventDefault();
-        },{passive:false});
+        },{passive:false,capture:true});
 
         const finish=()=>{
           if(!tracking||refreshing) return;
@@ -3584,8 +3586,8 @@
             });
         };
 
-        document.addEventListener('touchend',finish,{passive:true});
-        document.addEventListener('touchcancel',()=>{if(!refreshing) reset()},{passive:true});
+        document.addEventListener('touchend',finish,{passive:true,capture:true});
+        document.addEventListener('touchcancel',()=>{if(!refreshing) reset()},{passive:true,capture:true});
       }
 
       function updateTelegramSafeArea(){

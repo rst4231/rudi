@@ -74,6 +74,9 @@
     }
     body::before{left:-14vw;top:-15vw;background:var(--glow-a)}
     body::after{right:-14vw;bottom:-16vw;background:var(--glow-b);animation-delay:-5s}
+    @media (display-mode:standalone){
+      html,body{overscroll-behavior-y:none}
+    }
     .pull-refresh-indicator{
       --pull-distance:0px;
       position:fixed;

@@ -26,7 +26,8 @@ test('browser has guarded in-place pull-to-refresh and Telegram does not', () =>
   const pull=app.slice(start,end);
   assert.ok(start>=0&&end>start);
   assert.match(pull,/if\(tg\?\.initData\|\|!\('ontouchstart' in window\)\) return/);
-  assert.match(pull,/const threshold=224/);
+  assert.match(pull,/const threshold=standalone\?120:180/);
+  assert.match(pull,/const topTolerance=standalone\?8:2/);
   assert.match(pull,/!appAccessReady\|\|!currentActor/);
   assert.match(pull,/touchstart/);
   assert.match(pull,/touchmove/);
@@ -34,6 +35,7 @@ test('browser has guarded in-place pull-to-refresh and Telegram does not', () =>
   assert.match(pull,/refreshAfterResume\(\)/);
   assert.doesNotMatch(pull,/window\.location\.reload\(\)/);
   assert.match(css,/\.pull-refresh-indicator/);
+  assert.match(css,/@media \(display-mode:standalone\)\{[\s\S]*overscroll-behavior-y:none/);
   assert.match(css,/\.pull-refresh-indicator\.is-refreshing/);
 });
 
