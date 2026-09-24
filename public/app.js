@@ -2015,12 +2015,34 @@
         return 'Тише';
       }
 
+      function rustamRhythmRecommendation(status){
+        return {
+          'Старт':'проснуться: свет, вода и немного движения',
+          'Разгон':'позавтракать, пройтись и наметить главное',
+          'Пик':'делать самую сложную работу и принимать решения',
+          'Пауза':'поесть, пройтись и немного отвлечься',
+          'Темп':'заниматься текущими задачами, встречами и ответами',
+          'Спад':'переключиться на простые дела и сделать перерыв',
+          'Движ':'тренироваться, гулять или решать дела вне дома',
+          'Выдох':'поужинать, отдохнуть и пообщаться',
+          'Чилл':'заниматься спокойными делами, читать или смотреть кино',
+          'Тише':'приглушить свет, убрать сложную работу и готовиться ко сну',
+          'Сон':'спать и восстанавливаться'
+        }[String(status||'')]||'';
+      }
+
       function syncRustamRhythmStatus(now=new Date()){
         const node=document.getElementById('rustamRhythmStatus');
         if(!node) return;
         const text=rustamRhythmStatus(now);
         node.textContent=text;
         node.hidden=!text;
+        const advice=document.getElementById('rustamRhythmAdvice');
+        const recommendation=rustamRhythmRecommendation(text);
+        if(advice){
+          advice.textContent=recommendation?'Сейчас лучше: '+recommendation:'';
+          advice.hidden=!recommendation;
+        }
       }
 
       function syncStaticProfileWorkStatus(){
@@ -3061,6 +3083,15 @@
         const partnerCard=makePersonTile(partnerActor,partnerIdentity);
         const rustamCard=selfActor==='Рустам'?selfCard:partnerCard;
         const dianaCard=selfActor==='Диана'?selfCard:partnerCard;
+
+        const rhythmAdvice=document.createElement('div');
+        rhythmAdvice.id='rustamRhythmAdvice';
+        rhythmAdvice.className='rustam-rhythm-advice';
+        const currentRhythm=rustamRhythmStatus();
+        const currentRecommendation=rustamRhythmRecommendation(currentRhythm);
+        rhythmAdvice.textContent=currentRecommendation?'Сейчас лучше: '+currentRecommendation:'';
+        rhythmAdvice.hidden=!currentRecommendation;
+        rustamCard.details.appendChild(rhythmAdvice);
 
         const maleFact=document.createElement('article');
         maleFact.id='malePsychologyFact';

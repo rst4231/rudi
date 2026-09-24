@@ -45,3 +45,23 @@ test('Rustam rhythm renders as a separate line beneath work status',()=>{
   assert.match(app,/syncRustamRhythmStatus\(\);/);
   assert.match(css,/\.profile-person-card \.profile-rhythm-status\{/);
 });
+
+
+test('Rustam rhythm recommendation tells what to do now',()=>{
+  const start=app.indexOf('function rustamRhythmRecommendation(');
+  const end=app.indexOf('function syncRustamRhythmStatus(',start);
+  assert.ok(start>=0&&end>start,'recommendation helper must exist');
+  const context={};
+  vm.createContext(context);
+  vm.runInContext(app.slice(start,end),context);
+  const recommendation=context.rustamRhythmRecommendation;
+  assert.equal(recommendation('Пик'),'делать самую сложную работу и принимать решения');
+  assert.equal(recommendation('Спад'),'переключиться на простые дела и сделать перерыв');
+  assert.equal(recommendation('Сон'),'спать и восстанавливаться');
+  for(const status of ['Старт','Разгон','Пик','Пауза','Темп','Спад','Движ','Выдох','Чилл','Тише','Сон']){
+    assert.ok(recommendation(status),status+' must have a recommendation');
+  }
+  assert.match(app,/rustamRhythmAdvice/);
+  assert.match(app,/Сейчас лучше:/);
+  assert.match(css,/\.profile-rustam-card \.rustam-rhythm-advice\{/);
+});

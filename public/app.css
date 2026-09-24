@@ -5730,6 +5730,21 @@ html[data-theme="dark"] .profile-person-card .profile-work-status.is-off{color:#
   display:grid;
   gap:8px;
 }
+.profile-rustam-card .rustam-rhythm-advice{
+  padding:8px 10px;
+  border:1px solid rgba(137,151,255,.14);
+  border-radius:12px;
+  background:rgba(255,255,255,.035);
+  color:rgba(241,244,252,.72);
+  font-size:9.5px;
+  line-height:1.35;
+  font-weight:650;
+}
+html[data-theme="light"] .profile-rustam-card .rustam-rhythm-advice{
+  color:rgba(31,36,48,.68);
+  border-color:rgba(74,92,190,.13);
+  background:rgba(74,92,190,.045);
+}
 .profile-person-card .mood-message{margin:0!important}
 .profile-person-card .mood-message:not(.show){display:none!important}
 .profile-diana-card .home-cycle-summary{
