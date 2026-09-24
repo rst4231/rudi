@@ -27,6 +27,7 @@ test('activity notification copy is rich, gender-aware and escapes user content'
   assert.match(wish, /&lt;script&gt;/);
 
   assert.match(moodNotificationText('Диана', 'Рустам', 'joy'), /😄 <b>Диана, у Рустама сейчас радость<\/b>/);
+  assert.doesNotMatch(moodNotificationText('Диана', 'Рустам', 'joy'), /Настроение обновлено в RUDI|\n/);
   assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /✅ <b>Рустам выполнил задачу<\/b>/);
   assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /&lt;уголь&gt;/);
   assert.match(checklistCompletedNotificationText('Диана', 'Купить мясо', 'Шашлыки'), /☑️ <b>Диана выполнила пункт<\/b>/);
@@ -106,6 +107,7 @@ test('wishlist addition notification goes only to the other partner',async()=>{
   assert.equal(fromRustam.recipient,'Диана');
   assert.equal(calls.length,1);
   assert.equal(calls[0].chat_id,222);
+  assert.equal(calls[0].reply_markup,undefined);
 
   calls.length=0;
   const fromDiana=await sendWishlistNotificationToPartner('Диана','Мечта',{
@@ -118,13 +120,13 @@ test('wishlist addition notification goes only to the other partner',async()=>{
 });
 
 
-test('Lulu walk notification includes walker and Moscow time',()=>{
+test('Lulu walk notification is one line without time',()=>{
   const now=Date.parse('2026-09-23T07:45:00.000Z');
   const walkedAt='2026-09-23T06:42:00.000Z';
   assert.equal(luluWalkStatusLabel(walkedAt,now),'сегодня в 09:42');
-  assert.match(luluWalkNotificationText('Рустам',walkedAt,now),/Рустам погулял с Lulu/);
-  assert.match(luluWalkNotificationText('Диана',walkedAt,now),/Диана погуляла с Lulu/);
-  assert.match(luluWalkNotificationText('Рустам',walkedAt,now),/09:42/);
+  assert.equal(luluWalkNotificationText('Рустам'), '🐾 <b>Рустам погулял с Lulu</b>');
+  assert.equal(luluWalkNotificationText('Диана'), '🐾 <b>Диана погуляла с Lulu</b>');
+  assert.doesNotMatch(luluWalkNotificationText('Рустам'),/\n|Последняя прогулка|09:42/);
 });
 
 
