@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: rudi-proxy
+    runtime: node
+    plan: free
+    repo: https://github.com/rst4231/rudi
+    branch: main
+    buildCommand: npm install --omit=dev
+    startCommand: node render-proxy.cjs
+    healthCheckPath: /__proxy_health
+    autoDeploy: true
