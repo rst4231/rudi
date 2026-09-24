@@ -79,7 +79,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,saves:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,saves:0,'for-di':0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
       const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
@@ -1161,7 +1161,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','saves'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','saves','for-di'];
 
       function routeFromLocation(){
         try{
@@ -1217,6 +1217,7 @@
         }
         if(tab==='photos') loadSharedAlbum();
         if(tab==='saves') window.RUDI_SAVES?.load?.();
+        if(tab==='for-di') window.RUDI_FOR_DI?.load?.();
       }
 
       function canUseAppViewTransition(){
@@ -8135,10 +8136,11 @@
       function setupQuickAccess(){
         const wishlist=document.getElementById('quickWishlistButton');
         const saves=document.getElementById('quickSavesButton');
+        const forDi=document.getElementById('quickForDiButton');
         const generate=document.getElementById('dateIdeaButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!saves||!generate||!choices||generate.dataset.dateBound==='1') return;
+        if(!wishlist||!saves||!forDi||!generate||!choices||generate.dataset.dateBound==='1') return;
         generate.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
@@ -8148,6 +8150,11 @@
         saves.addEventListener('click',()=>{
           navigateToAppTab('saves',{scroll:true});
           window.RUDI_SAVES?.load?.();
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        forDi.addEventListener('click',()=>{
+          navigateToAppTab('for-di',{scroll:true});
+          window.RUDI_FOR_DI?.load?.();
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
