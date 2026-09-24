@@ -65,7 +65,7 @@ test('cache miss does not create a newer initialized empty product list', () => 
 test('client keeps the shell hidden until bootstrap and dynamic home layout are ready', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.css'), 'utf8');
-  assert.match(source, /currentActor=String\(payload\.actor\|\|''\);[\s\S]*?if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*appAccessReady=true;\s*loadAppBootstrap\(\)\.catch\([\s\S]*?\);\s*return true;/);
+  assert.match(source, /currentActor=String\(payload\.actor\|\|''\);[\s\S]*?if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*appAccessReady=true;\s*showAuthenticatedApp\(\);\s*loadAppBootstrap\(\)\.catch\([\s\S]*?\);\s*return true;/);
   assert.doesNotMatch(source, /appAccessReady=true;\s*ensureAppSurface\(\);\s*await loadAppBootstrap/);
   assert.match(source, /setupProfileSplit\(\);\s*setupHomeLayoutEditor\(\);\s*setupMarketTicker\(\);\s*setupPersistentCollapsibles\(\);[\s\S]*?ensureAppSurface\(\{restoreTab:true\}\)/);
   assert.match(css, /body\.auth-pending \.shell,body\.auth-denied \.shell,body\.auth-login \.shell\{[\s\S]*?visibility:hidden/);
