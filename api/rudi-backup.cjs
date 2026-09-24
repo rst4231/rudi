@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { readWishlist, writeWishlist } = require('./wishlist-store.cjs');
+const { readSavedItems, writeSavedItems } = require('./saved-items-store.cjs');
 const { readProductList, readProductListRaw, restoreProductListSnapshot } = require('./product-list-store.cjs');
 const { readToken, saveToken } = require('./ticktick-store.cjs');
 const { readCalendarUrl, saveCalendarUrl } = require('./work-calendar.cjs');
@@ -170,13 +171,14 @@ async function createStateSnapshot(options = {}) {
     ? options.previousSnapshot
     : null;
   const [
-    partnerMessage, wishlist, products, ticktickChecklistAudit,
+    partnerMessage, wishlist, products, savedItems, ticktickChecklistAudit,
     ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal, luluState,
     rustamPin, dianaPin, rustamPasskeys, dianaPasskeys,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
     safeRead(() => readProductList(options), { initialized: false, version: 0, items: [], history: [] }),
+    safeRead(() => readSavedItems(options), { initialized: false, version: 0, items: [] }),
     safeRead(() => readChecklistAuditState(options), { initialized: false, version: 0, entries: {} }),
     safeRead(() => readToken(options)),
     safeRead(() => readCalendarUrl(options)),
@@ -209,6 +211,7 @@ async function createStateSnapshot(options = {}) {
     partnerMessage: newerTimestampState(partnerMessage, previous?.partnerMessage, 'updatedAt'),
     wishlist: newerVersionState(wishlist, previous?.wishlist),
     products: newerVersionState(products, previous?.products),
+    savedItems: newerVersionState(savedItems, previous?.savedItems),
     ticktickChecklistAudit: newerVersionState(ticktickChecklistAudit, previous?.ticktickChecklistAudit),
     ticktickToken: newerTimestampState(ticktickToken, previous?.ticktickToken, 'savedAt'),
     calendarUrl: calendarUrl || previous?.calendarUrl || '',
@@ -278,6 +281,19 @@ async function restoreStateBackup(token, options = {}) {
     try {
       await restoreProductListSnapshot(snapshot.products, options);
       restored.push('products');
+    } catch {}
+  }
+
+  const currentSavedItems = await safeRead(() => readSavedItems(options), { initialized: false, version: 0, items: [] });
+  const currentSavedItemsVersion = Number(currentSavedItems?.version || 0);
+  const savedItemsVersion = Number(snapshot.savedItems?.version || 0);
+  if (
+    snapshot.savedItems?.initialized &&
+    (!currentSavedItems?.initialized || savedItemsVersion > currentSavedItemsVersion)
+  ) {
+    try {
+      await writeSavedItems(snapshot.savedItems, options);
+      restored.push('saved-items');
     } catch {}
   }
 
