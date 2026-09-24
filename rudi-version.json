@@ -1,10 +1,11 @@
 {
-  "current": "v1.18.8",
+  "current": "v1.18.9",
   "versionBranch": "main",
   "releaseCommit": null,
   "createdAt": "2026-09-24",
   "basedOnProduction": "c1ad890862384879b1017bfb614f8b17ada001eb",
   "notes": [
+    "Быстрый snapshot-фолбэк больше не показывает ложный баннер «Связь с RUDI нестабильна»: сохранённые данные могут появиться мгновенно при медленном ответе Render, но offline-индикатор включается только при реальной ошибке сети/таймауте/offline.",
     "Исправлен Face ID при работе RUDI через Render: passkey challenge теперь использует публичный origin rudi-proxy.onrender.com, переданный доверенным Render-прокси, вместо внутреннего vercel.app origin. Разрешён только конкретный Render-домен; посторонние proxy-origin игнорируются.",
     "RUDI получил резервный рабочий путь через Render: пользовательские Telegram-кнопки по умолчанию открывают https://rudi-proxy.onrender.com, который проксирует приложение и /api/* в текущий Vercel backend. Это обходит проблему доступа к Vercel Functions без VPN, не меняя хранилища и серверную логику.",
     "Render работает как same-origin зеркало всего RUDI, поэтому PIN-сессия и относительные API-запросы сохраняются. Passkey/Face ID привязан к домену и на Render при необходимости регистрируется один раз заново.",

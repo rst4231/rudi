@@ -186,18 +186,21 @@
     }finally{db.close()}
   }
 
-  function offlineSnapshotResponse(row){
+  function offlineSnapshotResponse(row,{markUnstable=true}={}){
     if(!row) return null;
-    document.body.dataset.offlineMode='1';
-    window.dispatchEvent(new CustomEvent('rudi-offline-snapshot-used',{
-      detail:{updatedAt:Number(row.updatedAt||0)}
-    }));
+    if(markUnstable){
+      document.body.dataset.offlineMode='1';
+      window.dispatchEvent(new CustomEvent('rudi-offline-snapshot-used',{
+        detail:{updatedAt:Number(row.updatedAt||0)}
+      }));
+    }
     return new Response(JSON.stringify(row.payload),{
       status:200,
       headers:{
         'Content-Type':'application/json; charset=utf-8',
         'X-RUDI-Offline':'1',
-        'X-RUDI-Snapshot-At':String(row.updatedAt||'')
+        'X-RUDI-Snapshot-At':String(row.updatedAt||''),
+        'X-RUDI-Snapshot-Mode':markUnstable?'offline':'fast'
       }
     });
   }
@@ -235,7 +238,7 @@
       network.then(result=>{
         if(result.kind==='response') rememberSnapshotResponse(snapshotKey,input,result.response);
       }).catch(()=>{});
-      return offlineSnapshotResponse(winner.row);
+      return offlineSnapshotResponse(winner.row,{markUnstable:false});
     }
     if(winner.kind==='response') return rememberSnapshotResponse(snapshotKey,input,winner.response);
     const cached=await snapshotFallback(snapshotKey);
