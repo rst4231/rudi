@@ -1467,7 +1467,7 @@
         if(panelGreeting) panelGreeting.textContent=voiceAssistantGreeting;
       }
 
-      function voiceAssistantSupported(){      function voiceAssistantSupported(){
+      function voiceAssistantSupported(){
         return Boolean(navigator.mediaDevices?.getUserMedia&&window.MediaRecorder);
       }
 
@@ -1485,7 +1485,7 @@
         if(label) label.textContent=state==='recording'?'Закончить':state==='busy'?'Обрабатываю…':voiceAssistantHistory.length?'Сказать ещё':'Говорить';
       }
 
-      function cleanVoiceAssistantText(      function cleanVoiceAssistantText(value){
+      function cleanVoiceAssistantText(value){
         return String(value||'')
           .replace(/<br\s*\/?\s*>/giu,'\n')
           .replace(/<\/?[a-z][^>]*>/giu,'')
@@ -1954,7 +1954,7 @@
         syncVoiceAssistantVisibility(currentAppTab);
       }
 
-      function setupAppTabs(){      function setupAppTabs(){
+      function setupAppTabs(){
         const initial=routeFromLocation();
         const initialTab=requestedAppTab||initial.tab||'home';
         const initialItem=requestedItemId||initial.item||'';
