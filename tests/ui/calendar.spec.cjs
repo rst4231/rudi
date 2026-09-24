@@ -296,14 +296,13 @@ async function mockRudi(page,options={}){
   return state;
 }
 
-test('authenticated shell stays hidden until bootstrap and dynamic layout are ready',async({page})=>{
+test('authenticated shell unlocks while bootstrap finishes in the background',async({page})=>{
   const state=await mockRudi(page,{bootstrapDelayMs:1500});
   await page.goto('/');
   await expect.poll(()=>state.bootstrapStarted,{timeout:1000}).toBe(true);
-  await expect(page.locator('body')).toHaveClass(/auth-pending/,{timeout:1000});
+  await expect(page.locator('body')).toHaveClass(/auth-ok/,{timeout:1000});
   expect(state.bootstrapResolved).toBe(false);
   await expect.poll(()=>state.bootstrapResolved,{timeout:3000}).toBe(true);
-  await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#homeRustamTile')).toBeVisible();
   await expect(page.locator('#homeDianaTile')).toBeVisible();
 });
@@ -325,7 +324,7 @@ test('remote saved home layout is applied before the shell becomes visible',asyn
 });
 
 test('home dashboard is compact and reorder controls use aligned icons',async({page})=>{
-  await mockRudi(page,{partnerMood:'ok'});
+  await mockRudi(page,{partnerMood:'joy'});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#malePsychologyFact')).toBeVisible();
@@ -350,10 +349,11 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   await expect(page.locator('#selfWorkStatus')).not.toContainText(/09:00|21:00|Пн|Пт/);
 
   const partnerMoodIcons=page.locator('#partnerMoodValue [data-partner-mood]');
-  await expect(partnerMoodIcons).toHaveCount(3);
-  await expect(page.locator('#partnerMoodValue [data-partner-mood="ok"]')).toBeVisible();
-  await expect(page.locator('#partnerMoodValue [data-partner-mood="low"]')).toBeHidden();
-  await expect(page.locator('#partnerMoodValue [data-partner-mood="great"]')).toBeHidden();
+  await expect(partnerMoodIcons).toHaveCount(5);
+  await expect(page.locator('#partnerMoodValue [data-partner-mood="joy"]')).toBeVisible();
+  for(const mood of ['sadness','fear','anger','love']){
+    await expect(page.locator('#partnerMoodValue [data-partner-mood="'+mood+'"]')).toBeHidden();
+  }
   const partnerMoodBox=await page.locator('#partnerMoodValue').boundingBox();
   expect(partnerMoodBox.height).toBeLessThanOrEqual(32);
 
@@ -457,7 +457,7 @@ test('mood support message stays visible when own profile card is collapsed',asy
   await collapse.click();
   await expect(rustam).toHaveClass(/is-collapsed/);
 
-  await rustam.locator('.mood-button[data-mood="great"]').click();
+  await rustam.locator('.mood-button[data-mood="joy"]').click();
   const message=page.locator('#moodMessage');
   await expect(message).toBeVisible();
   await expect(message).not.toHaveText('');
