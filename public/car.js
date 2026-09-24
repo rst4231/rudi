@@ -318,7 +318,10 @@
         return;
       }
       state.car=data;
-      if(tile) tile.hidden=false;
+      if(tile){
+        tile.dataset.tabAvailable='1';
+        tile.hidden=document.body.dataset.appTab!=='home';
+      }
       render();
       loadWeather();
     } catch(_) {
@@ -378,6 +381,8 @@
     };
     wait();
   }
+
+  window.RUDI_CAR={refresh:()=>loadCar()};
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true});
   else start();
