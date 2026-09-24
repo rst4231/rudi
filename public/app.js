@@ -1783,9 +1783,14 @@
       let settingsFaceIdStatusSequence=0;
 
       async function updateSettingsFaceIdUi(){
+        const row=document.getElementById('settingsFaceIdRow');
         const status=document.getElementById('settingsFaceIdStatus');
         const button=document.getElementById('settingsFaceIdConnect');
         if(!status||!button) return;
+
+        const insideTelegram=Boolean(telegramInitData());
+        if(row) row.hidden=insideTelegram;
+        if(insideTelegram) return;
 
         button.hidden=false;
         button.disabled=true;
@@ -2417,7 +2422,7 @@
               '<div class="home-settings-copy"><strong>PWA</strong><small id="settingsPwaStatus">Добавить на устройство</small></div>'+
               '<button id="settingsPwaInstall" class="settings-pwa-install" type="button">Установить</button>'+
             '</div>'+
-            '<div class="home-settings-row">'+
+            '<div id="settingsFaceIdRow" class="home-settings-row">'+
               '<div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus">Проверяю…</small></div>'+
               '<button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить</button>'+
             '</div>'+
