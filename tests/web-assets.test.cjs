@@ -19,6 +19,10 @@ test('built assets have stable content URLs, and editing one invalidates only th
     assert.ok(js,'app must use a content-addressed URL');
     const css=first.match(/href="(\/assets\/app\.[a-f0-9]{12}\.css)"/);
     assert.ok(css);
+    const firstSw=fs.readFileSync(path.join(dir,'public/sw.js'),'utf8');
+    assert.ok(firstSw.includes(js[1]),'service worker must precache the current app script');
+    assert.ok(firstSw.includes(css[1]),'service worker must precache the current app stylesheet');
+    assert.ok(firstSw.includes('NAVIGATION_TIMEOUT_MS=3500'),'service worker must bound stalled navigation requests');
     for(const [,url] of first.matchAll(/(?:src|href)="(\/assets\/[^"?]+)"/g)){
       assert.ok(fs.statSync(path.join(dir,'public',url)).size>0,'missing '+url);
     }
@@ -27,5 +31,10 @@ test('built assets have stable content URLs, and editing one invalidates only th
     const second=build();
     assert.ok(!second.includes(js[1]),'changed script must get a new URL');
     assert.ok(second.includes(css[1]),'unchanged styles must keep their URL');
+    const secondJs=second.match(/src="(\/assets\/app\.[a-f0-9]{12}\.js)"/);
+    const secondSw=fs.readFileSync(path.join(dir,'public/sw.js'),'utf8');
+    assert.ok(secondJs);
+    assert.ok(secondSw.includes(secondJs[1]),'service worker must follow the new app script hash');
+    assert.ok(!secondSw.includes(js[1]),'service worker must not pin the obsolete app script hash');
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
