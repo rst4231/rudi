@@ -639,6 +639,7 @@ function mergeBackupSnapshots(base, overlay) {
     partnerMessage: newerTime(base.partnerMessage, overlay.partnerMessage),
     wishlist: newerVersion(base.wishlist, overlay.wishlist),
     products: newerVersion(base.products, overlay.products),
+    savedItems: newerVersion(base.savedItems, overlay.savedItems),
     ticktickChecklistAudit: newerVersion(base.ticktickChecklistAudit, overlay.ticktickChecklistAudit),
     ticktickToken: overlay.ticktickToken || base.ticktickToken || null,
     calendarUrl: overlay.calendarUrl || base.calendarUrl || '',
