@@ -28,6 +28,7 @@
       let sharedAlbumUrl = '';
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
+      const sharedAlbumHdLoads = new Map();
       let currentAppTab = 'home';
       let voiceAssistantRecorder = null;
       let voiceAssistantStream = null;
@@ -6266,6 +6267,67 @@
         }
       }
 
+      function setPhotoViewerLoading(state,text=''){
+        const loading=document.getElementById('photoViewerLoading');
+        const label=document.getElementById('photoViewerLoadingText');
+        if(!loading||!label) return;
+        if(!state){
+          loading.hidden=true;
+          loading.dataset.state='';
+          label.textContent='';
+          return;
+        }
+        loading.hidden=false;
+        loading.dataset.state=state;
+        label.textContent=text;
+      }
+
+      function preloadSharedAlbumHd(url){
+        const target=String(url||'').trim();
+        if(!target) return Promise.resolve(false);
+        const existing=sharedAlbumHdLoads.get(target);
+        if(existing) return existing;
+
+        const promise=new Promise(resolve=>{
+          let attempt=0;
+          const run=()=>{
+            const preload=new Image();
+            preload.decoding='async';
+            const done=(ok)=>{
+              preload.onload=null;
+              preload.onerror=null;
+              if(ok){
+                resolve(true);
+                return;
+              }
+              if(attempt<1){
+                attempt+=1;
+                setTimeout(run,420);
+              }else{
+                resolve(false);
+              }
+            };
+            preload.onload=()=>done(true);
+            preload.onerror=()=>done(false);
+            preload.src=target;
+          };
+          run();
+        }).finally(()=>{
+          setTimeout(()=>sharedAlbumHdLoads.delete(target),30000);
+        });
+        sharedAlbumHdLoads.set(target,promise);
+        return promise;
+      }
+
+      function preloadNextSharedAlbumHd(photoIndex){
+        [1,2].forEach(offset=>{
+          const adjacent=sharedAlbumPhotos[photoIndex+offset];
+          const adjacentPreview=String(adjacent?.url||'').trim();
+          const adjacentFull=String(adjacent?.fullUrl||'').trim();
+          if(adjacentFull&&adjacentFull!==adjacentPreview) preloadSharedAlbumHd(adjacentFull);
+        });
+      }
+
       function renderSharedAlbumPhotoViewer(){
         const viewer=document.getElementById('photoViewer');
         const image=document.getElementById('photoViewerImage');
@@ -6286,18 +6348,27 @@
         restartRudiMotion(image,'rudi-photo-swap',280);
 
         if(fullUrl&&fullUrl!==previewUrl){
-          const fullImage=new Image();
-          fullImage.decoding='async';
-          fullImage.onload=()=>{
+          setPhotoViewerLoading('loading','Загружаем фото в высоком качестве…');
+          preloadSharedAlbumHd(fullUrl).then(ok=>{
             if(currentSharedAlbumPhotoIndex!==photoIndex) return;
+            if(!ok){
+              setPhotoViewerLoading('error','Не удалось загрузить HD. Показано превью.');
+              return;
+            }
             image.onerror=()=>{
               image.onerror=null;
-              if(currentSharedAlbumPhotoIndex===photoIndex) image.src=previewUrl;
+              if(currentSharedAlbumPhotoIndex===photoIndex){
+                image.src=previewUrl;
+                setPhotoViewerLoading('error','Не удалось открыть HD. Показано превью.');
+              }
             };
             image.src=fullUrl;
             restartRudiMotion(image,'rudi-photo-swap',220);
-          };
-          fullImage.src=fullUrl;
+            setPhotoViewerLoading('', '');
+          });
+          preloadNextSharedAlbumHd(photoIndex);
+        }else{
+          setPhotoViewerLoading('', '');
         }
 
         const captionText=String(photo?.caption||'').trim();
@@ -6308,15 +6379,6 @@
         next.disabled=currentSharedAlbumPhotoIndex>=sharedAlbumPhotos.length-1;
         original.disabled=!sharedAlbumOriginalUrl(photo);
 
-        [photoIndex-1,photoIndex+1].forEach(index=>{
-          const adjacent=sharedAlbumPhotos[index];
-          const adjacentPreview=String(adjacent?.url||adjacent?.fullUrl||'').trim();
-          if(adjacentPreview){
-            const preload=new Image();
-            preload.decoding='async';
-            preload.src=adjacentPreview;
-          }
-        });
         return true;
       }
 
@@ -6342,6 +6404,7 @@
         image.alt='';
         caption.textContent='';
         caption.hidden=true;
+        setPhotoViewerLoading('', '');
         currentSharedAlbumPhotoIndex=-1;
       }
 
