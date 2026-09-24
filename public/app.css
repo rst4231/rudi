@@ -5668,6 +5668,13 @@ html[data-theme="dark"] .partner-message .partner-edit{
 }
 .profile-person-card .profile-work-status.is-working{color:#ffb171}
 .profile-person-card .profile-work-status.is-off{color:#60d894}
+.profile-person-card .profile-rhythm-status{
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.1;
+  font-weight:720;
+  letter-spacing:.01em;
+}
 html[data-theme="light"] .profile-person-card .profile-work-status.is-working{color:#ffc08a}
 html[data-theme="light"] .profile-person-card .profile-work-status.is-off{color:#79e3aa}
 html[data-theme="dark"] .profile-person-card .profile-work-status.is-working{color:#ffb171}
