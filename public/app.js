@@ -1397,8 +1397,8 @@
           button.dataset.routeBound='1';
           button.addEventListener('click',()=>{
             const next=button.dataset.appTab||'home';
-            appTabScroll[next]=0;
             if(next===currentAppTab){
+              appTabScroll[next]=0;
               updateAppRoute(next,{replace:true});
               requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
               if(next==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
