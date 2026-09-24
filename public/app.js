@@ -1404,8 +1404,7 @@
           label:document.getElementById('voiceAssistantTalkLabel'),
           dialogue:document.getElementById('voiceAssistantDialogue'),
           empty:document.getElementById('voiceAssistantEmpty'),
-          status:document.getElementById('voiceAssistantStatus'),
-          replay:document.getElementById('voiceAssistantReplay')
+          status:document.getElementById('voiceAssistantStatus')
         };
       }
 
@@ -1594,7 +1593,6 @@
             voiceAssistantHistory.push({role:'assistant',content:answer});
             voiceAssistantHistory=voiceAssistantHistory.slice(-8);
             voiceAssistantLastAnswer=answer;
-            const {replay}=voiceAssistantElements();if(replay) replay.hidden=false;
             if(voiceAssistantVoiceEnabled){
               setVoiceAssistantStatus('Отвечаю…','idle');
               if(!speakVoiceAssistant(answer)) setVoiceAssistantStatus('Ответ готов','idle');
