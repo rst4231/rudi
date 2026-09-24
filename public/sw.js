@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v1.16.8';
+const CACHE_NAME='rudi-shell-v1.16.9';
 const PRECACHE=[
   '/',
   '/manifest.webmanifest',
