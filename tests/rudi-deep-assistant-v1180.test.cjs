@@ -111,12 +111,7 @@ test('camera first observation is silent, later state change sends one Telegram 
     async get(){return this.value},
     async set(_key,value){this.value=value;return true},
   };
-  const notificationCache={
-    async get(key){
-      if(key==='recipient:Рустам') return 160628165;
-      return null;
-    },
-  };
+  const cameraRecipients={'Рустам':123456789,'Диана':null};
   let telegramCalls=0;
   let lastTelegramBody=null;
   const telegramFetch=async(_url,init)=>{
@@ -134,7 +129,7 @@ test('camera first observation is silent, later state change sends one Telegram 
     const first=await observeCameraStatus({
       devices:[{id:'camera_123456',name:'Камера',type:'devices.types.camera'}],
     },{
-      cameraStatusCache,notificationCache,fetchImpl:telegramFetch,
+      cameraStatusCache,cameraRecipients,fetchImpl:telegramFetch,
       botToken:'123456:abcdefghijklmnopqrstuvwxyz0123456789',
     });
     assert.equal(first.changed,false);
@@ -151,7 +146,7 @@ test('camera first observation is silent, later state change sends one Telegram 
     });
     assert.equal(second.changed,true);
     assert.equal(telegramCalls,1);
-    assert.equal(lastTelegramBody.chat_id,160628165);
+    assert.equal(lastTelegramBody.chat_id,123456789);
     assert.match(lastTelegramBody.text,/Камера офлайн/);
   } finally {
     global.fetch=originalFetch;
