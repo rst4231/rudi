@@ -100,7 +100,7 @@
   async function enqueueOfflineMutation(descriptor){
     const db=await openOutboxDb();
     const row={
-      id:(crypto?.randomUUID?.()||('sync-'+Date.now()+'-'+Math.random().toString(36).slice(2))),
+      id:(window.crypto?.randomUUID?.()||('sync-'+Date.now()+'-'+Math.random().toString(36).slice(2))),
       ...descriptor,
       createdAt:Date.now()
     };
@@ -138,7 +138,7 @@
           await enqueueOfflineMutation(queued);
           await requestOutboxFlush();
           showMiniToast('Нет сети · действие отправится позже');
-          const error=new TypeError('rudi-offline-queued');
+          const error=new TypeError('Действие отправится после подключения');
           error.rudiQueued=true;
           throw error;
         }catch(error){
