@@ -55,3 +55,21 @@ test('first pageshow does not repeat startup reads; bfcache return refreshes onc
   handler({persisted:true});
   assert.equal(refreshes,1);
 });
+
+
+test('read request dedup ignores rotating auth tokens and TickTick retries one aborted refresh', () => {
+  assert.match(source,/function managedRequestFingerprintBody\(body\)[\s\S]*?delete clean\.initData;[\s\S]*?delete clean\.backupToken;/);
+  assert.match(source,/JSON\.stringify\(managedRequestFingerprintBody\(body\)\)/);
+  const start=source.indexOf('async function loadTickTickNext');
+  const end=source.indexOf('function holidayDateLabel',start);
+  const block=source.slice(start,end);
+  assert.match(block,/retryOnAbort=true/);
+  assert.match(block,/error\?\.name==='AbortError'[\s\S]*?setTimeout\(resolve,120\)[\s\S]*?retryOnAbort:false/);
+  assert.match(block,/timeoutMs:7000/);
+});
+
+test('cycle read falls back sooner on an unstable connection', () => {
+  const start=source.indexOf('async function cycleRequest');
+  const end=source.indexOf('async function loadDianaCycle',start);
+  assert.match(source.slice(start,end),/\},5000\);/);
+});

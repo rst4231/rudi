@@ -93,6 +93,13 @@
     }catch(_){return {}}
   }
 
+  function isRudiApiRequest(input){
+    try{
+      const url=new URL(typeof input==='string'?input:input?.url||'',window.location.href);
+      return url.origin===window.location.origin&&url.pathname.startsWith('/api/');
+    }catch(_){return false}
+  }
+
   function snapshotRequestKey(input,init={}){
     const method=String(init.method||((input&&typeof input==='object'&&input.method)||'GET')).toUpperCase();
     let url;
@@ -304,6 +311,9 @@
 
       try{
         const response=await nativeFetch(input,init);
+        if(response?.ok&&isRudiApiRequest(input)){
+          window.dispatchEvent(new CustomEvent('rudi-online-request-success'));
+        }
         if(snapshotKey&&response?.ok){
           writeOfflineSnapshot(snapshotKey,response).catch(()=>{});
         }
@@ -446,14 +456,31 @@
         banner.textContent='Нет сети · RUDI работает из сохранённых данных';
       }
     };
+    let recoverySuccesses=0;
+    let recoveryTimer=0;
     window.addEventListener('rudi-offline-snapshot-used',event=>{
       const updatedAt=Number(event.detail?.updatedAt||0);
       if(!updatedAt) return;
+      recoverySuccesses=0;
+      clearTimeout(recoveryTimer);
       const time=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(new Date(updatedAt));
       banner.hidden=false;
       document.body.classList.add('rudi-offline');
       document.body.dataset.offlineMode='1';
       banner.textContent='Связь с RUDI нестабильна · показаны данные на '+time;
+    });
+    window.addEventListener('rudi-online-request-success',()=>{
+      if(banner.hidden||navigator.onLine===false) return;
+      recoverySuccesses+=1;
+      if(recoverySuccesses<2) return;
+      clearTimeout(recoveryTimer);
+      recoveryTimer=setTimeout(()=>{
+        if(navigator.onLine===false) return;
+        banner.hidden=true;
+        document.body.classList.remove('rudi-offline');
+        document.body.dataset.offlineMode='0';
+        recoverySuccesses=0;
+      },350);
     });
     window.addEventListener('online',sync);
     window.addEventListener('offline',sync);

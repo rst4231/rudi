@@ -49,3 +49,13 @@ test('built assets have stable content URLs, and editing one invalidates only th
     assert.ok(!secondSw.includes(js[1]),'service worker must not pin the obsolete app script hash');
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+
+test('connectivity warning clears after confirmed API recovery',()=>{
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  assert.match(pwa,/function isRudiApiRequest\(input\)/);
+  assert.match(pwa,/dispatchEvent\(new CustomEvent\('rudi-online-request-success'\)\)/);
+  assert.match(pwa,/let recoverySuccesses=0/);
+  assert.match(pwa,/if\(recoverySuccesses<2\) return/);
+  assert.match(pwa,/banner\.hidden=true;[\s\S]*?classList\.remove\('rudi-offline'\)/);
+});

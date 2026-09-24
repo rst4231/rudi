@@ -147,6 +147,14 @@
 
       const managedRequestState = new Map();
 
+      function managedRequestFingerprintBody(body){
+        if(!body||typeof body!=='object'||Array.isArray(body)) return body??null;
+        const clean={...body};
+        delete clean.initData;
+        delete clean.backupToken;
+        return clean;
+      }
+
       function invalidateManagedRequests(...resources){
         const prefixes=resources.flat().map(value=>String(value||'').trim()).filter(Boolean);
         for(const [key,state] of managedRequestState.entries()){
@@ -158,7 +166,7 @@
 
       async function managedJsonRequest(resource,url,{method='POST',body=null,ttlMs=0,timeoutMs=10000,headers=null}={}){
         const key=String(resource||url);
-        const fingerprint=method+'|'+url+'|'+JSON.stringify(body??null);
+        const fingerprint=method+'|'+url+'|'+JSON.stringify(managedRequestFingerprintBody(body));
         const now=Date.now();
         const previous=managedRequestState.get(key);
 
@@ -4651,7 +4659,7 @@
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
           cache:'no-store'
-        },8000);
+        },5000);
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'cycle-unavailable');
         if(data.backupToken) await storeStateBackupToken(data.backupToken);
@@ -5311,18 +5319,24 @@
         });
       }
 
-      async function loadTickTickNext({preserveExpanded=false,force=false}={}){
+      async function loadTickTickNext({preserveExpanded=false,force=false,retryOnAbort=true}={}){
         if(!currentActor) return;
         if(force) invalidateManagedRequests('ticktick-today');
         try{
           const payload=await managedJsonRequest('ticktick-today','/api/ticktick/today',{
             body:{initData:telegramInitData(),backupToken:currentStateBackupToken},
             ttlMs:3000,
-            timeoutMs:10000
+            timeoutMs:7000
           });
           renderTickTickTodayState(payload,{preserveExpanded});
         }catch(error){
-          if(error?.name==='AbortError') return;
+          if(error?.name==='AbortError'){
+            if(retryOnAbort){
+              await new Promise(resolve=>setTimeout(resolve,120));
+              return loadTickTickNext({preserveExpanded,force:false,retryOnAbort:false});
+            }
+            return;
+          }
           if(Number(error?.status)===401){
             renderTickTickTodayState({...error?.payload,connected:false},{preserveExpanded});
             return;
