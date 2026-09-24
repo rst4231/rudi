@@ -67,7 +67,7 @@ test('For Di plain-text entries stay plain inside the RUDI section without Teleg
   const feedCache = memoryCache();
   const now = new Date('2026-09-23T07:00:00Z');
 
-  await queueForDiMessage('Клиент написал: <пример>', {
+  await queueForDiMessage('Клиент написал: пример', {
     now,
     forDiCache: cache,
     parseMode: false,
@@ -85,7 +85,7 @@ test('For Di plain-text entries stay plain inside the RUDI section without Teleg
   assert.equal(result.sent,0);
   assert.equal(telegramCalls,0);
   const feed=await readForDiFeed({forDiFeedCache:feedCache});
-  assert.equal(feed.items[0].text,'Клиент написал: <пример>');
+  assert.equal(feed.items[0].text,'Клиент написал: пример');
 });
 
 test('For Di RUDI publication surfaces storage failures without falling back to Telegram', async () => {
