@@ -23,7 +23,7 @@ test('Safari login uses RUDI browser auth and keeps the two explicit identities'
 test('browser login gate hides the application until authentication succeeds', () => {
   assert.match(css, /body\.auth-login \.shell/);
   assert.match(css, /body\.auth-login \.app-tabbar/);
-  assert.match(css, /body\.auth-login \.app-gate-loader/);
+  assert.match(css, /body\.auth-ok \.app-gate/);
   assert.match(css, /\.rudi-auth-pin/);
   assert.match(css, /\.rudi-auth-actor\.is-active/);
 });
@@ -91,7 +91,7 @@ test('passkey enrollment requires an authenticated RUDI user while passkey login
 test('PIN enrollment gate stays locked while Telegram keyboard and focus events fire', () => {
   assert.match(app, /let appAccessReady = false;/);
   assert.match(app, /async function authenticateApp\(\)\{\s*appAccessReady=false;/);
-  assert.match(app, /if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*appAccessReady=true;\s*await loadAppBootstrap\(\);\s*return true;/);
+  assert.match(app, /if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*appAccessReady=true;\s*loadAppBootstrap\(\)\.catch\([\s\S]*?\);\s*return true;/);
   assert.doesNotMatch(app, /appAccessReady=true;\s*ensureAppSurface\(\);\s*await loadAppBootstrap/);
   assert.match(app, /setupProfileSplit\(\);[\s\S]*?setupAppTabs\(\);[\s\S]*?ensureAppSurface\(\{restoreTab:true\}\);/);
   assert.match(app, /function ensureAppSurface\([\s\S]*?if\(!currentActor\|\|!appAccessReady\) return;/);
