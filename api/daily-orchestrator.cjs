@@ -141,6 +141,15 @@ async function runDailyOrchestrator(req, res, options = {}) {
     }
   }
 
+  let cinemaFeedUpdated = false;
+  if (nativeResults.cinema && !nativeResults.cinema.failed) {
+    try {
+      cinemaFeedUpdated = Boolean(await updateFeedFromRun({}, { cinema: nativeResults.cinema }, date, options));
+    } catch (error) {
+      failures.push({ section: 'feed-cinema', error: String(error?.message || error) });
+    }
+  }
+
   let captured = null;
   let runtimeError = null;
   const originalJson = typeof res?.json === 'function' ? res.json.bind(res) : null;
@@ -169,7 +178,12 @@ async function runDailyOrchestrator(req, res, options = {}) {
     }
 
     try {
-      await updateFeedFromRun(payload, nativeResults, date, options);
+      await updateFeedFromRun(
+        payload,
+        cinemaFeedUpdated ? { ...nativeResults, cinema: null } : nativeResults,
+        date,
+        options
+      );
     } catch (error) {
       failures.push({ section: 'feed', error: String(error?.message || error) });
     }

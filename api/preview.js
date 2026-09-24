@@ -11,6 +11,8 @@ const { SECTION_NAMES } = require('./rudi-settings.cjs');
 const { DEFAULT_MAX_ITEMS, rankHolidayEntries } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { stripStagePriceLines } = require('./event-text-sanitizer.cjs');
+const { getLatestPublication } = require('./publication-journal.cjs');
+const { updateFeedSections } = require('./feed-store.cjs');
 
 function sanitizeStagePrices(value) {
   if (typeof value === 'string') return stripStagePriceLines(value);
@@ -37,10 +39,54 @@ async function loadPreviewOverrides(date, options = {}) {
   return Object.fromEntries(rows);
 }
 
+function cinemaFeedSectionFromPublication(record) {
+  if (!record || record.status !== 'published') return null;
+  const cinema = record.metadata?.nativeResult;
+  if (!cinema || cinema.failed) return null;
+  const feedMessage = String(cinema.feedMessage || '').trim();
+  const titles = Array.isArray(cinema.titles)
+    ? cinema.titles.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+  const items = Array.isArray(cinema.feedItems) ? cinema.feedItems : [];
+  if (feedMessage) return { parts: [feedMessage], items, source: 'cinema-journal-recovery' };
+  if (titles.length) {
+    return {
+      parts: [['🎬 <b>Кинопремьеры</b>', '', ...titles.map((title) => '• ' + title)].join('\n')],
+      items,
+      source: 'cinema-journal-recovery',
+    };
+  }
+  return null;
+}
+
+async function syncCinemaFeedFromJournal(date, options = {}) {
+  const loader = options.getLatestPublication
+    || ((section) => getLatestPublication(section, { cache: options.journalCache }));
+  const record = await loader('cinema');
+  if (!record || record.date !== date) return { synced: false, reason: 'no-current-publication' };
+  const cinema = cinemaFeedSectionFromPublication(record);
+  if (!cinema) return { synced: false, reason: 'no-cinema-payload' };
+  const updater = options.updateFeed || updateFeedSections;
+  const snapshot = await updater({ cinema }, {
+    ...options,
+    date,
+    now: options.now instanceof Date ? options.now : new Date(options.now || Date.now()),
+  });
+  return { synced: true, version: snapshot?.version || '', date: snapshot?.date || date };
+}
+
 async function runPreview(req, res, options = {}) {
   const handler = options.handler || require('./index.js');
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const requestedDate = resolvePreviewDate(req?.query?.date || 'today', now);
+  let cinemaFeedSync = null;
+  if (String(req?.query?.syncFeed || '') === 'cinema') {
+    try {
+      cinemaFeedSync = await syncCinemaFeedFromJournal(requestedDate, { ...options, now });
+    } catch (error) {
+      cinemaFeedSync = { synced: false, reason: String(error?.message || error) };
+    }
+  }
   const config = await loadClientsAdviceConfig({
     fetchImpl: options.fetchImpl || globalThis.fetch,
     configUrl: options.configUrl,
@@ -86,6 +132,7 @@ async function runPreview(req, res, options = {}) {
         warnings,
         sections,
         holidayHighlights,
+        ...(cinemaFeedSync ? { cinemaFeedSync } : {}),
       });
     };
   }
@@ -102,3 +149,5 @@ module.exports.runPreview = runPreview;
 module.exports.loadPreviewOverrides = loadPreviewOverrides;
 module.exports.extractHolidayEntries = extractHolidayEntries;
 module.exports.sanitizeStagePrices = sanitizeStagePrices;
+module.exports.cinemaFeedSectionFromPublication = cinemaFeedSectionFromPublication;
+module.exports.syncCinemaFeedFromJournal = syncCinemaFeedFromJournal;
