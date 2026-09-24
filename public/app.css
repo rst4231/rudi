@@ -2538,6 +2538,9 @@
     }
     .app-tab-button{
       min-width:0;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-touch-callout:none;
       min-height:52px;
       display:grid;
       place-items:center;
