@@ -298,10 +298,9 @@ function addProductIntent(transcript){
 
 function addWishIntent(transcript,actor){
   const raw=commandSurface(transcript);
-  const wishlist='(?:виш\\s*лист|wishlist|список желаний)';
   const patterns=[
-    new RegExp('(?:^|\\\\s)(?:добавь|добавить|запиши|занеси)\\\\s+(.+?)\\\\s+(?:в|на)\\\\s+(?:мой\\\\s+|дианин\\\\s+)?'+wishlist+'(?:\\\\s+дианы)?(?=\\\\s|$)','iu'),
-    new RegExp('(?:^|\\\\s)(?:добавь|добавить|запиши|занеси)\\\\s+(?:в|на)\\\\s+(?:мой\\\\s+|дианин\\\\s+)?'+wishlist+'(?:\\\\s+дианы)?\\\\s+(.+)$','iu'),
+    /(?:^|\s)(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:виш\s*лист|wishlist|список желаний)(?:\s+дианы)?(?=\s|$)/iu,
+    /(?:^|\s)(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:виш\s*лист|wishlist|список желаний)(?:\s+дианы)?\s+(.+)$/iu,
   ];
   let items=[];
   for(const re of patterns){
