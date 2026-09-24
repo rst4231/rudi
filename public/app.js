@@ -1629,6 +1629,8 @@
             Promise.resolve(window.RUDI_SAVES?.load?.()).catch(()=>{});
           }else if(actionType==='lulu-walk'){
             luluRequest('get').then(data=>renderLulu(data.lulu)).catch(()=>{});
+          }else if(actionType==='mood-set'){
+            refreshDailyMood().catch(()=>{});
           }else if(actionType==='app-navigate'&&APP_TABS.includes(String(payload.actionResult?.tab||''))){
             navigateToAppTab(String(payload.actionResult.tab),{scroll:false});
           }else if(actionType.startsWith('smart-home')){
