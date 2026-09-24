@@ -1,5 +1,5 @@
 const config = require('../rudi-config.json');
-const { readDailyMood } = require('./daily-mood-store.cjs');
+const { readDailyMood, setDailyMood } = require('./daily-mood-store.cjs');
 const {
   readProductList,
   addProducts,
@@ -167,12 +167,12 @@ function commandIntent(transcript) {
   const pause=/(?:^|\s)(?:поставь|поставить)\s+(?:пылесос\s+)?на\s+паузу(?:\s|$)/u.test(normalized);
   const resume=tokenPresent(normalized,['продолжи','продолжить','возобнови','возобновить'])&&/пылесос|уборк/u.test(normalized);
   if(pause||resume) return {kind:'pause',value:pause,target:'пылесос'};
-  const on=tokenPresent(normalized,['включи','включить','зажги','вруби','запусти','запустить']);
-  const off=tokenPresent(normalized,['выключи','выключить','погаси','выруби','останови','остановить']);
+  const on=tokenPresent(normalized,['включи','включить','включит','включай','зажги','зажжет','вруби','запусти','запустить']);
+  const off=tokenPresent(normalized,['выключи','выключить','выключит','выключай','погаси','погасит','выруби','останови','остановить']);
   if(!on&&!off) return null;
   const value=on&&!off;
   const target=normalized
-    .replace(/(?:^|\s)(включи|включить|зажги|вруби|запусти|запустить|выключи|выключить|погаси|выруби|останови|остановить|пожалуйста|устройство|умного|дома|умный|дом)(?=\s|$)/gu,' ')
+    .replace(/(?:^|\s)(включи|включить|включит|включай|зажги|зажжет|вруби|запусти|запустить|выключи|выключить|выключит|выключай|погаси|погасит|выруби|останови|остановить|пожалуйста|устройство|умного|дома|умный|дом)(?=\s|$)/gu,' ')
     .replace(/\s+/g,' ').trim();
   return {kind:'switch',value,target};
 }
@@ -267,6 +267,14 @@ function cleanCommandText(value){
   return String(value||'').replace(/\s+/g,' ').replace(/\s+пожалуйста\s*$/iu,'').trim();
 }
 
+function commandSurface(value){
+  return cleanCommandText(value)
+    .replace(/[‐‑‒–—-]+/g,' ')
+    .replace(/[.!?…,:;()[\]{}"«»]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
 function splitCommandItems(value){
   return String(value||'')
     .split(/\s*(?:,|;|\s+и\s+)\s*/u)
@@ -276,10 +284,10 @@ function splitCommandItems(value){
 }
 
 function addProductIntent(transcript){
-  const raw=cleanCommandText(transcript);
+  const raw=commandSurface(transcript);
   const patterns=[
-    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)$/iu,
-    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)\s+(.+)$/iu,
+    /(?:^|\s)(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)(?=\s|$)/iu,
+    /(?:^|\s)(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:список\s+)?(?:продуктов|продукты|покупок)\s+(.+)$/iu,
   ];
   for(const re of patterns){
     const match=raw.match(re);
@@ -289,10 +297,11 @@ function addProductIntent(transcript){
 }
 
 function addWishIntent(transcript,actor){
-  const raw=cleanCommandText(transcript);
+  const raw=commandSurface(transcript);
+  const wishlist='(?:виш\\s*лист|wishlist|список желаний)';
   const patterns=[
-    /^(?:добавь|добавить|запиши|занеси)\s+(.+?)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?$/iu,
-    /^(?:добавь|добавить|запиши|занеси)\s+(?:в|на)\s+(?:мой\s+|дианин\s+)?(?:вишлист|wishlist|список желаний)(?:\s+дианы)?\s+(.+)$/iu,
+    new RegExp('(?:^|\\\\s)(?:добавь|добавить|запиши|занеси)\\\\s+(.+?)\\\\s+(?:в|на)\\\\s+(?:мой\\\\s+|дианин\\\\s+)?'+wishlist+'(?:\\\\s+дианы)?(?=\\\\s|$)','iu'),
+    new RegExp('(?:^|\\\\s)(?:добавь|добавить|запиши|занеси)\\\\s+(?:в|на)\\\\s+(?:мой\\\\s+|дианин\\\\s+)?'+wishlist+'(?:\\\\s+дианы)?\\\\s+(.+)$','iu'),
   ];
   let items=[];
   for(const re of patterns){
@@ -300,7 +309,7 @@ function addWishIntent(transcript,actor){
     if(match?.[1]){items=splitCommandItems(match[1]);break;}
   }
   if(!items.length) return null;
-  const owner=/дианин|вишлист\s+дианы|список желаний\s+дианы|диане\s+в/iu.test(raw)
+  const owner=/дианин|виш\s*лист\s+дианы|wishlist\s+дианы|список желаний\s+дианы|диане\s+в/iu.test(raw)
     ?'Диана'
     :String(actor||'Рустам');
   return {items,owner:owner==='Диана'?'Диана':'Рустам'};
@@ -363,6 +372,21 @@ function removeSavedIntent(transcript) {
     const m=raw.match(re);
     if(m?.[1]) return {target:m[1].trim()};
   }
+  return null;
+}
+
+function moodSetIntent(transcript) {
+  const text=normalizeText(transcript);
+  if(!/настроен/u.test(text)) return null;
+  if(!/(?:поменяй|поменять|измени|изменить|смени|сменить|установи|установить|поставь|поставить|выбери|выбрать|отметь|отметить|сделай|сделать)/u.test(text)) return null;
+  const moods=[
+    ['anger','злость',/(?:злост|злой|злая|гнев|раздражен)/u],
+    ['sadness','грусть',/(?:груст|печал|уныни)/u],
+    ['fear','тревога',/(?:тревог|страх|испуг|беспокой)/u],
+    ['love','любовь',/(?:любов|влюблен|нежност)/u],
+    ['joy','радость',/(?:радост|счаст|весел|хорошее настроение|отличное настроение)/u],
+  ];
+  for(const [mood,label,re] of moods) if(re.test(text)) return {mood,label};
   return null;
 }
 
@@ -670,6 +694,20 @@ async function executeAssistantAction(transcript, context, options = {}) {
   const nav=navigationIntent(transcript);
   if(nav) return {type:'app-navigate',performed:true,status:'CLIENT_PENDING',tab:nav.tab,label:nav.label};
 
+  const moodSet=moodSetIntent(transcript);
+  if(moodSet){
+    try{
+      const moodDate=dateKey(options.now?new Date(options.now):new Date(),'Europe/Moscow');
+      const before=await readDailyMood(moodDate,options);
+      const previousMood=String(before?.moods?.[actor]?.mood||'');
+      const row=await setDailyMood(moodDate,actor,moodSet.mood,options);
+      const currentMood=String(row?.moods?.[actor]?.mood||moodSet.mood);
+      return {type:'mood-set',performed:true,mood:currentMood,label:MOOD_LABELS[currentMood]||moodSet.label,changed:previousMood!==currentMood};
+    }catch(error){
+      return {type:'mood-set',performed:false,mood:moodSet.mood,label:moodSet.label,error:String(error?.message||error)};
+    }
+  }
+
   const addProduct=addProductIntent(transcript);
   if(addProduct?.items?.length){
     try{
@@ -829,6 +867,6 @@ async function executeAssistantAction(transcript, context, options = {}) {
 
 module.exports={
   safeTimeZone,dateKey,shiftDateKey,relationshipView,contextNeeds,compactValue,
-  addProductIntent,addWishIntent,removeProductIntent,removeWishIntent,navigationIntent,
+  addProductIntent,addWishIntent,removeProductIntent,removeWishIntent,navigationIntent,moodSetIntent,
   effectiveTopicText,moodForAssistant,readAssistantContext,executeAssistantAction,commandIntent,selectDevice,matchNamedItem
 };
