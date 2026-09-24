@@ -88,11 +88,13 @@
     }catch(_){}
     if(!headers['content-type']) headers['content-type']='application/json';
 
+    const queuedBody={...body};
+    if(Object.prototype.hasOwnProperty.call(queuedBody,'initData')) queuedBody.initData='';
     return {
       url:url.pathname+url.search,
       method,
       headers,
-      body:init.body,
+      body:JSON.stringify(queuedBody),
       credentials:'include'
     };
   }
@@ -133,19 +135,29 @@
 
     window.fetch=async(input,init={})=>{
       const queued=queueableMutation(input,init);
+      const queueAndThrow=async(message)=>{
+        await enqueueOfflineMutation(queued);
+        await requestOutboxFlush();
+        showMiniToast(message);
+        const error=new TypeError('Действие отправится после подключения');
+        error.rudiQueued=true;
+        throw error;
+      };
+
       if(queued&&navigator.onLine===false){
-        try{
-          await enqueueOfflineMutation(queued);
-          await requestOutboxFlush();
-          showMiniToast('Нет сети · действие отправится позже');
-          const error=new TypeError('Действие отправится после подключения');
-          error.rudiQueued=true;
-          throw error;
-        }catch(error){
-          if(error?.rudiQueued) throw error;
-        }
+        return queueAndThrow('Нет сети · действие отправится позже');
       }
-      return nativeFetch(input,init);
+
+      try{
+        return await nativeFetch(input,init);
+      }catch(error){
+        const aborted=Boolean(init?.signal?.aborted)||String(error?.name||'')==='AbortError';
+        const networkFailure=String(error?.name||'')==='TypeError';
+        if(queued&&!aborted&&networkFailure){
+          return queueAndThrow('Сеть нестабильна · действие отправится позже');
+        }
+        throw error;
+      }
     };
 
     window.addEventListener('online',()=>{
