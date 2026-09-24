@@ -400,6 +400,24 @@
     });
   }
 
+  async function requestPwaUpdate(){
+    if(!('serviceWorker' in navigator)) return false;
+    try{
+      const registration=await navigator.serviceWorker.getRegistration('/');
+      if(!registration) return false;
+      await registration.update();
+      if(registration.waiting&&navigator.serviceWorker.controller){
+        try{sessionStorage.setItem('rudi:sw-refresh-pending','1')}catch(_){}
+        registration.waiting.postMessage({type:'SKIP_WAITING'});
+      }
+      return true;
+    }catch(error){
+      console.warn('RUDI_SW_MANUAL_UPDATE_WARN',String(error?.message||error));
+      return false;
+    }
+  }
+  window.rudiRequestPwaUpdate=requestPwaUpdate;
+
   function installServiceWorker(){
     if(!('serviceWorker' in navigator)) return;
     const hadController=Boolean(navigator.serviceWorker.controller);

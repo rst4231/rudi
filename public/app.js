@@ -3564,7 +3564,10 @@
           if(label) label.textContent='Обновляю…';
           const startedAt=Date.now();
           manualRefreshRequested=true;
-          Promise.resolve(refreshAfterResume())
+          Promise.allSettled([
+            Promise.resolve(refreshAfterResume()),
+            Promise.resolve(window.rudiRequestPwaUpdate?.())
+          ])
             .then(()=>{
               const delay=Math.max(0,420-(Date.now()-startedAt));
               setTimeout(()=>{

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const app = fs.readFileSync('public/app.js','utf8');
+const pwa = fs.readFileSync('public/pwa-extras.js','utf8');
 const html = fs.readFileSync('public/index.html','utf8');
 const css = fs.readFileSync('public/app.css','utf8');
 const carCss = fs.readFileSync('public/car.css','utf8');
@@ -33,10 +34,18 @@ test('browser has guarded in-place pull-to-refresh and Telegram does not', () =>
   assert.match(pull,/touchmove/);
   assert.match(pull,/Отпустите для обновления/);
   assert.match(pull,/refreshAfterResume\(\)/);
+  assert.match(pull,/rudiRequestPwaUpdate/);
   assert.doesNotMatch(pull,/window\.location\.reload\(\)/);
   assert.match(css,/\.pull-refresh-indicator/);
   assert.match(css,/@media \(display-mode:standalone\)\{[\s\S]*overscroll-behavior-y:none/);
   assert.match(css,/\.pull-refresh-indicator\.is-refreshing/);
+});
+
+test('manual PWA refresh checks the service worker for a new version', () => {
+  assert.match(pwa,/async function requestPwaUpdate\(\)/);
+  assert.match(pwa,/navigator\.serviceWorker\.getRegistration\('\/'\)/);
+  assert.match(pwa,/await registration\.update\(\)/);
+  assert.match(pwa,/window\.rudiRequestPwaUpdate=requestPwaUpdate/);
 });
 
 test('activity notification popover is lifted above movable home cards while open', () => {
