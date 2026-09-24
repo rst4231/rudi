@@ -1,6 +1,7 @@
 const { readWishlist } = require('./wishlist-store.cjs');
 const { readProductList } = require('./product-list-store.cjs');
 const { readSavedItems } = require('./saved-items-store.cjs');
+const { readForDiFeed } = require('./for-di-feed-store.cjs');
 const { readPartnerMessage } = require('./partner-message-store.cjs');
 const { readFeedSnapshot } = require('./feed-store.cjs');
 const { readActivityJournal } = require('./activity-journal-store.cjs');
@@ -78,10 +79,11 @@ async function searchGlobalData(query, options = {}) {
     ? options.backupSnapshot
     : {};
 
-  const [wishlistRow, productsRow, savesRow, messageRow, feedRow, activityRow, calendarRow, nextCalendarRow] = await Promise.allSettled([
+  const [wishlistRow, productsRow, savesRow, forDiRow, messageRow, feedRow, activityRow, calendarRow, nextCalendarRow] = await Promise.allSettled([
     readWishlist(options),
     readProductList(options),
     readSavedItems(options),
+    readForDiFeed(options),
     readPartnerMessage(options),
     readFeedSnapshot(options),
     readActivityJournal(options),
@@ -92,10 +94,12 @@ async function searchGlobalData(query, options = {}) {
   const wishlistLive = wishlistRow.status === 'fulfilled' ? wishlistRow.value : null;
   const productsLive = productsRow.status === 'fulfilled' ? productsRow.value : null;
   const savesLive = savesRow.status === 'fulfilled' ? savesRow.value : null;
+  const forDiLive = forDiRow.status === 'fulfilled' ? forDiRow.value : null;
 
   const wishlist = wishlistLive?.initialized ? wishlistLive : (backup.wishlist || wishlistLive || {});
   const products = productsLive?.initialized ? productsLive : (backup.products || productsLive || {});
   const saves = savesLive?.initialized ? savesLive : (backup.savedItems || savesLive || {});
+  const forDi = forDiLive?.initialized ? forDiLive : (backup.forDiFeed || forDiLive || {});
 
   const rows = [];
 
@@ -148,6 +152,16 @@ async function searchGlobalData(query, options = {}) {
         item: item.id,
       });
     }
+  }
+
+  for (const item of Array.isArray(forDi?.items) ? forDi.items : []) {
+    addResult(rows, terms, {
+      kind: 'Для Ди',
+      title: item.source === 'labor' ? 'Трудовой кодекс' : 'Материал для Ди',
+      text: [item.text, item.dateKey, ...(Array.isArray(item.likes) ? item.likes : [])].filter(Boolean).join(' · '),
+      tab: 'for-di',
+      item: item.id,
+    });
   }
 
   const message = messageRow.status === 'fulfilled' ? messageRow.value : (backup.partnerMessage || null);
