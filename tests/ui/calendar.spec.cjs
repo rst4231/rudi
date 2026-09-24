@@ -357,7 +357,8 @@ test('home dashboard is compact and reorder controls use aligned icons',async({p
   const partnerMoodBox=await page.locator('#partnerMoodValue').boundingBox();
   expect(partnerMoodBox.height).toBeLessThanOrEqual(32);
 
-  await expect(page.locator('#homeLayoutEditButton')).toBeHidden();
+  await expect(page.locator('#homeLayoutEditButton')).toBeVisible();
+  await expect(page.locator('#homeLayoutEditButton')).toHaveAttribute('aria-pressed','false');
   await expect(page.locator('.home-order-controls').first()).toBeHidden();
 });
 
