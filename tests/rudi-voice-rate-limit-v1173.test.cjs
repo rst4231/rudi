@@ -45,7 +45,7 @@ test('chat payload is capped to reduce Groq token pressure',()=>{
   assert.match(source,/const MAX_HISTORY_MESSAGES = 6/);
   assert.match(source,/cleanText\(item\?\.content, 800\)/);
   assert.match(source,/JSON\.stringify\(options\.context\)\.slice\(0, 7000\)/);
-  assert.match(source,/max_completion_tokens: 320/);
+  assert.match(source,/max_completion_tokens: 280/);
   assert.match(source,/reasoning_effort: options\.actionResult \? 'low' : 'medium'/);
 });
 
