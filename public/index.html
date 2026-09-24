@@ -936,29 +936,39 @@
     <button id="undoSnackbarButton" type="button">Отменить</button>
   </div>
 
-  <button id="voiceAssistantFab" class="voice-assistant-fab" type="button" aria-label="Открыть голосового ассистента" hidden>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0M12 17v4M9 21h6"/></svg>
-  </button>
+  <div id="voiceAssistantLauncher" class="voice-assistant-launcher" hidden>
+    <div id="voiceAssistantGreeting" class="voice-assistant-greeting" aria-live="polite"></div>
+    <button id="voiceAssistantFab" class="voice-assistant-fab" type="button" aria-label="Открыть AI-помощницу">
+      <img src="/rudi-voice-assistant.webp" alt="" width="56" height="56" decoding="async" aria-hidden="true">
+    </button>
+  </div>
 
-  <section id="voiceAssistantPanel" class="voice-assistant-panel" aria-label="Голосовой ассистент RUDI" hidden>
+  <section id="voiceAssistantPanel" class="voice-assistant-panel" aria-label="AI-помощница RUDI" hidden>
     <div class="voice-assistant-head">
       <div>
-        <span class="voice-assistant-kicker">RUDI</span>
-        <strong>Голосовой ассистент</strong>
+        <span class="voice-assistant-kicker">AI-помощница RUDI</span>
+        <strong id="voiceAssistantPanelGreeting"></strong>
+        <small class="voice-assistant-description">Персональная AI-помощница — можно написать или сказать голосом</small>
       </div>
       <div class="voice-assistant-head-actions">
         <button id="voiceAssistantVoiceToggle" class="voice-assistant-icon-button" type="button" aria-label="Включить голосовые ответы" aria-pressed="false" title="Только текст">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/><path d="M15 9.2a4 4 0 0 1 0 5.6M17.8 6.7a7.5 7.5 0 0 1 0 10.6"/></svg>
         </button>
-        <button id="voiceAssistantClose" class="voice-assistant-icon-button" type="button" aria-label="Закрыть голосового ассистента">
+        <button id="voiceAssistantClose" class="voice-assistant-icon-button" type="button" aria-label="Закрыть AI-помощницу">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></svg>
         </button>
       </div>
     </div>
     <div id="voiceAssistantDialogue" class="voice-assistant-dialogue" aria-live="polite">
-      <div id="voiceAssistantEmpty" class="voice-assistant-empty">Нажмите «Говорить» и задайте вопрос. По умолчанию RUDI отвечает текстом — голос можно включить кнопкой динамика.</div>
+      <div id="voiceAssistantEmpty" class="voice-assistant-empty">Напишите сообщение или нажмите «Говорить». По умолчанию RUDI отвечает текстом — голос можно включить кнопкой динамика.</div>
     </div>
-    <div id="voiceAssistantStatus" class="voice-assistant-status" aria-live="polite">Готов слушать</div>
+    <div id="voiceAssistantStatus" class="voice-assistant-status" aria-live="polite">Готова слушать</div>
+    <form id="voiceAssistantTextForm" class="voice-assistant-text-form" autocomplete="off">
+      <input id="voiceAssistantTextInput" class="voice-assistant-text-input" type="text" maxlength="1200" enterkeyhint="send" inputmode="text" placeholder="Напишите RUDI…" aria-label="Сообщение AI-помощнице">
+      <button id="voiceAssistantTextSend" class="voice-assistant-text-send" type="submit" aria-label="Отправить сообщение">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 4 16 8-16 8 3-8-3-8Z"/><path d="M7 12h13"/></svg>
+      </button>
+    </form>
     <button id="voiceAssistantTalk" class="voice-assistant-talk" type="button">
       <span class="voice-assistant-talk-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0M12 17v4M9 21h6"/></svg>

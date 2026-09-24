@@ -124,7 +124,8 @@ async function answerTranscript(transcript, history, options = {}) {
     {
       role: 'system',
       content: [
-        'Ты голосовой ассистент приложения RUDI.',
+        'Ты девушка-ассистент приложения RUDI.',
+        'Всегда говори о себе от женского лица: «я готова», «я нашла», «я проверила», «я могу». Не используй мужской род по отношению к себе.',
         'Разговаривай с пользователем по-русски естественно, спокойно и по делу.',
         'Пользователя зовут ' + actor + '.',
         'Ответ предназначен одновременно для текста на экране и озвучивания, поэтому не используй Markdown, HTML-теги, таблицы, ссылки и длинные списки.',
@@ -169,9 +170,15 @@ async function answerTranscript(transcript, history, options = {}) {
 }
 
 async function runVoiceAssistant(input = {}, options = {}) {
-  const mimeType = normalizeMimeType(input.mimeType);
-  const bytes = decodeAudio(input.audioBase64);
-  const transcript = await transcribeAudio(bytes, mimeType, options);
+  const typedText = cleanText(input.text, 1800);
+  let transcript = typedText;
+  let usedTranscription = false;
+  if (!transcript) {
+    const mimeType = normalizeMimeType(input.mimeType);
+    const bytes = decodeAudio(input.audioBase64);
+    transcript = await transcribeAudio(bytes, mimeType, options);
+    usedTranscription = true;
+  }
   const history = normalizeHistory(input.history);
   const context = typeof options.contextProvider === 'function'
     ? await options.contextProvider(transcript, history, input.ui || null)
@@ -184,7 +191,7 @@ async function runVoiceAssistant(input = {}, options = {}) {
     transcript,
     answer,
     actionResult,
-    transcriptionModel: TRANSCRIPTION_MODEL,
+    transcriptionModel: usedTranscription ? TRANSCRIPTION_MODEL : null,
     chatModel: CHAT_MODEL,
   };
 }

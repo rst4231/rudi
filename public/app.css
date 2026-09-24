@@ -7843,3 +7843,24 @@ html[data-theme="dark"] .app-tabbar .app-tab-notification{
 html[data-theme="dark"] .voice-assistant-panel{background:rgba(23,27,38,.94);border-color:rgba(255,255,255,.09);box-shadow:0 24px 68px rgba(0,0,0,.42)}
 @media(max-width:600px){.voice-assistant-fab{left:auto;right:18px;transform:none}.voice-assistant-fab:active{transform:scale(.93)}.voice-assistant-panel{width:calc(100vw - 20px);bottom:calc(82px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))}}
 @media(prefers-reduced-motion:reduce){.voice-assistant-talk-icon,.voice-assistant-message.is-assistant.is-entering{animation:none!important}}
+
+
+/* Voice assistant v1.18.15 — female AI assistant, image launcher, text composer, iPhone keyboard */
+.voice-assistant-launcher{position:fixed;z-index:4250;right:18px;bottom:calc(88px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)));display:grid;justify-items:end;gap:7px;max-width:min(250px,calc(100vw - 36px));pointer-events:none}
+.voice-assistant-launcher[hidden]{display:none!important}
+.voice-assistant-greeting{max-width:230px;padding:7px 10px;border:1px solid color-mix(in srgb,var(--accent) 18%,var(--line));border-radius:13px;background:color-mix(in srgb,var(--surface-strong) 92%,transparent);color:var(--text);box-shadow:0 8px 24px rgba(15,18,28,.13);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);font-size:11px;line-height:1.25;font-weight:760;text-align:right;pointer-events:auto}
+.voice-assistant-fab{position:relative;left:auto;right:auto;bottom:auto;width:56px;height:56px;overflow:hidden;border-radius:19px;padding:0;transform:none;background:#101628;border:1px solid rgba(122,144,255,.38);box-shadow:0 0 0 1px rgba(96,204,255,.14),0 8px 26px rgba(91,105,255,.34);animation:voiceAssistantGlow 2.6s ease-in-out infinite;pointer-events:auto}
+.voice-assistant-fab img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}.voice-assistant-fab:active{transform:scale(.93)}
+@keyframes voiceAssistantGlow{0%,100%{box-shadow:0 0 0 1px rgba(96,204,255,.12),0 8px 24px rgba(91,105,255,.28),0 0 18px rgba(76,201,255,.20)}50%{box-shadow:0 0 0 2px rgba(119,132,255,.20),0 10px 30px rgba(91,105,255,.42),0 0 30px rgba(76,201,255,.42)}}
+.voice-assistant-panel{--voice-assistant-keyboard-inset:0px;--voice-assistant-viewport-height:100dvh;bottom:calc(82px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)) + var(--voice-assistant-keyboard-inset));max-height:min(calc(var(--voice-assistant-viewport-height) - 104px),540px);grid-template-rows:auto minmax(86px,1fr) auto auto auto}
+.voice-assistant-description{display:block;margin-top:3px;color:var(--muted);font-size:10.5px;line-height:1.3;font-weight:590}
+.voice-assistant-text-form{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:8px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:17px;background:var(--soft)}
+.voice-assistant-text-input{min-width:0;height:40px;padding:0 8px;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:14px;line-height:1.2;-webkit-appearance:none;appearance:none}
+.voice-assistant-text-input::placeholder{color:color-mix(in srgb,var(--muted) 82%,transparent)}
+.voice-assistant-text-send{width:42px;height:42px;display:grid;place-items:center;padding:0;border:0;border-radius:13px;background:var(--accent);color:#fff;box-shadow:0 7px 18px color-mix(in srgb,var(--accent) 25%,transparent);-webkit-tap-highlight-color:transparent}
+.voice-assistant-text-send svg{width:19px;height:19px}.voice-assistant-text-send:disabled,.voice-assistant-text-input:disabled{opacity:.55}
+body.voice-assistant-input-active{overscroll-behavior:none}
+body.voice-assistant-input-active .voice-assistant-panel{bottom:calc(8px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)) + var(--voice-assistant-keyboard-inset));max-height:min(calc(var(--voice-assistant-viewport-height) - 16px),540px)}
+html[data-theme="dark"] .voice-assistant-greeting{background:rgba(23,27,38,.94);border-color:rgba(255,255,255,.09)}
+@media(max-width:600px){.voice-assistant-launcher{right:18px}.voice-assistant-panel{width:calc(100vw - 20px)}}
+@media(prefers-reduced-motion:reduce){.voice-assistant-fab{animation:none!important}}

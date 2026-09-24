@@ -40,6 +40,7 @@
       let voiceAssistantVoiceEnabled = false;
       let voiceAssistantSpeechToken = 0;
       let voiceAssistantSpeechUtterance = null;
+      let voiceAssistantGreeting = '';
       let appViewTransitionActive = false;
       let requestedAppTab = '';
       let requestedItemId = '';
@@ -1420,33 +1421,71 @@
 
       function voiceAssistantElements(){
         return {
+          launcher:document.getElementById('voiceAssistantLauncher'),
           fab:document.getElementById('voiceAssistantFab'),
+          greeting:document.getElementById('voiceAssistantGreeting'),
+          panelGreeting:document.getElementById('voiceAssistantPanelGreeting'),
           panel:document.getElementById('voiceAssistantPanel'),
           close:document.getElementById('voiceAssistantClose'),
           talk:document.getElementById('voiceAssistantTalk'),
           label:document.getElementById('voiceAssistantTalkLabel'),
           dialogue:document.getElementById('voiceAssistantDialogue'),
           empty:document.getElementById('voiceAssistantEmpty'),
-          status:document.getElementById('voiceAssistantStatus')
+          status:document.getElementById('voiceAssistantStatus'),
+          form:document.getElementById('voiceAssistantTextForm'),
+          input:document.getElementById('voiceAssistantTextInput'),
+          send:document.getElementById('voiceAssistantTextSend')
         };
       }
 
-      function voiceAssistantSupported(){
+      function voiceAssistantGreetingText(){
+        const name=String(firstName||currentActor||'').trim().split(/\s+/)[0]||'';
+        const phrases=[
+          'как дела?',
+          'чем займёмся?',
+          'что у тебя на уме?',
+          'я рядом',
+          'чем помочь?',
+          'рассказывай',
+          'что делаем?'
+        ];
+        let index=0;
+        try{
+          const key='rudi:voice-greeting';
+          const previous=Number(localStorage.getItem(key));
+          index=Math.floor(Math.random()*phrases.length);
+          if(phrases.length>1&&Number.isFinite(previous)&&index===previous) index=(index+1)%phrases.length;
+          localStorage.setItem(key,String(index));
+        }catch(_){index=Math.floor(Math.random()*phrases.length)}
+        return (name?name+', ':'')+phrases[index];
+      }
+
+      function syncVoiceAssistantGreeting(){
+        if(!voiceAssistantGreeting) voiceAssistantGreeting=voiceAssistantGreetingText();
+        const {greeting,panelGreeting}=voiceAssistantElements();
+        if(greeting) greeting.textContent=voiceAssistantGreeting;
+        if(panelGreeting) panelGreeting.textContent=voiceAssistantGreeting;
+      }
+
+      function voiceAssistantSupported(){      function voiceAssistantSupported(){
         return Boolean(navigator.mediaDevices?.getUserMedia&&window.MediaRecorder);
       }
 
       function setVoiceAssistantStatus(text,state='idle'){
-        const {status,talk,label}=voiceAssistantElements();
+        const {status,talk,label,input,send}=voiceAssistantElements();
         if(status){status.textContent=String(text||'');status.dataset.state=state}
+        const locked=state==='busy'||state==='recording';
         if(talk){
           talk.classList.toggle('is-recording',state==='recording');
           talk.classList.toggle('is-busy',state==='busy');
           talk.disabled=state==='busy';
         }
+        if(input) input.disabled=locked;
+        if(send) send.disabled=locked||!String(input?.value||'').trim();
         if(label) label.textContent=state==='recording'?'Закончить':state==='busy'?'Обрабатываю…':voiceAssistantHistory.length?'Сказать ещё':'Говорить';
       }
 
-      function cleanVoiceAssistantText(value){
+      function cleanVoiceAssistantText(      function cleanVoiceAssistantText(value){
         return String(value||'')
           .replace(/<br\s*\/?\s*>/giu,'\n')
           .replace(/<\/?[a-z][^>]*>/giu,'')
@@ -1690,6 +1729,86 @@
         }
       }
 
+      function applyVoiceAssistantActionResult(actionResult){
+        const actionType=String(actionResult?.type||'');
+        if(actionType.startsWith('products-')){
+          invalidateManagedRequests('products');
+          loadProducts({silent:true}).catch(()=>{});
+        }else if(actionType.startsWith('wishlist-')){
+          invalidateManagedRequests('wishlist');
+          wishlistRequest('list').then(renderWishlist).catch(()=>{});
+        }else if(actionType==='saved-remove'){
+          Promise.resolve(window.RUDI_SAVES?.load?.()).catch(()=>{});
+        }else if(actionType==='lulu-walk'){
+          luluRequest('get').then(data=>renderLulu(data.lulu)).catch(()=>{});
+        }else if(actionType==='mood-set'){
+          refreshDailyMood().catch(()=>{});
+        }else if(actionType==='app-navigate'&&APP_TABS.includes(String(actionResult?.tab||''))){
+          navigateToAppTab(String(actionResult.tab),{scroll:false});
+        }else if(actionType.startsWith('smart-home')){
+          window.RUDI_SMART_HOME?.refresh?.();
+        }
+      }
+
+      async function sendVoiceAssistantText(value){
+        const text=cleanVoiceAssistantText(value).slice(0,1200);
+        if(voiceAssistantBusy||!text) return;
+        const historyBefore=voiceAssistantHistory.slice(-8);
+        voiceAssistantBusy=true;
+        stopVoiceAssistantSpeech();
+        renderVoiceAssistantMessage('user',text);
+        voiceAssistantHistory.push({role:'user',content:text});
+        voiceAssistantHistory=voiceAssistantHistory.slice(-8);
+        setVoiceAssistantStatus('Отвечаю…','busy');
+        try{
+          const response=await fetch('/api/partner-message?rudiAction=voice-assistant',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              initData:telegramInitData(),
+              backupToken:currentStateBackupToken||readLocalStateBackupToken(),
+              text,
+              history:historyBefore,
+              timeZone:(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||TZ}catch(_){return TZ}})(),
+              ui:{tab:currentAppTab,selectedDate:currentSelectedWorkDate||''}
+            }),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok){
+            const requestError=new Error(payload.error||'voice-assistant-failed');
+            requestError.retryAfterSeconds=Math.max(1,Number(payload.retryAfterSeconds)||20);
+            throw requestError;
+          }
+          applyVoiceAssistantActionResult(payload.actionResult);
+          const answer=cleanVoiceAssistantText(payload.answer);
+          if(answer){
+            renderVoiceAssistantMessage('assistant',answer);
+            voiceAssistantHistory.push({role:'assistant',content:answer});
+            voiceAssistantHistory=voiceAssistantHistory.slice(-8);
+            voiceAssistantLastAnswer=answer;
+            if(voiceAssistantVoiceEnabled){
+              setVoiceAssistantStatus('Отвечаю голосом…','idle');
+              if(!speakVoiceAssistant(answer)) setVoiceAssistantStatus('Ответ готов','idle');
+            }else{
+              setVoiceAssistantStatus('Ответ готов','idle');
+            }
+          }else setVoiceAssistantStatus('Не смогла получить ответ','idle');
+        }catch(error){
+          const code=String(error?.message||error);
+          const retry=Math.max(1,Number(error?.retryAfterSeconds)||20);
+          const message=code==='voice-chat-rate-limit'?'Слишком много запросов подряд. Подожди '+retry+' сек. и попробуй ещё раз.'
+            :/telegram-auth|auth-required|auth-expired/i.test(code)?'Нужно заново открыть RUDI из Telegram.'
+            :'Не смогла ответить. Попробуй ещё раз.';
+          setVoiceAssistantStatus(message,'idle');
+        }finally{
+          voiceAssistantBusy=false;
+          const {input,send,label}=voiceAssistantElements();
+          if(input) input.disabled=false;
+          if(send) send.disabled=!String(input?.value||'').trim();
+          if(label) label.textContent=voiceAssistantHistory.length?'Сказать ещё':'Говорить';
+        }
+      }
+
       function stopVoiceAssistantRecording(){
         clearTimeout(voiceAssistantRecordingTimer);voiceAssistantRecordingTimer=0;
         const recorder=voiceAssistantRecorder;if(!recorder) return;
@@ -1712,7 +1831,7 @@
             const type=recorder.mimeType||mimeType||voiceAssistantChunks[0]?.type||'audio/webm';
             const blob=new Blob(voiceAssistantChunks,{type});
             voiceAssistantRecorder=null;voiceAssistantChunks=[];releaseVoiceAssistantStream();
-            if(blob.size<256){setVoiceAssistantStatus('Ничего не услышал. Попробуйте ещё раз.','idle');return}
+            if(blob.size<256){setVoiceAssistantStatus('Ничего не услышала. Попробуйте ещё раз.','idle');return}
             sendVoiceAssistantAudio(blob);
           },{once:true});
           recorder.start(250);setVoiceAssistantStatus('Слушаю…','recording');
@@ -1725,31 +1844,58 @@
         }
       }
 
+      function updateVoiceAssistantViewport(){
+        const {panel,input}=voiceAssistantElements();
+        if(!panel) return;
+        const viewport=window.visualViewport;
+        const height=Math.max(1,Math.round(viewport?.height||window.innerHeight||document.documentElement.clientHeight||1));
+        const offsetTop=Math.max(0,Math.round(viewport?.offsetTop||0));
+        const layoutHeight=Math.max(height,Math.round(window.innerHeight||height));
+        const keyboardInset=viewport?Math.max(0,layoutHeight-height-offsetTop):0;
+        panel.style.setProperty('--voice-assistant-keyboard-inset',keyboardInset+'px');
+        panel.style.setProperty('--voice-assistant-viewport-height',height+'px');
+        const active=document.activeElement===input;
+        document.body.classList.toggle('voice-assistant-input-active',active);
+        if(active){
+          requestAnimationFrame(()=>{
+            const {dialogue}=voiceAssistantElements();
+            if(dialogue) dialogue.scrollTop=dialogue.scrollHeight;
+          });
+        }
+      }
+
       function closeVoiceAssistant(){
         stopVoiceAssistantRecording();releaseVoiceAssistantStream();
         stopVoiceAssistantSpeech();
-        const {panel,fab}=voiceAssistantElements();
+        const {panel,launcher}=voiceAssistantElements();
         if(panel) panel.hidden=true;
-        if(fab) fab.hidden=false;
+        if(launcher) launcher.hidden=false;
+        document.body.classList.remove('voice-assistant-input-active');
+        updateVoiceAssistantViewport();
       }
 
       function syncVoiceAssistantVisibility(){
-        const {fab,panel}=voiceAssistantElements();
-        if(fab) fab.hidden=Boolean(panel&&!panel.hidden);
+        const {launcher,panel}=voiceAssistantElements();
+        if(launcher) launcher.hidden=Boolean(panel&&!panel.hidden);
       }
 
       function setupVoiceAssistant(){
-        const {fab,panel,close,talk,dialogue}=voiceAssistantElements();
+        const {launcher,fab,panel,close,talk,dialogue,form,input,send}=voiceAssistantElements();
         const voiceToggle=document.getElementById('voiceAssistantVoiceToggle');
         if(!fab||!panel||fab.dataset.bound==='1') return;
         fab.dataset.bound='1';
 
+        syncVoiceAssistantGreeting();
         setVoiceAssistantVoiceEnabled(false);
+        if(launcher) launcher.hidden=false;
+        if(send) send.disabled=!String(input?.value||'').trim();
 
         fab.addEventListener('click',()=>{
           panel.hidden=false;
-          fab.hidden=true;
-          setVoiceAssistantStatus(voiceAssistantHistory.length?'Можно говорить дальше':'Готов слушать','idle');
+          if(launcher) launcher.hidden=true;
+          syncVoiceAssistantGreeting();
+          setVoiceAssistantStatus(voiceAssistantHistory.length?'Можно продолжить':'Готова слушать','idle');
+          updateVoiceAssistantViewport();
         });
         close?.addEventListener('click',()=>closeVoiceAssistant());
         talk?.addEventListener('click',()=>{
@@ -1759,6 +1905,30 @@
         voiceToggle?.addEventListener('click',()=>{
           setVoiceAssistantVoiceEnabled(!voiceAssistantVoiceEnabled);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+
+        input?.addEventListener('input',()=>{
+          if(send) send.disabled=voiceAssistantBusy||!String(input.value||'').trim();
+        });
+        input?.addEventListener('focus',()=>{
+          document.body.classList.add('voice-assistant-input-active');
+          updateVoiceAssistantViewport();
+          setTimeout(updateVoiceAssistantViewport,60);
+          setTimeout(updateVoiceAssistantViewport,240);
+        });
+        input?.addEventListener('blur',()=>{
+          setTimeout(()=>{
+            if(document.activeElement!==input) document.body.classList.remove('voice-assistant-input-active');
+            updateVoiceAssistantViewport();
+          },120);
+        });
+        form?.addEventListener('submit',event=>{
+          event.preventDefault();
+          const value=String(input?.value||'').trim();
+          if(!value||voiceAssistantBusy) return;
+          if(input) input.value='';
+          if(send) send.disabled=true;
+          sendVoiceAssistantText(value);
         });
 
         let dialogueTouchY=0;
@@ -1776,11 +1946,15 @@
           dialogueTouchY=y;
         },{passive:false});
 
+        window.addEventListener('resize',updateVoiceAssistantViewport,{passive:true});
+        window.visualViewport?.addEventListener?.('resize',updateVoiceAssistantViewport,{passive:true});
+        window.visualViewport?.addEventListener?.('scroll',updateVoiceAssistantViewport,{passive:true});
         try{window.speechSynthesis?.addEventListener?.('voiceschanged',()=>preferredVoiceAssistantVoice(),{passive:true})}catch(_){}
+        updateVoiceAssistantViewport();
         syncVoiceAssistantVisibility(currentAppTab);
       }
 
-      function setupAppTabs(){
+      function setupAppTabs(){      function setupAppTabs(){
         const initial=routeFromLocation();
         const initialTab=requestedAppTab||initial.tab||'home';
         const initialItem=requestedItemId||initial.item||'';
