@@ -3323,9 +3323,25 @@
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
+          try{
+            if(currentActor) localStorage.setItem('rudi-offline-access-v1',JSON.stringify({actor:currentActor,verifiedAt:Date.now()}));
+          }catch(_){};
         }catch(error){
           const code=String(error?.message||'');
-          if(!telegramInitData()&&['rudi-session-required','rudi-session-invalid','rudi-session-expired'].includes(code)){
+          let offlineActor='';
+          if(navigator.onLine===false){
+            try{
+              const cached=JSON.parse(localStorage.getItem('rudi-offline-access-v1')||'null');
+              const age=Date.now()-Number(cached?.verifiedAt||0);
+              if(['Рустам','Диана'].includes(String(cached?.actor||''))&&age>=0&&age<30*DAY){
+                offlineActor=String(cached.actor);
+              }
+            }catch(_){}
+          }
+          if(offlineActor){
+            currentActor=offlineActor;
+            document.body.dataset.offlineMode='1';
+          }else if(!telegramInitData()&&['rudi-session-required','rudi-session-invalid','rudi-session-expired'].includes(code)){
             currentActor=await showBrowserLogin();
             await maybeOfferFaceIdSetup();
           }else{
