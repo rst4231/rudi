@@ -9,6 +9,7 @@ on:
       - 'public/**'
       - 'build.cjs'
       - 'rudi-version.json'
+      - 'VERSION'
       - 'playwright.config.cjs'
       - 'package.json'
       - 'vercel.json'
