@@ -106,11 +106,19 @@ async function hasQueuedForDiSource(sources, options = {}) {
 async function publishForDiToRudi(options = {}) {
   const now = options.now || new Date();
   const { dateKey, messages } = await readForDiMessages({ ...options, now });
-  if (!messages.length) {
-    return { dateKey, queued: 0, published: 0, sent: 0, skipped: 'empty' };
+  const publishable = messages.filter((row) => String(row?.source || '').trim() === 'labor');
+  if (!publishable.length) {
+    return {
+      dateKey,
+      queued: messages.length,
+      published: 0,
+      sent: 0,
+      skipped: messages.length ? 'no-enabled-categories' : 'empty',
+      stylistDevelopmentEnabled: false,
+    };
   }
 
-  const result = await appendForDiMessages(messages, dateKey, {
+  const result = await appendForDiMessages(publishable, dateKey, {
     ...options,
     now,
   });
@@ -122,11 +130,12 @@ async function publishForDiToRudi(options = {}) {
     total: result.state.items.length,
     sent: 0,
     telegramDelivery: false,
+    stylistDevelopmentEnabled: false,
   };
 }
 
-// Kept as a compatibility alias for the existing 12:00 cron.
-// It now publishes to the persistent RUDI feed and never sends a Telegram DM.
+// Kept as a compatibility alias for the manual recovery endpoint.
+// Scheduled publishing now runs with the main daily feed and never sends a Telegram DM.
 async function sendForDiPrivateMessages(options = {}) {
   return publishForDiToRudi(options);
 }
