@@ -1779,6 +1779,79 @@
         }
       }
 
+      async function updateSettingsFaceIdUi(){
+        const status=document.getElementById('settingsFaceIdStatus');
+        const button=document.getElementById('settingsFaceIdConnect');
+        if(!status||!button) return;
+
+        button.hidden=false;
+        button.disabled=true;
+        button.classList.remove('is-enabled');
+
+        if(!passkeySupported()){
+          status.textContent='Недоступен на этом устройстве';
+          button.hidden=true;
+          return;
+        }
+        if(!currentActor){
+          status.textContent='Недоступен';
+          button.hidden=true;
+          return;
+        }
+
+        status.textContent='Проверяю…';
+        try{
+          const configured=await faceIdConfigured();
+          if(configured){
+            status.textContent='Включён';
+            button.textContent='Включён';
+            button.classList.add('is-enabled');
+            button.disabled=true;
+            return;
+          }
+          status.textContent='Не подключён';
+          button.textContent='Подключить';
+          button.disabled=false;
+        }catch(_){
+          status.textContent='Не удалось проверить';
+          button.textContent='Повторить';
+          button.disabled=false;
+        }
+      }
+
+      async function connectFaceIdFromSettings(){
+        const status=document.getElementById('settingsFaceIdStatus');
+        const button=document.getElementById('settingsFaceIdConnect');
+        if(!status||!button||button.disabled) return;
+
+        button.disabled=true;
+        status.textContent='Подготавливаю…';
+        try{
+          const prepared=await prepareFaceIdRegistration();
+          status.textContent='Подтвердите Face ID…';
+          const credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey});
+          await finishFaceIdRegistration(prepared,credentialPromise);
+          status.textContent='Включён';
+          button.textContent='Включён';
+          button.classList.add('is-enabled');
+          button.disabled=true;
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(error){
+          const name=String(error?.name||'');
+          status.textContent=name==='NotAllowedError'
+            ?'Подключение отменено'
+            :name==='SecurityError'
+              ?'Недоступен для этого адреса'
+              :name==='NotSupportedError'
+                ?'Не поддерживается'
+                :'Не удалось подключить';
+          button.textContent='Повторить';
+          button.classList.remove('is-enabled');
+          button.disabled=false;
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }
+      }
+
       function updateSettingsVersion(){
         const version=document.getElementById('settingsAppVersion');
         if(version) version.textContent=appVersionLabel()||'—';
@@ -1796,6 +1869,7 @@
           panel.hidden=false;
           updateSettingsVersion();
           updatePwaInstallUi();
+          updateSettingsFaceIdUi();
           requestAnimationFrame(()=>panel.classList.add('is-open'));
         }else{
           panel.classList.remove('is-open');
@@ -1819,6 +1893,7 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
         document.getElementById('settingsPwaInstall')?.addEventListener('click',installPwa);
+        document.getElementById('settingsFaceIdConnect')?.addEventListener('click',connectFaceIdFromSettings);
         document.addEventListener('click',event=>{
           if(panel.hidden||!panel.classList.contains('is-open')) return;
           if(event.target.closest?.('#homeSettings')) return;
@@ -1829,6 +1904,7 @@
         });
         updateSettingsVersion();
         updatePwaInstallUi();
+        updateSettingsFaceIdUi();
       }
 
       function hideUndoSnackbar(){
@@ -2331,6 +2407,10 @@
             '<div class="home-settings-row">'+
               '<div class="home-settings-copy"><strong>PWA</strong><small id="settingsPwaStatus">Добавить на устройство</small></div>'+
               '<button id="settingsPwaInstall" class="settings-pwa-install" type="button">Установить</button>'+
+            '</div>'+
+            '<div class="home-settings-row">'+
+              '<div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus">Проверяю…</small></div>'+
+              '<button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить</button>'+
             '</div>'+
             '<div class="home-settings-row">'+
               '<div class="home-settings-copy"><strong>Версия</strong><small>Текущая сборка RUDI</small></div>'+
