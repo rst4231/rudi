@@ -48,3 +48,9 @@ test('assistant UI presents RUDI as a female assistant',()=>{
   assert.match(html,/aria-label="AI-помощница RUDI"/);
   assert.doesNotMatch(html,/Голосовой ассистент RUDI/);
 });
+
+
+test('keyboard editing never hides the open assistant panel',()=>{
+  assert.doesNotMatch(css,/body\.keyboard-editing \.voice-assistant-panel\s*\{[^}]*display\s*:\s*none/i);
+  assert.match(css,/body\.keyboard-editing \.voice-assistant-fab\{display:none!important\}/);
+});
