@@ -4,7 +4,6 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const NAMESPACE = 'rudi-saved-items-v1';
 const STATE_KEY = 'shared-saves';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
-const MAX_ITEMS = 80;
 const MAX_TEXT = 6000;
 
 let mutationQueue = Promise.resolve();
@@ -97,7 +96,7 @@ function normalizeState(value) {
   const items = (Array.isArray(value?.items) ? value.items : [])
     .map(normalizeItem)
     .filter(Boolean)
-    .slice(0, MAX_ITEMS);
+    ;
   return {
     initialized: Boolean(value?.initialized || value?.version || items.length),
     version: Number(value?.version || 0),
@@ -150,7 +149,6 @@ async function addSavedItem(type, payload, savedBy, options = {}) {
       createdAt: new Date(options.now || Date.now()).toISOString(),
     };
     state.items.unshift(item);
-    state.items = state.items.slice(0, MAX_ITEMS);
     return { state: await writeSavedItems(state, options), item, duplicate: false };
   });
 }
@@ -172,7 +170,6 @@ function resetMutationQueueForTests() {
 
 module.exports = {
   NAMESPACE,
-  MAX_ITEMS,
   readSavedItems,
   writeSavedItems,
   normalizeState,
