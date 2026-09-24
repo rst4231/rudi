@@ -2027,11 +2027,15 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : ['voice-audio-type', 'voice-audio-invalid', 'voice-audio-empty', 'voice-audio-too-large', 'voice-no-speech'].includes(code) ? 400
-        : code === 'voice-ai-quota' ? 429
+        : ['voice-stt-rate-limit', 'voice-chat-rate-limit'].includes(code) ? 429
         : code === 'groq-api-key-missing' ? 503
         : 502;
       if (status >= 500) console.error('RUDI_VOICE_ASSISTANT_ERROR', code);
-      return res.status(status).json({ ok: false, error: code });
+      return res.status(status).json({
+        ok: false,
+        error: code,
+        ...(status === 429 ? { retryAfterSeconds:Math.max(1,Number(error?.retryAfterSeconds)||20) } : {}),
+      });
     }
   }
 

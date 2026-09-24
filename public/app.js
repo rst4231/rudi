@@ -1584,7 +1584,11 @@
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
-          if(!response.ok||!payload.ok) throw new Error(payload.error||'voice-assistant-failed');
+          if(!response.ok||!payload.ok){
+            const requestError=new Error(payload.error||'voice-assistant-failed');
+            requestError.retryAfterSeconds=Math.max(1,Number(payload.retryAfterSeconds)||20);
+            throw requestError;
+          }
           const transcript=String(payload.transcript||'').trim();
           const answer=String(payload.answer||'').trim();
           if(transcript){renderVoiceAssistantMessage('user',transcript);voiceAssistantHistory.push({role:'user',content:transcript})}
@@ -1602,7 +1606,13 @@
           }else setVoiceAssistantStatus('Не удалось получить ответ','idle');
         }catch(error){
           const code=String(error?.message||error);
-          const message=code==='voice-no-speech'?'Речь не распознана. Попробуйте ещё раз.':code==='voice-ai-quota'?'Бесплатный лимит Groq временно исчерпан.':code==='voice-audio-too-large'?'Запись слишком длинная.':/permission|notallowed/i.test(code)?'Нужен доступ к микрофону.':'Не удалось обработать голос. Попробуйте ещё раз.';
+          const retry=Math.max(1,Number(error?.retryAfterSeconds)||20);
+          const message=code==='voice-no-speech'?'Речь не распознана. Попробуйте ещё раз.'
+            :code==='voice-stt-rate-limit'?'Слишком много голосовых запросов подряд. Подожди '+retry+' сек. и попробуй ещё раз.'
+            :code==='voice-chat-rate-limit'?'Слишком много запросов подряд. Подожди '+retry+' сек. и попробуй ещё раз.'
+            :code==='voice-audio-too-large'?'Запись слишком длинная.'
+            :/permission|notallowed/i.test(code)?'Нужен доступ к микрофону.'
+            :'Не удалось обработать голос. Попробуйте ещё раз.';
           setVoiceAssistantStatus(message,'idle');
         }finally{
           voiceAssistantBusy=false;

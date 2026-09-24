@@ -53,6 +53,16 @@ async function fetchWithTimeout(url, init, timeoutMs, fetchImpl) {
   }
 }
 
+function rateLimitError(scope, response) {
+  const error = new Error(scope === 'transcription' ? 'voice-stt-rate-limit' : 'voice-chat-rate-limit');
+  const raw = String(response?.headers?.get?.('retry-after') || '').trim();
+  const seconds = Number(raw);
+  error.retryAfterSeconds = Number.isFinite(seconds) && seconds > 0
+    ? Math.min(300, Math.max(1, Math.ceil(seconds)))
+    : 20;
+  return error;
+}
+
 async function transcribeAudio(bytes, mimeType, options = {}) {
   const apiKey = cleanText(options.apiKey || options.env?.GROQ_API_KEY || process.env.GROQ_API_KEY, 500);
   if (!apiKey) throw new Error('groq-api-key-missing');
@@ -72,7 +82,7 @@ async function transcribeAudio(bytes, mimeType, options = {}) {
     body: form,
   }, options.transcriptionTimeoutMs || 18000, fetchImpl);
 
-  if (response.status === 429) throw new Error('voice-ai-quota');
+  if (response.status === 429) throw rateLimitError('transcription', response);
   if (!response.ok) throw new Error('voice-transcription-provider');
   const payload = await response.json().catch(() => null);
   const transcript = cleanText(payload?.text, 1800);
@@ -137,7 +147,7 @@ async function answerTranscript(transcript, history, options = {}) {
     }),
   }, options.chatTimeoutMs || 18000, fetchImpl);
 
-  if (response.status === 429) throw new Error('voice-ai-quota');
+  if (response.status === 429) throw rateLimitError('chat', response);
   if (!response.ok) throw new Error('voice-chat-provider');
   const payload = await response.json().catch(() => null);
   const answer = cleanText(payload?.choices?.[0]?.message?.content, 2200);
