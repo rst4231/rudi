@@ -5,6 +5,7 @@
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       const media = window.matchMedia('(prefers-color-scheme: dark)');
       const tg = window.Telegram?.WebApp;
+      if(!tg?.initData&&/iphone|ipad|ipod/i.test(navigator.userAgent||'')) document.body.dataset.iosBrowser='1';
       const DAY = 86400000;
       let currentActor = '';
       let appAccessReady = false;
@@ -527,6 +528,64 @@
       function themeModeStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:theme-mode:v1:'+actor;
+      }
+
+      function autoRefreshStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:auto-refresh:v1:'+actor;
+      }
+
+      function interfaceDensityStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:interface-density:v1:'+actor;
+      }
+
+      function interfaceMotionStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:interface-motion:v1:'+actor;
+      }
+
+      function interfaceTextSizeStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:interface-text-size:v1:'+actor;
+      }
+
+      function dataLastSyncStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:data-last-sync:v1:'+actor;
+      }
+
+      function autoRefreshEnabled(){
+        if(!currentActor) return true;
+        try{return localStorage.getItem(autoRefreshStorageKey())!=='0'}catch(_){return true}
+      }
+
+      function currentInterfaceDensity(){
+        if(!currentActor) return 'normal';
+        try{return localStorage.getItem(interfaceDensityStorageKey())==='compact'?'compact':'normal'}catch(_){return 'normal'}
+      }
+
+      function interfaceMotionEnabled(){
+        if(!currentActor) return true;
+        try{return localStorage.getItem(interfaceMotionStorageKey())!=='0'}catch(_){return true}
+      }
+
+      function currentInterfaceTextSize(){
+        if(!currentActor) return 'normal';
+        try{
+          const value=String(localStorage.getItem(interfaceTextSizeStorageKey())||'normal');
+          return ['small','normal','large'].includes(value)?value:'normal';
+        }catch(_){return 'normal'}
+      }
+
+      function lastDataSyncAt(){
+        try{return String(localStorage.getItem(dataLastSyncStorageKey())||'')}catch(_){return ''}
+      }
+
+      function markDataSyncNow(){
+        if(!currentActor) return;
+        try{localStorage.setItem(dataLastSyncStorageKey(),new Date().toISOString())}catch(_){}
+        updateDataSettingsUi();
       }
 
       function currentThemeMode(){
@@ -1884,6 +1943,9 @@
           updateSettingsVersion();
           updatePwaInstallUi();
           updateSettingsFaceIdUi();
+          setupExtendedSettings();
+          updateDataSettingsUi();
+          updateAboutSettingsUi();
           requestAnimationFrame(()=>panel.classList.add('is-open'));
         }else{
           panel.classList.remove('is-open');
@@ -1919,6 +1981,7 @@
         updateSettingsVersion();
         updatePwaInstallUi();
         updateSettingsFaceIdUi();
+        setupExtendedSettings();
       }
 
       function hideUndoSnackbar(){
@@ -2406,27 +2469,77 @@
           '</button>'+
           '<div id="homeSettingsPanel" class="home-settings-panel" hidden>'+
             '<div class="home-settings-title">Настройки</div>'+
-            '<div class="home-settings-row home-settings-theme-row">'+
-              '<div class="home-settings-copy"><strong>Тема</strong><small>Вид приложения</small></div>'+
-              '<div class="settings-theme-options" role="group" aria-label="Тема приложения">'+
-                '<button class="settings-theme-option" type="button" data-theme-mode="system" aria-pressed="true" title="Системная">Авто</button>'+
-                '<button class="settings-theme-option" type="button" data-theme-mode="light" aria-pressed="false" title="Светлая">Светлая</button>'+
-                '<button class="settings-theme-option" type="button" data-theme-mode="dark" aria-pressed="false" title="Тёмная">Тёмная</button>'+
-              '</div>'+
-            '</div>'+
-            '<div class="home-settings-row">'+
-              '<div class="home-settings-copy"><strong>Курсы</strong><small>Показывать на главной</small></div>'+
-              '<button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать курсы"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-            '</div>'+
-            '<div class="home-settings-row">'+
-              '<div class="home-settings-copy"><strong>PWA</strong><small id="settingsPwaStatus">Добавить на устройство</small></div>'+
-              '<button id="settingsPwaInstall" class="settings-pwa-install" type="button">Установить</button>'+
-            '</div>'+
 
-            '<div class="home-settings-row">'+
-              '<div class="home-settings-copy"><strong>Версия</strong><small>Текущая сборка RUDI</small></div>'+
-              '<span id="settingsAppVersion" class="home-settings-version"></span>'+
-            '</div>'+
+            '<section class="settings-group">'+
+              '<div class="settings-group-title">Автообновление</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Обновлять автоматически</strong><small>Свежие данные в фоне</small></div>'+
+                '<button id="settingsAutoRefreshToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Автоматическое обновление"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Ручное обновление</strong><small>Проверить данные прямо сейчас</small></div>'+
+                '<button id="settingsRefreshNow" class="settings-secondary-action" type="button">Обновить сейчас</button>'+
+              '</div>'+
+            '</section>'+
+
+            '<section class="settings-group">'+
+              '<div class="settings-group-title">Интерфейс</div>'+
+              '<div class="home-settings-row home-settings-theme-row">'+
+                '<div class="home-settings-copy"><strong>Тема</strong><small>Вид приложения</small></div>'+
+                '<div class="settings-theme-options" role="group" aria-label="Тема приложения">'+
+                  '<button class="settings-theme-option" type="button" data-theme-mode="system" aria-pressed="true">Авто</button>'+
+                  '<button class="settings-theme-option" type="button" data-theme-mode="light" aria-pressed="false">Светлая</button>'+
+                  '<button class="settings-theme-option" type="button" data-theme-mode="dark" aria-pressed="false">Тёмная</button>'+
+                '</div>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Вид</strong><small>Плотность интерфейса</small></div>'+
+                '<div class="settings-segmented settings-segmented-two">'+
+                  '<button type="button" data-interface-density="normal" aria-pressed="true">Обычный</button>'+
+                  '<button type="button" data-interface-density="compact" aria-pressed="false">Компактный</button>'+
+                '</div>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Анимации</strong><small>Переходы и эффекты</small></div>'+
+                '<button id="settingsMotionToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Анимации"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Размер текста</strong><small>Мелкий, обычный или крупный</small></div>'+
+                '<div class="settings-segmented settings-text-size">'+
+                  '<button type="button" data-text-size="small" aria-pressed="false">A−</button>'+
+                  '<button type="button" data-text-size="normal" aria-pressed="true">A</button>'+
+                  '<button type="button" data-text-size="large" aria-pressed="false">A+</button>'+
+                '</div>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Курсы</strong><small>Показывать на главной</small></div>'+
+                '<button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать курсы"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+            '</section>'+
+
+            '<section class="settings-group">'+
+              '<div class="settings-group-title">Данные</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong id="settingsSyncStatus">Синхронизация работает</strong><small id="settingsLastUpdated">Последнее обновление: —</small></div>'+
+                '<span id="settingsNetworkStatus" class="settings-status-pill">Онлайн</span>'+
+              '</div>'+
+            '</section>'+
+
+            '<section class="settings-group">'+
+              '<div class="settings-group-title">О приложении</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Версия</strong><small>Текущая сборка RUDI</small></div>'+
+                '<span id="settingsAppVersion" class="home-settings-version"></span>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>PWA</strong><small id="settingsPwaStatus">Добавить на устройство</small></div>'+
+                '<button id="settingsPwaInstall" class="settings-pwa-install" type="button">Установить</button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Режим</strong><small>Как запущено приложение</small></div>'+
+                '<span id="settingsRuntimeMode" class="home-settings-version">—</span>'+
+              '</div>'+
+            '</section>'+
           '</div>';
 
         tools.append(notifications,settings);
@@ -2799,6 +2912,134 @@
         updateThemeSettingControls();
       }
 
+      function applyInterfacePreferences(){
+        document.body.dataset.uiDensity=currentInterfaceDensity();
+        document.body.dataset.uiMotion=interfaceMotionEnabled()?'on':'off';
+        document.documentElement.dataset.textSize=currentInterfaceTextSize();
+        updateInterfaceSettingsUi();
+      }
+
+      function updateInterfaceSettingsUi(){
+        const density=currentInterfaceDensity();
+        const textSize=currentInterfaceTextSize();
+        document.querySelectorAll('[data-interface-density]').forEach(button=>{
+          const active=button.dataset.interfaceDensity===density;
+          button.classList.toggle('active',active);
+          button.setAttribute('aria-pressed',active?'true':'false');
+        });
+        document.querySelectorAll('[data-text-size]').forEach(button=>{
+          const active=button.dataset.textSize===textSize;
+          button.classList.toggle('active',active);
+          button.setAttribute('aria-pressed',active?'true':'false');
+        });
+        const motion=document.getElementById('settingsMotionToggle');
+        if(motion) motion.setAttribute('aria-checked',interfaceMotionEnabled()?'true':'false');
+      }
+
+      function setInterfaceDensity(value){
+        const next=value==='compact'?'compact':'normal';
+        try{localStorage.setItem(interfaceDensityStorageKey(),next)}catch(_){}
+        applyInterfacePreferences();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setInterfaceMotion(enabled){
+        try{localStorage.setItem(interfaceMotionStorageKey(),enabled?'1':'0')}catch(_){}
+        applyInterfacePreferences();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setInterfaceTextSize(value){
+        const next=['small','normal','large'].includes(String(value||''))?String(value):'normal';
+        try{localStorage.setItem(interfaceTextSizeStorageKey(),next)}catch(_){}
+        applyInterfacePreferences();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function updateAutoRefreshUi(){
+        const toggle=document.getElementById('settingsAutoRefreshToggle');
+        if(toggle) toggle.setAttribute('aria-checked',autoRefreshEnabled()?'true':'false');
+      }
+
+      function setAutoRefreshEnabled(enabled){
+        try{localStorage.setItem(autoRefreshStorageKey(),enabled?'1':'0')}catch(_){}
+        updateAutoRefreshUi();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function formatLastDataSync(){
+        const parsed=new Date(lastDataSyncAt());
+        if(Number.isNaN(parsed.getTime())) return 'ещё не обновлялось';
+        return new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(parsed);
+      }
+
+      function updateDataSettingsUi(){
+        const status=document.getElementById('settingsSyncStatus');
+        const updated=document.getElementById('settingsLastUpdated');
+        const network=document.getElementById('settingsNetworkStatus');
+        if(status) status.textContent=navigator.onLine===false?'Офлайн':'Синхронизация работает';
+        if(updated) updated.textContent='Последнее обновление: '+formatLastDataSync();
+        if(network) network.textContent=navigator.onLine===false?'Нет сети':'Онлайн';
+      }
+
+      function updateAboutSettingsUi(){
+        const mode=document.getElementById('settingsRuntimeMode');
+        if(mode) mode.textContent=isStandalonePwa()?'PWA':(tg?.initData?'Telegram':'Браузер');
+        updateSettingsVersion();
+        updatePwaInstallUi();
+      }
+
+      async function refreshAppDataNow(){
+        const button=document.getElementById('settingsRefreshNow');
+        const original=button?.textContent||'Обновить сейчас';
+        if(button){button.disabled=true;button.textContent='Обновляю…'}
+        try{
+          await refreshAfterResume({force:true});
+          await Promise.allSettled([
+            window.RUDI_CAR?.refresh?.(),
+            window.RUDI_SMART_HOME?.refresh?.(),
+            window.RUDI_SAVES?.load?.()
+          ]);
+          markDataSyncNow();
+          if(button) button.textContent='Обновлено';
+          setTimeout(()=>{if(button&&button.textContent==='Обновлено') button.textContent=original},900);
+        }finally{
+          if(button) button.disabled=false;
+        }
+      }
+
+      function setupExtendedSettings(){
+        document.querySelectorAll('[data-interface-density]').forEach(button=>{
+          if(button.dataset.bound==='1') return;
+          button.dataset.bound='1';
+          button.addEventListener('click',()=>setInterfaceDensity(button.dataset.interfaceDensity));
+        });
+        document.querySelectorAll('[data-text-size]').forEach(button=>{
+          if(button.dataset.bound==='1') return;
+          button.dataset.bound='1';
+          button.addEventListener('click',()=>setInterfaceTextSize(button.dataset.textSize));
+        });
+        const motion=document.getElementById('settingsMotionToggle');
+        if(motion&&motion.dataset.bound!=='1'){
+          motion.dataset.bound='1';
+          motion.addEventListener('click',()=>setInterfaceMotion(!interfaceMotionEnabled()));
+        }
+        const auto=document.getElementById('settingsAutoRefreshToggle');
+        if(auto&&auto.dataset.bound!=='1'){
+          auto.dataset.bound='1';
+          auto.addEventListener('click',()=>setAutoRefreshEnabled(!autoRefreshEnabled()));
+        }
+        const refresh=document.getElementById('settingsRefreshNow');
+        if(refresh&&refresh.dataset.bound!=='1'){
+          refresh.dataset.bound='1';
+          refresh.addEventListener('click',refreshAppDataNow);
+        }
+        updateAutoRefreshUi();
+        applyInterfacePreferences();
+        updateDataSettingsUi();
+        updateAboutSettingsUi();
+      }
+
       function isStandalonePwa(){
         return Boolean(
           window.matchMedia?.('(display-mode: standalone)')?.matches
@@ -2920,7 +3161,7 @@
           indicator.style.setProperty('--pull-distance','72px');
           if(label) label.textContent='Обновляю…';
           const startedAt=Date.now();
-          Promise.resolve(refreshAfterResume())
+          Promise.resolve(refreshAfterResume({force:true}))
             .then(()=>{
               const delay=Math.max(0,420-(Date.now()-startedAt));
               setTimeout(()=>{
@@ -7751,6 +7992,7 @@
           save.disabled=true;
           try{
             await window.RUDI_SAVES?.save?.('recipe',recipe,save);
+            setTimeout(()=>loadActivityJournal({silent:true}),120);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
             save.disabled=false;
@@ -8053,6 +8295,7 @@
                 duration:idea.duration,
                 period:normalized.period
               },save);
+              setTimeout(()=>loadActivityJournal({silent:true}),120);
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(_){
               save.disabled=false;
@@ -8374,6 +8617,7 @@
         setupMarketTicker();
         setupPersistentCollapsibles();
         setupThemeSetting();
+        setupExtendedSettings();
         setupUndoSnackbar();
         loadActivityJournal();
         setupAppTabs();
@@ -8412,17 +8656,17 @@
           denyApp('Не удалось открыть RUDI','Обновите страницу и попробуйте снова.');
         }
       });
-      setInterval(()=>{if(currentActor) loadDianaCycle({silent:true})},30*60*1000);
-      setInterval(()=>{if(currentActor) loadTickTickNext()},5*60*1000);
-      setInterval(()=>{if(currentActor) loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor) loadSharedAlbum()},15*60*1000);
-      setInterval(()=>{if(currentActor&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor) refreshDailyMood()},5*60*1000);
-      setInterval(()=>{if(currentActor) loadActivityJournal({silent:true})},60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadDianaCycle({silent:true})},30*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadTickTickNext()},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadSharedAlbum()},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) refreshDailyMood()},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadActivityJournal({silent:true})},60*1000);
       setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
-      setInterval(()=>{if(currentActor&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
 
       function ensureAppSurface({restoreTab=false}={}){
         applyTheme();
@@ -8444,9 +8688,10 @@
       }
 
       let resumeRefreshPromise=null;
-      async function refreshAfterResume(){
+      async function refreshAfterResume({force=false}={}){
         ensureAppSurface();
         if(!currentActor||!appAccessReady) return;
+        if(!force&&!autoRefreshEnabled()) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
@@ -8467,6 +8712,8 @@
             (marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()),
             syncUiPreferencesFromServer().then(()=>refreshStateBackup())
           ]);
+        }).then(()=>{
+          markDataSyncNow();
         }).finally(()=>{
           resumeRefreshPromise=null;
           ensureAppSurface();
@@ -8476,11 +8723,13 @@
 
       window.addEventListener('pageshow',event=>{
         ensureAppSurface();
-        if(event.persisted) refreshAfterResume();
+        if(event.persisted&&autoRefreshEnabled()) refreshAfterResume();
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();
       });
+      window.addEventListener('online',updateDataSettingsUi);
+      window.addEventListener('offline',updateDataSettingsUi);
       let hiddenAt=0;
       document.addEventListener('visibilitychange',()=>{
         if(document.visibilityState==='hidden'){
@@ -8492,7 +8741,7 @@
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
         }
-        if(hiddenAt&&Date.now()-hiddenAt>1200) refreshAfterResume();
+        if(hiddenAt&&Date.now()-hiddenAt>1200&&autoRefreshEnabled()) refreshAfterResume();
         hiddenAt=0;
       });
     })();
