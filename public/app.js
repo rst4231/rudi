@@ -2685,18 +2685,6 @@
             '<div class="home-settings-title">Настройки</div>'+
 
             '<section class="settings-group">'+
-              '<div class="settings-group-title">Автообновление</div>'+
-              '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Обновлять автоматически</strong><small>Свежие данные в фоне</small></div>'+
-                '<button id="settingsAutoRefreshToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Автоматическое обновление"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
-              '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Ручное обновление</strong><small>Проверить данные прямо сейчас</small></div>'+
-                '<button id="settingsRefreshNow" class="settings-secondary-action" type="button">Обновить сейчас</button>'+
-              '</div>'+
-            '</section>'+
-
-            '<section class="settings-group">'+
               '<div class="settings-group-title">Интерфейс</div>'+
               '<div class="home-settings-row home-settings-theme-row">'+
                 '<div class="home-settings-copy"><strong>Тема</strong><small>Вид приложения</small></div>'+

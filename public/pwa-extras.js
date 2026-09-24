@@ -1367,9 +1367,15 @@
     }
   }
 
+  function removeRetiredQuickAdd(){
+    byId('rudiQuickAdd')?.remove();
+    byId('rudiQuickAddSheet')?.remove();
+    document.body.classList.remove('rudi-modal-open');
+  }
+
   function installDynamicExtras(){
     installSearchButton();
-    ensureQuickAdd();
+    removeRetiredQuickAdd();
     setupSavesPage();
     setupForDiPage();
     setupRecipeWakeLock();
