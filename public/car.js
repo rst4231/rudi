@@ -125,8 +125,51 @@
     return 'Температура пограничная. Лучше дождаться устойчивых значений выше или ниже +7°C.';
   }
 
+  function carWashAdvice(weather) {
+    if(!weather) {
+      return {kind:'info',title:'Стоит ли мыть машину',text:'Прогноз на неделю недоступен. Лучше проверить погоду перед мойкой.'};
+    }
+
+    const precipitation=(Array.isArray(weather.dailyPrecipitation)?weather.dailyPrecipitation:[])
+      .slice(0,7).map(Number);
+    const mins=(Array.isArray(weather.dailyMin)?weather.dailyMin:[])
+      .slice(0,7).map(Number);
+    const codes=(Array.isArray(weather.dailyCodes)?weather.dailyCodes:[])
+      .slice(0,7).map(Number);
+    const wetCodes=new Set([51,53,55,61,63,65,71,73,75,80,81,82,95]);
+    const wetDays=[];
+    for(let i=0;i<Math.max(precipitation.length,codes.length);i++){
+      const mm=Number(precipitation[i]);
+      const code=Number(codes[i]);
+      if((Number.isFinite(mm)&&mm>=1)||wetCodes.has(code)) wetDays.push(i);
+    }
+
+    const firstWet=wetDays.length?wetDays[0]:-1;
+    const total=precipitation.filter(Number.isFinite).reduce((sum,value)=>sum+value,0);
+    const snowSoon=codes.slice(0,3).some(code=>[71,73,75].includes(Number(code)));
+    const frost=mins.some(value=>Number.isFinite(value)&&value<=0);
+
+    if(snowSoon) {
+      return {kind:'cold',title:'Стоит ли мыть машину',text:'Лучше отложить: в ближайшие дни возможен снег, машина быстро снова испачкается.'};
+    }
+    if(firstWet===0||firstWet===1) {
+      return {kind:'rain',title:'Стоит ли мыть машину',text:'Лучше отложить: дождь или другие осадки ожидаются в ближайшие 1–2 дня.'};
+    }
+    if(wetDays.length>=3||total>=8) {
+      return {kind:'rain',title:'Стоит ли мыть машину',text:'Скорее не стоит: неделя ожидается влажной, чистой машина останется ненадолго.'};
+    }
+    if(firstWet>=2) {
+      const days=firstWet;
+      return {kind:'info',title:'Стоит ли мыть машину',text:'Можно помыть сейчас, но примерно через '+days+' '+(days===2?'дня':'дней')+' ожидаются осадки.'};
+    }
+    if(frost) {
+      return {kind:'cold',title:'Стоит ли мыть машину',text:'Можно, если после мойки хорошо просушат кузов, уплотнители и замки: на неделе возможны заморозки.'};
+    }
+    return {kind:'ok',title:'Стоит ли мыть машину',text:'Да. На ближайшую неделю существенных осадков не видно — хороший момент для мойки.'};
+  }
+
   function buildRecommendations(car,weather) {
-    const items=[];
+    const items=[carWashAdvice(weather)];
     const remaining=serviceRemaining(car);
 
     if(remaining===0 && car?.state?.mileage!=null) {
@@ -150,10 +193,7 @@
       }
     }
 
-    if(!items.length) {
-      items.push({kind:'ok',title:'Всё спокойно',text:'По погоде и пробегу срочных действий нет. Следи за давлением, жидкостями и необычными звуками.'});
-    }
-    return items.slice(0,3);
+    return items.slice(0,4);
   }
 
   function renderRecommendations(car,weather) {
@@ -298,7 +338,10 @@
         minForecast:mins.length?Math.min(...mins):null,
         maxForecast:maxs.length?Math.max(...maxs):null,
         avgMean:means.length?means.reduce((a,b)=>a+b,0)/means.length:null,
-        precipitationSum:precipitation.reduce((a,b)=>a+b,0)
+        precipitationSum:precipitation.reduce((a,b)=>a+b,0),
+        dailyPrecipitation:precipitation.slice(0,7),
+        dailyMin:mins.slice(0,7),
+        dailyCodes:(data.daily?.weather_code||[]).slice(0,7).map(Number)
       };
       state.weather=value;
     } catch(_) {
