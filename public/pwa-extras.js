@@ -35,29 +35,6 @@
     showMiniToast.timer=setTimeout(()=>toast.classList.remove('is-open'),1800);
   }
 
-  async function systemShare({title='RUDI',text='',url=''}={}){
-    const payload={title:String(title||'RUDI')};
-    if(text) payload.text=String(text);
-    if(url) payload.url=String(url);
-    try{
-      if(typeof navigator.share==='function'){
-        await navigator.share(payload);
-        return true;
-      }
-    }catch(error){
-      if(String(error?.name||'')==='AbortError') return false;
-    }
-    const fallback=[payload.text,payload.url].filter(Boolean).join('\n');
-    try{
-      await navigator.clipboard.writeText(fallback||payload.title);
-      showMiniToast('Скопировано');
-      return true;
-    }catch(_){
-      showMiniToast('Не удалось поделиться');
-      return false;
-    }
-  }
-
   function installServiceWorker(){
     if(!('serviceWorker' in navigator)) return;
     window.addEventListener('load',()=>{
@@ -329,70 +306,6 @@
       });
     });
   }
-
-  function installPhotoShare(){
-    const footer=document.querySelector('.photo-viewer-footer');
-    if(!footer||byId('photoViewerShare')) return false;
-    const button=document.createElement('button');
-    button.id='photoViewerShare';
-    button.className='photo-viewer-share';
-    button.type='button';
-    button.innerHTML='<span>Поделиться</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M5 11v8h14v-8"/></svg>';
-    const original=byId('photoViewerOriginal');
-    footer.insertBefore(button,original||null);
-    button.addEventListener('click',()=>{
-      const image=byId('photoViewerImage');
-      const caption=byId('photoViewerCaption');
-      systemShare({
-        title:'Фото из RUDI',
-        text:caption&&!caption.hidden?caption.textContent:'',
-        url:String(image?.currentSrc||image?.src||window.location.href)
-      });
-    });
-    return true;
-  }
-
-  function installRecipeShare(){
-    const details=byId('recipeDetails');
-    const head=details?.querySelector('.recipe-detail-head');
-    if(!details||!head||head.querySelector('.recipe-share-button')) return false;
-    const button=document.createElement('button');
-    button.className='recipe-share-button';
-    button.type='button';
-    button.setAttribute('aria-label','Поделиться рецептом');
-    button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M5 11v8h14v-8"/></svg>';
-    button.addEventListener('click',()=>{
-      const title=head.querySelector('h3')?.textContent||'Рецепт RUDI';
-      const summary=details.querySelector('.recipe-detail-summary')?.textContent||'';
-      const url=new URL(window.location.href); url.searchParams.set('tab','products');
-      systemShare({title,text:summary,url:url.toString()});
-    });
-    head.appendChild(button);
-    return true;
-  }
-
-  function installWishlistShare(){
-    document.querySelectorAll('.wish-item').forEach(row=>{
-      if(row.querySelector('.wish-share')) return;
-      const button=document.createElement('button');
-      button.className='wish-share';
-      button.type='button';
-      button.setAttribute('aria-label','Поделиться желанием');
-      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M5 11v8h14v-8"/></svg>';
-      button.addEventListener('click',event=>{
-        event.stopPropagation();
-        const title=row.querySelector('.wish-text')?.textContent||'Желание';
-        const url=new URL(window.location.href);
-        url.searchParams.set('tab','wishlist');
-        const id=String(row.dataset.rudiItemId||'');
-        if(id) url.searchParams.set('item',id);
-        systemShare({title:'Вишлист RUDI',text:title,url:url.toString()});
-      });
-      const remove=row.querySelector('.wish-remove');
-      row.insertBefore(button,remove||null);
-    });
-  }
-
 
   let savesState=[];
   let savesActor='';
@@ -709,9 +622,6 @@
   function installDynamicExtras(){
     installSearchButton();
     ensureQuickAdd();
-    installPhotoShare();
-    installRecipeShare();
-    installWishlistShare();
     setupSavesPage();
   }
 
