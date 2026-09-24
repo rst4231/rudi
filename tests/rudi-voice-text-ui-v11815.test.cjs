@@ -39,3 +39,12 @@ test('assistant panel follows iPhone visual viewport while typing',()=>{
   assert.match(css,/--voice-assistant-keyboard-inset/);
   assert.match(css,/voice-assistant-input-active/);
 });
+
+
+test('assistant UI presents RUDI as a female assistant',()=>{
+  assert.match(html,/AI-помощница RUDI/);
+  assert.match(html,/Персональная AI-помощница/);
+  assert.match(html,/aria-label="Открыть AI-помощницу"/);
+  assert.match(html,/aria-label="AI-помощница RUDI"/);
+  assert.doesNotMatch(html,/Голосовой ассистент RUDI/);
+});
