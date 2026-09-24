@@ -38,3 +38,19 @@ test('voice assistant uses Whisper then current Groq chat model', async () => {
   assert.equal(result.answer,'Всё работает. Чем помочь?');
   assert.equal(calls,2);
 });
+
+
+test('voice assistant accepts typed text without transcription', async () => {
+  const calls=[];
+  const fetchImpl=async(url,init)=>{
+    calls.push(String(url));
+    assert.ok(String(url).includes('/chat/completions'));
+    const body=JSON.parse(init.body);
+    assert.equal(body.messages.at(-1).content,'Напомни купить молоко');
+    return new Response(JSON.stringify({choices:[{message:{content:'Добавить молоко в список?'}}]}),{status:200,headers:{'content-type':'application/json'}});
+  };
+  const result=await runVoiceAssistant({text:'Напомни купить молоко',history:[]},{apiKey:'test-key',actor:'Рустам',fetchImpl});
+  assert.equal(result.transcript,'Напомни купить молоко');
+  assert.equal(result.answer,'Добавить молоко в список?');
+  assert.equal(calls.length,1);
+});
