@@ -2018,8 +2018,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         actor,
         env: options.env || process.env,
         fetchImpl: options.fetchImpl || globalThis.fetch,
-        contextProvider: (transcript) => readAssistantContext(transcript, { ...options, actor, backupToken:body.backupToken, timeZone:body.timeZone }),
-        actionProvider: (transcript, context) => executeAssistantAction(transcript, context, { ...options, actor, backupToken:body.backupToken, timeZone:body.timeZone }),
+        contextProvider: (transcript, history, ui) => readAssistantContext(transcript, { ...options, actor, backupToken:body.backupToken, timeZone:body.timeZone, history, ui }),
+        actionProvider: (transcript, context, history, ui) => executeAssistantAction(transcript, context, { ...options, actor, backupToken:body.backupToken, timeZone:body.timeZone, history, ui }),
       });
       return res.status(200).json({ ok: true, actor, ...result });
     } catch (error) {
@@ -2524,12 +2524,16 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'remove') {
         const before = await readWishlist(options);
         const removedItem = (before.items || []).find((item) => item.id === String(body.id || '')) || null;
+        if (!removedItem) throw new Error('wishlist-item-not-found');
+        if (removedItem.owner !== owner) throw new Error('wishlist-owner-forbidden');
         const state = await removeWish(body.id, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, owner, ...state, removedItem, backupToken });
       }
       if (operation === 'restore') {
-        const state = await restoreWish(body.item, options);
+        const item = body.item && typeof body.item === 'object' ? body.item : null;
+        if (item?.owner && item.owner !== owner) throw new Error('wishlist-owner-forbidden');
+        const state = await restoreWish({ ...(item || {}), owner }, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, owner, ...state, backupToken });
       }
@@ -2539,6 +2543,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'wishlist-item-not-found' ? 404
+        : code === 'wishlist-owner-forbidden' ? 403
         : 400;
       return res.status(status).json({ ok: false, error: code });
     }
