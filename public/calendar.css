@@ -515,3 +515,62 @@ body[data-app-tab="schedule"] .footer{margin-top:22px!important}
   body[data-app-tab="schedule"] .footer{margin-top:20px!important}
 }
 @media(prefers-reduced-motion:reduce){.calendar-confetti{display:none!important}}
+
+
+/* RUDI v1.15.0 — calendar color polish */
+.work-page .calendar-day-cell.selected{
+  border-color:#ff7a21!important;
+  background:color-mix(in srgb,var(--surface) 92%,var(--soft))!important;
+  color:var(--text)!important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb,#ff7a21 20%,transparent),
+    0 0 0 2px #ff7a21,
+    0 6px 16px rgba(255,122,33,.10)!important;
+}
+.work-page .calendar-day-cell.off.selected{
+  border-color:#ff7a21!important;
+  background:color-mix(in srgb,var(--green-soft) 54%,var(--surface))!important;
+  color:color-mix(in srgb,var(--green) 72%,var(--text))!important;
+}
+.work-page .calendar-day-cell.working.selected{
+  border-color:#ff7a21!important;
+  background:
+    linear-gradient(145deg,rgba(255,127,45,.13),rgba(255,127,45,.045)),
+    color-mix(in srgb,var(--surface) 90%,transparent)!important;
+  color:#d75f08!important;
+}
+.work-page .calendar-day-cell.selected .calendar-work-dot{
+  background:#ff6a00!important;
+}
+.work-page .calendar-day-cell.selected .calendar-task-count{
+  background:color-mix(in srgb,var(--accent) 88%,white)!important;
+  color:#fff!important;
+}
+.work-page .calendar-day-cell.selected .calendar-holiday-mark{
+  color:#e0a62f!important;
+}
+.work-page .calendar-day-cell.off.selected .calendar-check{
+  color:#14a865!important;
+}
+
+.work-page .work-calendar-selected{
+  border:1px solid color-mix(in srgb,#7787ff 24%,var(--line))!important;
+  background:
+    radial-gradient(circle at 92% 12%,rgba(143,101,255,.15),transparent 38%),
+    radial-gradient(circle at 8% 90%,rgba(91,139,255,.10),transparent 42%),
+    linear-gradient(145deg,rgba(105,122,255,.065),rgba(151,105,236,.045)),
+    color-mix(in srgb,var(--surface) 96%,transparent)!important;
+  box-shadow:0 10px 28px rgba(83,95,180,.065)!important;
+}
+.work-page .work-calendar-selected .work-selected-icon{
+  background:linear-gradient(145deg,rgba(105,122,255,.16),rgba(151,105,236,.11))!important;
+  color:#6675ee!important;
+  box-shadow:inset 0 0 0 1px rgba(110,125,245,.12)!important;
+}
+.work-page .work-calendar-selected.is-off .work-selected-icon{
+  background:linear-gradient(145deg,rgba(77,184,133,.15),rgba(105,122,255,.08))!important;
+  color:#24a16a!important;
+}
+.work-page .work-calendar-selected .calendar-selected-group{
+  border-top-color:color-mix(in srgb,#7787ff 14%,var(--line))!important;
+}
