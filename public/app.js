@@ -2998,7 +2998,8 @@
           await Promise.allSettled([
             window.RUDI_CAR?.refresh?.(),
             window.RUDI_SMART_HOME?.refresh?.(),
-            window.RUDI_SAVES?.load?.()
+            window.RUDI_SAVES?.load?.(),
+            (currentConfig?.weather?loadWeather(currentConfig.weather):Promise.resolve())
           ]);
           markDataSyncNow();
           if(button) button.textContent='Обновлено';
