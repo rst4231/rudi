@@ -161,7 +161,9 @@ test('system theme follows device outside Telegram and updates live', () => {
 test('browser session resolves its own Telegram profile from saved recipient id', () => {
   assert.match(partner,/const selfId = Number\(user\?\.id\) \|\| Number\(recipients\?\.\[actor\]\) \|\| 0/);
   assert.match(partner,/readTelegramProfile\(selfId, actor, options\)/);
-  assert.match(app,/applyTelegramProfiles\(payload\.selfProfile,payload\.partnerProfile\)/);
+  assert.match(app,/const selfProfile=payload\.selfProfile\|\|cachedProfiles\?\.selfProfile\|\|null/);
+  assert.match(app,/const partnerProfile=payload\.partnerProfile\|\|cachedProfiles\?\.partnerProfile\|\|null/);
+  assert.match(app,/applyTelegramProfiles\(selfProfile,partnerProfile\)/);
   assert.match(app,/selfProfile\?\.photoDataUrl/);
 });
 
