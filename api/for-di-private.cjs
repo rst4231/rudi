@@ -1,7 +1,6 @@
 const crypto = require('node:crypto');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
-const { readRecipients } = require('./partner-notification-store.cjs');
-const { telegramSendMessage } = require('./telegram-notifications.cjs');
+const { appendForDiMessages } = require('./for-di-feed-store.cjs');
 
 const FOR_DI_TOPIC_ID = 126;
 const TTL_SECONDS = 60 * 60 * 24 * 14;
@@ -29,10 +28,6 @@ function dateKeyInMoscow(value = new Date()) {
 
 function messageKey(dateKey) {
   return `for-di:messages:${dateKey}`;
-}
-
-function sentKey(dateKey, fingerprint) {
-  return `for-di:sent:${dateKey}:${fingerprint}`;
 }
 
 function fingerprint(text) {
@@ -108,52 +103,32 @@ async function hasQueuedForDiSource(sources, options = {}) {
   return messages.some((row) => wanted.has(String(row?.source || '').trim()));
 }
 
-async function sendForDiPrivateMessages(options = {}) {
+async function publishForDiToRudi(options = {}) {
   const now = options.now || new Date();
   const { dateKey, messages } = await readForDiMessages({ ...options, now });
-  const cache = cacheOf(options);
-  if (!messages.length) return { dateKey, queued: 0, sent: 0, skipped: 'empty' };
-
-  const recipients = options.recipients || await readRecipients(options);
-  const dianaChatId = Number(recipients?.['Диана']);
-  if (!Number.isInteger(dianaChatId) || dianaChatId <= 0) {
-    return { dateKey, queued: messages.length, sent: 0, skipped: 'diana-recipient-missing' };
+  if (!messages.length) {
+    return { dateKey, queued: 0, published: 0, sent: 0, skipped: 'empty' };
   }
 
-  let sent = 0;
-  let skippedAlreadySent = 0;
-  const failed = [];
-  for (const row of messages) {
-    const id = String(row.fingerprint || fingerprint(row.text));
-    const marker = sentKey(dateKey, id);
-    if (await cache.get(marker).catch(() => null)) {
-      skippedAlreadySent += 1;
-      continue;
-    }
-    try {
-      await telegramSendMessage(dianaChatId, row.text, {
-        ...options,
-        parseMode: row.parseMode === false ? false : options.parseMode,
-        disableNotification: false,
-      });
-      await cache.set(marker, true, { ttl: TTL_SECONDS, tags: ['rudi-for-di-private'] });
-      sent += 1;
-    } catch (error) {
-      failed.push({
-        fingerprint: id,
-        source: row.source || null,
-        error: String(error?.message || error),
-      });
-    }
-  }
+  const result = await appendForDiMessages(messages, dateKey, {
+    ...options,
+    now,
+  });
 
-  const result = { dateKey, queued: messages.length, sent, skippedAlreadySent, failed };
-  if (failed.length) {
-    const error = new Error('for-di-private-delivery-failed:' + failed.length);
-    error.result = result;
-    throw error;
-  }
-  return result;
+  return {
+    dateKey,
+    queued: messages.length,
+    published: result.added,
+    total: result.state.items.length,
+    sent: 0,
+    telegramDelivery: false,
+  };
+}
+
+// Kept as a compatibility alias for the existing 12:00 cron.
+// It now publishes to the persistent RUDI feed and never sends a Telegram DM.
+async function sendForDiPrivateMessages(options = {}) {
+  return publishForDiToRudi(options);
 }
 
 module.exports = {
@@ -163,5 +138,6 @@ module.exports = {
   queueForDiTelegramRequest,
   readForDiMessages,
   hasQueuedForDiSource,
+  publishForDiToRudi,
   sendForDiPrivateMessages,
 };
