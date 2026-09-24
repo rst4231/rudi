@@ -168,7 +168,7 @@ test('market ticker palette keeps WCAG text contrast in both themes', () => {
 
 
 test('fast snapshot fallback does not raise the unstable-connection banner', () => {
-  const source = read('public/pwa-extras.js');
+  const source = fs.readFileSync('public/pwa-extras.js','utf8');
   assert.match(source, /function offlineSnapshotResponse\(row,\{markUnstable=true\}=\{\}\)/);
   assert.match(source, /offlineSnapshotResponse\(winner\.row,\{markUnstable:false\}\)/);
   assert.match(source, /X-RUDI-Snapshot-Mode.*markUnstable\?'offline':'fast'/s);
