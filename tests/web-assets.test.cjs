@@ -73,3 +73,15 @@ test('read-only sections use a fast local snapshot while the live API refresh co
   assert.match(pwa,/if\(snapshotKey&&navigator\.onLine!==false\)\{\s*return snapshotAwareFetch\(input,init,snapshotKey\)/);
   assert.match(pwa,/'ui-preferences'/);
 });
+
+
+test('activity joins resilient read snapshots and mutation routes stay out',()=>{
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  assert.match(pwa,/RUDI_SNAPSHOT_READ_ACTIONS=new Set\(\[[\s\S]*?'activity'[\s\S]*?'ui-preferences'/);
+  assert.match(pwa,/RUDI_SNAPSHOT_FAST_FALLBACK_MS=450/);
+  for(const route of ['/api/feed','/api/shared-album','/api/ticktick/today','/api/ticktick/calendar','/api/work-calendar']){
+    assert.ok(pwa.includes("'"+route+"'"),'missing resilient read route '+route);
+  }
+  assert.doesNotMatch(pwa,/RUDI_SNAPSHOT_POST_READ_PATHS=new Set\(\[[\s\S]*?checklist-toggle/);
+  assert.doesNotMatch(pwa,/RUDI_SNAPSHOT_POST_READ_PATHS=new Set\(\[[\s\S]*?task-complete/);
+});

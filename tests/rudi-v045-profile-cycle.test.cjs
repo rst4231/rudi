@@ -56,3 +56,12 @@ test('home cycle summary includes a daily recommendation and opens full cycle in
   assert.match(app,/navigateToAppTab\('schedule',\{scroll:true\}\)/);
   assert.match(app,/dianaCycleCard.*scrollIntoView/s);
 });
+
+
+test('Telegram profile photos reuse a warm runtime cache for six hours',()=>{
+  const source=fs.readFileSync('api/partner-message.js','utf8');
+  assert.match(source,/TELEGRAM_PROFILE_CACHE_TTL_MS = 6 \* 60 \* 60 \* 1000/);
+  assert.match(source,/const telegramProfileMemoryCache = new Map\(\)/);
+  assert.match(source,/const cached = cachedTelegramProfile\(id, now\);\s*if \(cached\) return cached;/);
+  assert.match(source,/return cacheTelegramProfile\(id, \{ name, photoDataUrl \}, now\)/);
+});

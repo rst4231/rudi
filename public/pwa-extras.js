@@ -50,6 +50,7 @@
     'holiday-calendar',
     'partner-message-read',
     'cinema-topic-link',
+    'activity',
     'ui-preferences'
   ]);
   const RUDI_SNAPSHOT_POST_READ_PATHS=new Set([

@@ -530,6 +530,29 @@ async function sendMoodNotificationToPartner(actor, mood, options = {}) {
   }
 }
 
+const TELEGRAM_PROFILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const telegramProfileMemoryCache = new Map();
+
+function cachedTelegramProfile(userId, now = Date.now()) {
+  const id = Number(userId);
+  const row = telegramProfileMemoryCache.get(id);
+  if (!row || Number(row.expiresAt || 0) <= Number(now)) {
+    if (row) telegramProfileMemoryCache.delete(id);
+    return null;
+  }
+  return row.profile || null;
+}
+
+function cacheTelegramProfile(userId, profile, now = Date.now()) {
+  const id = Number(userId);
+  if (!Number.isInteger(id) || id <= 0 || !profile) return profile;
+  telegramProfileMemoryCache.set(id, {
+    profile,
+    expiresAt: Number(now) + TELEGRAM_PROFILE_CACHE_TTL_MS,
+  });
+  return profile;
+}
+
 async function telegramBotCall(method, payload, options = {}) {
   const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -570,6 +593,9 @@ async function readTelegramProfile(userId, fallbackName, options = {}) {
   const id = Number(userId);
   const fallback = { name: String(fallbackName || 'Партнёр'), photoDataUrl: '' };
   if (!Number.isInteger(id) || id <= 0) return fallback;
+  const now = Number(options.now || Date.now());
+  const cached = cachedTelegramProfile(id, now);
+  if (cached) return cached;
 
   try {
     const chat = await telegramBotCall('getChat', { chat_id: id }, options);
@@ -591,9 +617,9 @@ async function readTelegramProfile(userId, fallbackName, options = {}) {
     const photoDataUrl = fileId
       ? await telegramPhotoDataUrl(fileId, options).catch(() => '')
       : '';
-    return { name, photoDataUrl };
+    return cacheTelegramProfile(id, { name, photoDataUrl }, now);
   } catch (_) {
-    return fallback;
+    return cachedTelegramProfile(id, now) || fallback;
   }
 }
 
