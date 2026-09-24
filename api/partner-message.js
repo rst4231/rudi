@@ -461,9 +461,11 @@ async function recordLikeActivity(target, actor, options = {}) {
 }
 
 const MOOD_ACTIVITY = {
-  low: { label: 'Не очень', emoji: '😔' },
-  ok: { label: 'Нормально', emoji: '😐' },
-  great: { label: 'Отлично', emoji: '😄' },
+  sadness: { label: 'Грусть', emoji: '😢' },
+  fear: { label: 'Страх', emoji: '😨' },
+  anger: { label: 'Гнев', emoji: '😡' },
+  joy: { label: 'Радость', emoji: '😄' },
+  love: { label: 'Любовь', emoji: '🥰' },
 };
 
 function moodActivityText(actor, previousMood, nextMood) {
@@ -489,9 +491,11 @@ function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
 }
 
 const MOOD_NOTICE = {
-  low: { phrase: 'настроение не очень', emoji: '😔' },
-  ok: { phrase: 'нормальное настроение', emoji: '😐' },
-  great: { phrase: 'отличное настроение', emoji: '😄' },
+  sadness: { phrase: 'грусть', emoji: '😢' },
+  fear: { phrase: 'страх', emoji: '😨' },
+  anger: { phrase: 'гнев', emoji: '😡' },
+  joy: { phrase: 'радость', emoji: '😄' },
+  love: { phrase: 'любовь', emoji: '🥰' },
 };
 
 function moodNotificationText(recipient, actor, mood) {

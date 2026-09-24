@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v1.16.2">
+  <meta name="rudi-version" content="v1.16.3">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,13 +27,13 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=1.8.7">
+  <link rel="stylesheet" href="/app.css?v=1.16.3">
   <link rel="stylesheet" href="/pwa-extras.css?v=1.15.0">
   <link rel="stylesheet" href="/calendar.css?v=1.8.7">
   <link rel="stylesheet" href="/smart-home.css?v=1.8.7">
   <link rel="stylesheet" href="/car.css?v=1.8.7">
   <script defer src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script defer src="/app.js?v=1.16.2"></script>
+  <script defer src="/app.js?v=1.16.3"></script>
   <script defer src="/pwa-extras.js?v=1.15.0"></script>
   <script defer src="/weather.js?v=1.8.7"></script>
   <script defer src="/smart-home.js?v=1.8.7"></script>
@@ -79,18 +79,22 @@
           <div class="mood-person mood-self">
             <span class="mood-person-label" aria-hidden="true"></span>
             <div class="mood-self-buttons">
-              <button class="mood-button" type="button" data-mood="low" aria-label="Не очень" title="Не очень"><span class="mood-emoji" aria-hidden="true">😔</span></button>
-              <button class="mood-button" type="button" data-mood="ok" aria-label="Нормально" title="Нормально"><span class="mood-emoji" aria-hidden="true">😐</span></button>
-              <button class="mood-button" type="button" data-mood="great" aria-label="Отлично" title="Отлично"><span class="mood-emoji" aria-hidden="true">😄</span></button>
+              <button class="mood-button" type="button" data-mood="sadness" aria-label="Грусть" title="Грусть"><span class="mood-emoji" aria-hidden="true">😢</span></button>
+              <button class="mood-button" type="button" data-mood="fear" aria-label="Страх" title="Страх"><span class="mood-emoji" aria-hidden="true">😨</span></button>
+              <button class="mood-button" type="button" data-mood="anger" aria-label="Гнев" title="Гнев"><span class="mood-emoji" aria-hidden="true">😡</span></button>
+              <button class="mood-button" type="button" data-mood="joy" aria-label="Радость" title="Радость"><span class="mood-emoji" aria-hidden="true">😄</span></button>
+              <button class="mood-button" type="button" data-mood="love" aria-label="Любовь" title="Любовь"><span class="mood-emoji" aria-hidden="true">🥰</span></button>
             </div>
           </div>
           <div class="mood-person mood-partner">
             <span id="partnerMoodLabel" class="mood-person-label" aria-hidden="true"></span>
             <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
-              <span class="partner-mood-icon" data-partner-mood="low" hidden><span class="mood-emoji" aria-hidden="true">😔</span></span>
-              <span class="partner-mood-icon" data-partner-mood="ok" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
-              <span class="partner-mood-icon" data-partner-mood="great" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
+              <span class="partner-mood-icon" data-partner-mood="sadness" hidden><span class="mood-emoji" aria-hidden="true">😢</span></span>
+              <span class="partner-mood-icon" data-partner-mood="fear" hidden><span class="mood-emoji" aria-hidden="true">😨</span></span>
+              <span class="partner-mood-icon" data-partner-mood="anger" hidden><span class="mood-emoji" aria-hidden="true">😡</span></span>
+              <span class="partner-mood-icon" data-partner-mood="joy" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
+              <span class="partner-mood-icon" data-partner-mood="love" hidden><span class="mood-emoji" aria-hidden="true">🥰</span></span>
             </div>
           </div>
           <div id="moodPrompt" class="mood-prompt">Выбери настроение</div>

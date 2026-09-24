@@ -7513,3 +7513,21 @@ html[data-theme="dark"] .partner-message .partner-edit{
   will-change:auto!important;
   backface-visibility:visible!important;
 }
+
+
+/* RUDI v1.16.3: five-state mood picker */
+.profile .partner-mood-value[data-mood="sadness"]{color:#8fa2c8;background:rgba(127,141,168,.10)}
+.profile .partner-mood-value[data-mood="fear"]{color:#b497d6;background:rgba(151,112,194,.11)}
+.profile .partner-mood-value[data-mood="anger"]{color:#e07b74;background:rgba(210,82,75,.11)}
+.profile .partner-mood-value[data-mood="joy"]{color:#d79a2e;background:rgba(240,184,75,.12)}
+.profile .partner-mood-value[data-mood="love"]{color:#e48fa9;background:rgba(224,95,139,.11)}
+.profile-person-card > .mood-message.show[data-mood="sadness"]{border-color:rgba(151,165,197,.22)!important;background:linear-gradient(135deg,rgba(106,125,168,.18),transparent 76%),rgba(22,26,36,.94)!important}
+.profile-person-card > .mood-message.show[data-mood="fear"]{border-color:rgba(178,144,214,.24)!important;background:linear-gradient(135deg,rgba(128,91,170,.18),transparent 76%),rgba(22,26,36,.94)!important}
+.profile-person-card > .mood-message.show[data-mood="anger"]{border-color:rgba(224,123,116,.24)!important;background:linear-gradient(135deg,rgba(190,76,69,.18),transparent 76%),rgba(22,26,36,.94)!important}
+.profile-person-card > .mood-message.show[data-mood="joy"]{border-color:rgba(241,183,76,.24)!important;background:linear-gradient(135deg,rgba(218,155,58,.18),transparent 76%),rgba(22,26,36,.94)!important}
+.profile-person-card > .mood-message.show[data-mood="love"]{border-color:rgba(228,143,169,.24)!important;background:linear-gradient(135deg,rgba(194,83,126,.18),transparent 76%),rgba(22,26,36,.94)!important}
+@media(max-width:430px){
+  .profile-person-card .mood-self-buttons{gap:3px!important}
+  .profile-person-card .mood-button{width:27px!important;height:27px!important}
+}
+/* end RUDI v1.16.3 five-state mood picker */

@@ -5,7 +5,13 @@ const TTL_SECONDS = 60 * 60 * 72;
 const SNAPSHOT_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const STATE_KEY = 'state';
 const MAX_SNAPSHOT_DAYS = 120;
-const ALLOWED_MOODS = new Set(['low', 'ok', 'great']);
+const LEGACY_MOOD_ALIASES = Object.freeze({ low:'sadness', ok:'joy', great:'joy' });
+const ALLOWED_MOODS = new Set(['sadness', 'fear', 'anger', 'joy', 'love']);
+
+function normalizeMoodValue(value) {
+  const mood=String(value || '').trim();
+  return LEGACY_MOOD_ALIASES[mood] || mood;
+}
 const ACTORS = ['Рустам', 'Диана'];
 
 function cacheOf(options = {}) {
@@ -17,8 +23,9 @@ function keyForDate(date) {
 }
 
 function normalizeMoodEntry(value) {
-  return ALLOWED_MOODS.has(String(value?.mood || ''))
-    ? { mood:String(value.mood), updatedAt:String(value.updatedAt || '') }
+  const mood=normalizeMoodValue(value?.mood);
+  return ALLOWED_MOODS.has(mood)
+    ? { mood, updatedAt:String(value?.updatedAt || '') }
     : null;
 }
 
@@ -124,7 +131,7 @@ async function readDailyMood(date, options = {}) {
 }
 
 async function setDailyMood(date, actor, mood, options = {}) {
-  const normalizedMood = String(mood || '').trim();
+  const normalizedMood = normalizeMoodValue(mood);
   if (!ACTORS.includes(actor)) throw new Error('mood-actor-invalid');
   if (!ALLOWED_MOODS.has(normalizedMood)) throw new Error('mood-value-invalid');
 
