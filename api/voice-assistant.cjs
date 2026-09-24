@@ -155,7 +155,7 @@ async function answerTranscript(transcript, history, options = {}) {
       reasoning_effort: options.actionResult ? 'low' : 'medium',
       include_reasoning: false,
       temperature: 0.45,
-      max_completion_tokens: 320,
+      max_completion_tokens: 280,
       stream: false,
     }),
   }, options.chatTimeoutMs || 18000, fetchImpl);
