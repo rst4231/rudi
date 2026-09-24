@@ -61,6 +61,9 @@ test('registration stores only public credential material and enables status', a
   const generated=await registrationOptions(req(),'Рустам',opts);
   const saved=await verifyRegistration(req(),'Рустам',generated.challenge,{id:'cred-r'},opts);
   assert.equal(saved.actor,'Рустам');
+  assert.equal(saved.configured,true);
+  assert.equal(saved.passkeys?.length,1);
+  assert.equal(saved.passkeys?.[0]?.id,'cred-r');
   assert.deepEqual(await passkeyStatus(req(),'Рустам',opts),{
     configured:true,count:1,rpID:'spb-daily-guide-bot.vercel.app',
   });
@@ -98,6 +101,7 @@ test('authentication resolves the credential owner and advances counter', async 
   const auth=await authenticationOptions(req(),opts);
   const verified=await verifyAuthentication(req(),auth.challenge,{id:'cred-d'},opts);
   assert.equal(verified.actor,'Диана');
+  assert.equal(verified.passkeys?.[0]?.counter,3);
   const rows=await cache.get('passkeys:Диана');
   assert.equal(rows[0].counter,3);
 });
