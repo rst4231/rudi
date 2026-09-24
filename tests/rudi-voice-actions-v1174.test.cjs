@@ -6,6 +6,7 @@ const {
   commandIntent,
   addProductIntent,
   addWishIntent,
+  moodSetIntent,
   safeTimeZone,
   shiftDateKey,
 }=require('../api/voice-assistant-rudi.cjs');
@@ -15,6 +16,7 @@ test('voice understands products and wishlist write intents',()=>{
   assert.deepEqual(addProductIntent('Добавь в список покупок молоко'),{items:['молоко']});
   assert.deepEqual(addWishIntent('Добавь AirPods в вишлист','Рустам'),{items:['AirPods'],owner:'Рустам'});
   assert.deepEqual(addWishIntent('Добавь духи в вишлист Дианы','Рустам'),{items:['духи'],owner:'Диана'});
+  assert.deepEqual(addWishIntent('По ссылке в описании. Добавь в виш-лист тарелку.','Рустам'),{items:['тарелку'],owner:'Рустам'});
 });
 
 test('voice routes tomorrow tasks, events, status, period and weather',()=>{
@@ -30,10 +32,16 @@ test('voice routes tomorrow tasks, events, status, period and weather',()=>{
 test('russian smart home commands are recognized without latin word boundaries',()=>{
   assert.deepEqual(commandIntent('Включи торшер'),{kind:'switch',value:true,target:'торшер'});
   assert.deepEqual(commandIntent('Выключи торшер'),{kind:'switch',value:false,target:'торшер'});
+  assert.deepEqual(commandIntent('Выключит торшер.'),{kind:'switch',value:false,target:'торшер'});
   assert.deepEqual(commandIntent('Запусти пылесос'),{kind:'switch',value:true,target:'пылесос'});
   assert.deepEqual(commandIntent('Останови пылесос'),{kind:'switch',value:false,target:'пылесос'});
   assert.deepEqual(commandIntent('Поставь пылесос на паузу'),{kind:'pause',value:true,target:'пылесос'});
   assert.deepEqual(commandIntent('Продолжи уборку пылесос'),{kind:'pause',value:false,target:'пылесос'});
+});
+
+test('voice can change the current actor mood from natural Russian speech',()=>{
+  assert.deepEqual(moodSetIntent('Поменяй мне настроение на злость.'),{mood:'anger',label:'злость'});
+  assert.deepEqual(moodSetIntent('Установи настроение: радость'),{mood:'joy',label:'радость'});
 });
 
 test('device timezone is accepted with Moscow fallback and tomorrow crosses month',()=>{
@@ -49,6 +57,7 @@ test('client sends device timezone and refreshes mutated RUDI sections',()=>{
   assert.match(app,/actionType\.startsWith\('products-'\)[\s\S]*?loadProducts/);
   assert.match(app,/actionType\.startsWith\('wishlist-'\)[\s\S]*?wishlistRequest\('list'\)/);
   assert.match(app,/actionType\.startsWith\('smart-home'\)[\s\S]*?RUDI_SMART_HOME/);
+  assert.match(app,/actionType==='mood-set'[\s\S]*?refreshDailyMood/);
 });
 
 test('assistant uses RUDI weather and tomorrow TickTick data',()=>{
