@@ -77,5 +77,7 @@ test('smart home exposes reusable capability action for vacuum',()=>{
   assert.match(smart,/async function runSmartHomeCapability/);
   assert.match(smart,/devices\.capabilities\.mode.*work_speed/s);
   assert.match(smart,/devices\.capabilities\.toggle.*pause/s);
-  assert.match(smart,/switchSmartHomeDevice, runSmartHomeCapability/);
+  assert.match(smart,/switchSmartHomeDevice/);
+  assert.match(smart,/runSmartHomeCapability/);
+  assert.match(smart,/observeCameraStatus/);
 });
