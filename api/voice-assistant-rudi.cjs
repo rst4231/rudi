@@ -149,65 +149,195 @@ function selectDevice(devices,target) {
   return {device:ranked[0].device,candidates:[]};
 }
 
+function contextNeeds(transcript) {
+  const text=normalizeText(transcript);
+  const broadToday=/\b(что у нас сегодня|что сегодня|планы на сегодня)\b/u.test(text);
+  const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|устройств|умн.*дом)/u.test(text);
+  return {
+    mood:/(настроен|как диан.*себя|как себя диан)/u.test(text),
+    products:/(список продукт|продукт.*спис|покупк|что купить|есть .* в продукт|есть ли .* продукт)/u.test(text),
+    productHistory:/(что покупал|что купил|покупали|последн.*покуп)/u.test(text),
+    wishlist:/(виш|wishlist|желани|хотелк)/u.test(text),
+    cycle:/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text),
+    message:/(послан|сообщени.*послан)/u.test(text),
+    feed:/(лент|концерт|стендап|stand up|кино|кинопремьер|премьер|факт)/u.test(text),
+    lulu:/(лулу|lulu|выгул|гулял.*собак|собак.*гулял)/u.test(text),
+    car:/(пробег|машин|авто|changan|uni v|уни в)/u.test(text),
+    relationship:/(годовщин|сколько .* вместе|вместе с|лет вместе|месяц.*вместе|дн.*вместе)/u.test(text),
+    activity:/(последн.*гулял|когда .* гулял|что произошло|последн.*активност)/u.test(text),
+    calendar:broadToday||/(диан.*работ|работ.*диан|выходн|смен|рабоч.*день|календар|ближайш.*событ|событ.*календар)/u.test(text),
+    holidays:broadToday||/(праздник|праздники)/u.test(text),
+    tasks:broadToday||/(совместн.*дел|дела.*сегодня|задач|ticktick|ближайш.*событ|календар)/u.test(text),
+    market:/(курс|доллар|usd|рубл|биткоин|bitcoin|btc|эфир|ethereum|eth|крипт)/u.test(text),
+    smart,
+  };
+}
+
+function compactValue(value, options = {}, depth = 0) {
+  const arrayLimit=Math.max(1,Number(options.arrayLimit||12));
+  const stringLimit=Math.max(40,Number(options.stringLimit||320));
+  const maxDepth=Math.max(1,Number(options.maxDepth||4));
+  if(value==null||typeof value==='number'||typeof value==='boolean') return value;
+  if(typeof value==='string') return value.slice(0,stringLimit);
+  if(depth>=maxDepth) return Array.isArray(value)?[]:{};
+  if(Array.isArray(value)) return value.slice(0,arrayLimit).map(item=>compactValue(item,options,depth+1));
+  if(typeof value==='object'){
+    const out={};
+    for(const [key,item] of Object.entries(value)) out[key]=compactValue(item,options,depth+1);
+    return out;
+  }
+  return String(value).slice(0,stringLimit);
+}
+
 async function readAssistantContext(transcript, options = {}) {
   const now=options.now?new Date(options.now):new Date();
   const today=dateKey(now);
   const actor=String(options.actor||'Рустам');
-  const [mood,products,wishlist,cycle,message,feed,lulu,car,activity]=await Promise.all([
-    readDailyMood(today,options).catch(()=>null),
-    readProductList(options).catch(()=>({items:[],history:[]})),
-    readWishlist(options).catch(()=>({items:[]})),
-    readCycleState(options).catch(()=>null),
-    readPartnerMessage(options).catch(()=>null),
-    readFeedSnapshot(options).catch(()=>null),
-    readLuluState(options).catch(()=>null),
-    readCarState(options).catch(()=>null),
-    readActivityJournal(options).catch(()=>({items:[]})),
-  ]);
+  const wanted=contextNeeds(transcript);
+  const context={currentDate:today,actor};
 
-  const context={
-    currentDate:today,
-    actor,
-    relationship:relationshipView(now),
-    mood:mood?.moods||null,
-    products:{
-      items:(products?.items||[]).slice(0,80).map(x=>({text:x.text,checked:Boolean(x.checked),addedBy:x.addedBy||''})),
-      recentBought:(products?.history||[]).slice(0,15).map(x=>({text:x.text,boughtAt:x.boughtAt||'',boughtBy:x.boughtBy||''})),
-    },
-    wishlist:(wishlist?.items||[]).slice(0,80).map(x=>({text:x.text,owner:x.owner,done:Boolean(x.done),createdAt:x.createdAt||''})),
-    cycle:cycle?{...cycleViewForDate(cycle,today),updatedAt:cycle.updatedAt||''}:null,
-    partnerMessage:message,
-    feed:feed?{date:feed.date,updatedAt:feed.updatedAt,sections:feed.sections}:null,
-    lulu:lulu?.lastWalk?{lastWalk:lulu.lastWalk}:null,
-    car:{make:'Changan',model:'UNI-V',year:2023,mileage:car?.mileage??null,updatedAt:car?.updatedAt||''},
-    recentActivity:(activity?.items||[]).slice(0,20).map(x=>({text:x.text,actor:x.actor,createdAt:x.createdAt,type:x.type})),
-  };
+  const jobs=[];
 
-  const calendarNeeded=needs(transcript,/(диан.*работ|работ.*диан|выходн|смен|календар|ближайш.*событ|событ.*календар)/u);
-  const holidaysNeeded=needs(transcript,/(праздник|праздники)/u);
-  const tasksNeeded=needs(transcript,/(совместн.*дел|дела.*сегодня|задач|ticktick|ближайш.*событ|календар)/u);
-  const marketNeeded=needs(transcript,/(курс|доллар|usd|рубл|биткоин|bitcoin|btc|эфир|ethereum|eth|крипт)/u);
-  const smartNeeded=Boolean(commandIntent(transcript))||needs(transcript,/(температур.*дом|дома.*температур|влажност|торшер|устройств|умн.*дом)/u);
+  if(wanted.relationship) context.relationship=relationshipView(now);
 
-  if(calendarNeeded){
-    context.workCalendar=await getWorkWeek({...options,now,view:'week'}).catch(error=>({error:String(error?.message||error),days:[]}));
-    context.workCalendar.today=(context.workCalendar.days||[]).find(day=>day.date===today)||null;
-  }
-  if(holidaysNeeded){
-    const holidays=await getHolidayCalendar({...options,now,view:'month'}).catch(error=>({error:String(error?.message||error),days:[]}));
-    context.holidays={date:today,items:(holidays.days||[]).find(day=>day.date===today)?.items||[],source:'RUDI calendar'};
-  }
-  if(tasksNeeded) context.sharedTasks=await tickTickView({...options,now});
-  if(marketNeeded) context.market=await readMarketTicker({...options,now}).catch(error=>({error:String(error?.message||error),items:[]}));
-  if(smartNeeded){
-    const smart=await readSmartHomeSnapshot(false).catch(error=>({error:String(error?.message||error),devices:[],rooms:[]}));
-    context.smartHome={
-      error:smart?.error||'',
-      rooms:(smart?.rooms||[]).map(x=>({id:x.id,name:x.name})),
-      devices:(smart?.devices||[]).map(deviceSummary),
-    };
-  }
+  if(wanted.mood) jobs.push(
+    readDailyMood(today,options)
+      .then(row=>{context.mood=row?.moods||null})
+      .catch(()=>{context.mood=null})
+  );
 
+  if(wanted.products||wanted.productHistory) jobs.push(
+    readProductList(options)
+      .then(products=>{
+        context.products={};
+        if(wanted.products){
+          context.products.items=(products?.items||[]).slice(0,45).map(x=>({
+            text:x.text,checked:Boolean(x.checked),addedBy:x.addedBy||''
+          }));
+        }
+        if(wanted.productHistory){
+          context.products.recentBought=(products?.history||[]).slice(0,12).map(x=>({
+            text:x.text,boughtAt:x.boughtAt||'',boughtBy:x.boughtBy||''
+          }));
+        }
+      })
+      .catch(()=>{context.products={items:[]}})
+  );
+
+  if(wanted.wishlist) jobs.push(
+    readWishlist(options)
+      .then(wishlist=>{
+        context.wishlist=(wishlist?.items||[]).slice(0,45).map(x=>({
+          text:x.text,owner:x.owner,done:Boolean(x.done),createdAt:x.createdAt||''
+        }));
+      })
+      .catch(()=>{context.wishlist=[]})
+  );
+
+  if(wanted.cycle) jobs.push(
+    readCycleState(options)
+      .then(cycle=>{context.cycle=cycle?{...cycleViewForDate(cycle,today),updatedAt:cycle.updatedAt||''}:null})
+      .catch(()=>{context.cycle=null})
+  );
+
+  if(wanted.message) jobs.push(
+    readPartnerMessage(options)
+      .then(message=>{context.partnerMessage=message})
+      .catch(()=>{context.partnerMessage=null})
+  );
+
+  if(wanted.feed) jobs.push(
+    readFeedSnapshot(options)
+      .then(feed=>{
+        context.feed=feed?{
+          date:feed.date,
+          updatedAt:feed.updatedAt,
+          sections:compactValue(feed.sections,{arrayLimit:10,stringLimit:280,maxDepth:5}),
+        }:null;
+      })
+      .catch(()=>{context.feed=null})
+  );
+
+  if(wanted.lulu) jobs.push(
+    readLuluState(options)
+      .then(lulu=>{context.lulu=lulu?.lastWalk?{lastWalk:lulu.lastWalk}:null})
+      .catch(()=>{context.lulu=null})
+  );
+
+  if(wanted.car) jobs.push(
+    readCarState(options)
+      .then(car=>{context.car={make:'Changan',model:'UNI-V',year:2023,mileage:car?.mileage??null,updatedAt:car?.updatedAt||''}})
+      .catch(()=>{context.car={make:'Changan',model:'UNI-V',year:2023,mileage:null}})
+  );
+
+  if(wanted.activity) jobs.push(
+    readActivityJournal(options)
+      .then(activity=>{
+        const rows=(activity?.items||[]).filter(x=>!/гулял|гуляла|прогул/i.test(transcript)||/гуля|прогул/i.test(String(x?.text||'')));
+        context.recentActivity=rows.slice(0,12).map(x=>({
+          text:x.text,actor:x.actor,createdAt:x.createdAt,type:x.type
+        }));
+      })
+      .catch(()=>{context.recentActivity=[]})
+  );
+
+  if(wanted.calendar) jobs.push(
+    getWorkWeek({...options,now,view:'week'})
+      .then(calendar=>{
+        context.workCalendar={
+          configured:Boolean(calendar?.configured),
+          stale:Boolean(calendar?.stale),
+          today:(calendar?.days||[]).find(day=>day.date===today)||null,
+          days:(calendar?.days||[]).slice(0,7).map(day=>({
+            date:day.date,
+            working:Boolean(day.working),
+            events:compactValue(day.events||[],{arrayLimit:4,stringLimit:220,maxDepth:4}),
+          })),
+        };
+      })
+      .catch(error=>{context.workCalendar={error:String(error?.message||error),today:null,days:[]}})
+  );
+
+  if(wanted.holidays) jobs.push(
+    getHolidayCalendar({...options,now,view:'month'})
+      .then(holidays=>{
+        context.holidays={
+          date:today,
+          items:compactValue((holidays.days||[]).find(day=>day.date===today)?.items||[],{arrayLimit:10,stringLimit:220,maxDepth:4}),
+          source:'RUDI calendar',
+        };
+      })
+      .catch(error=>{context.holidays={date:today,items:[],source:'RUDI calendar',error:String(error?.message||error)}})
+  );
+
+  if(wanted.tasks) jobs.push(
+    tickTickView({...options,now}).then(value=>{context.sharedTasks=compactValue(value,{arrayLimit:12,stringLimit:240,maxDepth:4})})
+  );
+
+  if(wanted.market) jobs.push(
+    readMarketTicker({...options,now})
+      .then(value=>{context.market=compactValue(value,{arrayLimit:5,stringLimit:160,maxDepth:3})})
+      .catch(error=>{context.market={error:String(error?.message||error),items:[]}})
+  );
+
+  if(wanted.smart) jobs.push(
+    readSmartHomeSnapshot(false)
+      .then(smart=>{
+        const all=(smart?.devices||[]).map(deviceSummary);
+        const devices=commandIntent(transcript)
+          ? all.filter(hasOnOff)
+          : all.filter(device=>hasOnOff(device)||(device.properties||[]).some(prop=>/temperature|humidity/.test(prop.instance)));
+        context.smartHome={
+          error:smart?.error||'',
+          rooms:(smart?.rooms||[]).slice(0,15).map(x=>({id:x.id,name:x.name})),
+          devices:devices.slice(0,30),
+        };
+      })
+      .catch(error=>{context.smartHome={error:String(error?.message||error),devices:[],rooms:[]}})
+  );
+
+  await Promise.all(jobs);
+  context.loaded=Object.keys(wanted).filter(key=>wanted[key]);
   return context;
 }
 
@@ -257,4 +387,4 @@ async function executeAssistantAction(transcript, context, options = {}) {
   }
 }
 
-module.exports={dateKey,relationshipView,readAssistantContext,executeAssistantAction,commandIntent,selectDevice};
+module.exports={dateKey,relationshipView,contextNeeds,compactValue,readAssistantContext,executeAssistantAction,commandIntent,selectDevice};
