@@ -4,7 +4,7 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const NAMESPACE = 'rudi-saved-items-v1';
 const STATE_KEY = 'shared-saves';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
-const MAX_ITEMS = 160;
+const MAX_ITEMS = 80;
 const MAX_TEXT = 6000;
 
 let mutationQueue = Promise.resolve();
