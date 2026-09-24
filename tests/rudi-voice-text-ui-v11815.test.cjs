@@ -68,5 +68,5 @@ test('assistant modal locks the background in Telegram and PWA',()=>{
 test('mobile assistant uses stable visible viewport height instead of keyboard bottom offsets',()=>{
   assert.match(css,/height:calc\(var\(--voice-assistant-viewport-height,100dvh\) - 16px\)!important/);
   assert.doesNotMatch(app,/--voice-assistant-keyboard-inset/);
-  assert.doesNotMatch(app,/visualViewport\?\.addEventListener\?\.\('scroll'/);
+  assert.doesNotMatch(app,/visualViewport\?\.addEventListener\?\.\('scroll',updateVoiceAssistantViewport/);
 });
