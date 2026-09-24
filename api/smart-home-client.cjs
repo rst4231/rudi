@@ -3,11 +3,78 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession } = require('./rudi-session.cjs');
 const { appendActivity } = require('./activity-journal-store.cjs');
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { readRecipients } = require('./partner-notification-store.cjs');
+const { telegramSendMessage } = require('./telegram-notifications.cjs');
 
 const BASE = 'https://api.iot.yandex.net/v1.0';
 const CACHE_MS = 30000;
 let cache = null;
 let cacheAt = 0;
+const CAMERA_STATUS_NAMESPACE = 'rudi-camera-status-v1';
+const CAMERA_STATUS_TTL_SECONDS = 60 * 60 * 24 * 3650;
+
+function cameraStatusCache(options = {}) {
+  return options.cameraStatusCache || createStrictRuntimeCache({
+    namespace: CAMERA_STATUS_NAMESPACE,
+    ...(options.cacheOptions || {}),
+  });
+}
+
+function isCameraDevice(device) {
+  const type=String(device?.type||'').toLocaleLowerCase('ru-RU');
+  const name=String(device?.name||'').toLocaleLowerCase('ru-RU');
+  return /camera/.test(type)||/камера/.test(name);
+}
+
+async function observeCameraStatus(snapshot, options = {}) {
+  const camera=(snapshot?.devices||[]).find(isCameraDevice);
+  if(!camera?.id) return {found:false};
+
+  let live;
+  try{
+    live=await yandex('/devices/'+encodeURIComponent(camera.id));
+  }catch(error){
+    console.warn('RUDI_CAMERA_STATUS_QUERY_WARN',String(error?.message||error));
+    return {found:true,error:String(error?.message||error)};
+  }
+
+  const state=String(live?.state||'').toLowerCase();
+  if(!['online','offline'].includes(state)) return {found:true,state:''};
+
+  const store=cameraStatusCache(options);
+  const key='camera:'+String(camera.id);
+  const previous=await store.get(key).catch(()=>null);
+
+  await store.set(key,{state,updatedAt:new Date().toISOString()},{
+    ttl:CAMERA_STATUS_TTL_SECONDS,
+    tags:['rudi-camera-status'],
+    name:key,
+  }).catch(error=>console.warn('RUDI_CAMERA_STATUS_STORE_WARN',String(error?.message||error)));
+
+  if(!previous?.state||previous.state===state){
+    return {found:true,state,changed:false};
+  }
+
+  try{
+    const recipients=await readRecipients(options);
+    const chatId=Number(recipients?.['Рустам']);
+    if(Number.isInteger(chatId)&&chatId>0){
+      const message=state==='online'
+        ?'📷 <b>Камера снова онлайн</b>'
+        :'📷 <b>Камера офлайн</b>';
+      await telegramSendMessage(chatId,message,{
+        ...options,
+        tab:'home',
+        buttonText:'Открыть RUDI',
+      });
+    }
+  }catch(error){
+    console.warn('RUDI_CAMERA_STATUS_NOTIFY_WARN',String(error?.message||error));
+  }
+
+  return {found:true,state,changed:true,previousState:previous.state};
+}
 
 function auth(raw, botToken) {
   const params = new URLSearchParams(String(raw || ''));
@@ -111,10 +178,12 @@ function normalize(data) {
   };
 }
 
-async function home(force=false) {
+async function home(force=false, options={}) {
   if (!force && cache && Date.now() - cacheAt < CACHE_MS) return cache;
   cache = normalize(await yandex('/user/info'));
   cacheAt = Date.now();
+  observeCameraStatus(cache,options)
+    .catch(error=>console.warn('RUDI_CAMERA_STATUS_WARN',String(error?.message||error)));
   return cache;
 }
 
@@ -150,15 +219,17 @@ async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рус�
     cacheAt = 0;
     const female = actor === 'Диана';
     const verb = value ? (female ? 'включила' : 'включил') : (female ? 'выключила' : 'выключил');
-    activity = { text:actor + ' ' + verb + ' ' + name, icon:'🏠', createdAt:new Date().toISOString() };
-    await appendActivity({
-      type:'smart-home',
-      actor,
-      text:activity.text,
-      icon:activity.icon,
-      targetTab:'home',
-      dedupeKey:requestId ? 'smart-home:' + requestId : '',
-    }).catch(error => console.warn('RUDI_SMART_HOME_ACTIVITY_WARN', String(error?.message || error)));
+    if(!/камера|camera/iu.test(name)){
+      activity = { text:actor + ' ' + verb + ' ' + name, icon:'🏠', createdAt:new Date().toISOString() };
+      await appendActivity({
+        type:'smart-home',
+        actor,
+        text:activity.text,
+        icon:activity.icon,
+        targetTab:'home',
+        dedupeKey:requestId ? 'smart-home:' + requestId : '',
+      }).catch(error => console.warn('RUDI_SMART_HOME_ACTIVITY_WARN', String(error?.message || error)));
+    }
   }
 
   return { requestId, status:actionStatus, activity };
@@ -245,7 +316,14 @@ async function handleSmartHomeRequest(req, res) {
   const operation = String(body.operation || 'list');
   try {
     if (operation === 'list') {
-      return res.status(200).json({ok:true,actor:session.actor,...await home(Boolean(body.force))});
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        ...await home(Boolean(body.force),{
+          env:process.env,
+          fetchImpl:globalThis.fetch,
+        }),
+      });
     }
 
     if (operation === 'switch') {
@@ -283,4 +361,11 @@ async function handleSmartHomeRequest(req, res) {
   }
 }
 
-module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home, switchSmartHomeDevice, runSmartHomeCapability };
+module.exports = {
+  handleSmartHomeRequest,
+  readSmartHomeSnapshot: home,
+  switchSmartHomeDevice,
+  runSmartHomeCapability,
+  isCameraDevice,
+  observeCameraStatus,
+};
