@@ -1180,7 +1180,7 @@
           const url=new URL(window.location.href);
           if(next==='home') url.searchParams.delete('tab');
           else url.searchParams.set('tab',next);
-          if(item&&(next==='wishlist'||next==='products')) url.searchParams.set('item',String(item));
+          if(item&&['wishlist','products','saves','for-di','schedule'].includes(next)) url.searchParams.set('item',String(item));
           else url.searchParams.delete('item');
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
@@ -1191,7 +1191,7 @@
 
       function focusDeepLinkedItem(tab,item){
         const id=String(item||'').trim();
-        if(!id||(tab!=='wishlist'&&tab!=='products')) return;
+        if(!id||!['wishlist','products','saves','for-di'].includes(tab)) return;
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
           const target=[...document.querySelectorAll('[data-rudi-item-id]')]
             .find(node=>String(node.dataset.rudiItemId||'')===id);
@@ -1216,8 +1216,8 @@
           }).catch(()=>{});
         }
         if(tab==='photos') loadSharedAlbum();
-        if(tab==='saves') window.RUDI_SAVES?.load?.();
-        if(tab==='for-di') window.RUDI_FOR_DI?.load?.();
+        if(tab==='saves') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('saves',item));
+        if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
       }
 
       function canUseAppViewTransition(){
