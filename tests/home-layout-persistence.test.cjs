@@ -9,7 +9,11 @@ test('saved home card order wins over a different remote layout',()=>{
   const end=app.indexOf('let uiPreferencesBackupTimer',start);
   const block=app.slice(start,end);
   assert.ok(start>=0&&end>start);
+  assert.match(block,/const localTime=Date\.parse\(localStamp\)\|\|0/);
+  assert.match(block,/const remoteTime=Date\.parse\(remoteStamp\)\|\|0/);
+  assert.match(block,/const localLayoutIsNewer=localTime>remoteTime\|\|\(localTime===remoteTime&&hasLocalOrder\)/);
   assert.match(block,/const keepLocalOrder=hasLocalOrder&&hasRemoteOrder/);
+  assert.match(block,/&&localLayoutIsNewer/);
   assert.match(block,/if\(hasRemoteOrder&&!keepLocalOrder\)/);
   assert.match(block,/if\(keepLocalOrder\)[\s\S]*?markUiPreferencesChanged\(\)/);
   assert.match(block,/if\(remoteStamp&&!keepLocalOrder\)/);
