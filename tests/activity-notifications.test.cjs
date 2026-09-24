@@ -26,7 +26,7 @@ test('activity notification copy is rich, gender-aware and escapes user content'
   assert.doesNotMatch(wish, /<script>/);
   assert.match(wish, /&lt;script&gt;/);
 
-  assert.match(moodNotificationText('Диана', 'Рустам', 'great'), /😄 <b>Диана, у Рустама сейчас отличное настроение<\/b>/);
+  assert.match(moodNotificationText('Диана', 'Рустам', 'joy'), /😄 <b>Диана, у Рустама сейчас радость<\/b>/);
   assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /✅ <b>Рустам выполнил задачу<\/b>/);
   assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /&lt;уголь&gt;/);
   assert.match(checklistCompletedNotificationText('Диана', 'Купить мясо', 'Шашлыки'), /☑️ <b>Диана выполнила пункт<\/b>/);
@@ -67,7 +67,7 @@ test('mood change notification goes only to the other partner', async () => {
     });
   };
 
-  const fromRustam = await sendMoodNotificationToPartner('Рустам', 'great', {
+  const fromRustam = await sendMoodNotificationToPartner('Рустам', 'joy', {
     recipients: { 'Рустам': 111, 'Диана': 222 },
     botToken: 'test-token',
     fetchImpl,
@@ -78,7 +78,7 @@ test('mood change notification goes only to the other partner', async () => {
   assert.equal(calls[0].chat_id, 222);
 
   calls.length = 0;
-  const fromDiana = await sendMoodNotificationToPartner('Диана', 'ok', {
+  const fromDiana = await sendMoodNotificationToPartner('Диана', 'love', {
     recipients: { 'Рустам': 111, 'Диана': 222 },
     botToken: 'test-token',
     fetchImpl,

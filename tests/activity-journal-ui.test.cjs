@@ -35,8 +35,11 @@ test('activity journal is wired to real RUDI events',()=>{
   assert.match(api,/type: 'task-complete'/);
   assert.match(api,/type: 'checklist-complete'/);
   assert.match(api,/type: 'mood'/);
-  assert.match(api,/Нормально/);
-  assert.match(api,/Отлично/);
+  assert.match(api,/Грусть/);
+  assert.match(api,/Страх/);
+  assert.match(api,/Гнев/);
+  assert.match(api,/Радость/);
+  assert.match(api,/Любовь/);
   assert.match(app,/setTimeout\(\(\)=>loadActivityJournal\(\{silent:true\}\),180\)/);
 });
 
