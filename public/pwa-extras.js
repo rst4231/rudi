@@ -384,12 +384,324 @@
     });
   }
 
+
+  let savesState=[];
+  let savesActor='';
+  let savesLoadPromise=null;
+
+  async function savesRequest(operation,payload={}){
+    const response=await fetch('/api/partner-message?rudiAction=saves',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        initData:window.Telegram?.WebApp?.initData||'',
+        operation,
+        ...payload
+      }),
+      cache:'no-store'
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok){
+      const error=new Error(data.error||'saves-request-failed');
+      error.status=response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  function savesCollapseKey(type){
+    const actor=savesActor==='Диана'?'diana':'rustam';
+    return 'rudi:saves:collapsed:v1:'+actor+':'+type;
+  }
+
+  function applySavesCategoryState(type,collapsed){
+    const section=document.querySelector('[data-saves-category="'+type+'"]');
+    const toggle=document.querySelector('[data-saves-toggle="'+type+'"]');
+    const body=byId(type==='date'?'savedDatesBody':'savedRecipesBody');
+    if(!section||!toggle||!body) return;
+    section.classList.toggle('is-collapsed',Boolean(collapsed));
+    toggle.setAttribute('aria-expanded',collapsed?'false':'true');
+    body.hidden=Boolean(collapsed);
+  }
+
+  function restoreSavesCategoryState(type){
+    let collapsed=false;
+    try{collapsed=localStorage.getItem(savesCollapseKey(type))==='1'}catch(_){}
+    applySavesCategoryState(type,collapsed);
+  }
+
+  function toggleSavesCategory(type){
+    const section=document.querySelector('[data-saves-category="'+type+'"]');
+    if(!section) return;
+    const collapsed=!section.classList.contains('is-collapsed');
+    applySavesCategoryState(type,collapsed);
+    try{localStorage.setItem(savesCollapseKey(type),collapsed?'1':'0')}catch(_){}
+    try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+  }
+
+  function formatSavedDate(value){
+    const date=new Date(String(value||''));
+    if(Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('ru-RU',{
+      day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'
+    }).format(date).replace(',',' ·');
+  }
+
+  function datePeriodText(value){
+    return value==='morning'?'Утро':value==='day'?'День':value==='evening'?'Вечер':'';
+  }
+
+  function savedDeleteButton(id){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='saved-item-delete';
+    button.setAttribute('aria-label','Удалить сохранение');
+    button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>';
+    button.addEventListener('click',async()=>{
+      if(button.disabled) return;
+      button.disabled=true;
+      try{
+        const data=await savesRequest('remove',{id});
+        savesState=Array.isArray(data.items)?data.items:[];
+        renderSaves();
+        showMiniToast('Удалено');
+        try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+      }catch(_){
+        button.disabled=false;
+        showMiniToast('Не удалось удалить');
+        try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+      }
+    });
+    return button;
+  }
+
+  function savedMeta(item){
+    const bits=[];
+    if(item.type==='date'){
+      const period=datePeriodText(item.payload?.period);
+      if(period) bits.push(period);
+      if(item.payload?.duration) bits.push(String(item.payload.duration));
+    }else{
+      if(item.payload?.timeMinutes) bits.push('≈ '+item.payload.timeMinutes+' мин');
+      if(item.payload?.difficulty) bits.push(String(item.payload.difficulty));
+    }
+    if(item.savedBy) bits.push('Сохранил'+(item.savedBy==='Диана'?'а ':' ')+item.savedBy);
+    const when=formatSavedDate(item.createdAt);
+    if(when) bits.push(when);
+    return bits.join(' · ');
+  }
+
+  function renderSavedDateItem(item){
+    const card=document.createElement('article');
+    card.className='saved-item saved-date-item';
+    card.dataset.savedId=String(item.id||'');
+
+    const top=document.createElement('div');
+    top.className='saved-item-head';
+    const title=document.createElement('strong');
+    title.textContent=String(item.payload?.title||'Свидание');
+    top.append(title,savedDeleteButton(item.id));
+
+    const meta=document.createElement('div');
+    meta.className='saved-item-meta';
+    meta.textContent=savedMeta(item);
+
+    const description=document.createElement('p');
+    description.className='saved-item-description';
+    description.textContent=String(item.payload?.description||'');
+
+    card.append(top,meta,description);
+    return card;
+  }
+
+  function recipeDetailSection(titleText){
+    const heading=document.createElement('strong');
+    heading.className='saved-recipe-section-title';
+    heading.textContent=titleText;
+    return heading;
+  }
+
+  function renderSavedRecipeItem(item){
+    const payload=item.payload||{};
+    const card=document.createElement('article');
+    card.className='saved-item saved-recipe-item';
+    card.dataset.savedId=String(item.id||'');
+
+    const top=document.createElement('div');
+    top.className='saved-item-head';
+    const title=document.createElement('strong');
+    title.textContent=String(payload.title||'Рецепт');
+    top.append(title,savedDeleteButton(item.id));
+
+    const meta=document.createElement('div');
+    meta.className='saved-item-meta';
+    meta.textContent=savedMeta(item);
+
+    card.append(top,meta);
+
+    if(payload.summary){
+      const summary=document.createElement('p');
+      summary.className='saved-item-description';
+      summary.textContent=String(payload.summary);
+      card.appendChild(summary);
+    }
+
+    const details=document.createElement('details');
+    details.className='saved-recipe-details';
+    const disclosure=document.createElement('summary');
+    disclosure.textContent='Открыть рецепт';
+    details.appendChild(disclosure);
+
+    const body=document.createElement('div');
+    body.className='saved-recipe-body';
+
+    const missing=Array.isArray(payload.missing)?payload.missing.filter(Boolean):[];
+    if(missing.length){
+      body.appendChild(recipeDetailSection('Нужно докупить'));
+      const text=document.createElement('div');
+      text.className='saved-recipe-note';
+      text.textContent=missing.join(', ');
+      body.appendChild(text);
+    }
+
+    const ingredients=Array.isArray(payload.ingredients)?payload.ingredients:[];
+    if(ingredients.length){
+      body.appendChild(recipeDetailSection('Ингредиенты'));
+      const list=document.createElement('div');
+      list.className='saved-recipe-ingredients';
+      ingredients.forEach(row=>{
+        const line=document.createElement('div');
+        const name=document.createElement('span');
+        name.textContent=String(row?.name||'');
+        const amount=document.createElement('strong');
+        amount.textContent=String(row?.amount||'');
+        line.append(name,amount);
+        list.appendChild(line);
+      });
+      body.appendChild(list);
+    }
+
+    const steps=Array.isArray(payload.steps)?payload.steps.filter(Boolean):[];
+    if(steps.length){
+      body.appendChild(recipeDetailSection('Как приготовить'));
+      const list=document.createElement('ol');
+      list.className='saved-recipe-steps';
+      steps.forEach(value=>{
+        const row=document.createElement('li');
+        row.textContent=String(value);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+    }
+
+    const tips=Array.isArray(payload.tips)?payload.tips.filter(Boolean):[];
+    if(tips.length){
+      body.appendChild(recipeDetailSection('Совет'));
+      const text=document.createElement('div');
+      text.className='saved-recipe-note';
+      text.textContent=tips.join(' ');
+      body.appendChild(text);
+    }
+
+    details.appendChild(body);
+    card.appendChild(details);
+    return card;
+  }
+
+  function renderSaves(){
+    const dates=savesState.filter(item=>item?.type==='date');
+    const recipes=savesState.filter(item=>item?.type==='recipe');
+    const datesList=byId('savedDatesList');
+    const recipesList=byId('savedRecipesList');
+    const datesEmpty=byId('savedDatesEmpty');
+    const recipesEmpty=byId('savedRecipesEmpty');
+    if(!datesList||!recipesList) return;
+
+    datesList.replaceChildren(...dates.map(renderSavedDateItem));
+    recipesList.replaceChildren(...recipes.map(renderSavedRecipeItem));
+
+    if(datesEmpty) datesEmpty.hidden=dates.length>0;
+    if(recipesEmpty) recipesEmpty.hidden=recipes.length>0;
+    if(byId('savedDatesCount')) byId('savedDatesCount').textContent=String(dates.length);
+    if(byId('savedRecipesCount')) byId('savedRecipesCount').textContent=String(recipes.length);
+    if(byId('savesTotalCount')) byId('savesTotalCount').textContent=savesState.length?String(savesState.length):'';
+
+    const status=byId('savesStatus');
+    if(status) status.textContent=savesState.length?'Общая коллекция Рустама и Дианы':'Сохраняйте сюда понравившиеся идеи и рецепты';
+  }
+
+  async function loadSaves(){
+    if(savesLoadPromise) return savesLoadPromise;
+    const status=byId('savesStatus');
+    if(status&&!savesState.length) status.textContent='Загружаю сохранения…';
+    savesLoadPromise=(async()=>{
+      try{
+        const data=await savesRequest('list');
+        savesActor=String(data.actor||savesActor);
+        savesState=Array.isArray(data.items)?data.items:[];
+        renderSaves();
+        restoreSavesCategoryState('date');
+        restoreSavesCategoryState('recipe');
+        return savesState;
+      }catch(error){
+        if(status) status.textContent=navigator.onLine===false
+          ?'Нет сети. Сохранения будут доступны после подключения.'
+          :'Не удалось загрузить сохранения';
+        throw error;
+      }finally{
+        savesLoadPromise=null;
+      }
+    })();
+    return savesLoadPromise;
+  }
+
+  async function saveSharedItem(type,payload,button){
+    const data=await savesRequest('add',{type,payload});
+    savesActor=String(data.actor||savesActor);
+    savesState=Array.isArray(data.items)?data.items:savesState;
+    renderSaves();
+    if(button){
+      button.classList.add('is-saved');
+      button.disabled=true;
+      const label=button.querySelector('span');
+      if(label) label.textContent='Сохранено';
+      button.setAttribute('aria-label','Сохранено');
+    }
+    showMiniToast(data.duplicate?'Уже сохранено':'Сохранено');
+    return data.item;
+  }
+
+  function setupSavesPage(){
+    document.querySelectorAll('[data-saves-toggle]').forEach(button=>{
+      if(button.dataset.savesBound==='1') return;
+      button.dataset.savesBound='1';
+      button.addEventListener('click',()=>toggleSavesCategory(String(button.dataset.savesToggle||'')));
+    });
+    const back=byId('savesBackButton');
+    if(back&&back.dataset.bound!=='1'){
+      back.dataset.bound='1';
+      back.addEventListener('click',()=>routeTo('home'));
+    }
+  }
+
+  window.RUDI_SAVES={
+    load:loadSaves,
+    save:saveSharedItem,
+    remove:async id=>{
+      const data=await savesRequest('remove',{id});
+      savesState=Array.isArray(data.items)?data.items:[];
+      renderSaves();
+      return data;
+    }
+  };
+
   function installDynamicExtras(){
     installSearchButton();
     ensureQuickAdd();
     installPhotoShare();
     installRecipeShare();
     installWishlistShare();
+    setupSavesPage();
   }
 
   installServiceWorker();
