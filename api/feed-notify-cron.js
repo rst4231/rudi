@@ -1,6 +1,6 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
-const { sendForDiPrivateMessages } = require('./for-di-private.cjs');
+const { publishForDiToRudi } = require('./for-di-private.cjs');
 const { publishDailyLaborArticle } = require('./index.js');
 
 async function handler(req, res) {
@@ -37,7 +37,7 @@ async function handler(req, res) {
         laborCatchup = { failed: true, error: String(error?.message || error) };
         console.warn('RUDI_FOR_DI_LABOR_CATCHUP_WARN', laborCatchup.error);
       }
-      result = await sendForDiPrivateMessages();
+      result = await publishForDiToRudi();
     } else {
       result = await sendDailyMorningSummaries({ force, recoveryKey });
     }
