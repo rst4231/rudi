@@ -1,4 +1,8 @@
-    (() => {
+    (async () => {
+      try{
+        const telegramReady=window.__rudiTelegramSdkReady;
+        if(telegramReady&&typeof telegramReady.then==='function') await telegramReady;
+      }catch(_){}
       const TZ = 'Europe/Moscow';
       const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
       const root = document.documentElement;

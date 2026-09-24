@@ -11,6 +11,14 @@ const partner = fs.readFileSync('api/partner-message.js','utf8');
 const smartServer = fs.readFileSync('api/smart-home-client.cjs','utf8');
 const carServer = fs.readFileSync('api/car-client.cjs','utf8');
 
+test('Telegram SDK cannot block Safari or installed PWA startup', () => {
+  assert.doesNotMatch(indexHtml, /<script defer src="https:\/\/telegram\.org\/js\/telegram-web-app\.js/);
+  assert.match(indexHtml, /window\.__rudiTelegramSdkReady=Promise\.resolve\(false\)/);
+  assert.match(indexHtml, /setTimeout\(\(\)=>finish\(false\),1800\)/);
+  assert.match(indexHtml, /script\.async=true/);
+  assert.match(app, /async \(\) => \{[\s\S]*?__rudiTelegramSdkReady[\s\S]*?await telegramReady[\s\S]*?const tg = window\.Telegram\?\.WebApp/);
+});
+
 test('Safari login uses RUDI browser auth and keeps the two explicit identities', () => {
   assert.match(app, /rudiAction=browser-auth/);
   assert.match(app, /\['Рустам','Диана'\]/);

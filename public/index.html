@@ -32,7 +32,33 @@
   <link rel="stylesheet" href="/calendar.css?v=1.8.7">
   <link rel="stylesheet" href="/smart-home.css?v=1.8.7">
   <link rel="stylesheet" href="/car.css?v=1.8.7">
-  <script defer src="https://telegram.org/js/telegram-web-app.js?63"></script>
+  <script>
+    (() => {
+      const launchContext=String(location.search||'')+String(location.hash||'');
+      const telegramLaunch=/tgWebApp(?:Data|Version|Platform|ThemeParams|StartParam)=/i.test(launchContext)
+        || /Telegram/i.test(String(navigator.userAgent||''));
+      if(!telegramLaunch){
+        window.__rudiTelegramSdkReady=Promise.resolve(false);
+        return;
+      }
+      window.__rudiTelegramSdkReady=new Promise(resolve=>{
+        let settled=false;
+        const finish=value=>{
+          if(settled) return;
+          settled=true;
+          clearTimeout(timer);
+          resolve(Boolean(value));
+        };
+        const timer=setTimeout(()=>finish(false),1800);
+        const script=document.createElement('script');
+        script.src='https://telegram.org/js/telegram-web-app.js?63';
+        script.async=true;
+        script.onload=()=>finish(Boolean(window.Telegram?.WebApp));
+        script.onerror=()=>finish(false);
+        document.head.appendChild(script);
+      });
+    })();
+  </script>
   <script defer src="/app.js?v=1.16.3"></script>
   <script defer src="/pwa-extras.js?v=1.15.0"></script>
   <script defer src="/weather.js?v=1.8.7"></script>
