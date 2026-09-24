@@ -71,7 +71,7 @@ test('client carries UI context, time labels, cleanup and global assistant state
   assert.match(app,/ui:\{tab:currentAppTab,selectedDate:currentSelectedWorkDate\|\|''\}/);
   assert.match(app,/function voiceAssistantTimeLabel/);
   assert.match(app,/function cleanVoiceAssistantText/);
-  assert.match(app,/fab\.hidden=false/);
+  assert.match(app,/launcher\.hidden=false/);
   assert.doesNotMatch(app,/if\(!home&&panel&&!panel\.hidden\) closeVoiceAssistant/);
   assert.match(css,/rudiVoiceAnswerIn \.5s/);
 });
