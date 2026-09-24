@@ -5,6 +5,17 @@ const os=require('node:os');
 const path=require('node:path');
 const {spawnSync}=require('node:child_process');
 
+test('PWA snapshots fall back on a stalled or aborted Vercel request, not only navigator offline',()=>{
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  const start=pwa.indexOf('window.fetch=async');
+  const end=pwa.indexOf('window.addEventListener(\'online\'',start);
+  assert.ok(start>=0&&end>start);
+  const block=pwa.slice(start,end);
+  assert.match(block,/String\(error\?\.name\|\|''\)==='AbortError'/);
+  assert.match(block,/if\(snapshotKey&&networkFailure\)/);
+  assert.doesNotMatch(block,/if\(snapshotKey&&!aborted&&networkFailure\)/);
+});
+
 test('built assets have stable content URLs, and editing one invalidates only that file',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rudi-assets-'));
   try{

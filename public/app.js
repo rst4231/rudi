@@ -4134,8 +4134,13 @@
           }catch(_){};
         }catch(error){
           const code=String(error?.message||'');
+          const connectivityFailure=
+            navigator.onLine===false
+            || String(error?.name||'')==='AbortError'
+            || String(error?.name||'')==='TypeError'
+            || /network|fetch|load failed|aborted|timeout/i.test(code);
           let offlineActor='';
-          if(navigator.onLine===false){
+          if(connectivityFailure){
             try{
               const cached=JSON.parse(localStorage.getItem('rudi-offline-access-v1')||'null');
               const age=Date.now()-Number(cached?.verifiedAt||0);

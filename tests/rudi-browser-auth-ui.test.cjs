@@ -20,6 +20,18 @@ test('Safari login uses RUDI browser auth and keeps the two explicit identities'
   assert.match(app, /PIN ещё не создан/);
 });
 
+test('cached identity unlocks the PWA when Vercel is unreachable but the device is still online', () => {
+  const start=app.indexOf('async function authenticateApp()');
+  const end=app.indexOf('const preventGestureZoom',start);
+  assert.ok(start>=0&&end>start);
+  const block=app.slice(start,end);
+  assert.match(block,/connectivityFailure=/);
+  assert.match(block,/error\?\.name\|\|''\)==='AbortError'/);
+  assert.match(block,/error\?\.name\|\|''\)==='TypeError'/);
+  assert.match(block,/localStorage\.getItem\('rudi-offline-access-v1'\)/);
+  assert.doesNotMatch(block,/if\(navigator\.onLine===false\)\{\s*try\{\s*const cached=JSON\.parse\(localStorage\.getItem\('rudi-offline-access-v1'\)/);
+});
+
 test('browser login gate hides the application until authentication succeeds', () => {
   assert.match(css, /body\.auth-login \.shell/);
   assert.match(css, /body\.auth-login \.app-tabbar/);

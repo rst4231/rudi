@@ -310,11 +310,14 @@
         return response;
       }catch(error){
         const aborted=Boolean(init?.signal?.aborted)||String(error?.name||'')==='AbortError';
-        const networkFailure=String(error?.name||'')==='TypeError';
+        const networkFailure=
+          String(error?.name||'')==='TypeError'
+          || String(error?.name||'')==='AbortError'
+          || /network|fetch|load failed|aborted|timeout/i.test(String(error?.message||''));
         if(queued&&!aborted&&networkFailure){
           return queueAndThrow('Сеть нестабильна · действие отправится позже');
         }
-        if(snapshotKey&&!aborted&&networkFailure){
+        if(snapshotKey&&networkFailure){
           const cached=await snapshotFallback(snapshotKey);
           if(cached) return cached;
         }
@@ -447,7 +450,10 @@
       const updatedAt=Number(event.detail?.updatedAt||0);
       if(!updatedAt) return;
       const time=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(new Date(updatedAt));
-      banner.textContent='Нет сети · показаны данные на '+time;
+      banner.hidden=false;
+      document.body.classList.add('rudi-offline');
+      document.body.dataset.offlineMode='1';
+      banner.textContent='Связь с RUDI нестабильна · показаны данные на '+time;
     });
     window.addEventListener('online',sync);
     window.addEventListener('offline',sync);
