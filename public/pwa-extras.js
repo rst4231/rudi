@@ -10,7 +10,7 @@
       const url=new URL(window.location.href);
       if(tab&&tab!=='home') url.searchParams.set('tab',tab);
       else url.searchParams.delete('tab');
-      if(item&&['wishlist','products','saves','schedule'].includes(tab)) url.searchParams.set('item',String(item));
+      if(item&&['wishlist','products','saves','for-di','schedule'].includes(tab)) url.searchParams.set('item',String(item));
       else url.searchParams.delete('item');
       const target=url.pathname+(url.search||'')+(url.hash||'');
       const current=window.location.pathname+window.location.search+window.location.hash;
@@ -635,6 +635,7 @@
     const card=document.createElement('article');
     card.className='saved-item saved-date-item';
     card.dataset.savedId=String(item.id||'');
+    card.dataset.rudiItemId=String(item.id||'');
 
     const top=document.createElement('div');
     top.className='saved-item-head';
