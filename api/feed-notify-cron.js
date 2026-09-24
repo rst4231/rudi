@@ -1,7 +1,6 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
-const { publishForDiToRudi } = require('./for-di-private.cjs');
-const { publishDailyLaborArticle } = require('./index.js');
+const { publishLaborArticleToRudi } = require('./labor-code.cjs');
 
 async function handler(req, res) {
   if (!isCronRequestAuthorized(req)) {
@@ -28,27 +27,19 @@ async function handler(req, res) {
         return res.status(200).json({ ok: true, mode, skipped: 'recovery-date-mismatch', recoveryDate, today });
       }
     }
-    let laborCatchup = null;
     let result;
     if (mode === 'for-di') {
-      try {
-        laborCatchup = await publishDailyLaborArticle();
-      } catch (error) {
-        laborCatchup = { failed: true, error: String(error?.message || error) };
-        console.warn('RUDI_FOR_DI_LABOR_CATCHUP_WARN', laborCatchup.error);
-      }
-      result = await publishForDiToRudi();
+      result = await publishLaborArticleToRudi({ now:new Date(), force });
     } else {
       result = await sendDailyMorningSummaries({ force, recoveryKey });
     }
     const logLabel = mode === 'for-di' ? 'RUDI_FOR_DI_RESULT' : 'RUDI_MORNING_SUMMARY_RESULT';
-    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, laborCatchup, ...result }));
+    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, ...result }));
     return res.status(200).json({
       ok: true,
       mode,
       force,
       recoveryDate: recoveryDate || null,
-      ...(mode === 'for-di' ? { laborCatchup } : {}),
       ...result,
     });
   } catch (error) {
