@@ -62,7 +62,7 @@ test('smart home actions include the actor in the shared activity journal',()=>{
   assert.match(client,/appendActivity/);
   assert.match(client,/type:'smart-home'/);
   assert.match(client,/targetTab:'home'/);
-  assert.match(client,/session\.actor \+ ' ' \+ verb \+ ' ' \+ deviceName/);
+  assert.match(client,/(?:session\.actor|actor) \+ ' ' \+ verb \+ ' ' \+ (?:deviceName|name)/);
   assert.match(client,/выбрала' : 'выбрал'/);
   assert.match(smart,/prependActivity\(result\.activity\)/);
 });

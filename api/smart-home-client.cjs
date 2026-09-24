@@ -167,16 +167,16 @@ async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рус�
 async function runSmartHomeCapability(deviceId, deviceName, capabilityType, instance, value, actor='Рустам') {
   const id = cleanId(deviceId,'device-id');
   const name = cleanName(deviceName) || 'Устройство';
-  const type = String(capabilityType || '');
-  const key = String(instance || '');
+  capabilityType = String(capabilityType || '');
+  instance = String(instance || '');
 
   const allowed =
-    (type === 'devices.capabilities.mode' && key === 'work_speed') ||
-    (type === 'devices.capabilities.toggle' && key === 'pause');
+    (capabilityType === 'devices.capabilities.mode' && instance === 'work_speed') ||
+    (capabilityType === 'devices.capabilities.toggle' && instance === 'pause');
   if (!allowed) throw new Error('bad-capability');
 
   let nextValue = value;
-  if (key === 'pause') {
+  if (instance === 'pause') {
     if (typeof nextValue !== 'boolean') throw new Error('bad-value');
   } else {
     nextValue = String(nextValue || '');
@@ -186,8 +186,8 @@ async function runSmartHomeCapability(deviceId, deviceName, capabilityType, inst
   const result = await yandex('/devices/actions', {
     method:'POST',
     body:{devices:[{id,actions:[{
-      type,
-      state:{instance:key,value:nextValue}
+      type:capabilityType,
+      state:{instance,value:nextValue}
     }]}]},
   });
 
@@ -200,7 +200,7 @@ async function runSmartHomeCapability(deviceId, deviceName, capabilityType, inst
     cacheAt = 0;
     const female = actor === 'Диана';
     let text = '';
-    if (key === 'pause') {
+    if (instance === 'pause') {
       const verb = nextValue
         ? (female ? 'поставила' : 'поставил')
         : (female ? 'продолжила' : 'продолжил');

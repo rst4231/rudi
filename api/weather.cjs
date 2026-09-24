@@ -3,7 +3,7 @@ const FRESH = 15 * 60 * 1000;
 const MAX_AGE = 2 * 60 * 60 * 1000;
 function valid(data) {
   const daily = data?.daily;
-  const keys = ['weather_code', 'temperature_2m_min', 'temperature_2m_max', 'precipitation_sum'];
+  const keys = ['temperature_2m_min', 'temperature_2m_max', 'precipitation_sum'];
   return Number.isFinite(data?.current?.temperature_2m) && Number.isFinite(data?.current?.weather_code)
     && keys.every(key => Array.isArray(daily?.[key]) && daily[key].length > 0 && daily[key].every(Number.isFinite))
     && keys.every(key => daily[key].length === daily.temperature_2m_min.length);

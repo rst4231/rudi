@@ -57,7 +57,7 @@ test('assistant smart-home actions go through safe device switch helper',()=>{
   assert.match(context,/selectDevice/);
   assert.match(context,/switchSmartHomeDevice/);
   assert.match(smart,/async function switchSmartHomeDevice/);
-  assert.match(smart,/module\.exports = \{ handleSmartHomeRequest, readSmartHomeSnapshot: home, switchSmartHomeDevice \}/);
+  assert.match(smart,/module\.exports = \{ handleSmartHomeRequest, readSmartHomeSnapshot: home, switchSmartHomeDevice, runSmartHomeCapability \}/);
 });
 
 test('calendar and holiday routing rules are explicit',()=>{
