@@ -631,6 +631,9 @@ async function readAssistantContext(transcript, options = {}) {
 async function executeAssistantAction(transcript, context, options = {}) {
   const actor=String(options.actor||'Рустам');
 
+  const nav=navigationIntent(transcript);
+  if(nav) return {type:'app-navigate',performed:true,status:'CLIENT_PENDING',tab:nav.tab,label:nav.label};
+
   const productIntent=addProductIntent(transcript);
   if(productIntent?.items?.length){
     try{
@@ -644,17 +647,159 @@ async function executeAssistantAction(transcript, context, options = {}) {
     }
   }
 
+  const removeProduct=removeProductIntent(transcript);
+  if(removeProduct){
+    try{
+      const state=await readProductList(options);
+      const matched=matchNamedItem(state?.items,removeProduct.target);
+      if(!matched.item){
+        return {
+          type:'products-remove',
+          performed:false,
+          error:matched.candidates.length?'ambiguous':'not-found',
+          candidates:matched.candidates.map(x=>x.text),
+        };
+      }
+      await removeProductFn(matched.item.id,options);
+      return {type:'products-remove',performed:true,item:matched.item.text};
+    }catch(error){
+      return {type:'products-remove',performed:false,error:String(error?.message||error)};
+    }
+  }
+
+  const boughtIntent=productBoughtIntent(transcript);
+  if(boughtIntent){
+    try{
+      const state=await readProductList(options);
+      const matched=matchNamedItem(state?.items,boughtIntent.target);
+      if(!matched.item){
+        return {
+          type:'products-bought',
+          performed:false,
+          error:matched.candidates.length?'ambiguous':'not-found',
+          candidates:matched.candidates.map(x=>x.text),
+        };
+      }
+      await markProductBought(matched.item.id,actor,options);
+      return {type:'products-bought',performed:true,item:matched.item.text};
+    }catch(error){
+      return {type:'products-bought',performed:false,error:String(error?.message||error)};
+    }
+  }
+
+  const toggleProduct=productToggleIntent(transcript);
+  if(toggleProduct){
+    try{
+      const state=await readProductList(options);
+      const matched=matchNamedItem(state?.items,toggleProduct.target);
+      if(!matched.item){
+        return {
+          type:'products-toggle',
+          performed:false,
+          error:matched.candidates.length?'ambiguous':'not-found',
+          candidates:matched.candidates.map(x=>x.text),
+        };
+      }
+      await toggleProductChecked(matched.item.id,options);
+      return {type:'products-toggle',performed:true,item:matched.item.text,checked:!Boolean(matched.item.checked)};
+    }catch(error){
+      return {type:'products-toggle',performed:false,error:String(error?.message||error)};
+    }
+  }
+
   const wishIntent=addWishIntent(transcript,actor);
   if(wishIntent?.items?.length){
+    if(wishIntent.owner!==actor){
+      return {type:'wishlist-add',performed:false,error:'wishlist-owner-forbidden'};
+    }
     const added=[];
     try{
       for(const item of wishIntent.items){
-        const result=await addWish(item,'',wishIntent.owner,options);
+        const result=await addWish(item,'',actor,options);
         if(result?.item?.text) added.push(result.item.text);
       }
-      return {type:'wishlist-add',performed:true,owner:wishIntent.owner,items:added};
+      return {type:'wishlist-add',performed:true,owner:actor,items:added};
     }catch(error){
-      return {type:'wishlist-add',performed:false,owner:wishIntent.owner,items:added,error:String(error?.message||error)};
+      return {type:'wishlist-add',performed:false,owner:actor,items:added,error:String(error?.message||error)};
+    }
+  }
+
+  const removeWish=removeWishIntent(transcript);
+  if(removeWish){
+    try{
+      const state=await readWishlist(options);
+      const mine=(state?.items||[]).filter(item=>item.owner===actor);
+      const matched=matchNamedItem(mine,removeWish.target);
+      if(!matched.item){
+        return {
+          type:'wishlist-remove',
+          performed:false,
+          error:matched.candidates.length?'ambiguous':'not-found',
+          candidates:matched.candidates.map(x=>x.text),
+        };
+      }
+      await removeWishFn(matched.item.id,options);
+      return {type:'wishlist-remove',performed:true,item:matched.item.text,owner:actor};
+    }catch(error){
+      return {type:'wishlist-remove',performed:false,error:String(error?.message||error)};
+    }
+  }
+
+  const wishToggle=toggleWishIntent(transcript);
+  if(wishToggle){
+    try{
+      const state=await readWishlist(options);
+      const mine=(state?.items||[]).filter(item=>item.owner===actor);
+      const matched=matchNamedItem(mine,wishToggle.target);
+      if(!matched.item){
+        return {
+          type:'wishlist-toggle',
+          performed:false,
+          error:matched.candidates.length?'ambiguous':'not-found',
+          candidates:matched.candidates.map(x=>x.text),
+        };
+      }
+      const result=await toggleWish(matched.item.id,options);
+      return {type:'wishlist-toggle',performed:true,item:matched.item.text,done:Boolean(result?.item?.done),owner:actor};
+    }catch(error){
+      return {type:'wishlist-toggle',performed:false,error:String(error?.message||error)};
+    }
+  }
+
+  const savedIntent=removeSavedIntent(transcript);
+  if(savedIntent){
+    try{
+      const state=await readSavedItems(options);
+      const matched=matchNamedItem(
+        state?.items,
+        savedIntent.target,
+        item=>item?.payload?.title||item?.payload?.name||''
+      );
+      if(!matched.item){
+        return {
+          type:'saved-remove',
+          performed:false,
+          error:matched.candidates.length?'ambiguous':'not-found',
+          candidates:matched.candidates.map(x=>x?.payload?.title||x?.payload?.name||'').filter(Boolean),
+        };
+      }
+      const result=await removeSavedItem(matched.item.id,options);
+      return {
+        type:'saved-remove',
+        performed:true,
+        item:String(result?.item?.payload?.title||result?.item?.payload?.name||''),
+      };
+    }catch(error){
+      return {type:'saved-remove',performed:false,error:String(error?.message||error)};
+    }
+  }
+
+  if(luluWalkIntent(transcript)){
+    try{
+      const lulu=await markLuluWalk(actor,options);
+      return {type:'lulu-walk',performed:true,walkedAt:lulu?.lastWalk?.walkedAt||'',actor};
+    }catch(error){
+      return {type:'lulu-walk',performed:false,error:String(error?.message||error)};
     }
   }
 
@@ -676,8 +821,16 @@ async function executeAssistantAction(transcript, context, options = {}) {
   if(intent.kind==='pause'){
     if(!pauseCap) return {type:'smart-home-pause',performed:false,device:device.name,error:'pause-not-supported'};
     try{
-      const result=await runSmartHomeCapability(device.id,device.name,'devices.capabilities.toggle','pause',Boolean(intent.value),actor);
-      return {type:'smart-home-pause',performed:String(result?.status||'')==='DONE',device:device.name,paused:Boolean(intent.value),status:String(result?.status||'')};
+      const result=await runSmartHomeCapability(
+        device.id,device.name,'devices.capabilities.toggle','pause',Boolean(intent.value),actor
+      );
+      return {
+        type:'smart-home-pause',
+        performed:String(result?.status||'')==='DONE',
+        device:device.name,
+        paused:Boolean(intent.value),
+        status:String(result?.status||''),
+      };
     }catch(error){
       return {type:'smart-home-pause',performed:false,device:device.name,error:String(error?.message||error)};
     }
@@ -687,28 +840,66 @@ async function executeAssistantAction(transcript, context, options = {}) {
   if(intent.kind==='switch'&&current===intent.value){
     if(intent.value&&pauseCap?.value===true){
       try{
-        const result=await runSmartHomeCapability(device.id,device.name,'devices.capabilities.toggle','pause',false,actor);
-        return {type:'smart-home-switch',performed:String(result?.status||'')==='DONE',changed:true,device:device.name,state:true,resumed:true,status:String(result?.status||'')};
+        const result=await runSmartHomeCapability(
+          device.id,device.name,'devices.capabilities.toggle','pause',false,actor
+        );
+        return {
+          type:'smart-home-switch',
+          performed:String(result?.status||'')==='DONE',
+          changed:true,
+          device:device.name,
+          state:true,
+          resumed:true,
+          status:String(result?.status||''),
+        };
       }catch(error){
         return {type:'smart-home-switch',performed:false,device:device.name,error:String(error?.message||error)};
       }
     }
-    return {type:'smart-home-switch',performed:true,changed:false,device:device.name,state:intent.value,status:'ALREADY'};
+    return {
+      type:'smart-home-switch',
+      performed:true,
+      changed:false,
+      device:device.name,
+      state:intent.value,
+      status:'ALREADY',
+    };
   }
 
   if(hasOnOff(device)){
     try{
       const result=await switchSmartHomeDevice(device.id,device.name,intent.value,actor);
-      return {type:'smart-home-switch',performed:String(result?.status||'')==='DONE',changed:true,device:device.name,state:intent.value,status:String(result?.status||'')};
+      return {
+        type:'smart-home-switch',
+        performed:String(result?.status||'')==='DONE',
+        changed:true,
+        device:device.name,
+        state:intent.value,
+        status:String(result?.status||''),
+      };
     }catch(error){
-      return {type:'smart-home-switch',performed:false,device:device.name,state:intent.value,error:String(error?.message||error)};
+      return {
+        type:'smart-home-switch',
+        performed:false,
+        device:device.name,
+        state:intent.value,
+        error:String(error?.message||error),
+      };
     }
   }
 
   if(pauseCap){
     try{
-      const result=await runSmartHomeCapability(device.id,device.name,'devices.capabilities.toggle','pause',!intent.value,actor);
-      return {type:'smart-home-switch',performed:String(result?.status||'')==='DONE',device:device.name,state:intent.value,status:String(result?.status||'')};
+      const result=await runSmartHomeCapability(
+        device.id,device.name,'devices.capabilities.toggle','pause',!intent.value,actor
+      );
+      return {
+        type:'smart-home-switch',
+        performed:String(result?.status||'')==='DONE',
+        device:device.name,
+        state:intent.value,
+        status:String(result?.status||''),
+      };
     }catch(error){
       return {type:'smart-home-switch',performed:false,device:device.name,error:String(error?.message||error)};
     }
@@ -717,4 +908,9 @@ async function executeAssistantAction(transcript, context, options = {}) {
   return {type:'smart-home',performed:false,device:device.name,error:'action-not-supported'};
 }
 
-module.exports={safeTimeZone,dateKey,shiftDateKey,relationshipView,contextNeeds,compactValue,addProductIntent,addWishIntent,readAssistantContext,executeAssistantAction,commandIntent,selectDevice};
+module.exports={
+  safeTimeZone,dateKey,shiftDateKey,relationshipView,contextNeeds,compactValue,
+  addProductIntent,addWishIntent,removeProductIntent,removeWishIntent,navigationIntent,
+  effectiveTopicText,moodForAssistant,matchNamedItem,
+  readAssistantContext,executeAssistantAction,commandIntent,selectDevice
+};
