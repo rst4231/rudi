@@ -24,6 +24,7 @@
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
       let currentAppTab = 'home';
+      let appViewTransitionActive = false;
       let requestedAppTab = '';
       let requestedItemId = '';
       let deferredPwaInstallPrompt = null;
@@ -1218,12 +1219,45 @@
         if(tab==='saves') window.RUDI_SAVES?.load?.();
       }
 
+      function canUseAppViewTransition(){
+        try{
+          return Boolean(
+            document.startViewTransition
+            && document.body.classList.contains('auth-ok')
+            && !window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+          );
+        }catch(_){return false}
+      }
+
+      function runAppViewTransition(update){
+        if(typeof update!=='function') return null;
+        if(!canUseAppViewTransition()||appViewTransitionActive){
+          update();
+          return null;
+        }
+        appViewTransitionActive=true;
+        let transition=null;
+        try{
+          transition=document.startViewTransition(()=>update());
+          Promise.resolve(transition?.finished).finally(()=>{appViewTransitionActive=false});
+        }catch(_){
+          appViewTransitionActive=false;
+          update();
+        }
+        return transition;
+      }
+
       function navigateToAppTab(tab,{scroll=true,item='',replace=false}={}){
         appTabScroll[currentAppTab]=window.scrollY||0;
         document.activeElement?.blur?.();
-        applyAppTab(tab,{scroll});
-        updateAppRoute(currentAppTab,{item,replace});
-        runTabSideEffects(currentAppTab,{item});
+        const previous=currentAppTab;
+        const update=()=>{
+          applyAppTab(tab,{scroll});
+          updateAppRoute(currentAppTab,{item,replace});
+          runTabSideEffects(currentAppTab,{item});
+        };
+        if(tab!==previous) runAppViewTransition(update);
+        else update();
       }
 
       function applyAppTab(tab,{scroll=false}={}){
@@ -1252,7 +1286,7 @@
           section.hidden=section.dataset.appTabSection!==next||!available||(section.dataset.homeEmpty==='1');
         });
 
-        if(changed){
+        if(changed&&!appViewTransitionActive){
           document.querySelectorAll('[data-app-tab-section="'+next+'"]:not([hidden])').forEach(animateRudiView);
         }
 
@@ -1332,9 +1366,14 @@
           window.__rudiPopstateBound='1';
           window.addEventListener('popstate',()=>{
             const route=routeFromLocation();
-            applyAppTab(route.tab,{scroll:true});
-            runTabSideEffects(currentAppTab,{item:route.item});
-            focusDeepLinkedItem(currentAppTab,route.item);
+            const previous=currentAppTab;
+            const update=()=>{
+              applyAppTab(route.tab,{scroll:true});
+              runTabSideEffects(currentAppTab,{item:route.item});
+              focusDeepLinkedItem(currentAppTab,route.item);
+            };
+            if(route.tab!==previous) runAppViewTransition(update);
+            else update();
           });
         }
       }
@@ -2840,7 +2879,11 @@
         document.body.classList.remove('auth-pending','auth-ok','auth-denied','auth-login');
         document.body.classList.add(mode);
         document.getElementById('appGateTitle').textContent=title;
-        document.getElementById('appGateText').textContent=text;
+        const gateText=document.getElementById('appGateText');
+        if(gateText){
+          gateText.textContent=String(text||'');
+          gateText.hidden=!String(text||'').trim();
+        }
         clearAuthGateForm();
       }
 
