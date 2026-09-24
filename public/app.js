@@ -1801,7 +1801,8 @@
 
         status.textContent='Проверяю…';
         try{
-          const configured=await faceIdConfigured();
+          const faceStatus=await passkeyRequest('status');
+          const configured=Boolean(faceStatus.configured);
           if(configured){
             status.textContent='Включён';
             button.textContent='Включён';
@@ -2971,6 +2972,19 @@
         setAuthGate(title,text,'auth-denied');
       }
 
+      function setLoadingGate(){
+        document.body.classList.remove('auth-pending','auth-ok','auth-denied','auth-login');
+        document.body.classList.add('auth-pending');
+        const title=document.getElementById('appGateTitle');
+        const text=document.getElementById('appGateText');
+        if(title) title.textContent='Загружаю';
+        if(text){
+          text.textContent='';
+          text.hidden=true;
+        }
+        clearAuthGateForm();
+      }
+
       async function browserAuthRequest(operation,payload={}){
         const response=await fetchWithTimeout('/api/partner-message?rudiAction=browser-auth',{
           method:'POST',
@@ -3165,9 +3179,7 @@
           });
 
           skip.addEventListener('click',()=>{
-            clearAuthGateForm();
-            document.body.classList.remove('auth-login');
-            document.body.classList.add('auth-pending');
+            setLoadingGate();
             resolve(false);
           });
 
