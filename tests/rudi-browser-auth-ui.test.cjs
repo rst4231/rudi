@@ -121,7 +121,7 @@ test('successful authentication dismisses the loading gate before the rest of ap
 test('PIN enrollment gate stays locked while Telegram keyboard and focus events fire', () => {
   assert.match(app, /let appAccessReady = false;/);
   assert.match(app, /async function authenticateApp\(\)\{\s*appAccessReady=false;/);
-  assert.match(app, /if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*appAccessReady=true;\s*loadAppBootstrap\(\)\.catch\([\s\S]*?\);\s*return true;/);
+  assert.match(app, /if\(telegramInitData\(\)\) await ensureTelegramPin\(\);\s*appAccessReady=true;\s*showAuthenticatedApp\(\);\s*loadAppBootstrap\(\)\.catch\([\s\S]*?\);\s*return true;/);
   assert.doesNotMatch(app, /appAccessReady=true;\s*ensureAppSurface\(\);\s*await loadAppBootstrap/);
   assert.match(app, /setupProfileSplit\(\);[\s\S]*?setupAppTabs\(\);[\s\S]*?ensureAppSurface\(\{restoreTab:true\}\);/);
   assert.match(app, /function ensureAppSurface\([\s\S]*?if\(!currentActor\|\|!appAccessReady\) return;/);
@@ -186,4 +186,17 @@ test('home screen icon and detailed car header use the current supplied assets',
   assert.match(indexHtml,/car-head-visual/);
   assert.match(indexHtml,/changan-uni-v-header\.webp\?v=\d+\.\d+\.\d+/);
   assert.doesNotMatch(indexHtml,/car-head-chevron|car-chevron/);
+});
+
+
+test('profile photos are reused locally and Telegram profile fetches are skipped on fresh bootstrap cache', () => {
+  assert.match(app,/const PROFILE_CACHE_KEY='rudi-profile-cache-v1'/);
+  assert.match(app,/const PROFILE_CACHE_REFRESH_MS=24\*60\*60\*1000/);
+  assert.match(app,/applySessionIdentity\(\);\s*applyCachedTelegramProfiles\(\);/);
+  assert.match(app,/const includeProfiles=profileCacheNeedsRefresh\(cachedProfiles\)/);
+  assert.match(app,/ticktickHandoff:ticktickHandoffToken,\s*includeProfiles/);
+  assert.match(app,/writeProfileCache\(selfProfile,partnerProfile\)/);
+  assert.match(partner,/const includeProfiles = body\.includeProfiles !== false/);
+  assert.match(partner,/includeProfiles \? readTelegramProfile\(selfId, actor, options\) : Promise\.resolve\(null\)/);
+  assert.match(partner,/includeProfiles \? readTelegramProfile\(partnerId, partnerActor, options\) : Promise\.resolve\(null\)/);
 });

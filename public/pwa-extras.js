@@ -49,8 +49,17 @@
     'holidays',
     'holiday-calendar',
     'partner-message-read',
-    'cinema-topic-link'
+    'cinema-topic-link',
+    'ui-preferences'
   ]);
+  const RUDI_SNAPSHOT_POST_READ_PATHS=new Set([
+    '/api/feed',
+    '/api/shared-album',
+    '/api/ticktick/today',
+    '/api/ticktick/calendar',
+    '/api/work-calendar'
+  ]);
+  const RUDI_SNAPSHOT_FAST_FALLBACK_MS=450;
 
   function openSnapshotDb(){
     return new Promise((resolve,reject)=>{
@@ -113,7 +122,10 @@
     const operation=String(body.operation||'').trim().toLowerCase();
     let cacheable=method==='GET';
     if(method==='POST'){
-      cacheable=RUDI_SNAPSHOT_READ_ACTIONS.has(action)||RUDI_SNAPSHOT_READ_OPS.has(operation);
+      cacheable=
+        RUDI_SNAPSHOT_READ_ACTIONS.has(action)
+        || RUDI_SNAPSHOT_READ_OPS.has(operation)
+        || (RUDI_SNAPSHOT_POST_READ_PATHS.has(url.pathname)&&!operation);
       if(url.pathname==='/api/wishlist'&&(!operation||operation==='list')) cacheable=true;
     }
     if(!cacheable) return '';
@@ -193,6 +205,41 @@
     if(!key) return null;
     try{return offlineSnapshotResponse(await readOfflineSnapshot(key))}
     catch(_){return null}
+  }
+
+  function recordOnlineApiSuccess(input){
+    if(!isRudiApiRequest(input)) return;
+    window.dispatchEvent(new CustomEvent('rudi-online-request-success'));
+  }
+
+  function rememberSnapshotResponse(key,input,response){
+    if(response?.ok){
+      recordOnlineApiSuccess(input);
+      if(key) writeOfflineSnapshot(key,response).catch(()=>{});
+    }
+    return response;
+  }
+
+  async function snapshotAwareFetch(input,init,snapshotKey){
+    const network=nativeFetch(input,init)
+      .then(response=>({kind:'response',response}))
+      .catch(error=>({kind:'error',error}));
+    const cacheCandidate=Promise.all([
+      readOfflineSnapshot(snapshotKey).catch(()=>null),
+      new Promise(resolve=>setTimeout(resolve,RUDI_SNAPSHOT_FAST_FALLBACK_MS))
+    ]).then(([row])=>row?{kind:'cache',row}:network);
+
+    const winner=await Promise.race([network,cacheCandidate]);
+    if(winner.kind==='cache'){
+      network.then(result=>{
+        if(result.kind==='response') rememberSnapshotResponse(snapshotKey,input,result.response);
+      }).catch(()=>{});
+      return offlineSnapshotResponse(winner.row);
+    }
+    if(winner.kind==='response') return rememberSnapshotResponse(snapshotKey,input,winner.response);
+    const cached=await snapshotFallback(snapshotKey);
+    if(cached) return cached;
+    throw winner.error;
   }
 
   function openOutboxDb(){
@@ -309,14 +356,13 @@
         if(cached) return cached;
       }
 
+      if(snapshotKey&&navigator.onLine!==false){
+        return snapshotAwareFetch(input,init,snapshotKey);
+      }
+
       try{
         const response=await nativeFetch(input,init);
-        if(response?.ok&&isRudiApiRequest(input)){
-          window.dispatchEvent(new CustomEvent('rudi-online-request-success'));
-        }
-        if(snapshotKey&&response?.ok){
-          writeOfflineSnapshot(snapshotKey,response).catch(()=>{});
-        }
+        recordOnlineApiSuccess(input);
         return response;
       }catch(error){
         const aborted=Boolean(init?.signal?.aborted)||String(error?.name||'')==='AbortError';

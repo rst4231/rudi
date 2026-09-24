@@ -1694,10 +1694,11 @@ async function handleRudiAction(req, res, action, options = {}) {
       const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
       const selfId = Number(user?.id) || Number(recipients?.[actor]) || 0;
       const partnerId = recipientFor(actor, recipients);
+      const includeProfiles = body.includeProfiles !== false;
       const [holidays, selfProfile, partnerProfile, backupToken] = await Promise.all([
         holidaysPromise,
-        readTelegramProfile(selfId, actor, options),
-        readTelegramProfile(partnerId, partnerActor, options),
+        includeProfiles ? readTelegramProfile(selfId, actor, options) : Promise.resolve(null),
+        includeProfiles ? readTelegramProfile(partnerId, partnerActor, options) : Promise.resolve(null),
         createStateBackup({ ...options, previousSnapshot: correctedSnapshot }).catch((error) => {
           console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
           return '';

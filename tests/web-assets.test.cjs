@@ -59,3 +59,17 @@ test('connectivity warning clears after confirmed API recovery',()=>{
   assert.match(pwa,/if\(recoverySuccesses<2\) return/);
   assert.match(pwa,/banner\.hidden=true;[\s\S]*?classList\.remove\('rudi-offline'\)/);
 });
+
+
+test('read-only sections use a fast local snapshot while the live API refresh continues',()=>{
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  for(const route of ['/api/feed','/api/shared-album','/api/ticktick/today','/api/ticktick/calendar','/api/work-calendar']){
+    assert.ok(pwa.includes("'" + route + "'"),'missing snapshot route '+route);
+  }
+  assert.match(pwa,/const RUDI_SNAPSHOT_FAST_FALLBACK_MS=450/);
+  assert.match(pwa,/async function snapshotAwareFetch\(input,init,snapshotKey\)/);
+  assert.match(pwa,/Promise\.race\(\[network,cacheCandidate\]\)/);
+  assert.match(pwa,/if\(winner\.kind==='cache'\)[\s\S]*?network\.then\(result=>/);
+  assert.match(pwa,/if\(snapshotKey&&navigator\.onLine!==false\)\{\s*return snapshotAwareFetch\(input,init,snapshotKey\)/);
+  assert.match(pwa,/'ui-preferences'/);
+});

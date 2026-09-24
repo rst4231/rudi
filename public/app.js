@@ -4095,8 +4095,44 @@
         return true;
       }
 
+      const PROFILE_CACHE_KEY='rudi-profile-cache-v1';
+      const PROFILE_CACHE_REFRESH_MS=24*60*60*1000;
+
+      function readProfileCache(){
+        try{
+          const cached=JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY)||'null');
+          if(!cached||cached.actor!==currentActor) return null;
+          if(!cached.selfProfile&&!cached.partnerProfile) return null;
+          return cached;
+        }catch(_){return null}
+      }
+
+      function writeProfileCache(selfProfile,partnerProfile){
+        try{
+          localStorage.setItem(PROFILE_CACHE_KEY,JSON.stringify({
+            actor:currentActor,
+            updatedAt:Date.now(),
+            selfProfile:selfProfile||null,
+            partnerProfile:partnerProfile||null
+          }));
+        }catch(_){}
+      }
+
+      function profileCacheNeedsRefresh(cached){
+        const updatedAt=Number(cached?.updatedAt||0);
+        return !updatedAt||Date.now()-updatedAt>PROFILE_CACHE_REFRESH_MS;
+      }
+
+      function applyCachedTelegramProfiles(){
+        const cached=readProfileCache();
+        if(cached) applyTelegramProfiles(cached.selfProfile,cached.partnerProfile);
+        return cached;
+      }
+
       async function loadAppBootstrap(){
         if(!currentActor) return;
+        const cachedProfiles=readProfileCache();
+        const includeProfiles=profileCacheNeedsRefresh(cachedProfiles);
         try{
           const cloudToken=await withTimeout(readStateBackupToken(),1600,currentStateBackupToken||'');
           const backupToken=String(cloudToken||currentStateBackupToken||readLocalStateBackupToken()||'');
@@ -4106,14 +4142,20 @@
             body:JSON.stringify({
               initData:telegramInitData(),
               backupToken,
-              ticktickHandoff:ticktickHandoffToken
+              ticktickHandoff:ticktickHandoffToken,
+              includeProfiles
             }),
             cache:'no-store'
           },10000);
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'bootstrap');
           if(payload.actor&&String(payload.actor)!==currentActor) return;
-          applyTelegramProfiles(payload.selfProfile,payload.partnerProfile);
+          if(payload.selfProfile||payload.partnerProfile){
+            const selfProfile=payload.selfProfile||cachedProfiles?.selfProfile||null;
+            const partnerProfile=payload.partnerProfile||cachedProfiles?.partnerProfile||null;
+            applyTelegramProfiles(selfProfile,partnerProfile);
+            writeProfileCache(selfProfile,partnerProfile);
+          }
           const appliedRemoteUi=applyRemoteUiPreferences(payload.uiPreferences);
           if(appliedRemoteUi) applyMountedUiPreferences();
           if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged();
@@ -9040,6 +9082,7 @@
         if(!allowed) return;
         applyActorVisibility();
         applySessionIdentity();
+        applyCachedTelegramProfiles();
         setupProfileSplit();
         setupHomeLayoutEditor();
         setupMarketTicker();
