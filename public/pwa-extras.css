@@ -176,4 +176,31 @@ body.keyboard-editing .rudi-quick-add,body.photo-viewer-open .rudi-quick-add,bod
   .saved-category-chevron,.date-idea-save,.recipe-save-button,.saved-item-delete{transition:none!important}
 }
 
+
+
+/* Native section transitions */
+body.auth-ok .shell{view-transition-name:rudi-content}
+.app-tabbar{view-transition-name:rudi-tabbar}
+::view-transition-old(rudi-content){
+  animation:rudiViewTransitionOut .16s cubic-bezier(.4,0,.2,1) both;
+}
+::view-transition-new(rudi-content){
+  animation:rudiViewTransitionIn .22s cubic-bezier(.2,.82,.2,1) both;
+}
+::view-transition-old(rudi-tabbar),
+::view-transition-new(rudi-tabbar){
+  animation:none;
+}
+@keyframes rudiViewTransitionOut{
+  to{opacity:.12;transform:translateY(5px) scale(.992)}
+}
+@keyframes rudiViewTransitionIn{
+  from{opacity:.06;transform:translateY(8px) scale(.992)}
+  to{opacity:1;transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+  ::view-transition-old(rudi-content),
+  ::view-transition-new(rudi-content){animation:none!important}
+}
+
 /* end RUDI v1.15.0 */
