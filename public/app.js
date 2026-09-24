@@ -1992,6 +1992,37 @@
         return workday&&minutes>=10*60&&minutes<18*60;
       }
 
+      function rustamRhythmStatus(now=new Date()){
+        const parts=Object.fromEntries(
+          new Intl.DateTimeFormat('en-GB',{
+            timeZone:TZ,
+            hour:'2-digit',
+            minute:'2-digit',
+            hourCycle:'h23'
+          }).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value])
+        );
+        const minutes=(Number(parts.hour)||0)*60+(Number(parts.minute)||0);
+        if(minutes<6*60+30||minutes>=23*60) return 'Сон';
+        if(minutes<7*60) return 'Старт';
+        if(minutes<8*60) return 'Разгон';
+        if(minutes<11*60+30) return 'Пик';
+        if(minutes<12*60+30) return 'Пауза';
+        if(minutes<15*60) return 'Темп';
+        if(minutes<16*60) return 'Спад';
+        if(minutes<18*60) return 'Движ';
+        if(minutes<20*60) return 'Выдох';
+        if(minutes<22*60+30) return 'Чилл';
+        return 'Тише';
+      }
+
+      function syncRustamRhythmStatus(now=new Date()){
+        const node=document.getElementById('rustamRhythmStatus');
+        if(!node) return;
+        const text=rustamRhythmStatus(now);
+        node.textContent=text;
+        node.hidden=!text;
+      }
+
       function syncStaticProfileWorkStatus(){
         const rustamWorking=rustamWorkState();
         setProfileWorkStatus(
@@ -1999,6 +2030,7 @@
           rustamWorking?'Работаю':'Отдыхаю',
           rustamWorking?'working':'off'
         );
+        syncRustamRhythmStatus();
         const diana=profileStatusElement('Диана');
         if(!diana) return;
         if(diana.dataset.calendarReady&&homeDashboardState.workDay){
@@ -2858,6 +2890,12 @@
         partnerStatus.id='partnerWorkStatus';
         partnerStatus.className='profile-work-status is-neutral';
         partnerPerson.appendChild(partnerStatus);
+
+        const rustamPerson=currentActor==='Рустам'?selfPerson:partnerPerson;
+        const rustamRhythm=document.createElement('div');
+        rustamRhythm.id='rustamRhythmStatus';
+        rustamRhythm.className='profile-rhythm-status';
+        rustamPerson.appendChild(rustamRhythm);
 
         const dianaPerson=currentActor==='Диана'?selfPerson:partnerPerson;
         const dianaCycleMood=document.createElement('div');
