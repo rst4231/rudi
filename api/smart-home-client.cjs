@@ -128,6 +128,42 @@ function cleanName(value) {
   return String(value || '').replace(/\s+/g,' ').trim().slice(0,80);
 }
 
+async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рустам') {
+  const id = cleanId(deviceId,'device-id');
+  const name = cleanName(deviceName) || 'Устройство';
+  if (typeof value !== 'boolean') throw new Error('bad-value');
+
+  const result = await yandex('/devices/actions', {
+    method:'POST',
+    body:{devices:[{id,actions:[{
+      type:'devices.capabilities.on_off',
+      state:{instance:'on',value}
+    }]}]},
+  });
+
+  const requestId = String(result?.request_id || '');
+  const actionStatus = String(result?.devices?.[0]?.capabilities?.[0]?.state?.action_result?.status || '');
+  let activity = null;
+
+  if (actionStatus === 'DONE') {
+    cache = null;
+    cacheAt = 0;
+    const female = actor === 'Диана';
+    const verb = value ? (female ? 'включила' : 'включил') : (female ? 'выключила' : 'выключил');
+    activity = { text:actor + ' ' + verb + ' ' + name, icon:'🏠', createdAt:new Date().toISOString() };
+    await appendActivity({
+      type:'smart-home',
+      actor,
+      text:activity.text,
+      icon:activity.icon,
+      targetTab:'home',
+      dedupeKey:requestId ? 'smart-home:' + requestId : '',
+    }).catch(error => console.warn('RUDI_SMART_HOME_ACTIVITY_WARN', String(error?.message || error)));
+  }
+
+  return { requestId, status:actionStatus, activity };
+}
+
 async function handleSmartHomeRequest(req, res) {
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
   if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
@@ -153,44 +189,8 @@ async function handleSmartHomeRequest(req, res) {
     }
 
     if (operation === 'switch') {
-      const deviceId = cleanId(body.deviceId,'device-id');
-      const deviceName = cleanName(body.deviceName) || 'Устройство';
-      if (typeof body.value !== 'boolean') throw new Error('bad-value');
-
-      const result = await yandex('/devices/actions', {
-        method:'POST',
-        body:{devices:[{id:deviceId,actions:[{
-          type:'devices.capabilities.on_off',
-          state:{instance:'on',value:body.value}
-        }]}]},
-      });
-
-      const requestId = String(result?.request_id || '');
-      const actionStatus = String(result?.devices?.[0]?.capabilities?.[0]?.state?.action_result?.status || '');
-      let activity = null;
-
-      if (actionStatus === 'DONE') {
-        cache = null;
-        cacheAt = 0;
-        const verb = session.actor === 'Диана'
-          ? (body.value ? 'включила' : 'выключила')
-          : (body.value ? 'включил' : 'выключил');
-        activity = {
-          text:session.actor + ' ' + verb + ' ' + deviceName,
-          icon:'🏠',
-          createdAt:new Date().toISOString(),
-        };
-        await appendActivity({
-          type:'smart-home',
-          actor:session.actor,
-          text:activity.text,
-          icon:activity.icon,
-          targetTab:'home',
-          dedupeKey:requestId ? 'smart-home:' + requestId : '',
-        }).catch(error => console.warn('RUDI_SMART_HOME_ACTIVITY_WARN', String(error?.message || error)));
-      }
-
-      return res.status(200).json({ok:true,requestId,status:actionStatus,activity});
+      const result = await switchSmartHomeDevice(body.deviceId, body.deviceName, body.value, session.actor);
+      return res.status(200).json({ok:true,...result});
     }
 
     if (operation === 'capability') {
@@ -271,4 +271,4 @@ async function handleSmartHomeRequest(req, res) {
   }
 }
 
-module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home };
+module.exports = { handleSmartHomeRequest, readSmartHomeSnapshot: home, switchSmartHomeDevice };
