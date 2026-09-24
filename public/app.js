@@ -3516,7 +3516,9 @@
         if(!currentActor) return false;
         if(telegramInitData()) await ensureTelegramPin();
         appAccessReady=true;
-        await loadAppBootstrap();
+        loadAppBootstrap().catch(error=>{
+          console.warn('RUDI_APP_BOOTSTRAP_BACKGROUND_WARN',String(error?.message||error));
+        });
         return true;
       }
 
@@ -8359,10 +8361,10 @@
         loadActivityJournal();
         setupAppTabs();
         setupQuickAccess();
+        ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
-        ensureAppSurface({restoreTab:true});
         setupProducts();
         setupRecipeGenerator();
         renderDailyCompliment(config,{force:true});
