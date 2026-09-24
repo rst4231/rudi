@@ -78,7 +78,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,saves:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
       const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
@@ -1160,7 +1160,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','saves'];
 
       function routeFromLocation(){
         try{
@@ -1215,6 +1215,7 @@
           }).catch(()=>{});
         }
         if(tab==='photos') loadSharedAlbum();
+        if(tab==='saves') window.RUDI_SAVES?.load?.();
       }
 
       function navigateToAppTab(tab,{scroll=true,item='',replace=false}={}){
@@ -7563,7 +7564,23 @@
         const difficulty=document.createElement('span');
         difficulty.textContent=String(recipe.difficulty||'Средне');
         meta.append(time,difficulty);
-        head.append(title,meta);
+        const save=document.createElement('button');
+        save.type='button';
+        save.className='recipe-save-button';
+        save.setAttribute('aria-label','Сохранить рецепт');
+        save.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 19h14"/></svg><span>Сохранить</span>';
+        save.addEventListener('click',async()=>{
+          if(save.disabled) return;
+          save.disabled=true;
+          try{
+            await window.RUDI_SAVES?.save?.('recipe',recipe,save);
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            save.disabled=false;
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }
+        });
+        head.append(title,meta,save);
         details.appendChild(head);
 
         if(recipe.summary){
@@ -7844,7 +7861,28 @@
             duration.textContent=idea.duration;
             copy.appendChild(duration);
           }
-          card.append(number,copy);
+          const save=document.createElement('button');
+          save.type='button';
+          save.className='date-idea-save';
+          save.setAttribute('aria-label','Сохранить идею свидания');
+          save.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 19h14"/></svg><span>Сохранить</span>';
+          save.addEventListener('click',async()=>{
+            if(save.disabled) return;
+            save.disabled=true;
+            try{
+              await window.RUDI_SAVES?.save?.('date',{
+                title:idea.title,
+                description:idea.description,
+                duration:idea.duration,
+                period:normalized.period
+              },save);
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            }catch(_){
+              save.disabled=false;
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }
+          });
+          card.append(number,copy,save);
           host.appendChild(card);
         });
         host.hidden=false;
@@ -7939,14 +7977,20 @@
 
       function setupQuickAccess(){
         const wishlist=document.getElementById('quickWishlistButton');
+        const saves=document.getElementById('quickSavesButton');
         const generate=document.getElementById('dateIdeaButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!generate||!choices||generate.dataset.dateBound==='1') return;
+        if(!wishlist||!saves||!generate||!choices||generate.dataset.dateBound==='1') return;
         generate.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
           navigateToAppTab('wishlist',{scroll:true});
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        saves.addEventListener('click',()=>{
+          navigateToAppTab('saves',{scroll:true});
+          window.RUDI_SAVES?.load?.();
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
