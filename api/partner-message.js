@@ -343,9 +343,9 @@ function luluWalkStatusLabel(value, now = Date.now()) {
   return day + ' в ' + time;
 }
 
-function luluWalkNotificationText(actor, walkedAt, now = Date.now()) {
+function luluWalkNotificationText(actor) {
   const action = actor === 'Диана' ? 'погуляла' : 'погулял';
-  return `🐾 <b>${actor} ${action} с Lulu</b>\nПоследняя прогулка: <b>${escapeTelegramHtml(luluWalkStatusLabel(walkedAt, now))}</b>`;
+  return `🐾 <b>${actor} ${action} с Lulu</b>`;
 }
 
 async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) {
@@ -357,14 +357,16 @@ async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) 
     if (!Number.isInteger(chatId) || chatId <= 0) {
       return { sent:false, recipient, reason:'recipient-not-configured' };
     }
+    const {
+      tab: _ignoredTab,
+      buttonText: _ignoredButtonText,
+      item: _ignoredItem,
+      ...notificationOptions
+    } = options;
     const result = await telegramSendMessage(
       chatId,
-      luluWalkNotificationText(actor, walkedAt, options.now || Date.now()),
-      {
-        ...options,
-        tab:undefined,
-        buttonText:undefined,
-      }
+      luluWalkNotificationText(actor),
+      notificationOptions
     );
     return { sent:true, recipient, ...result };
   } catch (error) {
