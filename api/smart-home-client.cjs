@@ -56,7 +56,7 @@ async function observeCameraStatus(snapshot, options = {}) {
   }
 
   try{
-    const recipients=await readRecipients(options);
+    const recipients=options.cameraRecipients||await readRecipients(options);
     const chatId=Number(recipients?.['Рустам']);
     if(Number.isInteger(chatId)&&chatId>0){
       const text=state==='online'
