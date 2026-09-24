@@ -307,7 +307,7 @@ test('authenticated shell unlocks while bootstrap finishes in the background',as
   await expect(page.locator('#homeDianaTile')).toBeVisible();
 });
 
-test('remote saved home layout is applied before the shell becomes visible',async({page})=>{
+test('remote saved home layout seeds a device that has no local order',async({page})=>{
   await mockRudi(page,{
     uiPreferences:{
       homeOrder:['smart-home','dashboard','priority','partner','new','car'],
@@ -318,8 +318,30 @@ test('remote saved home layout is applied before the shell becomes visible',asyn
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(order.slice(0,5)).toEqual(['dashboard','rustam','diana','lulu','nearest']);
-  expect(order).toContain('smart-home');
+  expect(order.slice(0,6)).toEqual(['smart-home','dashboard','priority','partner','new','car']);
+  expect(order).toContain('rustam');
+  expect(order).toContain('diana');
+  await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
+});
+
+test('local saved home layout survives a different remote layout after reload',async({page})=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem('rudi-home-layout-v3-rustam',JSON.stringify([
+      'dashboard','markets','rustam','diana','lulu','nearest','priority','partner','new','quick-access','smart-home','car'
+    ]));
+    localStorage.setItem('rudi:ui-prefs-meta:v1:rustam','2026-09-24T20:00:00.000Z');
+  });
+  await mockRudi(page,{
+    uiPreferences:{
+      homeOrder:['smart-home','dashboard','priority','partner','new','car','markets'],
+      blockStates:{'smart-home':true},
+      updatedAt:'2026-09-21T09:00:00.000Z'
+    }
+  });
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect.poll(async()=>page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile).slice(0,3)))
+    .toEqual(['dashboard','markets','rustam']);
   await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
 });
 
