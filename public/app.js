@@ -656,9 +656,18 @@
         const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
         const remoteStamp=String(remote.updatedAt||'');
         if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode) return false;
+
+        let localOrder=[];
+        try{localOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
+        const hasLocalOrder=Array.isArray(localOrder)&&localOrder.length>0;
+        const localNormalized=hasLocalOrder?normalizedHomeOrder(localOrder):[];
+        const remoteNormalized=hasRemoteOrder?normalizedHomeOrder(remote.homeOrder):[];
+        const keepLocalOrder=hasLocalOrder&&hasRemoteOrder
+          &&JSON.stringify(localNormalized)!==JSON.stringify(remoteNormalized);
+
         try{
-          if(hasRemoteOrder){
-            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remote.homeOrder));
+          if(hasRemoteOrder&&!keepLocalOrder){
+            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(remoteNormalized));
           }
           if(hasRemoteBlocks){
             localStorage.setItem(blockStateStorageKey(),JSON.stringify(remote.blockStates));
@@ -673,7 +682,11 @@
             const mode=['system','light','dark'].includes(String(remote.themeMode||''))?String(remote.themeMode):'system';
             localStorage.setItem(themeModeStorageKey(),mode);
           }
-          if(remoteStamp) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
+          if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
+          if(keepLocalOrder){
+            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
+            markUiPreferencesChanged();
+          }
           return true;
         }catch(_){return false}
       }
@@ -808,22 +821,8 @@
           return [id];
         });
         const defaults=preferredHomeDefaultOrder();
-        const partnerId=currentActor==='Диана'?'rustam':'diana';
-        if(!source.length){
-          requested.push(...defaults);
-        }else if(!requested.includes('lulu')){
-          const partnerIndex=requested.indexOf(partnerId);
-          if(partnerIndex>=0) requested.splice(partnerIndex+1,0,'lulu');
-        }
-        if(!requested.includes('quick-access')){
-          const smartIndex=requested.indexOf('smart-home');
-          if(smartIndex>=0) requested.splice(smartIndex,0,'quick-access');
-          else requested.push('quick-access');
-        }
-        if(!requested.includes('car')){
-          const smartIndex=requested.indexOf('smart-home');
-          if(smartIndex>=0) requested.splice(smartIndex+1,0,'car');
-        }
+        if(!source.length) return [...defaults];
+
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
         for(const id of defaults) if(!valid.includes(id)) valid.push(id);
         return valid;
@@ -880,11 +879,14 @@
       function loadHomeOrder(){
         let order=[];
         try{order=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
+        const hasSavedOrder=Array.isArray(order)&&order.length>0;
         const before=JSON.stringify(order);
-        order=migrateHomeTopOrderOnce(order);
-        applyHomeOrder(order);
-        if(order.length) try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order))}catch(_){}
-        if(order.length&&JSON.stringify(order)!==before) markUiPreferencesChanged();
+        const normalized=normalizedHomeOrder(order);
+        applyHomeOrder(normalized);
+        if(hasSavedOrder){
+          try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(normalized))}catch(_){}
+          if(JSON.stringify(normalized)!==before) markUiPreferencesChanged();
+        }
       }
 
       function saveHomeOrder(){
