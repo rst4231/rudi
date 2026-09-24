@@ -360,8 +360,8 @@ async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) 
       luluWalkNotificationText(actor, walkedAt, options.now || Date.now()),
       {
         ...options,
-        tab:'home',
-        buttonText:'Открыть RUDI',
+        tab:undefined,
+        buttonText:undefined,
       }
     );
     return { sent:true, recipient, ...result };
