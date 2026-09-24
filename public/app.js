@@ -535,11 +535,6 @@
         return 'rudi:auto-refresh:v1:'+actor;
       }
 
-      function interfaceDensityStorageKey(){
-        const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi:interface-density:v1:'+actor;
-      }
-
       function interfaceMotionStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:interface-motion:v1:'+actor;
@@ -558,11 +553,6 @@
       function autoRefreshEnabled(){
         if(!currentActor) return true;
         try{return localStorage.getItem(autoRefreshStorageKey())!=='0'}catch(_){return true}
-      }
-
-      function currentInterfaceDensity(){
-        if(!currentActor) return 'normal';
-        try{return localStorage.getItem(interfaceDensityStorageKey())==='compact'?'compact':'normal'}catch(_){return 'normal'}
       }
 
       function interfaceMotionEnabled(){
@@ -2493,13 +2483,6 @@
                 '</div>'+
               '</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Вид</strong><small>Плотность интерфейса</small></div>'+
-                '<div class="settings-segmented settings-segmented-two">'+
-                  '<button type="button" data-interface-density="normal" aria-pressed="true">Обычный</button>'+
-                  '<button type="button" data-interface-density="compact" aria-pressed="false">Компактный</button>'+
-                '</div>'+
-              '</div>'+
-              '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Анимации</strong><small>Переходы и эффекты</small></div>'+
                 '<button id="settingsMotionToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Анимации"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
@@ -2913,20 +2896,13 @@
       }
 
       function applyInterfacePreferences(){
-        document.body.dataset.uiDensity=currentInterfaceDensity();
         document.body.dataset.uiMotion=interfaceMotionEnabled()?'on':'off';
         document.documentElement.dataset.textSize=currentInterfaceTextSize();
         updateInterfaceSettingsUi();
       }
 
       function updateInterfaceSettingsUi(){
-        const density=currentInterfaceDensity();
         const textSize=currentInterfaceTextSize();
-        document.querySelectorAll('[data-interface-density]').forEach(button=>{
-          const active=button.dataset.interfaceDensity===density;
-          button.classList.toggle('active',active);
-          button.setAttribute('aria-pressed',active?'true':'false');
-        });
         document.querySelectorAll('[data-text-size]').forEach(button=>{
           const active=button.dataset.textSize===textSize;
           button.classList.toggle('active',active);
@@ -2934,13 +2910,6 @@
         });
         const motion=document.getElementById('settingsMotionToggle');
         if(motion) motion.setAttribute('aria-checked',interfaceMotionEnabled()?'true':'false');
-      }
-
-      function setInterfaceDensity(value){
-        const next=value==='compact'?'compact':'normal';
-        try{localStorage.setItem(interfaceDensityStorageKey(),next)}catch(_){}
-        applyInterfacePreferences();
-        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
       function setInterfaceMotion(enabled){
@@ -3011,11 +2980,6 @@
       }
 
       function setupExtendedSettings(){
-        document.querySelectorAll('[data-interface-density]').forEach(button=>{
-          if(button.dataset.bound==='1') return;
-          button.dataset.bound='1';
-          button.addEventListener('click',()=>setInterfaceDensity(button.dataset.interfaceDensity));
-        });
         document.querySelectorAll('[data-text-size]').forEach(button=>{
           if(button.dataset.bound==='1') return;
           button.dataset.bound='1';
