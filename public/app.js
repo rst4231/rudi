@@ -1423,18 +1423,39 @@
         if(label) label.textContent=state==='recording'?'Закончить':state==='busy'?'Обрабатываю…':voiceAssistantHistory.length?'Сказать ещё':'Говорить';
       }
 
-      function renderVoiceAssistantMessage(role,text){
+      function cleanVoiceAssistantText(value){
+        return String(value||'')
+          .replace(/<br\s*\/?\s*>/giu,'\n')
+          .replace(/<\/?[a-z][^>]*>/giu,'')
+          .replace(/\[([^\]]+)\]\([^)]+\)/gu,'$1')
+          .replace(/[*_`#]+/gu,'')
+          .replace(/\r\n?/g,'\n')
+          .replace(/\n{3,}/g,'\n\n')
+          .trim();
+      }
+
+      function voiceAssistantTimeLabel(value=Date.now()){
+        const date=value instanceof Date?value:new Date(value);
+        if(Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU',{
+          hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).format(date);
+      }
+
+      function renderVoiceAssistantMessage(role,text,createdAt=Date.now()){
         const {dialogue,empty}=voiceAssistantElements();
         if(!dialogue) return;
         if(empty) empty.hidden=true;
         const row=document.createElement('div');
         row.className='voice-assistant-message '+(role==='user'?'is-user':'is-assistant');
+        if(role!=='user') row.classList.add('is-entering');
         const label=document.createElement('span');
         label.className='voice-assistant-message-label';
-        label.textContent=role==='user'?'Вы':'RUDI';
+        const time=voiceAssistantTimeLabel(createdAt);
+        label.textContent=(role==='user'?'Вы':'RUDI')+(time?' · '+time:'');
         const body=document.createElement('div');
         body.className='voice-assistant-message-text';
-        body.textContent=String(text||'');
+        body.textContent=cleanVoiceAssistantText(text);
         row.append(label,body);
         dialogue.appendChild(row);
         requestAnimationFrame(()=>{dialogue.scrollTop=dialogue.scrollHeight});
@@ -1580,7 +1601,15 @@
           const audioBase64=await voiceAssistantBlobBase64(blob);
           const response=await fetch('/api/partner-message?rudiAction=voice-assistant',{
             method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:telegramInitData(),mimeType:String(blob.type||'audio/webm').split(';')[0],audioBase64,history:voiceAssistantHistory.slice(-8),timeZone:(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||TZ}catch(_){return TZ}})()}),
+            body:JSON.stringify({
+              initData:telegramInitData(),
+              backupToken:currentStateBackupToken||readLocalStateBackupToken(),
+              mimeType:String(blob.type||'audio/webm').split(';')[0],
+              audioBase64,
+              history:voiceAssistantHistory.slice(-8),
+              timeZone:(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||TZ}catch(_){return TZ}})(),
+              ui:{tab:currentAppTab,selectedDate:currentSelectedWorkDate||''}
+            }),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -1590,17 +1619,23 @@
             throw requestError;
           }
           const actionType=String(payload.actionResult?.type||'');
-          if(actionType==='products-add'){
+          if(actionType.startsWith('products-')){
             invalidateManagedRequests('products');
             loadProducts({silent:true}).catch(()=>{});
-          }else if(actionType==='wishlist-add'){
+          }else if(actionType.startsWith('wishlist-')){
             invalidateManagedRequests('wishlist');
-            loadWishlist({silent:true}).catch(()=>{});
+            wishlistRequest('list').then(renderWishlist).catch(()=>{});
+          }else if(actionType==='saved-remove'){
+            Promise.resolve(window.RUDI_SAVES?.load?.()).catch(()=>{});
+          }else if(actionType==='lulu-walk'){
+            luluRequest('get').then(data=>renderLulu(data.lulu)).catch(()=>{});
+          }else if(actionType==='app-navigate'&&APP_TABS.includes(String(payload.actionResult?.tab||''))){
+            navigateToAppTab(String(payload.actionResult.tab),{scroll:false});
           }else if(actionType.startsWith('smart-home')){
             window.RUDI_SMART_HOME?.refresh?.();
           }
-          const transcript=String(payload.transcript||'').trim();
-          const answer=String(payload.answer||'').trim();
+          const transcript=cleanVoiceAssistantText(payload.transcript);
+          const answer=cleanVoiceAssistantText(payload.answer);
           if(transcript){renderVoiceAssistantMessage('user',transcript);voiceAssistantHistory.push({role:'user',content:transcript})}
           if(answer){
             renderVoiceAssistantMessage('assistant',answer);
@@ -1668,13 +1703,14 @@
       function closeVoiceAssistant(){
         stopVoiceAssistantRecording();releaseVoiceAssistantStream();
         stopVoiceAssistantSpeech();
-        const {panel,fab}=voiceAssistantElements();if(panel) panel.hidden=true;if(fab) fab.hidden=currentAppTab!=='home';
+        const {panel,fab}=voiceAssistantElements();
+        if(panel) panel.hidden=true;
+        if(fab) fab.hidden=false;
       }
 
-      function syncVoiceAssistantVisibility(tab=currentAppTab){
-        const {fab,panel}=voiceAssistantElements();const home=tab==='home';
-        if(fab) fab.hidden=!home||Boolean(panel&&!panel.hidden);
-        if(!home&&panel&&!panel.hidden) closeVoiceAssistant();
+      function syncVoiceAssistantVisibility(){
+        const {fab,panel}=voiceAssistantElements();
+        if(fab) fab.hidden=Boolean(panel&&!panel.hidden);
       }
 
       function setupVoiceAssistant(){
@@ -1877,6 +1913,34 @@
 
       function dianaCycleDailyAdvice(modelOrPhase){
         return dianaCycleStatus(modelOrPhase).advice;
+      }
+
+      function dianaCycleBrainNote(modelOrPhase){
+        const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:{phase:String(modelOrPhase||'')};
+        const phase=String(model.phase||'');
+        const daysToNext=Number(model.daysToNext);
+        if(phase==='Месячные') return '🧠 Мозг: энергия и концентрация могут быть ниже — лучше спокойный темп и меньше перегруза.';
+        if(phase==='Фолликулярная фаза') return '🧠 Мозг: по мере роста эстрогена у части женщин легче даются фокус, обучение и новые задачи.';
+        if(phase==='Фертильное окно') return '🧠 Мозг: у части женщин в этот период выше энергия, социальная вовлечённость и скорость реакции.';
+        if(phase==='Лютеиновая фаза'){
+          if(Number.isFinite(daysToNext)&&daysToNext<=5) return '🧠 Мозг: перед месячными внимание и устойчивость к стрессу могут снижаться; лучше оставить запас по нагрузке.';
+          return '🧠 Мозг: темп обычно ровнее, но ближе к концу фазы чувствительность к стрессу может постепенно расти.';
+        }
+        return '';
+      }
+
+      function dianaCycleAppetiteNote(modelOrPhase){
+        const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:{phase:String(modelOrPhase||'')};
+        const phase=String(model.phase||'');
+        const daysToNext=Number(model.daysToNext);
+        if(phase==='Месячные') return '🍽 Аппетит: индивидуален; может сохраняться тяга к более сытной, тёплой или сладкой еде.';
+        if(phase==='Фолликулярная фаза') return '🍽 Аппетит: часто более ровный, а тяга к перекусам может быть ниже, чем во второй половине цикла.';
+        if(phase==='Фертильное окно') return '🍽 Аппетит: обычно стабильный; у части женщин около овуляции он немного снижается.';
+        if(phase==='Лютеиновая фаза'){
+          if(Number.isFinite(daysToNext)&&daysToNext<=5) return '🍽 Аппетит: перед месячными чаще усиливаются голод и тяга к сладкому или более калорийной еде.';
+          return '🍽 Аппетит: может постепенно повышаться; ближе к ПМС тяга к перекусам обычно заметнее.';
+        }
+        return '';
       }
 
       function setDianaCycleMood(modelOrPhase){
@@ -2584,8 +2648,12 @@
           const word=dianaCycleMoodWord(cycleModel);
           const status=document.getElementById('homeCycleStatus');
           const advice=document.getElementById('homeCycleAdvice');
+          const brain=document.getElementById('homeCycleBrain');
+          const appetite=document.getElementById('homeCycleAppetite');
           if(status) status.textContent=word?'🌸 Диана: '+word:'';
           if(advice) advice.textContent=dianaCycleDailyAdvice(cycleModel);
+          if(brain) brain.textContent=dianaCycleBrainNote(cycleModel);
+          if(appetite) appetite.textContent=dianaCycleAppetiteNote(cycleModel);
           cycle.hidden=!word;
         }
 
@@ -2890,12 +2958,18 @@
         const cycleAdvice=document.createElement('div');
         cycleAdvice.id='homeCycleAdvice';
         cycleAdvice.className='home-cycle-advice';
+        const cycleBrain=document.createElement('div');
+        cycleBrain.id='homeCycleBrain';
+        cycleBrain.className='home-cycle-insight';
+        const cycleAppetite=document.createElement('div');
+        cycleAppetite.id='homeCycleAppetite';
+        cycleAppetite.className='home-cycle-insight';
         const cycleOpen=document.createElement('button');
         cycleOpen.id='homeCycleOpen';
         cycleOpen.className='home-cycle-open';
         cycleOpen.type='button';
         cycleOpen.textContent='Показать полностью';
-        cycleSummary.append(cycleStatus,cycleAdvice,cycleOpen);
+        cycleSummary.append(cycleStatus,cycleAdvice,cycleBrain,cycleAppetite,cycleOpen);
 
         const makePersonTile=(actor,identity)=>{
           const tile=document.createElement('section');
@@ -4496,6 +4570,8 @@
         const period=document.getElementById('dianaCyclePeriod');
         const ovulation=document.getElementById('dianaCycleOvulation');
         const note=document.getElementById('dianaCycleNote');
+        const brain=document.getElementById('dianaCycleBrain');
+        const appetite=document.getElementById('dianaCycleAppetite');
         const recordButton=document.getElementById('dianaCycleStartToday');
 
         if(!cfg||cfg.enabled===false){
@@ -4509,6 +4585,8 @@
           progress.style.width='0%';
           period.textContent='—';
           ovulation.textContent='—';
+          if(brain) brain.textContent='—';
+          if(appetite) appetite.textContent='—';
           note.textContent='Прогноз появится после загрузки данных.';
           if(recordButton) recordButton.disabled=true;
           return;
@@ -4543,6 +4621,8 @@
         }else{
           ovulation.textContent='—';
         }
+        if(brain) brain.textContent=dianaCycleBrainNote(model).replace(/^🧠\s*Мозг:\s*/u,'');
+        if(appetite) appetite.textContent=dianaCycleAppetiteNote(model).replace(/^🍽\s*Аппетит:\s*/u,'');
         note.textContent='Прогноз по '+Math.max(1,model.historyCount)+' отмеченным циклам. Даты ориентировочные и не подходят для контрацепции.';
       }
 
@@ -6542,16 +6622,18 @@
         text.className='wish-text';
         text.textContent=item.text;
 
+        const canRemove=String(item?.owner||'')===String(currentActor||'');
         const remove=document.createElement('button');
         remove.className='wish-remove';
         remove.type='button';
         remove.setAttribute('aria-label','Удалить');
         remove.textContent='×';
+        remove.hidden=!canRemove;
 
         toggle.addEventListener('click',async()=>{
           try{renderWishlist(await wishlistRequest('toggle',{id:item.id}));}catch(_){}
         });
-        remove.addEventListener('click',async()=>{
+        if(canRemove) remove.addEventListener('click',async()=>{
           remove.disabled=true;
           try{
             const data=await wishlistRequest('remove',{id:item.id});
