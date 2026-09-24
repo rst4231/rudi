@@ -1392,14 +1392,15 @@
         updateAppRoute(currentAppTab,{item:initialItem,replace:true});
         runTabSideEffects(currentAppTab,{item:initialItem});
 
-        document.querySelectorAll('[data-app-tab]').forEach(button=>{
+        document.querySelectorAll('#appTabBar [data-app-tab]').forEach(button=>{
           if(button.dataset.routeBound==='1') return;
           button.dataset.routeBound='1';
           button.addEventListener('click',()=>{
             const next=button.dataset.appTab||'home';
+            appTabScroll[next]=0;
             if(next===currentAppTab){
-              appTabScroll[next]=window.scrollY||0;
               updateAppRoute(next,{replace:true});
+              requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
               if(next==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               return;
