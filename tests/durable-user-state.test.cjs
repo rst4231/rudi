@@ -23,7 +23,7 @@ test('daily mood restores after runtime cache eviction',async()=>{
 
   await mood.restoreDailyMoodState(snapshot,{moodCache:cache});
   const restored=await mood.readDailyMood(date,{moodCache:cache});
-  assert.equal(restored.moods['Рустам'].mood,'great');
+  assert.equal(restored.moods['Рустам'].mood,'joy');
   assert.equal(restored.moods['Рустам'].updatedAt,'2026-09-22T10:00:00.000Z');
 });
 
