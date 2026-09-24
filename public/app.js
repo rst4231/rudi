@@ -1858,6 +1858,20 @@
       }
 
       let activityNotificationsCloseTimer=null;
+
+      function positionActivityNotificationsPanel(){
+        const panel=document.getElementById('homeActivityNotificationsPanel');
+        const button=document.getElementById('homeActivityNotificationsButton');
+        if(!panel||!button) return;
+        if(window.matchMedia('(max-width:430px)').matches){
+          const rect=button.getBoundingClientRect();
+          const top=Math.max(8,Math.round(rect.bottom+8));
+          panel.style.setProperty('--activity-panel-top',top+'px');
+        }else{
+          panel.style.removeProperty('--activity-panel-top');
+        }
+      }
+
       function setActivityNotificationsOpen(open){
         const panel=document.getElementById('homeActivityNotificationsPanel');
         const button=document.getElementById('homeActivityNotificationsButton');
@@ -1867,6 +1881,7 @@
         clearTimeout(activityNotificationsCloseTimer);
         if(next){
           setSettingsOpen(false);
+          positionActivityNotificationsPanel();
           panel.hidden=false;
           requestAnimationFrame(()=>panel.classList.add('is-open'));
         }else{
@@ -1899,6 +1914,13 @@
         document.addEventListener('keydown',event=>{
           if(event.key==='Escape') setActivityNotificationsOpen(false);
         });
+        const reposition=()=>{
+          if(!panel.hidden&&panel.classList.contains('is-open')) positionActivityNotificationsPanel();
+        };
+        window.addEventListener('resize',reposition,{passive:true});
+        window.addEventListener('orientationchange',reposition,{passive:true});
+        window.visualViewport?.addEventListener?.('resize',reposition,{passive:true});
+        window.visualViewport?.addEventListener?.('scroll',reposition,{passive:true});
       }
 
       function renderActivityJournal(payload){
