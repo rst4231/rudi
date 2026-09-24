@@ -90,12 +90,13 @@ test('Diana cycle lives in Calendar above anniversary',()=>{
 });
 
 
-test('car tile follows smart home and uses the same movable collapsible system',()=>{
+test('car tile uses the same movable collapsible system without forcing saved layout positions',()=>{
   assert.match(html,/id="carTile"[^>]*data-app-tab-section="home"[^>]*data-home-tile="car"/);
   assert.match(app,/selector:'#carTile',key:'car'/);
   assert.match(app,/bodySelectors:\['#carBody'\]/);
   assert.match(app,/hostSelector:'\.car-head'/);
-  assert.match(app,/requested\.splice\(smartIndex\+1,0,'car'\)/);
+  assert.match(app,/for\(const id of defaults\) if\(!valid\.includes\(id\)\) valid\.push\(id\)/);
+  assert.doesNotMatch(app,/requested\.splice\(smartIndex\+1,0,'car'\)/);
 });
 
 
