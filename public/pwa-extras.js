@@ -930,7 +930,7 @@
     if(empty) empty.hidden=rows.length>0;
     if(status) status.textContent=rows.length
       ?'Материалы сохраняются здесь каждый день вместо личных сообщений'
-      :'Материалы появятся здесь в 12:00';
+      :'Материалы появятся вместе с обновлением ленты';
 
     const groups=new Map();
     rows.forEach(item=>{
