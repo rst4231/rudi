@@ -3965,7 +3965,9 @@
         if(!currentActor) return false;
         if(telegramInitData()) await ensureTelegramPin();
         appAccessReady=true;
-        await loadAppBootstrap();
+        loadAppBootstrap().catch(error=>{
+          console.warn('RUDI_APP_BOOTSTRAP_BACKGROUND_WARN',String(error?.message||error));
+        });
         return true;
       }
 
