@@ -453,13 +453,13 @@ test('mood support message stays visible when own profile card is collapsed',asy
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
 
   const rustam=page.locator('#homeRustamTile');
-  const collapse=rustam.locator('.block-collapse-button').first();
-  await collapse.click();
-  await expect(rustam).toHaveClass(/is-collapsed/);
-
   await rustam.locator('.mood-button[data-mood="joy"]').click();
   const message=page.locator('#moodMessage');
   await expect(message).toBeVisible();
+
+  const collapse=rustam.locator('.block-collapse-button').first();
+  await collapse.click();
+  await expect(rustam).toHaveClass(/is-collapsed/);
   await expect(message).not.toHaveText('');
   expect(await message.evaluate(el=>getComputedStyle(el).color)).toBe('rgb(247, 248, 252)');
   expect(await message.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(10.5);
