@@ -6,6 +6,9 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const PASSKEY_TTL_SECONDS = 10 * 365 * 24 * 60 * 60;
 const CHALLENGE_TTL_SECONDS = 10 * 60;
 const MAX_PASSKEYS_PER_ACTOR = 5;
+const TRUSTED_PROXY_ORIGINS = new Set([
+  'https://rudi-proxy.onrender.com',
+]);
 
 let webauthnPromise = null;
 async function resolveWebAuthn(options = {}) {
@@ -24,6 +27,16 @@ function resolveCache(options = {}) {
 }
 
 function requestOrigin(req) {
+  const proxyName = String(req?.headers?.['x-rudi-proxy'] || '').trim().toLowerCase();
+  const proxyOrigin = String(req?.headers?.['x-rudi-public-origin'] || '').trim().replace(/\/+$/, '');
+  if (proxyName === 'render' && TRUSTED_PROXY_ORIGINS.has(proxyOrigin)) {
+    const url = new URL(proxyOrigin);
+    return {
+      rpID: url.hostname,
+      origin: url.origin,
+    };
+  }
+
   const forwardedHost = String(req?.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
   const host = forwardedHost || String(req?.headers?.host || '').trim();
   if (!host) throw new Error('rudi-passkey-host-invalid');

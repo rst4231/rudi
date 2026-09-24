@@ -25,11 +25,61 @@ function req(host='spb-daily-guide-bot.vercel.app') {
   return { headers: { host, 'x-forwarded-proto':'https' } };
 }
 
+function renderProxyReq(origin='https://rudi-proxy.onrender.com') {
+  return {
+    headers: {
+      host:'spb-daily-guide-bot.vercel.app',
+      'x-forwarded-host':'spb-daily-guide-bot.vercel.app',
+      'x-forwarded-proto':'https',
+      'x-rudi-proxy':'render',
+      'x-rudi-public-origin':origin,
+    },
+  };
+}
+
 test('passkey origin is bound to the current RUDI host', () => {
   assert.deepEqual(requestOrigin(req()), {
     rpID:'spb-daily-guide-bot.vercel.app',
     origin:'https://spb-daily-guide-bot.vercel.app',
   });
+});
+
+test('passkey origin trusts only the allowlisted Render proxy origin', () => {
+  assert.deepEqual(requestOrigin(renderProxyReq()), {
+    rpID:'rudi-proxy.onrender.com',
+    origin:'https://rudi-proxy.onrender.com',
+  });
+
+  assert.deepEqual(requestOrigin(renderProxyReq('https://evil.example')), {
+    rpID:'spb-daily-guide-bot.vercel.app',
+    origin:'https://spb-daily-guide-bot.vercel.app',
+  });
+});
+
+test('registration and verification use the Render origin consistently', async () => {
+  const cache=memoryCache();
+  const webauthn={
+    async generateRegistrationOptions(){
+      return {challenge:'render-reg',user:{id:'render-user'}};
+    },
+    async verifyRegistrationResponse(input){
+      assert.equal(input.expectedOrigin,'https://rudi-proxy.onrender.com');
+      assert.equal(input.expectedRPID,'rudi-proxy.onrender.com');
+      return {
+        verified:true,
+        registrationInfo:{
+          credential:{id:'cred-render',publicKey:new Uint8Array([7,7,7]),counter:0,transports:['internal']},
+          credentialDeviceType:'singleDevice',
+          credentialBackedUp:false,
+        },
+      };
+    },
+  };
+  const opts={cache,webauthn,botToken:'123456:render-test',now:Date.UTC(2026,8,24,19,50)};
+  const generated=await registrationOptions(renderProxyReq(),'Рустам',opts);
+  const saved=await verifyRegistration(renderProxyReq(),'Рустам',generated.challenge,{id:'cred-render'},opts);
+  assert.equal(saved.configured,true);
+  assert.equal(saved.passkeys[0].rpID,'rudi-proxy.onrender.com');
 });
 
 test('registration stores only public credential material and enables status', async () => {

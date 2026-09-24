@@ -22,6 +22,12 @@ function upstreamHeaders(req) {
     headers.set(name, Array.isArray(rawValue) ? rawValue.join(', ') : String(rawValue));
   }
   headers.set('x-rudi-proxy', 'render');
+  const origin = publicOrigin(req);
+  if (origin === 'https://rudi-proxy.onrender.com') {
+    headers.set('x-rudi-public-origin', origin);
+  } else {
+    headers.delete('x-rudi-public-origin');
+  }
   return headers;
 }
 
