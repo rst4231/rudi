@@ -2994,7 +2994,8 @@
         const original=button?.textContent||'Обновить сейчас';
         if(button){button.disabled=true;button.textContent='Обновляю…'}
         try{
-          await refreshAfterResume({force:true});
+          manualRefreshRequested=true;
+          await refreshAfterResume();
           await Promise.allSettled([
             window.RUDI_CAR?.refresh?.(),
             window.RUDI_SMART_HOME?.refresh?.(),
@@ -3162,7 +3163,8 @@
           indicator.style.setProperty('--pull-distance','72px');
           if(label) label.textContent='Обновляю…';
           const startedAt=Date.now();
-          Promise.resolve(refreshAfterResume({force:true}))
+          manualRefreshRequested=true;
+          Promise.resolve(refreshAfterResume())
             .then(()=>{
               const delay=Math.max(0,420-(Date.now()-startedAt));
               setTimeout(()=>{
@@ -8689,10 +8691,11 @@
       }
 
       let resumeRefreshPromise=null;
-      async function refreshAfterResume({force=false}={}){
+      let manualRefreshRequested=false;
+      async function refreshAfterResume(){
         ensureAppSurface();
         if(!currentActor||!appAccessReady) return;
-        if(!force&&!autoRefreshEnabled()) return;
+        if(!manualRefreshRequested&&!autoRefreshEnabled()) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
@@ -8716,6 +8719,7 @@
         }).then(()=>{
           markDataSyncNow();
         }).finally(()=>{
+          manualRefreshRequested=false;
           resumeRefreshPromise=null;
           ensureAppSurface();
         });
@@ -8724,7 +8728,7 @@
 
       window.addEventListener('pageshow',event=>{
         ensureAppSurface();
-        if(event.persisted&&autoRefreshEnabled()) refreshAfterResume();
+        if(event.persisted) refreshAfterResume();
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();
@@ -8742,7 +8746,7 @@
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
         }
-        if(hiddenAt&&Date.now()-hiddenAt>1200&&autoRefreshEnabled()) refreshAfterResume();
+        if(hiddenAt&&Date.now()-hiddenAt>1200) refreshAfterResume();
         hiddenAt=0;
       });
     })();
