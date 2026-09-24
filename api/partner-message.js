@@ -2114,18 +2114,46 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+
+      if (previousSnapshot?.savedItems?.initialized) {
+        const liveBefore = await readSavedItems(options).catch(() => ({ initialized: false, version: 0, items: [] }));
+        if (!liveBefore?.initialized || !(liveBefore.items || []).length) {
+          await restoreStateBackup(body.backupToken, {
+            ...options,
+            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+          }).catch(() => null);
+        }
+      }
 
       if (operation === 'list') {
-        const state = await readSavedItems(options);
+        const live = await readSavedItems(options).catch(() => ({ initialized: false, version: 0, items: [] }));
+        const saved = previousSnapshot?.savedItems;
+        const state = live?.initialized ? live : (saved?.initialized ? saved : live);
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'add') {
         const result = await addSavedItem(body.type, body.payload, actor, options);
-        return res.status(200).json({ ok: true, actor, ...result.state, item: result.item, duplicate: result.duplicate });
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        return res.status(200).json({
+          ok: true,
+          actor,
+          ...result.state,
+          item: result.item,
+          duplicate: result.duplicate,
+          backupToken,
+        });
       }
       if (operation === 'remove') {
         const result = await removeSavedItem(body.id, options);
-        return res.status(200).json({ ok: true, actor, ...result.state, removedItem: result.item });
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        return res.status(200).json({
+          ok: true,
+          actor,
+          ...result.state,
+          removedItem: result.item,
+          backupToken,
+        });
       }
       return res.status(400).json({ ok: false, error: 'saves-operation-invalid' });
     } catch (error) {
