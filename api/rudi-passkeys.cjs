@@ -267,7 +267,7 @@ async function verifyRegistration(req, actor, challenge, response, options = {})
   const existing = await readPasskeys(safeActor, options);
   const merged = [...existing.filter(row => row.id !== next.id), next];
   await writePasskeys(safeActor, merged, options);
-  return { actor: safeActor, configured: true, credentialId: next.id };
+  return { actor: safeActor, configured: true, credentialId: next.id, passkeys: merged };
 }
 
 async function authenticationOptions(req, options = {}) {
@@ -330,7 +330,7 @@ async function verifyAuthentication(req, challenge, response, options = {}) {
     : row
   );
   await writePasskeys(passkey.actor, nextRows, options);
-  return { actor: passkey.actor, credentialId: passkey.id };
+  return { actor: passkey.actor, credentialId: passkey.id, passkeys: nextRows };
 }
 
 module.exports = {
