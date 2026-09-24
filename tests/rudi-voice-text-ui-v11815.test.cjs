@@ -29,6 +29,8 @@ test('assistant greeting is personal and rotates between app openings',()=>{
   assert.match(app,/currentActor|firstName/);
   assert.match(app,/rudi:voice-greeting/);
   assert.match(app,/как дела\?|чем помочь\?|рассказывай|что делаем\?/i);
+  assert.match(html,/id="voiceAssistantPanelGreeting"/);
+  assert.match(app,/voiceAssistantPanelGreeting/);
 });
 
 test('assistant panel follows iPhone visual viewport while typing',()=>{
