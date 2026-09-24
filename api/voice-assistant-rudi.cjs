@@ -1,11 +1,13 @@
 const config = require('../rudi-config.json');
 const { readDailyMood } = require('./daily-mood-store.cjs');
-const { readProductList, addProducts } = require('./product-list-store.cjs');
-const { readWishlist, addWish } = require('./wishlist-store.cjs');
+const { readProductList, addProducts, removeProduct:removeProductFn, toggleProductChecked, markProductBought } = require('./product-list-store.cjs');
+const { readWishlist, addWish, toggleWish, removeWish:removeWishFn } = require('./wishlist-store.cjs');
 const { readCycleState, cycleViewForDate } = require('./cycle-store.cjs');
 const { readPartnerMessage } = require('./partner-message-store.cjs');
 const { readFeedSnapshot } = require('./feed-store.cjs');
-const { readLuluState } = require('./lulu-store.cjs');
+const { readLuluState, markLuluWalk } = require('./lulu-store.cjs');
+const { readSavedItems, removeSavedItem } = require('./saved-items-store.cjs');
+const { readForDiFeed } = require('./for-di-feed-store.cjs');
 const { readCarState } = require('./car-store.cjs');
 const { readActivityJournal } = require('./activity-journal-store.cjs');
 const { getWorkWeek } = require('./work-calendar.cjs');
@@ -183,28 +185,152 @@ function selectDevice(devices,target) {
   return {device:ranked[0].device,candidates:[]};
 }
 
-function contextNeeds(transcript) {
+const MOOD_LABELS = Object.freeze({
+  sadness:'грусть',
+  fear:'тревога',
+  anger:'злость',
+  joy:'радость',
+  love:'любовь',
+});
+
+const APP_TAB_LABELS = Object.freeze({
+  home:'главная',
+  feed:'лента',
+  schedule:'график',
+  wishlist:'вишлист',
+  photos:'фото',
+  products:'продукты',
+  saves:'сохранённое',
+  'for-di':'для Ди',
+});
+
+function moodForAssistant(value) {
+  const code=String(value?.mood||'').trim();
+  if(!code) return null;
+  return { value:MOOD_LABELS[code]||'не указано', updatedAt:String(value?.updatedAt||'') };
+}
+
+function effectiveTopicText(transcript,history=[]) {
+  const current=normalizeText(transcript);
+  if(!current) return current;
+  const followUp=current.length<=44&&/^(?:а\s+)?(?:завтра|сегодня|сейчас|у\s+дианы|а\s+у\s+дианы|что\s+здесь|что\s+тут|а\s+погода|а\s+дела|а\s+работа)/u.test(current);
+  if(!followUp) return current;
+  const previous=[...(Array.isArray(history)?history:[])].reverse().find(item=>item?.role==='user'&&String(item?.content||'').trim());
+  return previous ? normalizeText(previous.content)+' '+current : current;
+}
+
+function navigationIntent(transcript) {
   const text=normalizeText(transcript);
+  if(!/(?:^|\s)(?:открой|открыть|покажи|перейди|перейти|зайди|зайти)(?:\s|$)/u.test(text)) return null;
+  const rows=[
+    ['for-di',/(?:для\s+ди|для\s+дианы)/u],
+    ['wishlist',/(?:вишлист|wishlist|желани)/u],
+    ['products',/(?:продукт|покупк)/u],
+    ['schedule',/(?:график|календар|расписан)/u],
+    ['photos',/(?:фото|альбом)/u],
+    ['saves',/(?:сохраненн|сохраненк|сохранен)/u],
+    ['feed',/(?:лент|событи|концерт|стендап|кино)/u],
+    ['home',/(?:главн|домой|домашн)/u],
+  ];
+  for(const [tab,re] of rows) if(re.test(text)) return {tab,label:APP_TAB_LABELS[tab]};
+  return null;
+}
+
+function matchNamedItem(items,target,getText=(item)=>item?.text) {
+  const needle=normalizeText(target);
+  const source=(Array.isArray(items)?items:[]).filter(Boolean);
+  if(!needle) return {item:null,candidates:[]};
+  const exact=source.filter(item=>normalizeText(getText(item))===needle);
+  if(exact.length===1) return {item:exact[0],candidates:[]};
+  if(exact.length>1) return {item:null,candidates:exact};
+  const partial=source.filter(item=>{
+    const text=normalizeText(getText(item));
+    return text&&(text.includes(needle)||needle.includes(text));
+  });
+  if(partial.length===1) return {item:partial[0],candidates:[]};
+  return {item:null,candidates:partial.slice(0,6)};
+}
+
+function removeProductIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:удали|удалить|убери|убрать)\s+(.+?)\s+(?:из|со)\s+(?:списка\s+)?(?:продуктов|покупок)$/iu,
+    /^(?:удали|удалить|убери|убрать)\s+(?:из|со)\s+(?:списка\s+)?(?:продуктов|покупок)\s+(.+)$/iu,
+  ]){const m=raw.match(re);if(m?.[1])return {target:m[1].trim()}}
+  return null;
+}
+
+function productToggleIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:отметь|поставь\s+галочку\s+(?:на|для))\s+(.+?)\s+(?:в|на)\s+(?:списке\s+)?(?:продуктов|покупок)$/iu,
+    /^(?:отметь|поставь\s+галочку\s+(?:на|для))\s+(?:в|на)\s+(?:списке\s+)?(?:продуктов|покупок)\s+(.+)$/iu,
+  ]){const m=raw.match(re);if(m?.[1])return {target:m[1].trim()}}
+  return null;
+}
+
+function productBoughtIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  const m=raw.match(/^(?:отметь|пометь)\s+(.+?)\s+(?:как\s+)?(?:купленн(?:ым|ой|ое)|куплено)(?:\s+в\s+(?:продуктах|покупках))?$/iu);
+  return m?.[1]?{target:m[1].trim()}:null;
+}
+
+function removeWishIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:удали|удалить|убери|убрать)\s+(.+?)\s+(?:из|со)\s+(?:моего\s+)?(?:вишлиста|wishlist|списка\s+желаний)$/iu,
+    /^(?:удали|удалить|убери|убрать)\s+(?:из|со)\s+(?:моего\s+)?(?:вишлиста|wishlist|списка\s+желаний)\s+(.+)$/iu,
+  ]){const m=raw.match(re);if(m?.[1])return {target:m[1].trim()}}
+  return null;
+}
+
+function toggleWishIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  const m=raw.match(/^(?:отметь|пометь)\s+(.+?)\s+(?:в|на)\s+(?:моем\s+)?(?:вишлисте|wishlist|списке\s+желаний)\s+(?:выполненн(?:ым|ой)|исполненн(?:ым|ой))$/iu);
+  return m?.[1]?{target:m[1].trim()}:null;
+}
+
+function removeSavedIntent(transcript){
+  const raw=cleanCommandText(transcript);
+  for(const re of [
+    /^(?:удали|удалить|убери|убрать)\s+(.+?)\s+(?:из|со)\s+сохраненн(?:ого|ых|ое)$/iu,
+    /^(?:удали|удалить|убери|убрать)\s+(?:из|со)\s+сохраненн(?:ого|ых|ое)\s+(.+)$/iu,
+  ]){const m=raw.match(re);if(m?.[1])return {target:m[1].trim()}}
+  return null;
+}
+
+function luluWalkIntent(transcript){
+  const text=normalizeText(transcript);
+  return /(?:погулял|погуляла|погуляли|гулял|гуляла).*?(?:лулу|lulu|собак)|(?:отметь|запиши).*?прогулк.*?(?:лулу|lulu|собак)/u.test(text);
+}
+
+function contextNeeds(transcript, options = {}) {
+  const text=effectiveTopicText(transcript,options.history);
+  const current=normalizeText(transcript);
   const broadToday=/(?:^|\s)(что у нас сегодня|что сегодня|планы на сегодня)(?:\s|$)/u.test(text);
   const statusDiana=/(статус.*диан|диан.*статус|какой статус)/u.test(text);
-  const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|пылесос|устройств|умн.*дом)/u.test(text);
+  const smart=Boolean(commandIntent(transcript))||/(температур.*дом|дома.*температур|влажност|торшер|пылесос|камер|устройств|умн.*дом)/u.test(text);
+  const contextual=/^(?:что\s+здесь|что\s+тут|что\s+в\s+этом\s+разделе)$/u.test(current);
+  const tab=String(options.ui?.tab||'');
   return {
     mood:/(настроен|как диан.*себя|как себя диан)/u.test(text),
-    products:/(продукт|покупк|список покуп)/u.test(text),
+    products:/(продукт|покупк|список покуп)/u.test(text)||(contextual&&tab==='products'),
     productHistory:/(что покупал|что купил|покупали|последн.*покуп)/u.test(text),
-    wishlist:/(виш|wishlist|желани|хотелк)/u.test(text),
-    cycle:statusDiana||/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text),
+    wishlist:/(виш|wishlist|желани|хотелк)/u.test(text)||(contextual&&tab==='wishlist'),
+    cycle:statusDiana||/(цикл|месяч|овуляц|фертиль|критическ.*дн)/u.test(text)||(contextual&&tab==='schedule'),
     message:/(послан|сообщени.*послан)/u.test(text),
-    feed:/(лент|мероприят|событи.*лент|концерт|стендап|stand up|кино|кинопремьер|премьер|факт)/u.test(text),
+    feed:/(лент|мероприят|событи.*лент|концерт|стендап|stand up|кино|кинопремьер|премьер|факт)/u.test(text)||(contextual&&tab==='feed'),
     lulu:/(лулу|lulu|выгул|гулял.*собак|собак.*гулял)/u.test(text),
     car:/(пробег|машин|авто|changan|uni v|уни в)/u.test(text),
     relationship:/(годовщин|сколько .* вместе|вместе с|лет вместе|месяц.*вместе|дн.*вместе)/u.test(text),
     activity:/(последн.*гулял|когда .* гулял|что произошло|последн.*активност)/u.test(text),
-    calendar:statusDiana||broadToday||/(диан.*работ|работ.*диан|выходн|смен|рабоч.*день|календар|ближайш.*событ|событ.*календар|завтра.*диан|диан.*завтра)/u.test(text),
-    holidays:broadToday||/(праздник|праздники)/u.test(text),
-    tasks:broadToday||/(совместн.*дел|дела.*сегодня|дела.*завтра|что.*завтра|план.*завтра|задач|ticktick|ближайш.*событ|календар)/u.test(text),
+    calendar:statusDiana||broadToday||/(диан.*работ|работ.*диан|выходн|смен|рабоч.*день|календар|ближайш.*событ|событ.*календар|завтра.*диан|диан.*завтра)/u.test(text)||(contextual&&tab==='schedule'),
+    holidays:broadToday||/(праздник|праздники)/u.test(text)||(contextual&&tab==='schedule'),
+    tasks:broadToday||/(совместн.*дел|дела.*сегодня|дела.*завтра|что.*завтра|план.*завтра|задач|ticktick|ближайш.*событ|календар)/u.test(text)||(contextual&&tab==='schedule'),
     market:/(курс|доллар|usd|рубл|биткоин|bitcoin|btc|эфир|ethereum|eth|крипт)/u.test(text),
     weather:/(погод|прогноз|дожд|снег|температур.*улиц)/u.test(text),
+    saves:/(сохраненн|сохраненк|сохранен)/u.test(text)||(contextual&&tab==='saves'),
+    forDi:/(для\s+ди|для\s+дианы)/u.test(text)||(contextual&&tab==='for-di'),
     smart,
   };
 }
@@ -266,7 +392,9 @@ async function readAssistantContext(transcript, options = {}) {
   const today=dateKey(now,timeZone);
   const tomorrow=shiftDateKey(today,1);
   const actor=String(options.actor||'Рустам');
-  const wanted=contextNeeds(transcript);
+  const history=Array.isArray(options.history)?options.history:[];
+  const ui=options.ui&&typeof options.ui==='object'?options.ui:{};
+  const wanted=contextNeeds(transcript,{history,ui});
   const year=Number(today.slice(0,4));
   const nextNewYear=(year+1)+'-01-01';
   const context={
@@ -279,7 +407,12 @@ async function readAssistantContext(transcript, options = {}) {
       nextNewYear,
       daysUntilNewYear:Math.max(0,Math.round((Date.parse(nextNewYear+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/DAY))
     },
-    actor
+    actor,
+    ui:{
+      tab:APP_TAB_LABELS[String(ui.tab||'')]?String(ui.tab):'',
+      tabLabel:APP_TAB_LABELS[String(ui.tab||'')]||'',
+      selectedDate:String(ui.selectedDate||'').slice(0,20),
+    }
   };
 
   const jobs=[];
@@ -288,7 +421,12 @@ async function readAssistantContext(transcript, options = {}) {
 
   if(wanted.mood) jobs.push(
     readDailyMood(today,options)
-      .then(row=>{context.mood=row?.moods||null})
+      .then(row=>{
+        context.mood={
+          'Рустам':moodForAssistant(row?.moods?.['Рустам']),
+          'Диана':moodForAssistant(row?.moods?.['Диана']),
+        };
+      })
       .catch(()=>{context.mood=null})
   );
 
@@ -441,6 +579,32 @@ async function readAssistantContext(transcript, options = {}) {
         };
       })
       .catch(error=>{context.weather={city:'Санкт-Петербург',error:String(error?.message||error)}})
+  );
+
+  if(wanted.saves) jobs.push(
+    readSavedItems(options)
+      .then(saved=>{
+        context.savedItems=(saved?.items||[]).slice(0,24).map(item=>({
+          id:item.id,
+          type:item.type,
+          title:String(item?.payload?.title||item?.payload?.name||'').slice(0,180),
+          savedBy:item.savedBy||'',
+          createdAt:item.createdAt||'',
+        }));
+      })
+      .catch(()=>{context.savedItems=[]})
+  );
+
+  if(wanted.forDi) jobs.push(
+    readForDiFeed(options)
+      .then(feed=>{
+        context.forDi=(feed?.items||[]).slice(0,12).map(item=>({
+          text:String(item.text||'').slice(0,320),
+          dateKey:item.dateKey||'',
+          source:item.source||null,
+        }));
+      })
+      .catch(()=>{context.forDi=[]})
   );
 
   if(wanted.smart) jobs.push(
