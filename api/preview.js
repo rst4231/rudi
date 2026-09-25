@@ -8,6 +8,7 @@ const { resolvePreviewDate } = require('./preview-date.cjs');
 const { normalizePreviewSections, stripRetiredSections, applyPreviewContentOverride } = require('./preview-sections.cjs');
 const { getContentOverride } = require('./section-controls.cjs');
 const { SECTION_NAMES } = require('./rudi-settings.cjs');
+const ACTIVE_PREVIEW_SECTIONS = SECTION_NAMES.filter((section) => section !== 'facts');
 const { DEFAULT_MAX_ITEMS, rankHolidayEntries } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { stripStagePriceLines } = require('./event-text-sanitizer.cjs');
@@ -32,7 +33,7 @@ function extractHolidayEntries(value) {
 }
 
 async function loadPreviewOverrides(date, options = {}) {
-  const rows = await Promise.all(SECTION_NAMES.map(async (section) => [
+  const rows = await Promise.all(ACTIVE_PREVIEW_SECTIONS.map(async (section) => [
     section,
     await getContentOverride(date, section, { cache: options.controlCache }),
   ]));
@@ -112,7 +113,7 @@ async function runPreview(req, res, options = {}) {
       }
       const rawSections = normalizePreviewSections(rewritten);
       const sections = {};
-      for (const section of SECTION_NAMES) {
+      for (const section of ACTIVE_PREVIEW_SECTIONS) {
         sections[section] = applyPreviewContentOverride(rawSections[section], overrides[section]);
       }
       const holidayEntries = extractHolidayEntries(
