@@ -58,6 +58,7 @@ const {
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
 const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
+const { readScoreState, awardScore, reverseScoreByDedupeKey, redeemReward, scoreView, restoreScoreState } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const {
@@ -453,6 +454,11 @@ async function recordActivity(input, options = {}) {
   }
 }
 
+async function awardScoreSafe(actor, units, meta = {}, options = {}) {
+  try { return await awardScore(actor, units, meta, options); }
+  catch (error) { console.warn('RUDI_SCORE_AWARD_WARN', String(error?.message || error)); return null; }
+}
+
 function reactionActivityView(target) {
   const type = String(target?.type || '').trim();
   const key = String(target?.key || '').trim();
@@ -696,6 +702,7 @@ function mergeBackupSnapshots(base, overlay) {
     albumConfig: overlay.albumConfig || base.albumConfig || null,
     cycle: newerVersion(base.cycle, overlay.cycle),
     activityJournal: newerVersion(base.activityJournal, overlay.activityJournal),
+    scoreState: newerVersion(base.scoreState, overlay.scoreState),
     luluState: newerVersion(base.luluState, overlay.luluState),
     carState: newerTime(base.carState, overlay.carState),
     dailyMood: newerVersion(base.dailyMood, overlay.dailyMood),
@@ -1038,6 +1045,7 @@ async function handleTickTick(req, res, action, options = {}) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
 
+    const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
     const taskId = String(body.taskId || '').trim();
     if (!taskId) return res.status(400).json({ ok: false, error: 'ticktick-task-complete-invalid' });
     if (!credentialsConfigured(options.env || process.env)) {
@@ -1074,14 +1082,12 @@ async function handleTickTick(req, res, action, options = {}) {
           icon: '✅',
           targetTab: 'schedule',
         }, options);
+        await awardScoreSafe(actor, 20, {label:'Задача',detail:String(task?.title||'Совместное дело').trim(),icon:'✅',dedupeKey:'score:task:'+taskId+':'+moscowDateKey(options.now||Date.now())}, options);
       }
+      const backupToken = await refreshBackupToken(previousSnapshot, options);
       return res.status(200).json({
-        ok: true,
-        connected: true,
-        writable: true,
-        taskId,
-        completed: true,
-        title: String(task?.title || '').trim(),
+        ok:true,connected:true,writable:true,taskId,completed:true,
+        title:String(task?.title||'').trim(),backupToken,
       });
     } catch (error) {
       const code = String(error?.message || error);
@@ -1360,14 +1366,10 @@ async function handleRudiAction(req, res, action, options = {}) {
         const walkedAt = String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
         const actionWord = actor === 'Диана' ? 'погуляла' : 'погулял';
         await recordActivity({
-          type: 'lulu-walk',
-          actor,
-          text: actor + ' ' + actionWord + ' с Лулу',
-          icon: '🐾',
-          targetTab: 'home',
-          dedupeKey: 'lulu-walk:' + walkedAt,
-          createdAt: walkedAt,
+          type: 'lulu-walk',actor,text: actor + ' ' + actionWord + ' с Лулу',icon:'🐾',targetTab:'home',
+          dedupeKey:'lulu-walk:'+walkedAt,createdAt:walkedAt,
         }, options);
+        await awardScoreSafe(actor,10,{label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
 
         const notificationTask = sendLuluWalkNotificationToPartner(
           actor,
@@ -1395,6 +1397,9 @@ async function handleRudiAction(req, res, action, options = {}) {
 
         await removeActivityByDedupeKey('lulu-walk:' + walkedAt, options).catch((error) => {
           console.warn('RUDI_LULU_ACTIVITY_DELETE_WARN', String(error?.message || error));
+        });
+        await reverseScoreByDedupeKey('score:lulu:'+walkedAt,{label:'Отмена прогулки',detail:'Отменена отметка прогулки с Лулу',icon:'↩️'},options).catch((error)=>{
+          console.warn('RUDI_LULU_SCORE_REVERSE_WARN',String(error?.message||error));
         });
 
         let telegramDeleted = false;
@@ -1937,13 +1942,35 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
-      const [journal, lulu] = await Promise.all([
-        readActivityJournal(options),
-        readLuluState(options),
-      ]);
-      return res.status(200).json({ ok: true, actor, ...journal, lulu });
+      const [journal,lulu,scoreState]=await Promise.all([readActivityJournal(options),readLuluState(options),readScoreState(options)]);
+      return res.status(200).json({ok:true,actor,...journal,lulu,score:scoreView(scoreState,{now:options.now||Date.now()})});
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
+    }
+  }
+
+  if (action === 'score') {
+    if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const previousSnapshot=backupSnapshotFromToken(body.backupToken,options);
+      if(previousSnapshot?.scoreState?.initialized) await restoreScoreState(previousSnapshot.scoreState,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
+      const operation=String(body.operation||'state').trim();
+      if(operation==='state'){
+        const state=await readScoreState(options);
+        return res.status(200).json({ok:true,actor,score:scoreView(state,{now:options.now||Date.now()})});
+      }
+      if(operation==='redeem'){
+        const result=await redeemReward(actor,body.rewardId,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({ok:true,actor,reward:result.reward,score:scoreView(result.state,{now:options.now||Date.now()}),backupToken});
+      }
+      return res.status(400).json({ok:false,error:'score-operation-invalid'});
+    } catch(error) {
+      const code=String(error?.message||error); const authStatus=statusForError(error);
+      const status=authStatus!==500?authStatus:code==='score-balance-insufficient'?409:code.startsWith('score-')?400:500;
+      return res.status(status).json({ok:false,error:code});
     }
   }
 
@@ -2013,14 +2040,9 @@ async function handleRudiAction(req, res, action, options = {}) {
           await sendMoodNotificationToPartner(actor, nextMood, options);
           const activityText = moodActivityText(actor, previousMood, nextMood);
           if (activityText) {
-            await recordActivity({
-              type: 'mood',
-              actor,
-              text: activityText,
-              icon: MOOD_ACTIVITY[nextMood]?.emoji || '🙂',
-              targetTab: 'home',
-            }, options);
+            await recordActivity({type:'mood',actor,text:activityText,icon:MOOD_ACTIVITY[nextMood]?.emoji||'🙂',targetTab:'home'},options);
           }
+          await awardScoreSafe(actor,1,{label:'Настроение',detail:(MOOD_ACTIVITY[nextMood]?.emoji||'🙂')+' '+(MOOD_ACTIVITY[nextMood]?.label||'Выбор настроения'),icon:MOOD_ACTIVITY[nextMood]?.emoji||'🙂',dedupeKey:'score:mood:'+actor+':'+String(row?.moods?.[actor]?.updatedAt||Date.now())},options);
         }
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'get') {
@@ -2525,20 +2547,17 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'add') {
-        const values = Array.isArray(body.items) && body.items.length ? body.items : [body.text];
-        const state = await addProducts(values, actor, options);
-        const added = compactActivityValues(values);
-        if (added) {
-          await recordActivity({
-            type: 'products',
-            actor,
-            text: actor + ' ' + activityVerb(actor, 'добавил', 'добавила') + ' в продукты: ' + added,
-            icon: '🛒',
-            targetTab: 'products',
-          }, options);
+        const values=Array.isArray(body.items)&&body.items.length?body.items:[body.text];
+        const before=await readProductList(options); const beforeIds=new Set((before.items||[]).map((item)=>String(item.id||'')));
+        const state=await addProducts(values,actor,options);
+        const addedItems=(state.items||[]).filter((item)=>!beforeIds.has(String(item.id||'')));
+        const added=compactActivityValues(addedItems.map((item)=>item.text));
+        if(added){
+          await recordActivity({type:'products',actor,text:actor+' '+activityVerb(actor,'добавил','добавила')+' в продукты: '+added,icon:'🛒',targetTab:'products'},options);
+          for(const item of addedItems) await awardScoreSafe(actor,1,{label:'Продукты',detail:'Добавлена позиция: '+String(item.text||'').trim(),icon:'🛒',dedupeKey:'score:product-add:'+String(item.id||'')},options);
         }
         const backupToken=await refreshBackupToken(previousSnapshot,options);
-        return res.status(200).json({ ok: true, actor, ...state, backupToken });
+        return res.status(200).json({ok:true,actor,...state,backupToken});
       }
       if (operation === 'remove') {
         const before = await readProductList(options);
@@ -2625,9 +2644,13 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, owner, ...result.state, backupToken });
       }
       if (operation === 'toggle') {
-        const result = await toggleWish(body.id, options);
+        const before=await readWishlist(options); const item=(before.items||[]).find((row)=>row.id===String(body.id||''))||null;
+        if(!item) throw new Error('wishlist-item-not-found');
+        if(item.owner===owner) throw new Error('wishlist-own-toggle-forbidden');
+        const result=await toggleWish(body.id,options);
+        if(!item.done&&result.item?.done) await awardScoreSafe(owner,50,{label:'Желание партнёра',detail:'Выполнено: '+String(item.text||'').trim(),icon:'🎁',dedupeKey:'score:wishlist-partner:'+owner+':'+String(item.id||'')},options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
-        return res.status(200).json({ ok: true, owner, ...result.state, backupToken });
+        return res.status(200).json({ok:true,owner,...result.state,backupToken});
       }
       if (operation === 'remove') {
         const before = await readWishlist(options);
@@ -2651,7 +2674,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'wishlist-item-not-found' ? 404
-        : code === 'wishlist-owner-forbidden' ? 403
+        : code === 'wishlist-owner-forbidden' || code === 'wishlist-own-toggle-forbidden' ? 403
         : 400;
       return res.status(status).json({ ok: false, error: code });
     }
@@ -2696,14 +2719,8 @@ async function handler(req, res, options = {}) {
       likesInitialized: true,
     }, options);
 
-    await recordActivity({
-      type: 'partner-message',
-      actor,
-      text: actor + ' ' + activityVerb(actor, 'оставил', 'оставила') + ' послание',
-      icon: '💌',
-      targetTab: 'home',
-      dedupeKey: 'message:' + String(message?.updatedAt || ''),
-    }, options);
+    await recordActivity({type:'partner-message',actor,text:actor+' '+activityVerb(actor,'оставил','оставила')+' послание',icon:'💌',targetTab:'home',dedupeKey:'message:'+String(message?.updatedAt||'')},options);
+    await awardScoreSafe(actor,5,{label:'Послание',detail:'Оставлено послание партнёру',icon:'💌',dedupeKey:'score:message:'+String(message?.id||message?.updatedAt||'')},options);
 
     const notificationTask = sendPartnerMessageNotification(actor, options).catch((error) => {
       console.error('RUDI_PARTNER_NOTIFICATION_ERROR', String(error?.message || error));

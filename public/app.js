@@ -2462,6 +2462,209 @@
         renderHomeDashboard();
       }
 
+      let currentScoreState=null;
+      let scoreModalActor='';
+
+      function scoreNumber(value){
+        const number=Number(value||0);
+        return Number.isInteger(number)?String(number):number.toFixed(1).replace('.',',');
+      }
+
+      async function scoreRequest(operation='state',payload={}){
+        const backupContext=backupRequestContext();
+        const response=await fetch('/api/partner-message?rudiAction=score',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok) {
+          const error=new Error(data.error||'score-request-failed');
+          error.status=response.status;
+          throw error;
+        }
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
+        return data;
+      }
+
+      function renderScoreStickers(score=currentScoreState){
+        if(score) currentScoreState=score;
+        if(!currentScoreState) return;
+        document.querySelectorAll('.score-sticker[data-score-actor]').forEach(sticker=>{
+          const actor=String(sticker.dataset.scoreActor||'');
+          const value=scoreNumber(currentScoreState?.balances?.[actor]||0);
+          const holder=sticker.querySelector('.score-sticker-value');
+          if(holder) holder.textContent=value;
+          sticker.setAttribute('aria-label',actor+': '+value+' баллов. Открыть историю баллов');
+        });
+        if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
+      }
+
+      function scoreHistoryTime(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).format(date).replace('.','');
+      }
+
+      function ensureScoreModal(){
+        let modal=document.getElementById('scoreModal');
+        if(modal) return modal;
+        modal=document.createElement('div');
+        modal.id='scoreModal';
+        modal.className='score-modal';
+        modal.hidden=true;
+        modal.innerHTML=
+          '<button class="score-modal-backdrop" type="button" aria-label="Закрыть"></button>'+
+          '<section class="score-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="scoreModalTitle">'+
+            '<div class="score-modal-head">'+
+              '<div><div class="score-modal-kicker">Баллы</div><h2 id="scoreModalTitle"></h2></div>'+
+              '<button id="scoreModalClose" class="score-modal-close" type="button" aria-label="Закрыть">×</button>'+
+            '</div>'+
+            '<div class="score-balance-card">'+
+              '<div><span>Баланс</span><strong id="scoreModalBalance">0</strong></div>'+
+              '<div><span>Сегодня</span><strong id="scoreModalToday">0 / 10</strong></div>'+
+            '</div>'+
+            '<div id="scoreModalTabs" class="score-modal-tabs" role="tablist">'+
+              '<button type="button" data-score-tab="history" class="active">История</button>'+
+              '<button type="button" data-score-tab="shop">Магазин</button>'+
+            '</div>'+
+            '<div id="scoreHistoryPanel" class="score-panel"></div>'+
+            '<div id="scoreShopPanel" class="score-panel" hidden></div>'+
+          '</section>';
+        document.body.appendChild(modal);
+        const close=()=>closeScoreModal();
+        modal.querySelector('.score-modal-backdrop')?.addEventListener('click',close);
+        modal.querySelector('#scoreModalClose')?.addEventListener('click',close);
+        modal.querySelectorAll('[data-score-tab]').forEach(button=>{
+          button.addEventListener('click',()=>{
+            const tab=String(button.dataset.scoreTab||'history');
+            modal.querySelectorAll('[data-score-tab]').forEach(item=>item.classList.toggle('active',item===button));
+            const history=modal.querySelector('#scoreHistoryPanel');
+            const shop=modal.querySelector('#scoreShopPanel');
+            history.hidden=tab!=='history';
+            shop.hidden=tab!=='shop';
+          });
+        });
+        document.addEventListener('keydown',event=>{
+          if(event.key==='Escape'&&!modal.hidden) closeScoreModal();
+        });
+        return modal;
+      }
+
+      function closeScoreModal(){
+        const modal=document.getElementById('scoreModal');
+        if(!modal) return;
+        modal.hidden=true;
+        document.body.classList.remove('score-modal-open');
+        scoreModalActor='';
+      }
+
+      function renderScoreModal(actor,score=currentScoreState){
+        const modal=ensureScoreModal();
+        if(!score) return;
+        scoreModalActor=actor;
+        const balance=Number(score?.balances?.[actor]||0);
+        const today=Number(score?.today?.earned?.[actor]||0);
+        modal.querySelector('#scoreModalTitle').textContent=actor;
+        modal.querySelector('#scoreModalBalance').textContent=scoreNumber(balance)+' ⭐';
+        modal.querySelector('#scoreModalToday').textContent=scoreNumber(today)+' / '+scoreNumber(score?.today?.limit||10);
+
+        const history=modal.querySelector('#scoreHistoryPanel');
+        history.replaceChildren();
+        const rows=(Array.isArray(score?.history)?score.history:[]).filter(item=>item.actor===actor).slice(0,80);
+        if(!rows.length){
+          const empty=document.createElement('div');
+          empty.className='score-empty';
+          empty.textContent='История пока пустая';
+          history.appendChild(empty);
+        }else{
+          for(const item of rows){
+            const row=document.createElement('div');
+            row.className='score-history-row '+(Number(item.points||0)<0?'is-spend':'is-earn');
+            const icon=document.createElement('span');
+            icon.className='score-history-icon';
+            icon.textContent=String(item.icon||'⭐');
+            const copy=document.createElement('div');
+            copy.className='score-history-copy';
+            const title=document.createElement('strong');
+            title.textContent=String(item.detail||item.label||'Баллы');
+            const meta=document.createElement('span');
+            meta.textContent=scoreHistoryTime(item.createdAt);
+            copy.append(title,meta);
+            const points=document.createElement('b');
+            const value=Number(item.points||0);
+            points.textContent=(value>0?'+':'')+scoreNumber(value);
+            row.append(icon,copy,points);
+            history.appendChild(row);
+          }
+        }
+
+        const shop=modal.querySelector('#scoreShopPanel');
+        shop.replaceChildren();
+        const own=actor===currentActor;
+        if(!own){
+          const note=document.createElement('div');
+          note.className='score-shop-note';
+          note.textContent='Награды можно покупать только за свои баллы.';
+          shop.appendChild(note);
+        }
+        for(const reward of Array.isArray(score?.rewards)?score.rewards:[]){
+          const card=document.createElement('div');
+          card.className='score-reward-card';
+          const icon=document.createElement('span');
+          icon.className='score-reward-icon';
+          icon.textContent=String(reward.icon||'🎁');
+          const copy=document.createElement('div');
+          copy.className='score-reward-copy';
+          const title=document.createElement('strong');
+          title.textContent=String(reward.label||'Награда');
+          const cost=document.createElement('span');
+          cost.textContent=scoreNumber(reward.cost)+' баллов';
+          copy.append(title,cost);
+          const button=document.createElement('button');
+          button.type='button';
+          button.className='score-reward-button';
+          const enough=balance>=Number(reward.cost||0);
+          button.disabled=!own||!enough;
+          button.textContent=!own?'Только свои':enough?'Получить':'Не хватает';
+          button.addEventListener('click',async()=>{
+            if(button.disabled) return;
+            if(!window.confirm('Потратить '+scoreNumber(reward.cost)+' баллов на «'+reward.label+'»?')) return;
+            button.disabled=true;
+            try{
+              const data=await scoreRequest('redeem',{rewardId:reward.id});
+              currentScoreState=data.score||currentScoreState;
+              renderScoreStickers(currentScoreState);
+              renderScoreModal(actor,currentScoreState);
+              setTimeout(()=>refreshStateBackup(),200);
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            }catch(error){
+              if(String(error?.message||'')==='score-balance-insufficient') renderScoreModal(actor,currentScoreState);
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }
+          });
+          card.append(icon,copy,button);
+          shop.appendChild(card);
+        }
+      }
+
+      async function openScoreModal(actor){
+        const modal=ensureScoreModal();
+        scoreModalActor=actor;
+        modal.hidden=false;
+        document.body.classList.add('score-modal-open');
+        if(currentScoreState) renderScoreModal(actor,currentScoreState);
+        try{
+          const data=await scoreRequest('state');
+          currentScoreState=data.score||currentScoreState;
+          renderScoreStickers(currentScoreState);
+          renderScoreModal(actor,currentScoreState);
+        }catch(_){}
+      }
+
       async function activityRequest(){
         const response=await fetch('/api/partner-message?rudiAction=activity',{
           method:'POST',
@@ -2991,6 +3194,7 @@
 
       function renderActivityJournal(payload){
         renderLulu(payload?.lulu);
+        if(payload?.score) renderScoreStickers(payload.score);
         const list=document.getElementById('homeActivityList');
         const empty=document.getElementById('homeActivityEmpty');
         if(!list||!empty) return;
@@ -3480,6 +3684,25 @@
 
           const head=document.createElement('div');
           head.className='profile-person-head';
+          const scoreSticker=document.createElement('button');
+          scoreSticker.type='button';
+          scoreSticker.className='score-sticker';
+          scoreSticker.dataset.scoreActor=actor;
+          scoreSticker.innerHTML='<span aria-hidden="true">⭐</span><b class="score-sticker-value">0</b>';
+          scoreSticker.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            openScoreModal(actor);
+          });
+          const avatar=identity.querySelector('.avatar');
+          if(avatar){
+            const avatarWrap=document.createElement('div');
+            avatarWrap.className='score-avatar-wrap';
+            avatar.parentNode.insertBefore(avatarWrap,avatar);
+            avatarWrap.append(avatar,scoreSticker);
+          }else{
+            identity.appendChild(scoreSticker);
+          }
           head.appendChild(identity);
           tile.appendChild(head);
 
@@ -7292,7 +7515,8 @@
       function wishItemElement(item){
         const row=document.createElement('div');
         const url=String(item?.url||'').trim();
-        row.className='wish-item'+(item.done?' done':'')+(url?' has-link':'');
+        const canToggle=String(item?.owner||'')!==String(currentActor||'');
+        row.className='wish-item'+(item.done?' done':'')+(url?' has-link':'')+(canToggle?'':' own-wish');
         row.dataset.rudiItemId=String(item.id||'');
         if(url){
           row.tabIndex=0;
@@ -7318,8 +7542,11 @@
         remove.textContent='×';
         remove.hidden=!canRemove;
 
-        toggle.addEventListener('click',async()=>{
-          try{renderWishlist(await wishlistRequest('toggle',{id:item.id}));}catch(_){}
+        if(canToggle) toggle.addEventListener('click',async()=>{
+          toggle.disabled=true;
+          try{renderWishlist(await wishlistRequest('toggle',{id:item.id}));}
+          catch(_){}
+          finally{toggle.disabled=false}
         });
         if(canRemove) remove.addEventListener('click',async()=>{
           remove.disabled=true;
@@ -7351,7 +7578,8 @@
           });
         }
 
-        row.append(toggle,text,remove);
+        if(canToggle) row.append(toggle,text,remove);
+        else row.append(text,remove);
         return row;
       }
 

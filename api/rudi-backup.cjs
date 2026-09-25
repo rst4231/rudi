@@ -13,6 +13,7 @@ const { readCarState, restoreCarState } = require('./car-store.cjs');
 const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-store.cjs');
 const { readReactionState, restoreReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const { readActivityJournal, restoreActivityJournalState } = require('./activity-journal-store.cjs');
+const { readScoreState, restoreScoreState } = require('./score-store.cjs');
 const { readLuluState, restoreLuluState } = require('./lulu-store.cjs');
 const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
 const { readPinRecord, restorePinRecord } = require('./rudi-session.cjs');
@@ -173,7 +174,7 @@ async function createStateSnapshot(options = {}) {
     : null;
   const [
     partnerMessage, wishlist, products, savedItems, forDiFeed, ticktickChecklistAudit,
-    ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal, luluState,
+    ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal, scoreState, luluState,
     rustamPin, dianaPin, rustamPasskeys, dianaPasskeys,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
@@ -190,8 +191,9 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readDailyMoodState(options), { initialized:false, version:0, days:{} }),
     safeRead(() => readReactionState(options), { initialized:false, version:0, entries:{} }),
     safeRead(() => readRecipients(options)),
-    safeRead(() => readActivityJournal(options), { initialized: false, version: 0, items: [], markers: {} }),
-    safeRead(() => readLuluState(options), { initialized: false, version: 0, lastWalk: null, updatedAt: '' }),
+    safeRead(() => readActivityJournal(options), { initialized:false,version:0,items:[],markers:{} }),
+    safeRead(() => readScoreState(options), { initialized:false,version:0,balances:{},lifetimeEarned:{},dailyEarned:{},history:[],dedupe:{} }),
+    safeRead(() => readLuluState(options), { initialized:false,version:0,lastWalk:null,updatedAt:'' }),
     safeRead(() => readPinRecord('Рустам', options)),
     safeRead(() => readPinRecord('Диана', options)),
     safeRead(() => readPasskeys('Рустам', options), []),
@@ -224,6 +226,7 @@ async function createStateSnapshot(options = {}) {
     dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
     reactions: mergeReactionStates(previous?.reactions, reactions),
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
+    scoreState: newerVersionState(scoreState, previous?.scoreState),
     luluState: newerVersionState(luluState, previous?.luluState),
     uiPreferences: normalizeUiPreferences(previous?.uiPreferences),
     recipients: mergedRecipients,
@@ -403,6 +406,12 @@ async function restoreStateBackup(token, options = {}) {
       await restoreActivityJournalState(snapshot.activityJournal, options);
       restored.push('activity-journal');
     } catch {}
+  }
+
+  const currentScore=await safeRead(()=>readScoreState(options),{initialized:false,version:0,balances:{},lifetimeEarned:{},dailyEarned:{},history:[],dedupe:{}});
+  const savedScoreVersion=Number(snapshot.scoreState?.version||0);
+  if(snapshot.scoreState?.initialized&&(!currentScore?.initialized||savedScoreVersion>Number(currentScore?.version||0))){
+    try{await restoreScoreState(snapshot.scoreState,options);restored.push('score-state')}catch{}
   }
 
   const currentLulu = await safeRead(
