@@ -2517,7 +2517,8 @@
         const time=new Intl.DateTimeFormat('ru-RU',{
           timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
         }).format(date);
-        status.textContent='Прогулка · '+time+' · '+actor;
+        const companion=actor==='Диана'?'Дианой':actor==='Рустам'?'Рустамом':actor;
+        status.textContent='Я гуляла с '+companion+' в '+time;
       }
 
       async function luluRequest(operation){
