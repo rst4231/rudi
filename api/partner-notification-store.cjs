@@ -6,6 +6,7 @@ const NAMESPACE = 'rudi-partner-notifications-v1';
 const KEY = 'recipients';
 const ACTOR_KEY_PREFIX = 'recipient:';
 const MESSAGE_NOTICE_PREFIX = 'message-notice:';
+const LULU_WALK_NOTICE_PREFIX = 'lulu-walk-notice:';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const EXPECTED_SETUP_SHA256S = new Set([
   '85b08b8db9a03bd590ea69f49510dd81060cc0dc6bbeb643a6f52a3300acc1ea',
@@ -108,6 +109,52 @@ async function readMessageNotice(actor, options = {}) {
   return { messageId, chatId: Number.isInteger(chatId) && chatId ? chatId : null };
 }
 
+function normalizeLuluWalkNotice(value) {
+  const walkedAt = new Date(value?.walkedAt || 0);
+  const chatId = Number(value?.chatId || 0);
+  const messageId = Number(value?.messageId || 0);
+  const recipient = ['Рустам', 'Диана'].includes(String(value?.recipient || ''))
+    ? String(value.recipient)
+    : '';
+  if (Number.isNaN(walkedAt.getTime())
+      || !Number.isInteger(chatId) || chatId <= 0
+      || !Number.isInteger(messageId) || messageId <= 0) return null;
+  return {
+    walkedAt: walkedAt.toISOString(),
+    chatId,
+    messageId,
+    recipient,
+  };
+}
+
+async function readLuluWalkNotice(walkedAt, options = {}) {
+  const date = new Date(String(walkedAt || '').trim());
+  if (Number.isNaN(date.getTime())) return null;
+  const key = LULU_WALK_NOTICE_PREFIX + date.toISOString();
+  return normalizeLuluWalkNotice(await cacheOf(options).get(key).catch(() => null));
+}
+
+async function saveLuluWalkNotice(walkedAt, value, options = {}) {
+  const normalized = normalizeLuluWalkNotice({ ...value, walkedAt });
+  if (!normalized) throw new Error('partner-notification-lulu-walk-invalid');
+  await cacheOf(options).set(LULU_WALK_NOTICE_PREFIX + normalized.walkedAt, normalized, {
+    ttl: TTL_SECONDS,
+    tags: ['rudi-partner-notifications', 'rudi-lulu-walk-notice'],
+  });
+  return normalized;
+}
+
+async function deleteLuluWalkNotice(walkedAt, options = {}) {
+  const date = new Date(String(walkedAt || '').trim());
+  if (Number.isNaN(date.getTime())) return false;
+  try {
+    await cacheOf(options).delete(LULU_WALK_NOTICE_PREFIX + date.toISOString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function saveMessageNotice(actor, value, options = {}) {
   if (!['Рустам', 'Диана'].includes(actor)) throw new Error('partner-notification-actor-invalid');
   const messageId = Number(value?.messageId || value);
@@ -132,4 +179,7 @@ module.exports = {
   recipientFor,
   readMessageNotice,
   saveMessageNotice,
+  readLuluWalkNotice,
+  saveLuluWalkNotice,
+  deleteLuluWalkNotice,
 };

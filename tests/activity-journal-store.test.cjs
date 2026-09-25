@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
   appendActivity,
+  removeActivityByDedupeKey,
   observeActivityMarker,
   readActivityJournal,
   restoreActivityJournalState,
@@ -69,4 +70,22 @@ test('activity journal can be restored from backup snapshot',async()=>{
   const restored=await restoreActivityJournalState(saved,{activityCache:cache});
   assert.equal(restored.version,4);
   assert.equal(restored.items[0].text,'График Дианы обновился');
+});
+
+
+test('activity journal removes only the matching Lulu walk entry',async()=>{
+  const cache=memoryCache();
+  await appendActivity({
+    type:'lulu-walk',actor:'Рустам',text:'Рустам погулял с Лулу',icon:'🐾',
+    dedupeKey:'lulu-walk:2026-09-25T16:00:00.000Z'
+  },{activityCache:cache,now:Date.parse('2026-09-25T16:00:00.000Z')});
+  await appendActivity({
+    type:'wishlist',actor:'Диана',text:'Диана добавила желание',icon:'🎁',
+    dedupeKey:'wishlist:keep'
+  },{activityCache:cache,now:Date.parse('2026-09-25T16:01:00.000Z')});
+
+  await removeActivityByDedupeKey('lulu-walk:2026-09-25T16:00:00.000Z',{activityCache:cache});
+  const state=await readActivityJournal({activityCache:cache});
+  assert.equal(state.items.length,1);
+  assert.equal(state.items[0].dedupeKey,'wishlist:keep');
 });

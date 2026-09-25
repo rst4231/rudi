@@ -5814,6 +5814,14 @@ html[data-theme="dark"] .profile-person-card .profile-work-status.is-off{color:#
 .lulu-walk-history{display:grid;gap:3px;max-height:0;overflow:hidden;opacity:0;transform:translateY(-3px);transition:max-height .24s ease,opacity .18s ease,transform .24s ease}
 .lulu-walk-history.is-open{max-height:120px;opacity:1;transform:none;margin-top:2px}
 .lulu-walk-history-item,.lulu-walk-history-empty{color:rgba(239,242,249,.56);font-size:9.5px;line-height:1.3;font-weight:650}
+.lulu-walk-history-item{
+  width:100%;padding:3px 0;border:0;background:transparent;font-family:inherit;color:rgba(239,242,249,.56);
+  font-size:9.5px;line-height:1.3;font-weight:650;text-align:left;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.lulu-walk-history-item:active{opacity:.6}
+.lulu-walk-history-item:disabled{cursor:default;opacity:.38}
+.lulu-walk-history-item.is-canceling{text-decoration:line-through}
 .lulu-walk-history-empty{font-style:italic}
 .lulu-body{display:grid;gap:7px}
 .lulu-walk-button{min-height:42px;border:1px solid rgba(211,173,132,.20);border-radius:13px;background:linear-gradient(135deg,rgba(171,125,82,.24),rgba(120,88,62,.14));color:#f8eee5;font:inherit;font-size:12px;font-weight:820;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}

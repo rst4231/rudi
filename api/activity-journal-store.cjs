@@ -125,6 +125,23 @@ async function appendActivity(input, options = {}) {
   });
 }
 
+async function removeActivityByDedupeKey(dedupeKey, options = {}) {
+  const key = cleanText(dedupeKey, 140);
+  if (!key) return readActivityJournal(options);
+
+  return enqueueMutation(async () => {
+    const state = await readActivityJournal(options);
+    const items = state.items.filter((row) => row.dedupeKey !== key);
+    if (items.length === state.items.length) return state;
+    return writeActivityJournal({
+      ...state,
+      initialized: true,
+      version: Math.max(0, Number(state.version || 0)) + 1,
+      items,
+    }, options);
+  });
+}
+
 async function observeActivityMarker(markerKey, signature, activity, options = {}) {
   const key = cleanText(markerKey, 50);
   const value = cleanText(signature, 300);
@@ -184,6 +201,7 @@ module.exports = {
   readActivityJournal,
   writeActivityJournal,
   appendActivity,
+  removeActivityByDedupeKey,
   observeActivityMarker,
   restoreActivityJournalState,
   resetMutationQueueForTests,

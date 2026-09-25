@@ -37,3 +37,15 @@ test('Lulu expanded walk history includes the latest walk and never claims no wa
   assert.doesNotMatch(app,/const previous=rows\.filter/);
   assert.match(app,/Сегодня прогулок не отмечено/);
 });
+
+
+test('Lulu walk history rows cancel the exact walk and refresh shared activity',()=>{
+  assert.match(app,/document\.createElement\('button'\)/);
+  assert.match(app,/cancelLuluWalkEntry\(row,item\)/);
+  assert.match(app,/luluRequest\('cancel-walk',\{walkedAt\}\)/);
+  assert.match(app,/loadActivityJournal\(\{silent:true\}\)/);
+  assert.match(api,/operation === 'cancel-walk'/);
+  assert.match(api,/removeActivityByDedupeKey\('lulu-walk:' \+ walkedAt/);
+  assert.match(api,/telegramDeleteMessage\(notice\.chatId, notice\.messageId/);
+  assert.match(css,/\.lulu-walk-history-item:active/);
+});

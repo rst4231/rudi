@@ -33,6 +33,9 @@ const {
   recipientFor,
   readMessageNotice,
   saveMessageNotice,
+  readLuluWalkNotice,
+  saveLuluWalkNotice,
+  deleteLuluWalkNotice,
 } = require('./partner-notification-store.cjs');
 const {
   decodeSetupKey: decodeAlbumSetupKey,
@@ -51,9 +54,10 @@ const { readReactions, setReaction, toggleReaction, restoreReactionState, readRe
 const {
   readActivityJournal,
   appendActivity,
+  removeActivityByDedupeKey,
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
-const { readLuluState, markLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
+const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const {
@@ -370,6 +374,17 @@ async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) 
       luluWalkNotificationText(actor),
       notificationOptions
     );
+    if (result?.messageId) {
+      try {
+        await saveLuluWalkNotice(walkedAt, {
+          recipient,
+          chatId,
+          messageId: result.messageId,
+        }, options);
+      } catch (error) {
+        console.warn('RUDI_LULU_NOTIFICATION_NOTICE_WARN', String(error?.message || error));
+      }
+    }
     return { sent:true, recipient, ...result };
   } catch (error) {
     console.warn('RUDI_LULU_NOTIFICATION_WARN', String(error?.message || error));
@@ -1368,6 +1383,38 @@ async function handleRudiAction(req, res, action, options = {}) {
           lulu,
           backupToken,
           notification: { sent: false, pending: true },
+        });
+      }
+
+      if (operation === 'cancel-walk') {
+        const walkedAtDate = new Date(String(body.walkedAt || '').trim());
+        if (Number.isNaN(walkedAtDate.getTime())) throw new Error('lulu-walk-invalid');
+        const walkedAt = walkedAtDate.toISOString();
+        const notice = await readLuluWalkNotice(walkedAt, options).catch(() => null);
+        const lulu = await cancelLuluWalk(walkedAt, options);
+
+        await removeActivityByDedupeKey('lulu-walk:' + walkedAt, options).catch((error) => {
+          console.warn('RUDI_LULU_ACTIVITY_DELETE_WARN', String(error?.message || error));
+        });
+
+        let telegramDeleted = false;
+        if (notice?.chatId && notice?.messageId) {
+          try {
+            telegramDeleted = Boolean(await telegramDeleteMessage(notice.chatId, notice.messageId, options));
+          } catch (error) {
+            console.warn('RUDI_LULU_NOTIFICATION_DELETE_WARN', String(error?.message || error));
+          }
+          await deleteLuluWalkNotice(walkedAt, options).catch(() => false);
+        }
+
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        return res.status(200).json({
+          ok: true,
+          actor,
+          lulu,
+          backupToken,
+          canceledWalkedAt: walkedAt,
+          telegramDeleted,
         });
       }
 

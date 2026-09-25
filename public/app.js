@@ -2599,9 +2599,12 @@
             }).format(date);
             const actor=String(row.actor||'').trim();
             const companion=actor==='Диана'?'Дианой':actor==='Рустам'?'Рустамом':actor;
-            const item=document.createElement('div');
+            const item=document.createElement('button');
+            item.type='button';
             item.className='lulu-walk-history-item';
             item.textContent=time+' · с '+companion;
+            item.setAttribute('aria-label','Отменить прогулку '+time+' с '+companion);
+            item.addEventListener('click',()=>cancelLuluWalkEntry(row,item));
             panel.appendChild(item);
           }
         }
@@ -2637,18 +2640,39 @@
         status.textContent='Гуляла с '+companion+' в '+time;
       }
 
-      async function luluRequest(operation){
+      async function luluRequest(operation,payload={}){
         const backupContext=backupRequestContext();
         const response=await fetch('/api/partner-message?rudiAction=lulu',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
           cache:'no-store'
         });
-        const payload=await response.json().catch(()=>({}));
-        if(!response.ok||!payload.ok) throw new Error(payload.error||'lulu-request-failed');
-        if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
-        return payload;
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.ok) throw new Error(result.error||'lulu-request-failed');
+        if(result.backupToken) await storeStateBackupToken(result.backupToken,backupContext);
+        return result;
+      }
+
+      async function cancelLuluWalkEntry(row,button){
+        const walkedAt=String(row?.walkedAt||'').trim();
+        if(!walkedAt||button?.disabled) return;
+        if(button){
+          button.disabled=true;
+          button.classList.add('is-canceling');
+        }
+        try{
+          const payload=await luluRequest('cancel-walk',{walkedAt});
+          renderLulu(payload.lulu);
+          await loadActivityJournal({silent:true}).catch(()=>null);
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(_){
+          if(button){
+            button.disabled=false;
+            button.classList.remove('is-canceling');
+          }
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }
       }
 
       async function markLuluWalk(){

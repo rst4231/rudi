@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {markLuluWalk,readLuluState,recordLuluToiletAlertRecipients,restoreLuluState,resetMutationQueueForTests}=require('../api/lulu-store.cjs');
+const {markLuluWalk,cancelLuluWalk,readLuluState,recordLuluToiletAlertRecipients,restoreLuluState,resetMutationQueueForTests}=require('../api/lulu-store.cjs');
 
 function memoryCache(){
   const map=new Map();
@@ -45,4 +45,34 @@ test('Lulu toilet alert recipients persist for the current walk and reset on a n
 
   const second=await markLuluWalk('Диана',{luluCache:cache,now:Date.parse('2026-09-25T15:05:00.000Z')});
   assert.equal(second.toiletAlert,null);
+});
+
+
+test('canceling a Lulu walk removes only that walk and restores the previous last walk',async()=>{
+  const cache=memoryCache();
+  const first=await markLuluWalk('Рустам',{luluCache:cache,now:Date.parse('2026-09-25T14:00:00.000Z')});
+  const second=await markLuluWalk('Диана',{luluCache:cache,now:Date.parse('2026-09-25T16:00:00.000Z')});
+  await recordLuluToiletAlertRecipients(second.lastWalk.walkedAt,['Рустам'],{
+    luluCache:cache,now:Date.parse('2026-09-25T17:00:00.000Z')
+  });
+
+  const state=await cancelLuluWalk(second.lastWalk.walkedAt,{
+    luluCache:cache,now:Date.parse('2026-09-25T17:05:00.000Z')
+  });
+
+  assert.equal(state.walksToday.length,1);
+  assert.equal(state.walksToday[0].walkedAt,first.lastWalk.walkedAt);
+  assert.equal(state.lastWalk.walkedAt,first.lastWalk.walkedAt);
+  assert.equal(state.lastWalk.actor,'Рустам');
+  assert.equal(state.toiletAlert,null);
+});
+
+test('canceling the only Lulu walk leaves no last walk',async()=>{
+  const cache=memoryCache();
+  const walk=await markLuluWalk('Рустам',{luluCache:cache,now:Date.parse('2026-09-25T14:00:00.000Z')});
+  const state=await cancelLuluWalk(walk.lastWalk.walkedAt,{
+    luluCache:cache,now:Date.parse('2026-09-25T14:05:00.000Z')
+  });
+  assert.equal(state.walksToday.length,0);
+  assert.equal(state.lastWalk,null);
 });

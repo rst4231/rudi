@@ -131,6 +131,36 @@ async function markLuluWalk(actor, options = {}) {
   });
 }
 
+async function cancelLuluWalk(walkedAt, options = {}) {
+  const targetDate = new Date(String(walkedAt || '').trim());
+  if (Number.isNaN(targetDate.getTime())) throw new Error('lulu-walk-invalid');
+  const target = targetDate.toISOString();
+
+  return enqueueMutation(async () => {
+    const current = await readLuluState(options);
+    const previous = Array.isArray(current.walksToday) ? current.walksToday : [];
+    const walksToday = previous.filter((row) => row.walkedAt !== target);
+    const lastMatches = current.lastWalk?.walkedAt === target;
+    const removed = walksToday.length !== previous.length || lastMatches;
+    if (!removed) throw new Error('lulu-walk-not-found');
+
+    let lastWalk = current.lastWalk;
+    if (lastMatches) {
+      lastWalk = walksToday.length ? walksToday[walksToday.length - 1] : null;
+    }
+
+    return writeLuluState({
+      ...current,
+      initialized: true,
+      version: Math.max(0, Number(current.version || 0)) + 1,
+      lastWalk,
+      walksToday,
+      toiletAlert: current.toiletAlert?.walkedAt === target ? null : current.toiletAlert,
+      updatedAt: new Date(options.now || Date.now()).toISOString(),
+    }, options);
+  });
+}
+
 async function recordLuluToiletAlertRecipients(walkedAt, actors, options = {}) {
   const targetWalkedAt = String(walkedAt || '').trim();
   const cleanActors = Array.from(new Set(
@@ -177,6 +207,7 @@ module.exports = {
   readLuluState,
   writeLuluState,
   markLuluWalk,
+  cancelLuluWalk,
   recordLuluToiletAlertRecipients,
   restoreLuluState,
   resetMutationQueueForTests,
