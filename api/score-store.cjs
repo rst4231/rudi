@@ -5,6 +5,8 @@ const NAMESPACE = 'rudi-score-v1';
 const STATE_KEY = 'score-state';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const DAILY_LIMIT_UNITS = 100;
+const PRODUCT_DAILY_LIMIT_UNITS = 30;
+const PRODUCT_REPEAT_MS = 72 * 60 * 60 * 1000;
 const MAX_HISTORY = 500;
 const MAX_DEDUPE = 2000;
 const MAX_DAYS = 120;
@@ -50,6 +52,21 @@ function normalizeUnits(value) {
   return Number.isFinite(number)?number:0;
 }
 function pointsFromUnits(value) { return normalizeUnits(value)/10; }
+function normalizeProductScoreName(value) {
+  return String(value||'')
+    .normalize('NFKC')
+    .toLocaleLowerCase('ru-RU')
+    .replace(/ё/g,'е')
+    .replace(/[^\p{L}\p{N}]+/gu,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .slice(0,160);
+}
+function productScoreDedupeKey(value) {
+  const normalized=normalizeProductScoreName(value);
+  if(!normalized) return '';
+  return 'score:product:'+crypto.createHash('sha256').update(normalized).digest('hex').slice(0,32);
+}
 function normalizeActorUnits(value) {
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   return Object.fromEntries(ACTORS.map((actor)=>[actor,normalizeUnits(source[actor])]));
@@ -179,6 +196,54 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
     return {state:saved,awardedUnits,duplicate:false,capped:awardedUnits<request};
   });
 }
+async function awardProductScore(actor,productText,options={}) {
+  const who=cleanActor(actor);
+  const text=cleanText(productText,180);
+  const dedupeKey=productScoreDedupeKey(text);
+  if(!who||!text||!dedupeKey) throw new Error('score-product-award-invalid');
+  return enqueueMutation(async()=>{
+    const state=await readScoreState(options);
+    const now=new Date(options.now||Date.now());
+    const nowMs=now.getTime();
+    const recent=state.history.find((row)=>{
+      if(row.kind!=='earn'||row.actor!==who||row.dedupeKey!==dedupeKey||row.reversedAt) return false;
+      const stamp=Date.parse(row.createdAt);
+      return Number.isFinite(stamp)&&nowMs-stamp<PRODUCT_REPEAT_MS;
+    });
+    if(recent) return {state,awardedUnits:0,duplicate:true,productCapped:false,globalCapped:false};
+
+    const dateKey=scoreDateKey(now);
+    const day=normalizeActorUnits(state.dailyEarned[dateKey]);
+    const productEarnedToday=state.history
+      .filter((row)=>row.kind==='earn'&&row.actor===who&&row.dateKey===dateKey&&!row.reversedAt&&String(row.dedupeKey||'').startsWith('score:product:'))
+      .reduce((sum,row)=>sum+Math.max(0,normalizeUnits(row.units)),0);
+    const productRemaining=Math.max(0,PRODUCT_DAILY_LIMIT_UNITS-productEarnedToday);
+    const globalRemaining=Math.max(0,DAILY_LIMIT_UNITS-day[who]);
+    const awardedUnits=Math.min(1,productRemaining,globalRemaining);
+    if(awardedUnits<=0) {
+      return {
+        state,awardedUnits:0,duplicate:false,
+        productCapped:productRemaining<=0,globalCapped:globalRemaining<=0,
+      };
+    }
+
+    const next={
+      ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
+      balances:{...state.balances},lifetimeEarned:{...state.lifetimeEarned},
+      dailyEarned:{...state.dailyEarned,[dateKey]:day},
+      history:[...state.history],dedupe:{...state.dedupe},
+    };
+    next.balances[who]+=awardedUnits;
+    next.lifetimeEarned[who]+=awardedUnits;
+    next.dailyEarned[dateKey][who]+=awardedUnits;
+    next.history.unshift(normalizeHistoryItem({
+      id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:1,
+      label:'Продукты',detail:'Добавлена позиция: '+text,icon:'🛒',dedupeKey,dateKey,createdAt:now.toISOString(),
+    }));
+    const saved=await writeScoreState(next,options);
+    return {state:saved,awardedUnits,duplicate:false,productCapped:false,globalCapped:false};
+  });
+}
 async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
   const key=cleanText(dedupeKey,180);
   if(!key) return {state:await readScoreState(options),reversedUnits:0};
@@ -285,7 +350,7 @@ async function restoreScoreState(snapshot,options={}) {
 function resetMutationQueueForTests(){ mutationTail=Promise.resolve(); }
 
 module.exports={
-  NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
-  readScoreState,writeScoreState,awardScore,reverseScoreByDedupeKey,redeemReward,completeReward,scoreView,restoreScoreState,
+  NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,PRODUCT_DAILY_LIMIT_UNITS,PRODUCT_REPEAT_MS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
+  readScoreState,writeScoreState,awardScore,awardProductScore,reverseScoreByDedupeKey,redeemReward,completeReward,scoreView,restoreScoreState,
   resetMutationQueueForTests,
 };
