@@ -7,6 +7,7 @@ const KEY = 'recipients';
 const ACTOR_KEY_PREFIX = 'recipient:';
 const MESSAGE_NOTICE_PREFIX = 'message-notice:';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
+const FALLBACK_RECIPIENTS = Object.freeze({ 'Рустам': 901637773, 'Диана': 941263519 });
 const EXPECTED_SETUP_SHA256S = new Set([
   '85b08b8db9a03bd590ea69f49510dd81060cc0dc6bbeb643a6f52a3300acc1ea',
   'b1b631082076821d4c79a4527ed02a5632b1e7e4f40515116525f505e1589201',
@@ -86,8 +87,8 @@ async function readRecipients(options = {}) {
     cache.get(KEY).catch(() => null),
   ]);
   const normalized = normalizeRecipients({
-    'Рустам': rustamDirect || legacy?.['Рустам'],
-    'Диана': dianaDirect || legacy?.['Диана'],
+    'Рустам': rustamDirect || legacy?.['Рустам'] || FALLBACK_RECIPIENTS['Рустам'],
+    'Диана': dianaDirect || legacy?.['Диана'] || FALLBACK_RECIPIENTS['Диана'],
   });
   if (!normalized['Рустам'] && !normalized['Диана']) return null;
   return normalized;
@@ -124,6 +125,7 @@ async function saveMessageNotice(actor, value, options = {}) {
 }
 
 module.exports = {
+  FALLBACK_RECIPIENTS,
   decodeSetupKey,
   normalizeRecipients,
   saveRecipient,

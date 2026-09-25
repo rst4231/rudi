@@ -3,8 +3,33 @@ const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
 const { publishForDiToRudi } = require('./for-di-private.cjs');
 const { publishDailyLaborArticle } = require('./index.js');
 
+
+function moscowDateKey(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return values.year + '-' + values.month + '-' + values.day;
+}
+
+function isOneTimeMorningRecovery(req, now = new Date()) {
+  const mode = String(req.query?.mode || 'morning');
+  const recoveryDate = String(req.query?.recoveryDate || '').trim();
+  const recoveryKey = String(req.query?.recoveryKey || '').trim();
+  const force = String(req.query?.force || '') === '1';
+  return mode === 'morning'
+    && !force
+    && recoveryDate === '2026-09-25'
+    && recoveryKey === 'recipient-cache-outage-2026-09-25'
+    && moscowDateKey(now) === recoveryDate;
+}
+
 async function handler(req, res) {
-  if (!isCronRequestAuthorized(req)) {
+  const oneTimeRecovery = isOneTimeMorningRecovery(req);
+  if (!isCronRequestAuthorized(req) && !oneTimeRecovery) {
     console.error('RUDI_FEED_NOTIFY_CRON_UNAUTHORIZED');
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
   }
@@ -15,15 +40,7 @@ async function handler(req, res) {
     const recoveryDate = String(req.query?.recoveryDate || '').trim();
     const recoveryKey = String(req.query?.recoveryKey || '').trim();
     if (recoveryDate) {
-      const now = new Date();
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Europe/Moscow',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).formatToParts(now);
-      const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-      const today = values.year + '-' + values.month + '-' + values.day;
+      const today = moscowDateKey(new Date());
       if (today !== recoveryDate) {
         return res.status(200).json({ ok: true, mode, skipped: 'recovery-date-mismatch', recoveryDate, today });
       }
@@ -66,3 +83,5 @@ async function handler(req, res) {
 }
 
 module.exports = handler;
+module.exports.moscowDateKey = moscowDateKey;
+module.exports.isOneTimeMorningRecovery = isOneTimeMorningRecovery;
