@@ -7947,14 +7947,20 @@ body.voice-assistant-open .voice-assistant-icon-button{
 
 
 /* Score stickers, history and rewards */
-.score-avatar-wrap{
+.profile-person-card .score-avatar-wrap{
   position:relative;
-  width:66px;height:66px;
-  flex:none;
+  width:46px;
+  height:46px;
+  flex:0 0 46px;
+  overflow:visible;
+  align-self:center;
 }
-.score-avatar-wrap>.avatar{width:100%;height:100%}
+.profile-person-card .score-avatar-wrap>.avatar{
+  width:46px!important;
+  height:46px!important;
+}
 .score-sticker{
-  position:absolute;z-index:7;left:50%;bottom:0;
+  position:absolute;z-index:7;left:50%;bottom:-10px;
   min-width:32px;height:20px;padding:0 6px;
   display:flex;align-items:center;justify-content:center;gap:2px;
   border:1px solid color-mix(in srgb,#f6c84c 55%,var(--line));
@@ -8046,6 +8052,21 @@ body.score-modal-open{overflow:hidden;overscroll-behavior:none}
 .score-modal-backdrop{touch-action:none}
 .wish-item.own-wish{grid-template-columns:minmax(0,1fr) 22px}
 @media(max-width:430px){
-  .score-sticker{left:50%;bottom:0;min-width:30px;height:19px;padding:0 5px}
+  .profile-person-card .score-avatar-wrap{
+    width:43px;
+    height:43px;
+    flex-basis:43px;
+  }
+  .profile-person-card .score-avatar-wrap>.avatar{
+    width:43px!important;
+    height:43px!important;
+  }
+  .score-sticker{
+    left:50%;
+    bottom:-9px;
+    min-width:30px;
+    height:19px;
+    padding:0 5px;
+  }
   .score-modal-sheet{padding-left:13px;padding-right:13px;border-radius:23px 23px 0 0}
 }
