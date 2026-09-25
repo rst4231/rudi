@@ -2858,14 +2858,24 @@
         list.replaceChildren();
         empty.hidden=items.length>0;
         for(const item of items){
-          const row=document.createElement(item.targetTab?'button':'div');
-          if(item.targetTab){
+          const activityTab=item?.type==='saved-recipe'?'products':String(item.targetTab||'');
+          const row=document.createElement(activityTab?'button':'div');
+          if(activityTab){
             row.type='button';
             row.addEventListener('click',()=>{
-              navigateToAppTab(String(item.targetTab||'home'),{scroll:true});
-              if(item.targetTab==='products') loadProducts({silent:true});
-              if(item.targetTab==='photos') loadSharedAlbum();
-              if(item.targetTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
+              navigateToAppTab(activityTab,{scroll:true});
+              if(activityTab==='products'){
+                loadProducts({silent:true});
+                Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>{
+                  if(item?.type==='saved-recipe'){
+                    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                      document.querySelector('.kitchen-saved-recipes')?.scrollIntoView({behavior:'smooth',block:'start'});
+                    }));
+                  }
+                });
+              }
+              if(activityTab==='photos') loadSharedAlbum();
+              if(activityTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
             });
           }
           row.className='home-activity-row';
@@ -2881,7 +2891,7 @@
           copy.append(textNode,time);
           const arrow=document.createElement('span');
           arrow.className='home-activity-arrow';
-          arrow.textContent=item.targetTab?'›':'';
+          arrow.textContent=activityTab?'›':'';
           row.append(icon,copy,arrow);
           list.appendChild(row);
         }

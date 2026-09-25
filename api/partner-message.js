@@ -2322,7 +2322,7 @@ async function handleRudiAction(req, res, action, options = {}) {
             actor,
             text: actor + ' ' + savedVerb + ' ' + savedLabel + (title ? ': ' + title : ''),
             icon: type === 'recipe' ? '🍳' : type === 'date' ? '💞' : '🔖',
-            targetTab: 'saves',
+            targetTab: type === 'recipe' ? 'products' : 'saves',
             dedupeKey: 'saved:' + String(result.item.id || activityDigest(result.item)),
           }, options);
         }
