@@ -1,5 +1,5 @@
 const { readLuluState, recordLuluToiletAlertRecipients } = require('./lulu-store.cjs');
-const { luluToiletProbability } = require('./lulu-toilet.cjs');
+const { luluToiletProbability, localMinutes } = require('./lulu-toilet.cjs');
 const { readRecipients } = require('./partner-notification-store.cjs');
 const { telegramSendMessage } = require('./telegram-notifications.cjs');
 const { getWorkWeek } = require('./work-calendar.cjs');
@@ -17,26 +17,67 @@ function moscowDateKey(value = Date.now()) {
   return values.year + '-' + values.month + '-' + values.day;
 }
 
+function shiftDateKey(key, days) {
+  const [year, month, day] = String(key).split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function clockMinutes(value) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+function eventCoversNow(event, eventDate, now, todayKey, yesterdayKey) {
+  if (!event || typeof event !== 'object') return false;
+  if (event.allDay) return eventDate === todayKey;
+
+  const start = clockMinutes(event.startTime);
+  const end = clockMinutes(event.endTime);
+  if (start === null || end === null) return false;
+  const current = localMinutes(now);
+
+  if (end > start) {
+    return eventDate === todayKey && current >= start && current < end;
+  }
+
+  if (eventDate === todayKey) return current >= start;
+  if (eventDate === yesterdayKey) return current < end;
+  return false;
+}
+
 async function resolveLuluAlertRecipient(now, options = {}) {
   try {
     const loadWorkWeek = options.getWorkWeek || getWorkWeek;
-    const week = options.workWeek || await loadWorkWeek({ ...options, now, view: 'week' });
     const todayKey = moscowDateKey(now);
-    const today = Array.isArray(week?.days)
-      ? week.days.find((day) => String(day?.date || '') === todayKey)
-      : null;
+    const yesterdayKey = shiftDateKey(todayKey, -1);
+    const calendarNow = new Date(new Date(now).getTime() - 24 * 60 * 60 * 1000);
+    const week = options.workWeek || await loadWorkWeek({ ...options, now: calendarNow, view: 'week' });
+    const days = Array.isArray(week?.days) ? week.days : [];
+    const today = days.find((day) => String(day?.date || '') === todayKey);
+    const yesterday = days.find((day) => String(day?.date || '') === yesterdayKey);
+
     if (week?.configured && today) {
-      const working = Boolean(today.working);
+      const onShift = [today, yesterday].filter(Boolean).some((day) =>
+        (Array.isArray(day.events) ? day.events : [])
+          .some((event) => eventCoversNow(event, String(day.date || ''), now, todayKey, yesterdayKey))
+      );
       return {
-        actor: working ? 'Рустам' : 'Диана',
-        working,
+        actor: onShift ? 'Рустам' : 'Диана',
+        onShift,
         date: todayKey,
         fallback: false,
       };
     }
+
     return {
       actor: 'Рустам',
-      working: null,
+      onShift: null,
       date: todayKey,
       fallback: true,
       reason: 'work-calendar-unavailable',
@@ -44,7 +85,7 @@ async function resolveLuluAlertRecipient(now, options = {}) {
   } catch (error) {
     return {
       actor: 'Рустам',
-      working: null,
+      onShift: null,
       date: moscowDateKey(now),
       fallback: true,
       reason: 'work-calendar-error',
@@ -64,14 +105,12 @@ async function runLuluToiletAlert(options = {}) {
     return { sent: [], skipped: 'below-threshold', probability };
   }
 
-  const routing = await resolveLuluAlertRecipient(now, options);
-  const targetActor = routing.actor;
   const already = new Set(
     lulu?.toiletAlert?.walkedAt === walkedAt
       ? (Array.isArray(lulu.toiletAlert.recipients) ? lulu.toiletAlert.recipients : [])
       : []
   );
-  if (already.has(targetActor)) {
+  if (already.size > 0) {
     return {
       probability,
       walkedAt,
@@ -79,12 +118,12 @@ async function runLuluToiletAlert(options = {}) {
       failed: [],
       missing: [],
       alreadySent: Array.from(already),
-      targetActor,
-      routing,
       completed: true,
     };
   }
 
+  const routing = await resolveLuluAlertRecipient(now, options);
+  const targetActor = routing.actor;
   const recipients = options.recipients || await readRecipients(options) || {};
   const send = options.telegramSendMessage || telegramSendMessage;
   const sent = [], failed = [], missing = [];
@@ -121,6 +160,9 @@ async function runLuluToiletAlert(options = {}) {
 module.exports = {
   ALERT_TEXT,
   moscowDateKey,
+  shiftDateKey,
+  clockMinutes,
+  eventCoversNow,
   resolveLuluAlertRecipient,
   runLuluToiletAlert,
 };
