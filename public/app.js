@@ -115,6 +115,8 @@
       let stateBackupRefreshPromise = null;
       let stateBackupRefreshQueued = false;
       let currentStateBackupToken = '';
+      let stateBackupTokenRevision = 0;
+      let stateBackupCloudWriteChain = Promise.resolve(false);
       let ticktickHandoffToken = '';
       try{
         const params=new URLSearchParams(window.location.search);
@@ -531,12 +533,41 @@
         return '';
       }
 
-      async function storeStateBackupToken(value){
+      function backupRequestContext(){
+        return {
+          token:String(currentStateBackupToken||''),
+          revision:stateBackupTokenRevision
+        };
+      }
+
+      async function storeStateBackupToken(value,context=null){
         const token=String(value||'').trim();
-        if(!token) return;
+        if(!token) return false;
+
+        if(context){
+          const expectedToken=String(context.token||'');
+          const expectedRevision=Number(context.revision||0);
+          if(String(currentStateBackupToken||'')!==expectedToken||stateBackupTokenRevision!==expectedRevision){
+            return false;
+          }
+        }
+
+        if(token===currentStateBackupToken) return true;
+
         currentStateBackupToken=token;
+        stateBackupTokenRevision+=1;
+        const writeRevision=stateBackupTokenRevision;
         storeLocalStateBackupToken(token);
-        await writeCloudStateBackupToken(token).catch(()=>false);
+
+        stateBackupCloudWriteChain=stateBackupCloudWriteChain
+          .catch(()=>false)
+          .then(async()=>{
+            if(writeRevision!==stateBackupTokenRevision||String(currentStateBackupToken||'')!==token) return false;
+            return writeCloudStateBackupToken(token).catch(()=>false);
+          });
+
+        await stateBackupCloudWriteChain;
+        return true;
       }
 
       function uiPreferencesMetaKey(){
@@ -745,20 +776,21 @@
         stateBackupRefreshPromise=(async()=>{
           const outgoing=uiPreferencesDirty?localUiPreferences():null;
           const outgoingStamp=String(outgoing?.updatedAt||'');
+          const backupContext=backupRequestContext();
           try{
             const response=await fetch('/api/partner-message?rudiAction=state-backup',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({
                 initData:telegramInitData(),
-                backupToken:currentStateBackupToken,
+                backupToken:backupContext.token,
                 uiPreferences:outgoing
               }),
               cache:'no-store'
             });
             const payload=await response.json().catch(()=>({}));
             if(response.ok&&payload.ok){
-              if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
+              if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
               const currentStamp=String(localUiPreferences().updatedAt||'');
               if(outgoingStamp&&currentStamp===outgoingStamp) uiPreferencesDirty=false;
               if(payload.uiPreferences&&!uiPreferencesDirty&&applyRemoteUiPreferences(payload.uiPreferences,{force:true})){
@@ -2489,14 +2521,16 @@
       }
 
       async function luluRequest(operation){
+        const backupContext=backupRequestContext();
         const response=await fetch('/api/partner-message?rudiAction=lulu',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation}),
           cache:'no-store'
         });
         const payload=await response.json().catch(()=>({}));
         if(!response.ok||!payload.ok) throw new Error(payload.error||'lulu-request-failed');
+        if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
         return payload;
       }
 
@@ -2508,7 +2542,6 @@
         try{
           const payload=await luluRequest('walk');
           renderLulu(payload.lulu);
-          if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
           setTimeout(()=>loadActivityJournal({silent:true}),120);
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(_){
@@ -3952,10 +3985,11 @@
       }
 
       async function browserAuthRequest(operation,payload={}){
+        const backupContext=backupRequestContext();
         const response=await fetchWithTimeout('/api/partner-message?rudiAction=browser-auth',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:currentStateBackupToken,...payload}),
+          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:backupContext.token,...payload}),
           cache:'no-store'
         },8000);
         const data=await response.json().catch(()=>({}));
@@ -3964,7 +3998,7 @@
           error.status=response.status;
           throw error;
         }
-        if(data.backupToken) await storeStateBackupToken(data.backupToken);
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         return data;
       }
 
@@ -3980,10 +4014,11 @@
       }
 
       async function passkeyRequest(operation,payload={}){
+        const backupContext=backupRequestContext();
         const response=await fetchWithTimeout('/api/partner-message?rudiAction=passkey',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:currentStateBackupToken,...payload}),
+          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:backupContext.token,...payload}),
           cache:'no-store'
         },12000);
         const data=await response.json().catch(()=>({}));
@@ -3992,7 +4027,7 @@
           error.status=response.status;
           throw error;
         }
-        if(data.backupToken) await storeStateBackupToken(data.backupToken);
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         return data;
       }
 
@@ -4434,7 +4469,9 @@
         const includeProfiles=profileCacheNeedsRefresh(cachedProfiles);
         try{
           const cloudToken=await withTimeout(readStateBackupToken(),1600,currentStateBackupToken||'');
-          const backupToken=String(cloudToken||currentStateBackupToken||readLocalStateBackupToken()||'');
+          if(cloudToken&&!currentStateBackupToken) currentStateBackupToken=String(cloudToken);
+          const backupContext=backupRequestContext();
+          const backupToken=backupContext.token;
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-bootstrap',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
@@ -4460,7 +4497,7 @@
           if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged();
           cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
-          if(payload.backupToken) storeStateBackupToken(payload.backupToken).catch(()=>{});
+          if(payload.backupToken) storeStateBackupToken(payload.backupToken,backupContext).catch(()=>{});
           if(ticktickHandoffToken){
             ticktickHandoffToken='';
             try{
@@ -4995,15 +5032,16 @@
       }
 
       async function cycleRequest(operation,payload={}){
+        const backupContext=backupRequestContext();
         const response=await fetchWithTimeout('/api/cycle',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
           cache:'no-store'
         },5000);
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'cycle-unavailable');
-        if(data.backupToken) await storeStateBackupToken(data.backupToken);
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         return data;
       }
 
@@ -7010,15 +7048,16 @@
       }
 
       async function wishlistRequest(operation,payload={}){
+        const backupContext=backupRequestContext();
         const response=await fetch('/api/wishlist',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok) throw new Error(data.error||'wishlist');
-        if(data.backupToken) await storeStateBackupToken(data.backupToken);
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         if(operation!=='list'){
           setTimeout(()=>refreshStateBackup(),250);
           setTimeout(()=>loadActivityJournal({silent:true}),320);
@@ -7220,15 +7259,16 @@
       }
 
       async function reactionsRequest(operation,payload={}){
+        const backupContext=backupRequestContext();
         const response=await fetch('/api/partner-message?rudiAction=reactions',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken,operation,...payload}),
+          body:JSON.stringify({initData:telegramInitData(),backupToken:backupContext.token,operation,...payload}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'reactions-request-failed');
-        if(data.backupToken) await storeStateBackupToken(data.backupToken);
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         if(operation!=='list') setTimeout(()=>loadActivityJournal({silent:true}),240);
         return data;
       }
@@ -7379,7 +7419,7 @@
           const r=await fetch('/api/partner-message?rudiAction=partner-message-read',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg?.initData||''}),
+            body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken}),
             cache:'no-store'
           });
           if(!r.ok) throw new Error('partner-message');
@@ -7447,15 +7487,16 @@
           saveButton.disabled=true;
           status.textContent='Сохраняю…';
           try{
+            const backupContext=backupRequestContext();
             const r=await fetch('/api/partner-message',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({text,initData:telegramInitData(),backupToken:currentStateBackupToken}),
+              body:JSON.stringify({text,initData:telegramInitData(),backupToken:backupContext.token}),
               cache:'no-store'
             });
             const data=await r.json().catch(()=>({}));
             if(!r.ok) throw new Error(data.error||'save');
-            if(data.backupToken) await storeStateBackupToken(data.backupToken);
+            if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
             currentMessage=data.message;
             renderPartnerMessage(currentMessage);
             closeEditor();
@@ -7519,15 +7560,16 @@
       }
 
       async function moodRequest(operation,mood=''){
+        const backupContext=backupRequestContext();
         const response=await fetch('/api/mood',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,mood}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,mood}),
           cache:'no-store'
         });
         const payload=await response.json().catch(()=>({}));
         if(!response.ok) throw new Error(payload.error||'mood');
-        if(payload.backupToken) await storeStateBackupToken(payload.backupToken);
+        if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
         return payload;
       }
 
@@ -8281,15 +8323,16 @@
       };
 
       async function productsRequest(operation,payload={}){
+        const backupContext=backupRequestContext();
         const response=await fetch('/api/partner-message?rudiAction=products',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'products-request-failed');
-        if(data.backupToken) await storeStateBackupToken(data.backupToken);
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         if(operation!=='list'){
           setTimeout(()=>refreshStateBackup(),250);
           setTimeout(()=>loadActivityJournal({silent:true}),320);

@@ -179,3 +179,14 @@ test('startup keeps the local encrypted backup when both local and cloud copies 
   assert.ok(localRead >= 0 && localReturn > localRead);
   assert.ok(cloudRead > localReturn, 'cloud backup must only be read after local backup is unavailable');
 });
+
+
+test('stale background backup responses cannot replace a newer client backup', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(source, /let stateBackupTokenRevision = 0/);
+  assert.match(source, /function backupRequestContext\(\)/);
+  assert.match(source, /if\(String\(currentStateBackupToken\|\|''\)!==expectedToken\|\|stateBackupTokenRevision!==expectedRevision\)\{\s*return false;/);
+  assert.match(source, /stateBackupCloudWriteChain=stateBackupCloudWriteChain[\s\S]*?writeRevision!==stateBackupTokenRevision/);
+  assert.match(source, /async function reactionsRequest\([\s\S]*?const backupContext=backupRequestContext\(\)[\s\S]*?backupToken:backupContext\.token[\s\S]*?storeStateBackupToken\(data\.backupToken,backupContext\)/);
+  assert.match(source, /async function loadPartnerMessage\([\s\S]*?backupToken:currentStateBackupToken/);
+});
