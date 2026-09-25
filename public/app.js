@@ -8118,31 +8118,108 @@
         return items;
       }
 
-      function renderFeedEventItems(body,items){
+      function stripFeedEventDetailIcon(value){
+        return String(value||'')
+          .replace(/^[\s🎵🎶🎤🎙🕒⏰🕐📍🎟🎫💳🔞\uFE0F]+/u,'')
+          .trim();
+      }
+
+      function feedEventDisplay(item,name){
+        const result={time:'',place:'',meta:[]};
+        const details=Array.isArray(item?.details)?item.details:[];
+        for(const value of details){
+          const original=cleanEventDetail(value);
+          if(!original) continue;
+          if(name==='standup'&&/(?:^|\s)18\+(?:$|\s|[·,|])/u.test(original)) continue;
+
+          const isPlace=/^📍/u.test(original);
+          const text=stripFeedEventDetailIcon(original);
+          if(!text) continue;
+
+          const time=text.match(/(?:^|\s)(\d{1,2}):(\d{2})(?:\s|$)/u);
+          if(time&&!result.time){
+            result.time=String(time[1]).padStart(2,'0')+':'+time[2];
+            const rest=text.replace(time[0],' ').replace(/\s{2,}/g,' ').trim();
+            if(rest) result.meta.push(rest);
+            continue;
+          }
+
+          if(isPlace&&!result.place){
+            result.place=text;
+            continue;
+          }
+
+          if(
+            !result.place
+            &&!/(₽|руб(?:\.|лей|ля)?|от\s*\d)/iu.test(text)
+            &&/(театр|клуб|дворец|зал|бар|центр|stage|levelup|ритмы|club|standup)/iu.test(text)
+          ){
+            result.place=text;
+            continue;
+          }
+
+          result.meta.push(text);
+        }
+        result.meta=[...new Set(result.meta.filter(Boolean))];
+        return result;
+      }
+
+      function renderFeedEventItems(body,items,name){
         const list=document.createElement('div');
         list.className='feed-event-list';
         for(const item of items){
-          const card=document.createElement('article');
-          card.className='feed-event-item';
+          const view=feedEventDisplay(item,name);
+          const isLink=/^https?:\/\//i.test(String(item.href||''));
+          const card=document.createElement(isLink?'a':'article');
+          card.className='feed-event-item'+(isLink?' feed-event-item-link':'');
+          if(isLink){
+            card.href=item.href;
+            card.target='_blank';
+            card.rel='noopener noreferrer';
+          }
+
+          const time=document.createElement('time');
+          time.className='feed-event-time';
+          time.textContent=view.time||'—';
+          if(view.time) time.dateTime=view.time;
+
+          const copy=document.createElement('div');
+          copy.className='feed-event-copy';
+
           const title=document.createElement('strong');
           title.className='feed-event-title';
           title.textContent=item.title;
-          card.appendChild(title);
-          for(const detailText of item.details){
-            const detail=document.createElement('div');
-            detail.className='feed-event-detail';
-            detail.textContent=detailText;
-            card.appendChild(detail);
+          copy.appendChild(title);
+
+          if(view.place){
+            const place=document.createElement('div');
+            place.className='feed-event-place';
+            place.textContent=view.place;
+            copy.appendChild(place);
           }
-          if(item.href){
-            const link=document.createElement('a');
-            link.className='feed-event-link';
-            link.href=item.href;
-            link.target='_blank';
-            link.rel='noopener noreferrer';
-            link.textContent='Открыть →';
-            card.appendChild(link);
+
+          if(view.meta.length){
+            const meta=document.createElement('div');
+            meta.className='feed-event-meta';
+            meta.textContent=view.meta.join(' · ');
+            copy.appendChild(meta);
           }
+
+          card.append(time,copy);
+
+          if(isLink){
+            const chevron=document.createElement('span');
+            chevron.className='feed-event-chevron';
+            chevron.setAttribute('aria-hidden','true');
+            chevron.textContent='›';
+            card.appendChild(chevron);
+            card.addEventListener('click',event=>{
+              if(!tg?.openLink) return;
+              event.preventDefault();
+              try{tg.openLink(card.href)}catch(_){window.open(card.href,'_blank','noopener,noreferrer')}
+            });
+          }
+
           list.appendChild(card);
         }
         body.appendChild(list);
@@ -8362,7 +8439,7 @@
             }
           }
           if(items.length){
-            renderFeedEventItems(body,items);
+            renderFeedEventItems(body,items,name);
           }else if(!raw||eventEmptyText(name,raw)){
             hasContent=false;
             const empty=document.createElement('div');
