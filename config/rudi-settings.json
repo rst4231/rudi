@@ -14,7 +14,7 @@
       "publishToTelegram": true
     },
     "facts": {
-      "enabled": true,
+      "enabled": false,
       "topicId": 72,
       "publishToTelegram": false
     },

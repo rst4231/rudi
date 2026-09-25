@@ -18,6 +18,8 @@ test('all pinned runtime chunks are present with expected sizes', () => {
 test('local chunks build into a CommonJS handler without network access', () => {
   const result = buildRuntime();
   assert.ok(result.bytes > 0);
+  const generated = fs.readFileSync(path.join(root, 'runtime', 'generated-runtime.cjs'), 'utf8');
+  assert.equal(/sections\.has\(\s*["']facts["']\s*\)/.test(generated), false, 'facts generation guard must be retired');
   delete require.cache[require.resolve('../runtime/generated-runtime.cjs')];
   const handler = require('../runtime/generated-runtime.cjs');
   assert.equal(typeof handler, 'function');
@@ -55,4 +57,10 @@ test('Vercel config exposes the expected RUDI routes and cron schedules', () => 
     { path: '/api/daily', schedule: '30 21 * * *' },
     { path: '/api/feed-notify-cron', schedule: '0 3 * * *' },
   ]);
+});
+
+test('facts are disabled in bundled RUDI settings', () => {
+  const settings = JSON.parse(fs.readFileSync(path.join(root, 'config', 'rudi-settings.json'), 'utf8'));
+  assert.equal(settings.sections.facts.enabled, false);
+  assert.equal(settings.sections.facts.publishToTelegram, false);
 });

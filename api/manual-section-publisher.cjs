@@ -29,7 +29,7 @@ function validDate(value) {
 
 function validSection(value) {
   const section = String(value || '').trim();
-  if (!SECTION_SET.has(section)) throw new Error('unknown section');
+  if (section === 'facts' || !SECTION_SET.has(section)) throw new Error('unknown section');
   return section;
 }
 

@@ -71,12 +71,14 @@ function patchEventRuntime(source) {
 }
 
 function patchRetiredRuntime(source) {
-  return replaceOnce(
+  let next = replaceOnce(
     source,
     'const recipes=sections.has("recipe")?Object.keys(MEAL_META).map(m=>chooseRecipe(m,dateKey,rh.sentIds)):[];',
     'const recipes=[];',
     'retired recipe generation',
   );
+  next = next.replace(/sections\.has\(\s*(["'])facts\1\s*\)/g, 'false');
+  return next;
 }
 
 function resolveVersionLabel(env = process.env, versionConfig = null) {

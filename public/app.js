@@ -2869,7 +2869,11 @@
                 Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>{
                   if(item?.type==='saved-recipe'){
                     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-                      document.querySelector('.kitchen-saved-recipes')?.scrollIntoView({behavior:'smooth',block:'start'});
+                      const section=document.querySelector('.kitchen-saved-recipes');
+                      const body=document.getElementById('savedRecipesBody');
+                      const toggle=document.querySelector('[data-saves-toggle="recipe"]');
+                      if(section&&(section.classList.contains('is-collapsed')||body?.hidden)) toggle?.click();
+                      section?.scrollIntoView({behavior:'smooth',block:'start'});
                     }));
                   }
                 });
@@ -6674,12 +6678,13 @@
         const image=document.getElementById('photoViewerImage');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
+        const location=document.getElementById('photoViewerLocation');
         const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
         const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
         const fullUrl=String(photo?.fullUrl||previewUrl).trim();
         const photoIndex=currentSharedAlbumPhotoIndex;
-        if(!viewer||!image||!caption||!date||!original||!previewUrl) return false;
+        if(!viewer||!image||!caption||!date||!location||!original||!previewUrl) return false;
 
         image.onerror=null;
         image.dataset.photoIndex=String(photoIndex);
@@ -6714,6 +6719,9 @@
         const dateLabel=sharedAlbumViewerDateLabel(photo);
         date.textContent=dateLabel?'Снято · '+dateLabel:'';
         date.hidden=!dateLabel;
+        const locationLabel=sharedAlbumViewerLocationLabel(photo);
+        location.textContent=locationLabel?'Место · '+locationLabel:'';
+        location.hidden=!locationLabel;
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
         caption.hidden=!captionText;
@@ -6738,6 +6746,7 @@
         const image=document.getElementById('photoViewerImage');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
+        const location=document.getElementById('photoViewerLocation');
         if(!viewer||!image||!caption) return;
         viewer.classList.remove('open');
         viewer.setAttribute('aria-hidden','true');
@@ -6747,6 +6756,7 @@
         caption.textContent='';
         caption.hidden=true;
         if(date){date.textContent='';date.hidden=true}
+        if(location){location.textContent='';location.hidden=true}
         setPhotoViewerLoading('', '');
         currentSharedAlbumPhotoIndex=-1;
       }
@@ -6782,8 +6792,22 @@
           timeZone:TZ,
           day:'numeric',
           month:'long',
-          year:'numeric'
-        }).format(new Date(time));
+          year:'numeric',
+          hour:'2-digit',
+          minute:'2-digit',
+          hourCycle:'h23'
+        }).format(new Date(time)).replace(',',' ·');
+      }
+
+      function sharedAlbumViewerLocationLabel(photo){
+        const label=String(photo?.location||photo?.locationLabel||'').trim();
+        if(label) return label;
+        const latitude=Number(photo?.latitude);
+        const longitude=Number(photo?.longitude);
+        if(Number.isFinite(latitude)&&Number.isFinite(longitude)){
+          return latitude.toFixed(4)+', '+longitude.toFixed(4);
+        }
+        return '';
       }
 
       function sharedAlbumDateKey(value){

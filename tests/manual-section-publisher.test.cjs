@@ -23,32 +23,18 @@ const preview = {
   },
 };
 
-test('publishing facts sends only facts topic message and records its message id', async () => {
-  const sends = [];
-  const journal = [];
-  const result = await publishSelectedSection({ section: 'facts', date: '2026-08-30' }, {
+test('retired facts section cannot be published manually', async () => {
+  await assert.rejects(() => publishSelectedSection({ section: 'facts', date: '2026-08-30' }, {
     settingsLoader: async () => ({ settings }),
-    previewProvider: async () => preview,
-    getRecord: async () => null,
-    getOverride: async () => null,
-    sendTelegram: async (payload) => { sends.push(payload); return { messageId: 101 }; },
-    markPending: async (row) => { journal.push(['pending', row]); },
-    markPublished: async (row) => { journal.push(['published', row]); },
-    markFailed: async () => {},
-  });
-  assert.deepEqual(sends.map((row) => row.topicId), [72]);
-  assert.deepEqual(sends.map((row) => row.text), ['fact']);
-  assert.deepEqual(result.messageIds, [101]);
-  assert.equal(journal.at(-1)[0], 'published');
-  assert.deepEqual(journal.at(-1)[1].messageIds, [101]);
+  }), /unknown section/);
 });
 
-test('published section is blocked unless force is explicit', async () => {
-  const result = await publishSelectedSection({ section: 'facts', date: '2026-08-30' }, {
+test('published active section is blocked unless force is explicit', async () => {
+  const result = await publishSelectedSection({ section: 'events', date: '2026-08-30' }, {
     settingsLoader: async () => ({ settings }),
     getRecord: async () => ({ status: 'published' }),
   });
-  assert.deepEqual(result, { ok: false, error: 'already-published', section: 'facts', date: '2026-08-30' });
+  assert.deepEqual(result, { ok: false, error: 'already-published', section: 'events', date: '2026-08-30' });
 });
 
 test('retired manual section is rejected', async () => {
