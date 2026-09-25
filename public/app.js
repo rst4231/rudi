@@ -50,6 +50,9 @@
       let undoSnackbarAction = null;
       let productsLoadPromise = null;
       let productsRefreshTimer = 0;
+      let productsMutationChain = Promise.resolve();
+      let productsMutationEpoch = 0;
+      let latestProductsRenderSignature = '';
       let productsRecoveryCandidate = '';
       let productsRecoveryChecked = false;
       let currentMoodDateKey = '';
@@ -8541,7 +8544,7 @@
         'Для дома':'🧽','Гигиена':'🧴','Для Лулу':'🐾','Другое':'📦'
       };
 
-      async function productsRequest(operation,payload={}){
+      async function executeProductsRequest(operation,payload={},clientEpoch=productsMutationEpoch){
         const backupContext=backupRequestContext();
         const response=await fetch('/api/partner-message?rudiAction=products',{
           method:'POST',
@@ -8551,12 +8554,29 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok) throw new Error(data.error||'products-request-failed');
+        data.__clientProductsOperation=operation;
+        data.__clientProductsEpoch=clientEpoch;
         if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         if(operation!=='list'){
           setTimeout(()=>refreshStateBackup(),250);
           setTimeout(()=>loadActivityJournal({silent:true}),320);
         }
         return data;
+      }
+
+      async function productsRequest(operation,payload={}){
+        if(operation==='list'){
+          const clientEpoch=productsMutationEpoch;
+          await productsMutationChain.catch(()=>{});
+          return executeProductsRequest(operation,payload,clientEpoch);
+        }
+        const clientEpoch=++productsMutationEpoch;
+        const task=productsMutationChain.then(
+          ()=>executeProductsRequest(operation,payload,clientEpoch),
+          ()=>executeProductsRequest(operation,payload,clientEpoch)
+        );
+        productsMutationChain=task.then(()=>undefined,()=>undefined);
+        return task;
       }
 
       function setProductsBadge(hasProducts){
@@ -8572,16 +8592,78 @@
         return (female?'Добавила ':'Добавил ')+name;
       }
 
-      function productBoughtMeta(item){
+      function productBoughtDay(item){
         const date=new Date(String(item?.boughtAt||''));
-        const when=Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat('ru-RU',{
-          day:'2-digit',month:'2-digit',year:'numeric',
-          hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:TZ
-        }).format(date).replace(',',' ·');
-        const buyer=String(item?.boughtBy||'').trim();
-        const bought=buyer?(buyer==='Диана'?'Купила ':'Купил ')+buyer:'';
-        const added=productAddedByLabel(item?.addedBy);
-        return [when,added,bought].filter(Boolean).join(' · ');
+        if(Number.isNaN(date.getTime())){
+          return {key:'unknown-'+String(item?.id||''),label:'Без даты'};
+        }
+        const parts=new Intl.DateTimeFormat('en-CA',{
+          timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'
+        }).formatToParts(date);
+        const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+        return {
+          key:values.year+'-'+values.month+'-'+values.day,
+          label:new Intl.DateTimeFormat('ru-RU',{
+            timeZone:TZ,day:'2-digit',month:'2-digit',year:'numeric'
+          }).format(date)
+        };
+      }
+
+      function groupProductHistory(history){
+        const groups=[];
+        const byDay=new Map();
+        for(const item of Array.isArray(history)?history:[]){
+          const day=productBoughtDay(item);
+          let group=byDay.get(day.key);
+          if(!group){
+            group={key:day.key,label:day.label,items:[]};
+            byDay.set(day.key,group);
+            groups.push(group);
+          }
+          const text=String(item?.text||'').trim();
+          if(text) group.items.push(text);
+        }
+        return groups;
+      }
+
+      function productsHistoryCollapsedStorageKey(){
+        const actor=currentActor==='Диана'?'diana':currentActor==='Рустам'?'rustam':'shared';
+        return 'rudi-products-history-collapsed-v1-'+actor;
+      }
+
+      function readProductsHistoryCollapsed(){
+        try{return localStorage.getItem(productsHistoryCollapsedStorageKey())==='1'}catch(_){return false}
+      }
+
+      function setProductsHistoryCollapsed(collapsed,{persist=true}={}){
+        const value=Boolean(collapsed);
+        const section=document.querySelector('.products-history');
+        const list=document.getElementById('productsHistory');
+        const empty=document.getElementById('productsHistoryEmpty');
+        const toggle=document.getElementById('productsHistoryToggle');
+        const count=Number(toggle?.dataset.historyCount||0);
+        section?.classList.toggle('is-collapsed',value);
+        if(list) list.hidden=value;
+        if(empty) empty.hidden=value||count>0;
+        if(toggle){
+          toggle.textContent=value?'Развернуть':'Свернуть';
+          toggle.setAttribute('aria-expanded',value?'false':'true');
+        }
+        if(persist){
+          try{localStorage.setItem(productsHistoryCollapsedStorageKey(),value?'1':'0')}catch(_){}
+        }
+      }
+
+      function productsRenderSignature(items,history){
+        return JSON.stringify({
+          items:(Array.isArray(items)?items:[]).map(item=>[
+            String(item?.id||''),String(item?.text||''),Boolean(item?.checked),
+            String(item?.addedBy||''),String(item?.category||''),String(item?.weeklyAmount||'')
+          ]),
+          history:(Array.isArray(history)?history:[]).map(item=>[
+            String(item?.id||''),String(item?.text||''),String(item?.boughtAt||''),String(item?.boughtBy||'')
+          ])
+        });
       }
 
       async function copyProductText(text,button){
@@ -8622,8 +8704,15 @@
       function renderProducts(payload){
         const items=Array.isArray(payload?.items)?payload.items:[];
         const history=Array.isArray(payload?.history)?payload.history:[];
+        const clientOperation=String(payload?.__clientProductsOperation||'');
+        const clientEpoch=Number(payload?.__clientProductsEpoch||0);
+        if(clientOperation==='list'&&clientEpoch<productsMutationEpoch) return;
+        const renderSignature=productsRenderSignature(items,history);
+        const unchanged=renderSignature===latestProductsRenderSignature;
+        latestProductsRenderSignature=renderSignature;
+        const previousProductCount=homeDashboardState.productCount;
         homeDashboardState.productCount=items.length;
-        renderHomeDashboard();
+        if(previousProductCount!==items.length) renderHomeDashboard();
         const groups=document.getElementById('productsGroups');
         const empty=document.getElementById('productsEmpty');
         const status=document.getElementById('productsStatus');
@@ -8648,6 +8737,7 @@
             :'';
           status.hidden=!items.length;
         }
+        if(unchanged) return;
 
         groups.replaceChildren();
         const byCategory=new Map();
@@ -8744,20 +8834,24 @@
         empty.hidden=items.length>0;
         historyList.replaceChildren();
         if(historyCount) historyCount.textContent=history.length?String(history.length):'';
-        if(historyEmpty) historyEmpty.hidden=history.length>0;
-        for(const item of history){
+        const historyToggle=document.getElementById('productsHistoryToggle');
+        if(historyToggle) historyToggle.dataset.historyCount=String(history.length);
+        for(const group of groupProductHistory(history)){
           const row=document.createElement('div');
           row.className='product-history-item';
-          const copy=document.createElement('div');
-          copy.className='product-history-copy';
-          const text=document.createElement('strong');
-          text.textContent=String(item.text||'');
-          const meta=document.createElement('small');
-          meta.textContent=productBoughtMeta(item);
-          copy.append(text,meta);
-          row.appendChild(copy);
+          const date=document.createElement('strong');
+          date.className='product-history-date';
+          date.textContent=group.label;
+          const separator=document.createElement('span');
+          separator.className='product-history-separator';
+          separator.textContent=' · ';
+          const itemsText=document.createElement('span');
+          itemsText.className='product-history-items';
+          itemsText.textContent=group.items.join(', ');
+          row.append(date,separator,itemsText);
           historyList.appendChild(row);
         }
+        setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
         animateRudiCollection(groups,'.product-category',7);
         animateRudiCollection(groups,'.product-item',14);
         animateRudiCollection(historyList,'.product-history-item',10);
@@ -8839,7 +8933,13 @@
         const recoveryPanel=document.getElementById('productsRecovery');
         const recoveryButton=document.getElementById('productsRecoveryButton');
         const recoveryText=document.getElementById('productsRecoveryText');
+        const historyToggle=document.getElementById('productsHistoryToggle');
         if(!form||!input||!add||!clear||!boughtAll) return;
+
+        historyToggle?.addEventListener('click',()=>{
+          setProductsHistoryCollapsed(!readProductsHistoryCollapsed());
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
 
         input.addEventListener('focus',()=>document.body.classList.add('keyboard-editing'));
         input.addEventListener('blur',()=>document.body.classList.remove('keyboard-editing'));

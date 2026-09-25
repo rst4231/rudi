@@ -2510,17 +2510,11 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'bought') {
         const state = await markProductBought(body.id, actor, options);
-        await sendActivityNotification(boughtNotificationText(actor), 'products', options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'buy-checked') {
-        const before = await readProductList(options);
-        const checkedCount = (before.items || []).filter((item) => Boolean(item.checked)).length;
         const state = await markCheckedProductsBought(actor, options);
-        if (checkedCount > 0) {
-          await sendActivityNotification(boughtNotificationText(actor), 'products', options);
-        }
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }

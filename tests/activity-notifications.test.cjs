@@ -135,8 +135,8 @@ test('Lulu walk notification is one line without time',()=>{
   const now=Date.parse('2026-09-23T07:45:00.000Z');
   const walkedAt='2026-09-23T06:42:00.000Z';
   assert.equal(luluWalkStatusLabel(walkedAt,now),'сегодня в 09:42');
-  assert.equal(luluWalkNotificationText('Рустам'), '🐾 <b>Рустам погулял с Lulu</b>');
-  assert.equal(luluWalkNotificationText('Диана'), '🐾 <b>Диана погуляла с Lulu</b>');
+  assert.equal(luluWalkNotificationText('Рустам'), '🐾 <b>Рустам погулял с Лулу</b>');
+  assert.equal(luluWalkNotificationText('Диана'), '🐾 <b>Диана погуляла с Лулу</b>');
   assert.doesNotMatch(luluWalkNotificationText('Рустам'),/\n|Последняя прогулка|09:42/);
 });
 
