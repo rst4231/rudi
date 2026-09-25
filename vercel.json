@@ -203,7 +203,7 @@
     },
     {
       "path": "/api/feed-notify-cron",
-      "schedule": "0 3,5,7,9 * * *"
+      "schedule": "0 3 * * *"
     }
   ],
   "env": {

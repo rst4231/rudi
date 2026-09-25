@@ -21,7 +21,7 @@ test('cinema feed is persisted before generated runtime starts',async()=>{
 });
 
 
-test('labor recovery runs before For Di publication when today's queue is empty',async()=>{
+test("labor recovery runs before For Di publication when today's queue is empty",async()=>{
   const order=[];
   const response=res();
   await runDailyOrchestrator({query:{route:'daily'}},response,{
