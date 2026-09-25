@@ -72,6 +72,8 @@
     const modelNode=document.querySelector('#carTile .car-model');
     const collapsedMileageNode=document.getElementById('carCollapsedMileageValue');
     const collapsedServiceNode=document.getElementById('carCollapsedServiceValue');
+    const collapsedProgress=document.getElementById('carCollapsedServiceProgress');
+    const collapsedPercent=document.getElementById('carCollapsedServicePercent');
 
     if(modelNode){
       modelNode.dataset.mileage=mileage==null?'Пробег не указан':'Пробег · '+formatKm(mileage);
@@ -91,6 +93,8 @@
       if(nextNode) nextNode.textContent='Добавь пробег';
       if(meta) meta.textContent='Покажу ближайшее ТО по пробегу';
       if(progress) progress.style.width='0%';
+      if(collapsedProgress) collapsedProgress.style.width='0%';
+      if(collapsedPercent) collapsedPercent.textContent='—';
       return;
     }
 
@@ -106,6 +110,8 @@
     const span=Math.max(1,next.mileage-previous);
     const pct=Math.max(0,Math.min(100,((Number(mileage)-previous)/span)*100));
     if(progress) progress.style.width=pct.toFixed(1)+'%';
+    if(collapsedProgress) collapsedProgress.style.width=pct.toFixed(1)+'%';
+    if(collapsedPercent) collapsedPercent.textContent=Math.round(pct)+'% пройдено';
   }
 
   function tyreAdvice(weather) {
@@ -226,6 +232,8 @@
         : 'Погода недоступна';
     }
     if(advice) advice.textContent=(weather?.stale?'Сохранённый прогноз · ':'')+tyreAdvice(weather);
+    const collapsedWash=document.getElementById('carCollapsedWashValue');
+    if(collapsedWash) collapsedWash.textContent=carWashAdvice(weather).text;
   }
 
   function taskDateLabel(task){

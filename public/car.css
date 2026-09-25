@@ -485,6 +485,61 @@
   align-self:end;
   background:rgba(196,204,219,.22);
 }
+.car-collapsed-service-progress,
+.car-collapsed-wash{
+  grid-column:1/-1;
+  min-width:0;
+}
+.car-collapsed-service-progress{
+  display:grid;
+  gap:7px;
+  margin-top:2px;
+}
+.car-collapsed-progress-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  color:#8f96a2;
+  font-size:8px;
+  line-height:1;
+  font-weight:820;
+  letter-spacing:.075em;
+  text-transform:uppercase;
+}
+.car-collapsed-progress-head strong{
+  color:#f0f2f5;
+  font-size:10px;
+  line-height:1;
+  font-weight:850;
+  letter-spacing:0;
+  text-transform:none;
+  white-space:nowrap;
+}
+.car-collapsed-service-progress .car-service-progress{
+  height:6px;
+  background:rgba(255,255,255,.06);
+}
+.car-collapsed-wash{
+  display:grid;
+  gap:4px;
+  padding-top:2px;
+}
+.car-collapsed-wash-label{
+  color:#8f96a2;
+  font-size:8px;
+  line-height:1;
+  font-weight:820;
+  letter-spacing:.075em;
+  text-transform:uppercase;
+}
+.car-collapsed-wash strong{
+  color:#dfe3e9;
+  font-size:10px;
+  line-height:1.35;
+  font-weight:700;
+  letter-spacing:-.01em;
+}
 @media(max-width:430px){
   .car-tile.is-collapsed .car-collapsed-metrics{
     grid-template-columns:minmax(0,.78fr) 1px minmax(0,1.22fr);
@@ -494,6 +549,10 @@
   .car-collapsed-metric-label{font-size:7.2px;letter-spacing:.07em}
   .car-collapsed-metric strong{font-size:13px;line-height:1.08}
   .car-collapsed-metrics-divider{height:32px}
+  .car-collapsed-progress-head,
+  .car-collapsed-wash-label{font-size:7px}
+  .car-collapsed-progress-head strong,
+  .car-collapsed-wash strong{font-size:9.5px}
 }
 @media(max-width:360px){
   .car-tile.is-collapsed .car-collapsed-metrics{
