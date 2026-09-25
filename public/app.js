@@ -3294,6 +3294,9 @@
         const rhythmAdvice=document.createElement('div');
         rhythmAdvice.id='rustamRhythmAdvice';
         rhythmAdvice.className='rustam-rhythm-advice';
+        rhythmAdvice.style.setProperty('color','#eef2ff','important');
+        rhythmAdvice.style.setProperty('-webkit-text-fill-color','#eef2ff','important');
+        rhythmAdvice.style.setProperty('opacity','1','important');
         const currentRhythm=rustamRhythmStatus();
         const currentRecommendation=rustamRhythmRecommendation(currentRhythm);
         rhythmAdvice.textContent=currentRecommendation?'Сейчас лучше: '+currentRecommendation:'';

@@ -7907,3 +7907,11 @@ body.voice-assistant-open .voice-assistant-icon-button{
 
 /* Voice assistant launcher disabled globally */
 .voice-assistant-launcher{display:none!important}
+
+/* RUDI v1.18.20: force readable rhythm description on dark Rustam card */
+.profile-rustam-card #rustamRhythmAdvice{
+  color:#eef2ff!important;
+  -webkit-text-fill-color:#eef2ff!important;
+  opacity:1!important;
+}
+/* end RUDI v1.18.20 */
