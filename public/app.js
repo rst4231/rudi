@@ -2532,6 +2532,7 @@
               '<div><span>Баланс</span><strong id="scoreModalBalance">0</strong></div>'+
               '<div><span>Сегодня</span><strong id="scoreModalToday">0 / 10</strong></div>'+
             '</div>'+
+            '<div id="scoreActiveRewards" class="score-active-rewards" hidden></div>'+
             '<div id="scoreModalTabs" class="score-modal-tabs" role="tablist">'+
               '<button type="button" data-score-tab="history" class="active">История</button>'+
               '<button type="button" data-score-tab="shop">Магазин</button>'+
@@ -2585,16 +2586,99 @@
         modal.querySelector('#scoreModalBalance').textContent=scoreNumber(balance)+' ⭐';
         modal.querySelector('#scoreModalToday').textContent=scoreNumber(today)+' / '+scoreNumber(score?.today?.limit||10);
 
+        const activeHost=modal.querySelector('#scoreActiveRewards');
+        const activeRewards=Array.isArray(score?.activeRewards)?score.activeRewards:[];
+        activeHost.replaceChildren();
+        activeHost.hidden=!activeRewards.length;
+        if(activeRewards.length){
+          const heading=document.createElement('div');
+          heading.className='score-active-title';
+          heading.textContent=activeRewards.length===1?'Активная награда':'Активные награды';
+          activeHost.appendChild(heading);
+          for(const reward of activeRewards){
+            const card=document.createElement('div');
+            card.className='score-active-card';
+
+            const icon=document.createElement('span');
+            icon.className='score-active-icon';
+            icon.textContent=String(reward.icon||'🎁');
+
+            const copy=document.createElement('div');
+            copy.className='score-active-copy';
+            const title=document.createElement('strong');
+            title.textContent=String(reward.label||'Награда');
+            const meta=document.createElement('span');
+            meta.textContent=String(reward.buyerActor||'')+' · '+scoreHistoryTime(reward.createdAt);
+            copy.append(title,meta);
+
+            const button=document.createElement('button');
+            button.type='button';
+            button.className='score-active-button';
+            const buyer=String(reward.buyerActor||'');
+            const canComplete=Boolean(currentActor&&buyer&&currentActor!==buyer);
+            button.disabled=!canComplete;
+            button.textContent=canComplete?'Выполнено':'Ждёт выполнения';
+            button.addEventListener('click',async()=>{
+              if(button.disabled) return;
+              if(!window.confirm('Отметить награду «'+reward.label+'» выполненной?')) return;
+              button.disabled=true;
+              try{
+                const data=await scoreRequest('complete-reward',{redemptionId:reward.id});
+                currentScoreState=data.score||currentScoreState;
+                renderScoreStickers(currentScoreState);
+                renderScoreModal(actor,currentScoreState);
+                setTimeout(()=>refreshStateBackup(),200);
+                try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              }catch(_){
+                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+              }
+            });
+            card.append(icon,copy,button);
+            activeHost.appendChild(card);
+          }
+        }
+
         const history=modal.querySelector('#scoreHistoryPanel');
         history.replaceChildren();
-        const rows=(Array.isArray(score?.history)?score.history:[]).filter(item=>item.actor===actor).slice(0,80);
+        const pointRows=(Array.isArray(score?.history)?score.history:[])
+          .filter(item=>item.actor===actor)
+          .map(item=>({type:'points',stamp:item.createdAt,item}));
+        const completedRows=(Array.isArray(score?.completedRewards)?score.completedRewards:[])
+          .filter(item=>item.buyerActor===actor)
+          .map(item=>({type:'completed',stamp:item.completedAt||item.createdAt,item}));
+        const rows=[...pointRows,...completedRows]
+          .sort((a,b)=>Date.parse(b.stamp||0)-Date.parse(a.stamp||0))
+          .slice(0,80);
+
         if(!rows.length){
           const empty=document.createElement('div');
           empty.className='score-empty';
           empty.textContent='История пока пустая';
           history.appendChild(empty);
         }else{
-          for(const item of rows){
+          for(const entry of rows){
+            if(entry.type==='completed'){
+              const item=entry.item;
+              const row=document.createElement('div');
+              row.className='score-history-row is-reward-complete';
+              const icon=document.createElement('span');
+              icon.className='score-history-icon';
+              icon.textContent=String(item.icon||'🎁');
+              const copy=document.createElement('div');
+              copy.className='score-history-copy';
+              const title=document.createElement('strong');
+              title.textContent=String(item.label||'Награда');
+              const meta=document.createElement('span');
+              meta.textContent='Выполнено · '+scoreHistoryTime(item.completedAt);
+              copy.append(title,meta);
+              const status=document.createElement('b');
+              status.textContent='Готово';
+              row.append(icon,copy,status);
+              history.appendChild(row);
+              continue;
+            }
+
+            const item=entry.item;
             const row=document.createElement('div');
             row.className='score-history-row '+(Number(item.points||0)<0?'is-spend':'is-earn');
             const icon=document.createElement('span');
@@ -2641,8 +2725,9 @@
           button.type='button';
           button.className='score-reward-button';
           const enough=balance>=Number(reward.cost||0);
-          button.disabled=!own||!enough;
-          button.textContent=!own?'Только свои':enough?'Получить':'Не хватает';
+          const alreadyActive=activeRewards.some(item=>String(item.rewardId||'')===String(reward.id||''));
+          button.disabled=!own||!enough||alreadyActive;
+          button.textContent=!own?'Только свои':alreadyActive?'Активна':enough?'Получить':'Не хватает';
           button.addEventListener('click',async()=>{
             if(button.disabled) return;
             if(!window.confirm('Потратить '+scoreNumber(reward.cost)+' баллов на «'+reward.label+'»?')) return;
@@ -2655,7 +2740,14 @@
               setTimeout(()=>refreshStateBackup(),200);
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(error){
-              if(String(error?.message||'')==='score-balance-insufficient') renderScoreModal(actor,currentScoreState);
+              if(['score-balance-insufficient','score-reward-active'].includes(String(error?.message||''))){
+                try{
+                  const fresh=await scoreRequest('state');
+                  currentScoreState=fresh.score||currentScoreState;
+                  renderScoreStickers(currentScoreState);
+                  renderScoreModal(actor,currentScoreState);
+                }catch(_){}
+              }
               try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
             }
           });
