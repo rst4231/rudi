@@ -15,6 +15,7 @@ const TZ = 'Europe/Moscow';
 const ACTORS = ['Рустам', 'Диана'];
 
 const REWARDS = Object.freeze([
+  { id:'dessert', label:'Выбрать десерт или вкусняшку', icon:'🍰', costUnits:100 },
   { id:'movie', label:'Выбрать фильм', icon:'🎬', costUnits:150 },
   { id:'dinner', label:'Выбрать ужин', icon:'🍽️', costUnits:250 },
   { id:'breakfast', label:'Завтрак в постель', icon:'🥐', costUnits:300 },
