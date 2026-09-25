@@ -2564,7 +2564,7 @@
 
         const mealBoost=luluMealWindowBoost(walkedAt,now);
         const waterBoost=elapsedHours>=2?3:1;
-        return Math.max(5,Math.min(99,Math.round(base+mealBoost+waterBoost)));
+        return Math.max(5,Math.min(100,Math.round(base+mealBoost+waterBoost)));
       }
 
       function syncLuluToiletStatus(){
@@ -2577,7 +2577,7 @@
           node.dataset.level='unknown';
           return;
         }
-        node.textContent='Хочет в туалет: ~'+probability+'%';
+        node.textContent='Хочет в туалет: '+(probability===100?'100%':'~'+probability+'%');
         node.dataset.level=probability>=80?'high':probability>=50?'medium':'low';
       }
 

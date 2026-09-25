@@ -26,9 +26,27 @@ function normalizeWalk(value) {
   return { actor, walkedAt: date.toISOString() };
 }
 
+function normalizeToiletAlert(value, lastWalk) {
+  if (!value || typeof value !== 'object' || !lastWalk) return null;
+  const walkedAt = String(value.walkedAt || '').trim();
+  if (!walkedAt || walkedAt !== lastWalk.walkedAt) return null;
+  const recipients = Array.from(new Set(
+    (Array.isArray(value.recipients) ? value.recipients : [])
+      .map((actor) => cleanActor(actor))
+      .filter(Boolean)
+  ));
+  const alertedAtDate = new Date(value.alertedAt || 0);
+  return {
+    walkedAt,
+    recipients,
+    alertedAt: Number.isNaN(alertedAtDate.getTime()) ? '' : alertedAtDate.toISOString(),
+  };
+}
+
 function normalizeLuluState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const lastWalk = normalizeWalk(source.lastWalk);
+  const toiletAlert = normalizeToiletAlert(source.toiletAlert, lastWalk);
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const updatedDate = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   const updatedAt = lastWalk
@@ -38,6 +56,7 @@ function normalizeLuluState(value) {
     initialized: Boolean(source.initialized),
     version: Math.max(0, Number(source.version || 0)),
     lastWalk,
+    toiletAlert,
     updatedAt,
   };
 }
@@ -78,6 +97,32 @@ async function markLuluWalk(actor, options = {}) {
   });
 }
 
+async function recordLuluToiletAlertRecipients(walkedAt, actors, options = {}) {
+  const targetWalkedAt = String(walkedAt || '').trim();
+  const cleanActors = Array.from(new Set(
+    (Array.isArray(actors) ? actors : []).map((actor) => cleanActor(actor)).filter(Boolean)
+  ));
+  if (!targetWalkedAt || !cleanActors.length) return readLuluState(options);
+
+  return enqueueMutation(async () => {
+    const current = await readLuluState(options);
+    if (!current.lastWalk || current.lastWalk.walkedAt !== targetWalkedAt) return current;
+    const previous = current.toiletAlert?.walkedAt === targetWalkedAt
+      ? current.toiletAlert.recipients
+      : [];
+    const recipients = Array.from(new Set([...(previous || []), ...cleanActors]));
+    if (recipients.length === (previous || []).length) return current;
+
+    const alertedAt = new Date(options.now || Date.now()).toISOString();
+    return writeLuluState({
+      ...current,
+      version: Math.max(0, Number(current.version || 0)) + 1,
+      toiletAlert: { walkedAt: targetWalkedAt, recipients, alertedAt },
+      updatedAt: current.updatedAt,
+    }, options);
+  });
+}
+
 async function restoreLuluState(snapshot, options = {}) {
   const saved = normalizeLuluState(snapshot);
   if (!saved.initialized) return readLuluState(options);
@@ -98,6 +143,7 @@ module.exports = {
   readLuluState,
   writeLuluState,
   markLuluWalk,
+  recordLuluToiletAlertRecipients,
   restoreLuluState,
   resetMutationQueueForTests,
 };

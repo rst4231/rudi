@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {markLuluWalk,readLuluState,restoreLuluState,resetMutationQueueForTests}=require('../api/lulu-store.cjs');
+const {markLuluWalk,readLuluState,recordLuluToiletAlertRecipients,restoreLuluState,resetMutationQueueForTests}=require('../api/lulu-store.cjs');
 
 function memoryCache(){
   const map=new Map();
@@ -31,4 +31,18 @@ test('Lulu state restores from a newer backup',async()=>{
   const state=await readLuluState({luluCache:cache});
   assert.equal(state.version,4);
   assert.equal(state.lastWalk.actor,'Диана');
+});
+
+test('Lulu toilet alert recipients persist for the current walk and reset on a new walk',async()=>{
+  const cache=memoryCache();
+  const first=await markLuluWalk('Рустам',{luluCache:cache,now:Date.parse('2026-09-25T05:00:00.000Z')});
+  await recordLuluToiletAlertRecipients(first.lastWalk.walkedAt,['Рустам'],{
+    luluCache:cache,now:Date.parse('2026-09-25T15:00:00.000Z')
+  });
+  const alerted=await readLuluState({luluCache:cache});
+  assert.deepEqual(alerted.toiletAlert.recipients,['Рустам']);
+  assert.equal(alerted.toiletAlert.walkedAt,first.lastWalk.walkedAt);
+
+  const second=await markLuluWalk('Диана',{luluCache:cache,now:Date.parse('2026-09-25T15:05:00.000Z')});
+  assert.equal(second.toiletAlert,null);
 });

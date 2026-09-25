@@ -13,6 +13,9 @@
     },
     "api/feed-notify-cron.js": {
       "maxDuration": 60
+    },
+    "api/lulu-toilet-cron.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -221,6 +224,10 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/lulu-toilet-cron",
+      "schedule": "*/15 * * * *"
     }
   ],
   "env": {
