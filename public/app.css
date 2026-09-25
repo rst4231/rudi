@@ -5276,6 +5276,13 @@ html[data-theme="dark"] .feed-today{
 .home-nearest-row{
   display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;
 }
+.home-nearest-link{
+  color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.home-nearest-link:active{opacity:.62}
+.home-nearest-link:focus-visible{
+  outline:2px solid var(--accent);outline-offset:4px;border-radius:6px;
+}
 .home-nearest-icon{text-align:center;font-size:14px}
 .home-nearest-row strong{
   min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);

@@ -2364,7 +2364,8 @@
               title:item.title,
               time:match?(String(match[1]).padStart(2,'0')+':'+match[2]):'',
               minutes,
-              kind:name
+              kind:name,
+              href:item.href
             });
           }
         }
@@ -2402,7 +2403,8 @@
             label:event.title,
             time:event.time,
             minutes:event.minutes,
-            icon:event.kind==='standup'?'🎙':'🎤'
+            icon:event.kind==='standup'?'🎙':'🎤',
+            href:event.href
           });
         }
 
@@ -3120,8 +3122,21 @@
           nearestWrap.dataset.homeEmpty=rows.length?'0':'1';
           nearestWrap.hidden=currentAppTab!=='home'||!rows.length;
           for(const row of rows){
-            const el=document.createElement('div');
-            el.className='home-nearest-row';
+            const isLink=/^https?:\/\//i.test(String(row.href||''));
+            const el=document.createElement(isLink?'a':'div');
+            el.className='home-nearest-row'+(isLink?' home-nearest-link':'');
+            if(isLink){
+              el.href=row.href;
+              el.target='_blank';
+              el.rel='noopener noreferrer';
+              el.setAttribute('aria-label',row.label+' — открыть событие');
+              el.addEventListener('click',event=>{
+                if(!tg?.openLink) return;
+                event.preventDefault();
+                try{tg.openLink(el.href)}
+                catch(_){window.open(el.href,'_blank','noopener,noreferrer')}
+              });
+            }
             const time=row.time?'<time>'+row.time+'</time>':'';
             el.innerHTML='<span class="home-nearest-icon">'+row.icon+'</span><strong></strong>'+time;
             el.querySelector('strong').textContent=row.label;
