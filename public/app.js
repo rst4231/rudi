@@ -2537,34 +2537,19 @@
         const walked=new Date(String(walkedAt||''));
         if(Number.isNaN(walked.getTime())) return null;
         const elapsedHours=Math.max(0,(now.getTime()-walked.getTime())/3600000);
-
-        const currentYear=Number(new Intl.DateTimeFormat('en',{
-          timeZone:TZ,year:'numeric'
-        }).format(now));
-        const age=Math.max(0,currentYear-2020);
-        const comfortableHours=age>=10?3.5:age>=8?3.75:4;
-
-        const ratio=elapsedHours/comfortableHours;
         const points=[
-          [0,0],[.25,12],[.5,28],[.75,48],[1,68],[1.25,82],[1.5,92],[1.75,98],[2,100]
+          [0,0],[.5,2],[1,5],[1.5,10],[2,18],[3,28],[4,43],[5,65],[6,85],[7,96],[8,100]
         ];
-        let base=98;
-        if(ratio<=points[0][0]) base=points[0][1];
-        else{
-          for(let i=1;i<points.length;i+=1){
-            const [x2,y2]=points[i];
-            const [x1,y1]=points[i-1];
-            if(ratio<=x2){
-              const t=(ratio-x1)/(x2-x1);
-              base=Math.round(y1+(y2-y1)*t);
-              break;
-            }
+        if(elapsedHours>=points[points.length-1][0]) return 100;
+        for(let i=1;i<points.length;i+=1){
+          const [x2,y2]=points[i];
+          const [x1,y1]=points[i-1];
+          if(elapsedHours<=x2){
+            const t=(elapsedHours-x1)/(x2-x1);
+            return Math.max(0,Math.min(100,Math.round(y1+(y2-y1)*t)));
           }
         }
-
-        const mealBoost=luluMealWindowBoost(walkedAt,now);
-        const waterBoost=elapsedHours>=2?3:0;
-        return Math.max(0,Math.min(100,Math.round(base+mealBoost+waterBoost)));
+        return 100;
       }
 
       function syncLuluToiletStatus(){
