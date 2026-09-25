@@ -2464,7 +2464,9 @@ async function handleRudiAction(req, res, action, options = {}) {
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (previousSnapshot?.products?.initialized) {
         const liveBefore=await readProductListRaw(options).catch(()=>({initialized:false,items:[]}));
-        if(!liveBefore?.initialized || !(liveBefore.items||[]).length) {
+        // An initialized empty list is a valid state after the user clears products.
+        // Restore from backup only on a real cache miss, never just because items is empty.
+        if(!liveBefore?.initialized) {
           await restoreProductListSnapshot(previousSnapshot.products,options).catch(()=>null);
         }
       }
