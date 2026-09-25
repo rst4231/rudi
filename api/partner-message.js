@@ -444,7 +444,6 @@ function reactionActivityView(target) {
   if (type === 'partner-message') return { label: 'послание', targetTab: 'home' };
   if (type === 'photo-memory') return { label: 'фото-воспоминание', targetTab: 'photos' };
   if (type === 'feed') {
-    if (key.startsWith('facts:')) return { label: 'факты в Ленте', targetTab: 'feed' };
     if (key.startsWith('concerts:')) return { label: 'концерты в Ленте', targetTab: 'feed' };
     if (key.startsWith('standup:')) return { label: 'стендап в Ленте', targetTab: 'feed' };
     if (key.startsWith('cinema:')) return { label: 'кино в Ленте', targetTab: 'feed' };
@@ -764,7 +763,6 @@ async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const date = moscowDateKey(now);
   const hasToday = feed?.date === date
-    && Array.isArray(feed?.sections?.facts?.parts) && feed.sections.facts.parts.length
     && Array.isArray(feed?.sections?.events?.parts) && feed.sections.events.parts.length;
   if (hasToday) return feed;
 
@@ -780,13 +778,9 @@ async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
     if (!response?.ok) return feed;
     const preview = await response.json().catch(() => null);
     const sections = {};
-    const facts = Array.isArray(preview?.sections?.facts?.parts)
-      ? preview.sections.facts.parts.map((value) => String(value || '').trim()).filter(Boolean)
-      : [];
     const events = Array.isArray(preview?.sections?.events?.parts)
       ? preview.sections.events.parts.map((value) => String(value || '').trim()).filter(Boolean)
       : [];
-    if (facts.length) sections.facts = { parts: facts, source: 'preview-bootstrap' };
     if (events.length) sections.events = { parts: events, source: 'preview-bootstrap' };
     if (!Object.keys(sections).length) return feed;
     return await updateFeedSections(sections, { ...options, date, now });

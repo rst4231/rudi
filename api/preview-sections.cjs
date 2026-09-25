@@ -7,11 +7,17 @@ function normalizePreviewSections(payload = {}) {
   return {
     events: { section: 'events', parts: parts(results.events?.preview?.concerts, results.events?.preview?.stage), metadata: { available: Boolean(results.events) } },
     holidays: { section: 'holidays', parts: parts(results.holidays?.preview?.message), metadata: { available: Boolean(results.holidays) } },
-    facts: { section: 'facts', parts: parts(results.facts?.preview?.message), metadata: { available: Boolean(results.facts) } },
     clients: { section: 'clients', parts: parts(results.clients?.preview?.message), metadata: { available: Boolean(results.clients) } },
     cinema: { section: 'cinema', parts: parts(results.cinema?.preview?.message || results.cinema?.preview), metadata: { available: Boolean(results.cinema) } },
     labor: { section: 'labor', parts: parts(results.labor?.preview?.message || results.labor?.preview), metadata: { available: Boolean(results.labor) } },
   };
+}
+
+function stripRetiredSections(payload) {
+  if (!payload || typeof payload !== 'object' || !payload.results || !Object.prototype.hasOwnProperty.call(payload.results, 'facts')) return payload;
+  const results = { ...payload.results };
+  delete results.facts;
+  return { ...payload, results };
 }
 
 function applyPreviewContentOverride(sectionView, override) {
@@ -30,4 +36,4 @@ function applyPreviewContentOverride(sectionView, override) {
   };
 }
 
-module.exports = { normalizePreviewSections, applyPreviewContentOverride };
+module.exports = { normalizePreviewSections, stripRetiredSections, applyPreviewContentOverride };

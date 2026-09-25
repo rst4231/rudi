@@ -7,6 +7,7 @@ const { markPublicationPublished, markPublicationSkipped, writeDailyRunSummary }
 const { emitOperationalAlert } = require('./alert-service.cjs');
 const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 const { moscowDateKey } = require('./preview-date.cjs');
+const { stripRetiredSections } = require('./preview-sections.cjs');
 const { rankHolidayEntries, DEFAULT_MAX_ITEMS } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { updateFeedSections } = require('./feed-store.cjs');
@@ -15,11 +16,6 @@ const { publishForDiToRudi, hasQueuedForDiSource } = require('./for-di-private.c
 function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date()) {
   const results = payload?.results || {};
   const sections = {};
-  const fact = String(results.facts?.preview?.message || '').trim();
-  if (fact) {
-    sections.facts = { parts: [fact], source: 'daily-facts' };
-  }
-
   const events = [
     results.events?.preview?.concerts,
     results.events?.preview?.stage,
@@ -88,7 +84,6 @@ async function recordGeneratedPayload(payload, date, options = {}) {
   const rows = [
     ['events', results.events],
     ['holidays', results.holidays],
-    ['facts', results.facts],
     ['clients', results.clients],
   ];
   for (const [section, value] of rows) {
@@ -154,7 +149,11 @@ async function runDailyOrchestrator(req, res, options = {}) {
   let captured = null;
   let runtimeError = null;
   const originalJson = typeof res?.json === 'function' ? res.json.bind(res) : null;
-  if (originalJson) res.json = (payload) => { captured = payload; return originalJson(payload); };
+  if (originalJson) res.json = (payload) => {
+    const cleaned = stripRetiredSections(payload);
+    captured = cleaned;
+    return originalJson(cleaned);
+  };
   const previousSettings = req.rudiSettings;
   req.rudiSettings = settings;
   let runtimeReturn;

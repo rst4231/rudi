@@ -187,12 +187,6 @@ function feedSummaryLines(feed, date) {
   const feedIsToday = String(feed.date || '') === String(date);
   const lines = [];
 
-  const facts = sections.facts;
-  if ((feedIsToday || feedSectionUpdatedOnDate(facts, date))
-    && (facts?.parts?.length || facts?.items?.length)) {
-    lines.push('• новый полезный факт');
-  }
-
   const events = sections.events;
   const eventsAreToday = feedIsToday || feedSectionUpdatedOnDate(events, date);
   const eventParts = eventsAreToday && Array.isArray(events?.parts) ? events.parts : [];

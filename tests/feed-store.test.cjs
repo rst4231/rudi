@@ -18,25 +18,24 @@ function memoryCache() {
 test('feed replaces section content instead of accumulating old cards', async () => {
   const cache = memoryCache();
   await updateFeedSections({
-    facts: { parts: ['old fact'] },
+    events: { parts: ['old event'] },
   }, { feedCache: cache, now: new Date('2026-09-21T05:00:00Z'), date: '2026-09-21' });
 
   await updateFeedSections({
-    facts: { parts: ['new fact'] },
+    events: { parts: ['new event'] },
   }, { feedCache: cache, now: new Date('2026-09-22T05:00:00Z'), date: '2026-09-22' });
 
   const snapshot = await readFeedSnapshot({
     feedCache: cache,
     now: new Date('2026-09-22T05:01:00Z'),
   });
-  assert.deepEqual(snapshot.sections.facts.parts, ['new fact']);
-  assert.equal(JSON.stringify(snapshot).includes('old fact'), false);
+  assert.deepEqual(snapshot.sections.events.parts, ['new event']);
+  assert.equal(JSON.stringify(snapshot).includes('old event'), false);
 });
 
 test('expired feed content is physically removed from current storage snapshot', async () => {
   const cache = memoryCache();
   await updateFeedSections({
-    facts: { parts: ['fact'] },
     events: { parts: ['event'] },
   }, { feedCache: cache, now: new Date('2026-09-21T00:00:00Z'), date: '2026-09-21' });
 
@@ -52,14 +51,14 @@ test('expired feed content is physically removed from current storage snapshot',
 test('same-day retry does not clear pending changed sections before notification', async () => {
   const cache = memoryCache();
   const first = await updateFeedSections({
-    facts: { parts: ['same fact'] },
+    events: { parts: ['same event'] },
   }, { feedCache: cache, now: new Date('2026-09-21T00:00:00Z'), date: '2026-09-21' });
-  assert.deepEqual(first.changedSections, ['facts']);
+  assert.deepEqual(first.changedSections, ['events']);
 
   const retry = await updateFeedSections({
-    facts: { parts: ['same fact'] },
+    events: { parts: ['same event'] },
   }, { feedCache: cache, now: new Date('2026-09-21T01:00:00Z'), date: '2026-09-21' });
-  assert.deepEqual(retry.changedSections, ['facts']);
+  assert.deepEqual(retry.changedSections, ['events']);
   assert.equal(retry.version, first.version);
 });
 
@@ -68,7 +67,7 @@ test('cinema content stays until a newer cinema post replaces it', async () => {
   const cache = memoryCache();
   await updateFeedSections({
     cinema: { parts: ['old cinema post'] },
-    facts: { parts: ['daily fact'] },
+    events: { parts: ['daily event'] },
   }, { feedCache: cache, now: new Date('2026-09-01T00:00:00Z'), date: '2026-09-01' });
 
   const later = await readFeedSnapshot({
@@ -76,7 +75,7 @@ test('cinema content stays until a newer cinema post replaces it', async () => {
     now: new Date('2026-10-15T00:00:00Z'),
   });
   assert.deepEqual(later.sections.cinema.parts, ['old cinema post']);
-  assert.equal(later.sections.facts, undefined);
+  assert.equal(later.sections.events, undefined);
 
   await updateFeedSections({
     cinema: { parts: ['new cinema post'] },

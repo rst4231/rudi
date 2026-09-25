@@ -5,7 +5,6 @@ const STATE_KEY = 'current';
 const TTL_SECONDS = 60 * 60 * 24 * 365;
 const NOTICE_TTL_SECONDS = 60 * 60 * 24 * 14;
 const SECTION_TTL_MS = {
-  facts: 25 * 60 * 60 * 1000,
   events: 25 * 60 * 60 * 1000,
   cinema: null,
 };
@@ -71,7 +70,7 @@ function normalizeSection(name, input, now = new Date()) {
   const updatedAt = String(input.updatedAt || now.toISOString());
   const updatedMs = new Date(updatedAt).getTime();
   const persistent = name === 'cinema';
-  const ttlMs = Number(input.ttlMs || SECTION_TTL_MS[name] || SECTION_TTL_MS.facts);
+  const ttlMs = Number(input.ttlMs || SECTION_TTL_MS[name] || SECTION_TTL_MS.events);
   const expiresAt = persistent
     ? ''
     : String(input.expiresAt || new Date((Number.isFinite(updatedMs) ? updatedMs : now.getTime()) + ttlMs).toISOString());
@@ -95,7 +94,7 @@ function sectionSignature(section) {
 function normalizeSnapshot(value, now = new Date()) {
   const source = value && typeof value === 'object' ? value : {};
   const sections = {};
-  for (const name of ['facts', 'events', 'cinema']) {
+  for (const name of ['events', 'cinema']) {
     const section = normalizeSection(name, source.sections?.[name], now);
     if (!section) continue;
     const expires = new Date(section.expiresAt).getTime();
@@ -107,7 +106,7 @@ function normalizeSnapshot(value, now = new Date()) {
     updatedAt: String(source.updatedAt || ''),
     date: String(source.date || ''),
     changedSections: Array.isArray(source.changedSections)
-      ? source.changedSections.filter((name) => ['facts', 'events', 'cinema'].includes(name))
+      ? source.changedSections.filter((name) => ['events', 'cinema'].includes(name))
       : [],
     sections,
   };
@@ -140,7 +139,7 @@ async function updateFeedSections(input = {}, options = {}) {
   const sections = { ...current.sections };
   const changedSections = [];
 
-  for (const name of ['facts', 'events', 'cinema']) {
+  for (const name of ['events', 'cinema']) {
     if (!(name in input)) continue;
     const next = normalizeSection(name, input[name], now);
     if (!next) {

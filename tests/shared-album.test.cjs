@@ -8,6 +8,7 @@ test('shared album reports total photo count while only loading preview window',
     mediaAssetType: 'image',
     dateCreated: new Date(Date.UTC(2026, 8, 21 - Math.min(index, 20), 12)).toISOString(),
     caption: 'Фото ' + index,
+    ...(index === 0 ? { location: { name: 'Санкт-Петербург', latitude: 59.93, longitude: 30.33 } } : {}),
     derivatives: {
       thumb: {
         checksum: 'thumb-' + index,
@@ -81,6 +82,9 @@ test('shared album reports total photo count while only loading preview window',
   assert.equal(result.photos[0].height, 480);
   assert.equal(result.photos[0].fullWidth, 4032);
   assert.equal(result.photos[0].fullHeight, 3024);
+  assert.equal(result.photos[0].location, 'Санкт-Петербург');
+  assert.equal(result.photos[0].latitude, 59.93);
+  assert.equal(result.photos[0].longitude, 30.33);
   assert.match(result.photos[0].url, /-thumb\.jpg$/);
   assert.match(result.photos[0].fullUrl, /-full\.jpg$/);
 });

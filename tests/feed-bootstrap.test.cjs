@@ -18,7 +18,7 @@ function memoryCache() {
   };
 }
 
-test('feed bootstrap fills current facts and split event payload while keeping cinema', async () => {
+test('feed bootstrap fills split event payload while keeping cinema and ignoring retired facts', async () => {
   const cache = memoryCache();
   await updateFeedSections({
     cinema: { parts: ['🎬 old cinema'] },
@@ -43,7 +43,7 @@ test('feed bootstrap fills current facts and split event payload while keeping c
       return new Response(JSON.stringify({
         ok: true,
         sections: {
-          facts: { parts: ['💡 today fact'] },
+          facts: { parts: ['💡 retired fact'] },
           events: { parts: ['🎤 concerts today', '🎙 stand up today'] },
           cinema: { parts: [] },
         },
@@ -55,7 +55,7 @@ test('feed bootstrap fills current facts and split event payload while keeping c
   });
 
   assert.equal(requestedUrl, 'https://example.test/api/preview?date=2026-09-21');
-  assert.deepEqual(refreshed.sections.facts.parts, ['💡 today fact']);
+  assert.equal(refreshed.sections.facts, undefined);
   assert.deepEqual(refreshed.sections.events.parts, ['🎤 concerts today', '🎙 stand up today']);
   assert.deepEqual(refreshed.sections.cinema.parts, ['🎬 old cinema']);
   assert.equal(refreshed.date, '2026-09-21');

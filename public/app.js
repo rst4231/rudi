@@ -6663,6 +6663,8 @@
         const viewer=document.getElementById('photoViewer');
         const image=document.getElementById('photoViewerImage');
         const caption=document.getElementById('photoViewerCaption');
+        const date=document.getElementById('photoViewerDate');
+        const location=document.getElementById('photoViewerLocation');
         const prev=document.getElementById('photoViewerPrev');
         const next=document.getElementById('photoViewerNext');
         const original=document.getElementById('photoViewerOriginal');
@@ -6670,7 +6672,7 @@
         const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
         const fullUrl=String(photo?.fullUrl||previewUrl).trim();
         const photoIndex=currentSharedAlbumPhotoIndex;
-        if(!viewer||!image||!caption||!prev||!next||!original||!previewUrl) return false;
+        if(!viewer||!image||!caption||!date||!location||!prev||!next||!original||!previewUrl) return false;
 
         image.onerror=null;
         image.dataset.photoIndex=String(photoIndex);
@@ -6702,6 +6704,13 @@
           setPhotoViewerLoading('', '');
         }
 
+        const dateLabel=sharedAlbumViewerDateLabel(photo);
+        date.textContent=dateLabel?'Снято · '+dateLabel:'';
+        date.hidden=!dateLabel;
+        const locationLabel=sharedAlbumViewerLocationLabel(photo);
+        location.textContent=locationLabel?'Место · '+locationLabel:'';
+        location.hidden=!locationLabel;
+
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
         caption.hidden=!captionText;
@@ -6727,6 +6736,8 @@
         const viewer=document.getElementById('photoViewer');
         const image=document.getElementById('photoViewerImage');
         const caption=document.getElementById('photoViewerCaption');
+        const date=document.getElementById('photoViewerDate');
+        const location=document.getElementById('photoViewerLocation');
         if(!viewer||!image||!caption) return;
         viewer.classList.remove('open');
         viewer.setAttribute('aria-hidden','true');
@@ -6735,6 +6746,8 @@
         image.alt='';
         caption.textContent='';
         caption.hidden=true;
+        if(date){date.textContent='';date.hidden=true}
+        if(location){location.textContent='';location.hidden=true}
         setPhotoViewerLoading('', '');
         currentSharedAlbumPhotoIndex=-1;
       }
@@ -6761,6 +6774,31 @@
       function sharedAlbumPhotoTime(photo){
         const time=Date.parse(String(photo?.date||''));
         return Number.isFinite(time)?time:0;
+      }
+
+      function sharedAlbumViewerDateLabel(photo){
+        const time=sharedAlbumPhotoTime(photo);
+        if(!time) return '';
+        return new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,
+          day:'numeric',
+          month:'long',
+          year:'numeric',
+          hour:'2-digit',
+          minute:'2-digit',
+          hourCycle:'h23'
+        }).format(new Date(time)).replace(',',' ·');
+      }
+
+      function sharedAlbumViewerLocationLabel(photo){
+        const label=String(photo?.location||photo?.locationLabel||'').trim();
+        if(label) return label;
+        const latitude=Number(photo?.latitude);
+        const longitude=Number(photo?.longitude);
+        if(Number.isFinite(latitude)&&Number.isFinite(longitude)){
+          return latitude.toFixed(4)+', '+longitude.toFixed(4);
+        }
+        return '';
       }
 
       function sharedAlbumDateKey(value){
@@ -7362,7 +7400,6 @@
       }
 
       function setupReactions(){
-        bindReaction('feedFactsLike','feedFactsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('facts:'))||null);
         bindReaction('feedConcertsLike','feedConcertsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('concerts:'))||null);
         bindReaction('feedStandupLike','feedStandupLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('standup:'))||null);
         bindReaction('feedCinemaLike','feedCinemaLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('cinema:'))||null);
@@ -7374,7 +7411,6 @@
         try{
           const data=await reactionsRequest('list',{targets:currentFeedReactionTargets});
           for(const reaction of data.reactions||[]){
-            if(reaction.key.startsWith('facts:')) renderReaction(reaction,'feedFactsLike','feedFactsLikedBy');
             if(reaction.key.startsWith('concerts:')) renderReaction(reaction,'feedConcertsLike','feedConcertsLikedBy');
             if(reaction.key.startsWith('standup:')) renderReaction(reaction,'feedStandupLike','feedStandupLikedBy');
             if(reaction.key.startsWith('cinema:')) renderReaction(reaction,'feedCinemaLike','feedCinemaLikedBy');
@@ -7802,7 +7838,6 @@
           const line=lines[index];
           const plain=line.replace(/<[^>]*>/g,'').trim();
           if(index===0&&(
-            (name==='facts'&&/Полезн(?:ый факт|ые факты)/iu.test(plain))||
             (name==='concerts'&&/Поп и хип-хоп концерты/iu.test(plain))||
             (name==='standup'&&/Stage StandUp Club/iu.test(plain))||
             (name==='cinema'&&/Кинопремьеры/iu.test(plain))
@@ -7848,7 +7883,6 @@
 
       function feedDomIds(name){
         return {
-          facts:['feedFactsBody','feedFactsMeta','feedFactsCard','feedFactsNew'],
           concerts:['feedConcertsBody','feedConcertsMeta','feedConcertsCard','feedConcertsNew'],
           standup:['feedStandupBody','feedStandupMeta','feedStandupCard','feedStandupNew'],
           cinema:['feedCinemaBody','feedCinemaMeta','feedCinemaCard','feedCinemaNew']
@@ -8203,7 +8237,7 @@
           empty.className='feed-empty';
           empty.textContent=name==='cinema'
             ?'Подборка появится после первой публикации кинопремьер.'
-            :'Новый полезный факт появится после следующего обновления.';
+            :'Свежие материалы появятся после следующего обновления.';
           body.appendChild(empty);
         }
 
@@ -8220,7 +8254,6 @@
           return '🎤 '+count+' '+word;
         }
         if(name==='standup') return '🎙 '+count+' Stand Up';
-        if(name==='facts') return '💡 Факт дня';
         if(name==='cinema') return '🎬 Кинопремьеры';
         return '';
       }
@@ -8237,7 +8270,6 @@
         for(const result of results){
           if(!result?.hasContent) continue;
           if((result.name==='concerts'||result.name==='standup')&&(!payloadToday||result.count<1)) continue;
-          if(result.name==='facts'&&!payloadToday) continue;
           if(result.name==='cinema'&&feedDateKey(payload?.sections?.cinema?.updatedAt)!==today) continue;
           rows.push(result);
         }
@@ -8269,11 +8301,10 @@
           if((name==='concerts'||name==='standup')&&result.hasContent&&result.count>0){
             return 100+(Number.isFinite(result.firstTime)?result.firstTime:999);
           }
-          if(name==='facts'&&result.hasContent) return 2000;
           if(name==='cinema'&&result.hasContent) return 3000;
           return 4000+(name==='concerts'?1:name==='standup'?2:3);
         };
-        ['concerts','standup','facts','cinema']
+        ['concerts','standup','cinema']
           .sort((a,b)=>score(a)-score(b))
           .forEach(name=>{
             const [, ,cardId]=feedDomIds(name);
@@ -8286,7 +8317,6 @@
         const sections=payload?.sections&&typeof payload.sections==='object'?payload.sections:{};
         const eventParts=Array.isArray(sections.events?.parts)?sections.events.parts:[];
         const results=[
-          renderFeedSection('facts',sections.facts,null,payload),
           renderFeedSection('concerts',sections.events,eventParts[0]?[eventParts[0]]:[],payload),
           renderFeedSection('standup',sections.events,eventParts[1]?[eventParts[1]]:[],payload),
           renderFeedSection('cinema',sections.cinema,null,payload)
@@ -8302,7 +8332,6 @@
         setTimeout(observeFeedCards,0);
 
         currentFeedReactionTargets=[
-          ...(sections.facts?.parts?.length?[{type:'feed',key:'facts:'+String(sections.facts.updatedAt||payload?.date||'')}]:[]),
           ...(eventParts[0]?[{type:'feed',key:'concerts:'+String(sections.events?.updatedAt||payload?.date||'')}]:[]),
           ...(eventParts[1]?[{type:'feed',key:'standup:'+String(sections.events?.updatedAt||payload?.date||'')}]:[]),
           ...((sections.cinema?.parts?.length||sections.cinema?.items?.length)?[{type:'feed',key:'cinema:'+String(sections.cinema.updatedAt||'current')}]:[])
@@ -8337,7 +8366,7 @@
           renderFeed(payload);
         }catch(_){
           if(status) status.textContent='Не удалось обновить Ленту. Уже сохранённые актуальные материалы не удаляются из-за временного сбоя.';
-          for(const name of ['facts','concerts','standup','cinema']){
+          for(const name of ['concerts','standup','cinema']){
             const [bodyId]=feedDomIds(name);
             const body=document.getElementById(bodyId);
             if(body&&body.querySelector('.feed-skeleton')){

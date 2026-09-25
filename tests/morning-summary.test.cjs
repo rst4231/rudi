@@ -44,7 +44,7 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
     },
     cycle:{moodWord:'Чувствительная',phase:'Лютеиновая фаза'},
     productCount:7,
-    feedLines:['• новый полезный факт','• 2 Stand Up'],
+    feedLines:['• 2 Stand Up'],
     environment:{
       home:{temperature:23.2,humidity:56},
       weather:{temperature:16,code:2,minForecast:8,maxForecast:17,avgMean:12},
@@ -92,17 +92,16 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.doesNotMatch(diana, /Проверить давление в шинах/);
 });
 
-test('feed summary keeps Today in Feed when current content exists without changedSections', () => {
+test('feed summary keeps active Feed sections without retired facts', () => {
   const date='2026-09-24';
   const lines=feedSummaryLines({
     date,
     changedSections:[],
     sections:{
-      facts:{parts:['Факт дня'],updatedAt:'2026-09-24T00:10:00+03:00'},
       cinema:{items:[{title:'Премьера'}],updatedAt:'2026-09-17T00:10:00+03:00'},
     },
   },date);
-  assert.match(lines.join('\n'),/полезный факт/);
+  assert.doesNotMatch(lines.join('\n'),/полезный факт/i);
   assert.match(lines.join('\n'),/кинопремьеры/);
 });
 
@@ -171,9 +170,8 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
     ]}),
     readFeedImpl:async()=>({
       date:'2026-09-21',
-      changedSections:['facts','events'],
+      changedSections:['events'],
       sections:{
-        facts:{parts:['fact']},
         events:{parts:[
           'На эту дату концертов не найдено.',
           'Найдено событий/сеансов: <b>2</b>\n1. A\n2. B',

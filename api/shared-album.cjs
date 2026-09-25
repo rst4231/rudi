@@ -110,6 +110,28 @@ function photoDate(photo) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function photoLocationMetadata(photo) {
+  const source = photo?.location && typeof photo.location === 'object'
+    ? photo.location
+    : (photo?.locationInfo && typeof photo.locationInfo === 'object' ? photo.locationInfo : {});
+  const candidates = [
+    photo?.locationName,
+    source?.name,
+    source?.label,
+    source?.formattedAddress,
+    source?.address,
+    source?.locality,
+    source?.city,
+  ].filter((value) => typeof value === 'string' && value.trim());
+  const latitude = Number(source?.latitude ?? source?.lat ?? photo?.latitude);
+  const longitude = Number(source?.longitude ?? source?.lon ?? source?.lng ?? photo?.longitude);
+  return {
+    label: candidates.length ? String(candidates[0]).trim() : '',
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
+  };
+}
+
 function derivativeScore(item) {
   const width = Number(item?.width || 0);
   const height = Number(item?.height || 0);
@@ -189,6 +211,7 @@ async function fetchLatestPhotos(config, options = {}) {
     const fullDerivative = pickViewerDerivative(photo) || derivative;
     const checksum = derivative?.checksum || '';
     const fullChecksum = fullDerivative?.checksum || checksum;
+    const location = photoLocationMetadata(photo);
     return {
       id: String(photo.photoGuid),
       url: assetUrl(assetResult.payload, checksum),
@@ -199,6 +222,9 @@ async function fetchLatestPhotos(config, options = {}) {
       fullHeight: Number(fullDerivative?.height || photo.height || 0) || null,
       date: String(photo.batchDateCreated || photo.dateCreated || ''),
       caption: String(photo.caption || '').trim(),
+      location: location.label,
+      latitude: location.latitude,
+      longitude: location.longitude,
     };
   }).filter((photo) => photo.url);
 

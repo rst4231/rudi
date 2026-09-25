@@ -5,7 +5,7 @@ const {
   rewriteClientsPreviewPayloadWithAdvice,
 } = require('./clients-advice.cjs');
 const { resolvePreviewDate } = require('./preview-date.cjs');
-const { normalizePreviewSections, applyPreviewContentOverride } = require('./preview-sections.cjs');
+const { normalizePreviewSections, stripRetiredSections, applyPreviewContentOverride } = require('./preview-sections.cjs');
 const { getContentOverride } = require('./section-controls.cjs');
 const { SECTION_NAMES } = require('./rudi-settings.cjs');
 const { DEFAULT_MAX_ITEMS, rankHolidayEntries } = require('./holiday-significance.cjs');
@@ -105,7 +105,7 @@ async function runPreview(req, res, options = {}) {
   const originalJson = typeof res?.json === 'function' ? res.json.bind(res) : null;
   if (originalJson) {
     res.json = (payload) => {
-      const rewritten = sanitizeStagePrices(rewriteClientsPreviewPayloadWithAdvice(payload, advice));
+      const rewritten = stripRetiredSections(sanitizeStagePrices(rewriteClientsPreviewPayloadWithAdvice(payload, advice)));
       const warnings = Array.isArray(rewritten?.warnings) ? [...rewritten.warnings] : [];
       if (rewritten?.date && rewritten.date !== requestedDate) {
         warnings.push({ code: 'runtime-date-mismatch', expected: requestedDate, actual: rewritten.date });
