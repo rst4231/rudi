@@ -1068,6 +1068,19 @@ async function handleTickTick(req, res, action, options = {}) {
     try {
       const task = await fetchTask(token.accessToken, config.projectId, taskId, options);
       const wasOpen = Number(task?.status ?? 0) === 0;
+      const assigneeTag = resolveAssigneeName(task?.assigneeUsername);
+      const hasAssignee = Boolean(String(task?.assigneeUsername || '').trim());
+      const responsibleActor = assigneeTag === 'RST' ? 'Рустам' : assigneeTag === 'Ди' ? 'Диана' : '';
+      if (hasAssignee && !responsibleActor) {
+        return res.status(409).json({ ok:false, connected:true, error:'ticktick-task-assignee-unknown' });
+      }
+      if (responsibleActor && actor !== responsibleActor) {
+        return res.status(403).json({
+          ok:false, connected:true, error:'ticktick-task-assignee-forbidden',
+          assignee:assigneeTag,
+        });
+      }
+
       await completeTickTickTask(token.accessToken, config.projectId, taskId, options);
       if (wasOpen) {
         await sendActivityNotification(
@@ -1082,7 +1095,17 @@ async function handleTickTick(req, res, action, options = {}) {
           icon: '✅',
           targetTab: 'schedule',
         }, options);
-        await awardScoreSafe(actor, 20, {label:'Задача',detail:String(task?.title||'Совместное дело').trim(),icon:'✅',dedupeKey:'score:task:'+taskId+':'+moscowDateKey(options.now||Date.now())}, options);
+
+        const scoreActors = responsibleActor ? [responsibleActor] : ['Рустам', 'Диана'];
+        const scoreDate = moscowDateKey(options.now || Date.now());
+        for (const scoreActor of scoreActors) {
+          await awardScoreSafe(scoreActor, 20, {
+            label: responsibleActor ? 'Задача' : 'Общая задача',
+            detail: String(task?.title || 'Совместное дело').trim(),
+            icon: '✅',
+            dedupeKey: 'score:task:' + taskId + ':' + scoreDate + ':' + scoreActor,
+          }, options);
+        }
       }
       const backupToken = await refreshBackupToken(previousSnapshot, options);
       return res.status(200).json({

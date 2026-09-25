@@ -7954,7 +7954,7 @@ body.voice-assistant-open .voice-assistant-icon-button{
 }
 .score-avatar-wrap>.avatar{width:100%;height:100%}
 .score-sticker{
-  position:absolute;z-index:7;left:50%;bottom:-7px;
+  position:absolute;z-index:7;left:50%;bottom:0;
   min-width:32px;height:20px;padding:0 6px;
   display:flex;align-items:center;justify-content:center;gap:2px;
   border:1px solid color-mix(in srgb,#f6c84c 55%,var(--line));
@@ -8046,6 +8046,6 @@ body.score-modal-open{overflow:hidden;overscroll-behavior:none}
 .score-modal-backdrop{touch-action:none}
 .wish-item.own-wish{grid-template-columns:minmax(0,1fr) 22px}
 @media(max-width:430px){
-  .score-sticker{left:50%;bottom:-7px;min-width:30px;height:19px;padding:0 5px}
+  .score-sticker{left:50%;bottom:0;min-width:30px;height:19px;padding:0 5px}
   .score-modal-sheet{padding-left:13px;padding-right:13px;border-radius:23px 23px 0 0}
 }

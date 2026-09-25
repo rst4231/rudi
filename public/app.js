@@ -2315,11 +2315,15 @@
         }
       }
 
-      function homeTaskForActor(task){
+      function tickTickTaskCanComplete(task){
         if(!task||task.completed) return false;
         if(!task.assigned) return true;
         const expected=currentActor==='Диана'?'ди':'rst';
         return String(task.assignee||'').trim().toLocaleLowerCase('ru-RU')===expected;
+      }
+
+      function homeTaskForActor(task){
+        return tickTickTaskCanComplete(task);
       }
 
       function homeTaskCountLabel(count){
@@ -5888,6 +5892,13 @@
 
       async function completeCalendarTickTickTask(task,row,button,writable){
         if(!task?.id||row?.dataset?.busy==='1') return;
+        if(!tickTickTaskCanComplete(task)){
+          const status=document.getElementById('workCalendarStatus');
+          status.hidden=false;
+          status.textContent='Задача назначена другому участнику';
+          try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+          return;
+        }
         if(writable===false){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
@@ -5921,6 +5932,13 @@
 
       async function completeTickTickTodayTask(task,row,button,writable){
         if(!task?.id||row?.dataset?.busy==='1') return;
+        if(!tickTickTaskCanComplete(task)){
+          const badge=document.getElementById('ticktickBadge');
+          badge.hidden=false;
+          badge.textContent='Задача назначена другому';
+          try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+          return;
+        }
         if(writable===false){
           showTickTickWritePermission();
           try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
@@ -6011,7 +6029,11 @@
           complete.className='ticktick-today-complete';
           complete.setAttribute('role','checkbox');
           complete.setAttribute('aria-checked','false');
-          complete.setAttribute('aria-label','Отметить выполненным: '+String(task?.title||'Дело'));
+          const canComplete=tickTickTaskCanComplete(task);
+          complete.setAttribute('aria-label',canComplete
+            ?'Отметить выполненным: '+String(task?.title||'Дело')
+            :'Эта задача назначена другому участнику');
+          complete.disabled=!canComplete||payload?.writable===false;
           complete.addEventListener('click',event=>{
             event.stopPropagation();
             completeTickTickTodayTask(task,row,complete,payload?.writable!==false);
@@ -6643,8 +6665,11 @@
                 complete.className='calendar-task-complete';
                 complete.setAttribute('role','checkbox');
                 complete.setAttribute('aria-checked','false');
-                complete.setAttribute('aria-label','Отметить выполненным: '+String(event.title||'Дело'));
-                complete.disabled=!event?.id||payload?.ticktickWritable===false;
+                const canComplete=tickTickTaskCanComplete(event);
+                complete.setAttribute('aria-label',canComplete
+                  ?'Отметить выполненным: '+String(event.title||'Дело')
+                  :'Эта задача назначена другому участнику');
+                complete.disabled=!event?.id||payload?.ticktickWritable===false||!canComplete;
 
                 const taskCopy=document.createElement('span');
                 taskCopy.className='calendar-task-copy';
