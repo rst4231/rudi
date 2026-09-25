@@ -8,6 +8,7 @@ const DAILY_LIMIT_UNITS = 100;
 const MAX_HISTORY = 500;
 const MAX_DEDUPE = 2000;
 const MAX_DAYS = 120;
+const MAX_REDEMPTIONS = 240;
 const TZ = 'Europe/Moscow';
 const ACTORS = ['Рустам', 'Диана'];
 
@@ -94,6 +95,22 @@ function normalizeHistoryItem(input) {
     reversedAt:cleanText(input.reversedAt,40),
   };
 }
+function normalizeRedemption(input) {
+  if(!input||typeof input!=='object') return null;
+  const id=cleanText(input.id,96);
+  const buyerActor=cleanActor(input.buyerActor);
+  const rewardId=cleanText(input.rewardId,40);
+  const label=cleanText(input.label,80);
+  const icon=cleanText(input.icon,12)||'🎁';
+  const costUnits=Math.max(0,normalizeUnits(input.costUnits));
+  const created=new Date(input.createdAt||0);
+  if(!id||!buyerActor||!rewardId||!label||!costUnits||Number.isNaN(created.getTime())) return null;
+  const completedBy=cleanActor(input.completedBy);
+  const done=input.completedAt?new Date(input.completedAt):null;
+  const completedAt=done&&!Number.isNaN(done.getTime())?done.toISOString():'';
+  const status=completedAt&&completedBy?'completed':'active';
+  return {id,buyerActor,rewardId,label,icon,costUnits,status,createdAt:created.toISOString(),completedAt,completedBy:status==='completed'?completedBy:''};
+}
 function normalizeState(value) {
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   return {
@@ -106,6 +123,10 @@ function normalizeState(value) {
       .map(normalizeHistoryItem).filter(Boolean)
       .sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt))
       .slice(0,MAX_HISTORY),
+    redemptions:(Array.isArray(source.redemptions)?source.redemptions:[])
+      .map(normalizeRedemption).filter(Boolean)
+      .sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt))
+      .slice(0,MAX_REDEMPTIONS),
     dedupe:normalizeDedupe(source.dedupe),
   };
 }
@@ -196,8 +217,13 @@ async function redeemReward(actor,rewardId,options={}) {
   if(!who||!reward) throw new Error('score-reward-invalid');
   return enqueueMutation(async()=>{
     const state=await readScoreState(options);
+    if(state.redemptions.some((row)=>row.status==='active'&&row.rewardId===reward.id)) throw new Error('score-reward-active');
     if(state.balances[who]<reward.costUnits) throw new Error('score-balance-insufficient');
     const now=new Date(options.now||Date.now());
+    const redemption=normalizeRedemption({
+      id:'reward-'+crypto.randomUUID(),buyerActor:who,rewardId:reward.id,label:reward.label,icon:reward.icon,
+      costUnits:reward.costUnits,createdAt:now.toISOString(),
+    });
     const next={
       ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
       balances:{...state.balances,[who]:state.balances[who]-reward.costUnits},
@@ -207,10 +233,30 @@ async function redeemReward(actor,rewardId,options={}) {
         label:'Награда',detail:reward.label,icon:reward.icon,rewardId:reward.id,
         dateKey:scoreDateKey(now),createdAt:now.toISOString(),
       }),...state.history],
+      redemptions:[redemption,...state.redemptions],
       dedupe:{...state.dedupe},
     };
     const saved=await writeScoreState(next,options);
-    return {state:saved,reward};
+    return {state:saved,reward,redemption};
+  });
+}
+async function completeReward(actor,redemptionId,options={}) {
+  const who=cleanActor(actor);
+  const id=cleanText(redemptionId,96);
+  if(!who||!id) throw new Error('score-reward-complete-invalid');
+  return enqueueMutation(async()=>{
+    const state=await readScoreState(options);
+    const index=state.redemptions.findIndex((row)=>row.id===id);
+    if(index<0) throw new Error('score-reward-not-found');
+    const current=state.redemptions[index];
+    if(current.status!=='active') throw new Error('score-reward-already-completed');
+    if(current.buyerActor===who) throw new Error('score-reward-self-complete-forbidden');
+    const now=new Date(options.now||Date.now());
+    const completed=normalizeRedemption({...current,completedAt:now.toISOString(),completedBy:who});
+    const redemptions=[...state.redemptions];
+    redemptions[index]=completed;
+    const saved=await writeScoreState({...state,version:Math.max(0,Number(state.version||0))+1,redemptions},options);
+    return {state:saved,redemption:completed};
   });
 }
 function scoreView(value,options={}) {
@@ -225,6 +271,8 @@ function scoreView(value,options={}) {
       earned:Object.fromEntries(ACTORS.map((actor)=>[actor,pointsFromUnits(today[actor])]))},
     history:state.history.map((row)=>({...row,points:pointsFromUnits(row.units),requestedPoints:pointsFromUnits(row.requestedUnits)})),
     rewards:REWARDS.map((reward)=>({id:reward.id,label:reward.label,icon:reward.icon,cost:pointsFromUnits(reward.costUnits)})),
+    activeRewards:state.redemptions.filter((row)=>row.status==='active').map((row)=>({...row,cost:pointsFromUnits(row.costUnits)})),
+    completedRewards:state.redemptions.filter((row)=>row.status==='completed').map((row)=>({...row,cost:pointsFromUnits(row.costUnits)})),
   };
 }
 async function restoreScoreState(snapshot,options={}) {
@@ -238,6 +286,6 @@ function resetMutationQueueForTests(){ mutationTail=Promise.resolve(); }
 
 module.exports={
   NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
-  readScoreState,writeScoreState,awardScore,reverseScoreByDedupeKey,redeemReward,scoreView,restoreScoreState,
+  readScoreState,writeScoreState,awardScore,reverseScoreByDedupeKey,redeemReward,completeReward,scoreView,restoreScoreState,
   resetMutationQueueForTests,
 };
