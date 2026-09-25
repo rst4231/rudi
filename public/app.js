@@ -2464,6 +2464,7 @@
 
       let currentScoreState=null;
       let scoreModalActor='';
+      let scoreModalScrollY=0;
 
       function scoreNumber(value){
         const number=Number(value||0);
@@ -2546,6 +2547,8 @@
             const shop=modal.querySelector('#scoreShopPanel');
             history.hidden=tab!=='history';
             shop.hidden=tab!=='shop';
+            if(tab==='history') history.scrollTop=0;
+            if(tab==='shop') shop.scrollTop=0;
           });
         });
         document.addEventListener('keydown',event=>{
@@ -2559,6 +2562,12 @@
         if(!modal) return;
         modal.hidden=true;
         document.body.classList.remove('score-modal-open');
+        document.body.style.position='';
+        document.body.style.top='';
+        document.body.style.left='';
+        document.body.style.right='';
+        document.body.style.width='';
+        window.scrollTo(0,scoreModalScrollY);
         scoreModalActor='';
       }
 
@@ -2654,6 +2663,14 @@
       async function openScoreModal(actor){
         const modal=ensureScoreModal();
         scoreModalActor=actor;
+        if(modal.hidden){
+          scoreModalScrollY=window.scrollY||window.pageYOffset||0;
+          document.body.style.position='fixed';
+          document.body.style.top='-'+scoreModalScrollY+'px';
+          document.body.style.left='0';
+          document.body.style.right='0';
+          document.body.style.width='100%';
+        }
         modal.hidden=false;
         document.body.classList.add('score-modal-open');
         if(currentScoreState) renderScoreModal(actor,currentScoreState);
