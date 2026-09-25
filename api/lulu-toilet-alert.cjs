@@ -1,3 +1,4 @@
+// 100% alert routing follows Diana's active calendar shift at the moment the threshold is reached.
 const { readLuluState, recordLuluToiletAlertRecipients } = require('./lulu-store.cjs');
 const { luluToiletProbability, localMinutes } = require('./lulu-toilet.cjs');
 const { readRecipients } = require('./partner-notification-store.cjs');
