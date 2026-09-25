@@ -2120,6 +2120,16 @@ async function handleRudiAction(req, res, action, options = {}) {
       const likedNow = message?.likes?.includes(actor);
       if (likedNow && !before?.likes?.includes(actor)) {
         await recordLikeActivity({ type:'partner-message', key:'current' }, actor, options).catch(() => null);
+        const messageAuthor = String(before?.authorName || message?.authorName || '').trim();
+        if (messageAuthor && messageAuthor !== actor) {
+          const scoreDate = moscowDateKey(options.now || Date.now());
+          await awardScoreSafe(actor,2,{
+            label:'Реакция',
+            detail:'Реакция на послание партнёра',
+            icon:'❤️',
+            dedupeKey:'score:partner-message-reaction:'+actor+':'+scoreDate,
+          },options);
+        }
       }
       const backupToken = await refreshBackupToken(previousSnapshot, options);
       return res.status(200).json({ ok:true, actor, message, backupToken });
