@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": true
   },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",
   "functions": {
@@ -203,11 +203,10 @@
     },
     {
       "path": "/api/feed-notify-cron",
-      "schedule": "0 3 * * *"
+      "schedule": "0 3,5,7,9 * * *"
     }
   ],
   "env": {
     "NODE_OPTIONS": "--disable-warning=DEP0169"
   }
-
 }
