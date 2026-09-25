@@ -15,12 +15,12 @@ const TZ = 'Europe/Moscow';
 const ACTORS = ['Рустам', 'Диана'];
 
 const REWARDS = Object.freeze([
-  { id:'movie', label:'Выбрать фильм', icon:'🎬', costUnits:200 },
-  { id:'dinner', label:'Выбрать ужин', icon:'🍽️', costUnits:300 },
-  { id:'breakfast', label:'Завтрак в постель', icon:'🥐', costUnits:400 },
-  { id:'massage', label:'Массаж', icon:'💆', costUnits:500 },
-  { id:'day-off', label:'День без домашних обязанностей', icon:'🛋️', costUnits:1000 },
-  { id:'date', label:'Выбрать свидание', icon:'💞', costUnits:1200 },
+  { id:'movie', label:'Выбрать фильм', icon:'🎬', costUnits:150 },
+  { id:'dinner', label:'Выбрать ужин', icon:'🍽️', costUnits:250 },
+  { id:'breakfast', label:'Завтрак в постель', icon:'🥐', costUnits:300 },
+  { id:'massage', label:'Массаж', icon:'💆', costUnits:400 },
+  { id:'day-off', label:'День без домашних обязанностей', icon:'🛋️', costUnits:800 },
+  { id:'date', label:'Выбрать свидание', icon:'💞', costUnits:950 },
 ]);
 
 let mutationTail = Promise.resolve();
