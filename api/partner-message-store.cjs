@@ -39,7 +39,9 @@ function normalizeStoredMessage(value) {
   if (!text || !authorName || !updatedAt) return null;
   const id = normalizeMessageId(value.id, text, authorName);
   const likes = normalizeLikes(value.likes);
-  return { id, text, authorName, updatedAt, likes };
+  const likesInitialized = value.likesInitialized === true
+    || Object.prototype.hasOwnProperty.call(value, 'likes');
+  return { id, text, authorName, updatedAt, likes, likesInitialized };
 }
 
 async function readPartnerMessage(options = {}) {

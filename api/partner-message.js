@@ -2037,18 +2037,20 @@ async function handleRudiAction(req, res, action, options = {}) {
         await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
       }
       let message = await readPartnerMessage(options);
-      if(message && !(message.likes||[]).length){
+      if(message && !message.likesInitialized){
         const targets=[
           {type:'partner-message',key:'message:'+String(message.id||'')},
           {type:'partner-message',key:'message:'+String(message.updatedAt||'')},
         ].filter((target,index,rows)=>target.key!=='message:'&&rows.findIndex(row=>row.key===target.key)===index);
-        if(targets.length){
-          const rows=await readReactions(targets,options).catch(()=>[]);
-          const migrated=[...new Set(rows.flatMap(row=>Array.isArray(row?.likedBy)?row.likedBy:[]))];
-          if(migrated.length){
-            message=await writePartnerMessage({ ...message, likes:migrated },options).catch(()=>message);
-          }
-        }
+        const rows=targets.length
+          ? await readReactions(targets,options).catch(()=>[])
+          : [];
+        const migrated=[...new Set(rows.flatMap(row=>Array.isArray(row?.likedBy)?row.likedBy:[]))];
+        message=await writePartnerMessage({
+          ...message,
+          likes:migrated,
+          likesInitialized:true,
+        },options).catch(()=>message);
       }
       return res.status(200).json({ ok: true, message });
     } catch (error) {
@@ -2653,6 +2655,7 @@ async function handler(req, res, options = {}) {
       authorName: actor || authorName,
       updatedAt: new Date(options.now || Date.now()).toISOString(),
       likes: [],
+      likesInitialized: true,
     }, options);
 
     await recordActivity({
