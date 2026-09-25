@@ -5798,7 +5798,12 @@ html[data-theme="dark"] .profile-person-card .profile-work-status.is-off{color:#
 .lulu-toilet-status[data-level="medium"]{color:#e5bf7e}
 .lulu-toilet-status[data-level="high"]{color:#f08a7b}
 .lulu-toilet-status[data-level="unknown"]{color:rgba(239,242,249,.52)}
-.lulu-walk-status{overflow:hidden;color:rgba(239,242,249,.72);font-size:11px;line-height:1.3;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.lulu-walk-status{display:block;max-width:100%;padding:0;border:0;background:transparent;overflow:hidden;color:rgba(239,242,249,.72);font:inherit;font-size:11px;line-height:1.3;font-weight:700;text-align:left;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.lulu-walk-status:active{opacity:.72}
+.lulu-walk-history{display:grid;gap:3px;max-height:0;overflow:hidden;opacity:0;transform:translateY(-3px);transition:max-height .24s ease,opacity .18s ease,transform .24s ease}
+.lulu-walk-history.is-open{max-height:120px;opacity:1;transform:none;margin-top:2px}
+.lulu-walk-history-item,.lulu-walk-history-empty{color:rgba(239,242,249,.56);font-size:9.5px;line-height:1.3;font-weight:650}
+.lulu-walk-history-empty{font-style:italic}
 .lulu-body{display:grid;gap:7px}
 .lulu-walk-button{min-height:42px;border:1px solid rgba(211,173,132,.20);border-radius:13px;background:linear-gradient(135deg,rgba(171,125,82,.24),rgba(120,88,62,.14));color:#f8eee5;font:inherit;font-size:12px;font-weight:820;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 .lulu-walk-button:disabled{opacity:.62}

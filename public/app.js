@@ -2511,26 +2511,23 @@
         return hour*60+minute;
       }
 
+      function luluWalkLikelyIncludedMeal(walkedAt){
+        const walked=new Date(String(walkedAt||''));
+        if(Number.isNaN(walked.getTime())) return false;
+        const minutes=luluLocalMinutes(walked);
+        return minutes<12*60||minutes>=20*60;
+      }
+
       function luluMealWindowBoost(walkedAt,now=new Date()){
         const walked=new Date(String(walkedAt||''));
-        if(Number.isNaN(walked.getTime())) return 0;
-        const nowMinutes=luluLocalMinutes(now);
-        const walkedMinutes=luluLocalMinutes(walked);
-        const sameDay=sharedAlbumDateKey(walked)===sharedAlbumDateKey(now);
-        const windows=[
-          {start:8*60,end:10*60},
-          {start:20*60,end:22*60}
-        ];
-        let boost=0;
-        for(const window of windows){
-          const inOrAfterMeal=nowMinutes>=window.start&&nowMinutes<=window.end+120;
-          if(!inOrAfterMeal) continue;
-          const walkWasBeforeMeal=!sameDay||walkedMinutes<window.start;
-          const walkWasDuringMeal=sameDay&&walkedMinutes>=window.start&&walkedMinutes<=window.end;
-          if(walkWasBeforeMeal) boost=Math.max(boost,10);
-          else if(walkWasDuringMeal) boost=Math.max(boost,4);
-        }
-        return boost;
+        if(Number.isNaN(walked.getTime())||!luluWalkLikelyIncludedMeal(walkedAt)) return 0;
+        const elapsedHours=Math.max(0,(now.getTime()-walked.getTime())/3600000);
+        if(elapsedHours<.5) return 2;
+        if(elapsedHours<1.5) return 7;
+        if(elapsedHours<3) return 10;
+        if(elapsedHours<4.5) return 7;
+        if(elapsedHours<6) return 4;
+        return 0;
       }
 
       function luluToiletProbability(walkedAt,now=new Date()){
@@ -2542,11 +2539,11 @@
           timeZone:TZ,year:'numeric'
         }).format(now));
         const age=Math.max(0,currentYear-2020);
-        const comfortableHours=age>=10?4.5:age>=8?5.25:6;
+        const comfortableHours=age>=10?3.5:age>=8?3.75:4;
 
         const ratio=elapsedHours/comfortableHours;
         const points=[
-          [0,6],[.2,10],[.4,20],[.6,34],[.8,52],[1,70],[1.2,84],[1.4,93],[1.7,98]
+          [0,5],[.25,12],[.5,28],[.75,48],[1,68],[1.25,82],[1.5,92],[1.75,98],[2,100]
         ];
         let base=98;
         if(ratio<=points[0][0]) base=points[0][1];
@@ -2581,10 +2578,60 @@
         node.dataset.level=probability>=80?'high':probability>=50?'medium':'low';
       }
 
+      function luluTodayWalks(state){
+        const today=sharedAlbumDateKey(new Date());
+        const rows=(Array.isArray(state?.walksToday)?state.walksToday:[])
+          .filter(row=>sharedAlbumDateKey(new Date(String(row?.walkedAt||'')))===today)
+          .filter(row=>String(row?.actor||'').trim()&&row?.walkedAt);
+        const last=state?.lastWalk;
+        if(last&&sharedAlbumDateKey(new Date(String(last.walkedAt||'')))===today
+            &&!rows.some(row=>row.walkedAt===last.walkedAt)) rows.push(last);
+        return rows.sort((a,b)=>new Date(a.walkedAt)-new Date(b.walkedAt));
+      }
+
+      function renderLuluWalkHistory(state){
+        const panel=document.getElementById('luluWalkHistory');
+        const status=document.getElementById('luluWalkStatus');
+        if(!panel||!status) return;
+        const rows=luluTodayWalks(state);
+        const lastWalkedAt=String(state?.lastWalk?.walkedAt||'');
+        const previous=rows.filter(row=>String(row.walkedAt||'')!==lastWalkedAt).reverse();
+        panel.replaceChildren();
+        if(!previous.length){
+          const empty=document.createElement('div');
+          empty.className='lulu-walk-history-empty';
+          empty.textContent='Сегодня не гуляла';
+          panel.appendChild(empty);
+        }else{
+          for(const row of previous){
+            const date=new Date(String(row.walkedAt||''));
+            const time=Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('ru-RU',{
+              timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+            }).format(date);
+            const actor=String(row.actor||'').trim();
+            const companion=actor==='Диана'?'Дианой':actor==='Рустам'?'Рустамом':actor;
+            const item=document.createElement('div');
+            item.className='lulu-walk-history-item';
+            item.textContent=time+' · с '+companion;
+            panel.appendChild(item);
+          }
+        }
+      }
+
+      function toggleLuluWalkHistory(){
+        const panel=document.getElementById('luluWalkHistory');
+        const status=document.getElementById('luluWalkStatus');
+        if(!panel||!status) return;
+        const open=!panel.classList.contains('is-open');
+        panel.classList.toggle('is-open',open);
+        status.setAttribute('aria-expanded',open?'true':'false');
+      }
+
       function renderLulu(value){
         const state=value&&typeof value==='object'?value:{};
         homeDashboardState.lulu=state;
         syncLuluToiletStatus();
+        renderLuluWalkHistory(state);
         const status=document.getElementById('luluWalkStatus');
         const walk=state.lastWalk&&typeof state.lastWalk==='object'?state.lastWalk:null;
         if(!status) return;
@@ -3132,6 +3179,7 @@
         });
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
+        document.getElementById('luluWalkStatus')?.addEventListener('click',toggleLuluWalkHistory);
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
           navigateToAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
@@ -3468,7 +3516,7 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Lulu" width="58" height="58">'+
-              '<div class="lulu-copy"><h2>Lulu</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><div id="luluWalkStatus" class="lulu-walk-status">Прогулка · пока не отмечена</div></div>'+
+              '<div class="lulu-copy"><h2>Lulu</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
             '</div>'+
             '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+

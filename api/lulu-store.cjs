@@ -3,8 +3,19 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const NAMESPACE = 'rudi-lulu-v1';
 const STATE_KEY = 'lulu';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
+const TZ = 'Europe/Moscow';
 
 let mutationTail = Promise.resolve();
+
+function moscowDateKey(value = Date.now()) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return values.year + '-' + values.month + '-' + values.day;
+}
 
 function cacheOf(options = {}) {
   return options.luluCache || options.cache || createStrictRuntimeCache({
@@ -24,6 +35,21 @@ function normalizeWalk(value) {
   const date = new Date(value.walkedAt || 0);
   if (!actor || Number.isNaN(date.getTime())) return null;
   return { actor, walkedAt: date.toISOString() };
+}
+
+function normalizeWalksToday(value, lastWalk, now = Date.now()) {
+  const today = moscowDateKey(now);
+  const rows = (Array.isArray(value) ? value : [])
+    .map((row) => normalizeWalk(row))
+    .filter(Boolean)
+    .filter((row) => moscowDateKey(row.walkedAt) === today);
+  if (lastWalk && moscowDateKey(lastWalk.walkedAt) === today
+      && !rows.some((row) => row.walkedAt === lastWalk.walkedAt)) {
+    rows.push(lastWalk);
+  }
+  return rows
+    .sort((a, b) => new Date(a.walkedAt).getTime() - new Date(b.walkedAt).getTime())
+    .slice(-16);
 }
 
 function normalizeToiletAlert(value, lastWalk) {
@@ -47,6 +73,7 @@ function normalizeLuluState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const lastWalk = normalizeWalk(source.lastWalk);
   const toiletAlert = normalizeToiletAlert(source.toiletAlert, lastWalk);
+  const walksToday = normalizeWalksToday(source.walksToday, lastWalk);
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const updatedDate = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   const updatedAt = lastWalk
@@ -56,6 +83,7 @@ function normalizeLuluState(value) {
     initialized: Boolean(source.initialized),
     version: Math.max(0, Number(source.version || 0)),
     lastWalk,
+    walksToday,
     toiletAlert,
     updatedAt,
   };
@@ -88,10 +116,16 @@ async function markLuluWalk(actor, options = {}) {
   return enqueueMutation(async () => {
     const current = await readLuluState(options);
     const walkedAt = new Date(options.now || Date.now()).toISOString();
+    const walk = { actor: clean, walkedAt };
+    const today = moscowDateKey(walkedAt);
+    const previous = (Array.isArray(current.walksToday) ? current.walksToday : [])
+      .filter((row) => moscowDateKey(row.walkedAt) === today);
+    const walksToday = [...previous.filter((row) => row.walkedAt !== walkedAt), walk].slice(-16);
     return writeLuluState({
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      lastWalk: { actor: clean, walkedAt },
+      lastWalk: walk,
+      walksToday,
       updatedAt: walkedAt,
     }, options);
   });

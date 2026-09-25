@@ -1,10 +1,5 @@
 const TZ = 'Europe/Moscow';
 const BIRTH_YEAR = 2020;
-const MEAL_WINDOWS = [
-  { start: 8 * 60, end: 10 * 60 },
-  { start: 20 * 60, end: 22 * 60 },
-];
-
 function dateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -22,20 +17,27 @@ function localMinutes(date = new Date()) {
   return hour * 60 + minute;
 }
 
+function walkLikelyIncludedMeal(walkedAt) {
+  const walked = new Date(String(walkedAt || ''));
+  if (Number.isNaN(walked.getTime())) return false;
+  const minutes = localMinutes(walked);
+  // Personal Lulu routine: any morning walk before 12:00 usually includes feeding;
+  // evening walks from 20:00 onward usually include the evening meal.
+  return minutes < 12 * 60 || minutes >= 20 * 60;
+}
+
 function mealWindowBoost(walkedAt, now = new Date()) {
   const walked = new Date(String(walkedAt || ''));
   const current = new Date(now);
   if (Number.isNaN(walked.getTime()) || Number.isNaN(current.getTime())) return 0;
-  const nowMinutes = localMinutes(current);
-  const walkedMinutes = localMinutes(walked);
-  const sameDay = dateKey(walked) === dateKey(current);
-  let boost = 0;
-  for (const window of MEAL_WINDOWS) {
-    if (!(nowMinutes >= window.start && nowMinutes <= window.end + 120)) continue;
-    if (!sameDay || walkedMinutes < window.start) boost = Math.max(boost, 10);
-    else if (walkedMinutes <= window.end) boost = Math.max(boost, 4);
-  }
-  return boost;
+  if (!walkLikelyIncludedMeal(walkedAt)) return 0;
+  const elapsedHours = Math.max(0, (current.getTime() - walked.getTime()) / 3600000);
+  if (elapsedHours < 0.5) return 2;
+  if (elapsedHours < 1.5) return 7;
+  if (elapsedHours < 3) return 10;
+  if (elapsedHours < 4.5) return 7;
+  if (elapsedHours < 6) return 4;
+  return 0;
 }
 
 function luluToiletProbability(walkedAt, now = new Date()) {
@@ -47,11 +49,11 @@ function luluToiletProbability(walkedAt, now = new Date()) {
     timeZone: TZ, year: 'numeric',
   }).format(current));
   const age = Math.max(0, currentYear - BIRTH_YEAR);
-  const comfortableHours = age >= 10 ? 4.5 : age >= 8 ? 5.25 : 6;
+  const comfortableHours = age >= 10 ? 3.5 : age >= 8 ? 3.75 : 4;
   const ratio = elapsedHours / comfortableHours;
   const points = [
-    [0, 6], [.2, 10], [.4, 20], [.6, 34], [.8, 52],
-    [1, 70], [1.2, 84], [1.4, 93], [1.7, 98],
+    [0, 5], [.25, 12], [.5, 28], [.75, 48], [1, 68],
+    [1.25, 82], [1.5, 92], [1.75, 98], [2, 100],
   ];
   let base = 98;
   if (ratio <= points[0][0]) base = points[0][1];
@@ -71,4 +73,4 @@ function luluToiletProbability(walkedAt, now = new Date()) {
   return Math.max(5, Math.min(100, Math.round(base + mealBoost + waterBoost)));
 }
 
-module.exports = { TZ, BIRTH_YEAR, MEAL_WINDOWS, localMinutes, mealWindowBoost, luluToiletProbability };
+module.exports = { TZ, BIRTH_YEAR, dateKey, localMinutes, walkLikelyIncludedMeal, mealWindowBoost, luluToiletProbability };
