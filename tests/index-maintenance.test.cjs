@@ -21,7 +21,7 @@ test('daily route authenticates cron before any cleanup or publication side effe
   const auth = source.indexOf('isCronRequestAuthorized(req)', route);
   const cleanup = source.indexOf('prepareDailyTopicCleanup', route);
   const runtime = source.indexOf('runRuntime(req, res)', route);
-  const labor = source.indexOf('publishDailyLaborArticle()', route);
+  const labor = source.indexOf('publishDailyLaborArticle(', route);
   assert.ok(route >= 0 && auth > route);
   assert.ok(auth < cleanup);
   assert.ok(auth < runtime);
