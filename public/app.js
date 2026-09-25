@@ -6664,15 +6664,12 @@
         const image=document.getElementById('photoViewerImage');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
-        const location=document.getElementById('photoViewerLocation');
-        const prev=document.getElementById('photoViewerPrev');
-        const next=document.getElementById('photoViewerNext');
         const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
         const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
         const fullUrl=String(photo?.fullUrl||previewUrl).trim();
         const photoIndex=currentSharedAlbumPhotoIndex;
-        if(!viewer||!image||!caption||!date||!location||!prev||!next||!original||!previewUrl) return false;
+        if(!viewer||!image||!caption||!date||!original||!previewUrl) return false;
 
         image.onerror=null;
         image.dataset.photoIndex=String(photoIndex);
@@ -6707,16 +6704,10 @@
         const dateLabel=sharedAlbumViewerDateLabel(photo);
         date.textContent=dateLabel?'Снято · '+dateLabel:'';
         date.hidden=!dateLabel;
-        const locationLabel=sharedAlbumViewerLocationLabel(photo);
-        location.textContent=locationLabel?'Место · '+locationLabel:'';
-        location.hidden=!locationLabel;
-
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
         caption.hidden=!captionText;
 
-        prev.disabled=currentSharedAlbumPhotoIndex<=0;
-        next.disabled=currentSharedAlbumPhotoIndex>=sharedAlbumPhotos.length-1;
         original.disabled=!sharedAlbumOriginalUrl(photo);
 
         return true;
@@ -6737,7 +6728,6 @@
         const image=document.getElementById('photoViewerImage');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
-        const location=document.getElementById('photoViewerLocation');
         if(!viewer||!image||!caption) return;
         viewer.classList.remove('open');
         viewer.setAttribute('aria-hidden','true');
@@ -6747,7 +6737,6 @@
         caption.textContent='';
         caption.hidden=true;
         if(date){date.textContent='';date.hidden=true}
-        if(location){location.textContent='';location.hidden=true}
         setPhotoViewerLoading('', '');
         currentSharedAlbumPhotoIndex=-1;
       }
@@ -6783,22 +6772,8 @@
           timeZone:TZ,
           day:'numeric',
           month:'long',
-          year:'numeric',
-          hour:'2-digit',
-          minute:'2-digit',
-          hourCycle:'h23'
-        }).format(new Date(time)).replace(',',' ·');
-      }
-
-      function sharedAlbumViewerLocationLabel(photo){
-        const label=String(photo?.location||photo?.locationLabel||'').trim();
-        if(label) return label;
-        const latitude=Number(photo?.latitude);
-        const longitude=Number(photo?.longitude);
-        if(Number.isFinite(latitude)&&Number.isFinite(longitude)){
-          return latitude.toFixed(4)+', '+longitude.toFixed(4);
-        }
-        return '';
+          year:'numeric'
+        }).format(new Date(time));
       }
 
       function sharedAlbumDateKey(value){
@@ -7074,9 +7049,40 @@
         document.getElementById('sharedAlbumOpen')?.addEventListener('click',openSharedAlbum);
         document.getElementById('photoViewerClose')?.addEventListener('click',closeSharedAlbumPhoto);
         document.getElementById('photoViewerBackdrop')?.addEventListener('click',closeSharedAlbumPhoto);
-        document.getElementById('photoViewerPrev')?.addEventListener('click',()=>changeSharedAlbumPhoto(-1));
-        document.getElementById('photoViewerNext')?.addEventListener('click',()=>changeSharedAlbumPhoto(1));
         document.getElementById('photoViewerOriginal')?.addEventListener('click',openSharedAlbumOriginal);
+
+        const viewerStage=document.querySelector('.photo-viewer-stage');
+        if(viewerStage&&viewerStage.dataset.gesturesBound!=='1'){
+          viewerStage.dataset.gesturesBound='1';
+          let startX=0;
+          let startY=0;
+          let pointerId=null;
+          viewerStage.addEventListener('pointerdown',event=>{
+            if(event.button!==undefined&&event.button!==0) return;
+            pointerId=event.pointerId;
+            startX=event.clientX;
+            startY=event.clientY;
+            try{viewerStage.setPointerCapture?.(event.pointerId)}catch(_){}
+          });
+          viewerStage.addEventListener('pointerup',event=>{
+            if(pointerId!==null&&event.pointerId!==pointerId) return;
+            const dx=event.clientX-startX;
+            const dy=event.clientY-startY;
+            pointerId=null;
+            const horizontal=Math.abs(dx)>=42&&Math.abs(dx)>Math.abs(dy)*1.15;
+            if(horizontal){
+              changeSharedAlbumPhoto(dx<0?1:-1);
+              return;
+            }
+            if(Math.abs(dx)>10||Math.abs(dy)>10) return;
+            const rect=viewerStage.getBoundingClientRect();
+            if(!rect.width) return;
+            const localX=event.clientX-rect.left;
+            changeSharedAlbumPhoto(localX<rect.width/2?1:-1);
+          });
+          viewerStage.addEventListener('pointercancel',()=>{pointerId=null});
+        }
+
         document.addEventListener('keydown',event=>{
           if(!document.getElementById('photoViewer')?.classList.contains('open')) return;
           if(event.key==='Escape') closeSharedAlbumPhoto();
