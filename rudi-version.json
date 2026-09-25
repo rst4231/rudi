@@ -1,12 +1,12 @@
 {
-  "current": "v1.18.18",
+  "current": "v1.18.19",
   "versionBranch": "main",
   "releaseCommit": null,
   "createdAt": "2026-09-25",
-  "basedOnProduction": "f6895f000fbd750cc0f10bddab3738859f02600e",
+  "basedOnProduction": "f59ef99d386022875d8e3033ba59d40ab3e7691b",
   "notes": [
-    "AI-assistant launcher is hidden everywhere while assistant backend remains intact.",
-    "Labor-code material is generated directly for the RUDI For Di feed without touching legacy Telegram forum topics.",
-    "For Di remains on the same daily 00:30 Moscow run as the main feed, with recovery when Labor content is missing."
+    "Исправлен контраст текста в карточке Рустама при светлой теме.",
+    "Подпись биоритма и рекомендация теперь остаются светлыми на тёмной карточке.",
+    "Тёмная тема и остальные блоки интерфейса не изменены."
   ]
 }

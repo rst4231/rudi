@@ -5669,7 +5669,7 @@ html[data-theme="dark"] .partner-message .partner-edit{
 .profile-person-card .profile-work-status.is-working{color:#ffb171}
 .profile-person-card .profile-work-status.is-off{color:#60d894}
 .profile-person-card .profile-rhythm-status{
-  color:var(--muted);
+  color:rgba(239,242,249,.56);
   font-size:9px;
   line-height:1.1;
   font-weight:720;
@@ -5739,11 +5739,6 @@ html[data-theme="dark"] .profile-person-card .profile-work-status.is-off{color:#
   font-size:9.5px;
   line-height:1.35;
   font-weight:650;
-}
-html[data-theme="light"] .profile-rustam-card .rustam-rhythm-advice{
-  color:rgba(31,36,48,.68);
-  border-color:rgba(74,92,190,.13);
-  background:rgba(74,92,190,.045);
 }
 .profile-person-card .mood-message{margin:0!important}
 .profile-person-card .mood-message:not(.show){display:none!important}
