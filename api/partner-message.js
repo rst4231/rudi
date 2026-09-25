@@ -2425,6 +2425,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         meal: body.meal,
         cuisine: body.cuisine,
         timeMinutes: body.timeMinutes,
+        excludeTitles: body.excludeTitles,
       };
 
       const result = operation === 'detail'

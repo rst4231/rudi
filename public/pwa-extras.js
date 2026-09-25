@@ -614,9 +614,10 @@
       add({tab:'schedule',kind:'Календарь',title:node.getAttribute('aria-label')||node.title||'Дата',text:node.title||'',node});
     });
     document.querySelectorAll('.saved-item').forEach(node=>{
+      const isRecipe=node.classList.contains('saved-recipe-item');
       add({
-        tab:'saves',
-        kind:node.classList.contains('saved-date-item')?'Свидание':'Рецепт',
+        tab:isRecipe?'products':'saves',
+        kind:isRecipe?'Рецепт':'Свидание',
         title:node.querySelector('.saved-item-head > strong')?.textContent||'Сохранение',
         text:node.textContent||'',
         node
@@ -1015,6 +1016,7 @@
     const card=document.createElement('article');
     card.className='saved-item saved-recipe-item';
     card.dataset.savedId=String(item.id||'');
+    card.dataset.rudiItemId=String(item.id||'');
 
     const top=document.createElement('div');
     top.className='saved-item-head';
@@ -1113,10 +1115,10 @@
     if(recipesEmpty) recipesEmpty.hidden=recipes.length>0;
     if(byId('savedDatesCount')) byId('savedDatesCount').textContent=String(dates.length);
     if(byId('savedRecipesCount')) byId('savedRecipesCount').textContent=String(recipes.length);
-    if(byId('savesTotalCount')) byId('savesTotalCount').textContent=savesState.length?String(savesState.length):'';
+    if(byId('savesTotalCount')) byId('savesTotalCount').textContent=dates.length?String(dates.length):'';
 
     const status=byId('savesStatus');
-    if(status) status.textContent=savesState.length?'Общая коллекция Рустама и Дианы':'Сохраняйте сюда понравившиеся идеи и рецепты';
+    if(status) status.textContent=dates.length?'Сохранённые идеи свиданий Рустама и Дианы':'Сохраняйте сюда понравившиеся идеи свиданий';
   }
 
   async function loadSaves(){
@@ -1160,6 +1162,8 @@
     return data.item;
   }
 
+  let savesKitchenInitialLoadStarted=false;
+
   function setupSavesPage(){
     document.querySelectorAll('[data-saves-toggle]').forEach(button=>{
       if(button.dataset.savesBound==='1') return;
@@ -1170,6 +1174,10 @@
     if(back&&back.dataset.bound!=='1'){
       back.dataset.bound='1';
       back.addEventListener('click',()=>routeTo('home'));
+    }
+    if(document.body.dataset.appTab==='products'&&!savesKitchenInitialLoadStarted){
+      savesKitchenInitialLoadStarted=true;
+      loadSaves().catch(()=>{});
     }
   }
 

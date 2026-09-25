@@ -6,6 +6,7 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.css'), 'utf8');
+const pwa = fs.readFileSync(path.join(__dirname, '..', 'public', 'pwa-extras.js'), 'utf8');
 
 test('Kitchen tab exposes separate Products and recipe blocks', () => {
   assert.match(html, /id="kitchenTitle">Кухня</);
@@ -60,15 +61,28 @@ test('recipe requests are split into suggestions and detail', () => {
 });
 
 
-test('recipe cache survives app restarts and avoids repeat AI calls for the same context', () => {
+test('recipe cache survives app restarts while explicit generation requests fresh recipes', () => {
   assert.match(js, /RECIPE_CACHE_TTL_MS=7\*DAY/);
   assert.match(js, /RECIPE_CACHE_MAX_ENTRIES=8/);
   assert.match(js, /localStorage\.getItem\(recipeCacheStorageKey\(\)\)/);
   assert.match(js, /localStorage\.setItem\(recipeCacheStorageKey\(\)/);
-  assert.match(js, /findRecipeCacheEntry\(context\)/);
-  assert.match(js, /restoreRecipeCacheEntry\(cachedEntry,\{restoreInputs:false\}\)/);
-  assert.match(js, /saveCurrentRecipeCache\(recipe\.title\)/);
+  assert.match(js, /recentRecipeTitles\(limit=24\)/);
+  assert.match(js, /excludeTitles:recentRecipeTitles\(24\)/);
+  assert.match(js, /restoreRecipeCacheEntry\(latestCachedRecipe\)/);
   assert.match(js, /Последние рецепты восстановлены из кэша/);
+  const generator = js.slice(js.indexOf('function setupRecipeGenerator'), js.indexOf('function renderLatestUpdate'));
+  assert.doesNotMatch(generator, /findRecipeCacheEntry\(context\)/);
+});
+
+test('saved recipes are placed in Kitchen after the recipe generator', () => {
+  const generator = html.indexOf('id="recipeIdeasCard"');
+  const recipes = html.indexOf('data-saves-category="recipe"');
+  const saves = html.indexOf('id="savesPage"');
+  const forDi = html.indexOf('id="forDiPage"');
+  assert.ok(generator >= 0 && recipes > generator && recipes < saves);
+  assert.doesNotMatch(html.slice(saves, forDi), /data-saves-category="recipe"/);
+  assert.match(js, /Promise\.resolve\(window\.RUDI_SAVES\?\.load\?\.\(\)\)/);
+  assert.match(pwa, /tab:isRecipe\?'products':'saves'/);
 });
 
 test('fasting tracker button is removed from Kitchen without leaving its tool container', () => {

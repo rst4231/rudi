@@ -1326,6 +1326,7 @@
         if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
         if(tab==='products'){
           loadProducts({silent:true}).finally(()=>focusDeepLinkedItem('products',item));
+          Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('products',item));
           scheduleProductsRefresh(15000);
         }
         if(tab==='wishlist'){
@@ -8807,6 +8808,21 @@
         return readRecipeCacheEntries().find(entry=>entry.key===key)||null;
       }
 
+      function recentRecipeTitles(limit=24){
+        const seen=new Set();
+        const titles=[];
+        readRecipeCacheEntries().forEach(entry=>{
+          (Array.isArray(entry?.recipes)?entry.recipes:[]).forEach(recipe=>{
+            const title=String(recipe?.title||'').trim();
+            const key=title.toLowerCase().replace(/\s+/g,' ');
+            if(!title||seen.has(key)||titles.length>=limit) return;
+            seen.add(key);
+            titles.push(title);
+          });
+        });
+        return titles;
+      }
+
       function saveRecipeCacheEntry(entry){
         if(!entry?.key) return;
         const rows=readRecipeCacheEntries().filter(row=>row.key!==entry.key);
@@ -9441,7 +9457,8 @@
             equipment:recipeChoiceValue('data-recipe-equipment'),
             meal:recipeChoiceValue('data-recipe-meal'),
             cuisine:recipeChoiceValue('data-recipe-cuisine'),
-            timeMinutes:Number(recipeChoiceValue('data-recipe-time')||15)
+            timeMinutes:Number(recipeChoiceValue('data-recipe-time')||15),
+            excludeTitles:recentRecipeTitles(24)
           };
 
           generate.disabled=true;
@@ -9460,13 +9477,6 @@
               cuisine:payload.cuisine,
               timeMinutes:payload.timeMinutes
             };
-            const cachedEntry=findRecipeCacheEntry(context);
-            if(cachedEntry&&restoreRecipeCacheEntry(cachedEntry,{restoreInputs:false})){
-              if(status) status.textContent='Восстановлено из кэша. Выберите блюдо — повторный запрос к ИИ не нужен.';
-              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-              return;
-            }
-
             const data=await recipeRequest(payload);
             currentRecipeContext=context;
             recipeDetailCache.clear();

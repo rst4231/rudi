@@ -239,7 +239,7 @@
           <span class="quick-access-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5h12a1.5 1.5 0 0 1 1.5 1.5v14l-7.5-4-7.5 4V6A1.5 1.5 0 0 1 6 4.5Z"/></svg>
           </span>
-          <span class="quick-access-copy"><strong>Сохранения</strong><small>Свидания и рецепты</small></span>
+          <span class="quick-access-copy"><strong>Сохранения</strong><small>Свидания</small></span>
         </button>
         <button id="quickForDiButton" class="quick-access-button is-for-di" type="button">
           <span class="quick-access-icon" aria-hidden="true">
@@ -832,6 +832,18 @@
           <article id="recipeDetails" class="recipe-details" hidden></article>
         </div>
       </article>
+
+      <section class="saved-category kitchen-saved-recipes" data-saves-category="recipe">
+        <button class="saved-category-head" type="button" data-saves-toggle="recipe" aria-expanded="true">
+          <span class="saved-category-icon is-recipe" aria-hidden="true">⌁</span>
+          <span class="saved-category-copy"><strong>Рецепты</strong><small id="savedRecipesCount">0</small></span>
+          <svg class="saved-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
+        </button>
+        <div id="savedRecipesBody" class="saved-category-body">
+          <div id="savedRecipesList" class="saved-items-list"></div>
+          <div id="savedRecipesEmpty" class="saved-empty">Пока ничего не сохранено</div>
+        </div>
+      </section>
     </section>
 
     <section id="savesPage" class="saves-page" data-app-tab-section="saves" aria-labelledby="savesPageTitle" hidden>
@@ -859,17 +871,6 @@
         </div>
       </section>
 
-      <section class="saved-category" data-saves-category="recipe">
-        <button class="saved-category-head" type="button" data-saves-toggle="recipe" aria-expanded="true">
-          <span class="saved-category-icon is-recipe" aria-hidden="true">⌁</span>
-          <span class="saved-category-copy"><strong>Рецепты</strong><small id="savedRecipesCount">0</small></span>
-          <svg class="saved-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-        </button>
-        <div id="savedRecipesBody" class="saved-category-body">
-          <div id="savedRecipesList" class="saved-items-list"></div>
-          <div id="savedRecipesEmpty" class="saved-empty">Пока ничего не сохранено</div>
-        </div>
-      </section>
     </section>
 
     <section id="forDiPage" class="for-di-page" data-app-tab-section="for-di" aria-labelledby="forDiPageTitle" hidden>
