@@ -23,6 +23,14 @@ function normalizeMessageId(value, text, authorName) {
   return legacyMessageId(text, authorName);
 }
 
+function cleanActor(value) {
+  return value === 'Диана' ? 'Диана' : value === 'Рустам' ? 'Рустам' : '';
+}
+
+function normalizeLikes(value) {
+  return [...new Set((Array.isArray(value) ? value : []).map(cleanActor).filter(Boolean))];
+}
+
 function normalizeStoredMessage(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const text = String(value.text || '').trim();
@@ -30,7 +38,8 @@ function normalizeStoredMessage(value) {
   const updatedAt = String(value.updatedAt || '').trim();
   if (!text || !authorName || !updatedAt) return null;
   const id = normalizeMessageId(value.id, text, authorName);
-  return { id, text, authorName, updatedAt };
+  const likes = normalizeLikes(value.likes);
+  return { id, text, authorName, updatedAt, likes };
 }
 
 async function readPartnerMessage(options = {}) {
@@ -50,6 +59,27 @@ async function writePartnerMessage(message, options = {}) {
   return value;
 }
 
+let mutationQueue = Promise.resolve();
+
+function enqueue(task) {
+  const run = mutationQueue.then(task, task);
+  mutationQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+async function togglePartnerMessageLike(actor, options = {}) {
+  return enqueue(async () => {
+    const who = cleanActor(actor);
+    if (!who) throw new Error('partner-message-like-actor-invalid');
+    const current = await readPartnerMessage(options);
+    if (!current) throw new Error('partner-message-not-found');
+    const likes = new Set(current.likes || []);
+    if (likes.has(who)) likes.delete(who);
+    else likes.add(who);
+    return writePartnerMessage({ ...current, likes:[...likes] }, options);
+  });
+}
+
 module.exports = {
   NAMESPACE,
   MESSAGE_KEY,
@@ -57,7 +87,9 @@ module.exports = {
   getPartnerMessageCache,
   legacyMessageId,
   normalizeMessageId,
+  normalizeLikes,
   normalizeStoredMessage,
   readPartnerMessage,
   writePartnerMessage,
+  togglePartnerMessageLike,
 };

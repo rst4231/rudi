@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
-const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
+const { readPartnerMessage, writePartnerMessage, togglePartnerMessageLike } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession, setSessionCookie, clearSessionCookie, savePin, verifyPin, restorePinRecord, readPinRecord } = require('./rudi-session.cjs');
 const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication, restorePasskeys, readPasskeys } = require('./rudi-passkeys.cjs');
@@ -1999,6 +1999,34 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'partner-message-like') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+      const live = await readPartnerMessage(options).catch(() => null);
+      if (!live && previousSnapshot?.partnerMessage) {
+        await restoreStateBackup(body.backupToken, {
+          ...options,
+          cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+        }).catch(() => null);
+      }
+      const before = await readPartnerMessage(options);
+      const message = await togglePartnerMessageLike(actor, options);
+      const likedNow = message?.likes?.includes(actor);
+      if (likedNow && !before?.likes?.includes(actor)) {
+        await recordLikeActivity({ type:'partner-message', key:'current' }, actor, options).catch(() => null);
+      }
+      const backupToken = await refreshBackupToken(previousSnapshot, options);
+      return res.status(200).json({ ok:true, actor, message, backupToken });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const status = statusForError(error);
+      return res.status(status === 500 && code.startsWith('partner-message-') ? 400 : status).json({ ok:false, error:code });
+    }
+  }
+
   if (action === 'partner-message-read') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -2008,18 +2036,17 @@ async function handleRudiAction(req, res, action, options = {}) {
       if(previousSnapshot?.partnerMessage){
         await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
       }
-      const message = await readPartnerMessage(options);
-      if(message?.id&&message?.updatedAt){
-        const stableTarget={type:'partner-message',key:'message:'+String(message.id)};
-        const legacyTarget={type:'partner-message',key:'message:'+String(message.updatedAt)};
-        if(stableTarget.key!==legacyTarget.key){
-          const rows=await readReactions([stableTarget,legacyTarget],options).catch(()=>[]);
-          const stable=rows?.[0];
-          const legacy=rows?.[1];
-          if(!stable?.likedBy?.length&&legacy?.likedBy?.length){
-            for(const name of legacy.likedBy){
-              await setReaction(stableTarget,name,true,options).catch(()=>null);
-            }
+      let message = await readPartnerMessage(options);
+      if(message && !(message.likes||[]).length){
+        const targets=[
+          {type:'partner-message',key:'message:'+String(message.id||'')},
+          {type:'partner-message',key:'message:'+String(message.updatedAt||'')},
+        ].filter((target,index,rows)=>target.key!=='message:'&&rows.findIndex(row=>row.key===target.key)===index);
+        if(targets.length){
+          const rows=await readReactions(targets,options).catch(()=>[]);
+          const migrated=[...new Set(rows.flatMap(row=>Array.isArray(row?.likedBy)?row.likedBy:[]))];
+          if(migrated.length){
+            message=await writePartnerMessage({ ...message, likes:migrated },options).catch(()=>message);
           }
         }
       }
@@ -2625,6 +2652,7 @@ async function handler(req, res, options = {}) {
       text,
       authorName: actor || authorName,
       updatedAt: new Date(options.now || Date.now()).toISOString(),
+      likes: [],
     }, options);
 
     await recordActivity({

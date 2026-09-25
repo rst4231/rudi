@@ -13,7 +13,6 @@
       const DAY = 86400000;
       let currentActor = '';
       let appAccessReady = false;
-      let currentPartnerReactionKey = '';
       const reactionRequestEpoch = new Map();
       let currentFeedReactionTargets = [];
       let currentPhotoMemoryReactionTarget = null;
@@ -7362,7 +7361,6 @@
       }
 
       function setupReactions(){
-        bindReaction('partnerMessageLike','partnerMessageLikedBy',()=>currentPartnerReactionKey?{type:'partner-message',key:currentPartnerReactionKey}:null);
         bindReaction('feedFactsLike','feedFactsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('facts:'))||null);
         bindReaction('feedConcertsLike','feedConcertsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('concerts:'))||null);
         bindReaction('feedStandupLike','feedStandupLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('standup:'))||null);
@@ -7401,17 +7399,30 @@
           textEl.textContent='Оставьте здесь пару тёплых слов друг для друга ♥';
           textEl.classList.add('partner-empty');
           authorEl.textContent='';
-          currentPartnerReactionKey='';
           if(reactionStrip) reactionStrip.hidden=true;
+          renderReaction({likedBy:[]},'partnerMessageLike','partnerMessageLikedBy');
           return;
         }
         textEl.textContent=message.text;
         textEl.classList.remove('partner-empty');
         const author=String(message.authorName||'').trim();
         authorEl.textContent=author?'С любовью, '+author:'С любовью';
-        currentPartnerReactionKey='message:'+String(message.id||'').trim();
-        if(reactionStrip) reactionStrip.hidden=!currentPartnerReactionKey;
-        if(currentPartnerReactionKey) refreshReaction({type:'partner-message',key:currentPartnerReactionKey},'partnerMessageLike','partnerMessageLikedBy');
+        if(reactionStrip) reactionStrip.hidden=false;
+        renderReaction({likedBy:Array.isArray(message.likes)?message.likes:[]},'partnerMessageLike','partnerMessageLikedBy');
+      }
+
+      async function togglePartnerMessageLikeRequest(){
+        const backupContext=backupRequestContext();
+        const response=await fetch('/api/partner-message?rudiAction=partner-message-like',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:telegramInitData(),backupToken:backupContext.token}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok) throw new Error(data.error||'partner-message-like-failed');
+        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
+        return data;
       }
 
       async function loadPartnerMessage(){
@@ -7442,6 +7453,35 @@
         const cancelButton=document.getElementById('partnerCancelButton');
         const status=document.getElementById('partnerStatus');
         let currentMessage=null;
+
+        const likeButton=document.getElementById('partnerMessageLike');
+        if(likeButton&&likeButton.dataset.partnerMessageLikeBound!=='1'){
+          likeButton.dataset.partnerMessageLikeBound='1';
+          likeButton.addEventListener('click',async event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            if(likeButton.disabled||!currentMessage?.text) return;
+            let previousLikedBy=[];
+            try{previousLikedBy=JSON.parse(likeButton.dataset.likedBy||'[]')}catch(_){}
+            const liked=previousLikedBy.includes(currentActor);
+            const optimistic=liked
+              ? previousLikedBy.filter(name=>name!==currentActor)
+              : [...new Set([...previousLikedBy,currentActor])];
+            renderReaction({likedBy:optimistic},'partnerMessageLike','partnerMessageLikedBy');
+            likeButton.disabled=true;
+            try{
+              const data=await togglePartnerMessageLikeRequest();
+              currentMessage=data.message||currentMessage;
+              renderPartnerMessage(currentMessage);
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            }catch(_){
+              renderReaction({likedBy:previousLikedBy},'partnerMessageLike','partnerMessageLikedBy');
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }finally{
+              likeButton.disabled=false;
+            }
+          });
+        }
 
         const canEdit=Boolean(currentActor);
         if(!canEdit){
