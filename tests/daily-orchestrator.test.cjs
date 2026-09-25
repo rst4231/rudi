@@ -19,3 +19,24 @@ test('cinema feed is persisted before generated runtime starts',async()=>{
   });
   assert.deepEqual(order.slice(0,2),['feed','runtime']);
 });
+
+
+test('labor recovery runs before For Di publication when today's queue is empty',async()=>{
+  const order=[];
+  const response=res();
+  await runDailyOrchestrator({query:{route:'daily'}},response,{
+    date:'2026-09-25',
+    settings:{sections:{labor:{enabled:true},cinema:{enabled:false}}},
+    cleanup:async()=>{},
+    runNative:async section=>{order.push('native:'+section);return{published:1}},
+    runRuntime:async(_req,r)=>r.json({ok:true,date:'2026-09-25',results:{}}),
+    recordGenerated:async()=>{},
+    writeSummary:async()=>{},
+    alert:async()=>{},
+    hasForDiSource:async()=>false,
+    recoverLabor:async()=>{order.push('labor-recovery');return{queuedForPrivateDelivery:true}},
+    publishForDi:async()=>{order.push('for-di');return{published:1}},
+  });
+  assert.ok(order.indexOf('labor-recovery')>=0);
+  assert.ok(order.indexOf('for-di')>order.indexOf('labor-recovery'));
+});

@@ -70,3 +70,8 @@ test('mobile assistant uses stable visible viewport height instead of keyboard b
   assert.doesNotMatch(app,/--voice-assistant-keyboard-inset/);
   assert.doesNotMatch(app,/visualViewport\?\.addEventListener\?\.\('scroll',updateVoiceAssistantViewport/);
 });
+
+
+test('assistant launcher is disabled globally',()=>{
+  assert.match(css,/\.voice-assistant-launcher\{display:none!important\}/);
+});

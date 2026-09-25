@@ -27,8 +27,20 @@ function isOneTimeMorningRecovery(req, now = new Date()) {
     && moscowDateKey(now) === recoveryDate;
 }
 
+function isOneTimeForDiRecovery(req, now = new Date()) {
+  const mode = String(req.query?.mode || 'morning');
+  const recoveryDate = String(req.query?.recoveryDate || '').trim();
+  const recoveryKey = String(req.query?.recoveryKey || '').trim();
+  const force = String(req.query?.force || '') === '1';
+  return mode === 'for-di'
+    && !force
+    && recoveryDate === '2026-09-25'
+    && recoveryKey === 'labor-feed-missed-2026-09-25'
+    && moscowDateKey(now) === recoveryDate;
+}
+
 async function handler(req, res) {
-  const oneTimeRecovery = isOneTimeMorningRecovery(req);
+  const oneTimeRecovery = isOneTimeMorningRecovery(req) || isOneTimeForDiRecovery(req);
   if (!isCronRequestAuthorized(req) && !oneTimeRecovery) {
     console.error('RUDI_FEED_NOTIFY_CRON_UNAUTHORIZED');
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
@@ -49,7 +61,10 @@ async function handler(req, res) {
     let result;
     if (mode === 'for-di') {
       try {
-        laborCatchup = await publishDailyLaborArticle();
+        laborCatchup = await publishDailyLaborArticle({
+          force: isOneTimeForDiRecovery(req),
+          now: new Date(),
+        });
       } catch (error) {
         laborCatchup = { failed: true, error: String(error?.message || error) };
         console.warn('RUDI_FOR_DI_LABOR_CATCHUP_WARN', laborCatchup.error);
@@ -85,3 +100,4 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.moscowDateKey = moscowDateKey;
 module.exports.isOneTimeMorningRecovery = isOneTimeMorningRecovery;
+module.exports.isOneTimeForDiRecovery = isOneTimeForDiRecovery;

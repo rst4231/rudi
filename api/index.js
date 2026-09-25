@@ -101,13 +101,13 @@ async function runHealthWithoutCouple(req, res) {
 function isLaborBootstrapAllowed(date = new Date()) { return ['2026-08-20', '2026-08-26'].includes(getMoscowDateKey(date)); }
 function readGeneratedRuntimeSource() { try { return fs.readFileSync(require.resolve('../runtime/generated-runtime.cjs'), 'utf8'); } catch { return ''; } }
 
-async function publishDailyLaborArticle() {
+async function publishDailyLaborArticle(options = {}) {
   if (laborPublicationFlight) return laborPublicationFlight;
   const run = withLaborPublicationLease(async () => {
     const token = resolveTelegramBotToken(process.env); const cachedChatId = await getKnownForumChatId();
     const chatId = resolveForumChatId({ cached: cachedChatId, env: process.env, runtimeSource: cachedChatId === null ? readGeneratedRuntimeSource() : '' });
     if (chatId === null) { console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id could not be resolved')); return null; }
-    const labor = await publishLaborArticle({ token, chatId, cache: getLaborCache(), fetchImpl: nativeFetch });
+    const labor = await publishLaborArticle({ ...options, token, chatId, cache: getLaborCache(), fetchImpl: nativeFetch });
     if (cachedChatId === null && labor?.topicId) await rememberForumChatId(getTopicMaintenanceCache(), chatId);
     return labor;
   }, { cache: getLaborLeaseCache() });

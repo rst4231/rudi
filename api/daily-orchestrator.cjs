@@ -10,7 +10,7 @@ const { moscowDateKey } = require('./preview-date.cjs');
 const { rankHolidayEntries, DEFAULT_MAX_ITEMS } = require('./holiday-significance.cjs');
 const { writeHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { updateFeedSections } = require('./feed-store.cjs');
-const { publishForDiToRudi } = require('./for-di-private.cjs');
+const { publishForDiToRudi, hasQueuedForDiSource } = require('./for-di-private.cjs');
 
 function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date()) {
   const results = payload?.results || {};
@@ -187,6 +187,22 @@ async function runDailyOrchestrator(req, res, options = {}) {
       );
     } catch (error) {
       failures.push({ section: 'feed', error: String(error?.message || error) });
+    }
+  }
+
+  if (settings?.sections?.labor?.enabled) {
+    try {
+      const hasLaborQueued = await (options.hasForDiSource || hasQueuedForDiSource)('labor', {
+        now: options.now || new Date(),
+        cacheOptions: options.cacheOptions,
+      });
+      if (!hasLaborQueued) {
+        const recoverLabor = options.recoverLabor || ((recoveryOptions) => require('./index.js').publishDailyLaborArticle(recoveryOptions));
+        nativeResults.laborRecovery = await recoverLabor({ force: true, now: options.now || new Date() });
+      }
+    } catch (error) {
+      nativeResults.laborRecovery = { failed: true, error: String(error?.message || error) };
+      failures.push({ section: 'labor-recovery', error: String(error?.message || error) });
     }
   }
 

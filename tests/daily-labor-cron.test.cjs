@@ -53,3 +53,13 @@ test('Vercel daily cron is routed through the dedicated handler', () => {
   const rewrite = vercel.rewrites.find((item) => item.source === '/api/daily');
   assert.equal(rewrite?.destination, '/api/daily-cron?route=daily');
 });
+
+test('one-time For Di recovery can force labor back into the RUDI feed without a separate cron', () => {
+  const source = fs.readFileSync(path.join(root, 'api', 'feed-notify-cron.js'), 'utf8');
+  assert.match(source, /function isOneTimeForDiRecovery/);
+  assert.match(source, /mode === 'for-di'/);
+  assert.match(source, /labor-feed-missed-2026-09-25/);
+  assert.match(source, /force: isOneTimeForDiRecovery\(req\)/);
+  const forDiCron = (vercel.crons || []).find((item) => item.path === '/api/for-di');
+  assert.equal(forDiCron, undefined, 'For Di must stay on the same daily run as the feed');
+});
