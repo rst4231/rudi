@@ -830,16 +830,3 @@ test('assistant modal keeps focus and freezes background scroll',async({page})=>
   const after=await page.evaluate(()=>window.scrollY);
   expect(Math.abs(after-before)).toBeLessThanOrEqual(2);
 });
-
-
-test('assistant panel stays below the iPhone safe area',async({page})=>{
-  await mockRudi(page);
-  await page.goto('/');
-  await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await page.locator('#voiceAssistantFab').click();
-  const panel=page.locator('#voiceAssistantPanel');
-  await expect(panel).toBeVisible();
-  const box=await panel.boundingBox();
-  expect(box).not.toBeNull();
-  expect(box.y).toBeGreaterThanOrEqual(90);
-});

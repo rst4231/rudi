@@ -1883,9 +1883,7 @@
         if(!panel) return;
         const viewport=window.visualViewport;
         const height=Math.max(1,Math.round(viewport?.height||window.innerHeight||document.documentElement.clientHeight||1));
-        const offsetTop=Math.max(0,Math.round(viewport?.offsetTop||0));
         panel.style.setProperty('--voice-assistant-viewport-height',height+'px');
-        panel.style.setProperty('--voice-assistant-viewport-top',offsetTop+'px');
         const active=document.activeElement===input;
         document.body.classList.toggle('voice-assistant-input-active',active);
         if(active){
