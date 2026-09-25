@@ -2525,7 +2525,7 @@
         const walked=new Date(String(walkedAt||''));
         if(Number.isNaN(walked.getTime())||!luluWalkLikelyIncludedMeal(walkedAt)) return 0;
         const elapsedHours=Math.max(0,(now.getTime()-walked.getTime())/3600000);
-        if(elapsedHours<.5) return 2;
+        if(elapsedHours<.5) return 0;
         if(elapsedHours<1.5) return 7;
         if(elapsedHours<3) return 10;
         if(elapsedHours<4.5) return 7;
@@ -2546,7 +2546,7 @@
 
         const ratio=elapsedHours/comfortableHours;
         const points=[
-          [0,5],[.25,12],[.5,28],[.75,48],[1,68],[1.25,82],[1.5,92],[1.75,98],[2,100]
+          [0,0],[.25,12],[.5,28],[.75,48],[1,68],[1.25,82],[1.5,92],[1.75,98],[2,100]
         ];
         let base=98;
         if(ratio<=points[0][0]) base=points[0][1];
@@ -2563,8 +2563,8 @@
         }
 
         const mealBoost=luluMealWindowBoost(walkedAt,now);
-        const waterBoost=elapsedHours>=2?3:1;
-        return Math.max(5,Math.min(100,Math.round(base+mealBoost+waterBoost)));
+        const waterBoost=elapsedHours>=2?3:0;
+        return Math.max(0,Math.min(100,Math.round(base+mealBoost+waterBoost)));
       }
 
       function syncLuluToiletStatus(){
@@ -2597,16 +2597,15 @@
         const status=document.getElementById('luluWalkStatus');
         if(!panel||!status) return;
         const rows=luluTodayWalks(state);
-        const lastWalkedAt=String(state?.lastWalk?.walkedAt||'');
-        const previous=rows.filter(row=>String(row.walkedAt||'')!==lastWalkedAt).reverse();
+        const history=rows.slice().reverse();
         panel.replaceChildren();
-        if(!previous.length){
+        if(!history.length){
           const empty=document.createElement('div');
           empty.className='lulu-walk-history-empty';
-          empty.textContent='Сегодня не гуляла';
+          empty.textContent='Сегодня прогулок не отмечено';
           panel.appendChild(empty);
         }else{
-          for(const row of previous){
+          for(const row of history){
             const date=new Date(String(row.walkedAt||''));
             const time=Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('ru-RU',{
               timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'

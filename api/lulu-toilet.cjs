@@ -32,7 +32,7 @@ function mealWindowBoost(walkedAt, now = new Date()) {
   if (Number.isNaN(walked.getTime()) || Number.isNaN(current.getTime())) return 0;
   if (!walkLikelyIncludedMeal(walkedAt)) return 0;
   const elapsedHours = Math.max(0, (current.getTime() - walked.getTime()) / 3600000);
-  if (elapsedHours < 0.5) return 2;
+  if (elapsedHours < 0.5) return 0;
   if (elapsedHours < 1.5) return 7;
   if (elapsedHours < 3) return 10;
   if (elapsedHours < 4.5) return 7;
@@ -52,7 +52,7 @@ function luluToiletProbability(walkedAt, now = new Date()) {
   const comfortableHours = age >= 10 ? 3.5 : age >= 8 ? 3.75 : 4;
   const ratio = elapsedHours / comfortableHours;
   const points = [
-    [0, 5], [.25, 12], [.5, 28], [.75, 48], [1, 68],
+    [0, 0], [.25, 12], [.5, 28], [.75, 48], [1, 68],
     [1.25, 82], [1.5, 92], [1.75, 98], [2, 100],
   ];
   let base = 98;
@@ -69,8 +69,8 @@ function luluToiletProbability(walkedAt, now = new Date()) {
     }
   }
   const mealBoost = mealWindowBoost(walkedAt, current);
-  const waterBoost = elapsedHours >= 2 ? 3 : 1;
-  return Math.max(5, Math.min(100, Math.round(base + mealBoost + waterBoost)));
+  const waterBoost = elapsedHours >= 2 ? 3 : 0;
+  return Math.max(0, Math.min(100, Math.round(base + mealBoost + waterBoost)));
 }
 
 module.exports = { TZ, BIRTH_YEAR, dateKey, localMinutes, walkLikelyIncludedMeal, mealWindowBoost, luluToiletProbability };

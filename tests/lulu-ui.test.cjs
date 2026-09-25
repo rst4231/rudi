@@ -30,3 +30,10 @@ test('Lulu walk notifies only the other partner and keeps journal backup',()=>{
   assert.match(backup,/luluState: newerVersionState/);
   assert.match(backup,/restoreLuluState/);
 });
+
+
+test('Lulu expanded walk history includes the latest walk and never claims no walk after one was recorded',()=>{
+  assert.match(app,/const history=rows\.slice\(\)\.reverse\(\)/);
+  assert.doesNotMatch(app,/const previous=rows\.filter/);
+  assert.match(app,/Сегодня прогулок не отмечено/);
+});
