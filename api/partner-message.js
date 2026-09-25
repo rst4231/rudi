@@ -347,7 +347,7 @@ function luluWalkStatusLabel(value, now = Date.now()) {
 
 function luluWalkNotificationText(actor) {
   const action = actor === 'Диана' ? 'погуляла' : 'погулял';
-  return `🐾 <b>${actor} ${action} с Lulu</b>`;
+  return `🐾 <b>${actor} ${action} с Лулу</b>`;
 }
 
 async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) {
@@ -1347,7 +1347,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         await recordActivity({
           type: 'lulu-walk',
           actor,
-          text: actor + ' ' + actionWord + ' с Lulu',
+          text: actor + ' ' + actionWord + ' с Лулу',
           icon: '🐾',
           targetTab: 'home',
           dedupeKey: 'lulu-walk:' + walkedAt,

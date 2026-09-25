@@ -3511,12 +3511,12 @@
         luluTile.className='panel lulu-card';
         luluTile.dataset.appTabSection='home';
         luluTile.dataset.homeTile='lulu';
-        luluTile.setAttribute('aria-label','Lulu');
+        luluTile.setAttribute('aria-label','Лулу');
         luluTile.innerHTML=
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
-              '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Lulu" width="58" height="58">'+
-              '<div class="lulu-copy"><h2>Lulu</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
+              '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Лулу" width="58" height="58">'+
+              '<div class="lulu-copy"><h2>Лулу</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
             '</div>'+
             '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+
