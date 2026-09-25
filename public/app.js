@@ -2577,7 +2577,7 @@
           node.dataset.level='unknown';
           return;
         }
-        node.textContent='Хочет в туалет: '+(probability===100?'100%':'~'+probability+'%');
+        node.textContent=probability===100?'Пора гулять':'Хочет в туалет: ~'+probability+'%';
         node.dataset.level=probability>=80?'high':probability>=50?'medium':'low';
       }
 

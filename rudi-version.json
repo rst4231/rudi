@@ -1,10 +1,11 @@
 {
-  "current": "v1.18.40",
+  "current": "v1.18.41",
   "versionBranch": "main",
   "releaseCommit": null,
   "createdAt": "2026-09-25",
-  "basedOnProduction": "5335c62bad00f0322519dade0f01a6756b711f46",
+  "basedOnProduction": "1f7135c72d7198ee862599e5d9d81bdbcb75bbde",
   "notes": [
+    "При 100% вероятности статус Lulu больше не показывает процент и пишет только «Пора гулять».",
     "Фоновая проверка Lulu каждые 15 минут перенесена с Vercel Cron на GitHub Actions, потому что Hobby Vercel разрешает cron только раз в сутки.",
     "GitHub Actions вызывает защищённый endpoint через OIDC без отдельного секрета; сервер принимает только workflow этого репозитория из main.",
     "При 100% Рустам и Диана получают Telegram-уведомление один раз до следующей прогулки.",
