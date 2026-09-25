@@ -70,3 +70,13 @@ test('mobile assistant uses stable visible viewport height instead of keyboard b
   assert.doesNotMatch(app,/--voice-assistant-keyboard-inset/);
   assert.doesNotMatch(app,/visualViewport\?\.addEventListener\?\.\('scroll',updateVoiceAssistantViewport/);
 });
+
+
+test('assistant respects iPhone and Telegram top safe areas',()=>{
+  assert.match(app,/--voice-assistant-viewport-top/);
+  assert.match(app,/viewport\?\.offsetTop/);
+  assert.match(css,/--voice-assistant-safe-top:max\(/);
+  assert.match(css,/var\(--tg-content-safe-top,0px\)/);
+  assert.match(css,/env\(safe-area-inset-top,0px\)/);
+  assert.match(css,/top:calc\(var\(--voice-assistant-viewport-top,0px\) \+ var\(--voice-assistant-safe-top\) \+ 8px\)!important/);
+});

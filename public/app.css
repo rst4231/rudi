@@ -7908,3 +7908,23 @@ body.voice-assistant-open .voice-assistant-icon-button{
     max-height:none!important;
   }
 }
+
+
+/* Voice assistant safe-area stability v1.18.17 */
+.voice-assistant-panel{
+  --voice-assistant-safe-top:max(
+    env(safe-area-inset-top,0px),
+    var(--tg-safe-area-inset-top,0px),
+    var(--tg-content-safe-area-inset-top,0px),
+    var(--tg-content-safe-top,0px)
+  );
+}
+@media(max-width:600px){
+  .voice-assistant-panel,
+  body.voice-assistant-input-active .voice-assistant-panel{
+    top:calc(var(--voice-assistant-viewport-top,0px) + var(--voice-assistant-safe-top) + 8px)!important;
+    height:calc(var(--voice-assistant-viewport-height,100dvh) - var(--voice-assistant-safe-top) - 16px)!important;
+    max-height:none!important;
+    bottom:auto!important;
+  }
+}
