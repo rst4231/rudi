@@ -14,6 +14,7 @@
       let currentActor = '';
       let appAccessReady = false;
       let currentPartnerReactionKey = '';
+      const reactionRequestEpoch = new Map();
       let currentFeedReactionTargets = [];
       let currentPhotoMemoryReactionTarget = null;
       let partnerProfileName = '';
@@ -5814,7 +5815,7 @@
           const response=await fetch('/api/partner-message?rudiAction=holidays',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:tg?.initData||''}),
+            body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
@@ -7219,7 +7220,7 @@
         const response=await fetch('/api/partner-message?rudiAction=reactions',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken,operation,...payload}),
+          body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken,operation,...payload}),
           cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
@@ -7227,6 +7228,21 @@
         if(data.backupToken) await storeStateBackupToken(data.backupToken);
         if(operation!=='list') setTimeout(()=>loadActivityJournal({silent:true}),240);
         return data;
+      }
+
+      function reactionTargetId(target){
+        return target?.type&&target?.key?String(target.type)+':'+String(target.key):'';
+      }
+
+      function reactionEpoch(target){
+        return reactionRequestEpoch.get(reactionTargetId(target))||0;
+      }
+
+      function bumpReactionEpoch(target){
+        const key=reactionTargetId(target);
+        const next=(reactionRequestEpoch.get(key)||0)+1;
+        reactionRequestEpoch.set(key,next);
+        return next;
       }
 
       function reactionNames(likedBy){
@@ -7251,8 +7267,14 @@
 
       async function refreshReaction(target,buttonId,namesId){
         if(!target?.key||!currentActor) return;
+        const button=document.getElementById(buttonId);
+        const targetId=reactionTargetId(target);
+        const startedAt=reactionEpoch(target);
+        if(button) button.dataset.reactionTarget=targetId;
         try{
           const data=await reactionsRequest('list',{targets:[target]});
+          if(reactionEpoch(target)!==startedAt) return;
+          if(button&&button.dataset.reactionTarget!==targetId) return;
           renderReaction(data.reactions?.[0],buttonId,namesId);
         }catch(_){}
       }
@@ -7266,6 +7288,9 @@
           event.stopPropagation();
           const target=targetProvider();
           if(!target?.key||button.disabled) return;
+          const targetId=reactionTargetId(target);
+          button.dataset.reactionTarget=targetId;
+          const mutationEpoch=bumpReactionEpoch(target);
           const liked=button.getAttribute('aria-pressed')!=='true';
           let previousLikedBy=[];
           try{previousLikedBy=JSON.parse(button.dataset.likedBy||'[]')}catch(_){}
@@ -7276,13 +7301,16 @@
           button.disabled=true;
           try{
             const data=await reactionsRequest('set',{target,liked});
+            if(reactionEpoch(target)!==mutationEpoch||button.dataset.reactionTarget!==targetId) return;
             renderReaction(data.reaction,buttonId,namesId);
             button.classList.remove('just-liked');
             void button.offsetWidth;
             if(data.reaction?.likedBy?.includes(currentActor)) button.classList.add('just-liked');
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           }catch(_){
-            renderReaction({likedBy:previousLikedBy},buttonId,namesId);
+            if(reactionEpoch(target)===mutationEpoch&&button.dataset.reactionTarget===targetId){
+              renderReaction({likedBy:previousLikedBy},buttonId,namesId);
+            }
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
             button.disabled=false;

@@ -183,3 +183,36 @@ test('reaction snapshot restores likes after cache eviction',async()=>{
   const restored=await mod.readReaction(target,{reactionsCache:cache});
   assert.deepEqual(restored.likedBy,['Рустам']);
 });
+
+
+test('mergeReactionStates preserves disjoint likes when the newer snapshot has a higher global version',()=>{
+  const {mergeReactionStates}=require('../api/reactions-store.cjs');
+  const older={
+    initialized:true,
+    version:100,
+    entries:{
+      'partner-message:message:2026-09-25T05:00:00.000Z':{
+        type:'partner-message',
+        key:'message:2026-09-25T05:00:00.000Z',
+        likedBy:['Рустам'],
+        updatedAt:'2026-09-25T05:10:00.000Z',
+      },
+    },
+  };
+  const newer={
+    initialized:true,
+    version:200,
+    entries:{
+      'photo-memory:photo:abc123':{
+        type:'photo-memory',
+        key:'photo:abc123',
+        likedBy:['Диана'],
+        updatedAt:'2026-09-25T05:20:00.000Z',
+      },
+    },
+  };
+  const merged=mergeReactionStates(older,newer);
+  assert.deepEqual(merged.entries['partner-message:message:2026-09-25T05:00:00.000Z'].likedBy,['Рустам']);
+  assert.deepEqual(merged.entries['photo-memory:photo:abc123'].likedBy,['Диана']);
+  assert.equal(merged.version,200);
+});

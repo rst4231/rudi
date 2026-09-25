@@ -11,7 +11,7 @@ const { readAlbumConfig, saveAlbumConfig } = require('./shared-album.cjs');
 const { readCycleState, writeCycleState } = require('./cycle-store.cjs');
 const { readCarState, restoreCarState } = require('./car-store.cjs');
 const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-store.cjs');
-const { readReactionState, restoreReactionState } = require('./reactions-store.cjs');
+const { readReactionState, restoreReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const { readActivityJournal, restoreActivityJournalState } = require('./activity-journal-store.cjs');
 const { readLuluState, restoreLuluState } = require('./lulu-store.cjs');
 const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
@@ -222,7 +222,7 @@ async function createStateSnapshot(options = {}) {
     cycle: newerTimestampState(cycle, previous?.cycle, 'updatedAt'),
     carState: newerTimestampState(carState?.mileage == null ? null : carState, previous?.carState, 'updatedAt'),
     dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
-    reactions: newerVersionState(reactions, previous?.reactions),
+    reactions: mergeReactionStates(previous?.reactions, reactions),
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
     luluState: newerVersionState(luluState, previous?.luluState),
     uiPreferences: normalizeUiPreferences(previous?.uiPreferences),

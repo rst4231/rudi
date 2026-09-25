@@ -47,7 +47,7 @@ const { readDateGenerationQuota, recordSuccessfulDateGeneration } = require('./d
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readForDiFeed, toggleForDiLike } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
-const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState } = require('./reactions-store.cjs');
+const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
   readActivityJournal,
   appendActivity,
@@ -685,7 +685,7 @@ function mergeBackupSnapshots(base, overlay) {
     luluState: newerVersion(base.luluState, overlay.luluState),
     carState: newerTime(base.carState, overlay.carState),
     dailyMood: newerVersion(base.dailyMood, overlay.dailyMood),
-    reactions: newerVersion(base.reactions, overlay.reactions),
+    reactions: mergeReactionStates(base.reactions, overlay.reactions),
     uiPreferences: mergeUiPreferences(base.uiPreferences, overlay.uiPreferences),
     recipients: {
       'Рустам': Number(overlay.recipients?.['Рустам'] || base.recipients?.['Рустам'] || 0) || null,
