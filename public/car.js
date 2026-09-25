@@ -174,6 +174,19 @@
     return {kind:'ok',title:'Стоит ли мыть машину',text:'Да. На ближайшую неделю существенных осадков не видно — хороший момент для мойки.'};
   }
 
+  function compactWashAdvice(weather) {
+    const advice=carWashAdvice(weather);
+    const text=String(advice?.text||'');
+    if(/снег/i.test(text)) return 'Отложить · возможен снег.';
+    if(/1–2 дня/i.test(text)) return 'Отложить · осадки в ближайшие 1–2 дня.';
+    if(/неделя ожидается влажной/i.test(text)) return 'Скорее нет · влажная неделя.';
+    const delayed=text.match(/через\s+(\d+)\s+/i);
+    if(delayed) return 'Можно · осадки примерно через '+delayed[1]+' дн.';
+    if(/замороз/i.test(text)) return 'Можно · после мойки хорошо просушить.';
+    if(advice?.kind==='ok') return 'Да · неделя без существенных осадков.';
+    return 'Проверь погоду перед мойкой.';
+  }
+
   function buildRecommendations(car,weather) {
     const items=[carWashAdvice(weather)];
     const remaining=serviceRemaining(car);
@@ -233,7 +246,7 @@
     }
     if(advice) advice.textContent=(weather?.stale?'Сохранённый прогноз · ':'')+tyreAdvice(weather);
     const collapsedWash=document.getElementById('carCollapsedWashValue');
-    if(collapsedWash) collapsedWash.textContent=carWashAdvice(weather).text;
+    if(collapsedWash) collapsedWash.textContent=compactWashAdvice(weather);
   }
 
   function taskDateLabel(task){

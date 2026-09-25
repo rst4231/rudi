@@ -444,10 +444,19 @@
 /* end RUDI v1.8.1 white car arrows */
 
 
-/* RUDI v1.10.2: premium collapsed mileage + service metrics */
+/* RUDI v1.18.36: compact collapsed car */
 .car-model::after{display:none!important}
-.car-collapsed-metrics{display:none}
-.car-tile.is-collapsed .car-head{margin-bottom:0}
+.car-collapsed-metrics,
+.car-collapsed-service-progress,
+.car-collapsed-wash{display:none}
+
+.car-tile.is-collapsed .car-head{
+  grid-template-columns:minmax(0,1fr) minmax(176px,42%);
+  align-items:start;
+  gap:12px;
+  margin-bottom:0;
+}
+.car-tile.is-collapsed .car-head-copy{min-width:0}
 .car-tile.is-collapsed .car-collapsed-metrics{
   display:grid;
   grid-template-columns:minmax(0,.72fr) 1px minmax(0,1.28fr);
@@ -485,13 +494,41 @@
   align-self:end;
   background:rgba(196,204,219,.22);
 }
-.car-collapsed-service-progress,
-.car-collapsed-wash{
-  grid-column:1/-1;
-  min-width:0;
-}
-.car-collapsed-service-progress{
+.car-tile.is-collapsed .car-head-visual{
+  align-self:start;
   display:grid;
+  align-content:start;
+  gap:3px;
+  transform:translateY(-7px);
+}
+.car-tile.is-collapsed .car-head-visual img{
+  height:92px;
+  object-position:right center;
+}
+.car-tile.is-collapsed .car-head-visual .car-collapsed-wash{
+  display:grid;
+  gap:4px;
+  padding:0 2px 0 10px;
+  text-align:left;
+}
+.car-collapsed-wash-label{
+  color:#8f96a2;
+  font-size:7.5px;
+  line-height:1;
+  font-weight:820;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.car-collapsed-wash strong{
+  color:#dfe3e9;
+  font-size:9.5px;
+  line-height:1.28;
+  font-weight:700;
+  letter-spacing:-.01em;
+}
+.car-tile.is-collapsed .car-collapsed-service-progress{
+  display:grid;
+  grid-column:1/-1;
   gap:7px;
   margin-top:2px;
 }
@@ -506,6 +543,7 @@
   font-weight:820;
   letter-spacing:.075em;
   text-transform:uppercase;
+  white-space:nowrap;
 }
 .car-collapsed-progress-head strong{
   color:#f0f2f5;
@@ -520,50 +558,71 @@
   height:6px;
   background:rgba(255,255,255,.06);
 }
-.car-collapsed-wash{
-  display:grid;
-  gap:4px;
-  padding-top:2px;
-}
-.car-collapsed-wash-label{
-  color:#8f96a2;
-  font-size:8px;
-  line-height:1;
-  font-weight:820;
-  letter-spacing:.075em;
-  text-transform:uppercase;
-}
-.car-collapsed-wash strong{
-  color:#dfe3e9;
-  font-size:10px;
-  line-height:1.35;
-  font-weight:700;
-  letter-spacing:-.01em;
-}
+
 @media(max-width:430px){
-  .car-tile.is-collapsed .car-collapsed-metrics{
-    grid-template-columns:minmax(0,.78fr) 1px minmax(0,1.22fr);
+  .car-tile.is-collapsed{padding:14px 14px 13px}
+  .car-tile.is-collapsed .car-head{
+    grid-template-columns:minmax(0,1fr) minmax(118px,40%);
     gap:8px;
-    margin-top:9px;
   }
-  .car-collapsed-metric-label{font-size:7.2px;letter-spacing:.07em}
-  .car-collapsed-metric strong{font-size:13px;line-height:1.08}
-  .car-collapsed-metrics-divider{height:32px}
-  .car-collapsed-progress-head,
-  .car-collapsed-wash-label{font-size:7px}
-  .car-collapsed-progress-head strong,
-  .car-collapsed-wash strong{font-size:9.5px}
+  .car-tile.is-collapsed .car-head h2{
+    margin-top:2px;
+    margin-bottom:3px;
+    font-size:20px;
+  }
+  .car-tile.is-collapsed .car-model{
+    font-size:10px;
+    line-height:1.2;
+  }
+  .car-tile.is-collapsed .car-collapsed-metrics{
+    grid-template-columns:minmax(0,.75fr) 1px minmax(0,1.25fr);
+    gap:7px;
+    margin-top:8px;
+  }
+  .car-collapsed-metric{gap:3px}
+  .car-collapsed-metric-label{font-size:6.7px;letter-spacing:.06em}
+  .car-collapsed-metric strong{font-size:12.5px;line-height:1.03}
+  .car-collapsed-metrics-divider{height:29px}
+  .car-tile.is-collapsed .car-head-visual{
+    gap:1px;
+    transform:translateY(-10px);
+  }
+  .car-tile.is-collapsed .car-head-visual img{
+    height:72px;
+  }
+  .car-tile.is-collapsed .car-head-visual .car-collapsed-wash{
+    gap:3px;
+    padding-left:5px;
+  }
+  .car-collapsed-wash-label{
+    font-size:6.2px;
+    letter-spacing:.055em;
+    white-space:nowrap;
+  }
+  .car-collapsed-wash strong{
+    font-size:8.1px;
+    line-height:1.22;
+  }
+  .car-tile.is-collapsed .car-collapsed-service-progress{
+    gap:5px;
+    margin-top:0;
+  }
+  .car-collapsed-progress-head{font-size:6.9px;letter-spacing:.055em}
+  .car-collapsed-progress-head strong{font-size:9px}
+  .car-collapsed-service-progress .car-service-progress{height:5px}
 }
 @media(max-width:360px){
+  .car-tile.is-collapsed .car-head{
+    grid-template-columns:minmax(0,1fr) minmax(108px,39%);
+    gap:6px;
+  }
   .car-tile.is-collapsed .car-collapsed-metrics{
-    grid-template-columns:1fr;
-    gap:7px;
+    grid-template-columns:minmax(0,.7fr) 1px minmax(0,1.3fr);
+    gap:6px;
   }
-  .car-collapsed-metrics-divider{display:none}
-  .car-collapsed-metric{
-    grid-template-columns:auto minmax(0,1fr);
-    align-items:baseline;
-    gap:8px;
-  }
+  .car-collapsed-metric-label{font-size:6.2px}
+  .car-collapsed-metric strong{font-size:11.5px}
+  .car-tile.is-collapsed .car-head-visual img{height:66px}
+  .car-collapsed-wash strong{font-size:7.6px}
 }
-/* end RUDI v1.10.2 collapsed mileage + service metrics */
+/* end RUDI v1.18.36 compact collapsed car */
