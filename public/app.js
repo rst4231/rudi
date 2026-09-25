@@ -2502,9 +2502,89 @@
         }).format(date).replace('.','')+' в '+time;
       }
 
+      function luluLocalMinutes(date=new Date()){
+        const parts=new Intl.DateTimeFormat('en-GB',{
+          timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).formatToParts(date);
+        const hour=Number(parts.find(part=>part.type==='hour')?.value||0);
+        const minute=Number(parts.find(part=>part.type==='minute')?.value||0);
+        return hour*60+minute;
+      }
+
+      function luluMealWindowBoost(walkedAt,now=new Date()){
+        const walked=new Date(String(walkedAt||''));
+        if(Number.isNaN(walked.getTime())) return 0;
+        const nowMinutes=luluLocalMinutes(now);
+        const walkedMinutes=luluLocalMinutes(walked);
+        const sameDay=sharedAlbumDateKey(walked)===sharedAlbumDateKey(now);
+        const windows=[
+          {start:8*60,end:10*60},
+          {start:20*60,end:22*60}
+        ];
+        let boost=0;
+        for(const window of windows){
+          const inOrAfterMeal=nowMinutes>=window.start&&nowMinutes<=window.end+120;
+          if(!inOrAfterMeal) continue;
+          const walkWasBeforeMeal=!sameDay||walkedMinutes<window.start;
+          const walkWasDuringMeal=sameDay&&walkedMinutes>=window.start&&walkedMinutes<=window.end;
+          if(walkWasBeforeMeal) boost=Math.max(boost,10);
+          else if(walkWasDuringMeal) boost=Math.max(boost,4);
+        }
+        return boost;
+      }
+
+      function luluToiletProbability(walkedAt,now=new Date()){
+        const walked=new Date(String(walkedAt||''));
+        if(Number.isNaN(walked.getTime())) return null;
+        const elapsedHours=Math.max(0,(now.getTime()-walked.getTime())/3600000);
+
+        const currentYear=Number(new Intl.DateTimeFormat('en',{
+          timeZone:TZ,year:'numeric'
+        }).format(now));
+        const age=Math.max(0,currentYear-2020);
+        const comfortableHours=age>=10?4.5:age>=8?5.25:6;
+
+        const ratio=elapsedHours/comfortableHours;
+        const points=[
+          [0,6],[.2,10],[.4,20],[.6,34],[.8,52],[1,70],[1.2,84],[1.4,93],[1.7,98]
+        ];
+        let base=98;
+        if(ratio<=points[0][0]) base=points[0][1];
+        else{
+          for(let i=1;i<points.length;i+=1){
+            const [x2,y2]=points[i];
+            const [x1,y1]=points[i-1];
+            if(ratio<=x2){
+              const t=(ratio-x1)/(x2-x1);
+              base=Math.round(y1+(y2-y1)*t);
+              break;
+            }
+          }
+        }
+
+        const mealBoost=luluMealWindowBoost(walkedAt,now);
+        const waterBoost=elapsedHours>=2?3:1;
+        return Math.max(5,Math.min(99,Math.round(base+mealBoost+waterBoost)));
+      }
+
+      function syncLuluToiletStatus(){
+        const node=document.getElementById('luluToiletStatus');
+        if(!node) return;
+        const walkedAt=homeDashboardState.lulu?.lastWalk?.walkedAt;
+        const probability=luluToiletProbability(walkedAt);
+        if(probability===null){
+          node.textContent='Туалет: нет данных';
+          node.dataset.level='unknown';
+          return;
+        }
+        node.textContent='Хочет в туалет: ~'+probability+'%';
+        node.dataset.level=probability>=80?'high':probability>=50?'medium':'low';
+      }
+
       function renderLulu(value){
         const state=value&&typeof value==='object'?value:{};
         homeDashboardState.lulu=state;
+        syncLuluToiletStatus();
         const status=document.getElementById('luluWalkStatus');
         const walk=state.lastWalk&&typeof state.lastWalk==='object'?state.lastWalk:null;
         if(!status) return;
@@ -2518,7 +2598,7 @@
           timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
         }).format(date);
         const companion=actor==='Диана'?'Дианой':actor==='Рустам'?'Рустамом':actor;
-        status.textContent='Я гуляла с '+companion+' в '+time;
+        status.textContent='Гуляла с '+companion+' в '+time;
       }
 
       async function luluRequest(operation){
@@ -3388,7 +3468,7 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Lulu" width="58" height="58">'+
-              '<div class="lulu-copy"><h2>Lulu</h2><div id="luluWalkStatus" class="lulu-walk-status">Прогулка · пока не отмечена</div></div>'+
+              '<div class="lulu-copy"><h2>Lulu</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><div id="luluWalkStatus" class="lulu-walk-status">Прогулка · пока не отмечена</div></div>'+
             '</div>'+
             '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+
@@ -9666,7 +9746,7 @@
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()) refreshDailyMood()},5*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadActivityJournal({silent:true})},60*1000);
-      setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();renderHomeDashboard()}},30*1000);
+      setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();syncLuluToiletStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
       setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
