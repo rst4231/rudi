@@ -7409,7 +7409,7 @@
         textEl.classList.remove('partner-empty');
         const author=String(message.authorName||'').trim();
         authorEl.textContent=author?'С любовью, '+author:'С любовью';
-        currentPartnerReactionKey='message:'+String(message.updatedAt||'').trim();
+        currentPartnerReactionKey='message:'+String(message.id||'').trim();
         if(reactionStrip) reactionStrip.hidden=!currentPartnerReactionKey;
         if(currentPartnerReactionKey) refreshReaction({type:'partner-message',key:currentPartnerReactionKey},'partnerMessageLike','partnerMessageLikedBy');
       }

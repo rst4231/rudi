@@ -2009,6 +2009,20 @@ async function handleRudiAction(req, res, action, options = {}) {
         await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
       }
       const message = await readPartnerMessage(options);
+      if(message?.id&&message?.updatedAt){
+        const stableTarget={type:'partner-message',key:'message:'+String(message.id)};
+        const legacyTarget={type:'partner-message',key:'message:'+String(message.updatedAt)};
+        if(stableTarget.key!==legacyTarget.key){
+          const rows=await readReactions([stableTarget,legacyTarget],options).catch(()=>[]);
+          const stable=rows?.[0];
+          const legacy=rows?.[1];
+          if(!stable?.likedBy?.length&&legacy?.likedBy?.length){
+            for(const name of legacy.likedBy){
+              await setReaction(stableTarget,name,true,options).catch(()=>null);
+            }
+          }
+        }
+      }
       return res.status(200).json({ ok: true, message });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
@@ -2607,6 +2621,7 @@ async function handler(req, res, options = {}) {
     const text = normalizeMessageText(body.text);
 
     const message = await writePartnerMessage({
+      id: 'msg-' + crypto.randomUUID(),
       text,
       authorName: actor || authorName,
       updatedAt: new Date(options.now || Date.now()).toISOString(),
