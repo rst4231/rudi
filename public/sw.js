@@ -144,19 +144,18 @@ self.addEventListener('fetch',event=>{
   if(url.pathname.startsWith('/api/')) return;
 
   if(request.mode==='navigate'){
-    const network=fetchWithTimeout(request,NAVIGATION_TIMEOUT_MS)
-      .then(response=>{
+    event.respondWith((async()=>{
+      try{
+        const networkRequest=new Request(request,{cache:'no-store'});
+        const response=await fetchWithTimeout(networkRequest,NAVIGATION_TIMEOUT_MS);
         if(response&&response.ok){
           const copy=response.clone();
-          caches.open(CACHE_NAME).then(cache=>cache.put('/',copy)).catch(()=>{});
+          await caches.open(CACHE_NAME).then(cache=>cache.put('/',copy)).catch(()=>{});
         }
         return response;
-      });
-    event.waitUntil(network.then(()=>undefined).catch(()=>undefined));
-    event.respondWith((async()=>{
-      const cached=(await caches.match(request)) || (await caches.match('/'));
-      if(cached) return cached;
-      try{return await network}catch(_){return Response.error()}
+      }catch(_){
+        return (await caches.match(request)) || (await caches.match('/')) || Response.error();
+      }
     })());
     return;
   }
