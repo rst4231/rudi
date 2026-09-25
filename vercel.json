@@ -224,10 +224,6 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/lulu-toilet-cron",
-      "schedule": "*/15 * * * *"
     }
   ],
   "env": {

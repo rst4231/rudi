@@ -1,0 +1,30 @@
+name: Lulu Toilet Alert
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check Lulu toilet probability
+        shell: bash
+        env:
+          OIDC_AUDIENCE: rudi-lulu-toilet
+          RUDI_ENDPOINT: https://spb-daily-guide-bot.vercel.app/api/lulu-toilet-cron
+        run: |
+          set -euo pipefail
+          OIDC_RESPONSE="$(curl -fsSL \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          TOKEN="$(printf '%s' "${OIDC_RESPONSE}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
+          curl -fsS --retry 2 --max-time 30 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "${RUDI_ENDPOINT}"

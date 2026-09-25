@@ -1,8 +1,10 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
+const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs');
 const { runLuluToiletAlert } = require('./lulu-toilet-alert.cjs');
 
 async function handler(req, res) {
-  if (!isCronRequestAuthorized(req)) {
+  const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req);
+  if (!authorized) {
     console.error('RUDI_LULU_TOILET_CRON_UNAUTHORIZED');
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
   }
