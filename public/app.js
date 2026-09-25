@@ -518,14 +518,17 @@
 
       async function readStateBackupToken(){
         const local=readLocalStateBackupToken();
-        const cloud=await readCloudStateBackupToken({allowLegacy:!local});
+        if(local){
+          currentStateBackupToken=local;
+          return local;
+        }
+        const cloud=await readCloudStateBackupToken({allowLegacy:true});
         if(cloud){
           currentStateBackupToken=cloud;
           storeLocalStateBackupToken(cloud);
           return cloud;
         }
-        if(local) currentStateBackupToken=local;
-        return local;
+        return '';
       }
 
       async function storeStateBackupToken(value){

@@ -165,3 +165,17 @@ test('browser auth is included in the same encrypted recovery system as products
   assert.match(app,/const cloudToken=await withTimeout\(readStateBackupToken\(\),1600,currentStateBackupToken\|\|''\)/);
   assert.match(app,/if\(data\.backupToken\) await storeStateBackupToken\(data\.backupToken\)/);
 });
+
+
+test('startup keeps the local encrypted backup when both local and cloud copies exist', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const start = source.indexOf('async function readStateBackupToken()');
+  const end = source.indexOf('async function storeStateBackupToken', start);
+  assert.ok(start >= 0 && end > start);
+  const block = source.slice(start, end);
+  const localRead = block.indexOf('const local=readLocalStateBackupToken()');
+  const localReturn = block.indexOf('return local');
+  const cloudRead = block.indexOf('readCloudStateBackupToken');
+  assert.ok(localRead >= 0 && localReturn > localRead);
+  assert.ok(cloudRead > localReturn, 'cloud backup must only be read after local backup is unavailable');
+});
