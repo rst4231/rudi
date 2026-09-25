@@ -63,6 +63,7 @@ async function handler(req, res) {
       try {
         laborCatchup = await publishDailyLaborArticle({
           force: isOneTimeForDiRecovery(req),
+          queueOnly: true,
           now: new Date(),
         });
       } catch (error) {

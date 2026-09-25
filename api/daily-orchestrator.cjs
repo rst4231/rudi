@@ -198,7 +198,7 @@ async function runDailyOrchestrator(req, res, options = {}) {
       });
       if (!hasLaborQueued) {
         const recoverLabor = options.recoverLabor || ((recoveryOptions) => require('./index.js').publishDailyLaborArticle(recoveryOptions));
-        nativeResults.laborRecovery = await recoverLabor({ force: true, now: options.now || new Date() });
+        nativeResults.laborRecovery = await recoverLabor({ force: true, queueOnly: true, now: options.now || new Date() });
       }
     } catch (error) {
       nativeResults.laborRecovery = { failed: true, error: String(error?.message || error) };

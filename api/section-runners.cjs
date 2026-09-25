@@ -8,7 +8,7 @@ const { emitOperationalAlert } = require('./alert-service.cjs');
 const { incrementSectionMetric } = require('./feedback-analytics.cjs');
 
 function getNativeSectionRunner(section, deps = {}) {
-  if (section === 'labor') return deps.labor || (async () => require('./index.js').publishDailyLaborArticle());
+  if (section === 'labor') return deps.labor || (async (options) => require('./index.js').publishDailyLaborArticle({ ...options, queueOnly: true }));
   if (section === 'cinema') return deps.cinema || (async (options) => require('./cinema-premieres-collage.cjs').publishWeeklyCinemaPremieres(options));
   return null;
 }

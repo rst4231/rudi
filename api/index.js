@@ -104,6 +104,13 @@ function readGeneratedRuntimeSource() { try { return fs.readFileSync(require.res
 async function publishDailyLaborArticle(options = {}) {
   if (laborPublicationFlight) return laborPublicationFlight;
   const run = withLaborPublicationLease(async () => {
+    if (options.queueOnly === true) {
+      return publishLaborArticle({
+        ...options,
+        cache: getLaborCache(),
+        fetchImpl: nativeFetch,
+      });
+    }
     const token = resolveTelegramBotToken(process.env); const cachedChatId = await getKnownForumChatId();
     const chatId = resolveForumChatId({ cached: cachedChatId, env: process.env, runtimeSource: cachedChatId === null ? readGeneratedRuntimeSource() : '' });
     if (chatId === null) { console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id could not be resolved')); return null; }
@@ -166,7 +173,7 @@ async function handler(req, res) {
       try { const cleanup = await prepareDailyTopicCleanup({ token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch }); console.log('RUDI_TOPIC_CLEANUP_RESULT', cleanup); }
       catch (error) { console.error('RUDI_DAILY_TOPIC_CLEANUP_ERROR', error); }
       let runtimeResult; try { runtimeResult = await runRuntime(req, res); } finally { markProductsRuntimeStale(); }
-      try { const labor = await publishDailyLaborArticle(); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
+      try { const labor = await publishDailyLaborArticle({ queueOnly: true }); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
     }
     if (req.query?.route === 'health') {

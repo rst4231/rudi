@@ -37,3 +37,31 @@ test('publisher queues the selected Labor article for Diana without forum send',
   assert.equal(queued.length, 1);
   assert.match(queued[0].text, /Трудовой кодекс/);
 });
+
+
+test('queue-only labor publication does not touch Telegram topics', async () => {
+  const { publishLaborArticle } = require('../api/labor-code.cjs');
+  const map = new Map();
+  const cache = {
+    async get(key){ return map.has(key) ? map.get(key) : null; },
+    async set(key,value){ map.set(key,value); return true; },
+  };
+  const forDiMap = new Map();
+  const forDiCache = {
+    async get(key){ return forDiMap.has(key) ? forDiMap.get(key) : null; },
+    async set(key,value){ forDiMap.set(key,value); return true; },
+  };
+  let fetchCalls = 0;
+  const result = await publishLaborArticle({
+    queueOnly: true,
+    force: true,
+    now: new Date('2026-09-25T00:30:00+03:00'),
+    cache,
+    forDiCache,
+    fetchImpl: async()=>{ fetchCalls += 1; throw new Error('Telegram must not be called'); },
+  });
+  assert.equal(fetchCalls, 0);
+  assert.equal(result.queueOnly, true);
+  assert.equal(result.topicId, null);
+  assert.equal(result.queuedForPrivateDelivery, true);
+});

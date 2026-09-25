@@ -159,14 +159,15 @@ async function recordArticlePublication(cache, articleId, todayKey, messageId, t
 }
 
 async function publishLaborArticle(options = {}) {
+  const queueOnly = options.queueOnly === true;
   const token = String(options.token || '').trim();
   const chatId = options.chatId;
-  if (!token) throw new Error('Telegram bot token is required for labor articles');
-  if (chatId === undefined || chatId === null || chatId === '') throw new Error('Telegram forum chat id is required for labor articles');
+  if (!queueOnly && !token) throw new Error('Telegram bot token is required for labor articles');
+  if (!queueOnly && (chatId === undefined || chatId === null || chatId === '')) throw new Error('Telegram forum chat id is required for labor articles');
   const cache = options.cache || getRuntimeCache();
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const now = options.now || new Date();
-  const topicId = await ensureLaborTopic({
+  const topicId = queueOnly ? null : await ensureLaborTopic({
     token,
     chatId,
     cache,
@@ -199,7 +200,7 @@ async function publishLaborArticle(options = {}) {
   });
 
   await recordArticlePublication(cache, next.id, todayKey, null, topicId, history);
-  return { articleId: next.id, topicId, messageId: null, queuedForPrivateDelivery: true };
+  return { articleId: next.id, topicId, messageId: null, queuedForPrivateDelivery: true, queueOnly };
 }
 
 async function replaceLaborArticle(options = {}) {

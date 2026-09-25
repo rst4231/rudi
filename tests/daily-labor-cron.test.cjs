@@ -60,6 +60,7 @@ test('one-time For Di recovery can force labor back into the RUDI feed without a
   assert.match(source, /mode === 'for-di'/);
   assert.match(source, /labor-feed-missed-2026-09-25/);
   assert.match(source, /force: isOneTimeForDiRecovery\(req\)/);
+  assert.match(source, /queueOnly: true/);
   const forDiCron = (vercel.crons || []).find((item) => item.path === '/api/for-di');
   assert.equal(forDiCron, undefined, 'For Di must stay on the same daily run as the feed');
 });
