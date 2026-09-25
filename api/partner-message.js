@@ -58,7 +58,7 @@ const {
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
 const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
-const { readScoreState, awardScore, reverseScoreByDedupeKey, redeemReward, scoreView, restoreScoreState } = require('./score-store.cjs');
+const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const {
@@ -328,6 +328,35 @@ async function sendActivityNotification(text, _tab, options = {}) {
   }
 }
 
+async function sendRewardRedeemedNotification(actor, reward, options = {}) {
+  try {
+    const label=escapeTelegramHtml(String(reward?.label||'Награда'));
+    const icon=String(reward?.icon||'🎁');
+    const cost=pointsFromUnits(reward?.costUnits||0);
+    return await sendToAllRecipients(
+      `🎁 <b>${escapeTelegramHtml(actor)} активировал награду</b>\n\n${icon} <b>${label}</b>\nСписано: <b>${cost} баллов</b>`,
+      {...options,tab:'home',buttonText:'Открыть RUDI'}
+    );
+  } catch (error) {
+    console.warn('RUDI_REWARD_REDEEM_NOTIFICATION_WARN', String(error?.message || error));
+    return [];
+  }
+}
+
+async function sendRewardCompletedNotification(actor, redemption, options = {}) {
+  try {
+    const label=escapeTelegramHtml(String(redemption?.label||'Награда'));
+    const buyer=escapeTelegramHtml(String(redemption?.buyerActor||''));
+    return await sendToAllRecipients(
+      `✅ <b>Награда выполнена</b>\n\n${String(redemption?.icon||'🎁')} <b>${label}</b>\nДля: <b>${buyer}</b>\nПодтвердил: <b>${escapeTelegramHtml(actor)}</b>`,
+      {...options,tab:'home',buttonText:'Открыть RUDI'}
+    );
+  } catch (error) {
+    console.warn('RUDI_REWARD_COMPLETE_NOTIFICATION_WARN', String(error?.message || error));
+    return [];
+  }
+}
+
 function luluWalkStatusLabel(value, now = Date.now()) {
   const date = new Date(String(value || ''));
   if (Number.isNaN(date.getTime())) return 'время не указано';
@@ -457,6 +486,11 @@ async function recordActivity(input, options = {}) {
 async function awardScoreSafe(actor, units, meta = {}, options = {}) {
   try { return await awardScore(actor, units, meta, options); }
   catch (error) { console.warn('RUDI_SCORE_AWARD_WARN', String(error?.message || error)); return null; }
+}
+
+async function awardProductScoreSafe(actor, text, options = {}) {
+  try { return await awardProductScore(actor, text, options); }
+  catch (error) { console.warn('RUDI_PRODUCT_SCORE_AWARD_WARN', String(error?.message || error)); return null; }
 }
 
 function reactionActivityView(target) {
@@ -1997,13 +2031,34 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if(operation==='redeem'){
         const result=await redeemReward(actor,body.rewardId,options);
+        const notificationTask=sendRewardRedeemedNotification(actor,result.reward,options).catch(()=>[]);
+        try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
         const backupToken=await refreshBackupToken(previousSnapshot,options);
-        return res.status(200).json({ok:true,actor,reward:result.reward,score:scoreView(result.state,{now:options.now||Date.now()}),backupToken});
+        return res.status(200).json({
+          ok:true,actor,reward:result.reward,redemption:result.redemption,
+          score:scoreView(result.state,{now:options.now||Date.now()}),backupToken,
+          notification:{pending:true},
+        });
+      }
+      if(operation==='complete-reward'){
+        const result=await completeReward(actor,body.redemptionId,options);
+        const notificationTask=sendRewardCompletedNotification(actor,result.redemption,options).catch(()=>[]);
+        try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({
+          ok:true,actor,redemption:result.redemption,
+          score:scoreView(result.state,{now:options.now||Date.now()}),backupToken,
+          notification:{pending:true},
+        });
       }
       return res.status(400).json({ok:false,error:'score-operation-invalid'});
     } catch(error) {
       const code=String(error?.message||error); const authStatus=statusForError(error);
-      const status=authStatus!==500?authStatus:code==='score-balance-insufficient'?409:code.startsWith('score-')?400:500;
+      const status=authStatus!==500?authStatus
+        :code==='score-balance-insufficient'||code==='score-reward-active'?409
+        :code==='score-reward-self-complete-forbidden'?403
+        :code==='score-reward-not-found'?404
+        :code.startsWith('score-')?400:500;
       return res.status(status).json({ok:false,error:code});
     }
   }
@@ -2604,7 +2659,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const added=compactActivityValues(addedItems.map((item)=>item.text));
         if(added){
           await recordActivity({type:'products',actor,text:actor+' '+activityVerb(actor,'добавил','добавила')+' в продукты: '+added,icon:'🛒',targetTab:'products'},options);
-          for(const item of addedItems) await awardScoreSafe(actor,1,{label:'Продукты',detail:'Добавлена позиция: '+String(item.text||'').trim(),icon:'🛒',dedupeKey:'score:product-add:'+String(item.id||'')},options);
+          for(const item of addedItems) await awardProductScoreSafe(actor,String(item.text||'').trim(),options);
         }
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ok:true,actor,...state,backupToken});
