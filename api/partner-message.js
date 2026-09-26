@@ -486,6 +486,30 @@ async function sendWishlistNotificationToPartner(owner, text, options = {}) {
   }
 }
 
+function dailyQuestionAnswerNotificationText(actor) {
+  const action=actor==='Диана'?'Диана ответила':'Рустам ответил';
+  return '💬 <b>'+action+' на вопрос дня</b>\n\n<i>Сам ответ скрыт. Он откроется в RUDI, когда ответите вы оба.</i>';
+}
+
+async function sendDailyQuestionAnswerNotification(actor,options={}) {
+  const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
+  if(!recipient) return {sent:false,reason:'actor-invalid'};
+  try{
+    const recipients=options.recipients||await readRecipients(options);
+    const chatId=Number(recipients?.[recipient]);
+    if(!Number.isInteger(chatId)||chatId<=0) return {sent:false,recipient,reason:'recipient-not-configured'};
+    const result=await telegramSendMessage(
+      chatId,
+      dailyQuestionAnswerNotificationText(actor),
+      {...options,tab:'home',buttonText:'Открыть вопрос дня'}
+    );
+    return {sent:true,recipient,...result};
+  }catch(error){
+    console.warn('RUDI_DAILY_QUESTION_NOTIFICATION_WARN',String(error?.message||error));
+    return {sent:false,recipient,error:String(error?.message||error)};
+  }
+}
+
 async function refreshBackupToken(previousSnapshot, options = {}) {
   return createStateBackup({ ...options, previousSnapshot }).catch((error) => {
     console.warn('RUDI_STATE_BACKUP_REFRESH_WARN', String(error?.message || error));
@@ -2246,6 +2270,16 @@ async function handleRudiAction(req, res, action, options = {}) {
           icon:'💬',
           dedupeKey:'score:daily-question:'+actor+':'+view.date,
         },options);
+        await recordActivity({
+          type:'daily-question',
+          actor,
+          text:actor+' '+activityVerb(actor,'ответил','ответила')+' на вопрос дня',
+          icon:'💬',
+          targetTab:'home',
+          dedupeKey:'daily-question:'+actor+':'+view.date,
+        },options);
+        const notificationTask=sendDailyQuestionAnswerNotification(actor,options).catch(()=>null);
+        try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
         return res.status(200).json({
           ok:true,
           operation,
@@ -2254,6 +2288,7 @@ async function handleRudiAction(req, res, action, options = {}) {
             stars:pointsFromUnits(reward?.awardedUnits||0),
             awarded:Boolean(Number(reward?.awardedUnits||0)>0),
           },
+          notification:{sent:false,pending:true},
         });
       }
 
@@ -3080,6 +3115,8 @@ module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
 module.exports.boughtNotificationText = boughtNotificationText;
 module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.sendWishlistNotificationToPartner = sendWishlistNotificationToPartner;
+module.exports.dailyQuestionAnswerNotificationText = dailyQuestionAnswerNotificationText;
+module.exports.sendDailyQuestionAnswerNotification = sendDailyQuestionAnswerNotification;
 module.exports.moodNotificationText = moodNotificationText;
 module.exports.sendMoodNotificationToPartner = sendMoodNotificationToPartner;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;

@@ -82,9 +82,10 @@ test('answers stay hidden until both answer and reset with next daily question',
   assert.equal(await cache.get('day:'+dateKey(day1)),null,'previous day answers are deleted when next question is generated');
 });
 
-test('daily question answers and history are excluded from durable Neon namespaces',()=>{
+test('daily answers stay runtime-only while question history is durable',()=>{
   const strict=fs.readFileSync(path.join(root,'api','strict-runtime-cache.cjs'),'utf8');
   assert.doesNotMatch(strict,/['"]rudi-daily-question-v1['"]/);
+  assert.match(strict,/['"]rudi-daily-question-history-v1['"]/);
 });
 
 test('answer reward is 0.5 stars with one dedupe key per actor and date',()=>{
@@ -104,4 +105,15 @@ test('daily question card is directly after message by default and supports coll
   assert.match(app,/selector:'#dailyQuestionTile',key:'daily-question'/);
   assert.match(app,/function setupDailyQuestionDrag\(\)/);
   assert.match(app,/saveHomeOrder\(\)/);
+});
+
+
+test('daily answer sends partner a Telegram notice without exposing the answer',()=>{
+  const api=fs.readFileSync(path.join(root,'api','partner-message.js'),'utf8');
+  assert.match(api,/sendDailyQuestionAnswerNotification\(actor,options\)/);
+  const start=api.indexOf('function dailyQuestionAnswerNotificationText');
+  const end=api.indexOf('async function sendDailyQuestionAnswerNotification',start);
+  const helper=api.slice(start,end);
+  assert.match(helper,/Сам ответ скрыт/);
+  assert.doesNotMatch(helper,/body\.answer|answers\[|\.text/);
 });

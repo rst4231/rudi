@@ -2,16 +2,23 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const { generateDailyQuestion } = require('./daily-question-ai.cjs');
 
 const NAMESPACE='rudi-daily-question-v1';
+const HISTORY_NAMESPACE='rudi-daily-question-history-v1';
 const DAY_TTL_SECONDS=60*60*48;
 const HISTORY_TTL_SECONDS=60*60*24*3650;
 const HISTORY_KEY='question-history';
-const MAX_HISTORY=500;
+const MAX_HISTORY=1500;
 const ACTORS=['Рустам','Диана'];
 let mutationTail=Promise.resolve();
 
 function cacheOf(options={}){
   return options.dailyQuestionCache||options.cache||createStrictRuntimeCache({
     namespace:NAMESPACE,
+    ...(options.cacheOptions||{}),
+  });
+}
+function historyCacheOf(options={}){
+  return options.dailyQuestionHistoryCache||createStrictRuntimeCache({
+    namespace:HISTORY_NAMESPACE,
     ...(options.cacheOptions||{}),
   });
 }
@@ -105,7 +112,8 @@ async function ensureDailyQuestion(options={}){
     const existing=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
     if(existing.question?.text) return existing;
 
-    const history=normalizeHistory(await cache.get(HISTORY_KEY).catch(()=>null));
+    const historyCache=historyCacheOf(options);
+    const history=normalizeHistory(await historyCache.get(HISTORY_KEY).catch(()=>null));
     const generated=await (options.generateQuestion||generateDailyQuestion)(history,{
       env:options.env||process.env,
       fetch:options.fetch||global.fetch,
@@ -135,7 +143,7 @@ async function ensureDailyQuestion(options={}){
       tags:['rudi-daily-question'],
       name:rowKey(date),
     });
-    await cache.set(HISTORY_KEY,{
+    await historyCache.set(HISTORY_KEY,{
       items:normalizeHistory({items:[{date,question:row.question.text,theme:row.question.theme},...history]}),
       updatedAt:createdAt,
     },{
@@ -175,7 +183,7 @@ async function answerDailyQuestion(actor,value,options={}){
 }
 function resetMutationQueueForTests(){mutationTail=Promise.resolve()}
 module.exports={
-  NAMESPACE,DAY_TTL_SECONDS,HISTORY_TTL_SECONDS,HISTORY_KEY,MAX_HISTORY,
+  NAMESPACE,HISTORY_NAMESPACE,DAY_TTL_SECONDS,HISTORY_TTL_SECONDS,HISTORY_KEY,MAX_HISTORY,
   dateKey,shiftDateKey,normalizeRow,normalizeHistory,questionView,
   ensureDailyQuestion,readDailyQuestion,answerDailyQuestion,resetMutationQueueForTests,
 };
