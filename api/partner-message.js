@@ -334,7 +334,7 @@ async function sendRewardRedeemedNotification(actor, reward, options = {}) {
     const icon=String(reward?.icon||'🎁');
     const cost=pointsFromUnits(reward?.costUnits||0);
     return await sendToAllRecipients(
-      `🎁 <b>${escapeTelegramHtml(actor)} активировал награду</b>\n\n${icon} <b>${label}</b>\nСписано: <b>${cost} баллов</b>`,
+      `🎁 <b>${escapeTelegramHtml(actor)} активировал награду</b>\n\n${icon} <b>${label}</b>\nСписано: <b>${cost} звезд</b>`,
       {...options,tab:'home',buttonText:'Открыть RUDI'}
     );
   } catch (error) {

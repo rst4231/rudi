@@ -2501,7 +2501,7 @@
           const value=scoreNumber(currentScoreState?.balances?.[actor]||0);
           const holder=sticker.querySelector('.score-sticker-value');
           if(holder) holder.textContent=value;
-          sticker.setAttribute('aria-label',actor+': '+value+' баллов. Открыть историю баллов');
+          sticker.setAttribute('aria-label',actor+': '+value+' звезд. Открыть историю звезд');
         });
         if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
       }
@@ -2525,7 +2525,7 @@
           '<button class="score-modal-backdrop" type="button" aria-label="Закрыть"></button>'+
           '<section class="score-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="scoreModalTitle">'+
             '<div class="score-modal-head">'+
-              '<div><div class="score-modal-kicker">Баллы</div><h2 id="scoreModalTitle"></h2></div>'+
+              '<div><div class="score-modal-kicker">Звезды</div><h2 id="scoreModalTitle"></h2></div>'+
               '<button id="scoreModalClose" class="score-modal-close" type="button" aria-label="Закрыть">×</button>'+
             '</div>'+
             '<div class="score-balance-card">'+
@@ -2687,7 +2687,7 @@
             const copy=document.createElement('div');
             copy.className='score-history-copy';
             const title=document.createElement('strong');
-            title.textContent=String(item.detail||item.label||'Баллы');
+            title.textContent=String(item.detail||item.label||'Звезды');
             const meta=document.createElement('span');
             meta.textContent=scoreHistoryTime(item.createdAt);
             copy.append(title,meta);
@@ -2705,7 +2705,7 @@
         if(!own){
           const note=document.createElement('div');
           note.className='score-shop-note';
-          note.textContent='Награды можно покупать только за свои баллы.';
+          note.textContent='Награды можно покупать только за свои звезды.';
           shop.appendChild(note);
         }
         for(const reward of Array.isArray(score?.rewards)?score.rewards:[]){
@@ -2719,7 +2719,7 @@
           const title=document.createElement('strong');
           title.textContent=String(reward.label||'Награда');
           const cost=document.createElement('span');
-          cost.textContent=scoreNumber(reward.cost)+' баллов';
+          cost.textContent=scoreNumber(reward.cost)+' звезд';
           copy.append(title,cost);
           const button=document.createElement('button');
           button.type='button';
@@ -2730,7 +2730,7 @@
           button.textContent=!own?'Только свои':alreadyActive?'Активна':enough?'Получить':'Не хватает';
           button.addEventListener('click',async()=>{
             if(button.disabled) return;
-            if(!window.confirm('Потратить '+scoreNumber(reward.cost)+' баллов на «'+reward.label+'»?')) return;
+            if(!window.confirm('Потратить '+scoreNumber(reward.cost)+' звезд на «'+reward.label+'»?')) return;
             button.disabled=true;
             try{
               const data=await scoreRequest('redeem',{rewardId:reward.id});

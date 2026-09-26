@@ -103,7 +103,7 @@ function normalizeHistoryItem(input) {
     kind:['earn','spend','reverse'].includes(String(input.kind||''))?String(input.kind):(units>0?'earn':'spend'),
     units,
     requestedUnits:normalizeUnits(input.requestedUnits||units),
-    label:cleanText(input.label,80)||'Баллы',
+    label:cleanText(input.label,80)||'Звезды',
     detail:cleanText(input.detail,220),
     icon:cleanText(input.icon,12)||'⭐',
     dedupeKey:cleanText(input.dedupeKey,180),
