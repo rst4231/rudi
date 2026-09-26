@@ -8847,3 +8847,21 @@ html[data-theme="dark"] .daily-question-reward{color:#f2c95c}
   border-color:#6675ee!important;
   box-shadow:inset 0 0 0 2px #6675ee,0 0 0 2px rgba(102,117,238,.18)!important;
 }
+
+html[data-theme="light"] .profile-supplement-intakes{
+  background:rgba(255,255,255,.82);
+  border-color:rgba(70,78,98,.12);
+  box-shadow:0 8px 24px rgba(35,42,58,.05);
+}
+html[data-theme="light"] .profile-supplement-intakes-title{
+  color:rgba(48,54,68,.66);
+  opacity:1;
+}
+html[data-theme="light"] .profile-supplement-intake-row{
+  background:rgba(255,255,255,.96);
+  border:1px solid rgba(78,86,106,.08);
+  box-shadow:0 1px 0 rgba(35,42,58,.02);
+}
+html[data-theme="light"] .profile-supplement-intake-name{color:#252a35}
+html[data-theme="light"] .profile-supplement-intake-time{color:#6675ee}
+html[data-theme="light"] .profile-supplement-intakes-empty{color:rgba(48,54,68,.56);opacity:1}
