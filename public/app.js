@@ -4073,7 +4073,8 @@
         weather:{enabled:true,city:'Санкт-Петербург',latitude:59.9386,longitude:30.3141,timezone:TZ},
         birthdays:[
           {id:'rustam',name:'Рустам',year:1992,month:3,day:3},
-          {id:'diana',name:'Диана',year:1996,month:6,day:30}
+          {id:'diana',name:'Диана',year:1996,month:6,day:30},
+          {id:'lulu',name:'Лулу',year:2021,month:5,day:5}
         ],
         importantDates:[{id:'new-year',title:'Новый год',month:1,day:1,recurring:true}],
         cookList:['Паста карбонара','Шакшука','Курица терияки с рисом','Сырники'],
