@@ -357,6 +357,23 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
     const stillActive=next.history.some((row)=>row.actor===original.actor&&row.dateKey===original.dateKey&&row.kind==='earn'&&!row.reversedAt&&!String(row.dedupeKey||'').startsWith('score:streak:'));
     if(!stillActive&&next.streakDays[original.dateKey]){
       next.streakDays[original.dateKey]={...next.streakDays[original.dateKey],[original.actor]:false};
+      const streakIndex=next.history.findIndex((row)=>row.actor===original.actor&&row.dateKey===original.dateKey&&row.kind==='earn'&&!row.reversedAt&&String(row.dedupeKey||'').startsWith('score:streak:'));
+      if(streakIndex>=0){
+        const streakRow=next.history[streakIndex];
+        const streakUnits=Math.max(0,normalizeUnits(streakRow.units));
+        next.history[streakIndex]={...streakRow,reversedAt:now.toISOString()};
+        next.balances[original.actor]=Math.max(0,next.balances[original.actor]-streakUnits);
+        next.lifetimeEarned[original.actor]=Math.max(0,next.lifetimeEarned[original.actor]-streakUnits);
+        const streakDay=normalizeActorUnits(next.dailyEarned[original.dateKey]);
+        streakDay[original.actor]=Math.max(0,streakDay[original.actor]-streakUnits);
+        next.dailyEarned[original.dateKey]=streakDay;
+        if(streakRow.dedupeKey) delete next.dedupe[streakRow.dedupeKey];
+        next.history.unshift(normalizeHistoryItem({
+          id:crypto.randomUUID(),actor:original.actor,kind:'reverse',units:-streakUnits,requestedUnits:-streakUnits,
+          label:'Отмена серии',detail:'Отменён бонус серии',icon:'↩️',
+          dateKey:scoreDateKey(now),createdAt:now.toISOString(),
+        }));
+      }
     }
     next.history.unshift(normalizeHistoryItem({
       id:crypto.randomUUID(),actor:original.actor,kind:'reverse',units:-units,requestedUnits:-units,

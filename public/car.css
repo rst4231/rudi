@@ -626,3 +626,17 @@
   .car-collapsed-wash strong{font-size:7.6px}
 }
 /* end RUDI v1.18.36 compact collapsed car */
+
+/* RUDI compact car registration */
+.car-registration{display:none}
+.car-tile.is-collapsed .car-registration{
+  display:inline;
+  margin-left:6px;
+  color:#f4f6fa;
+  font-weight:820;
+  letter-spacing:.035em;
+  white-space:nowrap;
+}
+@media(max-width:430px){
+  .car-tile.is-collapsed .car-registration{margin-left:4px;font-size:9.5px}
+}
