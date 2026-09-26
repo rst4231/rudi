@@ -27,7 +27,7 @@
 .supplement-editor-field span{font-size:11px;font-weight:750;opacity:.62}
 .supplement-editor-field input,.supplement-editor-field textarea,.supplement-editor-field select,.supplement-note-form input{width:100%;box-sizing:border-box;border:1px solid color-mix(in srgb,currentColor 12%,transparent);border-radius:12px;background:var(--surface,#20242f);color:inherit;padding:10px 11px;font:inherit;font-size:13px}
 .supplement-editor-field textarea{resize:vertical;min-height:62px}
-.supplement-reminder-toggle{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:color-mix(in srgb,currentColor 6%,transparent);font-size:12px;font-weight:700}
+
 .supplement-editor-save{grid-column:1/-1;min-height:42px;border:0;border-radius:13px;background:var(--accent,#4f7cff);color:#fff;font:inherit;font-weight:800}
 .supplement-editor-section{display:grid;gap:9px;margin-top:16px;padding-top:14px;border-top:1px solid color-mix(in srgb,currentColor 10%,transparent)}
 .supplement-editor-section>strong{font-size:13px}.supplement-note-form{display:grid;grid-template-columns:1fr auto;gap:8px}.supplement-note-form button{border:0;border-radius:12px;padding:0 13px;background:var(--accent,#4f7cff);color:#fff;font:inherit;font-size:12px;font-weight:800}

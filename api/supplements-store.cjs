@@ -30,7 +30,7 @@ function isoOrEmpty(v){if(!v)return'';const d=new Date(v);return Number.isNaN(d.
 
 function normalizeSchedule(v){
   const s=v&&typeof v==='object'?v:{};
-  return{dosage:cleanText(s.dosage,80),time:cleanTime(s.time),food:cleanFood(s.food),reminderEnabled:Boolean(s.reminderEnabled)};
+  return{dosage:cleanText(s.dosage,80),time:cleanTime(s.time),food:cleanFood(s.food)};
 }
 function normalizeCourse(v){
   const s=v&&typeof v==='object'?v:{};
@@ -44,9 +44,6 @@ function normalizeNotes(v){
 }
 function normalizeStatusHistory(v){
   return(Array.isArray(v)?v:[]).map(row=>({status:cleanStatus(row?.status),at:isoOrEmpty(row?.at)})).filter(row=>row.at).slice(-80);
-}
-function normalizeNotificationKeys(v){
-  return(Array.isArray(v)?v:[]).map(row=>cleanText(row,120)).filter(Boolean).slice(-160);
 }
 function normalizeItem(input){
   if(!input||typeof input!=='object')return null;
@@ -67,7 +64,6 @@ function normalizeItem(input){
     intakes:normalizeIntakes(input.intakes),
     notes:normalizeNotes(input.notes),
     statusHistory:normalizeStatusHistory(input.statusHistory),
-    notificationKeys:normalizeNotificationKeys(input.notificationKeys),
     createdAt:created,updatedAt:updated,describedAt:isoOrEmpty(input.describedAt),
   };
 }
@@ -165,16 +161,6 @@ async function saveInteractionCheck(actor,input,o={}){
   const who=cleanActor(actor),check=normalizeInteractionCheck({...input,generatedAt:input?.generatedAt||new Date(o.now||Date.now()).toISOString()});if(!check)throw new Error('supplement-interaction-invalid');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),saved=await writeSupplements(who,{...state,version:state.version+1,interactionCheck:check},o);return{state:saved,interactionCheck:saved.interactionCheck}});
 }
-async function claimSupplementNotification(actor,id,key,o={}){
-  const who=cleanActor(actor),safeId=cleanText(id,96),safeKey=cleanText(key,120);if(!safeId||!safeKey)throw new Error('supplement-notification-invalid');
-  return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const current=state.items[index];if(current.notificationKeys.includes(safeKey))return{state,item:current,claimed:false};const items=[...state.items];items[index]=normalizeItem({...current,notificationKeys:[...current.notificationKeys,safeKey],updatedAt:new Date(o.now||Date.now()).toISOString()});const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],claimed:true};
-  });
-}
-async function releaseSupplementNotification(actor,id,key,o={}){
-  const who=cleanActor(actor),safeId=cleanText(id,96),safeKey=cleanText(key,120);if(!safeId||!safeKey)return null;
-  return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)return null;const current=state.items[index];if(!current.notificationKeys.includes(safeKey))return{state,item:current};const items=[...state.items];items[index]=normalizeItem({...current,notificationKeys:current.notificationKeys.filter(x=>x!==safeKey)});const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index]};
-  });
-}
 function resetMutationQueuesForTests(){tails.clear()}
 
-module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,claimSupplementNotification,releaseSupplementNotification,resetMutationQueuesForTests};
+module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,resetMutationQueuesForTests};

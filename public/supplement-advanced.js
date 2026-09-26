@@ -1,5 +1,5 @@
 (()=>{'use strict';
-let started=false,autoOpened=false,pendingTake='',searchInput=null,sortSelect=null,statsNode=null,duplicatePanel=null,interactionButton=null,interactionPanel=null,interactionCheck=null;
+let started=false,searchInput=null,sortSelect=null,statsNode=null,duplicatePanel=null,interactionButton=null,interactionPanel=null,interactionCheck=null;
 const app=()=>window.RudiSupplementApp;
 const req=(op,payload)=>app().request(op,payload);
 const getItems=()=>app().getItems();
@@ -76,7 +76,6 @@ function enhanceCards(){
     const course=courseText(item);if(course)meta.appendChild(chip('📅 '+course));
     if(item.expirationDate)meta.appendChild(chip('📦 до '+item.expirationDate));
     const run=streak(item);if(run)meta.appendChild(chip('🔥 '+run+' дн.'));
-    if(item.schedule?.reminderEnabled)meta.appendChild(chip('🔔'));
     if(meta.childNodes.length)top.insertAdjacentElement('afterend',meta);
     if(item.evidenceLevel){const ev=document.createElement('div');ev.className='supplement-evidence';ev.textContent='Доказательность: '+evidenceLabel(item.evidenceLevel);hint.insertAdjacentElement('beforebegin',ev)}
     const actions=document.createElement('div');actions.className='supplement-card-actions';
@@ -100,22 +99,11 @@ async function checkInteractions(){
   catch(error){setStatus('Не удалось проверить сочетания.',true)}
   finally{interactionButton.disabled=false;interactionButton.textContent='🧪 Проверить сочетания'}
 }
-async function handlePendingTake(){
-  if(!pendingTake)return;const id=pendingTake;pendingTake='';
-  try{const data=await req('take',{id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже было отмечено сегодня.':'Приём отмечен ✓')}
-  catch(error){setStatus('Не удалось отметить приём.',true)}
-}
-function cleanDeepLink(){const params=new URLSearchParams(location.search);params.delete('profile');params.delete('take');const query=params.toString();history.replaceState(null,'',location.pathname+(query?'?'+query:'')+location.hash)}
-function maybeAutoOpen(){
-  const params=new URLSearchParams(location.search),wants=params.get('profile')==='supplements'||params.has('take');
-  if(!wants||autoOpened||!String(document.body.dataset.rudiActor||'').trim())return;
-  autoOpened=true;pendingTake=params.get('take')||'';app().open();cleanDeepLink();
-}
+
 function boot(){
   if(started||!app())return;started=true;
-  document.addEventListener('rudi:supplements-render',()=>{enhanceCards();handlePendingTake()});
+  document.addEventListener('rudi:supplements-render',enhanceCards);
   document.addEventListener('rudi:supplements-settings-updated',()=>{interactionCheck=null;renderInteraction()});
-  new MutationObserver(maybeAutoOpen).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});maybeAutoOpen();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
 })();

@@ -70,3 +70,5 @@ test('cycle view uses the same detailed status logic as the app',()=>{
   assert.equal(view.cycleDay,28);
   assert.equal(view.moodWord,'Вдумчивая');
 });
+
+test('actual recorded period exposes start current day and end',()=>{const view=cycleViewForDate({historyStarts:['2026-09-25'],nextPeriodStart:'2026-10-25',cycleLengthDays:30,periodLengthDays:5,ovulationDay:16,fertileWindowStartDay:12,fertileWindowEndDay:18},'2026-09-26');assert.equal(view.phase,'Месячные');assert.equal(view.periodActive,true);assert.equal(view.periodStart,'2026-09-25');assert.equal(view.periodDay,2);assert.equal(view.periodEnd,'2026-09-29');assert.equal(view.cycleDay,2)});

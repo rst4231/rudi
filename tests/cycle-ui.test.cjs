@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');
+test('calendar renders menstrual days with a separate red dot',()=>{const js=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');assert.match(js,/calendar-period-dot/);assert.match(js,/dianaPeriodDateKeys/);assert.match(js,/Начались /);assert.match(js,/закончатся /);assert.match(css,/\.calendar-period-dot/);assert.match(css,/background:#ef4d67/)});

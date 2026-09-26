@@ -41,9 +41,6 @@ function build(){
     field('Статус','select','status',[['active','Принимаю'],['paused','Пауза'],['finished','Закончил']]),
     field('Срок годности','date','expirationDate')
   );
-  const reminder=document.createElement('label');reminder.className='supplement-reminder-toggle';
-  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.name='reminderEnabled';
-  reminder.append(checkbox,document.createTextNode(' 🔔 Напоминать в указанное время'));form.appendChild(reminder);
   const save=document.createElement('button');save.type='submit';save.className='supplement-editor-save';save.textContent='Сохранить';form.appendChild(save);
 
   const noteSection=document.createElement('section');noteSection.className='supplement-editor-section';
@@ -89,7 +86,7 @@ function open(id){
   document.getElementById('supplementEditorTitle').textContent=(app().emojiForSupplement?.(item.name)||'💊')+' '+item.name;
   const e=form.elements;
   e.goal.value=item.goal||'';e.ingredients.value=(item.ingredients||[]).join(', ');e.dosage.value=item.schedule?.dosage||'';e.time.value=item.schedule?.time||'';
-  e.food.value=item.schedule?.food||'any';e.reminderEnabled.checked=Boolean(item.schedule?.reminderEnabled);
+  e.food.value=item.schedule?.food||'any';
   e.startDate.value=item.course?.startDate||'';e.durationDays.value=item.course?.durationDays||'';e.status.value=item.status||'active';e.expirationDate.value=item.expirationDate||'';
   renderNotes(item);renderHistory(item);modal.hidden=false;document.body.classList.add('supplement-editor-open');
 }
@@ -98,7 +95,7 @@ async function saveSettings(event){
   const e=form.elements,button=form.querySelector('.supplement-editor-save');button.disabled=true;button.textContent='Сохраняю…';
   const patch={
     goal:e.goal.value,ingredients:e.ingredients.value,
-    schedule:{dosage:e.dosage.value,time:e.time.value,food:e.food.value,reminderEnabled:e.reminderEnabled.checked},
+    schedule:{dosage:e.dosage.value,time:e.time.value,food:e.food.value},
     course:{startDate:e.startDate.value,durationDays:Number(e.durationDays.value||0)},
     status:e.status.value,expirationDate:e.expirationDate.value
   };

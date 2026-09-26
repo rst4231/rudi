@@ -22,6 +22,7 @@
       let currentWorkCalendarView = 'month';
       let currentSelectedWorkDate = '';
       let currentWorkCalendarRenderSignature = '';
+      let currentDianaCycleConfig = null;
       let currentSharedCalendarView = 'month';
       const calendarViewCache = {month:null,'next-month':null};
       let calendarConfettiTimer = 0;
@@ -5627,6 +5628,37 @@
         return cycleDateLabel(startUtc)+' — '+cycleDateLabel(startUtc+(length-1)*DAY);
       }
 
+      function dianaPeriodDateKeys(cfg){
+        const source=cfg&&typeof cfg==='object'?cfg:{};
+        const length=Math.max(1,Math.min(10,Math.round(Number(source.periodLengthDays)||5)));
+        const keys=new Set();
+        for(const raw of Array.isArray(source.historyStarts)?source.historyStarts:[]){
+          const start=parseCycleDate(raw);
+          if(!Number.isFinite(start)) continue;
+          for(let offset=0;offset<length;offset+=1){
+            keys.add(new Date(start+offset*DAY).toISOString().slice(0,10));
+          }
+        }
+        return keys;
+      }
+
+      function applyDianaPeriodDots(cfg=currentDianaCycleConfig){
+        const keys=dianaPeriodDateKeys(cfg);
+        document.querySelectorAll('#workCalendarDays .calendar-day-cell[data-date]').forEach(cell=>{
+          const active=keys.has(String(cell.dataset.date||''));
+          const existing=cell.querySelector('.calendar-period-dot');
+          if(active&&!existing){
+            const dot=document.createElement('span');
+            dot.className='calendar-period-dot';
+            dot.setAttribute('aria-hidden','true');
+            cell.appendChild(dot);
+          }else if(!active&&existing){
+            existing.remove();
+          }
+          cell.classList.toggle('has-period',active);
+        });
+      }
+
       function dianaCycleModel(cfg){
         const source=cfg&&typeof cfg==='object'?cfg:{};
         const history=(Array.isArray(source.historyStarts)?source.historyStarts:[])
@@ -5653,12 +5685,28 @@
         let nextStart=parseCycleDate(source.nextPeriodStart);
         if(!Number.isFinite(nextStart)&&Number.isFinite(latestActualStart)) nextStart=latestActualStart+cycleLength*DAY;
         while(Number.isFinite(nextStart)&&nextStart+(periodLength-1)*DAY<todayUtc) nextStart+=cycleLength*DAY;
-        const periodActive=Number.isFinite(nextStart)
+        const actualPeriodActive=Number.isFinite(latestActualStart)
+          &&todayUtc>=latestActualStart
+          &&todayUtc<=latestActualStart+(periodLength-1)*DAY;
+        const predictedPeriodActive=!actualPeriodActive
+          &&Number.isFinite(nextStart)
           &&todayUtc>=nextStart
           &&todayUtc<=nextStart+(periodLength-1)*DAY;
-        const currentStart=Number.isFinite(nextStart)
-          ?(periodActive?nextStart:nextStart-cycleLength*DAY)
-          :latestActualStart;
+        const periodActive=actualPeriodActive||predictedPeriodActive;
+        const periodStart=actualPeriodActive
+          ?latestActualStart
+          :predictedPeriodActive
+            ?nextStart
+            :null;
+        const periodEnd=Number.isFinite(periodStart)?periodStart+(periodLength-1)*DAY:null;
+        const periodDay=Number.isFinite(periodStart)
+          ?Math.floor((todayUtc-periodStart)/DAY)+1
+          :null;
+        const currentStart=Number.isFinite(latestActualStart)
+          ?latestActualStart
+          :Number.isFinite(nextStart)
+            ?(predictedPeriodActive?nextStart:nextStart-cycleLength*DAY)
+            :null;
         const cycleDay=Number.isFinite(currentStart)
           ?Math.max(1,Math.min(cycleLength,Math.floor((todayUtc-currentStart)/DAY)+1))
           :null;
@@ -5677,6 +5725,7 @@
         return {
           cycleLength,periodLength,ovulationDay,fertileStart,fertileEnd,
           currentStart,nextStart,cycleDay,daysToNext,ovulationUtc,phase,
+          periodActive,periodStart,periodEnd,periodDay,
           progress:cycleDay?Math.max(0,Math.min(100,(cycleDay/cycleLength)*100)):0,
           historyCount:history.length
         };
@@ -5685,6 +5734,7 @@
       function renderDianaCycle(cfg){
         const card=document.getElementById('dianaCycleCard');
         if(!card) return;
+        currentDianaCycleConfig=cfg&&cfg.enabled!==false?cfg:null;
         const countdown=document.getElementById('dianaCycleCountdown');
         const countdownLabel=document.getElementById('dianaCycleCountdownLabel');
         const phase=document.getElementById('dianaCyclePhase');
@@ -5712,6 +5762,7 @@
           if(appetite) appetite.textContent='—';
           note.textContent='Прогноз появится после загрузки данных.';
           if(recordButton) recordButton.disabled=true;
+          applyDianaPeriodDots(null);
           return;
         }
 
@@ -5737,7 +5788,11 @@
           ?model.cycleDay+'-й день цикла · средний цикл '+model.cycleLength+' '+dayWord(model.cycleLength)
           :'Недостаточно истории';
         progress.style.width=model.progress.toFixed(1)+'%';
-        period.textContent=cycleRangeLabel(model.nextStart,model.periodLength);
+        if(model.periodActive&&Number.isFinite(model.periodStart)&&Number.isFinite(model.periodEnd)){
+          period.textContent='Начались '+cycleDateLabel(model.periodStart)+' · '+model.periodDay+'-й день · закончатся '+cycleDateLabel(model.periodEnd);
+        }else{
+          period.textContent='Следующие ≈ '+cycleRangeLabel(model.nextStart,model.periodLength);
+        }
         if(Number.isFinite(model.ovulationUtc)){
           const diff=Math.max(0,Math.round((model.ovulationUtc-todayState().utc)/DAY));
           ovulation.textContent='≈ '+cycleDateLabel(model.ovulationUtc)+(diff===0?' · сегодня':' · через '+diff+' '+dayWord(diff));
@@ -5747,6 +5802,7 @@
         if(brain) brain.textContent=dianaCycleBrainNote(model).replace(/^🧠\s*Мозг:\s*/u,'');
         if(appetite) appetite.textContent=dianaCycleAppetiteNote(model).replace(/^🍽\s*Аппетит:\s*/u,'');
         note.textContent='Прогноз по '+Math.max(1,model.historyCount)+' отмеченным циклам. Даты ориентировочные и не подходят для контрацепции.';
+        applyDianaPeriodDots(cfg);
       }
 
       async function cycleRequest(operation,payload={}){
@@ -6861,6 +6917,7 @@
           const timeText=times.join(' / ')||'Смена';
           const cell=document.createElement('button');
           cell.type='button';
+          cell.dataset.date=String(day.date||'');
           cell.className='calendar-day-cell '+(day.working?'working':'off')+
             (tasks.length?' has-tasks':'')+
             (holidays.length?' has-holidays':'')+
@@ -7043,6 +7100,7 @@
         if(currentSelectedWorkDate&&!days.some(day=>String(day?.date||'')===currentSelectedWorkDate)){
           currentSelectedWorkDate='';
         }
+        applyDianaPeriodDots();
         return true;
       }
 

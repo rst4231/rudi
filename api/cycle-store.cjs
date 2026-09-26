@@ -108,12 +108,30 @@ function cycleViewForDate(value, dateKey) {
     nextStartMs += cycleLength * DAY;
   }
 
-  const periodActive = Number.isFinite(nextStartMs)
+  const actualPeriodActive = Number.isFinite(latestActualStart)
+    && todayMs >= latestActualStart
+    && todayMs <= latestActualStart + (periodLength - 1) * DAY;
+  const predictedPeriodActive = !actualPeriodActive
+    && Number.isFinite(nextStartMs)
     && todayMs >= nextStartMs
     && todayMs <= nextStartMs + (periodLength - 1) * DAY;
-  const currentStartMs = Number.isFinite(nextStartMs)
-    ? (periodActive ? nextStartMs : nextStartMs - cycleLength * DAY)
-    : latestActualStart;
+  const periodActive = actualPeriodActive || predictedPeriodActive;
+  const periodStartMs = actualPeriodActive
+    ? latestActualStart
+    : predictedPeriodActive
+      ? nextStartMs
+      : null;
+  const periodEndMs = Number.isFinite(periodStartMs)
+    ? periodStartMs + (periodLength - 1) * DAY
+    : null;
+  const periodDay = Number.isFinite(periodStartMs)
+    ? Math.floor((todayMs - periodStartMs) / DAY) + 1
+    : null;
+  const currentStartMs = Number.isFinite(latestActualStart)
+    ? latestActualStart
+    : Number.isFinite(nextStartMs)
+      ? (predictedPeriodActive ? nextStartMs : nextStartMs - cycleLength * DAY)
+      : null;
   const cycleDay = Number.isFinite(currentStartMs)
     ? Math.max(1, Math.min(cycleLength, Math.floor((todayMs - currentStartMs) / DAY) + 1))
     : null;
@@ -173,6 +191,14 @@ function cycleViewForDate(value, dateKey) {
     moodWord,
     cycleDay,
     cycleLengthDays: cycleLength,
+    periodActive,
+    periodStart: Number.isFinite(periodStartMs)
+      ? new Date(periodStartMs).toISOString().slice(0, 10)
+      : '',
+    periodDay: Number.isFinite(periodDay) ? periodDay : null,
+    periodEnd: Number.isFinite(periodEndMs)
+      ? new Date(periodEndMs).toISOString().slice(0, 10)
+      : '',
     nextPeriodStart: Number.isFinite(nextStartMs)
       ? new Date(nextStartMs).toISOString().slice(0, 10)
       : '',
