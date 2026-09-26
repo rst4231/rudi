@@ -357,6 +357,23 @@ async function sendRewardCompletedNotification(actor, redemption, options = {}) 
   }
 }
 
+async function sendCycleStartNotificationToRustam(options = {}) {
+  try {
+    const recipients=options.recipients||await readRecipients(options);
+    const chatId=Number(recipients?.['Рустам']);
+    if(!Number.isInteger(chatId)||chatId<=0) return {sent:false,reason:'recipient-not-configured'};
+    const result=await telegramSendMessage(
+      chatId,
+      '🩸 <b>Диана отметила начало месячных</b>',
+      {...options,tab:'home',buttonText:'Открыть RUDI'}
+    );
+    return {sent:true,...result};
+  } catch (error) {
+    console.warn('RUDI_CYCLE_START_NOTIFICATION_WARN',String(error?.message||error));
+    return {sent:false,error:String(error?.message||error)};
+  }
+}
+
 function luluWalkStatusLabel(value, now = Date.now()) {
   const date = new Date(String(value || ''));
   if (Number.isNaN(date.getTime())) return 'время не указано';
@@ -1517,9 +1534,15 @@ async function handleRudiAction(req, res, action, options = {}) {
         if (actor !== 'Диана') return res.status(403).json({ ok: false, error: 'cycle-owner-required' });
         const liveCycle = await readCycleState(options).catch(() => null);
         const baseCycle = liveCycle || normalizeCycleState(backupSnapshot?.cycle);
-        const cycle = cycleStateWithStart(baseCycle, moscowDateKey(options.now || Date.now()));
+        const startDate=moscowDateKey(options.now || Date.now());
+        const alreadyRecorded=Array.isArray(baseCycle?.historyStarts)&&baseCycle.historyStarts.includes(startDate);
+        const cycle = cycleStateWithStart(baseCycle, startDate);
         cycle.updatedAt = new Date(options.now || Date.now()).toISOString();
         await writeCycleState(cycle, options).catch(() => false);
+        if(!alreadyRecorded){
+          const notificationTask=sendCycleStartNotificationToRustam(options).catch(()=>null);
+          try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
+        }
         const previousSnapshot = mergeBackupSnapshots(backupSnapshot, {
           version: 2,
           createdAt: new Date(options.now || Date.now()).toISOString(),
@@ -2511,6 +2534,11 @@ async function handleRudiAction(req, res, action, options = {}) {
         });
       }
       if (operation === 'remove') {
+        const before=await readSavedItems(options);
+        const target=before.items.find((row)=>row.id===String(body.id||'').trim())||null;
+        if(target?.type==='recipe'&&target.savedBy&&target.savedBy!==actor){
+          return res.status(403).json({ok:false,error:'saved-recipe-owner-required'});
+        }
         const result = await removeSavedItem(body.id, options);
         const backupToken = await refreshBackupToken(previousSnapshot, options);
         return res.status(200).json({
