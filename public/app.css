@@ -8827,15 +8827,15 @@ html[data-theme="dark"] .daily-question-reward{color:#f2c95c}
   .daily-question-answers{grid-template-columns:1fr}
 }
 
-.profile-supplement-intakes{display:grid;gap:8px;margin-top:10px;padding:12px 13px;border:1px solid color-mix(in srgb,currentColor 9%,transparent);border-radius:15px;background:color-mix(in srgb,var(--surface) 88%,transparent)}
-.profile-supplement-intakes-title{font-size:11px;font-weight:820;letter-spacing:.035em;text-transform:uppercase;opacity:.64}
-.profile-supplement-intakes-list{display:grid;gap:7px}
-.profile-supplement-intake-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 9px;border-radius:11px;background:color-mix(in srgb,currentColor 5%,transparent)}
-.profile-supplement-intake-name{display:flex;align-items:center;gap:8px;min-width:0;font-size:12.5px;font-weight:750}
+.profile-supplement-intakes{display:grid;gap:5px;margin-top:6px;padding:8px 9px;border:1px solid color-mix(in srgb,currentColor 9%,transparent);border-radius:13px;background:color-mix(in srgb,var(--surface) 88%,transparent)}
+.profile-supplement-intakes-title{font-size:9.5px;font-weight:820;letter-spacing:.03em;text-transform:uppercase;opacity:.62}
+.profile-supplement-intakes-list{display:grid;gap:4px}
+.profile-supplement-intake-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;padding:4px 7px;border-radius:9px;background:color-mix(in srgb,currentColor 5%,transparent)}
+.profile-supplement-intake-name{display:flex;align-items:center;gap:6px;min-width:0;font-size:11.5px;font-weight:750;line-height:1.2}
 .profile-supplement-intake-name>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.profile-supplement-intake-emoji{flex:0 0 auto;font-size:17px;line-height:1}
-.profile-supplement-intake-time{flex:0 0 auto;font-size:12px;font-weight:800;color:var(--accent,#6675ee)}
-.profile-supplement-intakes-empty{font-size:11.5px;line-height:1.4;opacity:.56}
+.profile-supplement-intake-emoji{flex:0 0 auto;font-size:15px;line-height:1}
+.profile-supplement-intake-time{flex:0 0 auto;font-size:11px;font-weight:800;line-height:1;color:var(--accent,#6675ee)}
+.profile-supplement-intakes-empty{font-size:10.5px;line-height:1.35;opacity:.56}
 
 /* Final calendar palette override: work is neutral gray; selected is blue. */
 .work-page #workCalendarDays .calendar-day-cell.working{

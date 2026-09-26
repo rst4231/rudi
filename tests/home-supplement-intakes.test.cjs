@@ -11,3 +11,5 @@ test('taking supplement refreshes expanded profile journal immediately',()=>{con
 test('fasting self label is first person with emoji',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');assert.match(source,/firstPerson\?'Голодаю':'Голодает'/);assert.match(source,/🍽️ /)});
 
 test('final work calendar override forces gray work days and blue selected outline',()=>{const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');assert.match(css,/Final calendar palette override/);assert.match(css,/\.work-page #workCalendarDays \.calendar-day-cell\.working/);assert.match(css,/\.work-page #workCalendarDays \.calendar-day-cell\.selected/);assert.match(css,/#6675ee!important/)});
+
+test('supplement intake journal is compact',()=>{const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');assert.match(css,/\.profile-supplement-intakes\{display:grid;gap:5px;margin-top:6px;padding:8px 9px/);assert.match(css,/\.profile-supplement-intake-row\{[\s\S]*min-height:28px;[\s\S]*padding:4px 7px/);assert.match(css,/\.profile-supplement-intake-emoji\{[\s\S]*font-size:15px/)});
