@@ -2807,6 +2807,19 @@
         }).format(date).replace('.','')+' · '+time;
       }
 
+      function luluAgeLabel(now=new Date()){
+        const parts=new Intl.DateTimeFormat('en-CA',{
+          timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'
+        }).formatToParts(now);
+        const values=Object.fromEntries(parts.map(part=>[part.type,Number(part.value)]));
+        let age=values.year-2021;
+        if(values.month<5||(values.month===5&&values.day<5)) age-=1;
+        age=Math.max(0,age);
+        const mod10=age%10,mod100=age%100;
+        const word=mod10===1&&mod100!==11?'год':mod10>=2&&mod10<=4&&(mod100<12||mod100>14)?'года':'лет';
+        return age+' '+word;
+      }
+
       function luluWalkTimeLabel(value){
         const date=new Date(String(value||''));
         if(Number.isNaN(date.getTime())) return 'пока не отмечена';
@@ -3878,7 +3891,7 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Лулу" width="58" height="58">'+
-              '<div class="lulu-copy"><h2>Лулу</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
+              '<div class="lulu-copy"><h2>Лулу ('+luluAgeLabel()+')</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
             '</div>'+
             '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+
