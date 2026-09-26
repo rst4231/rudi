@@ -89,6 +89,8 @@ function fastingRewardStars(durationMinutes) {
   if (hours >= 32) return 4;
   if (hours >= 24) return 3;
   if (hours >= 16) return 2;
+  if (hours >= 14) return 1;
+  if (hours >= 12) return 0.5;
   return 0;
 }
 

@@ -9691,6 +9691,17 @@
         fastingHomeTicker=setInterval(()=>renderFastingHomeStatus(fastingOverviewState),60*1000);
       }
 
+      function fastingRewardStarsForHours(elapsedHours){
+        const hours=Math.max(0,Number(elapsedHours)||0);
+        if(hours>=40) return 5;
+        if(hours>=32) return 4;
+        if(hours>=24) return 3;
+        if(hours>=16) return 2;
+        if(hours>=14) return 1;
+        if(hours>=12) return 0.5;
+        return 0;
+      }
+
       function fastingStage(elapsedHours){
         const hours=Math.max(0,Number(elapsedHours)||0);
         if(hours<4){
@@ -9782,8 +9793,10 @@
         const description=document.getElementById('fastingStageDescription');
         const bar=document.getElementById('fastingProgressBar');
         const goalState=document.getElementById('fastingGoalState');
+        const rewardValue=document.getElementById('fastingRewardValue');
 
         if(elapsed) elapsed.textContent=fastingPad(hours)+':'+fastingPad(minutes)+':'+fastingPad(seconds);
+        if(rewardValue) rewardValue.textContent=String(fastingRewardStarsForHours(elapsedHours)).replace('.',',');
         if(badge) badge.textContent=stage.label;
         if(title) title.textContent=stage.title;
         if(description) description.textContent=stage.description;

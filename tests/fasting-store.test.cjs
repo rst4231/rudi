@@ -18,7 +18,11 @@ function memoryCache(){
 }
 
 test('fasting rewards use duration ranges',()=>{
-  assert.equal(fastingRewardStars(15*60+59),0);
+  assert.equal(fastingRewardStars(11*60+59),0);
+  assert.equal(fastingRewardStars(12*60),0.5);
+  assert.equal(fastingRewardStars(13*60+59),0.5);
+  assert.equal(fastingRewardStars(14*60),1);
+  assert.equal(fastingRewardStars(15*60+59),1);
   assert.equal(fastingRewardStars(16*60),2);
   assert.equal(fastingRewardStars(23*60+59),2);
   assert.equal(fastingRewardStars(24*60),3);

@@ -877,6 +877,10 @@
           <span id="fastingGoalState" class="fasting-goal-state"></span>
         </div>
         <div id="fastingElapsed" class="fasting-elapsed">00:00:00</div>
+        <div id="fastingRewardNow" class="fasting-reward-now" aria-live="polite">
+          <span>Награда сейчас</span>
+          <strong><span id="fastingRewardValue">0</span> ⭐️</strong>
+        </div>
         <h2 id="fastingStageTitle">Голодание идёт</h2>
         <p id="fastingStageDescription" class="fasting-stage-description"></p>
         <div class="fasting-progress" aria-label="Прогресс к цели"><span id="fastingProgressBar"></span></div>
@@ -908,6 +912,15 @@
             <button type="button" data-fasting-goal="24" aria-pressed="false">24 ч</button>
           </div>
         </fieldset>
+
+        <div class="fasting-reward-scale" aria-label="Награды за длительность голодания">
+          <span><b>12 ч</b>0.5 ⭐️</span>
+          <span><b>14 ч</b>1 ⭐️</span>
+          <span><b>16 ч</b>2 ⭐️</span>
+          <span><b>24 ч</b>3 ⭐️</span>
+          <span><b>32 ч</b>4 ⭐️</span>
+          <span><b>40+ ч</b>5 ⭐️</span>
+        </div>
 
         <button id="fastingStartButton" class="fasting-start-button" type="button">Начать голодание</button>
       </article>
