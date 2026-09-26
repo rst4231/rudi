@@ -1,5 +1,6 @@
 const TZ = 'Europe/Moscow';
-const BIRTH_YEAR = 2020;
+const BIRTH_DATE = '2021-05-05';
+const BIRTH_YEAR = Number(BIRTH_DATE.slice(0, 4));
 function dateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -63,4 +64,4 @@ function luluToiletProbability(walkedAt, now = new Date()) {
   return 100;
 }
 
-module.exports = { TZ, BIRTH_YEAR, dateKey, localMinutes, walkLikelyIncludedMeal, mealWindowBoost, luluToiletProbability };
+module.exports = { TZ, BIRTH_DATE, BIRTH_YEAR, dateKey, localMinutes, walkLikelyIncludedMeal, mealWindowBoost, luluToiletProbability };

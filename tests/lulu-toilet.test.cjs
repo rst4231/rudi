@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {luluToiletProbability}=require('../api/lulu-toilet.cjs');
+const {BIRTH_DATE,BIRTH_YEAR,luluToiletProbability}=require('../api/lulu-toilet.cjs');
 
 test('Lulu toilet probability starts at zero immediately after a walk',()=>{
   const walkedAt='2026-09-25T14:07:00.000Z';
@@ -30,4 +30,10 @@ test('meal and water do not add hidden percentage boosts',()=>{
   const eveningWalk='2026-09-25T17:00:00.000Z';
   assert.equal(luluToiletProbability(morningWalk,new Date('2026-09-25T07:00:00.000Z')),18);
   assert.equal(luluToiletProbability(eveningWalk,new Date('2026-09-25T19:00:00.000Z')),18);
+});
+
+
+test('Lulu birth date is stored precisely',()=>{
+  assert.equal(BIRTH_DATE,'2021-05-05');
+  assert.equal(BIRTH_YEAR,2021);
 });
