@@ -17,6 +17,12 @@ function appUrlForTab(tab, options = {}) {
   if (options.item && (String(tab) === 'wishlist' || String(tab) === 'products')) {
     url.searchParams.set('item', String(options.item));
   }
+  if (options.query && typeof options.query === 'object') {
+    for (const [key, value] of Object.entries(options.query)) {
+      if (value === undefined || value === null || value === '') continue;
+      url.searchParams.set(String(key), String(value));
+    }
+  }
   return url.toString();
 }
 

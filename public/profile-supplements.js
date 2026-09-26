@@ -47,7 +47,7 @@ function render(){
   if(!list)return;
   list.replaceChildren();
   if(!items.length){
-    const empty=document.createElement('div');empty.className='personal-supplements-empty';empty.textContent='Пока ничего не добавлено.';list.appendChild(empty);return;
+    const empty=document.createElement('div');empty.className='personal-supplements-empty';empty.textContent='Пока ничего не добавлено.';list.appendChild(empty);document.dispatchEvent(new CustomEvent('rudi:supplements-render'));return;
   }
   for(let item of items){
     const card=document.createElement('article');card.className='supplement-card';card.dataset.id=item.id;card.tabIndex=0;card.setAttribute('role','button');
@@ -78,6 +78,7 @@ function render(){
     });
     list.appendChild(card);
   }
+  document.dispatchEvent(new CustomEvent('rudi:supplements-render'));
 }
 function showUndo(removed){
   if(!removed)return;
@@ -184,5 +185,16 @@ function bindName(){
   name.addEventListener('click',open);name.addEventListener('keydown',(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open()}});
   update();new MutationObserver(update).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
 }
+window.RudiSupplementApp={
+  request,
+  getActor:()=>actor,
+  getItems:()=>items,
+  setItems:(next)=>{items=Array.isArray(next)?next:items;render()},
+  render,
+  setStatus,
+  open,
+  close,
+  emojiForSupplement,
+};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindName,{once:true});else bindName();
 })();

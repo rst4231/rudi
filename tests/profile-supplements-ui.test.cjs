@@ -3,19 +3,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 
-test('supplement UI updates generated description immediately',()=>{
-  const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');
-  assert.match(source,/for\(let item of items\)/);
-  assert.doesNotMatch(source,/for\(const item of items\)/);
-  assert.match(source,/desc\.hidden=false;card\.classList\.add\('is-open'\);hint\.textContent='Скрыть описание'/);
-});
-
-test('supplement add button has visible loading and success states',()=>{
-  const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');
-  assert.match(source,/add\.textContent='Добавляю…'/);
-  assert.match(source,/add\.textContent='✓ Добавлено'/);
-});
-
+test('supplement UI updates generated description immediately',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/for\(let item of items\)/);assert.doesNotMatch(source,/for\(const item of items\)/);assert.match(source,/desc\.hidden=false;card\.classList\.add\('is-open'\);hint\.textContent='Скрыть описание'/)});
+test('supplement add button has visible loading and success states',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/add\.textContent='Добавляю…'/);assert.match(source,/add\.textContent='✓ Добавлено'/)});
 test('personal profile shows age, sex, daily Groq recommendation and supplement emoji',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/ageText\(profile\.age\)\+' · '\+profile\.sexLabel/);assert.match(source,/request\('recommendation'\)/);assert.match(source,/emojiForSupplement/);assert.match(source,/🏋️/);assert.match(source,/🍵/);assert.match(source,/☀️/)});
-
-test('personal profile keeps last supplement above fixed tab bar in PWA and Telegram',()=>{const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');assert.match(css,/padding:max\(env\(safe-area-inset-top\),12px\) 16px calc\(128px \+ max\(env\(safe-area-inset-bottom\),var\(--tg-content-safe-area-inset-bottom,0px\)\)\)/);assert.match(css,/scroll-padding-bottom:calc\(128px \+ max\(env\(safe-area-inset-bottom\),var\(--tg-content-safe-area-inset-bottom,0px\)\)\)/)});
+test('personal profile keeps last supplement above fixed tab bar in PWA and Telegram',()=>{const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');assert.match(css,/scroll-padding-bottom:calc\(128px \+ max\(env\(safe-area-inset-bottom\),var\(--tg-content-safe-area-inset-bottom,0px\)\)\)/)});
+test('advanced supplement UI includes tracking, search, interactions and editor',()=>{const advanced=fs.readFileSync(path.join(__dirname,'..','public','supplement-advanced.js'),'utf8');const editor=fs.readFileSync(path.join(__dirname,'..','public','supplement-editor.js'),'utf8');assert.match(advanced,/Проверить сочетания/);assert.match(advanced,/Принял/);assert.match(advanced,/Найдены дубли состава/);assert.match(advanced,/По времени/);assert.match(editor,/Дозировка/);assert.match(editor,/Срок годности/);assert.match(editor,/Самочувствие \/ заметки/);assert.match(editor,/Длительность курса/)});

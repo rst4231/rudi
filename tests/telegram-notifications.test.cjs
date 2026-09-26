@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {appUrlForTab}=require('../api/telegram-notifications.cjs');
+test('telegram web app URL supports supplement deep link',()=>{const url=new URL(appUrlForTab('home',{appUrl:'https://example.com',query:{profile:'supplements',take:'supp-1'}}));assert.equal(url.searchParams.get('tab'),'home');assert.equal(url.searchParams.get('profile'),'supplements');assert.equal(url.searchParams.get('take'),'supp-1')});

@@ -1,4 +1,5 @@
 const test=require('node:test');const assert=require('node:assert/strict');const ai=require('../api/supplement-ai.cjs');
-test('supplement AI prompt forbids invented evidence',()=>{const text=ai.promptFor('Магний');assert.match(text,/Не придумывай исследования/);assert.match(text,/доказательность ограниченная/);assert.match(text,/Не назначай дозировку/)});
+test('supplement AI prompt forbids invented evidence and dosing',()=>{const text=ai.promptFor('Магний');assert.match(text,/Не придумывай исследования/);assert.match(text,/качество доказательной базы/);assert.match(text,/Не назначай дозировку/)});
 test('supplement AI parses strict JSON',()=>{assert.deepEqual(ai.parseJsonText('{"description":"Описание"}'),{description:'Описание'})});
 test('daily profile recommendation prompt is evidence constrained',()=>{const text=ai.dailyRecommendationPrompt({age:34,sex:'male'});assert.match(text,/современные научные данные/);assert.match(text,/Не придумывай исследования/);assert.match(text,/Не ставь диагнозы/);assert.match(text,/Возраст: 34 лет/)});
+test('interaction prompt forbids invented interactions',()=>{const text=ai.interactionPrompt([{name:'Магний',ingredients:['Магний']}]);assert.match(text,/Не придумывай взаимодействия/);assert.match(text,/дублировании активных веществ/);assert.match(text,/не назначение/)});
