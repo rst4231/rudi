@@ -60,6 +60,7 @@ const {
 const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
+const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const {
   getCredentials,
@@ -514,6 +515,14 @@ async function recordActivity(input, options = {}) {
     console.warn('RUDI_ACTIVITY_JOURNAL_WARN', String(error?.message || error));
     return null;
   }
+}
+
+function fastingDurationDetail(durationMinutes) {
+  const total = Math.max(0, Math.round(Number(durationMinutes) || 0));
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (!hours) return minutes + ' мин';
+  return hours + ' ч' + (minutes ? ' ' + minutes + ' мин' : '');
 }
 
 async function awardScoreSafe(actor, units, meta = {}, options = {}) {
@@ -2765,6 +2774,97 @@ async function handleRudiAction(req, res, action, options = {}) {
         : code.startsWith('product-') ? 400
         : 500;
       if (status === 500) console.error('RUDI_PRODUCTS_ERROR', code);
+      return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
+
+  if (action === 'fasting') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const operation = String(body.operation || 'state').trim();
+
+      if (operation === 'state') {
+        const state = await readFastingState(actor, options);
+        return res.status(200).json({ ok: true, actor, fasting: fastingView(state) });
+      }
+      if (operation === 'overview') {
+        const [rustam, diana] = await Promise.all([
+          readFastingState('Рустам', options),
+          readFastingState('Диана', options),
+        ]);
+        return res.status(200).json({
+          ok: true,
+          actor,
+          fastingOverview: {
+            'Рустам': { active: fastingView(rustam).active },
+            'Диана': { active: fastingView(diana).active },
+          },
+        });
+      }
+      if (operation === 'start') {
+        const state = await startFasting(actor, {
+          startedAt: body.startedAt,
+          goalHours: body.goalHours,
+        }, options);
+        const activeId = String(state.active?.id || '').trim();
+        await recordActivity({
+          type: 'fasting-start',
+          actor,
+          text: actor + ' ' + activityVerb(actor, 'начал', 'начала') + ' голодание',
+          icon: '⏱️',
+          targetTab: 'fasting',
+          dedupeKey: activeId ? 'fasting-start:' + actor + ':' + activeId : '',
+          createdAt: state.active?.startedAt || new Date(options.now || Date.now()).toISOString(),
+        }, options);
+        return res.status(200).json({ ok: true, actor, fasting: fastingView(state) });
+      }
+      if (operation === 'stop') {
+        const state = await stopFasting(actor, options);
+        const completed = state.history?.[0] || null;
+        const rewardStars = fastingRewardStars(completed?.durationMinutes);
+        let scoreAward = null;
+        if (rewardStars > 0 && completed?.id) {
+          scoreAward = await awardScoreSafe(actor, rewardStars * 10, {
+            label: 'Голодание',
+            detail: 'Завершено ' + fastingDurationDetail(completed.durationMinutes),
+            icon: '⏱️',
+            dedupeKey: 'score:fasting:' + actor + ':' + completed.id,
+          }, options);
+        }
+        if (completed?.id) {
+          await recordActivity({
+            type: 'fasting-stop',
+            actor,
+            text: actor + ' ' + activityVerb(actor, 'завершил', 'завершила') + ' голодание: ' + fastingDurationDetail(completed.durationMinutes),
+            icon: '⏱️',
+            targetTab: 'fasting',
+            dedupeKey: 'fasting-stop:' + actor + ':' + completed.id,
+            createdAt: completed.endedAt || new Date(options.now || Date.now()).toISOString(),
+          }, options);
+        }
+        return res.status(200).json({
+          ok: true,
+          actor,
+          fasting: fastingView(state),
+          reward: {
+            earnedStars: pointsFromUnits(scoreAward?.awardedUnits || 0),
+            requestedStars: rewardStars,
+            capped: Boolean(scoreAward?.capped),
+          },
+        });
+      }
+      return res.status(400).json({ ok: false, error: 'fasting-operation-invalid' });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus
+        : code === 'fasting-already-active' || code === 'fasting-not-active' ? 409
+        : code.startsWith('fasting-') ? 400
+        : 500;
+      if (status === 500) console.error('RUDI_FASTING_ERROR', code);
       return res.status(status).json({ ok: false, error: code });
     }
   }

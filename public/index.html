@@ -85,6 +85,7 @@
             <img id="avatarImage" alt="">
           </div>
           <div class="person">
+            <div id="selfFastingStatus" class="profile-fasting-status" hidden></div>
             <div id="displayName" class="name">RUDI</div>
             <div id="profileMeta" class="profile-meta"></div>
           </div>
@@ -92,6 +93,7 @@
 
         <div class="identity identity-partner">
           <div class="person partner-person">
+            <div id="partnerFastingStatus" class="profile-fasting-status partner-profile-fasting-status" hidden></div>
             <div id="partnerHeaderName" class="name partner-header-name">Диана</div>
           </div>
           <div id="partnerProfileAvatar" class="avatar partner-header-avatar" aria-hidden="true">
@@ -842,6 +844,90 @@
           <div id="savedRecipesEmpty" class="saved-empty">Пока ничего не сохранено</div>
         </div>
       </section>
+
+      <button id="fastingTrackerOpen" class="fasting-entry panel" type="button" aria-label="Открыть трекер голодания">
+        <span class="fasting-entry-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.3v5l3.4 2"/></svg>
+        </span>
+        <span class="fasting-entry-copy">
+          <strong>Трекер голодания</strong>
+          <small>Старт, текущая стадия и личная история</small>
+        </span>
+        <svg class="fasting-entry-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+    </section>
+
+    <section id="fastingPage" class="fasting-page" data-app-tab-section="fasting" aria-labelledby="fastingPageTitle" hidden>
+      <div class="fasting-page-head">
+        <button id="fastingBackButton" class="fasting-back-button" type="button" aria-label="Назад в Кухню">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div class="fasting-page-title">
+          <div class="section-eyebrow">Кухня</div>
+          <h1 id="fastingPageTitle">Трекер голодания</h1>
+          <small id="fastingActorLabel"></small>
+        </div>
+      </div>
+
+      <div id="fastingStatus" class="fasting-status" role="status" aria-live="polite"></div>
+
+      <article id="fastingActiveCard" class="panel fasting-active-card" hidden>
+        <div class="fasting-stage-topline">
+          <span id="fastingStageBadge" class="fasting-stage-badge">Стадия</span>
+          <span id="fastingGoalState" class="fasting-goal-state"></span>
+        </div>
+        <div id="fastingElapsed" class="fasting-elapsed">00:00:00</div>
+        <h2 id="fastingStageTitle">Голодание идёт</h2>
+        <p id="fastingStageDescription" class="fasting-stage-description"></p>
+        <div class="fasting-progress" aria-label="Прогресс к цели"><span id="fastingProgressBar"></span></div>
+        <div class="fasting-active-meta">
+          <span>Начало <strong id="fastingStartedLabel">—</strong></span>
+          <span>Цель <strong id="fastingGoalLabel">—</strong></span>
+        </div>
+        <button id="fastingStopButton" class="fasting-stop-button" type="button">Закончить голодание</button>
+      </article>
+
+      <article id="fastingStartCard" class="panel fasting-start-card">
+        <div class="fasting-card-heading">
+          <strong>Начать голодание</strong>
+          <small>Можно указать фактическое время начала</small>
+        </div>
+
+        <label class="fasting-start-field">
+          <span>Время начала</span>
+          <input id="fastingStartAt" type="datetime-local" step="60">
+        </label>
+
+        <fieldset class="fasting-goals">
+          <legend>Цель</legend>
+          <div class="fasting-goal-row">
+            <button type="button" data-fasting-goal="12" aria-pressed="false">12 ч</button>
+            <button type="button" data-fasting-goal="14" aria-pressed="false">14 ч</button>
+            <button type="button" data-fasting-goal="16" aria-pressed="true">16 ч</button>
+            <button type="button" data-fasting-goal="18" aria-pressed="false">18 ч</button>
+            <button type="button" data-fasting-goal="24" aria-pressed="false">24 ч</button>
+          </div>
+        </fieldset>
+
+        <button id="fastingStartButton" class="fasting-start-button" type="button">Начать голодание</button>
+      </article>
+
+      <div class="fasting-stats" aria-label="Статистика голоданий">
+        <article class="panel fasting-stat"><span>Завершено</span><strong id="fastingStatCount">0</strong></article>
+        <article class="panel fasting-stat"><span>Среднее</span><strong id="fastingStatAverage">—</strong></article>
+        <article class="panel fasting-stat"><span>Рекорд</span><strong id="fastingStatLongest">—</strong></article>
+      </div>
+
+      <section class="panel fasting-history-card" aria-labelledby="fastingHistoryTitle">
+        <div class="fasting-card-heading">
+          <strong id="fastingHistoryTitle">История</strong>
+          <small>Только ваши завершённые голодания</small>
+        </div>
+        <div id="fastingHistory" class="fasting-history"></div>
+        <div id="fastingHistoryEmpty" class="fasting-history-empty">История пока пустая</div>
+      </section>
+
+      <p class="fasting-disclaimer">Стадии ориентировочные: скорость перехода от гликогена к большей доле жиров и кетонов индивидуальна. Трекер не определяет точное время аутофагии.</p>
     </section>
 
     <section id="savesPage" class="saves-page" data-app-tab-section="saves" aria-labelledby="savesPageTitle" hidden>

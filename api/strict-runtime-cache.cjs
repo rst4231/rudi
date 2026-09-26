@@ -175,6 +175,7 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-partner-notifications-v1',
   'rudi-morning-summary-v1',
   'rudi-ui-preferences-v1',
+  'rudi-fasting-v1',
 ]);
 const DURABLE_CONTROL_PLANE_TAGS = new Set([
   'rudi-daily-cron-state',

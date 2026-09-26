@@ -100,7 +100,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,saves:0,'for-di':0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,saves:0,'for-di':0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
       const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
@@ -1283,7 +1283,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','saves','for-di'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','saves','for-di'];
 
       function routeFromLocation(){
         try{
@@ -1325,6 +1325,7 @@
       }
 
       function runTabSideEffects(tab,{item=''}={}){
+        if(tab==='home') loadFastingOverview();
         if(tab==='feed') loadFeed({silent:true});
         if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
         if(tab==='products'){
@@ -1341,6 +1342,7 @@
         if(tab==='photos') loadSharedAlbum();
         if(tab==='saves') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('saves',item));
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
+        if(tab==='fasting') loadFastingTracker({silent:true});
       }
 
       function canUseAppViewTransition(){
@@ -4073,7 +4075,7 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Лулу" width="58" height="58">'+
-              '<div class="lulu-copy"><h2>Лулу ('+luluAgeLabel()+')</h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
+              '<div class="lulu-copy"><h2><span class="lulu-name">Лулу</span><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
             '</div>'+
             '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+
@@ -9582,6 +9584,395 @@
         });
       }
 
+
+      let fastingState=null;
+      let fastingTicker=0;
+      let fastingHomeTicker=0;
+      let fastingOverviewState={'Рустам':null,'Диана':null};
+      let selectedFastingGoal=16;
+
+      function fastingPad(value){
+        return String(Math.max(0,Math.floor(value))).padStart(2,'0');
+      }
+
+      function fastingDurationLabel(minutes){
+        const total=Math.max(0,Math.round(Number(minutes)||0));
+        const hours=Math.floor(total/60);
+        const mins=total%60;
+        if(!hours) return mins+' мин';
+        if(!mins) return hours+' ч';
+        return hours+' ч '+mins+' мин';
+      }
+
+      function fastingDateTimeLabel(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return '—';
+        return new Intl.DateTimeFormat('ru-RU',{
+          day:'numeric',
+          month:'short',
+          hour:'2-digit',
+          minute:'2-digit',
+          hourCycle:'h23'
+        }).format(date).replace('.','');
+      }
+
+      function fastingLocalInputValue(date=new Date()){
+        const pad=value=>String(value).padStart(2,'0');
+        return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
+      }
+
+
+      function fastingHoursWord(hours){
+        const value=Math.max(0,Math.floor(Number(hours)||0));
+        const mod100=value%100;
+        const mod10=value%10;
+        if(mod100>=11&&mod100<=14) return 'часов';
+        if(mod10===1) return 'час';
+        if(mod10>=2&&mod10<=4) return 'часа';
+        return 'часов';
+      }
+
+      function fastingHomeLabel(active){
+        if(!active?.startedAt) return '';
+        const started=Date.parse(String(active.startedAt||''));
+        if(!Number.isFinite(started)) return '';
+        const elapsed=Math.max(0,Date.now()-started);
+        const hours=Math.floor(elapsed/3600000);
+        return hours<1 ? 'Голодает меньше часа' : 'Голодает '+hours+' '+fastingHoursWord(hours);
+      }
+
+      function renderFastingHomeStatus(overview=fastingOverviewState){
+        fastingOverviewState={
+          'Рустам':overview?.['Рустам']?.active||null,
+          'Диана':overview?.['Диана']?.active||null,
+        };
+
+        const selfActor=currentActor==='Диана'?'Диана':'Рустам';
+        const partnerActor=selfActor==='Рустам'?'Диана':'Рустам';
+        const selfNode=document.getElementById('selfFastingStatus');
+        const partnerNode=document.getElementById('partnerFastingStatus');
+        const pairs=[
+          [selfNode,fastingOverviewState[selfActor]],
+          [partnerNode,fastingOverviewState[partnerActor]],
+        ];
+
+        pairs.forEach(([node,active])=>{
+          if(!node) return;
+          const label=fastingHomeLabel(active);
+          node.textContent=label;
+          node.hidden=!label;
+        });
+      }
+
+      function updateOwnFastingOverview(active){
+        const actor=currentActor==='Диана'?'Диана':'Рустам';
+        fastingOverviewState={
+          ...fastingOverviewState,
+          [actor]:active||null,
+        };
+        renderFastingHomeStatus(fastingOverviewState);
+      }
+
+      async function loadFastingOverview(){
+        if(!currentActor) return null;
+        try{
+          const data=await fastingRequest('overview');
+          renderFastingHomeStatus(data.fastingOverview||{});
+          return data.fastingOverview||{};
+        }catch(_){
+          renderFastingHomeStatus(fastingOverviewState);
+          return null;
+        }
+      }
+
+      function startFastingHomeTicker(){
+        clearInterval(fastingHomeTicker);
+        renderFastingHomeStatus(fastingOverviewState);
+        fastingHomeTicker=setInterval(()=>renderFastingHomeStatus(fastingOverviewState),60*1000);
+      }
+
+      function fastingStage(elapsedHours){
+        const hours=Math.max(0,Number(elapsedHours)||0);
+        if(hours<4){
+          return {
+            label:'После еды',
+            title:'Пищеварительная фаза',
+            description:'Организм ещё активно использует энергию из последнего приёма пищи. Инсулин обычно выше, чем позже во время голодания.'
+          };
+        }
+        if(hours<12){
+          return {
+            label:'4–12 часов',
+            title:'Постабсорбтивная фаза',
+            description:'Инсулин постепенно снижается, а печень всё больше поддерживает уровень глюкозы за счёт запасов гликогена.'
+          };
+        }
+        if(hours<18){
+          return {
+            label:'12–18 часов',
+            title:'Переход к жирам',
+            description:'Использование гликогена продолжается, а доля энергии из жиров постепенно растёт. Кетоны могут начать повышаться.'
+          };
+        }
+        if(hours<24){
+          return {
+            label:'18–24 часа',
+            title:'Больше жиров и кетонов',
+            description:'Организм обычно сильнее опирается на жиры, а образование кетонов становится заметнее. Скорость перехода у всех разная.'
+          };
+        }
+        return {
+          label:'24+ часов',
+          title:'Продолжительное голодание',
+          description:'Зависимость от жиров и кетонов обычно продолжает расти. На этом сроке особенно важно ориентироваться на самочувствие.'
+        };
+      }
+
+      async function fastingRequest(operation='state',payload={}){
+        const response=await fetch('/api/partner-message?rudiAction=fasting',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            initData:telegramInitData(),
+            operation,
+            ...payload
+          }),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+          const error=new Error(data.error||'fasting-request-failed');
+          error.status=response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function fastingErrorText(error){
+        const code=String(error?.message||error||'');
+        if(code==='fasting-already-active') return 'Голодание уже запущено';
+        if(code==='fasting-not-active') return 'Активного голодания уже нет';
+        if(code==='fasting-start-future') return 'Время начала не может быть в будущем';
+        if(code==='fasting-start-too-old') return 'Укажите время начала не более 30 дней назад';
+        if(code==='fasting-start-invalid') return 'Проверьте время начала';
+        if(code==='fasting-goal-invalid') return 'Выберите цель 12, 14, 16, 18 или 24 часа';
+        return 'Не удалось обновить трекер';
+      }
+
+      function renderFastingTicker(){
+        const active=fastingState?.active;
+        if(!active) return;
+
+        const startMs=Date.parse(String(active.startedAt||''));
+        if(!Number.isFinite(startMs)) return;
+
+        const elapsedMs=Math.max(0,Date.now()-startMs);
+        const elapsedSeconds=Math.floor(elapsedMs/1000);
+        const hours=Math.floor(elapsedSeconds/3600);
+        const minutes=Math.floor((elapsedSeconds%3600)/60);
+        const seconds=elapsedSeconds%60;
+        const elapsedHours=elapsedMs/3600000;
+        const stage=fastingStage(elapsedHours);
+        const goalHours=Math.max(1,Number(active.goalHours)||16);
+        const goalProgress=Math.min(100,Math.max(0,(elapsedHours/goalHours)*100));
+
+        const elapsed=document.getElementById('fastingElapsed');
+        const badge=document.getElementById('fastingStageBadge');
+        const title=document.getElementById('fastingStageTitle');
+        const description=document.getElementById('fastingStageDescription');
+        const bar=document.getElementById('fastingProgressBar');
+        const goalState=document.getElementById('fastingGoalState');
+
+        if(elapsed) elapsed.textContent=fastingPad(hours)+':'+fastingPad(minutes)+':'+fastingPad(seconds);
+        if(badge) badge.textContent=stage.label;
+        if(title) title.textContent=stage.title;
+        if(description) description.textContent=stage.description;
+        if(bar) bar.style.width=goalProgress+'%';
+
+        if(goalState){
+          goalState.textContent=elapsedHours>=goalHours
+            ? 'Цель достигнута'
+            : 'До цели '+fastingDurationLabel(Math.ceil(goalHours*60-elapsedMs/60000));
+        }
+      }
+
+      function renderFasting(payload){
+        fastingState=payload&&typeof payload==='object'
+          ?payload
+          :{active:null,history:[],stats:{}};
+
+        const active=fastingState.active||null;
+        const activeCard=document.getElementById('fastingActiveCard');
+        const startCard=document.getElementById('fastingStartCard');
+
+        if(activeCard) activeCard.hidden=!active;
+        if(startCard) startCard.hidden=Boolean(active);
+
+        const actor=document.getElementById('fastingActorLabel');
+        if(actor) actor.textContent=currentActor?'Личная история · '+currentActor:'Личная история';
+
+        if(active){
+          const started=document.getElementById('fastingStartedLabel');
+          const goal=document.getElementById('fastingGoalLabel');
+          if(started) started.textContent=fastingDateTimeLabel(active.startedAt);
+          if(goal) goal.textContent=String(active.goalHours||16)+' ч';
+
+          clearInterval(fastingTicker);
+          renderFastingTicker();
+          fastingTicker=setInterval(renderFastingTicker,1000);
+        }else{
+          clearInterval(fastingTicker);
+          fastingTicker=0;
+          const input=document.getElementById('fastingStartAt');
+          if(input&&!input.value) input.value=fastingLocalInputValue();
+        }
+
+        const stats=fastingState.stats||{};
+        const count=document.getElementById('fastingStatCount');
+        const average=document.getElementById('fastingStatAverage');
+        const longest=document.getElementById('fastingStatLongest');
+        if(count) count.textContent=String(Number(stats.completed)||0);
+        if(average) average.textContent=Number(stats.completed)?fastingDurationLabel(stats.averageMinutes):'—';
+        if(longest) longest.textContent=Number(stats.completed)?fastingDurationLabel(stats.longestMinutes):'—';
+
+        const history=document.getElementById('fastingHistory');
+        const empty=document.getElementById('fastingHistoryEmpty');
+        const rows=Array.isArray(fastingState.history)?fastingState.history:[];
+
+        if(history){
+          history.replaceChildren();
+          rows.forEach(row=>{
+            const item=document.createElement('article');
+            item.className='fasting-history-item';
+
+            const copy=document.createElement('div');
+            copy.className='fasting-history-copy';
+
+            const duration=document.createElement('strong');
+            duration.textContent=fastingDurationLabel(row.durationMinutes);
+
+            const meta=document.createElement('span');
+            meta.textContent=fastingDateTimeLabel(row.startedAt)+' → '+fastingDateTimeLabel(row.endedAt);
+
+            const goal=document.createElement('span');
+            goal.className='fasting-history-goal'+(row.goalReached?' is-reached':'');
+            goal.textContent=(row.goalReached?'✓ ':'')+String(row.goalHours||16)+' ч';
+
+            copy.append(duration,meta);
+            item.append(copy,goal);
+            history.appendChild(item);
+          });
+        }
+
+        if(empty) empty.hidden=rows.length>0;
+      }
+
+      async function loadFastingTracker({silent=false}={}){
+        if(!currentActor) return null;
+        const status=document.getElementById('fastingStatus');
+        if(status&&!silent) status.textContent='Обновляю…';
+
+        try{
+          const data=await fastingRequest('state');
+          renderFasting(data.fasting);
+          if(status) status.textContent='';
+          return data.fasting;
+        }catch(error){
+          if(status) status.textContent=fastingErrorText(error);
+          return null;
+        }
+      }
+
+      function setupFastingTracker(){
+        const open=document.getElementById('fastingTrackerOpen');
+        const back=document.getElementById('fastingBackButton');
+        const start=document.getElementById('fastingStartButton');
+        const stop=document.getElementById('fastingStopButton');
+        const input=document.getElementById('fastingStartAt');
+        const status=document.getElementById('fastingStatus');
+
+        if(input&&!input.value) input.value=fastingLocalInputValue();
+
+        document.querySelectorAll('[data-fasting-goal]').forEach(button=>{
+          button.addEventListener('click',()=>{
+            selectedFastingGoal=Number(button.dataset.fastingGoal)||16;
+            document.querySelectorAll('[data-fasting-goal]').forEach(row=>{
+              row.setAttribute('aria-pressed',String(Number(row.dataset.fastingGoal)===selectedFastingGoal));
+            });
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+
+        open?.addEventListener('click',()=>{
+          navigateToAppTab('fasting',{scroll:true});
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+
+        back?.addEventListener('click',()=>{
+          navigateToAppTab('products',{scroll:true});
+        });
+
+        start?.addEventListener('click',async()=>{
+          if(start.disabled) return;
+
+          const raw=String(input?.value||'').trim();
+          const parsed=raw?new Date(raw):new Date();
+          if(Number.isNaN(parsed.getTime())){
+            if(status) status.textContent='Проверьте время начала';
+            return;
+          }
+
+          start.disabled=true;
+          if(status) status.textContent='Запускаю…';
+
+          try{
+            const data=await fastingRequest('start',{
+              startedAt:parsed.toISOString(),
+              goalHours:selectedFastingGoal
+            });
+            renderFasting(data.fasting);
+            updateOwnFastingOverview(data.fasting?.active||null);
+            loadActivityJournal({silent:true}).catch(()=>{});
+            if(status) status.textContent='';
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            if(status) status.textContent=fastingErrorText(error);
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            start.disabled=false;
+          }
+        });
+
+        stop?.addEventListener('click',async()=>{
+          if(stop.disabled) return;
+
+          stop.disabled=true;
+          if(status) status.textContent='Сохраняю…';
+
+          try{
+            const data=await fastingRequest('stop');
+            renderFasting(data.fasting);
+            updateOwnFastingOverview(null);
+            loadActivityJournal({silent:true}).catch(()=>{});
+            const earnedStars=Number(data.reward?.earnedStars||0);
+            const requestedStars=Number(data.reward?.requestedStars||0);
+            if(status){
+              status.textContent=earnedStars>0
+                ?'Голодание сохранено · +'+earnedStars+'⭐'
+                :requestedStars>0
+                  ?'Голодание сохранено · дневной лимит звёзд уже достигнут'
+                  :'Голодание сохранено в истории';
+            }
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            if(status) status.textContent=fastingErrorText(error);
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            stop.disabled=false;
+          }
+        });
+      }
+
       function setupProducts(){
         const form=document.getElementById('productsForm');
         const input=document.getElementById('productsInput');
@@ -10516,6 +10907,9 @@
         currentConfig=config;
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
         setupProducts();
+        setupFastingTracker();
+        startFastingHomeTicker();
+        loadFastingOverview();
         setupRecipeGenerator();
         renderDailyCompliment(config,{force:true});
         setupReactions();
@@ -10597,6 +10991,7 @@
             loadActivityJournal({silent:true}),
             loadMalePsychologyFact(),
             (marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()),
+            loadFastingOverview(),
             syncUiPreferencesFromServer().then(()=>refreshStateBackup())
           ]);
         }).then(()=>{
