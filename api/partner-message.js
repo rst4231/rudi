@@ -58,7 +58,7 @@ const {
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
 const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
-const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
+const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const {
@@ -353,6 +353,22 @@ async function sendRewardCompletedNotification(actor, redemption, options = {}) 
     );
   } catch (error) {
     console.warn('RUDI_REWARD_COMPLETE_NOTIFICATION_WARN', String(error?.message || error));
+    return [];
+  }
+}
+
+async function sendStarGiftNotification(result, options = {}) {
+  try {
+    const from=escapeTelegramHtml(String(result?.from||''));
+    const to=escapeTelegramHtml(String(result?.to||''));
+    const points=Number(result?.points||0);
+    const verb=result?.from==='Диана'?'подарила':'подарил';
+    return await sendToAllRecipients(
+      `🎁 <b>${from} ${verb} ${to} ${points} ⭐</b>`,
+      {...options,tab:'home',buttonText:'Открыть RUDI'}
+    );
+  } catch (error) {
+    console.warn('RUDI_STAR_GIFT_NOTIFICATION_WARN',String(error?.message||error));
     return [];
   }
 }
@@ -2052,6 +2068,17 @@ async function handleRudiAction(req, res, action, options = {}) {
         const state=await readScoreState(options);
         return res.status(200).json({ok:true,actor,score:scoreView(state,{now:options.now||Date.now()})});
       }
+      if(operation==='gift'){
+        const result=await transferStars(actor,body.amount,options);
+        const notificationTask=sendStarGiftNotification(result,options).catch(()=>[]);
+        try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({
+          ok:true,actor,gift:{from:result.from,to:result.to,points:result.points,remaining:result.remainingPoints},
+          score:scoreView(result.state,{now:options.now||Date.now()}),backupToken,
+          notification:{pending:true},
+        });
+      }
       if(operation==='redeem'){
         const result=await redeemReward(actor,body.rewardId,options);
         const notificationTask=sendRewardRedeemedNotification(actor,result.reward,options).catch(()=>[]);
@@ -2078,7 +2105,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     } catch(error) {
       const code=String(error?.message||error); const authStatus=statusForError(error);
       const status=authStatus!==500?authStatus
-        :code==='score-balance-insufficient'||code==='score-reward-active'?409
+        :code==='score-balance-insufficient'||code==='score-reward-active'||code==='score-gift-weekly-limit'?409
         :code==='score-reward-self-complete-forbidden'?403
         :code==='score-reward-not-found'?404
         :code.startsWith('score-')?400:500;
