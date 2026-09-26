@@ -40,3 +40,22 @@ test("labor recovery runs before For Di publication when today's queue is empty"
   assert.ok(order.indexOf('labor-recovery')>=0);
   assert.ok(order.indexOf('for-di')>order.indexOf('labor-recovery'));
 });
+
+
+test('labor reaches For Di before generated feed runtime starts',async()=>{
+  const order=[];
+  const response=res();
+  await runDailyOrchestrator({query:{route:'daily'}},response,{
+    date:'2026-09-26',
+    settings:{sections:{labor:{enabled:true},cinema:{enabled:false}}},
+    cleanup:async()=>{},
+    runNative:async section=>{order.push('native:'+section);return{published:1}},
+    hasForDiSource:async()=>true,
+    publishForDi:async()=>{order.push('for-di');return{published:1}},
+    runRuntime:async(_req,r)=>{order.push('runtime');return r.json({ok:true,date:'2026-09-26',results:{}})},
+    recordGenerated:async()=>{},
+    writeSummary:async()=>{},
+    alert:async()=>{},
+  });
+  assert.deepEqual(order.slice(0,3),['native:labor','for-di','runtime']);
+});

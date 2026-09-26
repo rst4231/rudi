@@ -32,10 +32,14 @@ function isOneTimeForDiRecovery(req, now = new Date()) {
   const recoveryDate = String(req.query?.recoveryDate || '').trim();
   const recoveryKey = String(req.query?.recoveryKey || '').trim();
   const force = String(req.query?.force || '') === '1';
+  const allowed = (
+    recoveryDate === '2026-09-25' && recoveryKey === 'labor-feed-missed-2026-09-25'
+  ) || (
+    recoveryDate === '2026-09-26' && recoveryKey === 'labor-feed-missed-2026-09-26'
+  );
   return mode === 'for-di'
     && !force
-    && recoveryDate === '2026-09-25'
-    && recoveryKey === 'labor-feed-missed-2026-09-25'
+    && allowed
     && moscowDateKey(now) === recoveryDate;
 }
 

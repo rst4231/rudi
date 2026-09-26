@@ -123,17 +123,53 @@ async function runDailyOrchestrator(req, res, options = {}) {
     failures.push({ section: 'cleanup', error: String(error?.message || error) });
   }
 
-  for (const section of ['labor', 'cinema']) {
-    if (settings.sections?.[section]?.enabled === false) continue;
+  if (settings.sections?.labor?.enabled !== false) {
     try {
-      nativeResults[section] = await (options.runNative || ((name, runOptions) => runNativeSection(name, runOptions)))(section, {
+      nativeResults.labor = await (options.runNative || ((name, runOptions) => runNativeSection(name, runOptions)))('labor', {
         ...options,
         date,
         settings,
       });
     } catch (error) {
-      nativeResults[section] = { failed: true, error: String(error?.message || error) };
-      failures.push({ section, error: String(error?.message || error) });
+      nativeResults.labor = { failed: true, error: String(error?.message || error) };
+      failures.push({ section: 'labor', error: String(error?.message || error) });
+    }
+
+    try {
+      const hasLaborQueued = await (options.hasForDiSource || hasQueuedForDiSource)('labor', {
+        now: options.now || new Date(),
+        cacheOptions: options.cacheOptions,
+      });
+      if (!hasLaborQueued) {
+        const recoverLabor = options.recoverLabor || ((recoveryOptions) => require('./index.js').publishDailyLaborArticle(recoveryOptions));
+        nativeResults.laborRecovery = await recoverLabor({ force: true, queueOnly: true, now: options.now || new Date() });
+      }
+    } catch (error) {
+      nativeResults.laborRecovery = { failed: true, error: String(error?.message || error) };
+      failures.push({ section: 'labor-recovery', error: String(error?.message || error) });
+    }
+
+    try {
+      nativeResults.forDi = await (options.publishForDi || publishForDiToRudi)({
+        now: options.now || new Date(),
+        cacheOptions: options.cacheOptions,
+      });
+    } catch (error) {
+      nativeResults.forDi = { failed: true, error: String(error?.message || error) };
+      failures.push({ section: 'for-di', error: String(error?.message || error) });
+    }
+  }
+
+  if (settings.sections?.cinema?.enabled !== false) {
+    try {
+      nativeResults.cinema = await (options.runNative || ((name, runOptions) => runNativeSection(name, runOptions)))('cinema', {
+        ...options,
+        date,
+        settings,
+      });
+    } catch (error) {
+      nativeResults.cinema = { failed: true, error: String(error?.message || error) };
+      failures.push({ section: 'cinema', error: String(error?.message || error) });
     }
   }
 
@@ -187,32 +223,6 @@ async function runDailyOrchestrator(req, res, options = {}) {
     } catch (error) {
       failures.push({ section: 'feed', error: String(error?.message || error) });
     }
-  }
-
-  if (settings?.sections?.labor?.enabled) {
-    try {
-      const hasLaborQueued = await (options.hasForDiSource || hasQueuedForDiSource)('labor', {
-        now: options.now || new Date(),
-        cacheOptions: options.cacheOptions,
-      });
-      if (!hasLaborQueued) {
-        const recoverLabor = options.recoverLabor || ((recoveryOptions) => require('./index.js').publishDailyLaborArticle(recoveryOptions));
-        nativeResults.laborRecovery = await recoverLabor({ force: true, queueOnly: true, now: options.now || new Date() });
-      }
-    } catch (error) {
-      nativeResults.laborRecovery = { failed: true, error: String(error?.message || error) };
-      failures.push({ section: 'labor-recovery', error: String(error?.message || error) });
-    }
-  }
-
-  try {
-    nativeResults.forDi = await (options.publishForDi || publishForDiToRudi)({
-      now: options.now || new Date(),
-      cacheOptions: options.cacheOptions,
-    });
-  } catch (error) {
-    nativeResults.forDi = { failed: true, error: String(error?.message || error) };
-    failures.push({ section: 'for-di', error: String(error?.message || error) });
   }
 
   const summary = {

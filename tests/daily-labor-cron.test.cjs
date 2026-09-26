@@ -64,3 +64,11 @@ test('one-time For Di recovery can force labor back into the RUDI feed without a
   const forDiCron = (vercel.crons || []).find((item) => item.path === '/api/for-di');
   assert.equal(forDiCron, undefined, 'For Di must stay on the same daily run as the feed');
 });
+
+
+test('feed and For Di labor share the same 00:30 Moscow daily cron', () => {
+  const dailyCron = (vercel.crons || []).find((item) => item.path === '/api/daily');
+  assert.equal(dailyCron?.schedule, '30 21 * * *', '21:30 UTC is 00:30 Moscow');
+  const forDiCron = (vercel.crons || []).find((item) => item.path === '/api/for-di');
+  assert.equal(forDiCron, undefined, 'For Di labor must not have a separate schedule');
+});
