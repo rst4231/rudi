@@ -40,7 +40,7 @@ function dailyRecommendationPrompt(input={}){
     'Не придумывай исследования, ссылки, DOI, статистику или гарантированный эффект.',
     'Не ставь диагнозы, не назначай лекарства, гормоны, БАДы или индивидуальные дозировки.',
     'Предпочитай сон, физическую активность, питание, профилактику и доказательные скрининги, если они действительно уместны.',
-    'Дай ровно 1 практическую рекомендацию в 2–3 коротких предложениях. Без Markdown и ссылок.'
+    'Дай ровно 1 практическую рекомендацию в 1–2 коротких предложениях, максимум 240 символов. Без Markdown и ссылок.'
   ].join('\n');
 }
 async function generateDailyProfileRecommendation(input={},options={}){
@@ -61,8 +61,29 @@ function interactionPrompt(items=[]){
     'summary: короткий общий итог 2–4 предложения. Без Markdown и ссылок.'
   ].join('\n');
 }
-async function analyzeSupplementSet(items,options={}){
-  const parsed=await callGroq(interactionPrompt(items),{name:'rudi_supplement_interactions',schema:{type:'object',properties:{summary:{type:'string'},warnings:{type:'array',items:{type:'object',properties:{title:{type:'string'},detail:{type:'string'},evidenceLevel:{type:'string',enum:['strong','moderate','limited','insufficient']}},required:['title','detail','evidenceLevel'],additionalProperties:false},maxItems:20},duplicates:{type:'array',items:{type:'object',properties:{ingredient:{type:'string'},items:{type:'array',items:{type:'string'},minItems:2,maxItems:12}},required:['ingredient','items'],additionalProperties:false},maxItems:20}},required:['summary','warnings','duplicates'],additionalProperties:false}},options);
-  return{summary:cleanText(parsed?.summary,1800)||'Значимых выводов сформировать не удалось.',warnings:Array.isArray(parsed?.warnings)?parsed.warnings:[],duplicates:Array.isArray(parsed?.duplicates)?parsed.duplicates:[],model:DEFAULT_MODEL,provider:'groq'};
+function sanitizeInteractionResult(parsed){
+  const warnings=(Array.isArray(parsed?.warnings)?parsed.warnings:[]).map(row=>({
+    title:cleanText(row?.title,160),
+    detail:cleanText(row?.detail,700),
+    evidenceLevel:['strong','moderate','limited','insufficient'].includes(String(row?.evidenceLevel||''))?String(row.evidenceLevel):'insufficient'
+  })).filter(row=>row.title&&row.detail).slice(0,20);
+  const duplicates=(Array.isArray(parsed?.duplicates)?parsed.duplicates:[]).map(row=>{
+    const seen=new Set(),names=[];
+    for(const raw of Array.isArray(row?.items)?row.items:[]){
+      const name=cleanText(raw,120),key=name.toLowerCase();
+      if(!name||seen.has(key))continue;seen.add(key);names.push(name);
+    }
+    return{ingredient:cleanText(row?.ingredient,100),items:names.slice(0,12)};
+  }).filter(row=>row.ingredient&&row.items.length>=2).slice(0,20);
+  return{
+    summary:cleanText(parsed?.summary,1800)||'Значимых выводов сформировать не удалось.',
+    warnings,
+    duplicates
+  };
 }
-module.exports={DEFAULT_MODEL,promptFor,dailyRecommendationPrompt,interactionPrompt,parseJsonText,generateSupplementDescription,generateDailyProfileRecommendation,analyzeSupplementSet};
+async function analyzeSupplementSet(items,options={}){
+  const parsed=await callGroq(interactionPrompt(items),{name:'rudi_supplement_interactions',schema:{type:'object',properties:{summary:{type:'string'},warnings:{type:'array',items:{type:'object',properties:{title:{type:'string'},detail:{type:'string'},evidenceLevel:{type:'string',enum:['strong','moderate','limited','insufficient']}},required:['title','detail','evidenceLevel'],additionalProperties:false},maxItems:20},duplicates:{type:'array',items:{type:'object',properties:{ingredient:{type:'string'},items:{type:'array',items:{type:'string'},maxItems:12}},required:['ingredient','items'],additionalProperties:false},maxItems:20}},required:['summary','warnings','duplicates'],additionalProperties:false}},options);
+  const safe=sanitizeInteractionResult(parsed);
+  return{...safe,model:DEFAULT_MODEL,provider:'groq'};
+}
+module.exports={DEFAULT_MODEL,promptFor,dailyRecommendationPrompt,interactionPrompt,parseJsonText,sanitizeInteractionResult,generateSupplementDescription,generateDailyProfileRecommendation,analyzeSupplementSet};

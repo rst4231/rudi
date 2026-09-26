@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const API='/api/supplements';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,collapseButton=null,undoTimer=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -28,7 +28,7 @@ function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=prof
 async function loadDailyRecommendation(){
   if(!recommendationNode)return;
   recommendationNode.classList.remove('is-error');recommendationNode.textContent='Groq готовит рекомендацию дня…';
-  try{const data=await request('recommendation');profile=data.profile||profile;renderProfileMeta();recommendationNode.textContent=data.recommendation?.text||'Сегодня рекомендации нет.'}
+  try{const data=await request('recommendation');profile=data.profile||profile;renderProfileMeta();recommendationNode.textContent=data.recommendation?.text||'Сегодня рекомендации нет.';if(recommendationToggle){recommendationWrap?.classList.remove('is-expanded');recommendationToggle.textContent='Показать полностью';recommendationToggle.hidden=recommendationNode.textContent.length<180}}
   catch(error){console.error('RUDI_PROFILE_RECOMMENDATION_UI_ERROR',error);recommendationNode.classList.add('is-error');recommendationNode.textContent='Не удалось загрузить рекомендацию дня.'}
 }
 function applyCollapse(){
@@ -125,10 +125,12 @@ function build(){
   summary=document.createElement('article');summary.className='personal-summary-card';
   const summaryName=document.createElement('div');summaryName.id='personalProfileName';summaryName.className='personal-summary-name';
   summaryMeta=document.createElement('div');summaryMeta.className='personal-summary-text';summaryMeta.textContent='Твоя личная страница в RUDI';
-  const recommendationWrap=document.createElement('div');recommendationWrap.className='personal-daily-recommendation';
+  recommendationWrap=document.createElement('div');recommendationWrap.className='personal-daily-recommendation';
   const recommendationLabel=document.createElement('div');recommendationLabel.className='personal-daily-recommendation-label';recommendationLabel.textContent='Рекомендация дня';
   recommendationNode=document.createElement('div');recommendationNode.className='personal-daily-recommendation-text';recommendationNode.textContent='Загружаю…';
-  recommendationWrap.append(recommendationLabel,recommendationNode);summary.append(summaryName,summaryMeta,recommendationWrap);
+  recommendationToggle=document.createElement('button');recommendationToggle.type='button';recommendationToggle.className='personal-daily-recommendation-toggle';recommendationToggle.textContent='Показать полностью';recommendationToggle.hidden=true;
+  recommendationToggle.addEventListener('click',()=>{const expanded=recommendationWrap.classList.toggle('is-expanded');recommendationToggle.textContent=expanded?'Свернуть':'Показать полностью'});
+  recommendationWrap.append(recommendationLabel,recommendationNode,recommendationToggle);summary.append(summaryName,summaryMeta,recommendationWrap);
   tile=document.createElement('article');tile.className='personal-supplements-tile';
   const head=document.createElement('div');head.className='personal-supplements-head';
   const heading=document.createElement('h2');heading.textContent='Мои БАДы';
