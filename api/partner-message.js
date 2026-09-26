@@ -48,6 +48,7 @@ const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
 const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
 const { readDailyQuestion, answerDailyQuestion } = require('./daily-question-store.cjs');
+const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readForDiFeed, toggleForDiLike } = require('./for-di-feed-store.cjs');
@@ -640,12 +641,27 @@ async function sendMoodNotificationToPartner(actor, mood, options = {}) {
     if (!Number.isInteger(chatId) || chatId <= 0) {
       return { sent: false, reason: 'recipient-not-configured' };
     }
-    const result = await telegramSendMessage(
-      chatId,
-      moodNotificationText(recipient, actor, mood),
-      options
-    );
-    return { sent: true, recipient, ...result };
+
+    const fallback = moodNotificationText(recipient, actor, mood);
+    let text = fallback;
+    let aiGenerated = false;
+    try {
+      text = await generateMoodMessage(
+        { actor, recipient, mood },
+        {
+          env: options.env || process.env,
+          fetch: options.fetch || options.fetchImpl || globalThis.fetch,
+          timeoutMs: 7000,
+        }
+      );
+      aiGenerated = Boolean(text);
+    } catch (error) {
+      console.warn('RUDI_MOOD_AI_FALLBACK', String(error?.message || error));
+      text = fallback;
+    }
+
+    const result = await telegramSendMessage(chatId, text, options);
+    return { sent: true, recipient, aiGenerated, ...result };
   } catch (error) {
     console.warn('RUDI_MOOD_NOTIFICATION_WARN', String(error?.message || error));
     return { sent: false, recipient, error: String(error?.message || error) };
@@ -2270,16 +2286,24 @@ async function handleRudiAction(req, res, action, options = {}) {
           icon:'💬',
           dedupeKey:'score:daily-question:'+actor+':'+view.date,
         },options);
-        await recordActivity({
+        const activityRow={
           type:'daily-question',
           actor,
           text:actor+' '+activityVerb(actor,'ответил','ответила')+' на вопрос дня',
           icon:'💬',
           targetTab:'home',
           dedupeKey:'daily-question:'+actor+':'+view.date,
-        },options);
-        const notificationTask=sendDailyQuestionAnswerNotification(actor,options).catch(()=>null);
-        try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
+        };
+        let journalRecorded=false;
+        for(let attempt=0;attempt<2&&!journalRecorded;attempt+=1){
+          try{
+            await appendActivity(activityRow,options);
+            journalRecorded=true;
+          }catch(error){
+            console.warn('RUDI_DAILY_QUESTION_ACTIVITY_WARN',String(error?.message||error));
+          }
+        }
+        const notification=await sendDailyQuestionAnswerNotification(actor,options);
         return res.status(200).json({
           ok:true,
           operation,
@@ -2288,7 +2312,8 @@ async function handleRudiAction(req, res, action, options = {}) {
             stars:pointsFromUnits(reward?.awardedUnits||0),
             awarded:Boolean(Number(reward?.awardedUnits||0)>0),
           },
-          notification:{sent:false,pending:true},
+          activity:{recorded:journalRecorded},
+          notification,
         });
       }
 

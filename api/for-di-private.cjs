@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
-const { appendForDiMessages } = require('./for-di-feed-store.cjs');
+const { appendForDiMessages, pruneExpiredLaborItems } = require('./for-di-feed-store.cjs');
 
 const FOR_DI_TOPIC_ID = 126;
 const TTL_SECONDS = 60 * 60 * 24 * 14;
@@ -105,6 +105,10 @@ async function hasQueuedForDiSource(sources, options = {}) {
 
 async function publishForDiToRudi(options = {}) {
   const now = options.now || new Date();
+  const cleanup = await pruneExpiredLaborItems({ ...options, now }).catch((error)=>({
+    removed:0,
+    error:String(error?.message||error),
+  }));
   const { dateKey, messages } = await readForDiMessages({ ...options, now });
   const publishable = messages.filter((row) => String(row?.source || '').trim() === 'labor');
   if (!publishable.length) {
@@ -114,6 +118,7 @@ async function publishForDiToRudi(options = {}) {
       published: 0,
       sent: 0,
       skipped: messages.length ? 'no-enabled-categories' : 'empty',
+      laborExpiredRemoved: Number(cleanup?.removed||0),
       stylistDevelopmentEnabled: false,
     };
   }
@@ -130,6 +135,7 @@ async function publishForDiToRudi(options = {}) {
     total: result.state.items.length,
     sent: 0,
     telegramDelivery: false,
+    laborExpiredRemoved: Number(cleanup?.removed||0),
     stylistDevelopmentEnabled: false,
   };
 }

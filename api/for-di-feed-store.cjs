@@ -4,6 +4,7 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const NAMESPACE = 'rudi-for-di-feed-v1';
 const STATE_KEY = 'feed';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
+const LABOR_RETENTION_DAYS = 7;
 
 let mutationQueue = Promise.resolve();
 
@@ -93,9 +94,35 @@ function enqueue(task) {
   return run;
 }
 
+function laborCutoffMs(now=Date.now(),days=LABOR_RETENTION_DAYS){
+  const base=now instanceof Date?now.getTime():Number(now)||Date.now();
+  return base-Math.max(1,Number(days)||LABOR_RETENTION_DAYS)*24*60*60*1000;
+}
+
+function isExpiredLaborItem(item,now=Date.now(),days=LABOR_RETENTION_DAYS){
+  if(String(item?.source||'').trim()!=='labor') return false;
+  const created=Date.parse(String(item?.createdAt||''));
+  if(Number.isFinite(created)) return created<laborCutoffMs(now,days);
+  const dateKey=String(item?.dateKey||'').trim();
+  const dateMs=/^\d{4}-\d{2}-\d{2}$/.test(dateKey)?Date.parse(dateKey+'T00:00:00+03:00'):NaN;
+  return Number.isFinite(dateMs)&&dateMs<laborCutoffMs(now,days);
+}
+
+async function pruneExpiredLaborItems(options={}){
+  return enqueue(async()=>{
+    const state=await readForDiFeed(options);
+    const before=state.items.length;
+    state.items=state.items.filter((item)=>!isExpiredLaborItem(item,options.now||Date.now(),options.days||LABOR_RETENTION_DAYS));
+    const removed=before-state.items.length;
+    if(!removed) return {state,removed:0};
+    return {state:await writeForDiFeed(state,options),removed};
+  });
+}
+
 async function appendForDiMessages(messages, dateKey, options = {}) {
   return enqueue(async () => {
     const state = await readForDiFeed(options);
+    state.items = state.items.filter((item)=>!isExpiredLaborItem(item,options.now||Date.now(),LABOR_RETENTION_DAYS));
     const existing = new Set(state.items.map((item) => item.id));
     let added = 0;
     for (const row of Array.isArray(messages) ? messages : []) {
@@ -140,6 +167,10 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE,
   TTL_SECONDS,
+  LABOR_RETENTION_DAYS,
+  laborCutoffMs,
+  isExpiredLaborItem,
+  pruneExpiredLaborItems,
   plainTelegramText,
   normalizeState,
   readForDiFeed,
