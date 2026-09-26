@@ -2825,7 +2825,13 @@ async function handler(req, res, options = {}) {
     }, options);
 
     await recordActivity({type:'partner-message',actor,text:actor+' '+activityVerb(actor,'оставил','оставила')+' послание',icon:'💌',targetTab:'home',dedupeKey:'message:'+String(message?.updatedAt||'')},options);
-    await awardScoreSafe(actor,5,{label:'Послание',detail:'Оставлено послание партнёру',icon:'💌',dedupeKey:'score:message:'+String(message?.id||message?.updatedAt||'')},options);
+    const messageScoreDate=moscowDateKey(options.now||Date.now());
+    await awardScoreSafe(actor,5,{
+      label:'Послание',
+      detail:'Оставлено послание партнёру',
+      icon:'💌',
+      dedupeKey:'score:message:'+actor+':'+messageScoreDate,
+    },options);
 
     const notificationTask = sendPartnerMessageNotification(actor, options).catch((error) => {
       console.error('RUDI_PARTNER_NOTIFICATION_ERROR', String(error?.message || error));
