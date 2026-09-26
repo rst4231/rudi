@@ -4,6 +4,7 @@ const {
   MAX_GENERATIONS,
   REFILL_MS,
   readDateGenerationQuota,
+  readDateGenerationHistory,
   recordSuccessfulDateGeneration,
   resetMutationQueueForTests,
 }=require('../api/date-generation-limit-store.cjs');
@@ -16,15 +17,15 @@ function memoryCache(){
   };
 }
 
-test('date quota starts with five generations per actor',async()=>{
+test('date quota starts with ten generations per actor',async()=>{
   resetMutationQueueForTests();
   const cache=memoryCache();
   const now=Date.parse('2026-09-23T12:00:00Z');
   const rustam=await readDateGenerationQuota('Рустам',{dateGenerationCache:cache,now});
   const diana=await readDateGenerationQuota('Диана',{dateGenerationCache:cache,now});
   assert.equal(rustam.max,MAX_GENERATIONS);
-  assert.equal(rustam.available,5);
-  assert.equal(diana.available,5);
+  assert.equal(rustam.available,10);
+  assert.equal(diana.available,10);
 });
 
 test('each successful generation refills separately after 24 hours',async()=>{
@@ -32,18 +33,18 @@ test('each successful generation refills separately after 24 hours',async()=>{
   const cache=memoryCache();
   const start=Date.parse('2026-09-23T08:00:00Z');
 
-  for(let index=0;index<5;index++){
+  for(let index=0;index<10;index++){
     const quota=await recordSuccessfulDateGeneration('Рустам',{
       dateGenerationCache:cache,
       now:start+index*60*60*1000,
     });
-    assert.equal(quota.available,4-index);
+    assert.equal(quota.available,9-index);
   }
 
   await assert.rejects(
     recordSuccessfulDateGeneration('Рустам',{
       dateGenerationCache:cache,
-      now:start+4*60*60*1000+1000,
+      now:start+9*60*60*1000+1000,
     }),
     /date-generation-limit/
   );
@@ -53,14 +54,14 @@ test('each successful generation refills separately after 24 hours',async()=>{
     now:start+REFILL_MS+1000,
   });
   assert.equal(oneReturned.available,1);
-  assert.equal(oneReturned.used,4);
+  assert.equal(oneReturned.used,9);
 
   const twoReturned=await readDateGenerationQuota('Рустам',{
     dateGenerationCache:cache,
     now:start+REFILL_MS+60*60*1000+1000,
   });
   assert.equal(twoReturned.available,2);
-  assert.equal(twoReturned.used,3);
+  assert.equal(twoReturned.used,8);
 });
 
 test('Rustam and Diana quotas are independent',async()=>{
@@ -70,6 +71,24 @@ test('Rustam and Diana quotas are independent',async()=>{
   await recordSuccessfulDateGeneration('Рустам',{dateGenerationCache:cache,now});
   const rustam=await readDateGenerationQuota('Рустам',{dateGenerationCache:cache,now});
   const diana=await readDateGenerationQuota('Диана',{dateGenerationCache:cache,now});
-  assert.equal(rustam.available,4);
-  assert.equal(diana.available,5);
+  assert.equal(rustam.available,9);
+  assert.equal(diana.available,10);
+});
+
+
+test('successful date generations persist previous ideas for future exclusions',async()=>{
+  resetMutationQueueForTests();
+  const cache=memoryCache();
+  const now=Date.parse('2026-09-26T12:00:00Z');
+  await recordSuccessfulDateGeneration('Рустам',{
+    dateGenerationCache:cache,
+    now,
+    ideas:[
+      {title:'Музей и кофе',description:'Музей, затем кофе.'},
+      {title:'Домашняя паста',description:'Готовим пасту дома.'},
+      {title:'Керамика',description:'Идём в мастерскую.'},
+    ],
+  });
+  const history=await readDateGenerationHistory('Рустам',{dateGenerationCache:cache,now});
+  assert.deepEqual(history.map((row)=>row.title),['Музей и кофе','Домашняя паста','Керамика']);
 });

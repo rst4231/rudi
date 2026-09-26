@@ -45,8 +45,9 @@ const {
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyMoodState } = require('./daily-mood-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
-const { generateDateIdeas } = require('./date-ai.cjs');
-const { readDateGenerationQuota, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
+const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
+const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
+const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readForDiFeed, toggleForDiLike } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
@@ -2618,14 +2619,20 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(429).json({ ok: false, error: 'date-generation-limit', quota: quotaBefore });
       }
 
+      const [history, weatherRaw] = await Promise.all([
+        readDateGenerationHistory(actor, options).catch(() => []),
+        Promise.resolve().then(() => (options.getWeather || getWeather)()).catch(() => null),
+      ]);
       const result = await generateDateIdeas({
         period: body.period,
         exclude: body.exclude,
+        history,
+        weather: buildDateWeatherContext(weatherRaw),
       }, {
         env: options.env || process.env,
         fetch: options.fetch || global.fetch,
       });
-      const quota = await recordSuccessfulDateGeneration(actor, options);
+      const quota = await recordSuccessfulDateGeneration(actor, { ...options, ideas: result.ideas });
       return res.status(200).json({
         ok: true,
         actor,

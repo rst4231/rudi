@@ -10625,8 +10625,8 @@
       }
 
       function dateQuotaText(quota){
-        const available=Math.max(0,Number(quota?.available??5));
-        const max=Math.max(1,Number(quota?.max||5));
+        const available=Math.max(0,Number(quota?.available??10));
+        const max=Math.max(1,Number(quota?.max||10));
         const nextAt=formatDateQuotaTime(quota?.nextRefillAt||quota?.blockedUntil);
         if(available<=0){
           return nextAt
