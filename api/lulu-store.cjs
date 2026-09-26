@@ -129,6 +129,19 @@ async function writeLuluState(value, options = {}) {
 async function markLuluWalk(actor, toilet = {}, options = {}) {
   const clean = cleanActor(actor);
   if (!clean) throw new Error('lulu-actor-invalid');
+  const candidate=toilet&&typeof toilet==='object'&&!Array.isArray(toilet)?toilet:{};
+  const legacyOptions=!Object.prototype.hasOwnProperty.call(candidate,'peed')
+    &&!Object.prototype.hasOwnProperty.call(candidate,'pooped')
+    &&(
+      Object.prototype.hasOwnProperty.call(candidate,'luluCache')
+      ||Object.prototype.hasOwnProperty.call(candidate,'cache')
+      ||Object.prototype.hasOwnProperty.call(candidate,'cacheOptions')
+      ||Object.prototype.hasOwnProperty.call(candidate,'now')
+    );
+  if(legacyOptions){
+    options=candidate;
+    toilet={peed:true,pooped:true};
+  }
   const peed=toilet?.peed===true;
   const pooped=toilet?.pooped===true;
   if(!peed&&!pooped) throw new Error('lulu-toilet-required');
