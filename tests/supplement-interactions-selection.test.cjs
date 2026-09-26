@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');
+test('supplement interaction API checks only selected ids',()=>{const source=fs.readFileSync(path.join(__dirname,'..','api','supplements.js'),'utf8');assert.match(source,/body\.selectedIds/);assert.match(source,/selected\.length<2/);assert.match(source,/analyzeSupplementSet\(selected\)/);assert.doesNotMatch(source,/active=state\.items\.filter\(item=>item\.status==='active'\)/)});

@@ -14,15 +14,15 @@ function statusFor(code,error){
   if(code==='supplement-ai-quota')return 429;
   if([
     'supplement-limit','supplement-name-required','supplement-id-required','supplement-restore-invalid',
-    'supplement-operation-invalid','supplement-note-required','supplement-interaction-invalid'
+    'supplement-operation-invalid','supplement-note-required','supplement-interaction-invalid','supplement-interaction-selection-required'
   ].includes(code))return 400;
   if(code.startsWith('supplement-ai-')||code==='groq-api-key-missing')return 502;
   return 500;
 }
 function moscowDateKey(now=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now))}
 function interactionFingerprint(items){
-  const active=(Array.isArray(items)?items:[]).filter(x=>x.status==='active').map(x=>({id:x.id,name:x.name,goal:x.goal,schedule:x.schedule,ingredients:x.ingredients})).sort((a,b)=>a.id.localeCompare(b.id));
-  return crypto.createHash('sha256').update(JSON.stringify(active)).digest('hex');
+  const selected=(Array.isArray(items)?items:[]).map(x=>({id:x.id,name:x.name,goal:x.goal,schedule:x.schedule,ingredients:x.ingredients,status:x.status})).sort((a,b)=>a.id.localeCompare(b.id));
+  return crypto.createHash('sha256').update(JSON.stringify(selected)).digest('hex');
 }
 async function handler(req,res){
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
@@ -68,16 +68,15 @@ async function handler(req,res){
       return res.status(200).json({ok:true,actor,item:saved.item,cached:false,provider:generated.provider,model:generated.model});
     }
     if(operation==='interactions'){
-      const state=await readSupplements(actor),active=state.items.filter(item=>item.status==='active'),fingerprint=interactionFingerprint(active);
-      if(state.interactionCheck?.fingerprint===fingerprint)return res.status(200).json({ok:true,actor,interactionCheck:state.interactionCheck,cached:true});
-      if(active.length<2){
-        const simple={fingerprint,summary:'Для проверки сочетаний нужно минимум две активные позиции.',warnings:[],duplicates:[]};
-        const saved=await saveInteractionCheck(actor,simple);
-        return res.status(200).json({ok:true,actor,interactionCheck:saved.interactionCheck,cached:false});
-      }
-      const generated=await analyzeSupplementSet(active);
+      const state=await readSupplements(actor);
+      const selectedIds=[...new Set((Array.isArray(body.selectedIds)?body.selectedIds:[]).map(value=>String(value||'').trim()).filter(Boolean))].slice(0,20);
+      const selected=state.items.filter(item=>selectedIds.includes(item.id));
+      if(selected.length<2)throw new Error('supplement-interaction-selection-required');
+      const fingerprint=interactionFingerprint(selected);
+      if(state.interactionCheck?.fingerprint===fingerprint)return res.status(200).json({ok:true,actor,interactionCheck:state.interactionCheck,selectedIds:selected.map(item=>item.id),cached:true});
+      const generated=await analyzeSupplementSet(selected);
       const saved=await saveInteractionCheck(actor,{fingerprint,...generated});
-      return res.status(200).json({ok:true,actor,interactionCheck:saved.interactionCheck,cached:false,provider:generated.provider,model:generated.model});
+      return res.status(200).json({ok:true,actor,interactionCheck:saved.interactionCheck,selectedIds:selected.map(item=>item.id),cached:false,provider:generated.provider,model:generated.model});
     }
     if(operation==='recommendation'){
       const profile=profileContext(actor),date=moscowDateKey(),state=await readSupplements(actor);
