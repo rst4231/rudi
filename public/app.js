@@ -2533,6 +2533,7 @@
               '<div><span>Сегодня</span><strong id="scoreModalToday">0 / 10</strong></div>'+
             '</div>'+
             '<div id="scoreActiveRewards" class="score-active-rewards" hidden></div>'+
+            '<div id="scoreGiftPanel" class="score-gift-panel" hidden></div>'+
             '<div id="scoreModalTabs" class="score-modal-tabs" role="tablist">'+
               '<button type="button" data-score-tab="history" class="active">История</button>'+
               '<button type="button" data-score-tab="shop">Магазин</button>'+
@@ -2638,6 +2639,53 @@
           }
         }
 
+        const giftPanel=modal.querySelector('#scoreGiftPanel');
+        giftPanel.replaceChildren();
+        const own=actor===currentActor;
+        giftPanel.hidden=!own;
+        if(own){
+          const partner=actor==='Рустам'?'Диана':'Рустам';
+          const giftState=score?.gifts?.[actor]||{};
+          const remaining=Math.max(0,Number(giftState.remaining??5));
+          const title=document.createElement('div');
+          title.className='score-gift-title';
+          title.textContent='🎁 Подарить '+partner;
+          const meta=document.createElement('div');
+          meta.className='score-gift-meta';
+          meta.textContent='Осталось на этой неделе: '+scoreNumber(remaining)+' ⭐';
+          const actions=document.createElement('div');
+          actions.className='score-gift-actions';
+          for(let amount=1;amount<=5;amount+=1){
+            const button=document.createElement('button');
+            button.type='button';
+            button.textContent=amount+' ⭐';
+            button.disabled=amount>remaining||amount>balance;
+            button.addEventListener('click',async()=>{
+              if(button.disabled) return;
+              if(!window.confirm('Подарить '+partner+' '+amount+' ⭐?')) return;
+              actions.querySelectorAll('button').forEach(item=>item.disabled=true);
+              try{
+                const data=await scoreRequest('gift',{amount});
+                currentScoreState=data.score||currentScoreState;
+                renderScoreStickers(currentScoreState);
+                renderScoreModal(actor,currentScoreState);
+                setTimeout(()=>refreshStateBackup(),200);
+                try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              }catch(error){
+                try{
+                  const fresh=await scoreRequest('state');
+                  currentScoreState=fresh.score||currentScoreState;
+                  renderScoreStickers(currentScoreState);
+                  renderScoreModal(actor,currentScoreState);
+                }catch(_){}
+                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+              }
+            });
+            actions.appendChild(button);
+          }
+          giftPanel.append(title,meta,actions);
+        }
+
         const history=modal.querySelector('#scoreHistoryPanel');
         history.replaceChildren();
         const pointRows=(Array.isArray(score?.history)?score.history:[])
@@ -2701,7 +2749,6 @@
 
         const shop=modal.querySelector('#scoreShopPanel');
         shop.replaceChildren();
-        const own=actor===currentActor;
         if(!own){
           const note=document.createElement('div');
           note.className='score-shop-note';
@@ -2719,7 +2766,8 @@
           const title=document.createElement('strong');
           title.textContent=String(reward.label||'Награда');
           const cost=document.createElement('span');
-          cost.textContent=scoreNumber(reward.cost)+' звезд';
+          const missing=Math.max(0,Number(reward.cost||0)-balance);
+          cost.textContent=scoreNumber(reward.cost)+' звезд'+(missing>0?' · не хватает '+scoreNumber(missing)+' ⭐':'');
           copy.append(title,cost);
           const button=document.createElement('button');
           button.type='button';
