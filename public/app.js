@@ -3826,6 +3826,90 @@
         return malePsychologyLoadPromise;
       }
 
+      function homeSupplementEmoji(name){
+        const value=String(name||'').toLowerCase().replace(/ё/g,'е');
+        if(/креатин/.test(value)) return '🏋️';
+        if(/теанин|l[-\s]?theanine/.test(value)) return '🍵';
+        if(/витамин\s*d|d3|к2|k2/.test(value)) return '☀️';
+        if(/магни/.test(value)) return '⚡';
+        if(/омега|рыб/.test(value)) return '🐟';
+        if(/желез/.test(value)) return '🩸';
+        if(/цинк/.test(value)) return '🛡️';
+        if(/мелатонин/.test(value)) return '🌙';
+        if(/коллаген/.test(value)) return '🦴';
+        if(/протеин|белок/.test(value)) return '🥛';
+        if(/витамин\s*c|аскорб/.test(value)) return '🍊';
+        if(/тирозин/.test(value)) return '🧠';
+        return '💊';
+      }
+
+      function homeSupplementTime(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}).format(date);
+      }
+
+      function renderHomeSupplementIntakes(actor,rows){
+        const list=document.getElementById(actor==='Диана'?'homeDianaSupplementIntakes':'homeRustamSupplementIntakes');
+        if(!list) return;
+        const values=Array.isArray(rows)?rows:[];
+        list.replaceChildren();
+        if(!values.length){
+          const empty=document.createElement('div');
+          empty.className='profile-supplement-intakes-empty';
+          empty.textContent='Сегодня ещё ничего не отмечено';
+          list.appendChild(empty);
+          return;
+        }
+        for(const row of values){
+          const item=document.createElement('div');
+          item.className='profile-supplement-intake-row';
+          const left=document.createElement('span');
+          left.className='profile-supplement-intake-name';
+          const emoji=document.createElement('span');
+          emoji.className='profile-supplement-intake-emoji';
+          emoji.textContent=homeSupplementEmoji(row?.name);
+          const name=document.createElement('span');
+          name.textContent=String(row?.name||'БАД');
+          left.append(emoji,name);
+          const time=document.createElement('time');
+          time.className='profile-supplement-intake-time';
+          time.dateTime=String(row?.at||'');
+          time.textContent=homeSupplementTime(row?.at);
+          item.append(left,time);
+          list.appendChild(item);
+        }
+      }
+
+      let supplementOverviewLoadPromise=null;
+      async function loadSupplementIntakeOverview(options={}){
+        if(!currentActor) return null;
+        if(supplementOverviewLoadPromise) return supplementOverviewLoadPromise;
+        supplementOverviewLoadPromise=(async()=>{
+          try{
+            const response=await fetch('/api/supplements',{
+              method:'POST',
+              credentials:'same-origin',
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({operation:'overview',initData:String(tg?.initData||'')})
+            });
+            const data=await response.json().catch(()=>({}));
+            if(!response.ok||!data?.ok) throw new Error(String(data?.error||'supplement-overview-failed'));
+            renderHomeSupplementIntakes('Рустам',data.actors?.['Рустам']);
+            renderHomeSupplementIntakes('Диана',data.actors?.['Диана']);
+            return data;
+          }catch(error){
+            if(!options.silent) console.warn('RUDI_SUPPLEMENT_OVERVIEW_UI_WARN',String(error?.message||error));
+            return null;
+          }finally{
+            supplementOverviewLoadPromise=null;
+          }
+        })();
+        return supplementOverviewLoadPromise;
+      }
+
+      document.addEventListener('rudi:supplement-intake-updated',()=>loadSupplementIntakeOverview({silent:true}));
+
       function setupProfileSplit(){
         const profile=document.querySelector('.profile');
         if(!profile||document.body.dataset.profileSplitReady==='1') return;
@@ -4058,18 +4142,24 @@
         rhythmAdvice.hidden=!currentRecommendation;
         rustamCard.details.appendChild(rhythmAdvice);
 
-        const maleFact=document.createElement('article');
-        maleFact.id='malePsychologyFact';
-        maleFact.className='male-psychology-fact';
-        maleFact.hidden=true;
-        maleFact.innerHTML=
-          '<div class="male-psychology-fact-kicker"><span aria-hidden="true">🧠</span> Научный факт дня</div>'+
-          '<strong id="malePsychologyFactTitle" class="male-psychology-fact-title"></strong>'+
-          '<div id="malePsychologyFactText" class="male-psychology-fact-text"></div>'+
-          '<a id="malePsychologyFactSource" class="male-psychology-fact-source" href="#" target="_blank" rel="noopener noreferrer"></a>'+
-          '<div id="malePsychologyFactDisclaimer" class="male-psychology-fact-disclaimer"></div>';
-        rustamCard.details.appendChild(maleFact);
-        renderMalePsychologyFact(currentMalePsychologyFact);
+        const makeSupplementIntakeBlock=(actor)=>{
+          const block=document.createElement('article');
+          block.className='profile-supplement-intakes';
+          const title=document.createElement('div');
+          title.className='profile-supplement-intakes-title';
+          title.textContent=actor==='Диана'?'💊 Сегодня приняла':'💊 Сегодня принял';
+          const list=document.createElement('div');
+          list.id=actor==='Диана'?'homeDianaSupplementIntakes':'homeRustamSupplementIntakes';
+          list.className='profile-supplement-intakes-list';
+          const loading=document.createElement('div');
+          loading.className='profile-supplement-intakes-empty';
+          loading.textContent='Загружаю…';
+          list.appendChild(loading);
+          block.append(title,list);
+          return block;
+        };
+        rustamCard.details.appendChild(makeSupplementIntakeBlock('Рустам'));
+        dianaCard.details.appendChild(makeSupplementIntakeBlock('Диана'));
 
         dianaCard.details.appendChild(cycleSummary);
         if(moodPrompt){
@@ -4123,6 +4213,7 @@
         syncStaticProfileWorkStatus();
         setupHomeDashboardActions();
         renderHomeDashboard();
+        loadSupplementIntakeOverview({silent:true});
       }
 
       function readBlockStates(){
@@ -9878,13 +9969,14 @@
         return 'часов';
       }
 
-      function fastingHomeLabel(active){
+      function fastingHomeLabel(active,firstPerson=false){
         if(!active?.startedAt) return '';
         const started=Date.parse(String(active.startedAt||''));
         if(!Number.isFinite(started)) return '';
         const elapsed=Math.max(0,Date.now()-started);
         const hours=Math.floor(elapsed/3600000);
-        return hours<1 ? 'Голодает меньше часа' : 'Голодает '+hours+' '+fastingHoursWord(hours);
+        const verb=firstPerson?'Голодаю':'Голодает';
+        return hours<1 ? '🍽️ '+verb+' меньше часа' : '🍽️ '+verb+' '+hours+' '+fastingHoursWord(hours);
       }
 
       function renderFastingHomeStatus(overview=fastingOverviewState){
@@ -9898,13 +9990,13 @@
         const selfNode=document.getElementById('selfFastingStatus');
         const partnerNode=document.getElementById('partnerFastingStatus');
         const pairs=[
-          [selfNode,fastingOverviewState[selfActor]],
-          [partnerNode,fastingOverviewState[partnerActor]],
+          [selfNode,fastingOverviewState[selfActor],true],
+          [partnerNode,fastingOverviewState[partnerActor],false],
         ];
 
-        pairs.forEach(([node,active])=>{
+        pairs.forEach(([node,active,firstPerson])=>{
           if(!node) return;
-          const label=fastingHomeLabel(active);
+          const label=fastingHomeLabel(active,firstPerson);
           node.textContent=label;
           node.hidden=!label;
         });
@@ -11251,7 +11343,7 @@
             (currentAppTab==='products'?loadProducts({silent:true}):Promise.resolve()),
             (currentAppTab==='feed'?loadFeed({silent:true}):Promise.resolve()),
             loadActivityJournal({silent:true}),
-            loadMalePsychologyFact(),
+            loadSupplementIntakeOverview({silent:true}),
             (marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()),
             loadFastingOverview(),
             syncUiPreferencesFromServer().then(()=>refreshStateBackup())

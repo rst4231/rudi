@@ -31,6 +31,15 @@ async function handler(req,res){
     const {actor}=authorizeRequest(req,body.initData);
     const operation=String(body.operation||'list').trim();
 
+    if(operation==='overview'){
+      const today=moscowDateKey();
+      const [rustamState,dianaState]=await Promise.all([readSupplements('Рустам'),readSupplements('Диана')]);
+      const buildRows=(state)=>state.items.flatMap(item=>(item.intakes||[])
+        .filter(intake=>intake.date===today)
+        .map(intake=>({id:item.id,name:item.name,at:intake.at}))
+      ).filter(row=>row.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+      return res.status(200).json({ok:true,actor,today,actors:{'Рустам':buildRows(rustamState),'Диана':buildRows(dianaState)}});
+    }
     if(operation==='list'){
       const state=await readSupplements(actor);
       return res.status(200).json({ok:true,actor,profile:profileContext(actor),items:state.items,recommendation:state.recommendation,interactionCheck:state.interactionCheck});

@@ -5,7 +5,7 @@ const req=(op,payload)=>app().request(op,payload);
 const rows=()=>app().getItems();
 const setRows=value=>app().setItems(value);
 const setStatus=(text,error=false)=>app().setStatus(text,error);
-function statusLabel(v){return v==='paused'?'Пауза':v==='finished'?'Закончил':'Принимаю'}
+function statusLabel(v){return v==='paused'?'На паузе':v==='finished'?(app().getActor()==='Диана'?'Закончила':'Закончил'):'Принимаю'}
 function field(label,type,name,options=[]){
   const wrap=document.createElement('label');wrap.className='supplement-editor-field';
   const title=document.createElement('span');title.textContent=label;let input;
@@ -38,7 +38,7 @@ function build(){
     field('Относительно еды','select','food',[['any','Не важно'],['before','До еды'],['with','Во время еды'],['after','После еды']]),
     field('Начало курса','date','startDate'),
     field('Длительность курса, дней','number','durationDays'),
-    field('Статус','select','status',[['active','Принимаю'],['paused','Пауза'],['finished','Закончил']]),
+    field('Статус','select','status',[['active','Принимаю'],['paused','На паузе'],['finished',app().getActor()==='Диана'?'Закончила':'Закончил']]),
     field('Срок годности','date','expirationDate')
   );
   const save=document.createElement('button');save.type='submit';save.className='supplement-editor-save';save.textContent='Сохранить';form.appendChild(save);

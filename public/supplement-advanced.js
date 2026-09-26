@@ -2,9 +2,23 @@
 
 let started=false;
 let statsNode=null,duplicatePanel=null,actionRow=null,drawer=null;
-let searchInput=null,sortSelect=null,interactionChoices=null,interactionRun=null,interactionResult=null;
+let searchInput=null,interactionChoices=null,interactionRun=null,interactionResult=null;
 let interactionCheck=null,openActionName='',selectedInteractionIds=new Set();
 const actionButtons=new Map(),actionPanels=new Map();
+
+const GROUP_STATE_PREFIX='rudi-supplement-groups-v1:';
+function groupStateKey(){return GROUP_STATE_PREFIX+(app()?.getActor?.()||'unknown')}
+function readGroupState(){
+  try{
+    const value=JSON.parse(localStorage.getItem(groupStateKey())||'{}');
+    return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  }catch{return{}}
+}
+function writeGroupState(status,collapsed){
+  const next={...readGroupState(),[status]:Boolean(collapsed)};
+  try{localStorage.setItem(groupStateKey(),JSON.stringify(next))}catch{}
+  return next;
+}
 
 const app=()=>window.RudiSupplementApp;
 const req=(op,payload)=>app().request(op,payload);
@@ -17,7 +31,7 @@ function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow
 function dateMs(key){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(key||'')))return null;const [y,m,d]=key.split('-').map(Number);return Date.UTC(y,m-1,d,12)}
 function addDays(key,days){const value=dateMs(key);return value===null?'':new Date(value+Number(days||0)*86400000).toISOString().slice(0,10)}
 function daysBetween(left,right){const a=dateMs(left),b=dateMs(right);return a===null||b===null?null:Math.round((a-b)/86400000)}
-function statusLabel(value){return value==='paused'?'Пауза':value==='finished'?'Закончил':'Принимаю'}
+function statusLabel(value){return value==='paused'?'На паузе':value==='finished'?(isDiana()?'Закончила':'Закончил'):'Принимаю'}
 function evidenceLabel(value){return value==='strong'?'🟢 Высокая':value==='moderate'?'🟢 Умеренная':value==='limited'?'🟡 Ограниченная':value==='insufficient'?'⚪ Данных мало':''}
 function foodLabel(value){return value==='before'?'до еды':value==='with'?'во время еды':value==='after'?'после еды':''}
 function takenToday(item){return(item.intakes||[]).some(row=>row.date===today())}
@@ -71,7 +85,6 @@ function ensureToolbar(){
   actionRow.append(
     makeActionButton('add','＋','Добавить БАД'),
     makeActionButton('search','⌕','Поиск'),
-    makeActionButton('sort','⇅','Сортировка'),
     makeActionButton('interactions','🧪','Проверить сочетания')
   );
 
@@ -82,11 +95,6 @@ function ensureToolbar(){
   searchInput=document.createElement('input');searchInput.type='search';searchInput.className='supplement-action-input';searchInput.placeholder='Поиск по названию, цели или составу';searchInput.setAttribute('aria-label','Поиск БАДов');
   searchPanel.appendChild(searchInput);
 
-  const sortPanel=makePanel('sort');
-  sortSelect=document.createElement('select');sortSelect.className='supplement-action-select';sortSelect.setAttribute('aria-label','Сортировка БАДов');
-  for(const pair of [['added','Сначала новые'],['name','По названию'],['time','По времени'],['status','По статусу']]){const option=document.createElement('option');option.value=pair[0];option.textContent=pair[1];sortSelect.appendChild(option)}
-  sortPanel.appendChild(sortSelect);
-
   const interactionPanel=makePanel('interactions');
   const interactionHint=document.createElement('div');interactionHint.className='supplement-interaction-hint';interactionHint.textContent='Выбери минимум 2 БАДа для проверки';
   interactionChoices=document.createElement('div');interactionChoices.className='supplement-interaction-choices';
@@ -94,12 +102,11 @@ function ensureToolbar(){
   interactionResult=document.createElement('div');interactionResult.className='supplement-interaction-panel';interactionResult.hidden=true;
   interactionPanel.append(interactionHint,interactionChoices,interactionRun,interactionResult);
 
-  drawer.append(addPanel,searchPanel,sortPanel,interactionPanel);
+  drawer.append(addPanel,searchPanel,interactionPanel);
   wrap.append(statsNode,duplicatePanel,actionRow,drawer);
   const body=document.querySelector('.personal-supplements-body');body?.insertBefore(wrap,body.firstChild);
 
-  searchInput.addEventListener('input',applyFilterSort);
-  sortSelect.addEventListener('change',applyFilterSort);
+  searchInput.addEventListener('input',applyGrouping);
   interactionRun.addEventListener('click',checkSelectedInteractions);
 }
 
@@ -126,15 +133,47 @@ function renderAutomaticDuplicates(active){
   const title=document.createElement('strong');title.textContent='⚠️ Найдены дубли состава';duplicatePanel.appendChild(title);
   for(const row of duplicates){const p=document.createElement('p');p.textContent=row.ingredient+': '+[...new Set(row.items)].join(', ');duplicatePanel.appendChild(p)}
 }
-function applyFilterSort(){
+function supplementTimeKey(item){return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(item?.schedule?.time||''))?String(item.schedule.time):'99:99'}
+function groupTitle(status){
+  if(status==='paused')return'На паузе';
+  if(status==='finished')return isDiana()?'Закончила':'Закончил';
+  return'Принимаю';
+}
+function applyGrouping(){
   const list=document.querySelector('.personal-supplements-list');if(!list)return;
-  const query=(searchInput?.value||'').trim().toLowerCase(),sort=sortSelect?.value||'added';
+  const query=(searchInput?.value||'').trim().toLowerCase();
+  list.querySelectorAll('.supplement-group-title,.supplement-group-empty').forEach(node=>node.remove());
   const rows=getItems().map(item=>({item,card:list.querySelector('[data-id="'+CSS.escape(item.id)+'"]')})).filter(row=>row.card);
-  for(const row of rows)row.card.hidden=Boolean(query)&&![row.item.name,row.item.goal,...(row.item.ingredients||[])].join(' ').toLowerCase().includes(query);
-  if(sort==='name')rows.sort((a,b)=>a.item.name.localeCompare(b.item.name,'ru'));
-  else if(sort==='time')rows.sort((a,b)=>(a.item.schedule?.time||'99:99').localeCompare(b.item.schedule?.time||'99:99'));
-  else if(sort==='status')rows.sort((a,b)=>((({active:0,paused:1,finished:2})[a.item.status]??3)-((({active:0,paused:1,finished:2})[b.item.status]??3))));
-  for(const row of rows)list.appendChild(row.card);
+  for(const row of rows){
+    row.matches=!query||[row.item.name,row.item.goal,...(row.item.ingredients||[])].join(' ').toLowerCase().includes(query);
+    row.card.hidden=!row.matches;
+  }
+  let visible=0;
+  for(const status of ['active','paused','finished']){
+    const group=rows.filter(row=>row.matches&&row.item.status===status).sort((a,b)=>{
+      const byTime=supplementTimeKey(a.item).localeCompare(supplementTimeKey(b.item));
+      return byTime||a.item.name.localeCompare(b.item.name,'ru');
+    });
+    if(!group.length)continue;
+    visible+=group.length;
+    const collapsed=!query&&readGroupState()[status]===true;
+    const title=document.createElement('button');
+    title.type='button';
+    title.className='supplement-group-title is-'+status+(collapsed?' is-collapsed':'');
+    title.setAttribute('aria-expanded',String(!collapsed));
+    title.setAttribute('aria-label',(collapsed?'Развернуть ':'Свернуть ')+groupTitle(status));
+    const label=document.createElement('span');label.className='supplement-group-title-label';label.textContent=groupTitle(status);
+    const count=document.createElement('span');count.className='supplement-group-title-count';count.textContent=String(group.length);
+    const arrow=document.createElement('span');arrow.className='supplement-group-title-arrow';arrow.textContent='⌄';
+    title.append(label,count,arrow);
+    title.addEventListener('click',()=>{writeGroupState(status,!collapsed);applyGrouping()});
+    list.appendChild(title);
+    for(const row of group){row.card.hidden=collapsed;list.appendChild(row.card)}
+  }
+  for(const row of rows.filter(row=>!row.matches))list.appendChild(row.card);
+  if(!visible&&rows.length){
+    const empty=document.createElement('div');empty.className='supplement-group-empty';empty.textContent='Ничего не найдено';list.prepend(empty);
+  }
 }
 
 function enhanceCards(){
@@ -158,14 +197,14 @@ function enhanceCards(){
     const edit=document.createElement('button');edit.type='button';edit.className='supplement-edit';edit.textContent='Настроить';actions.append(take,edit);card.appendChild(actions);
     take.addEventListener('click',async event=>{
       event.stopPropagation();take.disabled=true;take.textContent='Отмечаю…';
-      try{const data=await req('take',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже отмечено сегодня.':'Приём отмечен ✓')}
+      try{const data=await req('take',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже отмечено сегодня.':'Приём отмечен ✓');document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'))}
       catch(error){take.disabled=false;take.textContent=takeIdleLabel();setStatus('Не удалось отметить приём.',true)}
     });
     edit.addEventListener('click',event=>{event.stopPropagation();window.RudiSupplementEditor?.open(item.id)});
     badge.addEventListener('click',event=>event.stopPropagation());
   }
   if(openActionName==='interactions')renderInteractionChoices();
-  applyFilterSort();
+  applyGrouping();
 }
 
 function renderInteractionChoices(){

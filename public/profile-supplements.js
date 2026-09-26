@@ -23,7 +23,7 @@ function errorText(error){
 function setStatus(text,error=false){if(!statusNode)return;statusNode.textContent=text||'';statusNode.hidden=!text;statusNode.classList.toggle('is-error',Boolean(error))}
 function prefs(){return readPrefs()}
 function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod100=n%100,mod10=n%10;const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';return n+' '+word}
-function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыбн/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
+function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
 async function loadDailyRecommendation(){
   if(!recommendationNode)return;
@@ -114,6 +114,33 @@ function setupDrag(handle){
   };
   handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
 }
+function setupEdgeSwipeBack(){
+  if(!overlay||overlay.dataset.edgeSwipeBound==='1')return;
+  overlay.dataset.edgeSwipeBound='1';
+  let tracking=false,startX=0,startY=0,lastX=0,lastY=0;
+  const reset=()=>{tracking=false;startX=0;startY=0;lastX=0;lastY=0};
+  overlay.addEventListener('pointerdown',event=>{
+    if(overlay.hidden||document.body.classList.contains('supplement-editor-open'))return;
+    if(event.pointerType==='mouse'&&event.button!==0)return;
+    if(event.clientX>32)return;
+    tracking=true;startX=lastX=event.clientX;startY=lastY=event.clientY;
+  },{passive:true});
+  overlay.addEventListener('pointermove',event=>{
+    if(!tracking)return;
+    lastX=event.clientX;lastY=event.clientY;
+    const dx=lastX-startX,dy=Math.abs(lastY-startY);
+    if(dx<0||dy>42&&dy>Math.abs(dx)*0.8)reset();
+  },{passive:true});
+  overlay.addEventListener('pointerup',event=>{
+    if(!tracking)return;
+    lastX=event.clientX;lastY=event.clientY;
+    const dx=lastX-startX,dy=Math.abs(lastY-startY);
+    const shouldClose=dx>=70&&dx>=dy*1.35;
+    reset();
+    if(shouldClose)close();
+  },{passive:true});
+  overlay.addEventListener('pointercancel',reset,{passive:true});
+}
 function build(){
   if(overlay)return overlay;
   overlay=document.createElement('section');overlay.id='personalProfilePage';overlay.className='personal-profile-page';overlay.hidden=true;overlay.setAttribute('aria-label','Личная страница');
@@ -170,7 +197,7 @@ function build(){
       }
     }
   });
-  setupDrag(drag);return overlay;
+  setupDrag(drag);setupEdgeSwipeBack();return overlay;
 }
 async function open(){
   actor=String(document.body.dataset.rudiActor||'').trim();if(!actor)return;

@@ -18,3 +18,5 @@
 
 .personal-profile-open #appTabBar{display:none!important}
 .personal-profile-open .personal-profile-page{padding-bottom:calc(24px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)));scroll-padding-bottom:calc(24px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))}
+
+.personal-profile-page{touch-action:pan-y;overscroll-behavior-x:none}
