@@ -8251,7 +8251,7 @@
           waiting.textContent='✓ Ответ сохранён. Ждём, когда ответит '+String(data?.partner||'партнёр')+'.';
         }else if(partnerAnswered){
           waiting.hidden=false;
-          waiting.textContent=String(data?.partner||'Партнёр')+' уже ответил'+(data?.partner==='Диана'?'а':'')+'. Его ответ откроется после твоего.';
+          waiting.textContent=String(data?.partner||'Партнёр')+' уже ответил'+(data?.partner==='Диана'?'а':'')+'. Ответ партнёра откроется после твоего.';
         }else{
           waiting.hidden=true;
           waiting.textContent='';
