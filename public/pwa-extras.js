@@ -491,10 +491,13 @@
       navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'})
         .then(registration=>{
           watchRegistration(registration);
-          registration.update().catch(()=>{});
-          window.addEventListener('online',()=>registration.update().catch(()=>{}));
+          const checkForUpdate=()=>registration.update().catch(()=>{});
+          checkForUpdate();
+          window.addEventListener('online',checkForUpdate);
+          window.addEventListener('focus',checkForUpdate);
+          window.addEventListener('pageshow',checkForUpdate);
           document.addEventListener('visibilitychange',()=>{
-            if(document.visibilityState==='visible') registration.update().catch(()=>{});
+            if(document.visibilityState==='visible') checkForUpdate();
           });
         })
         .catch(error=>{

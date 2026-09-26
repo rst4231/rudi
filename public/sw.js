@@ -20,20 +20,6 @@ function fetchWithTimeout(request,timeoutMs){
   return fetch(request,{signal:controller.signal}).finally(()=>clearTimeout(timer));
 }
 
-function shellCacheVersion(name){
-  const match=String(name||'').match(/v(\d+)\.(\d+)\.(\d+)$/);
-  return match?match.slice(1).map(Number):[0,0,0];
-}
-
-function compareShellCaches(a,b){
-  const av=shellCacheVersion(a);
-  const bv=shellCacheVersion(b);
-  for(let index=0;index<3;index+=1){
-    if(av[index]!==bv[index]) return bv[index]-av[index];
-  }
-  return 0;
-}
-
 function openOutboxDb(){
   return new Promise((resolve,reject)=>{
     const request=indexedDB.open(SYNC_DB,1);
@@ -126,12 +112,11 @@ self.addEventListener('install',event=>{
 self.addEventListener('activate',event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>{
-        const shellKeys=keys.filter(key=>key.startsWith(SHELL_CACHE_PREFIX)).sort(compareShellCaches);
-        const previous=shellKeys.find(key=>key!==CACHE_NAME);
-        const keep=new Set([CACHE_NAME,previous].filter(Boolean));
-        return Promise.all(shellKeys.filter(key=>!keep.has(key)).map(key=>caches.delete(key)));
-      })
+      .then(keys=>Promise.all(
+        keys
+          .filter(key=>key.startsWith(SHELL_CACHE_PREFIX)&&key!==CACHE_NAME)
+          .map(key=>caches.delete(key))
+      ))
       .then(()=>self.clients.claim())
   );
 });
@@ -154,7 +139,8 @@ self.addEventListener('fetch',event=>{
         }
         return response;
       }catch(_){
-        return (await caches.match(request)) || (await caches.match('/')) || Response.error();
+        const cache=await caches.open(CACHE_NAME);
+        return (await cache.match(request)) || (await cache.match('/')) || Response.error();
       }
     })());
     return;
@@ -169,18 +155,18 @@ self.addEventListener('fetch',event=>{
 
   if(!isStatic) return;
 
-  event.respondWith(
-    caches.match(request).then(cached=>{
-      const network=fetchWithTimeout(request,STATIC_TIMEOUT_MS).then(response=>{
-        if(response&&response.ok){
-          const copy=response.clone();
-          caches.open(CACHE_NAME).then(cache=>cache.put(request,copy)).catch(()=>{});
-        }
-        return response;
-      }).catch(()=>cached||Response.error());
-      return cached||network;
-    })
-  );
+  event.respondWith((async()=>{
+    const cache=await caches.open(CACHE_NAME);
+    const cached=await cache.match(request);
+    const network=fetchWithTimeout(request,STATIC_TIMEOUT_MS).then(response=>{
+      if(response&&response.ok){
+        const copy=response.clone();
+        cache.put(request,copy).catch(()=>{});
+      }
+      return response;
+    }).catch(()=>cached||Response.error());
+    return cached||network;
+  })());
 });
 
 self.addEventListener('sync',event=>{

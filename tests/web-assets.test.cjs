@@ -85,3 +85,20 @@ test('activity joins resilient read snapshots and mutation routes stay out',()=>
   assert.doesNotMatch(pwa,/RUDI_SNAPSHOT_POST_READ_PATHS=new Set\(\[[\s\S]*?checklist-toggle/);
   assert.doesNotMatch(pwa,/RUDI_SNAPSHOT_POST_READ_PATHS=new Set\(\[[\s\S]*?task-complete/);
 });
+
+
+test('service worker never serves app shell assets from an obsolete shell cache',()=>{
+  const sw=fs.readFileSync('public/sw.js','utf8');
+  assert.doesNotMatch(sw,/shellCacheVersion|compareShellCaches/);
+  assert.match(sw,/key\.startsWith\(SHELL_CACHE_PREFIX\)&&key!==CACHE_NAME/);
+  assert.match(sw,/const cache=await caches\.open\(CACHE_NAME\);[\s\S]*?const cached=await cache\.match\(request\)/);
+  assert.doesNotMatch(sw,/caches\.match\(request\)/);
+});
+
+test('PWA checks for a new service worker whenever iOS restores the standalone app',()=>{
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  assert.match(pwa,/const checkForUpdate=\(\)=>registration\.update\(\)\.catch\(\(\)=>\{\}\)/);
+  assert.match(pwa,/window\.addEventListener\('focus',checkForUpdate\)/);
+  assert.match(pwa,/window\.addEventListener\('pageshow',checkForUpdate\)/);
+  assert.match(pwa,/visibilitychange[\s\S]*?checkForUpdate\(\)/);
+});
