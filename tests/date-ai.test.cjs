@@ -104,3 +104,33 @@ test('date generator retries an outdoor-only result when it is raining',async()=
   assert.equal(calls,2);
   assert.equal(result.ideas[0].title,'Керамика в мастерской');
 });
+
+
+test('date generator hard-blocks activities Diana cannot do and retries', async()=>{
+  const prompt=datePrompt({period:'day'});
+  assert.match(prompt,/Диана не умеет кататься на велосипеде, самокате, роликах и коньках/);
+  assert.match(prompt,/не умеет плавать/);
+
+  let calls=0;
+  const safeIdeas=[
+    {title:'Необычная выставка и кофейня',description:'Сходите на новую выставку, а после найдите рядом нишевую кофейню и обсудите увиденное.',duration:'2–3 часа'},
+    {title:'Автомаршрут к гастроточке',description:'Выберите новое место за городом, доедьте туда на машине и попробуйте локальное блюдо.',duration:'3–4 часа'},
+    {title:'Баня и спокойный ужин',description:'Забронируйте баню для отдыха вдвоём, а после поужинайте в новом ресторане.',duration:'3 часа'},
+  ];
+
+  const result=await generateDateIdeas({period:'day'},{
+    apiKey:'secret-key',
+    fetch:async()=>{
+      calls++;
+      const ideas=calls===1?[
+        {title:'Велопрогулка по островам',description:'Возьмите велосипеды и прокатитесь по островам.',duration:'2 часа'},
+        {title:'Каток и какао',description:'Покатайтесь на коньках, затем выпейте какао.',duration:'2 часа'},
+        {title:'SUP на заливе',description:'Возьмите SUP-доски и отправляйтесь на воду.',duration:'2 часа'},
+      ]:safeIdeas;
+      return {ok:true,status:200,async json(){return {choices:[{message:{content:JSON.stringify({ideas})}}]}}};
+    },
+  });
+
+  assert.equal(calls,2);
+  assert.deepEqual(result.ideas.map((row)=>row.title),safeIdeas.map((row)=>row.title));
+});
