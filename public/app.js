@@ -76,10 +76,10 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','new','quick-access','smart-home','car','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','daily-question','new','quick-access','smart-home','car','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','partner','new','quick-access','smart-home','car','markets'];
+        return ['dashboard',...people,'lulu','nearest','priority','partner','daily-question','new','quick-access','smart-home','car','markets'];
       }
       function homeTopOrderMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -872,6 +872,10 @@
         if(!source.length) return [...defaults];
 
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
+        if(!requested.includes('daily-question')){
+          const partnerIndex=valid.indexOf('partner');
+          if(partnerIndex>=0) valid.splice(partnerIndex+1,0,'daily-question');
+        }
         for(const id of defaults) if(!valid.includes(id)) valid.push(id);
         return valid;
       }
@@ -4249,6 +4253,11 @@
           selector:'#smartHomeTile',key:'smart-home',
           bodySelectors:['#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
           hostSelector:'.smart-home-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#dailyQuestionTile',key:'daily-question',
+          bodySelectors:['#dailyQuestionBody'],
+          hostSelector:'.daily-question-head'
         });
         setupPersistentCollapsible({
           selector:'#carTile',key:'car',
@@ -8189,6 +8198,185 @@
         renderReaction({likedBy:Array.isArray(message.likes)?message.likes:[]},'partnerMessageLike','partnerMessageLikedBy');
       }
 
+      async function dailyQuestionRequest(operation='get',payload={}){
+        const response=await fetch('/api/partner-message?rudiAction=daily-question',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:telegramInitData(),operation,...payload}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+          const error=new Error(data.error||'daily-question-request-failed');
+          error.status=response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function renderDailyQuestion(data){
+        const loading=document.getElementById('dailyQuestionLoading');
+        const content=document.getElementById('dailyQuestionContent');
+        const question=document.getElementById('dailyQuestionText');
+        const form=document.getElementById('dailyQuestionForm');
+        const input=document.getElementById('dailyQuestionInput');
+        const waiting=document.getElementById('dailyQuestionWaiting');
+        const answers=document.getElementById('dailyQuestionAnswers');
+        const status=document.getElementById('dailyQuestionStatus');
+        if(!content||!question||!form||!input||!waiting||!answers||!status) return;
+        if(loading) loading.hidden=true;
+        content.hidden=false;
+        question.textContent=String(data?.question?.text||'');
+        status.textContent='';
+
+        const mineAnswered=Boolean(data?.mineAnswered);
+        const partnerAnswered=Boolean(data?.partnerAnswered);
+        const revealed=Boolean(data?.revealed&&data?.answers);
+        form.hidden=mineAnswered||revealed;
+        input.disabled=mineAnswered||revealed;
+        if(mineAnswered) input.value='';
+
+        if(revealed){
+          waiting.hidden=true;
+          answers.hidden=false;
+          document.getElementById('dailyQuestionRustamAnswer').textContent=String(data.answers?.['Рустам']?.text||'');
+          document.getElementById('dailyQuestionDianaAnswer').textContent=String(data.answers?.['Диана']?.text||'');
+          status.textContent='Оба ответили — завтра будет новый вопрос.';
+          return;
+        }
+
+        answers.hidden=true;
+        if(mineAnswered){
+          waiting.hidden=false;
+          waiting.textContent='✓ Ответ сохранён. Ждём, когда ответит '+String(data?.partner||'партнёр')+'.';
+        }else if(partnerAnswered){
+          waiting.hidden=false;
+          waiting.textContent=String(data?.partner||'Партнёр')+' уже ответил'+(data?.partner==='Диана'?'а':'')+'. Его ответ откроется после твоего.';
+        }else{
+          waiting.hidden=true;
+          waiting.textContent='';
+        }
+      }
+
+      async function loadDailyQuestion({silent=false}={}){
+        const loading=document.getElementById('dailyQuestionLoading');
+        const content=document.getElementById('dailyQuestionContent');
+        if(!silent&&loading){
+          loading.hidden=false;
+          loading.textContent='Готовлю новый вопрос…';
+        }
+        try{
+          const data=await dailyQuestionRequest('get');
+          renderDailyQuestion(data);
+          return data;
+        }catch(error){
+          if(loading){
+            loading.hidden=false;
+            loading.textContent='Не удалось загрузить вопрос дня.';
+          }
+          if(content) content.hidden=true;
+          return null;
+        }
+      }
+
+      function setupDailyQuestionDrag(){
+        const tile=document.getElementById('dailyQuestionTile');
+        const handle=document.getElementById('dailyQuestionDragHandle');
+        if(!tile||!handle||handle.dataset.dragBound==='1') return;
+        handle.dataset.dragBound='1';
+        let pointerId=null;
+        let moved=false;
+
+        const finish=event=>{
+          if(pointerId===null) return;
+          if(event?.pointerId!==undefined&&event.pointerId!==pointerId) return;
+          try{handle.releasePointerCapture?.(pointerId)}catch(_){}
+          pointerId=null;
+          tile.classList.remove('is-dragging');
+          document.body.classList.remove('home-question-dragging');
+          if(moved){
+            saveHomeOrder();
+            updateHomeOrderControls();
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          }
+          moved=false;
+        };
+
+        handle.addEventListener('pointerdown',event=>{
+          if(event.button!==undefined&&event.button!==0) return;
+          const host=ensureHomeTileHost();
+          if(!host||tile.parentElement!==host) return;
+          pointerId=event.pointerId;
+          moved=false;
+          tile.classList.add('is-dragging');
+          document.body.classList.add('home-question-dragging');
+          try{handle.setPointerCapture?.(event.pointerId)}catch(_){}
+          event.preventDefault();
+          event.stopPropagation();
+        });
+        handle.addEventListener('pointermove',event=>{
+          if(pointerId===null||event.pointerId!==pointerId) return;
+          const host=ensureHomeTileHost();
+          if(!host||tile.parentElement!==host) return;
+          const siblings=[...host.querySelectorAll(':scope > [data-home-tile]')].filter(node=>node!==tile);
+          const before=siblings.find(node=>{
+            const rect=node.getBoundingClientRect();
+            return event.clientY<rect.top+rect.height/2;
+          })||null;
+          const currentNext=tile.nextElementSibling;
+          if(before!==currentNext){
+            if(before) host.insertBefore(tile,before);
+            else host.appendChild(tile);
+            moved=true;
+          }
+          event.preventDefault();
+        });
+        handle.addEventListener('pointerup',finish);
+        handle.addEventListener('pointercancel',finish);
+        handle.addEventListener('lostpointercapture',finish);
+      }
+
+      function setupDailyQuestion(){
+        const form=document.getElementById('dailyQuestionForm');
+        const input=document.getElementById('dailyQuestionInput');
+        const submit=document.getElementById('dailyQuestionSubmit');
+        if(form&&form.dataset.bound!=='1'){
+          form.dataset.bound='1';
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const answer=String(input?.value||'').trim();
+            const status=document.getElementById('dailyQuestionStatus');
+            if(!answer){
+              if(status) status.textContent='Напиши ответ.';
+              return;
+            }
+            if(submit) submit.disabled=true;
+            if(status) status.textContent='Сохраняю…';
+            try{
+              const data=await dailyQuestionRequest('answer',{answer});
+              renderDailyQuestion(data);
+              try{
+                const fresh=await scoreRequest('state');
+                currentScoreState=fresh.score||currentScoreState;
+                renderScoreStickers(currentScoreState);
+              }catch(_){}
+              if(data?.reward?.awarded&&status) status.textContent='Ответ сохранён · +0,5 ⭐';
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            }catch(error){
+              if(status) status.textContent=String(error?.message||'')==='daily-question-already-answered'
+                ?'Сегодня ты уже ответил'+(currentActor==='Диана'?'а':'')+'.'
+                :'Не удалось сохранить ответ.';
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+              await loadDailyQuestion({silent:true});
+            }finally{
+              if(submit) submit.disabled=false;
+            }
+          });
+        }
+        setupDailyQuestionDrag();
+        loadDailyQuestion();
+      }
+
       async function togglePartnerMessageLikeRequest(){
         const backupContext=backupRequestContext();
         const response=await fetch('/api/partner-message?rudiAction=partner-message-like',{
@@ -10939,6 +11127,7 @@
         loadDianaCycle();
         setupPersistentCollapsibles();
         setupPartnerMessage();
+        setupDailyQuestion();
         setupStreakAndMood(config);
         setupTickTickDisclosure();
         setupTickTickConnect();
@@ -10964,6 +11153,7 @@
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()) refreshDailyMood()},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadDailyQuestion({silent:true})},5*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadActivityJournal({silent:true})},60*1000);
       setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();syncLuluToiletStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
@@ -11001,6 +11191,7 @@
           resetMoodForNewDay();
           await Promise.allSettled([
             refreshDailyMood(),
+            loadDailyQuestion({silent:true}),
             loadDianaCycle({silent:true}),
             loadTickTickNext(),
             loadWorkCalendar(currentWorkCalendarView),

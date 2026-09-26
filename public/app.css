@@ -8729,3 +8729,94 @@ html[data-theme="dark"] .fasting-stop-button{
   color:#fff !important;
   box-shadow:0 12px 28px rgba(255,69,58,.24) !important;
 }
+
+
+/* RUDI v2.7: daily couple question */
+.daily-question-card{
+  position:relative;
+  overflow:hidden;
+  display:grid;
+  gap:0;
+  padding:18px;
+  border-radius:24px;
+  border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));
+  background:
+    radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--accent-glow) 60%,transparent),transparent 38%),
+    linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 92%,var(--accent-soft)),var(--surface));
+  box-shadow:0 16px 40px color-mix(in srgb,var(--accent-glow) 24%,transparent);
+}
+.daily-question-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:42px;
+}
+.daily-question-heading{min-width:0;flex:1;display:grid;gap:2px}
+.daily-question-heading h2{margin:0;color:var(--text);font-size:18px;line-height:1.2;font-weight:790;letter-spacing:-.025em}
+.daily-question-drag{
+  width:36px;height:36px;flex:none;
+  display:grid;place-items:center;
+  padding:0;border:1px solid var(--line);border-radius:12px;
+  background:color-mix(in srgb,var(--soft) 82%,transparent);
+  color:var(--muted);cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;
+}
+.daily-question-drag:active{cursor:grabbing;transform:scale(.96)}
+.daily-question-drag svg{width:20px;height:20px;fill:currentColor}
+.daily-question-card.is-dragging{
+  z-index:30;
+  opacity:.94;
+  transform:scale(.992);
+  box-shadow:0 24px 60px rgba(8,10,16,.28);
+}
+body.home-question-dragging{user-select:none;-webkit-user-select:none}
+.daily-question-body{display:grid;gap:12px;padding-top:12px}
+.daily-question-loading,.daily-question-status,.daily-question-waiting{
+  color:var(--muted);font-size:12px;line-height:1.45;font-weight:590;
+}
+.daily-question-text{
+  color:var(--text);
+  font-size:17px;line-height:1.45;font-weight:720;letter-spacing:-.018em;
+}
+.daily-question-reward{
+  width:max-content;max-width:100%;
+  padding:6px 9px;border-radius:10px;
+  background:color-mix(in srgb,#f5c84b 13%,var(--soft));
+  color:color-mix(in srgb,#c99a18 78%,var(--text));
+  font-size:11px;line-height:1.25;font-weight:760;
+}
+html[data-theme="dark"] .daily-question-reward{color:#f2c95c}
+.daily-question-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:9px}
+.daily-question-form textarea{
+  width:100%;min-height:74px;max-height:160px;resize:vertical;
+  padding:12px 13px;border:1px solid var(--line);border-radius:15px;
+  background:color-mix(in srgb,var(--surface-strong) 88%,transparent);
+  color:var(--text);font:inherit;font-size:13px;line-height:1.45;outline:none;
+}
+.daily-question-form textarea:focus{border-color:color-mix(in srgb,var(--accent) 50%,var(--line));box-shadow:0 0 0 3px var(--accent-soft)}
+.daily-question-form button{
+  min-height:42px;padding:0 14px;border:0;border-radius:13px;
+  background:var(--accent);color:white;font:inherit;font-size:12px;font-weight:760;cursor:pointer;
+}
+.daily-question-form button:disabled{opacity:.55;cursor:default}
+.daily-question-waiting{
+  padding:11px 12px;border-radius:14px;
+  background:var(--soft);color:var(--text);
+}
+.daily-question-answers{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.daily-question-answers article{
+  min-width:0;padding:12px;border:1px solid var(--line);border-radius:16px;
+  background:color-mix(in srgb,var(--surface-strong) 88%,transparent);
+}
+.daily-question-answers span{
+  display:block;margin-bottom:6px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+}
+.daily-question-answers p{
+  margin:0;color:var(--text);font-size:13px;line-height:1.45;font-weight:590;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+.daily-question-card.rudi-collapsible.is-collapsed .daily-question-head{margin-bottom:0}
+@media(max-width:430px){
+  .daily-question-card{padding:16px;border-radius:22px}
+  .daily-question-form{grid-template-columns:1fr}
+  .daily-question-form button{width:100%}
+  .daily-question-answers{grid-template-columns:1fr}
+}

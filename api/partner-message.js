@@ -47,6 +47,7 @@ const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyM
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
 const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
+const { readDailyQuestion, answerDailyQuestion } = require('./daily-question-store.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readForDiFeed, toggleForDiLike } = require('./for-di-feed-store.cjs');
@@ -2217,6 +2218,58 @@ async function handleRudiAction(req, res, action, options = {}) {
         : code === 'mood-value-invalid' || code === 'mood-actor-invalid' ? 400
         : 500;
       return res.status(status).json({ ok: false, error: code });
+    }
+  }
+
+  if (action === 'daily-question') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const operation = String(body.operation || 'get').trim();
+      const questionOptions = {
+        ...options,
+        env: options.env || process.env,
+        fetch: options.fetch || global.fetch,
+      };
+
+      if (operation === 'get') {
+        const view = await readDailyQuestion(actor, questionOptions);
+        return res.status(200).json({ ok:true, operation, ...view });
+      }
+
+      if (operation === 'answer') {
+        const view = await answerDailyQuestion(actor, body.answer, questionOptions);
+        const reward = await awardScoreSafe(actor,5,{
+          label:'Вопрос дня',
+          detail:'Ответ на вопрос дня',
+          icon:'💬',
+          dedupeKey:'score:daily-question:'+actor+':'+view.date,
+        },options);
+        return res.status(200).json({
+          ok:true,
+          operation,
+          ...view,
+          reward:{
+            stars:pointsFromUnits(reward?.awardedUnits||0),
+            awarded:Boolean(Number(reward?.awardedUnits||0)>0),
+          },
+        });
+      }
+
+      return res.status(400).json({ ok:false, error:'daily-question-operation-invalid' });
+    } catch (error) {
+      const code=String(error?.message||error);
+      const authStatus=statusForError(error);
+      const status=authStatus!==500?authStatus
+        : code==='daily-question-answer-empty'||code==='daily-question-answer-too-long'||code==='daily-question-actor-invalid' ? 400
+        : code==='daily-question-already-answered' ? 409
+        : code==='daily-question-ai-quota' ? 429
+        : code==='groq-api-key-missing' ? 503
+        : code.startsWith('daily-question-ai-')||code==='daily-question-missing' ? 502
+        : 500;
+      if(status>=500) console.error('RUDI_DAILY_QUESTION_ERROR',code);
+      return res.status(status).json({ok:false,error:code});
     }
   }
 

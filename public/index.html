@@ -217,6 +217,41 @@
       </div>
     </section>
 
+    <section id="dailyQuestionTile" class="panel daily-question-card" data-app-tab-section="home" data-home-tile="daily-question" aria-labelledby="dailyQuestionTitle">
+      <div class="daily-question-head">
+        <div class="daily-question-heading">
+          <div class="home-dashboard-label">Для нас</div>
+          <h2 id="dailyQuestionTitle">Вопрос дня</h2>
+        </div>
+        <button id="dailyQuestionDragHandle" class="daily-question-drag" type="button" aria-label="Перетащить блок «Вопрос дня»" title="Перетащить" data-no-pull-refresh="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>
+        </button>
+      </div>
+      <div id="dailyQuestionBody" class="daily-question-body">
+        <div id="dailyQuestionLoading" class="daily-question-loading">Готовлю новый вопрос…</div>
+        <div id="dailyQuestionContent" hidden>
+          <div id="dailyQuestionText" class="daily-question-text"></div>
+          <div class="daily-question-reward">+0,5 ⭐ за ответ · один раз в день</div>
+          <form id="dailyQuestionForm" class="daily-question-form">
+            <textarea id="dailyQuestionInput" maxlength="1000" rows="3" placeholder="Твой ответ…"></textarea>
+            <button id="dailyQuestionSubmit" type="submit">Ответить</button>
+          </form>
+          <div id="dailyQuestionWaiting" class="daily-question-waiting" hidden></div>
+          <div id="dailyQuestionAnswers" class="daily-question-answers" hidden>
+            <article>
+              <span>Рустам</span>
+              <p id="dailyQuestionRustamAnswer"></p>
+            </article>
+            <article>
+              <span>Диана</span>
+              <p id="dailyQuestionDianaAnswer"></p>
+            </article>
+          </div>
+          <div id="dailyQuestionStatus" class="daily-question-status" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="quickAccessTile" class="panel quick-access-tile" data-app-tab-section="home" data-home-tile="quick-access" aria-labelledby="quickAccessTitle">
       <div class="quick-access-head">
         <div>
