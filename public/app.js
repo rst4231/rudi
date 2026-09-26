@@ -2050,7 +2050,12 @@
               appTabScroll[next]=0;
               updateAppRoute(next,{replace:true});
               requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
-              if(next==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
+              if(next==='schedule'){
+                currentSelectedWorkDate=todayState().key;
+                currentWorkCalendarView='month';
+                setWorkCalendarRangeActive('month');
+                loadWorkCalendar('month',{silent:true});
+              }
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               return;
             }
@@ -6947,17 +6952,6 @@
           number.className='calendar-date-number';
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
-
-          if(day.working){
-            const dot=document.createElement('span');
-            dot.className='calendar-work-dot';
-            cell.appendChild(dot);
-          }else{
-            const check=document.createElement('span');
-            check.className='calendar-check';
-            check.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>';
-            cell.appendChild(check);
-          }
 
           if(tasks.length||holidays.length){
             const indicators=document.createElement('span');
