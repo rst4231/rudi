@@ -70,10 +70,10 @@ function scoreWeekKey(value=Date.now()) {
   return shiftScoreDateKey(key,1-day);
 }
 function streakActiveDays(state,actor) {
-  return new Set((Array.isArray(state?.history)?state.history:[])
-    .filter((row)=>row.actor===actor&&row.kind==='earn'&&!row.reversedAt&&!String(row.dedupeKey||'').startsWith('score:streak:'))
-    .map((row)=>String(row.dateKey||''))
-    .filter((key)=>/^\d{4}-\d{2}-\d{2}$/.test(key)));
+  const rows=state?.streakDays&&typeof state.streakDays==='object'?state.streakDays:{};
+  return new Set(Object.entries(rows)
+    .filter(([key,actors])=>/^\d{4}-\d{2}-\d{2}$/.test(key)&&actors?.[actor]===true)
+    .map(([key])=>key));
 }
 function streakCountForDate(state,actor,dateKey) {
   const days=streakActiveDays(state,actor);
@@ -143,6 +143,23 @@ function normalizeDaily(value) {
       .map(([key,row])=>[key,normalizeActorUnits(row)])
   );
 }
+function normalizeStreakDays(value,history=[]) {
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const rows={};
+  for(const [key,actors] of Object.entries(source)){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    rows[key]=Object.fromEntries(ACTORS.map((actor)=>[actor,actors?.[actor]===true]));
+  }
+  if(!Object.keys(rows).length){
+    for(const item of Array.isArray(history)?history:[]){
+      const row=normalizeHistoryItem(item);
+      if(!row||row.kind!=='earn'||row.reversedAt||String(row.dedupeKey||'').startsWith('score:streak:')) continue;
+      if(!rows[row.dateKey]) rows[row.dateKey]=Object.fromEntries(ACTORS.map((actor)=>[actor,false]));
+      rows[row.dateKey][row.actor]=true;
+    }
+  }
+  return Object.fromEntries(Object.entries(rows).sort(([a],[b])=>b.localeCompare(a)).slice(0,MAX_DAYS));
+}
 function normalizeDedupe(value) {
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   return Object.fromEntries(
@@ -198,6 +215,7 @@ function normalizeState(value) {
     balances:normalizeActorUnits(source.balances),
     lifetimeEarned:normalizeActorUnits(source.lifetimeEarned),
     dailyEarned:normalizeDaily(source.dailyEarned),
+    streakDays:normalizeStreakDays(source.streakDays,source.history),
     history:(Array.isArray(source.history)?source.history:[])
       .map(normalizeHistoryItem).filter(Boolean)
       .sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt))
@@ -242,6 +260,7 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
       ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
       balances:{...state.balances},lifetimeEarned:{...state.lifetimeEarned},
       dailyEarned:{...state.dailyEarned,[dateKey]:day},
+      streakDays:{...state.streakDays},
       history:[...state.history],dedupe:{...state.dedupe},
     };
     if(dedupeKey) next.dedupe[dedupeKey]=now.toISOString();
@@ -253,6 +272,7 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
         id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:request,
         label:meta.label,detail:meta.detail,icon:meta.icon||'⭐',dedupeKey,dateKey,createdAt:now.toISOString(),
       }));
+      next.streakDays[dateKey]={...(next.streakDays[dateKey]||{}),[who]:true};
       applyStreakBonus(next,who,now);
     }
     const saved=await writeScoreState(next,options);
@@ -294,6 +314,7 @@ async function awardProductScore(actor,productText,options={}) {
       ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
       balances:{...state.balances},lifetimeEarned:{...state.lifetimeEarned},
       dailyEarned:{...state.dailyEarned,[dateKey]:day},
+      streakDays:{...state.streakDays},
       history:[...state.history],dedupe:{...state.dedupe},
     };
     next.balances[who]+=awardedUnits;
@@ -303,6 +324,7 @@ async function awardProductScore(actor,productText,options={}) {
       id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:1,
       label:'Продукты',detail:'Добавлена позиция: '+text,icon:'🛒',dedupeKey,dateKey,createdAt:now.toISOString(),
     }));
+    next.streakDays[dateKey]={...(next.streakDays[dateKey]||{}),[who]:true};
     applyStreakBonus(next,who,now);
     const saved=await writeScoreState(next,options);
     return {state:saved,awardedUnits,duplicate:false,productCapped:false,globalCapped:false};
@@ -323,6 +345,7 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
       ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
       balances:{...state.balances},lifetimeEarned:{...state.lifetimeEarned},
       dailyEarned:{...state.dailyEarned},
+      streakDays:{...state.streakDays},
       history:state.history.map((row,i)=>i===index?{...row,reversedAt:now.toISOString()}:row),
       dedupe:{...state.dedupe},
     };
@@ -331,6 +354,10 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
     const day=normalizeActorUnits(next.dailyEarned[original.dateKey]);
     day[original.actor]=Math.max(0,day[original.actor]-units);
     next.dailyEarned[original.dateKey]=day;
+    const stillActive=next.history.some((row)=>row.actor===original.actor&&row.dateKey===original.dateKey&&row.kind==='earn'&&!row.reversedAt&&!String(row.dedupeKey||'').startsWith('score:streak:'));
+    if(!stillActive&&next.streakDays[original.dateKey]){
+      next.streakDays[original.dateKey]={...next.streakDays[original.dateKey],[original.actor]:false};
+    }
     next.history.unshift(normalizeHistoryItem({
       id:crypto.randomUUID(),actor:original.actor,kind:'reverse',units:-units,requestedUnits:-units,
       label:meta.label||'Отмена',detail:meta.detail||original.detail||original.label,icon:meta.icon||'↩️',
