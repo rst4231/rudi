@@ -17,13 +17,19 @@ const TZ = 'Europe/Moscow';
 const ACTORS = ['Рустам', 'Диана'];
 
 const REWARDS = Object.freeze([
-  { id:'dessert', label:'Выбрать десерт или вкусняшку', icon:'🍰', costUnits:100 },
-  { id:'movie', label:'Выбрать фильм', icon:'🎬', costUnits:150 },
-  { id:'dinner', label:'Выбрать ужин', icon:'🍽️', costUnits:250 },
-  { id:'breakfast', label:'Завтрак в постель', icon:'🥐', costUnits:300 },
-  { id:'massage', label:'Массаж', icon:'💆', costUnits:400 },
-  { id:'day-off', label:'День без домашних обязанностей', icon:'🛋️', costUnits:800 },
-  { id:'date', label:'Выбрать свидание', icon:'💞', costUnits:950 },
+  { id:'playlist', label:'Выбрать музыку/плейлист', description:'Ты выбираешь музыку/плейлист в машине на весь день.', icon:'🎧', costUnits:50 },
+  { id:'coffee-tea', label:'Кофе или чай от партнёра', description:'Партнёр приготовит и принесёт тебе кофе или чай.', icon:'☕️', costUnits:80 },
+  { id:'dessert', label:'Выбрать десерт или вкусняшку', description:'Ты выбираешь десерт или любимую вкусняшку.', icon:'🍰', costUnits:100 },
+  { id:'movie', label:'Выбрать фильм', description:'Ты выбираешь фильм для совместного просмотра.', icon:'🎬', costUnits:150 },
+  { id:'series', label:'Выбрать сериал на вечер', description:'Ты выбираешь сериал или серию на вечер.', icon:'📺', costUnits:150 },
+  { id:'dinner', label:'Выбрать ужин', description:'Ты решаешь, что будет на ужин.', icon:'🍽️', costUnits:250 },
+  { id:'breakfast', label:'Завтрак в постель', description:'Партнёр готовит и приносит завтрак в постель.', icon:'🥐', costUnits:300 },
+  { id:'order-food', label:'Выбрать, что заказать поесть', description:'Ты выбираешь, что и откуда заказать.', icon:'🍕', costUnits:300 },
+  { id:'massage', label:'Массаж', description:'Домашний массаж от партнёра.', icon:'💆', costUnits:400 },
+  { id:'small-surprise', label:'Маленький сюрприз', description:'Партнёр придумывает для тебя небольшой сюрприз.', icon:'🎁', costUnits:450 },
+  { id:'home-date', label:'Домашнее свидание', description:'Партнёр организует уютное свидание дома.', icon:'🕯️', costUnits:500 },
+  { id:'day-off', label:'День без домашних обязанностей', description:'На день освобождаешься от домашних обязанностей.', icon:'🛋️', costUnits:800 },
+  { id:'date', label:'Выбрать свидание', description:'Ты выбираешь идею и формат следующего свидания.', icon:'💞', costUnits:950 },
 ]);
 
 let mutationTail = Promise.resolve();
@@ -487,7 +493,7 @@ function scoreView(value,options={}) {
       return [actor,{weekKey,limit:pointsFromUnits(GIFT_WEEKLY_LIMIT_UNITS),gifted:pointsFromUnits(giftedUnits),remaining:pointsFromUnits(Math.max(0,GIFT_WEEKLY_LIMIT_UNITS-giftedUnits))}];
     })),
     history:state.history.map((row)=>({...row,points:pointsFromUnits(row.units),requestedPoints:pointsFromUnits(row.requestedUnits)})),
-    rewards:REWARDS.map((reward)=>({id:reward.id,label:reward.label,icon:reward.icon,cost:pointsFromUnits(reward.costUnits)})),
+    rewards:REWARDS.map((reward)=>({id:reward.id,label:reward.label,description:reward.description||'',icon:reward.icon,cost:pointsFromUnits(reward.costUnits)})),
     activeRewards:state.redemptions.filter((row)=>row.status==='active').map((row)=>({...row,cost:pointsFromUnits(row.costUnits)})),
     completedRewards:state.redemptions.filter((row)=>row.status==='completed').map((row)=>({...row,cost:pointsFromUnits(row.costUnits)})),
   };

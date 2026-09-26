@@ -2829,10 +2829,16 @@
           copy.className='score-reward-copy';
           const title=document.createElement('strong');
           title.textContent=String(reward.label||'Награда');
+          const description=document.createElement('span');
+          description.className='score-reward-description';
+          description.textContent=String(reward.description||'');
           const cost=document.createElement('span');
+          cost.className='score-reward-cost';
           const missing=Math.max(0,Number(reward.cost||0)-balance);
           cost.textContent=scoreNumber(reward.cost)+' звезд'+(missing>0?' · не хватает '+scoreNumber(missing)+' ⭐':'');
-          copy.append(title,cost);
+          copy.append(title);
+          if(description.textContent) copy.append(description);
+          copy.append(cost);
           const button=document.createElement('button');
           button.type='button';
           button.className='score-reward-button';
