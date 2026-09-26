@@ -12,6 +12,7 @@ const MAX_DEDUPE = 2000;
 const MAX_DAYS = 120;
 const MAX_REDEMPTIONS = 240;
 const GIFT_WEEKLY_LIMIT_UNITS = 50;
+const STREAK_BONUS_UNITS = Object.freeze({3:10,7:30,30:100});
 const TZ = 'Europe/Moscow';
 const ACTORS = ['Рустам', 'Диана'];
 
@@ -67,6 +68,51 @@ function scoreWeekKey(value=Date.now()) {
   const date=new Date(key+'T00:00:00Z');
   const day=date.getUTCDay()||7;
   return shiftScoreDateKey(key,1-day);
+}
+function streakActiveDays(state,actor) {
+  return new Set((Array.isArray(state?.history)?state.history:[])
+    .filter((row)=>row.actor===actor&&row.kind==='earn'&&!row.reversedAt&&!String(row.dedupeKey||'').startsWith('score:streak:'))
+    .map((row)=>String(row.dateKey||''))
+    .filter((key)=>/^\d{4}-\d{2}-\d{2}$/.test(key)));
+}
+function streakCountForDate(state,actor,dateKey) {
+  const days=streakActiveDays(state,actor);
+  let count=0,key=dateKey;
+  while(key&&days.has(key)&&count<120){count+=1;key=shiftScoreDateKey(key,-1)}
+  return count;
+}
+function streakView(state,actor,now=Date.now()) {
+  const today=scoreDateKey(now);
+  const days=streakActiveDays(state,actor);
+  const yesterday=shiftScoreDateKey(today,-1);
+  const end=days.has(today)?today:days.has(yesterday)?yesterday:'';
+  const current=end?streakCountForDate(state,actor,end):0;
+  let longest=0;
+  for(const day of days) longest=Math.max(longest,streakCountForDate(state,actor,day));
+  const nextMilestone=current<3?3:current<7?7:current<30?30:null;
+  return {current,longest,nextMilestone,lastActiveDate:end||''};
+}
+function applyStreakBonus(next,actor,now) {
+  const dateKey=scoreDateKey(now);
+  const count=streakCountForDate(next,actor,dateKey);
+  const requested=STREAK_BONUS_UNITS[count]||0;
+  if(!requested) return {count,awardedUnits:0};
+  const dedupeKey='score:streak:'+actor+':'+dateKey+':'+count;
+  if(next.dedupe[dedupeKey]) return {count,awardedUnits:0};
+  next.dedupe[dedupeKey]=new Date(now).toISOString();
+  const day=normalizeActorUnits(next.dailyEarned[dateKey]);
+  const remaining=Math.max(0,DAILY_LIMIT_UNITS-day[actor]);
+  const awardedUnits=Math.min(requested,remaining);
+  if(awardedUnits>0){
+    next.balances[actor]+=awardedUnits;
+    next.lifetimeEarned[actor]+=awardedUnits;
+    next.dailyEarned[dateKey][actor]+=awardedUnits;
+    next.history.unshift(normalizeHistoryItem({
+      id:crypto.randomUUID(),actor,kind:'earn',units:awardedUnits,requestedUnits:requested,
+      label:'Серия',detail:'Серия '+count+' дней подряд',icon:'🔥',dedupeKey,dateKey,createdAt:new Date(now).toISOString(),
+    }));
+  }
+  return {count,awardedUnits};
 }
 function normalizeProductScoreName(value) {
   return String(value||'')
@@ -207,6 +253,7 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
         id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:request,
         label:meta.label,detail:meta.detail,icon:meta.icon||'⭐',dedupeKey,dateKey,createdAt:now.toISOString(),
       }));
+      applyStreakBonus(next,who,now);
     }
     const saved=await writeScoreState(next,options);
     return {state:saved,awardedUnits,duplicate:false,capped:awardedUnits<request};
@@ -256,6 +303,7 @@ async function awardProductScore(actor,productText,options={}) {
       id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:1,
       label:'Продукты',detail:'Добавлена позиция: '+text,icon:'🛒',dedupeKey,dateKey,createdAt:now.toISOString(),
     }));
+    applyStreakBonus(next,who,now);
     const saved=await writeScoreState(next,options);
     return {state:saved,awardedUnits,duplicate:false,productCapped:false,globalCapped:false};
   });
@@ -385,6 +433,7 @@ function scoreView(value,options={}) {
     lifetimeEarned:Object.fromEntries(ACTORS.map((actor)=>[actor,pointsFromUnits(state.lifetimeEarned[actor])])),
     today:{date:dateKey,limit:pointsFromUnits(DAILY_LIMIT_UNITS),
       earned:Object.fromEntries(ACTORS.map((actor)=>[actor,pointsFromUnits(today[actor])]))},
+    streaks:Object.fromEntries(ACTORS.map((actor)=>[actor,streakView(state,actor,options.now||Date.now())])),
     gifts:Object.fromEntries(ACTORS.map((actor)=>{
       const weekKey=scoreWeekKey(options.now||Date.now());
       const weekDedupe='gift-week:'+weekKey;

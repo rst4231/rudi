@@ -8027,6 +8027,18 @@ body.voice-assistant-open .voice-assistant-icon-button{
 }
 .score-active-button:disabled{opacity:.52;cursor:default}
 .score-history-row.is-reward-complete>b{color:#2f9b67}
+.score-streak-panel{
+  display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:9px;
+  margin:0 0 10px;padding:10px;border:1px solid color-mix(in srgb,#f39c2f 22%,var(--line));
+  border-radius:15px;background:color-mix(in srgb,#f39c2f 7%,var(--soft))
+}
+.score-streak-icon{
+  width:34px;height:34px;display:grid;place-items:center;border-radius:10px;
+  background:color-mix(in srgb,#f39c2f 16%,var(--surface));font-size:17px
+}
+.score-streak-copy{display:grid;gap:2px;min-width:0}
+.score-streak-copy strong{font-size:11px;line-height:1.25}
+.score-streak-copy span{color:var(--muted);font-size:9.5px}
 .score-gift-panel{
   display:grid;gap:7px;margin:0 0 10px;padding:10px;
   border:1px solid var(--line);border-radius:15px;background:var(--soft)

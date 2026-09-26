@@ -2533,6 +2533,7 @@
               '<div><span>Сегодня</span><strong id="scoreModalToday">0 / 10</strong></div>'+
             '</div>'+
             '<div id="scoreActiveRewards" class="score-active-rewards" hidden></div>'+
+            '<div id="scoreStreakPanel" class="score-streak-panel"></div>'+
             '<div id="scoreGiftPanel" class="score-gift-panel" hidden></div>'+
             '<div id="scoreModalTabs" class="score-modal-tabs" role="tablist">'+
               '<button type="button" data-score-tab="history" class="active">История</button>'+
@@ -2586,6 +2587,29 @@
         modal.querySelector('#scoreModalTitle').textContent=actor;
         modal.querySelector('#scoreModalBalance').textContent=scoreNumber(balance)+' ⭐';
         modal.querySelector('#scoreModalToday').textContent=scoreNumber(today)+' / '+scoreNumber(score?.today?.limit||10);
+
+        const streakPanel=modal.querySelector('#scoreStreakPanel');
+        const streak=score?.streaks?.[actor]||{};
+        const streakCurrent=Math.max(0,Number(streak.current||0));
+        const streakNext=Number(streak.nextMilestone||0);
+        streakPanel.replaceChildren();
+        const streakIcon=document.createElement('span');
+        streakIcon.className='score-streak-icon';
+        streakIcon.textContent='🔥';
+        const streakCopy=document.createElement('div');
+        streakCopy.className='score-streak-copy';
+        const streakTitle=document.createElement('strong');
+        streakTitle.textContent='Серия: '+streakCurrent+' '+(streakCurrent===1?'день':streakCurrent>=2&&streakCurrent<=4?'дня':'дней');
+        const streakMeta=document.createElement('span');
+        if(streakNext){
+          const left=Math.max(0,streakNext-streakCurrent);
+          const bonus=streakNext===3?1:streakNext===7?3:10;
+          streakMeta.textContent='До бонуса +'+bonus+' ⭐ — '+left+' '+(left===1?'день':left>=2&&left<=4?'дня':'дней');
+        }else{
+          streakMeta.textContent='Максимальная серия 30 дней достигнута';
+        }
+        streakCopy.append(streakTitle,streakMeta);
+        streakPanel.append(streakIcon,streakCopy);
 
         const activeHost=modal.querySelector('#scoreActiveRewards');
         const activeRewards=Array.isArray(score?.activeRewards)?score.activeRewards:[];
