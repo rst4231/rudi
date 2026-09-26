@@ -30,6 +30,7 @@ const REWARDS = Object.freeze([
   { id:'home-date', label:'Домашнее свидание', description:'Партнёр организует уютное свидание дома.', icon:'🕯️', costUnits:500 },
   { id:'day-off', label:'День без домашних обязанностей', description:'На день освобождаешься от домашних обязанностей.', icon:'🛋️', costUnits:800 },
   { id:'date', label:'Выбрать свидание', description:'Ты выбираешь идею и формат следующего свидания.', icon:'💞', costUnits:950 },
+  { id:'gift-3000', label:'Подарок до 3 000 ₽', description:'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.', icon:'🎀', costUnits:990 },
 ]);
 
 let mutationTail = Promise.resolve();
