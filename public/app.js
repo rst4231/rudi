@@ -2514,6 +2514,40 @@
         }).format(date).replace('.','');
       }
 
+      function syncScoreModalLayout(modal=document.getElementById('scoreModal')){
+        if(!modal||modal.hidden) return;
+        const sheet=modal.querySelector('.score-modal-sheet');
+        const panel=Array.from(modal.querySelectorAll('.score-panel')).find(node=>!node.hidden);
+        if(!sheet||!panel) return;
+
+        modal.querySelectorAll('.score-panel').forEach(node=>{
+          node.style.height='auto';
+          node.style.maxHeight='none';
+        });
+
+        const sheetStyle=getComputedStyle(sheet);
+        const number=value=>Number.parseFloat(value)||0;
+        let fixed=
+          number(sheetStyle.paddingTop)+number(sheetStyle.paddingBottom)+
+          number(sheetStyle.borderTopWidth)+number(sheetStyle.borderBottomWidth);
+
+        Array.from(sheet.children).forEach(child=>{
+          if(child===panel||child.classList.contains('score-panel')||child.hidden) return;
+          const style=getComputedStyle(child);
+          fixed+=child.getBoundingClientRect().height+number(style.marginTop)+number(style.marginBottom);
+        });
+
+        const viewportHeight=Math.max(
+          1,
+          Number(window.visualViewport?.height)||0,
+          Number(window.innerHeight)||0,
+          Number(document.documentElement?.clientHeight)||0
+        );
+        const maxSheetHeight=Math.min(viewportHeight*.84,760);
+        const available=Math.max(96,Math.floor(maxSheetHeight-fixed));
+        panel.style.maxHeight=available+'px';
+      }
+
       function ensureScoreModal(){
         let modal=document.getElementById('scoreModal');
         if(modal) return modal;
@@ -2556,11 +2590,15 @@
             shop.hidden=tab!=='shop';
             if(tab==='history') history.scrollTop=0;
             if(tab==='shop') shop.scrollTop=0;
+            requestAnimationFrame(()=>syncScoreModalLayout(modal));
           });
         });
         document.addEventListener('keydown',event=>{
           if(event.key==='Escape'&&!modal.hidden) closeScoreModal();
         });
+        const resizeScoreModal=()=>{if(!modal.hidden) requestAnimationFrame(()=>syncScoreModalLayout(modal))};
+        window.addEventListener('resize',resizeScoreModal,{passive:true});
+        window.visualViewport?.addEventListener?.('resize',resizeScoreModal,{passive:true});
         return modal;
       }
 
@@ -2826,6 +2864,7 @@
           card.append(icon,copy,button);
           shop.appendChild(card);
         }
+        requestAnimationFrame(()=>syncScoreModalLayout(modal));
       }
 
       async function openScoreModal(actor){

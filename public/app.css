@@ -8070,7 +8070,7 @@ body.voice-assistant-open .voice-assistant-icon-button{
 }
 .score-modal-tabs button.active{background:var(--surface-strong);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .score-panel{
-  display:grid;gap:7px;align-content:start;flex:0 1 auto;min-height:0;
+  display:grid;gap:7px;align-content:start;flex:0 0 auto;min-height:0;max-height:none;
   overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   padding-bottom:4px
 }
