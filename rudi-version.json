@@ -1,10 +1,14 @@
 {
-  "current": "v1.6",
+  "current": "v1.7",
   "versionBranch": "main",
   "releaseCommit": null,
   "createdAt": "2026-09-26",
-  "basedOnProduction": "6a694f3ccdcf3b2c97de1b20f734149334bf7139",
+  "basedOnProduction": "b5461d2c71b0d4cd23aab9edeb8d629a1c53bab3",
   "notes": [
+    "Критичное состояние RUDI перенесено в Neon Postgres через уже используемый подписанный Data API: звезды, реакции, журнал действий, уведомления, утренние сводки, cron, настройки/overrides и UI-настройки.",
+    "Миграция выполняется безопасно при чтении: если записи еще нет в Neon, текущее значение берется из Runtime Cache, копируется в Neon и при этом не удаляется из Runtime Cache.",
+    "Новые изменения пишутся параллельно в Neon и Runtime Cache; при временной недоступности Neon приложение продолжает работать через Runtime Cache.",
+    "Погода, курсы, временные AI-результаты, внешние API и другие восстановимые данные остаются только в Runtime Cache.",
     "Исправлено обновление установленной PWA на iPhone: Service Worker больше не может отдавать CSS/JS из старого shell-кэша.",
     "При активации новой PWA-версии удаляются все устаревшие rudi-shell кэши, что безопасно при текущей схеме content-hash ассетов.",
     "Проверка обновления Service Worker дополнительно запускается при focus/pageshow, что важно при возврате в standalone PWA на iOS.",
