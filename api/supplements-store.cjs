@@ -5,7 +5,7 @@ const tails=new Map();
 function cleanActor(v){const a=String(v||'').trim();if(!ACTORS.has(a))throw new Error('supplements-actor-invalid');return a}
 function cleanText(v,m=700){return String(v||'').replace(/\s+/g,' ').trim().slice(0,m)}
 function keyFor(a){return 'supplements:'+cleanActor(a)}
-function cacheOf(o={}){return o.supplementsCache||o.cache||createStrictRuntimeCache({namespace:NAMESPACE,...(o.cacheOptions||{})})}
+function cacheOf(o={}){return o.supplementsCache||o.cache||createStrictRuntimeCache({namespace:NAMESPACE,confirmWrites:false,...(o.cacheOptions||{})})}
 function normalizeItem(input){if(!input||typeof input!=='object')return null;const id=cleanText(input.id,96),name=cleanText(input.name,120);if(!id||!name)return null;const created=new Date(input.createdAt||0),updated=new Date(input.updatedAt||input.createdAt||0);if(Number.isNaN(created.getTime())||Number.isNaN(updated.getTime()))return null;const described=input.describedAt?new Date(input.describedAt):null;return{id,name,description:cleanText(input.description,700),createdAt:created.toISOString(),updatedAt:updated.toISOString(),describedAt:described&&!Number.isNaN(described.getTime())?described.toISOString():''}}
 function normalizeState(value,actor){const who=cleanActor(actor),source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};return{initialized:Boolean(source.initialized),version:Math.max(0,Number(source.version||0)),actor:who,items:(Array.isArray(source.items)?source.items:[]).map(normalizeItem).filter(Boolean).slice(0,MAX_ITEMS),updatedAt:cleanText(source.updatedAt,40)}}
 function enqueue(actor,task){const key=cleanActor(actor),tail=tails.get(key)||Promise.resolve(),run=tail.then(task,task);tails.set(key,run.catch(()=>{}));return run}

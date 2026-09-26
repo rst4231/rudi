@@ -40,7 +40,7 @@ function render(){
   if(!items.length){
     const empty=document.createElement('div');empty.className='personal-supplements-empty';empty.textContent='Пока ничего не добавлено.';list.appendChild(empty);return;
   }
-  for(const item of items){
+  for(let item of items){
     const card=document.createElement('article');card.className='supplement-card';card.dataset.id=item.id;card.tabIndex=0;card.setAttribute('role','button');
     const top=document.createElement('div');top.className='supplement-card-top';
     const name=document.createElement('div');name.className='supplement-card-name';name.textContent=item.name;
@@ -56,7 +56,7 @@ function render(){
       try{
         const data=await request('describe',{id:item.id});item=data.item;const index=items.findIndex(row=>row.id===item.id);if(index>=0)items[index]=item;
         desc.textContent=item.description;desc.hidden=false;card.classList.add('is-open');hint.textContent='Скрыть описание';
-      }catch(error){hint.textContent='Нажми, чтобы AI попробовал снова';setStatus(errorText(error),true)}
+      }catch(error){console.error('RUDI_SUPPLEMENT_DESCRIBE_UI_ERROR',error);hint.textContent='Нажми, чтобы AI попробовал снова';setStatus(errorText(error),true)}
       finally{card.classList.remove('is-loading')}
     };
     card.addEventListener('click',(event)=>{if(event.target.closest('.supplement-delete'))return;open()});
@@ -132,10 +132,27 @@ function build(){
   back.addEventListener('click',close);
   collapseButton.addEventListener('click',()=>{writePrefs({collapsed:!tile.classList.contains('is-collapsed')});applyCollapse()});
   form.addEventListener('submit',async(event)=>{
-    event.preventDefault();const name=input.value.trim();if(!name)return;add.disabled=true;setStatus('');
-    try{const data=await request('add',{name});items=data.items||[];input.value='';render()}
-    catch(error){setStatus(errorText(error),true)}
-    finally{add.disabled=false}
+    event.preventDefault();
+    const name=input.value.trim();
+    if(!name||add.disabled)return;
+    let success=false;
+    add.disabled=true;input.disabled=true;setStatus('');
+    add.classList.remove('is-success');add.classList.add('is-loading');add.textContent='Добавляю…';
+    try{
+      const data=await request('add',{name});
+      items=data.items||[];input.value='';render();success=true;
+      add.classList.remove('is-loading');add.classList.add('is-success');add.textContent='✓ Добавлено';
+    }catch(error){
+      console.error('RUDI_SUPPLEMENT_ADD_UI_ERROR',error);
+      setStatus(errorText(error),true);
+    }finally{
+      input.disabled=false;
+      if(success){
+        setTimeout(()=>{add.disabled=false;add.classList.remove('is-success');add.textContent='Добавить';input.focus({preventScroll:true})},650);
+      }else{
+        add.disabled=false;add.classList.remove('is-loading','is-success');add.textContent='Добавить';
+      }
+    }
   });
   setupDrag(drag);return overlay;
 }
