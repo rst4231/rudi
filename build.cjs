@@ -85,9 +85,9 @@ function resolveVersionLabel(env = process.env, versionConfig = null) {
   const config = versionConfig || JSON.parse(fs.readFileSync(versionConfigPath, 'utf8'));
   const fallback = String(config?.current || '').trim();
   const commitMessage = String(env?.VERCEL_GIT_COMMIT_MESSAGE || '').trim();
-  const releaseMatch = commitMessage.match(/\bRUDI\s+(v\d+\.\d+\.\d+)\b/i);
+  const releaseMatch = commitMessage.match(/\bRUDI\s+(v\d+\.\d+(?:\.\d+)?)\b/i);
   const label = releaseMatch?.[1] || fallback;
-  if (!/^v\d+\.\d+\.\d+$/.test(label)) throw new Error('Invalid RUDI version');
+  if (!/^v\d+\.\d+(?:\.\d+)?$/.test(label)) throw new Error('Invalid RUDI version');
   return label;
 }
 
