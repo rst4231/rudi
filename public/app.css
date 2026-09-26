@@ -8683,3 +8683,47 @@ html[data-theme="dark"] .fasting-stop-button{
 @media(prefers-reduced-motion:reduce){
   .fasting-reward-now{animation:none!important}
 }
+
+
+/* Fasting tracker v2.0: inline goal rewards + explicit stop color */
+.fasting-goal-row button{
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:2px;
+  min-height:50px;
+  padding:6px 3px;
+}
+.fasting-goal-hours{
+  display:block;
+  color:inherit;
+  font-size:10.5px;
+  font-weight:800;
+  line-height:1.1;
+}
+.fasting-goal-reward{
+  display:block;
+  color:var(--muted);
+  font-size:8.5px;
+  font-weight:700;
+  line-height:1.1;
+  white-space:nowrap;
+}
+.fasting-goal-row button[aria-pressed="true"] .fasting-goal-reward{
+  color:color-mix(in srgb,var(--accent) 72%,var(--muted));
+}
+.fasting-stop-button{
+  background:#ff453a !important;
+  background-image:linear-gradient(135deg,#ff5b52 0%,#ff3b30 100%) !important;
+  color:#fff !important;
+  border:0 !important;
+  box-shadow:0 11px 24px rgba(255,59,48,.28) !important;
+  -webkit-appearance:none;
+  appearance:none;
+}
+html[data-theme="dark"] .fasting-stop-button{
+  background:#ff453a !important;
+  background-image:linear-gradient(135deg,#ff6258 0%,#ff453a 100%) !important;
+  color:#fff !important;
+  box-shadow:0 12px 28px rgba(255,69,58,.24) !important;
+}

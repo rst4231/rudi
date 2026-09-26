@@ -905,22 +905,13 @@
         <fieldset class="fasting-goals">
           <legend>Цель</legend>
           <div class="fasting-goal-row">
-            <button type="button" data-fasting-goal="12" aria-pressed="false">12 ч</button>
-            <button type="button" data-fasting-goal="14" aria-pressed="false">14 ч</button>
-            <button type="button" data-fasting-goal="16" aria-pressed="true">16 ч</button>
-            <button type="button" data-fasting-goal="18" aria-pressed="false">18 ч</button>
-            <button type="button" data-fasting-goal="24" aria-pressed="false">24 ч</button>
+            <button type="button" data-fasting-goal="12" aria-pressed="false"><span class="fasting-goal-hours">12 ч</span><span class="fasting-goal-reward">0.5 ⭐️</span></button>
+            <button type="button" data-fasting-goal="14" aria-pressed="false"><span class="fasting-goal-hours">14 ч</span><span class="fasting-goal-reward">1 ⭐️</span></button>
+            <button type="button" data-fasting-goal="16" aria-pressed="true"><span class="fasting-goal-hours">16 ч</span><span class="fasting-goal-reward">2 ⭐️</span></button>
+            <button type="button" data-fasting-goal="18" aria-pressed="false"><span class="fasting-goal-hours">18 ч</span><span class="fasting-goal-reward">2 ⭐️</span></button>
+            <button type="button" data-fasting-goal="24" aria-pressed="false"><span class="fasting-goal-hours">24 ч</span><span class="fasting-goal-reward">3 ⭐️</span></button>
           </div>
         </fieldset>
-
-        <div class="fasting-reward-scale" aria-label="Награды за длительность голодания">
-          <span><b>12 ч</b>0.5 ⭐️</span>
-          <span><b>14 ч</b>1 ⭐️</span>
-          <span><b>16 ч</b>2 ⭐️</span>
-          <span><b>24 ч</b>3 ⭐️</span>
-          <span><b>32 ч</b>4 ⭐️</span>
-          <span><b>40+ ч</b>5 ⭐️</span>
-        </div>
 
         <button id="fastingStartButton" class="fasting-start-button" type="button">Начать голодание</button>
       </article>
