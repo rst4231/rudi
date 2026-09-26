@@ -552,13 +552,39 @@ function fastingDurationDetail(durationMinutes) {
   return hours + ' ч' + (minutes ? ' ' + minutes + ' мин' : '');
 }
 
+async function sendShopUnlockNotification(actor,rewards,options={}){
+  const rows=(Array.isArray(rewards)?rewards:[]).filter(Boolean);
+  if(!rows.length)return [];
+  const recipients=await readRecipients(options).catch(()=>null);
+  const chatId=Number(recipients?.[actor]);
+  if(!Number.isInteger(chatId)||chatId<=0)return [];
+  const plural=rows.length>1;
+  const lines=rows.map(row=>String(row.icon||'🎁')+' <b>'+escapeTelegramHtml(row.label||'Награда')+'</b> — <b>'+pointsFromUnits(row.costUnits)+' ⭐</b>');
+  const text=(plural?'🔓 <b>В магазине стали доступны новые награды</b>':'🔓 <b>В магазине стала доступна новая награда</b>')+'\n\n'+lines.join('\n');
+  return [await telegramSendMessage(chatId,text,{...options,buttonText:'Открыть RUDI',tab:'home'})];
+}
+
+function scheduleShopUnlockNotification(actor,rewards,options={}){
+  if(!Array.isArray(rewards)||!rewards.length)return;
+  const task=sendShopUnlockNotification(actor,rewards,options).catch(error=>{console.warn('RUDI_SHOP_UNLOCK_NOTICE_WARN',String(error?.message||error));return[]});
+  try{waitUntil(task)}catch(_){task.catch(()=>{})}
+}
+
 async function awardScoreSafe(actor, units, meta = {}, options = {}) {
-  try { return await awardScore(actor, units, meta, options); }
+  try {
+    const result=await awardScore(actor, units, meta, options);
+    scheduleShopUnlockNotification(actor,result?.unlockedRewards,options);
+    return result;
+  }
   catch (error) { console.warn('RUDI_SCORE_AWARD_WARN', String(error?.message || error)); return null; }
 }
 
 async function awardProductScoreSafe(actor, text, options = {}) {
-  try { return await awardProductScore(actor, text, options); }
+  try {
+    const result=await awardProductScore(actor, text, options);
+    scheduleShopUnlockNotification(actor,result?.unlockedRewards,options);
+    return result;
+  }
   catch (error) { console.warn('RUDI_PRODUCT_SCORE_AWARD_WARN', String(error?.message || error)); return null; }
 }
 
@@ -2124,7 +2150,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if(operation==='gift'){
         const result=await transferStars(actor,body.amount,options);
-        const notificationTask=sendStarGiftNotification(result,options).catch(()=>[]);
+        const notificationTask=Promise.all([
+          sendStarGiftNotification(result,options),
+          sendShopUnlockNotification(result.to,result.unlockedRewards,options),
+        ]).catch(()=>[]);
         try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({
@@ -3153,3 +3182,5 @@ module.exports.feedPreviewBaseUrl = feedPreviewBaseUrl;
 module.exports.refreshFeedFromPreviewIfNeeded = refreshFeedFromPreviewIfNeeded;
 
 module.exports.correctRecipientsForSession = correctRecipientsForSession;
+module.exports.authorizeRequest = authorizeRequest;
+module.exports.sendShopUnlockNotification = sendShopUnlockNotification;

@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { createHash } = require('node:crypto');
 
-const WEB_ASSETS = ['app.css', 'pwa-extras.css', 'calendar.css', 'smart-home.css', 'car.css', 'app.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js'];
+const WEB_ASSETS = ['app.css', 'pwa-extras.css', 'calendar.css', 'smart-home.css', 'car.css', 'profile-supplements.css', 'app.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];

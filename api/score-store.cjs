@@ -250,6 +250,17 @@ async function writeScoreState(value,options={}) {
 function rewardById(id) {
   return REWARDS.find((row)=>row.id===String(id||'').trim())||null;
 }
+function claimUnlockedRewards(next,actor,beforeUnits,afterUnits,now){
+  const unlocked=[];
+  for(const reward of REWARDS){
+    const key='score:shop-unlock:'+actor+':'+reward.id;
+    if(beforeUnits<reward.costUnits&&afterUnits>=reward.costUnits&&!next.dedupe[key]){
+      next.dedupe[key]=new Date(now).toISOString();
+      unlocked.push(reward);
+    }
+  }
+  return unlocked;
+}
 async function awardScore(actor,requestedUnits,meta={},options={}) {
   const who=cleanActor(actor);
   const request=Math.max(0,normalizeUnits(requestedUnits));
@@ -257,8 +268,9 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
   const dedupeKey=cleanText(meta.dedupeKey,180);
   return enqueueMutation(async()=>{
     const state=await readScoreState(options);
-    if(dedupeKey&&state.dedupe[dedupeKey]) return {state,awardedUnits:0,duplicate:true,capped:false};
+    if(dedupeKey&&state.dedupe[dedupeKey]) return {state,awardedUnits:0,duplicate:true,capped:false,unlockedRewards:[]};
     const now=new Date(options.now||Date.now());
+    const beforeBalance=state.balances[who];
     const dateKey=scoreDateKey(now);
     const day=normalizeActorUnits(state.dailyEarned[dateKey]);
     const remaining=Math.max(0,DAILY_LIMIT_UNITS-day[who]);
@@ -282,8 +294,9 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
       next.streakDays[dateKey]={...(next.streakDays[dateKey]||{}),[who]:true};
       applyStreakBonus(next,who,now);
     }
+    const unlockedRewards=claimUnlockedRewards(next,who,beforeBalance,next.balances[who],now);
     const saved=await writeScoreState(next,options);
-    return {state:saved,awardedUnits,duplicate:false,capped:awardedUnits<request};
+    return {state:saved,awardedUnits,duplicate:false,capped:awardedUnits<request,unlockedRewards};
   });
 }
 async function awardProductScore(actor,productText,options={}) {
@@ -300,7 +313,7 @@ async function awardProductScore(actor,productText,options={}) {
       const stamp=Date.parse(row.createdAt);
       return Number.isFinite(stamp)&&nowMs-stamp<PRODUCT_REPEAT_MS;
     });
-    if(recent) return {state,awardedUnits:0,duplicate:true,productCapped:false,globalCapped:false};
+    if(recent) return {state,awardedUnits:0,duplicate:true,productCapped:false,globalCapped:false,unlockedRewards:[]};
 
     const dateKey=scoreDateKey(now);
     const day=normalizeActorUnits(state.dailyEarned[dateKey]);
@@ -313,7 +326,7 @@ async function awardProductScore(actor,productText,options={}) {
     if(awardedUnits<=0) {
       return {
         state,awardedUnits:0,duplicate:false,
-        productCapped:productRemaining<=0,globalCapped:globalRemaining<=0,
+        productCapped:productRemaining<=0,globalCapped:globalRemaining<=0,unlockedRewards:[],
       };
     }
 
@@ -333,8 +346,9 @@ async function awardProductScore(actor,productText,options={}) {
     }));
     next.streakDays[dateKey]={...(next.streakDays[dateKey]||{}),[who]:true};
     applyStreakBonus(next,who,now);
+    const unlockedRewards=claimUnlockedRewards(next,who,state.balances[who],next.balances[who],now);
     const saved=await writeScoreState(next,options);
-    return {state:saved,awardedUnits,duplicate:false,productCapped:false,globalCapped:false};
+    return {state:saved,awardedUnits,duplicate:false,productCapped:false,globalCapped:false,unlockedRewards};
   });
 }
 async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
@@ -421,8 +435,9 @@ async function transferStars(actor,amountPoints,options={}) {
       ],
       redemptions:[...state.redemptions],dedupe:{...state.dedupe},
     };
+    const unlockedRewards=claimUnlockedRewards(next,to,state.balances[to],next.balances[to],now);
     const saved=await writeScoreState(next,options);
-    return {state:saved,from,to,points,weekKey,remainingPoints:pointsFromUnits(remaining-units)};
+    return {state:saved,from,to,points,weekKey,remainingPoints:pointsFromUnits(remaining-units),unlockedRewards};
   });
 }
 
