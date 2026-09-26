@@ -11,6 +11,7 @@ const MAX_HISTORY = 500;
 const MAX_DEDUPE = 2000;
 const MAX_DAYS = 120;
 const MAX_REDEMPTIONS = 240;
+const GIFT_WEEKLY_LIMIT_UNITS = 50;
 const TZ = 'Europe/Moscow';
 const ACTORS = ['Рустам', 'Диана'];
 
@@ -53,6 +54,20 @@ function normalizeUnits(value) {
   return Number.isFinite(number)?number:0;
 }
 function pointsFromUnits(value) { return normalizeUnits(value)/10; }
+function shiftScoreDateKey(key,days) {
+  const text=String(key||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+  const date=new Date(text+'T00:00:00Z');
+  if(Number.isNaN(date.getTime())) return '';
+  date.setUTCDate(date.getUTCDate()+Number(days||0));
+  return date.toISOString().slice(0,10);
+}
+function scoreWeekKey(value=Date.now()) {
+  const key=scoreDateKey(value);
+  const date=new Date(key+'T00:00:00Z');
+  const day=date.getUTCDay()||7;
+  return shiftScoreDateKey(key,1-day);
+}
 function normalizeProductScoreName(value) {
   return String(value||'')
     .normalize('NFKC')
@@ -100,7 +115,7 @@ function normalizeHistoryItem(input) {
   return {
     id:cleanText(input.id,96)||crypto.randomUUID(),
     actor,
-    kind:['earn','spend','reverse'].includes(String(input.kind||''))?String(input.kind):(units>0?'earn':'spend'),
+    kind:['earn','spend','reverse','gift-out','gift-in'].includes(String(input.kind||''))?String(input.kind):(units>0?'earn':'spend'),
     units,
     requestedUnits:normalizeUnits(input.requestedUnits||units),
     label:cleanText(input.label,80)||'Звезды',
@@ -277,6 +292,41 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
     return {state:saved,reversedUnits:units};
   });
 }
+async function transferStars(actor,amountPoints,options={}) {
+  const from=cleanActor(actor);
+  const to=ACTORS.find((row)=>row!==from)||'';
+  const points=Math.round(Number(amountPoints)||0);
+  const units=points*10;
+  if(!from||!to||points<1||points>5) throw new Error('score-gift-amount-invalid');
+  return enqueueMutation(async()=>{
+    const state=await readScoreState(options);
+    const now=new Date(options.now||Date.now());
+    const weekKey=scoreWeekKey(now);
+    const weekDedupe='gift-week:'+weekKey;
+    const giftedUnits=state.history
+      .filter((row)=>row.actor===from&&row.kind==='gift-out'&&row.dedupeKey===weekDedupe)
+      .reduce((sum,row)=>sum+Math.abs(normalizeUnits(row.units)),0);
+    const remaining=Math.max(0,GIFT_WEEKLY_LIMIT_UNITS-giftedUnits);
+    if(units>remaining) throw new Error('score-gift-weekly-limit');
+    if(state.balances[from]<units) throw new Error('score-balance-insufficient');
+    const createdAt=now.toISOString();
+    const dateKey=scoreDateKey(now);
+    const next={
+      ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
+      balances:{...state.balances,[from]:state.balances[from]-units,[to]:state.balances[to]+units},
+      lifetimeEarned:{...state.lifetimeEarned},dailyEarned:{...state.dailyEarned},
+      history:[
+        normalizeHistoryItem({id:crypto.randomUUID(),actor:from,kind:'gift-out',units:-units,requestedUnits:-units,label:'Подарок',detail:'Подарено '+to,icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
+        normalizeHistoryItem({id:crypto.randomUUID(),actor:to,kind:'gift-in',units,requestedUnits:units,label:'Подарок',detail:'Подарок от '+from,icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
+        ...state.history
+      ],
+      redemptions:[...state.redemptions],dedupe:{...state.dedupe},
+    };
+    const saved=await writeScoreState(next,options);
+    return {state:saved,from,to,points,weekKey,remainingPoints:pointsFromUnits(remaining-units)};
+  });
+}
+
 async function redeemReward(actor,rewardId,options={}) {
   const who=cleanActor(actor);
   const reward=rewardById(rewardId);
@@ -335,6 +385,14 @@ function scoreView(value,options={}) {
     lifetimeEarned:Object.fromEntries(ACTORS.map((actor)=>[actor,pointsFromUnits(state.lifetimeEarned[actor])])),
     today:{date:dateKey,limit:pointsFromUnits(DAILY_LIMIT_UNITS),
       earned:Object.fromEntries(ACTORS.map((actor)=>[actor,pointsFromUnits(today[actor])]))},
+    gifts:Object.fromEntries(ACTORS.map((actor)=>{
+      const weekKey=scoreWeekKey(options.now||Date.now());
+      const weekDedupe='gift-week:'+weekKey;
+      const giftedUnits=state.history
+        .filter((row)=>row.actor===actor&&row.kind==='gift-out'&&row.dedupeKey===weekDedupe)
+        .reduce((sum,row)=>sum+Math.abs(normalizeUnits(row.units)),0);
+      return [actor,{weekKey,limit:pointsFromUnits(GIFT_WEEKLY_LIMIT_UNITS),gifted:pointsFromUnits(giftedUnits),remaining:pointsFromUnits(Math.max(0,GIFT_WEEKLY_LIMIT_UNITS-giftedUnits))}];
+    })),
     history:state.history.map((row)=>({...row,points:pointsFromUnits(row.units),requestedPoints:pointsFromUnits(row.requestedUnits)})),
     rewards:REWARDS.map((reward)=>({id:reward.id,label:reward.label,icon:reward.icon,cost:pointsFromUnits(reward.costUnits)})),
     activeRewards:state.redemptions.filter((row)=>row.status==='active').map((row)=>({...row,cost:pointsFromUnits(row.costUnits)})),
@@ -352,6 +410,6 @@ function resetMutationQueueForTests(){ mutationTail=Promise.resolve(); }
 
 module.exports={
   NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,PRODUCT_DAILY_LIMIT_UNITS,PRODUCT_REPEAT_MS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
-  readScoreState,writeScoreState,awardScore,awardProductScore,reverseScoreByDedupeKey,redeemReward,completeReward,scoreView,restoreScoreState,
+  readScoreState,writeScoreState,awardScore,awardProductScore,reverseScoreByDedupeKey,transferStars,redeemReward,completeReward,scoreView,restoreScoreState,
   resetMutationQueueForTests,
 };
