@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const API='/api/supplements';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],overlay=null,list=null,statusNode=null,tile=null,summary=null,collapseButton=null,undoTimer=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,collapseButton=null,undoTimer=null;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -22,6 +22,15 @@ function errorText(error){
 }
 function setStatus(text,error=false){if(!statusNode)return;statusNode.textContent=text||'';statusNode.hidden=!text;statusNode.classList.toggle('is-error',Boolean(error))}
 function prefs(){return readPrefs()}
+function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod100=n%100,mod10=n%10;const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';return n+' '+word}
+function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыбн/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
+function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
+async function loadDailyRecommendation(){
+  if(!recommendationNode)return;
+  recommendationNode.classList.remove('is-error');recommendationNode.textContent='Groq готовит рекомендацию дня…';
+  try{const data=await request('recommendation');profile=data.profile||profile;renderProfileMeta();recommendationNode.textContent=data.recommendation?.text||'Сегодня рекомендации нет.'}
+  catch(error){console.error('RUDI_PROFILE_RECOMMENDATION_UI_ERROR',error);recommendationNode.classList.add('is-error');recommendationNode.textContent='Не удалось загрузить рекомендацию дня.'}
+}
 function applyCollapse(){
   if(!tile||!collapseButton)return;
   const collapsed=prefs().collapsed===true;
@@ -43,7 +52,7 @@ function render(){
   for(let item of items){
     const card=document.createElement('article');card.className='supplement-card';card.dataset.id=item.id;card.tabIndex=0;card.setAttribute('role','button');
     const top=document.createElement('div');top.className='supplement-card-top';
-    const name=document.createElement('div');name.className='supplement-card-name';name.textContent=item.name;
+    const name=document.createElement('div');name.className='supplement-card-name';const emoji=document.createElement('span');emoji.className='supplement-card-emoji';emoji.textContent=emojiForSupplement(item.name);const label=document.createElement('span');label.textContent=item.name;name.append(emoji,label);
     const del=document.createElement('button');del.type='button';del.className='supplement-delete';del.setAttribute('aria-label','Удалить '+item.name);del.textContent='×';
     top.append(name,del);
     const hint=document.createElement('div');hint.className='supplement-card-hint';hint.textContent=item.description?'Нажми, чтобы открыть описание':'Нажми, чтобы AI создал краткое описание';
@@ -114,7 +123,11 @@ function build(){
   const content=document.createElement('div');content.className='personal-profile-content';
   summary=document.createElement('article');summary.className='personal-summary-card';
   const summaryName=document.createElement('div');summaryName.id='personalProfileName';summaryName.className='personal-summary-name';
-  const summaryText=document.createElement('div');summaryText.className='personal-summary-text';summaryText.textContent='Твоя личная страница в RUDI';summary.append(summaryName,summaryText);
+  summaryMeta=document.createElement('div');summaryMeta.className='personal-summary-text';summaryMeta.textContent='Твоя личная страница в RUDI';
+  const recommendationWrap=document.createElement('div');recommendationWrap.className='personal-daily-recommendation';
+  const recommendationLabel=document.createElement('div');recommendationLabel.className='personal-daily-recommendation-label';recommendationLabel.textContent='Рекомендация дня';
+  recommendationNode=document.createElement('div');recommendationNode.className='personal-daily-recommendation-text';recommendationNode.textContent='Загружаю…';
+  recommendationWrap.append(recommendationLabel,recommendationNode);summary.append(summaryName,summaryMeta,recommendationWrap);
   tile=document.createElement('article');tile.className='personal-supplements-tile';
   const head=document.createElement('div');head.className='personal-supplements-head';
   const heading=document.createElement('h2');heading.textContent='Мои БАДы';
@@ -160,7 +173,7 @@ async function open(){
   actor=String(document.body.dataset.rudiActor||'').trim();if(!actor)return;
   build();document.getElementById('personalProfileName').textContent=actor;applyPosition();applyCollapse();
   overlay.hidden=false;document.body.classList.add('personal-profile-open');setStatus('Загружаю…');
-  try{const data=await request('list');items=Array.isArray(data.items)?data.items:[];render();setStatus('')}
+  try{const data=await request('list');items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;renderProfileMeta();render();setStatus('');loadDailyRecommendation()}
   catch(error){setStatus(errorText(error),true)}
 }
 function close(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('personal-profile-open')}

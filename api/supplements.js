@@ -1,6 +1,7 @@
 const {authorizeRequest,statusForError}=require('./partner-message.js');
-const {readSupplements,addSupplement,removeSupplement,restoreSupplement,saveSupplementDescription}=require('./supplements-store.cjs');
-const {generateSupplementDescription}=require('./supplement-ai.cjs');
+const {readSupplements,addSupplement,removeSupplement,restoreSupplement,saveSupplementDescription,saveDailyRecommendation}=require('./supplements-store.cjs');
+const {generateSupplementDescription,generateDailyProfileRecommendation}=require('./supplement-ai.cjs');
+const {profileContext}=require('./personal-profile-context.cjs');
 
 function statusFor(code,error){
   const auth=statusForError(error);
@@ -12,13 +13,14 @@ function statusFor(code,error){
   if(code.startsWith('supplement-ai-')||code==='groq-api-key-missing')return 502;
   return 500;
 }
+function moscowDateKey(now=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now))}
 async function handler(req,res){
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
   try{
     const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
     const {actor}=authorizeRequest(req,body.initData);
     const operation=String(body.operation||'list').trim();
-    if(operation==='list'){const state=await readSupplements(actor);return res.status(200).json({ok:true,actor,items:state.items})}
+    if(operation==='list'){const state=await readSupplements(actor);return res.status(200).json({ok:true,actor,profile:profileContext(actor),items:state.items,recommendation:state.recommendation})}
     if(operation==='add'){const result=await addSupplement(actor,body.name);return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items})}
     if(operation==='remove'){const result=await removeSupplement(actor,body.id);return res.status(200).json({ok:true,actor,removed:result.removed,items:result.state.items})}
     if(operation==='restore'){const result=await restoreSupplement(actor,body.item);return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items})}
@@ -30,6 +32,16 @@ async function handler(req,res){
       const generated=await generateSupplementDescription(item.name);
       const saved=await saveSupplementDescription(actor,item.id,generated.description);
       return res.status(200).json({ok:true,actor,item:saved.item,cached:false,provider:generated.provider,model:generated.model});
+    }
+    if(operation==='recommendation'){
+      const profile=profileContext(actor),date=moscowDateKey();
+      const state=await readSupplements(actor);
+      if(state.recommendation?.date===date&&state.recommendation?.age===profile.age&&state.recommendation?.sex===profile.sex){
+        return res.status(200).json({ok:true,actor,profile,recommendation:state.recommendation,cached:true});
+      }
+      const generated=await generateDailyProfileRecommendation(profile);
+      const saved=await saveDailyRecommendation(actor,{date,text:generated.recommendation,age:profile.age,sex:profile.sex});
+      return res.status(200).json({ok:true,actor,profile,recommendation:saved.recommendation,cached:false,provider:generated.provider,model:generated.model});
     }
     throw new Error('supplement-operation-invalid');
   }catch(error){

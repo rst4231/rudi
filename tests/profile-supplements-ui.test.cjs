@@ -15,3 +15,5 @@ test('supplement add button has visible loading and success states',()=>{
   assert.match(source,/add\.textContent='Добавляю…'/);
   assert.match(source,/add\.textContent='✓ Добавлено'/);
 });
+
+test('personal profile shows age, sex, daily Groq recommendation and supplement emoji',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/ageText\(profile\.age\)\+' · '\+profile\.sexLabel/);assert.match(source,/request\('recommendation'\)/);assert.match(source,/emojiForSupplement/);assert.match(source,/🏋️/);assert.match(source,/🍵/);assert.match(source,/☀️/)});
