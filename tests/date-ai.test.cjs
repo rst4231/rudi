@@ -58,6 +58,15 @@ test('date generator requires Groq key',async()=>{
 });
 
 
+test('date generator uses Rustam and Diana interests as personalization priorities',()=>{
+  const prompt=datePrompt({period:'evening'});
+  assert.match(prompt,/Диана любит: экстрим, вкусную еду, выставки, театры/);
+  assert.match(prompt,/Рустам любит: всё новое, поездки и катание на машине/);
+  assert.match(prompt,/Старайся в первую очередь находить пересечение их интересов/);
+  assert.match(prompt,/не должно быть обязательным условием сценария/);
+  assert.match(prompt,/В одной выдаче используй разные типы впечатлений/);
+});
+
 test('date generator turns rainy Saint Petersburg weather into indoor-only guidance',()=>{
   const weather=buildDateWeatherContext({
     current:{temperature_2m:8,weather_code:61,precipitation:1.2,rain:1.2},
