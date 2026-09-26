@@ -2958,15 +2958,19 @@
       function syncLuluToiletStatus(){
         const node=document.getElementById('luluToiletStatus');
         if(!node) return;
-        const walkedAt=homeDashboardState.lulu?.lastWalk?.walkedAt;
-        const probability=luluToiletProbability(walkedAt);
-        if(probability===null){
+        const state=homeDashboardState.lulu||{};
+        const fallback=state?.lastWalk?.walkedAt;
+        const pee=luluToiletProbability(state.lastPeeAt||fallback);
+        const poop=luluToiletProbability(state.lastPoopAt||fallback);
+        if(pee===null&&poop===null){
           node.textContent='Туалет: нет данных';
           node.dataset.level='unknown';
           return;
         }
-        node.textContent=probability===100?'Пора гулять':'Хочет в туалет: ~'+probability+'%';
-        node.dataset.level=probability>=80?'high':probability>=50?'medium':'low';
+        const values=[pee,poop].filter(Number.isFinite);
+        const urgency=values.length?Math.max(...values):0;
+        node.textContent='💧 '+(pee===null?'—':pee+'%')+' · 💩 '+(poop===null?'—':poop+'%')+(urgency>=100?' · Пора гулять':'');
+        node.dataset.level=urgency>=80?'high':urgency>=50?'medium':'low';
       }
 
       function luluTodayWalks(state){
@@ -3003,7 +3007,8 @@
             const item=document.createElement('button');
             item.type='button';
             item.className='lulu-walk-history-item';
-            item.textContent=time+' · с '+companion;
+            const toilet=[row.peed?'💧':'',row.pooped?'💩':''].filter(Boolean).join(' ');
+            item.textContent=time+' · с '+companion+(toilet?' · '+toilet:'');
             item.setAttribute('aria-label','Отменить прогулку '+time+' с '+companion);
             item.addEventListener('click',()=>cancelLuluWalkEntry(row,item));
             panel.appendChild(item);
@@ -3038,7 +3043,63 @@
           timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
         }).format(date);
         const companion=actor==='Диана'?'Дианой':actor==='Рустам'?'Рустамом':actor;
-        status.textContent='Гуляла с '+companion+' в '+time;
+        const toilet=[walk?.peed?'💧':'',walk?.pooped?'💩':''].filter(Boolean).join(' ');
+        status.textContent='Гуляла с '+companion+' в '+time+(toilet?' · '+toilet:'');
+      }
+
+      function ensureLuluWalkModal(){
+        let modal=document.getElementById('luluWalkModal');
+        if(modal) return modal;
+        modal=document.createElement('div');
+        modal.id='luluWalkModal';
+        modal.className='lulu-walk-modal';
+        modal.hidden=true;
+        modal.innerHTML=
+          '<button class="lulu-walk-modal-backdrop" type="button" aria-label="Закрыть"></button>'+
+          '<section class="lulu-walk-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="luluWalkModalTitle">'+
+            '<div class="lulu-walk-modal-head"><div><small>Прогулка с Лулу</small><h3 id="luluWalkModalTitle">Что сделала Лулу?</h3></div><button class="lulu-walk-modal-close" type="button" aria-label="Закрыть">×</button></div>'+
+            '<div class="lulu-walk-modal-options">'+
+              '<button type="button" data-lulu-toilet="peed" aria-pressed="false"><span>💧</span><strong>Писала</strong></button>'+
+              '<button type="button" data-lulu-toilet="pooped" aria-pressed="false"><span>💩</span><strong>Какала</strong></button>'+
+            '</div>'+
+            '<button class="lulu-walk-modal-confirm" type="button" disabled>Сохранить прогулку</button>'+
+          '</section>';
+        document.body.appendChild(modal);
+        const close=()=>{modal.hidden=true;document.body.classList.remove('lulu-walk-modal-open')};
+        modal.querySelector('.lulu-walk-modal-backdrop')?.addEventListener('click',close);
+        modal.querySelector('.lulu-walk-modal-close')?.addEventListener('click',close);
+        const sync=()=>{
+          const active=[...modal.querySelectorAll('[data-lulu-toilet][aria-pressed="true"]')];
+          modal.querySelector('.lulu-walk-modal-confirm').disabled=!active.length;
+        };
+        modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>{
+          button.addEventListener('click',()=>{
+            const active=button.getAttribute('aria-pressed')==='true';
+            button.setAttribute('aria-pressed',active?'false':'true');
+            sync();
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+        modal.querySelector('.lulu-walk-modal-confirm')?.addEventListener('click',async()=>{
+          const confirm=modal.querySelector('.lulu-walk-modal-confirm');
+          if(confirm.disabled) return;
+          const peed=modal.querySelector('[data-lulu-toilet="peed"]')?.getAttribute('aria-pressed')==='true';
+          const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
+          confirm.disabled=true;
+          try{
+            await saveLuluWalk({peed,pooped});
+            close();
+          }finally{sync()}
+        });
+        return modal;
+      }
+
+      function openLuluWalkModal(){
+        const modal=ensureLuluWalkModal();
+        modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>button.setAttribute('aria-pressed','false'));
+        modal.querySelector('.lulu-walk-modal-confirm').disabled=true;
+        modal.hidden=false;
+        document.body.classList.add('lulu-walk-modal-open');
       }
 
       async function luluRequest(operation,payload={}){
@@ -3076,22 +3137,32 @@
         }
       }
 
-      async function markLuluWalk(){
+      async function saveLuluWalk(toilet){
         const button=document.getElementById('luluWalkButton');
         if(!button||button.disabled) return;
         button.disabled=true;
         button.classList.add('is-saving');
         try{
-          const payload=await luluRequest('walk');
+          const payload=await luluRequest('walk',{
+            peed:toilet?.peed===true,
+            pooped:toilet?.pooped===true,
+          });
           renderLulu(payload.lulu);
           setTimeout(()=>loadActivityJournal({silent:true}),120);
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-        }catch(_){
+        }catch(error){
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          throw error;
         }finally{
           button.disabled=false;
           button.classList.remove('is-saving');
         }
+      }
+
+      function markLuluWalk(){
+        const button=document.getElementById('luluWalkButton');
+        if(!button||button.disabled) return;
+        openLuluWalkModal();
       }
 
       let settingsFaceIdStatusSequence=0;

@@ -1463,7 +1463,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       if (operation === 'walk') {
-        const lulu = await markLuluWalk(actor, options);
+        const lulu = await markLuluWalk(actor, {
+          peed: body.peed === true,
+          pooped: body.pooped === true,
+        }, options);
         const walkedAt = String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
         const actionWord = actor === 'Диана' ? 'погуляла' : 'погулял';
         await recordActivity({

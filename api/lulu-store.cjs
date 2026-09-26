@@ -29,12 +29,24 @@ function cleanActor(value) {
   return actor === 'Рустам' || actor === 'Диана' ? actor : '';
 }
 
+function normalizeStamp(value) {
+  const date=new Date(String(value||'').trim());
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
 function normalizeWalk(value) {
   if (!value || typeof value !== 'object') return null;
   const actor = cleanActor(value.actor);
   const date = new Date(value.walkedAt || 0);
   if (!actor || Number.isNaN(date.getTime())) return null;
-  return { actor, walkedAt: date.toISOString() };
+  return {
+    actor,
+    walkedAt: date.toISOString(),
+    peed: Boolean(value.peed),
+    pooped: Boolean(value.pooped),
+    previousPeeAt: normalizeStamp(value.previousPeeAt),
+    previousPoopAt: normalizeStamp(value.previousPoopAt),
+  };
 }
 
 function normalizeWalksToday(value, lastWalk, now = Date.now()) {
@@ -74,6 +86,8 @@ function normalizeLuluState(value) {
   const lastWalk = normalizeWalk(source.lastWalk);
   const toiletAlert = normalizeToiletAlert(source.toiletAlert, lastWalk);
   const walksToday = normalizeWalksToday(source.walksToday, lastWalk);
+  const lastPeeAt = normalizeStamp(source.lastPeeAt) || (lastWalk ? lastWalk.walkedAt : '');
+  const lastPoopAt = normalizeStamp(source.lastPoopAt) || (lastWalk ? lastWalk.walkedAt : '');
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const updatedDate = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   const updatedAt = lastWalk
@@ -84,6 +98,8 @@ function normalizeLuluState(value) {
     version: Math.max(0, Number(source.version || 0)),
     lastWalk,
     walksToday,
+    lastPeeAt,
+    lastPoopAt,
     toiletAlert,
     updatedAt,
   };
@@ -110,22 +126,36 @@ async function writeLuluState(value, options = {}) {
   return state;
 }
 
-async function markLuluWalk(actor, options = {}) {
+async function markLuluWalk(actor, toilet = {}, options = {}) {
   const clean = cleanActor(actor);
   if (!clean) throw new Error('lulu-actor-invalid');
+  const peed=toilet?.peed===true;
+  const pooped=toilet?.pooped===true;
+  if(!peed&&!pooped) throw new Error('lulu-toilet-required');
   return enqueueMutation(async () => {
     const current = await readLuluState(options);
     const walkedAt = new Date(options.now || Date.now()).toISOString();
-    const walk = { actor: clean, walkedAt };
+    const walk = {
+      actor: clean,
+      walkedAt,
+      peed,
+      pooped,
+      previousPeeAt: peed ? String(current.lastPeeAt||'') : '',
+      previousPoopAt: pooped ? String(current.lastPoopAt||'') : '',
+    };
     const today = moscowDateKey(walkedAt);
     const previous = (Array.isArray(current.walksToday) ? current.walksToday : [])
       .filter((row) => moscowDateKey(row.walkedAt) === today);
     const walksToday = [...previous.filter((row) => row.walkedAt !== walkedAt), walk].slice(-16);
     return writeLuluState({
+      ...current,
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
       lastWalk: walk,
       walksToday,
+      lastPeeAt: peed ? walkedAt : current.lastPeeAt,
+      lastPoopAt: pooped ? walkedAt : current.lastPoopAt,
+      toiletAlert: null,
       updatedAt: walkedAt,
     }, options);
   });
@@ -139,14 +169,27 @@ async function cancelLuluWalk(walkedAt, options = {}) {
   return enqueueMutation(async () => {
     const current = await readLuluState(options);
     const previous = Array.isArray(current.walksToday) ? current.walksToday : [];
+    const removedWalk = previous.find((row)=>row.walkedAt===target)
+      || (current.lastWalk?.walkedAt===target ? current.lastWalk : null);
     const walksToday = previous.filter((row) => row.walkedAt !== target);
     const lastMatches = current.lastWalk?.walkedAt === target;
-    const removed = walksToday.length !== previous.length || lastMatches;
+    const removed = Boolean(removedWalk) || lastMatches;
     if (!removed) throw new Error('lulu-walk-not-found');
 
     let lastWalk = current.lastWalk;
-    if (lastMatches) {
-      lastWalk = walksToday.length ? walksToday[walksToday.length - 1] : null;
+    if (lastMatches) lastWalk = walksToday.length ? walksToday[walksToday.length - 1] : null;
+
+    let lastPeeAt=current.lastPeeAt;
+    let lastPoopAt=current.lastPoopAt;
+    if(removedWalk?.peed&&current.lastPeeAt===target){
+      lastPeeAt=normalizeStamp(removedWalk.previousPeeAt)
+        || [...walksToday].reverse().find((row)=>row.peed)?.walkedAt
+        || '';
+    }
+    if(removedWalk?.pooped&&current.lastPoopAt===target){
+      lastPoopAt=normalizeStamp(removedWalk.previousPoopAt)
+        || [...walksToday].reverse().find((row)=>row.pooped)?.walkedAt
+        || '';
     }
 
     return writeLuluState({
@@ -155,6 +198,8 @@ async function cancelLuluWalk(walkedAt, options = {}) {
       version: Math.max(0, Number(current.version || 0)) + 1,
       lastWalk,
       walksToday,
+      lastPeeAt,
+      lastPoopAt,
       toiletAlert: current.toiletAlert?.walkedAt === target ? null : current.toiletAlert,
       updatedAt: new Date(options.now || Date.now()).toISOString(),
     }, options);

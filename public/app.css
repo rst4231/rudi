@@ -8123,3 +8123,37 @@ body.score-modal-open{overflow:hidden;overscroll-behavior:none}
   }
   .score-modal-sheet{padding-left:13px;padding-right:13px;border-radius:23px 23px 0 0}
 }
+
+/* Lulu toilet result picker */
+.lulu-walk-modal{
+  position:fixed;inset:0;z-index:4800;display:grid;align-items:end
+}
+.lulu-walk-modal[hidden]{display:none!important}
+.lulu-walk-modal-backdrop{
+  position:absolute;inset:0;border:0;background:rgba(5,7,12,.58);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)
+}
+.lulu-walk-modal-sheet{
+  position:relative;z-index:1;width:min(100%,520px);margin:0 auto;padding:16px 16px calc(18px + env(safe-area-inset-bottom));
+  border:1px solid var(--line);border-radius:24px 24px 0 0;background:var(--surface-strong);box-shadow:0 -20px 60px rgba(0,0,0,.26)
+}
+.lulu-walk-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.lulu-walk-modal-head small{display:block;color:var(--muted);font-size:10px;font-weight:760;margin-bottom:3px}
+.lulu-walk-modal-head h3{margin:0;font-size:18px;line-height:1.15}
+.lulu-walk-modal-close{
+  width:32px;height:32px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--text);font-size:20px
+}
+.lulu-walk-modal-options{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+.lulu-walk-modal-options button{
+  min-height:72px;display:grid;place-items:center;gap:4px;padding:10px;border:1px solid var(--line);
+  border-radius:16px;background:var(--soft);color:var(--text);font:inherit;cursor:pointer
+}
+.lulu-walk-modal-options button span{font-size:24px}
+.lulu-walk-modal-options button strong{font-size:12px}
+.lulu-walk-modal-options button[aria-pressed="true"]{
+  border-color:color-mix(in srgb,var(--accent) 52%,var(--line));background:var(--accent-soft);color:var(--accent)
+}
+.lulu-walk-modal-confirm{
+  width:100%;min-height:44px;border:0;border-radius:13px;background:var(--accent);color:white;font:inherit;font-size:12px;font-weight:820
+}
+.lulu-walk-modal-confirm:disabled{opacity:.38}
+body.lulu-walk-modal-open{overflow:hidden}
