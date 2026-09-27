@@ -10,27 +10,25 @@ const HABIT_PENALTY_UNITS=1;
 
 function rewardKey(actor,date,id){return 'score:habit:reward:'+actor+':'+date+':'+id}
 function penaltyKey(actor,date,id){return 'score:habit:penalty:'+actor+':'+date+':'+id}
-function cleanName(value){return String(value||'Привычка').replace(/\s+/g,' ').trim().slice(0,80)}
-
 async function reconcileHabitScore(actor,habit,date,status,bonusEligible,options={}){
   const today=moscowDateKey(options.now||Date.now());
   if(date!==today&&!options.allowPastPenalty)return{score:null,deltaPoints:0,changed:false};
-  const id=String(habit?.id||''),name=cleanName(habit?.name);
+  const id=String(habit?.id||'');
   const rk=rewardKey(actor,date,id),pk=penaltyKey(actor,date,id);
   const before=scoreView(await readScoreState(options),options),beforeBalance=Number(before.balances?.[actor]||0);
   let latest=null;
   if(!bonusEligible||status==='pending'){
-    latest=(await reverseScoreByDedupeKey(rk,{clearDedupe:true,skipStreak:true,label:'Отмена привычки',detail:'Отменено начисление: '+name,icon:'↩️'},options)).state;
-    latest=(await reversePenaltyByDedupeKey(pk,{clearDedupe:true,label:'Отмена штрафа',detail:'Отменён штраф: '+name,icon:'↩️'},options)).state;
+    latest=(await reverseScoreByDedupeKey(rk,{clearDedupe:true,skipStreak:true,label:'Отмена привычки',detail:'Отменено начисление за привычку',icon:'↩️'},options)).state;
+    latest=(await reversePenaltyByDedupeKey(pk,{clearDedupe:true,label:'Отмена штрафа',detail:'Отменён штраф за привычку',icon:'↩️'},options)).state;
   }else if(status==='done'){
-    latest=(await reversePenaltyByDedupeKey(pk,{clearDedupe:true,label:'Отмена штрафа',detail:'Статус изменён на «Выполнено»: '+name,icon:'↩️'},options)).state;
+    latest=(await reversePenaltyByDedupeKey(pk,{clearDedupe:true,label:'Отмена штрафа',detail:'Статус изменён на «Выполнено»',icon:'↩️'},options)).state;
     latest=(await awardScore(actor,HABIT_REWARD_UNITS,{
-      label:'Привычка',detail:'Выполнено: '+name,icon:'🟢',dedupeKey:rk,affectStreak:false
+      label:'Привычка',detail:'Выполнена привычка',icon:'🟢',dedupeKey:rk,affectStreak:false
     },options)).state;
   }else if(status==='notdone'){
-    latest=(await reverseScoreByDedupeKey(rk,{clearDedupe:true,skipStreak:true,label:'Отмена привычки',detail:'Статус изменён на «Не выполнено»: '+name,icon:'↩️'},options)).state;
+    latest=(await reverseScoreByDedupeKey(rk,{clearDedupe:true,skipStreak:true,label:'Отмена привычки',detail:'Статус изменён на «Не выполнено»',icon:'↩️'},options)).state;
     latest=(await penalizeScore(actor,HABIT_PENALTY_UNITS,{
-      label:'Привычка',detail:'Не выполнено: '+name,icon:'🔴',dedupeKey:pk
+      label:'Привычка',detail:'Привычка не выполнена',icon:'🔴',dedupeKey:pk
     },options)).state;
   }
   const after=scoreView(latest||await readScoreState(options),options),afterBalance=Number(after.balances?.[actor]||0);
