@@ -3,7 +3,7 @@ const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,trackerGroup=null;
-let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
+let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -73,7 +73,7 @@ function applyHabitView(data){
     streaks:data?.streaks&&typeof data.streaks==='object'?data.streaks:{},
     bonusIds:Array.isArray(data?.bonusIds)?data.bonusIds:[],
     collapsed:Boolean(data?.collapsed),today:String(data?.today||''),date:String(data?.date||data?.today||''),
-    done:Number(data?.done||0),total:Number(data?.total||0)
+    done:Number(data?.done||0),total:Number(data?.total||0),canCompleteToday:Boolean(data?.canCompleteToday)
   };
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
   renderHabitDates();renderHabits();applyHabitCollapse();
@@ -100,8 +100,15 @@ function renderHabits(){
     const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Удалить привычку '+habit.name);main.append(emoji,copy,remove);
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
+    const doneLocked=habitSelectedDate===habitState.today&&!habitState.canCompleteToday&&!isDone;
+    yes.disabled=doneLocked;yes.title=doneLocked?'Можно отметить после 20:00 МСК':'';
     const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);actions.append(yes,no);
-    const save=async(next)=>{if(yes.disabled||no.disabled)return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('status',{id,status:next,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus(habitScoreMessage(data,id,next))}catch(error){console.error('RUDI_HABIT_STATUS_UI_ERROR',error);setHabitStatus('Не удалось сохранить статус.',true)}finally{yes.disabled=no.disabled=remove.disabled=false}};
+    const save=async(next)=>{
+      if((next==='done'&&yes.disabled)||(next==='notdone'&&no.disabled))return;
+      yes.disabled=true;no.disabled=true;remove.disabled=true;setHabitStatus('');
+      try{const data=await habitRequest('status',{id,status:next,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus(habitScoreMessage(data,id,next))}
+      catch(error){console.error('RUDI_HABIT_STATUS_UI_ERROR',error);setHabitStatus(String(error?.message||'')==='habit-done-too-early'?'«Выполнено» можно отметить только после 20:00 МСК.':'Не удалось сохранить статус.',true);yes.disabled=doneLocked;no.disabled=false;remove.disabled=false}
+    };
     yes.addEventListener('click',()=>save('done'));no.addEventListener('click',()=>save('notdone'));
     remove.addEventListener('click',async()=>{if(remove.disabled||!window.confirm('Удалить привычку «'+String(habit.name||'')+'»?'))return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('remove',{id,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus('Привычка удалена. Она больше не участвует в бонусах и штрафах.')}catch(error){console.error('RUDI_HABIT_REMOVE_UI_ERROR',error);setHabitStatus('Не удалось удалить привычку.',true);yes.disabled=no.disabled=remove.disabled=false}});
     row.append(main,actions);habitList.appendChild(row);
@@ -262,7 +269,7 @@ function build(){
   habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.textContent='⌄';
   habitHeadActions.append(habitInfoButton,habitCollapseButton);habitHead.append(habitTitleWrap,habitHeadActions);
   habitInfoPanel=document.createElement('div');habitInfoPanel.className='personal-habits-info-panel';habitInfoPanel.hidden=true;
-  habitInfoPanel.innerHTML='<strong>Как работают звёзды</strong><p>Первые 3 привычки в списке — бонусные.</p><p>🟢 Выполнено сегодня → <b>+0,05 ⭐</b>. 🔴 Не выполнено → <b>−0,1 ⭐</b>.</p><p>Если бонусная привычка останется без статуса до конца дня, после завершения дня спишется <b>−0,1 ⭐</b>.</p><p>Остальные привычки работают без бонуса и штрафа. За прошлые даты звёзды не меняются.</p><p>В 21:00 приходит напоминание, если остались привычки без статуса. Для бонусных привычек оно предупреждает о штрафе.</p><p>Удалённая привычка больше не участвует в наградах, штрафах и напоминаниях. Под названием показывается серия выполнения.</p><p>Повторные переключения защищены от двойных начислений и списаний.</p>';
+  habitInfoPanel.innerHTML='<strong>Как работают звёзды</strong><p>За сегодня кнопку 🟢 <b>«Выполнено»</b> можно нажать только после <b>20:00 МСК</b>. Ограничение относится только к кнопке — начисление награды не привязано ко времени.</p><p>Первые 3 привычки в списке — бонусные.</p><p>🟢 Выполнено сегодня → <b>+0,05 ⭐</b>. 🔴 Не выполнено → <b>−0,1 ⭐</b>.</p><p>Если бонусная привычка останется без статуса до конца дня, после завершения дня спишется <b>−0,1 ⭐</b>.</p><p>Остальные привычки работают без бонуса и штрафа. За прошлые даты звёзды не меняются.</p><p>В 21:00 приходит напоминание, если остались привычки без статуса. Для бонусных привычек оно предупреждает о штрафе.</p><p>Удалённая привычка больше не участвует в наградах, штрафах и напоминаниях. Под названием показывается серия выполнения.</p><p>Повторные переключения защищены от двойных начислений и списаний.</p>';
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
   const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';
   const habitProgress=document.createElement('div');habitProgress.className='personal-habits-progress';
@@ -278,7 +285,7 @@ function build(){
   const habitCancel=document.createElement('button');habitCancel.type='button';habitCancel.className='personal-habits-cancel';habitCancel.textContent='Отмена';
   const habitSave=document.createElement('button');habitSave.type='submit';habitSave.className='personal-habits-save';habitSave.textContent='Добавить';
   habitFormActions.append(habitCancel,habitSave);habitForm.append(habitInput,habitFormActions);
-  habitBody.append(habitProgressRow,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitInfoPanel,habitBody);
+  habitBody.append(habitProgressRow,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitInfoPanel,habitCalendar,habitBody);
 
   tile=document.createElement('article');tile.className='personal-supplements-tile';
   const head=document.createElement('div');head.className='personal-supplements-head';
@@ -293,7 +300,7 @@ function build(){
   statusNode=document.createElement('div');statusNode.className='personal-supplements-status';statusNode.hidden=true;
   list=document.createElement('div');list.className='personal-supplements-list';
   body.append(form,statusNode,list);tile.append(head,body);
-  trackerGroup=document.createElement('div');trackerGroup.className='personal-tracker-group';trackerGroup.append(habitCalendar,habitTile,tile);
+  trackerGroup=document.createElement('div');trackerGroup.className='personal-tracker-group';trackerGroup.append(habitTile,tile);
   content.append(summary,trackerGroup);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
   habitInfoButton.addEventListener('click',()=>{const open=habitInfoPanel.hidden;habitInfoPanel.hidden=!open;habitInfoButton.classList.toggle('is-active',open);habitInfoButton.setAttribute('aria-expanded',String(open))});

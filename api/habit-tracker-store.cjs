@@ -14,6 +14,7 @@ function cleanText(value,max=80){return String(value||'').replace(/\s+/g,' ').tr
 function cleanId(value){const id=String(value||'').trim();return /^habit-[A-Za-z0-9-]{8,80}$/.test(id)?id:''}
 function cleanDate(value){const date=String(value||'').trim();return /^\d{4}-\d{2}-\d{2}$/.test(date)?date:''}
 function moscowDateKey(now=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now))}
+function moscowHour(now=Date.now()){return Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)))}
 function isoOrEmpty(value){const time=Date.parse(String(value||''));return Number.isFinite(time)?new Date(time).toISOString():''}
 function shiftDateKey(key,days){const date=new Date(String(key||'')+'T12:00:00Z');if(Number.isNaN(date.getTime()))return'';date.setUTCDate(date.getUTCDate()+Number(days||0));return date.toISOString().slice(0,10)}
 
@@ -124,7 +125,7 @@ function viewHabits(state,options={}){
   const statuses={},streaks={};
   for(const habit of state.habits){statuses[habit.id]=habitStatus(state,date,habit.id);streaks[habit.id]=habitStreak(state,habit.id,date,today)}
   return{
-    habits:state.habits,completedIds,notDoneIds,statuses,streaks,bonusIds,collapsed:state.collapsed,today,date,
+    habits:state.habits,completedIds,notDoneIds,statuses,streaks,bonusIds,collapsed:state.collapsed,today,date,canCompleteToday:moscowHour(now)>=20,
     done:completedIds.length,notDone:notDoneIds.length,pending:Math.max(0,state.habits.length-completedIds.length-notDoneIds.length),
     total:state.habits.length,version:state.version,updatedAt:state.updatedAt
   };
@@ -193,7 +194,7 @@ async function markHabitDayFinalized(actor,date,options={}){
 function resetMutationQueuesForTests(){tails.clear()}
 
 module.exports={
-  ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,BONUS_LIMIT,SCORING_START_DATE,moscowDateKey,shiftDateKey,resolveHabitDate,habitStatus,habitStreak,habitCreatedByDate,
+  ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,BONUS_LIMIT,SCORING_START_DATE,moscowDateKey,moscowHour,shiftDateKey,resolveHabitDate,habitStatus,habitStreak,habitCreatedByDate,
   normalizeHabit,normalizeState,viewHabits,readHabits,writeHabits,ensureHabitDay,addHabit,removeHabit,setHabitStatus,
   setHabitsCollapsed,markHabitReminderSent,markHabitDayFinalized,resetMutationQueuesForTests
 };
