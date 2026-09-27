@@ -10053,6 +10053,7 @@
       let fastingHomeTicker=0;
       let fastingOverviewState={'Рустам':null,'Диана':null};
       let selectedFastingGoal=16;
+      let fastingReturnTab='products';
 
       function fastingPad(value){
         return String(Math.max(0,Math.floor(value))).padStart(2,'0');
@@ -10381,12 +10382,13 @@
         });
 
         open?.addEventListener('click',()=>{
+          fastingReturnTab='products';
           navigateToAppTab('fasting',{scroll:true});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
         back?.addEventListener('click',()=>{
-          navigateToAppTab('products',{scroll:true});
+          navigateToAppTab(fastingReturnTab==='home'?'home':'products',{scroll:true});
         });
 
         start?.addEventListener('click',async()=>{
@@ -11160,10 +11162,11 @@
         const wishlist=document.getElementById('quickWishlistButton');
         const saves=document.getElementById('quickSavesButton');
         const forDi=document.getElementById('quickForDiButton');
+        const fasting=document.getElementById('quickFastingButton');
         const generate=document.getElementById('dateIdeaButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!saves||!forDi||!generate||!choices||generate.dataset.dateBound==='1') return;
+        if(!wishlist||!saves||!forDi||!fasting||!generate||!choices||generate.dataset.dateBound==='1') return;
         generate.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
@@ -11178,6 +11181,11 @@
         forDi.addEventListener('click',()=>{
           navigateToAppTab('for-di',{scroll:true});
           window.RUDI_FOR_DI?.load?.();
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        fasting.addEventListener('click',()=>{
+          fastingReturnTab='home';
+          navigateToAppTab('fasting',{scroll:true});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 

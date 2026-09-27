@@ -221,6 +221,25 @@ test('suggestions retry when a generated title repeats a recent recipe', async (
   assert.equal(result.recipes[0].title, 'Новый ужин');
 });
 
+test('suggestions can recover after two repeated batches', async () => {
+  let calls = 0;
+  const fakeFetch = async (_url, options) => {
+    calls += 1;
+    const body = JSON.parse(options.body);
+    assert.equal(body.temperature, calls === 1 ? 0.4 : 0.7);
+    const title = calls < 3 ? 'Повтор' : 'Свежий ужин';
+    return { ok: true, status: 200, async json() { return suggestionPayload(title, 15); } };
+  };
+
+  const result = await generateRecipeSuggestions({
+    ...baseRequest,
+    excludeTitles: ['Повтор'],
+  }, { apiKey: 'secret-key', fetch: fakeFetch });
+
+  assert.equal(calls, 3);
+  assert.equal(result.recipes[0].title, 'Свежий ужин');
+});
+
 test('numbered steps packed into one string are split into separate steps', () => {
   assert.deepEqual(
     normalizeStepList(['1. Нарежьте продукты 2. Обжарьте основу 3. Подайте блюдо']),

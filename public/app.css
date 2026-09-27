@@ -7443,6 +7443,11 @@ html[data-theme="dark"] .partner-message .partner-edit{
 .quick-access-button:active{transform:scale(.975)}
 .quick-access-button.is-wishlist{background:linear-gradient(145deg,color-mix(in srgb,var(--love-soft) 68%,var(--surface-strong)),var(--surface-strong))}
 .quick-access-button.is-date{background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 64%,var(--surface-strong)),var(--surface-strong))}
+.quick-access-button.is-fasting{
+  grid-column:1/-1;
+  min-height:58px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--green-soft) 58%,var(--surface-strong)),var(--surface-strong));
+}
 .quick-access-icon{
   width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:11px;
   background:color-mix(in srgb,var(--surface) 80%,transparent);
@@ -8209,6 +8214,28 @@ body.lulu-walk-modal-open{overflow:hidden}
 .fasting-entry-copy small{color:var(--muted);font-size:10.5px;line-height:1.35}
 .fasting-entry-chevron{width:18px;height:18px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s ease}
 .fasting-entry:active .fasting-entry-chevron{transform:translateX(2px)}
+
+.fasting-benefits{padding:0;border-radius:18px;overflow:hidden}
+.fasting-benefits summary{
+  min-height:58px;display:grid;grid-template-columns:34px minmax(0,1fr) 18px;align-items:center;gap:10px;
+  padding:11px 13px;cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent
+}
+.fasting-benefits summary::-webkit-details-marker{display:none}
+.fasting-benefits-icon{
+  width:34px;height:34px;display:grid;place-items:center;border-radius:11px;
+  background:color-mix(in srgb,var(--accent) 12%,var(--surface-strong));color:var(--accent);
+  font-size:15px;font-weight:850;font-style:normal
+}
+.fasting-benefits-heading{display:grid;gap:2px;min-width:0}
+.fasting-benefits-heading strong{font-size:13px;line-height:1.2}
+.fasting-benefits-heading small{color:var(--muted);font-size:9.5px;line-height:1.25}
+.fasting-benefits-chevron{width:18px;height:18px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s ease}
+.fasting-benefits[open] .fasting-benefits-chevron{transform:rotate(180deg)}
+.fasting-benefits-body{padding:0 14px 14px;color:var(--text);font-size:11px;line-height:1.48}
+.fasting-benefits-body p{margin:0 0 8px}
+.fasting-benefits-body ul{margin:0 0 10px;padding-left:18px;display:grid;gap:6px}
+.fasting-benefits-note{margin-bottom:0!important;padding:10px 11px;border-radius:12px;background:var(--soft);color:var(--muted)}
+
 
 .fasting-page{display:grid;gap:12px;align-content:start;padding-bottom:18px}
 .fasting-page:not([hidden]){animation:fastingPageIn .38s cubic-bezier(.2,.75,.25,1) both}
