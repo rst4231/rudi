@@ -8651,6 +8651,8 @@
         const partnerAnswered=Boolean(data?.partnerAnswered);
         const bothAnswered=mineAnswered&&partnerAnswered;
         const revealed=Boolean(data?.revealed&&data?.answers);
+        const tile=document.getElementById('dailyQuestionTile');
+        tile?.classList.toggle('is-waiting',mineAnswered&&!revealed);
         form.hidden=mineAnswered||bothAnswered||revealed;
         input.disabled=mineAnswered||bothAnswered||revealed;
         if(mineAnswered||bothAnswered) input.value='';
