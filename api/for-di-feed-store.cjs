@@ -49,6 +49,7 @@ function normalizeItem(value) {
   const text = cleanText(source.text);
   if (!id || !text) return null;
   const likes = [...new Set((Array.isArray(source.likes) ? source.likes : []).map(cleanActor).filter(Boolean))];
+  const saved = Boolean(source.saved);
   return {
     id,
     dateKey: cleanText(source.dateKey, 20),
@@ -56,6 +57,8 @@ function normalizeItem(value) {
     source: cleanText(source.source, 80) || null,
     createdAt: cleanText(source.createdAt, 80),
     likes,
+    saved,
+    savedAt: saved ? cleanText(source.savedAt, 80) : '',
   };
 }
 
@@ -112,7 +115,7 @@ async function pruneExpiredLaborItems(options={}){
   return enqueue(async()=>{
     const state=await readForDiFeed(options);
     const before=state.items.length;
-    state.items=state.items.filter((item)=>!isExpiredLaborItem(item,options.now||Date.now(),options.days||LABOR_RETENTION_DAYS));
+    state.items=state.items.filter((item)=>item.saved||!isExpiredLaborItem(item,options.now||Date.now(),options.days||LABOR_RETENTION_DAYS));
     const removed=before-state.items.length;
     if(!removed) return {state,removed:0};
     return {state:await writeForDiFeed(state,options),removed};
@@ -122,7 +125,7 @@ async function pruneExpiredLaborItems(options={}){
 async function appendForDiMessages(messages, dateKey, options = {}) {
   return enqueue(async () => {
     const state = await readForDiFeed(options);
-    state.items = state.items.filter((item)=>!isExpiredLaborItem(item,options.now||Date.now(),LABOR_RETENTION_DAYS));
+    state.items = state.items.filter((item)=>item.saved||!isExpiredLaborItem(item,options.now||Date.now(),LABOR_RETENTION_DAYS));
     const existing = new Set(state.items.map((item) => item.id));
     let added = 0;
     for (const row of Array.isArray(messages) ? messages : []) {
@@ -137,6 +140,8 @@ async function appendForDiMessages(messages, dateKey, options = {}) {
         source: cleanText(row?.source, 80) || null,
         createdAt: cleanText(row?.createdAt, 80) || new Date(options.now || Date.now()).toISOString(),
         likes: [],
+        saved: false,
+        savedAt: '',
       });
       existing.add(id);
       added += 1;
@@ -160,6 +165,42 @@ async function toggleForDiLike(id, actor, options = {}) {
   });
 }
 
+async function saveForDiItem(id, actor, options = {}) {
+  return enqueue(async () => {
+    const who = cleanActor(actor);
+    if (!who) throw new Error('for-di-save-actor-invalid');
+    const state = await readForDiFeed(options);
+    const item = state.items.find((row) => row.id === String(id || ''));
+    if (!item) throw new Error('for-di-item-not-found');
+    const duplicate = Boolean(item.saved);
+    if (!duplicate) {
+      item.saved = true;
+      item.savedAt = new Date(options.now || Date.now()).toISOString();
+    }
+    return {
+      state: duplicate ? state : await writeForDiFeed(state, options),
+      item,
+      duplicate,
+    };
+  });
+}
+
+async function removeForDiSaved(id, actor, options = {}) {
+  return enqueue(async () => {
+    const who = cleanActor(actor);
+    if (!who) throw new Error('for-di-save-actor-invalid');
+    const state = await readForDiFeed(options);
+    const item = state.items.find((row) => row.id === String(id || ''));
+    if (!item) throw new Error('for-di-item-not-found');
+    item.saved = false;
+    item.savedAt = '';
+    if (isExpiredLaborItem(item, options.now || Date.now(), LABOR_RETENTION_DAYS)) {
+      state.items = state.items.filter((row) => row.id !== item.id);
+    }
+    return { state: await writeForDiFeed(state, options), item };
+  });
+}
+
 function resetMutationQueueForTests() {
   mutationQueue = Promise.resolve();
 }
@@ -177,5 +218,7 @@ module.exports = {
   writeForDiFeed,
   appendForDiMessages,
   toggleForDiLike,
+  saveForDiItem,
+  removeForDiSaved,
   resetMutationQueueForTests,
 };

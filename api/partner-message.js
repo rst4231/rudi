@@ -51,7 +51,7 @@ const { readDailyQuestion, answerDailyQuestion } = require('./daily-question-sto
 const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
-const { readForDiFeed, toggleForDiLike } = require('./for-di-feed-store.cjs');
+const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
@@ -2637,6 +2637,31 @@ async function handleRudiAction(req, res, action, options = {}) {
         const saved = previousSnapshot?.forDiFeed;
         const state = live?.initialized ? live : (saved?.initialized ? saved : live);
         return res.status(200).json({ ok:true, actor, ...state });
+      }
+
+      if (operation === 'save') {
+        const result = await saveForDiItem(body.id, actor, options);
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        return res.status(200).json({
+          ok:true,
+          actor,
+          ...result.state,
+          item:result.item,
+          duplicate:result.duplicate,
+          backupToken,
+        });
+      }
+
+      if (operation === 'remove-saved') {
+        const result = await removeForDiSaved(body.id, actor, options);
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        return res.status(200).json({
+          ok:true,
+          actor,
+          ...result.state,
+          item:result.item,
+          backupToken,
+        });
       }
 
       if (operation === 'toggle-like') {

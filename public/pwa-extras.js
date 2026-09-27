@@ -1245,27 +1245,68 @@
     return source ? source : 'Для Ди';
   }
 
-  function renderForDiLike(item){
-    const likes=Array.isArray(item?.likes)?item.likes.filter(Boolean):[];
-    const active=likes.includes(forDiActor);
+  const FOR_DI_LABOR_RETENTION_MS=7*24*60*60*1000;
+
+  function forDiItemExpired(item){
+    if(String(item?.source||'').trim()!=='labor') return false;
+    let created=Date.parse(String(item?.createdAt||''));
+    if(!Number.isFinite(created)){
+      const dateKey=String(item?.dateKey||'').trim();
+      created=/^\d{4}-\d{2}-\d{2}$/.test(dateKey)?Date.parse(dateKey+'T00:00:00+03:00'):NaN;
+    }
+    return Number.isFinite(created)&&created<Date.now()-FOR_DI_LABOR_RETENTION_MS;
+  }
+
+  function appendForDiLinkedText(host,value){
+    const text=String(value||'');
+    const pattern=/(https?:\/\/[^\s]+)/giu;
+    let last=0;
+    for(const match of text.matchAll(pattern)){
+      const index=Number(match.index||0);
+      if(index>last) host.appendChild(document.createTextNode(text.slice(last,index)));
+      let url=String(match[0]||'');
+      let trailing='';
+      while(url&&/[),.;!?]$/.test(url)){
+        trailing=url.slice(-1)+trailing;
+        url=url.slice(0,-1);
+      }
+      if(url){
+        const link=document.createElement('a');
+        link.href=url;
+        link.target='_blank';
+        link.rel='noopener noreferrer';
+        link.textContent=url;
+        host.appendChild(link);
+      }
+      if(trailing) host.appendChild(document.createTextNode(trailing));
+      last=index+String(match[0]||'').length;
+    }
+    if(last<text.length) host.appendChild(document.createTextNode(text.slice(last)));
+  }
+
+  function renderForDiSaveButton(item,{savedView=false}={}){
     const button=document.createElement('button');
     button.type='button';
-    button.className='for-di-like'+(active?' is-active':'');
-    button.setAttribute('aria-pressed',active?'true':'false');
-    button.setAttribute('aria-label',active?'Убрать лайк':'Поставить лайк');
-    button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg><span>'+esc(likes.length?likes.join(', '):'')+'</span>';
+    button.className='for-di-save'+(item?.saved&&!savedView?' is-saved':'');
+    button.setAttribute('aria-label',savedView?'Убрать из сохранённых':item?.saved?'Сохранено':'Сохранить');
+    button.innerHTML=savedView
+      ?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg><span>Убрать</span>'
+      :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5h12a1.5 1.5 0 0 1 1.5 1.5v14l-7.5-4-7.5 4V6A1.5 1.5 0 0 1 6 4.5Z"/></svg><span>'+(item?.saved?'Сохранено':'Сохранить')+'</span>';
+    if(item?.saved&&!savedView) button.disabled=true;
     button.addEventListener('click',async()=>{
       if(button.disabled) return;
       button.disabled=true;
       try{
-        const data=await forDiRequest('toggle-like',{id:item.id});
+        const operation=savedView?'remove-saved':'save';
+        const data=await forDiRequest(operation,{id:item.id});
         forDiActor=String(data.actor||forDiActor);
         forDiState=Array.isArray(data.items)?data.items:forDiState;
         renderForDi();
+        showMiniToast(savedView?'Убрано из сохранённых':(data.duplicate?'Уже сохранено':'Сохранено'));
         try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }catch(_){
         button.disabled=false;
-        showMiniToast('Не удалось поставить лайк');
+        showMiniToast(savedView?'Не удалось убрать':'Не удалось сохранить');
         try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
       }
     });
@@ -1280,7 +1321,8 @@
   function applyForDiCategoryState(type,collapsed){
     const section=document.querySelector('[data-for-di-category="'+type+'"]');
     const toggle=document.querySelector('[data-for-di-toggle="'+type+'"]');
-    const body=byId(type==='labor'?'forDiLaborBody':'forDiStylistBody');
+    const bodyId={labor:'forDiLaborBody',saved:'forDiSavedBody',stylist:'forDiStylistBody'}[type];
+    const body=bodyId?byId(bodyId):null;
     if(!section||!toggle||!body) return;
     section.classList.toggle('is-collapsed',Boolean(collapsed));
     toggle.setAttribute('aria-expanded',collapsed?'false':'true');
@@ -1302,7 +1344,7 @@
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
   }
 
-  function renderForDiRows(host,rows){
+  function renderForDiRows(host,rows,{savedView=false}={}){
     if(!host) return;
     host.replaceChildren();
     const groups=new Map();
@@ -1338,11 +1380,11 @@
 
         const body=document.createElement('div');
         body.className='for-di-card-text';
-        body.textContent=String(item.text||'');
+        appendForDiLinkedText(body,item.text);
 
         const footer=document.createElement('div');
         footer.className='for-di-card-footer';
-        footer.appendChild(renderForDiLike(item));
+        footer.appendChild(renderForDiSaveButton(item,{savedView}));
 
         card.append(meta,body,footer);
         stack.appendChild(card);
@@ -1354,31 +1396,44 @@
 
   function renderForDi(){
     const laborList=byId('forDiLaborList');
+    const savedList=byId('forDiSavedList');
     const stylistList=byId('forDiStylistList');
     const laborEmpty=byId('forDiLaborEmpty');
+    const savedEmpty=byId('forDiSavedEmpty');
     const stylistEmpty=byId('forDiStylistEmpty');
     const laborCount=byId('forDiLaborCount');
+    const savedCount=byId('forDiSavedCount');
     const stylistCount=byId('forDiStylistCount');
     const totalCount=byId('forDiTotalCount');
     const status=byId('forDiStatus');
-    if(!laborList||!stylistList) return;
+    if(!laborList||!savedList||!stylistList) return;
 
     const laborRows=[...forDiState]
-      .filter(item=>String(item?.source||'').trim()==='labor')
+      .filter(item=>String(item?.source||'').trim()==='labor'&&!forDiItemExpired(item))
       .sort((a,b)=>{
         const at=Date.parse(String(a?.createdAt||''))||0;
         const bt=Date.parse(String(b?.createdAt||''))||0;
         return bt-at;
       });
 
+    const savedRows=[...forDiState]
+      .filter(item=>Boolean(item?.saved))
+      .sort((a,b)=>{
+        const at=Date.parse(String(a?.savedAt||a?.createdAt||''))||0;
+        const bt=Date.parse(String(b?.savedAt||b?.createdAt||''))||0;
+        return bt-at;
+      });
     const stylistRows=[];
 
     renderForDiRows(laborList,laborRows);
+    renderForDiRows(savedList,savedRows,{savedView:true});
     stylistList.replaceChildren();
 
     if(laborEmpty) laborEmpty.hidden=laborRows.length>0;
+    if(savedEmpty) savedEmpty.hidden=savedRows.length>0;
     if(stylistEmpty) stylistEmpty.hidden=stylistRows.length>0;
     if(laborCount) laborCount.textContent=String(laborRows.length);
+    if(savedCount) savedCount.textContent=String(savedRows.length);
     if(stylistCount) stylistCount.textContent='0';
     if(totalCount) totalCount.textContent=laborRows.length?String(laborRows.length):'';
 
@@ -1387,6 +1442,7 @@
       :'Материалы появятся вместе с обновлением ленты';
 
     restoreForDiCategoryState('labor');
+    restoreForDiCategoryState('saved');
     restoreForDiCategoryState('stylist');
   }
 
