@@ -456,3 +456,7 @@ body.auth-ok .shell{view-transition-name:rudi-content}
 }
 
 /* end RUDI v1.15.0 */
+
+/* RUDI v2.28 — saved dates inside Dates page */
+.dates-page .saves-status{padding:0 2px}
+.dates-page .saved-category{width:100%}

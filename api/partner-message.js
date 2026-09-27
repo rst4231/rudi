@@ -2732,7 +2732,7 @@ async function handleRudiAction(req, res, action, options = {}) {
             actor,
             text: actor + ' ' + savedVerb + ' ' + savedLabel + (title ? ': ' + title : ''),
             icon: type === 'recipe' ? '🍳' : type === 'date' ? '💞' : '🔖',
-            targetTab: type === 'recipe' ? 'products' : 'saves',
+            targetTab: type === 'recipe' ? 'products' : type === 'date' ? 'dates' : 'home',
             dedupeKey: 'saved:' + String(result.item.id || activityDigest(result.item)),
           }, options);
         }

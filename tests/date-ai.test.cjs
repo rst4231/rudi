@@ -42,6 +42,8 @@ test('date generator asks Groq for exactly three structured ideas and excludes p
       assert.match(body.messages[0].content,/Не придумывай квесты, тайники, загадки/);
       assert.match(body.messages[0].content,/выполнима парой самостоятельно/);
       assert.match(body.messages[0].content,/практичный совет для реальной пары/);
+      assert.match(body.messages[0].content,/обращайся к паре только во втором лице множественного числа/);
+      assert.match(body.messages[0].content,/«вы идёте»/);
       return {ok:true,status:200,async json(){return responsePayload()}};
     }
   });
@@ -133,4 +135,28 @@ test('date generator hard-blocks activities Diana cannot do and retries', async(
 
   assert.equal(calls,2);
   assert.deepEqual(result.ideas.map((row)=>row.title),safeIdeas.map((row)=>row.title));
+});
+
+
+test('date generator rejects third-person descriptions about the couple and retries with вы', async()=>{
+  let calls=0;
+  const goodIdeas=[
+    {title:'Гастро-маршрут',description:'Сначала вы выбираете необычное кафе, затем вы переходите в соседнюю дегустационную точку.',duration:'2 часа'},
+    {title:'Выставка и кофе',description:'Вы идёте на выставку, после чего вы выбираете кофейню рядом и обсуждаете увиденное.',duration:'2–3 часа'},
+    {title:'Автопрогулка',description:'Вы едете на машине в новое место, гуляете недолго и пробуете локальное блюдо.',duration:'3 часа'},
+  ];
+  const result=await generateDateIdeas({period:'evening'},{
+    apiKey:'secret-key',
+    fetch:async()=>{
+      calls++;
+      const ideas=calls===1?[
+        {title:'Дегустация',description:'Сначала они пробуют десерты. Затем вместе с дегустацией они переходят в кофейню.',duration:'2 часа'},
+        {title:'Музей',description:'Они идут в музей и потом обсуждают выставку.',duration:'2 часа'},
+        {title:'Ужин',description:'Для них подготовлен маршрут по двум ресторанам.',duration:'3 часа'},
+      ]:goodIdeas;
+      return {ok:true,status:200,async json(){return {choices:[{message:{content:JSON.stringify({ideas})}}]}}};
+    }
+  });
+  assert.equal(calls,2);
+  assert.equal(result.ideas[0].description.includes('вы'),true);
 });

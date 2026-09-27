@@ -101,7 +101,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,saves:0,'for-di':0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
       const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
@@ -1288,12 +1288,13 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','saves','for-di'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di'];
 
       function routeFromLocation(){
         try{
           const params=new URLSearchParams(window.location.search);
-          const tab=String(params.get('tab')||'home').trim();
+          const rawTab=String(params.get('tab')||'home').trim();
+          const tab=rawTab==='saves'?'dates':rawTab;
           return {
             tab:APP_TABS.includes(tab)?tab:'home',
             item:String(params.get('item')||'').trim()
@@ -1307,7 +1308,7 @@
           const url=new URL(window.location.href);
           if(next==='home') url.searchParams.delete('tab');
           else url.searchParams.set('tab',next);
-          if(item&&['wishlist','products','saves','for-di','schedule'].includes(next)) url.searchParams.set('item',String(item));
+          if(item&&['wishlist','products','dates','for-di','schedule'].includes(next)) url.searchParams.set('item',String(item));
           else url.searchParams.delete('item');
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
@@ -1318,7 +1319,7 @@
 
       function focusDeepLinkedItem(tab,item){
         const id=String(item||'').trim();
-        if(!id||!['wishlist','products','saves','for-di'].includes(tab)) return;
+        if(!id||!['wishlist','products','dates','for-di'].includes(tab)) return;
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
           const target=[...document.querySelectorAll('[data-rudi-item-id]')]
             .find(node=>String(node.dataset.rudiItemId||'')===id);
@@ -1345,7 +1346,7 @@
           }).catch(()=>{});
         }
         if(tab==='photos') loadSharedAlbum();
-        if(tab==='saves') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('saves',item));
+        if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='fasting') loadFastingTracker({silent:true});
       }
@@ -10316,6 +10317,18 @@
         const history=document.getElementById('fastingHistory');
         const empty=document.getElementById('fastingHistoryEmpty');
         const rows=Array.isArray(fastingState.history)?fastingState.history:[];
+        const historyTitle=document.getElementById('fastingHistoryTitle');
+        if(historyTitle){
+          const currentYear=new Date().getFullYear();
+          const totalMinutes=rows.reduce((sum,row)=>{
+            const ended=new Date(String(row?.endedAt||row?.startedAt||''));
+            if(Number.isNaN(ended.getTime())||ended.getFullYear()!==currentYear) return sum;
+            return sum+Math.max(0,Number(row?.durationMinutes)||0);
+          },0);
+          const totalHours=Math.round((totalMinutes/60)*10)/10;
+          const hoursLabel=Number.isInteger(totalHours)?String(totalHours):String(totalHours).replace('.',',');
+          historyTitle.textContent='История · '+hoursLabel+' ч за '+currentYear;
+        }
 
         if(history){
           history.replaceChildren();
@@ -11002,8 +11015,8 @@
         if(status) status.hidden=!open;
         generate.setAttribute('aria-expanded',open?'true':'false');
 
-        const title=generate.querySelector('.quick-access-copy strong');
-        const subtitle=generate.querySelector('.quick-access-copy small');
+        const title=generate.querySelector('.dates-generate-copy strong,.quick-access-copy strong');
+        const subtitle=generate.querySelector('.dates-generate-copy small,.quick-access-copy small');
         if(title) title.textContent=hasIdeas?(open?'Свернуть':'Развернуть'):(open?'Свернуть':'Сгенерировать свидание');
         if(subtitle) subtitle.textContent=hasIdeas
           ? (open?'Скрыть идеи и выбор времени':'Показать сохранённые идеи')
@@ -11160,21 +11173,21 @@
 
       function setupQuickAccess(){
         const wishlist=document.getElementById('quickWishlistButton');
-        const saves=document.getElementById('quickSavesButton');
+        const dates=document.getElementById('quickDateButton');
         const forDi=document.getElementById('quickForDiButton');
         const fasting=document.getElementById('quickFastingButton');
         const generate=document.getElementById('dateIdeaButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!saves||!forDi||!fasting||!generate||!choices||generate.dataset.dateBound==='1') return;
+        if(!wishlist||!dates||!forDi||!fasting||!generate||!choices||generate.dataset.dateBound==='1') return;
         generate.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
           navigateToAppTab('wishlist',{scroll:true});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
-        saves.addEventListener('click',()=>{
-          navigateToAppTab('saves',{scroll:true});
+        dates.addEventListener('click',()=>{
+          navigateToAppTab('dates',{scroll:true});
           window.RUDI_SAVES?.load?.();
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });

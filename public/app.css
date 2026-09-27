@@ -8919,3 +8919,34 @@ html[data-theme="light"] .profile-supplement-intakes-empty{color:rgba(48,54,68,.
 .photo-viewer-stage #photoViewerVideo{grid-area:1/1}
 .photo-viewer-stage #photoViewerVideo.is-loading{opacity:0;pointer-events:none}
 .photo-viewer-stage #photoViewerVideo{transition:opacity .16s ease}
+
+
+/* RUDI v2.28 — dedicated Dates page */
+.dates-page{display:grid;gap:12px;width:100%;max-width:720px;margin:0 auto;padding:6px 0 18px}
+.dates-page[hidden]{display:none!important}
+.dates-page-head{display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;align-items:center;padding:4px 2px 2px}
+.dates-page-head h1{margin:2px 0 0;font-size:25px;line-height:1.05;letter-spacing:-.035em}
+.dates-back-button{
+  width:42px;height:42px;display:grid;place-items:center;padding:0;border:1px solid var(--line);
+  border-radius:14px;background:var(--surface);color:var(--text);cursor:pointer
+}
+.dates-back-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dates-generator{display:grid;gap:11px;padding:15px;border-radius:20px}
+.dates-generator-head h2,.dates-saves-head h2{margin:2px 0 0;font-size:18px;line-height:1.15}
+.dates-generator-head p{margin:5px 0 0;color:var(--muted);font-size:10.5px;line-height:1.4}
+.dates-generate-button{
+  width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) 20px;align-items:center;gap:10px;
+  min-height:62px;padding:11px 12px;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));
+  border-radius:16px;background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 58%,var(--surface-strong)),var(--surface-strong));
+  color:var(--text);font:inherit;text-align:left;cursor:pointer
+}
+.dates-generate-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.dates-generate-icon svg{width:21px;height:21px}
+.dates-generate-copy{display:grid;gap:3px;min-width:0}
+.dates-generate-copy strong{font-size:13px;line-height:1.2}
+.dates-generate-copy small{color:var(--muted);font-size:9.5px}
+.dates-generate-chevron{width:18px;height:18px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s ease}
+.dates-generate-button[aria-expanded="true"] .dates-generate-chevron{transform:rotate(180deg)}
+.dates-saves{display:grid;gap:8px}
+.dates-saves-head{display:flex;align-items:end;justify-content:space-between;gap:12px;padding:4px 2px 0}
+.dates-saved-category{margin-top:2px}
