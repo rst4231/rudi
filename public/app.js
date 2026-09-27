@@ -8503,7 +8503,7 @@
                 currentScoreState=fresh.score||currentScoreState;
                 renderScoreStickers(currentScoreState);
               }catch(_){}
-              if(data?.reward?.awarded&&status) status.textContent='Ответ сохранён · +0,5 ⭐';
+              if(data?.reward?.awarded&&status) status.textContent='Ответ сохранён · +0,3 ⭐';
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(error){
               if(status) status.textContent=String(error?.message||'')==='daily-question-already-answered'

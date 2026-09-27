@@ -71,3 +71,23 @@ test('daily star cap allows earning through 15 stars and caps anything above it'
   assert.equal(second.capped,true);
   assert.equal(scoreView(second.state,{now:now+1000}).today.earned['Рустам'],15);
 });
+
+
+test('home actions use the configured fractional star rewards', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const api = fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  const app = fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+
+  assert.match(api,/awardScoreSafe\(actor,3,\{\s*label:'Вопрос дня'/s);
+  assert.match(api,/awardScoreSafe\(actor,3,\{\s*label:'Послание'/s);
+  assert.match(api,/awardScoreSafe\(actor,5,\{label:'Прогулка с Лулу'/);
+  assert.match(app,/Ответ сохранён · \+0,3 ⭐/);
+
+  const likeStart=api.indexOf("if (action === 'partner-message-like')");
+  const likeEnd=api.indexOf("if (action === 'partner-message-read')",likeStart);
+  assert.ok(likeStart>=0&&likeEnd>likeStart);
+  const likeBlock=api.slice(likeStart,likeEnd);
+  assert.doesNotMatch(likeBlock,/awardScoreSafe\(/);
+  assert.match(likeBlock,/recordLikeActivity/);
+});

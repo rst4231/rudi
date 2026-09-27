@@ -88,9 +88,9 @@ test('daily answers stay runtime-only while question history is durable',()=>{
   assert.match(strict,/['"]rudi-daily-question-history-v1['"]/);
 });
 
-test('answer reward is 0.5 stars with one dedupe key per actor and date',()=>{
+test('answer reward is 0.3 stars with one dedupe key per actor and date',()=>{
   const api=fs.readFileSync(path.join(root,'api','partner-message.js'),'utf8');
-  assert.match(api,/awardScoreSafe\(actor,5,/);
+  assert.match(api,/awardScoreSafe\(actor,3,/);
   assert.match(api,/score:daily-question:'\+actor\+':'\+view\.date/);
 });
 
