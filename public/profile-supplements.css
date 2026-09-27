@@ -54,3 +54,71 @@ html[data-theme="light"] .personal-habits-collapse,
 html[data-theme="light"] .personal-habits-empty,
 html[data-theme="light"] .personal-habit-row,
 html[data-theme="light"] .personal-habits-form input{background:#f0f2f6}
+
+
+/* RUDI v2.47 — habit tracker matching reference + past dates */
+.personal-habits-calendar{
+  display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:8px;align-items:stretch;
+  padding:8px;border-radius:20px;background:color-mix(in srgb,var(--card,#151820) 96%,transparent);
+  border:1px solid color-mix(in srgb,currentColor 7%,transparent);box-shadow:0 8px 24px rgba(0,0,0,.08)
+}
+.personal-habits-date-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;min-width:0}
+.personal-habit-date{
+  min-width:0;height:54px;border:0;border-radius:14px;background:color-mix(in srgb,var(--surface,#20242f) 72%,transparent);color:inherit;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;line-height:1
+}
+.personal-habit-date span{font-size:10px;font-weight:700;opacity:.48;text-transform:capitalize}
+.personal-habit-date strong{font-size:14px;font-weight:850}
+.personal-habit-date.is-selected{background:#4f8a68;color:#fff;box-shadow:0 7px 16px rgba(79,138,104,.22)}
+.personal-habit-date.is-selected span{opacity:.8}
+.personal-habits-calendar-picker{
+  position:relative;border-radius:14px;background:color-mix(in srgb,var(--surface,#20242f) 72%,transparent);
+  display:grid;place-items:center;font-size:18px;overflow:hidden
+}
+.personal-habits-date-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.personal-habits-tile,.personal-supplements-tile{border-radius:20px;padding:15px 16px;box-shadow:0 8px 24px rgba(0,0,0,.07)}
+.personal-habits-head h2,.personal-supplements-head h2{font-size:18px!important;letter-spacing:-.02em}
+.personal-habits-collapse,.personal-supplements-collapse{
+  width:34px;height:34px;border-radius:50%;background:transparent!important;border:1px solid color-mix(in srgb,currentColor 8%,transparent)
+}
+.personal-habits-progress-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:10px}
+.personal-habits-progress{height:8px;margin-top:0;background:color-mix(in srgb,currentColor 10%,transparent)}
+.personal-habits-percent{font-size:12px;font-weight:760;opacity:.55;min-width:30px;text-align:right}
+.personal-habits-list{gap:0;margin-top:10px}
+.personal-habit-row{
+  grid-template-columns:minmax(0,1fr) 30px;border:0;border-radius:0;background:transparent!important;
+  border-bottom:1px solid color-mix(in srgb,currentColor 8%,transparent)
+}
+.personal-habit-row:last-child{border-bottom:0}
+.personal-habit-toggle{min-height:49px;grid-template-columns:36px minmax(0,1fr) 30px;gap:9px;padding:6px 0}
+.personal-habit-emoji{
+  width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:color-mix(in srgb,#dceee3 82%,var(--surface,#20242f))
+}
+.personal-habit-name{font-size:14px;font-weight:720}
+.personal-habit-check{width:27px;height:27px;border-radius:8px;border:2px solid color-mix(in srgb,currentColor 36%,transparent)}
+.personal-habit-row.is-done .personal-habit-check{background:#4f8a68;border-color:#4f8a68}
+.personal-habit-remove{opacity:.18}
+.personal-habits-add{
+  min-height:46px;margin-top:12px;border:0;border-radius:13px;background:#4f8a68;color:#fff;opacity:1;font-size:14px;font-weight:790;
+  box-shadow:0 8px 18px rgba(79,138,104,.18)
+}
+.personal-habits-add:active{transform:scale(.99)}
+.personal-supplements-actions{gap:0}
+.personal-supplements-drag{display:none!important}
+html[data-theme="light"] .personal-habits-calendar,
+html[data-theme="light"] .personal-habits-tile,
+html[data-theme="light"] .personal-supplements-tile{background:#fbfaf7;border-color:rgba(77,70,58,.07)}
+html[data-theme="light"] .personal-habit-date,
+html[data-theme="light"] .personal-habits-calendar-picker{background:#f4f1ea}
+html[data-theme="light"] .personal-habit-emoji{background:#edf4ef}
+html[data-theme="dark"] .personal-habits-calendar,
+html[data-theme="dark"] .personal-habits-tile,
+html[data-theme="dark"] .personal-supplements-tile{background:color-mix(in srgb,var(--card,#151820) 92%,#243126)}
+@media(max-width:390px){
+  .personal-habits-calendar{grid-template-columns:minmax(0,1fr) 38px;padding:7px;gap:6px}
+  .personal-habits-date-strip{gap:3px}
+  .personal-habit-date{height:50px;border-radius:12px}
+  .personal-habit-date span{font-size:9px}
+  .personal-habit-date strong{font-size:13px}
+}

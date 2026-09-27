@@ -5,7 +5,7 @@ function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
   if(code==='habit-not-found')return 404;
   if(code==='habit-duplicate')return 409;
-  if(['habit-name-required','habit-id-required','habit-limit','habit-operation-invalid','habits-actor-invalid'].includes(code))return 400;
+  if(['habit-name-required','habit-id-required','habit-limit','habit-operation-invalid','habits-actor-invalid','habit-date-future'].includes(code))return 400;
   if(code==='rudi-auth-db-unavailable')return 503;
   return 500;
 }
@@ -19,10 +19,10 @@ async function handler(req,res){
     if(operation==='list')state=await readHabits(actor);
     else if(operation==='add')state=await addHabit(actor,body.name);
     else if(operation==='remove')state=await removeHabit(actor,body.id);
-    else if(operation==='toggle')state=await toggleHabit(actor,body.id);
+    else if(operation==='toggle')state=await toggleHabit(actor,body.id,{date:body.date});
     else if(operation==='collapse')state=await setHabitsCollapsed(actor,body.collapsed);
     else throw new Error('habit-operation-invalid');
-    return res.status(200).json({ok:true,actor,...viewHabits(state)});
+    return res.status(200).json({ok:true,actor,...viewHabits(state,{date:body.date})});
   }catch(error){
     const code=String(error?.message||error),status=statusFor(code,error);
     if(status===500)console.error('RUDI_HABITS_ERROR',code,error?.stack||'');

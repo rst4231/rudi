@@ -3,7 +3,7 @@ const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,trackerGroup=null;
-let habitState={habits:[],completedIds:[],collapsed:false,today:'',done:0,total:0},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitCollapseButton=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null;
+let habitState={habits:[],completedIds:[],collapsed:false,today:'',date:'',done:0,total:0},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -30,16 +30,53 @@ function errorText(error){
 }
 function setStatus(text,error=false){if(!statusNode)return;statusNode.textContent=text||'';statusNode.hidden=!text;statusNode.classList.toggle('is-error',Boolean(error))}
 function setHabitStatus(text,error=false){if(!habitStatusNode)return;habitStatusNode.textContent=text||'';habitStatusNode.hidden=!text;habitStatusNode.classList.toggle('is-error',Boolean(error))}
+function habitDateKey(date){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(date)}
+function habitParseDateKey(value){const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return match?new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]),12)):null}
+function habitDateLabel(value){
+  const date=habitParseDateKey(value);if(!date)return'';
+  const today=habitState.today||habitDateKey(new Date());
+  if(value===today)return'Сегодня';
+  const base=habitParseDateKey(today),yesterday=base?habitDateKey(new Date(base.getTime()-86400000)):'';
+  if(value===yesterday)return'Вчера';
+  return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(date);
+}
+function renderHabitDates(){
+  if(!habitDateStrip)return;
+  const today=habitState.today||habitDateKey(new Date()),selected=habitSelectedDate||habitState.date||today;
+  habitDateStrip.replaceChildren();
+  const base=habitParseDateKey(today);if(!base)return;
+  for(let offset=6;offset>=0;offset--){
+    const date=new Date(base.getTime()-offset*86400000),key=habitDateKey(date);
+    const button=document.createElement('button');button.type='button';button.className='personal-habit-date';button.classList.toggle('is-selected',key===selected);button.dataset.date=key;
+    const weekday=document.createElement('span');weekday.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'short',timeZone:'Europe/Moscow'}).format(date).replace('.','');
+    const day=document.createElement('strong');day.textContent=new Intl.DateTimeFormat('ru-RU',{day:'2-digit',timeZone:'Europe/Moscow'}).format(date);
+    button.append(weekday,day);
+    button.addEventListener('click',()=>loadHabitsForDate(key));
+    habitDateStrip.appendChild(button);
+  }
+  if(habitDateInput){habitDateInput.max=today;habitDateInput.value=selected}
+}
+async function loadHabitsForDate(date){
+  const target=String(date||'').trim();if(!target)return;
+  habitSelectedDate=target;setHabitStatus('');
+  try{applyHabitView(await habitRequest('list',{date:target}))}
+  catch(error){console.error('RUDI_HABIT_DATE_UI_ERROR',error);setHabitStatus('Не удалось загрузить выбранную дату.',true)}
+}
 function habitEmoji(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/вод|пить/.test(value))return'💧';if(/заряд|трен|спорт|ходь|шаг/.test(value))return'🏃';if(/чит|книг/.test(value))return'📚';if(/медит|дых/.test(value))return'🧘';if(/сон|спать|ложиться/.test(value))return'🌙';if(/сахар|слад/.test(value))return'🍎';if(/уч|англ|язык/.test(value))return'🧠';return'🌱'}
-function applyHabitView(data){habitState={habits:Array.isArray(data?.habits)?data.habits:[],completedIds:Array.isArray(data?.completedIds)?data.completedIds:[],collapsed:Boolean(data?.collapsed),today:String(data?.today||''),done:Number(data?.done||0),total:Number(data?.total||0)};renderHabits();applyHabitCollapse()}
+function applyHabitView(data){
+  habitState={habits:Array.isArray(data?.habits)?data.habits:[],completedIds:Array.isArray(data?.completedIds)?data.completedIds:[],collapsed:Boolean(data?.collapsed),today:String(data?.today||''),date:String(data?.date||data?.today||''),done:Number(data?.done||0),total:Number(data?.total||0)};
+  habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
+  renderHabitDates();renderHabits();applyHabitCollapse();
+}
 function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTile.classList.toggle('is-collapsed',habitState.collapsed===true);habitCollapseButton.setAttribute('aria-expanded',String(!habitState.collapsed));habitCollapseButton.setAttribute('aria-label',habitState.collapsed?'Развернуть «Трекер привычек»':'Свернуть «Трекер привычек»')}
 function renderHabits(){
   if(!habitList||!habitProgressText||!habitProgressFill)return;
   const completed=new Set((habitState.completedIds||[]).map(String));
   const habits=Array.isArray(habitState.habits)?habitState.habits:[];
   const done=habits.filter(row=>completed.has(String(row.id))).length,total=habits.length,percent=total?Math.round(done/total*100):0;
-  habitProgressText.textContent=total?done+' из '+total+' выполнено':'Добавь первую привычку';
+  habitProgressText.textContent=total?done+' из '+total+' выполнено'+(habitSelectedDate&&habitSelectedDate!==habitState.today?' · '+habitDateLabel(habitSelectedDate):''):'Добавь первую привычку';
   habitProgressFill.style.width=percent+'%';
+  if(habitPercentNode)habitPercentNode.textContent=percent+'%';
   habitList.replaceChildren();
   if(!habits.length){
     const empty=document.createElement('div');empty.className='personal-habits-empty';empty.textContent='Например: пить воду, читать 20 минут или ложиться спать до 23:00.';habitList.appendChild(empty);return;
@@ -55,14 +92,14 @@ function renderHabits(){
     const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.setAttribute('aria-label','Удалить привычку '+habit.name);remove.textContent='×';
     toggle.addEventListener('click',async()=>{
       if(toggle.disabled)return;toggle.disabled=true;remove.disabled=true;setHabitStatus('');
-      try{applyHabitView(await habitRequest('toggle',{id}))}
+      try{applyHabitView(await habitRequest('toggle',{id,date:habitSelectedDate||habitState.today}))}
       catch(error){console.error('RUDI_HABIT_TOGGLE_UI_ERROR',error);setHabitStatus('Не удалось сохранить отметку.',true)}
       finally{toggle.disabled=false;remove.disabled=false}
     });
     remove.addEventListener('click',async()=>{
       if(remove.disabled||!window.confirm('Удалить привычку «'+String(habit.name||'')+'»?'))return;
       toggle.disabled=true;remove.disabled=true;setHabitStatus('');
-      try{applyHabitView(await habitRequest('remove',{id}))}
+      try{applyHabitView(await habitRequest('remove',{id,date:habitSelectedDate||habitState.today}))}
       catch(error){console.error('RUDI_HABIT_REMOVE_UI_ERROR',error);setHabitStatus('Не удалось удалить привычку.',true);toggle.disabled=false;remove.disabled=false}
     });
     row.append(toggle,remove);habitList.appendChild(row);
@@ -83,7 +120,7 @@ function applyCollapse(){
   const collapsed=prefs().collapsed===true;
   tile.classList.toggle('is-collapsed',collapsed);
   collapseButton.setAttribute('aria-expanded',String(!collapsed));
-  collapseButton.setAttribute('aria-label',collapsed?'Развернуть «Мои БАДы»':'Свернуть «Мои БАДы»');
+  collapseButton.setAttribute('aria-label',collapsed?'Развернуть «БАДы и витамины»':'Свернуть «БАДы и витамины»');
 }
 function applyPosition(){
   if(!trackerGroup||!summary)return;
@@ -206,6 +243,12 @@ function build(){
   recommendationToggle.addEventListener('click',()=>{const expanded=recommendationWrap.classList.toggle('is-expanded');recommendationToggle.textContent=expanded?'Свернуть':'Показать полностью'});
   recommendationWrap.append(recommendationLabel,recommendationNode,recommendationToggle);summary.append(summaryName,summaryMeta,recommendationWrap);
 
+  const habitCalendar=document.createElement('div');habitCalendar.className='personal-habits-calendar';
+  habitDateStrip=document.createElement('div');habitDateStrip.className='personal-habits-date-strip';
+  const habitCalendarPicker=document.createElement('label');habitCalendarPicker.className='personal-habits-calendar-picker';habitCalendarPicker.setAttribute('aria-label','Выбрать прошлую дату');habitCalendarPicker.title='Выбрать прошлую дату';habitCalendarPicker.innerHTML='<span aria-hidden="true">📅</span>';
+  habitDateInput=document.createElement('input');habitDateInput.type='date';habitDateInput.className='personal-habits-date-input';habitCalendarPicker.appendChild(habitDateInput);
+  habitCalendar.append(habitDateStrip,habitCalendarPicker);
+
   habitTile=document.createElement('article');habitTile.className='personal-habits-tile';
   const habitHead=document.createElement('div');habitHead.className='personal-habits-head';
   const habitTitleWrap=document.createElement('div');habitTitleWrap.className='personal-habits-title-wrap';
@@ -215,8 +258,11 @@ function build(){
   habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.textContent='⌄';
   habitHead.append(habitTitleWrap,habitCollapseButton);
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
+  const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';
   const habitProgress=document.createElement('div');habitProgress.className='personal-habits-progress';
   habitProgressFill=document.createElement('span');habitProgressFill.className='personal-habits-progress-fill';habitProgress.append(habitProgressFill);
+  habitPercentNode=document.createElement('span');habitPercentNode.className='personal-habits-percent';habitPercentNode.textContent='0%';
+  habitProgressRow.append(habitProgress,habitPercentNode);
   habitList=document.createElement('div');habitList.className='personal-habits-list';
   habitStatusNode=document.createElement('div');habitStatusNode.className='personal-habits-status';habitStatusNode.hidden=true;
   habitAddButton=document.createElement('button');habitAddButton.type='button';habitAddButton.className='personal-habits-add';habitAddButton.textContent='+ Добавить привычку';
@@ -226,15 +272,14 @@ function build(){
   const habitCancel=document.createElement('button');habitCancel.type='button';habitCancel.className='personal-habits-cancel';habitCancel.textContent='Отмена';
   const habitSave=document.createElement('button');habitSave.type='submit';habitSave.className='personal-habits-save';habitSave.textContent='Добавить';
   habitFormActions.append(habitCancel,habitSave);habitForm.append(habitInput,habitFormActions);
-  habitBody.append(habitProgress,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitBody);
+  habitBody.append(habitProgressRow,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitBody);
 
   tile=document.createElement('article');tile.className='personal-supplements-tile';
   const head=document.createElement('div');head.className='personal-supplements-head';
-  const heading=document.createElement('h2');heading.textContent='Мои БАДы';
+  const heading=document.createElement('h2');heading.textContent='💊 БАДы и витамины';
   const actions=document.createElement('div');actions.className='personal-supplements-actions';
-  const drag=document.createElement('button');drag.type='button';drag.className='personal-supplements-drag';drag.setAttribute('aria-label','Перетащить блок «Мои БАДы»');drag.innerHTML='<span></span><span></span><span></span><span></span><span></span><span></span>';
   collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.textContent='⌄';
-  actions.append(drag,collapseButton);head.append(heading,actions);
+  actions.append(collapseButton);head.append(heading,actions);
   const body=document.createElement('div');body.className='personal-supplements-body';
   const form=document.createElement('form');form.className='personal-supplements-form';
   const input=document.createElement('input');input.type='text';input.maxLength=120;input.placeholder='Название БАДа';input.autocomplete='off';
@@ -242,22 +287,23 @@ function build(){
   statusNode=document.createElement('div');statusNode.className='personal-supplements-status';statusNode.hidden=true;
   list=document.createElement('div');list.className='personal-supplements-list';
   body.append(form,statusNode,list);tile.append(head,body);
-  trackerGroup=document.createElement('div');trackerGroup.className='personal-tracker-group';trackerGroup.append(habitTile,tile);
+  trackerGroup=document.createElement('div');trackerGroup.className='personal-tracker-group';trackerGroup.append(habitCalendar,habitTile,tile);
   content.append(summary,trackerGroup);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
   habitCollapseButton.addEventListener('click',async()=>{
     if(habitCollapseButton.disabled)return;
     const previous=habitState.collapsed;habitState={...habitState,collapsed:!previous};applyHabitCollapse();habitCollapseButton.disabled=true;setHabitStatus('');
-    try{applyHabitView(await habitRequest('collapse',{collapsed:habitState.collapsed}))}
+    try{applyHabitView(await habitRequest('collapse',{collapsed:habitState.collapsed,date:habitSelectedDate||habitState.today}))}
     catch(error){habitState={...habitState,collapsed:previous};applyHabitCollapse();setHabitStatus('Не удалось сохранить состояние блока.',true)}
     finally{habitCollapseButton.disabled=false}
   });
+  habitDateInput.addEventListener('change',()=>{const value=habitDateInput.value;if(value)loadHabitsForDate(value)});
   habitAddButton.addEventListener('click',()=>{habitAddButton.hidden=true;habitForm.hidden=false;habitInput.value='';requestAnimationFrame(()=>habitInput.focus({preventScroll:true}))});
   habitCancel.addEventListener('click',()=>{habitForm.hidden=true;habitAddButton.hidden=false;habitInput.value='';setHabitStatus('')});
   habitForm.addEventListener('submit',async(event)=>{
     event.preventDefault();const name=habitInput.value.trim();if(!name||habitSave.disabled)return;
     habitSave.disabled=true;habitInput.disabled=true;habitCancel.disabled=true;setHabitStatus('');
-    try{applyHabitView(await habitRequest('add',{name}));habitInput.value='';habitForm.hidden=true;habitAddButton.hidden=false}
+    try{applyHabitView(await habitRequest('add',{name,date:habitSelectedDate||habitState.today}));habitInput.value='';habitForm.hidden=true;habitAddButton.hidden=false}
     catch(error){const code=String(error?.message||error);setHabitStatus(code==='habit-duplicate'?'Такая привычка уже есть.':'Не удалось добавить привычку.',true)}
     finally{habitSave.disabled=false;habitInput.disabled=false;habitCancel.disabled=false}
   });
@@ -285,7 +331,7 @@ function build(){
       }
     }
   });
-  setupDrag(drag);setupEdgeSwipeBack();return overlay;
+  setupEdgeSwipeBack();return overlay;
 }
 async function open(){
   actor=String(document.body.dataset.rudiActor||'').trim();if(!actor)return;
@@ -295,7 +341,7 @@ async function open(){
   if(supplementsResult.status==='fulfilled'){
     const data=supplementsResult.value;items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;renderProfileMeta();render();setStatus('');loadDailyRecommendation();
   }else setStatus(errorText(supplementsResult.reason),true);
-  if(habitsResult.status==='fulfilled')applyHabitView(habitsResult.value);
+  if(habitsResult.status==='fulfilled'){habitSelectedDate=String(habitsResult.value?.date||habitsResult.value?.today||'');applyHabitView(habitsResult.value);}
   else{habitProgressText.textContent='Не удалось загрузить';habitList.replaceChildren();setHabitStatus('Не удалось загрузить привычки.',true)}
 }
 function close(){if(!overlay)return;overlay.hidden=true;document.body.classList.remove('personal-profile-open')}

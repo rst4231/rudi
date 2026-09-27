@@ -26,7 +26,7 @@ function normalizeState(value,actor){
     const habit=normalizeHabit(raw);if(!habit||seen.has(habit.id))continue;seen.add(habit.id);habits.push(habit);if(habits.length>=MAX_HABITS)break;
   }
   const validIds=new Set(habits.map(row=>row.id)),completions={};
-  const entries=source.completions&&typeof source.completions==='object'&&!Array.isArray(source.completions)?Object.entries(source.completions):[];
+  const entries=(source.completions&&typeof source.completions==='object'&&!Array.isArray(source.completions)?Object.entries(source.completions):[]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
   for(const [rawDate,rawIds] of entries.slice(-MAX_DAYS)){
     const date=cleanDate(rawDate);if(!date)continue;
     const ids=[];for(const rawId of Array.isArray(rawIds)?rawIds:[]){const id=cleanId(rawId);if(id&&validIds.has(id)&&!ids.includes(id))ids.push(id)}
@@ -46,9 +46,14 @@ async function writeHabits(actor,value,options={}){
   const who=cleanActor(actor),next=normalizeState({...value,initialized:true,actor:who,updatedAt:new Date(options.now||Date.now()).toISOString()},who);
   return normalizeState(await dbOf(who,options).write(next),who);
 }
-function viewHabits(state,now=Date.now()){
-  const today=moscowDateKey(now),completedIds=Array.isArray(state.completions?.[today])?state.completions[today]:[];
-  return{habits:state.habits,completedIds,collapsed:state.collapsed,today,done:completedIds.length,total:state.habits.length,version:state.version,updatedAt:state.updatedAt};
+function resolveHabitDate(value,now=Date.now()){
+  const today=moscowDateKey(now),date=cleanDate(value)||today;
+  if(date>today)throw new Error('habit-date-future');
+  return date;
+}
+function viewHabits(state,options={}){
+  const now=Number(options.now||Date.now()),today=moscowDateKey(now),date=resolveHabitDate(options.date,now),completedIds=Array.isArray(state.completions?.[date])?state.completions[date]:[];
+  return{habits:state.habits,completedIds,collapsed:state.collapsed,today,date,done:completedIds.length,total:state.habits.length,version:state.version,updatedAt:state.updatedAt};
 }
 async function addHabit(actor,name,options={}){
   const who=cleanActor(actor),safe=cleanText(name,80);if(!safe)throw new Error('habit-name-required');
@@ -67,8 +72,8 @@ async function removeHabit(actor,id,options={}){
 async function toggleHabit(actor,id,options={}){
   const who=cleanActor(actor),safe=cleanId(id);if(!safe)throw new Error('habit-id-required');
   return enqueue(who,async()=>{const state=await readHabits(who,options);if(!state.habits.some(row=>row.id===safe))throw new Error('habit-not-found');
-    const today=moscowDateKey(options.now||Date.now()),values=new Set(state.completions[today]||[]);if(values.has(safe))values.delete(safe);else values.add(safe);
-    const completions={...state.completions};if(values.size)completions[today]=[...values];else delete completions[today];
+    const date=resolveHabitDate(options.date,options.now||Date.now()),values=new Set(state.completions[date]||[]);if(values.has(safe))values.delete(safe);else values.add(safe);
+    const completions={...state.completions};if(values.size)completions[date]=[...values];else delete completions[date];
     return writeHabits(who,{...state,version:state.version+1,completions},options);
   });
 }
@@ -77,4 +82,4 @@ async function setHabitsCollapsed(actor,collapsed,options={}){
 }
 function resetMutationQueuesForTests(){tails.clear()}
 
-module.exports={ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,moscowDateKey,normalizeHabit,normalizeState,viewHabits,readHabits,writeHabits,addHabit,removeHabit,toggleHabit,setHabitsCollapsed,resetMutationQueuesForTests};
+module.exports={ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,moscowDateKey,resolveHabitDate,normalizeHabit,normalizeState,viewHabits,readHabits,writeHabits,addHabit,removeHabit,toggleHabit,setHabitsCollapsed,resetMutationQueuesForTests};
