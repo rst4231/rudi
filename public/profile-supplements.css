@@ -270,3 +270,23 @@ body[data-app-tab="home"] .personal-habits-tile.is-collapsed{min-height:94px}
     margin-right:40px;
   }
 }
+
+
+/* RUDI v2.60 — tracker surface alignment */
+body[data-app-tab="home"] .personal-habits-tile,
+body[data-app-tab="home"] .personal-supplements-tile{
+  border-radius:22px;
+  box-shadow:0 12px 30px rgba(24,29,44,.065);
+}
+html[data-theme="dark"] body[data-app-tab="home"] .personal-habits-tile,
+html[data-theme="dark"] body[data-app-tab="home"] .personal-supplements-tile{
+  box-shadow:0 14px 34px rgba(0,0,0,.20);
+}
+body[data-app-tab="home"] .personal-home-tile-icon{
+  border-radius:16px;
+}
+body[data-app-tab="home"] .personal-habits-subtitle,
+body[data-app-tab="home"] .personal-supplements-subtitle{
+  font-size:10.25px;
+  line-height:1.35;
+}
