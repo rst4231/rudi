@@ -176,6 +176,69 @@ function pickViewerDerivative(photo) {
   return rows.sort((a, b) => b.bytes - a.bytes)[0]?.item || values[0];
 }
 
+
+function derivativeEntries(photo) {
+  return Object.entries(photo?.derivatives || {})
+    .filter(([, item]) => item && item.checksum)
+    .map(([key, item]) => ({ key: String(key || ''), item }));
+}
+
+function looksLikeVideoDerivative(key, item) {
+  const value = [key, item?.mimeType, item?.contentType, item?.type, item?.format]
+    .filter(Boolean).join(' ').toLowerCase();
+  return /video|mov|mp4|m4v|360p|540p|720p|1080p/.test(value);
+}
+
+function looksLikePosterDerivative(key, item) {
+  const value = [key, item?.mimeType, item?.contentType, item?.type, item?.format]
+    .filter(Boolean).join(' ').toLowerCase();
+  return /poster|frame|thumb|image|jpeg|jpg|heic|png/.test(value)
+    && !looksLikeVideoDerivative(key, item);
+}
+
+function pickVideoPosterDerivative(photo) {
+  const rows = derivativeEntries(photo)
+    .filter(({ key, item }) => looksLikePosterDerivative(key, item))
+    .map(({ item }) => ({
+      item,
+      width: Number(item.width || 0),
+      height: Number(item.height || 0),
+      bytes: Number(item.fileSize || 0),
+    }));
+  if (!rows.length) return null;
+  const preferred = rows
+    .filter((row) => row.width > 0 && row.height > 0 && Math.max(row.width, row.height) <= PREVIEW_MAX_EDGE)
+    .sort((a, b) => (b.width * b.height) - (a.width * a.height) || b.bytes - a.bytes);
+  return preferred[0]?.item
+    || rows.sort((a, b) => (a.width * a.height) - (b.width * b.height) || a.bytes - b.bytes)[0]?.item
+    || null;
+}
+
+function pickVideoDerivative(photo) {
+  const rows = derivativeEntries(photo)
+    .filter(({ key, item }) => looksLikeVideoDerivative(key, item))
+    .map(({ key, item }) => ({
+      key,
+      item,
+      width: Number(item.width || 0),
+      height: Number(item.height || 0),
+      bytes: Number(item.fileSize || 0),
+    }));
+  if (!rows.length) return null;
+  const p720 = rows.filter((row) => /720p/i.test(row.key)).sort((a, b) => b.bytes - a.bytes);
+  if (p720.length) return p720[0].item;
+  const sized = rows
+    .filter((row) => row.width > 0 && row.height > 0)
+    .sort((a, b) => {
+      const ae = Math.max(a.width, a.height);
+      const be = Math.max(b.width, b.height);
+      const as = ae <= 1280 ? ae : -ae;
+      const bs = be <= 1280 ? be : -be;
+      return bs - as || b.bytes - a.bytes;
+    });
+  return sized[0]?.item || rows.sort((a, b) => b.bytes - a.bytes)[0]?.item || null;
+}
+
 function assetUrl(assetData, checksum) {
   const item = assetData?.items?.[checksum];
   if (!item) return '';
@@ -193,7 +256,7 @@ async function fetchLatestPhotos(config, options = {}) {
   const streamResult = await postICloud(host, token, 'webstream', { streamCtag: null }, options);
   host = streamResult.host;
   const allPhotos = (Array.isArray(streamResult.payload?.photos) ? streamResult.payload.photos : [])
-    .filter((photo) => photo?.mediaAssetType !== 'video' && photo?.photoGuid)
+    .filter((photo) => photo?.photoGuid)
     .sort((a, b) => photoDate(b) - photoDate(a));
   const totalCount = allPhotos.length;
   const photos = allPhotos.slice(0, 250);
@@ -207,15 +270,20 @@ async function fetchLatestPhotos(config, options = {}) {
 
   const assetResult = await postICloud(host, token, 'webasseturls', { photoGuids: photos.map((p) => p.photoGuid) }, options);
   const result = photos.map((photo) => {
-    const derivative = pickDerivative(photo);
-    const fullDerivative = pickViewerDerivative(photo) || derivative;
+    const isVideo = String(photo?.mediaAssetType || '').toLowerCase() === 'video';
+    const derivative = isVideo ? pickVideoPosterDerivative(photo) : pickDerivative(photo);
+    const fullDerivative = isVideo ? derivative : (pickViewerDerivative(photo) || derivative);
+    const videoDerivative = isVideo ? pickVideoDerivative(photo) : null;
     const checksum = derivative?.checksum || '';
     const fullChecksum = fullDerivative?.checksum || checksum;
     const location = photoLocationMetadata(photo);
+    const url = assetUrl(assetResult.payload, checksum);
     return {
       id: String(photo.photoGuid),
-      url: assetUrl(assetResult.payload, checksum),
-      fullUrl: assetUrl(assetResult.payload, fullChecksum) || assetUrl(assetResult.payload, checksum),
+      type: isVideo ? 'video' : 'image',
+      url,
+      fullUrl: assetUrl(assetResult.payload, fullChecksum) || url,
+      videoUrl: isVideo ? assetUrl(assetResult.payload, videoDerivative?.checksum || '') : '',
       width: Number(derivative?.width || photo.width || 0) || null,
       height: Number(derivative?.height || photo.height || 0) || null,
       fullWidth: Number(fullDerivative?.width || photo.width || 0) || null,
@@ -226,7 +294,7 @@ async function fetchLatestPhotos(config, options = {}) {
       latitude: location.latitude,
       longitude: location.longitude,
     };
-  }).filter((photo) => photo.url);
+  }).filter((photo) => photo.url && (photo.type !== 'video' || photo.videoUrl));
 
   return {
     photos: result,
@@ -269,6 +337,8 @@ module.exports = {
   initialHost,
   pickDerivative,
   pickViewerDerivative,
+  pickVideoPosterDerivative,
+  pickVideoDerivative,
   fetchLatestPhotos,
   getLatestPhotos,
 };

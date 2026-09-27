@@ -21,3 +21,15 @@ test('photo memory reaction is keyed to the selected photo and uses shared react
   assert.match(app,/bindReaction\('sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy'/);
   assert.match(app,/refreshReaction\(currentPhotoMemoryReactionTarget,'sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy'\)/);
 });
+
+
+test('photo memory age keeps remaining full calendar months after years',()=>{
+  assert.match(app,/if\(Number\(nowParts\.day\)<Number\(photoParts\.day\)\) months-=1/);
+  assert.match(app,/remainingMonths=months%12/);
+  assert.match(app,/sharedAlbumAgeLabel\(photo,nowValue=new Date\(\)\)/);
+  assert.match(app,/years\+' '\+yearWord\+' '\+remainingMonths\+' '\+monthWord\+' назад'/);
+});
+
+test('photo memory remains a static image and skips video entries',()=>{
+  assert.match(app,/if\(photo\?\.type==='video'\) return false/);
+});

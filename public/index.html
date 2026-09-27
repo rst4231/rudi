@@ -675,8 +675,8 @@
         <div>
           <div class="section-eyebrow">Вместе</div>
           <div class="shared-album-title-row">
-            <h2 id="sharedAlbumTitle">Наши фото</h2>
-            <span id="sharedAlbumCount" class="shared-album-count">0 фото</span>
+            <h2 id="sharedAlbumTitle">Наш альбом</h2>
+            <span id="sharedAlbumCount" class="shared-album-count">0 медиа</span>
           </div>
         </div>
         <span id="sharedAlbumStatus" class="section-status" hidden></span>
@@ -1151,7 +1151,7 @@
       <span class="app-tab-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="m5.5 17 4.2-4.2 3.2 3.2 2.1-2.1 3.5 3.1"/></svg>
       </span>
-      <span>Фото</span>
+      <span>Альбом</span>
     </button>
   </nav>
 
@@ -1169,6 +1169,7 @@
       </button>
       <div class="photo-viewer-stage">
         <img id="photoViewerImage" alt="">
+        <video id="photoViewerVideo" controls playsinline preload="metadata" hidden></video>
         <div id="photoViewerLoading" class="photo-viewer-loading" role="status" aria-live="polite" hidden>
           <span class="photo-viewer-loading-spinner" aria-hidden="true"></span>
           <span id="photoViewerLoadingText"></span>

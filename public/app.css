@@ -8879,3 +8879,10 @@ html[data-theme="light"] .profile-supplement-intakes-empty{color:rgba(48,54,68,.
   gap:10px;
   border-top:1px solid color-mix(in srgb,var(--green) 15%,var(--line));
 }
+
+/* RUDI v2.25 mixed-media album */
+.shared-album-photo{position:relative}
+.shared-album-video-badge{position:absolute;left:50%;top:50%;z-index:3;transform:translate(-50%,-50%);width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:rgba(0,0,0,.68);color:#fff;font-size:15px;line-height:1;padding-left:2px;box-shadow:0 4px 18px rgba(0,0,0,.28);pointer-events:none}
+.photo-viewer-stage video{display:block;width:100%;height:100%;max-width:100%;max-height:calc(100dvh - 172px - env(safe-area-inset-top) - env(safe-area-inset-bottom));object-fit:contain;background:#000}
+.photo-viewer-stage video[hidden]{display:none!important}
+@media(max-width:430px){.photo-viewer-stage video{max-height:calc(100dvh - 164px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}

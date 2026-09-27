@@ -119,3 +119,31 @@ test('shared album reuses very fresh signed asset URLs instead of refetching iCl
   assert.equal(result.cached, true);
   assert.equal(result.photos[0].id, 'cached-photo');
 });
+
+
+test('shared album includes video with poster and playable derivative', async () => {
+  const photos=[{photoGuid:'video-1',mediaAssetType:'video',dateCreated:'2026-09-20T12:00:00.000Z',derivatives:{
+    PosterFrame:{checksum:'poster-1',width:640,height:360,fileSize:20000,mimeType:'image/jpeg'},
+    '360p':{checksum:'v360',width:640,height:360,fileSize:2000000,mimeType:'video/mp4'},
+    '720p':{checksum:'v720',width:1280,height:720,fileSize:5000000,mimeType:'video/mp4'}
+  }}];
+  const fetchImpl=async(url)=>{
+    const endpoint=String(url).split('/').at(-1);
+    if(endpoint==='webstream') return new Response(JSON.stringify({streamName:'Наш альбом',photos}),{status:200,headers:{'content-type':'application/json'}});
+    if(endpoint==='webasseturls') return new Response(JSON.stringify({
+      items:{
+        'poster-1':{url_location:'cdn',url_path:'/poster.jpg'},
+        v360:{url_location:'cdn',url_path:'/360.mp4'},
+        v720:{url_location:'cdn',url_path:'/720.mp4'}
+      },
+      locations:{cdn:{scheme:'https',hosts:['cdn.example.test']}}
+    }),{status:200,headers:{'content-type':'application/json'}});
+    throw new Error('unexpected endpoint '+endpoint);
+  };
+  const result=await fetchLatestPhotos({url:'https://www.icloud.com/sharedalbum/#A5q2example',token:'A5q2example'},{fetchImpl});
+  assert.equal(result.totalCount,1);
+  assert.equal(result.photos.length,1);
+  assert.equal(result.photos[0].type,'video');
+  assert.equal(result.photos[0].url,'https://cdn.example.test/poster.jpg');
+  assert.equal(result.photos[0].videoUrl,'https://cdn.example.test/720.mp4');
+});

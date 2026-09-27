@@ -7579,6 +7579,7 @@
       function preloadNextSharedAlbumHd(photoIndex){
         [1,2].forEach(offset=>{
           const adjacent=sharedAlbumPhotos[photoIndex+offset];
+          if(adjacent?.type==='video') return;
           const adjacentPreview=String(adjacent?.url||'').trim();
           const adjacentFull=String(adjacent?.fullUrl||'').trim();
           if(adjacentFull&&adjacentFull!==adjacentPreview) preloadSharedAlbumHd(adjacentFull);
@@ -7588,43 +7589,62 @@
       function renderSharedAlbumPhotoViewer(){
         const viewer=document.getElementById('photoViewer');
         const image=document.getElementById('photoViewerImage');
+        const video=document.getElementById('photoViewerVideo');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
         const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
         const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
         const fullUrl=String(photo?.fullUrl||previewUrl).trim();
+        const videoUrl=String(photo?.videoUrl||'').trim();
+        const isVideo=photo?.type==='video';
         const photoIndex=currentSharedAlbumPhotoIndex;
-        if(!viewer||!image||!caption||!date||!original||!previewUrl) return false;
+        if(!viewer||!image||!video||!caption||!date||!original||!previewUrl) return false;
+        if(isVideo&&!videoUrl) return false;
 
         image.onerror=null;
-        image.dataset.photoIndex=String(photoIndex);
-        image.src=previewUrl;
-        image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
-        restartRudiMotion(image,'rudi-photo-swap',280);
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        image.hidden=isVideo;
+        video.hidden=!isVideo;
 
-        if(fullUrl&&fullUrl!==previewUrl){
-          setPhotoViewerLoading('loading','Загружаем фото в высоком качестве…');
-          preloadSharedAlbumHd(fullUrl).then(ok=>{
-            if(currentSharedAlbumPhotoIndex!==photoIndex) return;
-            if(!ok){
-              setPhotoViewerLoading('error','Не удалось загрузить HD. Показано превью.');
-              return;
-            }
-            image.onerror=()=>{
-              image.onerror=null;
-              if(currentSharedAlbumPhotoIndex===photoIndex){
-                image.src=previewUrl;
-                setPhotoViewerLoading('error','Не удалось открыть HD. Показано превью.');
-              }
-            };
-            image.src=fullUrl;
-            restartRudiMotion(image,'rudi-photo-swap',220);
-            setPhotoViewerLoading('', '');
-          });
-          preloadNextSharedAlbumHd(photoIndex);
-        }else{
+        if(isVideo){
+          image.removeAttribute('src');
+          image.alt='';
+          video.poster=previewUrl;
+          video.src=videoUrl;
           setPhotoViewerLoading('', '');
+        }else{
+          video.removeAttribute('poster');
+          image.dataset.photoIndex=String(photoIndex);
+          image.src=previewUrl;
+          image.alt=photo?.caption?String(photo.caption):'Фото из общего альбома';
+          restartRudiMotion(image,'rudi-photo-swap',280);
+
+          if(fullUrl&&fullUrl!==previewUrl){
+            setPhotoViewerLoading('loading','Загружаем фото в высоком качестве…');
+            preloadSharedAlbumHd(fullUrl).then(ok=>{
+              if(currentSharedAlbumPhotoIndex!==photoIndex) return;
+              if(!ok){
+                setPhotoViewerLoading('error','Не удалось загрузить HD. Показано превью.');
+                return;
+              }
+              image.onerror=()=>{
+                image.onerror=null;
+                if(currentSharedAlbumPhotoIndex===photoIndex){
+                  image.src=previewUrl;
+                  setPhotoViewerLoading('error','Не удалось открыть HD. Показано превью.');
+                }
+              };
+              image.src=fullUrl;
+              restartRudiMotion(image,'rudi-photo-swap',220);
+              setPhotoViewerLoading('', '');
+            });
+            preloadNextSharedAlbumHd(photoIndex);
+          }else{
+            setPhotoViewerLoading('', '');
+          }
         }
 
         const dateLabel=sharedAlbumViewerDateLabel(photo);
@@ -7635,10 +7655,8 @@
         caption.hidden=!captionText;
 
         original.disabled=!sharedAlbumOriginalUrl(photo);
-
         return true;
       }
-
       function changeSharedAlbumPhoto(step){
         if(!sharedAlbumPhotos.length) return;
         const nextIndex=currentSharedAlbumPhotoIndex+Number(step||0);
@@ -7652,14 +7670,19 @@
       function closeSharedAlbumPhoto(){
         const viewer=document.getElementById('photoViewer');
         const image=document.getElementById('photoViewerImage');
+        const video=document.getElementById('photoViewerVideo');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
-        if(!viewer||!image||!caption) return;
+        if(!viewer||!image||!video||!caption) return;
         viewer.classList.remove('open');
         viewer.setAttribute('aria-hidden','true');
         document.body.classList.remove('photo-viewer-open');
         image.removeAttribute('src');
         image.alt='';
+        video.pause();
+        video.removeAttribute('src');
+        video.removeAttribute('poster');
+        video.load();
         caption.textContent='';
         caption.hidden=true;
         if(date){date.textContent='';date.hidden=true}
@@ -7774,6 +7797,7 @@
         const todayKey=sharedAlbumDateKey(new Date());
         const todayMs=Date.parse(todayKey+'T12:00:00Z');
         const candidates=photos.filter(photo=>{
+          if(photo?.type==='video') return false;
           const photoTime=sharedAlbumPhotoTime(photo);
           if(!photoTime) return false;
           const key=sharedAlbumDateKey(photoTime);
@@ -7785,42 +7809,44 @@
         return candidates[sharedAlbumHash(todayKey)%candidates.length]||null;
       }
 
-      function sharedAlbumAgeLabel(photo){
+      function sharedAlbumPeriodWord(value,one,few,many){
+        const n=Math.abs(Number(value)||0),mod10=n%10,mod100=n%100;
+        return mod100>=11&&mod100<=14?many:mod10===1?one:mod10>=2&&mod10<=4?few:many;
+      }
+
+      function sharedAlbumAgeLabel(photo,nowValue=new Date()){
         const time=sharedAlbumPhotoTime(photo);
         if(!time) return '';
         const photoDate=new Date(time);
-        const now=new Date();
-        const photoParts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
+        const now=nowValue instanceof Date?nowValue:new Date(nowValue);
+        if(Number.isNaN(now.getTime())) return '';
+        const parts=value=>Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
           timeZone:TZ,year:'numeric',month:'numeric',day:'numeric'
-        }).formatToParts(photoDate).map(part=>[part.type,Number(part.value)||part.value]));
-        const nowParts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
-          timeZone:TZ,year:'numeric',month:'numeric',day:'numeric'
-        }).formatToParts(now).map(part=>[part.type,Number(part.value)||part.value]));
-        const months=(Number(nowParts.year)-Number(photoParts.year))*12+(Number(nowParts.month)-Number(photoParts.month));
+        }).formatToParts(value).map(part=>[part.type,Number(part.value)||part.value]));
+        const photoParts=parts(photoDate),nowParts=parts(now);
+        let months=(Number(nowParts.year)-Number(photoParts.year))*12+(Number(nowParts.month)-Number(photoParts.month));
+        if(Number(nowParts.day)<Number(photoParts.day)) months-=1;
+        months=Math.max(0,months);
         if(months>=12){
-          const years=Math.max(1,Math.floor(months/12));
-          const mod10=years%10,mod100=years%100;
-          const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';
-          return 'Это было '+years+' '+word+' назад';
+          const years=Math.floor(months/12),remainingMonths=months%12;
+          const yearWord=sharedAlbumPeriodWord(years,'год','года','лет');
+          if(remainingMonths){
+            const monthWord=sharedAlbumPeriodWord(remainingMonths,'месяц','месяца','месяцев');
+            return 'Это было '+years+' '+yearWord+' '+remainingMonths+' '+monthWord+' назад';
+          }
+          return 'Это было '+years+' '+yearWord+' назад';
         }
-        if(months>=1){
-          const mod10=months%10,mod100=months%100;
-          const word=mod100>=11&&mod100<=14?'месяцев':mod10===1?'месяц':mod10>=2&&mod10<=4?'месяца':'месяцев';
-          return 'Это было '+months+' '+word+' назад';
-        }
-        const photoKey=sharedAlbumDateKey(photoDate);
-        const nowKey=sharedAlbumDateKey(now);
+        if(months>=1) return 'Это было '+months+' '+sharedAlbumPeriodWord(months,'месяц','месяца','месяцев')+' назад';
+        const photoKey=sharedAlbumDateKey(photoDate),nowKey=sharedAlbumDateKey(now);
         const days=Math.max(1,Math.round((Date.parse(nowKey+'T12:00:00Z')-Date.parse(photoKey+'T12:00:00Z'))/DAY));
-        const mod10=days%10,mod100=days%100;
-        const word=mod100>=11&&mod100<=14?'дней':mod10===1?'день':mod10>=2&&mod10<=4?'дня':'дней';
-        return 'Это было '+days+' '+word+' назад';
+        return 'Это было '+days+' '+sharedAlbumPeriodWord(days,'день','дня','дней')+' назад';
       }
-
       function sharedAlbumPhotoButton(photo,index){
         const button=document.createElement('button');
-        button.className='shared-album-photo';
+        const isVideo=photo?.type==='video';
+        button.className='shared-album-photo'+(isVideo?' is-video':'');
         button.type='button';
-        button.setAttribute('aria-label','Открыть фото '+(index+1)+' крупно');
+        button.setAttribute('aria-label',(isVideo?'Открыть видео ':'Открыть фото ')+(index+1));
         const img=document.createElement('img');
         const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
         const fallbackUrl=String(photo?.fullUrl||'').trim();
@@ -7837,6 +7863,13 @@
           }
         });
         button.appendChild(img);
+        if(isVideo){
+          const play=document.createElement('span');
+          play.className='shared-album-video-badge';
+          play.setAttribute('aria-hidden','true');
+          play.textContent='▶';
+          button.appendChild(play);
+        }
         button.addEventListener('click',()=>openSharedAlbumPhoto(photo,index));
         return button;
       }
@@ -7901,7 +7934,7 @@
           :photos.length;
         homeDashboardState.photoCount=totalCount;
         renderHomeNew();
-        if(count) count.textContent=totalCount+' фото';
+        if(count) count.textContent=totalCount+' медиа';
 
         if(payload.stale){
           status.hidden=false;
@@ -7918,7 +7951,7 @@
           renderSharedAlbumMemory([]);
           const empty=document.createElement('div');
           empty.className='wishlist-empty';
-          empty.textContent='В альбоме пока нет фотографий.';
+          empty.textContent='В альбоме пока нет фото и видео.';
           grid.appendChild(empty);
           return;
         }
@@ -7934,7 +7967,7 @@
           const title=document.createElement('strong');
           title.textContent=group.label;
           const meta=document.createElement('span');
-          meta.textContent=group.photos.length+' фото';
+          meta.textContent=group.photos.length+' медиа';
           head.append(title,meta);
 
           const groupGrid=document.createElement('div');

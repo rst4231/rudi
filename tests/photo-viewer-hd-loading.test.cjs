@@ -22,3 +22,17 @@ test('photo viewer retries HD and preloads the next two full-resolution photos i
   assert.match(app,/preloadSharedAlbumHd\(adjacentFull\)/);
   assert.match(app,/preloadNextSharedAlbumHd\(photoIndex\)/);
 });
+
+
+test('album viewer supports video and does not preload it as an HD image',()=>{
+  assert.match(html,/id="photoViewerVideo" controls playsinline preload="metadata"/);
+  assert.match(app,/const isVideo=photo\?\.type==='video'/);
+  assert.match(app,/video\.poster=previewUrl/);
+  assert.match(app,/video\.src=videoUrl/);
+  assert.match(app,/if\(adjacent\?\.type==='video'\) return/);
+  assert.match(css,/\.shared-album-video-badge/);
+});
+
+test('bottom media tab is named Album',()=>{
+  assert.match(html,/data-app-tab="photos"[\s\S]*?<span>Альбом<\/span>/);
+});
