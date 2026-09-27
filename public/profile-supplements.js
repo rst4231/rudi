@@ -2,7 +2,7 @@
 const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null;
 let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -118,6 +118,8 @@ function prefs(){return readPrefs()}
 function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod100=n%100,mod10=n%10;const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';return n+' '+word}
 function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
+function todaySupplementCount(){const today=habitDateKey(new Date());return items.filter(item=>Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today)).length}
+function renderSupplementSummary(){if(!supplementSummaryNode)return;supplementSummaryNode.textContent='Сегодня принято: '+todaySupplementCount()}
 async function loadDailyRecommendation(){
   if(!recommendationNode)return;
   recommendationNode.classList.remove('is-error');recommendationNode.textContent='Groq готовит рекомендацию дня…';
@@ -133,6 +135,7 @@ function applyCollapse(collapsed=true){
 function applyPosition(){}
 function render(){
   if(!list)return;
+  renderSupplementSummary();
   list.replaceChildren();
   if(!items.length){
     const empty=document.createElement('div');empty.className='personal-supplements-empty';empty.textContent='Пока ничего не добавлено.';list.appendChild(empty);document.dispatchEvent(new CustomEvent('rudi:supplements-render'));return;
@@ -257,14 +260,16 @@ function build(){
   habitTile=document.getElementById('habitHomeTile');
   if(!habitTile){habitTile=document.createElement('section');habitTile.id='habitHomeTile';habitTile.className='personal-habits-tile home-tools-tile';habitTile.dataset.appTabSection='home';habitTile.dataset.homeTile='habits';homeToolsHost?.appendChild(habitTile)}
   const habitHead=document.createElement('div');habitHead.className='personal-habits-head';
+  const habitLead=document.createElement('div');habitLead.className='personal-home-tile-lead';
+  const habitIcon=document.createElement('span');habitIcon.className='personal-home-tile-icon is-habit';habitIcon.textContent='🌱';
   const habitTitleWrap=document.createElement('div');habitTitleWrap.className='personal-habits-title-wrap';
-  const habitHeading=document.createElement('h2');habitHeading.textContent='🌱 Трекер привычек';
+  const habitHeading=document.createElement('h2');habitHeading.textContent='Трекер привычек';
   habitProgressText=document.createElement('div');habitProgressText.className='personal-habits-progress-text';habitProgressText.textContent='Загружаю…';
-  habitTitleWrap.append(habitHeading,habitProgressText);
+  habitTitleWrap.append(habitHeading,habitProgressText);habitLead.append(habitIcon,habitTitleWrap);
   const habitHeadActions=document.createElement('div');habitHeadActions.className='personal-habits-head-actions';
   habitInfoButton=document.createElement('button');habitInfoButton.type='button';habitInfoButton.className='personal-habits-info';habitInfoButton.textContent='ⓘ';habitInfoButton.setAttribute('aria-label','Как работают звёзды за привычки');
-  habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.textContent='⌄';
-  habitHeadActions.append(habitInfoButton,habitCollapseButton);habitHead.append(habitTitleWrap,habitHeadActions);
+  habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.textContent='›';
+  habitHeadActions.append(habitInfoButton,habitCollapseButton);habitHead.append(habitLead,habitHeadActions);
   habitInfoModal=document.createElement('div');habitInfoModal.className='habit-info-modal';habitInfoModal.hidden=true;habitInfoModal.setAttribute('role','presentation');
   const habitInfoBackdrop=document.createElement('button');habitInfoBackdrop.type='button';habitInfoBackdrop.className='habit-info-modal-backdrop';habitInfoBackdrop.setAttribute('aria-label','Закрыть информацию');
   const habitInfoDialog=document.createElement('section');habitInfoDialog.className='habit-info-modal-dialog';habitInfoDialog.setAttribute('role','dialog');habitInfoDialog.setAttribute('aria-modal','true');habitInfoDialog.setAttribute('aria-labelledby','habitInfoModalTitle');
@@ -288,15 +293,20 @@ function build(){
   const habitCancel=document.createElement('button');habitCancel.type='button';habitCancel.className='personal-habits-cancel';habitCancel.textContent='Отмена';
   const habitSave=document.createElement('button');habitSave.type='submit';habitSave.className='personal-habits-save';habitSave.textContent='Добавить';
   habitFormActions.append(habitCancel,habitSave);habitForm.append(habitInput,habitFormActions);
-  habitBody.append(habitProgressRow,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitCalendar,habitBody);
+  habitBody.append(habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitProgressRow,habitCalendar,habitBody);
 
   tile=document.getElementById('supplementsHomeTile');
   if(!tile){tile=document.createElement('section');tile.id='supplementsHomeTile';tile.className='personal-supplements-tile home-tools-tile';tile.dataset.appTabSection='home';tile.dataset.homeTile='supplements';homeToolsHost?.appendChild(tile)}
   const head=document.createElement('div');head.className='personal-supplements-head';
-  const heading=document.createElement('h2');heading.textContent='💊 БАДы и витамины';
+  const supplementLead=document.createElement('div');supplementLead.className='personal-home-tile-lead';
+  const supplementIcon=document.createElement('span');supplementIcon.className='personal-home-tile-icon is-supplement';supplementIcon.textContent='💊';
+  const supplementTitleWrap=document.createElement('div');supplementTitleWrap.className='personal-supplements-title-wrap';
+  const heading=document.createElement('h2');heading.textContent='БАДы и витамины';
+  supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято: 0';
+  supplementTitleWrap.append(heading,supplementSummaryNode);supplementLead.append(supplementIcon,supplementTitleWrap);
   const actions=document.createElement('div');actions.className='personal-supplements-actions';
-  collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.textContent='⌄';
-  actions.append(collapseButton);head.append(heading,actions);
+  collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.textContent='›';
+  actions.append(collapseButton);head.append(supplementLead,actions);
   const body=document.createElement('div');body.className='personal-supplements-body';
   const form=document.createElement('form');form.className='personal-supplements-form';
   const input=document.createElement('input');input.type='text';input.maxLength=120;input.placeholder='Название БАДа';input.autocomplete='off';

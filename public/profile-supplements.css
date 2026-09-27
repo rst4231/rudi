@@ -181,3 +181,46 @@ html[data-theme="light"] .personal-tools-moved-notice{background:#fbfaf7;border-
 .habit-info-modal-copy p{margin:9px 0 0;opacity:.82}
 body.habit-info-modal-open{overflow:hidden}
 html[data-theme="light"] .habit-info-modal-dialog{background:#fbfaf7;color:#1b1d21;border-color:rgba(77,70,58,.08)}
+
+
+/* RUDI v2.56 — pastel home cards from approved reference */
+.home-tools-tile{position:relative;overflow:hidden}
+.personal-home-tile-lead{display:flex;align-items:center;gap:12px;min-width:0;position:relative;z-index:1}
+.personal-home-tile-icon{width:54px;height:54px;flex:0 0 54px;border-radius:18px;display:grid;place-items:center;font-size:30px;line-height:1;box-shadow:inset 0 0 0 1px rgba(255,255,255,.54)}
+.personal-home-tile-icon.is-habit{background:linear-gradient(145deg,#e6f9ea,#dff6e5)}
+.personal-home-tile-icon.is-supplement{background:linear-gradient(145deg,#fff4df,#ffe9dc)}
+.personal-habits-title-wrap,.personal-supplements-title-wrap{min-width:0}
+.personal-habits-head,.personal-supplements-head{position:relative;z-index:1}
+.personal-habits-head h2,.personal-supplements-head h2{font-size:20px!important;line-height:1.15;letter-spacing:-.025em}
+.personal-habits-progress-text,.personal-supplements-summary{margin-top:4px;font-size:13px;line-height:1.3;opacity:.58}
+.personal-habits-info,.personal-habits-collapse,.personal-supplements-collapse{width:44px;height:44px;flex:0 0 44px;background:rgba(255,255,255,.62)!important;border:1px solid rgba(35,39,45,.08)!important;box-shadow:0 6px 16px rgba(40,46,55,.05);position:relative;z-index:2}
+.personal-habits-info{font-size:20px}
+.personal-habits-collapse,.personal-supplements-collapse{font-size:32px;line-height:1;font-weight:450;transition:transform .18s ease}
+.personal-habits-tile.is-collapsed .personal-habits-collapse,.personal-supplements-tile.is-collapsed .personal-supplements-collapse{transform:none}
+.personal-habits-tile:not(.is-collapsed) .personal-habits-collapse,.personal-supplements-tile:not(.is-collapsed) .personal-supplements-collapse{transform:rotate(90deg)}
+.personal-habits-tile,.personal-supplements-tile{padding:16px 17px;border-radius:24px;border:1px solid rgba(255,255,255,.68);box-shadow:0 14px 32px rgba(35,42,50,.08)}
+.personal-habits-tile{background:linear-gradient(120deg,#f6fbf7 0%,#eefbf1 58%,#e9faed 100%)!important}
+.personal-supplements-tile{background:linear-gradient(120deg,#fffaf4 0%,#fff4e6 58%,#ffefcf 100%)!important}
+.personal-habits-tile::after,.personal-supplements-tile::after{position:absolute;right:66px;bottom:7px;font-size:54px;line-height:1;opacity:.08;pointer-events:none;filter:saturate(.85)}
+.personal-habits-tile::after{content:'🌿'}
+.personal-supplements-tile::after{content:'💊';transform:rotate(-28deg)}
+.personal-habits-progress-row{position:relative;z-index:1;margin:10px 56px 0 66px;grid-template-columns:minmax(0,1fr) auto}
+.personal-habits-progress{height:8px;background:rgba(64,111,77,.12)}
+.personal-habits-progress-fill{background:linear-gradient(90deg,#39c866,#30bd62)}
+.personal-habits-percent{font-size:12px;opacity:.62}
+.personal-habits-tile>.personal-habits-calendar{position:relative;z-index:1}
+.personal-habits-body,.personal-supplements-body{position:relative;z-index:1}
+html[data-theme="dark"] .personal-habits-tile{background:linear-gradient(120deg,#19241d,#1d2d22)!important;border-color:rgba(124,181,139,.12)}
+html[data-theme="dark"] .personal-supplements-tile{background:linear-gradient(120deg,#262018,#30261a)!important;border-color:rgba(221,180,112,.12)}
+html[data-theme="dark"] .personal-habits-info,html[data-theme="dark"] .personal-habits-collapse,html[data-theme="dark"] .personal-supplements-collapse{background:rgba(255,255,255,.055)!important;border-color:rgba(255,255,255,.08)!important}
+html[data-theme="dark"] .personal-home-tile-icon.is-habit{background:linear-gradient(145deg,#203a29,#1b3023)}
+html[data-theme="dark"] .personal-home-tile-icon.is-supplement{background:linear-gradient(145deg,#45321d,#3a2819)}
+@media(max-width:420px){
+  .personal-habits-tile,.personal-supplements-tile{padding:15px}
+  .personal-home-tile-icon{width:50px;height:50px;flex-basis:50px;border-radius:16px;font-size:27px}
+  .personal-home-tile-lead{gap:10px}
+  .personal-habits-head h2,.personal-supplements-head h2{font-size:18px!important}
+  .personal-habits-info,.personal-habits-collapse,.personal-supplements-collapse{width:40px;height:40px;flex-basis:40px}
+  .personal-habits-head-actions{gap:5px}
+  .personal-habits-progress-row{margin-left:60px;margin-right:48px}
+}
