@@ -10659,3 +10659,37 @@ body[data-app-tab="wishlist"] .wishlist-url-toggle,
 @media(max-width:430px){
   .score-modal-sheet{padding-left:11px!important;padding-right:11px!important}
 }
+
+
+/* RUDI v2.64 — unified disclosure controls */
+.lulu-walk-history-toggle,
+body[data-app-tab="fasting"] .fasting-history-toggle{
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:10px!important;
+  font-size:0!important;
+}
+.lulu-walk-history-toggle svg,
+body[data-app-tab="fasting"] .fasting-history-toggle svg{
+  width:15px!important;
+  height:15px!important;
+  fill:none!important;
+  stroke:currentColor!important;
+  stroke-width:1.9!important;
+  stroke-linecap:round!important;
+  stroke-linejoin:round!important;
+  transition:transform .24s ease!important;
+}
+.lulu-walk-history-toggle svg,
+body[data-app-tab="fasting"] .fasting-history-toggle[aria-expanded="false"] svg{
+  transform:rotate(-90deg)!important;
+}
+.lulu-walk-history-toggle[aria-expanded="true"] svg,
+body[data-app-tab="fasting"] .fasting-history-toggle[aria-expanded="true"] svg{
+  transform:none!important;
+}

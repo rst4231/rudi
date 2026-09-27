@@ -290,3 +290,49 @@ body[data-app-tab="home"] .personal-supplements-subtitle{
   font-size:10.25px;
   line-height:1.35;
 }
+
+
+/* RUDI v2.64 — profile control consistency */
+body[data-app-tab="home"] .personal-habits-info{
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  flex-basis:30px!important;
+  padding:0!important;
+  border-radius:10px!important;
+  font-size:15px!important;
+  line-height:1!important;
+}
+body[data-app-tab="home"] .personal-habits-collapse,
+body[data-app-tab="home"] .personal-supplements-collapse{
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  flex-basis:30px!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:10px!important;
+  font-size:0!important;
+}
+body[data-app-tab="home"] .personal-habits-collapse svg,
+body[data-app-tab="home"] .personal-supplements-collapse svg{
+  width:15px!important;
+  height:15px!important;
+  fill:none!important;
+  stroke:currentColor!important;
+  stroke-width:1.9!important;
+  stroke-linecap:round!important;
+  stroke-linejoin:round!important;
+  transition:transform .24s ease!important;
+}
+body[data-app-tab="home"] .personal-habits-collapse[aria-expanded="false"] svg,
+body[data-app-tab="home"] .personal-supplements-collapse[aria-expanded="false"] svg{
+  transform:rotate(-90deg)!important;
+}
+body[data-app-tab="home"] .personal-habits-collapse[aria-expanded="true"] svg,
+body[data-app-tab="home"] .personal-supplements-collapse[aria-expanded="true"] svg{
+  transform:none!important;
+}

@@ -310,7 +310,7 @@ function build(){
   habitTitleWrap.append(habitHeading,habitProgressText);habitLead.append(habitIcon,habitTitleWrap);
   const habitHeadActions=document.createElement('div');habitHeadActions.className='personal-habits-head-actions';
   habitInfoButton=document.createElement('button');habitInfoButton.type='button';habitInfoButton.className='personal-habits-info';habitInfoButton.textContent='ⓘ';habitInfoButton.setAttribute('aria-label','Как работают звёзды за привычки');
-  habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.textContent='›';
+  habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
   habitHeadActions.append(habitInfoButton,habitCollapseButton);habitHead.append(habitLead,habitHeadActions);
   habitInfoModal=document.createElement('div');habitInfoModal.className='habit-info-modal';habitInfoModal.hidden=true;habitInfoModal.setAttribute('role','presentation');
   const habitInfoBackdrop=document.createElement('button');habitInfoBackdrop.type='button';habitInfoBackdrop.className='habit-info-modal-backdrop';habitInfoBackdrop.setAttribute('aria-label','Закрыть информацию');
@@ -318,7 +318,7 @@ function build(){
   habitInfoClose=document.createElement('button');habitInfoClose.type='button';habitInfoClose.className='habit-info-modal-close';habitInfoClose.setAttribute('aria-label','Закрыть');habitInfoClose.textContent='×';
   const habitInfoTitle=document.createElement('strong');habitInfoTitle.id='habitInfoModalTitle';habitInfoTitle.className='habit-info-modal-title';habitInfoTitle.textContent='Как работают звёзды';
   habitInfoPanel=document.createElement('div');habitInfoPanel.className='habit-info-modal-copy';
-  habitInfoPanel.innerHTML='<p>За сегодня кнопку 🟢 <b>«Выполнено»</b> можно нажать только после <b>20:00 МСК</b>. Ограничение относится только к кнопке — начисление награды не привязано ко времени.</p><p>Первые 3 привычки в списке — бонусные.</p><p>🟢 Выполнено сегодня → <b>+0,05 ⭐</b>. 🔴 Не выполнено → <b>−0,1 ⭐</b>.</p><p>Если бонусная привычка останется без статуса до конца дня, после завершения дня спишется <b>−0,1 ⭐</b>.</p><p>Остальные привычки работают без бонуса и штрафа. За прошлые даты звёзды не меняются.</p><p>В 21:00 приходит напоминание, если остались привычки без статуса. Для бонусных привычек оно предупреждает о штрафе.</p><p>Удалённая привычка больше не участвует в наградах, штрафах и напоминаниях. Под названием показывается серия выполнения.</p><p>Повторные переключения защищены от двойных начислений и списаний.</p>';
+  habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 Сделал привычку → получишь <b>+0,05 ⭐</b>.<br>🔴 Не сделал → снимется <b>−0,1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−0,1 ⭐</b>.</p><p>Остальные привычки можно просто отмечать. За них звёзды не добавляются и не снимаются.</p><p>В <b>21:00</b> RUDI напомнит, если ты что-то не отметил.</p><p>Если случайно нажал <b>«Выполнено»</b>, несколько секунд можно нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
   habitInfoDialog.append(habitInfoClose,habitInfoTitle,habitInfoPanel);habitInfoModal.append(habitInfoBackdrop,habitInfoDialog);document.body.appendChild(habitInfoModal);
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
   const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';
@@ -347,7 +347,7 @@ function build(){
   supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято: 0';
   supplementTitleWrap.append(heading,supplementSummaryNode);supplementLead.append(supplementIcon,supplementTitleWrap);
   const actions=document.createElement('div');actions.className='personal-supplements-actions';
-  collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.textContent='›';
+  collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
   actions.append(collapseButton);head.append(supplementLead,actions);
   const body=document.createElement('div');body.className='personal-supplements-body';
   const form=document.createElement('form');form.className='personal-supplements-form';
