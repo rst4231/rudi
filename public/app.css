@@ -8865,3 +8865,17 @@ html[data-theme="light"] .profile-supplement-intake-row{
 html[data-theme="light"] .profile-supplement-intake-name{color:#252a35}
 html[data-theme="light"] .profile-supplement-intake-time{color:#6675ee}
 html[data-theme="light"] .profile-supplement-intakes-empty{color:rgba(48,54,68,.56);opacity:1}
+
+
+/* RUDI v2.25: inline details for each shared task */
+.ticktick-today-inline-details{
+  grid-column:1/-1;
+  min-width:0;
+}
+.ticktick-today-inline-details[hidden]{display:none!important}
+.ticktick-today-inline-details .ticktick-details-inner{
+  margin-top:1px;
+  padding-top:10px;
+  gap:10px;
+  border-top:1px solid color-mix(in srgb,var(--green) 15%,var(--line));
+}

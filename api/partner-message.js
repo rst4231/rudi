@@ -637,6 +637,25 @@ function taskCompletedNotificationText(actor, title) {
   return `✅ <b>${actor} ${action}</b>\n<i>${escapeTelegramHtml(String(title || 'Совместное дело').trim())}</i>`;
 }
 
+async function sendTaskCompletedNotificationToPartner(actor,title,options={}) {
+  const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
+  if(!recipient) return {sent:false,reason:'actor-invalid'};
+  try{
+    const recipients=options.recipients||await readRecipients(options);
+    const chatId=Number(recipients?.[recipient]);
+    if(!Number.isInteger(chatId)||chatId<=0) return {sent:false,recipient,reason:'recipient-not-configured'};
+    const result=await telegramSendMessage(
+      chatId,
+      taskCompletedNotificationText(actor,title),
+      {...options,tab:'schedule',buttonText:'Открыть совместные дела'}
+    );
+    return {sent:true,recipient,...result};
+  }catch(error){
+    console.warn('RUDI_TASK_COMPLETE_NOTIFICATION_WARN',String(error?.message||error));
+    return {sent:false,recipient,error:String(error?.message||error)};
+  }
+}
+
 function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
   const action = actor === 'Диана' ? 'выполнила пункт' : 'выполнил пункт';
   const parent = String(taskTitle || '').trim();
@@ -1238,11 +1257,7 @@ async function handleTickTick(req, res, action, options = {}) {
 
       await completeTickTickTask(token.accessToken, config.projectId, taskId, options);
       if (wasOpen) {
-        await sendActivityNotification(
-          taskCompletedNotificationText(actor, task?.title),
-          'schedule',
-          options
-        );
+        await sendTaskCompletedNotificationToPartner(actor,task?.title,options);
         await recordActivity({
           type: 'task-complete',
           actor,
@@ -3190,6 +3205,7 @@ module.exports.sendDailyQuestionAnswerNotification = sendDailyQuestionAnswerNoti
 module.exports.moodNotificationText = moodNotificationText;
 module.exports.sendMoodNotificationToPartner = sendMoodNotificationToPartner;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
+module.exports.sendTaskCompletedNotificationToPartner = sendTaskCompletedNotificationToPartner;
 module.exports.checklistCompletedNotificationText = checklistCompletedNotificationText;
 module.exports.luluWalkStatusLabel = luluWalkStatusLabel;
 module.exports.luluWalkNotificationText = luluWalkNotificationText;

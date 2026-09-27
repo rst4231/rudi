@@ -70,6 +70,27 @@ test('today endpoint keeps description and checklist support in the UI',()=>{
   assert.match(api,/description: String\(source\.desc \|\| source\.content/);
   assert.match(api,/checklistAuditForItem\(auditState/);
   assert.match(app,/panel\.dataset\.openTaskId/);
-  assert.match(app,/renderTickTickDetails\(task,\{writable:payload\?\.writable!==false/);
+  assert.match(app,/createTickTickInlineDetails\(task,\{writable:payload\?\.writable!==false\}\)/);
+  assert.match(app,/inlineDetails\.hidden=false/);
   assert.match(app,/renderTickTickTodayState\(payload,\{preserveExpanded\}\)/);
+});
+
+
+test('Home shared task assignees use human names and gendered labels',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(app,/value==='ди'\|\|value==='диана'\) return 'Ответственная Диана'/);
+  assert.match(app,/value==='rst'\|\|value==='рустам'\) return 'Ответственный Рустам'/);
+  assert.match(app,/return 'Ответственные Рустам и Диана'/);
+  assert.match(app,/const assignee=tickTickAssigneeLabel\(task\)/);
+});
+
+test('today task details render inline under the selected task instead of the bottom panel',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(app,/className='ticktick-today-inline-details'/);
+  assert.match(app,/row\.appendChild\(inlineDetails\)/);
+  assert.match(app,/otherDetails\.hidden=true/);
+  assert.match(app,/reopenTask\.inlineDetails\.hidden=false/);
+  assert.match(css,/\.ticktick-today-inline-details\{/);
+  assert.match(css,/grid-column:1\/-1/);
 });

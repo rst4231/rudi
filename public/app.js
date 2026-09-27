@@ -6104,7 +6104,7 @@
         }
 
         const nextCompleted=!Boolean(item.completed);
-        const checklist=document.getElementById('ticktickChecklist');
+        const checklist=row.closest('.ticktick-checklist')||document.getElementById('ticktickChecklist');
         const checklistRows=[...(checklist?.querySelectorAll('.ticktick-check-item')||[])];
         for(const checklistRow of checklistRows) checklistRow.disabled=true;
         row.dataset.busy='1';
@@ -6168,15 +6168,7 @@
         }
       }
 
-      function renderTickTickDetails(task,{writable=true,preserveExpanded=false}={}){
-        const panel=document.getElementById('ticktickPanel');
-        const toggle=document.getElementById('ticktickToggle');
-        const descriptionBlock=document.getElementById('ticktickDescriptionBlock');
-        const description=document.getElementById('ticktickDescription');
-        const checklistBlock=document.getElementById('ticktickChecklistBlock');
-        const checklist=document.getElementById('ticktickChecklist');
-        const wasExpanded=preserveExpanded&&panel.classList.contains('expanded');
-
+      function fillTickTickDetails(task,{writable=true,descriptionBlock,description,checklistBlock,checklist}={}){
         const descriptionText=String(task?.description||'').trim();
         const items=Array.isArray(task?.checklist)?task.checklist.filter(item=>item?.title):[];
         const hasDetails=Boolean(descriptionText||items.length);
@@ -6219,7 +6211,51 @@
           row.addEventListener('click',()=>toggleTickTickChecklistItem(task,item,row,writable));
           checklist.appendChild(row);
         }
+        return hasDetails;
+      }
 
+      function createTickTickInlineDetails(task,{writable=true}={}){
+        const details=document.createElement('div');
+        details.className='ticktick-today-inline-details';
+        details.hidden=true;
+
+        const inner=document.createElement('div');
+        inner.className='ticktick-details-inner';
+
+        const descriptionBlock=document.createElement('div');
+        descriptionBlock.className='ticktick-detail-block';
+        const descriptionLabel=document.createElement('div');
+        descriptionLabel.className='ticktick-detail-label';
+        descriptionLabel.textContent='Описание';
+        const description=document.createElement('div');
+        description.className='ticktick-description';
+        descriptionBlock.append(descriptionLabel,description);
+
+        const checklistBlock=document.createElement('div');
+        checklistBlock.className='ticktick-detail-block';
+        const checklistLabel=document.createElement('div');
+        checklistLabel.className='ticktick-detail-label';
+        checklistLabel.textContent='Чек-лист';
+        const checklist=document.createElement('div');
+        checklist.className='ticktick-checklist';
+        checklistBlock.append(checklistLabel,checklist);
+
+        inner.append(descriptionBlock,checklistBlock);
+        details.appendChild(inner);
+        fillTickTickDetails(task,{writable,descriptionBlock,description,checklistBlock,checklist});
+        return details;
+      }
+
+      function renderTickTickDetails(task,{writable=true,preserveExpanded=false}={}){
+        const panel=document.getElementById('ticktickPanel');
+        const toggle=document.getElementById('ticktickToggle');
+        const descriptionBlock=document.getElementById('ticktickDescriptionBlock');
+        const description=document.getElementById('ticktickDescription');
+        const checklistBlock=document.getElementById('ticktickChecklistBlock');
+        const checklist=document.getElementById('ticktickChecklist');
+        const wasExpanded=preserveExpanded&&panel.classList.contains('expanded');
+
+        const hasDetails=fillTickTickDetails(task,{writable,descriptionBlock,description,checklistBlock,checklist});
         panel.classList.toggle('expandable',hasDetails);
         toggle.tabIndex=hasDetails?0:-1;
         setTickTickExpanded(Boolean(wasExpanded&&hasDetails));
@@ -6274,13 +6310,8 @@
 
         title.textContent=payload.task.title||'Без названия';
         date.textContent=formatTickTickDate(payload.task);
-        if(payload.task.assigned){
-          assignee.hidden=false;
-          assignee.textContent='Ответственный: '+payload.task.assignee;
-        }else{
-          assignee.hidden=true;
-          assignee.textContent='';
-        }
+        assignee.hidden=false;
+        assignee.textContent=tickTickAssigneeLabel(payload.task);
 
         badge.hidden=true;
         badge.textContent='';
@@ -6313,11 +6344,18 @@
         setTimeout(()=>{host.classList.remove('is-active');host.replaceChildren()},2100);
       }
 
+      function tickTickAssigneeLabel(task){
+        const value=String(task?.assignee||'').trim().toLocaleLowerCase('ru-RU');
+        if(value==='ди'||value==='диана') return 'Ответственная Диана';
+        if(value==='rst'||value==='рустам') return 'Ответственный Рустам';
+        return 'Ответственные Рустам и Диана';
+      }
+
       function tickTickTodayTaskMeta(task){
         const start=String(task?.startTime||'').trim();
         const end=String(task?.endTime||'').trim();
         const time=task?.allDay?'Весь день':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
-        const assignee=task?.assigned&&task?.assignee&&task.assignee!=='Не назначен'?'Ответственный: '+task.assignee:'';
+        const assignee=tickTickAssigneeLabel(task);
         return [time,assignee].filter(Boolean).join(' · ');
       }
 
@@ -6513,34 +6551,40 @@
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);
 
+          const inlineDetails=hasDetails
+            ?createTickTickInlineDetails(task,{writable:payload?.writable!==false})
+            :null;
+
           if(hasDetails){
             copy.addEventListener('click',event=>{
               event.stopPropagation();
-              const alreadyOpen=panel.dataset.openTaskId===String(task.id)&&panel.classList.contains('expanded');
+              const alreadyOpen=panel.dataset.openTaskId===String(task.id)&&inlineDetails&&!inlineDetails.hidden;
+              list.querySelectorAll('.ticktick-today-copy[aria-expanded="true"]').forEach(node=>{
+                node.setAttribute('aria-expanded','false');
+                const otherDetails=node.closest('.ticktick-today-task')?.querySelector('.ticktick-today-inline-details');
+                if(otherDetails) otherDetails.hidden=true;
+              });
               if(alreadyOpen){
                 panel.dataset.openTaskId='';
-                copy.setAttribute('aria-expanded','false');
-                renderTickTickDetails(null);
                 return;
               }
               panel.dataset.openTaskId=String(task.id);
-              list.querySelectorAll('.ticktick-today-copy[aria-expanded="true"]').forEach(node=>node.setAttribute('aria-expanded','false'));
               copy.setAttribute('aria-expanded','true');
-              renderTickTickDetails(task,{writable:payload?.writable!==false,preserveExpanded:false});
-              setTickTickExpanded(true);
+              inlineDetails.hidden=false;
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
             });
           }
 
           row.append(complete,copy);
+          if(inlineDetails) row.appendChild(inlineDetails);
           list.appendChild(row);
-          if(previousOpenTaskId&&String(task.id)===previousOpenTaskId&&hasDetails) reopenTask={task,copy};
+          if(previousOpenTaskId&&String(task.id)===previousOpenTaskId&&hasDetails) reopenTask={task,copy,inlineDetails};
         }
 
         if(reopenTask){
           panel.dataset.openTaskId=String(reopenTask.task.id);
           reopenTask.copy.setAttribute('aria-expanded','true');
-          renderTickTickDetails(reopenTask.task,{writable:payload?.writable!==false,preserveExpanded:false});
-          setTickTickExpanded(true);
+          reopenTask.inlineDetails.hidden=false;
         }
         if(payload?.writable===false) showTickTickWritePermission();
       }
