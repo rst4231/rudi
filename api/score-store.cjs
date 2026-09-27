@@ -56,7 +56,8 @@ function scoreDateKey(value = Date.now()) {
   return map.year+'-'+map.month+'-'+map.day;
 }
 function normalizeUnits(value) {
-  const number=Math.round(Number(value)||0);
+  const raw=Number(value)||0;
+  const number=Math.round(raw*2)/2;
   return Number.isFinite(number)?number:0;
 }
 function pointsFromUnits(value) { return normalizeUnits(value)/10; }
@@ -294,8 +295,10 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
         id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:request,
         label:meta.label,detail:meta.detail,icon:meta.icon||'⭐',dedupeKey,dateKey,createdAt:now.toISOString(),
       }));
-      next.streakDays[dateKey]={...(next.streakDays[dateKey]||{}),[who]:true};
-      applyStreakBonus(next,who,now);
+      if(meta.affectStreak!==false){
+        next.streakDays[dateKey]={...(next.streakDays[dateKey]||{}),[who]:true};
+        applyStreakBonus(next,who,now);
+      }
     }
     const unlockedRewards=claimUnlockedRewards(next,who,beforeBalance,next.balances[who],now);
     const saved=await writeScoreState(next,options);
@@ -354,6 +357,64 @@ async function awardProductScore(actor,productText,options={}) {
     return {state:saved,awardedUnits,duplicate:false,productCapped:false,globalCapped:false,unlockedRewards};
   });
 }
+async function penalizeScore(actor,requestedUnits,meta={},options={}) {
+  const who=cleanActor(actor);
+  const request=Math.max(0,normalizeUnits(requestedUnits));
+  if(!who||!request) throw new Error('score-penalty-invalid');
+  const dedupeKey=cleanText(meta.dedupeKey,180);
+  return enqueueMutation(async()=>{
+    const state=await readScoreState(options);
+    if(dedupeKey&&state.dedupe[dedupeKey]) return {state,penalizedUnits:0,duplicate:true};
+    const now=new Date(options.now||Date.now()),dateKey=scoreDateKey(now);
+    const next={
+      ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
+      balances:{...state.balances,[who]:normalizeUnits(state.balances[who]-request)},
+      lifetimeEarned:{...state.lifetimeEarned},dailyEarned:{...state.dailyEarned},
+      streakDays:{...state.streakDays},history:[...state.history],dedupe:{...state.dedupe},
+    };
+    if(dedupeKey) next.dedupe[dedupeKey]=now.toISOString();
+    next.history.unshift(normalizeHistoryItem({
+      id:crypto.randomUUID(),actor:who,kind:'spend',units:-request,requestedUnits:-request,
+      label:meta.label||'Штраф',detail:meta.detail||'Списание звёзд',icon:meta.icon||'🔴',
+      dedupeKey,dateKey,createdAt:now.toISOString(),
+    }));
+    const saved=await writeScoreState(next,options);
+    return {state:saved,penalizedUnits:request,duplicate:false};
+  });
+}
+async function reversePenaltyByDedupeKey(dedupeKey,meta={},options={}) {
+  const key=cleanText(dedupeKey,180);
+  if(!key) return {state:await readScoreState(options),reversedUnits:0};
+  return enqueueMutation(async()=>{
+    const state=await readScoreState(options);
+    const index=state.history.findIndex((row)=>row.kind==='spend'&&row.dedupeKey===key&&!row.reversedAt);
+    if(index<0){
+      if(meta.clearDedupe&&state.dedupe[key]){
+        const next={...state,version:Math.max(0,Number(state.version||0))+1,dedupe:{...state.dedupe}};
+        delete next.dedupe[key];
+        return {state:await writeScoreState(next,options),reversedUnits:0};
+      }
+      return {state,reversedUnits:0};
+    }
+    const original=state.history[index],units=Math.abs(normalizeUnits(original.units));
+    const now=new Date(options.now||Date.now());
+    const next={
+      ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
+      balances:{...state.balances,[original.actor]:normalizeUnits(state.balances[original.actor]+units)},
+      lifetimeEarned:{...state.lifetimeEarned},dailyEarned:{...state.dailyEarned},
+      streakDays:{...state.streakDays},
+      history:state.history.map((row,i)=>i===index?{...row,reversedAt:now.toISOString()}:row),
+      dedupe:{...state.dedupe},
+    };
+    if(meta.clearDedupe&&original.dedupeKey) delete next.dedupe[original.dedupeKey];
+    next.history.unshift(normalizeHistoryItem({
+      id:crypto.randomUUID(),actor:original.actor,kind:'reverse',units,requestedUnits:units,
+      label:meta.label||'Отмена штрафа',detail:meta.detail||original.detail||original.label,
+      icon:meta.icon||'↩️',dateKey:scoreDateKey(now),createdAt:now.toISOString(),
+    }));
+    return {state:await writeScoreState(next,options),reversedUnits:units};
+  });
+}
 async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
   const key=cleanText(dedupeKey,180);
   if(!key) return {state:await readScoreState(options),reversedUnits:0};
@@ -378,8 +439,9 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
     const day=normalizeActorUnits(next.dailyEarned[original.dateKey]);
     day[original.actor]=Math.max(0,day[original.actor]-units);
     next.dailyEarned[original.dateKey]=day;
+    if(meta.clearDedupe&&original.dedupeKey) delete next.dedupe[original.dedupeKey];
     const stillActive=next.history.some((row)=>row.actor===original.actor&&row.dateKey===original.dateKey&&row.kind==='earn'&&!row.reversedAt&&!String(row.dedupeKey||'').startsWith('score:streak:'));
-    if(!stillActive&&next.streakDays[original.dateKey]){
+    if(meta.skipStreak!==true&&!stillActive&&next.streakDays[original.dateKey]){
       next.streakDays[original.dateKey]={...next.streakDays[original.dateKey],[original.actor]:false};
       const streakIndex=next.history.findIndex((row)=>row.actor===original.actor&&row.dateKey===original.dateKey&&row.kind==='earn'&&!row.reversedAt&&String(row.dedupeKey||'').startsWith('score:streak:'));
       if(streakIndex>=0){
@@ -528,6 +590,6 @@ function resetMutationQueueForTests(){ mutationTail=Promise.resolve(); }
 
 module.exports={
   NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,PRODUCT_DAILY_LIMIT_UNITS,PRODUCT_REPEAT_MS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
-  readScoreState,writeScoreState,awardScore,awardProductScore,reverseScoreByDedupeKey,transferStars,redeemReward,completeReward,scoreView,restoreScoreState,
+  readScoreState,writeScoreState,awardScore,awardProductScore,penalizeScore,reversePenaltyByDedupeKey,reverseScoreByDedupeKey,transferStars,redeemReward,completeReward,scoreView,restoreScoreState,
   resetMutationQueueForTests,
 };
