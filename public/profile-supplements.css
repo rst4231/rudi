@@ -147,8 +147,8 @@ html[data-theme="light"] .personal-habit-date.is-selected strong{
 .personal-habits-tile>.personal-habits-calendar{
   margin-top:12px;padding:0;border:0;border-radius:0;background:transparent!important;box-shadow:none
 }
-.personal-habits-tile.is-collapsed>.personal-habits-calendar,
-.personal-habits-tile.is-collapsed>.personal-habits-info-panel{display:none!important}
+/* RUDI v2.52 — INFO stays available while habit tracker is collapsed */
+.personal-habits-tile.is-collapsed>.personal-habits-calendar{display:none!important}
 html[data-theme="light"] .personal-habits-tile>.personal-habits-calendar,
 html[data-theme="dark"] .personal-habits-tile>.personal-habits-calendar{
   background:transparent!important;border-color:transparent
