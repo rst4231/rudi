@@ -530,3 +530,56 @@ html[data-theme="dark"] .products-section .kitchen-saved-recipes{
   .for-di-category-head{min-height:60px;padding:9px 11px}
   .for-di-card{padding:11px}
 }
+
+
+/* RUDI v2.59 — extras motion pass */
+.saved-category-head,
+.for-di-category-head,
+.saved-category-chevron,
+.for-di-category-chevron,
+.saved-item,
+.for-di-card,
+.date-idea-save,
+.recipe-save-button,
+.for-di-save,
+.saved-item-delete{
+  transition:
+    transform 150ms cubic-bezier(.22,.75,.24,1),
+    opacity 200ms ease,
+    color 200ms ease,
+    background-color 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+.saved-category:not(.is-collapsed) .saved-category-body,
+.for-di-category:not(.is-collapsed) .for-di-category-body{
+  animation:rudiExtrasDisclosureIn 210ms cubic-bezier(.2,.82,.2,1) both;
+}
+.date-idea-save:active,
+.recipe-save-button:active,
+.for-di-save:not(:disabled):active,
+.saved-item-delete:active{
+  transform:scale(.94);
+}
+@keyframes rudiExtrasDisclosureIn{
+  from{opacity:0;transform:translateY(-5px)}
+  to{opacity:1;transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .saved-category-head,
+  .for-di-category-head,
+  .saved-category-chevron,
+  .for-di-category-chevron,
+  .saved-item,
+  .for-di-card,
+  .date-idea-save,
+  .recipe-save-button,
+  .for-di-save,
+  .saved-item-delete{
+    transition:none!important;
+  }
+  .saved-category:not(.is-collapsed) .saved-category-body,
+  .for-di-category:not(.is-collapsed) .for-di-category-body{
+    animation:none!important;
+  }
+}

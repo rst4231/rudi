@@ -619,11 +619,6 @@
         return 'rudi:auto-refresh:v1:'+actor;
       }
 
-      function interfaceMotionStorageKey(){
-        const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi:interface-motion:v1:'+actor;
-      }
-
       function interfaceTextSizeStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:interface-text-size:v1:'+actor;
@@ -637,11 +632,6 @@
       function autoRefreshEnabled(){
         if(!currentActor) return true;
         try{return localStorage.getItem(autoRefreshStorageKey())!=='0'}catch(_){return true}
-      }
-
-      function interfaceMotionEnabled(){
-        if(!currentActor) return true;
-        try{return localStorage.getItem(interfaceMotionStorageKey())!=='0'}catch(_){return true}
       }
 
       function currentInterfaceTextSize(){
@@ -4122,10 +4112,6 @@
                 '</div>'+
               '</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Анимации</strong><small>Переходы и эффекты</small></div>'+
-                '<button id="settingsMotionToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Анимации"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
-              '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Размер текста</strong><small>Мелкий, обычный или крупный</small></div>'+
                 '<div class="settings-segmented settings-text-size">'+
                   '<button type="button" data-text-size="small" aria-pressed="false">A−</button>'+
@@ -4504,7 +4490,7 @@
           hostSelector:'.work-calendar-head'
         });
         setupPersistentCollapsible({
-          selector:'#productsListCard',key:'kitchen-products',
+          selector:'#productsListCard',key:'kitchen-products-v2',
           bodySelectors:['#productsListBody'],
           hostSelector:'.kitchen-block-head'
         });
@@ -4608,7 +4594,6 @@
       }
 
       function applyInterfacePreferences(){
-        document.body.dataset.uiMotion=interfaceMotionEnabled()?'on':'off';
         document.documentElement.dataset.textSize=currentInterfaceTextSize();
         updateInterfaceSettingsUi();
       }
@@ -4620,14 +4605,6 @@
           button.classList.toggle('active',active);
           button.setAttribute('aria-pressed',active?'true':'false');
         });
-        const motion=document.getElementById('settingsMotionToggle');
-        if(motion) motion.setAttribute('aria-checked',interfaceMotionEnabled()?'true':'false');
-      }
-
-      function setInterfaceMotion(enabled){
-        try{localStorage.setItem(interfaceMotionStorageKey(),enabled?'1':'0')}catch(_){}
-        applyInterfacePreferences();
-        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
       function setInterfaceTextSize(value){
@@ -4697,11 +4674,6 @@
           button.dataset.bound='1';
           button.addEventListener('click',()=>setInterfaceTextSize(button.dataset.textSize));
         });
-        const motion=document.getElementById('settingsMotionToggle');
-        if(motion&&motion.dataset.bound!=='1'){
-          motion.dataset.bound='1';
-          motion.addEventListener('click',()=>setInterfaceMotion(!interfaceMotionEnabled()));
-        }
         const auto=document.getElementById('settingsAutoRefreshToggle');
         if(auto&&auto.dataset.bound!=='1'){
           auto.dataset.bound='1';
@@ -5758,6 +5730,7 @@
 
         const title=String(config?.relationship?.title||'Наша годовщина').trim()||'Наша годовщина';
         const next=nextOccurrence(start.month,start.day);
+        if(next.days>30){card.hidden=true;return}
         document.getElementById('anniversaryTitle').textContent='♥ '+title+' ♥';
         document.getElementById('anniversaryTogether').textContent=values.join(' ');
         document.getElementById('anniversarySince').textContent='Вместе с '+new Intl.DateTimeFormat('ru-RU',{
@@ -8811,7 +8784,6 @@
             }
           });
         }
-        setupDailyQuestionDrag();
         loadDailyQuestion();
       }
 
@@ -10351,7 +10323,7 @@
 
       function fastingHistoryCollapsedStorageKey(){
         const actor=currentActor==='Диана'?'diana':currentActor==='Рустам'?'rustam':'shared';
-        return 'rudi-fasting-history-collapsed-v1-'+actor;
+        return 'rudi-fasting-history-collapsed-v2-'+actor;
       }
 
       function readFastingHistoryCollapsed(){
@@ -10684,7 +10656,9 @@
         const historyToggle=document.getElementById('fastingHistoryToggle');
 
         historyToggle?.addEventListener('click',()=>{
-          setFastingHistoryCollapsed(!readFastingHistoryCollapsed());
+          const card=document.querySelector('.fasting-history-card');
+          const collapsed=card?.classList.contains('is-collapsed')??readFastingHistoryCollapsed();
+          setFastingHistoryCollapsed(!collapsed);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
