@@ -2345,6 +2345,25 @@
         return text.charAt(0).toLocaleUpperCase('ru-RU')+text.slice(1);
       }
 
+      function homeMoonPhase(date=new Date()){
+        const synodicMonth=29.530588853;
+        const newMoonEpoch=Date.UTC(2000,0,6,18,14,0);
+        const age=((((date.getTime()-newMoonEpoch)/86400000)%synodicMonth)+synodicMonth)%synodicMonth;
+        if(age<1.84566||age>=27.68493) return {emoji:'🌑',label:'Новолуние'};
+        if(age<5.53699) return {emoji:'🌒',label:'Растущая Луна'};
+        if(age<9.22831) return {emoji:'🌓',label:'Первая четверть'};
+        if(age<12.91963) return {emoji:'🌔',label:'Растущая Луна'};
+        if(age<16.61096) return {emoji:'🌕',label:'Полнолуние'};
+        if(age<20.30228) return {emoji:'🌖',label:'Убывающая Луна'};
+        if(age<23.99361) return {emoji:'🌗',label:'Последняя четверть'};
+        return {emoji:'🌘',label:'Убывающая Луна'};
+      }
+
+      function homeMoonPhaseLabel(){
+        const phase=homeMoonPhase(new Date());
+        return phase.emoji+' '+phase.label;
+      }
+
       function homeGreeting(){
         const hour=Number(new Intl.DateTimeFormat('en-GB',{
           timeZone:TZ,hour:'2-digit',hourCycle:'h23'
@@ -3618,8 +3637,10 @@
         if(!dashboard) return;
         const greeting=document.getElementById('homeDashboardGreeting');
         const date=document.getElementById('homeDashboardDate');
+        const moon=document.getElementById('homeDashboardMoon');
         if(greeting) greeting.textContent=homeGreeting();
         if(date) date.textContent=homeDashboardDateLabel();
+        if(moon) moon.textContent=homeMoonPhaseLabel();
 
         const today=document.getElementById('homeTodayRows');
         if(today){
@@ -3955,6 +3976,11 @@
         dateHeading.id='homeDashboardDate';
         dateHeading.className='home-dashboard-date';
 
+        const moonPhase=document.createElement('div');
+        moonPhase.id='homeDashboardMoon';
+        moonPhase.className='home-dashboard-moon';
+        moonPhase.textContent=homeMoonPhaseLabel();
+
         const top=document.createElement('div');
         top.className='home-dashboard-head';
         const greeting=document.createElement('h1');
@@ -4042,7 +4068,7 @@
           '</div>';
 
         tools.append(notifications,settings);
-        top.append(greeting,tools,dateHeading);
+        top.append(greeting,tools,dateHeading,moonPhase);
 
         const messageNew=document.createElement('button');
         messageNew.id='homeMessageNew';
@@ -5526,6 +5552,8 @@
         if(legacy) legacy.textContent=weekday+' · '+date;
         const dashboardDate=document.getElementById('homeDashboardDate');
         if(dashboardDate) dashboardDate.textContent=weekday+', '+date;
+        const dashboardMoon=document.getElementById('homeDashboardMoon');
+        if(dashboardMoon) dashboardMoon.textContent=homeMoonPhaseLabel();
         if(currentActor){
           syncStaticProfileWorkStatus();
           renderHomeDashboard();
