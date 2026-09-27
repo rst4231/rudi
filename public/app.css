@@ -10768,3 +10768,59 @@ body[data-app-tab="score"] .shell{
   backdrop-filter:blur(18px);
   -webkit-backdrop-filter:blur(18px);
 }
+
+
+/* RUDI v2.66 — isolate score route from home layout */
+body[data-app-tab="score"]{
+  overflow:hidden!important;
+}
+body[data-app-tab="score"] .footer,
+body[data-app-tab="score"] #appTabBar{
+  display:none!important;
+}
+body[data-app-tab="score"] .score-page{
+  position:fixed!important;
+  inset:0!important;
+  z-index:4700!important;
+  width:100%!important;
+  max-width:none!important;
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch;
+  padding:
+    max(12px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px))
+    max(14px,env(safe-area-inset-right))
+    max(16px,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px),var(--tg-content-safe-area-inset-bottom,0px))
+    max(14px,env(safe-area-inset-left))!important;
+  background:
+    radial-gradient(circle at 50% -8%,color-mix(in srgb,var(--accent-glow) 88%,transparent),transparent 33%),
+    radial-gradient(circle at 105% 46%,color-mix(in srgb,var(--love-glow) 46%,transparent),transparent 34%),
+    var(--bg)!important;
+  color:var(--text)!important;
+}
+body[data-app-tab="score"] .score-page-head,
+body[data-app-tab="score"] .score-page>.score-modal-sheet{
+  width:min(100%,570px)!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+body[data-app-tab="score"] .score-page-head{
+  top:0!important;
+  margin-bottom:10px!important;
+  padding:0 0 8px!important;
+  background:
+    linear-gradient(to bottom,
+      color-mix(in srgb,var(--bg) 98%,transparent) 72%,
+      color-mix(in srgb,var(--bg) 88%,transparent) 88%,
+      transparent 100%)!important;
+}
+body[data-app-tab="score"] .score-page>.score-modal-sheet{
+  background:transparent!important;
+}
+body[data-app-tab="score"] .shell{
+  padding-bottom:0!important;
+}

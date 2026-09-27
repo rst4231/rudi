@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v2.65.0';
+const CACHE_NAME='rudi-shell-v2.66.0';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const SHELL_CACHE_KEEP=2;
 const NAVIGATION_TIMEOUT_MS=3500;
