@@ -8381,8 +8381,7 @@
         }catch(_){}
       }
 
-      function bindReaction(buttonId,namesId,targetProvider){
-        const button=document.getElementById(buttonId);
+      function bindReactionElement(button,names,targetProvider){
         if(!button||button.dataset.reactionBound==='1') return;
         button.dataset.reactionBound='1';
         button.addEventListener('click',async event=>{
@@ -8399,6 +8398,8 @@
           const optimisticLikedBy=liked
             ? [...new Set([...previousLikedBy,currentActor])]
             : previousLikedBy.filter(name=>name!==currentActor);
+          const buttonId=button.id;
+          const namesId=names?.id||'';
           renderReaction({likedBy:optimisticLikedBy},buttonId,namesId);
           button.disabled=true;
           try{
@@ -8418,6 +8419,14 @@
             button.disabled=false;
           }
         });
+      }
+
+      function bindReaction(buttonId,namesId,targetProvider){
+        bindReactionElement(
+          document.getElementById(buttonId),
+          document.getElementById(namesId),
+          targetProvider
+        );
       }
 
       function setupReactions(){
@@ -8630,7 +8639,7 @@
                 currentScoreState=fresh.score||currentScoreState;
                 renderScoreStickers(currentScoreState);
               }catch(_){}
-              if(data?.reward?.awarded&&status) status.textContent='Ответ сохранён · +0,3 ⭐';
+              if(data?.reward?.awarded&&status) status.textContent='Ответ сохранён · +0,1 ⭐';
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(error){
               if(status) status.textContent=String(error?.message||'')==='daily-question-already-answered'
@@ -9230,7 +9239,7 @@
 
         currentFeedReactionTargets.push(target);
         currentFeedReactionBindings.set(reactionTargetId(target),{buttonId,namesId});
-        bindReaction(buttonId,namesId,()=>target);
+        bindReactionElement(button,names,()=>target);
         return strip;
       }
 
