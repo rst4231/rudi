@@ -1,10 +1,12 @@
 {
-  "current": "v2.67",
+  "current": "v2.68",
   "versionBranch": "main",
   "releaseCommit": null,
   "createdAt": "2026-09-27",
-  "basedOnProduction": "fec81540800a9af6a809087d1f741a861446170c",
+  "basedOnProduction": "5a973615e7bc6351bda6791aecd54bb56e56ce2d",
   "notes": [
+    "Страница звёзд получила гарантированный верхний отступ 68–72 px плюс safe-area iPhone/Telegram, чтобы заголовок и кнопка «Назад» не попадали под системную область.",
+    "Верхняя шапка страницы звёзд больше не sticky и не имеет градиентного перекрытия сверху.",
     "Экран звёзд вынесен из .shell прямо в body и работает как самостоятельная полноэкранная route-page, поэтому footer и домашние блоки не могут просвечивать сверху.",
     "Экран звёзд использует собственный безопасный scroll-container и safe-area iPhone/PWA; общий body/layout не переопределяется.",
     "Service Worker не изменяется; свежие app.css/profile-supplements.css/app.js загружаются через новые query-версии v2.67.",

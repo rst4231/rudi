@@ -10829,3 +10829,36 @@ body[data-app-tab="score"] .shell{
   max-height:none!important;
   overflow:visible!important;
 }
+
+
+/* RUDI v2.68 — score page iPhone/PWA top safe-area hotfix */
+.score-page{
+  padding-top:max(
+    68px,
+    env(safe-area-inset-top),
+    var(--tg-safe-area-inset-top,0px),
+    var(--tg-content-safe-area-inset-top,0px),
+    calc(var(--tg-content-safe-top,0px) + 18px)
+  )!important;
+}
+.score-page>.score-page-head{
+  position:relative!important;
+  top:auto!important;
+  padding-top:0!important;
+  margin-top:0!important;
+  background:transparent!important;
+}
+.score-page .score-modal-tabs{
+  top:0!important;
+}
+@media(max-width:430px){
+  .score-page{
+    padding-top:max(
+      72px,
+      env(safe-area-inset-top),
+      var(--tg-safe-area-inset-top,0px),
+      var(--tg-content-safe-area-inset-top,0px),
+      calc(var(--tg-content-safe-top,0px) + 20px)
+    )!important;
+  }
+}
