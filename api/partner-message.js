@@ -2792,7 +2792,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       const quotaBefore = await readDateGenerationQuota(actor, options);
-      if (quotaBefore.available <= 0) {
+      if (quotaBefore?.unlimited !== true && quotaBefore.available <= 0) {
         return res.status(429).json({ ok: false, error: 'date-generation-limit', quota: quotaBefore });
       }
 

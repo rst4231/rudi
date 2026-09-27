@@ -11185,6 +11185,7 @@
       }
 
       function dateQuotaText(quota){
+        if(quota?.unlimited===true) return 'Без лимита';
         const available=Math.max(0,Number(quota?.available??10));
         const max=Math.max(1,Number(quota?.max||10));
         const nextAt=formatDateQuotaTime(quota?.nextRefillAt||quota?.blockedUntil);
@@ -11198,7 +11199,7 @@
       }
 
       function syncDateChoiceAvailability(){
-        const blocked=Number(currentDateGenerationQuota?.available??1)<=0;
+        const blocked=currentDateGenerationQuota?.unlimited!==true&&Number(currentDateGenerationQuota?.available??1)<=0;
         document.querySelectorAll('#dateTimeChoices [data-date-period]').forEach(button=>{
           button.disabled=blocked;
         });
@@ -11206,6 +11207,7 @@
 
       function scheduleDateQuotaRefresh(){
         clearTimeout(dateQuotaRefreshTimer);
+        if(currentDateGenerationQuota?.unlimited===true) return;
         const nextAt=new Date(String(currentDateGenerationQuota?.nextRefillAt||'')).getTime();
         const delay=nextAt-Date.now();
         if(!Number.isFinite(nextAt)||delay<=0) return;

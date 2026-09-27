@@ -13,6 +13,17 @@ function cleanActor(value) {
   return actor === 'Рустам' || actor === 'Диана' ? actor : '';
 }
 
+function unlimitedQuota() {
+  return {
+    unlimited: true,
+    max: 0,
+    available: 0,
+    used: 0,
+    nextRefillAt: '',
+    blockedUntil: '',
+  };
+}
+
 function stateKey(actor) {
   const clean = cleanActor(actor);
   if (!clean) throw new Error('date-generation-actor-invalid');
@@ -70,6 +81,7 @@ function quotaFromUses(uses, now = Date.now()) {
 }
 
 async function readDateGenerationQuota(actor, options = {}) {
+  if (cleanActor(actor) === 'Рустам') return unlimitedQuota();
   const now = Number(options.now || Date.now());
   const state = await cacheOf(options).get(stateKey(actor));
   const uses = normalizedUses(state, now);
@@ -93,13 +105,14 @@ async function recordSuccessfulDateGeneration(actor, options = {}) {
     const cache = cacheOf(options);
     const key = stateKey(actor);
     const current = await cache.get(key);
-    const uses = normalizedUses(current, now);
-    if (uses.length >= MAX_GENERATIONS) {
+    const unlimited = cleanActor(actor) === 'Рустам';
+    const uses = unlimited ? [] : normalizedUses(current, now);
+    if (!unlimited && uses.length >= MAX_GENERATIONS) {
       const error = new Error('date-generation-limit');
       error.quota = quotaFromUses(uses, now);
       throw error;
     }
-    uses.push(now);
+    if (!unlimited) uses.push(now);
     const currentHistory = normalizedHistory(current);
     const generated = (Array.isArray(options.ideas) ? options.ideas : [])
       .map((idea) => ({
@@ -110,7 +123,7 @@ async function recordSuccessfulDateGeneration(actor, options = {}) {
       .filter((row) => row.title);
     const history = normalizedHistory({ history: [...generated, ...currentHistory] });
     await cache.set(key, {
-      usedAt: uses.map((time) => new Date(time).toISOString()),
+      usedAt: unlimited ? [] : uses.map((time) => new Date(time).toISOString()),
       history,
       updatedAt: new Date(now).toISOString(),
     }, {
@@ -118,7 +131,7 @@ async function recordSuccessfulDateGeneration(actor, options = {}) {
       tags: ['rudi-date-generation-limit'],
       name: key,
     });
-    return quotaFromUses(uses, now);
+    return unlimited ? unlimitedQuota() : quotaFromUses(uses, now);
   });
 }
 

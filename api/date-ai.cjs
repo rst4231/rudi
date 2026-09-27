@@ -135,6 +135,20 @@ function normalizeIdeas(payload) {
   return { ideas };
 }
 
+function validDateDescriptionSteps(value) {
+  const lines = String(value || '')
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (lines.length !== 3) return false;
+  return lines.every((line, index) => {
+    const match = line.match(/^(\d+)\.\s+(.+)$/);
+    if (!match || Number(match[1]) !== index + 1) return false;
+    const body = String(match[2] || '').trim();
+    return body.length >= 3 && body.length <= 120;
+  });
+}
+
 function validateIdeaSet(ideas, request) {
   const previous = [
     ...request.exclude,
@@ -142,6 +156,9 @@ function validateIdeaSet(ideas, request) {
   ].filter(Boolean);
   const dianaUnsupportedActivity = /(велосипед|велопрогул|веломаршрут|самокат|электросамокат|ролик(?:и|ах|ами)?|роллер|коньк(?:и|ах|ами)?|каток|плаван|поплавать|бассейн|аквапарк|сап(?:борд)?|sup\b|каяк|байдарк)/i;
   for (const idea of ideas) {
+    if (!validDateDescriptionSteps(idea.description)) {
+      throw new Error('date-ai-description-steps');
+    }
     if (previous.some((old) => similarIdea(idea.title, old))) {
       throw new Error('date-ai-repeat-history');
     }
@@ -220,9 +237,10 @@ function datePrompt(input) {
     request.exclude.length ? 'Не повторяй идеи с такими названиями: ' + request.exclude.join('; ') : '',
     request.history.length ? 'Вот ранее показанные идеи. Не повторяй ни их основное место, ни основную активность, даже под другим названием: ' + request.history.map((row) => row.title + (row.description ? ' — ' + row.description : '')).join(' | ') : '',
     'Все три новые идеи должны отличаться друг от друга по основной активности и месту. Нельзя выдавать три варианта одного и того же формата с разными формулировками.',
-    'Для каждой идеи дай короткое естественное название, 2–4 предложения с понятным планом действий для Рустама и Дианы и ориентировочную длительность.',
+    'Для каждой идеи дай короткое естественное название, ориентировочную длительность и очень краткий description.',
+    'В description обязательно ровно 3 коротких шага на трёх отдельных строках: «1. ...», «2. ...», «3. ...». Каждый шаг — одно короткое действие, без лишних объяснений.',
     'В description обращайся к паре только во втором лице множественного числа: «вы идёте», «вы выбираете», «вы пробуете», «затем вы переходите». Не описывай пару как «они», не пиши «им», «для них», «Рустам и Диана идут/делают».',
-    'Пиши как практичный совет для реальной пары, а не как сюжет рассказа. Не используй Markdown, ссылки или списки внутри description.',
+    'Пиши как практичный совет для реальной пары, а не как сюжет рассказа. Не используй Markdown или ссылки. Единственный формат description — три строки, пронумерованные 1., 2., 3.',
   ].filter(Boolean).join('\n');
 }
 

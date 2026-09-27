@@ -9950,3 +9950,10 @@ html[data-theme="dark"] .app-tab-button.active .app-tab-icon{
   .app-tab-icon{width:48px!important;height:34px!important}
   .app-tab-icon svg{width:24px!important;height:24px!important}
 }
+
+
+/* RUDI v2.45 — date generator numbered steps */
+.date-idea-copy p,
+.saved-date-item .saved-item-description{
+  white-space:pre-line;
+}
