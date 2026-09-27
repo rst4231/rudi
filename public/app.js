@@ -4148,6 +4148,28 @@
         const rustamCard=selfActor==='Рустам'?selfCard:partnerCard;
         const dianaCard=selfActor==='Диана'?selfCard:partnerCard;
 
+        // Desktop browsers can place layout-management layers above the moved profile identity.
+        // Keep the personal-profile hit area reliable even when the name itself is not the event target.
+        const bindSelfProfileDesktopHitArea=()=>{
+          const card=selfCard?.tile;
+          const name=card?.querySelector?.('#displayName');
+          if(!card||!name||card.dataset.personalProfileDesktopBound==='1') return;
+          card.dataset.personalProfileDesktopBound='1';
+          const openPersonalProfile=()=>window.RudiSupplementApp?.open?.();
+          card.addEventListener('click',event=>{
+            if(event.defaultPrevented) return;
+            const target=event.target;
+            if(target?.closest?.('button,a,input,select,textarea')&&!target?.closest?.('#displayName')) return;
+            const rect=name.getBoundingClientRect();
+            const x=Number(event.clientX),y=Number(event.clientY);
+            if(Number.isFinite(x)&&Number.isFinite(y)&&x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom){
+              event.preventDefault();
+              openPersonalProfile();
+            }
+          });
+        };
+        bindSelfProfileDesktopHitArea();
+
         const rhythmAdvice=document.createElement('div');
         rhythmAdvice.id='rustamRhythmAdvice';
         rhythmAdvice.className='rustam-rhythm-advice';

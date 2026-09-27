@@ -9969,3 +9969,15 @@ html[data-theme="dark"] .app-tab-button.active .app-tab-icon{
   margin-top:1px;
   min-height:14px;
 }
+
+
+/* RUDI v2.48 — keep profile name clickable in desktop browser layout */
+#displayName.personal-profile-name-link{
+  position:relative;
+  z-index:8;
+  pointer-events:auto!important;
+  cursor:pointer;
+}
+body.home-layout-editing #displayName.personal-profile-name-link{
+  pointer-events:auto!important;
+}
