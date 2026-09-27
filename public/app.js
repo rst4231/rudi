@@ -2568,6 +2568,7 @@
         modal=document.createElement('div');
         modal.id='scoreModal';
         modal.className='score-modal';
+        modal.dataset.noPullRefresh='true';
         modal.hidden=true;
         modal.innerHTML=
           '<button class="score-modal-backdrop" type="button" aria-label="Закрыть"></button>'+
@@ -4672,6 +4673,7 @@
 
         document.addEventListener('touchstart',event=>{
           if(refreshing||!appAccessReady||!currentActor||event.touches?.length!==1||scrollTop()>topTolerance) return;
+          if(document.body.classList.contains('score-modal-open')) return;
           if(event.target?.closest?.('.voice-assistant-panel,[data-no-pull-refresh="true"]')) return;
           if(event.target?.closest?.('input,textarea,select,[contenteditable="true"]')) return;
           startY=event.touches[0].clientY;
@@ -4682,6 +4684,7 @@
 
         document.addEventListener('touchmove',event=>{
           if(!tracking||refreshing||event.touches?.length!==1) return;
+          if(document.body.classList.contains('score-modal-open')){reset();return}
           if(event.target?.closest?.('.voice-assistant-panel,[data-no-pull-refresh="true"]')){reset();return}
           if(scrollTop()>topTolerance){reset();return}
           const delta=event.touches[0].clientY-startY;
@@ -8510,10 +8513,11 @@
 
         const mineAnswered=Boolean(data?.mineAnswered);
         const partnerAnswered=Boolean(data?.partnerAnswered);
+        const bothAnswered=mineAnswered&&partnerAnswered;
         const revealed=Boolean(data?.revealed&&data?.answers);
-        form.hidden=mineAnswered||revealed;
-        input.disabled=mineAnswered||revealed;
-        if(mineAnswered) input.value='';
+        form.hidden=mineAnswered||bothAnswered||revealed;
+        input.disabled=mineAnswered||bothAnswered||revealed;
+        if(mineAnswered||bothAnswered) input.value='';
 
         if(revealed){
           waiting.hidden=true;

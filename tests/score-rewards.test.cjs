@@ -7,15 +7,14 @@ const expected = [
   ['coffee-tea', 8, 'Партнёр приготовит и принесёт тебе кофе или чай.'],
   ['dessert', 10, 'Ты выбираешь десерт или любимую вкусняшку.'],
   ['movie', 15, 'Ты выбираешь фильм или сериал для совместного просмотра.'],
-  ['dinner', 25, 'Ты решаешь, что будет на ужин.'],
   ['breakfast', 30, 'Партнёр готовит и приносит завтрак в постель.'],
   ['order-food', 30, 'Ты выбираешь, что и откуда заказать.'],
+  ['small-surprise', 35, 'Партнёр придумывает для тебя небольшой сюрприз.'],
   ['massage', 40, 'Домашний массаж от партнёра.'],
-  ['small-surprise', 45, 'Партнёр придумывает для тебя небольшой сюрприз.'],
   ['home-date', 50, 'Партнёр организует уютное свидание дома.'],
-  ['day-off', 80, 'На день освобождаешься от домашних обязанностей.'],
-  ['date', 95, 'Ты выбираешь идею и формат следующего свидания.'],
-  ['gift-3000', 99, 'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.'],
+  ['day-off', 100, 'На день освобождаешься от домашних обязанностей.'],
+  ['date', 110, 'Ты выбираешь идею и формат следующего свидания.'],
+  ['gift-3000', 140, 'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.'],
 ];
 
 test('reward shop contains all rewards with prices and descriptions', () => {
@@ -78,10 +77,10 @@ test('home actions use the configured fractional star rewards', () => {
   const api = fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
   const app = fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
 
-  assert.match(api,/awardScoreSafe\(actor,3,\{\s*label:'Вопрос дня'/s);
-  assert.match(api,/awardScoreSafe\(actor,3,\{\s*label:'Послание'/s);
+  assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Вопрос дня'/s);
+  assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Послание'/s);
   assert.match(api,/awardScoreSafe\(actor,5,\{label:'Прогулка с Лулу'/);
-  assert.match(app,/Ответ сохранён · \+0,3 ⭐/);
+  assert.match(app,/Ответ сохранён · \+0,1 ⭐/);
 
   const likeStart=api.indexOf("if (action === 'partner-message-like')");
   const likeEnd=api.indexOf("if (action === 'partner-message-read')",likeStart);

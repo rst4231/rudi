@@ -21,15 +21,14 @@ const REWARDS = Object.freeze([
   { id:'coffee-tea', label:'Кофе или чай от партнёра', description:'Партнёр приготовит и принесёт тебе кофе или чай.', icon:'☕️', costUnits:80 },
   { id:'dessert', label:'Выбрать десерт или вкусняшку', description:'Ты выбираешь десерт или любимую вкусняшку.', icon:'🍰', costUnits:100 },
   { id:'movie', label:'Выбрать фильм или сериал', description:'Ты выбираешь фильм или сериал для совместного просмотра.', icon:'🎬', costUnits:150 },
-  { id:'dinner', label:'Выбрать ужин', description:'Ты решаешь, что будет на ужин.', icon:'🍽️', costUnits:250 },
   { id:'breakfast', label:'Завтрак в постель', description:'Партнёр готовит и приносит завтрак в постель.', icon:'🥐', costUnits:300 },
   { id:'order-food', label:'Выбрать, что заказать поесть', description:'Ты выбираешь, что и откуда заказать.', icon:'🍕', costUnits:300 },
+  { id:'small-surprise', label:'Маленький сюрприз', description:'Партнёр придумывает для тебя небольшой сюрприз.', icon:'🎁', costUnits:350 },
   { id:'massage', label:'Массаж', description:'Домашний массаж от партнёра.', icon:'💆', costUnits:400 },
-  { id:'small-surprise', label:'Маленький сюрприз', description:'Партнёр придумывает для тебя небольшой сюрприз.', icon:'🎁', costUnits:450 },
   { id:'home-date', label:'Домашнее свидание', description:'Партнёр организует уютное свидание дома.', icon:'🕯️', costUnits:500 },
-  { id:'day-off', label:'День без домашних обязанностей', description:'На день освобождаешься от домашних обязанностей.', icon:'🛋️', costUnits:800 },
-  { id:'date', label:'Выбрать свидание', description:'Ты выбираешь идею и формат следующего свидания.', icon:'💞', costUnits:950 },
-  { id:'gift-3000', label:'Подарок до 3 000 ₽', description:'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.', icon:'🎀', costUnits:990 },
+  { id:'day-off', label:'День без домашних обязанностей', description:'На день освобождаешься от домашних обязанностей.', icon:'🛋️', costUnits:1000 },
+  { id:'date', label:'Выбрать свидание', description:'Ты выбираешь идею и формат следующего свидания.', icon:'💞', costUnits:1100 },
+  { id:'gift-3000', label:'Подарок до 3 000 ₽', description:'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.', icon:'🎀', costUnits:1400 },
 ]);
 
 let mutationTail = Promise.resolve();
