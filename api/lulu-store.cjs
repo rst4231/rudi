@@ -219,6 +219,50 @@ async function cancelLuluWalk(walkedAt, options = {}) {
   });
 }
 
+async function restoreLuluWalk(value, options = {}) {
+  const restored = normalizeWalk(value);
+  if (!restored || (!restored.peed && !restored.pooped)) throw new Error('lulu-walk-invalid');
+
+  return enqueueMutation(async () => {
+    const current = await readLuluState(options);
+    const today = moscowDateKey(options.now || Date.now());
+    if (moscowDateKey(restored.walkedAt) !== today) throw new Error('lulu-walk-day-invalid');
+
+    const previous = Array.isArray(current.walksToday) ? current.walksToday : [];
+    const walksToday = [...previous.filter((row) => row.walkedAt !== restored.walkedAt), restored]
+      .sort((a, b) => new Date(a.walkedAt).getTime() - new Date(b.walkedAt).getTime())
+      .slice(-16);
+    const lastWalk = walksToday.length ? walksToday[walksToday.length - 1] : restored;
+
+    const latestStamp = (left, right) => {
+      const a = normalizeStamp(left);
+      const b = normalizeStamp(right);
+      if (!a) return b;
+      if (!b) return a;
+      return Date.parse(a) >= Date.parse(b) ? a : b;
+    };
+
+    const lastPeeAt = restored.peed
+      ? latestStamp(current.lastPeeAt, restored.walkedAt)
+      : current.lastPeeAt;
+    const lastPoopAt = restored.pooped
+      ? latestStamp(current.lastPoopAt, restored.walkedAt)
+      : current.lastPoopAt;
+
+    return writeLuluState({
+      ...current,
+      initialized: true,
+      version: Math.max(0, Number(current.version || 0)) + 1,
+      lastWalk,
+      walksToday,
+      lastPeeAt,
+      lastPoopAt,
+      toiletAlert: null,
+      updatedAt: new Date(options.now || Date.now()).toISOString(),
+    }, options);
+  });
+}
+
 async function recordLuluToiletAlertRecipients(walkedAt, actors, options = {}) {
   const targetWalkedAt = String(walkedAt || '').trim();
   const cleanActors = Array.from(new Set(
@@ -266,6 +310,7 @@ module.exports = {
   writeLuluState,
   markLuluWalk,
   cancelLuluWalk,
+  restoreLuluWalk,
   recordLuluToiletAlertRecipients,
   restoreLuluState,
   resetMutationQueueForTests,

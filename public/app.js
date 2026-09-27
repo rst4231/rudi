@@ -3159,13 +3159,19 @@
             }).format(date);
             const actor=String(row.actor||'').trim();
             const companion=actor==='Диана'?'Дианой':actor==='Рустам'?'Рустамом':actor;
-            const item=document.createElement('button');
-            item.type='button';
+            const item=document.createElement('div');
             item.className='lulu-walk-history-item';
             const toilet=[row.peed?'💧':'',row.pooped?'💩':''].filter(Boolean).join(' ');
-            item.textContent=time+' · с '+companion+(toilet?' · '+toilet:'');
-            item.setAttribute('aria-label','Отменить прогулку '+time+' с '+companion);
-            item.addEventListener('click',()=>cancelLuluWalkEntry(row,item));
+            const text=document.createElement('div');
+            text.className='lulu-walk-history-text';
+            text.textContent=time+' · с '+companion+(toilet?' · '+toilet:'');
+            const cancel=document.createElement('button');
+            cancel.type='button';
+            cancel.className='lulu-walk-history-cancel';
+            cancel.textContent='Отменить';
+            cancel.setAttribute('aria-label','Отменить прогулку '+time+' с '+companion);
+            cancel.addEventListener('click',()=>cancelLuluWalkEntry(row,cancel));
+            item.append(text,cancel);
             panel.appendChild(item);
           }
         }
@@ -3173,11 +3179,13 @@
 
       function toggleLuluWalkHistory(){
         const panel=document.getElementById('luluWalkHistory');
-        const status=document.getElementById('luluWalkStatus');
-        if(!panel||!status) return;
+        const toggle=document.getElementById('luluWalkHistoryToggle');
+        if(!panel||!toggle) return;
         const open=!panel.classList.contains('is-open');
         panel.classList.toggle('is-open',open);
-        status.setAttribute('aria-expanded',open?'true':'false');
+        panel.setAttribute('aria-hidden',open?'false':'true');
+        toggle.setAttribute('aria-expanded',open?'true':'false');
+        toggle.setAttribute('aria-label',open?'Скрыть историю прогулок':'Показать историю прогулок');
       }
 
       function renderLulu(value){
@@ -3282,6 +3290,14 @@
           const payload=await luluRequest('cancel-walk',{walkedAt});
           renderLulu(payload.lulu);
           await loadActivityJournal({silent:true}).catch(()=>null);
+          const undoToken=String(payload?.undoToken||'').trim();
+          if(undoToken){
+            showUndoSnackbar('Прогулка отменена',async()=>{
+              const restored=await luluRequest('restore-walk',{undoToken});
+              renderLulu(restored.lulu);
+              await loadActivityJournal({silent:true}).catch(()=>null);
+            });
+          }
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(_){
           if(button){
@@ -3835,7 +3851,7 @@
         });
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
-        document.getElementById('luluWalkStatus')?.addEventListener('click',toggleLuluWalkHistory);
+        document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',toggleLuluWalkHistory);
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
           navigateToAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
@@ -4304,12 +4320,18 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Лулу" width="58" height="58">'+
-              '<div class="lulu-copy"><h2><span class="lulu-name">Лулу</span><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><button id="luluWalkStatus" class="lulu-walk-status" type="button" aria-expanded="false">Прогулка · пока не отмечена</button><div id="luluWalkHistory" class="lulu-walk-history"></div></div>'+
+              '<div class="lulu-copy"><h2><span class="lulu-name">Лулу</span><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><div id="luluWalkStatus" class="lulu-walk-status">Прогулка · пока не отмечена</div></div>'+
             '</div>'+
-            '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
-              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+
-            '</button>'+
-          '</div>';
+            '<div class="lulu-head-actions">'+
+              '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+
+              '</button>'+
+              '<button id="luluWalkHistoryToggle" class="lulu-walk-history-toggle" type="button" aria-label="Показать историю прогулок" aria-expanded="false" title="История прогулок">'+
+                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>'+
+              '</button>'+
+            '</div>'+
+          '</div>'+
+          '<div id="luluWalkHistory" class="lulu-walk-history" aria-hidden="true"></div>';
 
         const nearest=document.createElement('section');
         nearest.id='homeNearestBlock';

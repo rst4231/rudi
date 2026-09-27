@@ -60,7 +60,7 @@ const {
   removeActivityByDedupeKey,
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
-const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
+const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
@@ -1592,13 +1592,17 @@ async function handleRudiAction(req, res, action, options = {}) {
         const walkedAtDate = new Date(String(body.walkedAt || '').trim());
         if (Number.isNaN(walkedAtDate.getTime())) throw new Error('lulu-walk-invalid');
         const walkedAt = walkedAtDate.toISOString();
+        const beforeCancel = await readLuluState(options);
+        const removedWalk = (Array.isArray(beforeCancel?.walksToday) ? beforeCancel.walksToday : [])
+          .find((row) => row?.walkedAt === walkedAt)
+          || (beforeCancel?.lastWalk?.walkedAt === walkedAt ? beforeCancel.lastWalk : null);
         const notice = await readLuluWalkNotice(walkedAt, options).catch(() => null);
         const lulu = await cancelLuluWalk(walkedAt, options);
 
         await removeActivityByDedupeKey('lulu-walk:' + walkedAt, options).catch((error) => {
           console.warn('RUDI_LULU_ACTIVITY_DELETE_WARN', String(error?.message || error));
         });
-        await reverseScoreByDedupeKey('score:lulu:'+walkedAt,{label:'Отмена прогулки',detail:'Отменена отметка прогулки с Лулу',icon:'↩️'},options).catch((error)=>{
+        await reverseScoreByDedupeKey('score:lulu:'+walkedAt,{label:'Отмена прогулки',detail:'Отменена отметка прогулки с Лулу',icon:'↩️',clearDedupe:true},options).catch((error)=>{
           console.warn('RUDI_LULU_SCORE_REVERSE_WARN',String(error?.message||error));
         });
 
@@ -1612,14 +1616,71 @@ async function handleRudiAction(req, res, action, options = {}) {
           await deleteLuluWalkNotice(walkedAt, options).catch(() => false);
         }
 
+        const undoToken = removedWalk ? sealSnapshot({
+          version:2,
+          createdAt:new Date(options.now || Date.now()).toISOString(),
+          luluUndo:{canceledBy:actor,walk:removedWalk},
+        }, options) : '';
         const backupToken = await refreshBackupToken(previousSnapshot, options);
         return res.status(200).json({
           ok: true,
           actor,
           lulu,
           backupToken,
+          undoToken,
           canceledWalkedAt: walkedAt,
           telegramDeleted,
+        });
+      }
+
+      if (operation === 'restore-walk') {
+        let undoSnapshot=null;
+        try { undoSnapshot=openSnapshot(String(body.undoToken||''),options); }
+        catch { throw new Error('lulu-undo-invalid'); }
+        const createdAt=Date.parse(String(undoSnapshot?.createdAt||''));
+        const nowMs=Number(options.now||Date.now());
+        if(!Number.isFinite(createdAt)||Math.abs(nowMs-createdAt)>30*1000) throw new Error('lulu-undo-expired');
+        if(String(undoSnapshot?.luluUndo?.canceledBy||'')!==actor) throw new Error('lulu-undo-forbidden');
+        const input=undoSnapshot?.luluUndo?.walk;
+        if(!input||typeof input!=='object'||Array.isArray(input)) throw new Error('lulu-undo-invalid');
+
+        const restoredActor=String(input.actor||'').trim();
+        if(restoredActor!=='Рустам'&&restoredActor!=='Диана') throw new Error('lulu-actor-invalid');
+        const walkedAtDate=new Date(String(input.walkedAt||'').trim());
+        if(Number.isNaN(walkedAtDate.getTime())) throw new Error('lulu-walk-invalid');
+        const walkedAt=walkedAtDate.toISOString();
+
+        const beforeRestore=await readLuluState(options);
+        const alreadyPresent=(Array.isArray(beforeRestore?.walksToday)?beforeRestore.walksToday:[])
+          .some((row)=>row?.walkedAt===walkedAt);
+        if(alreadyPresent) throw new Error('lulu-undo-used');
+
+        const lulu=await restoreLuluWalk({
+          actor:restoredActor,
+          walkedAt,
+          peed:input.peed===true,
+          pooped:input.pooped===true,
+          previousPeeAt:String(input.previousPeeAt||''),
+          previousPoopAt:String(input.previousPoopAt||''),
+        },options);
+
+        const actionWord=restoredActor==='Диана'?'погуляла':'погулял';
+        await recordActivity({
+          type:'lulu-walk',actor:restoredActor,text:restoredActor+' '+actionWord+' с Лулу',icon:'🐾',targetTab:'home',
+          dedupeKey:'lulu-walk:'+walkedAt,createdAt:walkedAt,
+        },options);
+        const walkRewardUnits=restoredActor==='Рустам'?20:10;
+        await awardScoreSafe(restoredActor,walkRewardUnits,{
+          label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt
+        },options);
+
+        const notificationTask=sendLuluWalkNotificationToPartner(restoredActor,walkedAt,options);
+        try { waitUntil(notificationTask); } catch (_) { notificationTask.catch(()=>{}); }
+
+        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        return res.status(200).json({
+          ok:true,actor,lulu,backupToken,restoredWalkedAt:walkedAt,
+          notification:{sent:false,pending:true},
         });
       }
 
