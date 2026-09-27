@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { readAppState, writeAppState } = require('./rudi-auth-db.cjs');
 
 const NAMESPACE = 'rudi-car-state-v1';
 const KEY = 'changan-univ-2023';
@@ -7,9 +8,36 @@ const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ERRORS = 50;
 const ERROR_TITLE_MAX = 80;
 const ERROR_COMMENT_MAX = 500;
+const DB_ACTOR = 'Рустам';
+const DB_KEY = 'car:changan-univ-2023';
 
 function getCarCache(options = {}) {
   return options.cache || createStrictRuntimeCache({ namespace: NAMESPACE });
+}
+
+function getCarDb(options = {}) {
+  if (options.db && typeof options.db.read === 'function' && typeof options.db.write === 'function') {
+    return options.db;
+  }
+  const dbOptions = options.dbOptions || {};
+  return {
+    read: () => readAppState(DB_ACTOR, DB_KEY, dbOptions),
+    write: (value) => writeAppState(DB_ACTOR, DB_KEY, value, dbOptions),
+  };
+}
+
+function hasStoredState(state) {
+  return state.mileage != null || state.errors.length > 0 || Boolean(state.updatedAt);
+}
+
+async function cacheStateBestEffort(cache, state) {
+  try {
+    await cache.set(KEY,state,{
+      ttl:TTL_SECONDS,
+      tags:['rudi-car-state','rudi-durable-state'],
+      name:KEY,
+    });
+  } catch {}
 }
 
 function normalizeMileage(value) {
@@ -79,18 +107,42 @@ function normalizeState(value) {
 
 async function readCarState(options = {}) {
   const cache = getCarCache(options);
-  return normalizeState(await cache.get(KEY));
+  const db = getCarDb(options);
+  let durableError = null;
+
+  try {
+    const durable = normalizeState(await db.read());
+    if (hasStoredState(durable)) {
+      await cacheStateBestEffort(cache,durable);
+      return durable;
+    }
+  } catch (error) {
+    durableError = error;
+  }
+
+  const cached = normalizeState(await cache.get(KEY));
+  if (hasStoredState(cached)) {
+    try {
+      const persisted = normalizeState(await db.write(cached));
+      await cacheStateBestEffort(cache,persisted);
+      return persisted;
+    } catch (error) {
+      if (durableError) throw durableError;
+      throw error;
+    }
+  }
+
+  if (durableError) throw durableError;
+  return cached;
 }
 
 async function writeCarState(value, options = {}) {
   const state = normalizeState(value);
   const cache = getCarCache(options);
-  await cache.set(KEY,state,{
-    ttl:TTL_SECONDS,
-    tags:['rudi-car-state','rudi-durable-state'],
-    name:KEY,
-  });
-  return state;
+  const db = getCarDb(options);
+  const persisted = normalizeState(await db.write(state));
+  await cacheStateBestEffort(cache,persisted);
+  return persisted;
 }
 
 function cleanErrorTitle(value) {
@@ -175,6 +227,8 @@ module.exports = {
   MAX_ERRORS,
   ERROR_TITLE_MAX,
   ERROR_COMMENT_MAX,
+  DB_ACTOR,
+  DB_KEY,
   normalizeMileage,
   normalizeCarError,
   normalizeErrors,

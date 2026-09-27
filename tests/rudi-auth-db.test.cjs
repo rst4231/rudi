@@ -73,3 +73,37 @@ test('passkey upsert preserves existing PIN hash', async () => {
   assert.equal(saved.pinRecord.hash,'h');
   assert.equal(saved.passkeys[0].id,'cred-d');
 });
+
+
+test('durable app state is stored in Neon row and survives auth updates', async () => {
+  const calls = [];
+  let row = {
+    actor:'Рустам',
+    pin_record:{version:1,salt:'salt',hash:'hash',updatedAt:'2026-09-27T10:00:00.000Z'},
+    passkeys:[],
+    updated_at:'2026-09-27T10:00:00.000Z',
+  };
+  const fetchImpl = async (_url,init) => {
+    calls.push(init);
+    if(init.method==='GET') return response(200,[row]);
+    const body=JSON.parse(init.body)[0];
+    row={...body};
+    return response(201,[row]);
+  };
+  const db=require('../api/rudi-auth-db.cjs');
+
+  await db.writeAppState('Рустам','car:changan-univ-2023',{
+    errors:[{id:'err_12345678',title:'Check Engine'}],
+  },{fetchImpl,botToken:'123:test',now:'2026-09-27T11:00:00.000Z'});
+
+  assert.equal(row.pin_record.salt,'salt');
+  assert.equal(row.pin_record.hash,'hash');
+  assert.equal(row.pin_record[db.APP_STATE_FIELD]['car:changan-univ-2023'].errors[0].title,'Check Engine');
+
+  await db.savePinRecord('Рустам',{
+    version:1,salt:'new-salt',hash:'new-hash',updatedAt:'2026-09-27T12:00:00.000Z',
+  },{fetchImpl,botToken:'123:test'});
+
+  assert.equal(row.pin_record.hash,'new-hash');
+  assert.equal(row.pin_record[db.APP_STATE_FIELD]['car:changan-univ-2023'].errors[0].title,'Check Engine');
+});

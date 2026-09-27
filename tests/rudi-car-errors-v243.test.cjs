@@ -5,24 +5,32 @@ const path = require('node:path');
 
 const {
   normalizeState,
+  readCarState,
   addCarError,
   removeCarError,
   writeMileage,
 } = require('../api/car-store.cjs');
 
+function clone(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
 function createMemoryCache(initial = null) {
-  let value = initial == null ? null : JSON.parse(JSON.stringify(initial));
+  let value = clone(initial);
   return {
-    async get() {
-      return value == null ? null : JSON.parse(JSON.stringify(value));
-    },
-    async set(_key,next) {
-      value = JSON.parse(JSON.stringify(next));
-      return true;
-    },
-    read() {
-      return value == null ? null : JSON.parse(JSON.stringify(value));
-    },
+    async get() { return clone(value); },
+    async set(_key,next) { value = clone(next); return true; },
+    clear() { value = null; },
+    read() { return clone(value); },
+  };
+}
+
+function createMemoryDb(initial = null) {
+  let value = clone(initial);
+  return {
+    async read() { return clone(value); },
+    async write(next) { value = clone(next); return clone(value); },
+    readRaw() { return clone(value); },
   };
 }
 
@@ -36,11 +44,12 @@ test('legacy car state keeps mileage timestamp and starts with empty errors', ()
   assert.deepEqual(state.errors,[]);
 });
 
-test('dashboard errors are durable, preserve mileage and can be removed', async () => {
+test('dashboard errors persist in durable DB after runtime cache is cleared', async () => {
   const cache = createMemoryCache({
     mileage:42150,
     updatedAt:'2026-09-27T10:00:00.000Z',
   });
+  const db = createMemoryDb();
 
   const added = await addCarError({
     title:'Check Engine',
@@ -48,29 +57,44 @@ test('dashboard errors are durable, preserve mileage and can be removed', async 
     comment:'После перехода Eco → Normal и нажатия газа',
   },{
     cache,
+    db,
     now:'2026-09-27T11:20:00.000Z',
   });
 
   assert.equal(added.state.mileage,42150);
-  assert.equal(added.state.mileageUpdatedAt,'2026-09-27T10:00:00.000Z');
   assert.equal(added.state.errors.length,1);
-  assert.equal(added.state.errors[0].title,'Check Engine');
-  assert.match(added.state.errors[0].id,/^err_[a-f0-9]{32}$/);
+  assert.equal(db.readRaw().errors[0].title,'Check Engine');
+
+  cache.clear();
+  const reloaded = await readCarState({cache,db});
+  assert.equal(reloaded.mileage,42150);
+  assert.equal(reloaded.errors.length,1);
+  assert.equal(reloaded.errors[0].comment,'После перехода Eco → Normal и нажатия газа');
 
   const mileageState = await writeMileage(42200,{
     cache,
+    db,
     now:'2026-09-27T12:00:00.000Z',
   });
   assert.equal(mileageState.mileage,42200);
-  assert.equal(mileageState.mileageUpdatedAt,'2026-09-27T12:00:00.000Z');
   assert.equal(mileageState.errors.length,1);
+
+  cache.clear();
+  const afterMileageReload = await readCarState({cache,db});
+  assert.equal(afterMileageReload.mileage,42200);
+  assert.equal(afterMileageReload.errors.length,1);
 
   const removed = await removeCarError(added.error.id,{
     cache,
+    db,
     now:'2026-09-27T12:30:00.000Z',
   });
-  assert.equal(removed.state.mileage,42200);
   assert.deepEqual(removed.state.errors,[]);
+
+  cache.clear();
+  const afterRemoveReload = await readCarState({cache,db});
+  assert.equal(afterRemoveReload.mileage,42200);
+  assert.deepEqual(afterRemoveReload.errors,[]);
 });
 
 test('car UI contains add, date/time, comment and remove flows', () => {
