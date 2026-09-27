@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession } = require('./rudi-session.cjs');
-const { readCarState, writeMileage, restoreCarState } = require('./car-store.cjs');
+const { readCarState, writeMileage, addCarError, removeCarError, restoreCarState } = require('./car-store.cjs');
 const { readToken } = require('./ticktick-store.cjs');
 const { fetchProjectData, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
 const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
@@ -63,7 +63,7 @@ function statusFor(error) {
   const code = String(error?.message || error || '');
   if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid' || code.startsWith('rudi-session')) return 401;
   if (code === 'rudi-access-denied') return 403;
-  if (code === 'car-mileage-invalid' || code === 'car-task-invalid') return 400;
+  if (code === 'car-mileage-invalid' || code === 'car-task-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found') return 400;
   if (code === 'ticktick-not-connected') return 503;
   if (code.startsWith('ticktick-')) return 502;
   return 500;
@@ -311,7 +311,7 @@ async function handleCarRequest(req, res) {
   if(body.backupToken){
     try{
       previousSnapshot=openSnapshot(String(body.backupToken),{});
-      if(previousSnapshot?.carState?.mileage!=null){
+      if(previousSnapshot?.carState?.mileage!=null || (Array.isArray(previousSnapshot?.carState?.errors) && previousSnapshot.carState.errors.length)){
         await restoreCarState(previousSnapshot.carState).catch(()=>null);
       }
     }catch(_){}
@@ -339,6 +339,38 @@ async function handleCarRequest(req, res) {
         visible:true,
         state,
         nextService:serviceScheduleForMileage(state.mileage),
+        backupToken,
+      });
+    }
+
+    if (operation === 'add-error') {
+      const result = await addCarError({
+        title:body.title,
+        occurredAt:body.occurredAt,
+        comment:body.comment,
+      });
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        visible:true,
+        state:result.state,
+        nextService:serviceScheduleForMileage(result.state.mileage),
+        error:result.error,
+        backupToken,
+      });
+    }
+
+    if (operation === 'remove-error') {
+      const result = await removeCarError(body.errorId);
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        visible:true,
+        state:result.state,
+        nextService:serviceScheduleForMileage(result.state.mileage),
+        removedError:result.removed,
         backupToken,
       });
     }

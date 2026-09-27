@@ -222,7 +222,7 @@ async function createStateSnapshot(options = {}) {
     calendarUrl: calendarUrl || previous?.calendarUrl || '',
     albumConfig: albumConfig?.url ? albumConfig : (previous?.albumConfig || null),
     cycle: newerTimestampState(cycle, previous?.cycle, 'updatedAt'),
-    carState: newerTimestampState(carState?.mileage == null ? null : carState, previous?.carState, 'updatedAt'),
+    carState: newerTimestampState((carState?.mileage == null && !(Array.isArray(carState?.errors) && carState.errors.length)) ? null : carState, previous?.carState, 'updatedAt'),
     dailyMood: newerVersionState(dailyMood, previous?.dailyMood),
     reactions: mergeReactionStates(previous?.reactions, reactions),
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
@@ -352,12 +352,14 @@ async function restoreStateBackup(token, options = {}) {
     } catch {}
   }
 
-  const currentCar = await safeRead(() => readCarState(options), { mileage:null, updatedAt:'' });
+  const currentCar = await safeRead(() => readCarState(options), { mileage:null, mileageUpdatedAt:'', errors:[], updatedAt:'' });
   const savedCarTime = Date.parse(String(snapshot.carState?.updatedAt || '')) || snapshotTime;
   const currentCarTime = Date.parse(String(currentCar?.updatedAt || '')) || 0;
+  const savedCarHasData = snapshot.carState?.mileage != null || (Array.isArray(snapshot.carState?.errors) && snapshot.carState.errors.length > 0);
+  const currentCarHasData = currentCar?.mileage != null || (Array.isArray(currentCar?.errors) && currentCar.errors.length > 0);
   if (
-    snapshot.carState?.mileage != null
-    && (currentCar?.mileage == null || savedCarTime > currentCarTime)
+    savedCarHasData
+    && (!currentCarHasData || savedCarTime > currentCarTime)
   ) {
     try {
       await restoreCarState(snapshot.carState, options);

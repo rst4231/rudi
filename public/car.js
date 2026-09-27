@@ -53,6 +53,187 @@
     node.hidden=!node.textContent;
   }
 
+  function moscowInputValue(value=new Date()) {
+    const parts=Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA',{
+        timeZone:'Europe/Moscow',
+        year:'numeric',
+        month:'2-digit',
+        day:'2-digit',
+        hour:'2-digit',
+        minute:'2-digit',
+        hourCycle:'h23'
+      }).formatToParts(value).filter(part=>part.type!=='literal').map(part=>[part.type,part.value])
+    );
+    return parts.year+'-'+parts.month+'-'+parts.day+'T'+parts.hour+':'+parts.minute;
+  }
+
+  function errorIsoFromInput(value) {
+    const raw=String(value||'').trim();
+    if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) return '';
+    const date=new Date(raw+':00+03:00');
+    return Number.isNaN(date.getTime())?'':date.toISOString();
+  }
+
+  function formatErrorDate(value) {
+    const date=new Date(value);
+    if(Number.isNaN(date.getTime())) return 'Дата не указана';
+    return new Intl.DateTimeFormat('ru-RU',{
+      timeZone:'Europe/Moscow',
+      day:'numeric',
+      month:'short',
+      year:'numeric',
+      hour:'2-digit',
+      minute:'2-digit'
+    }).format(date);
+  }
+
+  function setErrorFormOpen(open) {
+    const form=document.getElementById('carErrorForm');
+    if(!form) return;
+    form.hidden=!open;
+    if(open){
+      const dateInput=document.getElementById('carErrorOccurredAt');
+      if(dateInput && !dateInput.value) dateInput.value=moscowInputValue();
+      requestAnimationFrame(()=>document.getElementById('carErrorTitle')?.focus());
+    }else{
+      form.reset();
+    }
+  }
+
+  function confirmRemoveError(title) {
+    const message='Убрать запись «'+String(title||'Ошибка')+'» из журнала?';
+    return new Promise(resolve=>{
+      if(typeof tg?.showConfirm==='function'){
+        tg.showConfirm(message,value=>resolve(Boolean(value)));
+        return;
+      }
+      resolve(window.confirm(message));
+    });
+  }
+
+  function renderErrors(car) {
+    const root=document.getElementById('carErrorsList');
+    const meta=document.getElementById('carErrorsMeta');
+    if(!root) return;
+    root.replaceChildren();
+    const errors=Array.isArray(car?.state?.errors)?car.state.errors:[];
+    if(meta) meta.textContent=errors.length ? String(errors.length) : '';
+
+    if(!errors.length){
+      const empty=document.createElement('div');
+      empty.className='car-errors-empty';
+      empty.textContent='Ошибок не добавлено';
+      root.appendChild(empty);
+      return;
+    }
+
+    for(const error of errors){
+      const row=document.createElement('article');
+      row.className='car-error-row';
+
+      const marker=document.createElement('span');
+      marker.className='car-error-marker';
+      marker.setAttribute('aria-hidden','true');
+      marker.textContent='!';
+
+      const copy=document.createElement('div');
+      copy.className='car-error-copy';
+
+      const title=document.createElement('strong');
+      title.textContent=error.title||'Ошибка';
+
+      const date=document.createElement('span');
+      date.className='car-error-date';
+      date.textContent=formatErrorDate(error.occurredAt);
+
+      copy.append(title,date);
+
+      if(error.comment){
+        const comment=document.createElement('p');
+        comment.textContent='После чего началось: '+error.comment;
+        copy.appendChild(comment);
+      }
+
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='car-error-remove';
+      button.textContent='Убрать';
+      button.addEventListener('click',async()=>{
+        if(!(await confirmRemoveError(error.title))) return;
+        await removeDashboardError(error,button);
+      });
+
+      row.append(marker,copy,button);
+      root.appendChild(row);
+    }
+  }
+
+  async function saveDashboardError(event) {
+    event?.preventDefault?.();
+    const titleInput=document.getElementById('carErrorTitle');
+    const dateInput=document.getElementById('carErrorOccurredAt');
+    const commentInput=document.getElementById('carErrorComment');
+    const button=document.getElementById('carErrorSave');
+    const title=String(titleInput?.value||'').trim();
+    const occurredAt=errorIsoFromInput(dateInput?.value);
+    const comment=String(commentInput?.value||'').trim();
+
+    if(!title){
+      setStatus('Укажи, какая ошибка высветилась','error');
+      titleInput?.focus();
+      return;
+    }
+    if(!occurredAt){
+      setStatus('Укажи дату и время ошибки','error');
+      dateInput?.focus();
+      return;
+    }
+
+    if(button){
+      button.disabled=true;
+      button.textContent='Сохраняю…';
+    }
+    try{
+      const data=await api('add-error',{title,occurredAt,comment});
+      state.car={...state.car,...data};
+      renderErrors(state.car);
+      setErrorFormOpen(false);
+      setStatus('Ошибка добавлена в журнал','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      setStatus('Не удалось сохранить ошибку','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }finally{
+      if(button){
+        button.disabled=false;
+        button.textContent='Сохранить';
+      }
+    }
+  }
+
+  async function removeDashboardError(error,button) {
+    if(!error?.id || button?.disabled) return;
+    if(button){
+      button.disabled=true;
+      button.textContent='…';
+    }
+    try{
+      const data=await api('remove-error',{errorId:error.id});
+      state.car={...state.car,...data};
+      renderErrors(state.car);
+      setStatus('Ошибка убрана из журнала','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      if(button){
+        button.disabled=false;
+        button.textContent='Убрать';
+      }
+      setStatus('Не удалось убрать ошибку','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }
+  }
+
   function serviceRemaining(car) {
     const mileage=Number(car?.state?.mileage);
     const next=Number(car?.nextService?.mileage);
@@ -86,7 +267,7 @@
       ? 'ТО-'+next.number+' на '+formatKm(next.mileage)
       : 'Не определено';
     if(mileageNode) mileageNode.textContent=mileage==null?'Не указан':formatKm(mileage);
-    if(updatedNode) updatedNode.textContent=formatUpdated(car?.state?.updatedAt);
+    if(updatedNode) updatedNode.textContent=formatUpdated(car?.state?.mileageUpdatedAt||car?.state?.updatedAt);
     if(input && document.activeElement!==input) input.value=mileage==null?'':String(mileage);
 
     if(!next || mileage==null) {
@@ -340,6 +521,7 @@
     if(!state.car) return;
     renderService(state.car);
     renderWeather(state.weather);
+    renderErrors(state.car);
     renderRecommendations(state.car,state.weather);
     renderTasks(state.car.ticktick);
   }
@@ -429,6 +611,9 @@
 
   function start() {
     document.getElementById('carMileageForm')?.addEventListener('submit',saveMileage);
+    document.getElementById('carErrorAdd')?.addEventListener('click',()=>setErrorFormOpen(true));
+    document.getElementById('carErrorCancel')?.addEventListener('click',()=>setErrorFormOpen(false));
+    document.getElementById('carErrorForm')?.addEventListener('submit',saveDashboardError);
     let attempts=0;
     const wait=()=>{
       attempts++;
