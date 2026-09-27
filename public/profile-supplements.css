@@ -122,3 +122,18 @@ html[data-theme="dark"] .personal-supplements-tile{background:color-mix(in srgb,
   .personal-habit-date span{font-size:9px}
   .personal-habit-date strong{font-size:13px}
 }
+
+
+/* RUDI v2.49 — selected habit date contrast in light theme */
+html[data-theme="light"] .personal-habit-date.is-selected{
+  background:#dfeee4;
+  color:#173222;
+  box-shadow:0 7px 16px rgba(79,138,104,.14);
+}
+html[data-theme="light"] .personal-habit-date.is-selected span{
+  color:#466250;
+  opacity:1;
+}
+html[data-theme="light"] .personal-habit-date.is-selected strong{
+  color:#173222;
+}
