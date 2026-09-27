@@ -2327,7 +2327,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (operation === 'answer') {
         const view = await answerDailyQuestion(actor, body.answer, questionOptions);
-        const reward = await awardScoreSafe(actor,3,{
+        const reward = await awardScoreSafe(actor,1,{
           label:'Вопрос дня',
           detail:'Ответ на вопрос дня',
           icon:'💬',
@@ -3167,7 +3167,7 @@ async function handler(req, res, options = {}) {
 
     await recordActivity({type:'partner-message',actor,text:actor+' '+activityVerb(actor,'оставил','оставила')+' послание',icon:'💌',targetTab:'home',dedupeKey:'message:'+String(message?.updatedAt||'')},options);
     const messageScoreDate=moscowDateKey(options.now||Date.now());
-    await awardScoreSafe(actor,3,{
+    await awardScoreSafe(actor,1,{
       label:'Послание',
       detail:'Оставлено послание партнёру',
       icon:'💌',
