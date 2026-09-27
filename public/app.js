@@ -10014,9 +10014,8 @@
         if(list) list.hidden=value;
         if(empty) empty.hidden=value||count>0;
         if(toggle){
+          toggle.textContent=value?'Развернуть':'Свернуть';
           toggle.setAttribute('aria-expanded',value?'false':'true');
-          toggle.setAttribute('aria-label',value?'Развернуть историю':'Свернуть историю');
-          toggle.title=value?'Развернуть историю':'Свернуть историю';
         }
         if(persist){
           try{localStorage.setItem(productsHistoryCollapsedStorageKey(),value?'1':'0')}catch(_){}
@@ -10371,8 +10370,9 @@
         if(history) history.hidden=value;
         if(empty) empty.hidden=value||count>0;
         if(toggle){
-          toggle.textContent=value?'Развернуть':'Свернуть';
           toggle.setAttribute('aria-expanded',value?'false':'true');
+          toggle.setAttribute('aria-label',value?'Развернуть историю':'Свернуть историю');
+          toggle.title=value?'Развернуть историю':'Свернуть историю';
         }
         if(persist){
           try{localStorage.setItem(fastingHistoryCollapsedStorageKey(),value?'1':'0')}catch(_){}

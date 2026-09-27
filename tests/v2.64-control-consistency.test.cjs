@@ -18,7 +18,9 @@ test('v2.64 unifies disclosure control geometry and direction',()=>{
   assert.match(profileCss,/\.personal-supplements-collapse\{[\s\S]*width:30px!important/);
   assert.match(profileJs,/personal-supplements-collapse'[\s\S]*<svg viewBox="0 0 24 24"/);
   assert.match(index,/id="fastingHistoryToggle"[\s\S]*<svg viewBox="0 0 24 24"/);
-  assert.doesNotMatch(appJs,/toggle\.textContent=value\?'Развернуть':'Свернуть'/);
+  const fastingBlock=appJs.slice(appJs.indexOf('function setFastingHistoryCollapsed'),appJs.indexOf('function fastingLocalInputValue'));
+  assert.doesNotMatch(fastingBlock,/toggle\.textContent=value\?'Развернуть':'Свернуть'/);
+  assert.match(fastingBlock,/aria-label',value\?'Развернуть историю':'Свернуть историю'/);
 });
 
 test('v2.64 simplifies habit info and compacts INFO button',()=>{
