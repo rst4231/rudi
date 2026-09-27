@@ -253,8 +253,9 @@ function build(){
   habitDateInput=document.createElement('input');habitDateInput.type='date';habitDateInput.className='personal-habits-date-input';habitCalendarPicker.appendChild(habitDateInput);
   habitCalendar.append(habitDateStrip,habitCalendarPicker);
 
+  const homeToolsHost=document.getElementById('homeTileHost')||document.querySelector('.shell');
   habitTile=document.getElementById('habitHomeTile');
-  if(!habitTile){habitTile=document.createElement('section');habitTile.id='habitHomeTile';habitTile.className='personal-habits-tile home-tools-tile';habitTile.dataset.appTabSection='home';habitTile.dataset.homeTile='habits';document.querySelector('.shell')?.appendChild(habitTile)}
+  if(!habitTile){habitTile=document.createElement('section');habitTile.id='habitHomeTile';habitTile.className='personal-habits-tile home-tools-tile';habitTile.dataset.appTabSection='home';habitTile.dataset.homeTile='habits';homeToolsHost?.appendChild(habitTile)}
   const habitHead=document.createElement('div');habitHead.className='personal-habits-head';
   const habitTitleWrap=document.createElement('div');habitTitleWrap.className='personal-habits-title-wrap';
   const habitHeading=document.createElement('h2');habitHeading.textContent='🌱 Трекер привычек';
@@ -290,7 +291,7 @@ function build(){
   habitBody.append(habitProgressRow,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitCalendar,habitBody);
 
   tile=document.getElementById('supplementsHomeTile');
-  if(!tile){tile=document.createElement('section');tile.id='supplementsHomeTile';tile.className='personal-supplements-tile home-tools-tile';tile.dataset.appTabSection='home';tile.dataset.homeTile='supplements';document.querySelector('.shell')?.appendChild(tile)}
+  if(!tile){tile=document.createElement('section');tile.id='supplementsHomeTile';tile.className='personal-supplements-tile home-tools-tile';tile.dataset.appTabSection='home';tile.dataset.homeTile='supplements';homeToolsHost?.appendChild(tile)}
   const head=document.createElement('div');head.className='personal-supplements-head';
   const heading=document.createElement('h2');heading.textContent='💊 БАДы и витамины';
   const actions=document.createElement('div');actions.className='personal-supplements-actions';
@@ -360,7 +361,7 @@ function build(){
       }
     }
   });
-  applyCollapse(true);setupEdgeSwipeBack();return overlay;
+  applyCollapse(true);document.dispatchEvent(new CustomEvent('rudi:home-tiles-ready'));setupEdgeSwipeBack();return overlay;
 }
 async function loadHomeTools({force=false}={}){
   const nextActor=String(document.body.dataset.rudiActor||'').trim();if(!nextActor)return;

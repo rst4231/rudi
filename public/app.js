@@ -1111,12 +1111,7 @@
         loadHomeOrder();
         ensureHomeOrderControls();
 
-        if(tg?.initData){
-          button.hidden=true;
-          if(reset) reset.hidden=true;
-          setHomeLayoutEditing(false);
-          return;
-        }
+        button.hidden=false;
 
         if(button.dataset.homeLayoutBound!=='1'){
           button.dataset.homeLayoutBound='1';
@@ -1153,6 +1148,14 @@
           moveHomeTile(tile,moveButton.dataset.homeMove);
         });
       }
+
+      document.addEventListener('rudi:home-tiles-ready',()=>{
+        if(!currentActor)return;
+        homeTileHost=document.getElementById('homeTileHost')||homeTileHost;
+        loadHomeOrder();
+        ensureHomeOrderControls();
+        updateHomeOrderControls();
+      });
 
       const MARKET_TICKER_LOCAL_CACHE_KEY='rudi:market-ticker-cache:v2';
       let marketTickerLoadPromise=null;
