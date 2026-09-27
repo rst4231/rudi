@@ -10147,6 +10147,28 @@
         }).format(date).replace('.','');
       }
 
+      function fastingMinutesInYear(row,year){
+        const startMs=Date.parse(String(row?.startedAt||''));
+        if(!Number.isFinite(startMs)) return 0;
+
+        let endMs=Date.parse(String(row?.endedAt||''));
+        if(!Number.isFinite(endMs)){
+          const durationMinutes=Math.max(0,Number(row?.durationMinutes)||0);
+          if(!durationMinutes) return 0;
+          endMs=startMs+durationMinutes*60*1000;
+        }
+        if(endMs<=startMs) return 0;
+
+        const targetYear=Number(year);
+        if(!Number.isFinite(targetYear)) return 0;
+        const yearStart=new Date(targetYear,0,1).getTime();
+        const yearEnd=new Date(targetYear+1,0,1).getTime();
+        const overlapStart=Math.max(startMs,yearStart);
+        const overlapEnd=Math.min(endMs,yearEnd);
+        if(overlapEnd<=overlapStart) return 0;
+        return (overlapEnd-overlapStart)/(60*1000);
+      }
+
       function fastingLocalInputValue(date=new Date()){
         const pad=value=>String(value).padStart(2,'0');
         return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
@@ -10386,11 +10408,10 @@
         const historyTitle=document.getElementById('fastingHistoryTitle');
         if(historyTitle){
           const currentYear=new Date().getFullYear();
-          const totalMinutes=rows.reduce((sum,row)=>{
-            const ended=new Date(String(row?.endedAt||row?.startedAt||''));
-            if(Number.isNaN(ended.getTime())||ended.getFullYear()!==currentYear) return sum;
-            return sum+Math.max(0,Number(row?.durationMinutes)||0);
-          },0);
+          const totalMinutes=rows.reduce(
+            (sum,row)=>sum+fastingMinutesInYear(row,currentYear),
+            0
+          );
           const totalHours=Math.round((totalMinutes/60)*10)/10;
           const hoursLabel=Number.isInteger(totalHours)?String(totalHours):String(totalHours).replace('.',',');
           historyTitle.textContent='История · '+hoursLabel+' ч за '+currentYear;
