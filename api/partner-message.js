@@ -618,7 +618,7 @@ async function recordLikeActivity(target, actor, options = {}) {
 
 const MOOD_ACTIVITY = {
   sadness: { label: 'Грусть', emoji: '😢' },
-  fear: { label: 'Страх', emoji: '😨' },
+  boredom: { label: 'Скука', emoji: '🥱' },
   anger: { label: 'Гнев', emoji: '😡' },
   joy: { label: 'Радость', emoji: '😄' },
   love: { label: 'Любовь', emoji: '🥰' },
@@ -667,7 +667,7 @@ function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
 
 const MOOD_NOTICE = {
   sadness: { phrase: 'грусть', emoji: '😢' },
-  fear: { phrase: 'страх', emoji: '😨' },
+  boredom: { phrase: 'скука', emoji: '🥱' },
   anger: { phrase: 'гнев', emoji: '😡' },
   joy: { phrase: 'радость', emoji: '😄' },
   love: { phrase: 'любовь', emoji: '🥰' },

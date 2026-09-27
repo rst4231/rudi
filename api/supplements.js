@@ -71,9 +71,14 @@ async function handler(req,res){
     if(operation==='describe'){
       const state=await readSupplements(actor),item=state.items.find(row=>row.id===String(body.id||'').trim());
       if(!item)throw new Error('supplement-not-found');
-      if(item.description&&item.evidenceLevel)return res.status(200).json({ok:true,actor,item,cached:true});
+      if(item.description&&item.evidenceLevel&&item.intakeGuidance)return res.status(200).json({ok:true,actor,item,cached:true});
       const generated=await generateSupplementDescription(item.name);
-      const saved=await saveSupplementDescription(actor,item.id,generated);
+      const saved=await saveSupplementDescription(actor,item.id,{
+        description:item.description||generated.description,
+        intakeGuidance:item.intakeGuidance||generated.intakeGuidance,
+        evidenceLevel:item.evidenceLevel||generated.evidenceLevel,
+        ingredients:(Array.isArray(item.ingredients)&&item.ingredients.length)?item.ingredients:generated.ingredients
+      });
       return res.status(200).json({ok:true,actor,item:saved.item,cached:false,provider:generated.provider,model:generated.model});
     }
     if(operation==='interactions'){

@@ -7627,12 +7627,12 @@ html[data-theme="dark"] .partner-message .partner-edit{
 
 /* RUDI v1.16.3: five-state mood picker */
 .profile .partner-mood-value[data-mood="sadness"]{color:#8fa2c8;background:rgba(127,141,168,.10)}
-.profile .partner-mood-value[data-mood="fear"]{color:#b497d6;background:rgba(151,112,194,.11)}
+.profile .partner-mood-value[data-mood="boredom"]{color:#b497d6;background:rgba(151,112,194,.11)}
 .profile .partner-mood-value[data-mood="anger"]{color:#e07b74;background:rgba(210,82,75,.11)}
 .profile .partner-mood-value[data-mood="joy"]{color:#d79a2e;background:rgba(240,184,75,.12)}
 .profile .partner-mood-value[data-mood="love"]{color:#e48fa9;background:rgba(224,95,139,.11)}
 .profile-person-card > .mood-message.show[data-mood="sadness"]{border-color:rgba(151,165,197,.22)!important;background:linear-gradient(135deg,rgba(106,125,168,.18),transparent 76%),rgba(22,26,36,.94)!important}
-.profile-person-card > .mood-message.show[data-mood="fear"]{border-color:rgba(178,144,214,.24)!important;background:linear-gradient(135deg,rgba(128,91,170,.18),transparent 76%),rgba(22,26,36,.94)!important}
+.profile-person-card > .mood-message.show[data-mood="boredom"]{border-color:rgba(178,144,214,.24)!important;background:linear-gradient(135deg,rgba(128,91,170,.18),transparent 76%),rgba(22,26,36,.94)!important}
 .profile-person-card > .mood-message.show[data-mood="anger"]{border-color:rgba(224,123,116,.24)!important;background:linear-gradient(135deg,rgba(190,76,69,.18),transparent 76%),rgba(22,26,36,.94)!important}
 .profile-person-card > .mood-message.show[data-mood="joy"]{border-color:rgba(241,183,76,.24)!important;background:linear-gradient(135deg,rgba(218,155,58,.18),transparent 76%),rgba(22,26,36,.94)!important}
 .profile-person-card > .mood-message.show[data-mood="love"]{border-color:rgba(228,143,169,.24)!important;background:linear-gradient(135deg,rgba(194,83,126,.18),transparent 76%),rgba(22,26,36,.94)!important}
@@ -10692,4 +10692,79 @@ body[data-app-tab="fasting"] .fasting-history-toggle[aria-expanded="false"] svg{
 .lulu-walk-history-toggle[aria-expanded="true"] svg,
 body[data-app-tab="fasting"] .fasting-history-toggle[aria-expanded="true"] svg{
   transform:none!important;
+}
+
+
+/* RUDI v2.65 — dedicated score page */
+body[data-app-tab="score"] #appTabBar{display:none!important}
+body[data-app-tab="score"] .shell{
+  padding-bottom:max(18px,env(safe-area-inset-bottom))!important;
+}
+.score-page{
+  width:100%;
+  max-width:720px;
+  margin:0 auto;
+  padding:4px 0 18px;
+}
+.score-page[hidden]{display:none!important}
+.score-page-head{
+  position:sticky;
+  top:0;
+  z-index:12;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  margin:0 -2px 10px;
+  padding:max(6px,env(safe-area-inset-top)) 2px 8px;
+  background:linear-gradient(to bottom,var(--bg) 72%,color-mix(in srgb,var(--bg) 0%,transparent));
+}
+.score-page-back{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--surface);
+  color:var(--text);
+  cursor:pointer;
+}
+.score-page-back svg{
+  width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round
+}
+.score-page-heading{min-width:0}
+.score-page-kicker{
+  color:var(--muted);font-size:9px;font-weight:760;text-transform:uppercase;letter-spacing:.08em
+}
+.score-page-heading h1{margin:2px 0 0;font-size:24px;line-height:1.05;letter-spacing:-.03em}
+.score-page .score-modal-sheet{
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  overflow:visible!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.score-page .score-panel{
+  flex:none!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:visible!important;
+  padding:0 0 max(14px,env(safe-area-inset-bottom))!important;
+}
+.score-page .score-modal-tabs{
+  position:sticky;
+  top:calc(max(6px,env(safe-area-inset-top)) + 52px);
+  z-index:10;
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
 }

@@ -54,6 +54,7 @@ function normalizeItem(input){
   return{
     id,name,
     description:cleanText(input.description,900),
+    intakeGuidance:cleanText(input.intakeGuidance,600),
     evidenceLevel:cleanEvidence(input.evidenceLevel),
     ingredients:cleanIngredients(input.ingredients),
     goal:cleanText(input.goal,240),
@@ -149,7 +150,7 @@ async function addSupplementNote(actor,id,text,o={}){
 async function saveSupplementDescription(actor,id,payload,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96),source=typeof payload==='string'?{description:payload}:(payload||{}),description=cleanText(source.description,900);if(!safeId)throw new Error('supplement-id-required');if(!description)throw new Error('supplement-description-empty');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const current=state.items[index],now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];
-    items[index]=normalizeItem({...current,description,evidenceLevel:source.evidenceLevel||current.evidenceLevel,ingredients:(source.ingredients&&source.ingredients.length)?source.ingredients:current.ingredients,describedAt:now,updatedAt:now});
+    items[index]=normalizeItem({...current,description,intakeGuidance:source.intakeGuidance||current.intakeGuidance,evidenceLevel:source.evidenceLevel||current.evidenceLevel,ingredients:(source.ingredients&&source.ingredients.length)?source.ingredients:current.ingredients,describedAt:now,updatedAt:now});
     const saved=await writeSupplements(who,{...state,version:state.version+1,items,interactionCheck:null},o);return{state:saved,item:saved.items[index],saved:true};
   });
 }

@@ -336,3 +336,33 @@ body[data-app-tab="home"] .personal-habits-collapse[aria-expanded="true"] svg,
 body[data-app-tab="home"] .personal-supplements-collapse[aria-expanded="true"] svg{
   transform:none!important;
 }
+
+
+/* RUDI v2.65 — habit status clarity and safe undo */
+.personal-habit-status-button.is-notdone:not(.is-active){
+  background:transparent!important;
+  border-color:rgba(190,68,68,.22)!important;
+  color:rgba(214,96,96,.72)!important;
+  box-shadow:none!important;
+}
+.personal-habit-status-button.is-notdone.is-active{
+  background:#b84d4d!important;
+  border-color:#b84d4d!important;
+  color:#fff!important;
+  opacity:1!important;
+}
+.personal-habits-undo{
+  z-index:5200!important;
+  width:min(calc(100vw - 28px),420px);
+  box-sizing:border-box;
+  bottom:calc(108px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+  justify-content:space-between;
+}
+.personal-habits-undo span{min-width:0;line-height:1.3}
+.personal-habits-undo button{flex:none}
+
+
+/* RUDI v2.65 — supplement intake guidance */
+.supplement-card-description{
+  white-space:pre-line;
+}

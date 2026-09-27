@@ -2,7 +2,7 @@
 const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,guidanceEnrichmentPromise=null;
 let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -82,7 +82,7 @@ function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTi
 function habitStreakText(value){const n=Math.max(0,Math.round(Number(value)||0)),m100=n%100,m10=n%10,w=m100>=11&&m100<=14?'дней':m10===1?'день':m10>=2&&m10<=4?'дня':'дней';return n+' '+w+' подряд'}
 function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,05 ⭐ за выполнение · −0,1 ⭐ за невыполнение':'Без бонуса и штрафа'}
 function habitScoreMessage(data,id,status){if(habitSelectedDate!==habitState.today)return'Статус сохранён. За прошлые даты звёзды не меняются.';if(!(habitState.bonusIds||[]).includes(id))return'Статус сохранён. Эта привычка без бонуса и штрафа.';const d=Number(data?.scoreDelta||0);if(d>0)return'Баланс: +'+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';if(d<0)return'Баланс: '+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';return status==='done'?'Выполнение сохранено.':'Статус «Не выполнено» сохранён.'}
-function showHabitUndo({id,date,previousStatus}){
+function showHabitUndo({id,date,previousStatus,nextStatus}){
   if(!id||!date)return;
   let bar=document.getElementById('personalHabitsUndo');
   if(!bar){
@@ -94,7 +94,7 @@ function showHabitUndo({id,date,previousStatus}){
   clearTimeout(habitUndoTimer);
   bar.replaceChildren();
   const text=document.createElement('span');
-  text.textContent='Привычка отмечена выполненной';
+  text.textContent=nextStatus==='notdone'?'Отмечено: не выполнено':'Привычка выполнена';
   const button=document.createElement('button');
   button.type='button';
   button.textContent='Отменить';
@@ -103,17 +103,17 @@ function showHabitUndo({id,date,previousStatus}){
     try{
       const data=await habitRequest('status',{id,status:previousStatus||'pending',date});
       applyHabitView(data);
-      setHabitStatus('Выполнение отменено.');
+      setHabitStatus('Изменение отменено.');
       bar.classList.remove('is-visible');
       try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}
     }catch(error){
       button.disabled=false;
-      setHabitStatus('Не удалось отменить выполнение.',true);
+      setHabitStatus('Не удалось отменить изменение.',true);
     }
   });
   bar.append(text,button);
   bar.classList.add('is-visible');
-  habitUndoTimer=setTimeout(()=>bar.classList.remove('is-visible'),6000);
+  habitUndoTimer=setTimeout(()=>bar.classList.remove('is-visible'),5000);
 }
 function renderHabits(){
   if(!habitList||!habitProgressText||!habitProgressFill)return;
@@ -145,8 +145,8 @@ function renderHabits(){
         const data=await habitRequest('status',{id,status:next,date:actionDate});
         applyHabitView(data);
         setHabitStatus(habitScoreMessage(data,id,next));
-        if(next==='done'&&previousStatus!=='done'){
-          showHabitUndo({id,date:actionDate,previousStatus});
+        if(previousStatus!==next){
+          showHabitUndo({id,date:actionDate,previousStatus,nextStatus:next});
         }
       }
       catch(error){console.error('RUDI_HABIT_STATUS_UI_ERROR',error);setHabitStatus(String(error?.message||'')==='habit-done-too-early'?'«Выполнено» можно отметить только после 20:00 МСК.':'Не удалось сохранить статус.',true);yes.disabled=doneLocked;no.disabled=false;remove.disabled=false}
@@ -162,6 +162,29 @@ function emojiForSupplement(name){const value=String(name||'').toLowerCase().rep
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
 function todaySupplementCount(){const today=habitDateKey(new Date());return items.filter(item=>Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today)).length}
 function renderSupplementSummary(){if(!supplementSummaryNode)return;supplementSummaryNode.textContent='Сегодня принято: '+todaySupplementCount()}
+function supplementDescriptionText(item){
+  const description=String(item?.description||'').trim();
+  const guidance=String(item?.intakeGuidance||'').trim();
+  return description+(guidance?'\n\nКогда лучше принимать: '+guidance:'');
+}
+async function enrichExistingSupplementGuidance(){
+  if(guidanceEnrichmentPromise)return guidanceEnrichmentPromise;
+  const pending=items.filter(item=>item?.description&&!item?.intakeGuidance).map(item=>String(item.id||'')).filter(Boolean);
+  if(!pending.length)return null;
+  guidanceEnrichmentPromise=(async()=>{
+    for(const id of pending){
+      try{
+        const data=await request('describe',{id});
+        const index=items.findIndex(row=>row.id===id);
+        if(index>=0&&data?.item)items[index]=data.item;
+      }catch(error){
+        console.warn('RUDI_SUPPLEMENT_GUIDANCE_ENRICH_WARN',id,String(error?.message||error));
+      }
+    }
+    render();
+  })().finally(()=>{guidanceEnrichmentPromise=null});
+  return guidanceEnrichmentPromise;
+}
 async function loadDailyRecommendation(){
   if(!recommendationNode)return;
   recommendationNode.classList.remove('is-error');recommendationNode.textContent='Groq готовит рекомендацию дня…';
@@ -189,15 +212,15 @@ function render(){
     const del=document.createElement('button');del.type='button';del.className='supplement-delete';del.setAttribute('aria-label','Удалить '+item.name);del.textContent='×';
     top.append(name,del);
     const hint=document.createElement('div');hint.className='supplement-card-hint';hint.textContent=item.description?'Нажми, чтобы открыть описание':'Нажми, чтобы AI создал краткое описание';
-    const desc=document.createElement('div');desc.className='supplement-card-description';desc.hidden=true;desc.textContent=item.description||'';
+    const desc=document.createElement('div');desc.className='supplement-card-description';desc.hidden=true;desc.textContent=supplementDescriptionText(item);
     card.append(top,hint,desc);
     const open=async()=>{
       if(card.classList.contains('is-loading'))return;
-      if(item.description){const next=desc.hidden;desc.hidden=!next;card.classList.toggle('is-open',next);hint.textContent=next?'Скрыть описание':'Нажми, чтобы открыть описание';return}
-      card.classList.add('is-loading');hint.textContent='Groq проверяет научные данные…';setStatus('');
+      if(item.description&&item.intakeGuidance){const next=desc.hidden;desc.hidden=!next;card.classList.toggle('is-open',next);hint.textContent=next?'Скрыть описание':'Нажми, чтобы открыть описание';return}
+      card.classList.add('is-loading');hint.textContent=item.description?'AI добавляет, когда лучше принимать…':'Groq проверяет научные данные…';setStatus('');
       try{
         const data=await request('describe',{id:item.id});item=data.item;const index=items.findIndex(row=>row.id===item.id);if(index>=0)items[index]=item;
-        desc.textContent=item.description;desc.hidden=false;card.classList.add('is-open');hint.textContent='Скрыть описание';
+        desc.textContent=supplementDescriptionText(item);desc.hidden=false;card.classList.add('is-open');hint.textContent='Скрыть описание';
       }catch(error){console.error('RUDI_SUPPLEMENT_DESCRIBE_UI_ERROR',error);hint.textContent='Нажми, чтобы AI попробовал снова';setStatus(errorText(error),true)}
       finally{card.classList.remove('is-loading')}
     };
@@ -318,7 +341,7 @@ function build(){
   habitInfoClose=document.createElement('button');habitInfoClose.type='button';habitInfoClose.className='habit-info-modal-close';habitInfoClose.setAttribute('aria-label','Закрыть');habitInfoClose.textContent='×';
   const habitInfoTitle=document.createElement('strong');habitInfoTitle.id='habitInfoModalTitle';habitInfoTitle.className='habit-info-modal-title';habitInfoTitle.textContent='Как работают звёзды';
   habitInfoPanel=document.createElement('div');habitInfoPanel.className='habit-info-modal-copy';
-  habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 Сделал привычку → получишь <b>+0,05 ⭐</b>.<br>🔴 Не сделал → снимется <b>−0,1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−0,1 ⭐</b>.</p><p>Остальные привычки можно просто отмечать. За них звёзды не добавляются и не снимаются.</p><p>В <b>21:00</b> RUDI напомнит, если ты что-то не отметил.</p><p>Если случайно нажал <b>«Выполнено»</b>, несколько секунд можно нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
+  habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 Сделал привычку → получишь <b>+0,05 ⭐</b>.<br>🔴 Не сделал → снимется <b>−0,1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−0,1 ⭐</b>.</p><p>Остальные привычки можно просто отмечать. За них звёзды не добавляются и не снимаются.</p><p>В <b>21:00</b> RUDI напомнит, если ты что-то не отметил.</p><p>Если случайно нажал <b>«Выполнено»</b> или <b>«Не выполнено»</b>, у тебя есть <b>5 секунд</b>, чтобы нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
   habitInfoDialog.append(habitInfoClose,habitInfoTitle,habitInfoPanel);habitInfoModal.append(habitInfoBackdrop,habitInfoDialog);document.body.appendChild(habitInfoModal);
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
   const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';
@@ -425,7 +448,7 @@ async function loadHomeTools({force=false}={}){
   homeToolsLoadPromise=(async()=>{
     const [supplementsResult,habitsResult]=await Promise.allSettled([request('list'),habitRequest('list')]);
     if(supplementsResult.status==='fulfilled'){
-      const data=supplementsResult.value;items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;renderProfileMeta();render();setStatus('');
+      const data=supplementsResult.value;items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;renderProfileMeta();render();setStatus('');enrichExistingSupplementGuidance();
     }else{console.error('RUDI_SUPPLEMENTS_HOME_LOAD_ERROR',supplementsResult.reason);setStatus(errorText(supplementsResult.reason),true)}
     if(habitsResult.status==='fulfilled'){
       habitSelectedDate=String(habitsResult.value?.date||habitsResult.value?.today||'');applyHabitView(habitsResult.value);

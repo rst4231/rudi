@@ -22,13 +22,16 @@ function promptFor(name){
     'evidenceLevel означает качество доказательной базы по типичным заявляемым эффектам, а не оценку безопасности и не рекомендацию к приёму.',
     'ingredients — только те активные вещества, которые можно уверенно определить из названия; не угадывай состав бренда.',
     'Не назначай дозировку и не давай персональных медицинских рекомендаций.',
-    'Описание 2–4 коротких предложения. Без Markdown и ссылок.'
+    'Кроме общего описания обязательно дай справочный пункт intakeGuidance: когда обычно удобнее или обоснованнее принимать этот БАД — утром, днём, вечером или в любое время; натощак, во время еды, после еды или независимо от еды.',
+    'Если приём с едой действительно важен, уточни тип еды: например, содержащая жиры, обычная или лёгкая. Не придумывай это, если надёжных оснований нет.',
+    'Если время суток или связь с едой не принципиальны, прямо так и напиши. Если данные зависят от формы вещества, укажи это кратко.',
+    'Описание 2–4 коротких предложения. intakeGuidance — 1–2 коротких предложения. Без Markdown и ссылок.'
   ].join('\n');
 }
 async function generateSupplementDescription(name,options={}){
-  const parsed=await callGroq(promptFor(name),{name:'rudi_supplement_description_v2',schema:{type:'object',properties:{description:{type:'string'},evidenceLevel:{type:'string',enum:['strong','moderate','limited','insufficient']},ingredients:{type:'array',items:{type:'string'},maxItems:12}},required:['description','evidenceLevel','ingredients'],additionalProperties:false}},options);
-  const description=cleanText(parsed?.description,900);if(!description)throw new Error('supplement-ai-empty');
-  return{description,evidenceLevel:String(parsed.evidenceLevel||'insufficient'),ingredients:Array.isArray(parsed.ingredients)?parsed.ingredients.map(x=>cleanText(x,80)).filter(Boolean):[],model:DEFAULT_MODEL,provider:'groq'};
+  const parsed=await callGroq(promptFor(name),{name:'rudi_supplement_description_v3',schema:{type:'object',properties:{description:{type:'string'},intakeGuidance:{type:'string'},evidenceLevel:{type:'string',enum:['strong','moderate','limited','insufficient']},ingredients:{type:'array',items:{type:'string'},maxItems:12}},required:['description','intakeGuidance','evidenceLevel','ingredients'],additionalProperties:false}},options);
+  const description=cleanText(parsed?.description,900),intakeGuidance=cleanText(parsed?.intakeGuidance,600);if(!description||!intakeGuidance)throw new Error('supplement-ai-empty');
+  return{description,intakeGuidance,evidenceLevel:String(parsed.evidenceLevel||'insufficient'),ingredients:Array.isArray(parsed.ingredients)?parsed.ingredients.map(x=>cleanText(x,80)).filter(Boolean):[],model:DEFAULT_MODEL,provider:'groq'};
 }
 function dailyRecommendationPrompt(input={}){
   const age=Math.max(18,Math.min(100,Math.round(Number(input.age)||0))),sex=String(input.sex||'').trim();if(!age||!['male','female'].includes(sex))throw new Error('supplement-recommendation-profile-invalid');

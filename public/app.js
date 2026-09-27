@@ -1370,7 +1370,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score'];
 
       function routeFromLocation(){
         try{
@@ -1390,7 +1390,7 @@
           const url=new URL(window.location.href);
           if(next==='home') url.searchParams.delete('tab');
           else url.searchParams.set('tab',next);
-          if(item&&['wishlist','products','dates','for-di','schedule'].includes(next)) url.searchParams.set('item',String(item));
+          if(item&&['wishlist','products','dates','for-di','schedule','score'].includes(next)) url.searchParams.set('item',String(item));
           else url.searchParams.delete('item');
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
@@ -1431,6 +1431,19 @@
         if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='fasting') loadFastingTracker({silent:true});
+        if(tab==='score'){
+          const modal=ensureScoreModal();
+          const actor=String(item||scoreModalActor||currentActor||'').trim();
+          if(actor){
+            scoreModalActor=actor;
+            if(currentScoreState) renderScoreModal(actor,currentScoreState);
+            scoreRequest('state').then(data=>{
+              currentScoreState=data.score||currentScoreState;
+              renderScoreStickers(currentScoreState);
+              renderScoreModal(actor,currentScoreState);
+            }).catch(()=>{});
+          }
+        }
       }
 
       function canUseAppViewTransition(){
@@ -2120,6 +2133,10 @@
         const initial=routeFromLocation();
         const initialTab=requestedAppTab||initial.tab||'home';
         const initialItem=requestedItemId||initial.item||'';
+        if(initialTab==='score'){
+          ensureScoreModal();
+          scoreModalActor=String(initialItem||currentActor||'').trim();
+        }
         applyAppTab(initialTab,{scroll:false});
         updateAppRoute(currentAppTab,{item:initialItem,replace:true});
         runTabSideEffects(currentAppTab,{item:initialItem});
@@ -2416,7 +2433,7 @@
       }
 
       function homeMoodView(value){
-        return {sadness:'😢',fear:'🥱',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')]||'—';
+        return {sadness:'😢',boredom:'🥱',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')==='fear'?'boredom':String(value||'')]||'—';
       }
 
       function homeDashboardDateLabel(){
@@ -2570,12 +2587,18 @@
 
       let currentScoreState=null;
       let scoreModalActor='';
-      let scoreModalScrollY=0;
+      let scoreReturnTab='home';
 
       function scoreNumber(value){
         const number=Number(value||0);
         if(!Number.isFinite(number)) return '0';
         return Number(number.toFixed(2)).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2});
+      }
+      function normalizeLegacyMoodText(value){
+        return String(value||'').replaceAll('😨','🥱').replaceAll('Страх','Скука').replaceAll('страх','скука');
+      }
+      function normalizeLegacyMoodIcon(value){
+        return String(value||'')==='😨'?'🥱':String(value||'');
       }
 
       async function scoreRequest(operation='state',payload={}){
@@ -2624,53 +2647,29 @@
 
       function syncScoreModalLayout(modal=document.getElementById('scoreModal')){
         if(!modal||modal.hidden) return;
-        const sheet=modal.querySelector('.score-modal-sheet');
-        const panel=Array.from(modal.querySelectorAll('.score-panel')).find(node=>!node.hidden);
-        if(!sheet||!panel) return;
-
         modal.querySelectorAll('.score-panel').forEach(node=>{
           node.style.height='auto';
           node.style.maxHeight='none';
         });
-
-        const sheetStyle=getComputedStyle(sheet);
-        const number=value=>Number.parseFloat(value)||0;
-        let fixed=
-          number(sheetStyle.paddingTop)+number(sheetStyle.paddingBottom)+
-          number(sheetStyle.borderTopWidth)+number(sheetStyle.borderBottomWidth);
-
-        Array.from(sheet.children).forEach(child=>{
-          if(child===panel||child.classList.contains('score-panel')||child.hidden) return;
-          const style=getComputedStyle(child);
-          fixed+=child.getBoundingClientRect().height+number(style.marginTop)+number(style.marginBottom);
-        });
-
-        const viewportHeight=Math.max(
-          1,
-          Number(window.visualViewport?.height)||0,
-          Number(window.innerHeight)||0,
-          Number(document.documentElement?.clientHeight)||0
-        );
-        const maxSheetHeight=Math.min(viewportHeight*.84,760);
-        const available=Math.max(96,Math.floor(maxSheetHeight-fixed));
-        panel.style.maxHeight=available+'px';
       }
 
       function ensureScoreModal(){
         let modal=document.getElementById('scoreModal');
         if(modal) return modal;
-        modal=document.createElement('div');
+        modal=document.createElement('section');
         modal.id='scoreModal';
-        modal.className='score-modal';
-        modal.dataset.noPullRefresh='true';
+        modal.className='score-page';
+        modal.dataset.appTabSection='score';
         modal.hidden=true;
+        modal.setAttribute('aria-label','Звёзды');
         modal.innerHTML=
-          '<button class="score-modal-backdrop" type="button" aria-label="Закрыть"></button>'+
-          '<section class="score-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="scoreModalTitle">'+
-            '<div class="score-modal-head">'+
-              '<div><div class="score-modal-kicker">Звезды</div><h2 id="scoreModalTitle"></h2></div>'+
-              '<button id="scoreModalClose" class="score-modal-close" type="button" aria-label="Закрыть">×</button>'+
-            '</div>'+
+          '<header class="score-page-head">'+
+            '<button id="scoreModalBack" class="score-page-back" type="button" aria-label="Назад">'+
+              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'+
+            '</button>'+
+            '<div class="score-page-heading"><div class="score-page-kicker">Звёзды</div><h1 id="scoreModalTitle"></h1></div>'+
+          '</header>'+
+          '<section class="score-modal-sheet">'+
             '<div class="score-balance-card">'+
               '<div><span>Баланс</span><strong id="scoreModalBalance">0</strong></div>'+
               '<div><span>Сегодня</span><strong id="scoreModalToday">0 / 10</strong></div>'+
@@ -2685,10 +2684,8 @@
             '<div id="scoreHistoryPanel" class="score-panel"></div>'+
             '<div id="scoreShopPanel" class="score-panel" hidden></div>'+
           '</section>';
-        document.body.appendChild(modal);
-        const close=()=>closeScoreModal();
-        modal.querySelector('.score-modal-backdrop')?.addEventListener('click',close);
-        modal.querySelector('#scoreModalClose')?.addEventListener('click',close);
+        (document.querySelector('.shell')||document.body).appendChild(modal);
+        modal.querySelector('#scoreModalBack')?.addEventListener('click',()=>closeScoreModal());
         modal.querySelectorAll('[data-score-tab]').forEach(button=>{
           button.addEventListener('click',()=>{
             const tab=String(button.dataset.scoreTab||'history');
@@ -2697,32 +2694,16 @@
             const shop=modal.querySelector('#scoreShopPanel');
             history.hidden=tab!=='history';
             shop.hidden=tab!=='shop';
-            if(tab==='history') history.scrollTop=0;
-            if(tab==='shop') shop.scrollTop=0;
-            requestAnimationFrame(()=>syncScoreModalLayout(modal));
+            requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
           });
         });
-        document.addEventListener('keydown',event=>{
-          if(event.key==='Escape'&&!modal.hidden) closeScoreModal();
-        });
-        const resizeScoreModal=()=>{if(!modal.hidden) requestAnimationFrame(()=>syncScoreModalLayout(modal))};
-        window.addEventListener('resize',resizeScoreModal,{passive:true});
-        window.visualViewport?.addEventListener?.('resize',resizeScoreModal,{passive:true});
         return modal;
       }
 
       function closeScoreModal(){
-        const modal=document.getElementById('scoreModal');
-        if(!modal) return;
-        modal.hidden=true;
-        document.body.classList.remove('score-modal-open');
-        document.body.style.position='';
-        document.body.style.top='';
-        document.body.style.left='';
-        document.body.style.right='';
-        document.body.style.width='';
-        window.scrollTo(0,scoreModalScrollY);
+        const target=APP_TABS.includes(scoreReturnTab)&&scoreReturnTab!=='score'?scoreReturnTab:'home';
         scoreModalActor='';
+        navigateToAppTab(target,{scroll:true,replace:true});
       }
 
       function renderScoreModal(actor,score=currentScoreState){
@@ -2902,11 +2883,11 @@
             row.className='score-history-row '+(Number(item.points||0)<0?'is-spend':'is-earn');
             const icon=document.createElement('span');
             icon.className='score-history-icon';
-            icon.textContent=String(item.icon||'⭐');
+            icon.textContent=normalizeLegacyMoodIcon(item.icon||'⭐');
             const copy=document.createElement('div');
             copy.className='score-history-copy';
             const title=document.createElement('strong');
-            title.textContent=String(item.detail||item.label||'Звезды');
+            title.textContent=normalizeLegacyMoodText(item.detail||item.label||'Звезды');
             const meta=document.createElement('span');
             meta.textContent=scoreHistoryTime(item.createdAt);
             copy.append(title,meta);
@@ -2985,18 +2966,10 @@
 
       async function openScoreModal(actor){
         const modal=ensureScoreModal();
+        scoreReturnTab=currentAppTab==='score'?'home':currentAppTab;
         scoreModalActor=actor;
-        if(modal.hidden){
-          scoreModalScrollY=window.scrollY||window.pageYOffset||0;
-          document.body.style.position='fixed';
-          document.body.style.top='-'+scoreModalScrollY+'px';
-          document.body.style.left='0';
-          document.body.style.right='0';
-          document.body.style.width='100%';
-        }
-        modal.hidden=false;
-        document.body.classList.add('score-modal-open');
         if(currentScoreState) renderScoreModal(actor,currentScoreState);
+        navigateToAppTab('score',{scroll:true,item:actor});
         try{
           const data=await scoreRequest('state');
           currentScoreState=data.score||currentScoreState;
@@ -3674,11 +3647,11 @@
           row.className='home-activity-row';
           const icon=document.createElement('span');
           icon.className='home-activity-icon';
-          icon.textContent=String(item.icon||'•');
+          icon.textContent=String(item.type||'')==='mood'?normalizeLegacyMoodIcon(item.icon||'•'):String(item.icon||'•');
           const copy=document.createElement('span');
           copy.className='home-activity-copy';
           const textNode=document.createElement('strong');
-          textNode.textContent=String(item.text||'');
+          textNode.textContent=String(item.type||'')==='mood'?normalizeLegacyMoodText(item.text||''):String(item.text||'');
           const time=document.createElement('time');
           time.textContent=activityTimeLabel(item.createdAt);
           copy.append(textNode,time);
@@ -4549,9 +4522,9 @@
             'Сегодня можно быть не в ресурсе. Не требуй от себя лишнего и выбери что-нибудь простое.',
             'Если грустно, не обязательно срочно это исправлять. Дай себе немного спокойствия.'
           ],
-          fear:[
-            'Страх часто просит ясности. Отдели то, что реально происходит, от того, что пока только может случиться.',
-            'Сделай один маленький понятный шаг. Когда появляется действие, тревоги обычно становится меньше.'
+          boredom:[
+            'Если скучно, попробуй сменить занятие или сделать что-нибудь маленькое и новое.',
+            'Когда всё надоело, выбери одно простое дело, которое обычно тебя немного оживляет.'
           ],
           anger:[
             'Если злишься, не спеши действовать на пике эмоции. Сначала дай себе немного времени.',
@@ -8982,11 +8955,11 @@
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==mood;
         });
-        empty.hidden=['sadness','fear','anger','joy','love'].includes(mood);
+        empty.hidden=['sadness','boredom','anger','joy','love'].includes(mood==='fear'?'boredom':mood);
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
-            mood==='sadness'?'грусть':mood==='fear'?'страх':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
+            mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
           )
         );
       }

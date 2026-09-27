@@ -5,8 +5,8 @@ const TTL_SECONDS = 60 * 60 * 72;
 const SNAPSHOT_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const STATE_KEY = 'state';
 const MAX_SNAPSHOT_DAYS = 120;
-const LEGACY_MOOD_ALIASES = Object.freeze({ low:'sadness', ok:'joy', great:'joy' });
-const ALLOWED_MOODS = new Set(['sadness', 'fear', 'anger', 'joy', 'love']);
+const LEGACY_MOOD_ALIASES = Object.freeze({ low:'sadness', ok:'joy', great:'joy', fear:'boredom' });
+const ALLOWED_MOODS = new Set(['sadness', 'boredom', 'anger', 'joy', 'love']);
 
 function normalizeMoodValue(value) {
   const mood=String(value || '').trim();
