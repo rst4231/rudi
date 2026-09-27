@@ -9236,12 +9236,30 @@
         return strip;
       }
 
+      function resolveFeedEventHref(item,name){
+        const href=String(item?.href||'').trim();
+        if(name!=='standup') return href;
+        if(/gostandup\.ru\/spb\/events\/[^/?#]+/i.test(href)) return href;
+        const title=String(item?.title||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
+        const known=[
+          [/лямур\s+с\s+нидалем/u,'https://gostandup.ru/spb/events/lyamur_s_nidalem'],
+          [/комики\s+проездом/u,'https://gostandup.ru/spb/events/komiki_proezdom'],
+          [/дневн[а-я]*\s+микрофон/u,'https://gostandup.ru/spb/events/dnevnoy_mikrofon'],
+          [/(?:стендап\s+для\s+детей|семейное\s+комедийное\s+шоу\s+выходного\s+дня)/u,'https://gostandup.ru/spb/events/stendap_dlya_detey_v_sankt_peterburge']
+        ];
+        for(const [pattern,url] of known){
+          if(pattern.test(title)) return url;
+        }
+        return href;
+      }
+
       function renderFeedEventItems(body,items,name){
         const list=document.createElement('div');
         list.className='feed-event-list';
         items.forEach((item,index)=>{
           const view=feedEventDisplay(item,name);
-          const isLink=/^https?:\/\//i.test(String(item.href||''));
+          const eventHref=resolveFeedEventHref(item,name);
+          const isLink=/^https?:\/\//i.test(eventHref);
           const card=document.createElement('article');
           card.className='feed-event-item'+(isLink?' feed-event-item-link':'');
           if(isLink){
@@ -9250,18 +9268,18 @@
             card.addEventListener('click',event=>{
               if(event.target?.closest?.('button,a')) return;
               if(tg?.openLink){
-                try{tg.openLink(item.href)}catch(_){window.open(item.href,'_blank','noopener,noreferrer')}
+                try{tg.openLink(eventHref)}catch(_){window.open(eventHref,'_blank','noopener,noreferrer')}
               }else{
-                window.open(item.href,'_blank','noopener,noreferrer');
+                window.open(eventHref,'_blank','noopener,noreferrer');
               }
             });
             card.addEventListener('keydown',event=>{
               if(event.key!=='Enter'&&event.key!==' ') return;
               event.preventDefault();
               if(tg?.openLink){
-                try{tg.openLink(item.href)}catch(_){window.open(item.href,'_blank','noopener,noreferrer')}
+                try{tg.openLink(eventHref)}catch(_){window.open(eventHref,'_blank','noopener,noreferrer')}
               }else{
-                window.open(item.href,'_blank','noopener,noreferrer');
+                window.open(eventHref,'_blank','noopener,noreferrer');
               }
             });
           }

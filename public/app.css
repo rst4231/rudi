@@ -9631,3 +9631,204 @@ html[data-theme="dark"] body[data-app-tab="feed"] .feed-item-reaction .reaction-
     grid-template-columns:86px minmax(0,1fr);
   }
 }
+
+
+/* RUDI v2.40 — compact editorial Feed + light profile contrast */
+body[data-app-tab="feed"] .feed-page{gap:13px}
+body[data-app-tab="feed"] .feed-daily-meta{padding:0 5px}
+body[data-app-tab="feed"] .feed-today{
+  gap:10px;
+  padding:12px 13px 14px;
+  border-radius:23px;
+}
+body[data-app-tab="feed"] .feed-today-head strong{
+  font-size:clamp(30px,8.4vw,38px);
+  letter-spacing:-.05em;
+}
+body[data-app-tab="feed"] .feed-today-head::after{font-size:13px}
+body[data-app-tab="feed"] .feed-today-chip{
+  min-height:34px;
+  padding:8px 12px;
+  font-size:11px;
+}
+body[data-app-tab="feed"] .feed-grid{gap:12px}
+body[data-app-tab="feed"] .feed-card{
+  border-radius:24px;
+  box-shadow:0 12px 30px rgba(28,31,52,.065);
+}
+body[data-app-tab="feed"] .feed-card-head{
+  min-height:118px;
+  padding:16px 108px 15px 17px;
+}
+body[data-app-tab="feed"] .feed-card-icon{
+  right:10px;
+  bottom:5px;
+  width:82px;
+  height:92px;
+  font-size:52px;
+}
+body[data-app-tab="feed"] .feed-card-heading{gap:4px}
+body[data-app-tab="feed"] .feed-card-heading::before{font-size:8.8px}
+body[data-app-tab="feed"] .feed-card-heading>span{
+  font-size:clamp(25px,6.8vw,32px);
+}
+body[data-app-tab="feed"] .feed-card-heading small{max-width:190px}
+body[data-app-tab="feed"] .feed-card-heading small::before{font-size:11px}
+body[data-app-tab="feed"] .feed-card-new{
+  right:11px;
+  top:10px;
+  padding:4px 7px;
+  font-size:8px;
+}
+body[data-app-tab="feed"] .feed-card-body{
+  gap:8px;
+  padding:9px;
+}
+body[data-app-tab="feed"] .feed-event-list{gap:8px}
+body[data-app-tab="feed"] .feed-event-item{
+  min-height:108px;
+  padding:10px 36px 10px 111px;
+  border-radius:18px;
+  box-shadow:0 6px 16px rgba(35,38,57,.04);
+}
+body[data-app-tab="feed"] .feed-event-item::before{
+  left:9px;
+  top:9px;
+  bottom:9px;
+  width:88px;
+  border-radius:14px;
+}
+body[data-app-tab="feed"] .feed-event-item::after{
+  left:9px;
+  top:9px;
+  bottom:9px;
+  width:88px;
+  font-size:27px;
+}
+body[data-app-tab="feed"] .feed-event-time{
+  left:15px;
+  top:15px;
+  min-width:56px;
+  padding:6px 8px;
+  font-size:12.5px;
+}
+body[data-app-tab="feed"] .feed-event-copy{gap:3px}
+body[data-app-tab="feed"] .feed-event-title{
+  font-size:13.5px;
+  line-height:1.26;
+}
+body[data-app-tab="feed"] .feed-event-place{
+  padding-left:15px;
+  font-size:10.4px;
+}
+body[data-app-tab="feed"] .feed-event-meta{font-size:9.6px}
+body[data-app-tab="feed"] .feed-event-chevron{
+  right:8px;
+  width:27px;
+  height:27px;
+  font-size:22px;
+}
+body[data-app-tab="feed"] .feed-item-reaction{
+  gap:5px;
+  margin-top:5px;
+}
+body[data-app-tab="feed"] .feed-item-reaction .reaction-button{
+  width:30px;
+  height:30px;
+  border-radius:10px;
+}
+body[data-app-tab="feed"] .feed-item-reaction .reaction-button svg{
+  width:14px;
+  height:14px;
+}
+body[data-app-tab="feed"] .feed-item-reaction .reaction-names{font-size:9px}
+
+body[data-app-tab="feed"] .feed-cinema-track{gap:8px}
+body[data-app-tab="feed"] .feed-movie-card{
+  grid-template-columns:82px minmax(0,1fr);
+  gap:10px;
+  min-height:112px;
+  padding:9px;
+  border-radius:18px;
+  box-shadow:0 6px 16px rgba(35,38,57,.04);
+}
+body[data-app-tab="feed"] .feed-movie-poster{
+  width:82px;
+  height:94px;
+  min-height:94px;
+  border-radius:14px;
+}
+body[data-app-tab="feed"] .feed-movie-copy{
+  align-content:center;
+  gap:5px;
+  padding:2px 34px 2px 0;
+}
+body[data-app-tab="feed"] .feed-movie-title{
+  font-size:13.5px;
+  line-height:1.26;
+}
+body[data-app-tab="feed"] .feed-movie-meta{
+  font-size:9.8px;
+  line-height:1.35;
+}
+body[data-app-tab="feed"] .feed-movie-link{
+  right:8px;
+  width:27px;
+  height:27px;
+}
+body[data-app-tab="feed"] .feed-movie-link::after{font-size:22px}
+
+html[data-theme="light"] .profile-person-card .profile-work-status.is-working{
+  color:rgba(245,247,252,.84)!important;
+  text-shadow:0 1px 2px rgba(18,22,35,.20);
+}
+html[data-theme="light"] .profile-person-card .profile-work-status.is-neutral{
+  color:rgba(235,239,248,.70)!important;
+}
+
+@media(max-width:430px){
+  body[data-app-tab="feed"] .feed-card-head{
+    min-height:112px;
+    padding:15px 94px 14px 15px;
+  }
+  body[data-app-tab="feed"] .feed-card-icon{
+    right:6px;
+    width:75px;
+    height:84px;
+    font-size:48px;
+  }
+  body[data-app-tab="feed"] .feed-event-item{
+    min-height:104px;
+    padding-left:104px;
+  }
+  body[data-app-tab="feed"] .feed-event-item::before,
+  body[data-app-tab="feed"] .feed-event-item::after{
+    width:82px;
+  }
+  body[data-app-tab="feed"] .feed-movie-card{
+    grid-template-columns:76px minmax(0,1fr);
+  }
+  body[data-app-tab="feed"] .feed-movie-poster{
+    width:76px;
+    height:90px;
+    min-height:90px;
+  }
+}
+@media(max-width:370px){
+  body[data-app-tab="feed"] .feed-card-head{
+    min-height:106px;
+    padding-right:84px;
+  }
+  body[data-app-tab="feed"] .feed-card-icon{
+    width:68px;
+    font-size:43px;
+  }
+  body[data-app-tab="feed"] .feed-event-item{
+    min-height:100px;
+    padding-left:96px;
+  }
+  body[data-app-tab="feed"] .feed-event-item::before,
+  body[data-app-tab="feed"] .feed-event-item::after{
+    width:74px;
+  }
+}
