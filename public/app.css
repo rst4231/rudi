@@ -10065,3 +10065,82 @@ body[data-app-tab="home"] .daily-question-card.is-waiting .daily-question-status
   body[data-app-tab="home"] .quick-access-tile{padding:12px!important}
   body[data-app-tab="home"] .quick-access-button{min-height:52px!important}
 }
+
+
+/* RUDI v2.58 — section density pass */
+body[data-app-tab="feed"] .feed-page{gap:13px}
+body[data-app-tab="feed"] .feed-today{
+  gap:10px;
+  padding:12px 12px 14px;
+  border-radius:24px;
+}
+body[data-app-tab="feed"] .feed-today-head strong{
+  font-size:clamp(30px,8.4vw,40px);
+}
+body[data-app-tab="feed"] .feed-today-head::after{font-size:13px}
+body[data-app-tab="feed"] .feed-today-chip{
+  min-height:38px;
+  padding:9px 13px;
+}
+body[data-app-tab="schedule"] .work-page{gap:9px}
+body[data-app-tab="schedule"] .schedule-nearest{
+  padding:13px 14px!important;
+  border-radius:17px!important;
+}
+body[data-app-tab="wishlist"] .wishlist-form-fields{gap:4px}
+body[data-app-tab="wishlist"] .wishlist-url-toggle{
+  justify-self:start;
+  min-height:24px;
+  padding:2px 3px;
+  border:0;
+  background:transparent;
+  color:var(--accent);
+  font:inherit;
+  font-size:9.5px;
+  line-height:1.2;
+  font-weight:760;
+  cursor:pointer;
+}
+body[data-app-tab="wishlist"] .wishlist-url-input[hidden]{display:none!important}
+body[data-app-tab="products"] .products-section{gap:10px}
+body[data-app-tab="products"] .products-history{margin-top:9px}
+body[data-app-tab="products"] .products-history.is-collapsed{padding-bottom:0}
+body[data-app-tab="fasting"] .fasting-page{gap:11px}
+body[data-app-tab="fasting"] .fasting-start-card,
+body[data-app-tab="fasting"] .fasting-history-card{padding:15px}
+body[data-app-tab="fasting"] .fasting-stats{gap:7px}
+body[data-app-tab="fasting"] .fasting-stat{
+  min-height:66px;
+  padding:10px 7px;
+}
+body[data-app-tab="fasting"] .fasting-history-heading{
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+}
+body[data-app-tab="fasting"] .fasting-history-heading-copy{display:grid;gap:3px;min-width:0}
+body[data-app-tab="fasting"] .fasting-history-toggle{
+  min-height:30px;
+  padding:5px 9px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--soft);
+  color:var(--muted);
+  font:inherit;
+  font-size:9px;
+  font-weight:760;
+  cursor:pointer;
+}
+body[data-app-tab="fasting"] .fasting-history-card.is-collapsed .fasting-card-heading{margin-bottom:0}
+body[data-app-tab="dates"] .dates-page{gap:10px}
+body[data-app-tab="dates"] .dates-page-head h1{font-size:23px}
+body[data-app-tab="dates"] .dates-generator{
+  gap:10px;
+  padding:13px 14px;
+}
+@media(max-width:430px){
+  body[data-app-tab="feed"] .feed-today{padding:11px 11px 13px}
+  body[data-app-tab="wishlist"] .wishlist-url-toggle{min-height:22px}
+  body[data-app-tab="fasting"] .fasting-start-card,
+  body[data-app-tab="fasting"] .fasting-history-card{padding:14px}
+}

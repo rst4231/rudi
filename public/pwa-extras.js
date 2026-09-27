@@ -917,8 +917,10 @@
   }
 
   function restoreSavesCategoryState(type){
-    let collapsed=false;
-    try{collapsed=localStorage.getItem(savesCollapseKey(type))==='1'}catch(_){}
+    let stored=null;
+    try{stored=localStorage.getItem(savesCollapseKey(type))}catch(_){}
+    const dateCount=savesState.filter(item=>item?.type==='date').length;
+    const collapsed=stored===null ? (type==='date'&&dateCount>3) : stored==='1';
     applySavesCategoryState(type,collapsed);
   }
 
@@ -1339,9 +1341,15 @@
     body.hidden=Boolean(collapsed);
   }
 
+  const FOR_DI_CATEGORY_TYPES=['labor','saved','stylist'];
+
   function restoreForDiCategoryState(type){
-    let collapsed=false;
-    try{collapsed=localStorage.getItem(forDiCollapseKey(type))==='1'}catch(_){}
+    let stored=null;
+    try{stored=localStorage.getItem(forDiCollapseKey(type))}catch(_){}
+    const collapsed=stored===null?true:stored==='1';
+    if(!collapsed){
+      FOR_DI_CATEGORY_TYPES.filter(other=>other!==type).forEach(other=>applyForDiCategoryState(other,true));
+    }
     applyForDiCategoryState(type,collapsed);
   }
 
@@ -1349,6 +1357,12 @@
     const section=document.querySelector('[data-for-di-category="'+type+'"]');
     if(!section) return;
     const collapsed=!section.classList.contains('is-collapsed');
+    if(!collapsed){
+      FOR_DI_CATEGORY_TYPES.filter(other=>other!==type).forEach(other=>{
+        applyForDiCategoryState(other,true);
+        try{localStorage.setItem(forDiCollapseKey(other),'1')}catch(_){}
+      });
+    }
     applyForDiCategoryState(type,collapsed);
     try{localStorage.setItem(forDiCollapseKey(type),collapsed?'1':'0')}catch(_){}
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}

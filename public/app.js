@@ -4511,7 +4511,8 @@
         setupPersistentCollapsible({
           selector:'#recipeIdeasCard',key:'kitchen-recipes',
           bodySelectors:['#recipeGeneratorBody'],
-          hostSelector:'.kitchen-block-head'
+          hostSelector:'.kitchen-block-head',
+          defaultCollapsed:true
         });
       }
 
@@ -8373,9 +8374,24 @@
         const form=document.getElementById('wishlistForm');
         const input=document.getElementById('wishlistInput');
         const urlInput=document.getElementById('wishlistUrl');
+        const urlToggle=document.getElementById('wishlistUrlToggle');
         const add=document.getElementById('wishlistAdd');
         const section=document.querySelector('.wishlist-section');
         let focusTimer=0;
+
+        const setUrlVisible=(visible,{focus=false}={})=>{
+          if(!urlInput) return;
+          const next=Boolean(visible);
+          urlInput.hidden=!next;
+          urlToggle?.setAttribute('aria-expanded',next?'true':'false');
+          if(urlToggle) urlToggle.textContent=next?'− Убрать ссылку':'+ Добавить ссылку';
+          if(next&&focus) setTimeout(()=>urlInput.focus(),0);
+        };
+        setUrlVisible(Boolean(urlInput?.value));
+        urlToggle?.addEventListener('click',()=>{
+          setUrlVisible(Boolean(urlInput?.hidden),{focus:Boolean(urlInput?.hidden)});
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
 
         const revealForm=()=>{
           clearTimeout(focusTimer);
@@ -8412,6 +8428,7 @@
             const data=await wishlistRequest('add',{text,url});
             input.value='';
             urlInput.value='';
+            setUrlVisible(false);
             renderWishlist(data);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
@@ -9982,7 +9999,10 @@
       }
 
       function readProductsHistoryCollapsed(){
-        try{return localStorage.getItem(productsHistoryCollapsedStorageKey())==='1'}catch(_){return false}
+        try{
+          const stored=localStorage.getItem(productsHistoryCollapsedStorageKey());
+          return stored===null?true:stored==='1';
+        }catch(_){return true}
       }
 
       function setProductsHistoryCollapsed(collapsed,{persist=true}={}){
@@ -10329,6 +10349,37 @@
         return (overlapEnd-overlapStart)/(60*1000);
       }
 
+      function fastingHistoryCollapsedStorageKey(){
+        const actor=currentActor==='Диана'?'diana':currentActor==='Рустам'?'rustam':'shared';
+        return 'rudi-fasting-history-collapsed-v1-'+actor;
+      }
+
+      function readFastingHistoryCollapsed(){
+        try{
+          const stored=localStorage.getItem(fastingHistoryCollapsedStorageKey());
+          return stored===null?true:stored==='1';
+        }catch(_){return true}
+      }
+
+      function setFastingHistoryCollapsed(collapsed,{persist=true}={}){
+        const value=Boolean(collapsed);
+        const card=document.querySelector('.fasting-history-card');
+        const history=document.getElementById('fastingHistory');
+        const empty=document.getElementById('fastingHistoryEmpty');
+        const toggle=document.getElementById('fastingHistoryToggle');
+        const count=Number(toggle?.dataset.historyCount||0);
+        card?.classList.toggle('is-collapsed',value);
+        if(history) history.hidden=value;
+        if(empty) empty.hidden=value||count>0;
+        if(toggle){
+          toggle.textContent=value?'Развернуть':'Свернуть';
+          toggle.setAttribute('aria-expanded',value?'false':'true');
+        }
+        if(persist){
+          try{localStorage.setItem(fastingHistoryCollapsedStorageKey(),value?'1':'0')}catch(_){}
+        }
+      }
+
       function fastingLocalInputValue(date=new Date()){
         const pad=value=>String(value).padStart(2,'0');
         return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
@@ -10602,7 +10653,9 @@
           });
         }
 
-        if(empty) empty.hidden=rows.length>0;
+        const historyToggle=document.getElementById('fastingHistoryToggle');
+        if(historyToggle) historyToggle.dataset.historyCount=String(rows.length);
+        setFastingHistoryCollapsed(readFastingHistoryCollapsed(),{persist:false});
       }
 
       async function loadFastingTracker({silent=false}={}){
@@ -10628,6 +10681,12 @@
         const stop=document.getElementById('fastingStopButton');
         const input=document.getElementById('fastingStartAt');
         const status=document.getElementById('fastingStatus');
+        const historyToggle=document.getElementById('fastingHistoryToggle');
+
+        historyToggle?.addEventListener('click',()=>{
+          setFastingHistoryCollapsed(!readFastingHistoryCollapsed());
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
 
         if(input&&!input.value) input.value=fastingLocalInputValue();
 
