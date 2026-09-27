@@ -133,8 +133,8 @@ function renderHabits(){
     const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Удалить привычку '+habit.name);main.append(emoji,copy,remove);
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
-    const doneLocked=habitSelectedDate===habitState.today&&!habitState.canCompleteToday&&!isDone;
-    yes.disabled=doneLocked;yes.title=doneLocked?'Можно отметить после 20:00 МСК':'';
+    const doneLocked=isNotDone||(habitSelectedDate===habitState.today&&!habitState.canCompleteToday&&!isDone);
+    yes.disabled=doneLocked;yes.title=isNotDone?'После «Не выполнено» изменить на «Выполнено» нельзя':doneLocked?'Можно отметить после 20:00 МСК':'';
     const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);actions.append(yes,no);
     const save=async(next)=>{
       if((next==='done'&&yes.disabled)||(next==='notdone'&&no.disabled))return;
