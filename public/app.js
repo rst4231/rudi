@@ -2493,7 +2493,8 @@
 
       function scoreNumber(value){
         const number=Number(value||0);
-        return Number.isInteger(number)?String(number):number.toFixed(1).replace('.',',');
+        if(!Number.isFinite(number)) return '0';
+        return Number(number.toFixed(2)).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:2});
       }
 
       async function scoreRequest(operation='state',payload={}){
@@ -2526,6 +2527,11 @@
         });
         if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
       }
+
+      document.addEventListener('rudi:score-updated',event=>{
+        const score=event?.detail?.score;
+        if(score) renderScoreStickers(score);
+      });
 
       function scoreHistoryTime(value){
         const date=new Date(String(value||''));

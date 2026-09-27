@@ -3,7 +3,7 @@ const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,trackerGroup=null;
-let habitState={habits:[],completedIds:[],collapsed:false,today:'',date:'',done:0,total:0},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
+let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -19,6 +19,7 @@ async function habitRequest(operation,payload={}){
   const response=await fetch(HABITS_API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'habits-request-failed'));error.status=response.status;throw error}
+  if(data.score)document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:data.score}}));
   return data;
 }
 function errorText(error){
@@ -64,45 +65,46 @@ async function loadHabitsForDate(date){
 }
 function habitEmoji(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/вод|пить/.test(value))return'💧';if(/заряд|трен|спорт|ходь|шаг/.test(value))return'🏃';if(/чит|книг/.test(value))return'📚';if(/медит|дых/.test(value))return'🧘';if(/сон|спать|ложиться/.test(value))return'🌙';if(/сахар|слад/.test(value))return'🍎';if(/уч|англ|язык/.test(value))return'🧠';return'🌱'}
 function applyHabitView(data){
-  habitState={habits:Array.isArray(data?.habits)?data.habits:[],completedIds:Array.isArray(data?.completedIds)?data.completedIds:[],collapsed:Boolean(data?.collapsed),today:String(data?.today||''),date:String(data?.date||data?.today||''),done:Number(data?.done||0),total:Number(data?.total||0)};
+  habitState={
+    habits:Array.isArray(data?.habits)?data.habits:[],
+    completedIds:Array.isArray(data?.completedIds)?data.completedIds:[],
+    notDoneIds:Array.isArray(data?.notDoneIds)?data.notDoneIds:[],
+    statuses:data?.statuses&&typeof data.statuses==='object'?data.statuses:{},
+    streaks:data?.streaks&&typeof data.streaks==='object'?data.streaks:{},
+    bonusIds:Array.isArray(data?.bonusIds)?data.bonusIds:[],
+    collapsed:Boolean(data?.collapsed),today:String(data?.today||''),date:String(data?.date||data?.today||''),
+    done:Number(data?.done||0),total:Number(data?.total||0)
+  };
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
   renderHabitDates();renderHabits();applyHabitCollapse();
 }
 function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTile.classList.toggle('is-collapsed',habitState.collapsed===true);habitCollapseButton.setAttribute('aria-expanded',String(!habitState.collapsed));habitCollapseButton.setAttribute('aria-label',habitState.collapsed?'Развернуть «Трекер привычек»':'Свернуть «Трекер привычек»')}
+function habitStreakText(value){const n=Math.max(0,Math.round(Number(value)||0)),m100=n%100,m10=n%10,w=m100>=11&&m100<=14?'дней':m10===1?'день':m10>=2&&m10<=4?'дня':'дней';return n+' '+w+' подряд'}
+function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,05 ⭐ за выполнение · −0,1 ⭐ за невыполнение':'Без бонуса и штрафа'}
+function habitScoreMessage(data,id,status){if(habitSelectedDate!==habitState.today)return'Статус сохранён. За прошлые даты звёзды не меняются.';if(!(habitState.bonusIds||[]).includes(id))return'Статус сохранён. Эта привычка без бонуса и штрафа.';const d=Number(data?.scoreDelta||0);if(d>0)return'Баланс: +'+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';if(d<0)return'Баланс: '+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';return status==='done'?'Выполнение сохранено.':'Статус «Не выполнено» сохранён.'}
 function renderHabits(){
   if(!habitList||!habitProgressText||!habitProgressFill)return;
-  const completed=new Set((habitState.completedIds||[]).map(String));
-  const habits=Array.isArray(habitState.habits)?habitState.habits:[];
-  const done=habits.filter(row=>completed.has(String(row.id))).length,total=habits.length,percent=total?Math.round(done/total*100):0;
+  const habits=Array.isArray(habitState.habits)?habitState.habits:[],statuses=habitState.statuses||{},done=habits.filter(h=>statuses[h.id]==='done').length,total=habits.length,percent=total?Math.round(done/total*100):0;
   habitProgressText.textContent=total?done+' из '+total+' выполнено'+(habitSelectedDate&&habitSelectedDate!==habitState.today?' · '+habitDateLabel(habitSelectedDate):''):'Добавь первую привычку';
-  habitProgressFill.style.width=percent+'%';
-  if(habitPercentNode)habitPercentNode.textContent=percent+'%';
-  habitList.replaceChildren();
-  if(!habits.length){
-    const empty=document.createElement('div');empty.className='personal-habits-empty';empty.textContent='Например: пить воду, читать 20 минут или ложиться спать до 23:00.';habitList.appendChild(empty);return;
-  }
+  habitProgressFill.style.width=percent+'%';if(habitPercentNode)habitPercentNode.textContent=percent+'%';habitList.replaceChildren();
+  if(!habits.length){const empty=document.createElement('div');empty.className='personal-habits-empty';empty.textContent='Например: пить воду, читать 20 минут или ложиться спать до 23:00.';habitList.appendChild(empty);return}
   for(const habit of habits){
-    const id=String(habit.id||''),isDone=completed.has(id);
-    const row=document.createElement('div');row.className='personal-habit-row';row.classList.toggle('is-done',isDone);
-    const toggle=document.createElement('button');toggle.type='button';toggle.className='personal-habit-toggle';toggle.setAttribute('aria-pressed',String(isDone));toggle.setAttribute('aria-label',(isDone?'Отменить выполнение: ':'Отметить выполненной: ')+habit.name);
+    const id=String(habit.id||''),status=String(statuses[id]||'pending'),isDone=status==='done',isNotDone=status==='notdone';
+    const row=document.createElement('div');row.className='personal-habit-row';row.classList.toggle('is-done',isDone);row.classList.toggle('is-notdone',isNotDone);
+    const main=document.createElement('div');main.className='personal-habit-main';
     const emoji=document.createElement('span');emoji.className='personal-habit-emoji';emoji.textContent=habit.emoji||habitEmoji(habit.name);
-    const name=document.createElement('span');name.className='personal-habit-name';name.textContent=String(habit.name||'Привычка');
-    const check=document.createElement('span');check.className='personal-habit-check';check.textContent=isDone?'✓':'';
-    toggle.append(emoji,name,check);
-    const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.setAttribute('aria-label','Удалить привычку '+habit.name);remove.textContent='×';
-    toggle.addEventListener('click',async()=>{
-      if(toggle.disabled)return;toggle.disabled=true;remove.disabled=true;setHabitStatus('');
-      try{applyHabitView(await habitRequest('toggle',{id,date:habitSelectedDate||habitState.today}))}
-      catch(error){console.error('RUDI_HABIT_TOGGLE_UI_ERROR',error);setHabitStatus('Не удалось сохранить отметку.',true)}
-      finally{toggle.disabled=false;remove.disabled=false}
-    });
-    remove.addEventListener('click',async()=>{
-      if(remove.disabled||!window.confirm('Удалить привычку «'+String(habit.name||'')+'»?'))return;
-      toggle.disabled=true;remove.disabled=true;setHabitStatus('');
-      try{applyHabitView(await habitRequest('remove',{id,date:habitSelectedDate||habitState.today}))}
-      catch(error){console.error('RUDI_HABIT_REMOVE_UI_ERROR',error);setHabitStatus('Не удалось удалить привычку.',true);toggle.disabled=false;remove.disabled=false}
-    });
-    row.append(toggle,remove);habitList.appendChild(row);
+    const copy=document.createElement('div');copy.className='personal-habit-copy';
+    const name=document.createElement('div');name.className='personal-habit-name';name.textContent=String(habit.name||'Привычка');
+    const streak=document.createElement('div');streak.className='personal-habit-streak';streak.textContent=habitStreakText(habitState.streaks?.[id]);
+    const meta=document.createElement('div');meta.className='personal-habit-score-meta';meta.textContent=habitScoreMeta(id);copy.append(name,streak,meta);
+    const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Удалить привычку '+habit.name);main.append(emoji,copy,remove);
+    const actions=document.createElement('div');actions.className='personal-habit-actions';
+    const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
+    const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);actions.append(yes,no);
+    const save=async(next)=>{if(yes.disabled||no.disabled)return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('status',{id,status:next,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus(habitScoreMessage(data,id,next))}catch(error){console.error('RUDI_HABIT_STATUS_UI_ERROR',error);setHabitStatus('Не удалось сохранить статус.',true)}finally{yes.disabled=no.disabled=remove.disabled=false}};
+    yes.addEventListener('click',()=>save('done'));no.addEventListener('click',()=>save('notdone'));
+    remove.addEventListener('click',async()=>{if(remove.disabled||!window.confirm('Удалить привычку «'+String(habit.name||'')+'»?'))return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('remove',{id,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus('Привычка удалена. Она больше не участвует в бонусах и штрафах.')}catch(error){console.error('RUDI_HABIT_REMOVE_UI_ERROR',error);setHabitStatus('Не удалось удалить привычку.',true);yes.disabled=no.disabled=remove.disabled=false}});
+    row.append(main,actions);habitList.appendChild(row);
   }
 }
 function prefs(){return readPrefs()}
@@ -255,8 +257,12 @@ function build(){
   const habitHeading=document.createElement('h2');habitHeading.textContent='🌱 Трекер привычек';
   habitProgressText=document.createElement('div');habitProgressText.className='personal-habits-progress-text';habitProgressText.textContent='Загружаю…';
   habitTitleWrap.append(habitHeading,habitProgressText);
+  const habitHeadActions=document.createElement('div');habitHeadActions.className='personal-habits-head-actions';
+  habitInfoButton=document.createElement('button');habitInfoButton.type='button';habitInfoButton.className='personal-habits-info';habitInfoButton.textContent='ⓘ';habitInfoButton.setAttribute('aria-label','Как работают звёзды за привычки');
   habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.textContent='⌄';
-  habitHead.append(habitTitleWrap,habitCollapseButton);
+  habitHeadActions.append(habitInfoButton,habitCollapseButton);habitHead.append(habitTitleWrap,habitHeadActions);
+  habitInfoPanel=document.createElement('div');habitInfoPanel.className='personal-habits-info-panel';habitInfoPanel.hidden=true;
+  habitInfoPanel.innerHTML='<strong>Как работают звёзды</strong><p>Первые 3 привычки в списке — бонусные.</p><p>🟢 Выполнено сегодня → <b>+0,05 ⭐</b>. 🔴 Не выполнено → <b>−0,1 ⭐</b>.</p><p>Если бонусная привычка останется без статуса до конца дня, после завершения дня спишется <b>−0,1 ⭐</b>.</p><p>Остальные привычки работают без бонуса и штрафа. За прошлые даты звёзды не меняются.</p><p>В 21:00 приходит напоминание, если остались привычки без статуса. Для бонусных привычек оно предупреждает о штрафе.</p><p>Удалённая привычка больше не участвует в наградах, штрафах и напоминаниях. Под названием показывается серия выполнения.</p><p>Повторные переключения защищены от двойных начислений и списаний.</p>';
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
   const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';
   const habitProgress=document.createElement('div');habitProgress.className='personal-habits-progress';
@@ -272,7 +278,7 @@ function build(){
   const habitCancel=document.createElement('button');habitCancel.type='button';habitCancel.className='personal-habits-cancel';habitCancel.textContent='Отмена';
   const habitSave=document.createElement('button');habitSave.type='submit';habitSave.className='personal-habits-save';habitSave.textContent='Добавить';
   habitFormActions.append(habitCancel,habitSave);habitForm.append(habitInput,habitFormActions);
-  habitBody.append(habitProgressRow,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitBody);
+  habitBody.append(habitProgressRow,habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitInfoPanel,habitBody);
 
   tile=document.createElement('article');tile.className='personal-supplements-tile';
   const head=document.createElement('div');head.className='personal-supplements-head';
@@ -290,6 +296,7 @@ function build(){
   trackerGroup=document.createElement('div');trackerGroup.className='personal-tracker-group';trackerGroup.append(habitCalendar,habitTile,tile);
   content.append(summary,trackerGroup);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
+  habitInfoButton.addEventListener('click',()=>{const open=habitInfoPanel.hidden;habitInfoPanel.hidden=!open;habitInfoButton.classList.toggle('is-active',open);habitInfoButton.setAttribute('aria-expanded',String(open))});
   habitCollapseButton.addEventListener('click',async()=>{
     if(habitCollapseButton.disabled)return;
     const previous=habitState.collapsed;habitState={...habitState,collapsed:!previous};applyHabitCollapse();habitCollapseButton.disabled=true;setHabitStatus('');
