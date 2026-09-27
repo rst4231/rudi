@@ -2,7 +2,7 @@ const {authorizeRequest,statusForError}=require('./partner-message.js');
 const {
   moscowDateKey,readHabits,viewHabits,ensureHabitDay,addHabit,removeHabit,setHabitStatus,setHabitsCollapsed
 }=require('./habit-tracker-store.cjs');
-const {reconcileHabitScore,clearHabitScore,reconcileTodayHabitScores}=require('./habit-rules.cjs');
+const {reconcileHabitScore,clearHabitScore,reconcileTodayHabitScores,finalizeOutstandingHabitDays}=require('./habit-rules.cjs');
 
 function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
@@ -19,6 +19,7 @@ async function handler(req,res){
     const {actor}=authorizeRequest(req,body.initData);
     const operation=String(body.operation||'list').trim(),now=Date.now(),today=moscowDateKey(now);
     const requestedDate=String(body.date||'').trim()||today;
+    try{await finalizeOutstandingHabitDays(actor,{now})}catch(error){console.error('RUDI_HABIT_SELF_HEAL_FINALIZE_ERROR',actor,String(error?.message||error))}
     let state,score=null,scoreDelta=0;
 
     if(operation==='list'){
@@ -32,9 +33,11 @@ async function handler(req,res){
       state=await ensureHabitDay(actor,today,{now});
     }else if(operation==='remove'){
       state=await ensureHabitDay(actor,today,{now});
-      const id=String(body.id||''),date=String(body.date||'').trim()||today;
-      if(date===today){const cleared=await clearHabitScore(actor,id,today,{now});score=cleared.score;scoreDelta=cleared.deltaPoints}
+      const id=String(body.id||''),habit=state.habits.find(row=>row.id===id);if(!habit)throw new Error('habit-not-found');
+      const cleared=await clearHabitScore(actor,habit,today,{now});score=cleared.score;scoreDelta=cleared.deltaPoints;
       state=await removeHabit(actor,id,{now});
+      const sync=await reconcileTodayHabitScores(actor,state,{now});if(sync.score)score=sync.score;scoreDelta+=sync.deltaPoints;
+      state=await readHabits(actor,{now});
     }else if(operation==='status'){
       const date=String(body.date||'').trim()||today;
       state=date===today?await ensureHabitDay(actor,today,{now}):await readHabits(actor,{now});

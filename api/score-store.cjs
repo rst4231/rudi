@@ -434,7 +434,7 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
       history:state.history.map((row,i)=>i===index?{...row,reversedAt:now.toISOString()}:row),
       dedupe:{...state.dedupe},
     };
-    next.balances[original.actor]=Math.max(0,next.balances[original.actor]-units);
+    next.balances[original.actor]=normalizeUnits(next.balances[original.actor]-units);
     next.lifetimeEarned[original.actor]=Math.max(0,next.lifetimeEarned[original.actor]-units);
     const day=normalizeActorUnits(next.dailyEarned[original.dateKey]);
     day[original.actor]=Math.max(0,day[original.actor]-units);
@@ -448,7 +448,7 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
         const streakRow=next.history[streakIndex];
         const streakUnits=Math.max(0,normalizeUnits(streakRow.units));
         next.history[streakIndex]={...streakRow,reversedAt:now.toISOString()};
-        next.balances[original.actor]=Math.max(0,next.balances[original.actor]-streakUnits);
+        next.balances[original.actor]=normalizeUnits(next.balances[original.actor]-streakUnits);
         next.lifetimeEarned[original.actor]=Math.max(0,next.lifetimeEarned[original.actor]-streakUnits);
         const streakDay=normalizeActorUnits(next.dailyEarned[original.dateKey]);
         streakDay[original.actor]=Math.max(0,streakDay[original.actor]-streakUnits);

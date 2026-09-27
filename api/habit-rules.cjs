@@ -1,5 +1,5 @@
 const {
-  moscowDateKey,shiftDateKey,habitStatus,viewHabits,readHabits,ensureHabitDay,setHabitStatus,markHabitDayFinalized
+  MAX_DAYS,SCORING_START_DATE,moscowDateKey,shiftDateKey,habitStatus,viewHabits,readHabits,ensureHabitDay,setHabitStatus,markHabitDayFinalized
 }=require('./habit-tracker-store.cjs');
 const {
   readScoreState,awardScore,penalizeScore,reverseScoreByDedupeKey,reversePenaltyByDedupeKey,scoreView
@@ -36,9 +36,9 @@ async function reconcileHabitScore(actor,habit,date,status,bonusEligible,options
   const after=scoreView(latest||await readScoreState(options),options),afterBalance=Number(after.balances?.[actor]||0);
   return{score:after,deltaPoints:Number((afterBalance-beforeBalance).toFixed(2)),changed:Math.abs(afterBalance-beforeBalance)>0.0001};
 }
-async function clearHabitScore(actor,habitId,date,options={}){
+async function clearHabitScore(actor,habitOrId,date,options={}){
   const today=moscowDateKey(options.now||Date.now());if(date!==today)return{score:null,deltaPoints:0,changed:false};
-  const habit={id:habitId,name:'Удалённая привычка'};
+  const habit=habitOrId&&typeof habitOrId==='object'?habitOrId:{id:String(habitOrId||''),name:'Удалённая привычка'};
   return reconcileHabitScore(actor,habit,date,'pending',false,options);
 }
 async function reconcileTodayHabitScores(actor,state,options={}){
@@ -63,21 +63,48 @@ async function finalizeHabitDay(actor,date,options={}){
   let penalized=0;
   for(const id of bonusIds){
     const habit=byId.get(id);if(!habit)continue;
-    if(habitStatus(state,target,id)!=='pending')continue;
-    state=await setHabitStatus(actor,id,'notdone',{...options,date:target});
-    const one=await reconcileHabitScore(actor,habit,target,'notdone',true,{...options,allowPastPenalty:true});
-    if(one.deltaPoints<0)penalized+=Math.abs(one.deltaPoints);
+    const status=habitStatus(state,target,id);
+    if(status==='pending'){
+      const one=await reconcileHabitScore(actor,habit,target,'notdone',true,{...options,allowPastPenalty:true});
+      if(one.deltaPoints<0)penalized+=Math.abs(one.deltaPoints);
+      state=await setHabitStatus(actor,id,'notdone',{...options,date:target});
+      continue;
+    }
+    if(status==='notdone'){
+      const updatedAt=String(state.statusUpdatedAt?.[target]?.[id]||'');
+      const updatedMs=Date.parse(updatedAt),updatedKey=Number.isFinite(updatedMs)?moscowDateKey(updatedMs):'';
+      if(updatedKey===target){
+        const one=await reconcileHabitScore(actor,habit,target,'notdone',true,{...options,allowPastPenalty:true});
+        if(one.deltaPoints<0)penalized+=Math.abs(one.deltaPoints);
+      }
+    }
   }
   await markHabitDayFinalized(actor,target,options);
   return{finalized:true,penalized:Number(penalized.toFixed(2)),date:target};
+}
+async function finalizeOutstandingHabitDays(actor,options={}){
+  const today=moscowDateKey(options.now||Date.now()),last=shiftDateKey(today,-1);
+  const state=await readHabits(actor,options),start=String(state.scoringStartedDate||SCORING_START_DATE);
+  if(!start||start>last)return{actor,days:0,penalized:0,results:[]};
+  const results=[];let key=start,guard=0,total=0;
+  while(key&&key<=last&&guard<MAX_DAYS){
+    const result=await finalizeHabitDay(actor,key,options);
+    if(result?.penalized)total+=Number(result.penalized||0);
+    results.push(result);key=shiftDateKey(key,1);guard+=1;
+  }
+  return{actor,days:results.filter(row=>row?.finalized).length,penalized:Number(total.toFixed(2)),results};
 }
 async function finalizeYesterdayForAll(options={}){
   const yesterday=shiftDateKey(moscowDateKey(options.now||Date.now()),-1),results={};
   for(const actor of ['Рустам','Диана'])results[actor]=await finalizeHabitDay(actor,yesterday,options);
   return{date:yesterday,results};
 }
+async function finalizeOutstandingForAll(options={}){
+  const results={};for(const actor of ['Рустам','Диана'])results[actor]=await finalizeOutstandingHabitDays(actor,options);
+  return{date:moscowDateKey(options.now||Date.now()),results};
+}
 
 module.exports={
   HABIT_REWARD_UNITS,HABIT_PENALTY_UNITS,rewardKey,penaltyKey,reconcileHabitScore,clearHabitScore,
-  reconcileTodayHabitScores,finalizeHabitDay,finalizeYesterdayForAll
+  reconcileTodayHabitScores,finalizeHabitDay,finalizeOutstandingHabitDays,finalizeYesterdayForAll,finalizeOutstandingForAll
 };

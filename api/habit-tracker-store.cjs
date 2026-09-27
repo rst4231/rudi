@@ -6,6 +6,7 @@ const DB_KEY='habits:v1';
 const MAX_HABITS=80;
 const MAX_DAYS=400;
 const BONUS_LIMIT=3;
+const SCORING_START_DATE='2026-09-27';
 const tails=new Map();
 
 function cleanActor(value){const actor=String(value||'').trim();if(!ACTORS.has(actor))throw new Error('habits-actor-invalid');return actor}
@@ -46,6 +47,24 @@ function normalizeDateFlags(value){
   }
   return out;
 }
+function normalizeStatusMeta(value,validIds){
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{},out={};
+  for(const [rawDate,rawMap] of Object.entries(source).sort(([a],[b])=>a.localeCompare(b)).slice(-MAX_DAYS)){
+    const date=cleanDate(rawDate);if(!date||!rawMap||typeof rawMap!=='object'||Array.isArray(rawMap))continue;
+    const row={};
+    for(const [rawId,rawStamp] of Object.entries(rawMap)){
+      const id=cleanId(rawId),stamp=isoOrEmpty(rawStamp);
+      if(id&&validIds.has(id)&&stamp)row[id]=stamp;
+    }
+    if(Object.keys(row).length)out[date]=row;
+  }
+  return out;
+}
+function habitCreatedByDate(habit,date){
+  const stamp=Date.parse(String(habit?.createdAt||''));
+  if(!Number.isFinite(stamp))return true;
+  return moscowDateKey(stamp)<=date;
+}
 function normalizeState(value,actor){
   const who=cleanActor(actor),source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   const habits=[],seen=new Set();
@@ -59,8 +78,10 @@ function normalizeState(value,actor){
   return{
     initialized:Boolean(source.initialized),version:Math.max(0,Number(source.version||0)),actor:who,habits,completions,failures,
     bonusIdsByDate:normalizeBonusMap(source.bonusIdsByDate),
+    statusUpdatedAt:normalizeStatusMeta(source.statusUpdatedAt,validIds),
     remindedDates:normalizeDateFlags(source.remindedDates),
     finalizedDates:normalizeDateFlags(source.finalizedDates),
+    scoringStartedDate:cleanDate(source.scoringStartedDate)||SCORING_START_DATE,
     collapsed:Boolean(source.collapsed),updatedAt:isoOrEmpty(source.updatedAt)
   };
 }
@@ -113,8 +134,8 @@ async function ensureHabitDay(actor,date,options={}){
   return enqueue(who,async()=>{
     const state=await readHabits(who,options),target=resolveHabitDate(date,options.now||Date.now());
     if(Object.prototype.hasOwnProperty.call(state.bonusIdsByDate,target))return state;
-    const bonusIds=state.habits.slice(0,BONUS_LIMIT).map(row=>row.id);
-    return writeHabits(who,{...state,version:state.version+1,bonusIdsByDate:{...state.bonusIdsByDate,[target]:bonusIds}},options);
+    const bonusIds=state.habits.filter(row=>habitCreatedByDate(row,target)).slice(0,BONUS_LIMIT).map(row=>row.id);
+    return writeHabits(who,{...state,version:state.version+1,scoringStartedDate:state.scoringStartedDate||SCORING_START_DATE,bonusIdsByDate:{...state.bonusIdsByDate,[target]:bonusIds}},options);
   });
 }
 async function addHabit(actor,name,options={}){
@@ -133,10 +154,13 @@ async function removeHabit(actor,id,options={}){
   const who=cleanActor(actor),safe=cleanId(id);if(!safe)throw new Error('habit-id-required');
   return enqueue(who,async()=>{
     const state=await readHabits(who,options);if(!state.habits.some(row=>row.id===safe))throw new Error('habit-not-found');
-    const completions={},failures={};
+    const completions={},failures={},statusUpdatedAt={};
     for(const [date,ids] of Object.entries(state.completions||{})){const next=(ids||[]).filter(value=>value!==safe);if(next.length)completions[date]=next}
     for(const [date,ids] of Object.entries(state.failures||{})){const next=(ids||[]).filter(value=>value!==safe);if(next.length)failures[date]=next}
-    return writeHabits(who,{...state,version:state.version+1,habits:state.habits.filter(row=>row.id!==safe),completions,failures},options);
+    for(const [date,row] of Object.entries(state.statusUpdatedAt||{})){const next={...(row||{})};delete next[safe];if(Object.keys(next).length)statusUpdatedAt[date]=next}
+    const habits=state.habits.filter(row=>row.id!==safe),bonusIdsByDate={...state.bonusIdsByDate},today=moscowDateKey(options.now||Date.now());
+    if(Object.prototype.hasOwnProperty.call(bonusIdsByDate,today))bonusIdsByDate[today]=habits.filter(row=>habitCreatedByDate(row,today)).slice(0,BONUS_LIMIT).map(row=>row.id);
+    return writeHabits(who,{...state,version:state.version+1,habits,completions,failures,statusUpdatedAt,bonusIdsByDate},options);
   });
 }
 async function setHabitStatus(actor,id,status,options={}){
@@ -148,10 +172,11 @@ async function setHabitStatus(actor,id,status,options={}){
     const date=resolveHabitDate(options.date,options.now||Date.now());
     const done=new Set(state.completions[date]||[]),failed=new Set(state.failures[date]||[]);
     done.delete(safe);failed.delete(safe);if(nextStatus==='done')done.add(safe);if(nextStatus==='notdone')failed.add(safe);
-    const completions={...state.completions},failures={...state.failures};
+    const completions={...state.completions},failures={...state.failures},statusUpdatedAt={...state.statusUpdatedAt};
     if(done.size)completions[date]=[...done];else delete completions[date];
     if(failed.size)failures[date]=[...failed];else delete failures[date];
-    return writeHabits(who,{...state,version:state.version+1,completions,failures},options);
+    statusUpdatedAt[date]={...(statusUpdatedAt[date]||{}),[safe]:new Date(options.now||Date.now()).toISOString()};
+    return writeHabits(who,{...state,version:state.version+1,completions,failures,statusUpdatedAt},options);
   });
 }
 async function setHabitsCollapsed(actor,collapsed,options={}){
@@ -168,7 +193,7 @@ async function markHabitDayFinalized(actor,date,options={}){
 function resetMutationQueuesForTests(){tails.clear()}
 
 module.exports={
-  ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,BONUS_LIMIT,moscowDateKey,shiftDateKey,resolveHabitDate,habitStatus,habitStreak,
+  ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,BONUS_LIMIT,SCORING_START_DATE,moscowDateKey,shiftDateKey,resolveHabitDate,habitStatus,habitStreak,habitCreatedByDate,
   normalizeHabit,normalizeState,viewHabits,readHabits,writeHabits,ensureHabitDay,addHabit,removeHabit,setHabitStatus,
   setHabitsCollapsed,markHabitReminderSent,markHabitDayFinalized,resetMutationQueuesForTests
 };
