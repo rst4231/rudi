@@ -2196,6 +2196,14 @@
         return dianaCycleStatus(modelOrPhase).label;
       }
 
+      function dianaCycleProfileStatus(modelOrPhase){
+        const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:null;
+        if(model?.periodActive&&Number.isFinite(model.periodEnd)){
+          return 'Месячные до '+cycleDateLabel(model.periodEnd);
+        }
+        return dianaCycleMoodWord(modelOrPhase);
+      }
+
       function dianaCycleDailyAdvice(modelOrPhase){
         return dianaCycleStatus(modelOrPhase).advice;
       }
@@ -2231,7 +2239,7 @@
       function setDianaCycleMood(modelOrPhase){
         const node=document.getElementById('dianaCycleMood');
         if(!node) return;
-        const word=dianaCycleMoodWord(modelOrPhase);
+        const word=dianaCycleProfileStatus(modelOrPhase);
         node.textContent=word;
         node.hidden=!word;
         node.title=word?'Ориентировочный статус по календарю цикла':'';
