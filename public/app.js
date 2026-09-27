@@ -15,6 +15,7 @@
       let appAccessReady = false;
       const reactionRequestEpoch = new Map();
       let currentFeedReactionTargets = [];
+      const currentFeedReactionBindings = new Map();
       let currentPhotoMemoryReactionTarget = null;
       let partnerProfileName = '';
       let holidayItemsCache = null;
@@ -8420,22 +8421,21 @@
       }
 
       function setupReactions(){
-        bindReaction('feedConcertsLike','feedConcertsLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('concerts:'))||null);
-        bindReaction('feedStandupLike','feedStandupLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('standup:'))||null);
-        bindReaction('feedCinemaLike','feedCinemaLikedBy',()=>currentFeedReactionTargets.find(target=>target.key.startsWith('cinema:'))||null);
         bindReaction('sharedAlbumMemoryLike','sharedAlbumMemoryLikedBy',()=>currentPhotoMemoryReactionTarget);
       }
 
       async function refreshFeedReactions(){
         if(!currentActor||!currentFeedReactionTargets.length) return;
-        try{
-          const data=await reactionsRequest('list',{targets:currentFeedReactionTargets});
-          for(const reaction of data.reactions||[]){
-            if(reaction.key.startsWith('concerts:')) renderReaction(reaction,'feedConcertsLike','feedConcertsLikedBy');
-            if(reaction.key.startsWith('standup:')) renderReaction(reaction,'feedStandupLike','feedStandupLikedBy');
-            if(reaction.key.startsWith('cinema:')) renderReaction(reaction,'feedCinemaLike','feedCinemaLikedBy');
-          }
-        }catch(_){}
+        for(let index=0;index<currentFeedReactionTargets.length;index+=12){
+          const targets=currentFeedReactionTargets.slice(index,index+12);
+          try{
+            const data=await reactionsRequest('list',{targets});
+            for(const reaction of data.reactions||[]){
+              const binding=currentFeedReactionBindings.get(reactionTargetId(reaction));
+              if(binding) renderReaction(reaction,binding.buttonId,binding.namesId);
+            }
+          }catch(_){}
+        }
       }
 
       function partnerAuthorGenitive(value){
@@ -9188,18 +9188,80 @@
         return result;
       }
 
+      function feedReactionHash(value){
+        let hash=2166136261;
+        const text=String(value||'');
+        for(let index=0;index<text.length;index+=1){
+          hash^=text.charCodeAt(index);
+          hash=Math.imul(hash,16777619);
+        }
+        return (hash>>>0).toString(36);
+      }
+
+      function feedItemReactionTarget(name,item,index=0){
+        const title=String(item?.title||'').trim();
+        const href=String(item?.href||item?.kinopoiskUrl||'').trim();
+        const releaseDate=String(item?.releaseDate||'').trim();
+        const details=Array.isArray(item?.details)?item.details.join('|'):'';
+        const sources=Array.isArray(item?.sources)?item.sources.join('|'):'';
+        const source=[name,title,href,releaseDate,details,sources,index].join('||');
+        return {type:'feed',key:'item:'+String(name||'feed')+':'+feedReactionHash(source)};
+      }
+
+      function createFeedItemReaction(target,label){
+        const hash=feedReactionHash(reactionTargetId(target));
+        const buttonId='feedItemLike_'+hash;
+        const namesId='feedItemLikedBy_'+hash;
+        const strip=document.createElement('div');
+        strip.className='reaction-strip feed-item-reaction';
+
+        const button=document.createElement('button');
+        button.id=buttonId;
+        button.className='reaction-button';
+        button.type='button';
+        button.setAttribute('aria-label','Поставить лайк: '+String(label||'событие'));
+        button.setAttribute('aria-pressed','false');
+        button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 10.55 19.28C5.4 14.6 2 11.5 2 7.7 2 4.6 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.08A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.6 22 7.7c0 3.8-3.4 6.9-8.55 11.59L12 20.6Z"/></svg>';
+
+        const names=document.createElement('span');
+        names.id=namesId;
+        names.className='reaction-names';
+        strip.append(button,names);
+
+        currentFeedReactionTargets.push(target);
+        currentFeedReactionBindings.set(reactionTargetId(target),{buttonId,namesId});
+        bindReaction(buttonId,namesId,()=>target);
+        return strip;
+      }
+
       function renderFeedEventItems(body,items,name){
         const list=document.createElement('div');
         list.className='feed-event-list';
-        for(const item of items){
+        items.forEach((item,index)=>{
           const view=feedEventDisplay(item,name);
           const isLink=/^https?:\/\//i.test(String(item.href||''));
-          const card=document.createElement(isLink?'a':'article');
+          const card=document.createElement('article');
           card.className='feed-event-item'+(isLink?' feed-event-item-link':'');
           if(isLink){
-            card.href=item.href;
-            card.target='_blank';
-            card.rel='noopener noreferrer';
+            card.tabIndex=0;
+            card.setAttribute('role','link');
+            card.addEventListener('click',event=>{
+              if(event.target?.closest?.('button,a')) return;
+              if(tg?.openLink){
+                try{tg.openLink(item.href)}catch(_){window.open(item.href,'_blank','noopener,noreferrer')}
+              }else{
+                window.open(item.href,'_blank','noopener,noreferrer');
+              }
+            });
+            card.addEventListener('keydown',event=>{
+              if(event.key!=='Enter'&&event.key!==' ') return;
+              event.preventDefault();
+              if(tg?.openLink){
+                try{tg.openLink(item.href)}catch(_){window.open(item.href,'_blank','noopener,noreferrer')}
+              }else{
+                window.open(item.href,'_blank','noopener,noreferrer');
+              }
+            });
           }
 
           const time=document.createElement('time');
@@ -9229,6 +9291,8 @@
             copy.appendChild(meta);
           }
 
+          const target=feedItemReactionTarget(name,item,index);
+          copy.appendChild(createFeedItemReaction(target,item.title||'событие'));
           card.append(time,copy);
 
           if(isLink){
@@ -9237,15 +9301,10 @@
             chevron.setAttribute('aria-hidden','true');
             chevron.textContent='›';
             card.appendChild(chevron);
-            card.addEventListener('click',event=>{
-              if(!tg?.openLink) return;
-              event.preventDefault();
-              try{tg.openLink(card.href)}catch(_){window.open(card.href,'_blank','noopener,noreferrer')}
-            });
           }
 
           list.appendChild(card);
-        }
+        });
         body.appendChild(list);
       }
 
@@ -9265,7 +9324,7 @@
       function renderFeedCinemaItems(body,items){
         const track=document.createElement('div');
         track.className='feed-cinema-track';
-        for(const item of items){
+        items.forEach((item,index)=>{
           const card=document.createElement('article');
           card.className='feed-movie-card';
 
@@ -9307,9 +9366,12 @@
             link.textContent='Открыть →';
             copy.appendChild(link);
           }
+
+          const target=feedItemReactionTarget('cinema',{...item,href},index);
+          copy.appendChild(createFeedItemReaction(target,item?.title||'фильм'));
           card.append(posterWrap,copy);
           track.appendChild(card);
-        }
+        });
         body.appendChild(track);
       }
 
@@ -9446,7 +9508,6 @@
 
         const parts=(Array.isArray(partsOverride)?partsOverride:Array.isArray(section?.parts)?section.parts:[]).filter(Boolean);
         const structuredItems=Array.isArray(section?.items)?section.items.filter(Boolean):[];
-        const reaction=card?.querySelector('.feed-reaction');
         const raw=String(parts[0]||'');
         let count=0;
         let hasContent=Boolean(parts.length||structuredItems.length);
@@ -9517,7 +9578,6 @@
           body.appendChild(empty);
         }
 
-        if(reaction) reaction.hidden=!hasContent;
         if(meta) meta.textContent=hasContent?sectionMetaText(name,section):'Нет свежих данных';
         setFeedCardFresh(name,section,hasContent,payload);
         return {name,count,hasContent,firstTime};
@@ -9592,6 +9652,8 @@
       function renderFeed(payload){
         const sections=payload?.sections&&typeof payload.sections==='object'?payload.sections:{};
         const eventParts=Array.isArray(sections.events?.parts)?sections.events.parts:[];
+        currentFeedReactionTargets=[];
+        currentFeedReactionBindings.clear();
         const results=[
           renderFeedSection('concerts',sections.events,eventParts[0]?[eventParts[0]]:[],payload),
           renderFeedSection('standup',sections.events,eventParts[1]?[eventParts[1]]:[],payload),
@@ -9607,11 +9669,6 @@
         animateRudiCollection(document.getElementById('feedTodayLinks'),'.feed-today-chip',8);
         setTimeout(observeFeedCards,0);
 
-        currentFeedReactionTargets=[
-          ...(eventParts[0]?[{type:'feed',key:'concerts:'+String(sections.events?.updatedAt||payload?.date||'')}]:[]),
-          ...(eventParts[1]?[{type:'feed',key:'standup:'+String(sections.events?.updatedAt||payload?.date||'')}]:[]),
-          ...((sections.cinema?.parts?.length||sections.cinema?.items?.length)?[{type:'feed',key:'cinema:'+String(sections.cinema.updatedAt||'current')}]:[])
-        ].filter(target=>target.key.length<220);
         refreshFeedReactions();
 
         const updated=document.getElementById('feedUpdated');
@@ -11001,28 +11058,17 @@
         return period==='morning'?'Утро':period==='day'?'День':period==='evening'?'Вечер':'';
       }
 
-      function setDateIdeasExpanded(expanded,{persist=true}={}){
-        const generate=document.getElementById('dateIdeaButton');
+      function setDateIdeasExpanded(_expanded,{persist=false}={}){
         const choices=document.getElementById('dateTimeChoices');
         const results=document.getElementById('dateIdeaResults');
         const status=document.getElementById('dateIdeaStatus');
         const hasIdeas=Boolean(readDateIdeasCache());
-        if(!generate||!choices||!results) return;
+        if(!choices||!results) return;
 
-        const open=Boolean(expanded);
-        choices.hidden=!open;
-        results.hidden=!open||!hasIdeas;
-        if(status) status.hidden=!open;
-        generate.setAttribute('aria-expanded',open?'true':'false');
-
-        const title=generate.querySelector('.dates-generate-copy strong,.quick-access-copy strong');
-        const subtitle=generate.querySelector('.dates-generate-copy small,.quick-access-copy small');
-        if(title) title.textContent=hasIdeas?(open?'Свернуть':'Развернуть'):(open?'Свернуть':'Сгенерировать свидание');
-        if(subtitle) subtitle.textContent=hasIdeas
-          ? (open?'Скрыть идеи и выбор времени':'Показать сохранённые идеи')
-          : '3 необычные идеи';
-
-        if(persist) writeDateIdeasExpanded(open);
+        choices.hidden=false;
+        results.hidden=!hasIdeas;
+        if(status) status.hidden=false;
+        if(persist) writeDateIdeasExpanded(true);
       }
 
       function renderDateIdeas(payload){
@@ -11176,11 +11222,10 @@
         const dates=document.getElementById('quickDateButton');
         const forDi=document.getElementById('quickForDiButton');
         const fasting=document.getElementById('quickFastingButton');
-        const generate=document.getElementById('dateIdeaButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!dates||!forDi||!fasting||!generate||!choices||generate.dataset.dateBound==='1') return;
-        generate.dataset.dateBound='1';
+        if(!wishlist||!dates||!forDi||!fasting||!choices||choices.dataset.dateBound==='1') return;
+        choices.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
           navigateToAppTab('wishlist',{scroll:true});
@@ -11204,19 +11249,8 @@
 
         const cachedIdeas=readDateIdeasCache();
         if(cachedIdeas) renderDateIdeas(cachedIdeas);
-        setDateIdeasExpanded(readDateIdeasExpanded(Boolean(cachedIdeas)),{persist:false});
+        setDateIdeasExpanded(true,{persist:false});
         loadDateGenerationStatus();
-
-        generate.addEventListener('click',()=>{
-          const open=generate.getAttribute('aria-expanded')!=='true';
-          setDateIdeasExpanded(open);
-          if(open&&status){
-            status.textContent=currentDateGenerationQuota
-              ? dateQuotaText(currentDateGenerationQuota)
-              : 'Когда удобнее устроить свидание?';
-          }
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
 
         choices.querySelectorAll('[data-date-period]').forEach(button=>{
           button.addEventListener('click',async()=>{

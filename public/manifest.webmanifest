@@ -10,7 +10,10 @@
   "display": "standalone",
   "background_color": "#f4f5f7",
   "theme_color": "#0b0d12",
-  "categories": ["lifestyle", "productivity"],
+  "categories": [
+    "lifestyle",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icon-192-v176.jpg",
@@ -37,28 +40,52 @@
       "short_name": "Кухня",
       "description": "Открыть список продуктов и рецепты",
       "url": "/?tab=products",
-      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+      "icons": [
+        {
+          "src": "/icon-192-v176.jpg",
+          "sizes": "192x192",
+          "type": "image/jpeg"
+        }
+      ]
     },
     {
       "name": "Календарь",
       "short_name": "Календарь",
       "description": "Открыть календарь RUDI",
       "url": "/?tab=schedule",
-      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+      "icons": [
+        {
+          "src": "/icon-192-v176.jpg",
+          "sizes": "192x192",
+          "type": "image/jpeg"
+        }
+      ]
     },
     {
       "name": "Вишлист",
       "short_name": "Вишлист",
       "description": "Открыть общий вишлист",
       "url": "/?tab=wishlist",
-      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+      "icons": [
+        {
+          "src": "/icon-192-v176.jpg",
+          "sizes": "192x192",
+          "type": "image/jpeg"
+        }
+      ]
     },
     {
-      "name": "Сохранения",
-      "short_name": "Сохранения",
-      "description": "Открыть сохранённые свидания и рецепты",
-      "url": "/?tab=saves",
-      "icons": [{"src": "/icon-192-v176.jpg", "sizes": "192x192", "type": "image/jpeg"}]
+      "name": "Свидания",
+      "short_name": "Свидания",
+      "description": "Открыть генератор и сохранённые свидания",
+      "url": "/?tab=dates",
+      "icons": [
+        {
+          "src": "/icon-192-v176.jpg",
+          "sizes": "192x192",
+          "type": "image/jpeg"
+        }
+      ]
     }
   ],
   "screenshots": [

@@ -460,3 +460,54 @@ body.auth-ok .shell{view-transition-name:rudi-content}
 /* RUDI v2.28 — saved dates inside Dates page */
 .dates-page .saves-status{padding:0 2px}
 .dates-page .saved-category{width:100%}
+
+
+/* RUDI v2.29 — Saved Recipes uses the Kitchen recipe-card visual language */
+.products-section .kitchen-saved-recipes{
+  padding:12px!important;
+  overflow:hidden;
+  border-radius:18px!important;
+  border-color:color-mix(in srgb,#f0a34a 24%,var(--line))!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(240,163,74,.13),transparent 28%),
+    linear-gradient(145deg,color-mix(in srgb,rgba(240,163,74,.055) 70%,transparent),transparent 55%),
+    color-mix(in srgb,var(--surface) 95%,transparent)!important;
+  box-shadow:0 12px 32px rgba(30,34,44,.07)!important;
+}
+html[data-theme="dark"] .products-section .kitchen-saved-recipes{
+  background:
+    radial-gradient(circle at 96% 0%,rgba(240,163,74,.11),transparent 28%),
+    color-mix(in srgb,var(--surface) 96%,transparent)!important;
+}
+.products-section .kitchen-saved-recipes .saved-category-head{
+  min-height:38px;
+  padding:0;
+  grid-template-columns:minmax(0,1fr) 22px;
+  gap:10px;
+  background:transparent;
+}
+.products-section .kitchen-saved-recipes .saved-category-icon{
+  display:none;
+}
+.products-section .kitchen-saved-recipes .saved-category-copy{
+  gap:2px;
+}
+.products-section .kitchen-saved-recipes .saved-category-copy strong{
+  font-size:14px;
+  line-height:1.2;
+  font-weight:840;
+  letter-spacing:-.018em;
+}
+.products-section .kitchen-saved-recipes .saved-category-copy small{
+  font-size:8.8px;
+  line-height:1.25;
+  font-weight:650;
+}
+.products-section .kitchen-saved-recipes .saved-category-body{
+  gap:8px;
+  margin-top:10px;
+  padding:0;
+}
+.products-section .kitchen-saved-recipes.is-collapsed .saved-category-head{
+  margin-bottom:0;
+}

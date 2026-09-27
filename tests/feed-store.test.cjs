@@ -111,3 +111,41 @@ test('cinema structured items persist together with fallback text', async () => 
   assert.equal(snapshot.sections.cinema.items[0].title, 'Тестовый фильм');
   assert.equal(snapshot.sections.cinema.items[0].sources[0], 'Мираж Синема');
 });
+
+
+test('empty cinema update cannot erase the current weekly selection', async () => {
+  const cache = memoryCache();
+  await updateFeedSections({
+    cinema: {
+      parts: ['Текущая четверговая подборка'],
+      items: [{ title: 'Фильм недели', releaseDate: '2026-09-24' }],
+    },
+  }, { feedCache: cache, now: new Date('2026-09-24T06:00:00Z'), date: '2026-09-24' });
+
+  await updateFeedSections({
+    cinema: null,
+    events: { parts: ['Свежие события воскресенья'] },
+  }, { feedCache: cache, now: new Date('2026-09-27T06:00:00Z'), date: '2026-09-27' });
+
+  const preserved = await readFeedSnapshot({
+    feedCache: cache,
+    now: new Date('2026-09-27T06:01:00Z'),
+  });
+  assert.deepEqual(preserved.sections.cinema.parts, ['Текущая четверговая подборка']);
+  assert.equal(preserved.sections.cinema.items[0].title, 'Фильм недели');
+
+  await updateFeedSections({
+    cinema: {
+      parts: ['Новая четверговая подборка'],
+      items: [{ title: 'Новый фильм недели', releaseDate: '2026-10-01' }],
+    },
+  }, { feedCache: cache, now: new Date('2026-10-01T06:00:00Z'), date: '2026-10-01' });
+
+  const replaced = await readFeedSnapshot({
+    feedCache: cache,
+    now: new Date('2026-10-01T06:01:00Z'),
+  });
+  assert.deepEqual(replaced.sections.cinema.parts, ['Новая четверговая подборка']);
+  assert.equal(replaced.sections.cinema.items[0].title, 'Новый фильм недели');
+  assert.equal(JSON.stringify(replaced).includes('Текущая четверговая подборка'), false);
+});

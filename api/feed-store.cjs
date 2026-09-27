@@ -143,6 +143,9 @@ async function updateFeedSections(input = {}, options = {}) {
     if (!(name in input)) continue;
     const next = normalizeSection(name, input[name], now);
     if (!next) {
+      // Cinema is intentionally sticky: keep the last valid Thursday selection
+      // until a newer valid cinema payload replaces it.
+      if (name === 'cinema' && sections.cinema) continue;
       if (sections[name]) {
         delete sections[name];
         changedSections.push(name);

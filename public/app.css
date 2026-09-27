@@ -7444,8 +7444,6 @@ html[data-theme="dark"] .partner-message .partner-edit{
 .quick-access-button.is-wishlist{background:linear-gradient(145deg,color-mix(in srgb,var(--love-soft) 68%,var(--surface-strong)),var(--surface-strong))}
 .quick-access-button.is-date{background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 64%,var(--surface-strong)),var(--surface-strong))}
 .quick-access-button.is-fasting{
-  grid-column:1/-1;
-  min-height:58px;
   background:linear-gradient(145deg,color-mix(in srgb,var(--green-soft) 58%,var(--surface-strong)),var(--surface-strong));
 }
 .quick-access-icon{
@@ -8950,3 +8948,35 @@ html[data-theme="light"] .profile-supplement-intakes-empty{color:rgba(48,54,68,.
 .dates-saves{display:grid;gap:8px}
 .dates-saves-head{display:flex;align-items:end;justify-content:space-between;gap:12px;padding:4px 2px 0}
 .dates-saved-category{margin-top:2px}
+
+
+/* RUDI v2.29 — reactions belong to individual Feed items */
+.feed-item-reaction{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:6px;
+  min-height:25px;
+  margin-top:5px;
+  padding:0;
+  border:0;
+}
+.feed-item-reaction .reaction-button{
+  width:27px;
+  height:27px;
+  flex:none;
+  border-radius:9px;
+}
+.feed-item-reaction .reaction-button svg{
+  width:14px;
+  height:14px;
+}
+.feed-item-reaction .reaction-names{
+  max-width:none;
+  font-size:8.8px;
+  line-height:1.25;
+  text-align:left;
+}
+.feed-event-item-link .feed-item-reaction{
+  cursor:default;
+}

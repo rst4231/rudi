@@ -594,6 +594,9 @@ function reactionActivityView(target) {
   if (type === 'partner-message') return { label: 'послание', targetTab: 'home' };
   if (type === 'photo-memory') return { label: 'фото-воспоминание', targetTab: 'photos' };
   if (type === 'feed') {
+    if (key.startsWith('item:concerts:')) return { label: 'конкретный концерт в Ленте', targetTab: 'feed' };
+    if (key.startsWith('item:standup:')) return { label: 'конкретное Stand Up-событие в Ленте', targetTab: 'feed' };
+    if (key.startsWith('item:cinema:')) return { label: 'конкретный фильм в Ленте', targetTab: 'feed' };
     if (key.startsWith('concerts:')) return { label: 'концерты в Ленте', targetTab: 'feed' };
     if (key.startsWith('standup:')) return { label: 'стендап в Ленте', targetTab: 'feed' };
     if (key.startsWith('cinema:')) return { label: 'кино в Ленте', targetTab: 'feed' };
