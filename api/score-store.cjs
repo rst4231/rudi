@@ -20,8 +20,7 @@ const REWARDS = Object.freeze([
   { id:'playlist', label:'Выбрать музыку/плейлист', description:'Ты выбираешь музыку/плейлист в машине на весь день.', icon:'🎧', costUnits:50 },
   { id:'coffee-tea', label:'Кофе или чай от партнёра', description:'Партнёр приготовит и принесёт тебе кофе или чай.', icon:'☕️', costUnits:80 },
   { id:'dessert', label:'Выбрать десерт или вкусняшку', description:'Ты выбираешь десерт или любимую вкусняшку.', icon:'🍰', costUnits:100 },
-  { id:'movie', label:'Выбрать фильм', description:'Ты выбираешь фильм для совместного просмотра.', icon:'🎬', costUnits:150 },
-  { id:'series', label:'Выбрать сериал на вечер', description:'Ты выбираешь сериал или серию на вечер.', icon:'📺', costUnits:150 },
+  { id:'movie', label:'Выбрать фильм или сериал', description:'Ты выбираешь фильм или сериал для совместного просмотра.', icon:'🎬', costUnits:150 },
   { id:'dinner', label:'Выбрать ужин', description:'Ты решаешь, что будет на ужин.', icon:'🍽️', costUnits:250 },
   { id:'breakfast', label:'Завтрак в постель', description:'Партнёр готовит и приносит завтрак в постель.', icon:'🥐', costUnits:300 },
   { id:'order-food', label:'Выбрать, что заказать поесть', description:'Ты выбираешь, что и откуда заказать.', icon:'🍕', costUnits:300 },
@@ -247,8 +246,13 @@ async function writeScoreState(value,options={}) {
   await cacheOf(options).set(STATE_KEY,state,{ttl:TTL_SECONDS,tags:['rudi-score'],name:STATE_KEY});
   return state;
 }
+function canonicalRewardId(id) {
+  const value=String(id||'').trim();
+  return value==='series'?'movie':value;
+}
 function rewardById(id) {
-  return REWARDS.find((row)=>row.id===String(id||'').trim())||null;
+  const canonical=canonicalRewardId(id);
+  return REWARDS.find((row)=>row.id===canonical)||null;
 }
 function claimUnlockedRewards(next,actor,beforeUnits,afterUnits,now){
   const unlocked=[];
@@ -447,7 +451,7 @@ async function redeemReward(actor,rewardId,options={}) {
   if(!who||!reward) throw new Error('score-reward-invalid');
   return enqueueMutation(async()=>{
     const state=await readScoreState(options);
-    if(state.redemptions.some((row)=>row.status==='active'&&row.rewardId===reward.id)) throw new Error('score-reward-active');
+    if(state.redemptions.some((row)=>row.status==='active'&&canonicalRewardId(row.rewardId)===reward.id)) throw new Error('score-reward-active');
     if(state.balances[who]<reward.costUnits) throw new Error('score-balance-insufficient');
     const now=new Date(options.now||Date.now());
     const redemption=normalizeRedemption({

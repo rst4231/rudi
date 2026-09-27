@@ -1,13 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { REWARDS, DAILY_LIMIT_UNITS, scoreView, awardScore, resetMutationQueueForTests } = require('../api/score-store.cjs');
+const { REWARDS, DAILY_LIMIT_UNITS, scoreView, awardScore, redeemReward, resetMutationQueueForTests } = require('../api/score-store.cjs');
 
 const expected = [
   ['playlist', 5, 'Ты выбираешь музыку/плейлист в машине на весь день.'],
   ['coffee-tea', 8, 'Партнёр приготовит и принесёт тебе кофе или чай.'],
   ['dessert', 10, 'Ты выбираешь десерт или любимую вкусняшку.'],
-  ['movie', 15, 'Ты выбираешь фильм для совместного просмотра.'],
-  ['series', 15, 'Ты выбираешь сериал или серию на вечер.'],
+  ['movie', 15, 'Ты выбираешь фильм или сериал для совместного просмотра.'],
   ['dinner', 25, 'Ты решаешь, что будет на ужин.'],
   ['breakfast', 30, 'Партнёр готовит и приносит завтрак в постель.'],
   ['order-food', 30, 'Ты выбираешь, что и откуда заказать.'],
@@ -70,4 +69,55 @@ test('daily star cap allows earning through 15 stars and caps anything above it'
   assert.equal(second.awardedUnits,0);
   assert.equal(second.capped,true);
   assert.equal(scoreView(second.state,{now:now+1000}).today.earned['Рустам'],15);
+});
+
+
+test('home actions use the configured fractional star rewards', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const api = fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  const app = fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+
+  assert.match(api,/awardScoreSafe\(actor,3,\{\s*label:'Вопрос дня'/s);
+  assert.match(api,/awardScoreSafe\(actor,3,\{\s*label:'Послание'/s);
+  assert.match(api,/awardScoreSafe\(actor,5,\{label:'Прогулка с Лулу'/);
+  assert.match(app,/Ответ сохранён · \+0,3 ⭐/);
+
+  const likeStart=api.indexOf("if (action === 'partner-message-like')");
+  const likeEnd=api.indexOf("if (action === 'partner-message-read')",likeStart);
+  assert.ok(likeStart>=0&&likeEnd>likeStart);
+  const likeBlock=api.slice(likeStart,likeEnd);
+  assert.doesNotMatch(likeBlock,/awardScoreSafe\(/);
+  assert.match(likeBlock,/recordLikeActivity/);
+});
+
+
+test('movie and series are one shop reward and legacy series stays compatible', async () => {
+  const movie=REWARDS.find((row)=>row.id==='movie');
+  assert.ok(movie);
+  assert.equal(movie.label,'Выбрать фильм или сериал');
+  assert.equal(movie.costUnits,150);
+  assert.equal(REWARDS.some((row)=>row.id==='series'),false);
+
+  resetMutationQueueForTests();
+  const now=Date.parse('2026-09-27T12:00:00Z');
+  const cache=memoryCache({
+    initialized:true,
+    balances:{'Рустам':300,'Диана':0},
+    lifetimeEarned:{'Рустам':300,'Диана':0},
+    redemptions:[{
+      id:'reward-legacy-series',
+      buyerActor:'Рустам',
+      rewardId:'series',
+      label:'Выбрать сериал на вечер',
+      icon:'📺',
+      costUnits:150,
+      createdAt:'2026-09-26T12:00:00.000Z'
+    }]
+  });
+
+  await assert.rejects(
+    ()=>redeemReward('Рустам','movie',{scoreCache:cache,now}),
+    /score-reward-active/
+  );
 });

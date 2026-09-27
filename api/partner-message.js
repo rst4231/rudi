@@ -1550,7 +1550,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           type: 'lulu-walk',actor,text: actor + ' ' + actionWord + ' с Лулу',icon:'🐾',targetTab:'home',
           dedupeKey:'lulu-walk:'+walkedAt,createdAt:walkedAt,
         }, options);
-        await awardScoreSafe(actor,10,{label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
+        await awardScoreSafe(actor,5,{label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
 
         const notificationTask = sendLuluWalkNotificationToPartner(
           actor,
@@ -2309,7 +2309,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (operation === 'answer') {
         const view = await answerDailyQuestion(actor, body.answer, questionOptions);
-        const reward = await awardScoreSafe(actor,5,{
+        const reward = await awardScoreSafe(actor,3,{
           label:'Вопрос дня',
           detail:'Ответ на вопрос дня',
           icon:'💬',
@@ -2380,16 +2380,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const likedNow = message?.likes?.includes(actor);
       if (likedNow && !before?.likes?.includes(actor)) {
         await recordLikeActivity({ type:'partner-message', key:'current' }, actor, options).catch(() => null);
-        const messageAuthor = String(before?.authorName || message?.authorName || '').trim();
-        if (messageAuthor && messageAuthor !== actor) {
-          const scoreDate = moscowDateKey(options.now || Date.now());
-          await awardScoreSafe(actor,2,{
-            label:'Реакция',
-            detail:'Реакция на послание партнёра',
-            icon:'❤️',
-            dedupeKey:'score:partner-message-reaction:'+actor+':'+scoreDate,
-          },options);
-        }
+        // Лайк послания остаётся реакцией, но звёзды за него больше не начисляются.
       }
       const backupToken = await refreshBackupToken(previousSnapshot, options);
       return res.status(200).json({ ok:true, actor, message, backupToken });
@@ -3158,7 +3149,7 @@ async function handler(req, res, options = {}) {
 
     await recordActivity({type:'partner-message',actor,text:actor+' '+activityVerb(actor,'оставил','оставила')+' послание',icon:'💌',targetTab:'home',dedupeKey:'message:'+String(message?.updatedAt||'')},options);
     const messageScoreDate=moscowDateKey(options.now||Date.now());
-    await awardScoreSafe(actor,5,{
+    await awardScoreSafe(actor,3,{
       label:'Послание',
       detail:'Оставлено послание партнёру',
       icon:'💌',
