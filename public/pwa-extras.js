@@ -1257,7 +1257,17 @@
     return Number.isFinite(created)&&created<Date.now()-FOR_DI_LABOR_RETENTION_MS;
   }
 
-  function appendForDiLinkedText(host,value){
+  function forDiDisplayText(item){
+    let text=String(item?.text||'');
+    if(String(item?.source||'').trim()==='labor'){
+      text=text
+        .replace(/^\s*(?:⚖️\s*)?Трудовой кодекс\s*(?:\r?\n)+/iu,'')
+        .replace(/(?:\r?\n)?\s*Актуальная редакция ТК РФ\s*(?:→|:|-)?\s*(?=https?:\/\/)/giu,'\n');
+    }
+    return text.trim();
+  }
+
+  function appendForDiLinkedText(host,value,{linkLabel=''}={}){
     const text=String(value||'');
     const pattern=/(https?:\/\/[^\s]+)/giu;
     let last=0;
@@ -1275,7 +1285,7 @@
         link.href=url;
         link.target='_blank';
         link.rel='noopener noreferrer';
-        link.textContent=url;
+        link.textContent=linkLabel||url;
         host.appendChild(link);
       }
       if(trailing) host.appendChild(document.createTextNode(trailing));
@@ -1380,7 +1390,8 @@
 
         const body=document.createElement('div');
         body.className='for-di-card-text';
-        appendForDiLinkedText(body,item.text);
+        const laborItem=String(item?.source||'').trim()==='labor';
+        appendForDiLinkedText(body,forDiDisplayText(item),{linkLabel:laborItem?'Подробнее':''});
 
         const footer=document.createElement('div');
         footer.className='for-di-card-footer';
@@ -1437,9 +1448,10 @@
     if(stylistCount) stylistCount.textContent='0';
     if(totalCount) totalCount.textContent=laborRows.length?String(laborRows.length):'';
 
-    if(status) status.textContent=laborRows.length
-      ?'Материалы сохраняются здесь вместе с ежедневным обновлением ленты'
-      :'Материалы появятся вместе с обновлением ленты';
+    if(status){
+      status.textContent='';
+      status.hidden=true;
+    }
 
     restoreForDiCategoryState('labor');
     restoreForDiCategoryState('saved');
@@ -1449,7 +1461,7 @@
   async function loadForDi(){
     if(forDiLoadPromise) return forDiLoadPromise;
     const status=byId('forDiStatus');
-    if(status&&!forDiState.length) status.textContent='Загружаю материалы…';
+    if(status&&!forDiState.length){ status.hidden=false; status.textContent='Загружаю материалы…'; }
     forDiLoadPromise=(async()=>{
       try{
         const data=await forDiRequest('list');
@@ -1458,9 +1470,12 @@
         renderForDi();
         return forDiState;
       }catch(error){
-        if(status) status.textContent=navigator.onLine===false
-          ?'Нет сети. Материалы будут доступны после подключения.'
-          :'Не удалось загрузить материалы';
+        if(status){
+          status.hidden=false;
+          status.textContent=navigator.onLine===false
+            ?'Нет сети. Материалы будут доступны после подключения.'
+            :'Не удалось загрузить материалы';
+        }
         throw error;
       }finally{
         forDiLoadPromise=null;
