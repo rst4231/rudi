@@ -79,10 +79,29 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','partner','daily-question','new','quick-access','smart-home','car','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','partner','daily-question','new','quick-access','smart-home','car','markets'];
+        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets'];
+      }
+      function homeLayoutV254MigrationKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi-home-layout-v254-'+actor;
+      }
+      function migrateHomeOrderV254(order){
+        const source=Array.isArray(order)?order.map(String):[];
+        if(!source.length)return source;
+        try{if(localStorage.getItem(homeLayoutV254MigrationKey())==='1')return source}catch(_){}
+        const moving=['habits','supplements','partner','daily-question'];
+        const next=source.filter(id=>!moving.includes(id));
+        const priorityIndex=next.indexOf('priority');
+        if(priorityIndex>=0)next.splice(priorityIndex+1,0,'habits','supplements');
+        else next.push('habits','supplements');
+        const marketsIndex=next.indexOf('markets');
+        if(marketsIndex>=0)next.splice(marketsIndex,0,'partner','daily-question');
+        else next.push('partner','daily-question');
+        try{localStorage.setItem(homeLayoutV254MigrationKey(),'1')}catch(_){}
+        return next;
       }
       function homeTopOrderMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -866,7 +885,7 @@
       }
 
       function normalizedHomeOrder(order){
-        const source=Array.isArray(order)?order.map(String):[];
+        const source=migrateHomeOrderV254(Array.isArray(order)?order.map(String):[]);
         const requested=source.flatMap(id=>{
           if(['profile','profile-common','profile-self','profile-partner'].includes(id)) return ['dashboard'];
           return [id];
