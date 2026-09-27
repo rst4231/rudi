@@ -3165,13 +3165,16 @@
             const text=document.createElement('div');
             text.className='lulu-walk-history-text';
             text.textContent=time+' · с '+companion+(toilet?' · '+toilet:'');
-            const cancel=document.createElement('button');
-            cancel.type='button';
-            cancel.className='lulu-walk-history-cancel';
-            cancel.textContent='Отменить';
-            cancel.setAttribute('aria-label','Отменить прогулку '+time+' с '+companion);
-            cancel.addEventListener('click',()=>cancelLuluWalkEntry(row,cancel));
-            item.append(text,cancel);
+            item.appendChild(text);
+            if(actor===currentActor){
+              const cancel=document.createElement('button');
+              cancel.type='button';
+              cancel.className='lulu-walk-history-cancel';
+              cancel.textContent='Отменить';
+              cancel.setAttribute('aria-label','Отменить прогулку '+time+' с '+companion);
+              cancel.addEventListener('click',()=>cancelLuluWalkEntry(row,cancel));
+              item.appendChild(cancel);
+            }
             panel.appendChild(item);
           }
         }
@@ -3281,7 +3284,8 @@
 
       async function cancelLuluWalkEntry(row,button){
         const walkedAt=String(row?.walkedAt||'').trim();
-        if(!walkedAt||button?.disabled) return;
+        const owner=String(row?.actor||'').trim();
+        if(!walkedAt||owner!==currentActor||button?.disabled) return;
         if(button){
           button.disabled=true;
           button.classList.add('is-canceling');

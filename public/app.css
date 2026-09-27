@@ -10549,3 +10549,40 @@ body[data-app-tab="wishlist"] .wishlist-url-toggle,
   .lulu-walk-history,
   .lulu-walk-history-toggle svg{transition:none!important}
 }
+
+
+/* RUDI v2.62 — final Lulu control sizing */
+.lulu-walk-button{
+  width:28px!important;
+  height:28px!important;
+  min-width:28px!important;
+  min-height:28px!important;
+  padding:0!important;
+  border-radius:9px!important;
+}
+.lulu-walk-button svg{
+  width:16px!important;
+  height:16px!important;
+}
+.lulu-walk-history-toggle{
+  width:34px!important;
+  height:34px!important;
+  min-width:34px!important;
+  min-height:34px!important;
+  padding:0!important;
+  border-radius:12px!important;
+}
+@media(max-width:430px){
+  .lulu-walk-button{
+    width:28px!important;
+    height:28px!important;
+    min-width:28px!important;
+    min-height:28px!important;
+  }
+  .lulu-walk-history-toggle{
+    width:34px!important;
+    height:34px!important;
+    min-width:34px!important;
+    min-height:34px!important;
+  }
+}

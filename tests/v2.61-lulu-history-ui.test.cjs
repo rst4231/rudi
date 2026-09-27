@@ -24,3 +24,14 @@ test('v2.61 backend restores canceled walks and score dedupe',()=>{
   assert.match(partner,/clearDedupe:true/);
   assert.match(store,/async function restoreLuluWalk/);
 });
+
+
+test('v2.62 limits Lulu cancel to walk owner and matches requested control sizes',()=>{
+  assert.match(app,/if\(actor===currentActor\)/);
+  assert.match(app,/owner!==currentActor/);
+  assert.match(api,/lulu-walk-owner-required/);
+  assert.match(api,/String\(removedWalk\.actor \|\| ''\) !== actor/);
+  assert.match(css,/RUDI v2\.62 — final Lulu control sizing/);
+  assert.match(css,/\.lulu-walk-button\{[\s\S]*width:28px!important/);
+  assert.match(css,/\.lulu-walk-history-toggle\{[\s\S]*width:34px!important/);
+});

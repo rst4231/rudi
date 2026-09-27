@@ -1596,6 +1596,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         const removedWalk = (Array.isArray(beforeCancel?.walksToday) ? beforeCancel.walksToday : [])
           .find((row) => row?.walkedAt === walkedAt)
           || (beforeCancel?.lastWalk?.walkedAt === walkedAt ? beforeCancel.lastWalk : null);
+        if (!removedWalk) throw new Error('lulu-walk-not-found');
+        if (String(removedWalk.actor || '') !== actor) throw new Error('lulu-walk-owner-required');
         const notice = await readLuluWalkNotice(walkedAt, options).catch(() => null);
         const lulu = await cancelLuluWalk(walkedAt, options);
 
@@ -1646,6 +1648,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
         const restoredActor=String(input.actor||'').trim();
         if(restoredActor!=='Рустам'&&restoredActor!=='Диана') throw new Error('lulu-actor-invalid');
+        if(restoredActor!==actor) throw new Error('lulu-undo-forbidden');
         const walkedAtDate=new Date(String(input.walkedAt||'').trim());
         if(Number.isNaN(walkedAtDate.getTime())) throw new Error('lulu-walk-invalid');
         const walkedAt=walkedAtDate.toISOString();
@@ -1688,7 +1691,10 @@ async function handleRudiAction(req, res, action, options = {}) {
     } catch (error) {
       const code = String(error?.message || error);
       const authStatus = statusForError(error);
-      const status = authStatus !== 500 ? authStatus : code.startsWith('lulu-') ? 400 : 500;
+      const status = authStatus !== 500 ? authStatus
+        : code === 'lulu-walk-owner-required' || code === 'lulu-undo-forbidden' ? 403
+        : code.startsWith('lulu-') ? 400
+        : 500;
       if (status === 500) console.error('RUDI_LULU_ERROR', code);
       return res.status(status).json({ ok: false, error: code });
     }
