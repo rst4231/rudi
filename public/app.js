@@ -2858,6 +2858,7 @@
           const enough=balance>=Number(reward.cost||0);
           const alreadyActive=activeRewards.some(item=>String(item.rewardId||'')===String(reward.id||''));
           button.disabled=!own||!enough||alreadyActive;
+          button.classList.toggle('is-claimable',own&&enough&&!alreadyActive);
           button.textContent=!own?'Только свои':alreadyActive?'Активна':enough?'Получить':'Не хватает';
           button.addEventListener('click',async()=>{
             if(button.disabled) return;
