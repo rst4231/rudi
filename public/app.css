@@ -9981,3 +9981,14 @@ html[data-theme="dark"] .app-tab-button.active .app-tab-icon{
 body.home-layout-editing #displayName.personal-profile-name-link{
   pointer-events:auto!important;
 }
+
+
+/* RUDI v2.53 — draggable home layout */
+.home-order-controls{grid-template-columns:repeat(3,32px)!important}
+.home-order-drag{touch-action:none!important;cursor:grab!important}
+.home-order-drag:active{cursor:grabbing!important}
+.home-order-drag svg{fill:currentColor!important;stroke:none!important}
+body.home-layout-editing [data-home-tile].is-home-dragging{
+  z-index:130!important;opacity:.88!important;transform:scale(1.012)!important;cursor:grabbing!important;
+  box-shadow:0 20px 48px rgba(18,22,34,.17)!important
+}

@@ -63,6 +63,7 @@
       let currentComplimentDateKey = '';
       let homeLayoutEditing = false;
       let homeTileHost = null;
+      let homeDragState = null;
       const homeDashboardState={
         tasks:[],
         workDay:null,
@@ -78,10 +79,10 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','partner','daily-question','new','quick-access','smart-home','car','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','partner','daily-question','new','quick-access','smart-home','car','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','partner','daily-question','new','quick-access','smart-home','car','markets'];
+        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','partner','daily-question','new','quick-access','smart-home','car','markets'];
       }
       function homeTopOrderMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -874,9 +875,23 @@
         if(!source.length) return [...defaults];
 
         const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);
+        const needsHomeToolsMigration=!requested.includes('habits')||!requested.includes('supplements');
         if(!requested.includes('daily-question')){
           const partnerIndex=valid.indexOf('partner');
           if(partnerIndex>=0) valid.splice(partnerIndex+1,0,'daily-question');
+        }
+        if(needsHomeToolsMigration){
+          const dailyIndex=valid.indexOf('daily-question');
+          const partnerIndex=valid.indexOf('partner');
+          if(dailyIndex>=0&&partnerIndex>dailyIndex){
+            valid.splice(partnerIndex,1);
+            valid.splice(valid.indexOf('daily-question'),0,'partner');
+          }
+          const priorityIndex=valid.indexOf('priority');
+          const insertAt=priorityIndex>=0?priorityIndex+1:valid.length;
+          if(!valid.includes('habits')) valid.splice(insertAt,0,'habits');
+          const habitsIndex=valid.indexOf('habits');
+          if(!valid.includes('supplements')) valid.splice(habitsIndex+1,0,'supplements');
         }
         for(const id of defaults) if(!valid.includes(id)) valid.push(id);
         return valid;
@@ -991,6 +1006,50 @@
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
+      function startHomeTileDrag(event,handle){
+        const host=ensureHomeTileHost();
+        if(!homeLayoutEditing||!host||!handle)return;
+        if(event.pointerType==='mouse'&&event.button!==0)return;
+        const tile=handle.closest?.('[data-home-tile]');
+        if(!tile||tile.parentElement!==host)return;
+        homeDragState={pointerId:event.pointerId,tile,handle,startY:event.clientY,moved:false};
+        tile.classList.add('is-home-dragging');
+        try{handle.setPointerCapture?.(event.pointerId)}catch(_){}
+        event.preventDefault();event.stopPropagation();
+      }
+
+      function moveHomeTileDrag(event){
+        const state=homeDragState,host=ensureHomeTileHost();
+        if(!state||!host||event.pointerId!==state.pointerId)return;
+        if(!state.moved&&Math.abs(event.clientY-state.startY)<5)return;
+        state.moved=true;
+        const others=[...host.querySelectorAll(':scope > [data-home-tile]')].filter(tile=>tile!==state.tile);
+        let before=null;
+        for(const candidate of others){
+          const rect=candidate.getBoundingClientRect();
+          if(event.clientY<rect.top+rect.height/2){before=candidate;break}
+        }
+        if(before){if(state.tile.nextElementSibling!==before)host.insertBefore(state.tile,before)}
+        else if(state.tile!==host.lastElementChild)host.appendChild(state.tile);
+        if(event.clientY<76)window.scrollBy({top:-14,behavior:'auto'});
+        else if(event.clientY>window.innerHeight-76)window.scrollBy({top:14,behavior:'auto'});
+        event.preventDefault();
+      }
+
+      function finishHomeTileDrag(event){
+        const state=homeDragState;
+        if(!state||event.pointerId!==state.pointerId)return;
+        homeDragState=null;
+        state.tile.classList.remove('is-home-dragging');
+        try{state.handle.releasePointerCapture?.(event.pointerId)}catch(_){}
+        if(state.moved){
+          saveHomeOrder();
+          updateHomeOrderControls();
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        }
+        event.preventDefault();event.stopPropagation();
+      }
+
       function ensureHomeOrderControls(){
         const host=ensureHomeTileHost();
         if(!host) return;
@@ -1000,6 +1059,7 @@
           controls.className='home-order-controls';
           controls.setAttribute('aria-label','Изменить положение блока');
           controls.innerHTML=
+            '<button class="home-order-button home-order-drag" type="button" data-home-drag aria-label="Перетащить блок" title="Перетащить"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="7" r="1.35"/><circle cx="16" cy="7" r="1.35"/><circle cx="8" cy="12" r="1.35"/><circle cx="16" cy="12" r="1.35"/><circle cx="8" cy="17" r="1.35"/><circle cx="16" cy="17" r="1.35"/></svg></button>'+
             '<button class="home-order-button" type="button" data-home-move="up" aria-label="Переместить блок вверх" title="Вверх"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 14.5 5.5-5.5 5.5 5.5"/></svg></button>'+
             '<button class="home-order-button" type="button" data-home-move="down" aria-label="Переместить блок вниз" title="Вниз"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 9.5 5.5 5.5 5.5-5.5"/></svg></button>';
           tile.appendChild(controls);
@@ -1053,6 +1113,15 @@
         }
         if(host.dataset.homeLayoutBound==='1') return;
         host.dataset.homeLayoutBound='1';
+
+        host.addEventListener('pointerdown',event=>{
+          if(!homeLayoutEditing)return;
+          const handle=event.target.closest?.('[data-home-drag]');
+          if(handle)startHomeTileDrag(event,handle);
+        });
+        host.addEventListener('pointermove',moveHomeTileDrag);
+        host.addEventListener('pointerup',finishHomeTileDrag);
+        host.addEventListener('pointercancel',finishHomeTileDrag);
 
         host.addEventListener('click',event=>{
           if(!homeLayoutEditing) return;

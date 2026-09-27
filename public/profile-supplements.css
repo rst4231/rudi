@@ -153,3 +153,31 @@ html[data-theme="light"] .personal-habits-tile>.personal-habits-calendar,
 html[data-theme="dark"] .personal-habits-tile>.personal-habits-calendar{
   background:transparent!important;border-color:transparent
 }
+
+
+/* RUDI v2.53 — home trackers and habit INFO modal */
+.home-tools-tile{width:100%;box-sizing:border-box}
+.personal-tools-moved-notice{
+  padding:15px 16px;border-radius:18px;background:var(--card,#151820);
+  border:1px solid color-mix(in srgb,currentColor 10%,transparent);box-shadow:0 8px 22px rgba(0,0,0,.08)
+}
+.personal-tools-moved-notice strong{display:block;font-size:14px;line-height:1.3}
+.personal-tools-moved-notice p{margin:6px 0 0;font-size:12.5px;line-height:1.45;opacity:.68}
+html[data-theme="light"] .personal-tools-moved-notice{background:#fbfaf7;border-color:rgba(77,70,58,.07)}
+.habit-info-modal[hidden]{display:none!important}
+.habit-info-modal{position:fixed;inset:0;z-index:1900;display:grid;place-items:center;padding:18px;box-sizing:border-box}
+.habit-info-modal-backdrop{position:absolute;inset:0;width:100%;height:100%;border:0;background:rgba(6,8,12,.58);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.habit-info-modal-dialog{
+  position:relative;z-index:1;width:min(100%,520px);max-height:min(78dvh,680px);overflow:auto;padding:20px 18px 18px;
+  border-radius:22px;background:var(--card,#151820);color:var(--text,#f5f7fb);
+  border:1px solid color-mix(in srgb,currentColor 11%,transparent);box-shadow:0 26px 70px rgba(0,0,0,.34);-webkit-overflow-scrolling:touch
+}
+.habit-info-modal-close{
+  position:absolute;right:10px;top:10px;width:34px;height:34px;border:0;border-radius:50%;display:grid;place-items:center;
+  background:color-mix(in srgb,currentColor 8%,transparent);color:inherit;font:inherit;font-size:24px;line-height:1
+}
+.habit-info-modal-title{display:block;padding-right:42px;font-size:18px;line-height:1.25}
+.habit-info-modal-copy{padding:8px 0 0;font-size:13px;line-height:1.5}
+.habit-info-modal-copy p{margin:9px 0 0;opacity:.82}
+body.habit-info-modal-open{overflow:hidden}
+html[data-theme="light"] .habit-info-modal-dialog{background:#fbfaf7;color:#1b1d21;border-color:rgba(77,70,58,.08)}
