@@ -2149,7 +2149,7 @@
             if(next===currentAppTab){
               appTabScroll[next]=0;
               updateAppRoute(next,{replace:true});
-              requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
+              requestAnimationFrame(()=>modal.scrollTo({top:0,left:0,behavior:'auto'}));
               if(next==='schedule'){
                 currentSelectedWorkDate=todayState().key;
                 currentWorkCalendarView='month';
@@ -2684,7 +2684,7 @@
             '<div id="scoreHistoryPanel" class="score-panel"></div>'+
             '<div id="scoreShopPanel" class="score-panel" hidden></div>'+
           '</section>';
-        (document.querySelector('.shell')||document.body).appendChild(modal);
+        document.body.appendChild(modal);
         modal.querySelector('#scoreModalBack')?.addEventListener('click',()=>closeScoreModal());
         modal.querySelectorAll('[data-score-tab]').forEach(button=>{
           button.addEventListener('click',()=>{

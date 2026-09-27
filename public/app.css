@@ -10768,3 +10768,64 @@ body[data-app-tab="score"] .shell{
   backdrop-filter:blur(18px);
   -webkit-backdrop-filter:blur(18px);
 }
+
+
+/* RUDI v2.67 — standalone score route, isolated from the home shell */
+.score-page{
+  position:fixed!important;
+  inset:0!important;
+  z-index:4700!important;
+  width:auto!important;
+  max-width:none!important;
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch;
+  padding:
+    max(12px,env(safe-area-inset-top))
+    14px
+    max(16px,env(safe-area-inset-bottom))!important;
+  background:
+    radial-gradient(circle at 50% -8%,color-mix(in srgb,var(--accent-glow) 68%,transparent),transparent 34%),
+    var(--bg)!important;
+  color:var(--text)!important;
+}
+.score-page[hidden]{display:none!important}
+.score-page>.score-page-head,
+.score-page>.score-modal-sheet{
+  width:min(100%,570px)!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.score-page>.score-page-head{
+  top:0!important;
+  margin-bottom:10px!important;
+  padding:0 0 8px!important;
+  background:linear-gradient(
+    to bottom,
+    color-mix(in srgb,var(--bg) 98%,transparent) 70%,
+    color-mix(in srgb,var(--bg) 82%,transparent) 90%,
+    transparent
+  )!important;
+}
+.score-page>.score-modal-sheet{
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:visible!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.score-page .score-panel{
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:visible!important;
+}
