@@ -10586,3 +10586,76 @@ body[data-app-tab="wishlist"] .wishlist-url-toggle,
     min-height:34px!important;
   }
 }
+
+
+/* RUDI v2.63 — score viewport and habit undo */
+.score-modal{
+  height:100dvh!important;
+  min-height:100dvh!important;
+  background:var(--surface-strong)!important;
+}
+.score-modal-sheet{
+  width:min(100%,560px)!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-height:100dvh!important;
+  padding:10px 13px max(8px,env(safe-area-inset-bottom))!important;
+  border-radius:0!important;
+  background:var(--surface-strong)!important;
+}
+.score-modal-head{gap:8px!important;margin-bottom:7px!important}
+.score-modal-kicker{font-size:8.5px!important}
+.score-modal-head h2{margin-top:1px!important;font-size:18px!important}
+.score-modal-close{width:30px!important;height:30px!important;border-radius:10px!important;font-size:20px!important}
+.score-balance-card{gap:6px!important;margin-bottom:7px!important}
+.score-balance-card>div{padding:7px 9px!important;border-radius:12px!important;gap:1px!important}
+.score-balance-card span{font-size:8.5px!important}
+.score-balance-card strong{font-size:14px!important}
+.score-streak-panel{
+  grid-template-columns:28px minmax(0,1fr)!important;
+  gap:7px!important;
+  margin-bottom:7px!important;
+  padding:7px 8px!important;
+  border-radius:12px!important;
+}
+.score-streak-icon{width:28px!important;height:28px!important;border-radius:9px!important;font-size:15px!important}
+.score-streak-copy strong{font-size:10px!important}
+.score-streak-copy span{font-size:8.5px!important}
+.score-gift-panel,.score-active-rewards{
+  gap:5px!important;
+  margin-bottom:7px!important;
+  padding:7px 8px!important;
+  border-radius:12px!important;
+}
+.score-gift-title,.score-active-title{font-size:9.5px!important}
+.score-gift-meta,.score-active-copy span{font-size:8.5px!important}
+.score-gift-actions{gap:4px!important}
+.score-gift-actions button{min-height:27px!important;font-size:9px!important}
+.score-modal-tabs{
+  gap:3px!important;
+  padding:3px!important;
+  margin-bottom:7px!important;
+  border-radius:11px!important;
+}
+.score-modal-tabs button{min-height:30px!important;border-radius:8px!important;font-size:10px!important}
+.score-panel{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  padding:0 0 max(10px,env(safe-area-inset-bottom))!important;
+}
+.score-reward-card{
+  grid-template-columns:31px minmax(0,1fr) auto!important;
+  gap:8px!important;
+  padding:8px 9px!important;
+  border-radius:12px!important;
+}
+.score-reward-icon{width:31px!important;height:31px!important;border-radius:9px!important;font-size:16px!important}
+.score-reward-copy strong{font-size:10.5px!important}
+.score-reward-copy span{font-size:8.8px!important}
+.score-reward-button{min-width:70px!important;min-height:29px!important;font-size:9px!important}
+.personal-habits-undo{z-index:5200}
+@media(max-width:430px){
+  .score-modal-sheet{padding-left:11px!important;padding-right:11px!important}
+}

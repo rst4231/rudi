@@ -2,7 +2,7 @@
 const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null;
 let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -82,6 +82,39 @@ function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTi
 function habitStreakText(value){const n=Math.max(0,Math.round(Number(value)||0)),m100=n%100,m10=n%10,w=m100>=11&&m100<=14?'дней':m10===1?'день':m10>=2&&m10<=4?'дня':'дней';return n+' '+w+' подряд'}
 function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,05 ⭐ за выполнение · −0,1 ⭐ за невыполнение':'Без бонуса и штрафа'}
 function habitScoreMessage(data,id,status){if(habitSelectedDate!==habitState.today)return'Статус сохранён. За прошлые даты звёзды не меняются.';if(!(habitState.bonusIds||[]).includes(id))return'Статус сохранён. Эта привычка без бонуса и штрафа.';const d=Number(data?.scoreDelta||0);if(d>0)return'Баланс: +'+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';if(d<0)return'Баланс: '+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';return status==='done'?'Выполнение сохранено.':'Статус «Не выполнено» сохранён.'}
+function showHabitUndo({id,date,previousStatus}){
+  if(!id||!date)return;
+  let bar=document.getElementById('personalHabitsUndo');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='personalHabitsUndo';
+    bar.className='personal-supplements-undo personal-habits-undo';
+    document.body.appendChild(bar);
+  }
+  clearTimeout(habitUndoTimer);
+  bar.replaceChildren();
+  const text=document.createElement('span');
+  text.textContent='Привычка отмечена выполненной';
+  const button=document.createElement('button');
+  button.type='button';
+  button.textContent='Отменить';
+  button.addEventListener('click',async()=>{
+    button.disabled=true;
+    try{
+      const data=await habitRequest('status',{id,status:previousStatus||'pending',date});
+      applyHabitView(data);
+      setHabitStatus('Выполнение отменено.');
+      bar.classList.remove('is-visible');
+      try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}
+    }catch(error){
+      button.disabled=false;
+      setHabitStatus('Не удалось отменить выполнение.',true);
+    }
+  });
+  bar.append(text,button);
+  bar.classList.add('is-visible');
+  habitUndoTimer=setTimeout(()=>bar.classList.remove('is-visible'),6000);
+}
 function renderHabits(){
   if(!habitList||!habitProgressText||!habitProgressFill)return;
   const habits=Array.isArray(habitState.habits)?habitState.habits:[],statuses=habitState.statuses||{},done=habits.filter(h=>statuses[h.id]==='done').length,total=habits.length,percent=total?Math.round(done/total*100):0;
@@ -105,8 +138,17 @@ function renderHabits(){
     const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);actions.append(yes,no);
     const save=async(next)=>{
       if((next==='done'&&yes.disabled)||(next==='notdone'&&no.disabled))return;
+      const previousStatus=status;
+      const actionDate=habitSelectedDate||habitState.today;
       yes.disabled=true;no.disabled=true;remove.disabled=true;setHabitStatus('');
-      try{const data=await habitRequest('status',{id,status:next,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus(habitScoreMessage(data,id,next))}
+      try{
+        const data=await habitRequest('status',{id,status:next,date:actionDate});
+        applyHabitView(data);
+        setHabitStatus(habitScoreMessage(data,id,next));
+        if(next==='done'&&previousStatus!=='done'){
+          showHabitUndo({id,date:actionDate,previousStatus});
+        }
+      }
       catch(error){console.error('RUDI_HABIT_STATUS_UI_ERROR',error);setHabitStatus(String(error?.message||'')==='habit-done-too-early'?'«Выполнено» можно отметить только после 20:00 МСК.':'Не удалось сохранить статус.',true);yes.disabled=doneLocked;no.disabled=false;remove.disabled=false}
     };
     yes.addEventListener('click',()=>save('done'));no.addEventListener('click',()=>save('notdone'));

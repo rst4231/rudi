@@ -2416,7 +2416,7 @@
       }
 
       function homeMoodView(value){
-        return {sadness:'😢',fear:'😨',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')]||'—';
+        return {sadness:'😢',fear:'🥱',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')]||'—';
       }
 
       function homeDashboardDateLabel(){
