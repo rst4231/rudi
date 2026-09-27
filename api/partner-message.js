@@ -1568,7 +1568,8 @@ async function handleRudiAction(req, res, action, options = {}) {
           type: 'lulu-walk',actor,text: actor + ' ' + actionWord + ' с Лулу',icon:'🐾',targetTab:'home',
           dedupeKey:'lulu-walk:'+walkedAt,createdAt:walkedAt,
         }, options);
-        await awardScoreSafe(actor,5,{label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
+        const walkRewardUnits=actor==='Рустам'?20:10;
+        await awardScoreSafe(actor,walkRewardUnits,{label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
 
         const notificationTask = sendLuluWalkNotificationToPartner(
           actor,

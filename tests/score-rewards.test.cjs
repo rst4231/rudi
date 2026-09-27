@@ -79,7 +79,8 @@ test('home actions use the configured fractional star rewards', () => {
 
   assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Вопрос дня'/s);
   assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Послание'/s);
-  assert.match(api,/awardScoreSafe\(actor,5,\{label:'Прогулка с Лулу'/);
+  assert.match(api,/const walkRewardUnits=actor==='Рустам'\?20:10;/);
+  assert.match(api,/awardScoreSafe\(actor,walkRewardUnits,\{label:'Прогулка с Лулу'/);
   assert.match(app,/Ответ сохранён · \+0,1 ⭐/);
 
   const likeStart=api.indexOf("if (action === 'partner-message-like')");
