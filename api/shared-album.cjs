@@ -214,8 +214,8 @@ function pickVideoPosterDerivative(photo) {
     || null;
 }
 
-function pickVideoDerivative(photo) {
-  const rows = derivativeEntries(photo)
+function videoDerivativeRows(photo) {
+  return derivativeEntries(photo)
     .filter(({ key, item }) => looksLikeVideoDerivative(key, item))
     .map(({ key, item }) => ({
       key,
@@ -223,20 +223,41 @@ function pickVideoDerivative(photo) {
       width: Number(item.width || 0),
       height: Number(item.height || 0),
       bytes: Number(item.fileSize || 0),
-    }));
-  if (!rows.length) return null;
-  const p720 = rows.filter((row) => /720p/i.test(row.key)).sort((a, b) => b.bytes - a.bytes);
-  if (p720.length) return p720[0].item;
-  const sized = rows
-    .filter((row) => row.width > 0 && row.height > 0)
+      mimeType: String(item?.mimeType || item?.contentType || '').trim(),
+    }))
     .sort((a, b) => {
-      const ae = Math.max(a.width, a.height);
-      const be = Math.max(b.width, b.height);
-      const as = ae <= 1280 ? ae : -ae;
-      const bs = be <= 1280 ? be : -be;
-      return bs - as || b.bytes - a.bytes;
+      const rank = (row) => {
+        const key = row.key.toLowerCase();
+        if (/360p/.test(key)) return 0;
+        if (/540p/.test(key)) return 1;
+        if (/720p/.test(key)) return 2;
+        if (/1080p/.test(key)) return 3;
+        return 4;
+      };
+      return rank(a) - rank(b) || a.bytes - b.bytes;
     });
-  return sized[0]?.item || rows.sort((a, b) => b.bytes - a.bytes)[0]?.item || null;
+}
+
+function pickVideoDerivative(photo) {
+  return videoDerivativeRows(photo)[0]?.item || null;
+}
+
+function videoSources(photo, assetData) {
+  const seen = new Set();
+  return videoDerivativeRows(photo)
+    .map((row) => {
+      const url = assetUrl(assetData, row.item?.checksum || '');
+      if (!url || seen.has(url)) return null;
+      seen.add(url);
+      return {
+        url,
+        type: row.mimeType || 'video/mp4',
+        label: row.key,
+        width: row.width || null,
+        height: row.height || null,
+      };
+    })
+    .filter(Boolean);
 }
 
 function assetUrl(assetData, checksum) {
@@ -273,6 +294,7 @@ async function fetchLatestPhotos(config, options = {}) {
     const isVideo = String(photo?.mediaAssetType || '').toLowerCase() === 'video';
     const derivative = isVideo ? pickVideoPosterDerivative(photo) : pickDerivative(photo);
     const fullDerivative = isVideo ? derivative : (pickViewerDerivative(photo) || derivative);
+    const sources = isVideo ? videoSources(photo, assetResult.payload) : [];
     const videoDerivative = isVideo ? pickVideoDerivative(photo) : null;
     const checksum = derivative?.checksum || '';
     const fullChecksum = fullDerivative?.checksum || checksum;
@@ -283,7 +305,8 @@ async function fetchLatestPhotos(config, options = {}) {
       type: isVideo ? 'video' : 'image',
       url,
       fullUrl: assetUrl(assetResult.payload, fullChecksum) || url,
-      videoUrl: isVideo ? assetUrl(assetResult.payload, videoDerivative?.checksum || '') : '',
+      videoUrl: isVideo ? (sources[0]?.url || assetUrl(assetResult.payload, videoDerivative?.checksum || '')) : '',
+      videoSources: sources,
       width: Number(derivative?.width || photo.width || 0) || null,
       height: Number(derivative?.height || photo.height || 0) || null,
       fullWidth: Number(fullDerivative?.width || photo.width || 0) || null,
@@ -339,6 +362,7 @@ module.exports = {
   pickViewerDerivative,
   pickVideoPosterDerivative,
   pickVideoDerivative,
+  videoSources,
   fetchLatestPhotos,
   getLatestPhotos,
 };

@@ -24,12 +24,16 @@ test('photo viewer retries HD and preloads the next two full-resolution photos i
 });
 
 
-test('album viewer supports video and does not preload it as an HD image',()=>{
-  assert.match(html,/id="photoViewerVideo" controls playsinline preload="metadata"/);
-  assert.match(app,/const isVideo=photo\?\.type==='video'/);
-  assert.match(app,/video\.poster=previewUrl/);
-  assert.match(app,/video\.src=videoUrl/);
+test('album viewer supports resilient iPhone video playback',()=>{
+  assert.match(html,/id="photoViewerVideo" controls playsinline webkit-playsinline preload="metadata"/);
+  assert.match(app,/Array\.isArray\(photo\?\.videoSources\)/);
+  assert.match(app,/video\.src=source\.url;\s*video\.load\(\)/);
+  assert.match(app,/sourceIndex\+=1/);
+  assert.match(app,/video\.onloadeddata=revealVideo/);
+  assert.match(app,/video\.oncanplay=revealVideo/);
+  assert.match(app,/closest\?\.\('#photoViewerVideo'\)/);
   assert.match(app,/if\(adjacent\?\.type==='video'\) return/);
+  assert.match(css,/\.photo-viewer-stage #photoViewerVideo\.is-loading/);
   assert.match(css,/\.shared-album-video-badge/);
 });
 

@@ -145,5 +145,9 @@ test('shared album includes video with poster and playable derivative', async ()
   assert.equal(result.photos.length,1);
   assert.equal(result.photos[0].type,'video');
   assert.equal(result.photos[0].url,'https://cdn.example.test/poster.jpg');
-  assert.equal(result.photos[0].videoUrl,'https://cdn.example.test/720.mp4');
+  assert.equal(result.photos[0].videoUrl,'https://cdn.example.test/360.mp4');
+  assert.deepEqual(
+    result.photos[0].videoSources.map((row)=>row.url),
+    ['https://cdn.example.test/360.mp4','https://cdn.example.test/720.mp4']
+  );
 });

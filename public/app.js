@@ -7596,26 +7596,74 @@
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
         const previewUrl=String(photo?.url||photo?.fullUrl||'').trim();
         const fullUrl=String(photo?.fullUrl||previewUrl).trim();
-        const videoUrl=String(photo?.videoUrl||'').trim();
         const isVideo=photo?.type==='video';
         const photoIndex=currentSharedAlbumPhotoIndex;
         if(!viewer||!image||!video||!caption||!date||!original||!previewUrl) return false;
-        if(isVideo&&!videoUrl) return false;
 
         image.onerror=null;
+        video.onerror=null;
+        video.onloadeddata=null;
+        video.oncanplay=null;
         video.pause();
         video.removeAttribute('src');
         video.load();
-        image.hidden=isVideo;
-        video.hidden=!isVideo;
+        video.classList.remove('is-loading');
+        video.hidden=true;
+        image.hidden=false;
 
         if(isVideo){
-          image.removeAttribute('src');
-          image.alt='';
-          video.poster=previewUrl;
-          video.src=videoUrl;
-          setPhotoViewerLoading('', '');
+          const rawSources=Array.isArray(photo?.videoSources)?photo.videoSources:[];
+          const sources=(rawSources.length?rawSources:[{url:String(photo?.videoUrl||'').trim(),type:'video/mp4'}])
+            .map(row=>({url:String(row?.url||'').trim(),type:String(row?.type||'').trim()}))
+            .filter(row=>row.url);
+          if(!sources.length) return false;
+
+          image.src=previewUrl;
+          image.alt=photo?.caption?String(photo.caption):'Превью видео из общего альбома';
+          video.hidden=false;
+          video.classList.add('is-loading');
+          video.controls=true;
+          video.playsInline=true;
+          video.setAttribute('playsinline','');
+          video.setAttribute('webkit-playsinline','');
+          video.preload='metadata';
+          video.autoplay=false;
+          setPhotoViewerLoading('loading','Загружаем видео…');
+
+          let sourceIndex=0;
+          const loadSource=()=>{
+            if(currentSharedAlbumPhotoIndex!==photoIndex) return;
+            const source=sources[sourceIndex];
+            if(!source){
+              video.classList.add('is-loading');
+              image.hidden=false;
+              setPhotoViewerLoading('error','Видео не открылось. Можно открыть оригинал.');
+              return;
+            }
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+            if(source.type) video.setAttribute('type',source.type);
+            else video.removeAttribute('type');
+            video.src=source.url;
+            video.load();
+          };
+          const revealVideo=()=>{
+            if(currentSharedAlbumPhotoIndex!==photoIndex) return;
+            image.hidden=true;
+            video.classList.remove('is-loading');
+            setPhotoViewerLoading('', '');
+          };
+          video.onloadeddata=revealVideo;
+          video.oncanplay=revealVideo;
+          video.onerror=()=>{
+            if(currentSharedAlbumPhotoIndex!==photoIndex) return;
+            sourceIndex+=1;
+            loadSource();
+          };
+          loadSource();
         }else{
+          video.hidden=true;
           video.removeAttribute('poster');
           image.dataset.photoIndex=String(photoIndex);
           image.src=previewUrl;
@@ -7653,7 +7701,6 @@
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
         caption.hidden=!captionText;
-
         original.disabled=!sharedAlbumOriginalUrl(photo);
         return true;
       }
@@ -8017,6 +8064,7 @@
           let startY=0;
           let pointerId=null;
           viewerStage.addEventListener('pointerdown',event=>{
+            if(event.target?.closest?.('#photoViewerVideo')) return;
             if(event.button!==undefined&&event.button!==0) return;
             pointerId=event.pointerId;
             startX=event.clientX;
@@ -8024,6 +8072,7 @@
             try{viewerStage.setPointerCapture?.(event.pointerId)}catch(_){}
           });
           viewerStage.addEventListener('pointerup',event=>{
+            if(event.target?.closest?.('#photoViewerVideo')){pointerId=null;return}
             if(pointerId!==null&&event.pointerId!==pointerId) return;
             const dx=event.clientX-startX;
             const dy=event.clientY-startY;
