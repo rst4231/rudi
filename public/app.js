@@ -9173,33 +9173,15 @@
         if(prompt)prompt.hidden=false;
 
         const currentButton=document.getElementById('moodCurrentButton');
-        const moodRoot=document.querySelector('.profile-mood');
         if(currentButton&&currentButton.dataset.bound!=='1'){
           currentButton.dataset.bound='1';
-          const toggleMoodChoices=event=>{
-            event?.preventDefault?.();
-            event?.stopPropagation?.();
-            const choices=document.getElementById('moodChoices');
-            setMoodChoicesOpen(Boolean(choices?.hidden));
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          };
-          let lastPointerToggleAt=0;
-          currentButton.addEventListener('pointerup',event=>{
-            if(event.pointerType==='mouse')return;
-            lastPointerToggleAt=Date.now();
-            toggleMoodChoices(event);
-          },{passive:false});
           currentButton.addEventListener('click',event=>{
-            if(Date.now()-lastPointerToggleAt<500){
-              event.preventDefault();
-              event.stopPropagation();
-              return;
-            }
-            toggleMoodChoices(event);
-          });
-          moodRoot?.addEventListener('click',event=>{
-            if(event.target===currentButton||currentButton.contains(event.target))return;
-            if(event.target.closest('#moodChoices,#moodHistoryButton'))return;
+            event.preventDefault();
+            event.stopPropagation();
+            const choices=document.getElementById('moodChoices');
+            if(!choices)return;
+            setMoodChoicesOpen(choices.hidden);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
 
