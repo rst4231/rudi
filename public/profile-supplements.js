@@ -417,7 +417,6 @@ function build(){
     finally{habitCollapseButton.disabled=false}
   };
   habitCollapseButton.addEventListener('click',toggleHabitCollapse);
-  habitTile.addEventListener('click',event=>{if(event.defaultPrevented||interactiveTap(event.target,habitTile))return;toggleHabitCollapse()});
   habitDateInput.addEventListener('change',()=>{const value=habitDateInput.value;if(value)loadHabitsForDate(value)});
   habitAddButton.addEventListener('click',()=>{habitAddButton.hidden=true;habitForm.hidden=false;habitInput.value='';habitPurposeInput.value='';requestAnimationFrame(()=>habitInput.focus({preventScroll:true}))});
   habitCancel.addEventListener('click',()=>{habitForm.hidden=true;habitAddButton.hidden=false;habitInput.value='';habitPurposeInput.value='';setHabitStatus('')});
@@ -430,7 +429,6 @@ function build(){
   });
   const toggleSupplementsCollapse=()=>applyCollapse(!tile.classList.contains('is-collapsed'));
   collapseButton.addEventListener('click',toggleSupplementsCollapse);
-  tile.addEventListener('click',event=>{if(event.defaultPrevented||interactiveTap(event.target,tile))return;toggleSupplementsCollapse()});
   form.addEventListener('submit',async(event)=>{
     event.preventDefault();
     const name=input.value.trim();
