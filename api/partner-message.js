@@ -341,8 +341,9 @@ async function sendRewardRedeemedNotification(actor, reward, options = {}) {
     const label=escapeTelegramHtml(String(reward?.label||'Награда'));
     const icon=String(reward?.icon||'🎁');
     const cost=pointsFromUnits(reward?.costUnits||0);
+    const verb=activityVerb(actor,'активировал','активировала');
     return await sendToAllRecipients(
-      `🎁 <b>${escapeTelegramHtml(actor)} активировал награду</b>\n\n${icon} <b>${label}</b>\nСписано: <b>${cost} звезд</b>`,
+      `🎁 <b>${escapeTelegramHtml(actor)} ${verb} награду</b>\n\n${icon} <b>${label}</b>\nСписано: <b>${cost} звезд</b>`,
       {...options,tab:'home',buttonText:'Открыть RUDI'}
     );
   } catch (error) {
@@ -355,8 +356,9 @@ async function sendRewardCompletedNotification(actor, redemption, options = {}) 
   try {
     const label=escapeTelegramHtml(String(redemption?.label||'Награда'));
     const buyer=escapeTelegramHtml(String(redemption?.buyerActor||''));
+    const confirmVerb=activityVerb(actor,'Подтвердил','Подтвердила');
     return await sendToAllRecipients(
-      `✅ <b>Награда выполнена</b>\n\n${String(redemption?.icon||'🎁')} <b>${label}</b>\nДля: <b>${buyer}</b>\nПодтвердил: <b>${escapeTelegramHtml(actor)}</b>`,
+      `✅ <b>Награда выполнена</b>\n\n${String(redemption?.icon||'🎁')} <b>${label}</b>\nДля: <b>${buyer}</b>\n${confirmVerb}: <b>${escapeTelegramHtml(actor)}</b>`,
       {...options,tab:'home',buttonText:'Открыть RUDI'}
     );
   } catch (error) {

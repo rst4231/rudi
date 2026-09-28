@@ -12,6 +12,8 @@ test('v2.98 uses actor-aware gender for personal UI copy',()=>{
   const editor=read('public/supplement-editor.js');
   const pwa=read('public/pwa-extras.js');
   const partner=read('api/partner-message.js');
+  const moodNotification=read('api/mood-notification-ai.cjs');
+  const productsBought=read('api/products-bought.cjs');
   const html=read('public/index.html');
 
   assert.match(app,/currentActor==='Диана'\?'Купила':'Купил'/);
@@ -32,6 +34,14 @@ test('v2.98 uses actor-aware gender for personal UI copy',()=>{
 
   assert.match(pwa,/Сохранил'\+\(item\.savedBy==='Диана'\?'а ':' '\)/);
   assert.match(partner,/activityVerb\(actor,'Погулял с Лулу','Погуляла с Лулу'\)/);
+  assert.match(partner,/activityVerb\(actor,'активировал','активировала'\)/);
+  assert.match(partner,/activityVerb\(actor,'Подтвердил','Подтвердила'\)/);
+  assert.match(moodNotification,/actor==='Диана'\?'выбрала':'выбрал'/);
+  assert.match(productsBought,/allowedActor\(callback\.from\)==='Диана'\?'купила':'купил'/);
+  assert.doesNotMatch(partner,/\$\{escapeTelegramHtml\(actor\)\} активировал награду/);
+  assert.doesNotMatch(partner,/Подтвердил: <b>\$\{escapeTelegramHtml\(actor\)\}/);
+  assert.doesNotMatch(moodNotification,/actor\+' только что выбрал настроение/);
+  assert.doesNotMatch(productsBought,/\$\{name\} купил продукты/);
 });
 
 test('v2.98 removes stale formal and machine-like UI copy',()=>{

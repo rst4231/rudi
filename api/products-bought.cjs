@@ -1,4 +1,5 @@
 const { AsyncLocalStorage } = require('node:async_hooks');
+const { allowedActor } = require('./rudi-access.cjs');
 
 const PRODUCTS_TOPIC_ID = 263;
 const SHOPPING_BOUGHT_CALLBACK = 'rudi:products:bought';
@@ -213,10 +214,11 @@ function buildBoughtNotice(callback, now = new Date()) {
   const chatId = callback?.message?.chat?.id;
   if (chatId === undefined || chatId === null) return null;
   const name = formatTelegramUserName(callback.from);
+  const verb=allowedActor(callback.from)==='Диана'?'купила':'купил';
   return {
     chat_id: chatId,
     message_thread_id: PRODUCTS_TOPIC_ID,
-    text: `${name} купил продукты\n${formatMoscowDateTime(now)}`,
+    text: `${name} ${verb} продукты\n${formatMoscowDateTime(now)}`,
   };
 }
 
