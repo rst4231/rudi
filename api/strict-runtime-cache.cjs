@@ -34,7 +34,7 @@ function createTimeoutSignal(timeoutMs) {
 }
 
 function createOfficialRuntimeCache(options, namespace, attempts, retryDelayMs) {
-  const confirmWrites = options.confirmWrites !== false;
+  const confirmWrites = options.confirmWrites === true;
   const confirmAttempts = Math.max(attempts, Number(options.confirmAttempts || 8));
   const confirmDelayMs = retryDelayMs === 0 ? 0 : Math.max(125, retryDelayMs);
   let cache = options.runtimeCache;
