@@ -70,3 +70,68 @@
 .supplement-group-title-arrow{font-size:17px;line-height:1;transition:transform .16s ease}
 .supplement-group-title.is-collapsed .supplement-group-title-arrow{transform:rotate(-90deg)}
 .supplement-group-empty{padding:14px 4px;text-align:center;font-size:12px;opacity:.56}
+
+
+/* RUDI v2.112 — compact supplement group controls */
+.supplement-group-title{
+  width:auto!important;
+  justify-self:start!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:6px!important;
+  margin:9px 0 3px!important;
+  padding:6px 9px!important;
+  border:1px solid color-mix(in srgb,currentColor 18%,transparent)!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,color-mix(in srgb,currentColor 9%,var(--surface,#20242f)),color-mix(in srgb,currentColor 4%,var(--surface,#20242f)))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 5px 12px rgba(0,0,0,.10)!important;
+  font-size:10.5px!important;
+  line-height:1!important;
+  letter-spacing:.015em!important;
+  text-transform:none!important;
+  opacity:1!important;
+  transition:transform .14s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease!important;
+}
+.supplement-group-title:active{transform:translateY(1px) scale(.98)}
+.supplement-group-title-count{
+  min-width:19px!important;
+  height:19px!important;
+  padding:0 5px!important;
+  border:1px solid color-mix(in srgb,currentColor 12%,transparent);
+  background:color-mix(in srgb,currentColor 10%,transparent)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  font-size:9.5px!important;
+}
+.supplement-group-title-arrow{
+  margin-left:1px;
+  font-size:14px!important;
+  opacity:.72;
+}
+.supplement-group-title.is-active{
+  color:#43a96f!important;
+  border-color:rgba(67,169,111,.24)!important;
+}
+.supplement-group-title.is-paused{
+  color:#c58b25!important;
+  border-color:rgba(197,139,37,.24)!important;
+}
+.supplement-group-title.is-finished{
+  color:color-mix(in srgb,currentColor 72%,var(--text,#1b1d21))!important;
+  opacity:.82!important;
+}
+html[data-theme="light"] .supplement-group-title{
+  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(244,244,241,.96))!important;
+  box-shadow:inset 0 1px 0 #fff,0 5px 12px rgba(35,40,48,.08)!important;
+}
+html[data-theme="light"] .supplement-group-title.is-active{background:linear-gradient(180deg,#f5fbf7,#edf7f1)!important}
+html[data-theme="light"] .supplement-group-title.is-paused{background:linear-gradient(180deg,#fffaf0,#fbf1dc)!important}
+html[data-theme="light"] .supplement-group-title.is-finished{background:linear-gradient(180deg,#fafafa,#f1f1ef)!important;color:#6f747b!important}
+html[data-theme="dark"] .supplement-group-title{
+  border-color:rgba(255,255,255,.08)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.035))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 6px 14px rgba(0,0,0,.24)!important;
+}
+html[data-theme="dark"] .supplement-group-title.is-active{background:linear-gradient(180deg,rgba(82,201,138,.16),rgba(82,201,138,.075))!important;color:#6bd69b!important;border-color:rgba(82,201,138,.20)!important}
+html[data-theme="dark"] .supplement-group-title.is-paused{background:linear-gradient(180deg,rgba(240,184,75,.15),rgba(240,184,75,.065))!important;color:#f1bd58!important;border-color:rgba(240,184,75,.19)!important}
+html[data-theme="dark"] .supplement-group-title.is-finished{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025))!important;color:rgba(232,235,240,.64)!important}
