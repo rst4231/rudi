@@ -9144,10 +9144,26 @@
         const currentButton=document.getElementById('moodCurrentButton');
         if(currentButton&&currentButton.dataset.bound!=='1'){
           currentButton.dataset.bound='1';
-          currentButton.addEventListener('click',()=>{
+          let lastPointerToggleAt=0;
+          const toggleMoodChoices=event=>{
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
             const choices=document.getElementById('moodChoices');
             setMoodChoicesOpen(Boolean(choices?.hidden));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          };
+          currentButton.addEventListener('pointerup',event=>{
+            if(event.pointerType==='mouse')return;
+            lastPointerToggleAt=Date.now();
+            toggleMoodChoices(event);
+          },{passive:false});
+          currentButton.addEventListener('click',event=>{
+            if(Date.now()-lastPointerToggleAt<500){
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
+            toggleMoodChoices(event);
           });
         }
 
