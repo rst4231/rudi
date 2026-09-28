@@ -71,3 +71,39 @@ test('products message cache does not require an immediate read-after-write conf
   assert.equal(setCalls, 1);
   assert.equal(getCalls, 0);
 });
+
+
+test('Alice assistant prefix is ignored for delete commands', () => {
+  assert.equal(
+    productsChat.getAliceProductDeleteTarget(aliceReq('Алиса, удали молоко')),
+    'молоко',
+  );
+  assert.equal(
+    productsChat.getAliceProductDeleteTarget(aliceReq('Руди, убери хлеб')),
+    'хлеб',
+  );
+});
+
+test('Alice product-list questions are recognized and are not treated as products by the route', () => {
+  assert.equal(
+    productsChat.isAliceProductListQuery(aliceReq('Алиса, что в списке продуктов?')),
+    true,
+  );
+  assert.equal(
+    productsChat.isAliceProductListQuery(aliceReq('что купить')),
+    true,
+  );
+  assert.equal(
+    productsChat.isAliceProductListQuery(aliceReq('добавь молоко')),
+    false,
+  );
+});
+
+test('Alice list response reads active products aloud', () => {
+  const payload = productsChat.buildAliceProductListResponse(aliceReq('что в списке продуктов'), {
+    items: [{ text: 'молоко' }, { text: 'хлеб' }],
+  });
+  assert.equal(payload.response.text, 'В списке: молоко, хлеб.');
+  assert.equal(payload.response.tts, 'В списке: молоко, хлеб.');
+  assert.equal(payload.response.end_session, false);
+});
