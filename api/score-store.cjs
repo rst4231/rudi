@@ -11,6 +11,7 @@ const MAX_HISTORY = 500;
 const MAX_DEDUPE = 2000;
 const MAX_DAYS = 120;
 const MAX_REDEMPTIONS = 240;
+const HISTORY_RETENTION_DAYS = 30;
 const GIFT_WEEKLY_LIMIT_UNITS = 50;
 const TZ = 'Europe/Moscow';
 const ACTORS = ['Рустам', 'Диана'];
@@ -93,21 +94,24 @@ function normalizeActorUnits(value) {
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   return Object.fromEntries(ACTORS.map((actor)=>[actor,normalizeUnits(source[actor])]));
 }
-function normalizeDaily(value) {
+function scoreRetentionCutoffDateKey(now=Date.now()) {
+  return shiftScoreDateKey(scoreDateKey(now),-(HISTORY_RETENTION_DAYS-1));
+}
+function normalizeDaily(value,cutoffKey='') {
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   return Object.fromEntries(
     Object.entries(source)
-      .filter(([key])=>/^\d{4}-\d{2}-\d{2}$/.test(key))
+      .filter(([key])=>/^\d{4}-\d{2}-\d{2}$/.test(key)&&(!cutoffKey||key>=cutoffKey))
       .sort(([a],[b])=>b.localeCompare(a))
       .slice(0,MAX_DAYS)
       .map(([key,row])=>[key,normalizeActorUnits(row)])
   );
 }
-function normalizeStreakDays(value,history=[]) {
+function normalizeStreakDays(value,history=[],cutoffKey='') {
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   const rows={};
   for(const [key,actors] of Object.entries(source)){
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(key)||cutoffKey&&key<cutoffKey) continue;
     rows[key]=Object.fromEntries(ACTORS.map((actor)=>[actor,actors?.[actor]===true]));
   }
   if(!Object.keys(rows).length){
@@ -167,21 +171,28 @@ function normalizeRedemption(input) {
   const status=completedAt&&completedBy?'completed':'active';
   return {id,buyerActor,rewardId,label,icon,costUnits,status,createdAt:created.toISOString(),completedAt,completedBy:status==='completed'?completedBy:''};
 }
-function normalizeState(value) {
+function normalizeState(value,options={}) {
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const now=options.now||Date.now();
+  const cutoffKey=scoreRetentionCutoffDateKey(now);
   return {
     initialized:Boolean(source.initialized),
     version:Math.max(0,Number(source.version||0)),
     balances:normalizeActorUnits(source.balances),
     lifetimeEarned:normalizeActorUnits(source.lifetimeEarned),
-    dailyEarned:normalizeDaily(source.dailyEarned),
-    streakDays:normalizeStreakDays(source.streakDays,source.history),
+    dailyEarned:normalizeDaily(source.dailyEarned,cutoffKey),
+    streakDays:normalizeStreakDays(source.streakDays,source.history,cutoffKey),
     history:(Array.isArray(source.history)?source.history:[])
-      .map(normalizeHistoryItem).filter(Boolean)
+      .map(normalizeHistoryItem).filter(row=>row&&row.dateKey>=cutoffKey)
       .sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt))
       .slice(0,MAX_HISTORY),
     redemptions:(Array.isArray(source.redemptions)?source.redemptions:[])
-      .map(normalizeRedemption).filter(Boolean)
+      .map(normalizeRedemption).filter(row=>{
+        if(!row) return false;
+        if(row.status==='active') return true;
+        const key=scoreDateKey(row.completedAt||row.createdAt);
+        return key>=cutoffKey;
+      })
       .sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt))
       .slice(0,MAX_REDEMPTIONS),
     dedupe:normalizeDedupe(source.dedupe),
@@ -192,11 +203,32 @@ function enqueueMutation(task) {
   mutationTail=run.catch(()=>{});
   return run;
 }
+function scoreStateHasExpiredRows(value,now=Date.now()) {
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const cutoffKey=scoreRetentionCutoffDateKey(now);
+  if((Array.isArray(source.history)?source.history:[]).some(item=>{
+    const row=normalizeHistoryItem(item);
+    return row&&row.dateKey<cutoffKey;
+  })) return true;
+  if(Object.keys(source.dailyEarned||{}).some(key=>/^\d{4}-\d{2}-\d{2}$/.test(key)&&key<cutoffKey)) return true;
+  if(Object.keys(source.streakDays||{}).some(key=>/^\d{4}-\d{2}-\d{2}$/.test(key)&&key<cutoffKey)) return true;
+  return (Array.isArray(source.redemptions)?source.redemptions:[]).some(item=>{
+    const row=normalizeRedemption(item);
+    return row&&row.status==='completed'&&scoreDateKey(row.completedAt||row.createdAt)<cutoffKey;
+  });
+}
 async function readScoreState(options={}) {
-  return normalizeState(await cacheOf(options).get(STATE_KEY));
+  const cache=cacheOf(options);
+  const now=options.now||Date.now();
+  const raw=await cache.get(STATE_KEY);
+  const state=normalizeState(raw,{now});
+  if(scoreStateHasExpiredRows(raw,now)){
+    await cache.set(STATE_KEY,state,{ttl:TTL_SECONDS,tags:['rudi-score'],name:STATE_KEY});
+  }
+  return state;
 }
 async function writeScoreState(value,options={}) {
-  const state=normalizeState({...value,initialized:true});
+  const state=normalizeState({...value,initialized:true},{now:options.now||Date.now()});
   await cacheOf(options).set(STATE_KEY,state,{ttl:TTL_SECONDS,tags:['rudi-score'],name:STATE_KEY});
   return state;
 }
@@ -503,7 +535,7 @@ async function completeReward(actor,redemptionId,options={}) {
   });
 }
 function scoreView(value,options={}) {
-  const state=normalizeState(value);
+  const state=normalizeState(value,{now:options.now||Date.now()});
   const dateKey=scoreDateKey(options.now||Date.now());
   const today=normalizeActorUnits(state.dailyEarned[dateKey]);
   return {
@@ -536,7 +568,7 @@ async function restoreScoreState(snapshot,options={}) {
 function resetMutationQueueForTests(){ mutationTail=Promise.resolve(); }
 
 module.exports={
-  NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,PRODUCT_DAILY_LIMIT_UNITS,PRODUCT_REPEAT_MS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
+  NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,PRODUCT_DAILY_LIMIT_UNITS,PRODUCT_REPEAT_MS,HISTORY_RETENTION_DAYS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
   readScoreState,writeScoreState,awardScore,awardProductScore,penalizeScore,reversePenaltyByDedupeKey,reverseScoreByDedupeKey,transferStars,redeemReward,completeReward,scoreView,restoreScoreState,
   resetMutationQueueForTests,
 };

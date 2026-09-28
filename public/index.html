@@ -943,9 +943,16 @@
           <span id="fastingGoalState" class="fasting-goal-state"></span>
         </div>
         <div id="fastingElapsed" class="fasting-elapsed">00:00:00</div>
-        <div id="fastingRewardNow" class="fasting-reward-now" aria-live="polite">
-          <span>Награда сейчас</span>
-          <strong><span id="fastingRewardValue">0</span> ⭐️</strong>
+        <div class="fasting-reward-status" aria-live="polite">
+          <div id="fastingRewardNow" class="fasting-reward-now">
+            <span>Награда сейчас</span>
+            <strong><span id="fastingRewardValue">0</span> ⭐️</strong>
+          </div>
+          <div id="fastingRewardNext" class="fasting-reward-next">
+            <span>Следующая награда</span>
+            <strong><span id="fastingNextRewardValue">0,5</span> ⭐️</strong>
+            <small id="fastingNextRewardCountdown">через 12 ч</small>
+          </div>
         </div>
         <h2 id="fastingStageTitle">Голодание идёт</h2>
         <p id="fastingStageDescription" class="fasting-stage-description"></p>

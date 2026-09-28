@@ -2641,8 +2641,26 @@
         const date=new Date(String(value||''));
         if(Number.isNaN(date.getTime())) return '';
         return new Intl.DateTimeFormat('ru-RU',{
-          timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
-        }).format(date).replace('.','');
+          timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).format(date);
+      }
+
+      function scoreHistoryDateKey(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return '';
+        const parts=new Intl.DateTimeFormat('en-CA',{
+          timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'
+        }).formatToParts(date);
+        const map=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+        return map.year+'-'+map.month+'-'+map.day;
+      }
+
+      function scoreHistoryDateLabel(value){
+        const date=new Date(String(value||''));
+        if(Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('ru-RU',{
+          timeZone:TZ,day:'numeric',month:'long'
+        }).format(date);
       }
 
       function syncScoreModalLayout(modal=document.getElementById('scoreModal')){
@@ -2832,46 +2850,66 @@
           empty.textContent='История пока пустая';
           history.appendChild(empty);
         }else{
+          const groups=new Map();
           for(const entry of rows){
-            if(entry.type==='completed'){
+            const key=scoreHistoryDateKey(entry.stamp);
+            if(!key) continue;
+            if(!groups.has(key)) groups.set(key,[]);
+            groups.get(key).push(entry);
+          }
+
+          for(const [,entries] of groups){
+            const group=document.createElement('section');
+            group.className='score-history-day';
+            const heading=document.createElement('div');
+            heading.className='score-history-day-title';
+            heading.textContent=scoreHistoryDateLabel(entries[0]?.stamp);
+            const list=document.createElement('div');
+            list.className='score-history-day-list';
+            group.append(heading,list);
+
+            for(const entry of entries){
+              if(entry.type==='completed'){
+                const item=entry.item;
+                const row=document.createElement('div');
+                row.className='score-history-row is-reward-complete';
+                const icon=document.createElement('span');
+                icon.className='score-history-icon';
+                icon.textContent=String(item.icon||'🎁');
+                const copy=document.createElement('div');
+                copy.className='score-history-copy';
+                const title=document.createElement('strong');
+                title.textContent=String(item.label||'Награда');
+                const meta=document.createElement('span');
+                meta.textContent='Выполнено · '+scoreHistoryTime(item.completedAt);
+                copy.append(title,meta);
+                const status=document.createElement('b');
+                status.textContent='Готово';
+                row.append(icon,copy,status);
+                list.appendChild(row);
+                continue;
+              }
+
               const item=entry.item;
               const row=document.createElement('div');
-              row.className='score-history-row is-reward-complete';
+              row.className='score-history-row '+(Number(item.points||0)<0?'is-spend':'is-earn');
               const icon=document.createElement('span');
               icon.className='score-history-icon';
-              icon.textContent=String(item.icon||'🎁');
+              icon.textContent=normalizeLegacyMoodIcon(item.icon||'⭐');
               const copy=document.createElement('div');
               copy.className='score-history-copy';
               const title=document.createElement('strong');
-              title.textContent=String(item.label||'Награда');
+              title.textContent=normalizeLegacyMoodText(item.detail||item.label||'Звезды');
               const meta=document.createElement('span');
-              meta.textContent='Выполнено · '+scoreHistoryTime(item.completedAt);
+              meta.textContent=scoreHistoryTime(item.createdAt);
               copy.append(title,meta);
-              const status=document.createElement('b');
-              status.textContent='Готово';
-              row.append(icon,copy,status);
-              history.appendChild(row);
-              continue;
+              const points=document.createElement('b');
+              const value=Number(item.points||0);
+              points.textContent=(value>0?'+':'')+scoreNumber(value);
+              row.append(icon,copy,points);
+              list.appendChild(row);
             }
-
-            const item=entry.item;
-            const row=document.createElement('div');
-            row.className='score-history-row '+(Number(item.points||0)<0?'is-spend':'is-earn');
-            const icon=document.createElement('span');
-            icon.className='score-history-icon';
-            icon.textContent=normalizeLegacyMoodIcon(item.icon||'⭐');
-            const copy=document.createElement('div');
-            copy.className='score-history-copy';
-            const title=document.createElement('strong');
-            title.textContent=normalizeLegacyMoodText(item.detail||item.label||'Звезды');
-            const meta=document.createElement('span');
-            meta.textContent=scoreHistoryTime(item.createdAt);
-            copy.append(title,meta);
-            const points=document.createElement('b');
-            const value=Number(item.points||0);
-            points.textContent=(value>0?'+':'')+scoreNumber(value);
-            row.append(icon,copy,points);
-            history.appendChild(row);
+            history.appendChild(group);
           }
         }
 
@@ -10410,15 +10448,33 @@
         fastingHomeTicker=setInterval(()=>renderFastingHomeStatus(fastingOverviewState),60*1000);
       }
 
+      const FASTING_REWARD_TIERS=Object.freeze([
+        {hours:12,stars:0.5},
+        {hours:14,stars:1},
+        {hours:16,stars:1.5},
+        {hours:24,stars:3},
+        {hours:32,stars:4},
+        {hours:40,stars:5}
+      ]);
+
       function fastingRewardStarsForHours(elapsedHours){
         const hours=Math.max(0,Number(elapsedHours)||0);
-        if(hours>=40) return 5;
-        if(hours>=32) return 4;
-        if(hours>=24) return 3;
-        if(hours>=16) return 2;
-        if(hours>=14) return 1;
-        if(hours>=12) return 0.5;
-        return 0;
+        let reward=0;
+        for(const tier of FASTING_REWARD_TIERS){
+          if(hours<tier.hours) break;
+          reward=tier.stars;
+        }
+        return reward;
+      }
+
+      function fastingNextReward(elapsedHours){
+        const hours=Math.max(0,Number(elapsedHours)||0);
+        const next=FASTING_REWARD_TIERS.find(tier=>hours<tier.hours);
+        if(!next) return null;
+        return {
+          ...next,
+          remainingMinutes:Math.max(1,Math.ceil((next.hours-hours)*60))
+        };
       }
 
       function fastingStage(elapsedHours){
@@ -10525,9 +10581,16 @@
         const bar=document.getElementById('fastingProgressBar');
         const goalState=document.getElementById('fastingGoalState');
         const rewardValue=document.getElementById('fastingRewardValue');
+        const nextRewardValue=document.getElementById('fastingNextRewardValue');
+        const nextRewardCountdown=document.getElementById('fastingNextRewardCountdown');
+        const nextReward=fastingNextReward(elapsedHours);
 
         if(elapsed) elapsed.textContent=fastingPad(hours)+':'+fastingPad(minutes)+':'+fastingPad(seconds);
         if(rewardValue) rewardValue.textContent=String(fastingRewardStarsForHours(elapsedHours)).replace('.',',');
+        if(nextRewardValue) nextRewardValue.textContent=nextReward?String(nextReward.stars).replace('.',','):'5';
+        if(nextRewardCountdown) nextRewardCountdown.textContent=nextReward
+          ?'через '+fastingDurationLabel(nextReward.remainingMinutes)
+          :'максимальная награда достигнута';
         if(badge) badge.textContent=stage.label;
         if(title) title.textContent=stage.title;
         if(description) description.textContent=stage.description;
