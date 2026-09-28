@@ -11468,30 +11468,17 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 .mood-history-page{touch-action:pan-y}
 
 
-/* RUDI v2.94 mood picker */
-.profile .mood-self-buttons{
-  display:flex;
-  align-items:center;
-  gap:3px;
-}
-.profile .mood-current-button{
-  width:24px;
-  height:24px;
-  display:grid;
-  place-items:center;
+/* RUDI v2.95 mood picker */
+.profile .mood-current-button.partner-mood-value{
   padding:0;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:8px;
-  background:rgba(255,255,255,.055);
-  color:#f7f8fd;
   cursor:pointer;
   -webkit-tap-highlight-color:transparent;
   transition:transform .16s ease,border-color .18s ease,background-color .18s ease;
 }
-.profile .mood-current-button:active{transform:scale(.94)}
-.profile .mood-current-button.is-open{
-  border-color:rgba(139,142,255,.58);
-  background:linear-gradient(145deg,rgba(119,115,255,.30),rgba(95,92,215,.18));
+.profile .mood-current-button.partner-mood-value:active{transform:scale(.94)}
+.profile .mood-current-button.partner-mood-value.is-open{
+  border-color:var(--line);
+  background:var(--soft);
 }
 .profile .mood-current-button .mood-emoji{font-size:16px;line-height:1}
 .profile .mood-choices{
@@ -11504,6 +11491,7 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
   padding-top:4px;
 }
 .profile .mood-choices[hidden]{display:none!important}
+.profile .mood-choices.is-open{display:flex!important}
 .profile .mood-choices .mood-button{
   width:28px;
   height:28px;

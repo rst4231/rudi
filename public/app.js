@@ -9008,8 +9008,55 @@
         if(!choices||!trigger)return;
         const next=Boolean(open);
         choices.hidden=!next;
+        choices.classList.toggle('is-open',next);
         trigger.setAttribute('aria-expanded',next?'true':'false');
         trigger.classList.toggle('is-open',next);
+        const prompt=document.getElementById('moodPrompt');
+        if(prompt)prompt.hidden=next||Boolean(trigger.dataset.mood);
+      }
+
+      function bindMoodPickerControls(){
+        const currentButton=document.getElementById('moodCurrentButton');
+        if(currentButton&&currentButton.dataset.moodPickerBound!=='1'){
+          currentButton.dataset.moodPickerBound='1';
+          currentButton.addEventListener('click',(event)=>{
+            event.preventDefault();
+            event.stopPropagation();
+            const choices=document.getElementById('moodChoices');
+            const shouldOpen=Boolean(choices?.hidden)||!choices?.classList.contains('is-open');
+            setMoodChoicesOpen(shouldOpen);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        }
+
+        moodButtons().forEach(button=>{
+          if(button.dataset.moodPickerBound==='1')return;
+          button.dataset.moodPickerBound='1';
+          button.addEventListener('click',async(event)=>{
+            event.preventDefault();
+            event.stopPropagation();
+            const mood=button.dataset.mood;
+            const buttons=moodButtons();
+            buttons.forEach(item=>item.disabled=true);
+            selectOwnMood(mood);
+            setMoodChoicesOpen(false);
+            showMoodMessage(mood);
+            try{
+              const payload=await moodRequest('set',mood);
+              renderDailyMood(payload);
+              setTimeout(()=>loadActivityJournal({silent:true}),180);
+              try{
+                if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
+                else tg?.HapticFeedback?.selectionChanged?.();
+              }catch(_){}
+            }catch(_){
+              await refreshDailyMood();
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }finally{
+              buttons.forEach(item=>item.disabled=false);
+            }
+          });
+        });
       }
 
       function selectOwnMood(value){
@@ -9141,44 +9188,15 @@
         const prompt=document.getElementById('moodPrompt');
         if(prompt)prompt.hidden=false;
 
-        const currentButton=document.getElementById('moodCurrentButton');
-        if(currentButton&&currentButton.dataset.bound!=='1'){
-          currentButton.dataset.bound='1';
-          currentButton.addEventListener('click',()=>{
-            const choices=document.getElementById('moodChoices');
-            setMoodChoicesOpen(Boolean(choices?.hidden));
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          });
-        }
-
-        moodButtons().forEach(button=>{
-          if(button.dataset.bound==='1')return;
-          button.dataset.bound='1';
-          button.addEventListener('click',async()=>{
-            const mood=button.dataset.mood;
-            const buttons=moodButtons();
-            buttons.forEach(item=>item.disabled=true);
-            selectOwnMood(mood);
-            setMoodChoicesOpen(false);
-            try{
-              const payload=await moodRequest('set',mood);
-              renderDailyMood(payload);
-              showMoodMessage(mood);
-              setTimeout(()=>loadActivityJournal({silent:true}),180);
-              try{
-                if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
-                else tg?.HapticFeedback?.selectionChanged?.();
-              }catch(_){}
-            }catch(_){
-              await refreshDailyMood();
-              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-            }finally{
-              buttons.forEach(item=>item.disabled=false);
-            }
-          });
-        });
+        bindMoodPickerControls();
 
         refreshDailyMood();
+      }
+
+      if(document.readyState==='loading'){
+        document.addEventListener('DOMContentLoaded',bindMoodPickerControls,{once:true});
+      }else{
+        bindMoodPickerControls();
       }
 
       async function openCinemaPremieresTopic(){

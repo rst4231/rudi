@@ -2446,12 +2446,6 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       if (operation === 'answer') {
         const view = await answerDailyQuestion(actor, body.answer, questionOptions);
-        const reward = await awardScoreSafe(actor,1,{
-          label:'Вопрос дня',
-          detail:'Ответ на вопрос дня',
-          icon:'💬',
-          dedupeKey:'score:daily-question:'+actor+':'+view.date,
-        },options);
         const activityRow={
           type:'daily-question',
           actor,
@@ -2474,10 +2468,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           ok:true,
           operation,
           ...view,
-          reward:{
-            stars:pointsFromUnits(reward?.awardedUnits||0),
-            awarded:Boolean(Number(reward?.awardedUnits||0)>0),
-          },
+          reward:{stars:0,awarded:false},
           activity:{recorded:journalRecorded},
           notification,
         });
