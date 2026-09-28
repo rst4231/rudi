@@ -917,23 +917,63 @@
 .car-wash-guide-note strong{color:#ffd4d0}
 
 html[data-theme="light"] .car-wash-guide-open{
-  color:#252a31;border-color:rgba(29,43,57,.09);
-  background:linear-gradient(135deg,rgba(92,139,188,.09),rgba(255,255,255,.76));
+  color:#111827;
+  border-color:rgba(34,55,76,.16);
+  background:linear-gradient(135deg,#f7fbff 0%,#ffffff 70%);
+  box-shadow:0 8px 22px rgba(28,46,66,.10),inset 0 1px 0 rgba(255,255,255,.95);
 }
+html[data-theme="light"] .car-wash-guide-open-icon{
+  color:#2f6fa9;
+  background:#e3effa;
+}
+html[data-theme="light"] .car-wash-guide-open-arrow{color:#51657a}
 html[data-theme="light"] .car-wash-guide-open-copy strong,
 html[data-theme="light"] .car-wash-guide-head h3,
 html[data-theme="light"] .car-wash-guide-intro strong,
 html[data-theme="light"] .car-wash-guide-note strong,
-html[data-theme="light"] .car-wash-guide-step strong{color:#20252b}
-html[data-theme="light"] .car-wash-guide-open-copy small,
+html[data-theme="light"] .car-wash-guide-step strong{color:#151b24}
+html[data-theme="light"] .car-wash-guide-open-copy strong{font-weight:800}
+html[data-theme="light"] .car-wash-guide-open-copy small{
+  color:#4f5f70;
+  font-weight:600;
+}
+html[data-theme="light"] .car-wash-guide-kicker{
+  color:#2d6597;
+  font-weight:800;
+}
 html[data-theme="light"] .car-wash-guide-intro p,
 html[data-theme="light"] .car-wash-guide-note p,
-html[data-theme="light"] .car-wash-guide-step p{color:#65707d}
-html[data-theme="light"] .car-wash-guide-back,
-html[data-theme="light"] .car-wash-guide-intro,
-html[data-theme="light"] .car-wash-guide-note,
-html[data-theme="light"] .car-wash-guide-step{
-  border-color:rgba(31,45,59,.08);background:rgba(255,255,255,.64);
+html[data-theme="light"] .car-wash-guide-step p{
+  color:#445160;
 }
-html[data-theme="light"] .car-wash-guide-back{color:#343b44}
-html[data-theme="light"] .car-wash-guide-tip{background:rgba(72,111,148,.07);color:#536271}
+html[data-theme="light"] .car-wash-guide-back{
+  color:#243140;
+  border-color:rgba(35,53,72,.16);
+  background:#f4f7fa;
+  box-shadow:0 3px 10px rgba(27,43,61,.08);
+}
+html[data-theme="light"] .car-wash-guide-intro,
+html[data-theme="light"] .car-wash-guide-step{
+  border-color:rgba(35,53,72,.12);
+  background:#f8f9fb;
+  box-shadow:0 5px 14px rgba(28,44,62,.06);
+}
+html[data-theme="light"] .car-wash-guide-step.is-contact{
+  border-color:rgba(62,112,160,.18);
+  background:linear-gradient(140deg,#f2f7fc,#f9fafb);
+}
+html[data-theme="light"] .car-wash-guide-number{
+  color:#2c5f8f;
+  background:#dce9f5;
+  font-weight:900;
+}
+html[data-theme="light"] .car-wash-guide-tip{
+  background:#e9f0f6;
+  color:#34485b;
+}
+html[data-theme="light"] .car-wash-guide-tip span::before{background:#3f83bd}
+html[data-theme="light"] .car-wash-guide-note{
+  border-color:rgba(177,72,64,.18);
+  background:#fff2f1;
+}
+html[data-theme="light"] .car-wash-guide-note strong{color:#7c2d28}
