@@ -9183,13 +9183,20 @@
             setMoodChoicesOpen(Boolean(choices?.hidden));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           };
-          currentButton.addEventListener('click',toggleMoodChoices);
+          let lastPointerToggleAt=0;
           currentButton.addEventListener('pointerup',event=>{
             if(event.pointerType==='mouse')return;
-            if(event.currentTarget.dataset.pointerHandled==='1')return;
-            event.currentTarget.dataset.pointerHandled='1';
-            setTimeout(()=>{delete event.currentTarget.dataset.pointerHandled},350);
-          },{passive:true});
+            lastPointerToggleAt=Date.now();
+            toggleMoodChoices(event);
+          },{passive:false});
+          currentButton.addEventListener('click',event=>{
+            if(Date.now()-lastPointerToggleAt<500){
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
+            toggleMoodChoices(event);
+          });
           moodRoot?.addEventListener('click',event=>{
             if(event.target===currentButton||currentButton.contains(event.target))return;
             if(event.target.closest('#moodChoices,#moodHistoryButton'))return;
