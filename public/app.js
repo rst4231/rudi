@@ -4345,6 +4345,17 @@
         if(moodMessage){
           ownCard.tile.insertBefore(moodMessage,ownCard.details);
         }
+        const currentMoodButton=document.getElementById('moodCurrentButton');
+        if(currentMoodButton&&currentMoodButton.dataset.bound!=='1'){
+          currentMoodButton.dataset.bound='1';
+          currentMoodButton.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            const choices=document.getElementById('moodChoices');
+            setMoodChoicesOpen(Boolean(choices?.hidden));
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        }
 
         const luluTile=document.createElement('section');
         luluTile.id='homeLuluTile';
