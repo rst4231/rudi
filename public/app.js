@@ -4491,13 +4491,6 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
         button.addEventListener('click',toggleCollapsed);
-        if(key!=='partner'&&!section.matches('#sharedTasksCard,#sharedTodoCard,[data-home-tile="shared-tasks"]')){
-          section.addEventListener('click',event=>{
-            if(event.defaultPrevented||collapseTapIgnored(event.target,section)) return;
-            toggleCollapsed();
-          });
-        }
-
         if(key==='partner'){
           section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{
             if(section.classList.contains('is-collapsed')){
