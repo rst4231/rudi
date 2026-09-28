@@ -11848,3 +11848,17 @@ html[data-theme="dark"] .fasting-goal-row button[aria-pressed="true"]{background
 html[data-theme="dark"] .fasting-stat:nth-child(1),
 html[data-theme="dark"] .fasting-stat:nth-child(2),
 html[data-theme="dark"] .fasting-stat:nth-child(3){background:rgba(20,28,42,.84)!important}
+
+/* RUDI v2.107: dark fasting header and settings overlay guard */
+html[data-theme="dark"] .fasting-start-card::before{
+  opacity:.42;
+  background:
+    linear-gradient(180deg,rgba(20,28,42,.30),rgba(20,28,42,.96)),
+    url("/fasting-scene.svg?v=2.102") center 42%/cover no-repeat;
+}
+.home-dashboard-summary.settings-open .home-message-new{
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+/* end RUDI v2.107 */
