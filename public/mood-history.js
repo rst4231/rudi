@@ -27,7 +27,7 @@ function renderAnalysisText(node,value){
     node.append(el);
   }
 }
-function setupEdgeSwipe(page){
+function installEdgeSwipe(page){
   if(page.dataset.edgeSwipeBound==='1')return;
   page.dataset.edgeSwipeBound='1';
   let startX=0,startY=0,tracking=false;
@@ -56,14 +56,14 @@ function ensure(){
   document.body.append(page);
   page.querySelector('#moodHistoryBack').addEventListener('click',close);
   page.querySelector('#moodAnalyzeButton').addEventListener('click',runAnalysis);
-  setupEdgeSwipe(page);
+  installEdgeSwipe(page);
   return page;
 }
 function monthLabel(key){const[y,m]=key.split('-').map(Number),t=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,month:'long',year:'numeric'}).format(new Date(Date.UTC(y,m-1,2)));return t.charAt(0).toUpperCase()+t.slice(1)}
 function render(data){
   const page=ensure(),today=String(data?.date||todayKey()),month=today.slice(0,7),history=Array.isArray(data?.history)?data.history:[],rows=history.filter(row=>String(row?.date||'').startsWith(month)),map=new Map(rows.map(row=>[String(row.date),row])),[y,m]=month.split('-').map(Number),days=new Date(Date.UTC(y,m,0)).getUTCDate(),offset=(new Date(Date.UTC(y,m-1,1)).getUTCDay()+6)%7;
   page.querySelector('#moodHistoryMonth').textContent=monthLabel(month);
-  page.querySelector('#moodHistoryMeta').textContent=rows.length+' дней с отметками · показано среднее за день';
+  page.querySelector('#moodHistoryMeta').textContent='Среднее настроение за день · '+rows.length+' дней с отметками';
   const cal=page.querySelector('#moodHistoryCalendar');cal.replaceChildren();
   for(const w of['Пн','Вт','Ср','Чт','Пт','Сб','Вс']){const el=document.createElement('span');el.className='mood-history-weekday';el.textContent=w;cal.append(el)}
   for(let i=0;i<offset;i++){const el=document.createElement('span');el.className='mood-history-day is-empty';cal.append(el)}
