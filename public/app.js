@@ -4466,10 +4466,6 @@
         host.appendChild(button);
       }
 
-      function collapseTapIgnored(){
-        return true;
-      }
-
       function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
