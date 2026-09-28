@@ -70,7 +70,6 @@ function ensure(){
         '<div class="mood-analysis-head"><div class="mood-analysis-profile"><span class="mood-analysis-avatar" aria-hidden="true">🧠</span><div><strong>Анализатор настроения</strong><span>Только наблюдения по вашим данным</span></div></div><button id="moodAnalyzeButton" type="button">Анализ</button></div>'+
         '<div id="moodRangeTabs" class="mood-range-tabs"><button data-days="7" type="button">7 дней</button><button data-days="30" type="button" class="active">30 дней</button><button data-days="90" type="button">3 месяца</button></div>'+
         '<div id="moodAnalysisStatus"></div><div id="moodAnalysisResult" hidden></div>'+
-        '<div id="moodAnalysisFeedback" class="mood-analysis-feedback" hidden><span>Разбор пригодился?</span><button data-feedback="up" type="button">👍 Да</button><button data-feedback="down" type="button">👎 Нет</button></div>'+
       '</section>'+
     '</div>';
   document.body.append(page);
@@ -83,14 +82,6 @@ function ensure(){
     windowDays=Number(button.dataset.days)||30;
     page.querySelectorAll('[data-days]').forEach(item=>item.classList.toggle('active',item===button));
     await reload();
-  });
-  page.querySelector('#moodAnalysisFeedback').addEventListener('click',async e=>{
-    const button=e.target.closest('[data-feedback]');if(!button)return;
-    try{
-      const data=await api('feedback',{value:button.dataset.feedback});
-      state={...(state||{}),feedback:data.feedback};
-      renderFeedback(data.feedback);
-    }catch{}
   });
   setupEdgeSwipeBack(page);
   return page;
@@ -105,6 +96,14 @@ function monthLabel(key){
 function rowsForWindow(history,today,days){
   const cutoff=shiftDate(today,-(days-1));
   return(history||[]).filter(row=>String(row?.date||'')>=cutoff&&String(row?.date||'')<=today);
+}
+function minimumAnalysisDays(days){
+  const value=Number(days)||30;
+  return value>=90?20:value>=30?10:5;
+}
+function analysisPeriodLabel(days){
+  const value=Number(days)||30;
+  return value>=90?'3 месяца':value>=30?'30 дней':'7 дней';
 }
 
 function appendInlineMarkdown(node,text){
@@ -184,13 +183,6 @@ function renderDayDetail(row){
   }
 }
 
-function renderFeedback(feedback){
-  const box=ensure().querySelector('#moodAnalysisFeedback');
-  if(!state?.analysis){box.hidden=true;return}
-  box.hidden=false;
-  box.querySelectorAll('[data-feedback]').forEach(button=>button.classList.toggle('active',button.dataset.feedback===feedback?.value));
-}
-
 function cacheStatus(analysis){
   if(!analysis?.createdAt)return'';
   const left=24*360000-(Date.now()-(Date.parse(analysis.createdAt)||0));
@@ -237,16 +229,18 @@ function render(data){
 
   const analysis=data.analysis||null,button=page.querySelector('#moodAnalyzeButton'),status=page.querySelector('#moodAnalysisStatus'),result=page.querySelector('#moodAnalysisResult');
   const moodDays=Number(data.selectedDays||rowsForWindow(history,today,windowDays).length);
+  const minimumDays=Number(data.minAnalysisDays)||minimumAnalysisDays(windowDays);
   if(analysis?.text){
     result.hidden=false;renderAnalysisText(result,analysis.text);
     button.disabled=true;button.textContent='Готово';
     status.textContent=(analysis.level==='preliminary'?'Предварительный разбор · ':'')+cacheStatus(analysis)+(analysis?.cycle?.phase?' · цикл Дианы учтён':'');
   }else{
     result.hidden=true;result.replaceChildren();
-    button.disabled=moodDays<5;button.textContent='Анализ';
-    status.textContent=moodDays<5?'Нужно минимум 5 дней с отметками. Сейчас '+moodDays:moodDays<10?'Данных немного: получится предварительный разбор':'Можно анализировать '+windowDays+' дней';
+    button.disabled=moodDays<minimumDays;button.textContent='Анализ';
+    status.textContent=moodDays<minimumDays
+      ?'Для анализа за '+analysisPeriodLabel(windowDays)+' данных мало: '+moodDays+' из '+minimumDays+' нужных дней с отметками.'
+      :moodDays<10?'Данных немного: получится предварительный разбор':'Можно анализировать '+analysisPeriodLabel(windowDays);
   }
-  renderFeedback(data.feedback);
 }
 
 async function reload(){
@@ -274,7 +268,7 @@ async function runAnalysis(){
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success');
   }catch(error){
     const code=String(error?.message||'');
-    status.textContent=code==='mood-analysis-insufficient-data'?'Нужно минимум 5 дней с отметками':code==='mood-analysis-quota'?'Сервис временно занят. Попробуйте позже.':'Не удалось сделать анализ. Попробуйте ещё раз.';
+    status.textContent=code==='mood-analysis-insufficient-data'?'Недостаточно данных для выбранного периода.':code==='mood-analysis-quota'?'Сервис временно занят. Попробуйте позже.':'Не удалось сделать анализ. Попробуйте ещё раз.';
     button.disabled=false;button.textContent='Анализ';
   }
 }

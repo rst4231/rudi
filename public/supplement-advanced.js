@@ -151,8 +151,9 @@ function applyGrouping(){
   let visible=0;
   for(const status of ['active','paused','finished']){
     const group=rows.filter(row=>row.matches&&row.item.status===status).sort((a,b)=>{
+      const byTaken=status==='active'?Number(takenToday(a.item))-Number(takenToday(b.item)):0;
       const byTime=supplementTimeKey(a.item).localeCompare(supplementTimeKey(b.item));
-      return byTime||a.item.name.localeCompare(b.item.name,'ru');
+      return byTaken||byTime||a.item.name.localeCompare(b.item.name,'ru');
     });
     if(!group.length)continue;
     visible+=group.length;
