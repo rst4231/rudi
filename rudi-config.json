@@ -7,6 +7,69 @@
     "longitude": 30.3141,
     "timezone": "Europe/Moscow"
   },
+  "cheapFlights": {
+    "enabled": true,
+    "visibleTo": [
+      "Рустам"
+    ],
+    "origin": {
+      "city": "Санкт-Петербург",
+      "iata": "LED"
+    },
+    "currency": "rub",
+    "market": "ru",
+    "departureWindowDays": {
+      "from": 30,
+      "to": 60
+    },
+    "maxTransfers": 1,
+    "directPriority": true,
+    "refreshTime": "06:00",
+    "destinations": [
+      {
+        "id": "turkey-antalya",
+        "countryId": "turkey",
+        "country": "Турция",
+        "city": "Анталия",
+        "iata": "AYT"
+      },
+      {
+        "id": "egypt-sharm",
+        "countryId": "egypt",
+        "country": "Египет",
+        "city": "Шарм-эль-Шейх",
+        "iata": "SSH"
+      },
+      {
+        "id": "thailand-phuket",
+        "countryId": "thailand",
+        "country": "Таиланд",
+        "city": "Пхукет",
+        "iata": "HKT"
+      },
+      {
+        "id": "bali-denpasar",
+        "countryId": "bali",
+        "country": "Бали",
+        "city": "Денпасар",
+        "iata": "DPS"
+      },
+      {
+        "id": "china-beijing",
+        "countryId": "china",
+        "country": "Китай",
+        "city": "Пекин",
+        "iata": "BJS"
+      },
+      {
+        "id": "china-shanghai",
+        "countryId": "china",
+        "country": "Китай",
+        "city": "Шанхай",
+        "iata": "SHA"
+      }
+    ]
+  },
   "birthdays": [
     {
       "id": "rustam",
