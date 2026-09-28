@@ -160,7 +160,7 @@ async function loadCheapFlightsConfig(options = {}) {
   try {
     const remote = await fetchJson(options.configUrl || CONFIG_URL, {
       fetchImpl: options.fetchImpl,
-      timeoutMs: 5000,
+      timeoutMs: 3000,
       headers: { Accept: 'application/json', 'User-Agent': 'RUDI-Cheap-Flights/1.0' },
     });
     value = normalizeCheapFlightsConfig(remote?.cheapFlights || DEFAULT_CONFIG);
@@ -333,7 +333,7 @@ async function loadAirlineNames(options = {}) {
   try {
     const data = await fetchJson(options.airlinesUrl || AIRLINES_URL, {
       fetchImpl: options.fetchImpl,
-      timeoutMs: 8000,
+      timeoutMs: 5000,
       headers: { Accept: 'application/json', 'Accept-Encoding': 'gzip, deflate', 'User-Agent': 'RUDI-Cheap-Flights/1.0' },
     });
     const rows = Array.isArray(data) ? data : [];
@@ -406,11 +406,11 @@ async function fetchTickets(config, token, options = {}) {
   const window = searchWindow(options.now || new Date(), config);
   const airlines = await loadAirlineNames(options);
   const requests = buildPriceRequests(config, window);
-  const batches = await mapPool(requests, 4, async (request) => {
+  const batches = await mapPool(requests, 6, async (request) => {
     try {
       const payload = await fetchJson(pricesUrl(config, request), {
         fetchImpl: options.fetchImpl,
-        timeoutMs: 9000,
+        timeoutMs: 4500,
         headers: {
           Accept: 'application/json',
           'Accept-Encoding': 'gzip, deflate',
