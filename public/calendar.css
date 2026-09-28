@@ -395,6 +395,23 @@ body[data-app-tab="schedule"] .work-page{
 .work-page .calendar-task-complete svg{width:14px!important;height:14px!important}
 .work-page .calendar-task-complete:disabled{opacity:.55!important;cursor:default!important}
 .work-page .calendar-task-row.is-completing{opacity:.58!important}
+.work-page .calendar-selected-holidays{
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+}
+.work-page .calendar-selected-holidays > b,
+.work-page .calendar-selected-holidays .calendar-selected-row{
+  position:relative!important;
+  z-index:2!important;
+}
+.work-page .calendar-selected-holidays .calendar-confetti{
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  border-radius:12px!important;
+  z-index:1!important;
+}
 .work-page .calendar-selected-holidays .calendar-selected-row{
   display:grid!important;
   grid-template-columns:17px minmax(0,1fr)!important;

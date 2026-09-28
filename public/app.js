@@ -7323,6 +7323,11 @@
               const groupTitle=document.createElement('b');
               groupTitle.textContent='Праздники';
               group.appendChild(groupTitle);
+              const confetti=document.createElement('span');
+              confetti.id='calendarConfetti';
+              confetti.className='calendar-confetti calendar-holiday-confetti';
+              confetti.setAttribute('aria-hidden','true');
+              group.appendChild(confetti);
               for(const holiday of holidays){
                 const row=document.createElement('span');
                 row.className='calendar-selected-row calendar-holiday-row'+
