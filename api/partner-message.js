@@ -2385,6 +2385,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       const date = moscowDateKey(options.now || Date.now());
       const operation = String(body.operation || 'get').trim();
+      const windowDays=normalizeWindowDays(body.windowDays);
       let row;
       let backupToken='';
 
@@ -2392,6 +2393,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const before = await readDailyMood(date, options).catch(() => null);
         const previousMood = before?.moods?.[actor]?.mood || '';
         row = await setDailyMood(date, actor, body.mood, options);
+        await clearMoodAnalysisCache(actor,options).catch(()=>null);
         const nextMood = row?.moods?.[actor]?.mood || '';
         if (nextMood && nextMood !== previousMood) {
           await sendMoodNotificationToPartner(actor, nextMood, options);
@@ -2408,24 +2410,38 @@ async function handleRudiAction(req, res, action, options = {}) {
           },options);
         }
         backupToken=await refreshBackupToken(previousSnapshot,options);
+      } else if (operation === 'reason') {
+        row=await setDailyMoodReason(date,actor,body.reason,options);
+        await clearMoodAnalysisCache(actor,options).catch(()=>null);
+        backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
       } else if (operation === 'history') {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor);
-        const analysis=await externalMoodAnalysis(actor,date,options);
-        return res.status(200).json({ok:true,actor,date,history,analysis,canAnalyze:history.length>0,retentionDays:30,analysisCacheHours:24});
+        const selected=moodHistoryForWindow(history,date,windowDays),level=moodAnalysisLevel(selected.length);
+        const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
+        const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
+        return res.status(200).json({ok:true,actor,date,history,analysis,feedback,windowDays,selectedDays:selected.length,analysisLevel:level,canAnalyze:selected.length>=5,retentionDays:180,analysisCacheHours:24});
       } else if (operation === 'analyze') {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
-        const history=mergeMoodHistoryActivity(storedHistory,journal,actor);
-        if(!history.length) throw new Error('mood-analysis-no-data');
-        let analysis=await externalMoodAnalysis(actor,date,options),cycle=analysis?.cycle||null,reused=Boolean(analysis);
+        const history=mergeMoodHistoryActivity(storedHistory,journal,actor),selected=moodHistoryForWindow(history,date,windowDays);
+        if(selected.length<5) throw new Error('mood-analysis-insufficient-data');
+        const level=moodAnalysisLevel(selected.length);
+        let analysis=await externalMoodAnalysis(actor,date,windowDays,options),cycle=analysis?.cycle||null,reused=Boolean(analysis);
         if(!analysis){
           if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
-          const generated=await generateMoodAnalysis({actor,history,cycle},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
-          analysis=await writeMoodAnalysisCache(actor,date,{...generated,historyCount:history.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
+          const enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options),contextSummary=moodContextSummary(enriched);
+          const generated=await generateMoodAnalysis({actor,history:enriched,cycle,windowDays,level,contextSummary},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
+          analysis=await writeMoodAnalysisCache(actor,date,windowDays,{...generated,windowDays,level,historyCount:selected.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
         }
-        return res.status(200).json({ok:true,actor,date,history,analysis,cycle:analysis?.cycle||cycle,canAnalyze:history.length>0,reused,retentionDays:30,analysisCacheHours:24});
+        const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
+        return res.status(200).json({ok:true,actor,date,history,analysis,feedback,cycle:analysis?.cycle||cycle,windowDays,selectedDays:selected.length,analysisLevel:level,canAnalyze:true,reused,retentionDays:180,analysisCacheHours:24});
+      } else if (operation === 'feedback') {
+        const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
+        if(!analysis?.createdAt)throw new Error('mood-feedback-no-analysis');
+        const feedback=await saveMoodFeedback(actor,{analysisCreatedAt:analysis.createdAt,windowDays,value:body.value},options);
+        return res.status(200).json({ok:true,actor,date,windowDays,feedback});
       } else {
         return res.status(400).json({ ok: false, error: 'mood-operation-invalid' });
       }
@@ -2436,7 +2452,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'mood-value-invalid' || code === 'mood-actor-invalid' || code === 'mood-date-invalid' ? 400
-        : code === 'mood-analysis-no-data' ? 409
+        : code === 'mood-analysis-no-data' || code === 'mood-analysis-insufficient-data' ? 409
+        : code === 'mood-reason-invalid' || code === 'mood-reason-no-mood' || code === 'mood-feedback-invalid' || code === 'mood-feedback-no-analysis' ? 400
         : code === 'mood-analysis-quota' ? 429
         : code === 'groq-api-key-missing' ? 503
         : code.startsWith('mood-analysis-') ? 502
