@@ -122,7 +122,7 @@ function buildAliceProductDeletedResponse(req, result = {}) {
 }
 
 function buildAliceNoSharedListResponse(req) {
-  const text = 'Общего списка больше нет. Просто назовите продукты, и Руди отправит их в чат.';
+  const text = 'Общего списка больше нет. Просто назови продукты, и RUDI добавит их в чат.';
   return {
     response: { text, tts: text, end_session: false },
     version: req?.body?.version || '1.0',
@@ -237,7 +237,7 @@ async function acknowledgeLegacyProductsCallback(req, options = {}) {
   try {
     await telegramJsonCall(token, 'answerCallbackQuery', {
       callback_query_id: callbackId,
-      text: 'Эта кнопка больше не используется.',
+      text: 'Эта кнопка больше не нужна. Просто напиши продукты сообщением.',
     }, fetchImpl);
     return true;
   } catch (error) {

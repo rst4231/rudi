@@ -28,7 +28,7 @@ const REWARDS = Object.freeze([
   { id:'home-date', label:'Домашнее свидание', description:'Партнёр организует уютное свидание дома.', icon:'🕯️', costUnits:500 },
   { id:'favorite-dish', label:'Любимое блюдо от партнёра', description:'Партнёр сам готовит для тебя выбранное тобой блюдо.', icon:'🍳', costUnits:700 },
   { id:'your-evening', label:'Вечер по твоим правилам', description:'Ты выбираешь, как провести вечер: фильм, игра, прогулка, еда или другое совместное занятие.', icon:'✨', costUnits:850 },
-  { id:'day-off', label:'День без домашних обязанностей', description:'На день освобождаешься от домашних обязанностей.', icon:'🛋️', costUnits:900 },
+  { id:'day-off', label:'День без домашних обязанностей', description:'Партнёр берёт домашние дела на себя на один день.', icon:'🛋️', costUnits:900 },
   { id:'date', label:'Выбрать свидание', description:'Ты выбираешь идею и формат следующего свидания.', icon:'💞', costUnits:1100 },
   { id:'gift-3000', label:'Подарок до 3 000 ₽', description:'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.', icon:'🎀', costUnits:1400 },
 ]);
@@ -149,7 +149,7 @@ function normalizeHistoryItem(input) {
     kind:['earn','spend','reverse','gift-out','gift-in'].includes(String(input.kind||''))?String(input.kind):(units>0?'earn':'spend'),
     units,
     requestedUnits:normalizeUnits(input.requestedUnits||units),
-    label:cleanText(input.label,80)||'Звезды',
+    label:cleanText(input.label,80)||'Звёзды',
     detail:cleanText(input.detail,220),
     icon:cleanText(input.icon,12)||'⭐',
     dedupeKey:cleanText(input.dedupeKey,180),
@@ -334,7 +334,7 @@ async function awardProductScore(actor,productText,options={}) {
     next.dailyEarned[dateKey][who]+=awardedUnits;
     next.history.unshift(normalizeHistoryItem({
       id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:1,
-      label:'Продукты',detail:'Добавлена позиция: '+text,icon:'🛒',dedupeKey,dateKey,createdAt:now.toISOString(),
+      label:'Продукты',detail:'Добавлено в продукты: '+text,icon:'🛒',dedupeKey,dateKey,createdAt:now.toISOString(),
     }));
     const unlockedRewards=claimUnlockedRewards(next,who,state.balances[who],next.balances[who],now);
     const saved=await writeScoreState(next,options);
@@ -440,7 +440,7 @@ async function reverseScoreByDedupeKey(dedupeKey,meta={},options={}) {
         if(streakRow.dedupeKey) delete next.dedupe[streakRow.dedupeKey];
         next.history.unshift(normalizeHistoryItem({
           id:crypto.randomUUID(),actor:original.actor,kind:'reverse',units:-streakUnits,requestedUnits:-streakUnits,
-          label:'Отмена серии',detail:'Отменён бонус серии',icon:'↩️',
+          label:'Отмена серии',detail:'Бонус за серию отменён',icon:'↩️',
           dateKey:scoreDateKey(now),createdAt:now.toISOString(),
         }));
       }
@@ -478,7 +478,7 @@ async function transferStars(actor,amountPoints,options={}) {
       balances:{...state.balances,[from]:state.balances[from]-units,[to]:state.balances[to]+units},
       lifetimeEarned:{...state.lifetimeEarned},dailyEarned:{...state.dailyEarned},
       history:[
-        normalizeHistoryItem({id:crypto.randomUUID(),actor:from,kind:'gift-out',units:-units,requestedUnits:-units,label:'Подарок',detail:'Подарено '+actorDative(to),icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
+        normalizeHistoryItem({id:crypto.randomUUID(),actor:from,kind:'gift-out',units:-units,requestedUnits:-units,label:'Подарок',detail:'Подарок '+actorDative(to),icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
         normalizeHistoryItem({id:crypto.randomUUID(),actor:to,kind:'gift-in',units,requestedUnits:units,label:'Подарок',detail:'Подарок от '+actorGenitive(from),icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
         ...state.history
       ],

@@ -36,7 +36,7 @@ function evidenceLabel(value){return value==='strong'?'🟢 Высокая':valu
 function foodLabel(value){return value==='before'?'до еды':value==='with'?'во время еды':value==='after'?'после еды':''}
 function takenToday(item){return(item.intakes||[]).some(row=>row.date===today())}
 function takeIdleLabel(){return isDiana()?'✓ Приняла':'✓ Принял'}
-function takeDoneLabel(){return isDiana()?'✓ Приняла сегодня':'✓ Принято сегодня'}
+function takeDoneLabel(){return isDiana()?'✓ Приняла сегодня':'✓ Принял сегодня'}
 
 function streak(item){
   const dates=[...new Set((item.intakes||[]).map(row=>row.date).filter(Boolean))].sort();
@@ -130,7 +130,7 @@ function renderAutomaticDuplicates(active){
   const duplicates=[...map.values()].filter(row=>new Set(row.items).size>=2);
   duplicatePanel.replaceChildren();duplicatePanel.hidden=!duplicates.length;
   if(!duplicates.length)return;
-  const title=document.createElement('strong');title.textContent='⚠️ Найдены дубли состава';duplicatePanel.appendChild(title);
+  const title=document.createElement('strong');title.textContent='⚠️ Повторяются активные вещества';duplicatePanel.appendChild(title);
   for(const row of duplicates){const p=document.createElement('p');p.textContent=row.ingredient+': '+[...new Set(row.items)].join(', ');duplicatePanel.appendChild(p)}
 }
 function supplementTimeKey(item){return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(item?.schedule?.time||''))?String(item.schedule.time):'99:99'}
@@ -243,7 +243,7 @@ function renderInteractionResult(){
   interactionResult.hidden=false;
   const summary=document.createElement('p');summary.textContent=interactionCheck.summary||'';interactionResult.appendChild(summary);
   if(interactionCheck.duplicates?.length){
-    const title=document.createElement('strong');title.textContent='Дубли состава';interactionResult.appendChild(title);
+    const title=document.createElement('strong');title.textContent='Повторяющиеся компоненты';interactionResult.appendChild(title);
     for(const row of interactionCheck.duplicates){const p=document.createElement('p');p.textContent='⚠️ '+row.ingredient+': '+row.items.join(', ');interactionResult.appendChild(p)}
   }
   if(interactionCheck.warnings?.length){
@@ -253,7 +253,7 @@ function renderInteractionResult(){
 }
 async function checkSelectedInteractions(){
   const selectedIds=[...selectedInteractionIds];if(selectedIds.length<2)return;
-  interactionRun.disabled=true;interactionRun.textContent='Groq проверяет…';setStatus('');
+  interactionRun.disabled=true;interactionRun.textContent='Проверяю сочетания…';setStatus('');
   try{const data=await req('interactions',{selectedIds});interactionCheck=data.interactionCheck;renderInteractionResult()}
   catch(error){setStatus('Не удалось проверить выбранные сочетания.',true)}
   finally{updateInteractionRun()}

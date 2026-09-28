@@ -166,7 +166,7 @@ function todaySupplementCount(){const today=habitDateKey(new Date());return acti
 function renderSupplementSummary(){
   if(!supplementSummaryNode)return;
   const active=activeSupplementItems(),taken=todaySupplementCount(),percent=active.length?Math.round(taken/active.length*100):0;
-  supplementSummaryNode.textContent='Сегодня принято '+taken+' из '+active.length;
+  supplementSummaryNode.textContent='Сегодня принято: '+taken+' из '+active.length;
   if(supplementProgressFill)supplementProgressFill.style.width=percent+'%';
   if(supplementPercentNode)supplementPercentNode.textContent=percent+'%';
 }
@@ -213,17 +213,17 @@ function render(){
     const name=document.createElement('div');name.className='supplement-card-name';const emoji=document.createElement('span');emoji.className='supplement-card-emoji';emoji.textContent=emojiForSupplement(item.name);const label=document.createElement('span');label.textContent=item.name;name.append(emoji,label);
     const del=document.createElement('button');del.type='button';del.className='supplement-delete';del.setAttribute('aria-label','Удалить '+item.name);del.textContent='×';
     top.append(name,del);
-    const hint=document.createElement('div');hint.className='supplement-card-hint';hint.textContent=item.description?'Нажми, чтобы открыть описание':'Нажми, чтобы AI создал краткое описание';
+    const hint=document.createElement('div');hint.className='supplement-card-hint';hint.textContent=item.description?'Нажми, чтобы открыть описание':'Нажми, чтобы получить краткое описание';
     const desc=document.createElement('div');desc.className='supplement-card-description';desc.hidden=true;desc.textContent=supplementDescriptionText(item);
     card.append(top,hint,desc);
     const open=async()=>{
       if(card.classList.contains('is-loading'))return;
       if(item.description&&item.intakeGuidance){const next=desc.hidden;desc.hidden=!next;card.classList.toggle('is-open',next);hint.textContent=next?'Скрыть описание':'Нажми, чтобы открыть описание';return}
-      card.classList.add('is-loading');hint.textContent=item.description?'AI добавляет, когда лучше принимать…':'Groq проверяет научные данные…';setStatus('');
+      card.classList.add('is-loading');hint.textContent=item.description?'Уточняю, когда лучше принимать…':'Проверяю научные данные…';setStatus('');
       try{
         const data=await request('describe',{id:item.id});item=data.item;const index=items.findIndex(row=>row.id===item.id);if(index>=0)items[index]=item;
         desc.textContent=supplementDescriptionText(item);desc.hidden=false;card.classList.add('is-open');hint.textContent='Скрыть описание';
-      }catch(error){console.error('RUDI_SUPPLEMENT_DESCRIBE_UI_ERROR',error);hint.textContent='Нажми, чтобы AI попробовал снова';setStatus(errorText(error),true)}
+      }catch(error){console.error('RUDI_SUPPLEMENT_DESCRIBE_UI_ERROR',error);hint.textContent='Нажми, чтобы попробовать ещё раз';setStatus(errorText(error),true)}
       finally{card.classList.remove('is-loading')}
     };
     card.addEventListener('click',(event)=>{if(event.target.closest('.supplement-delete'))return;open()});
@@ -343,7 +343,7 @@ function build(){
   habitInfoClose=document.createElement('button');habitInfoClose.type='button';habitInfoClose.className='habit-info-modal-close';habitInfoClose.setAttribute('aria-label','Закрыть');habitInfoClose.textContent='×';
   const habitInfoTitle=document.createElement('strong');habitInfoTitle.id='habitInfoModalTitle';habitInfoTitle.className='habit-info-modal-title';habitInfoTitle.textContent='Как работают звёзды';
   habitInfoPanel=document.createElement('div');habitInfoPanel.className='habit-info-modal-copy';
-  habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 Сделал привычку → получишь <b>+0,1 ⭐</b>.<br>🔴 Не сделал → снимется <b>−0,1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−0,1 ⭐</b>.</p><p>Остальные привычки можно просто отмечать. За них звёзды не добавляются и не снимаются.</p><p>В <b>21:00</b> RUDI напомнит, если ты что-то не отметил.</p><p>Если случайно нажал <b>«Выполнено»</b> или <b>«Не выполнено»</b>, у тебя есть <b>5 секунд</b>, чтобы нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
+  const habitFemale=app().getActor()==='Диана';habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 '+(habitFemale?'Сделала':'Сделал')+' привычку → получишь <b>+0,1 ⭐</b>.<br>🔴 '+(habitFemale?'Не сделала':'Не сделал')+' → снимется <b>−0,1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−0,1 ⭐</b>.</p><p>Остальные привычки можно просто отмечать. За них звёзды не добавляются и не снимаются.</p><p>В <b>21:00</b> RUDI напомнит, если ты что-то '+(habitFemale?'не отметила':'не отметил')+'.</p><p>Если случайно '+(habitFemale?'нажала':'нажал')+' <b>«Выполнено»</b> или <b>«Не выполнено»</b>, у тебя есть <b>5 секунд</b>, чтобы нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
   habitInfoDialog.append(habitInfoClose,habitInfoTitle,habitInfoPanel);habitInfoModal.append(habitInfoBackdrop,habitInfoDialog);document.body.appendChild(habitInfoModal);
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
   const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';
@@ -370,7 +370,7 @@ function build(){
   const supplementIcon=document.createElement('span');supplementIcon.className='personal-home-tile-icon is-supplement';supplementIcon.textContent='💊';
   const supplementTitleWrap=document.createElement('div');supplementTitleWrap.className='personal-supplements-title-wrap';
   const heading=document.createElement('h2');heading.textContent='БАДы и витамины';
-  supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято 0 из 0';
+  supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято: 0 из 0';
   supplementTitleWrap.append(heading,supplementSummaryNode);supplementLead.append(supplementIcon,supplementTitleWrap);
   const actions=document.createElement('div');actions.className='personal-supplements-actions';
   collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
@@ -387,7 +387,7 @@ function build(){
   statusNode=document.createElement('div');statusNode.className='personal-supplements-status';statusNode.hidden=true;
   list=document.createElement('div');list.className='personal-supplements-list';
   body.append(form,statusNode,list);tile.append(head,supplementProgressRow,body);
-  const movedNotice=document.createElement('article');movedNotice.className='personal-tools-moved-notice';movedNotice.innerHTML='<strong>Трекер привычек и БАДы перенесены</strong><p>Оба блока теперь находятся на главной странице. Смотрите их на главной.</p>';
+  const movedNotice=document.createElement('article');movedNotice.className='personal-tools-moved-notice';movedNotice.innerHTML='<strong>Трекер привычек и БАДы теперь на главной</strong>';
   content.append(summary,movedNotice);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
   habitInfoButton.setAttribute('aria-controls','habitInfoModalTitle');

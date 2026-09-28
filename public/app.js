@@ -1891,12 +1891,12 @@
         }catch(error){
           const code=String(error?.message||error);
           const retry=Math.max(1,Number(error?.retryAfterSeconds)||20);
-          const message=code==='voice-no-speech'?'Речь не распознана. Попробуйте ещё раз.'
+          const message=code==='voice-no-speech'?'Речь не распознана. Попробуй ещё раз.'
             :code==='voice-stt-rate-limit'?'Слишком много голосовых запросов подряд. Подожди '+retry+' сек. и попробуй ещё раз.'
             :code==='voice-chat-rate-limit'?'Слишком много запросов подряд. Подожди '+retry+' сек. и попробуй ещё раз.'
             :code==='voice-audio-too-large'?'Запись слишком длинная.'
             :/permission|notallowed/i.test(code)?'Нужен доступ к микрофону.'
-            :'Не удалось обработать голос. Попробуйте ещё раз.';
+            :'Не удалось обработать голос. Попробуй ещё раз.';
           setVoiceAssistantStatus(message,'idle');
         }finally{
           voiceAssistantBusy=false;
@@ -2006,7 +2006,7 @@
             const type=recorder.mimeType||mimeType||voiceAssistantChunks[0]?.type||'audio/webm';
             const blob=new Blob(voiceAssistantChunks,{type});
             voiceAssistantRecorder=null;voiceAssistantChunks=[];releaseVoiceAssistantStream();
-            if(blob.size<256){setVoiceAssistantStatus('Ничего не услышала. Попробуйте ещё раз.','idle');return}
+            if(blob.size<256){setVoiceAssistantStatus('Ничего не услышала. Попробуй ещё раз.','idle');return}
             sendVoiceAssistantAudio(blob);
           },{once:true});
           recorder.start(250);setVoiceAssistantStatus('Слушаю…','recording');
@@ -2417,7 +2417,7 @@
         const advice=document.getElementById('rustamRhythmAdvice');
         const recommendation=rustamRhythmRecommendation(text);
         if(advice){
-          advice.textContent=recommendation?'Сейчас лучше: '+recommendation:'';
+          advice.textContent=recommendation?'Лучше сейчас: '+recommendation:'';
           advice.hidden=!recommendation;
         }
       }
@@ -3145,7 +3145,7 @@
         const pee=luluToiletProbability(state.lastPeeAt||fallback);
         const poop=luluToiletProbability(state.lastPoopAt||fallback);
         if(pee===null&&poop===null){
-          node.textContent='Туалет: нет данных';
+          node.textContent='Туалет пока не отмечен';
           node.dataset.level='unknown';
           return;
         }
@@ -3229,7 +3229,7 @@
         const actor=String(walk?.actor||'').trim();
         const date=new Date(String(walk?.walkedAt||''));
         if(!actor||Number.isNaN(date.getTime())){
-          status.textContent='Прогулка · пока не отмечена';
+          status.textContent='Сегодня с Лулу ещё не гуляли';
           return;
         }
         const time=new Intl.DateTimeFormat('ru-RU',{
@@ -4309,7 +4309,7 @@
         rhythmAdvice.style.setProperty('opacity','1','important');
         const currentRhythm=rustamRhythmStatus();
         const currentRecommendation=rustamRhythmRecommendation(currentRhythm);
-        rhythmAdvice.textContent=currentRecommendation?'Сейчас лучше: '+currentRecommendation:'';
+        rhythmAdvice.textContent=currentRecommendation?'Лучше сейчас: '+currentRecommendation:'';
         rhythmAdvice.hidden=!currentRecommendation;
         rustamCard.details.appendChild(rhythmAdvice);
 
@@ -4358,7 +4358,7 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Лулу" width="58" height="58">'+
-              '<div class="lulu-copy"><h2><span class="lulu-name">Лулу</span><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет: нет данных</div><div id="luluWalkStatus" class="lulu-walk-status">Прогулка · пока не отмечена</div></div>'+
+              '<div class="lulu-copy"><h2><span class="lulu-name">Лулу</span><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
               '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
@@ -4795,8 +4795,8 @@
         const message=ios
           ?'В Safari нажмите «Поделиться» → «На экран Домой».'
           :(tg?.initData
-            ?'Откройте RUDI в обычном браузере и выберите установку приложения.'
-            :'В меню браузера выберите «Установить приложение» или «Добавить на главный экран».');
+            ?'Открой RUDI в обычном браузере и выбери установку приложения.'
+            :'В меню браузера выбери «Установить приложение» или «Добавить на главный экран».');
         try{tg?.showAlert?.(message)}catch(_){}
         if(!tg?.showAlert) window.alert(message);
       }
@@ -4808,7 +4808,7 @@
         const indicator=document.createElement('div');
         indicator.className='pull-refresh-indicator';
         indicator.setAttribute('aria-hidden','true');
-        indicator.innerHTML='<span class="pull-refresh-spinner" aria-hidden="true"></span><span class="pull-refresh-label">Потяните для обновления</span>';
+        indicator.innerHTML='<span class="pull-refresh-spinner" aria-hidden="true"></span><span class="pull-refresh-label">Потяни для обновления</span>';
         document.body.appendChild(indicator);
 
         const label=indicator.querySelector('.pull-refresh-label');
@@ -4835,7 +4835,7 @@
           distance=0;
           indicator.classList.remove('is-visible','is-armed','is-refreshing','is-done');
           indicator.style.setProperty('--pull-distance','0px');
-          if(label) label.textContent='Потяните для обновления';
+          if(label) label.textContent='Потяни для обновления';
         };
 
         document.addEventListener('touchstart',event=>{
@@ -4863,7 +4863,7 @@
           indicator.style.setProperty('--pull-distance',resisted.toFixed(1)+'px');
           indicator.classList.toggle('is-visible',delta>12);
           indicator.classList.toggle('is-armed',armed);
-          if(label) label.textContent=armed?'Отпустите для обновления':'Потяните для обновления';
+          if(label) label.textContent=armed?'Отпусти, чтобы обновить':'Потяни для обновления';
           if(delta>14) event.preventDefault();
         },{passive:false,capture:true});
 
@@ -5161,7 +5161,7 @@
             button.disabled=false;
           }).catch(error=>{
             console.warn('RUDI_PASSKEY_PREPARE_REGISTRATION',String(error?.name||''),String(error?.message||error));
-            status.textContent='Не удалось подготовить Face ID. Попробуйте ещё раз.';
+            status.textContent='Не удалось подготовить Face ID. Попробуй ещё раз.';
             button.textContent='Включить Face ID';
             button.disabled=true;
           });
@@ -5255,7 +5255,7 @@
             event.preventDefault();
             const pin=String(input.value||'');
             if(!/^\d{6}$/.test(pin)){
-              status.textContent='Введите ровно 6 цифр.';
+              status.textContent='Введи 6 цифр.';
               input.focus();
               return;
             }
@@ -5270,7 +5270,7 @@
               document.body.classList.add('auth-pending');
               resolve(true);
             }catch(error){
-              status.textContent='Не удалось сохранить PIN. Попробуйте ещё раз.';
+              status.textContent='Не удалось сохранить PIN. Попробуй ещё раз.';
               button.disabled=false;
               input.disabled=false;
               input.focus();
@@ -5281,7 +5281,7 @@
 
       function showBrowserLogin(){
         return new Promise(resolve=>{
-          setAuthGate('Вход в RUDI','Выберите профиль и введите свой PIN.');
+          setAuthGate('Вход в RUDI','Выбери профиль и введи свой PIN.');
           const form=document.createElement('form');
           form.className='rudi-auth-form';
           const faceIdButton=document.createElement('button');
@@ -5369,12 +5369,12 @@
           form.addEventListener('submit',async event=>{
             event.preventDefault();
             if(!selectedActor){
-              status.textContent='Сначала выберите Рустама или Диану.';
+              status.textContent='Сначала выбери Рустама или Диану.';
               return;
             }
             const pin=String(input.value||'');
             if(!/^\d{6}$/.test(pin)){
-              status.textContent='Введите PIN из 6 цифр.';
+              status.textContent='Введи PIN из 6 цифр.';
               input.focus();
               return;
             }
@@ -5391,9 +5391,9 @@
             }catch(error){
               const code=String(error?.message||'');
               status.textContent=code==='rudi-pin-rate-limited'
-                ?'Слишком много попыток. Попробуйте позже.'
+                ?'Слишком много попыток. Попробуй позже.'
                 :code==='rudi-pin-not-configured'
-                  ?'PIN ещё не создан. Сначала откройте RUDI через Telegram.'
+                  ?'PIN ещё не создан. Сначала открой RUDI через Telegram.'
                   :'Неверный PIN.';
               button.disabled=false;
               input.disabled=false;
@@ -5544,7 +5544,7 @@
               code==='rudi-access-denied'?'Доступ закрыт':'Не удалось проверить доступ',
               code==='rudi-access-denied'
                 ?'RUDI работает только для Рустама и Дианы.'
-                :'Обновите страницу и попробуйте снова.'
+                :'Обнови страницу и попробуй снова.'
             );
             return false;
           }
@@ -8473,7 +8473,7 @@
             {
               const status=document.getElementById('wishlistStatus');
               status.hidden=false;
-              status.textContent=String(error?.message||'').startsWith('wishlist-url-')?'Проверьте ссылку':'Ошибка';
+              status.textContent=String(error?.message||'').startsWith('wishlist-url-')?'Проверь ссылку':'Ошибка';
             }
           }finally{add.disabled=false}
         });
@@ -8656,7 +8656,7 @@
         const authorEl=document.getElementById('partnerMessageAuthor');
         const reactionStrip=document.getElementById('partnerMessageReaction');
         if(!message?.text){
-          textEl.textContent='Оставьте здесь пару тёплых слов друг для друга ♥';
+          textEl.textContent='Оставь здесь пару тёплых слов ♥';
           textEl.classList.add('partner-empty');
           authorEl.textContent='';
           if(reactionStrip) reactionStrip.hidden=true;
@@ -8962,7 +8962,7 @@
         saveButton.addEventListener('click',async()=>{
           const text=input.value.trim();
           if(!text){
-            status.textContent='Введите текст послания.';
+            status.textContent='Напиши текст послания.';
             return;
           }
           saveButton.disabled=true;
@@ -10202,6 +10202,7 @@
         setProductsBadge(items.length>0);
         if(clear) clear.disabled=!items.length;
         if(boughtAll){
+          boughtAll.textContent=currentActor==='Диана'?'Купила':'Купил';
           const checkedCount=items.filter(item=>Boolean(item.checked)).length;
           boughtAll.disabled=!items.length;
           boughtAll.dataset.checkedCount=String(checkedCount);
@@ -10671,9 +10672,9 @@
         if(code==='fasting-already-active') return 'Голодание уже запущено';
         if(code==='fasting-not-active') return 'Активного голодания уже нет';
         if(code==='fasting-start-future') return 'Время начала не может быть в будущем';
-        if(code==='fasting-start-too-old') return 'Укажите время начала не более 30 дней назад';
-        if(code==='fasting-start-invalid') return 'Проверьте время начала';
-        if(code==='fasting-goal-invalid') return 'Выберите цель 12, 14, 16, 18 или 24 часа';
+        if(code==='fasting-start-too-old') return 'Укажи время начала не более чем 30 дней назад';
+        if(code==='fasting-start-invalid') return 'Проверь время начала';
+        if(code==='fasting-goal-invalid') return 'Выбери цель 12, 14, 16, 18 или 24 часа';
         return 'Не удалось обновить трекер';
       }
 
@@ -10905,7 +10906,7 @@
           const raw=String(input?.value||'').trim();
           const parsed=raw?new Date(raw):new Date();
           if(Number.isNaN(parsed.getTime())){
-            if(status) status.textContent='Проверьте время начала';
+            if(status) status.textContent='Проверь время начала';
             return;
           }
 
@@ -11010,6 +11011,7 @@
         const recoveryText=document.getElementById('productsRecoveryText');
         const historyToggle=document.getElementById('productsHistoryToggle');
         if(!form||!input||!add||!clear||!boughtAll) return;
+        boughtAll.textContent=currentActor==='Диана'?'Купила':'Купил';
 
         historyToggle?.addEventListener('click',()=>{
           setProductsHistoryCollapsed(!readProductsHistoryCollapsed());
@@ -11061,7 +11063,7 @@
             const status=document.getElementById('productsStatus');
             if(status){
               status.hidden=false;
-              status.textContent='Сначала отметьте купленные продукты галочками';
+              status.textContent='Сначала отметь купленные продукты галочками';
             }
             try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
             return;
@@ -11380,12 +11382,12 @@
 
       function recipeErrorText(error){
         const code=String(error?.message||'');
-        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит ИИ на сегодня закончился. Попробуйте позже.';
+        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит ИИ на сегодня закончился. Попробуй позже.';
         if(code==='groq-api-key-missing') return 'Groq пока не подключён к приложению.';
-        if(code==='recipe-ai-timeout') return 'ИИ отвечает слишком долго. Попробуйте ещё раз.';
-        if(code==='recipe-ai-busy') return 'ИИ сейчас перегружен. Попробуйте ещё раз через несколько секунд.';
-        if(code==='recipe-ai-unavailable') return 'ИИ временно недоступен. Попробуйте ещё раз.';
-        return 'Не удалось сгенерировать рецепт. Попробуйте ещё раз.';
+        if(code==='recipe-ai-timeout') return 'ИИ отвечает слишком долго. Попробуй ещё раз.';
+        if(code==='recipe-ai-busy') return 'ИИ сейчас перегружен. Попробуй ещё раз через несколько секунд.';
+        if(code==='recipe-ai-unavailable') return 'ИИ временно недоступен. Попробуй ещё раз.';
+        return 'Не удалось сгенерировать рецепт. Попробуй ещё раз.';
       }
 
       async function openRecipeDetails(recipe,button){
@@ -11690,9 +11692,9 @@
           scheduleDateQuotaRefresh();
           return dateQuotaText(currentDateGenerationQuota)+'. Последние идеи сохранены.';
         }
-        if(code==='date-ai-quota'||Number(error?.status)===429) return 'Лимит AI-провайдера временно исчерпан. Попробуйте позже — последние идеи сохранены.';
+        if(code==='date-ai-quota'||Number(error?.status)===429) return 'Лимит AI-провайдера временно исчерпан. Попробуй позже — последние идеи сохранены.';
         if(code==='groq-api-key-missing') return 'ИИ временно недоступен. Последние идеи сохранены.';
-        if(code==='date-ai-timeout') return 'ИИ отвечает слишком долго. Попробуйте ещё раз — прошлые идеи не пропали.';
+        if(code==='date-ai-timeout') return 'ИИ отвечает слишком долго. Попробуй ещё раз — прошлые идеи не пропали.';
         return 'Не удалось придумать новые варианты. Последние идеи сохранены.';
       }
 
@@ -11783,7 +11785,7 @@
         generate.addEventListener('click',async()=>{
           const ingredients=input.value.trim();
           if(!ingredients){
-            if(status) status.textContent='Сначала напишите, какие продукты у вас есть.';
+            if(status) status.textContent='Сначала напиши, какие продукты у тебя есть.';
             input.focus();
             try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
             return;
@@ -11820,7 +11822,7 @@
             recipeDetailCache.clear();
             renderRecipeSuggestions(data.recipes);
             saveCurrentRecipeCache('');
-            if(status) status.textContent='Готово. Выберите блюдо, чтобы получить подробный рецепт.';
+            if(status) status.textContent='Готово. Выбери блюдо, чтобы получить подробный рецепт.';
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
             currentRecipeSet=[];
@@ -11949,7 +11951,7 @@
       init().catch(error=>{
         console.error('RUDI_INIT_ERROR',error);
         if(!document.body.classList.contains('auth-ok')){
-          denyApp('Не удалось открыть RUDI','Обновите страницу и попробуйте снова.');
+          denyApp('Не удалось открыть RUDI','Обнови страницу и попробуй снова.');
         }
       });
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadDianaCycle({silent:true})},30*60*1000);

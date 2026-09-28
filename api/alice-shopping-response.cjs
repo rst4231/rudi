@@ -1,5 +1,5 @@
 const OLD_PROMPT_RE = /Не понял, что добавить[.!?]?/g;
-const NEW_PROMPT = 'Какие продукты вы хотите добавить?';
+const NEW_PROMPT = 'Какие продукты добавить?';
 
 function sanitizeAliceShoppingPayload(value) {
   if (typeof value === 'string') {

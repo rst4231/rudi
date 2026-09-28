@@ -86,7 +86,7 @@ async function defaultTelegramSend(payload, options = {}) {
 }
 
 function formatEmptyNotice(lookbackHours) {
-  return `🧭 Для Ди\n\nЗа последние ${lookbackHours} ч новых запросов на стилиста по одежде в Петербурге не найдено.`;
+  return `🧭 Для Ди\n\nЗа последние ${lookbackHours} ${lookbackHours%10===1&&lookbackHours%100!==11?'час':lookbackHours%10>=2&&lookbackHours%10<=4&&(lookbackHours%100<12||lookbackHours%100>14)?'часа':'часов'} новых запросов на стилиста по одежде в Петербурге не было.`;
 }
 
 async function runStylistLeads(options = {}) {

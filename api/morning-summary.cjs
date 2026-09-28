@@ -315,7 +315,7 @@ function tyreAdviceForWeather(weather) {
   if (Number.isFinite(avg) && avg >= 10 && Number.isFinite(min) && min > 5) {
     return 'Температура устойчиво выше +7°C — по погоде условия подходят для летних шин.';
   }
-  return 'Температура пограничная — с переобувкой лучше ориентироваться на устойчивые значения выше или ниже +7°C.';
+  return 'Температура около порога +7°C — с переобувкой лучше ориентироваться на устойчивые значения выше или ниже +7°C.';
 }
 
 async function loadEnvironmentSnapshot(options = {}) {
@@ -398,7 +398,7 @@ function buildCarRecommendations(carState, weather) {
     : null;
 
   if (remaining === 0 && carState?.mileage != null) {
-    items.push({title:'ТО по пробегу',text:'Ты на регламентном рубеже. Проверь, пройдено ли это ТО, и при необходимости запишись.'});
+    items.push({title:'Пора на ТО',text:'Пробег уже дошёл до регламентного значения. Проверь, пройдено ли это ТО, и при необходимости запишись.'});
   } else if (Number.isFinite(remaining) && remaining <= 1000) {
     items.push({title:'ТО скоро',text:'До следующего ТО осталось ' + formatCarKm(remaining) + '. Лучше уже выбрать дату сервиса.'});
   } else if (Number.isFinite(remaining) && remaining <= 2500) {

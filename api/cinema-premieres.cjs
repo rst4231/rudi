@@ -359,7 +359,7 @@ async function sendNoPremieresMessage({ token, chatId, topicId, fetchImpl, now }
     body: JSON.stringify({
       chat_id: chatId,
       message_thread_id: topicId,
-      text: '🎬 Новых кинопремьер на этой неделе в Кинополис Мурино и Мираж Синема не найдено.',
+      text: '🎬 На этой неделе новых кинопремьер в Кинополис Мурино и Мираж Синема нет.',
       disable_notification: true,
     }),
   };

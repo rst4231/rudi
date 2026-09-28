@@ -67,7 +67,7 @@
 
   function setUpdated(){
     const node=document.getElementById('smartHomeUpdated');
-    if(node) node.textContent=visibleDevices(state.data).length+' устройств · Обновлено только что';
+    if(node){const count=visibleDevices(state.data).length,mod10=count%10,mod100=count%100,word=mod10===1&&mod100!==11?'устройство':mod10>=2&&mod10<=4&&(mod100<12||mod100>14)?'устройства':'устройств';node.textContent=count+' '+word+' · Обновлено только что';}
   }
 
   function roomGroups(data){

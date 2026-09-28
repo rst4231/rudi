@@ -9,7 +9,7 @@ function formatTelegramMutationUser(user = {}) {
     .join(' ');
   if (profileName) return profileName;
   if (typeof user.username === 'string' && user.username.trim()) return `@${user.username.trim().replace(/^@/, '')}`;
-  return 'Пользователь Telegram';
+  return 'Telegram';
 }
 
 function extractTelegramMutationUser(req) {
@@ -78,7 +78,7 @@ function looksLikeProductsList(text, replyMarkup) {
 function withLatestProductsUpdateAuthor(text, name, now = new Date(), replyMarkup = null) {
   if (typeof text !== 'string' || !name) return text;
   if (!looksLikeProductsList(text, replyMarkup)) return text;
-  const line = `Обновлено: ${name} · ${formatMoscowTime(now)}`;
+  const line = name==='Telegram' ? `Обновлено через Telegram · ${formatMoscowTime(now)}` : `Обновлено: ${name} · ${formatMoscowTime(now)}`;
   const updated = [];
   let inserted = false;
   for (const current of text.split('\n')) {

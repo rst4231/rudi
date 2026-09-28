@@ -1611,7 +1611,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           dedupeKey:'lulu-walk:'+walkedAt,createdAt:walkedAt,
         }, options);
         const walkRewardUnits=actor==='Рустам'?20:10;
-        await awardScoreSafe(actor,walkRewardUnits,{label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
+        await awardScoreSafe(actor,walkRewardUnits,{label:'Прогулка с Лулу',detail:activityVerb(actor,'Погулял с Лулу','Погуляла с Лулу'),icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
 
         const notificationTask = sendLuluWalkNotificationToPartner(
           actor,
@@ -1716,7 +1716,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         },options);
         const walkRewardUnits=restoredActor==='Рустам'?20:10;
         await awardScoreSafe(restoredActor,walkRewardUnits,{
-          label:'Прогулка с Лулу',detail:'Погулял с Лулу',icon:'🐾',dedupeKey:'score:lulu:'+walkedAt
+          label:'Прогулка с Лулу',detail:activityVerb(restoredActor,'Погулял с Лулу','Погуляла с Лулу'),icon:'🐾',dedupeKey:'score:lulu:'+walkedAt
         },options);
 
         const notificationTask=sendLuluWalkNotificationToPartner(restoredActor,walkedAt,options);
@@ -3030,7 +3030,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const addedItems=(state.items||[]).filter((item)=>!beforeIds.has(String(item.id||'')));
         const added=compactActivityValues(addedItems.map((item)=>item.text));
         if(added){
-          await recordActivity({type:'products',actor,text:actor+' '+activityVerb(actor,'добавил','добавила')+' в продукты: '+added,icon:'🛒',targetTab:'products'},options);
+          await recordActivity({type:'products',actor,text:actor+' '+activityVerb(actor,'добавил','добавила')+' в список продуктов: '+added,icon:'🛒',targetTab:'products'},options);
           for(const item of addedItems) await awardProductScoreSafe(actor,String(item.text||'').trim(),options);
         }
         const backupToken=await refreshBackupToken(previousSnapshot,options);

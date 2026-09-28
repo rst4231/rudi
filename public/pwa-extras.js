@@ -538,7 +538,7 @@
       banner.hidden=false;
       document.body.classList.add('rudi-offline');
       document.body.dataset.offlineMode='1';
-      banner.textContent='Связь с RUDI нестабильна · показаны данные на '+time;
+      banner.textContent='Связь нестабильна · данные по состоянию на '+time;
     });
     window.addEventListener('rudi-online-request-success',()=>{
       if(banner.hidden||navigator.onLine===false) return;
@@ -647,7 +647,7 @@
           '<div class="rudi-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="rudiSearchInput" type="search" autocomplete="off" placeholder="Поиск по RUDI…" aria-label="Поиск по RUDI"></div>'+
           '<button id="rudiSearchClose" class="rudi-search-close" type="button" aria-label="Закрыть">×</button>'+
         '</div>'+
-        '<div id="rudiSearchHint" class="rudi-search-hint">Ищет по всей базе RUDI</div>'+
+        '<div id="rudiSearchHint" class="rudi-search-hint">Поиск по всей базе RUDI</div>'+
         '<div id="rudiSearchResults" class="rudi-search-results"></div>'+
       '</section>';
     document.body.appendChild(overlay);
@@ -760,7 +760,7 @@
       }finally{
         if(sequence===searchSequence&&hint){
           hint.hidden=true;
-          hint.textContent='Ищет по всей базе RUDI';
+          hint.textContent='Поиск по всей базе RUDI';
         }
       }
     }
@@ -779,7 +779,7 @@
         empty?.remove();
         if(hint){
           hint.hidden=false;
-          hint.textContent='Ищет по всей базе RUDI';
+          hint.textContent='Поиск по всей базе RUDI';
         }
         return;
       }
@@ -788,7 +788,7 @@
       const localEntries=collectSearchEntries()
         .filter(entry=>terms.every(term=>entry.haystack.includes(term)))
         .slice(0,18);
-      paintResults(localEntries,{emptyText:query.length<2?'Введите ещё один символ':'Ищу…'});
+      paintResults(localEntries,{emptyText:query.length<2?'Введи ещё один символ':'Ищу…'});
 
       if(query.length<2){
         if(hint) hint.hidden=true;

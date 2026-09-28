@@ -297,8 +297,8 @@
     if(nextNode) nextNode.textContent='ТО-'+next.number+' · '+formatKm(next.mileage);
     if(meta) {
       meta.textContent=remaining===0
-        ? 'Регламентный рубеж достигнут'
-        : 'Осталось '+formatKm(remaining)+' · срок эксплуатации тоже учитывается';
+        ? 'Пора на ТО'
+        : 'До ТО '+formatKm(remaining)+' · учитывается и срок эксплуатации';
     }
 
     const previous=next.mileage===5000?0:next.mileage-10000;
@@ -323,7 +323,7 @@
     if(Number.isFinite(avg) && avg>=10 && Number.isFinite(min) && min>5) {
       return 'Температура устойчиво выше +7°C. По погоде условия подходят для летних шин.';
     }
-    return 'Температура пограничная. Лучше дождаться устойчивых значений выше или ниже +7°C.';
+    return 'Температура около порога +7°C. Лучше дождаться устойчивых значений выше или ниже +7°C.';
   }
 
   function carWashAdvice(weather) {
@@ -374,11 +374,11 @@
     const text=String(advice?.text||'');
     if(/снег/i.test(text)) return 'Отложить · возможен снег.';
     if(/1–2 дня/i.test(text)) return 'Отложить · осадки в ближайшие 1–2 дня.';
-    if(/неделя ожидается влажной/i.test(text)) return 'Скорее нет · влажная неделя.';
+    if(/неделя ожидается влажной/i.test(text)) return 'Скорее не стоит · на неделе ожидаются осадки.';
     const delayed=text.match(/через\s+(\d+)\s+/i);
     if(delayed) return 'Можно · осадки примерно через '+delayed[1]+' дн.';
     if(/замороз/i.test(text)) return 'Можно · после мойки хорошо просушить.';
-    if(advice?.kind==='ok') return 'Да · неделя без существенных осадков.';
+    if(advice?.kind==='ok') return 'Да · существенных осадков на неделе не ожидается.';
     return 'Проверь погоду перед мойкой.';
   }
 
@@ -470,7 +470,7 @@
       const data=await api('complete-task',{taskId:task.id});
       state.car={...state.car,ticktick:data.ticktick};
       renderTasks(state.car.ticktick);
-      setStatus('Задача отмечена выполненной','success');
+      setStatus('Задача выполнена','success');
       try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(_){
       if(button){

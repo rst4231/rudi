@@ -36,7 +36,7 @@ function feedSectionsFromRun(payload = {}, nativeResults = {}, now = new Date())
       sections.cinema = { parts: [message], items: feedItems, source: 'weekly-cinema' };
     } else if (Number(cinema.published || 0) === 0 && !cinema.skipped) {
       sections.cinema = {
-        parts: ['🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер не найдено.'],
+        parts: ['🎬 <b>Кинопремьеры</b>\n\nНа этой неделе новых кинопремьер нет.'],
         source: 'weekly-cinema',
       };
     }
