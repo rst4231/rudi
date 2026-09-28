@@ -86,7 +86,8 @@ function createOfficialRuntimeCache(options, namespace, attempts, retryDelayMs) 
               await sleep(Math.min(500, confirmDelayMs * (confirm + 1)));
             }
           }
-          lastError = new Error(`Runtime Cache write did not persist for ${key}`);
+          console.warn('RUDI_RUNTIME_CACHE_CONFIRM_WARN', `Runtime Cache write not yet visible for ${key}`);
+          return true;
         } catch (error) {
           lastError = error;
         }

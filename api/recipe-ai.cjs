@@ -422,6 +422,9 @@ async function callGroqModel({ mode, request, apiKey, fetchImpl, timeoutMs, stri
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
     console.warn('RUDI_RECIPE_AI_PROVIDER_WARN', mode, DEFAULT_MODEL, response.status, detail.slice(0, 400));
+    if (response.status === 400 && /json_validate_failed|failed_generation|schema/i.test(detail)) {
+      throw new Error('recipe-ai-structured-output');
+    }
     throw new Error('recipe-ai-provider');
   }
 
@@ -458,7 +461,7 @@ async function runWithRetry(mode, input, options = {}) {
       console.warn('RUDI_RECIPE_AI_ATTEMPT_FAIL', mode, DEFAULT_MODEL, 'attempt', attempt + 1, code);
       const retryable = [
         'recipe-ai-busy', 'recipe-ai-timeout', 'recipe-ai-unavailable', 'recipe-ai-invalid-json',
-        'recipe-ai-no-recipes', 'recipe-ai-duplicate-recipes', 'recipe-ai-repeat-recipes',
+        'recipe-ai-structured-output',         'recipe-ai-no-recipes', 'recipe-ai-duplicate-recipes', 'recipe-ai-repeat-recipes',
         'recipe-ai-time-mismatch', 'recipe-ai-no-recipe', 'recipe-ai-steps-invalid',
       ];
       if (attempt + 1 < maxAttempts && retryable.includes(code)) {

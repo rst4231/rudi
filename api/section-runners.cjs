@@ -3,6 +3,7 @@ const {
   markPublicationPending,
   markPublicationPublished,
   markPublicationFailed,
+  markPublicationSkipped,
 } = require('./publication-journal.cjs');
 const { emitOperationalAlert } = require('./alert-service.cjs');
 const { incrementSectionMetric } = require('./feedback-analytics.cjs');
@@ -40,6 +41,7 @@ async function runNativeSection(section, options = {}) {
   const pending = options.markPending || ((input) => markPublicationPending(input, { cache: options.journalCache, now: options.now }));
   const failed = options.markFailed || ((input) => markPublicationFailed(input, { cache: options.journalCache, now: options.now }));
   const published = options.markPublished || ((input) => markPublicationPublished(input, { cache: options.journalCache, now: options.now }));
+  const skipped = options.markSkipped || ((input) => markPublicationSkipped(input, { cache: options.journalCache, now: options.now }));
   const alert = options.alert || ((input) => emitOperationalAlert(input, {
     cache: options.alertCache,
     fetchImpl: options.fetchImpl,
@@ -57,7 +59,14 @@ async function runNativeSection(section, options = {}) {
         dateKey: date,
         manageJournal: false,
       });
-      if (result?.skipped) return { section, date, ...result };
+      if (result?.skipped) {
+        if (result.skipped === 'already-published') {
+          await published({ date, section, metadata: { nativeResult: result, journalRecovered: true } });
+        } else {
+          await skipped({ date, section, reason: String(result.skipped), metadata: { nativeResult: result } });
+        }
+        return { section, date, ...result };
+      }
       const messageIds = Array.isArray(result?.messageIds)
         ? result.messageIds
         : (result?.messageId ? [result.messageId] : []);

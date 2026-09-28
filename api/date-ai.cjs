@@ -296,7 +296,16 @@ async function generateDateIdeas(input, options = {}) {
 
     if (response.status === 429) throw new Error('date-ai-quota');
     if ([500, 502, 503, 504].includes(response.status)) throw new Error('date-ai-busy');
-    if (!response.ok) throw new Error('date-ai-provider');
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      console.warn('RUDI_DATE_AI_PROVIDER_WARN', DEFAULT_MODEL, response.status, detail.slice(0, 400));
+      if (response.status === 400 && /json_validate_failed|failed_generation|schema/i.test(detail)) {
+        lastValidationError = new Error('date-ai-structured-output');
+        if (attempt < 2) continue;
+        throw lastValidationError;
+      }
+      throw new Error('date-ai-provider');
+    }
 
     const payload = await response.json().catch(() => null);
     const normalized = normalizeIdeas(parseJsonText(responseText(payload)));

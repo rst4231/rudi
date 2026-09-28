@@ -170,13 +170,14 @@ async function setHabitStatus(actor,id,status,options={}){
   if(!['done','notdone','pending'].includes(nextStatus))throw new Error('habit-status-invalid');
   return enqueue(who,async()=>{
     const state=await readHabits(who,options);if(!state.habits.some(row=>row.id===safe))throw new Error('habit-not-found');
-    const date=resolveHabitDate(options.date,options.now||Date.now());
+    const now=Number(options.now||Date.now()),date=resolveHabitDate(options.date,now);
+    if(nextStatus==='done'&&date===moscowDateKey(now)&&moscowHour(now)<20&&options.allowDoneBefore20!==true)throw new Error('habit-done-too-early');
     const done=new Set(state.completions[date]||[]),failed=new Set(state.failures[date]||[]);
     done.delete(safe);failed.delete(safe);if(nextStatus==='done')done.add(safe);if(nextStatus==='notdone')failed.add(safe);
     const completions={...state.completions},failures={...state.failures},statusUpdatedAt={...state.statusUpdatedAt};
     if(done.size)completions[date]=[...done];else delete completions[date];
     if(failed.size)failures[date]=[...failed];else delete failures[date];
-    statusUpdatedAt[date]={...(statusUpdatedAt[date]||{}),[safe]:new Date(options.now||Date.now()).toISOString()};
+    statusUpdatedAt[date]={...(statusUpdatedAt[date]||{}),[safe]:new Date(now).toISOString()};
     return writeHabits(who,{...state,version:state.version+1,completions,failures,statusUpdatedAt},options);
   });
 }
