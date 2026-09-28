@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const zlib = require('node:zlib');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage } = require('./partner-message-store.cjs');
 const { readWishlist, writeWishlist } = require('./wishlist-store.cjs');
@@ -35,9 +36,11 @@ function encryptionKey(options = {}) {
 function sealSnapshot(snapshot, options = {}) {
   const raw = Buffer.from(JSON.stringify(snapshot || {}), 'utf8');
   if (!raw.length || raw.length > MAX_BACKUP_BYTES) throw new Error('rudi-backup-too-large');
+  const compressed = zlib.gzipSync(raw, { level: 6 });
+  const payload = compressed.length + 32 < raw.length ? compressed : raw;
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(options), iv);
-  const ciphertext = Buffer.concat([cipher.update(raw), cipher.final()]);
+  const ciphertext = Buffer.concat([cipher.update(payload), cipher.final()]);
   const tag = cipher.getAuthTag();
   return [
     BACKUP_PREFIX,
@@ -61,7 +64,11 @@ function openSnapshot(token, options = {}) {
   try {
     const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(options), iv);
     decipher.setAuthTag(tag);
-    const raw = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const payload = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const raw = payload.length >= 2 && payload[0] === 0x1f && payload[1] === 0x8b
+      ? zlib.gunzipSync(payload)
+      : payload;
+    if (!raw.length || raw.length > MAX_BACKUP_BYTES) throw new Error('rudi-backup-invalid');
     const parsed = JSON.parse(raw.toString('utf8'));
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || Number(parsed.version) !== BACKUP_VERSION) {
       throw new Error('rudi-backup-invalid');

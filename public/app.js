@@ -646,6 +646,36 @@
         try{return String(localStorage.getItem(dataLastSyncStorageKey())||'')}catch(_){return ''}
       }
 
+      function dataSyncFresh(maxAgeMs=2*60*1000){
+        const stamp=Date.parse(lastDataSyncAt());
+        const age=Date.now()-stamp;
+        return Number.isFinite(stamp)&&age>=0&&age<maxAgeMs;
+      }
+
+      function stateBackupLastSyncStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:backup-last-sync:v1:'+actor;
+      }
+
+      function stateBackupLastSyncAt(){
+        try{return String(localStorage.getItem(stateBackupLastSyncStorageKey())||'')}catch(_){return ''}
+      }
+
+      function stateBackupSyncFresh(maxAgeMs=60*60*1000){
+        const stamp=Date.parse(stateBackupLastSyncAt());
+        const age=Date.now()-stamp;
+        return Number.isFinite(stamp)&&age>=0&&age<maxAgeMs;
+      }
+
+      function markStateBackupSyncNow(){
+        if(!currentActor) return;
+        try{localStorage.setItem(stateBackupLastSyncStorageKey(),new Date().toISOString())}catch(_){}
+      }
+
+      function appVisibleForRefresh(){
+        return document.visibilityState!=='hidden';
+      }
+
       function markDataSyncNow(){
         if(!currentActor) return;
         try{localStorage.setItem(dataLastSyncStorageKey(),new Date().toISOString())}catch(_){}
@@ -804,6 +834,7 @@
             });
             const payload=await response.json().catch(()=>({}));
             if(response.ok&&payload.ok){
+              markStateBackupSyncNow();
               if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
               const currentStamp=String(localUiPreferences().updatedAt||'');
               if(outgoingStamp&&currentStamp===outgoingStamp) uiPreferencesDirty=false;
@@ -11850,7 +11881,8 @@
         loadWorkCalendar();
         loadSharedAlbum();
         loadFeed({silent:true});
-        setTimeout(()=>refreshStateBackup(),2500);
+        markDataSyncNow();
+        setTimeout(()=>{if(!stateBackupSyncFresh(30*60*1000)) refreshStateBackup()},2500);
       }
 
       init().catch(error=>{
@@ -11859,18 +11891,18 @@
           denyApp('Не удалось открыть RUDI','Обновите страницу и попробуйте снова.');
         }
       });
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadDianaCycle({silent:true})},30*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadTickTickNext()},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadSharedAlbum()},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) refreshDailyMood()},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadDailyQuestion({silent:true})},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()) loadActivityJournal({silent:true})},60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadDianaCycle({silent:true})},30*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadTickTickNext()},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadSharedAlbum()},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) refreshDailyMood()},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadDailyQuestion({silent:true})},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadActivityJournal({silent:true})},10*60*1000);
       setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();syncLuluToiletStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
-      setInterval(()=>{if(currentActor) refreshStateBackup()},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
+      setInterval(()=>{if(currentActor&&appVisibleForRefresh()&&!stateBackupSyncFresh(60*60*1000)) refreshStateBackup()},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
 
       function ensureAppSurface({restoreTab=false}={}){
         applyTheme();
@@ -11894,6 +11926,7 @@
         ensureAppSurface();
         if(!currentActor||!appAccessReady) return;
         if(!manualRefreshRequested&&!autoRefreshEnabled()) return;
+        if(!manualRefreshRequested&&dataSyncFresh(2*60*1000)) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
@@ -11914,7 +11947,7 @@
             loadSupplementIntakeOverview({silent:true}),
             (marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()),
             loadFastingOverview(),
-            syncUiPreferencesFromServer().then(()=>refreshStateBackup())
+            syncUiPreferencesFromServer()
           ]);
         }).then(()=>{
           markDataSyncNow();
