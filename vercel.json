@@ -234,6 +234,10 @@
     {
       "path": "/api/habit-reminder-cron",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/habit-reminder-cron",
+      "schedule": "5 17 * * *"
     }
   ],
   "env": {
