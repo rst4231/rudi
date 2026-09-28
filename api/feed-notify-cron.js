@@ -2,6 +2,7 @@ const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
 const { publishForDiToRudi } = require('./for-di-private.cjs');
 const { publishDailyLaborArticle } = require('./index.js');
+const { refreshCheapFlightsSnapshot } = require('./cheap-flights.cjs');
 
 
 function moscowDateKey(now = new Date()) {
@@ -62,6 +63,7 @@ async function handler(req, res) {
       }
     }
     let laborCatchup = null;
+    let cheapFlights = null;
     let result;
     if (mode === 'for-di') {
       try {
@@ -76,16 +78,21 @@ async function handler(req, res) {
       }
       result = await publishForDiToRudi();
     } else {
+      const cheapFlightsTask = refreshCheapFlightsSnapshot({ now: new Date() }).catch((error) => {
+        console.warn('RUDI_CHEAP_FLIGHTS_CRON_WARN', String(error?.message || error));
+        return { failed: true, error: 'refresh-failed' };
+      });
       result = await sendDailyMorningSummaries({ force, recoveryKey });
+      cheapFlights = await cheapFlightsTask;
     }
     const logLabel = mode === 'for-di' ? 'RUDI_FOR_DI_RESULT' : 'RUDI_MORNING_SUMMARY_RESULT';
-    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, laborCatchup, ...result }));
+    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, laborCatchup, cheapFlights, ...result }));
     return res.status(200).json({
       ok: true,
       mode,
       force,
       recoveryDate: recoveryDate || null,
-      ...(mode === 'for-di' ? { laborCatchup } : {}),
+      ...(mode === 'for-di' ? { laborCatchup } : { cheapFlights }),
       ...result,
     });
   } catch (error) {
