@@ -212,7 +212,7 @@ function render(data){
   const totalMarks=rows.reduce((sum,row)=>sum+Math.max(1,Number(row.sampleCount)||0),0);
 
   page.querySelector('#moodHistoryMonth').textContent=monthLabel(visibleMonth);
-  page.querySelector('#moodHistoryMeta').textContent=totalMarks+' '+plural(totalMarks,'отметка','отметки','отметок')+' · хранение 180 дней';
+  page.querySelector('#moodHistoryMeta').textContent=totalMarks+' '+plural(totalMarks,'отметка','отметки','отметок')+' · настроение по дням · хранение 180 дней';
   page.querySelector('#moodMonthPrev').disabled=visibleMonth<=earliest;
   page.querySelector('#moodMonthNext').disabled=visibleMonth>=latest;
 
