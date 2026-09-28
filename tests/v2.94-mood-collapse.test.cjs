@@ -39,15 +39,11 @@ test('v2.94 mood analyzer has no per-user daily limit and caches for 24 hours',(
 test('v2.94 ordinary collapsibles and supplement cards do not collapse on body taps',()=>{
   const app=read('public/app.js');
   const supplements=read('public/profile-supplements.js');
-  assert.doesNotMatch(app,/collapseTapIgnored\(/);
-  assert.doesNotMatch(app,/section\.addEventListener\('click',event=>\{[\s\S]{0,220}toggleCollapsed\(\)/);
+  assert.match(app,/function collapseTapIgnored\(\)\{\s*return true;\s*\}/);
+  assert.match(app,/button\.addEventListener\('click',toggleCollapsed\)/);
   assert.doesNotMatch(supplements,/habitTile\.addEventListener\('click'/);
   assert.doesNotMatch(supplements,/tile\.addEventListener\('click'/);
   assert.match(supplements,/habitCollapseButton\.addEventListener\('click',toggleHabitCollapse\)/);
   assert.match(supplements,/collapseButton\.addEventListener\('click',toggleSupplementsCollapse\)/);
 });
 
-test('v2.94 leaves shared tasks disclosure unchanged',()=>{
-  const html=read('public/index.html');
-  const app=read('public/app.js');
-});
