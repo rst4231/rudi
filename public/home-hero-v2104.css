@@ -1,0 +1,101 @@
+/* RUDI v2.104 — full hero dark theme, border cleanup, popover overlap fix */
+.home-dashboard-summary{
+  position:relative;
+  isolation:isolate;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background-position:center!important;
+  background-size:cover!important;
+  background-repeat:no-repeat!important;
+  transition:background-image .35s ease,color .25s ease;
+}
+.home-dashboard-summary::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(90deg,rgba(255,255,255,.68) 0%,rgba(255,255,255,.34) 56%,rgba(255,255,255,.12) 100%);
+}
+.home-dashboard-summary>*{
+  position:relative;
+  z-index:1;
+}
+.home-dashboard-summary[data-daypart="morning"]{
+  background-image:url("/home-scene-morning.svg?v=2.104")!important;
+}
+.home-dashboard-summary[data-daypart="day"]{
+  background-image:url("/home-scene-day.svg?v=2.104")!important;
+}
+.home-dashboard-summary[data-daypart="evening"]{
+  background-image:url("/home-scene-evening.svg?v=2.104")!important;
+}
+.home-dashboard-summary[data-daypart="night"]{
+  background-image:url("/home-scene-night.svg?v=2.104")!important;
+}
+.home-dashboard-summary[data-daypart="night"]::before{
+  background:linear-gradient(90deg,rgba(8,22,51,.76) 0%,rgba(8,22,51,.48) 56%,rgba(8,22,51,.16) 100%);
+}
+.home-dashboard-summary .home-dashboard-head{
+  background-image:none!important;
+  background-color:transparent!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
+.home-dashboard-summary .home-dashboard-head::before{
+  content:none!important;
+  display:none!important;
+}
+
+/* The message pill must never show through the activity glass panel. */
+.home-dashboard-summary.activity-notifications-open .home-message-new{
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+
+/* Dark theme keeps the time-of-day scene, but dims it as a native dark card. */
+html[data-theme="dark"] .home-dashboard-summary{
+  color:#f5f8ff;
+}
+html[data-theme="dark"] .home-dashboard-summary[data-daypart="morning"]::before{
+  background:
+    linear-gradient(90deg,rgba(18,20,31,.84) 0%,rgba(23,28,42,.72) 58%,rgba(25,31,48,.58) 100%),
+    linear-gradient(180deg,rgba(18,22,34,.18),rgba(10,13,22,.44));
+}
+html[data-theme="dark"] .home-dashboard-summary[data-daypart="day"]::before{
+  background:
+    linear-gradient(90deg,rgba(12,23,34,.84) 0%,rgba(16,31,43,.72) 58%,rgba(19,39,45,.58) 100%),
+    linear-gradient(180deg,rgba(10,22,34,.16),rgba(7,16,25,.46));
+}
+html[data-theme="dark"] .home-dashboard-summary[data-daypart="evening"]::before{
+  background:
+    linear-gradient(90deg,rgba(32,20,38,.86) 0%,rgba(49,28,43,.72) 58%,rgba(58,33,42,.58) 100%),
+    linear-gradient(180deg,rgba(31,17,35,.16),rgba(17,12,24,.48));
+}
+html[data-theme="dark"] .home-dashboard-summary[data-daypart="night"]::before{
+  background:linear-gradient(90deg,rgba(5,12,28,.88) 0%,rgba(7,18,37,.72) 58%,rgba(10,24,44,.56) 100%);
+}
+html[data-theme="dark"] .home-dashboard-summary .home-dashboard-greeting{
+  color:#f7f9ff!important;
+  text-shadow:0 1px 18px rgba(0,0,0,.28)!important;
+}
+html[data-theme="dark"] .home-dashboard-summary .home-dashboard-date,
+html[data-theme="dark"] .home-dashboard-summary .home-dashboard-moon{
+  color:rgba(235,240,251,.72)!important;
+}
+html[data-theme="dark"] .home-dashboard-summary .home-activity-notifications-button,
+html[data-theme="dark"] .home-dashboard-summary .home-settings-button{
+  color:#f5f8ff!important;
+  border-color:rgba(255,255,255,.10)!important;
+  background:rgba(18,25,38,.58)!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.07)!important;
+}
+html[data-theme="dark"] .home-dashboard-summary .home-message-new{
+  color:#f6edf2!important;
+  background:rgba(69,38,58,.62)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
