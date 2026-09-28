@@ -4068,6 +4068,7 @@
         const selfMood=mood?.querySelector('.mood-self');
         const partnerMood=mood?.querySelector('.mood-partner');
         const moodPrompt=document.getElementById('moodPrompt');
+        const moodChoices=document.getElementById('moodChoices');
         const moodMessage=document.getElementById('moodMessage');
         const dateHeading=document.getElementById('profileMeta');
         if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!dateHeading) return;
@@ -4332,12 +4333,16 @@
         dianaCard.details.appendChild(makeSupplementIntakeBlock('Диана'));
 
         dianaCard.details.appendChild(cycleSummary);
+        const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
         if(moodPrompt){
           moodPrompt.hidden=true;
-          (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodPrompt);
+          ownCard.details.appendChild(moodPrompt);
+        }
+        if(moodChoices){
+          moodChoices.hidden=true;
+          ownCard.tile.insertBefore(moodChoices,ownCard.details);
         }
         if(moodMessage){
-          const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
           ownCard.tile.insertBefore(moodMessage,ownCard.details);
         }
 
@@ -4476,7 +4481,23 @@
         section.dataset.collapseKey=key;
         section.classList.add('rudi-collapsible');
         const button=collapseButton('Свернуть или развернуть блок');
-        addHeaderCollapseButton(section,host,button);
+        const isSelfProfile=Boolean(section.querySelector('#displayName'));
+        if(isSelfProfile){
+          let actions=host.querySelector(':scope > .profile-self-head-actions');
+          if(!actions){
+            actions=document.createElement('div');
+            actions.className='profile-self-head-actions';
+            host.appendChild(actions);
+          }
+          const history=document.getElementById('moodHistoryButton');
+          const currentMood=document.getElementById('moodCurrentButton');
+          if(history) actions.appendChild(history);
+          if(currentMood) actions.appendChild(currentMood);
+          actions.appendChild(button);
+          section.querySelector('.mood-self')?.remove();
+        }else{
+          addHeaderCollapseButton(section,host,button);
+        }
 
         const apply=collapsed=>{
           section.classList.toggle('is-collapsed',collapsed);
