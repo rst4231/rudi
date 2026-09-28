@@ -1211,6 +1211,39 @@
       <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
     </section>
 
+    <section id="cheapFlightsTile" class="cheap-flights-tile panel" data-app-tab-section="home" data-home-tile="cheap-flights" data-tab-available="0" aria-label="Дешёвые авиабилеты" hidden>
+      <div class="cheap-flights-head">
+        <div class="cheap-flights-heading">
+          <span class="cheap-flights-kicker">Санкт-Петербург · туда-обратно</span>
+          <h2>Дешёвые авиабилеты</h2>
+        </div>
+        <span id="cheapFlightsUpdated" class="cheap-flights-updated">Обновление ежедневно в 06:00</span>
+      </div>
+
+      <div id="cheapFlightsLoading" class="cheap-flights-loading">Ищу лучшие цены на ближайшие 30–60 дней…</div>
+
+      <div id="cheapFlightsContent" class="cheap-flights-content" hidden>
+        <section class="cheap-flights-group" aria-labelledby="cheapFlightsTopTitle">
+          <div class="cheap-flights-group-head">
+            <strong id="cheapFlightsTopTitle">Топ‑3 самых выгодных</strong>
+            <span>прямые в приоритете</span>
+          </div>
+          <div id="cheapFlightsTop" class="cheap-flight-list"></div>
+        </section>
+
+        <section class="cheap-flights-group" aria-labelledby="cheapFlightsCountriesTitle">
+          <div class="cheap-flights-group-head">
+            <strong id="cheapFlightsCountriesTitle">По направлениям</strong>
+            <span>по одному лучшему</span>
+          </div>
+          <div id="cheapFlightsCountries" class="cheap-flight-list"></div>
+        </section>
+      </div>
+
+      <div id="cheapFlightsError" class="cheap-flights-error" role="status" hidden></div>
+      <div class="cheap-flights-source">Aviasales · цена за 1 взрослого · максимум 1 пересадка</div>
+    </section>
+
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
       <div class="home-layout-actions">
