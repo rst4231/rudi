@@ -3094,7 +3094,8 @@ async function handleRudiAction(req, res, action, options = {}) {
           dedupeKey: activeId ? 'fasting-start:' + actor + ':' + activeId : '',
           createdAt: state.active?.startedAt || new Date(options.now || Date.now()).toISOString(),
         }, options);
-        return res.status(200).json({ ok: true, actor, fasting: fastingView(state) });
+        const scoreState = await readScoreState(options).catch(() => null);
+        return res.status(200).json({ ok: true, actor, fasting: fastingViewWithRewards(state, actor, scoreState) });
       }
       if (operation === 'stop') {
         const beforeStop = await readFastingState(actor, options);

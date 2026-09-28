@@ -647,3 +647,274 @@ html[data-theme="dark"] .for-di-category{
     padding:9px 11px;
   }
 }
+
+
+/* RUDI v2.74 — romantic Dates page */
+body[data-app-tab="dates"]{
+  --date-wine:#7f304d;
+  --date-wine-deep:#5f2138;
+  --date-rose:#d88da6;
+  --date-blush:#fff1f4;
+  --date-cream:#fffaf1;
+  --date-ink:#3c2730;
+  --date-muted:#866872;
+  background:
+    radial-gradient(circle at 10% 7%,rgba(216,141,166,.14),transparent 27%),
+    radial-gradient(circle at 91% 18%,rgba(127,48,77,.08),transparent 24%),
+    var(--bg);
+}
+body[data-app-tab="dates"] .dates-page{
+  position:relative;
+  isolation:isolate;
+  gap:14px;
+  padding-top:10px;
+}
+body[data-app-tab="dates"] .dates-page::before{
+  content:"♡";
+  position:absolute;
+  z-index:-1;
+  right:10px;
+  top:-6px;
+  color:rgba(127,48,77,.12);
+  font:italic 700 84px/1 Georgia,"Times New Roman",serif;
+  transform:rotate(10deg);
+  pointer-events:none;
+}
+body[data-app-tab="dates"] .dates-page-head{
+  padding:7px 5px 5px;
+}
+body[data-app-tab="dates"] .dates-page-head h1{
+  margin:0!important;
+  color:var(--date-wine-deep);
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:31px!important;
+  font-style:italic;
+  font-weight:700;
+  letter-spacing:-.035em;
+}
+body[data-app-tab="dates"] .dates-back-button{
+  border-color:rgba(127,48,77,.16);
+  background:rgba(255,250,241,.9);
+  color:var(--date-wine);
+  box-shadow:0 8px 22px rgba(101,42,63,.09);
+}
+body[data-app-tab="dates"] .dates-generator{
+  position:relative;
+  overflow:hidden;
+  gap:13px!important;
+  padding:17px!important;
+  border:1px solid rgba(127,48,77,.14)!important;
+  border-radius:26px!important;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(216,141,166,.20),transparent 31%),
+    radial-gradient(circle at 0% 100%,rgba(127,48,77,.07),transparent 34%),
+    linear-gradient(145deg,rgba(255,250,241,.98),rgba(255,241,244,.94))!important;
+  box-shadow:0 18px 44px rgba(101,42,63,.10)!important;
+}
+body[data-app-tab="dates"] .dates-generator::before{
+  content:"♡";
+  position:absolute;
+  right:17px;
+  top:10px;
+  color:rgba(127,48,77,.22);
+  font:700 26px/1 Georgia,"Times New Roman",serif;
+  pointer-events:none;
+}
+body[data-app-tab="dates"] .dates-generator-head h2,
+body[data-app-tab="dates"] .dates-saves-head h2{
+  color:var(--date-ink);
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:-.02em;
+}
+body[data-app-tab="dates"] .dates-generator-head p{
+  color:var(--date-muted);
+  font-size:11px;
+}
+body[data-app-tab="dates"] .date-time-choices{
+  gap:8px;
+}
+body[data-app-tab="dates"] .date-time-choices button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:45px;
+  border:1px solid rgba(127,48,77,.16);
+  border-radius:15px;
+  background:rgba(255,250,241,.80);
+  color:var(--date-wine-deep);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.72),0 6px 18px rgba(101,42,63,.05);
+  font-size:11.5px;
+}
+body[data-app-tab="dates"] .date-time-choices button[data-date-period="morning"]::before{content:"☕"}
+body[data-app-tab="dates"] .date-time-choices button[data-date-period="day"]::before{content:"☀︎"}
+body[data-app-tab="dates"] .date-time-choices button[data-date-period="evening"]::before{content:"☾"}
+body[data-app-tab="dates"] .date-time-choices button:active:not(:disabled){
+  transform:scale(.96);
+  background:rgba(255,235,240,.96);
+}
+body[data-app-tab="dates"] .date-idea-status{
+  color:var(--date-muted);
+  font-weight:650;
+}
+body[data-app-tab="dates"] .date-idea-results{
+  gap:10px;
+}
+body[data-app-tab="dates"] .date-idea-results-head{
+  padding:4px 1px 0;
+}
+body[data-app-tab="dates"] .date-idea-results-head strong{
+  color:var(--date-wine-deep);
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:14px;
+}
+body[data-app-tab="dates"] .date-idea-results-head span{
+  color:var(--date-muted);
+}
+body[data-app-tab="dates"] .date-idea-card{
+  grid-template-columns:32px minmax(0,1fr) auto!important;
+  gap:11px;
+  padding:13px;
+  border:1px solid rgba(127,48,77,.11);
+  border-radius:18px;
+  background:rgba(255,253,248,.92);
+  box-shadow:0 9px 24px rgba(101,42,63,.06);
+}
+body[data-app-tab="dates"] .date-idea-number{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:linear-gradient(145deg,rgba(216,141,166,.22),rgba(127,48,77,.11));
+  color:var(--date-wine);
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:12px;
+}
+body[data-app-tab="dates"] .date-idea-copy strong{
+  color:var(--date-ink);
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:14px;
+}
+body[data-app-tab="dates"] .date-idea-copy p{
+  color:#5b444d;
+  font-size:11px;
+  line-height:1.5;
+}
+body[data-app-tab="dates"] .date-idea-copy small{
+  color:var(--date-muted);
+}
+body[data-app-tab="dates"] .date-idea-save{
+  border-color:rgba(95,33,56,.15)!important;
+  background:linear-gradient(135deg,var(--date-wine),var(--date-wine-deep))!important;
+  color:#fff!important;
+  box-shadow:0 7px 18px rgba(95,33,56,.18);
+}
+body[data-app-tab="dates"] .date-idea-save.is-saved{
+  border-color:rgba(93,125,87,.22)!important;
+  background:linear-gradient(135deg,#78936f,#5d7d57)!important;
+  color:#fff!important;
+}
+body[data-app-tab="dates"] .dates-saves{
+  gap:10px;
+}
+body[data-app-tab="dates"] .dates-saves-head{
+  padding:7px 5px 0;
+}
+body[data-app-tab="dates"] .saves-total-count{
+  background:rgba(127,48,77,.10);
+  color:var(--date-wine);
+}
+body[data-app-tab="dates"] .dates-saved-category{
+  overflow:hidden;
+  border-color:rgba(127,48,77,.13);
+  border-radius:24px;
+  background:linear-gradient(145deg,rgba(255,250,241,.96),rgba(255,244,246,.94));
+  box-shadow:0 14px 34px rgba(101,42,63,.07);
+}
+body[data-app-tab="dates"] .dates-saved-category .saved-category-icon{
+  background:rgba(216,141,166,.17);
+  color:var(--date-wine);
+}
+body[data-app-tab="dates"] .dates-saved-category .saved-category-copy strong{
+  color:var(--date-ink);
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:15px;
+}
+body[data-app-tab="dates"] .dates-saved-category .saved-item{
+  border-color:rgba(127,48,77,.10);
+  background:rgba(255,253,248,.88);
+}
+body[data-app-tab="dates"] .dates-saved-category .saved-item-head>strong{
+  color:var(--date-ink);
+  font-family:Georgia,"Times New Roman",serif;
+}
+body[data-app-tab="dates"] .dates-saved-category .saved-item-description{
+  color:#5b444d;
+}
+html[data-theme="dark"] body[data-app-tab="dates"]{
+  --date-wine:#e7a1b8;
+  --date-wine-deep:#f0b4c7;
+  --date-rose:#b76783;
+  --date-blush:#291820;
+  --date-cream:#23191c;
+  --date-ink:#f6e8ec;
+  --date-muted:#bea3ac;
+  background:
+    radial-gradient(circle at 10% 7%,rgba(183,103,131,.14),transparent 28%),
+    radial-gradient(circle at 91% 18%,rgba(231,161,184,.08),transparent 24%),
+    var(--bg);
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .dates-page::before{
+  color:rgba(231,161,184,.10);
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .dates-back-button{
+  border-color:rgba(231,161,184,.13);
+  background:rgba(40,26,32,.88);
+  box-shadow:0 8px 22px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .dates-generator{
+  border-color:rgba(231,161,184,.13)!important;
+  background:
+    radial-gradient(circle at 100% 0%,rgba(183,103,131,.15),transparent 31%),
+    radial-gradient(circle at 0% 100%,rgba(231,161,184,.06),transparent 34%),
+    linear-gradient(145deg,rgba(43,28,34,.98),rgba(32,23,27,.97))!important;
+  box-shadow:0 18px 44px rgba(0,0,0,.24)!important;
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .date-time-choices button{
+  border-color:rgba(231,161,184,.14);
+  background:rgba(50,32,39,.86);
+  color:#f1c3d2;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 7px 20px rgba(0,0,0,.12);
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .date-time-choices button:active:not(:disabled){
+  background:rgba(73,39,51,.92);
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .date-idea-card{
+  border-color:rgba(231,161,184,.10);
+  background:rgba(38,27,31,.92);
+  box-shadow:0 10px 26px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .date-idea-copy p,
+html[data-theme="dark"] body[data-app-tab="dates"] .dates-saved-category .saved-item-description{
+  color:#dacbd0;
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .dates-saved-category{
+  border-color:rgba(231,161,184,.11);
+  background:linear-gradient(145deg,rgba(42,29,34,.97),rgba(31,24,27,.96));
+  box-shadow:0 15px 36px rgba(0,0,0,.20);
+}
+html[data-theme="dark"] body[data-app-tab="dates"] .dates-saved-category .saved-item{
+  border-color:rgba(231,161,184,.09);
+  background:rgba(37,29,32,.90);
+}
+@media(max-width:430px){
+  body[data-app-tab="dates"] .dates-page-head h1{font-size:29px!important}
+  body[data-app-tab="dates"] .dates-generator{padding:15px!important}
+  body[data-app-tab="dates"] .date-idea-card{grid-template-columns:30px minmax(0,1fr)!important}
+  body[data-app-tab="dates"] .date-idea-save{
+    grid-column:2;
+    justify-self:start;
+    margin-top:2px;
+  }
+}
