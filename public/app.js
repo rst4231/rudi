@@ -9173,12 +9173,26 @@
         if(prompt)prompt.hidden=false;
 
         const currentButton=document.getElementById('moodCurrentButton');
+        const moodRoot=document.querySelector('.profile-mood');
         if(currentButton&&currentButton.dataset.bound!=='1'){
           currentButton.dataset.bound='1';
-          currentButton.addEventListener('click',()=>{
+          const toggleMoodChoices=event=>{
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
             const choices=document.getElementById('moodChoices');
             setMoodChoicesOpen(Boolean(choices?.hidden));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          };
+          currentButton.addEventListener('click',toggleMoodChoices);
+          currentButton.addEventListener('pointerup',event=>{
+            if(event.pointerType==='mouse')return;
+            if(event.currentTarget.dataset.pointerHandled==='1')return;
+            event.currentTarget.dataset.pointerHandled='1';
+            setTimeout(()=>{delete event.currentTarget.dataset.pointerHandled},350);
+          },{passive:true});
+          moodRoot?.addEventListener('click',event=>{
+            if(event.target===currentButton||currentButton.contains(event.target))return;
+            if(event.target.closest('#moodChoices,#moodHistoryButton'))return;
           });
         }
 
