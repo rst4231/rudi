@@ -82,6 +82,26 @@ function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTi
 function habitStreakText(value){const n=Math.max(0,Math.round(Number(value)||0)),m100=n%100,m10=n%10,w=m100>=11&&m100<=14?'дней':m10===1?'день':m10>=2&&m10<=4?'дня':'дней';return n+' '+w+' подряд'}
 function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,1 ⭐ за выполнение · −0,1 ⭐ за невыполнение':'Без бонуса и штрафа'}
 function habitScoreMessage(data,id,status){if(habitSelectedDate!==habitState.today)return'Статус сохранён. За прошлые даты звёзды не меняются.';if(!(habitState.bonusIds||[]).includes(id))return'Статус сохранён. Эта привычка без бонуса и штрафа.';const d=Number(data?.scoreDelta||0);if(d>0)return'Баланс: +'+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';if(d<0)return'Баланс: '+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';return status==='done'?'Выполнение сохранено.':'Статус «Не выполнено» сохранён.'}
+function launchHabitConfetti(rect){
+  if(!rect||typeof document==='undefined'||window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
+  const layer=document.createElement('div');layer.className='habit-confetti-layer';layer.setAttribute('aria-hidden','true');
+  const colors=['#52d38a','#ffd166','#ff7d9e','#78a8ff','#b88cff','#ff9f5a'];
+  const count=34,originX=Math.max(18,Math.min(window.innerWidth-18,rect.left+rect.width/2)),originY=Math.max(18,Math.min(window.innerHeight-18,rect.top+rect.height/2));
+  layer.style.setProperty('--confetti-x',originX+'px');layer.style.setProperty('--confetti-y',originY+'px');
+  for(let i=0;i<count;i++){
+    const piece=document.createElement('i'),angle=(Math.PI*2*i)/count+((i%3)-1)*.07,distance=72+(i%7)*12;
+    piece.className='habit-confetti-piece';
+    piece.style.setProperty('--confetti-dx',(Math.cos(angle)*distance).toFixed(1)+'px');
+    piece.style.setProperty('--confetti-dy',(Math.sin(angle)*distance-48-(i%4)*9).toFixed(1)+'px');
+    piece.style.setProperty('--confetti-rotation',((i%2?1:-1)*(180+(i%5)*90))+'deg');
+    piece.style.setProperty('--confetti-color',colors[i%colors.length]);
+    piece.style.animationDelay=((i%5)*10)+'ms';piece.style.animationDuration=(720+(i%6)*55)+'ms';
+    if(i%3===0)piece.classList.add('is-round');
+    layer.appendChild(piece);
+  }
+  document.body.appendChild(layer);
+  window.setTimeout(()=>layer.remove(),1250);
+}
 function showHabitUndo({id,date,previousStatus,nextStatus}){
   if(!id||!date)return;
   let bar=document.getElementById('personalHabitsUndo');
@@ -141,11 +161,13 @@ function renderHabits(){
       if((next==='done'&&yes.disabled)||(next==='notdone'&&no.disabled))return;
       const previousStatus=status;
       const actionDate=habitSelectedDate||habitState.today;
+      const confettiRect=next==='done'?yes.getBoundingClientRect():null;
       yes.disabled=true;no.disabled=true;remove.disabled=true;setHabitStatus('');
       try{
         const data=await habitRequest('status',{id,status:next,date:actionDate});
         applyHabitView(data);
         setHabitStatus(habitScoreMessage(data,id,next));
+        if(next==='done'&&previousStatus!=='done')launchHabitConfetti(confettiRect);
         if(previousStatus!==next){
           showHabitUndo({id,date:actionDate,previousStatus,nextStatus:next});
         }
