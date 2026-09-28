@@ -11564,13 +11564,3 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
   color:rgba(229,233,246,.82)!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
 }
-.ticktick-chevron{
-  appearance:none;
-  -webkit-appearance:none;
-  padding:0;
-  border:0;
-  background:transparent;
-  color:inherit;
-  cursor:pointer;
-}
-.ticktick-chevron:disabled{cursor:default;opacity:.45}
