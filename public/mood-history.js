@@ -8,7 +8,7 @@ const META={
   love:{emoji:'🥰',label:'Любовь'}
 };
 const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',fatigue:'Усталость',sleep:'Сон / усталость',fasting:'Голодание',other:'Другое'};
-let state=null,visibleMonth='',windowDays=30,selectedDate='';
+let state=null,visibleMonth='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function todayKey(){return new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
@@ -80,6 +80,7 @@ function ensure(){
   page.querySelector('#moodRangeTabs').addEventListener('click',async e=>{
     const button=e.target.closest('[data-days]');if(!button)return;
     windowDays=Number(button.dataset.days)||30;
+    restoreAnalysisWindow=false;
     page.querySelectorAll('[data-days]').forEach(item=>item.classList.toggle('active',item===button));
     await reload();
   });
@@ -183,18 +184,30 @@ function renderDayDetail(row){
   }
 }
 
-function cacheStatus(analysis){
-  if(!analysis?.createdAt)return'';
-  const left=24*360000-(Date.now()-(Date.parse(analysis.createdAt)||0));
-  if(left<=0)return'Можно сделать новый анализ';
-  const h=Math.floor(left/360000),m=Math.max(0,Math.ceil((left%360000)/60000));
-  return'Новый анализ через '+(h?h+' ч ':'')+m+' мин';
+function analysisCooldown(analysis){
+  if(!analysis?.createdAt)return{locked:false,left:0,text:'Можно сделать новый анализ'};
+  const left=Math.max(0,24*360000-(Date.now()-(Date.parse(analysis.createdAt)||0)));
+  if(left<=0)return{locked:false,left:0,text:'Можно сделать новый анализ'};
+  const h=Math.floor(left/3600000),m=Math.max(0,Math.ceil((left%3600000)/60000));
+  return{locked:true,left,text:'Новый анализ через '+(h?h+' ч ':'')+m+' мин'};
+}
+function scheduleAnalysisRefresh(analysis){
+  clearTimeout(analysisRefreshTimer);
+  const cooldown=analysisCooldown(analysis);
+  if(!cooldown.locked)return;
+  analysisRefreshTimer=setTimeout(()=>{if(state)render(state)},Math.min(60000,cooldown.left+100));
 }
 
 function render(data){
   if(!data)return;
   state=data;
   const page=ensure(),today=String(data.date||todayKey()),history=Array.isArray(data.history)?data.history:[];
+  if(restoreAnalysisWindow){
+    const savedDays=Number(data.analysis?.windowDays);
+    if([7,30,90].includes(savedDays))windowDays=savedDays;
+    restoreAnalysisWindow=false;
+  }
+  page.querySelectorAll('[data-days]').forEach(item=>item.classList.toggle('active',Number(item.dataset.days)===windowDays));
   if(!visibleMonth)visibleMonth=today.slice(0,7);
   const earliest=history[0]?.date?.slice(0,7)||today.slice(0,7),latest=today.slice(0,7);
   if(visibleMonth<earliest)visibleMonth=earliest;
@@ -228,13 +241,17 @@ function render(data){
   renderStats(history,today);
 
   const analysis=data.analysis||null,button=page.querySelector('#moodAnalyzeButton'),status=page.querySelector('#moodAnalysisStatus'),result=page.querySelector('#moodAnalysisResult');
-  const moodDays=Number(data.selectedDays||rowsForWindow(history,today,windowDays).length);
-  const minimumDays=Number(data.minAnalysisDays)||minimumAnalysisDays(windowDays);
+  const moodDays=rowsForWindow(history,today,windowDays).length;
+  const minimumDays=minimumAnalysisDays(windowDays);
+  const cooldown=analysisCooldown(analysis);
   if(analysis?.text){
     result.hidden=false;renderAnalysisText(result,analysis.text);
-    button.disabled=true;button.textContent='Готово';
-    status.textContent=(analysis.level==='preliminary'?'Предварительный разбор · ':'')+cacheStatus(analysis)+(analysis?.cycle?.phase?' · цикл Дианы учтён':'');
+    button.disabled=cooldown.locked||moodDays<minimumDays;button.textContent=cooldown.locked?'Готово':'Анализ';
+    const savedPeriod=analysisPeriodLabel(Number(analysis.windowDays)||30);
+    status.textContent=(analysis.level==='preliminary'?'Предварительный разбор · ':'')+'Сохранённый анализ за '+savedPeriod+' · '+cooldown.text+(analysis?.cycle?.phase?' · цикл Дианы учтён':'');
+    scheduleAnalysisRefresh(analysis);
   }else{
+    clearTimeout(analysisRefreshTimer);
     result.hidden=true;result.replaceChildren();
     button.disabled=moodDays<minimumDays;button.textContent='Анализ';
     status.textContent=moodDays<minimumDays
@@ -256,13 +273,14 @@ async function open(){
   document.body.classList.add('mood-history-open');
   visibleMonth=todayKey().slice(0,7);
   selectedDate='';
+  restoreAnalysisWindow=true;
   await reload();
 }
 
 async function runAnalysis(){
   const page=ensure(),button=page.querySelector('#moodAnalyzeButton'),status=page.querySelector('#moodAnalysisStatus');
   if(button.disabled)return;
-  button.disabled=true;button.textContent='Анализирую…';status.textContent='Сопоставляю настроение, привычки и голодание…';
+  button.disabled=true;button.textContent='Анализирую…';status.textContent='Сопоставляю настроение, причины, привычки, голодание и БАДы…';
   try{
     render(await api('analyze'));
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success');

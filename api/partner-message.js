@@ -44,7 +44,7 @@ const {
   getLatestPhotos,
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, setDailyMoodReason, moodView, restoreDailyMoodState, readDailyMoodState, readMoodHistory, readMoodAnalysis, clearMoodAnalyses } = require('./daily-mood-store.cjs');
-const { readMoodAnalysisCache, writeMoodAnalysisCache, clearMoodAnalysisCache, normalizeWindowDays, readMoodFeedback, saveMoodFeedback } = require('./mood-analysis-store.cjs');
+const { readLatestMoodAnalysisCache, writeMoodAnalysisCache, analysisWithinCooldown, normalizeWindowDays, readMoodFeedback, saveMoodFeedback } = require('./mood-analysis-store.cjs');
 const { readHabits, habitCreatedByDate } = require('./habit-tracker-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
@@ -724,7 +724,7 @@ async function enrichMoodHistoryContext(actor,history,date,windowDays,options={}
     return{...row,context:{habits:habitContext,fasting:fastingContext,supplements:{taken:takenSupplements}}};
   });
 }
-async function externalMoodAnalysis(actor,date,windowDays,options={}){const cached=await readMoodAnalysisCache(actor,date,windowDays,options).catch(()=>null);await clearMoodAnalyses(actor,options).catch(error=>console.warn('RUDI_MOOD_ANALYSIS_DB_CLEANUP_WARN',String(error?.message||error)));return cached||null}
+async function externalMoodAnalysis(actor,date,windowDays,options={}){const cached=await readLatestMoodAnalysisCache(actor,date,options).catch(()=>null);await clearMoodAnalyses(actor,options).catch(error=>console.warn('RUDI_MOOD_ANALYSIS_DB_CLEANUP_WARN',String(error?.message||error)));return cached||null}
 
 function moodActivityText(actor, previousMood, nextMood) {
   const next = MOOD_ACTIVITY[nextMood];
@@ -2459,7 +2459,6 @@ async function handleRudiAction(req, res, action, options = {}) {
         const before = await readDailyMood(date, options).catch(() => null);
         const previousMood = before?.moods?.[actor]?.mood || '';
         row = await setDailyMood(date, actor, body.mood, options);
-        await clearMoodAnalysisCache(actor,options).catch(()=>null);
         const nextMood = row?.moods?.[actor]?.mood || '';
         if (nextMood && nextMood !== previousMood) {
           await sendMoodNotificationToPartner(actor, nextMood, options);
@@ -2478,7 +2477,6 @@ async function handleRudiAction(req, res, action, options = {}) {
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'reason') {
         row=await setDailyMoodReason(date,actor,body.reason,options);
-        await clearMoodAnalysisCache(actor,options).catch(()=>null);
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
@@ -2494,8 +2492,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor),selected=moodHistoryForWindow(history,date,windowDays),minAnalysisDays=moodAnalysisMinimumDays(windowDays);
         if(selected.length<minAnalysisDays) throw new Error('mood-analysis-insufficient-data');
         const level=moodAnalysisLevel(selected.length);
-        let analysis=await externalMoodAnalysis(actor,date,windowDays,options),cycle=analysis?.cycle||null,reused=Boolean(analysis);
-        if(!analysis){
+        let analysis=await externalMoodAnalysis(actor,date,windowDays,options),cycle=analysis?.cycle||null,reused=analysisWithinCooldown(analysis,options.now||Date.now());
+        if(!reused){
           if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
           const enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options),contextSummary=moodContextSummary(enriched);
           const generated=await generateMoodAnalysis({actor,history:enriched,cycle,windowDays,level,contextSummary},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});

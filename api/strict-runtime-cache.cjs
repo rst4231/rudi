@@ -180,6 +180,7 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-daily-question-history-v1',
   'rudi-supplements-v1',
   'rudi-mood-feedback-v1',
+  'rudi-mood-analysis-v4',
 ]);
 const DURABLE_CONTROL_PLANE_TAGS = new Set([
   'rudi-daily-cron-state',

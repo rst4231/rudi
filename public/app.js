@@ -9051,10 +9051,22 @@
         for(const [key,emoji,label] of MOOD_REASONS){const button=document.createElement('button');button.type='button';button.dataset.moodReason=key;button.innerHTML='<span>'+emoji+'</span><b>'+label+'</b>';options.append(button)}
         box.addEventListener('click',async event=>{const button=event.target.closest('[data-mood-reason]');if(!button)return;box.querySelectorAll('button').forEach(item=>item.disabled=true);try{await moodRequest('reason','',{reason:button.dataset.moodReason});hideMoodReasonPrompt();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}}catch(_){box.querySelectorAll('button').forEach(item=>item.disabled=false);try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
         box.querySelector('.mood-reason-skip').addEventListener('click',hideMoodReasonPrompt);
-        const details=own.querySelector('.profile-person-details');own.insertBefore(box,details||null);return box;
+        const details=own.querySelector('.profile-person-details');
+        const host=details?.parentNode||own;
+        if(box.parentNode!==host)host.insertBefore(box,details&&details.parentNode===host?details:null);
+        else if(details&&details.parentNode===host&&box.nextSibling!==details)host.insertBefore(box,details);
+        return box;
       }
       function hideMoodReasonPrompt(){clearTimeout(moodReasonTimer);const box=document.getElementById('moodReasonPrompt');if(box){box.hidden=true;box.querySelectorAll('button').forEach(item=>item.disabled=false)}}
-      function showMoodReasonPrompt(){const box=ensureMoodReasonPrompt();if(!box)return;clearTimeout(moodReasonTimer);box.hidden=false;moodReasonTimer=setTimeout(hideMoodReasonPrompt,12000)}
+      function showMoodReasonPrompt(){
+        const box=ensureMoodReasonPrompt();if(!box)return;
+        const own=document.getElementById(currentActor==='Диана'?'homeDianaTile':'homeRustamTile');
+        if(own?.classList.contains('is-collapsed')) own.querySelector('.block-collapse-button')?.click();
+        clearTimeout(moodReasonTimer);
+        box.hidden=false;
+        box.scrollIntoView?.({block:'nearest',behavior:'smooth'});
+        moodReasonTimer=setTimeout(hideMoodReasonPrompt,12000);
+      }
 
       function bindMoodPickerControls(){
         const currentButton=document.getElementById('moodCurrentButton');

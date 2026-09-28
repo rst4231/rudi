@@ -15,15 +15,15 @@ test('v2.101 mood history insights are wired end to end',()=>{
 
   assert.match(daily,/MAX_HISTORY_DAYS=180/);
   assert.match(daily,/setDailyMoodReason/);
-  assert.match(app,/Почему такое настроение/);
-  assert.match(app,/Голодание/);
+  assert.match(app,/Что повлияло/);
+  assert.match(app,/\['food','🍽️','Еда'\]/);
   assert.match(ui,/3 месяца/);
   assert.match(ui,/moodDayDetail/);
-  assert.match(ui,/moodAnalysisFeedback/);
+  assert.doesNotMatch(ui,/moodAnalysisFeedback/);
   assert.match(api,/readFastingState/);
   assert.match(api,/readHabits/);
   assert.match(api,/mood-analysis-insufficient-data/);
-  assert.match(api,/selected\.length>=5/);
+  assert.match(api,/selected\.length<minAnalysisDays/);
   assert.match(ai,/Корреляции формулируйте/);
   assert.match(store,/rudi-mood-analysis-v4/);
   assert.match(html,/mood-history-v2101\.css\?v=2\.101/);
