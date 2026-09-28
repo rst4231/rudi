@@ -4068,6 +4068,7 @@
         const selfMood=mood?.querySelector('.mood-self');
         const partnerMood=mood?.querySelector('.mood-partner');
         const moodPrompt=document.getElementById('moodPrompt');
+        const moodChoices=document.getElementById('moodChoices');
         const moodMessage=document.getElementById('moodMessage');
         const dateHeading=document.getElementById('profileMeta');
         if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!dateHeading) return;
@@ -4332,13 +4333,28 @@
         dianaCard.details.appendChild(makeSupplementIntakeBlock('Диана'));
 
         dianaCard.details.appendChild(cycleSummary);
+        const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
         if(moodPrompt){
           moodPrompt.hidden=true;
-          (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodPrompt);
+          ownCard.details.appendChild(moodPrompt);
+        }
+        if(moodChoices){
+          moodChoices.hidden=true;
+          ownCard.tile.insertBefore(moodChoices,ownCard.details);
         }
         if(moodMessage){
-          const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
           ownCard.tile.insertBefore(moodMessage,ownCard.details);
+        }
+        const currentMoodButton=document.getElementById('moodCurrentButton');
+        if(currentMoodButton&&currentMoodButton.dataset.bound!=='1'){
+          currentMoodButton.dataset.bound='1';
+          currentMoodButton.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            const choices=document.getElementById('moodChoices');
+            setMoodChoicesOpen(Boolean(choices?.hidden));
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
         }
 
         const luluTile=document.createElement('section');
