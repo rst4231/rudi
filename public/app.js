@@ -6237,11 +6237,11 @@
 
       function setTickTickExpanded(expanded){
         const panel=document.getElementById('ticktickPanel');
-        const arrow=document.getElementById('ticktickChevronButton');
+        const toggle=document.getElementById('ticktickToggle');
         const details=document.getElementById('ticktickDetails');
         if(!panel.classList.contains('expandable')) expanded=false;
         panel.classList.toggle('expanded',expanded);
-        arrow?.setAttribute('aria-expanded',expanded?'true':'false');
+        toggle.setAttribute('aria-expanded',expanded?'true':'false');
         details.setAttribute('aria-hidden',expanded?'false':'true');
       }
 
@@ -6416,7 +6416,7 @@
 
       function renderTickTickDetails(task,{writable=true,preserveExpanded=false}={}){
         const panel=document.getElementById('ticktickPanel');
-        const arrow=document.getElementById('ticktickChevronButton');
+        const toggle=document.getElementById('ticktickToggle');
         const descriptionBlock=document.getElementById('ticktickDescriptionBlock');
         const description=document.getElementById('ticktickDescription');
         const checklistBlock=document.getElementById('ticktickChecklistBlock');
@@ -6425,7 +6425,7 @@
 
         const hasDetails=fillTickTickDetails(task,{writable,descriptionBlock,description,checklistBlock,checklist});
         panel.classList.toggle('expandable',hasDetails);
-        if(arrow){arrow.disabled=!hasDetails;arrow.tabIndex=hasDetails?0:-1}
+        toggle.tabIndex=hasDetails?0:-1;
         setTickTickExpanded(Boolean(wasExpanded&&hasDetails));
       }
 
@@ -6759,12 +6759,17 @@
 
       function setupTickTickDisclosure(){
         const panel=document.getElementById('ticktickPanel');
-        const arrow=document.getElementById('ticktickChevronButton');
-        if(!arrow)return;
-        arrow.addEventListener('click',()=>{
+        const toggle=document.getElementById('ticktickToggle');
+        const flip=()=>{
           if(!panel.classList.contains('expandable')) return;
           setTickTickExpanded(!panel.classList.contains('expanded'));
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        };
+        toggle.addEventListener('click',flip);
+        toggle.addEventListener('keydown',event=>{
+          if(event.key!=='Enter'&&event.key!==' ') return;
+          event.preventDefault();
+          flip();
         });
       }
 
