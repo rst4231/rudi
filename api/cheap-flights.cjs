@@ -5,6 +5,7 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
 const PRICES_URL = 'https://api.travelpayouts.com/aviasales/v3/prices_for_dates';
 const AIRLINES_URL = 'https://api.travelpayouts.com/data/ru/airlines.json';
+const PRICE_MAP_URL = 'https://map.aviasales.ru/prices.json';
 const SNAPSHOT_TTL_SECONDS = 365 * 24 * 60 * 60;
 const AIRLINES_TTL_SECONDS = 30 * 24 * 60 * 60;
 
@@ -207,6 +208,68 @@ function validAviasalesLink(value) {
   return '';
 }
 
+function compactDate(value) {
+  const key = datePart(value);
+  if (!key) return '';
+  const [, month, day] = key.split('-');
+  return day + month;
+}
+
+function buildAviasalesSearchLink(origin, destination, departureDate, returnDate) {
+  const there = compactDate(departureDate);
+  const back = compactDate(returnDate);
+  if (!/^[A-Z]{3}$/.test(String(origin || '').toUpperCase())) return '';
+  if (!/^[A-Z]{3}$/.test(String(destination || '').toUpperCase())) return '';
+  if (!there || !back) return '';
+  return 'https://www.aviasales.ru/search/' +
+    String(origin).toUpperCase() + there +
+    String(destination).toUpperCase() + back +
+    '1';
+}
+
+function normalizeMapTicket(raw, destination, window, config) {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const departureDate = datePart(source.depart_date);
+  const returnDate = datePart(source.return_date);
+  const price = Math.round(Number(source.value || 0));
+  const transfers = Number(source.number_of_changes);
+  if (!departureDate || !returnDate || !price || price < 1) return null;
+  if (departureDate < window.from || departureDate > window.to) return null;
+  if (returnDate <= departureDate) return null;
+  if (!Number.isInteger(transfers) || transfers < 0 || transfers > config.maxTransfers) return null;
+  const link = buildAviasalesSearchLink(config.origin.iata, destination.iata, departureDate, returnDate);
+  if (!link) return null;
+  return {
+    id: [
+      destination.iata,
+      departureDate,
+      returnDate,
+      'map',
+      String(price),
+      String(transfers),
+    ].join(':'),
+    countryId: destination.countryId,
+    country: destination.country,
+    city: destination.city,
+    destination: destination.iata,
+    origin: config.origin.iata,
+    price,
+    currency: config.currency,
+    departureAt: departureDate,
+    returnAt: returnDate,
+    departureDate,
+    returnDate,
+    airline: '',
+    airlineName: 'Уточняется на Aviasales',
+    transfers,
+    returnTransfers: transfers,
+    maxTransfers: transfers,
+    direct: transfers === 0,
+    link,
+    source: 'price-map',
+  };
+}
+
 function normalizeTicket(raw, destination, airlineNames, window, config, now = new Date()) {
   const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const departureDate = datePart(source.departure_at);
@@ -253,6 +316,7 @@ function normalizeTicket(raw, destination, airlineNames, window, config, now = n
     maxTransfers,
     direct: transfers === 0 && returnTransfers === 0,
     link,
+    source: 'travelpayouts',
   };
 }
 
@@ -417,6 +481,40 @@ async function mapPool(values, limit, worker) {
   return result;
 }
 
+async function fetchPriceMapTickets(config, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  if (typeof fetchImpl !== 'function') throw new Error('cheap-flights-fetch-unavailable');
+  const window = searchWindow(options.now || new Date(), config);
+  const destinationMap = new Map(config.destinations.map((row) => [row.iata, row]));
+  const requests = monthsBetween(window.from, window.to);
+  const batches = await mapPool(requests, 2, async (month) => {
+    try {
+      const params = new URLSearchParams({
+        origin_iata: config.origin.iata,
+        period: month + '-01:month',
+        direct: 'false',
+        one_way: 'false',
+        locale: 'ru',
+      });
+      const payload = await fetchJson((options.priceMapUrl || PRICE_MAP_URL) + '?' + params.toString(), {
+        fetchImpl,
+        timeoutMs: 4500,
+        headers: { Accept: 'application/json', 'User-Agent': 'RUDI-Cheap-Flights/1.0' },
+      });
+      return (Array.isArray(payload) ? payload : [])
+        .map((row) => {
+          const destination = destinationMap.get(String(row?.destination || '').trim().toUpperCase());
+          return destination ? normalizeMapTicket(row, destination, window, config) : null;
+        })
+        .filter(Boolean);
+    } catch (error) {
+      console.warn('RUDI_CHEAP_FLIGHTS_MAP_WARN', month, String(error?.message || error));
+      return [];
+    }
+  });
+  return uniqueTickets(batches.flat());
+}
+
 async function fetchTickets(config, token, options = {}) {
   const window = searchWindow(options.now || new Date(), config);
   const airlines = await loadAirlineNames(options);
@@ -463,17 +561,22 @@ async function refreshCheapFlightsSnapshot(options = {}) {
       return { configured: true, enabled: true, snapshot: current, skipped: 'fresh' };
     }
     const token = resolveTravelpayoutsToken(options.env || process.env);
-    if (!token) {
-      return { configured: false, enabled: true, snapshot: current || null, skipped: 'token-missing' };
-    }
     const yesterdayKey = shiftDateKey(today, -1);
     const previous = await cache.get('snapshot:' + yesterdayKey).catch(() => null)
       || (current?.dateKey && current.dateKey !== today ? current : null);
-    const tickets = await fetchTickets(config, token, options);
-    if (!tickets.length) {
-      return { configured: true, enabled: true, snapshot: current || null, stale: Boolean(current), error: 'no-ticket-data' };
+    let tickets = [];
+    let source = token ? 'travelpayouts' : 'price-map';
+    if (token) {
+      tickets = await fetchTickets(config, token, options);
     }
-    const snapshot = buildSnapshot(tickets, config, previous, options.now || new Date());
+    if (!tickets.length) {
+      source = 'price-map';
+      tickets = await fetchPriceMapTickets(config, options);
+    }
+    if (!tickets.length) {
+      return { configured: true, enabled: true, snapshot: current || null, stale: Boolean(current), error: 'no-ticket-data', source };
+    }
+    const snapshot = { ...buildSnapshot(tickets, config, previous, options.now || new Date()), source };
     await Promise.all([
       cache.set('snapshot:current', snapshot, {
         ttl: SNAPSHOT_TTL_SECONDS,
@@ -502,9 +605,9 @@ async function readCheapFlightsSnapshot(options = {}) {
   const current = await cache.get('snapshot:current').catch(() => null);
   const today = moscowDateKey(options.now || new Date());
   const token = resolveTravelpayoutsToken(options.env || process.env);
-  if (!config.enabled) return { configured: Boolean(token), enabled: false, config, snapshot: current || null };
+  if (!config.enabled) return { configured: true, partnerToken: Boolean(token), enabled: false, config, snapshot: current || null };
   if (current?.dateKey === today || options.refreshIfNeeded === false) {
-    return { configured: Boolean(token), enabled: true, config, snapshot: current || null, stale: current?.dateKey !== today };
+    return { configured: true, partnerToken: Boolean(token), enabled: true, config, snapshot: current || null, stale: current?.dateKey !== today };
   }
   const refreshed = await refreshCheapFlightsSnapshot({ ...options, config });
   return { ...refreshed, config };
@@ -518,6 +621,7 @@ module.exports = {
   CONFIG_URL,
   PRICES_URL,
   AIRLINES_URL,
+  PRICE_MAP_URL,
   DEFAULT_CONFIG,
   DEFAULT_DESTINATIONS,
   moscowDateKey,
@@ -528,12 +632,15 @@ module.exports = {
   normalizeCheapFlightsConfig,
   resolveTravelpayoutsToken,
   validAviasalesLink,
+  buildAviasalesSearchLink,
+  normalizeMapTicket,
   normalizeTicket,
   compareCheapestTickets,
   compareTickets,
   buildPriceRequests,
   buildSnapshot,
   loadCheapFlightsConfig,
+  fetchPriceMapTickets,
   refreshCheapFlightsSnapshot,
   readCheapFlightsSnapshot,
   isCheapFlightsActorAllowed,

@@ -14,6 +14,8 @@ const {
   buildSnapshot,
   isCheapFlightsActorAllowed,
   validAviasalesLink,
+  buildAviasalesSearchLink,
+  normalizeMapTicket,
 } = require('../api/cheap-flights.cjs');
 
 function ticket(overrides = {}) {
@@ -122,4 +124,24 @@ test('06:00 Moscow cron is reused instead of adding a new flight cron', () => {
   const vercel = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
   assert.ok(vercel.crons.some((row) => row.path === '/api/feed-notify-cron' && row.schedule === '0 3 * * *'));
   assert.equal(vercel.crons.some((row) => /flight/i.test(row.path)), false);
+});
+
+
+test('public Aviasales price-map fallback creates a purchase search link without a partner token', () => {
+  const config = normalizeCheapFlightsConfig(DEFAULT_CONFIG);
+  const window = { from: '2026-10-28', to: '2026-11-27' };
+  const destination = config.destinations.find((row) => row.iata === 'AYT');
+  const row = normalizeMapTicket({
+    destination: 'AYT',
+    depart_date: '2026-11-02',
+    return_date: '2026-11-10',
+    number_of_changes: 1,
+    value: 28990,
+  }, destination, window, config);
+  assert.equal(row.price, 28990);
+  assert.equal(row.transfers, 1);
+  assert.equal(row.airlineName, 'Уточняется на Aviasales');
+  assert.equal(row.source, 'price-map');
+  assert.match(row.link, /^https:\/\/www\.aviasales\.ru\/search\/LED0211AYT10111$/);
+  assert.equal(buildAviasalesSearchLink('LED','AYT','2026-11-02','2026-11-10'), row.link);
 });
