@@ -68,7 +68,8 @@
         "city": "Шанхай",
         "iata": "SHA"
       }
-    ]
+    ],
+    "directPreferencePercent": 10
   },
   "birthdays": [
     {

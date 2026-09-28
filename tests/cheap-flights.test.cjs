@@ -9,6 +9,7 @@ const {
   DEFAULT_CONFIG,
   searchWindow,
   normalizeCheapFlightsConfig,
+  compareCheapestTickets,
   compareTickets,
   buildSnapshot,
   isCheapFlightsActorAllowed,
@@ -51,10 +52,29 @@ test('default access is only for Rustam', () => {
   assert.equal(isCheapFlightsActorAllowed('Диана', config), false);
 });
 
-test('direct flights are preferred to a cheaper one-stop option', () => {
+test('top price comparator keeps the cheapest ticket first', () => {
   const direct = ticket({ id: 'direct', price: 35000, maxTransfers: 0, transfers: 0, returnTransfers: 0 });
   const stop = ticket({ id: 'stop', price: 28000, maxTransfers: 1, transfers: 1, returnTransfers: 1 });
-  assert.ok(compareTickets(direct, stop, DEFAULT_CONFIG) < 0);
+  assert.ok(compareCheapestTickets(stop, direct) < 0);
+});
+
+test('direct flight is preferred only when its premium is small', () => {
+  const stop = ticket({ id: 'stop', price: 28000, maxTransfers: 1, transfers: 1, returnTransfers: 1 });
+  const nearDirect = ticket({ id: 'near-direct', price: 30000, maxTransfers: 0, transfers: 0, returnTransfers: 0 });
+  const expensiveDirect = ticket({ id: 'expensive-direct', price: 35000, maxTransfers: 0, transfers: 0, returnTransfers: 0 });
+  assert.ok(compareTickets(nearDirect, stop, DEFAULT_CONFIG) < 0);
+  assert.ok(compareTickets(stop, expensiveDirect, DEFAULT_CONFIG) < 0);
+});
+
+test('top 3 is strictly cheapest even when a pricier direct option exists', () => {
+  const rows = [
+    ticket({ id:'a', price:28000, maxTransfers:1, transfers:1, returnTransfers:1 }),
+    ticket({ id:'b', price:29000, destination:'SSH', countryId:'egypt', country:'Египет', city:'Шарм-эль-Шейх', maxTransfers:1, transfers:1, returnTransfers:1 }),
+    ticket({ id:'c', price:30000, destination:'HKT', countryId:'thailand', country:'Таиланд', city:'Пхукет', maxTransfers:1, transfers:1, returnTransfers:1 }),
+    ticket({ id:'d', price:35000, destination:'DPS', countryId:'bali', country:'Бали', city:'Денпасар', maxTransfers:0, transfers:0, returnTransfers:0 }),
+  ];
+  const snapshot = buildSnapshot(rows, DEFAULT_CONFIG, null, new Date('2026-09-28T03:00:00Z'));
+  assert.deepEqual(snapshot.top.map((row)=>row.price), [28000,29000,30000]);
 });
 
 test('snapshot contains top 3 plus one best row for every configured country', () => {
@@ -95,6 +115,7 @@ test('home block is hidden by default and wired after market ticker', () => {
   assert.ok(html.indexOf('id="cheapFlightsTile"') > html.indexOf('id="marketTickerTile"'));
   assert.match(app, /'markets','cheap-flights'/);
   assert.match(app, /cheapFlightsVisibleForActor/);
+  assert.match(app, /cheapFlightsTile'\)\?\.remove/);
 });
 
 test('06:00 Moscow cron is reused instead of adding a new flight cron', () => {

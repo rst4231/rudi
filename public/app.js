@@ -12159,6 +12159,7 @@
         document.body.dataset.rudiActor=currentActor;
         if(currentActor==='Рустам') return;
         document.getElementById('carTile')?.remove();
+        document.getElementById('cheapFlightsTile')?.remove();
       }
 
       async function init(){

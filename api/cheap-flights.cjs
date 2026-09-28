@@ -26,6 +26,7 @@ const DEFAULT_CONFIG = {
   departureWindowDays: { from: 30, to: 60 },
   maxTransfers: 1,
   directPriority: true,
+  directPreferencePercent: 10,
   refreshTime: '06:00',
   destinations: DEFAULT_DESTINATIONS,
 };
@@ -128,6 +129,7 @@ function normalizeCheapFlightsConfig(input) {
     departureWindowDays: { from: fromDays, to: toDays },
     maxTransfers: Math.min(1, Math.max(0, Number(source.maxTransfers ?? DEFAULT_CONFIG.maxTransfers))),
     directPriority: source.directPriority !== false,
+    directPreferencePercent: Math.min(30, Math.max(0, Number(source.directPreferencePercent ?? DEFAULT_CONFIG.directPreferencePercent))),
     refreshTime: String(source.refreshTime || DEFAULT_CONFIG.refreshTime).trim() || '06:00',
     destinations: destinations.length ? destinations : DEFAULT_DESTINATIONS.map((row) => ({ ...row })),
   };
@@ -254,13 +256,23 @@ function normalizeTicket(raw, destination, airlineNames, window, config, now = n
   };
 }
 
-function compareTickets(left, right, config = DEFAULT_CONFIG) {
-  if (config.directPriority !== false && left.maxTransfers !== right.maxTransfers) {
-    return left.maxTransfers - right.maxTransfers;
-  }
+function compareCheapestTickets(left, right) {
   if (left.price !== right.price) return left.price - right.price;
+  if (left.maxTransfers !== right.maxTransfers) return left.maxTransfers - right.maxTransfers;
   if (left.departureDate !== right.departureDate) return left.departureDate.localeCompare(right.departureDate);
   return left.returnDate.localeCompare(right.returnDate);
+}
+
+function compareTickets(left, right, config = DEFAULT_CONFIG) {
+  if (config.directPriority !== false && left.maxTransfers !== right.maxTransfers) {
+    const direct = left.maxTransfers < right.maxTransfers ? left : right;
+    const connected = direct === left ? right : left;
+    const premium = Math.max(0, Number(config.directPreferencePercent ?? DEFAULT_CONFIG.directPreferencePercent)) / 100;
+    if (direct.price <= connected.price * (1 + premium)) {
+      return direct === left ? -1 : 1;
+    }
+  }
+  return compareCheapestTickets(left, right);
 }
 
 function uniqueTickets(rows) {
@@ -294,19 +306,22 @@ function withDelta(row, previousPrice) {
 }
 
 function buildSnapshot(rows, config, previousSnapshot = null, now = new Date()) {
-  const sorted = uniqueTickets(rows).sort((a, b) => compareTickets(a, b, config));
-  const routePrices = bestPriceMap(sorted, 'destination', config);
-  const countryPrices = bestPriceMap(sorted, 'countryId', config);
+  const unique = uniqueTickets(rows);
+  const cheapest = [...unique].sort(compareCheapestTickets);
+  const preferred = [...unique].sort((a, b) => compareTickets(a, b, config));
+  const priceOnlyConfig = { ...config, directPriority: false };
+  const routePrices = bestPriceMap(cheapest, 'destination', priceOnlyConfig);
+  const countryPrices = bestPriceMap(preferred, 'countryId', config);
   const previousRoutes = previousSnapshot?.routePrices || {};
   const previousCountries = previousSnapshot?.countryPrices || {};
-  const top = sorted.slice(0, 3).map((row) => withDelta(row, previousRoutes?.[row.destination]?.price));
+  const top = cheapest.slice(0, 3).map((row) => withDelta(row, previousRoutes?.[row.destination]?.price));
   const countries = [];
   const order = [];
   for (const destination of config.destinations) {
     if (!order.includes(destination.countryId)) order.push(destination.countryId);
   }
   for (const countryId of order) {
-    const row = sorted.find((ticket) => ticket.countryId === countryId);
+    const row = preferred.find((ticket) => ticket.countryId === countryId);
     if (!row) continue;
     countries.push(withDelta(row, previousCountries?.[countryId]?.price));
   }
@@ -514,6 +529,7 @@ module.exports = {
   resolveTravelpayoutsToken,
   validAviasalesLink,
   normalizeTicket,
+  compareCheapestTickets,
   compareTickets,
   buildPriceRequests,
   buildSnapshot,
