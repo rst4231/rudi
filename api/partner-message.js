@@ -703,10 +703,23 @@ const MOOD_NOTICE = {
 };
 
 function moodNotificationText(recipient, actor, mood) {
-  const view = MOOD_NOTICE[String(mood || '')];
+  const moodKey = String(mood || '');
+  const view = MOOD_NOTICE[moodKey];
   if (!view) return '';
-  const actorGenitive = actor === 'Рустам' ? 'Рустама' : actor === 'Диана' ? 'Дианы' : actor;
-  return `${view.emoji} <b>${recipient}, у ${actorGenitive} сейчас ${view.phrase}</b>`;
+  const actorDative = actor === 'Рустам' ? 'Рустаму' : actor === 'Диана' ? 'Диане' : actor;
+  const stateText = moodKey === 'sadness'
+    ? actor + ' сейчас грустит'
+    : moodKey === 'boredom'
+      ? actorDative + ' сейчас скучно'
+      : moodKey === 'anger'
+        ? actor + ' сейчас злится'
+        : moodKey === 'joy'
+          ? actor + ' сейчас ' + (actor === 'Диана' ? 'радостна' : actor === 'Рустам' ? 'радостен' : 'радуется')
+          : moodKey === 'love'
+            ? actor + ' сейчас чувствует любовь'
+            : '';
+  if (!stateText) return '';
+  return `${view.emoji} <b>${recipient}, ${stateText}</b>`;
 }
 
 async function sendMoodNotificationToPartner(actor, mood, options = {}) {
