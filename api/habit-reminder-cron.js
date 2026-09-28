@@ -28,6 +28,7 @@ async function handler(req,res){
       }else results[actor]={sent:false,pending:pending.length,bonusPending:bonusPending.length,error:'recipient-unavailable'};
     }catch(error){results[actor]={error:String(error?.message||error)};console.error('RUDI_HABIT_REMINDER_ERROR',actor,String(error?.message||error))}
   }
+  console.log('RUDI_HABIT_REMINDER_RESULT',JSON.stringify({date:today,schedule:String(req.headers?.['x-vercel-cron-schedule']||''),results}));
   return res.status(200).json({ok:true,date:today,results});
 }
 module.exports=handler;
