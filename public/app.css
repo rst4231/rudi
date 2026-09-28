@@ -11520,3 +11520,57 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 .profile .mood-message.show{
   margin-top:5px;
 }
+
+
+/* RUDI v2.95 mood frame parity */
+.profile-person-card .mood-current-button,
+.profile-person-card .partner-mood-value{
+  -webkit-appearance:none !important;
+  appearance:none !important;
+  flex:0 0 31px !important;
+  width:31px !important;
+  height:31px !important;
+  min-width:31px !important;
+  min-height:31px !important;
+  max-width:31px !important;
+  max-height:31px !important;
+  padding:0 !important;
+  margin:0 !important;
+  box-sizing:border-box !important;
+  display:grid !important;
+  place-items:center !important;
+  overflow:hidden !important;
+  border:1px solid rgba(255,255,255,.10) !important;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.055) !important;
+  color:rgba(239,242,249,.78) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+.profile-person-card .mood-current-button.is-open{
+  border-color:rgba(255,255,255,.10) !important;
+  background:rgba(255,255,255,.055) !important;
+}
+.profile-person-card .mood-current-button .mood-emoji,
+.profile-person-card .partner-mood-icon .mood-emoji{
+  font-size:20px !important;
+  line-height:1 !important;
+}
+.profile-person-card > .mood-choices{
+  width:100% !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:7px !important;
+  margin:6px 0 0 !important;
+  padding:0 !important;
+  box-sizing:border-box !important;
+}
+.profile-person-card > .mood-choices[hidden]{display:none !important}
+.profile-person-card > .mood-message{
+  width:100% !important;
+  box-sizing:border-box !important;
+  margin:0 !important;
+}
+.profile-person-card > .mood-message.show{
+  margin-top:6px !important;
+}
