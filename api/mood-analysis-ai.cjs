@@ -1,6 +1,6 @@
 const MODEL='openai/gpt-oss-20b';
 const LABELS={sadness:'грусть',boredom:'скука',anger:'злость',joy:'радость',love:'любовь'};
-const REASONS={work:'работа',relationship:'отношения',money:'деньги',health:'самочувствие',fatigue:'усталость',sleep:'сон',fasting:'голодание',other:'другое'};
+const REASONS={work:'работа',food:'еда',relationship:'отношения',money:'деньги',health:'самочувствие',fatigue:'усталость',sleep:'сон / усталость',fasting:'голодание',other:'другое'};
 
 function clean(value,max=7000){return String(value||'').replace(/\r\n?/g,'\n').trim().slice(0,max)}
 function rowLine(row){

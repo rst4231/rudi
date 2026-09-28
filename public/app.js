@@ -9035,13 +9035,18 @@
 
       let moodReasonTimer=0;
       const MOOD_REASONS=[
-        ['work','💼','Работа'],['relationship','❤️','Отношения'],['money','💰','Деньги'],['health','🫶','Самочувствие'],['fatigue','😮‍💨','Усталость'],['sleep','😴','Сон'],['fasting','⏳','Голодание'],['other','⋯','Другое']
+        ['work','💼','Работа'],
+        ['food','🍽️','Еда'],
+        ['relationship','❤️','Отношения'],
+        ['money','💰','Деньги'],
+        ['health','🫶','Самочувствие'],
+        ['sleep','😴','Сон / усталость']
       ];
       function ensureMoodReasonPrompt(){
         let box=document.getElementById('moodReasonPrompt');if(box)return box;
         const own=document.getElementById(currentActor==='Диана'?'homeDianaTile':'homeRustamTile');if(!own)return null;
         box=document.createElement('div');box.id='moodReasonPrompt';box.className='mood-reason-prompt';box.hidden=true;
-        box.innerHTML='<div class="mood-reason-title">Почему такое настроение?</div><div class="mood-reason-options"></div><button class="mood-reason-skip" type="button">Пропустить</button>';
+        box.innerHTML='<div class="mood-reason-title">Что повлияло?</div><div class="mood-reason-options"></div><button class="mood-reason-skip" type="button">Пропустить</button>';
         const options=box.querySelector('.mood-reason-options');
         for(const [key,emoji,label] of MOOD_REASONS){const button=document.createElement('button');button.type='button';button.dataset.moodReason=key;button.innerHTML='<span>'+emoji+'</span><b>'+label+'</b>';options.append(button)}
         box.addEventListener('click',async event=>{const button=event.target.closest('[data-mood-reason]');if(!button)return;box.querySelectorAll('button').forEach(item=>item.disabled=true);try{await moodRequest('reason','',{reason:button.dataset.moodReason});hideMoodReasonPrompt();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}}catch(_){box.querySelectorAll('button').forEach(item=>item.disabled=false);try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
