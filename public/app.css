@@ -11520,3 +11520,69 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 .profile .mood-message.show{
   margin-top:5px;
 }
+
+
+/* RUDI v2.94 split profile mood fix */
+.profile-person-card .mood-current-button,
+.profile-person-card .partner-mood-value{
+  width:23px !important;
+  height:23px !important;
+  min-width:23px !important;
+  min-height:26px !important;
+  display:grid !important;
+  place-items:center !important;
+  margin-left:auto !important;
+  padding:0 4px !important;
+  box-sizing:content-box !important;
+  border:1px solid rgba(255,255,255,.10) !important;
+  border-radius:7px !important;
+  background:rgba(255,255,255,.055) !important;
+  color:rgba(229,233,246,.72) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035) !important;
+  appearance:none !important;
+  -webkit-appearance:none !important;
+}
+.profile-person-card .mood-current-button .mood-emoji,
+.profile-person-card .partner-mood-icon .mood-emoji{
+  font-size:20px !important;
+  line-height:1 !important;
+}
+.profile-person-card .mood-current-button.is-open{
+  border-color:rgba(139,142,255,.42) !important;
+  background:rgba(119,115,255,.16) !important;
+}
+.profile-person-card .mood-choices{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:2px 0 0;
+}
+.profile-person-card .mood-choices[hidden]{display:none !important}
+.profile-person-card .mood-choices .mood-button{
+  width:30px !important;
+  height:30px !important;
+  display:grid !important;
+  place-items:center !important;
+  padding:0 !important;
+  border:1px solid rgba(255,255,255,.10) !important;
+  border-radius:9px !important;
+  background:rgba(255,255,255,.055) !important;
+  color:#f7f8fd !important;
+  appearance:none !important;
+  -webkit-appearance:none !important;
+}
+.profile-person-card .mood-choices .mood-button[hidden]{display:none !important}
+.profile-person-card .mood-message{
+  width:100% !important;
+  box-sizing:border-box !important;
+  text-align:center !important;
+}
+.profile-person-card .mood-message.show{
+  margin:0 !important;
+  padding:7px 9px !important;
+  border:1px solid rgba(255,255,255,.09) !important;
+  background:rgba(255,255,255,.055) !important;
+  color:#f2f4fb !important;
+}
