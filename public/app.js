@@ -9212,10 +9212,10 @@
             buttons.forEach(item=>item.disabled=true);
             selectOwnMood(mood);
             setMoodChoicesOpen(false);
+            showMoodMessage(mood);
             try{
               const payload=await moodRequest('set',mood);
               renderDailyMood(payload);
-              showMoodMessage(mood);
               setTimeout(()=>loadActivityJournal({silent:true}),180);
               try{
                 if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
