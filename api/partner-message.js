@@ -2395,20 +2395,18 @@ async function handleRudiAction(req, res, action, options = {}) {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor);
         const analysis=await externalMoodAnalysis(actor,date,options);
-        return res.status(200).json({ok:true,actor,date,history,analysis,canAnalyze:actor==='Рустам'||!analysis,retentionDays:30});
+        return res.status(200).json({ok:true,actor,date,history,analysis,canAnalyze:history.length>0,retentionDays:30,analysisCacheHours:24});
       } else if (operation === 'analyze') {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor);
         if(!history.length) throw new Error('mood-analysis-no-data');
-        let analysis=await externalMoodAnalysis(actor,date,options),cycle=analysis?.cycle||null,reused=false;
-        if(actor==='Диана'&&analysis){
-          reused=true;
-        }else{
+        let analysis=await externalMoodAnalysis(actor,date,options),cycle=analysis?.cycle||null,reused=Boolean(analysis);
+        if(!analysis){
           if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
           const generated=await generateMoodAnalysis({actor,history,cycle},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
           analysis=await writeMoodAnalysisCache(actor,date,{...generated,historyCount:history.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
         }
-        return res.status(200).json({ok:true,actor,date,history,analysis,cycle:analysis?.cycle||cycle,canAnalyze:actor==='Рустам'||!analysis,reused,retentionDays:30});
+        return res.status(200).json({ok:true,actor,date,history,analysis,cycle:analysis?.cycle||cycle,canAnalyze:history.length>0,reused,retentionDays:30,analysisCacheHours:24});
       } else {
         return res.status(400).json({ ok: false, error: 'mood-operation-invalid' });
       }
