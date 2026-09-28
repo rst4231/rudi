@@ -9022,6 +9022,24 @@
         if(prompt)prompt.hidden=next||Boolean(trigger.dataset.mood);
       }
 
+      let moodReasonTimer=0;
+      const MOOD_REASONS=[
+        ['work','💼','Работа'],['relationship','❤️','Отношения'],['money','💰','Деньги'],['health','🫶','Самочувствие'],['fatigue','😮‍💨','Усталость'],['sleep','😴','Сон'],['fasting','⏳','Голодание'],['other','⋯','Другое']
+      ];
+      function ensureMoodReasonPrompt(){
+        let box=document.getElementById('moodReasonPrompt');if(box)return box;
+        const own=document.getElementById(currentActor==='Диана'?'homeDianaTile':'homeRustamTile');if(!own)return null;
+        box=document.createElement('div');box.id='moodReasonPrompt';box.className='mood-reason-prompt';box.hidden=true;
+        box.innerHTML='<div class="mood-reason-title">Почему такое настроение?</div><div class="mood-reason-options"></div><button class="mood-reason-skip" type="button">Пропустить</button>';
+        const options=box.querySelector('.mood-reason-options');
+        for(const [key,emoji,label] of MOOD_REASONS){const button=document.createElement('button');button.type='button';button.dataset.moodReason=key;button.innerHTML='<span>'+emoji+'</span><b>'+label+'</b>';options.append(button)}
+        box.addEventListener('click',async event=>{const button=event.target.closest('[data-mood-reason]');if(!button)return;box.querySelectorAll('button').forEach(item=>item.disabled=true);try{await moodRequest('reason','',{reason:button.dataset.moodReason});hideMoodReasonPrompt();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}}catch(_){box.querySelectorAll('button').forEach(item=>item.disabled=false);try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
+        box.querySelector('.mood-reason-skip').addEventListener('click',hideMoodReasonPrompt);
+        const details=own.querySelector('.profile-person-details');own.insertBefore(box,details||null);return box;
+      }
+      function hideMoodReasonPrompt(){clearTimeout(moodReasonTimer);const box=document.getElementById('moodReasonPrompt');if(box){box.hidden=true;box.querySelectorAll('button').forEach(item=>item.disabled=false)}}
+      function showMoodReasonPrompt(){const box=ensureMoodReasonPrompt();if(!box)return;clearTimeout(moodReasonTimer);box.hidden=false;moodReasonTimer=setTimeout(hideMoodReasonPrompt,12000)}
+
       function bindMoodPickerControls(){
         const currentButton=document.getElementById('moodCurrentButton');
         if(currentButton&&currentButton.dataset.moodPickerBound!=='1'){
@@ -9030,8 +9048,7 @@
             event.preventDefault();
             event.stopPropagation();
             const choices=document.getElementById('moodChoices');
-            const shouldOpen=Boolean(choices?.hidden)||!choices?.classList.contains('is-open');
-            setMoodChoicesOpen(shouldOpen);
+            setMoodChoicesOpen(Boolean(choices?.hidden));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
@@ -9051,6 +9068,7 @@
             try{
               const payload=await moodRequest('set',mood);
               renderDailyMood(payload);
+              showMoodReasonPrompt();
               setTimeout(()=>loadActivityJournal({silent:true}),180);
               try{
                 if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
@@ -9116,12 +9134,12 @@
         renderHomeDashboard();
       }
 
-      async function moodRequest(operation,mood=''){
+      async function moodRequest(operation,mood='',extra={}){
         const backupContext=backupRequestContext();
         const response=await fetch('/api/mood',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,mood}),
+          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,mood,...(extra&&typeof extra==='object'?extra:{})}),
           cache:'no-store'
         });
         const payload=await response.json().catch(()=>({}));
@@ -9158,6 +9176,7 @@
           delete message.dataset.mood;
         }
         setMoodChoicesOpen(false);
+        hideMoodReasonPrompt();
         selectOwnMood('');
         renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
         refreshDailyMood();

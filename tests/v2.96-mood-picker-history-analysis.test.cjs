@@ -22,6 +22,6 @@ test('history recovery does not overwrite stored day and parses latest transitio
 test('mood analysis addresses user directly and invalidates old cache',()=>{
   const ai=read('api/mood-analysis-ai.cjs'); const store=read('api/mood-analysis-store.cjs');
   assert.match(ai,/только на «вы», во втором лице/);
-  assert.match(ai,/Не называй пользователя по имени и не описывай его в третьем лице/);
-  assert.match(store,/rudi-mood-analysis-v3/);
+  assert.match(ai,/Не называйте пользователя по имени/);
+  assert.match(store,/rudi-mood-analysis-v4/);
 });

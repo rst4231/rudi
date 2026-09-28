@@ -29,7 +29,7 @@ test('v2.94 mood analyzer has no per-user daily limit and caches for 24 hours',(
   assert.match(ui,/Анализатор настроения/);
   assert.doesNotMatch(ui,/Готово сегодня|Следующий новый анализ будет доступен завтра/);
   assert.match(store,/const TTL_SECONDS=60\*60\*24;/);
-  assert.match(store,/function keyFor\(actor\)/);
+  assert.match(store,/function keyFor\(actor,windowDays=30\)/);
   assert.doesNotMatch(store,/keyFor\(actor,date\)/);
   assert.match(api,/reused=Boolean\(analysis\)/);
   assert.match(api,/if\(!analysis\)/);

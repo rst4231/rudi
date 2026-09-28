@@ -43,8 +43,9 @@ const {
   readAlbumConfig,
   getLatestPhotos,
 } = require('./shared-album.cjs');
-const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyMoodState, readMoodHistory, readMoodAnalysis, clearMoodAnalyses } = require('./daily-mood-store.cjs');
-const { readMoodAnalysisCache, writeMoodAnalysisCache } = require('./mood-analysis-store.cjs');
+const { readDailyMood, setDailyMood, setDailyMoodReason, moodView, restoreDailyMoodState, readDailyMoodState, readMoodHistory, readMoodAnalysis, clearMoodAnalyses } = require('./daily-mood-store.cjs');
+const { readMoodAnalysisCache, writeMoodAnalysisCache, clearMoodAnalysisCache, normalizeWindowDays, readMoodFeedback, saveMoodFeedback } = require('./mood-analysis-store.cjs');
+const { readHabits, habitCreatedByDate } = require('./habit-tracker-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
 const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
@@ -650,8 +651,14 @@ const MOOD_ACTIVITY = {
 const MOOD_ACTIVITY_BY_EMOJI=Object.freeze(Object.fromEntries(Object.entries(MOOD_ACTIVITY).map(([key,value])=>[value.emoji,key])));
 function moodSampleAverage(samples,fallback=''){const rows=(Array.isArray(samples)?samples:[]).filter(row=>MOOD_ACTIVITY[String(row?.mood||'')]);const fallbackMood=String(fallback||'');if(!rows.length)return MOOD_ACTIVITY[fallbackMood]?fallbackMood:'';const counts=new Map();for(const row of rows){const mood=String(row.mood||'');counts.set(mood,(counts.get(mood)||0)+1)}let best=String(rows[rows.length-1]?.mood||fallbackMood),bestCount=-1,bestLatest=-1;for(const[mood,count]of counts){let latest=-1;for(let index=rows.length-1;index>=0;index--){if(String(rows[index]?.mood||'')===mood){latest=index;break}}if(count>bestCount||(count===bestCount&&latest>bestLatest)){best=mood;bestCount=count;bestLatest=latest}}return MOOD_ACTIVITY[best]?best:(MOOD_ACTIVITY[fallbackMood]?fallbackMood:'')}
 function moodFromActivity(item){if(String(item?.type||'')!=='mood')return'';const icon=String(item?.icon||'').trim();if(MOOD_ACTIVITY_BY_EMOJI[icon])return MOOD_ACTIVITY_BY_EMOJI[icon];const text=String(item?.text||'');let best='',bestIndex=-1;for(const[mood,view]of Object.entries(MOOD_ACTIVITY)){const index=text.lastIndexOf(view.emoji+' '+view.label);if(index>bestIndex){best=mood;bestIndex=index}}return best}
-function mergeMoodHistoryActivity(history,journal,actor){const map=new Map();for(const raw of Array.isArray(history)?history:[]){const date=String(raw?.date||'');if(!date)continue;map.set(date,{...raw,_stored:true,samples:Array.isArray(raw?.samples)?raw.samples.map(row=>({mood:String(row?.mood||''),updatedAt:String(row?.updatedAt||'')})).filter(row=>MOOD_ACTIVITY[row.mood]&&row.updatedAt):[]})}for(const item of Array.isArray(journal?.items)?journal.items:[]){if(item?.actor!==actor)continue;const mood=moodFromActivity(item);if(!mood)continue;const stamp=String(item?.createdAt||''),ms=Date.parse(stamp);if(!Number.isFinite(ms))continue;const date=moscowDateKey(ms),existing=map.get(date);if(existing?._stored)continue;const row=existing||{date,mood:'',latestMood:'',samples:[]};const duplicate=row.samples.some(sample=>sample.mood===mood&&Math.abs((Date.parse(sample.updatedAt)||0)-ms)<15000);if(!duplicate)row.samples.push({mood,updatedAt:stamp});row.samples.sort((a,b)=>(Date.parse(a.updatedAt)||0)-(Date.parse(b.updatedAt)||0));if(!row.latestMood||ms>=(Date.parse(row.updatedAt||0)||0)){row.latestMood=mood;row.updatedAt=stamp}map.set(date,row)}return[...map.values()].map(row=>{const{_stored,...clean}=row,fallback=clean.latestMood||clean.mood||'',average=moodSampleAverage(clean.samples,fallback);return{...clean,mood:average||fallback,averageMood:average||fallback,sampleCount:clean.samples.length||Number(clean.sampleCount)||1}}).sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
-async function externalMoodAnalysis(actor,date,options={}){const cached=await readMoodAnalysisCache(actor,date,options).catch(()=>null);await clearMoodAnalyses(actor,options).catch(error=>console.warn('RUDI_MOOD_ANALYSIS_DB_CLEANUP_WARN',String(error?.message||error)));return cached||null}
+function mergeMoodHistoryActivity(history,journal,actor){const map=new Map();for(const raw of Array.isArray(history)?history:[]){const date=String(raw?.date||'');if(!date)continue;map.set(date,{...raw,_stored:true,samples:Array.isArray(raw?.samples)?raw.samples.map(row=>({mood:String(row?.mood||''),updatedAt:String(row?.updatedAt||''),reason:String(row?.reason||'')})).filter(row=>MOOD_ACTIVITY[row.mood]&&row.updatedAt):[]})}for(const item of Array.isArray(journal?.items)?journal.items:[]){if(item?.actor!==actor)continue;const mood=moodFromActivity(item);if(!mood)continue;const stamp=String(item?.createdAt||''),ms=Date.parse(stamp);if(!Number.isFinite(ms))continue;const date=moscowDateKey(ms),existing=map.get(date);if(existing?._stored)continue;const row=existing||{date,mood:'',latestMood:'',samples:[]};const duplicate=row.samples.some(sample=>sample.mood===mood&&Math.abs((Date.parse(sample.updatedAt)||0)-ms)<15000);if(!duplicate)row.samples.push({mood,updatedAt:stamp});row.samples.sort((a,b)=>(Date.parse(a.updatedAt)||0)-(Date.parse(b.updatedAt)||0));if(!row.latestMood||ms>=(Date.parse(row.updatedAt||0)||0)){row.latestMood=mood;row.updatedAt=stamp}map.set(date,row)}return[...map.values()].map(row=>{const{_stored,...clean}=row,fallback=clean.latestMood||clean.mood||'',average=moodSampleAverage(clean.samples,fallback);return{...clean,mood:average||fallback,averageMood:average||fallback,sampleCount:clean.samples.length||Number(clean.sampleCount)||1}}).sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
+function moodShiftDateKey(key,days){const value=new Date(String(key||'')+'T12:00:00Z');if(Number.isNaN(value.getTime()))return'';value.setUTCDate(value.getUTCDate()+Number(days||0));return value.toISOString().slice(0,10)}
+function moodHistoryForWindow(history,date,windowDays){const days=normalizeWindowDays(windowDays),cutoff=moodShiftDateKey(date,-(days-1));return(Array.isArray(history)?history:[]).filter(row=>String(row?.date||'')>=cutoff&&String(row?.date||'')<=date)}
+function moodAnalysisLevel(count){return Number(count)>=10?'full':Number(count)>=5?'preliminary':'insufficient'}
+function moodMostCommon(rows){const counts=new Map(),latest=new Map();for(const row of rows){const mood=String(row?.mood||'');if(!MOOD_ACTIVITY[mood])continue;counts.set(mood,(counts.get(mood)||0)+1);latest.set(mood,String(row?.date||''))}let best='',count=-1,date='';for(const[mood,value]of counts){const d=latest.get(mood)||'';if(value>count||(value===count&&d>date)){best=mood;count=value;date=d}}return best}
+function moodContextSummary(rows){const out=[],fasting=rows.filter(r=>r.context?.fasting?.active),plain=rows.filter(r=>!r.context?.fasting?.active);if(fasting.length>=3&&plain.length>=3){const a=moodMostCommon(fasting),b=moodMostCommon(plain);if(a&&b)out.push('В дни с голоданием чаще отмечалось «'+MOOD_ACTIVITY[a].label+'» ('+fasting.length+' дн.), без голодания — «'+MOOD_ACTIVITY[b].label+'» ('+plain.length+' дн.). Это связь, не доказательство причины.')}const withHabits=rows.filter(r=>Number(r.context?.habits?.total||0)>0),high=withHabits.filter(r=>Number(r.context.habits.done||0)/Math.max(1,Number(r.context.habits.total||0))>=.67),low=withHabits.filter(r=>Number(r.context.habits.done||0)/Math.max(1,Number(r.context.habits.total||0))<.67);if(high.length>=3&&low.length>=3){const a=moodMostCommon(high),b=moodMostCommon(low);if(a&&b)out.push('В дни, когда выполнено не меньше двух третей привычек, чаще отмечалось «'+MOOD_ACTIVITY[a].label+'» ('+high.length+' дн.), в остальные — «'+MOOD_ACTIVITY[b].label+'» ('+low.length+' дн.). Это связь, не доказательство причины.')}const reasons=new Map();for(const row of rows)for(const sample of Array.isArray(row?.samples)?row.samples:[]){const reason=String(sample?.reason||'');if(reason)reasons.set(reason,(reasons.get(reason)||0)+1)}const labels={work:'работа',relationship:'отношения',money:'деньги',health:'самочувствие',fatigue:'усталость',sleep:'сон',fasting:'голодание',other:'другое'},top=[...reasons.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r,n])=>(labels[r]||r)+' — '+n);if(top.length)out.push('Чаще всего вы сами указывали причины: '+top.join(', ')+'.');return out}
+async function enrichMoodHistoryContext(actor,history,date,windowDays,options={}){const rows=moodHistoryForWindow(history,date,windowDays),[habits,fasting]=await Promise.all([readHabits(actor,options).catch(()=>null),readFastingState(actor,options).catch(()=>null)]),now=Number(options.now||Date.now());return rows.map(row=>{const key=String(row?.date||''),eligible=habits?.habits?.filter(h=>habitCreatedByDate(h,key))||[],doneIds=new Set(habits?.completions?.[key]||[]),notDoneIds=new Set(habits?.failures?.[key]||[]),habitContext={total:eligible.length,done:eligible.filter(h=>doneIds.has(h.id)).length,notDone:eligible.filter(h=>notDoneIds.has(h.id)).length};const sessions=(fasting?.history||[]).filter(item=>{const start=moscowDateKey(Date.parse(item.startedAt)),end=moscowDateKey(Date.parse(item.endedAt));return start&&end&&key>=start&&key<=end});let fastingContext={active:false,hours:0,goalReached:null};if(sessions.length){const best=sessions.slice().sort((a,b)=>Number(b.durationMinutes||0)-Number(a.durationMinutes||0))[0];fastingContext={active:true,hours:Math.round(Number(best.durationMinutes||0)/6)/10,goalReached:Boolean(best.goalReached),goalHours:Number(best.goalHours||0)}}if(fasting?.active&&key===moscowDateKey(now)){const minutes=Math.max(0,Math.round((now-Date.parse(fasting.active.startedAt))/60000));if(minutes>=60)fastingContext={active:true,hours:Math.round(minutes/6)/10,goalReached:minutes>=Number(fasting.active.goalHours||0)*60,goalHours:Number(fasting.active.goalHours||0),inProgress:true}}return{...row,context:{habits:habitContext,fasting:fastingContext}}})}
+async function externalMoodAnalysis(actor,date,windowDays,options={}){const cached=await readMoodAnalysisCache(actor,date,windowDays,options).catch(()=>null);await clearMoodAnalyses(actor,options).catch(error=>console.warn('RUDI_MOOD_ANALYSIS_DB_CLEANUP_WARN',String(error?.message||error)));return cached||null}
 
 function moodActivityText(actor, previousMood, nextMood) {
   const next = MOOD_ACTIVITY[nextMood];
@@ -2378,6 +2385,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       const date = moscowDateKey(options.now || Date.now());
       const operation = String(body.operation || 'get').trim();
+      const windowDays=normalizeWindowDays(body.windowDays);
       let row;
       let backupToken='';
 
@@ -2385,6 +2393,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const before = await readDailyMood(date, options).catch(() => null);
         const previousMood = before?.moods?.[actor]?.mood || '';
         row = await setDailyMood(date, actor, body.mood, options);
+        await clearMoodAnalysisCache(actor,options).catch(()=>null);
         const nextMood = row?.moods?.[actor]?.mood || '';
         if (nextMood && nextMood !== previousMood) {
           await sendMoodNotificationToPartner(actor, nextMood, options);
@@ -2401,24 +2410,38 @@ async function handleRudiAction(req, res, action, options = {}) {
           },options);
         }
         backupToken=await refreshBackupToken(previousSnapshot,options);
+      } else if (operation === 'reason') {
+        row=await setDailyMoodReason(date,actor,body.reason,options);
+        await clearMoodAnalysisCache(actor,options).catch(()=>null);
+        backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
       } else if (operation === 'history') {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor);
-        const analysis=await externalMoodAnalysis(actor,date,options);
-        return res.status(200).json({ok:true,actor,date,history,analysis,canAnalyze:history.length>0,retentionDays:30,analysisCacheHours:24});
+        const selected=moodHistoryForWindow(history,date,windowDays),level=moodAnalysisLevel(selected.length);
+        const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
+        const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
+        return res.status(200).json({ok:true,actor,date,history,analysis,feedback,windowDays,selectedDays:selected.length,analysisLevel:level,canAnalyze:selected.length>=5,retentionDays:180,analysisCacheHours:24});
       } else if (operation === 'analyze') {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
-        const history=mergeMoodHistoryActivity(storedHistory,journal,actor);
-        if(!history.length) throw new Error('mood-analysis-no-data');
-        let analysis=await externalMoodAnalysis(actor,date,options),cycle=analysis?.cycle||null,reused=Boolean(analysis);
+        const history=mergeMoodHistoryActivity(storedHistory,journal,actor),selected=moodHistoryForWindow(history,date,windowDays);
+        if(selected.length<5) throw new Error('mood-analysis-insufficient-data');
+        const level=moodAnalysisLevel(selected.length);
+        let analysis=await externalMoodAnalysis(actor,date,windowDays,options),cycle=analysis?.cycle||null,reused=Boolean(analysis);
         if(!analysis){
           if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
-          const generated=await generateMoodAnalysis({actor,history,cycle},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
-          analysis=await writeMoodAnalysisCache(actor,date,{...generated,historyCount:history.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
+          const enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options),contextSummary=moodContextSummary(enriched);
+          const generated=await generateMoodAnalysis({actor,history:enriched,cycle,windowDays,level,contextSummary},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
+          analysis=await writeMoodAnalysisCache(actor,date,windowDays,{...generated,windowDays,level,historyCount:selected.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
         }
-        return res.status(200).json({ok:true,actor,date,history,analysis,cycle:analysis?.cycle||cycle,canAnalyze:history.length>0,reused,retentionDays:30,analysisCacheHours:24});
+        const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
+        return res.status(200).json({ok:true,actor,date,history,analysis,feedback,cycle:analysis?.cycle||cycle,windowDays,selectedDays:selected.length,analysisLevel:level,canAnalyze:true,reused,retentionDays:180,analysisCacheHours:24});
+      } else if (operation === 'feedback') {
+        const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
+        if(!analysis?.createdAt)throw new Error('mood-feedback-no-analysis');
+        const feedback=await saveMoodFeedback(actor,{analysisCreatedAt:analysis.createdAt,windowDays,value:body.value},options);
+        return res.status(200).json({ok:true,actor,date,windowDays,feedback});
       } else {
         return res.status(400).json({ ok: false, error: 'mood-operation-invalid' });
       }
@@ -2429,7 +2452,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'mood-value-invalid' || code === 'mood-actor-invalid' || code === 'mood-date-invalid' ? 400
-        : code === 'mood-analysis-no-data' ? 409
+        : code === 'mood-analysis-no-data' || code === 'mood-analysis-insufficient-data' ? 409
+        : code === 'mood-reason-invalid' || code === 'mood-reason-no-mood' || code === 'mood-feedback-invalid' || code === 'mood-feedback-no-analysis' ? 400
         : code === 'mood-analysis-quota' ? 429
         : code === 'groq-api-key-missing' ? 503
         : code.startsWith('mood-analysis-') ? 502
