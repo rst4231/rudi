@@ -43,6 +43,8 @@ function cleanActor(value) {
   const actor = String(value || '').trim();
   return ACTORS.includes(actor) ? actor : '';
 }
+function actorDative(actor){return actor==='Диана'?'Диане':actor==='Рустам'?'Рустаму':String(actor||'')}
+function actorGenitive(actor){return actor==='Диана'?'Дианы':actor==='Рустам'?'Рустама':String(actor||'')}
 function cleanText(value, max = 220) {
   return String(value || '').replace(/\s+/g,' ').trim().slice(0,max);
 }
@@ -474,8 +476,8 @@ async function transferStars(actor,amountPoints,options={}) {
       balances:{...state.balances,[from]:state.balances[from]-units,[to]:state.balances[to]+units},
       lifetimeEarned:{...state.lifetimeEarned},dailyEarned:{...state.dailyEarned},
       history:[
-        normalizeHistoryItem({id:crypto.randomUUID(),actor:from,kind:'gift-out',units:-units,requestedUnits:-units,label:'Подарок',detail:'Подарено '+to,icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
-        normalizeHistoryItem({id:crypto.randomUUID(),actor:to,kind:'gift-in',units,requestedUnits:units,label:'Подарок',detail:'Подарок от '+from,icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
+        normalizeHistoryItem({id:crypto.randomUUID(),actor:from,kind:'gift-out',units:-units,requestedUnits:-units,label:'Подарок',detail:'Подарено '+actorDative(to),icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
+        normalizeHistoryItem({id:crypto.randomUUID(),actor:to,kind:'gift-in',units,requestedUnits:units,label:'Подарок',detail:'Подарок от '+actorGenitive(from),icon:'🎁',dedupeKey:weekDedupe,dateKey,createdAt}),
         ...state.history
       ],
       redemptions:[...state.redemptions],dedupe:{...state.dedupe},

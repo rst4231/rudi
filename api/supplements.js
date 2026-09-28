@@ -4,7 +4,7 @@ const {
   readSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,
   markSupplementTaken,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck
 }=require('./supplements-store.cjs');
-const {generateSupplementDescription,generateDailyProfileRecommendation,analyzeSupplementSet}=require('./supplement-ai.cjs');
+const {generateSupplementDescription,analyzeSupplementSet}=require('./supplement-ai.cjs');
 const {profileContext}=require('./personal-profile-context.cjs');
 
 function statusFor(code,error){
@@ -91,15 +91,6 @@ async function handler(req,res){
       const generated=await analyzeSupplementSet(selected);
       const saved=await saveInteractionCheck(actor,{fingerprint,...generated});
       return res.status(200).json({ok:true,actor,interactionCheck:saved.interactionCheck,selectedIds:selected.map(item=>item.id),cached:false,provider:generated.provider,model:generated.model});
-    }
-    if(operation==='recommendation'){
-      const profile=profileContext(actor),date=moscowDateKey(),state=await readSupplements(actor);
-      if(state.recommendation?.date===date&&state.recommendation?.age===profile.age&&state.recommendation?.sex===profile.sex){
-        return res.status(200).json({ok:true,actor,profile,recommendation:state.recommendation,cached:true});
-      }
-      const generated=await generateDailyProfileRecommendation(profile);
-      const saved=await saveDailyRecommendation(actor,{date,text:generated.recommendation,age:profile.age,sex:profile.sex});
-      return res.status(200).json({ok:true,actor,profile,recommendation:saved.recommendation,cached:false,provider:generated.provider,model:generated.model});
     }
     throw new Error('supplement-operation-invalid');
   }catch(error){

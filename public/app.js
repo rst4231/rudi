@@ -2723,6 +2723,15 @@
         navigateToAppTab(target,{scroll:true,replace:true});
       }
 
+      function actorDativeName(actor){return actor==='Диана'?'Диане':actor==='Рустам'?'Рустаму':String(actor||'')}
+      function normalizeGiftGrammar(text){
+        return String(text||'')
+          .replace(/Подарок от Диана/g,'Подарок от Дианы')
+          .replace(/Подарок от Рустам/g,'Подарок от Рустама')
+          .replace(/Подарено Диана/g,'Подарено Диане')
+          .replace(/Подарено Рустам/g,'Подарено Рустаму');
+      }
+
       function renderScoreModal(actor,score=currentScoreState){
         const modal=ensureScoreModal();
         if(!score) return;
@@ -2795,7 +2804,7 @@
           const remaining=Math.max(0,Number(giftState.remaining??5));
           const title=document.createElement('div');
           title.className='score-gift-title';
-          title.textContent='🎁 Подарить '+partner;
+          title.textContent='🎁 Подарите '+actorDativeName(partner);
           const meta=document.createElement('div');
           meta.className='score-gift-meta';
           meta.textContent='Осталось на этой неделе: '+scoreNumber(remaining)+' ⭐';
@@ -2808,7 +2817,7 @@
             button.disabled=amount>remaining||amount>balance;
             button.addEventListener('click',async()=>{
               if(button.disabled) return;
-              if(!window.confirm('Подарить '+partner+' '+amount+' ⭐?')) return;
+              if(!window.confirm('Подарить '+actorDativeName(partner)+' '+amount+' ⭐?')) return;
               actions.querySelectorAll('button').forEach(item=>item.disabled=true);
               try{
                 const data=await scoreRequest('gift',{amount});
@@ -2899,7 +2908,7 @@
               const copy=document.createElement('div');
               copy.className='score-history-copy';
               const title=document.createElement('strong');
-              title.textContent=normalizeLegacyMoodText(item.detail||item.label||'Звезды');
+              title.textContent=normalizeGiftGrammar(normalizeLegacyMoodText(item.detail||item.label||'Звезды'));
               const meta=document.createElement('span');
               meta.textContent=scoreHistoryTime(item.createdAt);
               copy.append(title,meta);
@@ -4426,6 +4435,14 @@
         host.appendChild(button);
       }
 
+      function collapseTapIgnored(target,section){
+        if(!(target instanceof Element)) return true;
+        if(window.getSelection?.()?.toString?.().trim()) return true;
+        const interactive='button,a,input,select,textarea,label,[role="button"],[role="link"],[contenteditable="true"],[data-action],[onclick],.score-sticker,.profile-score-sticker,[data-score-actor],.block-collapse-button';
+        const hit=target.closest(interactive);
+        return Boolean(hit&&section.contains(hit));
+      }
+
       function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
@@ -4444,12 +4461,19 @@
           body.setAttribute('aria-hidden',collapsed?'true':'false');
         };
         apply(getBlockCollapsed(key,defaultCollapsed));
-        button.addEventListener('click',()=>{
+        const toggleCollapsed=()=>{
           const collapsed=!section.classList.contains('is-collapsed');
           apply(collapsed);
           setBlockCollapsed(key,collapsed);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
+        };
+        button.addEventListener('click',toggleCollapsed);
+        if(key!=='partner'&&!section.matches('#sharedTasksCard,#sharedTodoCard,[data-home-tile="shared-tasks"]')){
+          section.addEventListener('click',event=>{
+            if(event.defaultPrevented||collapseTapIgnored(event.target,section)) return;
+            toggleCollapsed();
+          });
+        }
 
         if(key==='partner'){
           section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{

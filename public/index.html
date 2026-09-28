@@ -66,7 +66,8 @@
   <script defer src="/weather.js?v=1.8.7"></script>
   <script defer src="/smart-home.js?v=1.8.7"></script>
   <script defer src="/car.js?v=2.43"></script>
-  <script defer src="/profile-supplements.js?v=2.71"></script>
+  <script defer src="/profile-supplements.js?v=2.88"></script>
+  <script defer src="/mood-history.js?v=2.88"></script>
   <script defer src="/supplement-editor.js?v=2.20"></script>
   <script defer src="/supplement-advanced.js?v=2.20"></script>
 </head>
@@ -117,6 +118,9 @@
               <button class="mood-button" type="button" data-mood="anger" aria-label="Злость" title="Злость"><span class="mood-emoji" aria-hidden="true">😡</span></button>
               <button class="mood-button" type="button" data-mood="joy" aria-label="Радость" title="Радость"><span class="mood-emoji" aria-hidden="true">😄</span></button>
               <button class="mood-button" type="button" data-mood="love" aria-label="Любовь" title="Любовь"><span class="mood-emoji" aria-hidden="true">🥰</span></button>
+              <button id="moodHistoryButton" class="mood-history-button" type="button" aria-label="История настроения" title="История настроения">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
+              </button>
             </div>
           </div>
           <div class="mood-person mood-partner">

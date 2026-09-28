@@ -43,16 +43,17 @@ const {
   readAlbumConfig,
   getLatestPhotos,
 } = require('./shared-album.cjs');
-const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyMoodState } = require('./daily-mood-store.cjs');
+const { readDailyMood, setDailyMood, moodView, restoreDailyMoodState, readDailyMoodState, readMoodHistory, readMoodAnalysis, saveMoodAnalysis } = require('./daily-mood-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
 const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
 const { readDailyQuestion, answerDailyQuestion } = require('./daily-question-store.cjs');
 const { generateMoodMessage } = require('./mood-notification-ai.cjs');
+const { generateMoodAnalysis } = require('./mood-analysis-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
-const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
+const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleViewForDate, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
   readActivityJournal,
@@ -2382,6 +2383,20 @@ async function handleRudiAction(req, res, action, options = {}) {
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
+      } else if (operation === 'history') {
+        const history=await readMoodHistory(actor,options);
+        const analysis=await readMoodAnalysis(actor,date,options);
+        return res.status(200).json({ok:true,actor,date,history,analysis,canAnalyze:!analysis,retentionDays:30});
+      } else if (operation === 'analyze') {
+        const history=await readMoodHistory(actor,options);
+        if(!history.length) throw new Error('mood-analysis-no-data');
+        let analysis=await readMoodAnalysis(actor,date,options),cycle=null,reused=Boolean(analysis);
+        if(!analysis){
+          if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
+          const generated=await generateMoodAnalysis({actor,history,cycle},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
+          analysis=await saveMoodAnalysis(actor,date,{...generated,historyCount:history.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
+        }
+        return res.status(200).json({ok:true,actor,date,history,analysis,cycle:analysis?.cycle||cycle,canAnalyze:false,reused,retentionDays:30});
       } else {
         return res.status(400).json({ ok: false, error: 'mood-operation-invalid' });
       }
@@ -2391,8 +2406,13 @@ async function handleRudiAction(req, res, action, options = {}) {
       const code = String(error?.message || error);
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
-        : code === 'mood-value-invalid' || code === 'mood-actor-invalid' ? 400
+        : code === 'mood-value-invalid' || code === 'mood-actor-invalid' || code === 'mood-date-invalid' ? 400
+        : code === 'mood-analysis-no-data' ? 409
+        : code === 'mood-analysis-quota' ? 429
+        : code === 'groq-api-key-missing' ? 503
+        : code.startsWith('mood-analysis-') ? 502
         : 500;
+      if(status>=500) console.error('RUDI_MOOD_ERROR',code);
       return res.status(status).json({ ok: false, error: code });
     }
   }
