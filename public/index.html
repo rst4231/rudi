@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v2.92">
+  <meta name="rudi-version" content="v2.94">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=2.93">
+  <link rel="stylesheet" href="/app.css?v=2.94">
   <link rel="stylesheet" href="/pwa-extras.css?v=2.74">
   <link rel="stylesheet" href="/calendar.css?v=1.8.7">
   <link rel="stylesheet" href="/smart-home.css?v=1.8.7">
@@ -61,13 +61,13 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=2.93"></script>
+  <script defer src="/app.js?v=2.94"></script>
   <script defer src="/pwa-extras.js?v=2.59"></script>
   <script defer src="/weather.js?v=1.8.7"></script>
   <script defer src="/smart-home.js?v=1.8.7"></script>
   <script defer src="/car.js?v=2.43"></script>
-  <script defer src="/profile-supplements.js?v=2.92"></script>
-  <script defer src="/mood-history.js?v=2.92"></script>
+  <script defer src="/profile-supplements.js?v=2.94"></script>
+  <script defer src="/mood-history.js?v=2.94"></script>
   <script defer src="/supplement-editor.js?v=2.20"></script>
   <script defer src="/supplement-advanced.js?v=2.20"></script>
 </head>
@@ -113,11 +113,9 @@
           <div class="mood-person mood-self">
             <span class="mood-person-label" aria-hidden="true"></span>
             <div class="mood-self-buttons">
-              <button class="mood-button" type="button" data-mood="sadness" aria-label="Грусть" title="Грусть"><span class="mood-emoji" aria-hidden="true">😢</span></button>
-              <button class="mood-button" type="button" data-mood="boredom" aria-label="Скука" title="Скука"><span class="mood-emoji" aria-hidden="true">🥱</span></button>
-              <button class="mood-button" type="button" data-mood="anger" aria-label="Злость" title="Злость"><span class="mood-emoji" aria-hidden="true">😡</span></button>
-              <button class="mood-button" type="button" data-mood="joy" aria-label="Радость" title="Радость"><span class="mood-emoji" aria-hidden="true">😄</span></button>
-              <button class="mood-button" type="button" data-mood="love" aria-label="Любовь" title="Любовь"><span class="mood-emoji" aria-hidden="true">🥰</span></button>
+              <button id="moodCurrentButton" class="mood-current-button" type="button" aria-label="Выбрать настроение" aria-expanded="false" aria-controls="moodChoices">
+                <span id="moodCurrentEmoji" class="mood-emoji" aria-hidden="true">🙂</span>
+              </button>
               <button id="moodHistoryButton" class="mood-history-button" type="button" aria-label="История настроения" title="История настроения">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
               </button>
@@ -135,10 +133,15 @@
             </div>
           </div>
           <div id="moodPrompt" class="mood-prompt">Выбери настроение</div>
+          <div id="moodChoices" class="mood-choices" hidden>
+            <button class="mood-button" type="button" data-mood="sadness" aria-label="Грусть" title="Грусть"><span class="mood-emoji" aria-hidden="true">😢</span></button>
+            <button class="mood-button" type="button" data-mood="boredom" aria-label="Скука" title="Скука"><span class="mood-emoji" aria-hidden="true">🥱</span></button>
+            <button class="mood-button" type="button" data-mood="anger" aria-label="Злость" title="Злость"><span class="mood-emoji" aria-hidden="true">😡</span></button>
+            <button class="mood-button" type="button" data-mood="joy" aria-label="Радость" title="Радость"><span class="mood-emoji" aria-hidden="true">😄</span></button>
+            <button class="mood-button" type="button" data-mood="love" aria-label="Любовь" title="Любовь"><span class="mood-emoji" aria-hidden="true">🥰</span></button>
+          </div>
+          <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
         </div>
-
-
-      <div id="moodMessage" class="mood-message" aria-live="polite" aria-atomic="true"></div>
 
 
 
