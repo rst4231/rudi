@@ -2501,6 +2501,16 @@
         return greeting+', '+(currentActor||'');
       }
 
+      function homeDaypart(){
+        const hour=Number(new Intl.DateTimeFormat('en-GB',{
+          timeZone:TZ,hour:'2-digit',hourCycle:'h23'
+        }).format(new Date()));
+        if(hour>=5&&hour<11) return 'morning';
+        if(hour>=11&&hour<17) return 'day';
+        if(hour>=17&&hour<22) return 'evening';
+        return 'night';
+      }
+
       function homeEventRows(){
         const payload=homeDashboardState.feed;
         const sections=payload?.sections||{};
@@ -3772,6 +3782,7 @@
         const greeting=document.getElementById('homeDashboardGreeting');
         const date=document.getElementById('homeDashboardDate');
         const moon=document.getElementById('homeDashboardMoon');
+        dashboard.dataset.daypart=homeDaypart();
         if(greeting) greeting.textContent=homeGreeting();
         if(date) date.textContent=homeDashboardDateLabel();
         if(moon) moon.textContent=homeMoonPhaseLabel();
