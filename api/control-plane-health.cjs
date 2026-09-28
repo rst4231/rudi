@@ -19,6 +19,7 @@ const SOURCE_IDS = [
   'clients-advice',
 ];
 const KNOWN_FORUM_CHAT_ID = '-1004476323368';
+const STALE_PUBLICATION_PENDING_MS = 10 * 60 * 1000;
 
 let topicNameSyncFlight = null;
 
@@ -36,6 +37,32 @@ function moscowParts(value = new Date()) {
 function moscowDate(value = new Date()) {
   const parts = moscowParts(value);
   return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function normalizeHealthCronState(state) {
+  if (!state || typeof state !== 'object') return null;
+  if (state.status === 'unauthorized' && state.authorized !== true) return null;
+  return structuredClone(state);
+}
+
+function normalizeHealthPublication(record, now = new Date(), stalePendingMs = STALE_PUBLICATION_PENDING_MS) {
+  if (!record || typeof record !== 'object') return record || null;
+  const normalized = structuredClone(record);
+  if (normalized.status !== 'pending') return normalized;
+
+  const startedAt = Date.parse(normalized.startedAt || '');
+  const currentTime = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const staleAfter = Math.max(60 * 1000, Number(stalePendingMs) || STALE_PUBLICATION_PENDING_MS);
+  if (!Number.isFinite(startedAt) || !Number.isFinite(currentTime) || currentTime - startedAt <= staleAfter) {
+    return normalized;
+  }
+
+  normalized.status = 'stale';
+  normalized.metadata = {
+    ...(normalized.metadata && typeof normalized.metadata === 'object' ? normalized.metadata : {}),
+    healthDerivedStatus: 'stale-pending',
+  };
+  return normalized;
 }
 
 function cloneSectionState(settings) {
@@ -134,7 +161,8 @@ async function buildHealthPayload(options = {}) {
   const settings = loaded.settings;
   const latestPublications = {};
   await Promise.all(SECTION_NAMES.map(async (section) => {
-    latestPublications[section] = await latestPublicationGetter(section, options.journalOptions || {});
+    const record = await latestPublicationGetter(section, options.journalOptions || {});
+    latestPublications[section] = normalizeHealthPublication(record, now, options.stalePendingMs);
   }));
 
   const [lastDailyRun, sourceHealth, alerts, eventCleanup, eventTracking, dailyCronState] = await Promise.all([
@@ -158,7 +186,7 @@ async function buildHealthPayload(options = {}) {
       path: '/api/daily',
       schedule: '30 21 * * *',
       description: settings.publishing.dailyCronDescription,
-      lastAttempt: dailyCronState || null,
+      lastAttempt: normalizeHealthCronState(dailyCronState),
     },
     sections: cloneSectionState(settings),
     operationalSettings: cloneOperationalSettings(settings),
@@ -177,4 +205,13 @@ async function buildHealthPayload(options = {}) {
   };
 }
 
-module.exports = { SOURCE_IDS, moscowDate, cloneOperationalSettings, syncForumTopicNamesSafe, buildHealthPayload };
+module.exports = {
+  SOURCE_IDS,
+  STALE_PUBLICATION_PENDING_MS,
+  moscowDate,
+  normalizeHealthCronState,
+  normalizeHealthPublication,
+  cloneOperationalSettings,
+  syncForumTopicNamesSafe,
+  buildHealthPayload,
+};

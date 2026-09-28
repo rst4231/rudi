@@ -1,10 +1,13 @@
 {
-  "current": "v2.79",
+  "current": "v2.80",
   "versionBranch": "main",
   "releaseCommit": null,
   "createdAt": "2026-09-28",
-  "basedOnProduction": "eb2228f88df1658ecae116b956955c521c9fb361",
+  "basedOnProduction": "5d1512cd1b55dcf88d390a84e09770790637fdbd",
   "notes": [
+    "TickTick-чтение получило до 3 попыток и 8-секундный таймаут на попытку для временных сетевых ошибок, HTTP 429 и 5xx; изменяющие запросы не ретраятся, чтобы не дублировать действия.",
+    "Health больше не показывает старый legacy unauthorized как последний cron-запуск, а pending старше 10 минут отображает как stale вместо бесконечного активного выполнения.",
+    "Ожидаемые неавторизованные обращения к daily-cron и feed-notify-cron логируются как warning, а не production error.",
     "Исправлен daily-run: skipped-секции больше не остаются pending, а already-published восстанавливает журнал как published.",
     "Daily cron получил внутренний таймаут 270 секунд и успевает записать failed до жёсткого лимита Vercel.",
     "Неавторизованные запросы к /api/daily больше не перезаписывают lastAttempt в health.",

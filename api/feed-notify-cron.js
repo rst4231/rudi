@@ -46,7 +46,7 @@ function isOneTimeForDiRecovery(req, now = new Date()) {
 async function handler(req, res) {
   const oneTimeRecovery = isOneTimeMorningRecovery(req) || isOneTimeForDiRecovery(req);
   if (!isCronRequestAuthorized(req) && !oneTimeRecovery) {
-    console.error('RUDI_FEED_NOTIFY_CRON_UNAUTHORIZED');
+    console.warn('RUDI_FEED_NOTIFY_CRON_UNAUTHORIZED');
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
   }
 

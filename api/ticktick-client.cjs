@@ -7,6 +7,51 @@ const DEFAULT_REDIRECT_URI = 'https://spb-daily-guide-bot.vercel.app/api/ticktic
 const DEFAULT_PROJECT_ID = '6a97b9e80a2d51030e185acf';
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
 const OAUTH_SCOPE = 'tasks:read tasks:write';
+const TICKTICK_READ_TIMEOUT_MS = 8000;
+const TICKTICK_READ_ATTEMPTS = 3;
+
+function sleep(ms) {
+  const delay = Math.max(0, Number(ms) || 0);
+  return delay ? new Promise((resolve) => setTimeout(resolve, delay)) : Promise.resolve();
+}
+
+function retryableTickTickReadStatus(status) {
+  const code = Number(status || 0);
+  return code === 429 || code >= 500;
+}
+
+async function fetchTickTickRead(url, init = {}, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const attempts = Math.max(1, Number(options.readAttempts || TICKTICK_READ_ATTEMPTS));
+  const timeoutMs = Math.max(250, Number(options.readTimeoutMs || TICKTICK_READ_TIMEOUT_MS));
+  const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? 250));
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetchImpl(url, { ...init, signal: controller.signal });
+      if (retryableTickTickReadStatus(response.status) && attempt < attempts) {
+        await sleep(retryDelayMs * attempt);
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts) {
+        const wrapped = new Error('ticktick-network-failed');
+        wrapped.cause = error;
+        throw wrapped;
+      }
+      await sleep(retryDelayMs * attempt);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw lastError || new Error('ticktick-network-failed');
+}
 
 const ASSIGNEE_HASH_TO_NAME = new Map([
   ['d1e4b6a1e31e8b555a1385990b4811855848d84be631bc3c999acec09e7d43a0', 'RST'],
@@ -138,8 +183,7 @@ function tickTickCompletedTime(now = new Date()) {
 }
 
 async function fetchTask(accessToken, projectId, taskId, options = {}) {
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const response = await fetchImpl(
+  const response = await fetchTickTickRead(
     API_BASE_URL + '/project/' + encodeURIComponent(projectId) + '/task/' + encodeURIComponent(taskId),
     {
       headers: {
@@ -148,7 +192,8 @@ async function fetchTask(accessToken, projectId, taskId, options = {}) {
         'user-agent': 'RUDI-TickTick/1.0',
       },
       cache: 'no-store',
-    }
+    },
+    options
   );
   if (response.status === 401) {
     const error = new Error('ticktick-token-invalid');
@@ -268,15 +313,14 @@ async function completeTickTickTask(accessToken, projectId, taskId, options = {}
 }
 
 async function fetchProjectData(accessToken, projectId, options = {}) {
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const response = await fetchImpl(API_BASE_URL + '/project/' + encodeURIComponent(projectId) + '/data', {
+  const response = await fetchTickTickRead(API_BASE_URL + '/project/' + encodeURIComponent(projectId) + '/data', {
     headers: {
       Authorization: 'Bearer ' + accessToken,
       Accept: 'application/json',
       'user-agent': 'RUDI-TickTick/1.0',
     },
     cache: 'no-store',
-  });
+  }, options);
   if (response.status === 401 || response.status === 403) {
     const error = new Error('ticktick-token-invalid');
     error.status = response.status;
@@ -438,6 +482,10 @@ module.exports = {
   API_BASE_URL,
   DEFAULT_REDIRECT_URI,
   DEFAULT_PROJECT_ID,
+  TICKTICK_READ_TIMEOUT_MS,
+  TICKTICK_READ_ATTEMPTS,
+  retryableTickTickReadStatus,
+  fetchTickTickRead,
   getCredentials,
   credentialsConfigured,
   buildAuthorizeUrl,

@@ -24,7 +24,7 @@ async function handler(req, res) {
   const startedAt = new Date();
   const authorized = isCronRequestAuthorized(req);
   if (!authorized) {
-    console.error('RUDI_DAILY_CRON_UNAUTHORIZED');
+    console.warn('RUDI_DAILY_CRON_UNAUTHORIZED');
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
   }
   await recordStateSafe({
