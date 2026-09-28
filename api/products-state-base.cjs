@@ -61,7 +61,7 @@ function sanitizeProductTelegramRequest(init = {}) {
 
 function stripRudiPrefix(value) {
   const text = typeof value === 'string' ? value.trim() : '';
-  return text.replace(/^руди[,.:;\s-]*/iu, '').trim();
+  return text.replace(/^(?:руди|алиса)[,.:;\s-]*/iu, '').trim();
 }
 
 function cleanProductUtterance(value) {

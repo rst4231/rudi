@@ -71,10 +71,37 @@ function cleanAliceProductText(req) {
   return cleanProductUtterance(aliceInput(req)).trim();
 }
 
-function getAliceProductDeleteTarget(req) {
-  const text = aliceInput(req)
-    .replace(/^руди[,.:;\s-]*/iu, '')
+function stripAliceAssistantPrefix(value) {
+  return String(value || '')
+    .replace(/^(?:руди|алиса)[,.:;\s-]*/iu, '')
     .trim();
+}
+
+function isAliceProductListQuery(req) {
+  const text = stripAliceAssistantPrefix(aliceInput(req))
+    .replace(/[.!?]+$/u, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+
+  return /^(?:что\s+(?:у\s+меня\s+)?(?:есть\s+)?в\s+списке(?:\s+продуктов)?|что\s+купить|какие\s+продукты\s+(?:у\s+меня\s+)?в\s+списке|(?:покажи|назови|прочитай)\s+(?:мой\s+)?список(?:\s+продуктов)?)$/iu.test(text);
+}
+
+function buildAliceProductListResponse(req, state = {}) {
+  const items = Array.isArray(state?.items) ? state.items.filter((item) => item?.text) : [];
+  let text = 'Список продуктов пуст.';
+  if (items.length) {
+    const visible = items.slice(0, 25).map((item) => String(item.text).trim()).filter(Boolean);
+    const rest = Math.max(0, items.length - visible.length);
+    text = `В списке: ${visible.join(', ')}${rest ? `. И ещё ${rest}` : ''}.`;
+  }
+  return {
+    response: { text, tts: text, end_session: false },
+    version: req?.body?.version || '1.0',
+  };
+}
+
+function getAliceProductDeleteTarget(req) {
+  const text = stripAliceAssistantPrefix(aliceInput(req));
   const match = text.match(/^(?:удали|удалить|удалите|убери|убрать|уберите)\s+(.+)$/iu);
   if (!match) return '';
   return String(match[1] || '')
@@ -252,6 +279,9 @@ module.exports = {
   PRODUCTS_TOPIC_ID,
   isProductsTopicUpdate,
   cleanAliceProductText,
+  stripAliceAssistantPrefix,
+  isAliceProductListQuery,
+  buildAliceProductListResponse,
   getAliceProductDeleteTarget,
   splitImplicitProductSequence,
   splitAliceProductItems,

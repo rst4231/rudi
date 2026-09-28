@@ -14,6 +14,7 @@ const { isAliceShoppingLaunch, buildAliceShoppingLaunchResponse } = require('./a
 const { shouldIgnorePassiveTelegramMessage, isEmptyAliceShoppingRequest, isAliceClearIntent, markProductsRuntimeStale } = require('./products-state.cjs');
 const {
   isProductsTopicUpdate, cleanAliceProductText, getAliceProductDeleteTarget, splitAliceProductItems,
+  isAliceProductListQuery, buildAliceProductListResponse,
   buildAliceProductAddedResponse, buildAliceProductDeletedResponse, buildAliceNoSharedListResponse,
 } = require('./products-chat.cjs');
 const { publishLaborArticle } = require('./labor-code.cjs');
@@ -34,6 +35,7 @@ const {
 const { runWithPublicationContext } = require('./section-controls.cjs');
 const { recordEventSourceState } = require('./event-source-state.cjs');
 const {
+  readProductList: readSharedProductList,
   addProducts: addSharedProducts,
   removeProductByText: removeSharedProductByText,
   clearProducts: clearSharedProducts,
@@ -143,6 +145,10 @@ async function handler(req, res) {
     if (req.query?.route === 'alice-shopping') {
       if (isEmptyAliceShoppingRequest(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
       if (isAliceShoppingLaunch(req)) return res.status(200).json(buildAliceShoppingLaunchResponse(req));
+      if (isAliceProductListQuery(req)) {
+        const sharedList = await readSharedProductList();
+        return res.status(200).json(buildAliceProductListResponse(req, sharedList));
+      }
       if (isAliceClearIntent(req)) {
         await clearSharedProducts();
         const text = 'Список продуктов очищен.';
