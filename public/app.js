@@ -79,10 +79,10 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets','cheap-flights'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets'];
+        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets','cheap-flights'];
       }
       function homeLayoutV254MigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -1361,6 +1361,220 @@
         if(enabled) loadMarketTicker({silent:Boolean(cached)});
       }
 
+      const CHEAP_FLIGHTS_LOCAL_CACHE_KEY='rudi:cheap-flights:v1';
+      let cheapFlightsLoadPromise=null;
+
+      function cheapFlightsVisibleForActor(config=currentConfig){
+        const settings=config?.cheapFlights;
+        const actors=Array.isArray(settings?.visibleTo)?settings.visibleTo:['Рустам'];
+        return settings?.enabled!==false&&actors.includes(currentActor);
+      }
+
+      function readCheapFlightsLocalCache(){
+        try{
+          const value=JSON.parse(localStorage.getItem(CHEAP_FLIGHTS_LOCAL_CACHE_KEY)||'null');
+          return value&&Array.isArray(value.top)&&Array.isArray(value.countries)?value:null;
+        }catch(_){return null}
+      }
+
+      function writeCheapFlightsLocalCache(value){
+        if(!value||!Array.isArray(value.top)||!Array.isArray(value.countries))return;
+        try{localStorage.setItem(CHEAP_FLIGHTS_LOCAL_CACHE_KEY,JSON.stringify(value))}catch(_){}
+      }
+
+      function cheapFlightPrice(value){
+        const amount=Number(value);
+        if(!Number.isFinite(amount))return '—';
+        return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(amount)+' ₽';
+      }
+
+      function cheapFlightDate(value){
+        const date=new Date(String(value||'')+'T12:00:00Z');
+        if(Number.isNaN(date.getTime()))return String(value||'');
+        return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(date).replace('.','');
+      }
+
+      function cheapFlightDates(ticket){
+        return cheapFlightDate(ticket?.departureDate)+' — '+cheapFlightDate(ticket?.returnDate);
+      }
+
+      function cheapFlightTransfers(ticket){
+        const there=Number(ticket?.transfers||0);
+        const back=Number(ticket?.returnTransfers||0);
+        if(there===0&&back===0)return 'Прямой';
+        if(there===back)return there===1?'1 пересадка':'Без пересадок';
+        return 'Туда '+there+' · обратно '+back;
+      }
+
+      function cheapFlightDelta(delta){
+        if(delta===null||delta===undefined||!Number.isFinite(Number(delta)))return null;
+        const value=Math.round(Number(delta));
+        if(value===0)return {text:'= вчера',className:'is-flat',aria:'Цена без изменений со вчера'};
+        const amount=cheapFlightPrice(Math.abs(value));
+        return value<0
+          ?{text:'↓ '+amount,className:'is-better',aria:'На '+amount+' дешевле, чем вчера'}
+          :{text:'↑ '+amount,className:'is-worse',aria:'На '+amount+' дороже, чем вчера'};
+      }
+
+      function openCheapFlightLink(event,url){
+        if(!url)return;
+        if(tg?.openLink){
+          event.preventDefault();
+          try{tg.openLink(url,{try_instant_view:false});return}catch(_){}
+        }
+      }
+
+      function cheapFlightRow(ticket,{rank=null}={}){
+        const row=document.createElement('a');
+        row.className='cheap-flight-row';
+        row.href=String(ticket?.link||'#');
+        row.target='_blank';
+        row.rel='noopener noreferrer';
+        row.addEventListener('click',event=>openCheapFlightLink(event,row.href));
+
+        const main=document.createElement('div');
+        main.className='cheap-flight-main';
+        const title=document.createElement('div');
+        title.className='cheap-flight-title';
+        if(rank){
+          const badge=document.createElement('span');
+          badge.className='cheap-flight-rank';
+          badge.textContent=String(rank);
+          title.appendChild(badge);
+        }
+        const name=document.createElement('strong');
+        name.textContent=String(ticket?.city||ticket?.destination||'Направление');
+        title.appendChild(name);
+        const country=document.createElement('span');
+        country.textContent=String(ticket?.country||'');
+        title.appendChild(country);
+
+        const meta=document.createElement('div');
+        meta.className='cheap-flight-meta';
+        const dates=document.createElement('span');
+        dates.textContent=cheapFlightDates(ticket);
+        const airline=document.createElement('span');
+        airline.textContent=String(ticket?.airlineName||ticket?.airline||'Авиакомпания');
+        const transfers=document.createElement('span');
+        transfers.textContent=cheapFlightTransfers(ticket);
+        meta.append(dates,airline,transfers);
+        main.append(title,meta);
+
+        const aside=document.createElement('div');
+        aside.className='cheap-flight-aside';
+        const price=document.createElement('strong');
+        price.className='cheap-flight-price';
+        price.textContent=cheapFlightPrice(ticket?.price);
+        aside.appendChild(price);
+        const delta=cheapFlightDelta(ticket?.delta);
+        if(delta){
+          const chip=document.createElement('span');
+          chip.className='cheap-flight-delta '+delta.className;
+          chip.textContent=delta.text;
+          chip.setAttribute('aria-label',delta.aria);
+          aside.appendChild(chip);
+        }
+        const arrow=document.createElement('span');
+        arrow.className='cheap-flight-arrow';
+        arrow.setAttribute('aria-hidden','true');
+        arrow.textContent='↗';
+        aside.appendChild(arrow);
+        row.append(main,aside);
+        return row;
+      }
+
+      function cheapFlightsUpdatedLabel(snapshot){
+        const date=new Date(String(snapshot?.updatedAt||''));
+        if(Number.isNaN(date.getTime()))return 'Обновление ежедневно в 06:00';
+        const today=moscowDateKey(new Date());
+        const dateKey=moscowDateKey(date);
+        const time=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(date);
+        if(dateKey===today)return 'Сегодня · '+time;
+        const day=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'}).format(date).replace('.','');
+        return day+' · '+time;
+      }
+
+      function renderCheapFlights(snapshot,{configured=true,error=''}={}){
+        const tile=document.getElementById('cheapFlightsTile');
+        const loading=document.getElementById('cheapFlightsLoading');
+        const content=document.getElementById('cheapFlightsContent');
+        const errorBox=document.getElementById('cheapFlightsError');
+        const topList=document.getElementById('cheapFlightsTop');
+        const countryList=document.getElementById('cheapFlightsCountries');
+        const updated=document.getElementById('cheapFlightsUpdated');
+        if(!tile)return;
+        if(updated)updated.textContent=snapshot?cheapFlightsUpdatedLabel(snapshot):'Обновление ежедневно в 06:00';
+        if(snapshot&&topList&&countryList){
+          topList.replaceChildren(...snapshot.top.map((ticket,index)=>cheapFlightRow(ticket,{rank:index+1})));
+          countryList.replaceChildren(...snapshot.countries.map(ticket=>cheapFlightRow(ticket)));
+          if(loading)loading.hidden=true;
+          if(content)content.hidden=false;
+          if(errorBox)errorBox.hidden=true;
+          animateRudiCollection(topList);
+          animateRudiCollection(countryList);
+          return;
+        }
+        if(content)content.hidden=true;
+        if(loading)loading.hidden=true;
+        if(errorBox){
+          errorBox.hidden=false;
+          errorBox.textContent=!configured
+            ?'Источник цен ещё не подключён.'
+            :error==='no-ticket-data'
+              ?'На выбранные направления пока нет подходящих цен.'
+              :'Не удалось обновить цены. Попробую снова при следующем открытии.';
+        }
+      }
+
+      function applyCheapFlightsVisibility(config=currentConfig){
+        const tile=document.getElementById('cheapFlightsTile');
+        if(!tile)return false;
+        const visible=cheapFlightsVisibleForActor(config);
+        tile.dataset.tabAvailable=visible?'1':'0';
+        tile.hidden=!visible||currentAppTab!=='home';
+        return visible;
+      }
+
+      async function loadCheapFlights({silent=false}={}){
+        if(!cheapFlightsVisibleForActor()||!applyCheapFlightsVisibility())return null;
+        const cached=readCheapFlightsLocalCache();
+        if(cached&&!silent)renderCheapFlights(cached);
+        if(cheapFlightsLoadPromise)return cheapFlightsLoadPromise;
+        cheapFlightsLoadPromise=(async()=>{
+          try{
+            const payload=await managedJsonRequest('cheap-flights-v1','/api/cheap-flights',{
+              method:'POST',
+              body:{initData:telegramInitData()},
+              ttlMs:30*60*1000,
+              timeoutMs:16000
+            });
+            const snapshot=payload?.snapshot||null;
+            if(snapshot){
+              writeCheapFlightsLocalCache(snapshot);
+              renderCheapFlights(snapshot,{configured:payload?.configured!==false});
+              return snapshot;
+            }
+            renderCheapFlights(cached,{configured:payload?.configured!==false,error:payload?.error||''});
+            return cached;
+          }catch(error){
+            console.warn('RUDI_CHEAP_FLIGHTS_UI_WARN',String(error?.message||error));
+            if(cached)renderCheapFlights(cached);
+            else renderCheapFlights(null,{configured:true,error:String(error?.message||error)});
+            return cached;
+          }finally{
+            cheapFlightsLoadPromise=null;
+          }
+        })();
+        return cheapFlightsLoadPromise;
+      }
+
+      function setupCheapFlights(config=currentConfig){
+        if(!applyCheapFlightsVisibility(config))return;
+        const cached=readCheapFlightsLocalCache();
+        if(cached)renderCheapFlights(cached);
+        loadCheapFlights({silent:Boolean(cached)});
+      }
+
       function rudiMotionReduced(){
         try{return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)}
         catch(_){return false}
@@ -1444,7 +1658,10 @@
       }
 
       function runTabSideEffects(tab,{item=''}={}){
-        if(tab==='home') loadFastingOverview();
+        if(tab==='home'){
+          loadFastingOverview();
+          if(cheapFlightsVisibleForActor()) loadCheapFlights({silent:true});
+        }
         if(tab==='feed') loadFeed({silent:true});
         if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
         if(tab==='products'){
@@ -11965,6 +12182,7 @@
         ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;
+        setupCheapFlights(config);
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
         setupProducts();
         setupFastingTracker();
@@ -12056,6 +12274,7 @@
             loadActivityJournal({silent:true}),
             loadSupplementIntakeOverview({silent:true}),
             (marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()),
+            (cheapFlightsVisibleForActor()?loadCheapFlights({silent:true}):Promise.resolve()),
             loadFastingOverview(),
             syncUiPreferencesFromServer()
           ]);
