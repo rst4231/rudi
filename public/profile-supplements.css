@@ -446,3 +446,8 @@ body[data-app-tab="home"] .personal-supplements-progress-row{
 html[data-theme="dark"] .personal-supplements-progress{
   background:rgba(231,183,109,.12);
 }
+
+
+/* RUDI v2.89 — habit purpose */
+.personal-habit-purpose{margin-top:3px;font-size:12px;line-height:1.35;opacity:.72;overflow-wrap:anywhere}
+.personal-habit-row.is-done .personal-habit-purpose{opacity:.52}
