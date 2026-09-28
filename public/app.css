@@ -2304,6 +2304,7 @@
       box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
     }
     .profile .mood-button,
+    .profile .mood-current-button,
     .profile .partner-mood-value,
     .profile .profile-mood .block-collapse-button{
       border-color:rgba(255,255,255,.10) !important;
@@ -11480,12 +11481,14 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
   display:grid;
   place-items:center;
   padding:0;
-  border:1px solid rgba(255,255,255,.10);
+  border:1px solid var(--line);
   border-radius:7px;
-  background:rgba(255,255,255,.055);
-  color:rgba(229,233,246,.62);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  background:var(--soft);
+  color:var(--muted);
+  box-shadow:none;
   cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
   -webkit-tap-highlight-color:transparent;
 }
 .profile .mood-current-button:active{transform:scale(.94)}
