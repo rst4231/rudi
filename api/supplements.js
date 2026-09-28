@@ -6,6 +6,7 @@ const {
 }=require('./supplements-store.cjs');
 const {generateSupplementDescription,analyzeSupplementSet}=require('./supplement-ai.cjs');
 const {profileContext}=require('./personal-profile-context.cjs');
+const {clearMoodAnalysisCache}=require('./mood-analysis-store.cjs');
 
 function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
@@ -50,10 +51,12 @@ async function handler(req,res){
     }
     if(operation==='remove'){
       const result=await removeSupplement(actor,body.id);
+      await clearMoodAnalysisCache(actor).catch(()=>null);
       return res.status(200).json({ok:true,actor,removed:result.removed,items:result.state.items});
     }
     if(operation==='restore'){
       const result=await restoreSupplement(actor,body.item);
+      await clearMoodAnalysisCache(actor).catch(()=>null);
       return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items});
     }
     if(operation==='update'){
@@ -62,6 +65,7 @@ async function handler(req,res){
     }
     if(operation==='take'){
       const result=await markSupplementTaken(actor,body.id);
+      if(!result.duplicate)await clearMoodAnalysisCache(actor).catch(()=>null);
       return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items,duplicate:result.duplicate,date:result.date});
     }
     if(operation==='note'){

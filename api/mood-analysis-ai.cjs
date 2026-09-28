@@ -11,6 +11,8 @@ function rowLine(row){
   if(h&&Number(h.total)>0)parts.push('привычки: '+Number(h.done||0)+' из '+Number(h.total||0)+' выполнено'+(Number(h.notDone||0)?', '+Number(h.notDone)+' не выполнено':''));
   const f=row?.context?.fasting;
   if(f?.active)parts.push('голодание: '+Number(f.hours||0).toFixed(1)+' ч'+(f.goalReached===true?', цель достигнута':f.goalReached===false?', цель не достигнута':''));
+  const supplements=(Array.isArray(row?.context?.supplements?.taken)?row.context.supplements.taken:[]).map(value=>String(value||'').trim()).filter(Boolean);
+  if(supplements.length)parts.push('БАДы приняты: '+supplements.join(', '));
   return String(row?.date||'')+' — '+(LABELS[row?.mood]||'нет отметки')+(parts.length?' | '+parts.join(' | '):'');
 }
 function promptForMoodAnalysis({history,cycle,windowDays=30,level='full',contextSummary=[]}={}){
@@ -31,7 +33,8 @@ function promptForMoodAnalysis({history,cycle,windowDays=30,level='full',context
     'Корреляции формулируйте как «в такие дни чаще отмечалось...», а не «из-за этого...».',
     level==='preliminary'?'Данных пока немного: прямо назовите разбор предварительным и избегайте сильных выводов.':'Данных достаточно для обычного разбора, но отмечайте неопределённость.',
     'Причины, выбранные самим пользователем после отметки настроения, можно использовать как прямой контекст, не расширяя их смысл.',
-    'Учитывайте привычки и трекер голодания только когда они реально присутствуют в данных.',
+    'Учитывайте привычки, трекер голодания и отмеченные приёмы БАДов только когда они реально присутствуют в данных.',
+    'Для БАДов не делайте выводов по единичным дням и не утверждайте лечебный эффект. Связь с настроением описывайте только при повторяющихся наблюдениях и только как корреляцию, а не причину.',
     'Дайте практичные рекомендации на ближайшие 1–3 дня.',
     'Период анализа: последние '+Number(windowDays||30)+' дней.',
     cycleText?'Дополнительный контекст цикла: '+cycleText+'. Не утверждайте, что цикл является причиной настроения.':'',

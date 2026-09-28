@@ -67,6 +67,7 @@ const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLul
 const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
+const { readSupplements } = require('./supplements-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const {
   getCredentials,
@@ -657,8 +658,72 @@ function moodHistoryForWindow(history,date,windowDays){const days=normalizeWindo
 function moodAnalysisMinimumDays(windowDays){const days=normalizeWindowDays(windowDays);return days>=90?20:days>=30?10:5}
 function moodAnalysisLevel(count){return Number(count)>=10?'full':Number(count)>=5?'preliminary':'insufficient'}
 function moodMostCommon(rows){const counts=new Map(),latest=new Map();for(const row of rows){const mood=String(row?.mood||'');if(!MOOD_ACTIVITY[mood])continue;counts.set(mood,(counts.get(mood)||0)+1);latest.set(mood,String(row?.date||''))}let best='',count=-1,date='';for(const[mood,value]of counts){const d=latest.get(mood)||'';if(value>count||(value===count&&d>date)){best=mood;count=value;date=d}}return best}
-function moodContextSummary(rows){const out=[],fasting=rows.filter(r=>r.context?.fasting?.active),plain=rows.filter(r=>!r.context?.fasting?.active);if(fasting.length>=3&&plain.length>=3){const a=moodMostCommon(fasting),b=moodMostCommon(plain);if(a&&b)out.push('В дни с голоданием чаще отмечалось «'+MOOD_ACTIVITY[a].label+'» ('+fasting.length+' дн.), без голодания — «'+MOOD_ACTIVITY[b].label+'» ('+plain.length+' дн.). Это связь, не доказательство причины.')}const withHabits=rows.filter(r=>Number(r.context?.habits?.total||0)>0),high=withHabits.filter(r=>Number(r.context.habits.done||0)/Math.max(1,Number(r.context.habits.total||0))>=.67),low=withHabits.filter(r=>Number(r.context.habits.done||0)/Math.max(1,Number(r.context.habits.total||0))<.67);if(high.length>=3&&low.length>=3){const a=moodMostCommon(high),b=moodMostCommon(low);if(a&&b)out.push('В дни, когда выполнено не меньше двух третей привычек, чаще отмечалось «'+MOOD_ACTIVITY[a].label+'» ('+high.length+' дн.), в остальные — «'+MOOD_ACTIVITY[b].label+'» ('+low.length+' дн.). Это связь, не доказательство причины.')}const reasons=new Map();for(const row of rows)for(const sample of Array.isArray(row?.samples)?row.samples:[]){const reason=String(sample?.reason||'');if(reason)reasons.set(reason,(reasons.get(reason)||0)+1)}const labels={work:'работа',relationship:'отношения',money:'деньги',health:'самочувствие',fatigue:'усталость',sleep:'сон',fasting:'голодание',other:'другое'},top=[...reasons.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r,n])=>(labels[r]||r)+' — '+n);if(top.length)out.push('Чаще всего вы сами указывали причины: '+top.join(', ')+'.');return out}
-async function enrichMoodHistoryContext(actor,history,date,windowDays,options={}){const rows=moodHistoryForWindow(history,date,windowDays),[habits,fasting]=await Promise.all([readHabits(actor,options).catch(()=>null),readFastingState(actor,options).catch(()=>null)]),now=Number(options.now||Date.now());return rows.map(row=>{const key=String(row?.date||''),eligible=habits?.habits?.filter(h=>habitCreatedByDate(h,key))||[],doneIds=new Set(habits?.completions?.[key]||[]),notDoneIds=new Set(habits?.failures?.[key]||[]),habitContext={total:eligible.length,done:eligible.filter(h=>doneIds.has(h.id)).length,notDone:eligible.filter(h=>notDoneIds.has(h.id)).length};const sessions=(fasting?.history||[]).filter(item=>{const start=moscowDateKey(Date.parse(item.startedAt)),end=moscowDateKey(Date.parse(item.endedAt));return start&&end&&key>=start&&key<=end});let fastingContext={active:false,hours:0,goalReached:null};if(sessions.length){const best=sessions.slice().sort((a,b)=>Number(b.durationMinutes||0)-Number(a.durationMinutes||0))[0];fastingContext={active:true,hours:Math.round(Number(best.durationMinutes||0)/6)/10,goalReached:Boolean(best.goalReached),goalHours:Number(best.goalHours||0)}}if(fasting?.active&&key===moscowDateKey(now)){const minutes=Math.max(0,Math.round((now-Date.parse(fasting.active.startedAt))/60000));if(minutes>=60)fastingContext={active:true,hours:Math.round(minutes/6)/10,goalReached:minutes>=Number(fasting.active.goalHours||0)*60,goalHours:Number(fasting.active.goalHours||0),inProgress:true}}return{...row,context:{habits:habitContext,fasting:fastingContext}}})}
+function moodContextSummary(rows){
+  const out=[],fasting=rows.filter(r=>r.context?.fasting?.active),plain=rows.filter(r=>!r.context?.fasting?.active);
+  if(fasting.length>=3&&plain.length>=3){
+    const a=moodMostCommon(fasting),b=moodMostCommon(plain);
+    if(a&&b)out.push('В дни с голоданием чаще отмечалось «'+MOOD_ACTIVITY[a].label+'» ('+fasting.length+' дн.), без голодания — «'+MOOD_ACTIVITY[b].label+'» ('+plain.length+' дн.). Это связь, не доказательство причины.');
+  }
+  const withHabits=rows.filter(r=>Number(r.context?.habits?.total||0)>0),high=withHabits.filter(r=>Number(r.context.habits.done||0)/Math.max(1,Number(r.context.habits.total||0))>=.67),low=withHabits.filter(r=>Number(r.context.habits.done||0)/Math.max(1,Number(r.context.habits.total||0))<.67);
+  if(high.length>=3&&low.length>=3){
+    const a=moodMostCommon(high),b=moodMostCommon(low);
+    if(a&&b)out.push('В дни, когда выполнено не меньше двух третей привычек, чаще отмечалось «'+MOOD_ACTIVITY[a].label+'» ('+high.length+' дн.), в остальные — «'+MOOD_ACTIVITY[b].label+'» ('+low.length+' дн.). Это связь, не доказательство причины.');
+  }
+  const supplementCounts=new Map();
+  for(const row of rows){
+    for(const name of Array.isArray(row.context?.supplements?.taken)?row.context.supplements.taken:[]){
+      const safe=String(name||'').trim();
+      if(safe)supplementCounts.set(safe,(supplementCounts.get(safe)||0)+1);
+    }
+  }
+  const supplementCandidates=[...supplementCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ru')).slice(0,8);
+  for(const [name,count] of supplementCandidates){
+    if(count<3)continue;
+    const withSupplement=rows.filter(r=>(Array.isArray(r.context?.supplements?.taken)?r.context.supplements.taken:[]).includes(name));
+    const withoutSupplement=rows.filter(r=>!(Array.isArray(r.context?.supplements?.taken)?r.context.supplements.taken:[]).includes(name));
+    if(withSupplement.length<3||withoutSupplement.length<3)continue;
+    const a=moodMostCommon(withSupplement),b=moodMostCommon(withoutSupplement);
+    if(a&&b&&a!==b){
+      out.push('В дни, когда был отмечен приём «'+name+'», чаще отмечалось «'+MOOD_ACTIVITY[a].label+'» ('+withSupplement.length+' дн.), в дни без отмеченного приёма — «'+MOOD_ACTIVITY[b].label+'» ('+withoutSupplement.length+' дн.). Это наблюдаемая связь, не доказательство влияния БАДа.');
+    }
+  }
+  const reasons=new Map();
+  for(const row of rows)for(const sample of Array.isArray(row?.samples)?row.samples:[]){
+    const reason=String(sample?.reason||'');
+    if(reason)reasons.set(reason,(reasons.get(reason)||0)+1);
+  }
+  const labels={work:'работа',relationship:'отношения',money:'деньги',health:'самочувствие',fatigue:'усталость',sleep:'сон',fasting:'голодание',other:'другое'},top=[...reasons.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r,n])=>(labels[r]||r)+' — '+n);
+  if(top.length)out.push('Чаще всего вы сами указывали причины: '+top.join(', ')+'.');
+  return out;
+}
+async function enrichMoodHistoryContext(actor,history,date,windowDays,options={}){
+  const rows=moodHistoryForWindow(history,date,windowDays);
+  const [habits,fasting,supplements]=await Promise.all([
+    readHabits(actor,options).catch(()=>null),
+    readFastingState(actor,options).catch(()=>null),
+    readSupplements(actor,options).catch(()=>null)
+  ]);
+  const now=Number(options.now||Date.now());
+  return rows.map(row=>{
+    const key=String(row?.date||''),eligible=habits?.habits?.filter(h=>habitCreatedByDate(h,key))||[],doneIds=new Set(habits?.completions?.[key]||[]),notDoneIds=new Set(habits?.failures?.[key]||[]);
+    const habitContext={total:eligible.length,done:eligible.filter(h=>doneIds.has(h.id)).length,notDone:eligible.filter(h=>notDoneIds.has(h.id)).length};
+    const sessions=(fasting?.history||[]).filter(item=>{const start=moscowDateKey(Date.parse(item.startedAt)),end=moscowDateKey(Date.parse(item.endedAt));return start&&end&&key>=start&&key<=end});
+    let fastingContext={active:false,hours:0,goalReached:null};
+    if(sessions.length){
+      const best=sessions.slice().sort((a,b)=>Number(b.durationMinutes||0)-Number(a.durationMinutes||0))[0];
+      fastingContext={active:true,hours:Math.round(Number(best.durationMinutes||0)/6)/10,goalReached:Boolean(best.goalReached),goalHours:Number(best.goalHours||0)};
+    }
+    if(fasting?.active&&key===moscowDateKey(now)){
+      const minutes=Math.max(0,Math.round((now-Date.parse(fasting.active.startedAt))/60000));
+      if(minutes>=60)fastingContext={active:true,hours:Math.round(minutes/6)/10,goalReached:minutes>=Number(fasting.active.goalHours||0)*60,goalHours:Number(fasting.active.goalHours||0),inProgress:true};
+    }
+    const takenSupplements=[...new Set((supplements?.items||[])
+      .filter(item=>(item.intakes||[]).some(intake=>String(intake?.date||'')===key))
+      .map(item=>String(item?.name||'').trim())
+      .filter(Boolean))].slice(0,20);
+    return{...row,context:{habits:habitContext,fasting:fastingContext,supplements:{taken:takenSupplements}}};
+  });
+}
 async function externalMoodAnalysis(actor,date,windowDays,options={}){const cached=await readMoodAnalysisCache(actor,date,windowDays,options).catch(()=>null);await clearMoodAnalyses(actor,options).catch(error=>console.warn('RUDI_MOOD_ANALYSIS_DB_CLEANUP_WARN',String(error?.message||error)));return cached||null}
 
 function moodActivityText(actor, previousMood, nextMood) {
