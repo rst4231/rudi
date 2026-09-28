@@ -160,8 +160,9 @@ function prefs(){return readPrefs()}
 function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod100=n%100,mod10=n%10;const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';return n+' '+word}
 function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
-function todaySupplementCount(){const today=habitDateKey(new Date());return items.filter(item=>Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today)).length}
-function renderSupplementSummary(){if(!supplementSummaryNode)return;supplementSummaryNode.textContent='Сегодня принято: '+todaySupplementCount()}
+function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
+function todaySupplementCount(){const today=habitDateKey(new Date());return activeSupplementItems().filter(item=>Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today)).length}
+function renderSupplementSummary(){if(!supplementSummaryNode)return;const active=activeSupplementItems();supplementSummaryNode.textContent='Сегодня принято '+todaySupplementCount()+' из '+active.length}
 function supplementDescriptionText(item){
   const description=String(item?.description||'').trim();
   const guidance=String(item?.intakeGuidance||'').trim();
@@ -367,7 +368,7 @@ function build(){
   const supplementIcon=document.createElement('span');supplementIcon.className='personal-home-tile-icon is-supplement';supplementIcon.textContent='💊';
   const supplementTitleWrap=document.createElement('div');supplementTitleWrap.className='personal-supplements-title-wrap';
   const heading=document.createElement('h2');heading.textContent='БАДы и витамины';
-  supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято: 0';
+  supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято 0 из 0';
   supplementTitleWrap.append(heading,supplementSummaryNode);supplementLead.append(supplementIcon,supplementTitleWrap);
   const actions=document.createElement('div');actions.className='personal-supplements-actions';
   collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
