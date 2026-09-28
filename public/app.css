@@ -11467,3 +11467,16 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 #moodAnalysisResult ol,#moodAnalysisResult ul{margin:4px 0 10px;padding-left:21px;display:grid;gap:6px}
 #moodAnalysisResult li{padding-left:2px}
 #moodAnalysisResult strong{font-weight:800;color:var(--text)}
+
+
+/* RUDI v2.89 — mood therapist */
+.mood-therapist{display:flex!important;align-items:center;gap:10px;min-width:0}
+.mood-therapist-avatar{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 18%,var(--surface)),color-mix(in srgb,var(--accent) 7%,var(--surface)));border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));font-size:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.mood-therapist-copy{display:grid;gap:2px;min-width:0}
+.mood-therapist-copy strong{font-size:14px;line-height:1.2}
+#moodAnalysisResult{margin-top:12px;white-space:normal;font-size:13px;line-height:1.55}
+#moodAnalysisResult p{margin:8px 0 0;color:var(--text)}
+#moodAnalysisResult .mood-analysis-section-title{display:block;margin:14px 0 4px;font-size:13px;line-height:1.3;color:var(--text)}
+#moodAnalysisResult .mood-analysis-section-title:first-child{margin-top:0}
+#moodAnalysisResult ul{margin:7px 0 0;padding-left:18px;display:grid;gap:5px}
+#moodAnalysisResult li{padding-left:1px;color:var(--text)}
