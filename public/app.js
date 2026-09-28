@@ -4466,14 +4466,6 @@
         host.appendChild(button);
       }
 
-      function collapseTapIgnored(target,section){
-        if(!(target instanceof Element)) return true;
-        if(window.getSelection?.()?.toString?.().trim()) return true;
-        const interactive='button,a,input,select,textarea,label,[role="button"],[role="link"],[contenteditable="true"],[data-action],[onclick],.score-sticker,.profile-score-sticker,[data-score-actor],.block-collapse-button';
-        const hit=target.closest(interactive);
-        return Boolean(hit&&section.contains(hit));
-      }
-
       function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
@@ -4499,13 +4491,6 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
         button.addEventListener('click',toggleCollapsed);
-        if(key!=='partner'&&!section.matches('#sharedTasksCard,#sharedTodoCard,[data-home-tile="shared-tasks"]')){
-          section.addEventListener('click',event=>{
-            if(event.defaultPrevented||collapseTapIgnored(event.target,section)) return;
-            toggleCollapsed();
-          });
-        }
-
         if(key==='partner'){
           section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{
             if(section.classList.contains('is-collapsed')){
@@ -9005,17 +8990,47 @@
 
       let moodMessageTimer=0;
       let moodMessagesConfig=null;
+      const MOOD_META={
+        sadness:{emoji:'😢',label:'Грусть'},
+        boredom:{emoji:'🥱',label:'Скука'},
+        anger:{emoji:'😡',label:'Злость'},
+        joy:{emoji:'😄',label:'Радость'},
+        love:{emoji:'🥰',label:'Любовь'}
+      };
 
       function moodButtons(){
-        return Array.from(document.querySelectorAll('.mood-button'));
+        return Array.from(document.querySelectorAll('#moodChoices .mood-button'));
+      }
+
+      function setMoodChoicesOpen(open){
+        const choices=document.getElementById('moodChoices');
+        const trigger=document.getElementById('moodCurrentButton');
+        if(!choices||!trigger)return;
+        const next=Boolean(open);
+        choices.hidden=!next;
+        trigger.setAttribute('aria-expanded',next?'true':'false');
+        trigger.classList.toggle('is-open',next);
       }
 
       function selectOwnMood(value){
+        const mood=String(value||'');
+        const meta=MOOD_META[mood]||null;
+        const trigger=document.getElementById('moodCurrentButton');
+        const emoji=document.getElementById('moodCurrentEmoji');
+        if(emoji)emoji.textContent=meta?.emoji||'🙂';
+        if(trigger){
+          trigger.dataset.mood=mood;
+          trigger.setAttribute('aria-label',meta?'Текущее настроение: '+meta.label+'. Изменить':'Выбрать настроение');
+          trigger.title=meta?.label||'Выбрать настроение';
+        }
         moodButtons().forEach(button=>{
-          const selected=button.dataset.mood===value;
+          const selected=button.dataset.mood===mood;
           button.classList.toggle('selected',selected);
           button.setAttribute('aria-pressed',selected?'true':'false');
+          button.hidden=Boolean(meta&&selected);
         });
+        const prompt=document.getElementById('moodPrompt');
+        if(prompt)prompt.hidden=Boolean(meta);
       }
 
       function renderPartnerMood(value,partner){
@@ -9044,7 +9059,6 @@
         const partnerMood=String(payload?.partnerMood?.mood||'');
         selectOwnMood(mine);
         renderPartnerMood(partnerMood,String(payload?.partner||''));
-        document.getElementById('moodPrompt').hidden=Boolean(mine);
         renderHomeDashboard();
       }
 
@@ -9089,10 +9103,9 @@
           message.textContent='';
           delete message.dataset.mood;
         }
+        setMoodChoicesOpen(false);
         selectOwnMood('');
         renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
-        const prompt=document.getElementById('moodPrompt');
-        if(prompt) prompt.hidden=false;
         refreshDailyMood();
         return true;
       }
@@ -9103,44 +9116,67 @@
         const pool=Array.isArray(messages?.[mood])&&messages[mood].length
           ?messages[mood]
           :fallback.moodMessages[mood];
-        if(!pool?.length) return;
+        if(!message||!pool?.length) return;
         clearTimeout(moodMessageTimer);
         message.textContent=randomItem(pool);
         message.dataset.mood=mood;
         message.classList.remove('show');
         void message.offsetWidth;
         message.classList.add('show');
-        moodMessageTimer=setTimeout(()=>message.classList.remove('show'),4200);
+        moodMessageTimer=setTimeout(()=>{
+          message.classList.remove('show');
+          setTimeout(()=>{
+            if(!message.classList.contains('show')){
+              message.textContent='';
+              delete message.dataset.mood;
+            }
+          },260);
+        },7000);
       }
 
       function setupStreakAndMood(config){
         currentMoodDateKey=todayState().key;
         moodMessagesConfig=config?.moodMessages||fallback.moodMessages;
         renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
-        document.getElementById('moodPrompt').hidden=false;
+        const prompt=document.getElementById('moodPrompt');
+        if(prompt)prompt.hidden=false;
 
-        moodButtons().forEach(button=>button.addEventListener('click',async()=>{
-          const mood=button.dataset.mood;
-          const buttons=moodButtons();
-          buttons.forEach(item=>item.disabled=true);
-          selectOwnMood(mood);
-          document.getElementById('moodPrompt').hidden=true;
-          try{
-            const payload=await moodRequest('set',mood);
-            renderDailyMood(payload);
-            showMoodMessage(mood);
-            setTimeout(()=>loadActivityJournal({silent:true}),180);
+        const currentButton=document.getElementById('moodCurrentButton');
+        if(currentButton&&currentButton.dataset.bound!=='1'){
+          currentButton.dataset.bound='1';
+          currentButton.addEventListener('click',()=>{
+            const choices=document.getElementById('moodChoices');
+            setMoodChoicesOpen(Boolean(choices?.hidden));
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        }
+
+        moodButtons().forEach(button=>{
+          if(button.dataset.bound==='1')return;
+          button.dataset.bound='1';
+          button.addEventListener('click',async()=>{
+            const mood=button.dataset.mood;
+            const buttons=moodButtons();
+            buttons.forEach(item=>item.disabled=true);
+            selectOwnMood(mood);
+            setMoodChoicesOpen(false);
             try{
-              if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
-              else tg?.HapticFeedback?.selectionChanged?.();
-            }catch(_){}
-          }catch(_){
-            await refreshDailyMood();
-            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }finally{
-            buttons.forEach(item=>item.disabled=false);
-          }
-        }));
+              const payload=await moodRequest('set',mood);
+              renderDailyMood(payload);
+              showMoodMessage(mood);
+              setTimeout(()=>loadActivityJournal({silent:true}),180);
+              try{
+                if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
+                else tg?.HapticFeedback?.selectionChanged?.();
+              }catch(_){}
+            }catch(_){
+              await refreshDailyMood();
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }finally{
+              buttons.forEach(item=>item.disabled=false);
+            }
+          });
+        });
 
         refreshDailyMood();
       }
