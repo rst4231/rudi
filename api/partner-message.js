@@ -3073,8 +3073,12 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, fasting: fastingView(state) });
       }
       if (operation === 'stop') {
+        const beforeStop = await readFastingState(actor, options);
+        const stoppedId = String(beforeStop.active?.id || '').trim();
         const state = await stopFasting(actor, options);
-        const completed = state.history?.[0] || null;
+        const completed = stoppedId
+          ? (state.history || []).find((row) => String(row?.id || '') === stoppedId) || null
+          : null;
         const rewardStars = fastingRewardStars(completed?.durationMinutes);
         let scoreAward = null;
         if (rewardStars > 0 && completed?.id) {
@@ -3100,6 +3104,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           ok: true,
           actor,
           fasting: fastingView(state),
+          savedToHistory: Boolean(completed),
           reward: {
             earnedStars: pointsFromUnits(scoreAward?.awardedUnits || 0),
             requestedStars: rewardStars,

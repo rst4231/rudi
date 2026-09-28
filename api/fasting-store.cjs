@@ -4,6 +4,7 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const NAMESPACE = 'rudi-fasting-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_HISTORY = 200;
+const MIN_HISTORY_DURATION_MS = 60 * 60 * 1000;
 const ALLOWED_GOALS = new Set([12, 14, 16, 18, 24]);
 const ACTORS = new Set(['Рустам', 'Диана']);
 let mutationTail = Promise.resolve();
@@ -44,8 +45,10 @@ function normalizeHistoryItem(value) {
   const startMs = Date.parse(startedAt);
   const endMs = Date.parse(endedAt);
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return null;
+  const durationMs = endMs - startMs;
+  if (durationMs < MIN_HISTORY_DURATION_MS) return null;
   const goalHours = ALLOWED_GOALS.has(Number(value?.goalHours)) ? Number(value.goalHours) : 16;
-  const durationMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
+  const durationMinutes = Math.max(0, Math.round(durationMs / 60000));
   return {
     id: String(value?.id || '').trim() || crypto.randomUUID(),
     startedAt,
@@ -117,7 +120,14 @@ function fastingView(value) {
 }
 
 async function readFastingState(actor, options = {}) {
-  return normalizeState(await cacheOf(options).get(stateKey(actor)));
+  const cache = cacheOf(options);
+  const raw = await cache.get(stateKey(actor));
+  const state = normalizeState(raw);
+  const rawHistoryCount = Array.isArray(raw?.history) ? raw.history.length : 0;
+  if (rawHistoryCount !== state.history.length) {
+    return writeFastingState(actor, state, { ...options, fastingCache: cache });
+  }
+  return state;
 }
 
 async function writeFastingState(actor, value, options = {}) {
@@ -183,7 +193,7 @@ function resetMutationQueueForTests() {
 }
 
 module.exports = {
-  NAMESPACE, TTL_SECONDS, MAX_HISTORY, ALLOWED_GOALS,
+  NAMESPACE, TTL_SECONDS, MAX_HISTORY, MIN_HISTORY_DURATION_MS, ALLOWED_GOALS,
   normalizeState, fastingRewardStars, statsFromHistory, fastingView,
   readFastingState, writeFastingState, startFasting, stopFasting,
   resetMutationQueueForTests,

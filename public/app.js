@@ -10728,12 +10728,15 @@
             loadActivityJournal({silent:true}).catch(()=>{});
             const earnedStars=Number(data.reward?.earnedStars||0);
             const requestedStars=Number(data.reward?.requestedStars||0);
+            const savedToHistory=data.savedToHistory!==false;
             if(status){
-              status.textContent=earnedStars>0
-                ?'Голодание сохранено · +'+earnedStars+'⭐'
-                :requestedStars>0
-                  ?'Голодание сохранено · дневной лимит звёзд уже достигнут'
-                  :'Голодание сохранено в истории';
+              status.textContent=!savedToHistory
+                ?'Голодание меньше часа · в историю не добавлено'
+                :earnedStars>0
+                  ?'Голодание сохранено · +'+earnedStars+'⭐'
+                  :requestedStars>0
+                    ?'Голодание сохранено · дневной лимит звёзд уже достигнут'
+                    :'Голодание сохранено в истории';
             }
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
