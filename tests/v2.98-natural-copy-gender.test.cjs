@@ -68,6 +68,6 @@ test('v2.98 fixes declension and natural notification copy',()=>{
   assert.match(score,/Партнёр берёт домашние дела на себя на один день/);
 });
 
-test('v2.99 version marker is exact',()=>{
-  assert.equal(read('VERSION').trim(),'v2.99');
+test('v2.100 version marker is exact',()=>{
+  assert.equal(read('VERSION').trim(),'v2.100');
 });

@@ -4,8 +4,6 @@ const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession } = require('./rudi-session.cjs');
 const { appendActivity } = require('./activity-journal-store.cjs');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
-const { readRecipients } = require('./partner-notification-store.cjs');
-const { telegramSendMessage } = require('./telegram-notifications.cjs');
 
 const BASE = 'https://api.iot.yandex.net/v1.0';
 const CACHE_MS = 30000;
@@ -53,23 +51,6 @@ async function observeCameraStatus(snapshot, options = {}) {
 
   if(!previous?.state||previous.state===state){
     return {found:true,state,changed:false};
-  }
-
-  try{
-    const recipients=options.cameraRecipients||await readRecipients(options);
-    const chatId=Number(recipients?.['Рустам']);
-    if(Number.isInteger(chatId)&&chatId>0){
-      const text=state==='online'
-        ?'📷 <b>Камера снова онлайн</b>'
-        :'📷 <b>Камера офлайн</b>';
-      await telegramSendMessage(chatId,text,{
-        ...options,
-        tab:'home',
-        buttonText:'Открыть RUDI',
-      });
-    }
-  }catch(error){
-    console.warn('RUDI_CAMERA_STATUS_NOTIFY_WARN',String(error?.message||error));
   }
 
   return {found:true,state,changed:true,previousState:previous.state};
