@@ -69,6 +69,7 @@ const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./u
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
 const { readSupplements } = require('./supplements-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
+const { loadCheapFlightsConfig, readCheapFlightsSnapshot, isCheapFlightsActorAllowed } = require('./cheap-flights.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -2220,6 +2221,31 @@ async function handleRudiAction(req, res, action, options = {}) {
       const status = statusForError(error);
       if (status === 500) console.error('RUDI_STATE_BACKUP_RECOVERY_ERROR', code);
       return res.status(status === 500 ? 400 : status).json({ ok: false, error: code });
+    }
+  }
+
+  if (action === 'cheap-flights') {
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const config = await loadCheapFlightsConfig(options);
+      if (!isCheapFlightsActorAllowed(actor, config)) {
+        return res.status(403).json({ ok: false, error: 'cheap-flights-owner-required' });
+      }
+      const result = await readCheapFlightsSnapshot({
+        ...options,
+        config,
+        refreshIfNeeded: true,
+      });
+      const { config: _config, ...publicResult } = result || {};
+      return res.status(200).json({ ok: true, actor, ...publicResult });
+    } catch (error) {
+      const code = String(error?.message || error);
+      const authStatus = statusForError(error);
+      const status = authStatus !== 500 ? authStatus : 502;
+      console.warn('RUDI_CHEAP_FLIGHTS_API_WARN', code);
+      return res.status(status).json({ ok: false, error: status === 502 ? 'cheap-flights-unavailable' : code });
     }
   }
 
