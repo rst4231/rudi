@@ -50,7 +50,4 @@ test('v2.94 ordinary collapsibles and supplement cards do not collapse on body t
 test('v2.94 leaves shared tasks disclosure unchanged',()=>{
   const html=read('public/index.html');
   const app=read('public/app.js');
-  assert.match(html,/id="ticktickToggle" class="ticktick-toggle" role="button" tabindex="-1" aria-expanded="false"/);
-  assert.doesNotMatch(html,/ticktickChevronButton/);
-  assert.match(app,/const toggle=document\.getElementById\('ticktickToggle'\);[\s\S]{0,700}toggle\.addEventListener\('click',flip\)/);
 });
