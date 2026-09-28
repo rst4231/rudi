@@ -10762,14 +10762,36 @@
           }
         });
 
-        stop?.addEventListener('click',async()=>{
-          if(stop.disabled) return;
+        const stopConfirm=document.getElementById('fastingStopConfirm');
+        const stopConfirmBackdrop=document.getElementById('fastingStopConfirmBackdrop');
+        const stopConfirmNo=document.getElementById('fastingStopConfirmNo');
+        const stopConfirmYes=document.getElementById('fastingStopConfirmYes');
 
+        const setStopConfirmOpen=(open)=>{
+          if(!stopConfirm) return;
+          stopConfirm.hidden=!open;
+          stopConfirm.setAttribute('aria-hidden',String(!open));
+          document.body.classList.toggle('fasting-stop-confirm-open',open);
+          if(open){
+            requestAnimationFrame(()=>stopConfirm.classList.add('is-open'));
+            setTimeout(()=>stopConfirmNo?.focus(),40);
+          }else{
+            stopConfirm.classList.remove('is-open');
+            document.body.classList.remove('fasting-stop-confirm-open');
+            stop?.focus?.();
+          }
+        };
+
+        const finishFasting=async()=>{
+          if(stop.disabled) return;
           stop.disabled=true;
+          if(stopConfirmYes) stopConfirmYes.disabled=true;
+          if(stopConfirmNo) stopConfirmNo.disabled=true;
           if(status) status.textContent='Сохраняю…';
 
           try{
             const data=await fastingRequest('stop');
+            setStopConfirmOpen(false);
             renderFasting(data.fasting);
             updateOwnFastingOverview(null);
             loadActivityJournal({silent:true}).catch(()=>{});
@@ -10791,7 +10813,21 @@
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
             stop.disabled=false;
+            if(stopConfirmYes) stopConfirmYes.disabled=false;
+            if(stopConfirmNo) stopConfirmNo.disabled=false;
           }
+        };
+
+        stop?.addEventListener('click',()=>{
+          if(stop.disabled) return;
+          setStopConfirmOpen(true);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        stopConfirmNo?.addEventListener('click',()=>setStopConfirmOpen(false));
+        stopConfirmBackdrop?.addEventListener('click',()=>setStopConfirmOpen(false));
+        stopConfirmYes?.addEventListener('click',finishFasting);
+        document.addEventListener('keydown',(event)=>{
+          if(event.key==='Escape'&&stopConfirm&&!stopConfirm.hidden) setStopConfirmOpen(false);
         });
       }
 

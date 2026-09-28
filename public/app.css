@@ -11333,3 +11333,93 @@ html[data-theme="dark"] body[data-app-tab="wishlist"] .app-tab-button[aria-curre
 html[data-theme="dark"] body[data-app-tab="wishlist"] .footer{
   color:#6f786f!important;
 }
+
+
+/* RUDI v2.75 — fasting stop confirmation */
+body.fasting-stop-confirm-open{overflow:hidden}
+.fasting-stop-confirm{
+  position:fixed;
+  inset:0;
+  z-index:7800;
+  display:grid;
+  place-items:end center;
+  padding:16px 14px calc(18px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)));
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease;
+}
+.fasting-stop-confirm[hidden]{display:none!important}
+.fasting-stop-confirm.is-open{opacity:1;pointer-events:auto}
+.fasting-stop-confirm-backdrop{
+  position:absolute;
+  inset:0;
+  border:0;
+  background:rgba(5,8,12,.48);
+  backdrop-filter:blur(9px);
+  -webkit-backdrop-filter:blur(9px);
+}
+.fasting-stop-confirm-dialog{
+  position:relative;
+  z-index:1;
+  width:min(100%,420px);
+  padding:21px 18px 17px;
+  border:1px solid color-mix(in srgb,var(--line) 88%,transparent);
+  border-radius:24px;
+  background:color-mix(in srgb,var(--surface-strong) 97%,transparent);
+  color:var(--text);
+  box-shadow:0 26px 70px rgba(7,10,18,.28);
+  text-align:center;
+  transform:translateY(18px) scale(.985);
+  transition:transform .2s cubic-bezier(.2,.8,.2,1);
+}
+.fasting-stop-confirm.is-open .fasting-stop-confirm-dialog{transform:none}
+.fasting-stop-confirm-icon{
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  margin:0 auto 10px;
+  border-radius:15px;
+  background:color-mix(in srgb,var(--accent) 12%,var(--surface));
+  font-size:21px;
+}
+.fasting-stop-confirm-dialog h2{
+  margin:0;
+  font-size:18px;
+  line-height:1.2;
+}
+.fasting-stop-confirm-dialog p{
+  margin:8px auto 17px;
+  max-width:300px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.fasting-stop-confirm-actions{
+  display:grid;
+  grid-template-columns:1fr 1.25fr;
+  gap:8px;
+}
+.fasting-stop-confirm-actions button{
+  min-height:46px;
+  border-radius:14px;
+  font:inherit;
+  font-size:11.5px;
+  font-weight:820;
+  cursor:pointer;
+}
+.fasting-stop-confirm-actions button:disabled{opacity:.52;cursor:default}
+.fasting-stop-confirm-no{
+  border:1px solid var(--line);
+  background:var(--soft);
+  color:var(--text);
+}
+.fasting-stop-confirm-yes{
+  border:1px solid color-mix(in srgb,var(--red) 18%,transparent);
+  background:color-mix(in srgb,var(--red) 14%,var(--surface-strong));
+  color:color-mix(in srgb,var(--red) 84%,var(--text));
+}
+.fasting-stop-confirm-actions button:active:not(:disabled){transform:scale(.975)}
+@media(prefers-reduced-motion:reduce){
+  .fasting-stop-confirm,.fasting-stop-confirm-dialog{transition:none!important}
+}
