@@ -233,7 +233,7 @@
     },
     {
       "path": "/api/habit-reminder-cron",
-      "schedule": "0 18 * * *"
+      "schedule": "0 17 * * *"
     }
   ],
   "env": {
