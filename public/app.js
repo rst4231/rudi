@@ -8847,7 +8847,7 @@
                 currentScoreState=fresh.score||currentScoreState;
                 renderScoreStickers(currentScoreState);
               }catch(_){}
-              if(data?.reward?.awarded&&status) status.textContent='Ответ сохранён · +0,1 ⭐';
+              if(data?.reward?.awarded&&status) status.textContent='Ответ сохранён.';
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(error){
               if(status) status.textContent=String(error?.message||'')==='daily-question-already-answered'
