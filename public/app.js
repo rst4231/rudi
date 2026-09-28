@@ -9043,6 +9043,22 @@
         trigger.classList.toggle('is-open',next);
       }
 
+      function bindMoodPickerTrigger(){
+        const trigger=document.getElementById('moodCurrentButton');
+        if(!trigger||trigger.dataset.moodPickerBound==='1')return;
+        trigger.dataset.moodPickerBound='1';
+        trigger.addEventListener('click',event=>{
+          event.preventDefault();
+          event.stopPropagation();
+          const choices=document.getElementById('moodChoices');
+          if(!choices)return;
+          setMoodChoicesOpen(choices.hidden);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+      }
+
+      bindMoodPickerTrigger();
+
       function selectOwnMood(value){
         const mood=String(value||'');
         const meta=MOOD_META[mood]||null;
@@ -9172,18 +9188,7 @@
         const prompt=document.getElementById('moodPrompt');
         if(prompt)prompt.hidden=false;
 
-        const currentButton=document.getElementById('moodCurrentButton');
-        if(currentButton&&currentButton.dataset.bound!=='1'){
-          currentButton.dataset.bound='1';
-          currentButton.addEventListener('click',event=>{
-            event.preventDefault();
-            event.stopPropagation();
-            const choices=document.getElementById('moodChoices');
-            if(!choices)return;
-            setMoodChoicesOpen(choices.hidden);
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          });
-        }
+        bindMoodPickerTrigger();
 
         moodButtons().forEach(button=>{
           if(button.dataset.bound==='1')return;
