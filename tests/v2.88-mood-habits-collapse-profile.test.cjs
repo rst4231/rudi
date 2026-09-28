@@ -5,4 +5,4 @@ test('habit reward 0.1',()=>{assert.match(habits,/HABIT_REWARD_UNITS=1/);assert.
 test('personal page disabled',()=>{assert.doesNotMatch(profile,/loadDailyRecommendation\(/);assert.doesNotMatch(supp,/operation==='recommendation'/);assert.doesNotMatch(profile,/name\.addEventListener\('click',open\)/)});
 test('safe collapse taps',()=>{assert.doesNotMatch(app,/collapseTapIgnored/);assert.doesNotMatch(profile,/habitTile\.addEventListener\('click'/);assert.doesNotMatch(profile,/tile\.addEventListener\('click'/);assert.match(app,/button\.addEventListener\('click',toggleCollapsed\)/);assert.match(profile,/habitCollapseButton\.addEventListener\('click',toggleHabitCollapse\)/);assert.match(profile,/collapseButton\.addEventListener\('click',toggleSupplementsCollapse\)/)});
 test('gift grammar',()=>{assert.match(app,/Подарите '\+actorDativeName\(partner\)/);assert.match(score,/Подарок от '\+actorGenitive\(from\)/)});
-test('history UI',()=>{assert.match(html,/moodHistoryButton/);assert.match(html,/mood-history\.js\?v=2\.88/)});
+test('history UI',()=>{assert.match(html,/moodHistoryButton/);assert.match(html,/mood-history\\.js\\?v=2\\.101/)});
