@@ -510,8 +510,95 @@
           <div id="carTasksList" class="car-tasks-list"></div>
         </section>
 
+        <button id="carWashGuideOpen" class="car-wash-guide-open" type="button" aria-controls="carWashGuidePage">
+          <span class="car-wash-guide-open-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3.5C9.7 6.7 6.5 10.4 6.5 14.2a5.5 5.5 0 1 0 11 0C17.5 10.4 14.3 6.7 12 3.5Z" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M9.2 14.7a3.1 3.1 0 0 0 3.1 3.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="car-wash-guide-open-copy">
+            <strong>Как мыть машину</strong>
+            <small>6 шагов безопасной мойки кузова</small>
+          </span>
+          <span class="car-wash-guide-open-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="m9 5 7 7-7 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+
         <div id="carStatus" class="car-status" aria-live="polite"></div>
       </div>
+
+      <section id="carWashGuidePage" class="car-wash-guide-page" aria-labelledby="carWashGuideTitle" hidden>
+        <div class="car-wash-guide-head">
+          <button id="carWashGuideBack" class="car-wash-guide-back" type="button" aria-label="Назад к машине">
+            <svg viewBox="0 0 24 24" fill="none"><path d="m15 5-7 7 7 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div>
+            <span class="car-wash-guide-kicker">Уход за кузовом</span>
+            <h3 id="carWashGuideTitle">Как мыть машину</h3>
+          </div>
+        </div>
+
+        <div class="car-wash-guide-intro">
+          <strong>Правильный порядок</strong>
+          <p>Главный принцип — сначала убрать песок и крупную грязь водой и пеной, и только потом касаться кузова варежкой.</p>
+        </div>
+
+        <ol class="car-wash-guide-steps">
+          <li class="car-wash-guide-step">
+            <span class="car-wash-guide-number">1</span>
+            <div>
+              <strong>Сначала вода под давлением</strong>
+              <p>Сбиваешь песок, грязь, соль и реагенты. Особенно тщательно проходишь низ дверей, арки, пороги и задний бампер.</p>
+            </div>
+          </li>
+          <li class="car-wash-guide-step">
+            <span class="car-wash-guide-number">2</span>
+            <div>
+              <strong>Потом первая пена</strong>
+              <p>Наносишь пену и просто ждёшь <b>3–5 минут</b>. Варежкой на этом этапе не трёшь — пена должна размочить грязь.</p>
+            </div>
+          </li>
+          <li class="car-wash-guide-step">
+            <span class="car-wash-guide-number">3</span>
+            <div>
+              <strong>Смываешь пену водой</strong>
+              <p>На этом этапе уходит основная грязь. Это важно, чтобы потом не тащить песок по лаку и не оставлять мелкие царапины.</p>
+            </div>
+          </li>
+          <li class="car-wash-guide-step is-contact">
+            <span class="car-wash-guide-number">4</span>
+            <div>
+              <strong>Контактная мойка варежкой</strong>
+              <p>Берёшь ведро с шампунем или наносишь вторую пену/шампунь и мягко проходишь кузов варежкой.</p>
+              <div class="car-wash-guide-tip">
+                <span>Двигайся прямыми движениями, не круговыми.</span>
+                <span>Иди сверху вниз: крыша → стёкла → капот → верх дверей → низ дверей → бамперы → пороги.</span>
+              </div>
+            </div>
+          </li>
+          <li class="car-wash-guide-step">
+            <span class="car-wash-guide-number">5</span>
+            <div>
+              <strong>Смываешь шампунь</strong>
+              <p>Тщательно смываешь остатки шампуня чистой водой, особенно из стыков, зеркал и нижних частей кузова.</p>
+            </div>
+          </li>
+          <li class="car-wash-guide-step">
+            <span class="car-wash-guide-number">6</span>
+            <div>
+              <strong>Сушка микрофиброй</strong>
+              <p>Не трёшь кузов насухо как обычным полотенцем. Аккуратно промакиваешь поверхность или мягко стягиваешь воду чистой микрофиброй.</p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="car-wash-guide-note">
+          <strong>Главное правило</strong>
+          <p>Не начинай контактную мойку, пока на кузове остаётся песок. Именно он чаще всего даёт мелкие круговые царапины на лаке.</p>
+        </div>
+      </section>
     </section>
 
     <section id="feedSection" class="feed-page" data-app-tab-section="feed" aria-label="Лента">

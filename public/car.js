@@ -45,6 +45,20 @@
     return data;
   }
 
+  function setWashGuideOpen(open) {
+    const body=document.getElementById('carBody');
+    const page=document.getElementById('carWashGuidePage');
+    const tile=document.getElementById('carTile');
+    if(!body || !page) return;
+    body.hidden=Boolean(open);
+    page.hidden=!open;
+    tile?.classList.toggle('is-wash-guide-open',Boolean(open));
+    if(open){
+      page.scrollIntoView({block:'start',behavior:'smooth'});
+      try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+    }
+  }
+
   function setStatus(text,kind='') {
     const node=document.getElementById('carStatus');
     if(!node) return;
@@ -614,6 +628,8 @@
     document.getElementById('carErrorAdd')?.addEventListener('click',()=>setErrorFormOpen(true));
     document.getElementById('carErrorCancel')?.addEventListener('click',()=>setErrorFormOpen(false));
     document.getElementById('carErrorForm')?.addEventListener('submit',saveDashboardError);
+    document.getElementById('carWashGuideOpen')?.addEventListener('click',()=>setWashGuideOpen(true));
+    document.getElementById('carWashGuideBack')?.addEventListener('click',()=>setWashGuideOpen(false));
     let attempts=0;
     const wait=()=>{
       attempts++;
