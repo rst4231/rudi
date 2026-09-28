@@ -4068,6 +4068,7 @@
         const selfMood=mood?.querySelector('.mood-self');
         const partnerMood=mood?.querySelector('.mood-partner');
         const moodPrompt=document.getElementById('moodPrompt');
+        const moodChoices=document.getElementById('moodChoices');
         const moodMessage=document.getElementById('moodMessage');
         const dateHeading=document.getElementById('profileMeta');
         if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!dateHeading) return;
@@ -4336,8 +4337,12 @@
           moodPrompt.hidden=true;
           (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodPrompt);
         }
+        const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
+        if(moodChoices){
+          moodChoices.hidden=true;
+          ownCard.tile.insertBefore(moodChoices,ownCard.details);
+        }
         if(moodMessage){
-          const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
           ownCard.tile.insertBefore(moodMessage,ownCard.details);
         }
 
@@ -9160,10 +9165,10 @@
             buttons.forEach(item=>item.disabled=true);
             selectOwnMood(mood);
             setMoodChoicesOpen(false);
+            showMoodMessage(mood);
             try{
               const payload=await moodRequest('set',mood);
               renderDailyMood(payload);
-              showMoodMessage(mood);
               setTimeout(()=>loadActivityJournal({silent:true}),180);
               try{
                 if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
