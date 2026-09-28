@@ -11862,3 +11862,12 @@ html[data-theme="dark"] .fasting-start-card::before{
   pointer-events:none!important;
 }
 /* end RUDI v2.107 */
+
+/* RUDI v2.108: fasting timer contrast by theme */
+.fasting-elapsed{
+  color:#11172a;
+}
+html[data-theme="dark"] .fasting-elapsed{
+  color:#f2f6ff;
+}
+/* end RUDI v2.108 */
