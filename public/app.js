@@ -9048,8 +9048,7 @@
             event.preventDefault();
             event.stopPropagation();
             const choices=document.getElementById('moodChoices');
-            const shouldOpen=Boolean(choices?.hidden)||!choices?.classList.contains('is-open');
-            setMoodChoicesOpen(shouldOpen);
+            setMoodChoicesOpen(Boolean(choices?.hidden));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
