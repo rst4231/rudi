@@ -39,7 +39,7 @@ test('v2.94 mood analyzer has no per-user daily limit and caches for 24 hours',(
 test('v2.94 ordinary collapsibles and supplement cards do not collapse on body taps',()=>{
   const app=read('public/app.js');
   const supplements=read('public/profile-supplements.js');
-  assert.match(app,/function collapseTapIgnored\(\)\{\s*return true;\s*\}/);
+  assert.doesNotMatch(app,/collapseTapIgnored\(/);
   assert.match(app,/button\.addEventListener\('click',toggleCollapsed\)/);
   assert.doesNotMatch(supplements,/habitTile\.addEventListener\('click'/);
   assert.doesNotMatch(supplements,/tile\.addEventListener\('click'/);
