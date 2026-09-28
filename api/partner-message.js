@@ -552,6 +552,27 @@ function fastingDurationDetail(durationMinutes) {
   return hours + ' ч' + (minutes ? ' ' + minutes + ' мин' : '');
 }
 
+function fastingViewWithRewards(state, actor, scoreState) {
+  const view = fastingView(state);
+  const prefix = 'score:fasting:' + actor + ':';
+  const earnedById = new Map();
+  for (const row of Array.isArray(scoreState?.history) ? scoreState.history : []) {
+    if (row?.actor !== actor || row?.kind !== 'earn' || row?.reversedAt) continue;
+    const dedupeKey = String(row?.dedupeKey || '');
+    if (!dedupeKey.startsWith(prefix)) continue;
+    const id = dedupeKey.slice(prefix.length);
+    if (!id) continue;
+    earnedById.set(id, (earnedById.get(id) || 0) + pointsFromUnits(row?.units || 0));
+  }
+  return {
+    ...view,
+    history: (view.history || []).map((row) => ({
+      ...row,
+      earnedStars: earnedById.get(String(row?.id || '')) || 0,
+    })),
+  };
+}
+
 async function sendShopUnlockNotification(actor,rewards,options={}){
   const rows=(Array.isArray(rewards)?rewards:[]).filter(Boolean);
   if(!rows.length)return [];
@@ -3038,8 +3059,11 @@ async function handleRudiAction(req, res, action, options = {}) {
       const operation = String(body.operation || 'state').trim();
 
       if (operation === 'state') {
-        const state = await readFastingState(actor, options);
-        return res.status(200).json({ ok: true, actor, fasting: fastingView(state) });
+        const [state, scoreState] = await Promise.all([
+          readFastingState(actor, options),
+          readScoreState(options),
+        ]);
+        return res.status(200).json({ ok: true, actor, fasting: fastingViewWithRewards(state, actor, scoreState) });
       }
       if (operation === 'overview') {
         const [rustam, diana] = await Promise.all([
@@ -3100,10 +3124,11 @@ async function handleRudiAction(req, res, action, options = {}) {
             createdAt: completed.endedAt || new Date(options.now || Date.now()).toISOString(),
           }, options);
         }
+        const finalScoreState = scoreAward?.state || await readScoreState(options);
         return res.status(200).json({
           ok: true,
           actor,
-          fasting: fastingView(state),
+          fasting: fastingViewWithRewards(state, actor, finalScoreState),
           savedToHistory: Boolean(completed),
           reward: {
             earnedStars: pointsFromUnits(scoreAward?.awardedUnits || 0),

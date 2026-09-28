@@ -10398,6 +10398,12 @@
           const label=fastingHomeLabel(active,firstPerson);
           node.textContent=label;
           node.hidden=!label;
+          if(firstPerson){
+            node.classList.toggle('is-clickable',Boolean(label));
+            node.tabIndex=label?0:-1;
+            node.setAttribute('role',label?'button':'status');
+            node.setAttribute('aria-label',label?label+'. Открыть трекер голодания':label);
+          }
         });
       }
 
@@ -10445,34 +10451,44 @@
           return {
             label:'После еды',
             title:'Пищеварительная фаза',
-            description:'Организм ещё активно использует энергию из последнего приёма пищи. Инсулин обычно выше, чем позже во время голодания.'
+            description:'Организм ещё активно использует энергию из последнего приёма пищи. Инсулин обычно выше, чем позже во время голодания.',
+            feeling:'Обычно самочувствие привычное; голод может ещё не ощущаться.',
+            action:'Пейте воду по жажде и сохраняйте обычный спокойный режим.'
           };
         }
         if(hours<12){
           return {
             label:'4–12 часов',
             title:'Постабсорбтивная фаза',
-            description:'Инсулин постепенно снижается, а печень всё больше поддерживает уровень глюкозы за счёт запасов гликогена.'
+            description:'Инсулин постепенно снижается, а печень всё больше поддерживает уровень глюкозы за счёт запасов гликогена.',
+            feeling:'Может появиться голод, желание перекусить, лёгкая раздражительность или колебания энергии.',
+            action:'Вода, несладкий чай или кофе без добавок могут помочь. Умеренная активность обычно переносится нормально.'
           };
         }
         if(hours<18){
           return {
             label:'12–18 часов',
             title:'Переход к жирам',
-            description:'Использование гликогена продолжается, а доля энергии из жиров постепенно растёт. Кетоны могут начать повышаться.'
+            description:'Использование гликогена продолжается, а доля энергии из жиров постепенно растёт. Кетоны могут начать повышаться.',
+            feeling:'Голод может приходить волнами; у части людей энергия выравнивается, у других появляется слабость или зябкость.',
+            action:'Не форсируйте интенсивную нагрузку. Следите за водой и самочувствием; при выраженной слабости лучше закончить голодание.'
           };
         }
         if(hours<24){
           return {
             label:'18–24 часа',
             title:'Больше жиров и кетонов',
-            description:'Организм обычно сильнее опирается на жиры, а образование кетонов становится заметнее. Скорость перехода у всех разная.'
+            description:'Организм обычно сильнее опирается на жиры, а образование кетонов становится заметнее. Скорость перехода у всех разная.',
+            feeling:'Возможны более заметный голод, усталость, головная боль или снижение концентрации, хотя некоторые чувствуют себя стабильно.',
+            action:'Выбирайте спокойную нагрузку и регулярно оценивайте самочувствие. При головокружении, дрожи или выраженной слабости прекратите голодание.'
           };
         }
         return {
           label:'24+ часов',
           title:'Продолжительное голодание',
-          description:'Зависимость от жиров и кетонов обычно продолжает расти. На этом сроке особенно важно ориентироваться на самочувствие.'
+          description:'Зависимость от жиров и кетонов обычно продолжает расти. На этом сроке особенно важно ориентироваться на самочувствие.',
+          feeling:'На длительном голодании переносимость сильно различается; возможны слабость, головная боль, зябкость и снижение работоспособности.',
+          action:'Не продолжайте через плохое самочувствие. При выраженной слабости, спутанности, обмороке или стойком головокружении прекратите голодание и при необходимости обратитесь за медицинской помощью.'
         };
       }
 
@@ -10528,6 +10544,8 @@
         const badge=document.getElementById('fastingStageBadge');
         const title=document.getElementById('fastingStageTitle');
         const description=document.getElementById('fastingStageDescription');
+        const feeling=document.getElementById('fastingStageFeeling');
+        const action=document.getElementById('fastingStageAction');
         const bar=document.getElementById('fastingProgressBar');
         const goalState=document.getElementById('fastingGoalState');
         const rewardValue=document.getElementById('fastingRewardValue');
@@ -10537,12 +10555,16 @@
         if(badge) badge.textContent=stage.label;
         if(title) title.textContent=stage.title;
         if(description) description.textContent=stage.description;
+        if(feeling) feeling.textContent=stage.feeling;
+        if(action) action.textContent=stage.action;
         if(bar) bar.style.width=goalProgress+'%';
 
         if(goalState){
-          goalState.textContent=elapsedHours>=goalHours
+          const goalReached=elapsedHours>=goalHours;
+          goalState.textContent=goalReached
             ? 'Цель достигнута'
             : 'До цели '+fastingDurationLabel(Math.ceil(goalHours*60-elapsedMs/60000));
+          goalState.classList.toggle('is-reached',goalReached);
         }
       }
 
@@ -10597,7 +10619,13 @@
           );
           const totalHours=Math.round((totalMinutes/60)*10)/10;
           const hoursLabel=Number.isInteger(totalHours)?String(totalHours):String(totalHours).replace('.',',');
-          historyTitle.textContent='История · '+hoursLabel+' ч за '+currentYear;
+          const totalStars=rows.reduce((sum,row)=>{
+            const ended=new Date(String(row?.endedAt||''));
+            if(Number.isNaN(ended.getTime())||ended.getFullYear()!==currentYear) return sum;
+            return sum+Math.max(0,Number(row?.earnedStars)||0);
+          },0);
+          const starsLabel=Number.isInteger(totalStars)?String(totalStars):String(totalStars).replace('.',',');
+          historyTitle.textContent='История · '+hoursLabel+' ч · '+starsLabel+' ⭐ за '+currentYear;
         }
 
         if(history){
@@ -10615,11 +10643,16 @@
             const meta=document.createElement('span');
             meta.textContent=fastingDateTimeLabel(row.startedAt)+' → '+fastingDateTimeLabel(row.endedAt);
 
+            const stars=document.createElement('span');
+            stars.className='fasting-history-stars';
+            const earnedStars=Math.max(0,Number(row?.earnedStars)||0);
+            stars.textContent=(Number.isInteger(earnedStars)?String(earnedStars):String(earnedStars).replace('.',','))+' ⭐ получено';
+
             const goal=document.createElement('span');
             goal.className='fasting-history-goal'+(row.goalReached?' is-reached':'');
             goal.textContent=(row.goalReached?'✓ ':'')+String(row.goalHours||16)+' ч';
 
-            copy.append(duration,meta);
+            copy.append(duration,meta,stars);
             item.append(copy,goal);
             history.appendChild(item);
           });
@@ -10648,12 +10681,26 @@
 
       function setupFastingTracker(){
         const open=document.getElementById('fastingTrackerOpen');
+        const selfStatus=document.getElementById('selfFastingStatus');
         const back=document.getElementById('fastingBackButton');
         const start=document.getElementById('fastingStartButton');
         const stop=document.getElementById('fastingStopButton');
         const input=document.getElementById('fastingStartAt');
         const status=document.getElementById('fastingStatus');
         const historyToggle=document.getElementById('fastingHistoryToggle');
+
+        const openOwnFasting=()=>{
+          if(selfStatus?.hidden) return;
+          fastingReturnTab='home';
+          navigateToAppTab('fasting',{scroll:true});
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        };
+        selfStatus?.addEventListener('click',openOwnFasting);
+        selfStatus?.addEventListener('keydown',(event)=>{
+          if(event.key!=='Enter'&&event.key!==' ') return;
+          event.preventDefault();
+          openOwnFasting();
+        });
 
         historyToggle?.addEventListener('click',()=>{
           const card=document.querySelector('.fasting-history-card');

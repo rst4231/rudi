@@ -8336,6 +8336,10 @@ body.lulu-walk-modal-open{overflow:hidden}
 .fasting-history-copy{display:grid;gap:3px;min-width:0}
 .fasting-history-copy strong{font-size:12px}
 .fasting-history-copy span{color:var(--muted);font-size:9.5px;line-height:1.35}
+.fasting-history-copy .fasting-history-stars{
+  color:color-mix(in srgb,#c78a00 86%,var(--text));
+  font-weight:780;
+}
 .fasting-history-goal{
   min-width:42px;padding:6px 8px;border-radius:999px;background:var(--surface-strong);color:var(--muted);
   font-size:9px;font-weight:800;text-align:center
@@ -8388,6 +8392,13 @@ body.lulu-walk-modal-open{overflow:hidden}
   white-space:nowrap;
   animation:fastingStatusIn .3s ease both;
 }
+.profile-fasting-status.is-clickable{
+  cursor:pointer;
+  text-decoration:underline;
+  text-decoration-color:color-mix(in srgb,var(--accent) 34%,transparent);
+  text-underline-offset:2px;
+}
+.profile-fasting-status.is-clickable:active{opacity:.68}
 .partner-profile-fasting-status{text-align:right}
 @keyframes fastingStatusIn{
   from{opacity:0;transform:translateY(2px)}
@@ -8503,6 +8514,11 @@ body.lulu-walk-modal-open{overflow:hidden}
   border-radius:999px;
   background:color-mix(in srgb,var(--surface-strong) 78%,transparent);
 }
+.fasting-goal-state.is-reached{
+  color:var(--green);
+  background:color-mix(in srgb,var(--green) 12%,var(--surface-strong));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--green) 18%,transparent);
+}
 .fasting-elapsed{
   margin:20px 0 7px;
   font-size:clamp(40px,11vw,54px);
@@ -8537,6 +8553,31 @@ body.lulu-walk-modal-open{overflow:hidden}
   font-size:11.5px;
   line-height:1.52;
   max-width:95%;
+}
+.fasting-stage-guidance{
+  position:relative;
+  z-index:1;
+  display:grid;
+  gap:7px;
+  margin:-3px 0 14px;
+}
+.fasting-stage-guidance>div{
+  display:grid;
+  gap:3px;
+  padding:9px 10px;
+  border-radius:12px;
+  background:color-mix(in srgb,var(--surface-strong) 78%,transparent);
+  border:1px solid color-mix(in srgb,var(--line) 76%,transparent);
+}
+.fasting-stage-guidance strong{
+  color:var(--text);
+  font-size:9.5px;
+  font-weight:820;
+}
+.fasting-stage-guidance span{
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.42;
 }
 .fasting-progress{
   height:9px;

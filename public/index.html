@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v2.72">
+  <meta name="rudi-version" content="v2.73">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=2.70">
+  <link rel="stylesheet" href="/app.css?v=2.73">
   <link rel="stylesheet" href="/pwa-extras.css?v=2.60">
   <link rel="stylesheet" href="/calendar.css?v=1.8.7">
   <link rel="stylesheet" href="/smart-home.css?v=1.8.7">
@@ -61,7 +61,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=2.72"></script>
+  <script defer src="/app.js?v=2.73"></script>
   <script defer src="/pwa-extras.js?v=2.59"></script>
   <script defer src="/weather.js?v=1.8.7"></script>
   <script defer src="/smart-home.js?v=1.8.7"></script>
@@ -930,6 +930,7 @@
           <ul>
             <li>может улучшать чувствительность к инсулину и некоторые показатели обмена веществ;</li>
             <li>после расходования части запасов гликогена организм сильнее использует жиры и кетоны как источник энергии;</li>
+            <li>голодание связано с усилением процессов клеточной переработки, включая аутофагию, при которой клетки расщепляют и повторно используют часть повреждённых компонентов; у людей нет надёжного «часа включения» аутофагии, поэтому таймер не может определить её начало;</li>
             <li>ограниченное окно приёма пищи может упростить контроль общей калорийности без постоянного подсчёта еды.</li>
           </ul>
           <p class="fasting-benefits-note">Больше часов не значит больше пользы. Эффект зависит от человека, рациона и режима. При плохом самочувствии голодание лучше прекратить; при беременности, РПП, диабете или лекарствах, влияющих на сахар и давление, длительные окна стоит заранее обсудить со специалистом.</p>
@@ -948,6 +949,10 @@
         </div>
         <h2 id="fastingStageTitle">Голодание идёт</h2>
         <p id="fastingStageDescription" class="fasting-stage-description"></p>
+        <div class="fasting-stage-guidance" aria-live="polite">
+          <div><strong>Что можно ощущать</strong><span id="fastingStageFeeling"></span></div>
+          <div><strong>Что делать</strong><span id="fastingStageAction"></span></div>
+        </div>
         <div class="fasting-progress" aria-label="Прогресс к цели"><span id="fastingProgressBar"></span></div>
         <div class="fasting-active-meta">
           <span>Начало <strong id="fastingStartedLabel">—</strong></span>
