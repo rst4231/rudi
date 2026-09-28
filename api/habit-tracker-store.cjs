@@ -21,7 +21,7 @@ function shiftDateKey(key,days){const date=new Date(String(key||'')+'T12:00:00Z'
 function normalizeHabit(value){
   if(!value||typeof value!=='object'||Array.isArray(value))return null;
   const id=cleanId(value.id),name=cleanText(value.name,80);if(!id||!name)return null;
-  return{id,name,emoji:cleanText(value.emoji,8),createdAt:isoOrEmpty(value.createdAt)};
+  return{id,name,purpose:cleanText(value.purpose,180),emoji:cleanText(value.emoji,8),createdAt:isoOrEmpty(value.createdAt)};
 }
 function normalizeStatusMap(value,validIds){
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{},out={};
@@ -140,12 +140,12 @@ async function ensureHabitDay(actor,date,options={}){
   });
 }
 async function addHabit(actor,name,options={}){
-  const who=cleanActor(actor),safe=cleanText(name,80);if(!safe)throw new Error('habit-name-required');
+  const who=cleanActor(actor),safe=cleanText(name,80),purpose=cleanText(options.purpose,180);if(!safe)throw new Error('habit-name-required');if(!purpose)throw new Error('habit-purpose-required');
   return enqueue(who,async()=>{
     const state=await readHabits(who,options);
     if(state.habits.some(row=>row.name.localeCompare(safe,'ru',{sensitivity:'accent'})===0))throw new Error('habit-duplicate');
     if(state.habits.length>=MAX_HABITS)throw new Error('habit-limit');
-    const nowMs=options.now||Date.now(),now=new Date(nowMs).toISOString(),habit={id:'habit-'+crypto.randomUUID(),name:safe,emoji:cleanText(options.emoji,8),createdAt:now};
+    const nowMs=options.now||Date.now(),now=new Date(nowMs).toISOString(),habit={id:'habit-'+crypto.randomUUID(),name:safe,purpose,emoji:cleanText(options.emoji,8),createdAt:now};
     const today=moscowDateKey(nowMs),bonusIdsByDate={...state.bonusIdsByDate};
     if(Object.prototype.hasOwnProperty.call(bonusIdsByDate,today)&&bonusIdsByDate[today].length<BONUS_LIMIT)bonusIdsByDate[today]=[...bonusIdsByDate[today],habit.id];
     return writeHabits(who,{...state,version:state.version+1,habits:[...state.habits,habit],bonusIdsByDate},options);
