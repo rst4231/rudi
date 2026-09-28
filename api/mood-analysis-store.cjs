@@ -1,7 +1,7 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
-const NAMESPACE='rudi-mood-analysis-v1';
-const TTL_SECONDS=60*60*24*40;
+const NAMESPACE='rudi-mood-analysis-v2';
+const TTL_SECONDS=60*60*24;
 
 function cacheOf(options={}) {
   return options.moodAnalysisCache || createStrictRuntimeCache({
@@ -9,7 +9,7 @@ function cacheOf(options={}) {
     ...(options.cacheOptions||{}),
   });
 }
-function keyFor(actor,date){return 'analysis:'+String(actor||'').trim()+':'+String(date||'').trim()}
+function keyFor(actor){return 'analysis:'+String(actor||'').trim()}
 function normalize(value,actor,date){
   const text=String(value?.text||'').trim().slice(0,6000);
   if(!text)return null;
@@ -21,7 +21,7 @@ function normalize(value,actor,date){
   }:null;
   return{
     actor:String(actor||value?.actor||'').trim(),
-    date:String(date||value?.date||'').trim(),
+    date:String(value?.date||date||'').trim(),
     text,
     createdAt:String(value?.createdAt||''),
     model:String(value?.model||'').slice(0,120),
@@ -30,12 +30,12 @@ function normalize(value,actor,date){
   };
 }
 async function readMoodAnalysisCache(actor,date,options={}){
-  return normalize(await cacheOf(options).get(keyFor(actor,date)),actor,date);
+  return normalize(await cacheOf(options).get(keyFor(actor)),actor,date);
 }
 async function writeMoodAnalysisCache(actor,date,value,options={}){
   const entry=normalize(value,actor,date);
   if(!entry)throw new Error('mood-analysis-invalid');
-  await cacheOf(options).set(keyFor(actor,date),entry,{ttl:TTL_SECONDS,tags:['rudi-mood-analysis'],name:keyFor(actor,date)});
+  await cacheOf(options).set(keyFor(actor),entry,{ttl:TTL_SECONDS,tags:['rudi-mood-analysis'],name:keyFor(actor)});
   return entry;
 }
 module.exports={NAMESPACE,TTL_SECONDS,readMoodAnalysisCache,writeMoodAnalysisCache};
