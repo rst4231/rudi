@@ -1,6 +1,6 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
-const NAMESPACE='rudi-mood-analysis-v2';
+const NAMESPACE='rudi-mood-analysis-v3';
 const TTL_SECONDS=60*60*24;
 
 function cacheOf(options={}) {

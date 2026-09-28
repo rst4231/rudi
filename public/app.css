@@ -11508,3 +11508,42 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 .profile .mood-message.show{
   margin-top:5px;
 }
+
+
+/* RUDI v2.96 mood picker placement and control sizing */
+.profile-person-card #moodCurrentButton,
+.profile-person-card #moodHistoryButton{
+  flex:0 0 30px!important;
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  margin:0!important;
+  padding:0!important;
+  border-radius:10px!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.profile-person-card #moodHistoryButton svg{
+  width:15px!important;
+  height:15px!important;
+}
+.profile-person-card .mood-choices{
+  width:100%!important;
+  box-sizing:border-box;
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:6px 0 2px;
+}
+.profile-person-card .mood-choices[hidden]{display:none!important}
+.profile-person-card .mood-choices.is-open{display:flex!important}
+.profile-person-card .mood-choices .mood-button{
+  flex:0 0 30px!important;
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  border-radius:10px!important;
+}

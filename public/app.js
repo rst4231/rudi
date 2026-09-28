@@ -4067,6 +4067,7 @@
         const mood=profile.querySelector('.profile-mood');
         const selfMood=mood?.querySelector('.mood-self');
         const partnerMood=mood?.querySelector('.mood-partner');
+        const moodChoices=document.getElementById('moodChoices');
         const moodPrompt=document.getElementById('moodPrompt');
         const moodMessage=document.getElementById('moodMessage');
         const dateHeading=document.getElementById('profileMeta');
@@ -4332,14 +4333,20 @@
         dianaCard.details.appendChild(makeSupplementIntakeBlock('Диана'));
 
         dianaCard.details.appendChild(cycleSummary);
+        const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
+        if(moodChoices){
+          moodChoices.hidden=true;
+          moodChoices.classList.remove('is-open');
+          ownCard.tile.insertBefore(moodChoices,ownCard.details);
+        }
         if(moodPrompt){
           moodPrompt.hidden=true;
-          (selfActor==='Диана'?dianaCard.details:rustamCard.details).appendChild(moodPrompt);
+          ownCard.details.appendChild(moodPrompt);
         }
         if(moodMessage){
-          const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
           ownCard.tile.insertBefore(moodMessage,ownCard.details);
         }
+        bindMoodPickerControls();
 
         const luluTile=document.createElement('section');
         luluTile.id='homeLuluTile';
