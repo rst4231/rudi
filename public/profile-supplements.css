@@ -397,3 +397,52 @@ body[data-app-tab="home"] .personal-supplements-collapse[aria-expanded="true"] s
   opacity:.72!important;
   box-shadow:none!important;
 }
+
+
+/* RUDI v2.85 — supplements daily progress */
+.personal-supplements-progress-row{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  margin:10px 56px 0 66px;
+}
+.personal-supplements-progress{
+  height:8px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(151,105,49,.12);
+}
+.personal-supplements-progress-fill{
+  display:block;
+  width:0;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,#e5a441,#d68d2f);
+  transition:width .24s ease;
+}
+.personal-supplements-percent{
+  min-width:30px;
+  text-align:right;
+  font-size:12px;
+  font-weight:760;
+  opacity:.62;
+}
+body[data-app-tab="home"] .personal-supplements-progress-row{
+  margin:9px 42px 0 58px;
+}
+@media(max-width:420px){
+  .personal-supplements-progress-row{
+    margin-left:60px;
+    margin-right:48px;
+  }
+  body[data-app-tab="home"] .personal-supplements-progress-row{
+    margin-left:56px;
+    margin-right:40px;
+  }
+}
+html[data-theme="dark"] .personal-supplements-progress{
+  background:rgba(231,183,109,.12);
+}

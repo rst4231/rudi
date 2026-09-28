@@ -2,7 +2,7 @@
 const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,guidanceEnrichmentPromise=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null;
 let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -162,7 +162,13 @@ function emojiForSupplement(name){const value=String(name||'').toLowerCase().rep
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
 function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
 function todaySupplementCount(){const today=habitDateKey(new Date());return activeSupplementItems().filter(item=>Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today)).length}
-function renderSupplementSummary(){if(!supplementSummaryNode)return;const active=activeSupplementItems();supplementSummaryNode.textContent='Сегодня принято '+todaySupplementCount()+' из '+active.length}
+function renderSupplementSummary(){
+  if(!supplementSummaryNode)return;
+  const active=activeSupplementItems(),taken=todaySupplementCount(),percent=active.length?Math.round(taken/active.length*100):0;
+  supplementSummaryNode.textContent='Сегодня принято '+taken+' из '+active.length;
+  if(supplementProgressFill)supplementProgressFill.style.width=percent+'%';
+  if(supplementPercentNode)supplementPercentNode.textContent=percent+'%';
+}
 function supplementDescriptionText(item){
   const description=String(item?.description||'').trim();
   const guidance=String(item?.intakeGuidance||'').trim();
@@ -373,13 +379,18 @@ function build(){
   const actions=document.createElement('div');actions.className='personal-supplements-actions';
   collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
   actions.append(collapseButton);head.append(supplementLead,actions);
+  const supplementProgressRow=document.createElement('div');supplementProgressRow.className='personal-supplements-progress-row';
+  const supplementProgress=document.createElement('div');supplementProgress.className='personal-supplements-progress';
+  supplementProgressFill=document.createElement('span');supplementProgressFill.className='personal-supplements-progress-fill';supplementProgress.append(supplementProgressFill);
+  supplementPercentNode=document.createElement('span');supplementPercentNode.className='personal-supplements-percent';supplementPercentNode.textContent='0%';
+  supplementProgressRow.append(supplementProgress,supplementPercentNode);
   const body=document.createElement('div');body.className='personal-supplements-body';
   const form=document.createElement('form');form.className='personal-supplements-form';
   const input=document.createElement('input');input.type='text';input.maxLength=120;input.placeholder='Название БАДа';input.autocomplete='off';
   const add=document.createElement('button');add.type='submit';add.textContent='Добавить';form.append(input,add);
   statusNode=document.createElement('div');statusNode.className='personal-supplements-status';statusNode.hidden=true;
   list=document.createElement('div');list.className='personal-supplements-list';
-  body.append(form,statusNode,list);tile.append(head,body);
+  body.append(form,statusNode,list);tile.append(head,supplementProgressRow,body);
   const movedNotice=document.createElement('article');movedNotice.className='personal-tools-moved-notice';movedNotice.innerHTML='<strong>Трекер привычек и БАДы перенесены</strong><p>Оба блока теперь находятся на главной странице. Смотрите их на главной.</p>';
   content.append(summary,movedNotice);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
