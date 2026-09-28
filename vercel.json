@@ -186,6 +186,10 @@
       "destination": "/api/partner-message?ticktickAction=checklist-toggle"
     },
     {
+      "source": "/api/cheap-flights",
+      "destination": "/api/partner-message?rudiAction=cheap-flights"
+    },
+    {
       "source": "/api/daily",
       "destination": "/api/daily-cron?route=daily"
     },
