@@ -10457,6 +10457,7 @@
         {hours:12,stars:0.5},
         {hours:14,stars:1},
         {hours:16,stars:1.5},
+        {hours:18,stars:2},
         {hours:24,stars:3},
         {hours:32,stars:4},
         {hours:40,stars:5}
@@ -10756,6 +10757,13 @@
         if(input&&!input.value) input.value=fastingLocalInputValue();
 
         document.querySelectorAll('[data-fasting-goal]').forEach(button=>{
+          const goalHours=Number(button.dataset.fastingGoal)||0;
+          const rewardNode=button.querySelector('.fasting-goal-reward');
+          if(rewardNode){
+            const rewardStars=fastingRewardStarsForHours(goalHours);
+            const rewardLabel=Number.isInteger(rewardStars)?String(rewardStars):String(rewardStars).replace('.',',');
+            rewardNode.textContent=rewardLabel+' ⭐️';
+          }
           button.addEventListener('click',()=>{
             selectedFastingGoal=Number(button.dataset.fastingGoal)||16;
             document.querySelectorAll('[data-fasting-goal]').forEach(row=>{
