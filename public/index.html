@@ -156,14 +156,14 @@
       <div class="priority-grid">
         <article id="ticktickPanel" class="panel ticktick-panel" aria-label="Совместные дела на сегодня">
         <div id="taskCompletionConfetti" class="task-completion-confetti" aria-hidden="true"></div>
-        <div id="ticktickToggle" class="ticktick-toggle" role="button" tabindex="-1" aria-expanded="false" aria-controls="ticktickDetails">
+        <div id="ticktickToggle" class="ticktick-toggle">
           <div class="ticktick-head">
             <div class="ticktick-head-spacer" aria-hidden="true"></div>
             <div class="ticktick-head-actions">
               <div id="ticktickBadge" class="ticktick-badge" hidden></div>
-              <span class="ticktick-chevron" aria-hidden="true">
+              <button id="ticktickChevronButton" class="ticktick-chevron" type="button" aria-label="Свернуть или развернуть совместные дела" aria-expanded="false" aria-controls="ticktickDetails">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 10 4 4 4-4"/></svg>
-              </span>
+              </button>
             </div>
           </div>
           <div id="ticktickTitle" class="ticktick-title">Загружаю дела на сегодня…</div>
