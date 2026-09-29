@@ -21,7 +21,7 @@ function shiftDateKey(key,days){const date=new Date(String(key||'')+'T12:00:00Z'
 function normalizeHabit(value){
   if(!value||typeof value!=='object'||Array.isArray(value))return null;
   const id=cleanId(value.id),name=cleanText(value.name,80);if(!id||!name)return null;
-  return{id,name,purpose:cleanText(value.purpose,180),emoji:cleanText(value.emoji,8),createdAt:isoOrEmpty(value.createdAt)};
+  return{id,name,purpose:cleanText(value.purpose,180),emoji:cleanText(value.emoji,8),createdAt:isoOrEmpty(value.createdAt),archivedAt:isoOrEmpty(value.archivedAt)};
 }
 function normalizeStatusMap(value,validIds){
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{},out={};
@@ -66,6 +66,11 @@ function habitCreatedByDate(habit,date){
   if(!Number.isFinite(stamp))return true;
   return moscowDateKey(stamp)<=date;
 }
+function habitArchivedByDate(habit,date){
+  const stamp=Date.parse(String(habit?.archivedAt||''));
+  return Number.isFinite(stamp)&&moscowDateKey(stamp)<=date;
+}
+function habitActiveByDate(habit,date){return habitCreatedByDate(habit,date)&&!habitArchivedByDate(habit,date)}
 function normalizeState(value,actor){
   const who=cleanActor(actor),source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   const habits=[],seen=new Set();
@@ -119,23 +124,20 @@ function habitStreak(state,id,date,today){
 }
 function viewHabits(state,options={}){
   const now=Number(options.now||Date.now()),today=moscowDateKey(now),date=resolveHabitDate(options.date,now);
-  const completedIds=Array.isArray(state.completions?.[date])?state.completions[date]:[];
-  const notDoneIds=Array.isArray(state.failures?.[date])?state.failures[date]:[];
-  const bonusIds=Array.isArray(state.bonusIdsByDate?.[date])?state.bonusIdsByDate[date]:[];
-  const statuses={},streaks={};
-  for(const habit of state.habits){statuses[habit.id]=habitStatus(state,date,habit.id);streaks[habit.id]=habitStreak(state,habit.id,date,today)}
-  return{
-    habits:state.habits,completedIds,notDoneIds,statuses,streaks,bonusIds,collapsed:state.collapsed,today,date,canCompleteToday:moscowHour(now)>=20,
-    done:completedIds.length,notDone:notDoneIds.length,pending:Math.max(0,state.habits.length-completedIds.length-notDoneIds.length),
-    total:state.habits.length,version:state.version,updatedAt:state.updatedAt
-  };
+  const habits=state.habits.filter(row=>habitActiveByDate(row,date)),archivedHabits=state.habits.filter(row=>Boolean(row.archivedAt));
+  const activeIds=new Set(habits.map(row=>row.id));
+  const completedIds=(Array.isArray(state.completions?.[date])?state.completions[date]:[]).filter(id=>activeIds.has(id));
+  const notDoneIds=(Array.isArray(state.failures?.[date])?state.failures[date]:[]).filter(id=>activeIds.has(id));
+  const bonusIds=(Array.isArray(state.bonusIdsByDate?.[date])?state.bonusIdsByDate[date]:[]).filter(id=>activeIds.has(id));
+  const statuses={},streaks={};for(const habit of habits){statuses[habit.id]=habitStatus(state,date,habit.id);streaks[habit.id]=habitStreak(state,habit.id,date,today)}
+  return{habits,archivedHabits,completedIds,notDoneIds,statuses,streaks,bonusIds,collapsed:state.collapsed,today,date,canCompleteToday:moscowHour(now)>=20,done:completedIds.length,notDone:notDoneIds.length,pending:Math.max(0,habits.length-completedIds.length-notDoneIds.length),total:habits.length,version:state.version,updatedAt:state.updatedAt};
 }
-async function ensureHabitDay(actor,date,options={}){
+async function ensureHabitDay(actor,date,options={}){async function ensureHabitDay(actor,date,options={}){
   const who=cleanActor(actor);
   return enqueue(who,async()=>{
     const state=await readHabits(who,options),target=resolveHabitDate(date,options.now||Date.now());
     if(Object.prototype.hasOwnProperty.call(state.bonusIdsByDate,target))return state;
-    const bonusIds=state.habits.filter(row=>habitCreatedByDate(row,target)).slice(0,BONUS_LIMIT).map(row=>row.id);
+    const bonusIds=state.habits.filter(row=>habitActiveByDate(row,target)).slice(0,BONUS_LIMIT).map(row=>row.id);
     return writeHabits(who,{...state,version:state.version+1,scoringStartedDate:state.scoringStartedDate||SCORING_START_DATE,bonusIdsByDate:{...state.bonusIdsByDate,[target]:bonusIds}},options);
   });
 }
@@ -143,7 +145,7 @@ async function addHabit(actor,name,options={}){
   const who=cleanActor(actor),safe=cleanText(name,80),purpose=cleanText(options.purpose,180);if(!safe)throw new Error('habit-name-required');if(!purpose)throw new Error('habit-purpose-required');
   return enqueue(who,async()=>{
     const state=await readHabits(who,options);
-    if(state.habits.some(row=>row.name.localeCompare(safe,'ru',{sensitivity:'accent'})===0))throw new Error('habit-duplicate');
+    if(state.habits.some(row=>!row.archivedAt&&row.name.localeCompare(safe,'ru',{sensitivity:'accent'})===0))throw new Error('habit-duplicate');
     if(state.habits.length>=MAX_HABITS)throw new Error('habit-limit');
     const nowMs=options.now||Date.now(),now=new Date(nowMs).toISOString(),habit={id:'habit-'+crypto.randomUUID(),name:safe,purpose,emoji:cleanText(options.emoji,8),createdAt:now};
     const today=moscowDateKey(nowMs),bonusIdsByDate={...state.bonusIdsByDate};
@@ -162,6 +164,14 @@ async function removeHabit(actor,id,options={}){
     const habits=state.habits.filter(row=>row.id!==safe),bonusIdsByDate={...state.bonusIdsByDate},today=moscowDateKey(options.now||Date.now());
     if(Object.prototype.hasOwnProperty.call(bonusIdsByDate,today))bonusIdsByDate[today]=habits.filter(row=>habitCreatedByDate(row,today)).slice(0,BONUS_LIMIT).map(row=>row.id);
     return writeHabits(who,{...state,version:state.version+1,habits,completions,failures,statusUpdatedAt,bonusIdsByDate},options);
+  });
+}
+async function archiveHabit(actor,id,options={}){
+  const who=cleanActor(actor),safe=cleanId(id);if(!safe)throw new Error('habit-id-required');
+  return enqueue(who,async()=>{const state=await readHabits(who,options),index=state.habits.findIndex(row=>row.id===safe);if(index<0)throw new Error('habit-not-found');if(state.habits[index].archivedAt)return state;
+    const nowMs=Number(options.now||Date.now()),now=new Date(nowMs).toISOString(),habits=[...state.habits];habits[index]={...habits[index],archivedAt:now};
+    const today=moscowDateKey(nowMs),bonusIdsByDate={...state.bonusIdsByDate};if(Object.prototype.hasOwnProperty.call(bonusIdsByDate,today))bonusIdsByDate[today]=habits.filter(row=>habitActiveByDate(row,today)).slice(0,BONUS_LIMIT).map(row=>row.id);
+    return writeHabits(who,{...state,version:state.version+1,habits,bonusIdsByDate},options);
   });
 }
 async function setHabitStatus(actor,id,status,options={}){
@@ -195,7 +205,7 @@ async function markHabitDayFinalized(actor,date,options={}){
 function resetMutationQueuesForTests(){tails.clear()}
 
 module.exports={
-  ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,BONUS_LIMIT,SCORING_START_DATE,moscowDateKey,moscowHour,shiftDateKey,resolveHabitDate,habitStatus,habitStreak,habitCreatedByDate,
-  normalizeHabit,normalizeState,viewHabits,readHabits,writeHabits,ensureHabitDay,addHabit,removeHabit,setHabitStatus,
+  ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,BONUS_LIMIT,SCORING_START_DATE,moscowDateKey,moscowHour,shiftDateKey,resolveHabitDate,habitStatus,habitStreak,habitCreatedByDate,habitArchivedByDate,habitActiveByDate,
+  normalizeHabit,normalizeState,viewHabits,readHabits,writeHabits,ensureHabitDay,addHabit,removeHabit,archiveHabit,setHabitStatus,
   setHabitsCollapsed,markHabitReminderSent,markHabitDayFinalized,resetMutationQueuesForTests
 };
