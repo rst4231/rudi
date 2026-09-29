@@ -22,16 +22,19 @@ test('v2.118 habit archive is collapsible and closed by default',()=>{
   assert.match(css,/\.personal-habits-archive\.is-expanded \.personal-habits-archive-arrow/);
 });
 
-test('v2.118 fasting goal sends one Telegram prompt into fasting tracker',()=>{
-  const cron=read('api/fasting-goal-cron.js');
+test('v2.118 fasting goal reuses the existing Lulu scheduler and stays within Hobby function limit',()=>{
+  const cron=read('api/lulu-toilet-cron.js');
   const store=read('api/fasting-store.cjs');
-  const vercel=read('vercel.json');
+  const workflow=read('.github/workflows/lulu-toilet-alert.yml');
+  const apiJs=fs.readdirSync('api').filter(name=>name.endsWith('.js'));
   assert.match(cron,/Цель голодания достигнута/);
   assert.match(cron,/buttonText: 'Открыть трекер', tab: 'fasting'/);
   assert.match(cron,/active\.goalNotifiedAt/);
+  assert.match(cron,/runFastingGoalNotifications/);
   assert.match(store,/async function markFastingGoalNotified/);
-  assert.match(vercel,/"path": "\/api\/fasting-goal-cron"/);
-  assert.match(vercel,/"schedule": "\*\/10 \* \* \* \*"/);
+  assert.match(workflow,/cron: '\*\/15 \* \* \* \*'/);
+  assert.equal(fs.existsSync('api/fasting-goal-cron.js'),false);
+  assert.ok(apiJs.length<=12,'Hobby deployment must stay within 12 Serverless Functions');
 });
 
 test('v2.118 backup covers supplements habits fasting and has manual restore controls',()=>{
