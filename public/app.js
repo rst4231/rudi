@@ -1,3 +1,4 @@
+// RUDI v2.127 release ready
 // RUDI v2.127 smart saves release ready
 // RUDI v2.125 production build marker
     (async () => {
@@ -3763,22 +3764,25 @@
       function compactActivityItems(items){
         const source=Array.isArray(items)?items:[];
         const moodGroups=new Map();
+        const saveGroups=new Map();
         const result=[];
         for(const item of source){
-          if(String(item?.type||'')!=='mood'){
+          const type=String(item?.type||'');
+          if(type!=='mood'&&type!=='smart-save'){
             result.push({kind:'event',item,createdAt:String(item?.createdAt||'')});
             continue;
           }
-          const actor=String(item?.actor||'').trim()||'Настроение';
+          const actor=String(item?.actor||'').trim()||(type==='mood'?'Настроение':'Сохранения');
           const dateKey=sharedAlbumDateKey(new Date(String(item?.createdAt||'')));
           const key=actor+'|'+dateKey;
-          const existing=moodGroups.get(key);
+          const groups=type==='mood'?moodGroups:saveGroups;
+          const existing=groups.get(key);
           if(existing){
             existing.count+=1;
             existing.items.push(item);
           }else{
-            const group={kind:'mood-summary',actor,count:1,items:[item],latest:item,createdAt:String(item?.createdAt||'')};
-            moodGroups.set(key,group);
+            const group={kind:type==='mood'?'mood-summary':'smart-save-summary',actor,count:1,items:[item],latest:item,createdAt:String(item?.createdAt||'')};
+            groups.set(key,group);
             result.push(group);
           }
         }
@@ -3815,6 +3819,7 @@
         }
         if(activityTab==='photos') loadSharedAlbum();
         if(activityTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
+        if(activityTab==='smart-saves') loadSmartSaves({silent:true});
       }
 
       function renderActivityJournalItems(items){
@@ -3828,11 +3833,11 @@
 
         for(const entry of visible){
           const item=entry.kind==='mood-summary'?entry.latest:entry.item;
-          const activityTab=item?.type==='saved-recipe'?'products':String(item?.targetTab||'');
+          const activityTab=entry.kind==='mood-summary'?'':(entry.kind==='smart-save-summary'?'smart-saves':(item?.type==='saved-recipe'?'products':String(item?.targetTab||'')));
           const row=document.createElement(activityTab?'button':'div');
           if(activityTab){
             row.type='button';
-            row.addEventListener('click',()=>openActivityTarget(item));
+            row.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();setActivityNotificationsOpen(false);openActivityTarget(item)});
           }
           row.className='home-activity-row'+(entry.kind==='mood-summary'?' is-mood-summary':'');
 
@@ -3850,6 +3855,10 @@
             textNode.textContent=entry.actor+' · '+mood.label;
             const count=entry.count>1?activityChangeCountLabel(entry.count)+' · ':'';
             detail.textContent=count+activityTimeLabel(item.createdAt);
+          }else if(entry.kind==='smart-save-summary'){
+            icon.textContent='🔖';
+            textNode.textContent=entry.actor+' · '+(entry.count===1?'добавлено сохранение':'добавлено '+entry.count+' сохранения');
+            detail.textContent=activityTimeLabel(item.createdAt);
           }else{
             const view=activityEventView(item);
             icon.textContent=String(item?.icon||'•');
