@@ -144,8 +144,10 @@ async function updateSupplement(actor,id,patch,o={}){
 async function markSupplementTaken(actor,id,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96);if(!safeId)throw new Error('supplement-id-required');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
+    const takenToday=current.intakes.filter(row=>row.date===date).length,target=cleanTimesPerDay(current.schedule?.timesPerDay);
+    if(takenToday>=target)return{state,item:current,duplicate:true,date,count:takenToday,target};
     const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];items[index]=normalizeItem({...current,intakes:[...current.intakes,{date,at:now}],skips:(current.skips||[]).filter(row=>row.date!==date),updatedAt:now});
-    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date,count:saved.items[index].intakes.filter(row=>row.date===date).length};
+    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date,count:saved.items[index].intakes.filter(row=>row.date===date).length,target};
   });
 }
 async function markSupplementSkipped(actor,id,o={}){
