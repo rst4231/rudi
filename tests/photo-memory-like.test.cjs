@@ -33,3 +33,6 @@ test('photo memory age keeps remaining full calendar months after years',()=>{
 test('photo memory remains a static image and skips video entries',()=>{
   assert.match(app,/if\(photo\?\.type==='video'\) return false/);
 });
+
+
+test('photo memory requests full quality immediately with preview fallback',()=>{assert.match(app,/const memoryFull=String\(photo\.fullUrl\|\|memoryPreview\)/);assert.match(app,/image\.src=memoryFull\|\|memoryPreview/);assert.match(app,/image\.src=memoryPreview/);});
