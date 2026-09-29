@@ -6,6 +6,7 @@ const {
   startFasting,
   stopFasting,
   readFastingState,
+  markFastingGoalNotified,
   resetMutationQueueForTests,
 } = require('../api/fasting-store.cjs');
 
@@ -60,4 +61,24 @@ test('starting twice does not overwrite active fasting', async()=>{
   );
   const state=await readFastingState('Диана',{cache});
   assert.equal(state.active.goalHours,18);
+});
+
+
+test('fasting goal notification marker is stored once for the active fast', async()=>{
+  resetMutationQueueForTests();
+  const cache=memoryCache();
+  const start=Date.parse('2026-09-29T06:00:00.000Z');
+  await startFasting('Рустам',{startedAt:new Date(start).toISOString(),goalHours:16},{cache,now:start});
+  const before=await readFastingState('Рустам',{cache});
+  assert.equal(before.active.goalNotifiedAt,'');
+
+  await markFastingGoalNotified('Рустам',before.active.id,{cache,now:start+16*60*60*1000});
+  const after=await readFastingState('Рустам',{cache});
+  assert.equal(after.active.id,before.active.id);
+  assert.ok(after.active.goalNotifiedAt);
+
+  const firstStamp=after.active.goalNotifiedAt;
+  await markFastingGoalNotified('Рустам',before.active.id,{cache,now:start+17*60*60*1000});
+  const duplicate=await readFastingState('Рустам',{cache});
+  assert.equal(duplicate.active.goalNotifiedAt,firstStamp);
 });
