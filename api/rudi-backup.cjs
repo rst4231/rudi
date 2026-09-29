@@ -23,6 +23,9 @@ const {
   readChecklistAuditState,
   restoreChecklistAuditState,
 } = require('./ticktick-checklist-audit-store.cjs');
+const { readSupplements, writeSupplements } = require('./supplements-store.cjs');
+const { readHabits, writeHabits } = require('./habit-tracker-store.cjs');
+const { readFastingState, writeFastingState } = require('./fasting-store.cjs');
 
 const BACKUP_VERSION = 2;
 const BACKUP_PREFIX = 'rudi-state-v2';
@@ -183,6 +186,7 @@ async function createStateSnapshot(options = {}) {
     partnerMessage, wishlist, products, savedItems, forDiFeed, ticktickChecklistAudit,
     ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal, scoreState, luluState,
     rustamPin, dianaPin, rustamPasskeys, dianaPasskeys,
+    rustamSupplements, dianaSupplements, rustamHabits, dianaHabits, rustamFasting, dianaFasting,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
@@ -205,6 +209,12 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readPinRecord('Диана', options)),
     safeRead(() => readPasskeys('Рустам', options), []),
     safeRead(() => readPasskeys('Диана', options), []),
+    safeRead(() => readSupplements('Рустам', options), { initialized:false, version:0, actor:'Рустам', items:[] }),
+    safeRead(() => readSupplements('Диана', options), { initialized:false, version:0, actor:'Диана', items:[] }),
+    safeRead(() => readHabits('Рустам', options), { initialized:false, version:0, actor:'Рустам', habits:[] }),
+    safeRead(() => readHabits('Диана', options), { initialized:false, version:0, actor:'Диана', habits:[] }),
+    safeRead(() => readFastingState('Рустам', options), { initialized:false, version:0, active:null, history:[] }),
+    safeRead(() => readFastingState('Диана', options), { initialized:false, version:0, active:null, history:[] }),
   ]);
 
   const mergedRecipients = normalizeRecipients({
@@ -235,6 +245,18 @@ async function createStateSnapshot(options = {}) {
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
     scoreState: newerVersionState(scoreState, previous?.scoreState),
     luluState: newerVersionState(luluState, previous?.luluState),
+    supplements: {
+      'Рустам': newerVersionState(rustamSupplements, previous?.supplements?.['Рустам']),
+      'Диана': newerVersionState(dianaSupplements, previous?.supplements?.['Диана']),
+    },
+    habits: {
+      'Рустам': newerVersionState(rustamHabits, previous?.habits?.['Рустам']),
+      'Диана': newerVersionState(dianaHabits, previous?.habits?.['Диана']),
+    },
+    fasting: {
+      'Рустам': newerVersionState(rustamFasting, previous?.fasting?.['Рустам']),
+      'Диана': newerVersionState(dianaFasting, previous?.fasting?.['Диана']),
+    },
     uiPreferences: normalizeUiPreferences(previous?.uiPreferences),
     recipients: mergedRecipients,
     browserAuth: {
@@ -476,6 +498,50 @@ async function restoreStateBackup(token, options = {}) {
         await restorePasskeys(actor, savedPasskeys, options);
         restored.push('passkeys:' + actor);
       } catch {}
+    }
+  }
+
+  for (const actor of ['Рустам', 'Диана']) {
+    const savedSupplements = snapshot.supplements?.[actor];
+    if (savedSupplements?.initialized) {
+      const currentSupplements = await safeRead(
+        () => readSupplements(actor, options),
+        { initialized:false, version:0, actor, items:[] }
+      );
+      if (!currentSupplements?.initialized || Number(savedSupplements.version || 0) > Number(currentSupplements.version || 0)) {
+        try {
+          await writeSupplements(actor, savedSupplements, options);
+          restored.push('supplements:' + actor);
+        } catch {}
+      }
+    }
+
+    const savedHabits = snapshot.habits?.[actor];
+    if (savedHabits?.initialized) {
+      const currentHabits = await safeRead(
+        () => readHabits(actor, options),
+        { initialized:false, version:0, actor, habits:[] }
+      );
+      if (!currentHabits?.initialized || Number(savedHabits.version || 0) > Number(currentHabits.version || 0)) {
+        try {
+          await writeHabits(actor, savedHabits, options);
+          restored.push('habits:' + actor);
+        } catch {}
+      }
+    }
+
+    const savedFasting = snapshot.fasting?.[actor];
+    if (savedFasting?.initialized) {
+      const currentFasting = await safeRead(
+        () => readFastingState(actor, options),
+        { initialized:false, version:0, active:null, history:[] }
+      );
+      if (!currentFasting?.initialized || Number(savedFasting.version || 0) > Number(currentFasting.version || 0)) {
+        try {
+          await writeFastingState(actor, savedFasting, options);
+          restored.push('fasting:' + actor);
+        } catch {}
+      }
     }
   }
 
