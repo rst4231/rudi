@@ -646,6 +646,8 @@ async function recordLikeActivity(target, actor, options = {}) {
 const MOOD_ACTIVITY = {
   sadness: { label: 'Грусть', emoji: '😢' },
   boredom: { label: 'Скука', emoji: '🥱' },
+  neutral: { label: 'Нейтрально', emoji: '😐' },
+  fatigue: { label: 'Усталость', emoji: '😩' },
   anger: { label: 'Гнев', emoji: '😡' },
   joy: { label: 'Радость', emoji: '😄' },
   love: { label: 'Любовь', emoji: '🥰' },
@@ -772,6 +774,8 @@ function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
 const MOOD_NOTICE = {
   sadness: { phrase: 'грусть', emoji: '😢' },
   boredom: { phrase: 'скука', emoji: '🥱' },
+  neutral: { phrase: 'нейтрально', emoji: '😐' },
+  fatigue: { phrase: 'усталость', emoji: '😩' },
   anger: { phrase: 'гнев', emoji: '😡' },
   joy: { phrase: 'радость', emoji: '😄' },
   love: { phrase: 'любовь', emoji: '🥰' },
@@ -786,7 +790,11 @@ function moodNotificationText(recipient, actor, mood) {
     ? actor + ' сейчас грустит'
     : moodKey === 'boredom'
       ? actorDative + ' сейчас скучно'
-      : moodKey === 'anger'
+      : moodKey === 'neutral'
+        ? actor + ' сейчас без ярких эмоций'
+        : moodKey === 'fatigue'
+          ? actor + ' сейчас ' + (actor === 'Диана' ? 'устала' : actor === 'Рустам' ? 'устал' : 'чувствует усталость')
+          : moodKey === 'anger'
         ? actor + ' сейчас злится'
         : moodKey === 'joy'
           ? actor + ' сейчас ' + (actor === 'Диана' ? 'радостна' : actor === 'Рустам' ? 'радостен' : 'радуется')
