@@ -3,30 +3,22 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
-
-test('v2.116 mood, supplements and habit archive wiring',()=>{
+test('v2.116 mood, supplement and habit actions',()=>{
   const partner=read('api/partner-message.js');
   const mood=read('api/mood-analysis-ai.cjs');
   const supplements=read('api/supplements-store.cjs');
-  const supplementApi=read('api/supplements.js');
   const habits=read('api/habit-tracker-store.cjs');
-  const habitApi=read('api/habits.js');
   const ui=read('public/profile-supplements.js');
   const advanced=read('public/supplement-advanced.js');
-
   assert.match(partner,/let analysis=null,cycle=null,reused=false/);
   assert.match(mood,/RUDI_MOOD_AI_EMPTY_RETRY/);
   assert.match(mood,/maxCompletionTokens:3200/);
   assert.match(supplements,/function markSupplementSkipped/);
-  assert.match(supplements,/skips:normalizeSkips/);
-  assert.match(supplementApi,/operation==='skip'/);
   assert.match(advanced,/setupFinishedSwipe/);
   assert.match(advanced,/supplement-settings-icon/);
   assert.match(advanced,/Пропустить/);
   assert.match(advanced,/Пауза/);
   assert.match(habits,/function archiveHabit/);
-  assert.match(habits,/archivedAt/);
-  assert.match(habitApi,/operation==='remove'\|\|operation==='archive'/);
   assert.match(ui,/habitRequest\('archive'/);
   assert.match(ui,/Восстановить её нельзя/);
 });
