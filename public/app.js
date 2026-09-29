@@ -1,4 +1,4 @@
-// RUDI v2.129 polished smart saves release ready
+// RUDI v2.130 expandable raw smart saves release ready
 // RUDI v2.127 smart saves release ready
 // RUDI v2.125 production build marker
     (async () => {
@@ -4011,7 +4011,19 @@
         const stamp=document.createElement('time');stamp.textContent=String(item?.actor||'')+' · '+smartSaveStamp(item?.createdAt);meta.append(category,stamp);
         const title=item?.url?document.createElement('a'):document.createElement('strong');title.className='smart-save-title';title.textContent=String(item?.title||'Сохранение');
         if(item?.url){title.href=String(item.url);title.target='_blank';title.rel='noopener noreferrer'}
-        body.append(meta,title);if(!compact&&item?.description){const desc=document.createElement('p');desc.textContent=String(item.description);body.appendChild(desc)}
+        body.append(meta,title);
+        if(!compact&&item?.description){const desc=document.createElement('p');desc.textContent=String(item.description);body.appendChild(desc)}
+        if(!compact&&String(item?.rawText||'').trim()){
+          const details=document.createElement('div');details.className='smart-save-raw';details.hidden=true;
+          const raw=document.createElement('div');raw.className='smart-save-raw-text';raw.textContent=String(item.rawText);details.appendChild(raw);
+          const toggle=document.createElement('button');toggle.type='button';toggle.className='smart-save-expand';toggle.setAttribute('aria-expanded','false');
+          toggle.innerHTML='<span>Развернуть</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
+          const setExpanded=expanded=>{details.hidden=!expanded;toggle.setAttribute('aria-expanded',expanded?'true':'false');toggle.querySelector('span').textContent=expanded?'Свернуть':'Развернуть';card.classList.toggle('is-expanded',expanded)};
+          toggle.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();setExpanded(toggle.getAttribute('aria-expanded')!=='true');try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
+          card.classList.add('is-expandable');
+          card.addEventListener('click',event=>{if(event.target.closest('a,button'))return;if(window.getSelection?.()?.toString())return;setExpanded(toggle.getAttribute('aria-expanded')!=='true')});
+          body.append(toggle,details);
+        }
         const del=document.createElement('button');del.type='button';del.className='smart-save-delete';del.setAttribute('aria-label','Удалить сохранение');del.textContent='Удалить';
         del.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();if(!await smartSaveConfirm('Удалить «'+String(item?.title||'это сохранение')+'»?'))return;del.disabled=true;try{const data=await smartSavesRequest('remove',{id:item.id});smartSavesState=Array.isArray(data.items)?data.items:[];renderSmartSaves();try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(_){del.disabled=false;try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
         body.appendChild(del);card.appendChild(body);return card;

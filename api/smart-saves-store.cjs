@@ -9,7 +9,7 @@ function normalizeItem(v){
   if(!v||typeof v!=='object')return null;
   const created=new Date(v.createdAt||0),actor=cleanActor(v.actor),title=clean(v.title,180);
   if(!actor||!title||Number.isNaN(created.getTime()))return null;
-  return{id:clean(v.id,100)||crypto.randomUUID(),category:clean(v.category,48)||'Другое',title,description:clean(v.description,700),url:normalizedUrl(v.url),imageUrl:normalizedUrl(v.imageUrl),rawText:clean(v.rawText,2400),actor,createdAt:created.toISOString()};
+  return{id:clean(v.id,100)||crypto.randomUUID(),category:clean(v.category,48)||'Другое',title,description:clean(v.description,700),url:normalizedUrl(v.url),imageUrl:normalizedUrl(v.imageUrl),rawText:clean(v.rawText,8000),actor,createdAt:created.toISOString()};
 }
 function normalizeState(v){
   const s=v&&typeof v==='object'&&!Array.isArray(v)?v:{},seen=new Set(),items=[];
