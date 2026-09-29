@@ -12382,3 +12382,18 @@ html[data-theme="dark"] .daily-question-waiting{background:rgba(255,255,255,.055
 }
 .smart-save-open svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .smart-save-open:active{transform:scale(.97)}
+
+
+/* RUDI v2.132 — smart-save delete as corner action */
+.smart-save-card:not(.is-compact) .smart-save-body{padding-right:30px}
+.smart-save-delete{
+  position:absolute!important;top:8px!important;right:8px!important;z-index:3;
+  width:27px!important;height:27px!important;display:grid!important;place-items:center!important;
+  margin:0!important;padding:0!important;border:1px solid color-mix(in srgb,#ef5866 24%,var(--line))!important;
+  border-radius:9px!important;background:color-mix(in srgb,#ef5866 8%,var(--surface-strong))!important;
+  color:#e75865!important;box-shadow:none!important;cursor:pointer!important;
+}
+.smart-save-delete svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.smart-save-delete:active{transform:scale(.94)}
+.smart-save-delete:disabled{opacity:.45;cursor:default!important}
+.smart-saves-home .smart-save-delete{display:none!important}

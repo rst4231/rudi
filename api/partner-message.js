@@ -54,7 +54,7 @@ const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { generateMoodAnalysis } = require('./mood-analysis-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
-const { readSmartSaves, removeSmartSave } = require('./smart-saves-store.cjs');
+const { readSmartSaves, removeSmartSave, restoreSmartSave } = require('./smart-saves-store.cjs');
 const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleViewForDate, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
@@ -2497,6 +2497,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const { actor }=authorizeRequest(req,body.initData,options),operation=String(body.operation||'list').trim();
       if(operation==='list'){const state=await readSmartSaves(options);return res.status(200).json({ok:true,actor,items:state.items||[]})}
       if(operation==='remove'){const result=await removeSmartSave(body.id,options);return res.status(200).json({ok:true,actor,removed:result.removed,item:result.item,items:result.state.items||[]})}
+      if(operation==='restore'){const result=await restoreSmartSave(body.item,options);return res.status(200).json({ok:true,actor,restored:result.restored,item:result.item,items:result.state.items||[]})}
       return res.status(400).json({ok:false,error:'smart-save-operation-invalid'});
     } catch(error) {return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
   }

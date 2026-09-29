@@ -1,4 +1,4 @@
-// RUDI v2.131 smart save link behavior release ready
+// RUDI v2.132 smart save delete undo release ready
 // RUDI v2.127 smart saves release ready
 // RUDI v2.125 production build marker
     (async () => {
@@ -3605,7 +3605,7 @@
         setTimeout(()=>{if(!bar.classList.contains('is-open')) bar.hidden=true},190);
       }
 
-      function showUndoSnackbar(text,undo){
+      function showUndoSnackbar(text,undo,duration=6000){
         const bar=document.getElementById('undoSnackbar');
         const copy=document.getElementById('undoSnackbarText');
         if(!bar||typeof undo!=='function') return;
@@ -3614,7 +3614,8 @@
         if(copy) copy.textContent=String(text||'Удалено');
         bar.hidden=false;
         requestAnimationFrame(()=>bar.classList.add('is-open'));
-        undoSnackbarTimer=setTimeout(hideUndoSnackbar,6000);
+        const timeout=Math.max(1000,Math.min(12000,Number(duration)||6000));
+        undoSnackbarTimer=setTimeout(hideUndoSnackbar,timeout);
       }
 
       function setupUndoSnackbar(){
@@ -4037,9 +4038,9 @@
           card.addEventListener('click',event=>{if(event.target.closest('a,button'))return;if(window.getSelection?.()?.toString())return;setExpanded(toggle.getAttribute('aria-expanded')!=='true')});
           body.append(toggle,details);
         }
-        const del=document.createElement('button');del.type='button';del.className='smart-save-delete';del.setAttribute('aria-label','Удалить сохранение');del.textContent='Удалить';
-        del.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();if(!await smartSaveConfirm('Удалить «'+String(item?.title||'это сохранение')+'»?'))return;del.disabled=true;try{const data=await smartSavesRequest('remove',{id:item.id});smartSavesState=Array.isArray(data.items)?data.items:[];renderSmartSaves();try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(_){del.disabled=false;try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
-        body.appendChild(del);card.appendChild(body);return card;
+        const del=document.createElement('button');del.type='button';del.className='smart-save-delete';del.setAttribute('aria-label','Удалить сохранение');del.setAttribute('title','Удалить');del.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>';
+        del.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();if(!await smartSaveConfirm('Удалить «'+String(item?.title||'это сохранение')+'»?'))return;del.disabled=true;try{const data=await smartSavesRequest('remove',{id:item.id});const removed=data?.item||item;smartSavesState=Array.isArray(data.items)?data.items:[];renderSmartSaves();showUndoSnackbar('Сохранение удалено',async()=>{const restored=await smartSavesRequest('restore',{item:removed});smartSavesState=Array.isArray(restored.items)?restored.items:[];renderSmartSaves()},5000);try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(_){del.disabled=false;try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
+        card.append(body,del);return card;
       }
       function renderSmartSaves(){
         const home=document.getElementById('smartSavesHomeList'),homeEmpty=document.getElementById('smartSavesHomeEmpty'),page=document.getElementById('smartSavesPageList'),pageEmpty=document.getElementById('smartSavesPageEmpty');

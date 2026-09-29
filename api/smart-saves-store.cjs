@@ -34,5 +34,10 @@ async function removeSmartSave(id,o={}){
   const run=mutationTail.then(async()=>{const state=await readSmartSaves(o),found=state.items.find(row=>row.id===key)||null;if(!found)return{state,item:null,removed:false};const next=await writeSmartSaves({...state,items:state.items.filter(row=>row.id!==key)},o);return{state:next,item:found,removed:true}});
   mutationTail=run.then(()=>undefined,()=>undefined);return run;
 }
+async function restoreSmartSave(input,o={}){
+  const item=normalizeItem(input);if(!item)throw new Error('smart-save-invalid');
+  const run=mutationTail.then(async()=>{const state=await readSmartSaves(o),existing=state.items.find(row=>row.id===item.id)||state.items.find(row=>fingerprint(row)===fingerprint(item));if(existing)return{state,item:existing,restored:false};const next=await writeSmartSaves({...state,items:[item,...state.items]},o);return{state:next,item,restored:true}});
+  mutationTail=run.then(()=>undefined,()=>undefined);return run;
+}
 function smartSaveCategories(state){return[...new Set((state?.items||[]).map(row=>clean(row.category,48)).filter(Boolean))]}
-module.exports={readSmartSaves,addSmartSave,removeSmartSave,smartSaveCategories};
+module.exports={readSmartSaves,addSmartSave,removeSmartSave,restoreSmartSave,smartSaveCategories};
