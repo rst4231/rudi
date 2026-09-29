@@ -68,3 +68,7 @@ test('profile supplement intake cards show compact progress and completed items'
   assert.match(js,/profile-supplement-intake-check/);
   assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
+
+
+test('supplement theme follows RUDI theme instead of OS light preference',()=>{const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');assert.doesNotMatch(css,/@media \(prefers-color-scheme:light\)/);assert.match(css,/html\[data-theme="dark"\] \.supplement-card\{/)});
+test('archived supplement actions use a dedicated two-column layout',()=>{const js=fs.readFileSync(path.join(__dirname,'..','public','supplement-advanced.js'),'utf8');const css=fs.readFileSync(path.join(__dirname,'..','public','supplement-advanced.css'),'utf8');assert.match(js,/actions\.classList\.add\('is-archive'\)/);assert.match(css,/\.supplement-card-actions\.is-archive\{grid-template-columns:minmax\(0,1\.6fr\) minmax\(0,1fr\)\}/);assert.match(css,/\.supplement-card-actions\.is-archive \.supplement-delete\{font-size:12px/)});

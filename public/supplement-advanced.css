@@ -242,3 +242,8 @@ html[data-theme="dark"] .supplement-status-icon.is-finish{
     transform:translateY(-1px);
   }
 }
+
+/* RUDI v2.122 — archive action sizing */
+.supplement-card-actions.is-archive{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.supplement-card-actions.is-archive .supplement-resume,.supplement-card-actions.is-archive .supplement-delete{width:100%;height:auto;min-width:0;min-height:38px;padding:0 12px}
+.supplement-card-actions.is-archive .supplement-delete{font-size:12px;line-height:1}

@@ -231,6 +231,7 @@ function enhanceCards(){
       const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.append(resume);
       resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».','БАД возобновлён').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
       if(item.status==='finished'){
+        actions.classList.add('is-archive');
         const remove=document.createElement('button');remove.type='button';remove.className='supplement-delete';remove.textContent='Удалить';remove.setAttribute('aria-label','Удалить '+item.name+' из архива');actions.append(remove);
         remove.addEventListener('click',async event=>{
           event.stopPropagation();

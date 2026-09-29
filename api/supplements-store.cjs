@@ -54,6 +54,8 @@ function normalizeItem(input){
   if(!id||!name)return null;
   const created=isoOrEmpty(input.createdAt),updated=isoOrEmpty(input.updatedAt||input.createdAt);
   if(!created||!updated)return null;
+  const intakes=normalizeIntakes(input.intakes),intakeDates=new Set(intakes.map(row=>row.date));
+  const skips=normalizeSkips(input.skips).filter(row=>!intakeDates.has(row.date));
   return{
     id,name,
     description:cleanText(input.description,900),
@@ -65,8 +67,8 @@ function normalizeItem(input){
     course:normalizeCourse(input.course),
     status:cleanStatus(input.status),
     expirationDate:cleanDate(input.expirationDate),
-    intakes:normalizeIntakes(input.intakes),
-    skips:normalizeSkips(input.skips),
+    intakes,
+    skips,
     notes:normalizeNotes(input.notes),
     statusHistory:normalizeStatusHistory(input.statusHistory),
     createdAt:created,updatedAt:updated,describedAt:isoOrEmpty(input.describedAt),
