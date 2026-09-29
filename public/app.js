@@ -8706,8 +8706,22 @@
         const input=document.getElementById('dailyQuestionInput');
         const waiting=document.getElementById('dailyQuestionWaiting');
         const answers=document.getElementById('dailyQuestionAnswers');
+        const rustamAnswer=document.getElementById('dailyQuestionRustamAnswer');
+        const dianaAnswer=document.getElementById('dailyQuestionDianaAnswer');
         const status=document.getElementById('dailyQuestionStatus');
-        if(!content||!question||!form||!input||!waiting||!answers||!status) return;
+        if(!content||!question||!form||!input||!waiting||!answers||!rustamAnswer||!dianaAnswer||!status) return;
+        const tile=document.getElementById('dailyQuestionTile');
+        const renderKey=String(data?.date||'')+'|'+String(data?.question?.id||data?.question?.text||'');
+        const questionChanged=Boolean(renderKey&&tile?.dataset.dailyQuestionKey!==renderKey);
+        if(questionChanged){
+          rustamAnswer.textContent='';
+          dianaAnswer.textContent='';
+          answers.hidden=true;
+          waiting.hidden=true;
+          waiting.textContent='';
+          input.value='';
+          tile.dataset.dailyQuestionKey=renderKey;
+        }
         if(loading) loading.hidden=true;
         content.hidden=false;
         question.textContent=String(data?.question?.text||'');
@@ -8717,7 +8731,6 @@
         const partnerAnswered=Boolean(data?.partnerAnswered);
         const bothAnswered=mineAnswered&&partnerAnswered;
         const revealed=Boolean(data?.revealed&&data?.answers);
-        const tile=document.getElementById('dailyQuestionTile');
         tile?.classList.toggle('is-waiting',mineAnswered&&!revealed);
         form.hidden=mineAnswered||bothAnswered||revealed;
         input.disabled=mineAnswered||bothAnswered||revealed;
@@ -8726,13 +8739,15 @@
         if(revealed){
           waiting.hidden=true;
           answers.hidden=false;
-          document.getElementById('dailyQuestionRustamAnswer').textContent=String(data.answers?.['Рустам']?.text||'');
-          document.getElementById('dailyQuestionDianaAnswer').textContent=String(data.answers?.['Диана']?.text||'');
+          rustamAnswer.textContent=String(data.answers?.['Рустам']?.text||'');
+          dianaAnswer.textContent=String(data.answers?.['Диана']?.text||'');
           status.textContent='Оба ответили — завтра будет новый вопрос.';
           return;
         }
 
         answers.hidden=true;
+        rustamAnswer.textContent='';
+        dianaAnswer.textContent='';
         if(mineAnswered){
           waiting.hidden=false;
           waiting.textContent='✓ Ответ сохранён. Ждём, когда ответит '+String(data?.partner||'партнёр')+'.';

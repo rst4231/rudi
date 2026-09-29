@@ -150,3 +150,13 @@ test('car client sends and stores durable backup token',()=>{
   assert.match(client,/restoreCarState\(previousSnapshot\.carState\)/);
   assert.match(client,/createStateBackup\(\{previousSnapshot\}\)/);
 });
+
+
+test('car header does not repeat Auto and Machine labels',()=>{
+  const html=fs.readFileSync('public/index.html','utf8');
+  const start=html.indexOf('id="carTile"');
+  const end=html.indexOf('id="carBody"',start);
+  const head=html.slice(start,end);
+  assert.doesNotMatch(head,/home-dashboard-label">Авто</);
+  assert.match(head,/<h2 id="carTitle">Машина<\/h2>/);
+});

@@ -117,3 +117,11 @@ test('daily answer sends partner a Telegram notice without exposing the answer',
   assert.match(helper,/Сам ответ скрыт/);
   assert.doesNotMatch(helper,/body\.answer|answers\[|\.text/);
 });
+
+
+test('daily question UI clears old answers when a new question is rendered',()=>{
+  const app=fs.readFileSync(path.join(root,'public','app.js'),'utf8');
+  assert.match(app,/const renderKey=String\(data\?\.date\|\|''\)\+'\|'\+String\(data\?\.question\?\.id\|\|data\?\.question\?\.text\|\|''\)/);
+  assert.match(app,/if\(questionChanged\)\{[\s\S]*?rustamAnswer\.textContent='';[\s\S]*?dianaAnswer\.textContent='';[\s\S]*?answers\.hidden=true/);
+  assert.match(app,/answers\.hidden=true;\s*rustamAnswer\.textContent='';\s*dianaAnswer\.textContent='';/);
+});
