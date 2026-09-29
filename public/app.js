@@ -124,10 +124,10 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','smart-saves','quick-access','smart-home','car','partner','daily-question','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','markets'];
+        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','smart-saves','quick-access','smart-home','car','partner','daily-question','markets'];
       }
       function homeLayoutV254MigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -167,7 +167,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
       const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
