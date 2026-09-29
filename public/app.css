@@ -12369,3 +12369,16 @@ html[data-theme="dark"] .daily-question-waiting{background:rgba(255,255,255,.055
   box-shadow:0 2px 8px rgba(20,24,36,.07),inset 0 0 0 1px color-mix(in srgb,var(--line) 76%,transparent);
 }
 .smart-saves-filters button:active{transform:scale(.98)}
+
+
+/* RUDI v2.131 — links open, text expands */
+.smart-save-card.is-link{cursor:pointer}
+.smart-save-card.is-link:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+.smart-save-open{
+  justify-self:start;display:inline-flex;align-items:center;gap:5px;margin-top:3px;padding:5px 8px;
+  border:1px solid color-mix(in srgb,var(--accent) 22%,var(--line));border-radius:9px;
+  background:color-mix(in srgb,var(--accent-soft) 68%,transparent);color:var(--accent);
+  font:inherit;font-size:9.5px;font-weight:760;line-height:1;cursor:pointer;
+}
+.smart-save-open svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.smart-save-open:active{transform:scale(.97)}
