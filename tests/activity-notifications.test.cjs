@@ -40,7 +40,9 @@ test('activity notification copy is rich, gender-aware and escapes user content'
   assert.doesNotMatch(wish, /<script>/);
   assert.match(wish, /&lt;script&gt;/);
 
-  assert.match(moodNotificationText('Диана', 'Рустам', 'joy'), /😄 <b>Диана, у Рустама сейчас радость<\/b>/);
+  assert.match(moodNotificationText('Диана', 'Рустам', 'joy'), /😄 <b>Диана, Рустам сейчас радостен<\/b>/);
+  assert.match(moodNotificationText('Диана', 'Рустам', 'neutral'), /😐 <b>Диана, Рустам сейчас без ярких эмоций<\/b>/);
+  assert.match(moodNotificationText('Рустам', 'Диана', 'fatigue'), /😩 <b>Рустам, Диана сейчас устала<\/b>/);
   assert.doesNotMatch(moodNotificationText('Диана', 'Рустам', 'joy'), /Настроение обновлено в RUDI|\n/);
   assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /✅ <b>Рустам выполнил задачу<\/b>/);
   assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /&lt;уголь&gt;/);
