@@ -12046,3 +12046,86 @@ html[data-theme="dark"] .daily-question-waiting{background:rgba(255,255,255,.055
   background:color-mix(in srgb,var(--red) 10%,var(--surface-strong));
   color:color-mix(in srgb,var(--red) 78%,var(--text));
 }
+
+
+/* RUDI v2.125 dedicated settings page */
+.settings-page{
+  width:min(100%,720px);
+  margin:0 auto;
+  padding:4px 0 24px;
+  display:grid;
+  gap:12px;
+}
+.settings-page[hidden]{display:none!important}
+.settings-page-head{
+  min-height:48px;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) 42px;
+  align-items:center;
+  gap:8px;
+  margin:0 0 4px;
+}
+.settings-page-head h1{
+  margin:0;
+  text-align:center;
+  font-size:21px;
+  line-height:1.15;
+  font-weight:850;
+  letter-spacing:-.025em;
+}
+.settings-page-back{
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid color-mix(in srgb,var(--line) 86%,transparent);
+  border-radius:13px;
+  background:color-mix(in srgb,var(--surface-strong) 88%,transparent);
+  color:var(--text);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 7px 18px rgba(20,24,36,.08);
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.settings-page-back:active{transform:scale(.94)}
+.settings-page-back svg{
+  width:21px;
+  height:21px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.settings-page-head-spacer{width:40px;height:40px}
+.settings-page .settings-group{
+  width:100%;
+  margin:0;
+  padding:14px 15px;
+  border:1px solid color-mix(in srgb,var(--line) 86%,transparent);
+  border-radius:20px;
+  background:color-mix(in srgb,var(--surface-strong) 90%,transparent);
+  box-shadow:0 12px 32px rgba(20,24,36,.07);
+}
+.settings-page .settings-group-title{
+  margin:0 0 7px;
+  padding:0 2px;
+  font-size:11px;
+  line-height:1.2;
+  font-weight:820;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.055em;
+}
+.settings-page .home-settings-row{
+  min-height:56px;
+  padding:10px 2px;
+}
+.settings-page .home-settings-copy strong{font-size:12.5px}
+.settings-page .home-settings-copy small{font-size:10.5px}
+@media (max-width:430px){
+  .settings-page{padding:0 0 20px;gap:10px}
+  .settings-page-head{grid-template-columns:40px minmax(0,1fr) 40px}
+  .settings-page-head h1{font-size:19px}
+  .settings-page .settings-group{padding:12px 13px;border-radius:18px}
+}
