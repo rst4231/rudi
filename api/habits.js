@@ -1,6 +1,6 @@
 const {authorizeRequest,statusForError}=require('./partner-message.js');
 const {
-  moscowDateKey,moscowHour,readHabits,viewHabits,ensureHabitDay,addHabit,removeHabit,setHabitStatus,setHabitsCollapsed
+  moscowDateKey,moscowHour,readHabits,viewHabits,ensureHabitDay,addHabit,removeHabit,archiveHabit,setHabitStatus,setHabitsCollapsed
 }=require('./habit-tracker-store.cjs');
 const {reconcileHabitScore,clearHabitScore,reconcileTodayHabitScores,finalizeOutstandingHabitDays}=require('./habit-rules.cjs');
 
@@ -31,11 +31,11 @@ async function handler(req,res){
     }else if(operation==='add'){
       state=await addHabit(actor,body.name,{now,purpose:body.purpose});
       state=await ensureHabitDay(actor,today,{now});
-    }else if(operation==='remove'){
+    }else if(operation==='remove'||operation==='archive'){
       state=await ensureHabitDay(actor,today,{now});
       const id=String(body.id||''),habit=state.habits.find(row=>row.id===id);if(!habit)throw new Error('habit-not-found');
       const cleared=await clearHabitScore(actor,habit,today,{now});score=cleared.score;scoreDelta=cleared.deltaPoints;
-      state=await removeHabit(actor,id,{now});
+      state=operation==='archive'?await archiveHabit(actor,id,{now}):await removeHabit(actor,id,{now});
       const sync=await reconcileTodayHabitScores(actor,state,{now});if(sync.score)score=sync.score;scoreDelta+=sync.deltaPoints;
       state=await readHabits(actor,{now});
     }else if(operation==='status'){
