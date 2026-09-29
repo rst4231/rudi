@@ -36,3 +36,10 @@ test('photo memory remains a static image and skips video entries',()=>{
 
 
 test('photo memory requests full quality immediately with preview fallback',()=>{assert.match(app,/const memoryFull=String\(photo\.fullUrl\|\|memoryPreview\)/);assert.match(app,/image\.src=memoryFull\|\|memoryPreview/);assert.match(app,/image\.src=memoryPreview/);});
+
+
+test('photo memory uses full resolution immediately with preview only as fallback',()=>{
+  assert.match(app,/const memoryFull=String\(photo\.fullUrl\|\|memoryPreview\)\.trim\(\)/);
+  assert.match(app,/image\.src=memoryFull\|\|memoryPreview/);
+  assert.match(app,/image\.dataset\.fullFallbackTried='1'/);
+});
