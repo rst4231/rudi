@@ -108,6 +108,8 @@ html[data-theme="dark"] .supplement-group-title.is-finished{background:linear-gr
 .supplement-pause{background:color-mix(in srgb,#e5a441 18%,var(--surface,#20242f));color:inherit}
 .supplement-finish{background:color-mix(in srgb,#d76464 16%,var(--surface,#20242f));color:inherit}
 .supplement-resume{background:color-mix(in srgb,#4f7cff 16%,var(--surface,#20242f));color:inherit}
+.supplement-delete{background:#e5484d!important;color:#fff!important;box-shadow:0 8px 20px rgba(229,72,77,.22)!important}
+.supplement-delete:disabled{opacity:.5;box-shadow:none!important}
 .supplement-card{touch-action:pan-y}
 
 .supplement-status-icon{flex:0 0 auto;width:30px;height:30px;border:0;border-radius:10px;color:inherit;display:grid;place-items:center;font:inherit;font-weight:850}

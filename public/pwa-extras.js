@@ -800,6 +800,120 @@
     return overlay;
   }
 
+
+  function healthStatusLabel(value){
+    return value==='ok'?'Всё работает':value==='error'?'Есть проблема':'Нужно внимание';
+  }
+
+  function healthStatusClass(value){
+    return value==='ok'?'is-ok':value==='error'?'is-error':'is-warning';
+  }
+
+  function renderHealthCheck(payload){
+    const summary=byId('rudiHealthSummary');
+    const list=byId('rudiHealthList');
+    const updated=byId('rudiHealthUpdated');
+    if(!summary||!list||!updated) return;
+    const overall=String(payload?.overall||'warning');
+    summary.textContent=healthStatusLabel(overall);
+    summary.className='rudi-health-summary '+healthStatusClass(overall);
+    list.replaceChildren();
+    for(const row of Array.isArray(payload?.checks)?payload.checks:[]){
+      const item=document.createElement('div');
+      item.className='rudi-health-row '+healthStatusClass(String(row.status||'warning'));
+      const dot=document.createElement('span');
+      dot.className='rudi-health-dot';
+      dot.setAttribute('aria-hidden','true');
+      const copy=document.createElement('div');
+      const title=document.createElement('strong');
+      title.textContent=String(row.label||row.id||'Проверка');
+      const detail=document.createElement('small');
+      detail.textContent=String(row.detail||healthStatusLabel(row.status));
+      copy.append(title,detail);
+      const latency=document.createElement('span');
+      latency.className='rudi-health-latency';
+      latency.textContent=Number.isFinite(Number(row.latencyMs))?Math.round(Number(row.latencyMs))+' мс':'';
+      item.append(dot,copy,latency);
+      list.appendChild(item);
+    }
+    const date=new Date(payload?.generatedAt||Date.now());
+    updated.textContent='Проверено '+(Number.isNaN(date.getTime())?'сейчас':date.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}));
+  }
+
+  async function runHealthCheck(){
+    const button=byId('rudiHealthRun');
+    const list=byId('rudiHealthList');
+    const summary=byId('rudiHealthSummary');
+    if(button?.disabled) return;
+    if(button){button.disabled=true;button.textContent='Проверяю…'}
+    if(summary){summary.textContent='Проверяю';summary.className='rudi-health-summary is-loading'}
+    if(list) list.innerHTML='<div class="rudi-health-loading"><span></span><span></span><span></span></div>';
+    try{
+      const response=await nativeFetch('/api/partner-message?rudiAction=system-health',{
+        method:'POST',
+        credentials:'same-origin',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({initData:String(window.Telegram?.WebApp?.initData||'')}),
+        cache:'no-store'
+      });
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok||!payload?.ok) throw new Error(String(payload?.error||'health-check-failed'));
+      renderHealthCheck(payload);
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.(payload.overall==='ok'?'success':'warning')}catch(_){}
+    }catch(error){
+      if(summary){summary.textContent='Не удалось проверить';summary.className='rudi-health-summary is-error'}
+      if(list) list.innerHTML='<div class="rudi-health-error">Проверка временно недоступна.</div>';
+      const updated=byId('rudiHealthUpdated');if(updated) updated.textContent='';
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }finally{
+      if(button){button.disabled=false;button.textContent='Проверить'}
+    }
+  }
+
+  function installHealthSettings(){
+    const panel=byId('homeSettingsPanel');
+    if(!panel||byId('rudiHealthSettings')) return false;
+    if(String(document.body?.dataset?.rudiActor||'')!=='Рустам') return false;
+    const group=document.createElement('section');
+    group.id='rudiHealthSettings';
+    group.className='settings-group rudi-health-settings';
+    group.innerHTML=
+      '<div class="settings-group-title">Состояние RUDI</div>'+
+      '<div class="home-settings-row rudi-health-head">'+
+        '<div class="home-settings-copy"><strong>Системы приложения</strong><small id="rudiHealthUpdated">Проверка запускается вручную</small></div>'+
+        '<span id="rudiHealthSummary" class="rudi-health-summary">Не проверено</span>'+
+      '</div>'+
+      '<div id="rudiHealthList" class="rudi-health-list" aria-live="polite"></div>'+
+      '<button id="rudiHealthRun" class="rudi-health-run" type="button">Проверить</button>';
+    const groups=[...panel.querySelectorAll('.settings-group')];
+    const about=groups.find(node=>node.querySelector('.settings-group-title')?.textContent?.trim()==='О приложении');
+    panel.insertBefore(group,about||null);
+    byId('rudiHealthRun')?.addEventListener('click',runHealthCheck);
+    return true;
+  }
+
+  function installNativeInteractionPolish(){
+    if(document.body?.dataset?.nativePolish==='1') return;
+    document.body.dataset.nativePolish='1';
+    const selector='button,a,[role="button"],[role="tab"],input[type="checkbox"],input[type="radio"]';
+    let active=null;
+    const clear=()=>{
+      active?.classList?.remove('rudi-native-pressed');
+      active=null;
+    };
+    document.addEventListener('pointerdown',event=>{
+      if(event.pointerType==='mouse'&&event.button!==0) return;
+      const target=event.target instanceof Element?event.target.closest(selector):null;
+      if(!target||target.matches(':disabled,[aria-disabled="true"]')) return;
+      clear();
+      active=target;
+      target.classList.add('rudi-native-pressed');
+    },{passive:true,capture:true});
+    document.addEventListener('pointerup',clear,{passive:true,capture:true});
+    document.addEventListener('pointercancel',clear,{passive:true,capture:true});
+    window.addEventListener('blur',clear,{passive:true});
+  }
+
   function installSearchButton(){
     const tools=document.querySelector('.home-dashboard-tools');
     if(!tools||byId('rudiSearchButton')) return false;
@@ -1573,6 +1687,7 @@
 
   function installDynamicExtras(){
     installSearchButton();
+    installHealthSettings();
     removeRetiredQuickAdd();
     setupSavesPage();
     setupForDiPage();
@@ -1580,6 +1695,7 @@
   }
 
   installServiceWorker();
+  installNativeInteractionPolish();
   installBackgroundSync();
   installConnectivityBanner();
   installBadgeSync();
@@ -1587,5 +1703,5 @@
   installDynamicExtras();
 
   const observer=new MutationObserver(()=>installDynamicExtras());
-  observer.observe(document.body,{childList:true,subtree:true});
+  observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-rudi-actor']});
 })();

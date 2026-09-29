@@ -193,37 +193,6 @@ async function updateCardStatus(item,status,message,undoText){
     });
   }
 }
-function setupFinishedSwipe(card,item){
-  if(item.status!=='finished'||card.dataset.finishSwipe==='1')return;
-  card.dataset.finishSwipe='1';
-  let tracking=false,startX=0,startY=0,lastX=0,lastY=0;
-  const reset=()=>{tracking=false;card.style.transform='';card.style.transition=''};
-  card.addEventListener('pointerdown',event=>{
-    if(event.pointerType==='mouse'&&event.button!==0)return;
-    if(event.target.closest('button,a,input,select,textarea,label'))return;
-    tracking=true;startX=lastX=event.clientX;startY=lastY=event.clientY;
-  },{passive:true});
-  card.addEventListener('pointermove',event=>{
-    if(!tracking)return;lastX=event.clientX;lastY=event.clientY;
-    const dx=lastX-startX,dy=Math.abs(lastY-startY);
-    if(dx>0||dy>Math.abs(dx)*.75){reset();return}
-    card.style.transition='none';card.style.transform='translateX('+Math.max(-96,dx)+'px)';
-  },{passive:true});
-  card.addEventListener('pointerup',async event=>{
-    if(!tracking)return;
-    lastX=event.clientX;lastY=event.clientY;const dx=lastX-startX,dy=Math.abs(lastY-startY);tracking=false;
-    if(dx<=-72&&Math.abs(dx)>=dy*1.25){
-      card.style.transition='transform .16s ease';card.style.transform='translateX(-110%)';
-      try{
-        const data=await req('remove',{id:item.id});
-        setItems(data.items||getItems());app().showUndo?.(data.removed);setStatus('БАД удалён из архива.');
-      }catch(error){card.style.transform='';setStatus('Не удалось удалить БАД.',true)}
-      return;
-    }
-    card.style.transition='transform .16s ease';card.style.transform='';
-  },{passive:true});
-  card.addEventListener('pointercancel',reset,{passive:true});
-}
 function enhanceCards(){
   ensureToolbar();updateStats();
   const validIds=new Set(getItems().map(item=>item.id));selectedInteractionIds=new Set([...selectedInteractionIds].filter(id=>validIds.has(id)));
@@ -259,9 +228,25 @@ function enhanceCards(){
       take.addEventListener('click',async event=>{event.stopPropagation();take.disabled=true;try{const data=await req('take',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже отмечено сегодня.':'Приём отмечен ✓');document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'))}catch(error){take.disabled=false;setStatus('Не удалось отметить приём.',true)}});
       skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
     }else{
-      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.classList.add('is-single');actions.append(resume);
+      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.append(resume);
       resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».','БАД возобновлён').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
-      if(item.status==='finished')setupFinishedSwipe(card,item);
+      if(item.status==='finished'){
+        const remove=document.createElement('button');remove.type='button';remove.className='supplement-delete';remove.textContent='Удалить';remove.setAttribute('aria-label','Удалить '+item.name+' из архива');actions.append(remove);
+        remove.addEventListener('click',async event=>{
+          event.stopPropagation();
+          if(remove.disabled)return;
+          remove.disabled=resume.disabled=true;
+          try{
+            const data=await req('remove',{id:item.id});
+            setItems(data.items||getItems());
+            app().showUndo?.(data.removed);
+            setStatus('БАД удалён из архива.');
+          }catch(error){
+            remove.disabled=resume.disabled=false;
+            setStatus('Не удалось удалить БАД.',true);
+          }
+        });
+      }else actions.classList.add('is-single');
     }
     card.appendChild(actions);
   }

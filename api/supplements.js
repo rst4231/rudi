@@ -36,9 +36,20 @@ async function handler(req,res){
       const [rustamState,dianaState]=await Promise.all([readSupplements('Рустам'),readSupplements('Диана')]);
       const buildRows=(state)=>state.items.flatMap(item=>(item.intakes||[])
         .filter(intake=>intake.date===today)
-        .map(intake=>({id:item.id,name:item.name,at:intake.at}))
+        .map(intake=>({id:item.id,name:item.name,at:intake.at,status:item.status}))
       ).filter(row=>row.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
-      return res.status(200).json({ok:true,actor,today,actors:{'Рустам':buildRows(rustamState),'Диана':buildRows(dianaState)}});
+      const buildProgress=(state)=>{
+        const active=state.items.filter(item=>item.status==='active');
+        const taken=new Set(active.filter(item=>(item.intakes||[]).some(intake=>intake.date===today)).map(item=>item.id));
+        return {taken:taken.size,total:active.length};
+      };
+      return res.status(200).json({
+        ok:true,
+        actor,
+        today,
+        actors:{'Рустам':buildRows(rustamState),'Диана':buildRows(dianaState)},
+        progress:{'Рустам':buildProgress(rustamState),'Диана':buildProgress(dianaState)}
+      });
     }
     if(operation==='list'){
       const state=await readSupplements(actor);

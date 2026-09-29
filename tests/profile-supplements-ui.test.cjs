@@ -31,3 +31,40 @@ test('personal supplements support left-edge swipe back without conflicting with
 
 test('home tracker and supplements use approved pastel card layout',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');assert.match(source,/personal-home-tile-icon is-habit/);assert.match(source,/personal-home-tile-icon is-supplement/);assert.match(source,/habitTile\.append\(habitHead,habitProgressRow,habitCalendar,habitBody\)/);assert.match(css,/RUDI v2\.56 — pastel home cards/);assert.match(css,/linear-gradient\(120deg,#f6fbf7/);assert.match(css,/linear-gradient\(120deg,#fffaf4/)}); 
 test('supplement home card shows distinct supplements taken today',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/function todaySupplementCount\(\)/);assert.match(source,/some\(row=>String\(row\?\.date\|\|''\)===today\)/);assert.match(source,/Сегодня принято: /);assert.match(source,/renderSupplementSummary\(\)/)});
+
+
+test('archived supplements use explicit red delete button and no swipe delete',()=>{
+  const js=fs.readFileSync(path.join(__dirname,'..','public','supplement-advanced.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','supplement-advanced.css'),'utf8');
+  assert.match(js,/supplement-delete/);
+  assert.match(js,/remove\.textContent='Удалить'/);
+  assert.doesNotMatch(js,/setupFinishedSwipe/);
+  assert.match(css,/\.supplement-delete\{background:#e5484d/);
+});
+
+test('collapsed supplements and habits show overdue red counters',()=>{
+  const js=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');
+  assert.match(js,/overdueSupplementCount/);
+  assert.match(js,/moscowClockMinutes\(now\)<20\*60/);
+  assert.match(js,/personal-home-reminder-badge/);
+  assert.match(css,/background:#ff3b30/);
+});
+
+test('supplement info uses structured emoji bold and italic markup',()=>{
+  const js=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');
+  assert.match(js,/💊 Главное/);
+  assert.match(js,/⏰ Когда принимать/);
+  assert.match(js,/📚 Доказательность/);
+  assert.match(js,/document\.createElement\('strong'\)/);
+  assert.match(js,/document\.createElement\('em'\)/);
+});
+
+test('profile supplement intake cards show compact progress and completed items',()=>{
+  const js=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.match(js,/profile-supplement-intakes-progress/);
+  assert.match(js,/taken\+'\/'\+total/);
+  assert.match(js,/profile-supplement-intake-check/);
+  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+});

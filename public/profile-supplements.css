@@ -479,3 +479,36 @@ html[data-theme="dark"] .personal-supplements-progress{
 .personal-habits-archive-arrow{font-size:16px;line-height:1;transition:transform .18s ease}
 .personal-habits-archive.is-expanded .personal-habits-archive-arrow{transform:rotate(180deg)}
 .personal-habit-archive-row{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:center;min-height:38px;padding:4px 2px;font-size:12.5px;opacity:.48}
+
+
+/* RUDI v2.121 — collapsed reminder badges + rich supplement info */
+.personal-home-tile-icon{position:relative}
+.personal-home-reminder-badge{
+  position:absolute;
+  top:-6px;
+  right:-7px;
+  z-index:4;
+  min-width:20px;
+  height:20px;
+  padding:0 5px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:2px solid var(--surface,#fff);
+  border-radius:999px;
+  background:#ff3b30;
+  color:#fff;
+  font-size:10px;
+  line-height:1;
+  font-weight:850;
+  letter-spacing:-.02em;
+  box-shadow:0 2px 7px rgba(255,59,48,.32);
+}
+.personal-home-reminder-badge[hidden]{display:none!important}
+.personal-supplements-tile:not(.is-collapsed) .personal-home-reminder-badge,
+.personal-habits-tile:not(.is-collapsed) .personal-home-reminder-badge{display:none!important}
+html[data-theme="dark"] .personal-home-reminder-badge{border-color:#181b22}
+.supplement-info-modal .habit-info-modal-copy p{margin:0 0 12px;line-height:1.48}
+.supplement-info-modal .habit-info-modal-copy p:last-child{margin-bottom:0}
+.supplement-info-modal .habit-info-modal-copy strong{font-weight:850;color:var(--text)}
+.supplement-info-modal .habit-info-modal-copy em{font-style:italic;color:color-mix(in srgb,var(--text) 80%,var(--muted))}

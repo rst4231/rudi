@@ -4029,10 +4029,17 @@
         return new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}).format(date);
       }
 
-      function renderHomeSupplementIntakes(actor,rows){
+      function renderHomeSupplementIntakes(actor,rows,progress={}){
         const list=document.getElementById(actor==='Диана'?'homeDianaSupplementIntakes':'homeRustamSupplementIntakes');
         if(!list) return;
         const values=Array.isArray(rows)?rows:[];
+        const progressNode=document.getElementById(actor==='Диана'?'homeDianaSupplementProgress':'homeRustamSupplementProgress');
+        const taken=Math.max(0,Math.round(Number(progress?.taken)||0));
+        const total=Math.max(taken,Math.round(Number(progress?.total)||0));
+        if(progressNode){
+          progressNode.textContent=taken+'/'+total;
+          progressNode.setAttribute('aria-label',taken+' из '+total+' принято');
+        }
         list.replaceChildren();
         if(!values.length){
           const empty=document.createElement('div');
@@ -4044,19 +4051,24 @@
         for(const row of values){
           const item=document.createElement('div');
           item.className='profile-supplement-intake-row';
-          const left=document.createElement('span');
-          left.className='profile-supplement-intake-name';
           const emoji=document.createElement('span');
           emoji.className='profile-supplement-intake-emoji';
           emoji.textContent=homeSupplementEmoji(row?.name);
+          const copy=document.createElement('span');
+          copy.className='profile-supplement-intake-copy';
           const name=document.createElement('span');
+          name.className='profile-supplement-intake-name';
           name.textContent=String(row?.name||'БАД');
-          left.append(emoji,name);
           const time=document.createElement('time');
           time.className='profile-supplement-intake-time';
           time.dateTime=String(row?.at||'');
           time.textContent=homeSupplementTime(row?.at);
-          item.append(left,time);
+          copy.append(name,time);
+          const check=document.createElement('span');
+          check.className='profile-supplement-intake-check';
+          check.setAttribute('aria-hidden','true');
+          check.textContent='✓';
+          item.append(emoji,copy,check);
           list.appendChild(item);
         }
       }
@@ -4075,8 +4087,8 @@
             });
             const data=await response.json().catch(()=>({}));
             if(!response.ok||!data?.ok) throw new Error(String(data?.error||'supplement-overview-failed'));
-            renderHomeSupplementIntakes('Рустам',data.actors?.['Рустам']);
-            renderHomeSupplementIntakes('Диана',data.actors?.['Диана']);
+            renderHomeSupplementIntakes('Рустам',data.actors?.['Рустам'],data.progress?.['Рустам']);
+            renderHomeSupplementIntakes('Диана',data.actors?.['Диана'],data.progress?.['Диана']);
             return data;
           }catch(error){
             if(!options.silent) console.warn('RUDI_SUPPLEMENT_OVERVIEW_UI_WARN',String(error?.message||error));
@@ -4357,9 +4369,16 @@
         const makeSupplementIntakeBlock=(actor)=>{
           const block=document.createElement('article');
           block.className='profile-supplement-intakes';
+          const head=document.createElement('div');
+          head.className='profile-supplement-intakes-head';
           const title=document.createElement('div');
           title.className='profile-supplement-intakes-title';
           title.textContent=actor==='Диана'?'💊 Сегодня приняла':'💊 Сегодня принял';
+          const progress=document.createElement('span');
+          progress.id=actor==='Диана'?'homeDianaSupplementProgress':'homeRustamSupplementProgress';
+          progress.className='profile-supplement-intakes-progress';
+          progress.textContent='0/0';
+          head.append(title,progress);
           const list=document.createElement('div');
           list.id=actor==='Диана'?'homeDianaSupplementIntakes':'homeRustamSupplementIntakes';
           list.className='profile-supplement-intakes-list';
@@ -4367,7 +4386,7 @@
           loading.className='profile-supplement-intakes-empty';
           loading.textContent='Загружаю…';
           list.appendChild(loading);
-          block.append(title,list);
+          block.append(head,list);
           return block;
         };
         rustamCard.details.appendChild(makeSupplementIntakeBlock('Рустам'));

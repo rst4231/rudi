@@ -2,7 +2,7 @@
 const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
 let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -65,6 +65,9 @@ async function loadHabitsForDate(date){
 }
 function habitEmoji(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/вод|пить/.test(value))return'💧';if(/заряд|трен|спорт|ходь|шаг/.test(value))return'🏃';if(/чит|книг/.test(value))return'📚';if(/медит|дых/.test(value))return'🧘';if(/сон|спать|ложиться/.test(value))return'🌙';if(/сахар|слад/.test(value))return'🍎';if(/уч|англ|язык/.test(value))return'🧠';return'🌱'}
 function applyHabitView(data){
+  if(String(data?.date||data?.today||'')===String(data?.today||'')){
+    habitTodayReminder={today:String(data?.today||''),habits:Array.isArray(data?.habits)?data.habits:[],statuses:data?.statuses&&typeof data.statuses==='object'?{...data.statuses}:{}};
+  }
   habitState={
     habits:Array.isArray(data?.habits)?data.habits:[],
     archivedHabits:Array.isArray(data?.archivedHabits)?data.archivedHabits:[],
@@ -77,9 +80,49 @@ function applyHabitView(data){
     done:Number(data?.done||0),total:Number(data?.total||0),canCompleteToday:Boolean(data?.canCompleteToday)
   };
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
-  renderHabitDates();renderHabits();applyHabitCollapse();
+  renderHabitDates();renderHabits();applyHabitCollapse();updateReminderBadges();
 }
-function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTile.classList.toggle('is-collapsed',habitState.collapsed===true);habitCollapseButton.setAttribute('aria-expanded',String(!habitState.collapsed));habitCollapseButton.setAttribute('aria-label',habitState.collapsed?'Развернуть «Трекер привычек»':'Свернуть «Трекер привычек»')}
+function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTile.classList.toggle('is-collapsed',habitState.collapsed===true);habitCollapseButton.setAttribute('aria-expanded',String(!habitState.collapsed));habitCollapseButton.setAttribute('aria-label',habitState.collapsed?'Развернуть «Трекер привычек»':'Свернуть «Трекер привычек»');updateReminderBadges()}
+
+function moscowClockMinutes(now=new Date()){
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now);
+  const map=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+  return Number(map.hour||0)*60+Number(map.minute||0);
+}
+function handledSupplementToday(item,today){
+  return (Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today))
+    ||(Array.isArray(item?.skips)&&item.skips.some(row=>String(row?.date||'')===today));
+}
+function overdueSupplementCount(now=new Date()){
+  const today=habitDateKey(now),minutes=moscowClockMinutes(now);
+  return activeSupplementItems().filter(item=>{
+    const match=String(item?.schedule?.time||'').match(/^(\d{2}):(\d{2})$/);
+    if(!match||handledSupplementToday(item,today))return false;
+    return minutes>=Number(match[1])*60+Number(match[2]);
+  }).length;
+}
+function pendingHabitCount(now=new Date()){
+  if(moscowClockMinutes(now)<20*60)return 0;
+  const today=habitDateKey(now);
+  if(String(habitTodayReminder.today||'')!==today)return 0;
+  const statuses=habitTodayReminder.statuses||{};
+  return (habitTodayReminder.habits||[]).filter(habit=>!['done','notdone'].includes(String(statuses[String(habit?.id||'')]||'pending'))).length;
+}
+function paintReminderBadge(node,count){
+  if(!node)return;
+  const value=Math.max(0,Math.round(Number(count)||0));
+  node.textContent=value>99?'99+':String(value);
+  node.hidden=value<=0;
+}
+function updateReminderBadges(){
+  paintReminderBadge(supplementReminderBadge,overdueSupplementCount());
+  paintReminderBadge(habitReminderBadge,pendingHabitCount());
+}
+function startReminderBadgeClock(){
+  if(reminderBadgeTimer)return;
+  reminderBadgeTimer=setInterval(updateReminderBadges,60000);
+}
+
 function habitStreakText(value){const n=Math.max(0,Math.round(Number(value)||0)),m100=n%100,m10=n%10,w=m100>=11&&m100<=14?'дней':m10===1?'день':m10>=2&&m10<=4?'дня':'дней';return n+' '+w+' подряд'}
 function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,1 ⭐ за выполнение · −0,1 ⭐ за невыполнение':'Без бонуса и штрафа'}
 function habitScoreMessage(data,id,status){if(habitSelectedDate!==habitState.today)return'Статус сохранён. За прошлые даты звёзды не меняются.';if(!(habitState.bonusIds||[]).includes(id))return'Статус сохранён. Эта привычка без бонуса и штрафа.';const d=Number(data?.scoreDelta||0);if(d>0)return'Баланс: +'+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';if(d<0)return'Баланс: '+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';return status==='done'?'Выполнение сохранено.':'Статус «Не выполнено» сохранён.'}
@@ -211,11 +254,37 @@ function renderSupplementSummary(){
   supplementSummaryNode.textContent='Сегодня принято: '+taken+' из '+active.length;
   if(supplementProgressFill)supplementProgressFill.style.width=percent+'%';
   if(supplementPercentNode)supplementPercentNode.textContent=percent+'%';
+  updateReminderBadges();
 }
-function supplementDescriptionText(item){
+function supplementEvidenceLabel(value){
+  return value==='strong'?'сильная':value==='moderate'?'умеренная':value==='limited'?'ограниченная':'недостаточная';
+}
+function renderSupplementDescription(item){
+  if(!supplementInfoBody)return;
+  supplementInfoBody.replaceChildren();
   const description=String(item?.description||'').trim();
   const guidance=String(item?.intakeGuidance||'').trim();
-  return description+(guidance?'\n\nКогда лучше принимать: '+guidance:'');
+  if(!description&&!guidance){supplementInfoBody.textContent='Описание пока недоступно.';return}
+  const main=document.createElement('p');
+  const mainLead=document.createElement('strong');mainLead.textContent='💊 Главное. ';
+  const mainText=document.createElement('span');mainText.textContent=description||'Краткая справка пока недоступна.';
+  main.append(mainLead,mainText);supplementInfoBody.appendChild(main);
+  if(guidance){
+    const timing=document.createElement('p');
+    const timingLead=document.createElement('strong');timingLead.textContent='⏰ Когда принимать. ';
+    const timingText=document.createElement('em');timingText.textContent=guidance;
+    timing.append(timingLead,timingText);supplementInfoBody.appendChild(timing);
+  }
+  const evidence=document.createElement('p');
+  const evidenceLead=document.createElement('strong');evidenceLead.textContent='📚 Доказательность. ';
+  const evidenceText=document.createElement('em');evidenceText.textContent='Уровень: '+supplementEvidenceLabel(String(item?.evidenceLevel||''));
+  evidence.append(evidenceLead,evidenceText);supplementInfoBody.appendChild(evidence);
+  if(Array.isArray(item?.ingredients)&&item.ingredients.length){
+    const ingredients=document.createElement('p');
+    const ingredientsLead=document.createElement('strong');ingredientsLead.textContent='🧪 Активные вещества. ';
+    const ingredientsText=document.createElement('span');ingredientsText.textContent=item.ingredients.join(', ');
+    ingredients.append(ingredientsLead,ingredientsText);supplementInfoBody.appendChild(ingredients);
+  }
 }
 function ensureSupplementInfoModal(){
   if(supplementInfoModal)return supplementInfoModal;
@@ -250,7 +319,7 @@ async function openSupplementInfo(item){
     }
   }
   supplementInfoTitle.textContent=String(current?.name||item?.name||'БАД');
-  supplementInfoBody.textContent=supplementDescriptionText(current)||'Описание пока недоступно.';
+  renderSupplementDescription(current);
 }
 async function enrichExistingSupplementGuidance(){
   if(guidanceEnrichmentPromise)return guidanceEnrichmentPromise;
@@ -275,6 +344,7 @@ function applyCollapse(collapsed=true){
   tile.classList.toggle('is-collapsed',Boolean(collapsed));
   collapseButton.setAttribute('aria-expanded',String(!collapsed));
   collapseButton.setAttribute('aria-label',collapsed?'Развернуть «БАДы и витамины»':'Свернуть «БАДы и витамины»');
+  updateReminderBadges();
 }
 function applyPosition(){}
 function render(){
@@ -394,7 +464,7 @@ function build(){
   if(!habitTile){habitTile=document.createElement('section');habitTile.id='habitHomeTile';habitTile.className='personal-habits-tile home-tools-tile';habitTile.dataset.appTabSection='home';habitTile.dataset.homeTile='habits';homeToolsHost?.appendChild(habitTile)}
   const habitHead=document.createElement('div');habitHead.className='personal-habits-head';
   const habitLead=document.createElement('div');habitLead.className='personal-home-tile-lead';
-  const habitIcon=document.createElement('span');habitIcon.className='personal-home-tile-icon is-habit';habitIcon.textContent='🌱';
+  const habitIcon=document.createElement('span');habitIcon.className='personal-home-tile-icon is-habit';habitIcon.textContent='🌱';habitReminderBadge=document.createElement('span');habitReminderBadge.className='personal-home-reminder-badge';habitReminderBadge.hidden=true;habitIcon.appendChild(habitReminderBadge);
   const habitTitleWrap=document.createElement('div');habitTitleWrap.className='personal-habits-title-wrap';
   const habitHeading=document.createElement('h2');habitHeading.textContent='Трекер привычек';
   habitProgressText=document.createElement('div');habitProgressText.className='personal-habits-progress-text';habitProgressText.textContent='Загружаю…';
@@ -433,7 +503,7 @@ function build(){
   if(!tile){tile=document.createElement('section');tile.id='supplementsHomeTile';tile.className='personal-supplements-tile home-tools-tile';tile.dataset.appTabSection='home';tile.dataset.homeTile='supplements';homeToolsHost?.appendChild(tile)}
   const head=document.createElement('div');head.className='personal-supplements-head';
   const supplementLead=document.createElement('div');supplementLead.className='personal-home-tile-lead';
-  const supplementIcon=document.createElement('span');supplementIcon.className='personal-home-tile-icon is-supplement';supplementIcon.textContent='💊';
+  const supplementIcon=document.createElement('span');supplementIcon.className='personal-home-tile-icon is-supplement';supplementIcon.textContent='💊';supplementReminderBadge=document.createElement('span');supplementReminderBadge.className='personal-home-reminder-badge';supplementReminderBadge.hidden=true;supplementIcon.appendChild(supplementReminderBadge);
   const supplementTitleWrap=document.createElement('div');supplementTitleWrap.className='personal-supplements-title-wrap';
   const heading=document.createElement('h2');heading.textContent='БАДы и витамины';
   supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято: 0 из 0';
@@ -518,7 +588,7 @@ function build(){
       }
     }
   });
-  applyCollapse(true);document.dispatchEvent(new CustomEvent('rudi:home-tiles-ready'));setupEdgeSwipeBack();return overlay;
+  applyCollapse(true);startReminderBadgeClock();updateReminderBadges();document.dispatchEvent(new CustomEvent('rudi:home-tiles-ready'));setupEdgeSwipeBack();return overlay;
 }
 async function loadHomeTools({force=false}={}){
   const nextActor=String(document.body.dataset.rudiActor||'').trim();if(!nextActor)return;

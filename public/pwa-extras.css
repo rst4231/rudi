@@ -918,3 +918,72 @@ html[data-theme="dark"] body[data-app-tab="dates"] .dates-saved-category .saved-
     margin-top:2px;
   }
 }
+
+
+/* RUDI v2.121 — native interaction polish + owner health check */
+:where(button,a,[role="button"],[role="tab"]){
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.rudi-native-pressed{
+  transform:scale(.975)!important;
+  filter:brightness(.985);
+}
+@media (prefers-reduced-motion:reduce){
+  .rudi-native-pressed{transform:none!important}
+}
+.rudi-health-settings{padding-bottom:2px}
+.rudi-health-head{align-items:flex-start}
+.rudi-health-summary{
+  flex:0 0 auto;
+  min-height:26px;
+  display:inline-flex;
+  align-items:center;
+  padding:5px 8px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:800;
+  white-space:nowrap;
+  background:color-mix(in srgb,var(--muted) 10%,transparent);
+  color:var(--muted);
+}
+.rudi-health-summary.is-ok{color:#2f9d62;background:rgba(47,157,98,.12)}
+.rudi-health-summary.is-warning{color:#b67a17;background:rgba(214,153,49,.15)}
+.rudi-health-summary.is-error{color:#d85353;background:rgba(216,83,83,.13)}
+.rudi-health-summary.is-loading{opacity:.66}
+.rudi-health-list{display:grid;gap:6px;margin:2px 0 8px}
+.rudi-health-row{
+  display:grid;
+  grid-template-columns:8px minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  min-height:38px;
+  padding:7px 8px;
+  border-radius:12px;
+  background:color-mix(in srgb,var(--surface) 70%,transparent);
+}
+.rudi-health-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.rudi-health-row.is-ok .rudi-health-dot{background:#34b36d;box-shadow:0 0 0 3px rgba(52,179,109,.10)}
+.rudi-health-row.is-warning .rudi-health-dot{background:#e0a239;box-shadow:0 0 0 3px rgba(224,162,57,.11)}
+.rudi-health-row.is-error .rudi-health-dot{background:#e45a5a;box-shadow:0 0 0 3px rgba(228,90,90,.11)}
+.rudi-health-row strong{display:block;font-size:10.5px;line-height:1.15}
+.rudi-health-row small{display:block;margin-top:2px;color:var(--muted);font-size:8.8px;line-height:1.2}
+.rudi-health-latency{color:var(--muted);font-size:8px;font-weight:700}
+.rudi-health-run{
+  width:100%;
+  min-height:34px;
+  border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
+  border-radius:11px;
+  background:color-mix(in srgb,var(--accent-soft) 68%,var(--surface));
+  color:var(--accent);
+  font:inherit;
+  font-size:10px;
+  font-weight:800;
+}
+.rudi-health-run:disabled{opacity:.55}
+.rudi-health-loading{display:flex;gap:5px;justify-content:center;padding:8px}
+.rudi-health-loading span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:rudiHealthPulse .8s ease-in-out infinite alternate}
+.rudi-health-loading span:nth-child(2){animation-delay:.12s}
+.rudi-health-loading span:nth-child(3){animation-delay:.24s}
+.rudi-health-error{padding:8px;color:#d85353;font-size:9.5px;text-align:center}
+@keyframes rudiHealthPulse{to{opacity:.25;transform:translateY(-2px)}}

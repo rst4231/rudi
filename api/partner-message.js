@@ -92,7 +92,9 @@ const {
   checklistAuditForItem,
 } = require('./ticktick-checklist-audit-store.cjs');
 const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot, mergeUiPreferences, normalizeUiPreferences } = require('./rudi-backup.cjs');
-const { getCinemaPremieresCache, getTopicMaintenanceCache, getLaborCache } = require('./stateful-cache.cjs');
+const { getCinemaPremieresCache, getTopicMaintenanceCache, getLaborCache, getControlPlaneCache } = require('./stateful-cache.cjs');
+const { getDailyCronState } = require('./daily-cron-state.cjs');
+const { readSummaryState } = require('./morning-summary-store.cjs');
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
@@ -2093,6 +2095,20 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+
+  if (action === 'system-health') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const { actor }=authorizeRequest(req,body.initData,options);
+      return res.status(200).json(await buildSystemHealth(actor,options));
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code==='rudi-health-owner-only'?403:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
   if (action === 'passkey') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
@@ -3492,6 +3508,87 @@ async function handleRudiAction(req, res, action, options = {}) {
   }
 
   return res.status(404).json({ ok: false, error: 'rudi-route-not-found' });
+}
+
+function systemHealthRow(id,label,status,detail,startedAt){
+  return {
+    id,
+    label,
+    status:['ok','warning','error'].includes(status)?status:'warning',
+    detail:String(detail||''),
+    latencyMs:Math.max(0,Date.now()-startedAt),
+  };
+}
+
+async function runSystemHealthProbe(id,label,probe){
+  const startedAt=Date.now();
+  try{
+    const result=await probe();
+    if(result&&typeof result==='object'&&result.status){
+      return systemHealthRow(id,label,result.status,result.detail,startedAt);
+    }
+    return systemHealthRow(id,label,'ok',String(result||'Работает'),startedAt);
+  }catch(error){
+    return systemHealthRow(id,label,'error',String(error?.message||error||'Недоступно'),startedAt);
+  }
+}
+
+async function buildSystemHealth(actor,options={}){
+  if(actor!=='Рустам') throw new Error('rudi-health-owner-only');
+  const now=new Date(options.now||Date.now());
+  const checks=await Promise.all([
+    runSystemHealthProbe('database','База данных',async()=>{
+      await readAuthRecord(actor,durableAuthOptions(options));
+      return {status:'ok',detail:'Neon отвечает'};
+    }),
+    runSystemHealthProbe('cache','Кэш',async()=>{
+      await getControlPlaneCache(options.cacheOptions||{}).get('daily-cron:last-attempt');
+      return {status:'ok',detail:'Runtime Cache отвечает'};
+    }),
+    runSystemHealthProbe('ticktick','TickTick',async()=>{
+      const config=await loadTickTickConfig(options);
+      if(!config?.enabled) return {status:'warning',detail:'Интеграция выключена'};
+      const token=await readToken(options);
+      if(!token?.accessToken) return {status:'warning',detail:'Нужно подключить TickTick'};
+      const expiresAt=Date.parse(token.expiresAt||'');
+      if(Number.isFinite(expiresAt)&&expiresAt<=now.getTime()) return {status:'warning',detail:'Токен требует обновления'};
+      return {status:'ok',detail:'Подключён'};
+    }),
+    runSystemHealthProbe('telegram','Telegram',async()=>{
+      const token=resolveTelegramBotToken(options.env||process.env);
+      if(!token) return {status:'error',detail:'Токен бота не настроен'};
+      const recipients=await readRecipients(options).catch(()=>({}));
+      const count=Object.values(recipients||{}).filter(Boolean).length;
+      return count
+        ? {status:'ok',detail:'Бот и получатели настроены'}
+        : {status:'warning',detail:'Бот настроен, получатели не найдены'};
+    }),
+    runSystemHealthProbe('ai','AI',async()=>{
+      const key=String((options.env||process.env).GROQ_API_KEY||'').trim();
+      return key
+        ? {status:'ok',detail:'Groq настроен'}
+        : {status:'warning',detail:'Ключ Groq не найден'};
+    }),
+    runSystemHealthProbe('jobs','Фоновые задачи',async()=>{
+      const [cron,rustamSummary,dianaSummary]=await Promise.all([
+        getDailyCronState({cacheOptions:options.cacheOptions}),
+        readSummaryState('Рустам',options),
+        readSummaryState('Диана',options),
+      ]);
+      if(cron?.status==='failed') return {status:'error',detail:'Последний daily cron завершился ошибкой'};
+      if(!cron) return {status:'warning',detail:'Нет данных о последнем daily cron'};
+      const stamp=Date.parse(cron.finishedAt||cron.startedAt||'');
+      if(Number.isFinite(stamp)&&now.getTime()-stamp>36*60*60*1000){
+        return {status:'warning',detail:'Daily cron давно не запускался'};
+      }
+      const summaries=[rustamSummary?.sentAt,dianaSummary?.sentAt].filter(Boolean).length;
+      return {status:'ok',detail:'Daily cron работает · утренние сводки: '+summaries+'/2'};
+    }),
+  ]);
+  const overall=checks.some(row=>row.status==='error')
+    ?'error'
+    :checks.some(row=>row.status==='warning')?'warning':'ok';
+  return {ok:true,overall,generatedAt:now.toISOString(),checks};
 }
 
 async function handler(req, res, options = {}) {
