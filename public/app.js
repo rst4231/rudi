@@ -1,4 +1,4 @@
-// RUDI v2.126 activity summary release
+// RUDI v2.126 activity summary + Lulu + car badge release ready
 // RUDI v2.125 production build marker
     (async () => {
       try{
