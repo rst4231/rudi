@@ -11,7 +11,7 @@ const MAX_HISTORY_DAYS=180;
 const ACTORS=['Рустам','Диана'];
 const LEGACY_MOOD_ALIASES=Object.freeze({low:'sadness',ok:'neutral',great:'joy',fear:'boredom'});
 const ALLOWED_MOODS=new Set(['sadness','boredom','neutral','fatigue','anger','joy','love']);
-const ALLOWED_REASONS=new Set(['work','food','relationship','money','health','fatigue','sleep','fasting','other']);
+const ALLOWED_REASONS=new Set(['work','food','relationship','money','health','sport','fatigue','sleep','fasting','other']);
 
 function normalizeMoodValue(value){const mood=String(value||'').trim();return LEGACY_MOOD_ALIASES[mood]||mood}
 function validDate(value){const text=String(value||'').trim();return /^\d{4}-\d{2}-\d{2}$/.test(text)?text:''}
