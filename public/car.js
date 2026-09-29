@@ -482,6 +482,23 @@
     }
   }
 
+  function syncCarTodayTaskBadge(tasks){
+    const title=document.getElementById('carTitle');
+    if(!title) return;
+    let badge=document.getElementById('carTodayTaskBadge');
+    if(!badge){
+      badge=document.createElement('span');
+      badge.id='carTodayTaskBadge';
+      badge.className='car-today-task-badge';
+      badge.hidden=true;
+      title.appendChild(badge);
+    }
+    const count=(Array.isArray(tasks)?tasks:[]).filter(task=>String(task?.timing||'')==='today').length;
+    badge.textContent=count?String(count):'';
+    badge.hidden=count<1;
+    badge.setAttribute('aria-label',count===1?'1 невыполненная задача по машине на сегодня':count+' невыполненных задач по машине на сегодня');
+  }
+
   function renderTasks(ticktick){
     const root=document.getElementById('carTasksList');
     const meta=document.getElementById('carTasksMeta');
@@ -489,6 +506,7 @@
     root.replaceChildren();
 
     if(!ticktick?.available){
+      syncCarTodayTaskBadge([]);
       if(meta) meta.textContent='';
       const empty=document.createElement('div');
       empty.className='car-tasks-empty';
@@ -498,6 +516,7 @@
     }
 
     const tasks=Array.isArray(ticktick?.tasks)?ticktick.tasks:[];
+    syncCarTodayTaskBadge(tasks);
     if(meta) meta.textContent=tasks.length ? String(tasks.length) : '';
     if(!tasks.length){
       const empty=document.createElement('div');
