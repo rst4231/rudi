@@ -181,6 +181,9 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-supplements-v1',
   'rudi-mood-feedback-v1',
   'rudi-mood-analysis-v4',
+  'rudi-for-di-feed-v1',
+  'rudi-for-di-private-v1',
+  'rudi-labor-code-v1',
 ]);
 const DURABLE_CONTROL_PLANE_TAGS = new Set([
   'rudi-daily-cron-state',
