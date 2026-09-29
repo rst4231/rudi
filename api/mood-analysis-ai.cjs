@@ -45,20 +45,22 @@ function promptForMoodAnalysis({history,cycle,windowDays=30,level='full',context
     'Ответ по-русски, без таблиц, до 1600 знаков. Четыре коротких раздела: «Что видно», «Связи», «На что обратить внимание», «Что можно попробовать». Если надёжных связей нет, так и напишите.'
   ].filter(Boolean).join('\n');
 }
-async function generateMoodAnalysis(input={},options={}){
-  if(!(Array.isArray(input.history)&&input.history.length))throw new Error('mood-analysis-no-data');
-  const env=options.env||process.env,apiKey=clean(options.apiKey||env.GROQ_API_KEY,500);
-  if(!apiKey)throw new Error('groq-api-key-missing');
-  const fetchImpl=options.fetch||options.fetchImpl||globalThis.fetch;
-  if(typeof fetchImpl!=='function')throw new Error('mood-analysis-unavailable');
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),Math.max(6000,Number(options.timeoutMs)||12000));
+async function requestMoodCompletion(fetchImpl,apiKey,prompt,options={}){
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),Math.max(8000,Number(options.timeoutMs)||16000));
   let response;
   try{
     response=await fetchImpl('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'content-type':'application/json',authorization:'Bearer '+apiKey},
       signal:controller.signal,
-      body:JSON.stringify({model:MODEL,messages:[{role:'user',content:promptForMoodAnalysis(input)}],temperature:.45,max_completion_tokens:900,stream:false})
+      body:JSON.stringify({
+        model:MODEL,
+        messages:[{role:'user',content:prompt}],
+        temperature:Number.isFinite(Number(options.temperature))?Number(options.temperature):.3,
+        max_completion_tokens:Math.max(1400,Number(options.maxCompletionTokens)||2200),
+        reasoning_effort:'low',
+        stream:false
+      })
     });
   }catch(error){
     if(error?.name==='AbortError')throw new Error('mood-analysis-timeout');
@@ -66,8 +68,22 @@ async function generateMoodAnalysis(input={},options={}){
   }finally{clearTimeout(timeout)}
   if(response.status===429)throw new Error('mood-analysis-quota');
   if(!response.ok)throw new Error('mood-analysis-provider');
-  const payload=await response.json().catch(()=>null),text=clean(payload?.choices?.[0]?.message?.content,5000);
+  const payload=await response.json().catch(()=>null);
+  return clean(payload?.choices?.[0]?.message?.content,5000);
+}
+async function generateMoodAnalysis(input={},options={}){
+  if(!(Array.isArray(input.history)&&input.history.length))throw new Error('mood-analysis-no-data');
+  const env=options.env||process.env,apiKey=clean(options.apiKey||env.GROQ_API_KEY,500);
+  if(!apiKey)throw new Error('groq-api-key-missing');
+  const fetchImpl=options.fetch||options.fetchImpl||globalThis.fetch;
+  if(typeof fetchImpl!=='function')throw new Error('mood-analysis-unavailable');
+  const prompt=promptForMoodAnalysis(input);
+  let text=await requestMoodCompletion(fetchImpl,apiKey,prompt,{timeoutMs:16000,maxCompletionTokens:2400,temperature:.3});
+  if(!text){
+    console.warn('RUDI_MOOD_AI_EMPTY_RETRY');
+    text=await requestMoodCompletion(fetchImpl,apiKey,prompt+'\n\nВажно: верните именно итоговый текст ответа, не оставляйте поле ответа пустым.',{timeoutMs:18000,maxCompletionTokens:3200,temperature:.2});
+  }
   if(!text)throw new Error('mood-analysis-empty');
   return{text,model:MODEL};
 }
-module.exports={MODEL,promptForMoodAnalysis,generateMoodAnalysis};
+module.exports={MODEL,promptForMoodAnalysis,generateMoodAnalysis};module.exports={MODEL,promptForMoodAnalysis,generateMoodAnalysis};
