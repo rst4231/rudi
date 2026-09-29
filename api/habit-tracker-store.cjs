@@ -132,7 +132,7 @@ function viewHabits(state,options={}){
   const statuses={},streaks={};for(const habit of habits){statuses[habit.id]=habitStatus(state,date,habit.id);streaks[habit.id]=habitStreak(state,habit.id,date,today)}
   return{habits,archivedHabits,completedIds,notDoneIds,statuses,streaks,bonusIds,collapsed:state.collapsed,today,date,canCompleteToday:moscowHour(now)>=20,done:completedIds.length,notDone:notDoneIds.length,pending:Math.max(0,habits.length-completedIds.length-notDoneIds.length),total:habits.length,version:state.version,updatedAt:state.updatedAt};
 }
-async function ensureHabitDay(actor,date,options={}){async function ensureHabitDay(actor,date,options={}){
+async function ensureHabitDay(actor,date,options={}){
   const who=cleanActor(actor);
   return enqueue(who,async()=>{
     const state=await readHabits(who,options),target=resolveHabitDate(date,options.now||Date.now());
