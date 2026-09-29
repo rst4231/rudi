@@ -18,7 +18,7 @@ async function handler(req,res){
       if(pending.length&&Number.isInteger(chatId)&&chatId>0){
         const pendingWord=(count)=>{const mod10=count%10,mod100=count%100;return mod10===1&&mod100!==11?'привычку':mod10>=2&&mod10<=4&&(mod100<12||mod100>14)?'привычки':'привычек'};const lines=['🌱 <b>Привычки на сегодня</b>','','Осталось отметить <b>'+pending.length+' '+pendingWord(pending.length)+'</b>.',...pending.slice(0,6).map(habit=>'• '+escapeTelegramHtml(habit.name))];
         if(pending.length>6)lines.push('• и ещё '+(pending.length-6));
-        if(bonusPending.length)lines.push('','⚠️ Если до конца дня оставить без отметки '+bonusPending.length+' '+(bonusPending.length%10===1&&bonusPending.length%100!==11?'бонусную привычку':bonusPending.length%10>=2&&bonusPending.length%10<=4&&(bonusPending.length%100<12||bonusPending.length%100>14)?'бонусные привычки':'бонусных привычек')+', за каждую снимется <b>−0,1 ⭐</b>.');
+        if(bonusPending.length)lines.push('','⚠️ Если до конца дня оставить без отметки '+bonusPending.length+' '+(bonusPending.length%10===1&&bonusPending.length%100!==11?'бонусную привычку':bonusPending.length%10>=2&&bonusPending.length%10<=4&&(bonusPending.length%100<12||bonusPending.length%100>14)?'бонусные привычки':'бонусных привычек')+', за каждую снимется <b>−1 ⭐</b>.');
         await telegramSendMessage(chatId,lines.join('\n'),{buttonText:'Открыть RUDI',tab:'home'});
         await markHabitReminderSent(actor,today,{now});
         results[actor]={sent:true,pending:pending.length,bonusPending:bonusPending.length};
