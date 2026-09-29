@@ -2,7 +2,7 @@ const crypto=require('node:crypto');
 const {authorizeRequest,statusForError}=require('./partner-message.js');
 const {
   readSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,
-  markSupplementTaken,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck
+  markSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck
 }=require('./supplements-store.cjs');
 const {generateSupplementDescription,analyzeSupplementSet}=require('./supplement-ai.cjs');
 const {profileContext}=require('./personal-profile-context.cjs');
@@ -10,7 +10,7 @@ const {profileContext}=require('./personal-profile-context.cjs');
 function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
   if(code==='supplement-not-found')return 404;
-  if(code==='supplement-duplicate')return 409;
+  if(code==='supplement-duplicate'||code==='supplement-already-taken')return 409;
   if(code==='supplement-ai-quota')return 429;
   if([
     'supplement-limit','supplement-name-required','supplement-id-required','supplement-restore-invalid',
@@ -62,6 +62,10 @@ async function handler(req,res){
     }
     if(operation==='take'){
       const result=await markSupplementTaken(actor,body.id);
+      return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items,duplicate:result.duplicate,date:result.date});
+    }
+    if(operation==='skip'){
+      const result=await markSupplementSkipped(actor,body.id);
       return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items,duplicate:result.duplicate,date:result.date});
     }
     if(operation==='note'){
