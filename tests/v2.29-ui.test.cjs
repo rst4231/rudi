@@ -47,10 +47,10 @@ test('Feed likes belong to individual cards instead of whole sections',()=>{
   assert.match(partner,/item:cinema:/);
 });
 
-test('Service worker keeps previous shell as asset fallback',()=>{
-  assert.match(sw,/const SHELL_CACHE_KEEP=2;/);
-  assert.match(sw,/shellKeys\.slice\(0,SHELL_CACHE_KEEP\)/);
-  assert.match(sw,/\(await cache\.match\(request\)\) \|\| \(await caches\.match\(request\)\)/);
+test('Service worker removes obsolete shells and serves assets only from the current shell',()=>{
+  assert.match(sw,/key\.startsWith\(SHELL_CACHE_PREFIX\)&&key!==CACHE_NAME/);
+  assert.match(sw,/const cached=await cache\.match\(request\)/);
+  assert.doesNotMatch(sw,/caches\.match\(request\)/);
 });
 
 test('Cinema selection cannot be erased by an empty intermediate update',()=>{
