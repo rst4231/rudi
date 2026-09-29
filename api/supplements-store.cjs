@@ -39,6 +39,9 @@ function normalizeCourse(v){
 function normalizeIntakes(v){
   return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-500);
 }
+function normalizeSkips(v){
+  return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-500);
+}
 function normalizeNotes(v){
   return(Array.isArray(v)?v:[]).map(row=>({id:cleanText(row?.id,96)||('note-'+crypto.randomUUID()),date:cleanDate(row?.date),at:isoOrEmpty(row?.at),text:cleanText(row?.text,500)})).filter(row=>row.date&&row.at&&row.text).slice(-120);
 }
@@ -63,6 +66,7 @@ function normalizeItem(input){
     status:cleanStatus(input.status),
     expirationDate:cleanDate(input.expirationDate),
     intakes:normalizeIntakes(input.intakes),
+    skips:normalizeSkips(input.skips),
     notes:normalizeNotes(input.notes),
     statusHistory:normalizeStatusHistory(input.statusHistory),
     createdAt:created,updatedAt:updated,describedAt:isoOrEmpty(input.describedAt),
@@ -138,11 +142,20 @@ async function markSupplementTaken(actor,id,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96);if(!safeId)throw new Error('supplement-id-required');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
     if(current.intakes.some(row=>row.date===date))return{state,item:current,duplicate:true,date};
-    const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];items[index]=normalizeItem({...current,intakes:[...current.intakes,{date,at:now}],updatedAt:now});
+    const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];items[index]=normalizeItem({...current,intakes:[...current.intakes,{date,at:now}],skips:(current.skips||[]).filter(row=>row.date!==date),updatedAt:now});
     const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date};
   });
 }
-async function addSupplementNote(actor,id,text,o={}){
+async function markSupplementSkipped(actor,id,o={}){
+  const who=cleanActor(actor),safeId=cleanText(id,96);if(!safeId)throw new Error('supplement-id-required');
+  return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
+    if(current.intakes.some(row=>row.date===date))throw new Error('supplement-already-taken');
+    if((current.skips||[]).some(row=>row.date===date))return{state,item:current,duplicate:true,date};
+    const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];items[index]=normalizeItem({...current,skips:[...(current.skips||[]),{date,at:now}],updatedAt:now});
+    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date};
+  });
+}
+async function addSupplementNote(actor,id,text,o={}){async function addSupplementNote(actor,id,text,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96),safeText=cleanText(text,500);if(!safeId)throw new Error('supplement-id-required');if(!safeText)throw new Error('supplement-note-required');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const now=new Date(o.now||Date.now()).toISOString(),date=moscowDateKey(o.now||Date.now()),current=state.items[index],note={id:'note-'+crypto.randomUUID(),date,at:now,text:safeText},items=[...state.items];items[index]=normalizeItem({...current,notes:[...current.notes,note],updatedAt:now});const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],note};
   });
@@ -164,4 +177,4 @@ async function saveInteractionCheck(actor,input,o={}){
 }
 function resetMutationQueuesForTests(){tails.clear()}
 
-module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,resetMutationQueuesForTests};
+module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,resetMutationQueuesForTests};
