@@ -22,9 +22,6 @@
     },
     "api/habit-reminder-cron.js": {
       "maxDuration": 60
-    },
-    "api/fasting-goal-cron.js": {
-      "maxDuration": 60
     }
   },
   "headers": [
@@ -241,10 +238,6 @@
     {
       "path": "/api/habit-reminder-cron",
       "schedule": "10 17 * * *"
-    },
-    {
-      "path": "/api/fasting-goal-cron",
-      "schedule": "*/10 * * * *"
     }
   ],
   "env": {
