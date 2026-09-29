@@ -11987,3 +11987,28 @@ html[data-theme="dark"] .daily-question-avatar{
 html[data-theme="dark"] .daily-question-form textarea,
 html[data-theme="dark"] .daily-question-answers article,
 html[data-theme="dark"] .daily-question-waiting{background:rgba(255,255,255,.055)!important}
+
+
+/* RUDI backup controls */
+.home-settings-backup-row{align-items:center}
+.settings-backup-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.settings-backup-button{
+  min-height:34px;padding:0 11px;border:0;border-radius:11px;
+  background:var(--accent);color:#fff;font:inherit;font-size:10.5px;font-weight:800;
+}
+.settings-backup-button.is-secondary{
+  background:color-mix(in srgb,var(--accent) 10%,var(--surface-strong));
+  color:var(--accent);
+  border:1px solid color-mix(in srgb,var(--accent) 22%,var(--line));
+}
+.settings-backup-button:disabled{opacity:.55}
+.settings-backup-status{
+  margin:7px 1px 0;padding:8px 10px;border-radius:10px;
+  background:color-mix(in srgb,var(--green) 10%,var(--surface-strong));
+  color:color-mix(in srgb,var(--green) 72%,var(--text));
+  font-size:10.5px;line-height:1.35;font-weight:700;
+}
+.settings-backup-status.is-error{
+  background:color-mix(in srgb,var(--red) 10%,var(--surface-strong));
+  color:color-mix(in srgb,var(--red) 78%,var(--text));
+}
