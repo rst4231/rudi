@@ -812,7 +812,7 @@ function moodContextSummary(rows){
     const reason=String(sample?.reason||'');
     if(reason)reasons.set(reason,(reasons.get(reason)||0)+1);
   }
-  const labels={work:'работа',food:'еда',relationship:'отношения',money:'деньги',health:'самочувствие',fatigue:'усталость',sleep:'сон / усталость',fasting:'голодание',other:'другое'},top=[...reasons.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r,n])=>(labels[r]||r)+' — '+n);
+  const labels={work:'работа',food:'еда',relationship:'отношения',money:'деньги',health:'самочувствие',sport:'спорт',fatigue:'усталость',sleep:'сон / усталость',fasting:'голодание',other:'другое'},top=[...reasons.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(([r,n])=>(labels[r]||r)+' — '+n);
   if(top.length)out.push('Чаще всего вы сами указывали причины: '+top.join(', ')+'.');
   return out;
 }
