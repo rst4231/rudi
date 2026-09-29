@@ -1,9 +1,12 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const CACHE_TTL_SECONDS = 300;
+const STALE_CACHE_TTL_SECONDS = 6 * 60 * 60;
+const PROVIDER_BACKOFF_SECONDS = 10 * 60;
 const CBR_URL = 'https://www.cbr.ru/scripts/XML_daily.asp';
-const BYBIT_URL = 'https://api.bybit.com/v5/market/tickers';
-const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true';
+const KRAKEN_URL = 'https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';
+
+let refreshPromise = null;
 
 function finiteNumber(value) {
   const num = Number(value);
@@ -37,7 +40,11 @@ async function fetchUsdRub(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('market-fetch-unavailable');
   const response = await fetchWithTimeout(fetchImpl, CBR_URL, {
-    headers: { accept: 'application/xml,text/xml;q=0.9,*/*;q=0.5' },
+    headers: {
+      accept: 'application/xml,text/xml;q=0.9,*/*;q=0.5',
+      'user-agent': 'RUDI/2.127',
+    },
+    cache: 'no-store',
   }, options.timeoutMs);
   if (!response.ok) throw new Error('market-cbr-http-' + response.status);
   const value = parseCbrUsd(await response.text());
@@ -50,49 +57,49 @@ async function fetchUsdRub(options = {}) {
   };
 }
 
-async function fetchBybit(symbol, label, options = {}) {
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  if (typeof fetchImpl !== 'function') throw new Error('market-fetch-unavailable');
-  const url = BYBIT_URL + '?category=spot&symbol=' + encodeURIComponent(symbol);
-  const response = await fetchWithTimeout(fetchImpl, url, {
-    headers: { accept: 'application/json' },
-  }, options.timeoutMs);
-  if (!response.ok) throw new Error('market-bybit-http-' + response.status);
-  const payload = await response.json();
-  if (Number(payload?.retCode || 0) !== 0) throw new Error('market-bybit-response');
-  const row = Array.isArray(payload?.result?.list) ? payload.result.list[0] : null;
-  const value = finiteNumber(row?.lastPrice);
-  const fraction = finiteNumber(row?.price24hPcnt);
-  if (!value) throw new Error('market-bybit-price-invalid');
-  return {
-    id: symbol.toLowerCase(),
-    label,
-    value,
-    change24h: fraction == null ? null : fraction * 100,
-    source: 'Bybit',
-  };
+function krakenRow(result, token) {
+  const entries = Object.entries(result && typeof result === 'object' ? result : {});
+  return entries.find(([key]) => String(key).toUpperCase().includes(token))?.[1] || null;
 }
 
-async function fetchCoinGeckoCrypto(options = {}) {
+function parseKrakenCrypto(payload) {
+  const errors = Array.isArray(payload?.error) ? payload.error.filter(Boolean) : [];
+  if (errors.length) throw new Error('market-kraken-response:' + errors.join(','));
+  const result = payload?.result && typeof payload.result === 'object' ? payload.result : {};
+  const rows = [
+    ['XBT', 'btcusdt', 'BTC'],
+    ['ETH', 'ethusdt', 'ETH'],
+  ];
+  const items = rows.map(([token, id, label]) => {
+    const row = krakenRow(result, token);
+    const value = finiteNumber(Array.isArray(row?.c) ? row.c[0] : null);
+    const open = finiteNumber(row?.o);
+    if (!value || value <= 0) return null;
+    const change24h = open && open > 0 ? ((value / open) - 1) * 100 : null;
+    return {
+      id,
+      label,
+      value,
+      change24h,
+      source: 'Kraken',
+    };
+  }).filter(Boolean);
+  if (items.length !== 2) throw new Error('market-kraken-price-invalid');
+  return items;
+}
+
+async function fetchKrakenCrypto(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('market-fetch-unavailable');
-  const response = await fetchWithTimeout(fetchImpl, COINGECKO_URL, {
-    headers: { accept: 'application/json' },
+  const response = await fetchWithTimeout(fetchImpl, KRAKEN_URL, {
+    headers: {
+      accept: 'application/json',
+      'user-agent': 'RUDI/2.127',
+    },
+    cache: 'no-store',
   }, options.timeoutMs);
-  if (!response.ok) throw new Error('market-coingecko-http-' + response.status);
-  const payload = await response.json();
-  const rows = [
-    ['bitcoin','btcusdt','BTC'],
-    ['ethereum','ethusdt','ETH'],
-  ];
-  const items = rows.map(([key,id,label]) => {
-    const value = finiteNumber(payload?.[key]?.usd);
-    const change24h = finiteNumber(payload?.[key]?.usd_24h_change);
-    if (!value) return null;
-    return { id, label, value, change24h, source:'CoinGecko' };
-  }).filter(Boolean);
-  if (!items.length) throw new Error('market-coingecko-price-invalid');
-  return items;
+  if (!response.ok) throw new Error('market-kraken-http-' + response.status);
+  return parseKrakenCrypto(await response.json());
 }
 
 function completeItems(items) {
@@ -109,49 +116,86 @@ function cacheOf(options = {}) {
   });
 }
 
-function validCached(value) {
-  return Boolean(
-    value &&
-    typeof value === 'object' &&
-    Array.isArray(value.items) &&
-    completeItems(value.items) &&
-    value.items.every((item) => item && typeof item.label === 'string' && Number.isFinite(Number(item.value)))
+function validCached(value, { requireComplete = false } = {}) {
+  const items = Array.isArray(value?.items) ? value.items : [];
+  if (!items.length) return false;
+  if (requireComplete && !completeItems(items)) return false;
+  return items.every((item) =>
+    item &&
+    typeof item.label === 'string' &&
+    Number.isFinite(Number(item.value)) &&
+    Number(item.value) > 0
   );
 }
 
-async function readMarketTicker(options = {}) {
-  const cache = cacheOf(options);
+async function safeCacheGet(cache, key) {
   try {
-    const cached = await cache.get('latest');
-    if (validCached(cached)) return { ...cached, cached: true };
+    return await cache.get(key);
   } catch (error) {
     console.warn('RUDI_MARKET_CACHE_READ_WARN', String(error?.message || error));
+    return null;
   }
+}
+
+async function safeCacheSet(cache, key, value, ttl, name) {
+  try {
+    await cache.set(key, value, {
+      ttl,
+      tags: ['rudi-market-ticker'],
+      name,
+    });
+    return true;
+  } catch (error) {
+    console.warn('RUDI_MARKET_CACHE_WRITE_WARN', String(error?.message || error));
+    return false;
+  }
+}
+
+async function refreshMarketTicker(cache, options = {}) {
+  const stale = await safeCacheGet(cache, 'stale');
+  const backoff = await safeCacheGet(cache, 'crypto-backoff');
+  const skipKraken = Boolean(backoff && Number(backoff.until || 0) > Number(options.now || Date.now()));
 
   const primary = await Promise.allSettled([
     fetchUsdRub(options),
-    fetchBybit('BTCUSDT', 'BTC', options),
-    fetchBybit('ETHUSDT', 'ETH', options),
+    skipKraken
+      ? Promise.reject(new Error('market-kraken-backoff'))
+      : fetchKrakenCrypto(options),
   ]);
 
   const byId = new Map();
-  primary.forEach((row) => {
-    if (row.status === 'fulfilled') byId.set(row.value.id, row.value);
-  });
+  if (primary[0].status === 'fulfilled') byId.set(primary[0].value.id, primary[0].value);
 
-  const bybitFailures = primary.slice(1)
-    .filter((row) => row.status === 'rejected')
-    .map((row) => String(row.reason?.message || row.reason));
-  if (bybitFailures.length) {
-    console.warn('RUDI_MARKET_BYBIT_FALLBACK', bybitFailures.join(','));
-    try {
-      const fallback = await fetchCoinGeckoCrypto(options);
-      fallback.forEach((item) => {
-        if (!byId.has(item.id)) byId.set(item.id, item);
-      });
-    } catch (error) {
-      console.warn('RUDI_MARKET_COINGECKO_WARN', String(error?.message || error));
+  let cryptoFresh = false;
+  if (primary[1].status === 'fulfilled') {
+    primary[1].value.forEach((item) => byId.set(item.id, item));
+    cryptoFresh = true;
+    if (typeof cache.delete === 'function') {
+      cache.delete('crypto-backoff').catch(() => {});
     }
+  } else {
+    if (!skipKraken) {
+      const reason = String(primary[1].reason?.message || primary[1].reason || 'market-kraken-unavailable');
+      console.warn('RUDI_MARKET_KRAKEN_BACKOFF', reason);
+      const until = Number(options.now || Date.now()) + PROVIDER_BACKOFF_SECONDS * 1000;
+      await safeCacheSet(
+        cache,
+        'crypto-backoff',
+        { until, reason },
+        PROVIDER_BACKOFF_SECONDS,
+        'market-ticker-crypto-backoff-v1'
+      );
+    }
+    if (validCached(stale, { requireComplete: true })) {
+      stale.items
+        .filter((item) => item?.id === 'btcusdt' || item?.id === 'ethusdt')
+        .forEach((item) => byId.set(item.id, { ...item, stale: true }));
+    }
+  }
+
+  if (!byId.has('usd-rub') && validCached(stale, { requireComplete: true })) {
+    const usd = stale.items.find((item) => item?.id === 'usd-rub');
+    if (usd) byId.set('usd-rub', { ...usd, stale: true });
   }
 
   const items = ['usd-rub','btcusdt','ethusdt'].map((id) => byId.get(id)).filter(Boolean);
@@ -164,35 +208,45 @@ async function readMarketTicker(options = {}) {
   }
 
   const full = completeItems(items);
+  const staleUsed = items.some((item) => item?.stale === true);
   const payload = {
     items,
     updatedAt: new Date(options.now || Date.now()).toISOString(),
     partial: !full,
     cached: false,
+    stale: staleUsed,
   };
 
-  if (full) {
-    try {
-      await cache.set('latest', payload, {
-        ttl: CACHE_TTL_SECONDS,
-        tags: ['rudi-market-ticker'],
-        name: 'market-ticker-latest-v2',
-      });
-    } catch (error) {
-      console.warn('RUDI_MARKET_CACHE_WRITE_WARN', String(error?.message || error));
-    }
+  await safeCacheSet(cache, 'latest', payload, CACHE_TTL_SECONDS, 'market-ticker-latest-v3');
+  if (full && cryptoFresh && !staleUsed) {
+    await safeCacheSet(cache, 'stale', payload, STALE_CACHE_TTL_SECONDS, 'market-ticker-stale-v1');
   }
   return payload;
 }
 
+async function readMarketTicker(options = {}) {
+  const cache = cacheOf(options);
+  const cached = await safeCacheGet(cache, 'latest');
+  if (validCached(cached)) return { ...cached, cached: true };
+
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = refreshMarketTicker(cache, options);
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
 module.exports = {
   CACHE_TTL_SECONDS,
+  STALE_CACHE_TTL_SECONDS,
+  PROVIDER_BACKOFF_SECONDS,
   CBR_URL,
-  BYBIT_URL,
-  COINGECKO_URL,
+  KRAKEN_URL,
   parseCbrUsd,
+  parseKrakenCrypto,
   fetchUsdRub,
-  fetchBybit,
-  fetchCoinGeckoCrypto,
+  fetchKrakenCrypto,
   readMarketTicker,
 };
