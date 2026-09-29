@@ -1,3 +1,4 @@
+// RUDI v2.123 production build marker
     (async () => {
       try{
         const telegramReady=window.__rudiTelegramSdkReady;
