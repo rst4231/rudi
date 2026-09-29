@@ -172,3 +172,16 @@ test('For Di UI uses hyperlinks and save actions instead of likes', () => {
   assert.match(source,/operation=savedView\?'remove-saved':'save'/);
   assert.doesNotMatch(source,/footer\.appendChild\(renderForDiLike/);
 });
+
+
+test('For Di labor storage is durable and the list route self-heals today material',()=>{
+  const fs=require('node:fs');
+  const cache=fs.readFileSync('api/strict-runtime-cache.cjs','utf8');
+  const partner=fs.readFileSync('api/partner-message.js','utf8');
+  assert.match(cache,/'rudi-for-di-feed-v1'/);
+  assert.match(cache,/'rudi-for-di-private-v1'/);
+  assert.match(cache,/'rudi-labor-code-v1'/);
+  assert.match(partner,/hasTodayLabor/);
+  assert.match(partner,/publishLaborArticle\(\{queueOnly:true,force:true/);
+  assert.match(partner,/publishForDiToRudi\(\{now,cacheOptions:options\.cacheOptions\}\)/);
+});
