@@ -2,7 +2,7 @@
 const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null;
 let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -197,6 +197,41 @@ function supplementDescriptionText(item){
   const guidance=String(item?.intakeGuidance||'').trim();
   return description+(guidance?'\n\nКогда лучше принимать: '+guidance:'');
 }
+function ensureSupplementInfoModal(){
+  if(supplementInfoModal)return supplementInfoModal;
+  supplementInfoModal=document.createElement('div');supplementInfoModal.className='habit-info-modal supplement-info-modal';supplementInfoModal.hidden=true; supplementInfoModal.setAttribute('role','presentation');
+  const backdrop=document.createElement('button');backdrop.type='button';backdrop.className='habit-info-modal-backdrop';backdrop.setAttribute('aria-label','Закрыть описание');
+  const dialog=document.createElement('section');dialog.className='habit-info-modal-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-labelledby','supplementInfoModalTitle');
+  supplementInfoClose=document.createElement('button');supplementInfoClose.type='button';supplementInfoClose.className='habit-info-modal-close';supplementInfoClose.setAttribute('aria-label','Закрыть');supplementInfoClose.textContent='×';
+  supplementInfoTitle=document.createElement('strong');supplementInfoTitle.id='supplementInfoModalTitle';supplementInfoTitle.className='habit-info-modal-title';
+  supplementInfoBody=document.createElement('div');supplementInfoBody.className='habit-info-modal-copy';
+  dialog.append(supplementInfoClose,supplementInfoTitle,supplementInfoBody);supplementInfoModal.append(backdrop,dialog);document.body.appendChild(supplementInfoModal);
+  const closeInfo=()=>{supplementInfoModal.hidden=true;document.body.classList.remove('habit-info-modal-open')};
+  backdrop.addEventListener('click',closeInfo);supplementInfoClose.addEventListener('click',closeInfo);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!supplementInfoModal.hidden)closeInfo()});
+  return supplementInfoModal;
+}
+async function openSupplementInfo(item){
+  ensureSupplementInfoModal();
+  supplementInfoTitle.textContent=String(item?.name||'БАД');
+  supplementInfoBody.textContent='Загружаю описание…';
+  supplementInfoModal.hidden=false;document.body.classList.add('habit-info-modal-open');
+  let current=item;
+  if(!current?.description||!current?.intakeGuidance){
+    try{
+      const data=await request('describe',{id:item.id});
+      if(data?.item){
+        current=data.item;
+        const index=items.findIndex(row=>row.id===current.id);
+        if(index>=0)items[index]=current;
+      }
+    }catch(error){
+      console.warn('RUDI_SUPPLEMENT_INFO_WARN',String(error?.message||error));
+    }
+  }
+  supplementInfoTitle.textContent=String(current?.name||item?.name||'БАД');
+  supplementInfoBody.textContent=supplementDescriptionText(current)||'Описание пока недоступно.';
+}
 async function enrichExistingSupplementGuidance(){
   if(guidanceEnrichmentPromise)return guidanceEnrichmentPromise;
   const pending=items.filter(item=>item?.description&&!item?.intakeGuidance).map(item=>String(item.id||'')).filter(Boolean);
@@ -230,26 +265,14 @@ function render(){
     const empty=document.createElement('div');empty.className='personal-supplements-empty';empty.textContent='Пока ничего не добавлено.';list.appendChild(empty);document.dispatchEvent(new CustomEvent('rudi:supplements-render'));return;
   }
   for(let item of items){
-    const card=document.createElement('article');card.className='supplement-card';card.dataset.id=item.id;card.tabIndex=0;card.setAttribute('role','button');
+    const card=document.createElement('article');card.className='supplement-card';card.dataset.id=item.id;
     const top=document.createElement('div');top.className='supplement-card-top';
     const name=document.createElement('div');name.className='supplement-card-name';const emoji=document.createElement('span');emoji.className='supplement-card-emoji';emoji.textContent=emojiForSupplement(item.name);const label=document.createElement('span');label.textContent=item.name;name.append(emoji,label);
+    const info=document.createElement('button');info.type='button';info.className='supplement-info-button';info.setAttribute('aria-label','Информация о '+item.name);info.title='Описание';info.textContent='ⓘ';
     const del=document.createElement('button');del.type='button';del.className='supplement-delete';del.setAttribute('aria-label','Удалить '+item.name);del.textContent='×';
-    top.append(name,del);
-    const hint=document.createElement('div');hint.className='supplement-card-hint';hint.textContent=item.description?'Нажми, чтобы открыть описание':'Нажми, чтобы получить краткое описание';
-    const desc=document.createElement('div');desc.className='supplement-card-description';desc.hidden=true;desc.textContent=supplementDescriptionText(item);
-    card.append(top,hint,desc);
-    const open=async()=>{
-      if(card.classList.contains('is-loading'))return;
-      if(item.description&&item.intakeGuidance){const next=desc.hidden;desc.hidden=!next;card.classList.toggle('is-open',next);hint.textContent=next?'Скрыть описание':'Нажми, чтобы открыть описание';return}
-      card.classList.add('is-loading');hint.textContent=item.description?'Уточняю, когда лучше принимать…':'Проверяю научные данные…';setStatus('');
-      try{
-        const data=await request('describe',{id:item.id});item=data.item;const index=items.findIndex(row=>row.id===item.id);if(index>=0)items[index]=item;
-        desc.textContent=supplementDescriptionText(item);desc.hidden=false;card.classList.add('is-open');hint.textContent='Скрыть описание';
-      }catch(error){console.error('RUDI_SUPPLEMENT_DESCRIBE_UI_ERROR',error);hint.textContent='Нажми, чтобы попробовать ещё раз';setStatus(errorText(error),true)}
-      finally{card.classList.remove('is-loading')}
-    };
-    card.addEventListener('click',(event)=>{if(event.target.closest('.supplement-delete'))return;open()});
-    card.addEventListener('keydown',(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open()}});
+    const topActions=document.createElement('div');topActions.className='supplement-card-top-actions';topActions.append(info,del);top.append(name,topActions);
+    card.append(top);
+    info.addEventListener('click',event=>{event.stopPropagation();openSupplementInfo(item)});
     del.addEventListener('click',async(event)=>{
       event.stopPropagation();del.disabled=true;setStatus('');
       try{
