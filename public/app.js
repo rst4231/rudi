@@ -1,4 +1,4 @@
-// RUDI v2.124 production build marker
+// RUDI v2.125 production build marker
     (async () => {
       try{
         const telegramReady=window.__rudiTelegramSdkReady;
@@ -1446,7 +1446,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score','settings'];
 
       function routeFromLocation(){
         try{
@@ -1510,6 +1510,7 @@
         if(tab==='photos') loadSharedAlbum();
         if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
+        if(tab==='settings') refreshSettingsPageUi();
         if(tab==='fasting') loadFastingTracker({silent:true});
         if(tab==='score'){
           const modal=ensureScoreModal();
@@ -1586,8 +1587,10 @@
         applyMarketTickerVisibility();
         if(next!=='home'){
           setActivityNotificationsOpen(false);
-          setSettingsOpen(false);
+          if(next!=='settings') setSettingsOpen(false);
         }
+        const settingsButton=document.getElementById('homeSettingsButton');
+        if(settingsButton) settingsButton.setAttribute('aria-expanded',next==='settings'?'true':'false');
 
         document.querySelectorAll('[data-app-tab-section]').forEach(section=>{
           const available=section.dataset.tabAvailable!=='0';
@@ -3528,58 +3531,69 @@
         if(version) version.textContent=appVersionLabel()||'—';
       }
 
-      let settingsPanelCloseTimer=null;
+      function refreshSettingsPageUi(){
+        updateSettingsVersion();
+        updatePwaInstallUi();
+        updateSettingsFaceIdUi();
+        setupExtendedSettings();
+        updateDataSettingsUi();
+        updateAboutSettingsUi();
+      }
+
       function setSettingsOpen(open){
-        const panel=document.getElementById('homeSettingsPanel');
         const button=document.getElementById('homeSettingsButton');
-        if(!panel||!button) return;
         const next=Boolean(open);
-        clearTimeout(settingsPanelCloseTimer);
         if(next){
           setActivityNotificationsOpen(false);
-          panel.hidden=false;
-          updateSettingsVersion();
-          updatePwaInstallUi();
-          updateSettingsFaceIdUi();
-          setupExtendedSettings();
-          updateDataSettingsUi();
-          updateAboutSettingsUi();
-          requestAnimationFrame(()=>panel.classList.add('is-open'));
-        }else{
-          panel.classList.remove('is-open');
-          settingsPanelCloseTimer=setTimeout(()=>{
-            if(!panel.classList.contains('is-open')) panel.hidden=true;
-          },230);
+          refreshSettingsPageUi();
+          if(currentAppTab!=='settings') navigateToAppTab('settings',{scroll:true});
+        }else if(currentAppTab==='settings'){
+          navigateToAppTab('home',{scroll:true});
         }
-        button.setAttribute('aria-expanded',next?'true':'false');
-        document.getElementById('homeDashboard')?.classList.toggle('settings-open',next);
+        if(button) button.setAttribute('aria-expanded',(next&&currentAppTab==='settings')?'true':'false');
       }
 
       function setupSettingsPanel(){
         const button=document.getElementById('homeSettingsButton');
         const panel=document.getElementById('homeSettingsPanel');
-        if(!button||!panel||button.dataset.bound==='1') return;
-        button.dataset.bound='1';
-        button.addEventListener('click',event=>{
-          event.preventDefault();
-          event.stopPropagation();
-          setSettingsOpen(!panel.classList.contains('is-open'));
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        document.getElementById('settingsPwaInstall')?.addEventListener('click',installPwa);
-        document.getElementById('settingsFaceIdConnect')?.addEventListener('click',connectFaceIdFromSettings);
-        document.addEventListener('click',event=>{
-          if(panel.hidden||!panel.classList.contains('is-open')) return;
-          if(event.target.closest?.('#homeSettings')) return;
-          setSettingsOpen(false);
-        });
-        document.addEventListener('keydown',event=>{
-          if(event.key==='Escape') setSettingsOpen(false);
-        });
-        updateSettingsVersion();
-        updatePwaInstallUi();
-        updateSettingsFaceIdUi();
-        setupExtendedSettings();
+        const back=document.getElementById('settingsPageBack');
+        if(!button||!panel) return;
+
+        if(button.dataset.bound!=='1'){
+          button.dataset.bound='1';
+          button.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            setSettingsOpen(true);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        }
+
+        if(back&&back.dataset.bound!=='1'){
+          back.dataset.bound='1';
+          back.addEventListener('click',()=>{
+            navigateToAppTab('home',{scroll:true});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        }
+
+        const pwa=document.getElementById('settingsPwaInstall');
+        if(pwa&&pwa.dataset.bound!=='1'){
+          pwa.dataset.bound='1';
+          pwa.addEventListener('click',installPwa);
+        }
+        const face=document.getElementById('settingsFaceIdConnect');
+        if(face&&face.dataset.bound!=='1'){
+          face.dataset.bound='1';
+          face.addEventListener('click',connectFaceIdFromSettings);
+        }
+        if(document.documentElement.dataset.settingsEscapeBound!=='1'){
+          document.documentElement.dataset.settingsEscapeBound='1';
+          document.addEventListener('keydown',event=>{
+            if(event.key==='Escape'&&currentAppTab==='settings') navigateToAppTab('home',{scroll:true});
+          });
+        }
+        refreshSettingsPageUi();
       }
 
       function hideUndoSnackbar(){
@@ -4288,6 +4302,30 @@
               '</div>'+
             '</section>'+
           '</div>';
+
+        const settingsPage=settings.querySelector('#homeSettingsPanel');
+        if(settingsPage){
+          settingsPage.className='settings-page';
+          settingsPage.dataset.appTabSection='settings';
+          settingsPage.dataset.tabAvailable='1';
+          settingsPage.setAttribute('aria-labelledby','settingsPageTitle');
+          settingsPage.querySelector('.home-settings-title')?.remove();
+
+          const settingsHead=document.createElement('div');
+          settingsHead.className='settings-page-head';
+          settingsHead.innerHTML=
+            '<button id="settingsPageBack" class="settings-page-back" type="button" aria-label="Назад">'+
+              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'+
+            '</button>'+
+            '<h1 id="settingsPageTitle">Настройки</h1>'+
+            '<span class="settings-page-head-spacer" aria-hidden="true"></span>';
+          settingsPage.prepend(settingsHead);
+
+          const shell=document.querySelector('.shell');
+          const footer=shell?.querySelector('.footer');
+          if(shell) shell.insertBefore(settingsPage,footer||null);
+          settingsPage.hidden=currentAppTab!=='settings';
+        }
 
         tools.append(notifications,settings);
         top.append(greeting,tools,dateHeading,moonPhase);
