@@ -12128,4 +12128,4 @@
       });
     })();
 
-// RUDI deploy trigger v2.113: car header and daily question release
+// RUDI deploy trigger v2.115: supplement card info release
