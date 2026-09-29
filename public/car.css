@@ -977,3 +977,34 @@ html[data-theme="light"] .car-wash-guide-note{
   background:#fff2f1;
 }
 html[data-theme="light"] .car-wash-guide-note strong{color:#7c2d28}
+
+
+/* RUDI v2.126 collapsed car task badge */
+.car-head h2{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  max-width:100%;
+}
+.car-today-task-badge{
+  min-width:20px;
+  height:20px;
+  padding:0 5px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  border:2px solid #181b22;
+  border-radius:999px;
+  background:#ff3b30;
+  color:#fff;
+  font-size:10px;
+  line-height:1;
+  font-weight:850;
+  letter-spacing:-.02em;
+  box-shadow:0 2px 7px rgba(255,59,48,.32);
+}
+.car-today-task-badge[hidden],
+.car-tile:not(.is-collapsed) .car-today-task-badge{
+  display:none!important;
+}
