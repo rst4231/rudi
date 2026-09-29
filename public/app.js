@@ -3147,6 +3147,14 @@
         return 100;
       }
 
+      function setLuluAvatar(needsWalk){
+        const image=document.querySelector('#homeLuluTile .lulu-avatar');
+        if(!image) return;
+        const next=needsWalk?'/lulu-walk.webp?v=2.118':'/lulu-normal.webp?v=2.118';
+        if(image.getAttribute('src')!==next) image.src=next;
+        image.dataset.walkDue=needsWalk?'1':'0';
+      }
+
       function syncLuluToiletStatus(){
         const node=document.getElementById('luluToiletStatus');
         if(!node) return;
@@ -3155,13 +3163,16 @@
         const pee=luluToiletProbability(state.lastPeeAt||fallback);
         const poop=luluToiletProbability(state.lastPoopAt||fallback);
         if(pee===null&&poop===null){
+          setLuluAvatar(false);
           node.textContent='Туалет пока не отмечен';
           node.dataset.level='unknown';
           return;
         }
         const values=[pee,poop].filter(Number.isFinite);
         const urgency=values.length?Math.max(...values):0;
-        node.textContent='💧 '+(pee===null?'—':pee+'%')+' · 💩 '+(poop===null?'—':poop+'%')+(urgency>=100?' · Пора гулять':'');
+        const needsWalk=urgency>=100;
+        setLuluAvatar(needsWalk);
+        node.textContent='💧 '+(pee===null?'—':pee+'%')+' · 💩 '+(poop===null?'—':poop+'%')+(needsWalk?' · Пора гулять':'');
         node.dataset.level=urgency>=80?'high':urgency>=50?'medium':'low';
       }
 
@@ -4376,7 +4387,7 @@
         luluTile.innerHTML=
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
-              '<img class="lulu-avatar" src="/lulu-card.webp?v=1.9.6" alt="Лулу" width="58" height="58">'+
+              '<img class="lulu-avatar" src="/lulu-normal.webp?v=2.118" alt="Лулу" width="58" height="58">'+
               '<div class="lulu-copy"><h2><span class="lulu-name">Лулу</span><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
