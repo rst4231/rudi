@@ -31,7 +31,7 @@ function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow
 function dateMs(key){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(key||'')))return null;const [y,m,d]=key.split('-').map(Number);return Date.UTC(y,m-1,d,12)}
 function addDays(key,days){const value=dateMs(key);return value===null?'':new Date(value+Number(days||0)*86400000).toISOString().slice(0,10)}
 function daysBetween(left,right){const a=dateMs(left),b=dateMs(right);return a===null||b===null?null:Math.round((a-b)/86400000)}
-function statusLabel(value){return value==='paused'?'На паузе':value==='finished'?(isDiana()?'Закончила':'Закончил'):''}
+function statusLabel(value){return value==='paused'?'На паузе':value==='finished'?'Архив':''}
 function evidenceLabel(value){return value==='strong'?'🟢 Высокая':value==='moderate'?'🟢 Умеренная':value==='limited'?'🟡 Ограниченная':value==='insufficient'?'⚪ Данных мало':''}
 function foodLabel(value){return value==='before'?'до еды':value==='with'?'во время еды':value==='after'?'после еды':''}
 function takenToday(item){return(item.intakes||[]).some(row=>row.date===today())}
