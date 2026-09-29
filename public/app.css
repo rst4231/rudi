@@ -11773,6 +11773,20 @@ body[data-app-tab="fasting"]{
   box-shadow:0 8px 22px rgba(58,105,255,.13),inset 0 0 0 1px rgba(89,127,255,.12);
 }
 .fasting-goal-row button[aria-pressed="true"] .fasting-goal-reward{color:#3164ff}
+html[data-theme="light"] .fasting-goal-row button{
+  border-color:#cbd7e8;
+  background:#ffffff;
+  color:#25324a;
+  box-shadow:0 8px 18px rgba(45,76,120,.10),inset 0 1px 0 rgba(255,255,255,.96);
+}
+html[data-theme="light"] .fasting-goal-row .fasting-goal-reward{color:#65748e}
+html[data-theme="light"] .fasting-goal-row button[aria-pressed="true"]{
+  border-color:#2f63f3;
+  background:linear-gradient(145deg,#edf3ff,#dfe9ff);
+  color:#174bd4;
+  box-shadow:0 10px 24px rgba(47,99,243,.20),inset 0 0 0 1px rgba(47,99,243,.14);
+}
+html[data-theme="light"] .fasting-goal-row button[aria-pressed="true"] .fasting-goal-reward{color:#2458df}
 .fasting-start-button{
   min-height:54px;
   margin-top:2px;
