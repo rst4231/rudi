@@ -1,6 +1,5 @@
 const CACHE_NAME='rudi-shell-v2.65.1';
 const SHELL_CACHE_PREFIX='rudi-shell-';
-const SHELL_CACHE_KEEP=2;
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
@@ -110,36 +109,14 @@ self.addEventListener('install',event=>{
   );
 });
 
-function shellCacheVersionParts(key){
-  return String(key||'')
-    .slice(SHELL_CACHE_PREFIX.length)
-    .replace(/^v/i,'')
-    .split('.')
-    .map(value=>Number(value)||0);
-}
-
-function compareShellCachesNewestFirst(a,b){
-  const av=shellCacheVersionParts(a);
-  const bv=shellCacheVersionParts(b);
-  const length=Math.max(av.length,bv.length);
-  for(let index=0;index<length;index+=1){
-    const diff=(bv[index]||0)-(av[index]||0);
-    if(diff) return diff;
-  }
-  return String(b).localeCompare(String(a));
-}
-
 self.addEventListener('activate',event=>{
   event.waitUntil(
     caches.keys()
-      .then(keys=>{
-        const shellKeys=keys
-          .filter(key=>key.startsWith(SHELL_CACHE_PREFIX))
-          .sort(compareShellCachesNewestFirst);
-        const keep=new Set(shellKeys.slice(0,SHELL_CACHE_KEEP));
-        keep.add(CACHE_NAME);
-        return Promise.all(shellKeys.filter(key=>!keep.has(key)).map(key=>caches.delete(key)));
-      })
+      .then(keys=>Promise.all(
+        keys
+          .filter(key=>key.startsWith(SHELL_CACHE_PREFIX)&&key!==CACHE_NAME)
+          .map(key=>caches.delete(key))
+      ))
       .then(()=>self.clients.claim())
   );
 });
@@ -163,7 +140,7 @@ self.addEventListener('fetch',event=>{
         return response;
       }catch(_){
         const cache=await caches.open(CACHE_NAME);
-        return (await cache.match(request)) || (await caches.match(request)) || (await cache.match('/')) || (await caches.match('/')) || Response.error();
+        return (await cache.match(request)) || (await cache.match('/')) || Response.error();
       }
     })());
     return;
@@ -180,7 +157,7 @@ self.addEventListener('fetch',event=>{
 
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE_NAME);
-    const cached=(await cache.match(request)) || (await caches.match(request));
+    const cached=await cache.match(request);
     const network=fetchWithTimeout(request,STATIC_TIMEOUT_MS).then(response=>{
       if(response&&response.ok){
         const copy=response.clone();
