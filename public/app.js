@@ -1,4 +1,4 @@
-// RUDI v2.127 release ready
+// RUDI v2.128 compact smart saves release ready
 // RUDI v2.127 smart saves release ready
 // RUDI v2.125 production build marker
     (async () => {
@@ -4019,7 +4019,7 @@
       function renderSmartSaves(){
         const home=document.getElementById('smartSavesHomeList'),homeEmpty=document.getElementById('smartSavesHomeEmpty'),page=document.getElementById('smartSavesPageList'),pageEmpty=document.getElementById('smartSavesPageEmpty');
         const rows=[...smartSavesState].sort((a,b)=>(Date.parse(b?.createdAt)||0)-(Date.parse(a?.createdAt)||0));
-        if(home){home.replaceChildren();rows.slice(0,3).forEach(item=>home.appendChild(smartSaveCard(item,{compact:true})));if(homeEmpty)homeEmpty.hidden=rows.length>0}
+        if(home){home.replaceChildren();rows.slice(0,3).forEach(item=>home.appendChild(smartSaveCard(item,{compact:true})));if(homeEmpty)homeEmpty.hidden=rows.length>0;const more=document.getElementById('smartSavesHomeMore');if(more)more.hidden=rows.length===0}
         if(page){page.replaceChildren();const groups=new Map();rows.forEach(item=>{const key=String(item?.category||'Другое');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item)});
           groups.forEach((items,category)=>{const section=document.createElement('section');section.className='smart-saves-category-block';const head=document.createElement('div');head.className='smart-saves-category-head';const strong=document.createElement('strong'),count=document.createElement('span');strong.textContent=category;count.textContent=String(items.length);head.append(strong,count);section.appendChild(head);const list=document.createElement('div');list.className='smart-saves-category-list';items.forEach(item=>list.appendChild(smartSaveCard(item)));section.appendChild(list);page.appendChild(section)});
           if(pageEmpty)pageEmpty.hidden=rows.length>0;
@@ -4875,6 +4875,11 @@
           selector:'#dianaCycleCard',key:'diana-cycle',
           bodySelectors:['#dianaCycleBody'],
           hostSelector:'.cycle-head'
+        });
+        setupPersistentCollapsible({
+          selector:'#smartSavesHomeTile',key:'smart-saves-home',
+          bodySelectors:['#smartSavesHomeList','#smartSavesHomeEmpty','#smartSavesHomeMore'],
+          hostSelector:'.smart-saves-home-head'
         });
         setupPersistentCollapsible({
           selector:'#smartHomeTile',key:'smart-home',

@@ -278,11 +278,17 @@
 
     <section id="smartSavesHomeTile" class="panel smart-saves-home" data-app-tab-section="home" data-home-tile="smart-saves" aria-labelledby="smartSavesHomeTitle">
       <div class="smart-saves-home-head">
-        <div><h2 id="smartSavesHomeTitle">Сохранения</h2><small>Последние добавленные</small></div>
-        <button id="smartSavesHomeMore" type="button">Показать ещё</button>
+        <div class="smart-saves-home-copy">
+          <h2 id="smartSavesHomeTitle">Сохранения</h2>
+          <small>Последние добавленные</small>
+        </div>
       </div>
       <div id="smartSavesHomeList" class="smart-saves-home-list"></div>
       <div id="smartSavesHomeEmpty" class="smart-saves-empty">Отправь текст или ссылку в Telegram-бот RUDI — сохранение появится здесь.</div>
+      <button id="smartSavesHomeMore" class="smart-saves-home-more" type="button">
+        <span>Все сохранения</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
     </section>
 
     <section id="quickAccessTile" class="panel quick-access-tile" data-app-tab-section="home" data-home-tile="quick-access" aria-labelledby="quickAccessTitle">
