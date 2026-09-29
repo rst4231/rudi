@@ -57,7 +57,10 @@ test('v2.118 daily question card uses current couple avatars and compact referen
   const css=read('public/app.css');
   assert.match(html,/dailyQuestionRustamAvatar/);
   assert.match(html,/dailyQuestionDianaAvatar/);
-  assert.match(html,/daily-question-chevron/);
+  assert.doesNotMatch(html,/daily-question-chevron/);
+  assert.match(html,/daily-question-answer-head/);
+  assert.match(html,/dailyQuestionRustamAvatar[\s\S]*daily-question-answer-name">Рустам/);
+  assert.match(html,/dailyQuestionDianaAvatar[\s\S]*daily-question-answer-name">Диана/);
   assert.match(app,/applyAvatarProfile\(document\.getElementById\(actor==='Рустам'\?'dailyQuestionRustamAvatar':'dailyQuestionDianaAvatar'\)/);
   assert.match(css,/\/\* RUDI daily question card — compact couple style \*\//);
   assert.match(css,/background:linear-gradient\(145deg,#f5e8ff 0%,#efe0fb 100%\)!important/);
