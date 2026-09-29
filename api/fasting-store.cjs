@@ -70,6 +70,7 @@ function normalizeState(value) {
         id: String(source.active.id || '').trim() || crypto.randomUUID(),
         startedAt,
         goalHours,
+        goalNotifiedAt: cleanIso(source.active.goalNotifiedAt),
       };
     }
   }
@@ -170,6 +171,20 @@ async function startFasting(actor, payload = {}, options = {}) {
   });
 }
 
+async function markFastingGoalNotified(actor, activeId, options = {}) {
+  return enqueueMutation(async () => {
+    const current = await readFastingState(actor, options);
+    const safeId = String(activeId || '').trim();
+    if (!current.active || !safeId || current.active.id !== safeId) return current;
+    if (current.active.goalNotifiedAt) return current;
+    current.active = {
+      ...current.active,
+      goalNotifiedAt: new Date(options.now || Date.now()).toISOString(),
+    };
+    return writeFastingState(actor, current, options);
+  });
+}
+
 async function stopFasting(actor, options = {}) {
   return enqueueMutation(async () => {
     const current = await readFastingState(actor, options);
@@ -196,6 +211,6 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE, TTL_SECONDS, MAX_HISTORY, MIN_HISTORY_DURATION_MS, ALLOWED_GOALS,
   normalizeState, fastingRewardStars, statsFromHistory, fastingView,
-  readFastingState, writeFastingState, startFasting, stopFasting,
+  readFastingState, writeFastingState, startFasting, stopFasting, markFastingGoalNotified,
   resetMutationQueueForTests,
 };
