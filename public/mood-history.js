@@ -9,7 +9,7 @@ const META={
   joy:{emoji:'😄',label:'Радость'},
   love:{emoji:'🥰',label:'Любовь'}
 };
-const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',sport:'Спорт',fatigue:'Усталость',sleep:'Сон / усталость',fasting:'Голодание',other:'Другое'};
+const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
 let state=null,visibleMonth='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}

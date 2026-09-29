@@ -12352,3 +12352,20 @@ html[data-theme="dark"] .daily-question-waiting{background:rgba(255,255,255,.055
 }
 .smart-save-card.is-expanded{border-color:color-mix(in srgb,var(--accent) 18%,var(--line))}
 .smart-save-card.is-expanded .smart-save-delete{margin-top:5px}
+
+
+/* RUDI v2.130 — smart saves author filters */
+.smart-saves-filters{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;
+  padding:4px;border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+  border-radius:13px;background:color-mix(in srgb,var(--soft) 70%,transparent);
+}
+.smart-saves-filters button{
+  min-height:34px;padding:7px 8px;border:0;border-radius:9px;background:transparent;color:var(--muted);
+  font:inherit;font-size:10.5px;font-weight:740;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.smart-saves-filters button[aria-pressed="true"]{
+  background:var(--surface-strong);color:var(--text);
+  box-shadow:0 2px 8px rgba(20,24,36,.07),inset 0 0 0 1px color-mix(in srgb,var(--line) 76%,transparent);
+}
+.smart-saves-filters button:active{transform:scale(.98)}

@@ -3996,7 +3996,7 @@
         }
       }
 
-      let smartSavesState=[],smartSavesLoadPromise=null;
+      let smartSavesState=[],smartSavesLoadPromise=null,smartSavesFilter='all';
       async function smartSavesRequest(operation='list',payload={}){
         const response=await fetch('/api/partner-message?rudiAction=smart-saves',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
         const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||'smart-saves-request-failed');return data;
@@ -4032,9 +4032,13 @@
         const home=document.getElementById('smartSavesHomeList'),homeEmpty=document.getElementById('smartSavesHomeEmpty'),page=document.getElementById('smartSavesPageList'),pageEmpty=document.getElementById('smartSavesPageEmpty');
         const rows=[...smartSavesState].sort((a,b)=>(Date.parse(b?.createdAt)||0)-(Date.parse(a?.createdAt)||0));
         if(home){home.replaceChildren();rows.slice(0,3).forEach(item=>home.appendChild(smartSaveCard(item,{compact:true})));if(homeEmpty)homeEmpty.hidden=rows.length>0;const more=document.getElementById('smartSavesHomeMore');if(more)more.hidden=rows.length===0}
-        if(page){page.replaceChildren();const groups=new Map();rows.forEach(item=>{const key=String(item?.category||'Другое');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item)});
+        if(page){
+          page.replaceChildren();
+          const pageRows=smartSavesFilter==='all'?rows:rows.filter(item=>String(item?.actor||'')===smartSavesFilter);
+          const groups=new Map();pageRows.forEach(item=>{const key=String(item?.category||'Другое');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item)});
           groups.forEach((items,category)=>{const section=document.createElement('section');section.className='smart-saves-category-block';const head=document.createElement('div');head.className='smart-saves-category-head';const strong=document.createElement('strong'),count=document.createElement('span');strong.textContent=category;count.textContent=String(items.length);head.append(strong,count);section.appendChild(head);const list=document.createElement('div');list.className='smart-saves-category-list';items.forEach(item=>list.appendChild(smartSaveCard(item)));section.appendChild(list);page.appendChild(section)});
-          if(pageEmpty)pageEmpty.hidden=rows.length>0;
+          document.querySelectorAll('[data-smart-saves-filter]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.smartSavesFilter===smartSavesFilter?'true':'false'));
+          if(pageEmpty){pageEmpty.hidden=pageRows.length>0;pageEmpty.textContent=smartSavesFilter==='all'?'Сохранений пока нет.':'У '+smartSavesFilter+(smartSavesFilter==='Диана'?'ы':'а')+' сохранений пока нет.'}
         }
       }
       async function loadSmartSaves({silent=false}={}){
@@ -4180,6 +4184,7 @@
         setupActivityNotifications();
         setupSettingsPanel();
         const smartMore=document.getElementById('smartSavesHomeMore');if(smartMore&&smartMore.dataset.bound!=='1'){smartMore.dataset.bound='1';smartMore.addEventListener('click',()=>navigateToAppTab('smart-saves',{scroll:true}))}
+        document.querySelectorAll('[data-smart-saves-filter]').forEach(button=>{if(button.dataset.bound==='1')return;button.dataset.bound='1';button.addEventListener('click',()=>{smartSavesFilter=button.dataset.smartSavesFilter||'all';renderSmartSaves();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}})});
         const smartBack=document.getElementById('smartSavesBackButton');if(smartBack&&smartBack.dataset.bound!=='1'){smartBack.dataset.bound='1';smartBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
         const wishlistBack=document.getElementById('wishlistBackButton');if(wishlistBack&&wishlistBack.dataset.bound!=='1'){wishlistBack.dataset.bound='1';wishlistBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
         loadSmartSaves({silent:true}).catch(()=>{});
@@ -9614,7 +9619,8 @@
         ['money','💰','Деньги'],
         ['health','🫶','Самочувствие'],
         ['sport','🏃','Спорт'],
-        ['sleep','😴','Сон / усталость']
+        ['sleep','😴','Сон'],
+        ['fatigue','😩','Усталость']
       ];
       function ensureMoodReasonPrompt(){
         let box=document.getElementById('moodReasonPrompt');if(box)return box;
