@@ -457,3 +457,18 @@ html[data-theme="dark"] .personal-supplements-progress{
 .supplement-card{cursor:default}
 .supplement-info-button{flex:0 0 auto;width:30px;height:30px;border:0;border-radius:10px;background:color-mix(in srgb,currentColor 8%,transparent);color:inherit;display:grid;place-items:center;font:inherit;font-size:17px;font-weight:800}
 .supplement-info-modal .habit-info-modal-copy{white-space:pre-line}
+
+
+/* RUDI v2.116 — supplement undo and habit archive */
+.personal-supplements-undo{
+  z-index:7600!important;
+  width:min(calc(100vw - 28px),420px);
+  box-sizing:border-box;
+  bottom:calc(104px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+  justify-content:space-between;
+}
+.personal-supplements-undo span{min-width:0;line-height:1.3}
+.personal-supplements-undo button{flex:none}
+.personal-habits-archive{margin-top:12px;padding-top:10px;border-top:1px solid color-mix(in srgb,currentColor 9%,transparent)}
+.personal-habits-archive-title{font-size:11px;font-weight:850;letter-spacing:.04em;text-transform:uppercase;opacity:.52;margin-bottom:5px}
+.personal-habit-archive-row{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:center;min-height:38px;padding:4px 2px;font-size:12.5px;opacity:.48}
