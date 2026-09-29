@@ -86,4 +86,4 @@ async function generateMoodAnalysis(input={},options={}){
   if(!text)throw new Error('mood-analysis-empty');
   return{text,model:MODEL};
 }
-module.exports={MODEL,promptForMoodAnalysis,generateMoodAnalysis};module.exports={MODEL,promptForMoodAnalysis,generateMoodAnalysis};
+module.exports={MODEL,promptForMoodAnalysis,generateMoodAnalysis};
