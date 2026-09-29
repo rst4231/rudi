@@ -3,6 +3,8 @@ const TZ='Europe/Moscow';
 const META={
   sadness:{emoji:'😢',label:'Грусть'},
   boredom:{emoji:'🥱',label:'Скука'},
+  neutral:{emoji:'😐',label:'Нейтрально'},
+  fatigue:{emoji:'😩',label:'Усталость'},
   anger:{emoji:'😡',label:'Злость'},
   joy:{emoji:'😄',label:'Радость'},
   love:{emoji:'🥰',label:'Любовь'}
@@ -154,7 +156,7 @@ function renderStats(history,today){
   }
   host.replaceChildren();
   const total=Math.max(1,rows.length);
-  for(const key of ['joy','love','sadness','boredom','anger']){
+  for(const key of ['joy','love','neutral','fatigue','sadness','boredom','anger']){
     if(!counts[key])continue;
     const el=document.createElement('div');el.className='mood-stat-chip';
     el.innerHTML='<b>'+META[key].emoji+' '+Math.round(counts[key]/total*100)+'%</b><span>'+META[key].label+'</span>';

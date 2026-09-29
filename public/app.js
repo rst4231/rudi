@@ -2464,7 +2464,7 @@
       }
 
       function homeMoodView(value){
-        return {sadness:'😢',boredom:'🥱',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')==='fear'?'boredom':String(value||'')]||'—';
+        return {sadness:'😢',boredom:'🥱',neutral:'😐',fatigue:'😩',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')==='fear'?'boredom':String(value||'')]||'—';
       }
 
       function homeDashboardDateLabel(){
@@ -4597,6 +4597,14 @@
           boredom:[
             'Если скучно, попробуй сменить занятие или сделать что-нибудь маленькое и новое.',
             'Когда всё надоело, выбери одно простое дело, которое обычно тебя немного оживляет.'
+          ],
+          neutral:[
+            'Сегодня можно просто быть без ярких эмоций. Не обязательно чувствовать что-то особенное.',
+            'Нейтральное состояние — тоже нормальное состояние. Можно спокойно идти в своём темпе.'
+          ],
+          fatigue:[
+            'Если усталость накопилась, сегодня лучше снизить темп и оставить силы на действительно важное.',
+            'Похоже, энергии сейчас немного. По возможности выбери отдых и не перегружай себя.'
           ],
           anger:[
             'Если злишься, не спеши действовать на пике эмоции. Сначала дай себе немного времени.',
@@ -8134,7 +8142,16 @@
           return;
         }
         const index=photos.indexOf(photo);
-        image.src=String(photo.url||photo.fullUrl||'');
+        const memoryPreview=String(photo.url||'').trim();
+        const memoryFull=String(photo.fullUrl||memoryPreview).trim();
+        image.onerror=null;
+        image.dataset.fullFallbackTried='';
+        image.onerror=()=>{
+          if(image.dataset.fullFallbackTried==='1'||!memoryPreview||memoryPreview===memoryFull)return;
+          image.dataset.fullFallbackTried='1';
+          image.src=memoryPreview;
+        };
+        image.src=memoryFull||memoryPreview;
         image.alt=photo.caption?String(photo.caption):'Воспоминание из общего альбома';
         age.textContent=sharedAlbumAgeLabel(photo);
         button.onclick=()=>openSharedAlbumPhoto(photo,index);
@@ -9026,6 +9043,8 @@
       const MOOD_META={
         sadness:{emoji:'😢',label:'Грусть'},
         boredom:{emoji:'🥱',label:'Скука'},
+        neutral:{emoji:'😐',label:'Нейтрально'},
+        fatigue:{emoji:'😩',label:'Усталость'},
         anger:{emoji:'😡',label:'Злость'},
         joy:{emoji:'😄',label:'Радость'},
         love:{emoji:'🥰',label:'Любовь'}
@@ -9159,11 +9178,11 @@
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==mood;
         });
-        empty.hidden=['sadness','boredom','anger','joy','love'].includes(mood==='fear'?'boredom':mood);
+        empty.hidden=['sadness','boredom','neutral','fatigue','anger','joy','love'].includes(mood==='fear'?'boredom':mood);
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
-            mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
+            mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='neutral'?'нейтрально':mood==='fatigue'?'усталость':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
           )
         );
       }
@@ -12109,4 +12128,4 @@
       });
     })();
 
-// RUDI deploy trigger v2.113: rollback production
+// RUDI deploy trigger v2.113: car header and daily question release

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v2.106">
+  <meta name="rudi-version" content="v2.114">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -64,13 +64,13 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=2.106"></script>
+  <script defer src="/app.js?v=2.114"></script>
   <script defer src="/pwa-extras.js?v=2.59"></script>
   <script defer src="/weather.js?v=1.8.7"></script>
   <script defer src="/smart-home.js?v=1.8.7"></script>
   <script defer src="/car.js?v=2.43"></script>
   <script defer src="/profile-supplements.js?v=2.99"></script>
-  <script defer src="/mood-history.js?v=2.106"></script>
+  <script defer src="/mood-history.js?v=2.114"></script>
   <script defer src="/supplement-editor.js?v=2.20"></script>
   <script defer src="/supplement-advanced.js?v=2.105"></script>
 </head>
@@ -130,6 +130,8 @@
               <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
               <span class="partner-mood-icon" data-partner-mood="sadness" hidden><span class="mood-emoji" aria-hidden="true">😢</span></span>
               <span class="partner-mood-icon" data-partner-mood="boredom" hidden><span class="mood-emoji" aria-hidden="true">🥱</span></span>
+              <span class="partner-mood-icon" data-partner-mood="neutral" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
+              <span class="partner-mood-icon" data-partner-mood="fatigue" hidden><span class="mood-emoji" aria-hidden="true">😩</span></span>
               <span class="partner-mood-icon" data-partner-mood="anger" hidden><span class="mood-emoji" aria-hidden="true">😡</span></span>
               <span class="partner-mood-icon" data-partner-mood="joy" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
               <span class="partner-mood-icon" data-partner-mood="love" hidden><span class="mood-emoji" aria-hidden="true">🥰</span></span>
@@ -139,6 +141,8 @@
           <div id="moodChoices" class="mood-choices" hidden>
             <button class="mood-button" type="button" data-mood="sadness" aria-label="Грусть" title="Грусть"><span class="mood-emoji" aria-hidden="true">😢</span></button>
             <button class="mood-button" type="button" data-mood="boredom" aria-label="Скука" title="Скука"><span class="mood-emoji" aria-hidden="true">🥱</span></button>
+            <button class="mood-button" type="button" data-mood="neutral" aria-label="Нейтрально" title="Нейтрально"><span class="mood-emoji" aria-hidden="true">😐</span></button>
+            <button class="mood-button" type="button" data-mood="fatigue" aria-label="Усталость" title="Усталость"><span class="mood-emoji" aria-hidden="true">😩</span></button>
             <button class="mood-button" type="button" data-mood="anger" aria-label="Злость" title="Злость"><span class="mood-emoji" aria-hidden="true">😡</span></button>
             <button class="mood-button" type="button" data-mood="joy" aria-label="Радость" title="Радость"><span class="mood-emoji" aria-hidden="true">😄</span></button>
             <button class="mood-button" type="button" data-mood="love" aria-label="Любовь" title="Любовь"><span class="mood-emoji" aria-hidden="true">🥰</span></button>

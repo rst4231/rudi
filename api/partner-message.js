@@ -92,7 +92,7 @@ const {
   checklistAuditForItem,
 } = require('./ticktick-checklist-audit-store.cjs');
 const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot, mergeUiPreferences, normalizeUiPreferences } = require('./rudi-backup.cjs');
-const { getCinemaPremieresCache, getTopicMaintenanceCache } = require('./stateful-cache.cjs');
+const { getCinemaPremieresCache, getTopicMaintenanceCache, getLaborCache } = require('./stateful-cache.cjs');
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
 const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
 const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
@@ -646,6 +646,8 @@ async function recordLikeActivity(target, actor, options = {}) {
 const MOOD_ACTIVITY = {
   sadness: { label: 'Грусть', emoji: '😢' },
   boredom: { label: 'Скука', emoji: '🥱' },
+  neutral: { label: 'Нейтрально', emoji: '😐' },
+  fatigue: { label: 'Усталость', emoji: '😩' },
   anger: { label: 'Гнев', emoji: '😡' },
   joy: { label: 'Радость', emoji: '😄' },
   love: { label: 'Любовь', emoji: '🥰' },
@@ -772,6 +774,8 @@ function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
 const MOOD_NOTICE = {
   sadness: { phrase: 'грусть', emoji: '😢' },
   boredom: { phrase: 'скука', emoji: '🥱' },
+  neutral: { phrase: 'нейтрально', emoji: '😐' },
+  fatigue: { phrase: 'усталость', emoji: '😩' },
   anger: { phrase: 'гнев', emoji: '😡' },
   joy: { phrase: 'радость', emoji: '😄' },
   love: { phrase: 'любовь', emoji: '🥰' },
@@ -786,7 +790,11 @@ function moodNotificationText(recipient, actor, mood) {
     ? actor + ' сейчас грустит'
     : moodKey === 'boredom'
       ? actorDative + ' сейчас скучно'
-      : moodKey === 'anger'
+      : moodKey === 'neutral'
+        ? actor + ' сейчас без ярких эмоций'
+        : moodKey === 'fatigue'
+          ? actor + ' сейчас ' + (actor === 'Диана' ? 'устала' : actor === 'Рустам' ? 'устал' : 'чувствует усталость')
+          : moodKey === 'anger'
         ? actor + ' сейчас злится'
         : moodKey === 'joy'
           ? actor + ' сейчас ' + (actor === 'Диана' ? 'радостна' : actor === 'Рустам' ? 'радостен' : 'радуется')
@@ -2854,7 +2862,21 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       if (operation === 'list') {
-        const live = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
+        let live = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
+        const todayKey=moscowDateKey(options.now||Date.now());
+        const hasTodayLabor=(live.items||[]).some(item=>String(item?.source||'')==='labor'&&String(item?.dateKey||'')===todayKey);
+        if(!hasTodayLabor){
+          try{
+            const { publishLaborArticle }=require('./labor-code.cjs');
+            const { publishForDiToRudi }=require('./for-di-private.cjs');
+            const now=new Date(options.now||Date.now());
+            await publishLaborArticle({queueOnly:true,force:true,now,cache:getLaborCache(),fetchImpl:options.fetch||globalThis.fetch});
+            await publishForDiToRudi({now,cacheOptions:options.cacheOptions});
+            live=await readForDiFeed(options).catch(()=>live);
+          }catch(error){
+            console.warn('RUDI_FOR_DI_LABOR_SELF_HEAL_WARN',String(error?.message||error));
+          }
+        }
         const saved = previousSnapshot?.forDiFeed;
         const state = live?.initialized ? live : (saved?.initialized ? saved : live);
         return res.status(200).json({ ok:true, actor, ...state });
