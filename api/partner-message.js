@@ -524,6 +524,120 @@ async function refreshBackupToken(previousSnapshot, options = {}) {
   });
 }
 
+async function readPartnerMessageForHome(options = {}) {
+  let message = await readPartnerMessage(options).catch(() => null);
+  if (message && !message.likesInitialized) {
+    const targets = [
+      { type:'partner-message', key:'message:' + String(message.id || '') },
+      { type:'partner-message', key:'message:' + String(message.updatedAt || '') },
+    ].filter((target,index,rows)=>target.key!=='message:'&&rows.findIndex(row=>row.key===target.key)===index);
+    const rows = targets.length ? await readReactions(targets, options).catch(() => []) : [];
+    const migrated = [...new Set(rows.flatMap(row=>Array.isArray(row?.likedBy)?row.likedBy:[]))];
+    message = await writePartnerMessage({
+      ...message,
+      likes:migrated,
+      likesInitialized:true,
+    }, options).catch(() => message);
+  }
+  return message || null;
+}
+
+function compactFeedForHome(feed) {
+  if (!feed || typeof feed !== 'object') return null;
+  const sections = feed.sections && typeof feed.sections === 'object' ? feed.sections : {};
+  const eventParts = Array.isArray(sections.events?.parts)
+    ? sections.events.parts.slice(0, 2).map((value) => String(value || '')).filter(Boolean)
+    : [];
+  if (!eventParts.length && !feed.version && !feed.date) return null;
+  return {
+    date: String(feed.date || ''),
+    version: String(feed.version || ''),
+    updatedAt: String(feed.updatedAt || ''),
+    sections: { events: { parts: eventParts } },
+  };
+}
+
+async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
+  const now = options.now || Date.now();
+  const date = moscowDateKey(now);
+  const questionOptions = {
+    ...options,
+    env: options.env || process.env,
+    fetch: options.fetch || global.fetch,
+  };
+  const [
+    partnerMessage,
+    journalLive,
+    luluLive,
+    scoreLive,
+    moodRow,
+    dailyQuestion,
+    cycleLive,
+    wishlistLive,
+    productsLive,
+    feedLive,
+    workWeek,
+    album,
+  ] = await Promise.all([
+    readPartnerMessageForHome(options),
+    readActivityJournal(options).catch(() => null),
+    readLuluState(options).catch(() => null),
+    readScoreState(options).catch(() => null),
+    readDailyMood(date, options).catch(() => null),
+    readDailyQuestion(actor, questionOptions).catch(() => null),
+    readCycleState(options).catch(() => null),
+    readWishlist(options).catch(() => null),
+    readProductList(options).catch(() => null),
+    readFeedSnapshot(options).then((current) => refreshFeedFromPreviewIfNeeded(current, options)).catch(() => null),
+    getWorkWeek({ ...options, view:'week' }).catch(() => null),
+    getLatestPhotos(options).catch(() => null),
+  ]);
+
+  const journal = journalLive?.initialized ? journalLive : (backupSnapshot?.activityJournal || journalLive);
+  const lulu = luluLive?.initialized ? luluLive : (backupSnapshot?.luluState || luluLive);
+  const scoreState = scoreLive?.initialized ? scoreLive : (backupSnapshot?.scoreState || scoreLive);
+  const cycle = cycleLive || normalizeCycleState(backupSnapshot?.cycle);
+  const wishlist = wishlistLive?.initialized ? wishlistLive : (backupSnapshot?.wishlist?.initialized ? backupSnapshot.wishlist : null);
+  const products = productsLive?.initialized ? productsLive : (backupSnapshot?.products?.initialized ? backupSnapshot.products : null);
+  const workDay = workWeek?.configured && Array.isArray(workWeek.days)
+    ? workWeek.days.find((day) => String(day?.date || '') === date) || null
+    : undefined;
+  const compactFeed = compactFeedForHome(feedLive);
+
+  const score = scoreState ? scoreView(scoreState, { now }) : null;
+  const activity = journal ? {
+    initialized: Boolean(journal.initialized),
+    version: Math.max(0, Number(journal.version || 0)),
+    items: (Array.isArray(journal.items) ? journal.items : []).slice(0, 10),
+    lulu: lulu || null,
+    score: score ? {
+      initialized: Boolean(score.initialized),
+      version: Math.max(0, Number(score.version || 0)),
+      balances: score.balances || {},
+      today: score.today || null,
+    } : null,
+  } : null;
+
+  return {
+    partnerMessage: partnerMessage || backupSnapshot?.partnerMessage || null,
+    ...(activity ? { activity } : {}),
+    ...(moodRow ? { mood: { ok:true, ...moodView(moodRow, actor) } } : {}),
+    ...(dailyQuestion ? { dailyQuestion: { ok:true, operation:'get', ...dailyQuestion } } : {}),
+    cycle: { configured: Boolean(cycle), cycle: cycle || null },
+    ...(workDay !== undefined ? { workDay } : {}),
+    ...(compactFeed ? { feed: compactFeed } : {}),
+    counts: {
+      ...(wishlist ? { wishlist: (wishlist.items || []).filter((item) => !item?.done).length } : {}),
+      ...(products ? { products: (products.items || []).filter((item) => !item?.bought).length } : {}),
+      ...(album?.configured ? {
+        photos: Number.isFinite(Number(album.totalCount))
+          ? Math.max(0, Number(album.totalCount))
+          : Math.max(0, Number(album.photos?.length || 0)),
+      } : {}),
+    },
+  };
+}
+
 function activityVerb(actor, male, female) {
   return actor === 'Диана' ? female : male;
 }
@@ -2096,6 +2210,18 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'home-bootstrap') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const home = await buildHomeBootstrap(actor, null, options);
+      return res.status(200).json({ ok:true, actor, home });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok:false, error:String(error?.message || error) });
+    }
+  }
+
   if (action === 'app-bootstrap') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -2119,13 +2245,14 @@ async function handleRudiAction(req, res, action, options = {}) {
 
       const date = moscowDateKey(options.now || Date.now());
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
+      const liveRecipients = await readRecipients(options).catch(() => null);
       const recipients = correctRecipientsForSession(
-        mergedRecipientsWithBackup(
-          await readRecipients(options).catch(() => null),
-          previousSnapshot
-        ),
+        mergedRecipientsWithBackup(liveRecipients, previousSnapshot),
         actor,
         user?.id
+      );
+      const recipientsChanged = ['Рустам','Диана'].some((name) =>
+        Number(liveRecipients?.[name] || 0) !== Number(recipients?.[name] || 0)
       );
       const backupUiPreferences = normalizeUiPreferences(previousSnapshot?.uiPreferences)?.[actor] || null;
       let sharedUiPreferences = await readUiPreferences(actor, options).catch(() => null);
@@ -2165,23 +2292,29 @@ async function handleRudiAction(req, res, action, options = {}) {
       const selfId = Number(user?.id) || Number(recipients?.[actor]) || 0;
       const partnerId = recipientFor(actor, recipients);
       const includeProfiles = body.includeProfiles !== false;
-      const [holidays, selfProfile, partnerProfile, backupToken] = await Promise.all([
+      const includeHome = body.includeHome === true;
+      const shouldRefreshBackup = !backupSnapshot || Boolean(handoffSnapshot) || recipientsChanged;
+      const [holidays, selfProfile, partnerProfile, backupToken, home] = await Promise.all([
         holidaysPromise,
         includeProfiles ? readTelegramProfile(selfId, actor, options) : Promise.resolve(null),
         includeProfiles ? readTelegramProfile(partnerId, partnerActor, options) : Promise.resolve(null),
-        createStateBackup({ ...options, previousSnapshot: correctedSnapshot }).catch((error) => {
-          console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
-          return '';
-        }),
+        shouldRefreshBackup
+          ? createStateBackup({ ...options, previousSnapshot: correctedSnapshot }).catch((error) => {
+              console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
+              return '';
+            })
+          : Promise.resolve(''),
+        includeHome ? buildHomeBootstrap(actor, correctedSnapshot, options) : Promise.resolve(null),
       ]);
       return res.status(200).json({
         ok: true,
         actor,
-        selfProfile,
-        partnerProfile,
+        ...(selfProfile ? { selfProfile } : {}),
+        ...(partnerProfile ? { partnerProfile } : {}),
         holidayHighlights: holidays?.items || [],
         uiPreferences: effectiveUiPreferences || null,
-        backupToken,
+        ...(backupToken ? { backupToken } : {}),
+        ...(includeHome && home ? { home } : {}),
       });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
@@ -2641,22 +2774,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       if(previousSnapshot?.partnerMessage){
         await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
       }
-      let message = await readPartnerMessage(options);
-      if(message && !message.likesInitialized){
-        const targets=[
-          {type:'partner-message',key:'message:'+String(message.id||'')},
-          {type:'partner-message',key:'message:'+String(message.updatedAt||'')},
-        ].filter((target,index,rows)=>target.key!=='message:'&&rows.findIndex(row=>row.key===target.key)===index);
-        const rows=targets.length
-          ? await readReactions(targets,options).catch(()=>[])
-          : [];
-        const migrated=[...new Set(rows.flatMap(row=>Array.isArray(row?.likedBy)?row.likedBy:[]))];
-        message=await writePartnerMessage({
-          ...message,
-          likes:migrated,
-          likesInitialized:true,
-        },options).catch(()=>message);
-      }
+      const message = await readPartnerMessageForHome(options);
       return res.status(200).json({ ok: true, message });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });

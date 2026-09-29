@@ -13,6 +13,12 @@
       const DAY = 86400000;
       let currentActor = '';
       let appAccessReady = false;
+      let appBootstrapPromise = null;
+      let appBootstrapPayload = null;
+      let homeBootstrapPromise = null;
+      let homeBootstrapPayload = null;
+      let homeBootstrapLoadedAt = 0;
+      let partnerMessageBootstrapHandler = null;
       const reactionRequestEpoch = new Map();
       let currentFeedReactionTargets = [];
       const currentFeedReactionBindings = new Map();
@@ -1356,9 +1362,10 @@
           toggle.addEventListener('click',()=>setMarketTickerEnabled(!marketTickerEnabled()));
         }
         const enabled=applyMarketTickerVisibility();
+        const onHome=initialBootstrapTab()==='home';
         const cached=readMarketTickerLocalCache();
-        if(enabled&&cached) renderMarketTicker(cached);
-        if(enabled) loadMarketTicker({silent:Boolean(cached)});
+        if(enabled&&onHome&&cached) renderMarketTicker(cached);
+        if(enabled&&onHome) loadMarketTicker({silent:Boolean(cached)});
       }
 
       function rudiMotionReduced(){
@@ -1444,7 +1451,11 @@
       }
 
       function runTabSideEffects(tab,{item=''}={}){
-        if(tab==='home') loadFastingOverview();
+        if(tab==='home'){
+          loadFastingOverview();
+          ensureHomeBootstrap().catch(()=>{});
+          loadTickTickNext();
+        }
         if(tab==='feed') loadFeed({silent:true});
         if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
         if(tab==='products'){
@@ -2824,7 +2835,7 @@
                 currentScoreState=data.score||currentScoreState;
                 renderScoreStickers(currentScoreState);
                 renderScoreModal(actor,currentScoreState);
-                setTimeout(()=>refreshStateBackup(),200);
+                if(!data.backupToken) setTimeout(()=>refreshStateBackup(),200);
                 try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
               }catch(_){
                 try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
@@ -2865,7 +2876,7 @@
                 currentScoreState=data.score||currentScoreState;
                 renderScoreStickers(currentScoreState);
                 renderScoreModal(actor,currentScoreState);
-                setTimeout(()=>refreshStateBackup(),200);
+                if(!data.backupToken) setTimeout(()=>refreshStateBackup(),200);
                 try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
               }catch(error){
                 try{
@@ -3008,7 +3019,7 @@
               currentScoreState=data.score||currentScoreState;
               renderScoreStickers(currentScoreState);
               renderScoreModal(actor,currentScoreState);
-              setTimeout(()=>refreshStateBackup(),200);
+              if(!data.backupToken) setTimeout(()=>refreshStateBackup(),200);
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(error){
               if(['score-balance-insufficient','score-reward-active'].includes(String(error?.message||''))){
@@ -5575,8 +5586,87 @@
         return cached;
       }
 
+      function initialBootstrapTab(){
+        const initial=routeFromLocation();
+        return requestedAppTab||initial.tab||'home';
+      }
+
+      function applyHomeBootstrap(home){
+        if(!home||typeof home!=='object') return false;
+        homeBootstrapPayload=home;
+        homeBootstrapLoadedAt=Date.now();
+        if(home.activity) renderActivityJournal(home.activity);
+        if(home.mood){
+          currentMoodDateKey=String(home.mood?.date||todayState().key);
+          renderDailyMood(home.mood);
+        }
+        if(home.dailyQuestion) renderDailyQuestion(home.dailyQuestion);
+        if(home.cycle&&typeof home.cycle==='object'){
+          renderDianaCycle(home.cycle.configured?home.cycle.cycle:null);
+        }
+        if(Object.prototype.hasOwnProperty.call(home,'partnerMessage')){
+          if(partnerMessageBootstrapHandler) partnerMessageBootstrapHandler(home.partnerMessage||null);
+          else renderPartnerMessage(home.partnerMessage||null);
+        }
+        if(Object.prototype.hasOwnProperty.call(home,'workDay')){
+          renderPartnerWorkStatus(home.workDay?[home.workDay]:[]);
+        }
+        if(home.feed&&typeof home.feed==='object'){
+          homeDashboardState.feed=home.feed;
+          homeDashboardState.feedResults=[];
+          renderHomeDashboard();
+        }
+        const counts=home.counts&&typeof home.counts==='object'?home.counts:{};
+        if(Number.isFinite(Number(counts.wishlist))) homeDashboardState.wishlistCount=Math.max(0,Number(counts.wishlist));
+        if(Number.isFinite(Number(counts.photos))) homeDashboardState.photoCount=Math.max(0,Number(counts.photos));
+        if(Number.isFinite(Number(counts.products))) homeDashboardState.productCount=Math.max(0,Number(counts.products));
+        renderHomeNew();
+        return true;
+      }
+
+      async function loadHomeBootstrap({force=false}={}){
+        if(!currentActor) return null;
+        if(!force&&homeBootstrapPayload&&Date.now()-homeBootstrapLoadedAt<2*60*1000){
+          applyHomeBootstrap(homeBootstrapPayload);
+          return homeBootstrapPayload;
+        }
+        if(homeBootstrapPromise) return homeBootstrapPromise;
+        homeBootstrapPromise=(async()=>{
+          const response=await fetchWithTimeout('/api/partner-message?rudiAction=home-bootstrap',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:telegramInitData()}),
+            cache:'no-store'
+          },10000);
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok) throw new Error(payload.error||'home-bootstrap');
+          if(payload.actor&&String(payload.actor)!==currentActor) return null;
+          if(payload.home){
+            appBootstrapPayload={...(appBootstrapPayload||{}),home:payload.home};
+            applyHomeBootstrap(payload.home);
+          }
+          return payload.home||null;
+        })().finally(()=>{homeBootstrapPromise=null});
+        return homeBootstrapPromise;
+      }
+
+      async function ensureHomeBootstrap({force=false}={}){
+        if(!force&&appBootstrapPayload?.home&&Date.now()-homeBootstrapLoadedAt<2*60*1000){
+          applyHomeBootstrap(appBootstrapPayload.home);
+          return appBootstrapPayload.home;
+        }
+        if(!force&&appBootstrapPromise){
+          const payload=await appBootstrapPromise.catch(()=>null);
+          if(payload?.home){
+            applyHomeBootstrap(payload.home);
+            return payload.home;
+          }
+        }
+        return loadHomeBootstrap({force});
+      }
+
       async function loadAppBootstrap(){
-        if(!currentActor) return;
+        if(!currentActor) return null;
         const cachedProfiles=readProfileCache();
         const includeProfiles=profileCacheNeedsRefresh(cachedProfiles);
         try{
@@ -5584,6 +5674,7 @@
           if(cloudToken&&!currentStateBackupToken) currentStateBackupToken=String(cloudToken);
           const backupContext=backupRequestContext();
           const backupToken=backupContext.token;
+          const includeHome=initialBootstrapTab()==='home';
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-bootstrap',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
@@ -5591,13 +5682,16 @@
               initData:telegramInitData(),
               backupToken,
               ticktickHandoff:ticktickHandoffToken,
-              includeProfiles
+              includeProfiles,
+              includeHome
             }),
             cache:'no-store'
           },10000);
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'bootstrap');
-          if(payload.actor&&String(payload.actor)!==currentActor) return;
+          if(payload.actor&&String(payload.actor)!==currentActor) return null;
+          appBootstrapPayload=payload;
+          if(payload.home) applyHomeBootstrap(payload.home);
           if(payload.selfProfile||payload.partnerProfile){
             const selfProfile=payload.selfProfile||cachedProfiles?.selfProfile||null;
             const partnerProfile=payload.partnerProfile||cachedProfiles?.partnerProfile||null;
@@ -5619,8 +5713,10 @@
               history.replaceState(null,'',url.pathname+(url.search||'')+(url.hash||''));
             }catch(_){}
           }
+          return payload;
         }catch(error){
           console.warn('RUDI_APP_BOOTSTRAP_WARN',String(error?.message||error));
+          return null;
         }
       }
 
@@ -5678,8 +5774,9 @@
         if(telegramInitData()) await ensureTelegramPin();
         appAccessReady=true;
         showAuthenticatedApp();
-        loadAppBootstrap().catch(error=>{
+        appBootstrapPromise=loadAppBootstrap().catch(error=>{
           console.warn('RUDI_APP_BOOTSTRAP_BACKGROUND_WARN',String(error?.message||error));
+          return null;
         });
         return true;
       }
@@ -8429,7 +8526,7 @@
         if(!response.ok) throw new Error(data.error||'wishlist');
         if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         if(operation!=='list'){
-          setTimeout(()=>refreshStateBackup(),250);
+          if(!data.backupToken) setTimeout(()=>refreshStateBackup(),250);
           setTimeout(()=>loadActivityJournal({silent:true}),320);
         }
         return data;
@@ -8614,13 +8711,6 @@
               status.textContent=String(error?.message||'').startsWith('wishlist-url-')?'Проверь ссылку':'Ошибка';
             }
           }finally{add.disabled=false}
-        });
-        wishlistRequest('list').then(renderWishlist).catch(()=>{
-          {
-            const status=document.getElementById('wishlistStatus');
-            status.hidden=false;
-            status.textContent='Ошибка';
-          }
         });
       }
 
@@ -9002,7 +9092,11 @@
             }
           });
         }
-        loadDailyQuestion();
+        if(currentAppTab==='home'){
+          ensureHomeBootstrap().then(home=>{
+            if(!home?.dailyQuestion) loadDailyQuestion();
+          }).catch(()=>loadDailyQuestion());
+        }
       }
 
       async function togglePartnerMessageLikeRequest(){
@@ -9047,6 +9141,10 @@
         const cancelButton=document.getElementById('partnerCancelButton');
         const status=document.getElementById('partnerStatus');
         let currentMessage=null;
+        partnerMessageBootstrapHandler=message=>{
+          currentMessage=message||null;
+          renderPartnerMessage(currentMessage);
+        };
 
         const likeButton=document.getElementById('partnerMessageLike');
         if(likeButton&&likeButton.dataset.partnerMessageLikeBound!=='1'){
@@ -9066,7 +9164,7 @@
             try{
               const data=await togglePartnerMessageLikeRequest();
               currentMessage=data.message||currentMessage;
-              renderPartnerMessage(currentMessage);
+              partnerMessageBootstrapHandler(currentMessage);
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
             }catch(_){
               renderReaction({likedBy:previousLikedBy},'partnerMessageLike','partnerMessageLikedBy');
@@ -9132,9 +9230,9 @@
             if(!r.ok) throw new Error(data.error||'save');
             if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
             currentMessage=data.message;
-            renderPartnerMessage(currentMessage);
+            partnerMessageBootstrapHandler(currentMessage);
             closeEditor();
-            setTimeout(()=>refreshStateBackup(),250);
+            if(!data.backupToken) setTimeout(()=>refreshStateBackup(),250);
             setTimeout(()=>loadActivityJournal({silent:true}),320);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
@@ -9145,7 +9243,15 @@
           }
         });
 
-        loadPartnerMessage().then(message=>{currentMessage=message});
+        if(currentAppTab==='home'){
+          ensureHomeBootstrap().then(home=>{
+            if(Object.prototype.hasOwnProperty.call(home||{},'partnerMessage')){
+              partnerMessageBootstrapHandler(home.partnerMessage||null);
+            }else{
+              loadPartnerMessage().then(message=>partnerMessageBootstrapHandler(message));
+            }
+          }).catch(()=>loadPartnerMessage().then(message=>partnerMessageBootstrapHandler(message)));
+        }
       }
 
       let moodMessageTimer=0;
@@ -9388,7 +9494,11 @@
 
         bindMoodPickerControls();
 
-        refreshDailyMood();
+        if(currentAppTab==='home'){
+          ensureHomeBootstrap().then(home=>{
+            if(!home?.mood) refreshDailyMood();
+          }).catch(()=>refreshDailyMood());
+        }
       }
 
       if(document.readyState==='loading'){
@@ -10222,7 +10332,7 @@
         data.__clientProductsEpoch=clientEpoch;
         if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         if(operation!=='list'){
-          setTimeout(()=>refreshStateBackup(),250);
+          if(!data.backupToken) setTimeout(()=>refreshStateBackup(),250);
           setTimeout(()=>loadActivityJournal({silent:true}),320);
         }
         return data;
@@ -11292,8 +11402,6 @@
           }
         });
 
-        loadProducts();
-        scheduleProductsRefresh(15000);
       }
 
       let currentRecipeSet=[];
@@ -12102,7 +12210,6 @@
         setupThemeSetting();
         setupExtendedSettings();
         setupUndoSnackbar();
-        loadActivityJournal();
         setupVoiceAssistant();
         setupAppTabs();
         setupQuickAccess();
@@ -12113,7 +12220,6 @@
         setupProducts();
         setupFastingTracker();
         startFastingHomeTicker();
-        loadFastingOverview();
         setupRecipeGenerator();
         renderDailyCompliment(config,{force:true});
         setupReactions();
@@ -12121,7 +12227,6 @@
         renderNearest(config);
         renderAnniversary(config);
         setupDianaCycleActions();
-        loadDianaCycle();
         setupPersistentCollapsibles();
         setupPartnerMessage();
         setupDailyQuestion();
@@ -12131,12 +12236,8 @@
         setupWishlist();
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
-        loadTickTickNext();
-        loadWorkCalendar();
-        loadSharedAlbum();
-        loadFeed({silent:true});
         markDataSyncNow();
-        setTimeout(()=>{if(!stateBackupSyncFresh(30*60*1000)) refreshStateBackup()},2500);
+        setTimeout(()=>{if(!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},2500);
       }
 
       init().catch(error=>{
@@ -12145,18 +12246,16 @@
           denyApp('Не удалось открыть RUDI','Обнови страницу и попробуй снова.');
         }
       });
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadDianaCycle({silent:true})},30*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadTickTickNext()},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadSharedAlbum()},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadHomeBootstrap({force:true}).catch(()=>{})},30*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadTickTickNext()},5*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='photos') loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) refreshDailyMood()},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()) loadDailyQuestion({silent:true})},5*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadActivityJournal({silent:true})},10*60*1000);
       setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();syncLuluToiletStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
-      setInterval(()=>{if(currentActor&&appVisibleForRefresh()&&!stateBackupSyncFresh(60*60*1000)) refreshStateBackup()},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
+      setInterval(()=>{if(currentActor&&appVisibleForRefresh()&&!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},30*60*1000);
+      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
 
       function ensureAppSurface({restoreTab=false}={}){
         applyTheme();
@@ -12188,21 +12287,29 @@
           requestAnimationFrame(()=>requestAnimationFrame(resolve));
         }).then(async()=>{
           resetMoodForNewDay();
-          await Promise.allSettled([
-            refreshDailyMood(),
-            loadDailyQuestion({silent:true}),
-            loadDianaCycle({silent:true}),
-            loadTickTickNext(),
-            loadWorkCalendar(currentWorkCalendarView),
-            loadSharedAlbum(),
-            (currentAppTab==='products'?loadProducts({silent:true}):Promise.resolve()),
-            (currentAppTab==='feed'?loadFeed({silent:true}):Promise.resolve()),
-            loadActivityJournal({silent:true}),
-            loadSupplementIntakeOverview({silent:true}),
-            (marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()),
-            loadFastingOverview(),
-            syncUiPreferencesFromServer()
-          ]);
+          const tabTasks=[syncUiPreferencesFromServer()];
+          if(currentAppTab==='home'){
+            tabTasks.push(
+              loadHomeBootstrap({force:true}),
+              loadTickTickNext({force:true}),
+              loadSupplementIntakeOverview({silent:true}),
+              loadFastingOverview(),
+              marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()
+            );
+          }else if(currentAppTab==='schedule'){
+            tabTasks.push(loadWorkCalendar(currentWorkCalendarView,{force:true}));
+          }else if(currentAppTab==='photos'){
+            tabTasks.push(loadSharedAlbum());
+          }else if(currentAppTab==='feed'){
+            tabTasks.push(loadFeed({silent:true}));
+          }else if(currentAppTab==='products'){
+            tabTasks.push(loadProducts({silent:true}));
+          }else if(currentAppTab==='wishlist'){
+            tabTasks.push(wishlistRequest('list').then(renderWishlist));
+          }else if(currentAppTab==='fasting'){
+            tabTasks.push(loadFastingTracker({silent:true}));
+          }
+          await Promise.allSettled(tabTasks);
         }).then(()=>{
           markDataSyncNow();
         }).finally(()=>{
