@@ -261,7 +261,7 @@ function enhanceCards(){
   if(openActionName==='interactions')renderInteractionChoices();
   applyGrouping();
 }
-function renderInteractionChoices(){function renderInteractionChoices(){
+function renderInteractionChoices(){
   if(!interactionChoices)return;
   interactionChoices.replaceChildren();
   const all=getItems();
