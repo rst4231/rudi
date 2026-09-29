@@ -4190,6 +4190,14 @@
                 '<div class="home-settings-copy"><strong id="settingsSyncStatus">Синхронизация работает</strong><small id="settingsLastUpdated">Последнее обновление: —</small></div>'+
                 '<span id="settingsNetworkStatus" class="settings-status-pill">Онлайн</span>'+
               '</div>'+
+              '<div class="home-settings-row home-settings-backup-row">'+
+                '<div class="home-settings-copy"><strong>Резервная копия</strong><small id="settingsLastBackup">Последняя копия: —</small></div>'+
+                '<div class="settings-backup-actions">'+
+                  '<button id="settingsBackupNow" class="settings-backup-button" type="button">Создать</button>'+
+                  '<button id="settingsRestoreBackup" class="settings-backup-button is-secondary" type="button">Восстановить</button>'+
+                '</div>'+
+              '</div>'+
+              '<div id="settingsBackupStatus" class="settings-backup-status" aria-live="polite" hidden></div>'+
             '</section>'+
 
             '<section class="settings-group">'+
@@ -4710,13 +4718,90 @@
         return new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(parsed);
       }
 
+      function formatBackupSync(){
+        const parsed=new Date(stateBackupLastSyncAt());
+        if(Number.isNaN(parsed.getTime())) return 'ещё не создавалась';
+        return new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(parsed);
+      }
+
       function updateDataSettingsUi(){
         const status=document.getElementById('settingsSyncStatus');
         const updated=document.getElementById('settingsLastUpdated');
         const network=document.getElementById('settingsNetworkStatus');
+        const backup=document.getElementById('settingsLastBackup');
         if(status) status.textContent=navigator.onLine===false?'Офлайн':'Синхронизация работает';
         if(updated) updated.textContent='Последнее обновление: '+formatLastDataSync();
         if(network) network.textContent=navigator.onLine===false?'Нет сети':'Онлайн';
+        if(backup) backup.textContent='Последняя копия: '+formatBackupSync();
+      }
+
+      function setBackupSettingsStatus(text,error=false){
+        const node=document.getElementById('settingsBackupStatus');
+        if(!node)return;
+        node.textContent=String(text||'');
+        node.hidden=!text;
+        node.classList.toggle('is-error',Boolean(error));
+      }
+
+      async function createBackupNow(){
+        const button=document.getElementById('settingsBackupNow');
+        if(button){button.disabled=true;button.textContent='Создаю…'}
+        setBackupSettingsStatus('');
+        try{
+          await refreshStateBackup();
+          updateDataSettingsUi();
+          setBackupSettingsStatus('Резервная копия обновлена.');
+          if(button)button.textContent='Готово';
+        }catch(_){
+          setBackupSettingsStatus('Не удалось создать резервную копию.',true);
+          if(button)button.textContent='Создать';
+        }finally{
+          if(button){
+            button.disabled=false;
+            setTimeout(()=>{if(button.textContent==='Готово')button.textContent='Создать'},900);
+          }
+        }
+      }
+
+      function confirmBackupRestore(){
+        return new Promise(resolve=>{
+          try{
+            if(tg?.showConfirm){
+              tg.showConfirm('Восстановить данные из последней резервной копии?',value=>resolve(Boolean(value)));
+              return;
+            }
+          }catch(_){}
+          resolve(window.confirm('Восстановить данные из последней резервной копии?'));
+        });
+      }
+
+      async function restoreBackupNow(){
+        const button=document.getElementById('settingsRestoreBackup');
+        if(!await confirmBackupRestore())return;
+        if(button){button.disabled=true;button.textContent='Восстанавливаю…'}
+        setBackupSettingsStatus('');
+        try{
+          const token=String(currentStateBackupToken||await readStateBackupToken()||'').trim();
+          if(!token)throw new Error('backup-unavailable');
+          const response=await fetch('/api/partner-message?rudiAction=state-backup-recovery',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:telegramInitData(),operation:'restore-all',backupToken:token}),
+            cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||!payload.ok)throw new Error(payload.error||'backup-restore-failed');
+          const count=Array.isArray(payload.restored)?payload.restored.length:0;
+          setBackupSettingsStatus(count?'Данные восстановлены. Обновляю приложение…':'Резервная копия уже совпадает с текущими данными.');
+          if(count){
+            markDataSyncNow();
+            setTimeout(()=>window.location.reload(),350);
+          }
+        }catch(error){
+          setBackupSettingsStatus(String(error?.message||'')==='backup-unavailable'?'Резервная копия пока недоступна.':'Не удалось восстановить данные.',true);
+        }finally{
+          if(button){button.disabled=false;button.textContent='Восстановить'}
+        }
       }
 
       function updateAboutSettingsUi(){
@@ -4762,6 +4847,16 @@
         if(refresh&&refresh.dataset.bound!=='1'){
           refresh.dataset.bound='1';
           refresh.addEventListener('click',refreshAppDataNow);
+        }
+        const backup=document.getElementById('settingsBackupNow');
+        if(backup&&backup.dataset.bound!=='1'){
+          backup.dataset.bound='1';
+          backup.addEventListener('click',createBackupNow);
+        }
+        const restore=document.getElementById('settingsRestoreBackup');
+        if(restore&&restore.dataset.bound!=='1'){
+          restore.dataset.bound='1';
+          restore.addEventListener('click',restoreBackupNow);
         }
         updateAutoRefreshUi();
         applyInterfacePreferences();
