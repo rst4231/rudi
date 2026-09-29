@@ -173,6 +173,7 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-score-v1',
   'rudi-reactions-v1',
   'rudi-activity-journal-v1',
+  'rudi-smart-saves-v1',
   'rudi-partner-notifications-v1',
   'rudi-morning-summary-v1',
   'rudi-ui-preferences-v1',
