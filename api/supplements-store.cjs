@@ -16,6 +16,7 @@ function cleanDate(v){const s=cleanText(v,16);return /^\d{4}-\d{2}-\d{2}$/.test(
 function cleanTime(v){const s=cleanText(v,8);return /^([01]\d|2[0-3]):[0-5]\d$/.test(s)?s:''}
 function cleanStatus(v){const s=cleanText(v,16);return STATUSES.has(s)?s:'active'}
 function cleanFood(v){const s=cleanText(v,16);return FOODS.has(s)?s:'any'}
+function cleanTimesPerDay(v){const n=Math.round(Number(v)||1);return Math.max(1,Math.min(12,n))}
 function cleanEvidence(v){const s=cleanText(v,24);return EVIDENCE_LEVELS.has(s)?s:''}
 function cleanIngredients(v){
   const rows=Array.isArray(v)?v:String(v||'').split(/[,;\n]+/);
@@ -30,7 +31,7 @@ function isoOrEmpty(v){if(!v)return'';const d=new Date(v);return Number.isNaN(d.
 
 function normalizeSchedule(v){
   const s=v&&typeof v==='object'?v:{};
-  return{dosage:cleanText(s.dosage,80),time:cleanTime(s.time),food:cleanFood(s.food)};
+  return{dosage:cleanText(s.dosage,80),time:cleanTime(s.time),food:cleanFood(s.food),timesPerDay:cleanTimesPerDay(s.timesPerDay)};
 }
 function normalizeCourse(v){
   const s=v&&typeof v==='object'?v:{};
@@ -143,9 +144,8 @@ async function updateSupplement(actor,id,patch,o={}){
 async function markSupplementTaken(actor,id,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96);if(!safeId)throw new Error('supplement-id-required');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
-    if(current.intakes.some(row=>row.date===date))return{state,item:current,duplicate:true,date};
     const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];items[index]=normalizeItem({...current,intakes:[...current.intakes,{date,at:now}],skips:(current.skips||[]).filter(row=>row.date!==date),updatedAt:now});
-    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date};
+    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date,count:saved.items[index].intakes.filter(row=>row.date===date).length};
   });
 }
 async function markSupplementSkipped(actor,id,o={}){
