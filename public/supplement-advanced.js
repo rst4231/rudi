@@ -31,12 +31,12 @@ function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow
 function dateMs(key){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(key||'')))return null;const [y,m,d]=key.split('-').map(Number);return Date.UTC(y,m-1,d,12)}
 function addDays(key,days){const value=dateMs(key);return value===null?'':new Date(value+Number(days||0)*86400000).toISOString().slice(0,10)}
 function daysBetween(left,right){const a=dateMs(left),b=dateMs(right);return a===null||b===null?null:Math.round((a-b)/86400000)}
-function statusLabel(value){return value==='paused'?'На паузе':value==='finished'?(isDiana()?'Закончила':'Закончил'):'Принимаю'}
+function statusLabel(value){return value==='paused'?'На паузе':value==='finished'?(isDiana()?'Закончила':'Закончил'):''}
 function evidenceLabel(value){return value==='strong'?'🟢 Высокая':value==='moderate'?'🟢 Умеренная':value==='limited'?'🟡 Ограниченная':value==='insufficient'?'⚪ Данных мало':''}
 function foodLabel(value){return value==='before'?'до еды':value==='with'?'во время еды':value==='after'?'после еды':''}
 function takenToday(item){return(item.intakes||[]).some(row=>row.date===today())}
-function takeIdleLabel(){return isDiana()?'✓ Приняла':'✓ Принял'}
-function takeDoneLabel(){return isDiana()?'✓ Приняла сегодня':'✓ Принял сегодня'}
+function takeIdleLabel(){return '✓ Принято'}
+function takeDoneLabel(){return '✓ Принято'}
 
 function streak(item){
   const dates=[...new Set((item.intakes||[]).map(row=>row.date).filter(Boolean))].sort();
@@ -183,8 +183,9 @@ function enhanceCards(){
   for(const item of getItems()){
     const card=document.querySelector('.supplement-card[data-id="'+CSS.escape(item.id)+'"]');if(!card||card.dataset.advanced==='1')continue;
     card.dataset.advanced='1';card.tabIndex=-1;card.removeAttribute('role');
-    const top=card.querySelector('.supplement-card-top'),del=card.querySelector('.supplement-delete'),hint=card.querySelector('.supplement-card-hint');
-    const badge=document.createElement('span');badge.className='supplement-status is-'+item.status;badge.textContent=statusLabel(item.status);top.insertBefore(badge,del);
+    const top=card.querySelector('.supplement-card-top'),del=card.querySelector('.supplement-delete'),topActions=card.querySelector('.supplement-card-top-actions')||top;
+    const statusText=statusLabel(item.status);let badge=null;
+    if(statusText){badge=document.createElement('span');badge.className='supplement-status is-'+item.status;badge.textContent=statusText;topActions.insertBefore(badge,del)}
     const meta=document.createElement('div');meta.className='supplement-card-meta';
     if(item.goal)meta.appendChild(chip('🎯 '+item.goal));
     const schedule=[item.schedule?.dosage,item.schedule?.time,foodLabel(item.schedule?.food)].filter(Boolean).join(' · ');if(schedule)meta.appendChild(chip('⏰ '+schedule));
@@ -192,7 +193,7 @@ function enhanceCards(){
     if(item.expirationDate)meta.appendChild(chip('📦 до '+item.expirationDate));
     const run=streak(item);if(run)meta.appendChild(chip('🔥 '+run+' дн.'));
     if(meta.childNodes.length)top.insertAdjacentElement('afterend',meta);
-    if(item.evidenceLevel){const ev=document.createElement('div');ev.className='supplement-evidence';ev.textContent='Доказательность: '+evidenceLabel(item.evidenceLevel);hint.insertAdjacentElement('beforebegin',ev)}
+    if(item.evidenceLevel){const ev=document.createElement('div');ev.className='supplement-evidence';ev.textContent='Доказательность: '+evidenceLabel(item.evidenceLevel);const anchor=meta.childNodes.length?meta:top;anchor.insertAdjacentElement('afterend',ev)}
     const actions=document.createElement('div');actions.className='supplement-card-actions';
     const take=document.createElement('button');take.type='button';take.className='supplement-take';take.textContent=takenToday(item)?takeDoneLabel():takeIdleLabel();take.disabled=takenToday(item)||item.status!=='active';
     const edit=document.createElement('button');edit.type='button';edit.className='supplement-edit';edit.textContent='Настроить';actions.append(take,edit);card.appendChild(actions);
@@ -202,7 +203,7 @@ function enhanceCards(){
       catch(error){take.disabled=false;take.textContent=takeIdleLabel();setStatus('Не удалось отметить приём.',true)}
     });
     edit.addEventListener('click',event=>{event.stopPropagation();window.RudiSupplementEditor?.open(item.id)});
-    badge.addEventListener('click',event=>event.stopPropagation());
+    badge?.addEventListener('click',event=>event.stopPropagation());
   }
   if(openActionName==='interactions')renderInteractionChoices();
   applyGrouping();
