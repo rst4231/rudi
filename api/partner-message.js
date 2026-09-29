@@ -2502,13 +2502,11 @@ async function handleRudiAction(req, res, action, options = {}) {
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor),selected=moodHistoryForWindow(history,date,windowDays),minAnalysisDays=moodAnalysisMinimumDays(windowDays);
         if(selected.length<minAnalysisDays) throw new Error('mood-analysis-insufficient-data');
         const level=moodAnalysisLevel(selected.length);
-        let analysis=await externalMoodAnalysis(actor,date,windowDays,options),cycle=analysis?.cycle||null,reused=analysisWithinCooldown(analysis,options.now||Date.now());
-        if(!reused){
-          if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
-          const enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options),contextSummary=moodContextSummary(enriched);
-          const generated=await generateMoodAnalysis({actor,history:enriched,cycle,windowDays,level,contextSummary},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
-          analysis=await writeMoodAnalysisCache(actor,date,windowDays,{...generated,windowDays,level,historyCount:selected.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
-        }
+        let analysis=null,cycle=null,reused=false;
+        if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
+        const enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options),contextSummary=moodContextSummary(enriched);
+        const generated=await generateMoodAnalysis({actor,history:enriched,cycle,windowDays,level,contextSummary},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
+        analysis=await writeMoodAnalysisCache(actor,date,windowDays,{...generated,windowDays,level,historyCount:selected.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
         const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
         return res.status(200).json({ok:true,actor,date,history,analysis,feedback,cycle:analysis?.cycle||cycle,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:true,reused,retentionDays:180,analysisCacheHours:24});
       } else if (operation === 'feedback') {
