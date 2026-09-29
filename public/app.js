@@ -10,6 +10,43 @@
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       const media = window.matchMedia('(prefers-color-scheme: dark)');
       const tg = window.Telegram?.WebApp;
+      // RUDI interaction protection v2.124
+      const RUDI_USER_SELECTABLE_SELECTOR=[
+        'input','textarea','[contenteditable="true"]','[data-user-content="true"]','.rudi-user-content',
+        '#partnerMessageText:not(.partner-empty)','#dailyQuestionRustamAnswer','#dailyQuestionDianaAnswer',
+        '.wish-text','.ticktick-today-title','.ticktick-description','.ticktick-checklist',
+        '.voice-assistant-message.is-user .voice-assistant-message-text','#photoViewerCaption',
+        '.car-error-title','.car-error-comment','.product-text','.holiday-partner-note'
+      ].join(',');
+      function rudiElementFromTarget(target){
+        if(!target) return null;
+        if(target.nodeType===1) return target;
+        return target.parentElement||null;
+      }
+      function rudiUserSelectableTarget(target){
+        const el=rudiElementFromTarget(target);
+        return Boolean(el?.closest?.(RUDI_USER_SELECTABLE_SELECTOR));
+      }
+      function rudiProtectedMediaTarget(target){
+        const el=rudiElementFromTarget(target);
+        return Boolean(el?.closest?.('img,picture'));
+      }
+      document.addEventListener('selectstart',event=>{
+        if(!rudiUserSelectableTarget(event.target)) event.preventDefault();
+      },true);
+      document.addEventListener('contextmenu',event=>{
+        if(rudiProtectedMediaTarget(event.target)||!rudiUserSelectableTarget(event.target)) event.preventDefault();
+      },true);
+      document.addEventListener('dragstart',event=>{
+        if(rudiProtectedMediaTarget(event.target)) event.preventDefault();
+      },true);
+      document.addEventListener('copy',event=>{
+        if(rudiUserSelectableTarget(event.target)) return;
+        const selection=window.getSelection?.();
+        const anchor=selection?.anchorNode;
+        if(!rudiUserSelectableTarget(anchor)) event.preventDefault();
+      },true);
+
       if(!tg?.initData&&/iphone|ipad|ipod/i.test(navigator.userAgent||'')) document.body.dataset.iosBrowser='1';
       const DAY = 86400000;
       let currentActor = '';
