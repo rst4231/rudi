@@ -3,7 +3,7 @@ const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null;
-let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
+let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -181,14 +181,20 @@ function renderHabits(){
   }
   const archived=Array.isArray(habitState.archivedHabits)?habitState.archivedHabits:[];
   if(archived.length){
-    const section=document.createElement('div');section.className='personal-habits-archive';
-    const title=document.createElement('div');title.className='personal-habits-archive-title';title.textContent='Архив · '+archived.length;
+    const section=document.createElement('div');section.className='personal-habits-archive';section.classList.toggle('is-expanded',habitArchiveExpanded);
+    const title=document.createElement('button');title.type='button';title.className='personal-habits-archive-title';title.setAttribute('aria-expanded',String(habitArchiveExpanded));
+    const titleText=document.createElement('span');titleText.textContent='Архив · '+archived.length;
+    const arrow=document.createElement('span');arrow.className='personal-habits-archive-arrow';arrow.textContent='⌄';
+    title.append(titleText,arrow);
+    title.addEventListener('click',()=>{habitArchiveExpanded=!habitArchiveExpanded;renderHabits()});
     section.appendChild(title);
-    for(const habit of archived){
-      const row=document.createElement('div');row.className='personal-habit-archive-row';
-      const emoji=document.createElement('span');emoji.textContent=habit.emoji||habitEmoji(habit.name);
-      const name=document.createElement('span');name.textContent=habit.name;
-      row.append(emoji,name);section.appendChild(row);
+    if(habitArchiveExpanded){
+      for(const habit of archived){
+        const row=document.createElement('div');row.className='personal-habit-archive-row';
+        const emoji=document.createElement('span');emoji.textContent=habit.emoji||habitEmoji(habit.name);
+        const name=document.createElement('span');name.textContent=habit.name;
+        row.append(emoji,name);section.appendChild(row);
+      }
     }
     habitList.appendChild(section);
   }
@@ -290,20 +296,28 @@ function render(){
   }
   document.dispatchEvent(new CustomEvent('rudi:supplements-render'));
 }
-function showUndo(removed){
-  if(!removed)return;
+function showActionUndo(message,undo){
+  if(typeof undo!=='function')return;
   let bar=document.getElementById('personalSupplementsUndo');
   if(!bar){bar=document.createElement('div');bar.id='personalSupplementsUndo';bar.className='personal-supplements-undo';document.body.appendChild(bar)}
   clearTimeout(undoTimer);bar.replaceChildren();
-  const text=document.createElement('span');text.textContent='БАД удалён';
+  const text=document.createElement('span');text.textContent=String(message||'Изменение сохранено');
   const button=document.createElement('button');button.type='button';button.textContent='Отменить';
   button.addEventListener('click',async()=>{
     button.disabled=true;
-    try{const data=await request('restore',{item:removed});items=data.items||[];render();bar.classList.remove('is-visible')}
+    try{await undo();bar.classList.remove('is-visible')}
     catch(error){button.disabled=false;setStatus(errorText(error),true)}
   });
   bar.append(text,button);bar.classList.add('is-visible');
   undoTimer=setTimeout(()=>bar.classList.remove('is-visible'),6000);
+}
+function showUndo(removed){
+  if(!removed)return;
+  showActionUndo('БАД удалён',async()=>{
+    const data=await request('restore',{item:removed});
+    items=data.items||[];
+    render();
+  });
 }
 function setupDrag(handle){
   let dragging=false,startY=0;
@@ -511,7 +525,7 @@ async function loadHomeTools({force=false}={}){
   if(!force&&homeToolsLoadedActor===nextActor)return;
   if(homeToolsLoadPromise)return homeToolsLoadPromise;
   actor=nextActor;build();
-  if(homeToolsLoadedActor!==actor)applyCollapse(true);
+  if(homeToolsLoadedActor!==actor){applyCollapse(true);habitArchiveExpanded=false;}
   setStatus('Загружаю…');setHabitStatus('');
   homeToolsLoadPromise=(async()=>{
     const [supplementsResult,habitsResult]=await Promise.allSettled([request('list'),habitRequest('list')]);
@@ -548,6 +562,7 @@ window.RudiSupplementApp={
   close,
   emojiForSupplement,
   showUndo,
+  showActionUndo,
   loadHomeTools,
 };
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindName,{once:true});else bindName();

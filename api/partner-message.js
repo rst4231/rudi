@@ -2211,6 +2211,11 @@ async function handleRudiAction(req, res, action, options = {}) {
         });
       }
 
+      if (operation === 'restore-all') {
+        const result = await restoreStateBackup(body.backupToken, options);
+        return res.status(200).json({ ok: true, restored: Array.isArray(result?.restored) ? result.restored : [] });
+      }
+
       if (operation === 'restore-products') {
         if (!saved?.initialized || !savedItems.length) {
           return res.status(400).json({ ok: false, error: 'backup-products-empty' });
