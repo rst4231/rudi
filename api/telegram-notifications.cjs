@@ -1,7 +1,7 @@
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readRecipients } = require('./partner-notification-store.cjs');
 
-const DEFAULT_APP_URL = 'https://rudi-proxy.onrender.com';
+const DEFAULT_APP_URL = 'https://spb-daily-guide-bot.vercel.app/';
 
 function escapeTelegramHtml(value) {
   return String(value ?? '')
@@ -10,9 +10,21 @@ function escapeTelegramHtml(value) {
     .replace(/>/g, '&gt;');
 }
 
+function normalizeAppBase(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return DEFAULT_APP_URL;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.hostname.toLowerCase().endsWith('.onrender.com')) return DEFAULT_APP_URL;
+    return parsed.toString();
+  } catch {
+    return DEFAULT_APP_URL;
+  }
+}
+
 function appUrlForTab(tab, options = {}) {
-  const base = String(options.appUrl || options.env?.RUDI_APP_URL || process.env.RUDI_APP_URL || DEFAULT_APP_URL).trim();
-  const url = new URL(base);
+  const configured = options.appUrl || options.env?.RUDI_APP_URL || process.env.RUDI_APP_URL || DEFAULT_APP_URL;
+  const url = new URL(normalizeAppBase(configured));
   if (tab) url.searchParams.set('tab', String(tab));
   if (options.item && (String(tab) === 'wishlist' || String(tab) === 'products')) {
     url.searchParams.set('item', String(options.item));
@@ -94,6 +106,7 @@ async function sendToAllRecipients(text, options = {}) {
 module.exports = {
   DEFAULT_APP_URL,
   escapeTelegramHtml,
+  normalizeAppBase,
   appUrlForTab,
   telegramSendMessage,
   telegramDeleteMessage,
