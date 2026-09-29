@@ -9309,6 +9309,7 @@
         ['relationship','❤️','Отношения'],
         ['money','💰','Деньги'],
         ['health','🫶','Самочувствие'],
+        ['sport','🏃','Спорт'],
         ['sleep','😴','Сон / усталость']
       ];
       function ensureMoodReasonPrompt(){
