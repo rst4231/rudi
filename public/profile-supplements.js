@@ -3,7 +3,7 @@ const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null;
-let habitState={habits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
+let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -67,6 +67,7 @@ function habitEmoji(name){const value=String(name||'').toLowerCase().replace(/ё
 function applyHabitView(data){
   habitState={
     habits:Array.isArray(data?.habits)?data.habits:[],
+    archivedHabits:Array.isArray(data?.archivedHabits)?data.archivedHabits:[],
     completedIds:Array.isArray(data?.completedIds)?data.completedIds:[],
     notDoneIds:Array.isArray(data?.notDoneIds)?data.notDoneIds:[],
     statuses:data?.statuses&&typeof data.statuses==='object'?data.statuses:{},
@@ -141,7 +142,7 @@ function renderHabits(){
   const habits=Array.isArray(habitState.habits)?habitState.habits:[],statuses=habitState.statuses||{},done=habits.filter(h=>statuses[h.id]==='done').length,total=habits.length,percent=total?Math.round(done/total*100):0;
   habitProgressText.textContent=total?done+' из '+total+' выполнено'+(habitSelectedDate&&habitSelectedDate!==habitState.today?' · '+habitDateLabel(habitSelectedDate):''):'Добавь первую привычку';
   habitProgressFill.style.width=percent+'%';if(habitPercentNode)habitPercentNode.textContent=percent+'%';habitList.replaceChildren();
-  if(!habits.length){const empty=document.createElement('div');empty.className='personal-habits-empty';empty.textContent='Например: пить воду, читать 20 минут или ложиться спать до 23:00.';habitList.appendChild(empty);return}
+  if(!habits.length){const empty=document.createElement('div');empty.className='personal-habits-empty';empty.textContent='Например: пить воду, читать 20 минут или ложиться спать до 23:00.';habitList.appendChild(empty)}
   for(const habit of habits){
     const id=String(habit.id||''),status=String(statuses[id]||'pending'),isDone=status==='done',isNotDone=status==='notdone';
     const row=document.createElement('div');row.className='personal-habit-row';row.classList.toggle('is-done',isDone);row.classList.toggle('is-notdone',isNotDone);
@@ -152,7 +153,7 @@ function renderHabits(){
     const purpose=document.createElement('div');purpose.className='personal-habit-purpose';purpose.textContent=String(habit.purpose||'').trim();purpose.hidden=!purpose.textContent;
     const streak=document.createElement('div');streak.className='personal-habit-streak';streak.textContent=habitStreakText(habitState.streaks?.[id]);
     const meta=document.createElement('div');meta.className='personal-habit-score-meta';meta.textContent=habitScoreMeta(id);copy.append(name,purpose,streak,meta);
-    const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Удалить привычку '+habit.name);main.append(emoji,copy,remove);
+    const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Переместить привычку в архив: '+habit.name);main.append(emoji,copy,remove);
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
     const doneLocked=isNotDone||(habitSelectedDate===habitState.today&&!habitState.canCompleteToday&&!isDone);
@@ -175,8 +176,21 @@ function renderHabits(){
       catch(error){console.error('RUDI_HABIT_STATUS_UI_ERROR',error);setHabitStatus(String(error?.message||'')==='habit-done-too-early'?'«Выполнено» можно отметить только после 20:00 МСК.':'Не удалось сохранить статус.',true);yes.disabled=doneLocked;no.disabled=false;remove.disabled=false}
     };
     yes.addEventListener('click',()=>save('done'));no.addEventListener('click',()=>save('notdone'));
-    remove.addEventListener('click',async()=>{if(remove.disabled||!window.confirm('Удалить привычку «'+String(habit.name||'')+'»?'))return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('remove',{id,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus('Привычка удалена. Она больше не участвует в бонусах и штрафах.')}catch(error){console.error('RUDI_HABIT_REMOVE_UI_ERROR',error);setHabitStatus('Не удалось удалить привычку.',true);yes.disabled=no.disabled=remove.disabled=false}});
+    remove.addEventListener('click',async()=>{if(remove.disabled)return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('archive',{id,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus('Привычка перемещена в архив. Восстановить её нельзя.')}catch(error){console.error('RUDI_HABIT_ARCHIVE_UI_ERROR',error);setHabitStatus('Не удалось переместить привычку в архив.',true);yes.disabled=no.disabled=remove.disabled=false}});
     row.append(main,actions);habitList.appendChild(row);
+  }
+  const archived=Array.isArray(habitState.archivedHabits)?habitState.archivedHabits:[];
+  if(archived.length){
+    const section=document.createElement('div');section.className='personal-habits-archive';
+    const title=document.createElement('div');title.className='personal-habits-archive-title';title.textContent='Архив · '+archived.length;
+    section.appendChild(title);
+    for(const habit of archived){
+      const row=document.createElement('div');row.className='personal-habit-archive-row';
+      const emoji=document.createElement('span');emoji.textContent=habit.emoji||habitEmoji(habit.name);
+      const name=document.createElement('span');name.textContent=habit.name;
+      row.append(emoji,name);section.appendChild(row);
+    }
+    habitList.appendChild(section);
   }
 }
 function prefs(){return readPrefs()}
@@ -269,16 +283,9 @@ function render(){
     const top=document.createElement('div');top.className='supplement-card-top';
     const name=document.createElement('div');name.className='supplement-card-name';const emoji=document.createElement('span');emoji.className='supplement-card-emoji';emoji.textContent=emojiForSupplement(item.name);const label=document.createElement('span');label.textContent=item.name;name.append(emoji,label);
     const info=document.createElement('button');info.type='button';info.className='supplement-info-button';info.setAttribute('aria-label','Информация о '+item.name);info.title='Описание';info.textContent='ⓘ';
-    const del=document.createElement('button');del.type='button';del.className='supplement-delete';del.setAttribute('aria-label','Удалить '+item.name);del.textContent='×';
-    const topActions=document.createElement('div');topActions.className='supplement-card-top-actions';topActions.append(info,del);top.append(name,topActions);
+    const topActions=document.createElement('div');topActions.className='supplement-card-top-actions';topActions.append(info);top.append(name,topActions);
     card.append(top);
     info.addEventListener('click',event=>{event.stopPropagation();openSupplementInfo(item)});
-    del.addEventListener('click',async(event)=>{
-      event.stopPropagation();del.disabled=true;setStatus('');
-      try{
-        const data=await request('remove',{id:item.id});items=data.items||[];render();showUndo(data.removed);
-      }catch(error){del.disabled=false;setStatus(errorText(error),true)}
-    });
     list.appendChild(card);
   }
   document.dispatchEvent(new CustomEvent('rudi:supplements-render'));
@@ -540,6 +547,7 @@ window.RudiSupplementApp={
   open,
   close,
   emojiForSupplement,
+  showUndo,
   loadHomeTools,
 };
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindName,{once:true});else bindName();
