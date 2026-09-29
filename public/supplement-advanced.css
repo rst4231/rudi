@@ -94,3 +94,18 @@ html[data-theme="dark"] .supplement-group-title.is-active{background:linear-grad
 html[data-theme="dark"] .supplement-group-title.is-paused{background:linear-gradient(145deg,rgba(154,105,28,.24),rgba(70,50,20,.34));border-color:rgba(240,184,75,.15)}
 html[data-theme="dark"] .supplement-group-title.is-finished{background:linear-gradient(145deg,rgba(112,113,118,.13),rgba(52,53,58,.24));border-color:rgba(190,192,198,.08);color:#9b9da3}
 .supplement-group-empty{padding:11px 4px;text-align:center;font-size:12px;opacity:.56}
+
+
+/* RUDI v2.116 — supplement card actions */
+.supplement-settings-icon{flex:0 0 auto;width:30px;height:30px;border:0;border-radius:10px;background:color-mix(in srgb,currentColor 8%,transparent);color:inherit;display:grid;place-items:center;font:inherit;font-size:16px;font-weight:800}
+.supplement-card-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+.supplement-card-actions button{transition:transform .14s ease,opacity .18s ease,box-shadow .18s ease}
+.supplement-card-actions button:active:not(:disabled){transform:scale(.97)}
+.supplement-take:not(:disabled){background:#35bf70!important;color:#fff!important;box-shadow:0 8px 20px rgba(53,191,112,.28)!important;opacity:1!important}
+.supplement-take.is-complete,.supplement-take:disabled{background:color-mix(in srgb,#42b883 11%,var(--surface,#20242f))!important;color:inherit!important;box-shadow:none!important;opacity:.48!important}
+.supplement-skip{background:color-mix(in srgb,#778197 16%,var(--surface,#20242f));color:inherit}
+.supplement-skip.is-complete,.supplement-skip:disabled{opacity:.46;box-shadow:none}
+.supplement-pause{background:color-mix(in srgb,#e5a441 18%,var(--surface,#20242f));color:inherit}
+.supplement-finish{background:color-mix(in srgb,#d76464 16%,var(--surface,#20242f));color:inherit}
+.supplement-resume{background:color-mix(in srgb,#4f7cff 16%,var(--surface,#20242f));color:inherit}
+.supplement-card{touch-action:pan-y}
