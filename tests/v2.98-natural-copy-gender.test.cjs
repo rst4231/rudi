@@ -56,7 +56,10 @@ test('v2.98 removes stale formal and machine-like UI copy',()=>{
   assert.doesNotMatch(app,/Попробуйте ещё раз|Введите ровно 6 цифр|Потяните для обновления|Отпустите для обновления|Регламентный рубеж достигнут|Температура пограничная/);
   assert.doesNotMatch(extras,/Ищет по всей базе RUDI|Введите ещё один символ/);
   assert.doesNotMatch(profile,/AI создал краткое описание|Groq проверяет/);
-  assert.doesNotMatch(supplements,/Дубли состава|Принято сегодня|Groq проверяет/);
+  assert.doesNotMatch(supplements,/Дубли состава|Groq проверяет|:'Принимаю'/);
+  assert.match(profile,/supplement-info-button/);
+  assert.match(profile,/Доказательность: '\+evidence/);
+  assert.doesNotMatch(profile,/Нажми, чтобы открыть описание/);
   assert.doesNotMatch(index,/Оставьте здесь|Напишите что-нибудь тёплое|Напишите сообщение|placeholder="Напишите RUDI/);
   assert.doesNotMatch(car,/Регламентный рубеж достигнут|Температура пограничная|Скорее нет · влажная неделя/);
   assert.match(mood,/настроение по дням/);
