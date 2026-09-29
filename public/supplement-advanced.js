@@ -138,7 +138,7 @@ function renderAutomaticDuplicates(active){
 function supplementTimeKey(item){return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(item?.schedule?.time||''))?String(item.schedule.time):'99:99'}
 function groupTitle(status){
   if(status==='paused')return'На паузе';
-  if(status==='finished')return isDiana()?'Закончила':'Закончил';
+  if(status==='finished')return'Архив';
   return'Принимаю';
 }
 function applyGrouping(){
@@ -179,10 +179,19 @@ function applyGrouping(){
   }
 }
 
-async function updateCardStatus(item,status,message){
+async function updateCardStatus(item,status,message,undoText){
+  const previousStatus=String(item?.status||'active');
   const data=await req('update',{id:item.id,patch:{status}});
   setItems(data.items||getItems());setStatus(message||'Статус обновлён.');
   document.dispatchEvent(new CustomEvent('rudi:supplements-settings-updated'));
+  if(previousStatus!==status){
+    app().showActionUndo?.(undoText||message||'Статус обновлён',async()=>{
+      const restored=await req('update',{id:item.id,patch:{status:previousStatus}});
+      setItems(restored.items||getItems());
+      setStatus('Изменение отменено.');
+      document.dispatchEvent(new CustomEvent('rudi:supplements-settings-updated'));
+    });
+  }
 }
 function setupFinishedSwipe(card,item){
   if(item.status!=='finished'||card.dataset.finishSwipe==='1')return;
@@ -207,7 +216,7 @@ function setupFinishedSwipe(card,item){
       card.style.transition='transform .16s ease';card.style.transform='translateX(-110%)';
       try{
         const data=await req('remove',{id:item.id});
-        setItems(data.items||getItems());app().showUndo?.(data.removed);setStatus('БАД удалён из раздела «Закончил».');
+        setItems(data.items||getItems());app().showUndo?.(data.removed);setStatus('БАД удалён из архива.');
       }catch(error){card.style.transform='';setStatus('Не удалось удалить БАД.',true)}
       return;
     }
@@ -226,17 +235,15 @@ function enhanceCards(){
     settings.addEventListener('click',event=>{event.stopPropagation();window.RudiSupplementEditor?.open(item.id)});
     if(item.status==='active'){
       const pauseIcon=document.createElement('button');pauseIcon.type='button';pauseIcon.className='supplement-status-icon is-pause';pauseIcon.setAttribute('aria-label','Поставить на паузу '+item.name);pauseIcon.title='Пауза';pauseIcon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="5.5" width="3.5" height="13" rx="1.75"/><rect x="13.5" y="5.5" width="3.5" height="13" rx="1.75"/></svg>';
-      const finishIcon=document.createElement('button');finishIcon.type='button';finishIcon.className='supplement-status-icon is-finish';finishIcon.setAttribute('aria-label','Переместить в «'+(isDiana()?'Закончила':'Закончил')+'»: '+item.name);finishIcon.title=isDiana()?'Закончила':'Закончил';finishIcon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>';
+      const finishIcon=document.createElement('button');finishIcon.type='button';finishIcon.className='supplement-status-icon is-finish';finishIcon.setAttribute('aria-label','Переместить в архив: '+item.name);finishIcon.title='В архив';finishIcon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>';
       topActions.append(pauseIcon,finishIcon);
-      pauseIcon.addEventListener('click',event=>{event.stopPropagation();pauseIcon.disabled=true;updateCardStatus(item,'paused','БАД перенесён в «На паузе».').catch(()=>{pauseIcon.disabled=false;setStatus('Не удалось поставить на паузу.',true)})});
-      finishIcon.addEventListener('click',event=>{event.stopPropagation();finishIcon.disabled=true;updateCardStatus(item,'finished','БАД перенесён в «'+(isDiana()?'Закончила':'Закончил')+'».').catch(()=>{finishIcon.disabled=false;setStatus('Не удалось завершить курс.',true)})});
+      pauseIcon.addEventListener('click',event=>{event.stopPropagation();pauseIcon.disabled=true;updateCardStatus(item,'paused','БАД перенесён в «На паузе».','Перемещено в «На паузе»').catch(()=>{pauseIcon.disabled=false;setStatus('Не удалось поставить на паузу.',true)})});
+      finishIcon.addEventListener('click',event=>{event.stopPropagation();finishIcon.disabled=true;updateCardStatus(item,'finished','БАД перенесён в архив.','Перемещено в архив').catch(()=>{finishIcon.disabled=false;setStatus('Не удалось переместить в архив.',true)})});
     }else if(item.status==='paused'){
-      const finishIcon=document.createElement('button');finishIcon.type='button';finishIcon.className='supplement-status-icon is-finish';finishIcon.setAttribute('aria-label','Переместить в «'+(isDiana()?'Закончила':'Закончил')+'»: '+item.name);finishIcon.title=isDiana()?'Закончила':'Закончил';finishIcon.textContent='×';
+      const finishIcon=document.createElement('button');finishIcon.type='button';finishIcon.className='supplement-status-icon is-finish';finishIcon.setAttribute('aria-label','Переместить в архив: '+item.name);finishIcon.title='В архив';finishIcon.textContent='×';
       topActions.appendChild(finishIcon);
-      finishIcon.addEventListener('click',event=>{event.stopPropagation();finishIcon.disabled=true;updateCardStatus(item,'finished','Курс завершён.').catch(()=>{finishIcon.disabled=false;setStatus('Не удалось завершить курс.',true)})});
+      finishIcon.addEventListener('click',event=>{event.stopPropagation();finishIcon.disabled=true;updateCardStatus(item,'finished','БАД перенесён в архив.','Перемещено в архив').catch(()=>{finishIcon.disabled=false;setStatus('Не удалось переместить в архив.',true)})});
     }
-    const statusText=statusLabel(item.status);let badge=null;
-    if(statusText){badge=document.createElement('span');badge.className='supplement-status is-'+item.status;badge.textContent=statusText;topActions.prepend(badge)}
     const meta=document.createElement('div');meta.className='supplement-card-meta';
     if(item.goal)meta.appendChild(chip('🎯 '+item.goal));
     const schedule=[item.schedule?.dosage,item.schedule?.time,foodLabel(item.schedule?.food)].filter(Boolean).join(' · ');if(schedule)meta.appendChild(chip('⏰ '+schedule));
@@ -253,10 +260,10 @@ function enhanceCards(){
       skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
     }else{
       const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.classList.add('is-single');actions.append(resume);
-      resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
+      resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».','БАД возобновлён').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
       if(item.status==='finished')setupFinishedSwipe(card,item);
     }
-    card.appendChild(actions);badge?.addEventListener('click',event=>event.stopPropagation());
+    card.appendChild(actions);
   }
   if(openActionName==='interactions')renderInteractionChoices();
   applyGrouping();
