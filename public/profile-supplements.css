@@ -451,3 +451,30 @@ html[data-theme="dark"] .personal-supplements-progress{
 /* RUDI v2.89 — habit purpose */
 .personal-habit-purpose{margin-top:3px;font-size:12px;line-height:1.35;opacity:.72;overflow-wrap:anywhere}
 .personal-habit-row.is-done .personal-habit-purpose{opacity:.52}
+
+
+/* RUDI v2.114 — supplement card density, INFO modal and safe undo */
+.personal-supplements-size{width:38px;height:38px;border:0;border-radius:12px;background:var(--surface,#20242f);color:inherit;display:grid;place-items:center;font:inherit;font-size:19px;font-weight:800}
+.personal-supplements-size[aria-pressed="true"]{background:color-mix(in srgb,var(--accent,#4f7cff) 14%,var(--surface,#20242f))}
+.supplement-card-top-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.supplement-info-button{flex:0 0 auto;width:30px;height:30px;border:0;border-radius:10px;background:color-mix(in srgb,currentColor 8%,transparent);color:inherit;display:grid;place-items:center;font:inherit;font-size:17px;font-weight:800}
+.personal-supplements-tile.is-compact-cards .personal-supplements-list{gap:7px}
+.personal-supplements-tile.is-compact-cards .supplement-card{padding:10px 11px;border-radius:14px}
+.personal-supplements-tile.is-compact-cards .supplement-card-name{font-size:14px;gap:6px}
+.personal-supplements-tile.is-compact-cards .supplement-card-emoji{font-size:16px}
+.personal-supplements-tile.is-compact-cards .supplement-card-meta{margin-top:6px;gap:4px}
+.personal-supplements-tile.is-compact-cards .supplement-chip{min-height:22px;padding:3px 7px;font-size:9.8px}
+.personal-supplements-tile.is-compact-cards .supplement-card-actions{margin-top:8px;gap:6px}
+.personal-supplements-tile.is-compact-cards .supplement-card-actions button{min-height:34px}
+.supplement-info-modal[hidden]{display:none!important}
+.supplement-info-modal{position:fixed;inset:0;z-index:5600;display:grid;place-items:center;padding:18px;box-sizing:border-box}
+.supplement-info-modal-backdrop{position:absolute;inset:0;width:100%;height:100%;border:0;background:rgba(6,8,12,.58);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.supplement-info-modal-dialog{position:relative;z-index:1;width:min(100%,520px);max-height:min(78dvh,680px);overflow:auto;padding:20px 18px 18px;border-radius:22px;background:var(--card,#151820);color:var(--text,#f5f7fb);border:1px solid color-mix(in srgb,currentColor 11%,transparent);box-shadow:0 26px 70px rgba(0,0,0,.34);-webkit-overflow-scrolling:touch}
+.supplement-info-modal-close{position:absolute;right:10px;top:10px;width:34px;height:34px;border:0;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,currentColor 8%,transparent);color:inherit;font:inherit;font-size:24px;line-height:1}
+.supplement-info-modal-title{display:block;padding-right:42px;font-size:18px;line-height:1.25}
+.supplement-info-modal-copy{padding:12px 0 0;white-space:pre-line;font-size:13.5px;line-height:1.55;opacity:.9}
+body.supplement-info-modal-open{overflow:hidden}
+html[data-theme="light"] .supplement-info-modal-dialog{background:#fbfaf7;color:#1b1d21;border-color:rgba(77,70,58,.08)}
+.personal-supplements-undo{z-index:5600!important;width:min(calc(100vw - 28px),420px);box-sizing:border-box;bottom:calc(118px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;justify-content:space-between}
+.personal-supplements-undo span{min-width:0;line-height:1.3}
+.personal-supplements-undo button{flex:none}

@@ -94,3 +94,6 @@ html[data-theme="dark"] .supplement-group-title.is-active{background:linear-grad
 html[data-theme="dark"] .supplement-group-title.is-paused{background:linear-gradient(145deg,rgba(154,105,28,.24),rgba(70,50,20,.34));border-color:rgba(240,184,75,.15)}
 html[data-theme="dark"] .supplement-group-title.is-finished{background:linear-gradient(145deg,rgba(112,113,118,.13),rgba(52,53,58,.24));border-color:rgba(190,192,198,.08);color:#9b9da3}
 .supplement-group-empty{padding:11px 4px;text-align:center;font-size:12px;opacity:.56}
+
+/* RUDI v2.114 — active cards no longer show the redundant "Принимаю" badge */
+.supplement-status.is-active:empty{display:none}
