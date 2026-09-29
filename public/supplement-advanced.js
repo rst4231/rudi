@@ -224,6 +224,17 @@ function enhanceCards(){
     const top=card.querySelector('.supplement-card-top'),topActions=card.querySelector('.supplement-card-top-actions')||top;
     const settings=document.createElement('button');settings.type='button';settings.className='supplement-settings-icon';settings.setAttribute('aria-label','Настроить '+item.name);settings.title='Настроить';settings.textContent='⚙︎';topActions.appendChild(settings);
     settings.addEventListener('click',event=>{event.stopPropagation();window.RudiSupplementEditor?.open(item.id)});
+    if(item.status==='active'){
+      const pauseIcon=document.createElement('button');pauseIcon.type='button';pauseIcon.className='supplement-status-icon is-pause';pauseIcon.setAttribute('aria-label','Поставить на паузу '+item.name);pauseIcon.title='Пауза';pauseIcon.textContent='Ⅱ';
+      const finishIcon=document.createElement('button');finishIcon.type='button';finishIcon.className='supplement-status-icon is-finish';finishIcon.setAttribute('aria-label','Переместить в «'+(isDiana()?'Закончила':'Закончил')+'»: '+item.name);finishIcon.title=isDiana()?'Закончила':'Закончил';finishIcon.textContent='×';
+      topActions.append(pauseIcon,finishIcon);
+      pauseIcon.addEventListener('click',event=>{event.stopPropagation();pauseIcon.disabled=true;updateCardStatus(item,'paused','БАД перенесён в «На паузе».').catch(()=>{pauseIcon.disabled=false;setStatus('Не удалось поставить на паузу.',true)})});
+      finishIcon.addEventListener('click',event=>{event.stopPropagation();finishIcon.disabled=true;updateCardStatus(item,'finished','БАД перенесён в «'+(isDiana()?'Закончила':'Закончил')+'».').catch(()=>{finishIcon.disabled=false;setStatus('Не удалось завершить курс.',true)})});
+    }else if(item.status==='paused'){
+      const finishIcon=document.createElement('button');finishIcon.type='button';finishIcon.className='supplement-status-icon is-finish';finishIcon.setAttribute('aria-label','Переместить в «'+(isDiana()?'Закончила':'Закончил')+'»: '+item.name);finishIcon.title=isDiana()?'Закончила':'Закончил';finishIcon.textContent='×';
+      topActions.appendChild(finishIcon);
+      finishIcon.addEventListener('click',event=>{event.stopPropagation();finishIcon.disabled=true;updateCardStatus(item,'finished','Курс завершён.').catch(()=>{finishIcon.disabled=false;setStatus('Не удалось завершить курс.',true)})});
+    }
     const statusText=statusLabel(item.status);let badge=null;
     if(statusText){badge=document.createElement('span');badge.className='supplement-status is-'+item.status;badge.textContent=statusText;topActions.prepend(badge)}
     const meta=document.createElement('div');meta.className='supplement-card-meta';
@@ -237,24 +248,13 @@ function enhanceCards(){
     if(item.status==='active'){
       const take=document.createElement('button');take.type='button';take.className='supplement-take';take.textContent=takeDoneLabel();take.classList.toggle('is-complete',takenToday(item));take.disabled=takenToday(item);
       const skip=document.createElement('button');skip.type='button';skip.className='supplement-skip';skip.textContent=skippedToday(item)?'Пропущено':'Пропустить';skip.classList.toggle('is-complete',skippedToday(item));skip.disabled=skippedToday(item)||takenToday(item);
-      const pause=document.createElement('button');pause.type='button';pause.className='supplement-pause';pause.textContent='Пауза';
-      const finish=document.createElement('button');finish.type='button';finish.className='supplement-finish';finish.textContent=isDiana()?'Закончила':'Закончил';
-      actions.append(take,skip,pause,finish);
+      actions.append(take,skip);
       take.addEventListener('click',async event=>{event.stopPropagation();take.disabled=true;try{const data=await req('take',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже отмечено сегодня.':'Приём отмечен ✓');document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'))}catch(error){take.disabled=false;setStatus('Не удалось отметить приём.',true)}});
       skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
-      pause.addEventListener('click',event=>{event.stopPropagation();pause.disabled=true;updateCardStatus(item,'paused','БАД перенесён в «На паузе».').catch(()=>{pause.disabled=false;setStatus('Не удалось поставить на паузу.',true)})});
-      finish.addEventListener('click',event=>{event.stopPropagation();finish.disabled=true;updateCardStatus(item,'finished','БАД перенесён в «'+(isDiana()?'Закончила':'Закончил')+'».').catch(()=>{finish.disabled=false;setStatus('Не удалось завершить курс.',true)})});
-    }else if(item.status==='paused'){
-      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';
-      const finish=document.createElement('button');finish.type='button';finish.className='supplement-finish';finish.textContent=isDiana()?'Закончила':'Закончил';
-      actions.append(resume,finish);
-      resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
-      finish.addEventListener('click',event=>{event.stopPropagation();finish.disabled=true;updateCardStatus(item,'finished','Курс завершён.').catch(()=>{finish.disabled=false;setStatus('Не удалось завершить курс.',true)})});
     }else{
-      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';
-      actions.append(resume);
+      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.classList.add('is-single');actions.append(resume);
       resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
-      setupFinishedSwipe(card,item);
+      if(item.status==='finished')setupFinishedSwipe(card,item);
     }
     card.appendChild(actions);badge?.addEventListener('click',event=>event.stopPropagation());
   }
