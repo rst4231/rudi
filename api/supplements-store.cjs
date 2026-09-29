@@ -155,7 +155,7 @@ async function markSupplementSkipped(actor,id,o={}){
     const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date};
   });
 }
-async function addSupplementNote(actor,id,text,o={}){async function addSupplementNote(actor,id,text,o={}){
+async function addSupplementNote(actor,id,text,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96),safeText=cleanText(text,500);if(!safeId)throw new Error('supplement-id-required');if(!safeText)throw new Error('supplement-note-required');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const now=new Date(o.now||Date.now()).toISOString(),date=moscowDateKey(o.now||Date.now()),current=state.items[index],note={id:'note-'+crypto.randomUUID(),date,at:now,text:safeText},items=[...state.items];items[index]=normalizeItem({...current,notes:[...current.notes,note],updatedAt:now});const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],note};
   });
