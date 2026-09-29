@@ -1,4 +1,4 @@
-// RUDI v2.126 activity summary + Lulu + car badge release ready
+// RUDI v2.127 smart saves release ready
 // RUDI v2.125 production build marker
     (async () => {
       try{
@@ -1447,7 +1447,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score','settings'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score','settings','smart-saves'];
 
       function routeFromLocation(){
         try{
@@ -1467,7 +1467,7 @@
           const url=new URL(window.location.href);
           if(next==='home') url.searchParams.delete('tab');
           else url.searchParams.set('tab',next);
-          if(item&&['wishlist','products','dates','for-di','schedule','score'].includes(next)) url.searchParams.set('item',String(item));
+          if(item&&['wishlist','products','dates','for-di','schedule','score','smart-saves'].includes(next)) url.searchParams.set('item',String(item));
           else url.searchParams.delete('item');
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
@@ -1478,7 +1478,7 @@
 
       function focusDeepLinkedItem(tab,item){
         const id=String(item||'').trim();
-        if(!id||!['wishlist','products','dates','for-di'].includes(tab)) return;
+        if(!id||!['wishlist','products','dates','for-di','smart-saves'].includes(tab)) return;
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
           const target=[...document.querySelectorAll('[data-rudi-item-id]')]
             .find(node=>String(node.dataset.rudiItemId||'')===id);
@@ -1491,6 +1491,7 @@
 
       function runTabSideEffects(tab,{item=''}={}){
         if(tab==='home'){
+          loadSmartSaves({silent:true}).catch(()=>{});
           loadFastingOverview();
           ensureHomeBootstrap().catch(()=>{});
           loadTickTickNext();
@@ -1512,6 +1513,7 @@
         if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='settings') refreshSettingsPageUi();
+        if(tab==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
         if(tab==='fasting') loadFastingTracker({silent:true});
         if(tab==='score'){
           const modal=ensureScoreModal();
@@ -3208,25 +3210,20 @@
         image.dataset.walkDue=needsWalk?'1':'0';
       }
 
+      let luluDueStatusTimer=null;
+      function luluPatienceLabel(ms){
+        const minutes=Math.max(0,Math.floor(Number(ms||0)/60000));if(minutes<60)return minutes+' мин';
+        const hours=Math.floor(minutes/60),rest=minutes%60;return hours+' ч'+(rest?' '+rest+' мин':'');
+      }
       function syncLuluToiletStatus(){
-        const node=document.getElementById('luluToiletStatus');
-        if(!node) return;
-        const state=homeDashboardState.lulu||{};
-        const fallback=state?.lastWalk?.walkedAt;
-        const pee=luluToiletProbability(state.lastPeeAt||fallback);
-        const poop=luluToiletProbability(state.lastPoopAt||fallback);
-        if(pee===null&&poop===null){
-          setLuluAvatar(false);
-          node.textContent='Туалет пока не отмечен';
-          node.dataset.level='unknown';
-          return;
-        }
-        const values=[pee,poop].filter(Number.isFinite);
-        const urgency=values.length?Math.max(...values):0;
-        const needsWalk=urgency>=100;
-        setLuluAvatar(needsWalk);
-        node.textContent='💧 '+(pee===null?'—':pee+'%')+' · 💩 '+(poop===null?'—':poop+'%')+(needsWalk?' · Пора гулять':'');
-        node.dataset.level=urgency>=80?'high':urgency>=50?'medium':'low';
+        const node=document.getElementById('luluToiletStatus');if(!node)return;
+        const state=homeDashboardState.lulu||{},fallback=state?.lastWalk?.walkedAt;
+        const stamps=[state.lastPeeAt||fallback,state.lastPoopAt||fallback].map(value=>new Date(String(value||''))).filter(date=>!Number.isNaN(date.getTime()));
+        if(!stamps.length){setLuluAvatar(false);node.textContent='Следующая прогулка — пока не рассчитана';node.dataset.level='unknown';return}
+        const dueAt=Math.min(...stamps.map(date=>date.getTime()+8*60*60*1000)),now=Date.now(),needsWalk=now>=dueAt;setLuluAvatar(needsWalk);
+        if(needsWalk){node.textContent='Пора гулять (терпит '+luluPatienceLabel(now-dueAt)+')';node.dataset.level='high'}
+        else{const time=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(dueAt));node.textContent='Следующая прогулка — '+time;const left=dueAt-now;node.dataset.level=left<=3600000?'high':left<=10800000?'medium':'low'}
+        clearTimeout(luluDueStatusTimer);luluDueStatusTimer=setTimeout(syncLuluToiletStatus,60000);
       }
 
       function luluTodayWalks(state){
@@ -3707,7 +3704,6 @@
         if(next){
           setSettingsOpen(false);
           activityJournalExpanded=false;
-          renderActivityJournalItems(homeDashboardState.activity);
           positionActivityNotificationsPanel();
           panel.hidden=false;
           requestAnimationFrame(()=>panel.classList.add('is-open'));
@@ -3908,148 +3904,69 @@
       }
 
       function summarizeActivityItems(items){
-        const source=Array.isArray(items)?items:[];
-        const moodGroups=new Map();
-        const summary=[];
+        const source=Array.isArray(items)?items:[],groups=new Map(),summary=[];
         for(const item of source){
-          if(String(item?.type||'')!=='mood'){
-            summary.push({...item,_activityKind:'item'});
-            continue;
+          const type=String(item?.type||''),actor=String(item?.actor||'').trim()||'Событие';
+          const date=new Date(String(item?.createdAt||'')),dateKey=Number.isNaN(date.getTime())?'unknown':sharedAlbumDateKey(date);
+          if(type==='mood'){
+            const key='mood|'+actor+'|'+dateKey;let group=groups.get(key);
+            if(!group){group={...item,_activityKind:'mood-summary',_moodCount:0,_moodIcons:[],_latestMoodIcon:normalizeLegacyMoodIcon(item?.icon||'🙂')};groups.set(key,group);summary.push(group)}
+            group._moodCount+=1;group._moodIcons.push(normalizeLegacyMoodIcon(item?.icon||'🙂'));continue;
           }
-          const actor=String(item?.actor||'').trim()||'Настроение';
-          const date=new Date(String(item?.createdAt||''));
-          const dateKey=Number.isNaN(date.getTime())?'unknown':sharedAlbumDateKey(date);
-          const key=actor+'|'+dateKey;
-          let group=moodGroups.get(key);
-          if(!group){
-            group={
-              ...item,
-              _activityKind:'mood-summary',
-              _moodCount:0,
-              _moodIcons:[],
-              _latestMoodIcon:normalizeLegacyMoodIcon(item?.icon||'🙂')
-            };
-            moodGroups.set(key,group);
-            summary.push(group);
+          if(type==='smart-save'){
+            const key='smart-save|'+actor+'|'+dateKey;let group=groups.get(key);
+            if(!group){group={...item,_activityKind:'smart-save-summary',_saveCount:0};groups.set(key,group);summary.push(group)}
+            group._saveCount+=1;continue;
           }
-          group._moodCount+=1;
-          group._moodIcons.push(normalizeLegacyMoodIcon(item?.icon||'🙂'));
+          summary.push({...item,_activityKind:'item'});
         }
         return summary;
       }
 
       function activityMoodDetail(item){
-        const count=Math.max(1,Number(item?._moodCount)||1);
-        if(count<=1) return '';
-        const icons=Array.isArray(item?._moodIcons)?item._moodIcons.filter(Boolean):[];
-        const recent=icons.slice(0,4).reverse();
-        const sequence=(icons.length>4?'… → ':'')+recent.join(' → ');
+        const count=Math.max(1,Number(item?._moodCount)||1);if(count<=1)return'';
+        const icons=Array.isArray(item?._moodIcons)?item._moodIcons.filter(Boolean):[],recent=icons.slice(0,4).reverse(),sequence=(icons.length>4?'… → ':'')+recent.join(' → ');
         return sequence+(sequence?' · ':'')+count+' '+activityCountWord(count);
       }
 
       function renderActivityJournal(payload){
-        renderLulu(payload?.lulu);
-        if(payload?.score) renderScoreStickers(payload.score);
-        const list=document.getElementById('homeActivityList');
-        const empty=document.getElementById('homeActivityEmpty');
-        if(!list||!empty) return;
-        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,24);
-        homeDashboardState.activity=items;
-        const summary=summarizeActivityItems(items);
-        list.replaceChildren();
-        empty.hidden=summary.length>0;
-
+        renderLulu(payload?.lulu);if(payload?.score)renderScoreStickers(payload.score);
+        const list=document.getElementById('homeActivityList'),empty=document.getElementById('homeActivityEmpty');if(!list||!empty)return;
+        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,24);homeDashboardState.activity=items;
+        const summary=summarizeActivityItems(items);list.replaceChildren();empty.hidden=summary.length>0;
         for(const item of summary){
-          const isMoodSummary=item?._activityKind==='mood-summary';
-          const activityTab=isMoodSummary?'':(item?.type==='saved-recipe'?'products':String(item.targetTab||''));
+          const kind=String(item?._activityKind||'item'),isMood=kind==='mood-summary',isSave=kind==='smart-save-summary';
+          const activityTab=isMood?'':isSave?'smart-saves':(item?.type==='saved-recipe'?'products':String(item.targetTab||''));
           const row=document.createElement(activityTab?'button':'div');
           if(activityTab){
-            row.type='button';
-            row.addEventListener('click',()=>{
-              navigateToAppTab(activityTab,{scroll:true});
-              if(activityTab==='products'){
-                loadProducts({silent:true});
-                Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>{
-                  if(item?.type==='saved-recipe'){
-                    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-                      const section=document.querySelector('.kitchen-saved-recipes');
-                      const body=document.getElementById('savedRecipesBody');
-                      const toggle=document.querySelector('[data-saves-toggle="recipe"]');
-                      if(section&&(section.classList.contains('is-collapsed')||body?.hidden)) toggle?.click();
-                      section?.scrollIntoView({behavior:'smooth',block:'start'});
-                    }));
-                  }
-                });
-              }
-              if(activityTab==='photos') loadSharedAlbum();
-              if(activityTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
+            row.type='button';row.addEventListener('click',event=>{
+              event.preventDefault();event.stopPropagation();setActivityNotificationsOpen(false);navigateToAppTab(activityTab,{scroll:true});
+              if(activityTab==='products'){loadProducts({silent:true});Promise.resolve(window.RUDI_SAVES?.load?.())}
+              if(activityTab==='photos')loadSharedAlbum();if(activityTab==='schedule')loadWorkCalendar(currentWorkCalendarView,{silent:true});if(activityTab==='smart-saves')loadSmartSaves({silent:true}).catch(()=>{});
             });
           }
-          row.className='home-activity-row'+(isMoodSummary?' is-mood-summary':'');
-          const icon=document.createElement('span');
-          icon.className='home-activity-icon';
-          icon.textContent=isMoodSummary
-            ?String(item._latestMoodIcon||'🙂')
-            :String(item.icon||'•');
-
-          const copy=document.createElement('span');
-          copy.className='home-activity-copy';
-          const textNode=document.createElement('strong');
-          if(isMoodSummary){
-            textNode.textContent=String(item.actor||'Настроение')+' · '+activityMoodLabel(item._latestMoodIcon);
-          }else{
-            textNode.textContent=String(item.text||'');
-          }
-          copy.appendChild(textNode);
-
-          if(isMoodSummary){
-            const detailText=activityMoodDetail(item);
-            if(detailText){
-              const detail=document.createElement('span');
-              detail.className='home-activity-detail';
-              detail.textContent=detailText;
-              copy.appendChild(detail);
-            }
-          }
-
-          const time=document.createElement('time');
-          time.textContent=activityTimeLabel(item.createdAt);
-          copy.appendChild(time);
-
-          const arrow=document.createElement('span');
-          arrow.className='home-activity-arrow';
-          arrow.textContent=activityTab?'›':'';
-          row.append(icon,copy,arrow);
-          list.appendChild(row);
+          row.className='home-activity-row'+(isMood?' is-mood-summary':'')+(isSave?' is-save-summary':'');
+          const icon=document.createElement('span');icon.className='home-activity-icon';icon.textContent=isMood?String(item._latestMoodIcon||'🙂'):isSave?'🔖':String(item.icon||'•');
+          const copy=document.createElement('span');copy.className='home-activity-copy';const strong=document.createElement('strong');
+          if(isMood)strong.textContent=String(item.actor||'Настроение')+' · '+activityMoodLabel(item._latestMoodIcon);
+          else if(isSave&&Number(item._saveCount||1)>1)strong.textContent=String(item.actor||'')+' '+(item.actor==='Диана'?'добавила ':'добавил ')+item._saveCount+' сохранения';
+          else strong.textContent=String(item.text||'');
+          copy.appendChild(strong);
+          if(isMood){const d=activityMoodDetail(item);if(d){const detail=document.createElement('span');detail.className='home-activity-detail';detail.textContent=d;copy.appendChild(detail)}}
+          const time=document.createElement('time');time.textContent=activityTimeLabel(item.createdAt);copy.appendChild(time);
+          const arrow=document.createElement('span');arrow.className='home-activity-arrow';arrow.textContent=activityTab?'›':'';
+          row.append(icon,copy,arrow);list.appendChild(row);
         }
-
-        const rows=[...list.querySelectorAll('.home-activity-row')];
-        const compactLimit=4;
+        const rows=[...list.querySelectorAll('.home-activity-row')],compactLimit=4;
         if(rows.length>compactLimit){
-          const extra=rows.slice(compactLimit);
-          extra.forEach(row=>row.classList.add('is-activity-hidden'));
-          const more=document.createElement('button');
-          more.type='button';
-          more.className='home-activity-more';
-          more.setAttribute('aria-expanded','false');
-          const sync=expanded=>{
-            extra.forEach(row=>row.classList.toggle('is-activity-hidden',!expanded));
-            more.setAttribute('aria-expanded',expanded?'true':'false');
-            more.textContent=expanded?'Свернуть':'Показать ещё '+extra.length;
-          };
-          sync(false);
-          more.addEventListener('click',()=>{
-            const expanded=more.getAttribute('aria-expanded')==='true';
-            sync(!expanded);
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          });
+          const extra=rows.slice(compactLimit);extra.forEach(row=>row.classList.add('is-activity-hidden'));
+          const more=document.createElement('button');more.type='button';more.className='home-activity-more';more.setAttribute('aria-expanded','false');
+          const sync=expanded=>{extra.forEach(row=>row.classList.toggle('is-activity-hidden',!expanded));more.setAttribute('aria-expanded',expanded?'true':'false');more.textContent=expanded?'Свернуть':'Показать ещё '+extra.length};
+          sync(false);more.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();sync(more.getAttribute('aria-expanded')!=='true');try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
           list.appendChild(more);
         }
-
         animateRudiCollection(list,'.home-activity-row:not(.is-activity-hidden)',10);
-        const panel=document.getElementById('homeActivityNotificationsPanel');
-        if(panel&&!panel.hidden) markActivityNotificationsSeen();
-        else updateActivityNotificationBadge();
+        const panel=document.getElementById('homeActivityNotificationsPanel');if(panel&&!panel.hidden)markActivityNotificationsSeen();else updateActivityNotificationBadge();
       }
 
       async function loadActivityJournal({silent=false}={}){
@@ -4068,6 +3985,40 @@
           }
           return null;
         }
+      }
+
+      let smartSavesState=[],smartSavesLoadPromise=null;
+      async function smartSavesRequest(operation='list',payload={}){
+        const response=await fetch('/api/partner-message?rudiAction=smart-saves',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
+        const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||'smart-saves-request-failed');return data;
+      }
+      function smartSaveStamp(value){const date=new Date(String(value||''));if(Number.isNaN(date.getTime()))return'';return new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(date).replace('.','')}
+      function smartSaveConfirm(text){return new Promise(resolve=>{if(tg?.showConfirm){try{tg.showConfirm(text,value=>resolve(Boolean(value)));return}catch(_){}}resolve(window.confirm(text))})}
+      function smartSaveCard(item,{compact=false}={}){
+        const card=document.createElement('article');card.className='smart-save-card'+(compact?' is-compact':'');card.dataset.rudiItemId=String(item?.id||'');
+        if(item?.imageUrl){const img=document.createElement('img');img.className='smart-save-image';img.src=String(item.imageUrl);img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';img.addEventListener('error',()=>img.remove());card.appendChild(img)}
+        const body=document.createElement('div');body.className='smart-save-body',meta=document.createElement('div');meta.className='smart-save-meta';
+        const category=document.createElement('span');category.className='smart-save-category';category.textContent=String(item?.category||'Другое');
+        const stamp=document.createElement('time');stamp.textContent=String(item?.actor||'')+' · '+smartSaveStamp(item?.createdAt);meta.append(category,stamp);
+        const title=item?.url?document.createElement('a'):document.createElement('strong');title.className='smart-save-title';title.textContent=String(item?.title||'Сохранение');
+        if(item?.url){title.href=String(item.url);title.target='_blank';title.rel='noopener noreferrer'}
+        body.append(meta,title);if(!compact&&item?.description){const desc=document.createElement('p');desc.textContent=String(item.description);body.appendChild(desc)}
+        const del=document.createElement('button');del.type='button';del.className='smart-save-delete';del.setAttribute('aria-label','Удалить сохранение');del.textContent='Удалить';
+        del.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();if(!await smartSaveConfirm('Удалить «'+String(item?.title||'это сохранение')+'»?'))return;del.disabled=true;try{const data=await smartSavesRequest('remove',{id:item.id});smartSavesState=Array.isArray(data.items)?data.items:[];renderSmartSaves();try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(_){del.disabled=false;try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
+        body.appendChild(del);card.appendChild(body);return card;
+      }
+      function renderSmartSaves(){
+        const home=document.getElementById('smartSavesHomeList'),homeEmpty=document.getElementById('smartSavesHomeEmpty'),page=document.getElementById('smartSavesPageList'),pageEmpty=document.getElementById('smartSavesPageEmpty');
+        const rows=[...smartSavesState].sort((a,b)=>(Date.parse(b?.createdAt)||0)-(Date.parse(a?.createdAt)||0));
+        if(home){home.replaceChildren();rows.slice(0,3).forEach(item=>home.appendChild(smartSaveCard(item,{compact:true})));if(homeEmpty)homeEmpty.hidden=rows.length>0}
+        if(page){page.replaceChildren();const groups=new Map();rows.forEach(item=>{const key=String(item?.category||'Другое');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item)});
+          groups.forEach((items,category)=>{const section=document.createElement('section');section.className='smart-saves-category-block';const head=document.createElement('div');head.className='smart-saves-category-head';const strong=document.createElement('strong'),count=document.createElement('span');strong.textContent=category;count.textContent=String(items.length);head.append(strong,count);section.appendChild(head);const list=document.createElement('div');list.className='smart-saves-category-list';items.forEach(item=>list.appendChild(smartSaveCard(item)));section.appendChild(list);page.appendChild(section)});
+          if(pageEmpty)pageEmpty.hidden=rows.length>0;
+        }
+      }
+      async function loadSmartSaves({silent=false}={}){
+        if(smartSavesLoadPromise)return smartSavesLoadPromise;
+        smartSavesLoadPromise=(async()=>{try{const data=await smartSavesRequest('list');smartSavesState=Array.isArray(data.items)?data.items:[];renderSmartSaves();return smartSavesState}catch(error){if(!silent)console.warn('RUDI_SMART_SAVES_UI_WARN',String(error?.message||error));return smartSavesState}finally{smartSavesLoadPromise=null}})();return smartSavesLoadPromise;
       }
 
       function renderHomeNew(){
@@ -4207,6 +4158,10 @@
       function setupHomeDashboardActions(){
         setupActivityNotifications();
         setupSettingsPanel();
+        const smartMore=document.getElementById('smartSavesHomeMore');if(smartMore&&smartMore.dataset.bound!=='1'){smartMore.dataset.bound='1';smartMore.addEventListener('click',()=>navigateToAppTab('smart-saves',{scroll:true}))}
+        const smartBack=document.getElementById('smartSavesBackButton');if(smartBack&&smartBack.dataset.bound!=='1'){smartBack.dataset.bound='1';smartBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
+        const wishlistBack=document.getElementById('wishlistBackButton');if(wishlistBack&&wishlistBack.dataset.bound!=='1'){wishlistBack.dataset.bound='1';wishlistBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
+        loadSmartSaves({silent:true}).catch(()=>{});
         document.querySelectorAll('[data-home-quick]').forEach(button=>{
           if(button.dataset.bound==='1') return;
           button.dataset.bound='1';

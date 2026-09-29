@@ -23,6 +23,7 @@ const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
+const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const handleRudiJwks = require('./rudi-jwks.cjs');
 const { handleSmartHomeRequest } = require('./smart-home-client.cjs');
 const { handleWeatherRequest } = require('./weather.cjs');
@@ -138,6 +139,7 @@ async function handler(req, res) {
       if (isProductsTopicUpdate(req)) {
         return res.status(200).json({ ok: true, ignored: 'products-topic-silent' });
       }
+      if (scheduleSmartSaveTelegram(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch, env: process.env })) return res.status(200).json({ ok: true, handled: 'smart-save', pending: true });
       if (shouldIgnorePassiveTelegramMessage(req)) return res.status(200).json({ ok: true, ignored: 'passive-chat-message' });
       return await runRuntime(req, res);
     }

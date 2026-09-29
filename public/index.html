@@ -276,6 +276,15 @@
       </div>
     </section>
 
+    <section id="smartSavesHomeTile" class="panel smart-saves-home" data-app-tab-section="home" data-home-tile="smart-saves" aria-labelledby="smartSavesHomeTitle">
+      <div class="smart-saves-home-head">
+        <div><h2 id="smartSavesHomeTitle">Сохранения</h2><small>Последние добавленные</small></div>
+        <button id="smartSavesHomeMore" type="button">Показать ещё</button>
+      </div>
+      <div id="smartSavesHomeList" class="smart-saves-home-list"></div>
+      <div id="smartSavesHomeEmpty" class="smart-saves-empty">Отправь текст или ссылку в Telegram-бот RUDI — сохранение появится здесь.</div>
+    </section>
+
     <section id="quickAccessTile" class="panel quick-access-tile" data-app-tab-section="home" data-home-tile="quick-access" aria-labelledby="quickAccessTitle">
       <div class="quick-access-head">
         <div>
@@ -834,9 +843,18 @@
       </article>
     </section>
 
+    <section class="smart-saves-page" data-app-tab-section="smart-saves" aria-labelledby="smartSavesPageTitle">
+      <div class="smart-saves-page-head">
+        <button id="smartSavesBackButton" class="smart-saves-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        <h1 id="smartSavesPageTitle">Сохранения</h1><span></span>
+      </div>
+      <div id="smartSavesPageList" class="smart-saves-page-list"></div>
+      <div id="smartSavesPageEmpty" class="smart-saves-empty">Сохранений пока нет.</div>
+    </section>
+
     <section class="wishlist-page wishlist-section" data-app-tab-section="wishlist" aria-label="Вишлист">
       <span id="wishlistStatus" class="section-status wishlist-page-status" hidden></span>
-      <h1 class="wishlist-page-title">Наш вишлист</h1>
+      <div class="wishlist-page-head"><button id="wishlistBackButton" class="wishlist-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h1 class="wishlist-page-title">Наш вишлист</h1><span></span></div>
       <div class="wishlist-card">
         <form id="wishlistForm" class="wishlist-form">
           <div class="wishlist-form-fields">
