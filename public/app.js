@@ -5636,11 +5636,10 @@
         return (parts.length?parts.map(part=>part.charAt(0)).join(''):fallback).slice(0,2).toUpperCase();
       }
 
-      function setWishlistProfile(actor,profile){
-        const holder=document.getElementById(actor==='Рустам'?'wishlistRustamAvatar':'wishlistDianaAvatar');
+      function applyAvatarProfile(holder,profile,actor){
         if(!holder) return;
         const image=holder.querySelector('img');
-        const initial=holder.querySelector('.wishlist-avatar-initial');
+        const initial=holder.querySelector('.wishlist-avatar-initial,span:not([class])');
         const name=String(profile?.name||actor).trim().split(/\s+/)[0]||actor;
         if(initial) initial.textContent=name.charAt(0).toUpperCase();
         const photo=String(profile?.photoDataUrl||'').trim();
@@ -5655,6 +5654,11 @@
             holder.classList.remove('has-photo');
           }
         }
+      }
+
+      function setWishlistProfile(actor,profile){
+        applyAvatarProfile(document.getElementById(actor==='Рустам'?'wishlistRustamAvatar':'wishlistDianaAvatar'),profile,actor);
+        applyAvatarProfile(document.getElementById(actor==='Рустам'?'dailyQuestionRustamAvatar':'dailyQuestionDianaAvatar'),profile,actor);
       }
 
       function applyTelegramProfiles(selfProfile,partnerProfile){
