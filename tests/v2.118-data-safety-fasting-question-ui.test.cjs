@@ -65,3 +65,12 @@ test('v2.118 fasting goal selector has explicit light-theme contrast',()=>{
   assert.match(css,/html\[data-theme="light"\] \.fasting-goal-row button\{/);
   assert.match(css,/html\[data-theme="light"\] \.fasting-goal-row button\[aria-pressed="true"\]\{/);
 });
+
+
+test('v2.118 Lulu keeps 58px avatar size and switches image when walk is due',()=>{
+  const app=read('public/app.js');
+  assert.match(app,/lulu-normal\.webp\?v=2\.118" alt="Лулу" width="58" height="58"/);
+  assert.match(app,/const next=needsWalk\?'\/lulu-walk\.webp\?v=2\.118':'\/lulu-normal\.webp\?v=2\.118'/);
+  assert.match(app,/const needsWalk=urgency>=100/);
+  assert.match(app,/setLuluAvatar\(needsWalk\)/);
+});
