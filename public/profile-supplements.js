@@ -89,8 +89,10 @@ function moscowClockMinutes(now=new Date()){
   const map=Object.fromEntries(parts.map(part=>[part.type,part.value]));
   return Number(map.hour||0)*60+Number(map.minute||0);
 }
+function supplementPlannedIntakes(item){return Math.max(1,Math.min(12,Math.round(Number(item?.schedule?.timesPerDay)||1)))}
+function supplementIntakesOn(item,date){return(Array.isArray(item?.intakes)?item.intakes:[]).filter(row=>String(row?.date||'')===String(date||'')).length}
 function handledSupplementToday(item,today){
-  return (Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today))
+  return supplementIntakesOn(item,today)>=supplementPlannedIntakes(item)
     ||(Array.isArray(item?.skips)&&item.skips.some(row=>String(row?.date||'')===today));
 }
 function overdueSupplementCount(now=new Date()){
@@ -124,7 +126,7 @@ function startReminderBadgeClock(){
 }
 
 function habitStreakText(value){const n=Math.max(0,Math.round(Number(value)||0)),m100=n%100,m10=n%10,w=m100>=11&&m100<=14?'дней':m10===1?'день':m10>=2&&m10<=4?'дня':'дней';return n+' '+w+' подряд'}
-function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,1 ⭐ за выполнение · −0,1 ⭐ за невыполнение':'Без бонуса и штрафа'}
+function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,2 ⭐ за выполнение · −1 ⭐ за невыполнение':'Без бонуса и штрафа'}
 function habitScoreMessage(data,id,status){if(habitSelectedDate!==habitState.today)return'Статус сохранён. За прошлые даты звёзды не меняются.';if(!(habitState.bonusIds||[]).includes(id))return'Статус сохранён. Эта привычка без бонуса и штрафа.';const d=Number(data?.scoreDelta||0);if(d>0)return'Баланс: +'+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';if(d<0)return'Баланс: '+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';return status==='done'?'Выполнение сохранено.':'Статус «Не выполнено» сохранён.'}
 function launchHabitConfetti(anchor){
   if(!anchor||window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
@@ -247,11 +249,12 @@ function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod10
 function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
 function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
-function todaySupplementCount(){const today=habitDateKey(new Date());return activeSupplementItems().filter(item=>Array.isArray(item?.intakes)&&item.intakes.some(row=>String(row?.date||'')===today)).length}
+function todaySupplementProgress(){const today=habitDateKey(new Date()),active=activeSupplementItems();let taken=0,total=0;for(const item of active){const target=supplementPlannedIntakes(item);total+=target;taken+=Math.min(target,supplementIntakesOn(item,today))}return{taken,total}}
+function todaySupplementCount(){return todaySupplementProgress().taken}
 function renderSupplementSummary(){
   if(!supplementSummaryNode)return;
-  const active=activeSupplementItems(),taken=todaySupplementCount(),percent=active.length?Math.round(taken/active.length*100):0;
-  supplementSummaryNode.textContent='Сегодня принято: '+taken+' из '+active.length;
+  const progress=todaySupplementProgress(),percent=progress.total?Math.round(progress.taken/progress.total*100):0;
+  supplementSummaryNode.textContent='Сегодня принято: '+progress.taken+' из '+progress.total;
   if(supplementProgressFill)supplementProgressFill.style.width=percent+'%';
   if(supplementPercentNode)supplementPercentNode.textContent=percent+'%';
   updateReminderBadges();
@@ -479,7 +482,7 @@ function build(){
   habitInfoClose=document.createElement('button');habitInfoClose.type='button';habitInfoClose.className='habit-info-modal-close';habitInfoClose.setAttribute('aria-label','Закрыть');habitInfoClose.textContent='×';
   const habitInfoTitle=document.createElement('strong');habitInfoTitle.id='habitInfoModalTitle';habitInfoTitle.className='habit-info-modal-title';habitInfoTitle.textContent='Как работают звёзды';
   habitInfoPanel=document.createElement('div');habitInfoPanel.className='habit-info-modal-copy';
-  const habitFemale=actor==='Диана';habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 '+(habitFemale?'Сделала':'Сделал')+' привычку → получишь <b>+0,1 ⭐</b>.<br>🔴 '+(habitFemale?'Не сделала':'Не сделал')+' → снимется <b>−0,1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−0,1 ⭐</b>.</p><p>Остальные привычки можно просто отмечать. За них звёзды не добавляются и не снимаются.</p><p>В <b>21:00</b> RUDI напомнит, если ты что-то '+(habitFemale?'не отметила':'не отметил')+'.</p><p>Если случайно '+(habitFemale?'нажала':'нажал')+' <b>«Выполнено»</b> или <b>«Не выполнено»</b>, у тебя есть <b>5 секунд</b>, чтобы нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
+  const habitFemale=actor==='Диана';habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 '+(habitFemale?'Сделала':'Сделал')+' привычку → получишь <b>+0,2 ⭐</b>.<br>🔴 '+(habitFemale?'Не сделала':'Не сделал')+' → снимется <b>−1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−1 ⭐</b>.</p><p>Остальные привычки можно просто отмечать. За них звёзды не добавляются и не снимаются.</p><p>В <b>21:00</b> RUDI напомнит, если ты что-то '+(habitFemale?'не отметила':'не отметил')+'.</p><p>Если случайно '+(habitFemale?'нажала':'нажал')+' <b>«Выполнено»</b> или <b>«Не выполнено»</b>, у тебя есть <b>5 секунд</b>, чтобы нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
   habitInfoDialog.append(habitInfoClose,habitInfoTitle,habitInfoPanel);habitInfoModal.append(habitInfoBackdrop,habitInfoDialog);document.body.appendChild(habitInfoModal);
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
   const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';

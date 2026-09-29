@@ -10,7 +10,7 @@ const META={
   love:{emoji:'🥰',label:'Любовь'}
 };
 const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
-let state=null,visibleMonth='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
+let state=null,visibleWeekEnd='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function todayKey(){return new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
@@ -62,9 +62,10 @@ function ensure(){
   page.innerHTML=
     '<header class="mood-history-head"><button id="moodHistoryBack" class="mood-history-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><div><span>Настроение</span><h2>История</h2></div></header>'+
     '<div class="mood-history-content">'+
+      '<section id="moodHistoryHero" class="mood-history-hero" data-mood="neutral"><span id="moodHistoryHeroEmoji" class="mood-history-hero-emoji" aria-hidden="true">🙂</span><div><span>Эмоциональный ритм</span><strong id="moodHistoryHeroTitle">Настроение за неделю</strong><small id="moodHistoryHeroSubtitle">Отмечай настроение, чтобы видеть динамику</small></div></section>'+
       '<section class="mood-history-card">'+
-        '<div class="mood-history-month-nav"><button id="moodMonthPrev" type="button" aria-label="Предыдущий месяц">‹</button><div><strong id="moodHistoryMonth"></strong><span id="moodHistoryMeta"></span></div><button id="moodMonthNext" type="button" aria-label="Следующий месяц">›</button></div>'+
-        '<div id="moodHistoryCalendar" class="mood-history-calendar"></div>'+
+        '<div class="mood-history-week-nav"><button id="moodWeekPrev" type="button" aria-label="Предыдущая неделя">‹</button><div><strong id="moodHistoryWeekLabel"></strong><span id="moodHistoryMeta"></span></div><button id="moodWeekNext" type="button" aria-label="Следующая неделя">›</button></div>'+
+        '<div id="moodHistoryWeekStrip" class="mood-history-week-strip"></div>'+
         '<div id="moodDayDetail" class="mood-day-detail" hidden></div>'+
       '</section>'+
       '<section class="mood-stats-card"><div class="mood-stats-head"><strong>Статистика</strong><span id="moodStatsPeriod"></span></div><div id="moodStats" class="mood-stats"></div></section>'+
@@ -76,8 +77,8 @@ function ensure(){
     '</div>';
   document.body.append(page);
   page.querySelector('#moodHistoryBack').addEventListener('click',close);
-  page.querySelector('#moodMonthPrev').addEventListener('click',()=>{visibleMonth=monthShift(visibleMonth,-1);selectedDate='';render(state)});
-  page.querySelector('#moodMonthNext').addEventListener('click',()=>{visibleMonth=monthShift(visibleMonth,1);selectedDate='';render(state)});
+  page.querySelector('#moodWeekPrev').addEventListener('click',()=>{visibleWeekEnd=shiftDate(visibleWeekEnd||todayKey(),-7);selectedDate='';render(state)});
+  page.querySelector('#moodWeekNext').addEventListener('click',()=>{visibleWeekEnd=shiftDate(visibleWeekEnd||todayKey(),7);selectedDate='';render(state)});
   page.querySelector('#moodAnalyzeButton').addEventListener('click',runAnalysis);
   page.querySelector('#moodRangeTabs').addEventListener('click',async e=>{
     const button=e.target.closest('[data-days]');if(!button)return;
@@ -158,7 +159,7 @@ function renderStats(history,today){
   const total=Math.max(1,rows.length);
   for(const key of ['joy','love','neutral','fatigue','sadness','boredom','anger']){
     if(!counts[key])continue;
-    const el=document.createElement('div');el.className='mood-stat-chip';
+    const el=document.createElement('div');el.className='mood-stat-chip';el.dataset.mood=key;
     el.innerHTML='<b>'+META[key].emoji+' '+Math.round(counts[key]/total*100)+'%</b><span>'+META[key].label+'</span>';
     host.append(el);
   }
@@ -210,34 +211,37 @@ function render(data){
     restoreAnalysisWindow=false;
   }
   page.querySelectorAll('[data-days]').forEach(item=>item.classList.toggle('active',Number(item.dataset.days)===windowDays));
-  if(!visibleMonth)visibleMonth=today.slice(0,7);
-  const earliest=history[0]?.date?.slice(0,7)||today.slice(0,7),latest=today.slice(0,7);
-  if(visibleMonth<earliest)visibleMonth=earliest;
-  if(visibleMonth>latest)visibleMonth=latest;
-  const rows=history.filter(row=>String(row?.date||'').startsWith(visibleMonth)),map=new Map(rows.map(row=>[String(row.date),row]));
-  const[y,m]=visibleMonth.split('-').map(Number),days=new Date(Date.UTC(y,m,0)).getUTCDate(),offset=(new Date(Date.UTC(y,m-1,1)).getUTCDay()+6)%7;
+  if(!visibleWeekEnd)visibleWeekEnd=today;
+  const earliest=String(history[0]?.date||today);
+  if(visibleWeekEnd>today)visibleWeekEnd=today;
+  const weekStart=shiftDate(visibleWeekEnd,-6);
+  const rows=history.filter(row=>String(row?.date||'')>=weekStart&&String(row?.date||'')<=visibleWeekEnd),map=new Map(rows.map(row=>[String(row.date),row]));
   const totalMarks=rows.reduce((sum,row)=>sum+Math.max(1,Number(row.sampleCount)||0),0);
+  const moodCounts={};
+  for(const row of rows){const key=row?.averageMood||row?.mood;if(META[key])moodCounts[key]=(moodCounts[key]||0)+1}
+  const dominant=Object.entries(moodCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'neutral',dominantMeta=META[dominant]||META.neutral;
+  const hero=page.querySelector('#moodHistoryHero');hero.dataset.mood=dominant;
+  page.querySelector('#moodHistoryHeroEmoji').textContent=dominantMeta.emoji;
+  page.querySelector('#moodHistoryHeroTitle').textContent=rows.length?'Чаще всего: '+dominantMeta.label:'Настроение за неделю';
+  page.querySelector('#moodHistoryHeroSubtitle').textContent=rows.length?totalMarks+' '+plural(totalMarks,'отметка','отметки','отметок')+' за последние 7 дней':'Добавь несколько отметок, и здесь появится динамика';
 
-  page.querySelector('#moodHistoryMonth').textContent=monthLabel(visibleMonth);
-  page.querySelector('#moodHistoryMeta').textContent=totalMarks+' '+plural(totalMarks,'отметка','отметки','отметок')+' · настроение по дням · хранение 180 дней';
-  page.querySelector('#moodMonthPrev').disabled=visibleMonth<=earliest;
-  page.querySelector('#moodMonthNext').disabled=visibleMonth>=latest;
+  page.querySelector('#moodHistoryWeekLabel').textContent=fmtDate(weekStart)+' — '+fmtDate(visibleWeekEnd);
+  page.querySelector('#moodHistoryMeta').textContent=totalMarks+' '+plural(totalMarks,'отметка','отметки','отметок')+' · хранение 180 дней';
+  page.querySelector('#moodWeekPrev').disabled=weekStart<=earliest;
+  page.querySelector('#moodWeekNext').disabled=visibleWeekEnd>=today;
 
-  const cal=page.querySelector('#moodHistoryCalendar');cal.replaceChildren();
-  for(const w of['Пн','Вт','Ср','Чт','Пт','Сб','Вс']){const el=document.createElement('span');el.className='mood-history-weekday';el.textContent=w;cal.append(el)}
-  for(let i=0;i<offset;i++){const el=document.createElement('span');el.className='mood-history-day is-empty';cal.append(el)}
-  for(let day=1;day<=days;day++){
-    const key=visibleMonth+'-'+String(day).padStart(2,'0'),row=map.get(key),el=document.createElement('button');
+  const strip=page.querySelector('#moodHistoryWeekStrip');strip.replaceChildren();
+  for(let offset=0;offset<7;offset++){
+    const key=shiftDate(weekStart,offset),row=map.get(key),date=new Date(key+'T12:00:00Z'),el=document.createElement('button');
     el.type='button';
     el.className='mood-history-day'+(key===today?' is-today':'')+(row?' has-mood':'')+(key===selectedDate?' is-selected':'');
-    el.disabled=!row;
-    el.innerHTML='<span>'+day+'</span><b>'+(META[row?.averageMood||row?.mood]?.emoji||'')+'</b>';
-    if(row)el.addEventListener('click',()=>{
-      selectedDate=selectedDate===key?'':key;
-      renderDayDetail(selectedDate?row:null);
-      page.querySelectorAll('.mood-history-day').forEach(item=>item.classList.toggle('is-selected',item===el&&Boolean(selectedDate)));
-    });
-    cal.append(el);
+    el.dataset.mood=String(row?.averageMood||row?.mood||'');
+    const weekday=document.createElement('span');weekday.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,weekday:'short'}).format(date).replace('.','');
+    const day=document.createElement('strong');day.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'2-digit'}).format(date);
+    const emoji=document.createElement('b');emoji.textContent=META[row?.averageMood||row?.mood]?.emoji||'';
+    el.append(weekday,day,emoji);el.disabled=!row;
+    if(row)el.addEventListener('click',()=>{selectedDate=selectedDate===key?'':key;renderDayDetail(selectedDate?row:null);page.querySelectorAll('.mood-history-day').forEach(item=>item.classList.toggle('is-selected',item===el&&Boolean(selectedDate)))});
+    strip.append(el);
   }
   if(selectedDate)renderDayDetail(map.get(selectedDate)||history.find(row=>row.date===selectedDate)||null);else renderDayDetail(null);
   renderStats(history,today);
@@ -273,7 +277,7 @@ async function open(){
   const page=ensure();
   page.hidden=false;
   document.body.classList.add('mood-history-open');
-  visibleMonth=todayKey().slice(0,7);
+  visibleWeekEnd=todayKey();
   selectedDate='';
   restoreAnalysisWindow=true;
   await reload();

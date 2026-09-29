@@ -8,3 +8,70 @@
 .mood-stats-card{padding:14px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}.mood-stats-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.mood-stats-head strong{font-size:14px}.mood-stats-head span{font-size:10px;color:var(--muted)}.mood-stats{display:flex;flex-wrap:wrap;gap:7px}.mood-stat-chip{min-width:72px;display:grid;gap:2px;padding:8px 9px;border-radius:12px;background:var(--soft)}.mood-stat-chip b{font-size:12px}.mood-stat-chip span{font-size:9.5px;color:var(--muted)}.mood-stat-summary{width:100%;font-size:10.5px;line-height:1.4;color:var(--muted);padding-top:2px}
 .mood-analysis-profile>div{display:grid;gap:2px}.mood-analysis-profile>div>span{font-size:9.5px;color:var(--muted)}.mood-range-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:12px}.mood-range-tabs button{min-height:34px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--muted);font:inherit;font-size:10.5px;font-weight:700}.mood-range-tabs button.active{background:color-mix(in srgb,var(--accent) 15%,var(--surface));color:var(--text);border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
 .mood-analysis-feedback{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted)}.mood-analysis-feedback button{border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--text);padding:6px 9px;font:inherit;font-size:10px}.mood-analysis-feedback button.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--surface))}
+
+
+/* RUDI v2.134 — mood history, weekly emotional timeline */
+.mood-history-page{
+  background:
+    radial-gradient(circle at 12% 5%,color-mix(in srgb,#b79cff 13%,transparent),transparent 34%),
+    radial-gradient(circle at 92% 16%,color-mix(in srgb,#ff9eb8 10%,transparent),transparent 32%),
+    var(--bg);
+}
+.mood-history-head{margin-bottom:14px}
+.mood-history-head>div{display:grid;gap:1px}
+.mood-history-head span{font-size:10px;font-weight:720;letter-spacing:.045em;text-transform:uppercase}
+.mood-history-head h2{font-size:26px;letter-spacing:-.035em}
+.mood-history-back{border-radius:15px;background:color-mix(in srgb,var(--surface) 92%,transparent);box-shadow:0 8px 24px rgba(20,24,36,.07)}
+.mood-history-content{gap:12px}
+.mood-history-hero{
+  position:relative;overflow:hidden;display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;gap:13px;
+  padding:16px;border:1px solid color-mix(in srgb,var(--line) 78%,transparent);border-radius:22px;
+  background:linear-gradient(135deg,color-mix(in srgb,#9d8cff 16%,var(--surface)),color-mix(in srgb,#ffb3c6 11%,var(--surface)));
+  box-shadow:0 14px 36px rgba(47,42,84,.09);
+}
+.mood-history-hero[data-mood="joy"]{background:linear-gradient(135deg,color-mix(in srgb,#ffd56a 25%,var(--surface)),color-mix(in srgb,#ff9f7a 12%,var(--surface)))}
+.mood-history-hero[data-mood="love"]{background:linear-gradient(135deg,color-mix(in srgb,#ff91b8 22%,var(--surface)),color-mix(in srgb,#c39cff 16%,var(--surface)))}
+.mood-history-hero[data-mood="sadness"]{background:linear-gradient(135deg,color-mix(in srgb,#7db6ff 20%,var(--surface)),color-mix(in srgb,#a9b8ff 14%,var(--surface)))}
+.mood-history-hero[data-mood="anger"]{background:linear-gradient(135deg,color-mix(in srgb,#ff786f 20%,var(--surface)),color-mix(in srgb,#ffb36c 12%,var(--surface)))}
+.mood-history-hero[data-mood="fatigue"],.mood-history-hero[data-mood="boredom"]{background:linear-gradient(135deg,color-mix(in srgb,#aab0c4 18%,var(--surface)),color-mix(in srgb,#c8b8e8 11%,var(--surface)))}
+.mood-history-hero::after{content:"";position:absolute;width:120px;height:120px;right:-36px;top:-52px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none}
+.mood-history-hero-emoji{width:58px;height:58px;display:grid;place-items:center;border-radius:19px;background:rgba(255,255,255,.48);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 20px rgba(31,28,52,.09);font-size:32px}
+.mood-history-hero>div{min-width:0;display:grid;gap:3px}
+.mood-history-hero>div>span{font-size:9.5px;font-weight:780;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.mood-history-hero strong{font-size:17px;line-height:1.18;letter-spacing:-.02em}
+.mood-history-hero small{font-size:10.2px;line-height:1.35;color:var(--muted)}
+.mood-history-card,.mood-stats-card,.mood-analysis-card{border-radius:22px;box-shadow:0 10px 30px rgba(20,24,36,.055)}
+.mood-history-week-nav{display:grid;grid-template-columns:34px 1fr 34px;align-items:center;gap:8px;margin-bottom:12px;text-align:center}
+.mood-history-week-nav>div{display:grid;gap:2px}
+.mood-history-week-nav strong{font-size:12px;letter-spacing:-.01em}
+.mood-history-week-nav span{font-size:9.5px;color:var(--muted)}
+.mood-history-week-nav button{width:34px;height:34px;border:1px solid var(--line);border-radius:11px;background:var(--soft);color:var(--text);font-size:22px}
+.mood-history-week-nav button:disabled{opacity:.25}
+.mood-history-week-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.mood-history-week-strip .mood-history-day{
+  min-width:0;min-height:70px;padding:7px 2px;border:1px solid color-mix(in srgb,var(--line) 74%,transparent);
+  border-radius:14px;background:color-mix(in srgb,var(--surface-strong) 88%,transparent);
+  display:grid;grid-template-rows:auto auto 20px;align-items:center;justify-items:center;gap:2px;
+  transition:transform .16s ease,border-color .16s ease,background .16s ease;
+}
+.mood-history-week-strip .mood-history-day span{font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.mood-history-week-strip .mood-history-day strong{font-size:13px;line-height:1}
+.mood-history-week-strip .mood-history-day b{font-size:17px;line-height:1}
+.mood-history-week-strip .mood-history-day:disabled{opacity:.5}
+.mood-history-week-strip .mood-history-day.has-mood{opacity:1;background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.mood-history-week-strip .mood-history-day.is-selected{outline:0;border-color:color-mix(in srgb,var(--accent) 70%,var(--line));box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 13%,transparent);transform:translateY(-1px)}
+.mood-history-week-strip .mood-history-day.is-today{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 58%,transparent)}
+.mood-day-detail{margin-top:12px;border-radius:16px;background:color-mix(in srgb,var(--soft) 82%,var(--surface))}
+.mood-day-sample{min-height:36px}
+.mood-stat-chip{position:relative;overflow:hidden;min-width:84px;padding:10px 11px;border:1px solid color-mix(in srgb,var(--line) 68%,transparent);border-radius:14px;background:color-mix(in srgb,var(--soft) 82%,transparent)}
+.mood-stat-chip::before{content:"";position:absolute;inset:0;opacity:.08;pointer-events:none;background:var(--accent)}
+.mood-stat-chip[data-mood="joy"]::before{background:#f6b829}.mood-stat-chip[data-mood="love"]::before{background:#ed6ca5}.mood-stat-chip[data-mood="sadness"]::before{background:#659fe9}.mood-stat-chip[data-mood="anger"]::before{background:#ed645c}.mood-stat-chip[data-mood="fatigue"]::before,.mood-stat-chip[data-mood="boredom"]::before{background:#8e8fa8}
+.mood-range-tabs button{border-radius:12px}
+#moodAnalyzeButton{box-shadow:0 7px 18px color-mix(in srgb,var(--accent) 24%,transparent)}
+@media(max-width:430px){
+  .mood-history-page{padding-left:11px;padding-right:11px}
+  .mood-history-week-strip{gap:4px}
+  .mood-history-week-strip .mood-history-day{min-height:66px;border-radius:12px}
+  .mood-history-hero{padding:14px;grid-template-columns:52px minmax(0,1fr)}
+  .mood-history-hero-emoji{width:52px;height:52px;border-radius:17px;font-size:29px}
+}

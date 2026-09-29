@@ -5,8 +5,8 @@ const {
   readScoreState,awardScore,penalizeScore,reverseScoreByDedupeKey,reversePenaltyByDedupeKey,scoreView
 }=require('./score-store.cjs');
 
-const HABIT_REWARD_UNITS=1;
-const HABIT_PENALTY_UNITS=1;
+const HABIT_REWARD_UNITS=2;
+const HABIT_PENALTY_UNITS=10;
 
 function rewardKey(actor,date,id){return 'score:habit:reward:'+actor+':'+date+':'+id}
 function penaltyKey(actor,date,id){return 'score:habit:penalty:'+actor+':'+date+':'+id}

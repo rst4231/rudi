@@ -39,9 +39,9 @@ async function handler(req,res){
         .map(intake=>({id:item.id,name:item.name,at:intake.at,status:item.status}))
       ).filter(row=>row.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
       const buildProgress=(state)=>{
-        const active=state.items.filter(item=>item.status==='active');
-        const taken=new Set(active.filter(item=>(item.intakes||[]).some(intake=>intake.date===today)).map(item=>item.id));
-        return {taken:taken.size,total:active.length};
+        const active=state.items.filter(item=>item.status==='active');let taken=0,total=0;
+        for(const item of active){const target=Math.max(1,Math.min(12,Math.round(Number(item.schedule?.timesPerDay)||1))),count=(item.intakes||[]).filter(intake=>intake.date===today).length;total+=target;taken+=Math.min(target,count)}
+        return {taken,total};
       };
       return res.status(200).json({
         ok:true,

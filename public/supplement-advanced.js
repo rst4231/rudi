@@ -34,11 +34,13 @@ function daysBetween(left,right){const a=dateMs(left),b=dateMs(right);return a==
 function statusLabel(value){return value==='paused'?'На паузе':value==='finished'?'Архив':''}
 function evidenceLabel(value){return value==='strong'?'🟢 Высокая':value==='moderate'?'🟢 Умеренная':value==='limited'?'🟡 Ограниченная':value==='insufficient'?'⚪ Данных мало':''}
 function foodLabel(value){return value==='before'?'до еды':value==='with'?'во время еды':value==='after'?'после еды':''}
-function takenToday(item){return(item.intakes||[]).some(row=>row.date===today())}
+function intakesTodayCount(item){return(item.intakes||[]).filter(row=>row.date===today()).length}
+function plannedIntakes(item){return Math.max(1,Math.min(12,Math.round(Number(item?.schedule?.timesPerDay)||1)))}
+function takenToday(item){return intakesTodayCount(item)>0}
+function completedToday(item){return intakesTodayCount(item)>=plannedIntakes(item)}
 function skippedToday(item){return(item.skips||[]).some(row=>row.date===today())}
-function handledToday(item){return takenToday(item)||skippedToday(item)}
-function takeIdleLabel(){return '✓ Принято'}
-function takeDoneLabel(){return '✓ Принято'}
+function handledToday(item){return completedToday(item)||skippedToday(item)}
+function takeIdleLabel(item){const count=intakesTodayCount(item),target=plannedIntakes(item);if(!count)return'✓ Отметить приём';return target>1?'✓ Принято · '+count+'/'+target:'✓ Принято · '+count}
 
 function streak(item){
   const dates=[...new Set((item.intakes||[]).map(row=>row.date).filter(Boolean))].sort();
@@ -215,17 +217,18 @@ function enhanceCards(){
     }
     const meta=document.createElement('div');meta.className='supplement-card-meta';
     if(item.goal)meta.appendChild(chip('🎯 '+item.goal));
-    const schedule=[item.schedule?.dosage,item.schedule?.time,foodLabel(item.schedule?.food)].filter(Boolean).join(' · ');if(schedule)meta.appendChild(chip('⏰ '+schedule));
+    const perDay=plannedIntakes(item)>1?plannedIntakes(item)+'× в день':'';
+    const schedule=[item.schedule?.dosage,item.schedule?.time,perDay,foodLabel(item.schedule?.food)].filter(Boolean).join(' · ');if(schedule)meta.appendChild(chip('⏰ '+schedule));
     const course=courseText(item);if(course)meta.appendChild(chip('📅 '+course));
     if(item.expirationDate)meta.appendChild(chip('📦 до '+item.expirationDate));
     const run=streak(item);if(run)meta.appendChild(chip('🔥 '+run+' дн.'));
     if(meta.childNodes.length)top.insertAdjacentElement('afterend',meta);
     const actions=document.createElement('div');actions.className='supplement-card-actions';
     if(item.status==='active'){
-      const take=document.createElement('button');take.type='button';take.className='supplement-take';take.textContent=takeDoneLabel();take.classList.toggle('is-complete',takenToday(item));take.disabled=takenToday(item);
+      const take=document.createElement('button');take.type='button';take.className='supplement-take';take.textContent=takeIdleLabel(item);take.classList.toggle('is-complete',completedToday(item));take.disabled=completedToday(item);
       const skip=document.createElement('button');skip.type='button';skip.className='supplement-skip';skip.textContent=skippedToday(item)?'Пропущено':'Пропустить';skip.classList.toggle('is-complete',skippedToday(item));skip.disabled=skippedToday(item)||takenToday(item);
       actions.append(take,skip);
-      take.addEventListener('click',async event=>{event.stopPropagation();take.disabled=true;try{const data=await req('take',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже отмечено сегодня.':'Приём отмечен ✓');document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'))}catch(error){take.disabled=false;setStatus('Не удалось отметить приём.',true)}});
+      take.addEventListener('click',async event=>{event.stopPropagation();take.disabled=true;try{const data=await req('take',{id:item.id});setItems(data.items||getItems());const current=(data.items||getItems()).find(row=>row.id===item.id)||data.item||item;const count=intakesTodayCount(current),target=plannedIntakes(current);setStatus(data.duplicate?'Все '+target+' приёма на сегодня уже отмечены.':target>1?'Приём '+count+'/'+target+' отмечен ✓':'Приём отмечен ✓');document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'))}catch(error){take.disabled=false;setStatus('Не удалось отметить приём.',true)}});
       skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
     }else{
       const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.append(resume);
