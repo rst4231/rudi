@@ -27,8 +27,8 @@ test('v2.98 uses actor-aware gender for personal UI copy',()=>{
   assert.match(profile,/habitFemale\?'не отметила':'не отметил'/);
   assert.match(profile,/habitFemale\?'нажала':'нажал'/);
 
-  assert.match(advanced,/isDiana\(\)\?'✓ Приняла':'✓ Принял'/);
-  assert.match(advanced,/isDiana\(\)\?'✓ Приняла сегодня':'✓ Принял сегодня'/);
+  assert.match(advanced,/function takeIdleLabel\(\)\{return '✓ Принято'\}/);
+  assert.match(advanced,/function takeDoneLabel\(\)\{return '✓ Принято сегодня'\}/);
   assert.match(advanced,/isDiana\(\)\?'Закончила':'Закончил'/);
   assert.match(editor,/getActor\(\)==='Диана'\?'Закончила':'Закончил'/);
 
