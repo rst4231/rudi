@@ -451,3 +451,9 @@ html[data-theme="dark"] .personal-supplements-progress{
 /* RUDI v2.89 — habit purpose */
 .personal-habit-purpose{margin-top:3px;font-size:12px;line-height:1.35;opacity:.72;overflow-wrap:anywhere}
 .personal-habit-row.is-done .personal-habit-purpose{opacity:.52}
+
+
+/* RUDI v2.115 — supplement card info */
+.supplement-card{cursor:default}
+.supplement-info-button{flex:0 0 auto;width:30px;height:30px;border:0;border-radius:10px;background:color-mix(in srgb,currentColor 8%,transparent);color:inherit;display:grid;place-items:center;font:inherit;font-size:17px;font-weight:800}
+.supplement-info-modal .habit-info-modal-copy{white-space:pre-line}
