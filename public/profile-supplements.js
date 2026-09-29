@@ -282,7 +282,7 @@ function render(){
     const card=document.createElement('article');card.className='supplement-card';card.dataset.id=item.id;
     const top=document.createElement('div');top.className='supplement-card-top';
     const name=document.createElement('div');name.className='supplement-card-name';const emoji=document.createElement('span');emoji.className='supplement-card-emoji';emoji.textContent=emojiForSupplement(item.name);const label=document.createElement('span');label.textContent=item.name;name.append(emoji,label);
-    const info=document.createElement('button');info.type='button';info.className='supplement-info-button';info.setAttribute('aria-label','Информация о '+item.name);info.title='Описание';info.textContent='ⓘ';
+    const info=document.createElement('button');info.type='button';info.className='supplement-info-button';info.setAttribute('aria-label','Информация о '+item.name);info.title='Описание';info.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25"/><path d="M12 10.8v5.1"/><circle class="is-dot" cx="12" cy="7.7" r=".85"/></svg>';
     const topActions=document.createElement('div');topActions.className='supplement-card-top-actions';topActions.append(info);top.append(name,topActions);
     card.append(top);
     info.addEventListener('click',event=>{event.stopPropagation();openSupplementInfo(item)});

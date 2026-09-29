@@ -114,3 +114,129 @@ html[data-theme="dark"] .supplement-group-title.is-finished{background:linear-gr
 .supplement-status-icon.is-pause{background:color-mix(in srgb,#e5a441 18%,var(--surface,#20242f));font-size:13px;letter-spacing:-2px}
 .supplement-status-icon.is-finish{background:color-mix(in srgb,#d76464 14%,var(--surface,#20242f));font-size:22px;line-height:1}
 .supplement-card-actions.is-single{grid-template-columns:1fr}
+
+
+/* RUDI v2.117 — polished supplement controls */
+.supplement-card-top-actions{
+  gap:7px;
+  flex-wrap:nowrap;
+}
+.supplement-info-button,
+.supplement-settings-icon,
+.supplement-status-icon{
+  box-sizing:border-box;
+  flex:0 0 auto;
+  width:36px;
+  height:36px;
+  padding:0;
+  border:1px solid transparent;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  color:inherit;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transform:translateZ(0);
+  transition:transform .14s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease,opacity .18s ease;
+}
+.supplement-info-button svg,
+.supplement-settings-icon svg,
+.supplement-status-icon svg{
+  width:18px;
+  height:18px;
+  display:block;
+  overflow:visible;
+}
+.supplement-info-button svg,
+.supplement-settings-icon svg{
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.supplement-info-button svg .is-dot{
+  fill:currentColor;
+  stroke:none;
+}
+.supplement-settings-icon svg circle{
+  fill:none;
+}
+.supplement-status-icon.is-pause svg{
+  fill:currentColor;
+  stroke:none;
+}
+.supplement-status-icon.is-finish svg{
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.25;
+  stroke-linecap:round;
+}
+.supplement-info-button:active,
+.supplement-settings-icon:active,
+.supplement-status-icon:active{
+  transform:translateY(1px) scale(.95);
+}
+.supplement-info-button:disabled,
+.supplement-settings-icon:disabled,
+.supplement-status-icon:disabled{
+  opacity:.42;
+  pointer-events:none;
+}
+html[data-theme="light"] .supplement-info-button,
+html[data-theme="light"] .supplement-settings-icon{
+  color:#242831;
+  background:linear-gradient(145deg,#f7f8fa,#e9ebef);
+  border-color:rgba(44,50,62,.06);
+  box-shadow:
+    0 7px 16px rgba(39,45,57,.11),
+    inset 0 1px 0 rgba(255,255,255,.95);
+}
+html[data-theme="light"] .supplement-status-icon.is-pause{
+  color:#a76608;
+  background:linear-gradient(145deg,#fff8e9,#ffedc5);
+  border-color:rgba(203,136,28,.08);
+  box-shadow:
+    0 7px 16px rgba(181,120,24,.12),
+    inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-theme="light"] .supplement-status-icon.is-finish{
+  color:#c23a3f;
+  background:linear-gradient(145deg,#fff3f3,#ffe4e6);
+  border-color:rgba(194,58,63,.07);
+  box-shadow:
+    0 7px 16px rgba(184,67,72,.11),
+    inset 0 1px 0 rgba(255,255,255,.92);
+}
+html[data-theme="dark"] .supplement-info-button,
+html[data-theme="dark"] .supplement-settings-icon{
+  color:#f0f2f6;
+  background:linear-gradient(145deg,rgba(255,255,255,.115),rgba(255,255,255,.055));
+  border-color:rgba(255,255,255,.07);
+  box-shadow:
+    0 8px 18px rgba(0,0,0,.26),
+    inset 0 1px 0 rgba(255,255,255,.09);
+}
+html[data-theme="dark"] .supplement-status-icon.is-pause{
+  color:#f0b84b;
+  background:linear-gradient(145deg,rgba(240,184,75,.22),rgba(181,118,25,.11));
+  border-color:rgba(240,184,75,.13);
+  box-shadow:
+    0 8px 18px rgba(0,0,0,.24),
+    inset 0 1px 0 rgba(255,236,194,.08);
+}
+html[data-theme="dark"] .supplement-status-icon.is-finish{
+  color:#ff7d82;
+  background:linear-gradient(145deg,rgba(235,91,98,.22),rgba(162,48,56,.11));
+  border-color:rgba(255,125,130,.12);
+  box-shadow:
+    0 8px 18px rgba(0,0,0,.24),
+    inset 0 1px 0 rgba(255,220,222,.07);
+}
+@media(hover:hover){
+  .supplement-info-button:hover,
+  .supplement-settings-icon:hover,
+  .supplement-status-icon:hover{
+    transform:translateY(-1px);
+  }
+}
