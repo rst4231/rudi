@@ -665,6 +665,16 @@
         return 'rudi:auto-refresh:v1:'+actor;
       }
 
+      function moodNotifyPartnerStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:mood-notify-partner:v1:'+actor;
+      }
+
+      function moodReceivePartnerStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:mood-receive-partner:v1:'+actor;
+      }
+
       function interfaceTextSizeStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:interface-text-size:v1:'+actor;
@@ -744,6 +754,16 @@
         }catch(_){return 'normal'}
       }
 
+      function moodNotifyPartnerEnabled(){
+        if(!currentActor) return false;
+        try{return localStorage.getItem(moodNotifyPartnerStorageKey())==='1'}catch(_){return false}
+      }
+
+      function moodReceivePartnerEnabled(){
+        if(!currentActor) return false;
+        try{return localStorage.getItem(moodReceivePartnerStorageKey())==='1'}catch(_){return false}
+      }
+
       function lastDataSyncAt(){
         try{return String(localStorage.getItem(dataLastSyncStorageKey())||'')}catch(_){return ''}
       }
@@ -812,6 +832,8 @@
         let themeModeValue='system';
         let autoRefreshEnabledValue=true;
         let interfaceTextSizeValue='normal';
+        let moodNotifyPartnerEnabledValue=false;
+        let moodReceivePartnerEnabledValue=false;
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
@@ -824,9 +846,11 @@
         try{themeModeValue=currentThemeMode()}catch(_){}
         try{autoRefreshEnabledValue=autoRefreshEnabled()}catch(_){}
         try{interfaceTextSizeValue=currentInterfaceTextSize()}catch(_){}
+        try{moodNotifyPartnerEnabledValue=moodNotifyPartnerEnabled()}catch(_){}
+        try{moodReceivePartnerEnabledValue=moodReceivePartnerEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:2,
+          syncSchemaVersion:3,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
@@ -835,6 +859,8 @@
           themeMode:themeModeValue,
           autoRefreshEnabled:autoRefreshEnabledValue,
           interfaceTextSize:interfaceTextSizeValue,
+          moodNotifyPartnerEnabled:moodNotifyPartnerEnabledValue,
+          moodReceivePartnerEnabled:moodReceivePartnerEnabledValue,
           updatedAt
         };
       }
@@ -851,8 +877,10 @@
         const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
         const hasRemoteAutoRefresh=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'autoRefreshEnabled');
         const hasRemoteTextSize=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'interfaceTextSize');
+        const hasRemoteMoodNotify=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodNotifyPartnerEnabled');
+        const hasRemoteMoodReceive=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodReceivePartnerEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -897,8 +925,14 @@
             const size=['small','normal','large'].includes(String(remote.interfaceTextSize||''))?String(remote.interfaceTextSize):'normal';
             localStorage.setItem(interfaceTextSizeStorageKey(),size);
           }
+          if(hasRemoteMoodNotify){
+            localStorage.setItem(moodNotifyPartnerStorageKey(),remote.moodNotifyPartnerEnabled===true?'1':'0');
+          }
+          if(hasRemoteMoodReceive){
+            localStorage.setItem(moodReceivePartnerStorageKey(),remote.moodReceivePartnerEnabled===true?'1':'0');
+          }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<2){
+          if(keepLocalOrder||remoteSchema<3){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             markUiPreferencesChanged();
           }
@@ -929,6 +963,7 @@
         applyTheme();
         updateThemeSettingControls();
         updateAutoRefreshUi();
+        updateMoodNotificationSettingsUi();
         applyInterfacePreferences();
         if(document.querySelector('.products-history')) setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
         if(document.querySelector('.fasting-history-card')) setFastingHistoryCollapsed(readFastingHistoryCollapsed(),{persist:false});
@@ -4671,6 +4706,18 @@
             '</section>'+
 
             '<section class="settings-group">'+
+              '<div class="settings-group-title">Уведомления</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Уведомлять партнёра о смене моего настроения</strong><small>Отправлять партнёру сообщение в Telegram</small></div>'+
+                '<button id="settingsMoodNotifyPartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Уведомлять партнёра о смене моего настроения"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Получать уведомления о смене настроения партнёра</strong><small>Получать сообщения партнёра в Telegram</small></div>'+
+                '<button id="settingsMoodReceivePartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Получать уведомления о смене настроения партнёра"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+            '</section>'+
+
+            '<section class="settings-group">'+
               '<div class="settings-group-title">Данные</div>'+
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong id="settingsSyncStatus">Синхронизация работает</strong><small id="settingsLastUpdated">Последнее обновление: —</small></div>'+
@@ -5236,6 +5283,29 @@
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
+      function updateMoodNotificationSettingsUi(){
+        const notify=document.getElementById('settingsMoodNotifyPartnerToggle');
+        const receive=document.getElementById('settingsMoodReceivePartnerToggle');
+        if(notify) notify.setAttribute('aria-checked',moodNotifyPartnerEnabled()?'true':'false');
+        if(receive) receive.setAttribute('aria-checked',moodReceivePartnerEnabled()?'true':'false');
+      }
+
+      function setMoodNotifyPartnerEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(moodNotifyPartnerStorageKey(),next?'1':'0')}catch(_){}
+        updateMoodNotificationSettingsUi();
+        if(currentActor) markUiPreferencesChanged({moodNotifyPartnerEnabled:next,syncSchemaVersion:3});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setMoodReceivePartnerEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(moodReceivePartnerStorageKey(),next?'1':'0')}catch(_){}
+        updateMoodNotificationSettingsUi();
+        if(currentActor) markUiPreferencesChanged({moodReceivePartnerEnabled:next,syncSchemaVersion:3});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
       function formatLastDataSync(){
         const parsed=new Date(lastDataSyncAt());
         if(Number.isNaN(parsed.getTime())) return 'ещё не обновлялось';
@@ -5367,6 +5437,16 @@
           auto.dataset.bound='1';
           auto.addEventListener('click',()=>setAutoRefreshEnabled(!autoRefreshEnabled()));
         }
+        const moodNotify=document.getElementById('settingsMoodNotifyPartnerToggle');
+        if(moodNotify&&moodNotify.dataset.bound!=='1'){
+          moodNotify.dataset.bound='1';
+          moodNotify.addEventListener('click',()=>setMoodNotifyPartnerEnabled(!moodNotifyPartnerEnabled()));
+        }
+        const moodReceive=document.getElementById('settingsMoodReceivePartnerToggle');
+        if(moodReceive&&moodReceive.dataset.bound!=='1'){
+          moodReceive.dataset.bound='1';
+          moodReceive.addEventListener('click',()=>setMoodReceivePartnerEnabled(!moodReceivePartnerEnabled()));
+        }
         const refresh=document.getElementById('settingsRefreshNow');
         if(refresh&&refresh.dataset.bound!=='1'){
           refresh.dataset.bound='1';
@@ -5383,6 +5463,7 @@
           restore.addEventListener('click',restoreBackupNow);
         }
         updateAutoRefreshUi();
+        updateMoodNotificationSettingsUi();
         applyInterfacePreferences();
         updateDataSettingsUi();
         updateAboutSettingsUi();

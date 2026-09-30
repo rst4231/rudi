@@ -2644,7 +2644,19 @@ async function handleRudiAction(req, res, action, options = {}) {
         row = await setDailyMood(date, actor, body.mood, options);
         const nextMood = row?.moods?.[actor]?.mood || '';
         if (nextMood && nextMood !== previousMood) {
-          await sendMoodNotificationToPartner(actor, nextMood, options);
+          const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
+          if (recipientActor) {
+            const [senderUiPreferences, recipientUiPreferences] = await Promise.all([
+              readUiPreferences(actor, options).catch(() => null),
+              readUiPreferences(recipientActor, options).catch(() => null),
+            ]);
+            if (
+              senderUiPreferences?.moodNotifyPartnerEnabled === true
+              && recipientUiPreferences?.moodReceivePartnerEnabled === true
+            ) {
+              await sendMoodNotificationToPartner(actor, nextMood, options);
+            }
+          }
           const activityText = moodActivityText(actor, previousMood, nextMood);
           if (activityText) {
             await recordActivity({type:'mood',actor,text:activityText,icon:MOOD_ACTIVITY[nextMood]?.emoji||'🙂',targetTab:'home'},options);

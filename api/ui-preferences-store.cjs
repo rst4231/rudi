@@ -57,6 +57,12 @@ function normalizeUiPreferencesState(value) {
   const interfaceTextSize = ['small', 'normal', 'large'].includes(String(source.interfaceTextSize || '').trim())
     ? String(source.interfaceTextSize).trim()
     : 'normal';
+  const moodNotifyPartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodNotifyPartnerEnabled')
+    ? Boolean(source.moodNotifyPartnerEnabled)
+    : false;
+  const moodReceivePartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodReceivePartnerEnabled')
+    ? Boolean(source.moodReceivePartnerEnabled)
+    : false;
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const parsed = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   return {
@@ -71,6 +77,8 @@ function normalizeUiPreferencesState(value) {
     themeMode,
     autoRefreshEnabled,
     interfaceTextSize,
+    moodNotifyPartnerEnabled,
+    moodReceivePartnerEnabled,
     updatedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
   };
 }
@@ -106,7 +114,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 2,
+      syncSchemaVersion: 3,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
         ? { ...current.blockStates, ...incoming.blockStates }
@@ -119,6 +127,8 @@ async function saveUiPreferences(actor, value, options = {}) {
       themeMode: has('themeMode') ? incoming.themeMode : current.themeMode,
       autoRefreshEnabled: has('autoRefreshEnabled') ? incoming.autoRefreshEnabled : current.autoRefreshEnabled,
       interfaceTextSize: has('interfaceTextSize') ? incoming.interfaceTextSize : current.interfaceTextSize,
+      moodNotifyPartnerEnabled: has('moodNotifyPartnerEnabled') ? incoming.moodNotifyPartnerEnabled : current.moodNotifyPartnerEnabled,
+      moodReceivePartnerEnabled: has('moodReceivePartnerEnabled') ? incoming.moodReceivePartnerEnabled : current.moodReceivePartnerEnabled,
       updatedAt,
     }, options);
   });
@@ -138,12 +148,14 @@ async function seedUiPreferences(actor, value, options = {}) {
       || has('marketTickerEnabled')
       || has('themeMode')
       || has('autoRefreshEnabled')
-      || has('interfaceTextSize');
+      || has('interfaceTextSize')
+      || has('moodNotifyPartnerEnabled')
+      || has('moodReceivePartnerEnabled');
     if (!hasAny) return current;
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
-      syncSchemaVersion: 2,
+      syncSchemaVersion: 3,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
       viewStates: incoming.viewStates,
@@ -152,6 +164,8 @@ async function seedUiPreferences(actor, value, options = {}) {
       themeMode: incoming.themeMode,
       autoRefreshEnabled: incoming.autoRefreshEnabled,
       interfaceTextSize: incoming.interfaceTextSize,
+      moodNotifyPartnerEnabled: incoming.moodNotifyPartnerEnabled,
+      moodReceivePartnerEnabled: incoming.moodReceivePartnerEnabled,
       updatedAt: incoming.updatedAt || new Date(options.now || Date.now()).toISOString(),
     }, options);
   });

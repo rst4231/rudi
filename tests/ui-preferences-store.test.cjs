@@ -27,6 +27,8 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
     themeMode:'dark',
     autoRefreshEnabled:false,
     interfaceTextSize:'large',
+    moodNotifyPartnerEnabled:true,
+    moodReceivePartnerEnabled:true,
     viewStates:{'products-history':false,'saves:date':true},
   },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T08:00:00Z')});
   assert.equal(first.version,1);
@@ -45,9 +47,11 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
   assert.equal(saved.themeMode,'dark');
   assert.equal(saved.autoRefreshEnabled,false);
   assert.equal(saved.interfaceTextSize,'large');
+  assert.equal(saved.moodNotifyPartnerEnabled,true);
+  assert.equal(saved.moodReceivePartnerEnabled,true);
   assert.equal(saved.viewStates['products-history'],false);
   assert.equal(saved.viewStates['saves:date'],true);
-  assert.equal(saved.syncSchemaVersion,2);
+  assert.equal(saved.syncSchemaVersion,3);
 
   await saveUiPreferences('Диана',{
     homeOrder:['dashboard','diana','rustam','lulu','nearest'],
@@ -135,4 +139,33 @@ test('preference sync writes through lightweight endpoint and refreshes on focus
   assert.match(app,/addEventListener\('focus',[\s\S]*syncUiPreferencesFromServer/);
   assert.match(app,/syncUiPreferencesFromServer\(\)\},60\*1000/);
   assert.match(api,/saveUiPreferences\(actor, body\.uiPreferences/);
+});
+
+
+test('mood Telegram notification settings are shared and default to off',async()=>{
+  const cache=memoryCache();
+  const initial=await readUiPreferences('Рустам',{uiPreferencesCache:cache});
+  assert.equal(initial.moodNotifyPartnerEnabled,false);
+  assert.equal(initial.moodReceivePartnerEnabled,false);
+
+  await saveUiPreferences('Рустам',{
+    moodNotifyPartnerEnabled:true,
+    moodReceivePartnerEnabled:false,
+  },{uiPreferencesCache:cache,now:Date.parse('2026-09-30T10:00:00Z')});
+
+  const saved=await readUiPreferences('Рустам',{uiPreferencesCache:cache});
+  assert.equal(saved.moodNotifyPartnerEnabled,true);
+  assert.equal(saved.moodReceivePartnerEnabled,false);
+  assert.equal(saved.syncSchemaVersion,3);
+});
+
+test('mood Telegram delivery requires sender and recipient opt-in',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const api=fs.readFileSync('api/partner-message.js','utf8');
+  assert.match(app,/settingsMoodNotifyPartnerToggle/);
+  assert.match(app,/settingsMoodReceivePartnerToggle/);
+  assert.match(app,/moodNotifyPartnerEnabled/);
+  assert.match(app,/moodReceivePartnerEnabled/);
+  assert.match(api,/senderUiPreferences\?\.moodNotifyPartnerEnabled === true/);
+  assert.match(api,/recipientUiPreferences\?\.moodReceivePartnerEnabled === true/);
 });
