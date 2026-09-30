@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const sample={current:{temperature_2m:12,weather_code:3,precipitation:0,rain:0},daily:{temperature_2m_min:[7,8],temperature_2m_max:[14,15],precipitation_sum:[0,2]}};
+const sample={current:{time:'2026-09-30T19:00',temperature_2m:12,apparent_temperature:10,weather_code:3,precipitation:0,rain:0},hourly:{time:['2026-09-30T19:00','2026-09-30T20:00'],precipitation_probability:[0,10],precipitation:[0,0],rain:[0,0]},daily:{time:['2026-09-30','2026-10-01'],sunrise:['2026-09-30T06:56','2026-10-01T06:58'],sunset:['2026-09-30T18:34','2026-10-01T18:31'],temperature_2m_min:[7,8],temperature_2m_max:[14,15],precipitation_sum:[0,2]}};
 
 test('server combines concurrent forecast requests and caches successful data',async()=>{
   const {createWeatherService}=require('../api/weather.cjs');
@@ -13,6 +13,18 @@ test('server combines concurrent forecast requests and caches successful data',a
   assert.deepEqual(a,b);
   await service();
   assert.equal(count,1);
+});
+
+test('server forecast includes sun times and hourly rain data for the home dashboard',async()=>{
+  const {createWeatherService}=require('../api/weather.cjs');
+  let requested='';
+  const service=createWeatherService({fetchImpl:async url=>{requested=String(url);return {ok:true,json:async()=>sample}}});
+  const value=await service();
+  assert.match(requested,/hourly=precipitation_probability,precipitation,rain/);
+  assert.match(requested,/sunrise,sunset/);
+  assert.deepEqual(value.daily.sunrise,sample.daily.sunrise);
+  assert.deepEqual(value.daily.sunset,sample.daily.sunset);
+  assert.deepEqual(value.hourly,sample.hourly);
 });
 
 test('server keeps recent forecast during an outage without extending its age',async()=>{
@@ -43,7 +55,7 @@ test('forecast timeout aborts the provider request',async()=>{
 });
 
 function client({cached,fetchImpl}){
-  const storage=new Map(cached?[['rudi-weather-v1',JSON.stringify(cached)]]:[]);
+  const storage=new Map(cached?[['rudi-weather-v2',JSON.stringify(cached)]]:[]);
   const context=vm.createContext({window:{},Date,AbortController,setTimeout,clearTimeout,
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},fetch:fetchImpl});
   vm.runInContext(fs.readFileSync('public/weather.js','utf8'),context);

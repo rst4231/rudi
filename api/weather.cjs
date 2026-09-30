@@ -1,12 +1,15 @@
-const URL = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,weather_code,precipitation,rain&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_sum&forecast_days=7&timezone=Europe%2FMoscow';
+const URL = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,apparent_temperature,weather_code,precipitation,rain&hourly=precipitation_probability,precipitation,rain&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_sum,sunrise,sunset&forecast_days=7&timezone=Europe%2FMoscow';
 const FRESH = 15 * 60 * 1000;
 const MAX_AGE = 2 * 60 * 60 * 1000;
 function valid(data) {
   const daily = data?.daily;
-  const keys = ['temperature_2m_min', 'temperature_2m_max', 'precipitation_sum'];
+  const numericKeys = ['temperature_2m_min', 'temperature_2m_max', 'precipitation_sum'];
+  const sunKeys = ['time', 'sunrise', 'sunset'];
+  const days = Array.isArray(daily?.time) ? daily.time.length : 0;
   return Number.isFinite(data?.current?.temperature_2m) && Number.isFinite(data?.current?.weather_code)
-    && keys.every(key => Array.isArray(daily?.[key]) && daily[key].length > 0 && daily[key].every(Number.isFinite))
-    && keys.every(key => daily[key].length === daily.temperature_2m_min.length);
+    && days > 0
+    && numericKeys.every(key => Array.isArray(daily?.[key]) && daily[key].length === days && daily[key].every(Number.isFinite))
+    && sunKeys.every(key => Array.isArray(daily?.[key]) && daily[key].length === days && daily[key].every(value => typeof value === 'string' && value.length > 0));
 }
 function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, timeoutMs = 6000} = {}) {
   let cached = null, flight = null;
@@ -21,7 +24,7 @@ function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, tim
         if (!response.ok) throw new Error('Weather provider unavailable');
         const data = await response.json();
         if (!valid(data)) throw new Error('Invalid forecast');
-        cached = {current: data.current, daily: data.daily, fetchedAt: now(), stale: false};
+        cached = {current: data.current, hourly: data.hourly || {}, daily: data.daily, fetchedAt: now(), stale: false};
         return cached;
       } catch (error) {
         if (cached && now() - cached.fetchedAt <= MAX_AGE) return {...cached, stale: true};

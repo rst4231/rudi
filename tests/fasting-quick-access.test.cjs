@@ -27,6 +27,7 @@ test('home hero shows smart sunrise or sunset line under moon phase',()=>{
   assert.match(app,/function homeSunEventLabel\(/);
   assert.match(app,/Восход завтра в/);
   assert.match(app,/Закат в/);
-  assert.match(app,/daily=sunrise,sunset/);
+  assert.match(app,/RUDI_WEATHER\?\.get/);
+  assert.match(app,/\/api\/index\?route=weather/);
   assert.match(css,/\.home-dashboard-sun/);
 });

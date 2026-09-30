@@ -1,14 +1,19 @@
 (() => {
   'use strict';
-  const KEY = 'rudi-weather-v1';
+  const KEY = 'rudi-weather-v2';
   const FRESH = 15 * 60 * 1000;
   const MAX_AGE = 2 * 60 * 60 * 1000;
   let cached = null, flight = null;
   function valid(value) {
+    const daily=value?.daily;
+    const days=Array.isArray(daily?.time)?daily.time.length:0;
     return Number.isFinite(value?.fetchedAt) && value.fetchedAt <= Date.now() + 60000
       && Number.isFinite(value?.current?.temperature_2m) && Number.isFinite(value?.current?.weather_code)
+      && days>0
       && ['temperature_2m_min', 'temperature_2m_max', 'precipitation_sum'].every(key =>
-        Array.isArray(value?.daily?.[key]) && value.daily[key].length > 0 && value.daily[key].every(Number.isFinite));
+        Array.isArray(daily?.[key]) && daily[key].length === days && daily[key].every(Number.isFinite))
+      && ['time','sunrise','sunset'].every(key =>
+        Array.isArray(daily?.[key]) && daily[key].length === days && daily[key].every(item=>typeof item==='string'&&item.length>0));
   }
   try { const saved = JSON.parse(localStorage.getItem(KEY)); if (valid(saved)) cached = saved; } catch (_) {}
   async function get() {

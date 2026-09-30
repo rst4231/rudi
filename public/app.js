@@ -6725,18 +6725,13 @@
           return;
         }
         try{
-          const query=[
-            'latitude='+encodeURIComponent(cfg.latitude),
-            'longitude='+encodeURIComponent(cfg.longitude),
-            'current=temperature_2m,apparent_temperature,weather_code,precipitation,rain',
-            'hourly=precipitation_probability,precipitation,rain',
-            'daily=sunrise,sunset',
-            'forecast_days=2',
-            'timezone='+encodeURIComponent(cfg.timezone||TZ)
-          ].join('&');
-          const r=await fetch('https://api.open-meteo.com/v1/forecast?'+query,{cache:'no-store'});
-          if(!r.ok) throw new Error('weather');
-          const data=await r.json();
+          const data=typeof window.RUDI_WEATHER?.get==='function'
+            ? await window.RUDI_WEATHER.get()
+            : await (async()=>{
+                const r=await fetch('/api/index?route=weather',{cache:'no-store'});
+                if(!r.ok) throw new Error('weather');
+                return r.json();
+              })();
           const c=data.current||{};
           homeSunTimes={
             dates:Array.isArray(data.daily?.time)?data.daily.time:[],
