@@ -85,7 +85,13 @@ test('saved recipes are placed in Kitchen after the recipe generator', () => {
   assert.match(pwa, /tab:isRecipe\?'products':'saves'/);
 });
 
-test('fasting tracker button is removed from Kitchen without leaving its tool container', () => {
-  assert.doesNotMatch(html, /Трекер голодания/);
+test('fasting tracker button is removed from Kitchen without removing the tracker itself', () => {
+  const kitchenStart=html.indexOf('id="productsPage"');
+  const fastingPage=html.indexOf('id="fastingPage"');
+  const kitchen=html.slice(kitchenStart,fastingPage);
+  assert.doesNotMatch(kitchen, /id="fastingTrackerOpen"/);
+  assert.doesNotMatch(kitchen, /Трекер голодания/);
+  assert.match(html, /id="fastingProfileButton"/);
+  assert.match(html, /id="fastingPage"/);
   assert.doesNotMatch(html, /gemini\.google\.com\/share\/a09a924c005c/);
 });
