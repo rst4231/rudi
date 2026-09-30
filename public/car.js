@@ -683,26 +683,31 @@
     if(homePercent) homePercent.textContent=Math.round(pct)+'%';
   }
 
-  function tyreAdvice(weather) {
-    if(!weather) return 'Прогноз временно недоступен. Ориентир для смены шин — устойчивая среднесуточная температура около +7°C.';
-    const avg=Number(weather.avgMean);
-    const min=Number(weather.minForecast);
+  function tyreSeason(weather) {
+    const min=Number(weather?.minForecast);
+    const avg=Number(weather?.avgMean);
+    if(Number.isFinite(min)&&min<=0) return 'winter';
+    if(Number.isFinite(avg)&&avg<=7) return 'winter';
+    if(Number.isFinite(avg)&&avg>=10&&Number.isFinite(min)&&min>5) return 'summer';
+    const month=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',month:'2-digit'}).format(new Date()));
+    return month>=10||month<=3?'winter':'summer';
+  }
 
-    if(Number.isFinite(min) && min<=0) {
-      return 'В прогнозе есть заморозки. Если стоят летние шины, уже стоит планировать переход на зимние.';
+  function renderTyreSeason(weather) {
+    const season=tyreSeason(weather);
+    const text=season==='winter'?'Зимние':'Летние';
+    for(const id of ['carHomeTyreSticker','carPageTyreSticker']){
+      const node=document.getElementById(id);
+      if(!node) continue;
+      node.textContent=text;
+      node.dataset.season=season;
+      node.setAttribute('aria-label','Сейчас лучше использовать '+text.toLowerCase()+' шины');
     }
-    if(Number.isFinite(avg) && avg<=7) {
-      return 'Средняя температура на неделе около +7°C или ниже. Пора планировать зимние шины.';
-    }
-    if(Number.isFinite(avg) && avg>=10 && Number.isFinite(min) && min>5) {
-      return 'Температура устойчиво выше +7°C. По погоде условия подходят для летних шин.';
-    }
-    return 'Температура около порога +7°C. Лучше дождаться устойчивых значений выше или ниже +7°C.';
   }
 
   function carWashAdvice(weather) {
     if(!weather) {
-      return {kind:'info',title:'Стоит ли мыть машину',text:'Прогноз на неделю недоступен. Лучше проверить погоду перед мойкой.'};
+      return {kind:'info',title:'Проверь погоду',text:'Прогноз на неделю недоступен. Лучше проверить погоду перед мойкой.'};
     }
 
     const precipitation=(Array.isArray(weather.dailyPrecipitation)?weather.dailyPrecipitation:[])
@@ -725,22 +730,22 @@
     const frost=mins.some(value=>Number.isFinite(value)&&value<=0);
 
     if(snowSoon) {
-      return {kind:'cold',title:'Стоит ли мыть машину',text:'Лучше отложить: в ближайшие дни возможен снег, машина быстро снова испачкается.'};
+      return {kind:'cold',title:'Лучше отложить',text:'В ближайшие дни возможен снег, машина быстро снова испачкается.'};
     }
     if(firstWet===0||firstWet===1) {
-      return {kind:'rain',title:'Стоит ли мыть машину',text:'Лучше отложить: дождь или другие осадки ожидаются в ближайшие 1–2 дня.'};
+      return {kind:'rain',title:'Лучше отложить',text:'Дождь или другие осадки ожидаются в ближайшие 1–2 дня.'};
     }
     if(wetDays.length>=3||total>=8) {
-      return {kind:'rain',title:'Стоит ли мыть машину',text:'Скорее не стоит: неделя ожидается влажной, чистой машина останется ненадолго.'};
+      return {kind:'rain',title:'Скорее отложить',text:'Неделя ожидается влажной, чистой машина останется ненадолго.'};
     }
     if(firstWet>=2) {
       const days=firstWet;
-      return {kind:'info',title:'Стоит ли мыть машину',text:'Можно помыть сейчас, но примерно через '+days+' '+(days===2?'дня':'дней')+' ожидаются осадки.',canWash:true};
+      return {kind:'info',title:'Можно мыть',text:'Примерно через '+days+' '+(days===2?'дня':'дней')+' ожидаются осадки.',canWash:true};
     }
     if(frost) {
-      return {kind:'cold',title:'Стоит ли мыть машину',text:'Можно, если после мойки хорошо просушат кузов, уплотнители и замки: на неделе возможны заморозки.',canWash:true};
+      return {kind:'cold',title:'Можно, но с просушкой',text:'На неделе возможны заморозки — после мойки хорошо просушить кузов, уплотнители и замки.',canWash:true};
     }
-    return {kind:'ok',title:'Стоит ли мыть машину',text:'Да. На ближайшую неделю существенных осадков не видно — хороший момент для мойки.',canWash:true};
+    return {kind:'ok',title:'Да, можно мыть',text:'На ближайшую неделю существенных осадков не видно — хороший момент для мойки.',canWash:true};
   }
 
   function compactWashAdvice(weather) {
@@ -756,29 +761,8 @@
     return 'Проверь погоду перед мойкой.';
   }
 
-  function weatherTyresRecommendation(weather) {
-    if(!weather) return {kind:'info',title:'Погода и шины',text:'Прогноз временно недоступен. '+tyreAdvice(null)};
-    const min=Number(weather.minForecast);
-    const avg=Number(weather.avgMean);
-    const kind=Number.isFinite(min)&&min<=0?'cold':(Number.isFinite(avg)&&avg<=7?'warn':'ok');
-    const current=Number(weather.temperature);
-    const prefix=Number.isFinite(current)?Math.round(current)+'°C · '+weatherLabel(weather.code)+'. ':'';
-    return {kind,title:'Погода и шины',text:(weather.stale?'Сохранённый прогноз. ':'')+prefix+tyreAdvice(weather)};
-  }
-
   function buildRecommendations(car,weather) {
-    const items=[weatherTyresRecommendation(weather),carWashAdvice(weather)];
-    const remaining=serviceRemaining(car);
-
-    if(remaining===0 && car?.state?.mileage!=null) {
-      items.push({kind:'warn',title:'ТО по пробегу',text:'Ты на регламентном рубеже. Проверь, пройдено ли это ТО, и при необходимости запишись.'});
-    } else if(Number.isFinite(remaining) && remaining<=1000) {
-      items.push({kind:'warn',title:'ТО скоро',text:'До следующего ТО осталось '+formatKm(remaining)+'. Лучше уже выбрать дату сервиса.'});
-    } else if(Number.isFinite(remaining) && remaining<=2500) {
-      items.push({kind:'info',title:'Планируй ТО',text:'До следующего ТО '+formatKm(remaining)+'. Можно заранее подобрать удобное окно у сервиса.'});
-    }
-
-    return items.slice(0,4);
+    return [carWashAdvice(weather)];
   }
 
   function renderRecommendations(car,weather) {
@@ -814,13 +798,12 @@
 
   function renderWeather(weather) {
     const now=document.getElementById('carWeatherNow');
-    const advice=document.getElementById('carTyreAdvice');
     if(now) {
       now.textContent=weather
         ? Math.round(Number(weather.temperature))+'°C · '+weatherLabel(weather.code)
         : 'Погода недоступна';
     }
-    if(advice) advice.textContent=(weather?.stale?'Сохранённый прогноз · ':'')+tyreAdvice(weather);
+    renderTyreSeason(weather);
     const washText=compactWashAdvice(weather);
     const collapsedWash=document.getElementById('carCollapsedWashValue');
     const homeWash=document.getElementById('carHomeWashValue');
