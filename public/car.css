@@ -1684,6 +1684,7 @@ body.car-wash-modal-open .app-tabbar{
 /* RUDI v2.141 — tyre season stickers and wash decision */
 .car-home-visual,
 .car-head-visual{position:relative}
+.car-tyre-sticker[hidden]{display:none!important}
 .car-tyre-sticker{
   position:absolute;
   z-index:4;
