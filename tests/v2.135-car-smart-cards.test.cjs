@@ -25,10 +25,17 @@ test('mileage and service are combined as Probeg i TO',()=>{
   assert.equal(config.car.priority.service.due,980);
 });
 
-test('weather and tyres live in recommendations, not a standalone smart card',()=>{
-  assert.match(js,/function weatherTyresRecommendation\(weather\)/);
-  assert.match(js,/title:'Погода и шины'/);
-  assert.doesNotMatch(js,/buildCarSmartCard\('weather'/);
+test('tyre season is shown as a sticker by the front wheel and wash block is dedicated',()=>{
+  assert.match(html,/id="carHomeTyreSticker"/);
+  assert.match(html,/id="carPageTyreSticker"/);
+  assert.match(js,/function tyreSeason\(weather\)/);
+  assert.match(js,/return \[carWashAdvice\(weather\)\]/);
+  assert.doesNotMatch(js,/weatherTyresRecommendation/);
+  assert.match(html,/Стоит ли мыть сейчас машину/);
+  assert.match(css,/\.car-tyre-sticker\{/);
+  assert.match(css,/data-season="winter"/);
+  assert.match(css,/car-wash-decision/);
+  assert.doesNotMatch(js,/title:'Погода и шины'/);
 });
 
 test('wash guide button exists only inside a positive wash recommendation',()=>{
