@@ -11476,7 +11476,18 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 
 /* RUDI v2.96 mood picker placement and control sizing */
 .profile-person-card #moodCurrentButton,
-.profile-person-card #moodHistoryButton,
+.profile-person-card #moodHistoryButton{
+  flex:0 0 30px!important;
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  margin:0!important;
+  padding:0!important;
+  border-radius:10px!important;
+  display:grid!important;
+  place-items:center!important;
+}
 .profile-person-card #fastingProfileButton{
   flex:0 0 30px!important;
   width:30px!important;
