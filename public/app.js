@@ -910,7 +910,6 @@
         const localNormalized=hasLocalOrder?normalizedHomeOrder(localOrder):[];
         const remoteNormalized=hasRemoteOrder?normalizedHomeOrder(remote.homeOrder):[];
         const localTime=Date.parse(localStamp)||0;
-        const remoteTime=Date.parse(remoteStamp)||0;
         const localLayoutIsNewer=localTime>remoteTime||(localTime===remoteTime&&hasLocalOrder);
         const keepLocalOrder=hasLocalOrder&&hasRemoteOrder
           &&JSON.stringify(localNormalized)!==JSON.stringify(remoteNormalized)
