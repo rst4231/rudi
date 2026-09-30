@@ -1679,3 +1679,126 @@ body.car-wash-modal-open .app-tabbar{
   -webkit-overflow-scrolling:touch;
   touch-action:pan-y;
 }
+
+
+/* RUDI v2.141 — tyre season stickers and wash decision */
+.car-home-visual,
+.car-head-visual{position:relative}
+.car-tyre-sticker[hidden]{display:none!important}
+.car-tyre-sticker{
+  position:absolute;
+  z-index:4;
+  left:38%;
+  top:69%;
+  transform:translate(-50%,-50%);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:20px;
+  padding:4px 8px;
+  border:1px solid rgba(255,255,255,.28);
+  border-radius:999px;
+  font-size:8.5px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.035em;
+  white-space:nowrap;
+  pointer-events:none;
+  backdrop-filter:blur(9px) saturate(1.15);
+  -webkit-backdrop-filter:blur(9px) saturate(1.15);
+  box-shadow:0 5px 13px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.3);
+}
+.car-tyre-sticker[data-season="summer"]{
+  color:#fff8df;
+  border-color:rgba(255,205,91,.38);
+  background:linear-gradient(135deg,rgba(213,142,28,.92),rgba(87,142,58,.88));
+}
+.car-tyre-sticker[data-season="winter"]{
+  color:#f3fbff;
+  border-color:rgba(157,220,255,.42);
+  background:linear-gradient(135deg,rgba(50,116,176,.94),rgba(95,166,211,.86));
+}
+.car-home-visual .car-tyre-sticker{left:38%;top:59%;font-size:7.8px;min-height:18px;padding:3px 7px}
+.car-page>.car-head .car-tyre-sticker{left:38%;top:62%}
+
+.car-page>.car-hero-recommendations.car-wash-decision{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  border-color:rgba(92,181,232,.25);
+  background:
+    radial-gradient(circle at 92% 12%,rgba(111,206,255,.18),transparent 30%),
+    radial-gradient(circle at 8% 92%,rgba(53,132,190,.15),transparent 28%),
+    linear-gradient(145deg,rgba(18,47,67,.96),rgba(13,29,42,.96));
+  box-shadow:0 13px 30px rgba(5,24,38,.20),inset 0 1px 0 rgba(255,255,255,.06);
+}
+.car-page>.car-hero-recommendations.car-wash-decision::before,
+.car-page>.car-hero-recommendations.car-wash-decision::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  border:1px solid rgba(178,229,255,.18);
+  border-radius:50%;
+  pointer-events:none;
+}
+.car-page>.car-hero-recommendations.car-wash-decision::before{width:58px;height:58px;right:18px;top:-27px}
+.car-page>.car-hero-recommendations.car-wash-decision::after{width:24px;height:24px;right:64px;top:18px}
+.car-wash-decision .car-section-title{color:#f2f9ff}
+.car-wash-decision .car-section-icon.is-recommendation{
+  display:grid;
+  place-items:center;
+  color:inherit;
+  background:rgba(126,207,250,.13);
+  border:1px solid rgba(154,219,255,.18);
+  font-size:15px;
+}
+.car-wash-decision .car-recommendation{
+  border-color:rgba(163,220,250,.13);
+  background:rgba(255,255,255,.055);
+}
+.car-wash-decision .car-recommendation strong{color:#f7fbff}
+.car-wash-decision .car-recommendation p{color:rgba(230,243,252,.72)}
+.car-wash-decision .car-recommendation-wash-button{
+  border-color:rgba(150,220,255,.24);
+  background:rgba(119,202,246,.12);
+  color:#dff5ff;
+}
+
+html[data-theme="light"] .car-tyre-sticker[data-season="summer"]{
+  color:#47320b;
+  border-color:#e5c264;
+  background:linear-gradient(135deg,#fff0aa,#dceeb8);
+  box-shadow:0 5px 13px rgba(77,63,25,.13),inset 0 1px 0 #fff;
+}
+html[data-theme="light"] .car-tyre-sticker[data-season="winter"]{
+  color:#163e59;
+  border-color:#a9d7ef;
+  background:linear-gradient(135deg,#eaf8ff,#ccecff);
+  box-shadow:0 5px 13px rgba(36,83,111,.12),inset 0 1px 0 #fff;
+}
+html[data-theme="light"] .car-page>.car-hero-recommendations.car-wash-decision{
+  border-color:#b9dcee!important;
+  background:
+    radial-gradient(circle at 92% 12%,rgba(97,185,229,.18),transparent 30%),
+    radial-gradient(circle at 8% 92%,rgba(126,202,236,.15),transparent 28%),
+    linear-gradient(145deg,#f4fbff,#eaf6fc)!important;
+  box-shadow:0 11px 28px rgba(55,103,132,.10)!important;
+}
+html[data-theme="light"] .car-wash-decision .car-section-title,
+html[data-theme="light"] .car-wash-decision .car-section-title strong,
+html[data-theme="light"] .car-wash-decision .car-recommendation strong{color:#172531!important}
+html[data-theme="light"] .car-wash-decision .car-recommendation p{color:#556b79!important}
+html[data-theme="light"] .car-wash-decision .car-recommendation{
+  border-color:#d1e7f2!important;
+  background:rgba(255,255,255,.74)!important;
+}
+html[data-theme="light"] .car-wash-decision .car-recommendation-wash-button{
+  border-color:#b8d8e9!important;
+  background:#e5f4fb!important;
+  color:#235f83!important;
+}
+@media(max-width:430px){
+  .car-home-visual .car-tyre-sticker{left:38%;top:58%;font-size:7px;min-height:16px;padding:3px 6px}
+  .car-page>.car-head .car-tyre-sticker{left:38%;top:61%;font-size:7.4px;min-height:17px;padding:3px 6px}
+}
+/* end RUDI v2.141 */

@@ -5,7 +5,7 @@ const {resolveVersionLabel,syncWebVersion}=require('../build.cjs');
 
 test('release config drives the UI version and source asset URLs',()=>{
   const config=JSON.parse(fs.readFileSync('rudi-version.json','utf8'));
-  assert.match(config.current,/^v\d+\.\d+$/);
+  assert.match(config.current,/^v\d+(?:\.\d+)?$/);
   syncWebVersion();
   const html=fs.readFileSync('public/index.html','utf8');
   const version=config.current.slice(1).replace(/\./g,'\\.');
@@ -17,10 +17,14 @@ test('release config drives the UI version and source asset URLs',()=>{
 });
 
 
-test('deploy commit version overrides stale config',()=>{
+test('deploy commit version overrides stale config and supports major releases',()=>{
   assert.equal(
     resolveVersionLabel({VERCEL_GIT_COMMIT_MESSAGE:'deploy: publish RUDI v9.8'},{current:'v1.0'}),
     'v9.8'
+  );
+  assert.equal(
+    resolveVersionLabel({VERCEL_GIT_COMMIT_MESSAGE:'deploy: publish RUDI v10'},{current:'v9.8'}),
+    'v10'
   );
 });
 

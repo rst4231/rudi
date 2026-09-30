@@ -30,7 +30,7 @@ test('personal supplements support left-edge swipe back without conflicting with
 
 
 test('home tracker and supplements use approved pastel card layout',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');assert.match(source,/personal-home-tile-icon is-habit/);assert.match(source,/personal-home-tile-icon is-supplement/);assert.match(source,/habitTile\.append\(habitHead,habitProgressRow,habitCalendar,habitBody\)/);assert.match(css,/RUDI v2\.56 — pastel home cards/);assert.match(css,/linear-gradient\(120deg,#f6fbf7/);assert.match(css,/linear-gradient\(120deg,#fffaf4/)}); 
-test('supplement home card shows distinct supplements taken today',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/function todaySupplementCount\(\)/);assert.match(source,/some\(row=>String\(row\?\.date\|\|''\)===today\)/);assert.match(source,/Сегодня принято: /);assert.match(source,/renderSupplementSummary\(\)/)});
+test('supplement home card shows distinct active supplements taken today',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/function todaySupplementCount\(\)/);assert.match(source,/activeSupplementItems\(\)/);assert.match(source,/supplementIntakesOn\(item,today\)>0/);assert.match(source,/Сегодня принято: /);assert.match(source,/renderSupplementSummary\(\)/)});
 
 
 test('archived supplements use explicit red delete button and no swipe delete',()=>{
@@ -72,3 +72,9 @@ test('profile supplement intake cards show compact progress and completed items'
 
 test('supplement theme follows RUDI theme instead of OS light preference',()=>{const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');assert.doesNotMatch(css,/@media \(prefers-color-scheme:light\)/);assert.match(css,/html\[data-theme="dark"\] \.supplement-card\{/)});
 test('archived supplement actions use a dedicated two-column layout',()=>{const js=fs.readFileSync(path.join(__dirname,'..','public','supplement-advanced.js'),'utf8');const css=fs.readFileSync(path.join(__dirname,'..','public','supplement-advanced.css'),'utf8');assert.match(js,/actions\.classList\.add\('is-archive'\)/);assert.match(css,/\.supplement-card-actions\.is-archive\{grid-template-columns:minmax\(0,1\.6fr\) minmax\(0,1fr\)\}/);assert.match(css,/\.supplement-card-actions\.is-archive \.supplement-delete\{font-size:12px/)});
+
+test('today supplement summary counts only active supplements in denominator',()=>{
+  const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');
+  assert.match(source,/const taken=active\.filter\(item=>supplementIntakesOn\(item,today\)>0\)\.length/);
+  assert.match(source,/return\{taken,total:active\.length\}/);
+});

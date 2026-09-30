@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v2.140">
+  <meta name="rudi-version" content="v2.141">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,14 +27,14 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=2.136">
+  <link rel="stylesheet" href="/app.css?v=2.141">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=2.134">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.105">
   <link rel="stylesheet" href="/pwa-extras.css?v=2.74">
   <link rel="stylesheet" href="/calendar.css?v=1.8.7">
   <link rel="stylesheet" href="/smart-home.css?v=1.8.7">
-  <link rel="stylesheet" href="/car.css?v=2.136">
+  <link rel="stylesheet" href="/car.css?v=2.141">
   <link rel="stylesheet" href="/profile-supplements.css?v=2.116">
   <link rel="stylesheet" href="/supplement-advanced.css?v=2.116">
   <script>
@@ -64,12 +64,12 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=2.140"></script>
+  <script defer src="/app.js?v=2.141"></script>
   <script defer src="/pwa-extras.js?v=2.140"></script>
   <script defer src="/weather.js?v=1.8.7"></script>
   <script defer src="/smart-home.js?v=1.8.7"></script>
-  <script defer src="/car.js?v=2.136"></script>
-  <script defer src="/profile-supplements.js?v=2.140"></script>
+  <script defer src="/car.js?v=2.141"></script>
+  <script defer src="/profile-supplements.js?v=2.141"></script>
   <script defer src="/mood-history.js?v=2.134"></script>
   <script defer src="/supplement-editor.js?v=2.134"></script>
   <script defer src="/supplement-advanced.js?v=2.134"></script>
@@ -121,6 +121,9 @@
               </button>
               <button id="moodHistoryButton" class="mood-history-button" type="button" aria-label="История настроения" title="История настроения">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
+              </button>
+              <button id="fastingProfileButton" class="fasting-profile-button partner-mood-value" type="button" aria-label="Открыть трекер голодания" title="Трекер голодания">
+                <span class="mood-emoji" aria-hidden="true">⏱️</span>
               </button>
             </div>
           </div>
@@ -440,6 +443,7 @@
         </div>
         <div class="car-home-visual">
           <img src="/changan-uni-v-header.webp?v=1.8.7" alt="" aria-hidden="true">
+          <span id="carHomeTyreSticker" class="car-tyre-sticker" aria-label="Рекомендуемый сезон шин" hidden>Летние</span>
           <div class="car-home-wash">
             <span>Стоит ли мыть</span>
             <strong id="carHomeWashValue">Проверяю погоду…</strong>
@@ -474,6 +478,7 @@
         </div>
         <div class="car-head-visual">
           <img src="/changan-uni-v-header.webp?v=1.8.7" alt="" aria-hidden="true">
+          <span id="carPageTyreSticker" class="car-tyre-sticker" aria-label="Рекомендуемый сезон шин" hidden>Летние</span>
           <div class="car-collapsed-wash">
             <span class="car-collapsed-wash-label">Стоит ли мыть машину</span>
             <strong id="carCollapsedWashValue">Проверяю погоду…</strong>
@@ -495,10 +500,9 @@
           <article class="car-weather-card">
             <div class="car-card-title">
               <span class="car-card-icon is-weather" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 17h9.5a3.5 3.5 0 0 0 .4-7A4.8 4.8 0 0 0 8 11.4 2.8 2.8 0 0 0 7 17Z" stroke="currentColor" stroke-width="1.8"/><circle cx="7.5" cy="7.5" r="3" fill="currentColor" opacity=".25"/><path d="M7.5 2.5v1.3M2.5 7.5h1.3M4 4l.9.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
-              <span class="car-card-label">Погода и шины</span>
+              <span class="car-card-label">Погода</span>
             </div>
             <strong id="carWeatherNow">—</strong>
-            <p id="carTyreAdvice">Проверяю прогноз…</p>
           </article>
 
           <article class="car-service-card">
@@ -569,11 +573,11 @@
           <div id="carErrorsList" class="car-errors-list"></div>
         </section>
 
-        <section class="car-recommendations" aria-labelledby="carRecommendationsTitle">
+        <section class="car-recommendations car-wash-decision" aria-labelledby="carRecommendationsTitle">
           <div class="car-section-head">
             <div class="car-section-title">
-              <span class="car-section-icon is-recommendation" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3a6.5 6.5 0 0 0-3.6 11.9c.9.6 1.4 1.5 1.5 2.4h4.2c.1-.9.6-1.8 1.5-2.4A6.5 6.5 0 0 0 12 3Z" stroke="currentColor" stroke-width="1.8"/><path d="M10 21h4M9.5 18.5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-              <strong id="carRecommendationsTitle">Рекомендации</strong>
+              <span class="car-section-icon is-recommendation" aria-hidden="true">🫧</span>
+              <strong id="carRecommendationsTitle">Стоит ли мыть сейчас машину</strong>
             </div>
           </div>
           <div id="carRecommendationsList" class="car-recommendations-list"></div>
@@ -1054,16 +1058,6 @@
         </div>
       </section>
 
-      <button id="fastingTrackerOpen" class="fasting-entry panel" type="button" aria-label="Открыть трекер голодания">
-        <span class="fasting-entry-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.3v5l3.4 2"/></svg>
-        </span>
-        <span class="fasting-entry-copy">
-          <strong>Трекер голодания</strong>
-          <small>Стадия и история</small>
-        </span>
-        <svg class="fasting-entry-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-      </button>
     </section>
 
     <section id="fastingPage" class="fasting-page" data-app-tab-section="fasting" aria-labelledby="fastingPageTitle" hidden>
