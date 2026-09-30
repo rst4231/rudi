@@ -2469,7 +2469,7 @@
       function dianaCycleProfileStatus(modelOrPhase){
         const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:null;
         if(model?.periodActive&&Number.isFinite(model.periodEnd)){
-          return 'Месячные до '+cycleDateLabel(model.periodEnd);
+          return 'Месячные закончатся '+cycleDateLabel(model.periodEnd);
         }
         return dianaCycleMoodWord(modelOrPhase);
       }
