@@ -171,6 +171,7 @@ const DURABLE_TABLE = 'rudi_durable_state';
 const DURABLE_LONG_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const DURABLE_NAMESPACES = new Set([
   'rudi-score-v1',
+  'rudi-product-list-v1',
   'rudi-reactions-v1',
   'rudi-activity-journal-v1',
   'rudi-smart-saves-v1',
