@@ -12386,3 +12386,11 @@ html:not([data-theme="dark"]) .app-tabbar{
   font-size:18px!important;
 }
 /* end home section title alignment */
+
+/* RUDI activity bell read-state hardening */
+.home-activity-notifications-panel .home-activity-row{
+  cursor:default!important;
+  -webkit-tap-highlight-color:transparent;
+}
+.home-activity-notifications-panel .home-activity-row:active{transform:none!important}
+/* end RUDI activity bell read-state hardening */

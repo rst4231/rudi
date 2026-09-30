@@ -110,6 +110,7 @@
         photoCount:0,
         productCount:0,
         activity:[],
+        activityVersion:0,
         lulu:null,
         nearestStatic:null
       };
@@ -833,8 +834,70 @@
         }catch(_){return true}
       }
 
+      function parseActivitySeenMarker(value){
+        const raw=String(value||'').trim();
+        if(!raw) return {raw:'',id:'',at:0,version:0,structured:false};
+        if(raw.startsWith('{')){
+          try{
+            const parsed=JSON.parse(raw);
+            const id=String(parsed?.id||'').trim();
+            const at=Date.parse(String(parsed?.at||''))||0;
+            const version=Math.max(0,Number(parsed?.version||0));
+            if(id) return {raw,id,at,version,structured:true};
+          }catch(_){}
+        }
+        return {raw,id:raw,at:0,version:0,structured:false};
+      }
+
+      function currentActivitySeenMarker(){
+        try{return parseActivitySeenMarker(localStorage.getItem(activitySeenStorageKey())||'')}catch(_){return parseActivitySeenMarker('')}
+      }
+
       function currentActivitySeenId(){
-        try{return String(localStorage.getItem(activitySeenStorageKey())||'')}catch(_){return ''}
+        return currentActivitySeenMarker().id;
+      }
+
+      function activitySeenMarkerValue(item,version=0){
+        const id=String(item?.id||'').trim();
+        if(!id) return '';
+        const at=String(item?.createdAt||'').trim();
+        return JSON.stringify({id,at,version:Math.max(0,Number(version||0))});
+      }
+
+      function newerActivitySeenValue(localValue,remoteValue){
+        const local=parseActivitySeenMarker(localValue);
+        const remote=parseActivitySeenMarker(remoteValue);
+        if(!local.id) return remote.raw;
+        if(!remote.id) return local.raw;
+        if(local.id===remote.id){
+          if(local.structured&&!remote.structured) return local.raw;
+          if(remote.structured&&!local.structured) return remote.raw;
+          return remote.version>=local.version?remote.raw:local.raw;
+        }
+        if(local.at||remote.at){
+          if(local.at!==remote.at) return local.at>remote.at?local.raw:remote.raw;
+          if(local.version!==remote.version) return local.version>remote.version?local.raw:remote.raw;
+          return local.structured?local.raw:remote.raw;
+        }
+        const items=Array.isArray(homeDashboardState.activity)?homeDashboardState.activity:[];
+        const localIndex=items.findIndex(item=>String(item?.id||'')===local.id);
+        const remoteIndex=items.findIndex(item=>String(item?.id||'')===remote.id);
+        if(localIndex>=0&&remoteIndex>=0) return localIndex<=remoteIndex?local.raw:remote.raw;
+        if(localIndex>=0) return local.raw;
+        if(remoteIndex>=0) return remote.raw;
+        return local.raw;
+      }
+
+      function migrateLegacyActivitySeenMarker(items,version){
+        const marker=currentActivitySeenMarker();
+        if(!marker.id||marker.structured) return;
+        const source=Array.isArray(items)?items:[];
+        const matched=source.find(item=>String(item?.id||'')===marker.id);
+        const anchor=matched||source[0];
+        const value=activitySeenMarkerValue(anchor,version);
+        if(!value) return;
+        try{localStorage.setItem(activitySeenStorageKey(),value)}catch(_){}
+        markUiPreferencesChanged({activitySeenId:value});
       }
 
       function localUiPreferences(){
@@ -926,7 +989,9 @@
             writeUiViewStates(remote.viewStates);
           }
           if(hasRemoteActivitySeen){
-            localStorage.setItem(activitySeenStorageKey(),String(remote.activitySeenId||''));
+            const localSeen=String(localStorage.getItem(activitySeenStorageKey())||'');
+            const mergedSeen=newerActivitySeenValue(localSeen,String(remote.activitySeenId||''));
+            localStorage.setItem(activitySeenStorageKey(),mergedSeen);
           }
           if(hasRemoteMarketTicker){
             localStorage.setItem(marketTickerEnabledStorageKey(),remote.marketTickerEnabled===false?'0':'1');
@@ -3338,7 +3403,21 @@
 
       function activityNotificationsHaveUnread(){
         const latest=homeDashboardState.activity?.[0];
-        return Boolean(latest?.id&&String(latest.id)!==currentActivitySeenId());
+        const latestId=String(latest?.id||'').trim();
+        if(!latestId) return false;
+        const seen=currentActivitySeenMarker();
+        if(!seen.id) return true;
+        if(latestId===seen.id) return false;
+
+        const latestAt=Date.parse(String(latest?.createdAt||''))||0;
+        if(seen.at&&latestAt){
+          if(latestAt!==seen.at) return latestAt>seen.at;
+          return Math.max(0,Number(homeDashboardState.activityVersion||0))>seen.version;
+        }
+
+        const items=Array.isArray(homeDashboardState.activity)?homeDashboardState.activity:[];
+        const seenIndex=items.findIndex(item=>String(item?.id||'')===seen.id);
+        return seenIndex>0;
       }
 
       function updateActivityNotificationBadge(){
@@ -3348,13 +3427,16 @@
 
       function markActivityNotificationsSeen(){
         const latest=homeDashboardState.activity?.[0];
-        const id=String(latest?.id||'').trim();
-        if(!id||id===currentActivitySeenId()){
+        const value=activitySeenMarkerValue(latest,homeDashboardState.activityVersion);
+        if(!value){
           updateActivityNotificationBadge();
           return;
         }
-        try{localStorage.setItem(activitySeenStorageKey(),id)}catch(_){}
-        markUiPreferencesChanged({activitySeenId:id});
+        const current=String(currentActivitySeenMarker().raw||'');
+        if(value!==current){
+          try{localStorage.setItem(activitySeenStorageKey(),value)}catch(_){}
+          markUiPreferencesChanged({activitySeenId:value});
+        }
         updateActivityNotificationBadge();
       }
 
@@ -3531,12 +3613,7 @@
 
         for(const entry of visible){
           const item=entry.kind==='mood-summary'?entry.latest:entry.item;
-          const activityTab=entry.kind==='mood-summary'?'':(entry.kind==='smart-save-summary'?'smart-saves':(item?.type==='saved-recipe'?'products':String(item?.targetTab||'')));
-          const row=document.createElement(activityTab?'button':'div');
-          if(activityTab){
-            row.type='button';
-            row.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();setActivityNotificationsOpen(false);openActivityTarget(item)});
-          }
+          const row=document.createElement('div');
           row.className='home-activity-row'+(entry.kind==='mood-summary'?' is-mood-summary':'');
 
           const icon=document.createElement('span');
@@ -3636,19 +3713,14 @@
       function renderActivityJournal(payload){
         renderLulu(payload?.lulu);if(payload?.score)renderScoreStickers(payload.score);
         const list=document.getElementById('homeActivityList'),empty=document.getElementById('homeActivityEmpty');if(!list||!empty)return;
-        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,24);homeDashboardState.activity=items;
+        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,24);
+        homeDashboardState.activity=items;
+        homeDashboardState.activityVersion=Math.max(0,Number(payload?.version||0));
+        migrateLegacyActivitySeenMarker(items,homeDashboardState.activityVersion);
         const summary=summarizeActivityItems(items);list.replaceChildren();empty.hidden=summary.length>0;
         for(const item of summary){
           const kind=String(item?._activityKind||'item'),isMood=kind==='mood-summary',isSave=kind==='smart-save-summary';
-          const activityTab=isMood?'':isSave?'smart-saves':(item?.type==='saved-recipe'?'products':String(item.targetTab||''));
-          const row=document.createElement(activityTab?'button':'div');
-          if(activityTab){
-            row.type='button';row.addEventListener('click',event=>{
-              event.preventDefault();event.stopPropagation();setActivityNotificationsOpen(false);navigateToAppTab(activityTab,{scroll:true});
-              if(activityTab==='products'){loadProducts({silent:true});Promise.resolve(window.RUDI_SAVES?.load?.())}
-              if(activityTab==='photos')loadSharedAlbum();if(activityTab==='schedule')loadWorkCalendar(currentWorkCalendarView,{silent:true});if(activityTab==='smart-saves')loadSmartSaves({silent:true}).catch(()=>{});
-            });
-          }
+          const row=document.createElement('div');
           row.className='home-activity-row'+(isMood?' is-mood-summary':'')+(isSave?' is-save-summary':'');
           const icon=document.createElement('span');icon.className='home-activity-icon';icon.textContent=isMood?String(item._latestMoodIcon||'🙂'):isSave?'🔖':String(item.icon||'•');
           const copy=document.createElement('span');copy.className='home-activity-copy';const strong=document.createElement('strong');

@@ -51,3 +51,18 @@ test('activity journal is included in encrypted RUDI backup',()=>{
   assert.match(backup,/activityJournal: newerVersionState/);
   assert.match(backup,/restoreActivityJournalState/);
 });
+
+
+test('activity bell does not resurrect already-read items and rows are informational only',()=>{
+  assert.match(app,/function parseActivitySeenMarker\(value\)/);
+  assert.match(app,/function newerActivitySeenValue\(localValue,remoteValue\)/);
+  assert.match(app,/function migrateLegacyActivitySeenMarker\(items,version\)/);
+  assert.match(app,/homeDashboardState\.activityVersion=Math\.max/);
+  assert.match(app,/const row=document\.createElement\('div'\);/);
+  const renderStart=app.indexOf('function renderActivityJournal(payload)');
+  const renderEnd=app.indexOf('async function loadActivityJournal',renderStart);
+  const renderBlock=app.slice(renderStart,renderEnd);
+  assert.doesNotMatch(renderBlock,/row\.addEventListener\('click'/);
+  assert.doesNotMatch(renderBlock,/document\.createElement\(activityTab\?'button':'div'\)/);
+  assert.match(css,/home-activity-notifications-panel \.home-activity-row\{[\s\S]*cursor:default!important/);
+});
