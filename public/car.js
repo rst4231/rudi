@@ -183,7 +183,7 @@
       const remove=document.createElement('button');
       remove.type='button';
       remove.className='car-error-remove';
-      remove.textContent='Удалить';
+      remove.textContent='Убрать';
       remove.addEventListener('click',async()=>{
         if(!(await confirmRemoveError(error.title))) return;
         await removeDashboardError(error,remove);
