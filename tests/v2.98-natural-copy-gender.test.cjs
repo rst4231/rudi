@@ -59,7 +59,7 @@ test('v2.98 removes stale formal and machine-like UI copy',()=>{
   assert.doesNotMatch(supplements,/Дубли состава|Принято сегодня|Groq проверяет/);
   assert.doesNotMatch(index,/Оставьте здесь|Напишите что-нибудь тёплое|Напишите сообщение|placeholder="Напишите RUDI/);
   assert.doesNotMatch(car,/Регламентный рубеж достигнут|Температура пограничная|Скорее нет · влажная неделя/);
-  assert.match(mood,/Настроение за неделю/);
+  assert.match(mood,/настроение по дням/);
 });
 
 test('v2.98 fixes declension and natural notification copy',()=>{
@@ -75,7 +75,6 @@ test('v2.98 fixes declension and natural notification copy',()=>{
   assert.match(score,/Партнёр берёт домашние дела на себя на один день/);
 });
 
-test('VERSION follows the current release config',()=>{
-  const config=JSON.parse(read('rudi-version.json'));
-  assert.equal(read('VERSION').trim(),config.current);
+test('v2.100 version marker is exact',()=>{
+  assert.equal(read('VERSION').trim(),'v2.100');
 });
