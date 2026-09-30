@@ -1,5 +1,5 @@
 const {
-  MAX_DAYS,SCORING_START_DATE,moscowDateKey,shiftDateKey,habitStatus,viewHabits,readHabits,ensureHabitDay,setHabitStatus,markHabitDayFinalized
+  MAX_DAYS,SCORING_START_DATE,moscowDateKey,shiftDateKey,habitStatus,habitStreak,viewHabits,readHabits,ensureHabitDay,setHabitStatus,markHabitDayFinalized
 }=require('./habit-tracker-store.cjs');
 const {
   readScoreState,awardScore,penalizeScore,reverseScoreByDedupeKey,reversePenaltyByDedupeKey,scoreView
@@ -7,9 +7,42 @@ const {
 
 const HABIT_REWARD_UNITS=2;
 const HABIT_PENALTY_UNITS=10;
+const HABIT_STREAK_BONUS_DAYS=21;
+const HABIT_STREAK_BONUS_UNITS=50;
 
 function rewardKey(actor,date,id){return 'score:habit:reward:'+actor+':'+date+':'+id}
 function penaltyKey(actor,date,id){return 'score:habit:penalty:'+actor+':'+date+':'+id}
+function streakBonusKey(actor,id,startDate){return 'score:habit:streak21:'+actor+':'+id+':'+startDate}
+async function reconcileHabitStreakBonus(actor,state,habit,date,options={}){
+  const today=moscowDateKey(options.now||Date.now()),id=String(habit?.id||'');
+  if(!id||date!==today)return{score:null,deltaPoints:0,changed:false};
+  const status=habitStatus(state,date,id);
+  if(status!=='done'){
+    const previousDate=shiftDateKey(date,-1);
+    const previousStreak=habitStreak(state,id,previousDate,today);
+    if(previousStreak===HABIT_STREAK_BONUS_DAYS-1){
+      const startDate=shiftDateKey(date,-(HABIT_STREAK_BONUS_DAYS-1));
+      const reversed=await reverseScoreByDedupeKey(streakBonusKey(actor,id,startDate),{
+        clearDedupe:true,skipStreak:true,label:'Отмена бонуса привычки',detail:'21-й день серии отменён',icon:'↩️'
+      },options);
+      const units=Number(reversed.reversedUnits||0);
+      return{score:scoreView(reversed.state,options),deltaPoints:Number((-units/10).toFixed(2)),changed:units>0,streak:previousStreak,startDate};
+    }
+    return{score:null,deltaPoints:0,changed:false,streak:0};
+  }
+  const streak=habitStreak(state,id,date,today);
+  if(streak<HABIT_STREAK_BONUS_DAYS)return{score:null,deltaPoints:0,changed:false,streak};
+  const startDate=shiftDateKey(date,-(streak-1));
+  const result=await awardScore(actor,HABIT_STREAK_BONUS_UNITS,{
+    label:'21 день привычки',
+    detail:'21 день подряд без штрафа: '+String(habit?.name||'Привычка'),
+    icon:'🔥',
+    dedupeKey:streakBonusKey(actor,id,startDate),
+    affectStreak:false,
+    ignoreDailyLimit:true,
+  },options);
+  return{score:scoreView(result.state,options),deltaPoints:Number((Number(result.awardedUnits||0)/10).toFixed(2)),changed:Number(result.awardedUnits||0)>0,streak,startDate};
+}
 async function reconcileHabitScore(actor,habit,date,status,bonusEligible,options={}){
   const today=moscowDateKey(options.now||Date.now());
   if(date!==today&&!options.allowPastPenalty)return{score:null,deltaPoints:0,changed:false};
@@ -49,6 +82,12 @@ async function reconcileTodayHabitScores(actor,state,options={}){
     if(!habit){const cleared=await clearHabitScore(actor,id,today,options);if(cleared.score)result.score=cleared.score;result.deltaPoints+=cleared.deltaPoints;continue}
     const one=await reconcileHabitScore(actor,habit,today,habitStatus(prepared,today,id),true,options);
     if(one.score)result.score=one.score;result.deltaPoints+=one.deltaPoints;
+  }
+  const activeHabits=viewHabits(prepared,{date:today,now:options.now||Date.now()}).habits;
+  for(const habit of activeHabits){
+    const bonus=await reconcileHabitStreakBonus(actor,prepared,habit,today,options);
+    if(bonus.score)result.score=bonus.score;
+    result.deltaPoints+=bonus.deltaPoints;
   }
   return result;
 }
@@ -103,6 +142,6 @@ async function finalizeOutstandingForAll(options={}){
 }
 
 module.exports={
-  HABIT_REWARD_UNITS,HABIT_PENALTY_UNITS,rewardKey,penaltyKey,reconcileHabitScore,clearHabitScore,
+  HABIT_REWARD_UNITS,HABIT_PENALTY_UNITS,HABIT_STREAK_BONUS_DAYS,HABIT_STREAK_BONUS_UNITS,rewardKey,penaltyKey,streakBonusKey,reconcileHabitStreakBonus,reconcileHabitScore,clearHabitScore,
   reconcileTodayHabitScores,finalizeHabitDay,finalizeOutstandingHabitDays,finalizeYesterdayForAll,finalizeOutstandingForAll
 };

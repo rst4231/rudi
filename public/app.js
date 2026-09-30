@@ -2354,7 +2354,7 @@
         const hour=Number(new Intl.DateTimeFormat('en-GB',{
           timeZone:TZ,hour:'2-digit',hourCycle:'h23'
         }).format(new Date()));
-        const greeting=hour<12?'Доброе утро':hour<18?'Добрый день':'Добрый вечер';
+        const greeting=hour<5||hour>=22?'Доброй ночи':hour<12?'Доброе утро':hour<18?'Добрый день':'Добрый вечер';
         return greeting+', '+(currentActor||'');
       }
 
@@ -3880,30 +3880,6 @@
       }
 
       function renderHomeNew(){
-        const tile=document.getElementById('homeNewTile');
-        const list=document.getElementById('homeNewList');
-        if(!tile||!list) return;
-        list.replaceChildren();
-        const entries=[];
-        const feedVersion=String(homeDashboardState.feed?.version||'');
-        if(feedVersion&&feedVersion!==feedSeenVersion()) entries.push({icon:'📰',text:'Новое в Ленте',tab:'feed'});
-        if(homeCountIsNew('photos',homeDashboardState.photoCount)) entries.push({icon:'📷',text:'Новые фото',tab:'photos'});
-        if(homeCountIsNew('wishlist',homeDashboardState.wishlistCount)) entries.push({icon:'🎁',text:'Новое желание',tab:'wishlist'});
-        tile.dataset.homeEmpty=entries.length?'0':'1';
-        tile.hidden=currentAppTab!=='home'||!entries.length;
-        for(const entry of entries){
-          const button=document.createElement('button');
-          button.type='button';
-          button.className='home-new-item';
-          button.innerHTML='<span>'+entry.icon+'</span><strong>'+entry.text+'</strong><span class="home-new-arrow">›</span>';
-          button.addEventListener('click',()=>{
-            if(entry.tab==='photos') markHomeCountSeen('photos',homeDashboardState.photoCount);
-            if(entry.tab==='wishlist') markHomeCountSeen('wishlist',homeDashboardState.wishlistCount);
-            navigateToAppTab(entry.tab,{scroll:true});
-            if(entry.tab==='feed') loadFeed({silent:true});
-          });
-          list.appendChild(button);
-        }
         queueAppIconBadgeSync();
       }
 
@@ -4603,15 +4579,6 @@
 
         profile.after(selfCard.tile,partnerCard.tile,luluTile,nearest);
 
-        const newTile=document.createElement('section');
-        newTile.id='homeNewTile';
-        newTile.className='panel home-new-tile';
-        newTile.dataset.appTabSection='home';
-        newTile.dataset.homeTile='new';
-        newTile.hidden=true;
-        newTile.innerHTML='<div class="home-dashboard-label">Новое в RUDI</div><div id="homeNewList" class="home-new-list"></div>';
-        document.getElementById('dianaCycleCard')?.after(newTile);
-
         document.body.dataset.profileSplitReady='1';
         syncStaticProfileWorkStatus();
         setupHomeDashboardActions();
@@ -4693,7 +4660,7 @@
         host.appendChild(button);
       }
 
-      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false}){
+      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
         const body=wrapCollapseBody(section,bodySelectors);
@@ -4710,7 +4677,7 @@
           button.setAttribute('aria-expanded',collapsed?'false':'true');
           body.setAttribute('aria-hidden',collapsed?'true':'false');
         };
-        apply(getBlockCollapsed(key,defaultCollapsed));
+        apply(resetCollapsedOnInit?Boolean(defaultCollapsed):getBlockCollapsed(key,defaultCollapsed));
         const toggleCollapsed=()=>{
           const collapsed=!section.classList.contains('is-collapsed');
           apply(collapsed);
@@ -4757,7 +4724,9 @@
         setupPersistentCollapsible({
           selector:'#smartHomeTile',key:'smart-home',
           bodySelectors:['#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
-          hostSelector:'.smart-home-head'
+          hostSelector:'.smart-home-head',
+          defaultCollapsed:true,
+          resetCollapsedOnInit:true
         });
         setupPersistentCollapsible({
           selector:'#dailyQuestionTile',key:'daily-question',
@@ -5938,6 +5907,8 @@
           homeDashboardState.feed=home.feed;
           homeDashboardState.feedResults=[];
           renderHomeDashboard();
+          const feedVersion=String(home.feed?.version||'');
+          setFeedBadge(Boolean(feedVersion&&feedVersion!==feedSeenVersion()&&currentAppTab!=='feed'));
         }
         const counts=home.counts&&typeof home.counts==='object'?home.counts:{};
         if(Number.isFinite(Number(counts.wishlist))) homeDashboardState.wishlistCount=Math.max(0,Number(counts.wishlist));
@@ -9301,6 +9272,12 @@
           rustamAnswer.textContent=String(data.answers?.['Рустам']?.text||'');
           dianaAnswer.textContent=String(data.answers?.['Диана']?.text||'');
           status.textContent='Оба ответили — завтра будет новый вопрос.';
+          if(questionChanged&&tile){
+            tile.classList.add('is-collapsed');
+            tile.querySelector(':scope > .rudi-collapse-body')?.setAttribute('aria-hidden','true');
+            tile.querySelector('.block-collapse-button')?.setAttribute('aria-expanded','false');
+            setBlockCollapsed('daily-question',true);
+          }
           return;
         }
 
@@ -12573,6 +12550,7 @@
         ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;
+        if(config?.weather) loadWeather(config.weather).catch(()=>{});
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
         setupProducts();
         setupFastingTracker();

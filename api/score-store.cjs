@@ -267,7 +267,8 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
     const beforeBalance=state.balances[who];
     const dateKey=scoreDateKey(now);
     const day=normalizeActorUnits(state.dailyEarned[dateKey]);
-    const remaining=Math.max(0,DAILY_LIMIT_UNITS-day[who]);
+    const ignoreDailyLimit=meta.ignoreDailyLimit===true;
+    const remaining=ignoreDailyLimit?request:Math.max(0,DAILY_LIMIT_UNITS-day[who]);
     const awardedUnits=Math.min(request,remaining);
     const next={
       ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,

@@ -2,7 +2,7 @@ const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {
   moscowDateKey,moscowHour,readHabits,viewHabits,ensureHabitDay,addHabit,removeHabit,archiveHabit,setHabitStatus,setHabitsCollapsed
 }=require('./habit-tracker-store.cjs');
-const {reconcileHabitScore,clearHabitScore,reconcileTodayHabitScores,finalizeOutstandingHabitDays}=require('./habit-rules.cjs');
+const {reconcileHabitScore,reconcileHabitStreakBonus,clearHabitScore,reconcileTodayHabitScores,finalizeOutstandingHabitDays}=require('./habit-rules.cjs');
 
 function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
@@ -48,6 +48,9 @@ async function handler(req,res){
         const bonusEligible=(state.bonusIdsByDate?.[today]||[]).includes(habit.id);
         const sync=await reconcileHabitScore(actor,habit,today,String(body.status||''),bonusEligible,{now});
         score=sync.score;scoreDelta=sync.deltaPoints;
+        const streakBonus=await reconcileHabitStreakBonus(actor,state,habit,today,{now});
+        if(streakBonus.score)score=streakBonus.score;
+        scoreDelta+=streakBonus.deltaPoints;
       }
     }else if(operation==='collapse')state=await setHabitsCollapsed(actor,body.collapsed,{now});
     else throw new Error('habit-operation-invalid');

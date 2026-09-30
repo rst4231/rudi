@@ -12,7 +12,15 @@ const META={
 const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
 let state=null,visibleWeekEnd='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
 
-function initData(){return String(window.Telegram?.WebApp?.initData||'')}
+function initData(){
+  const direct=String(window.Telegram?.WebApp?.initData||'').trim();
+  if(direct)return direct;
+  try{
+    const hash=new URLSearchParams(String(location.hash||'').replace(/^#/,'')),query=new URLSearchParams(location.search||'');
+    return String(hash.get('tgWebAppData')||query.get('tgWebAppData')||'').trim();
+  }catch(_){return''}
+}
+function backupToken(){try{return String(window.RUDI_STATE_BACKUP?.getToken?.()||'').trim()}catch(_){return''}}
 function todayKey(){return new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function shiftDate(key,days){const d=new Date(String(key||'')+'T12:00:00Z');if(Number.isNaN(d.getTime()))return'';d.setUTCDate(d.getUTCDate()+Number(days||0));return d.toISOString().slice(0,10)}
 function monthShift(key,delta){const[y,m]=String(key||todayKey()).slice(0,7).split('-').map(Number),d=new Date(Date.UTC(y,m-1+delta,1));return d.toISOString().slice(0,7)}
@@ -21,8 +29,13 @@ function fmtDate(key){const ms=Date.parse(String(key||'')+'T12:00:00Z');return N
 function plural(n,a,b,c){const x=Math.abs(n)%100,y=x%10;return x>10&&x<20?c:y===1?a:y>=2&&y<=4?b:c}
 
 async function api(operation,extra={}){
-  const response=await fetch('/api/mood',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({operation,windowDays,initData:initData(),...(extra||{})}),cache:'no-store'});
+  const body=JSON.stringify({operation,windowDays,initData:initData(),backupToken:backupToken(),...(extra||{})});
+  let response=await fetch('/api/mood',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body,cache:'no-store'});
+  if(!response.ok&&response.status>=500){
+    response=await fetch('/api/partner-message?rudiAction=mood',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body,cache:'no-store'});
+  }
   const data=await response.json().catch(()=>({}));
+  if(data?.backupToken)try{await window.RUDI_STATE_BACKUP?.storeToken?.(data.backupToken)}catch(_){}
   if(!response.ok||!data?.ok)throw new Error(String(data?.error||'mood-request-failed'));
   return data;
 }
