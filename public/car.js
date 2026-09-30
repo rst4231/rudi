@@ -605,6 +605,9 @@
     backdrop.className='car-wash-guide-backdrop';
     backdrop.setAttribute('aria-label','Закрыть инструкцию');
     page.append(backdrop,dialog);
+    // Portal the modal to <body>. On iOS/WebView a fixed element inside the app
+    // section can inherit a transformed containing block and sit under the tab bar.
+    if(page.parentElement!==document.body) document.body.appendChild(page);
     const close=dialog.querySelector('#carWashGuideBack');
     if(close){
       close.setAttribute('aria-label','Закрыть');
