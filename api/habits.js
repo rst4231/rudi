@@ -1,4 +1,4 @@
-const {authorizeRequest,statusForError}=require('./partner-message.js');
+const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {
   moscowDateKey,moscowHour,readHabits,viewHabits,ensureHabitDay,addHabit,removeHabit,archiveHabit,setHabitStatus,setHabitsCollapsed
 }=require('./habit-tracker-store.cjs');

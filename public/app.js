@@ -960,6 +960,7 @@
       }
 
       const UI_PREFERENCES_LOCAL_SETTLE_MS=4000;
+      const UI_PREFERENCES_SYNC_DEDUPE_MS=15*1000;
       let uiPreferencesBackupTimer=null;
       let uiPreferencesDirty=false;
       let uiPreferencesSyncPromise=null;
@@ -967,6 +968,7 @@
       let uiPreferencesServerVersion=0;
       let uiPreferencesServerUpdatedAt=0;
       let uiPreferencesLastLocalMutationAt=0;
+      let uiPreferencesLastSyncAt=0;
 
       function uiPreferencesLocalSettling(){
         return uiPreferencesLastLocalMutationAt>0
@@ -1052,6 +1054,7 @@
             const savedTime=Date.parse(String(payload.uiPreferences?.updatedAt||''))||0;
             if(savedVersion) uiPreferencesServerVersion=Math.max(uiPreferencesServerVersion,savedVersion);
             if(savedTime) uiPreferencesServerUpdatedAt=Math.max(uiPreferencesServerUpdatedAt,savedTime);
+            uiPreferencesLastSyncAt=Date.now();
             return payload;
           }catch(_){
             pendingUiPreferencesPatch=mergeUiPreferencesPatch(patch,pendingUiPreferencesPatch);
@@ -1113,8 +1116,9 @@
         return stateBackupRefreshPromise;
       }
 
-      async function syncUiPreferencesFromServer(){
+      async function syncUiPreferencesFromServer({force=false}={}){
         if(!currentActor||uiPreferencesDirty||uiPreferencesLocalSettling()) return null;
+        if(!force&&uiPreferencesLastSyncAt&&Date.now()-uiPreferencesLastSyncAt<UI_PREFERENCES_SYNC_DEDUPE_MS) return null;
         if(uiPreferencesSyncPromise) return uiPreferencesSyncPromise;
         const requestMutationRevision=uiPreferencesMutationRevision;
         uiPreferencesSyncPromise=(async()=>{
@@ -1129,6 +1133,7 @@
               cache:'no-store'
             });
             const payload=await response.json().catch(()=>({}));
+            if(response.ok&&payload.ok) uiPreferencesLastSyncAt=Date.now();
             if(
               response.ok
               &&payload.ok
@@ -3560,10 +3565,7 @@
           }
 
           copy.append(textNode,detail);
-          const arrow=document.createElement('span');
-          arrow.className='home-activity-arrow';
-          arrow.textContent=activityTab?'›':'';
-          row.append(icon,copy,arrow);
+          row.append(icon,copy);
           list.appendChild(row);
         }
 
@@ -3656,8 +3658,7 @@
           copy.appendChild(strong);
           if(isMood){const d=activityMoodDetail(item);if(d){const detail=document.createElement('span');detail.className='home-activity-detail';detail.textContent=d;copy.appendChild(detail)}}
           const time=document.createElement('time');time.textContent=activityTimeLabel(item.createdAt);copy.appendChild(time);
-          const arrow=document.createElement('span');arrow.className='home-activity-arrow';arrow.textContent=activityTab?'›':'';
-          row.append(icon,copy,arrow);list.appendChild(row);
+          row.append(icon,copy);list.appendChild(row);
         }
         const rows=[...list.querySelectorAll('.home-activity-row')],compactLimit=4;
         if(rows.length>compactLimit){
@@ -12347,10 +12348,9 @@
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='photos') loadSharedAlbum()},15*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadActivityJournal({silent:true})},10*60*1000);
-      setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();syncLuluToiletStatus();renderHomeDashboard()}},30*1000);
-      setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
+      setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},60*1000);
       setInterval(()=>{if(currentActor&&appVisibleForRefresh()&&!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},30*60*1000);
-      setInterval(()=>{if(currentActor&&appAccessReady&&appVisibleForRefresh()) syncUiPreferencesFromServer()},60*1000);
+      setInterval(()=>{if(currentActor&&appAccessReady&&appVisibleForRefresh()) syncUiPreferencesFromServer()},5*60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
 
       function ensureAppSurface({restoreTab=false}={}){
@@ -12384,7 +12384,7 @@
           requestAnimationFrame(()=>requestAnimationFrame(resolve));
         }).then(async()=>{
           resetMoodForNewDay();
-          const tabTasks=[syncUiPreferencesFromServer()];
+          const tabTasks=[];
           if(currentAppTab==='home'){
             tabTasks.push(
               loadHomeBootstrap({force:true}),
