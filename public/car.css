@@ -1659,3 +1659,23 @@ html[data-theme="light"] .car-repair-archive-row{
 html[data-theme="light"] .car-repair-archive-row>strong{color:#29313c!important}
 html[data-theme="light"] .car-repair-archive-row>span,
 html[data-theme="light"] .car-repair-archive-row>p{color:#687382!important}
+
+
+/* RUDI v2.137: keep car wash guide above the fixed tab bar on mobile */
+body.car-wash-modal-open .app-tabbar{
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+.car-wash-guide-page{
+  z-index:4600!important;
+  box-sizing:border-box!important;
+}
+.car-wash-guide-dialog{
+  max-height:min(
+    760px,
+    calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))
+  )!important;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+}
