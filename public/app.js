@@ -6755,7 +6755,9 @@
           if(start<0) start=times.findIndex(time=>String(time)>=currentHour);
           if(start<0) start=0;
 
-          const end=times.length;
+          const todayKey=String(c.time||'').slice(0,10);
+          const nextDayIndex=times.findIndex((time,index)=>index>start&&!String(time).startsWith(todayKey));
+          const end=nextDayIndex>start?nextDayIndex:times.length;
           const nextProb=probabilities.slice(start,end).map(Number).filter(Number.isFinite);
           const nextPrecip=precipitation.slice(start,end).map(Number).filter(Number.isFinite);
           const nextRain=rain.slice(start,end).map(Number).filter(Number.isFinite);
