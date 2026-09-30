@@ -185,6 +185,7 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-for-di-feed-v1',
   'rudi-for-di-private-v1',
   'rudi-labor-code-v1',
+  'rudi-product-list-v1',
 ]);
 const DURABLE_CONTROL_PLANE_TAGS = new Set([
   'rudi-daily-cron-state',

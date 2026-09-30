@@ -224,8 +224,8 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.doesNotMatch(diana.text,/Чек-ап машины/);
   assert.doesNotMatch(diana.text,/Как лучше сегодня с Дианой/);
 
-  assert.match(rustam.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
-  assert.match(diana.reply_markup.inline_keyboard[0][0].web_app.url,/[?&]tab=home/);
+  assert.equal(rustam.reply_markup,undefined);
+  assert.equal(diana.reply_markup,undefined);
 });
 
 test('forced morning summary recovery resends even after today marker', async () => {
@@ -325,7 +325,7 @@ test('morning summary reports missing recipients as failure instead of false suc
 });
 
 
-test('morning summary retries Telegram 400 as plain text without Web App button', async () => {
+test('morning summary retries Telegram 400 as plain text and never adds a Web App button', async () => {
   const summaryCache=memoryCache();
   const calls=[];
   const telegramFetchImpl=async(_url,init)=>{
@@ -360,7 +360,7 @@ test('morning summary retries Telegram 400 as plain text without Web App button'
   assert.equal(result.sent,1);
   assert.equal(calls.length,2);
   assert.equal(calls[0].parse_mode,'HTML');
-  assert.ok(calls[0].reply_markup);
+  assert.equal(calls[0].reply_markup,undefined);
   assert.equal(calls[1].parse_mode,undefined);
   assert.equal(calls[1].reply_markup,undefined);
   assert.doesNotMatch(calls[1].text,/<b>|<\/b>/);

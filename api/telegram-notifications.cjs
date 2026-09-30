@@ -41,15 +41,6 @@ async function telegramSendMessage(chatId, text, options = {}) {
     parse_mode: options.parseMode === false ? undefined : 'HTML',
     disable_notification: Boolean(options.disableNotification),
   };
-  if (options.buttonText && options.tab) {
-    payload.reply_markup = {
-      inline_keyboard: [[{
-        text: String(options.buttonText),
-        web_app: { url: appUrlForTab(options.tab, options) },
-      }]],
-    };
-  }
-
   const response = await fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
