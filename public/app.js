@@ -3565,10 +3565,7 @@
           }
 
           copy.append(textNode,detail);
-          const arrow=document.createElement('span');
-          arrow.className='home-activity-arrow';
-          arrow.textContent=activityTab?'›':'';
-          row.append(icon,copy,arrow);
+          row.append(icon,copy);
           list.appendChild(row);
         }
 
@@ -3661,8 +3658,7 @@
           copy.appendChild(strong);
           if(isMood){const d=activityMoodDetail(item);if(d){const detail=document.createElement('span');detail.className='home-activity-detail';detail.textContent=d;copy.appendChild(detail)}}
           const time=document.createElement('time');time.textContent=activityTimeLabel(item.createdAt);copy.appendChild(time);
-          const arrow=document.createElement('span');arrow.className='home-activity-arrow';arrow.textContent=activityTab?'›':'';
-          row.append(icon,copy,arrow);list.appendChild(row);
+          row.append(icon,copy);list.appendChild(row);
         }
         const rows=[...list.querySelectorAll('.home-activity-row')],compactLimit=4;
         if(rows.length>compactLimit){
