@@ -12399,35 +12399,66 @@ html[data-theme="dark"] .daily-question-waiting{background:rgba(255,255,255,.055
 .smart-saves-home .smart-save-delete{display:none!important}
 
 
-/* 2026-09-30: icon-only bottom navigation with extra landing space */
+/* 2026-09-30: compact icon-only bottom navigation */
 .app-tabbar{
   bottom:0!important;
-  width:min(100%,560px)!important;
-  min-height:calc(84px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
-  padding:8px 7px calc(28px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+  left:0!important;
+  right:0!important;
+  transform:none!important;
+  width:100%!important;
+  min-height:72px!important;
+  gap:2px!important;
+  padding:10px 10px max(8px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))!important;
   border-left:0!important;
   border-right:0!important;
   border-bottom:0!important;
-  border-radius:24px 24px 0 0!important;
+  border-radius:20px 20px 0 0!important;
+  box-shadow:0 -1px 0 rgba(0,0,0,.05)!important;
 }
 .app-tab-button{
-  min-height:48px!important;
+  min-height:54px!important;
   gap:0!important;
-  padding:4px 2px!important;
-  font-size:0!important;
+  padding:6px 2px!important;
+  border-radius:16px!important;
+}
+.app-tab-button > span:not(.app-tab-icon){
+  display:none!important;
+}
+.app-tab-icon{
+  width:34px!important;
+  height:34px!important;
+  border-radius:11px!important;
+}
+.app-tab-icon svg{
+  width:24px!important;
+  height:24px!important;
 }
 html:not([data-theme="dark"]) .app-tabbar{
   background:#fff!important;
 }
+.shell{
+  padding-bottom:calc(86px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+}
 @media(max-width:430px){
   .app-tabbar{
-    width:100%!important;
-    min-height:calc(82px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
-    padding:8px 6px calc(26px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
-    border-radius:22px 22px 0 0!important;
+    min-height:70px!important;
+    gap:2px!important;
+    padding:9px 8px max(7px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))!important;
+    border-radius:18px 18px 0 0!important;
   }
   .app-tab-button{
-    min-height:46px!important;
-    padding:3px 1px!important;
+    min-height:52px!important;
+    padding:5px 1px!important;
+  }
+  .app-tab-icon{
+    width:32px!important;
+    height:32px!important;
+  }
+  .app-tab-icon svg{
+    width:23px!important;
+    height:23px!important;
+  }
+  .shell{
+    padding-bottom:calc(82px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
   }
 }
