@@ -194,3 +194,36 @@ test('non-durable control-plane keys stay only in Runtime Cache', async () => {
   assert.deepEqual(await cache.get('topic-maintenance:test'), { ok: true });
   assert.equal(durableCalls, 0);
 });
+
+
+test('product list is durable across devices and prefers Neon over stale Runtime Cache', async () => {
+  let runtimeReads = 0;
+  const cache = createStrictRuntimeCache({
+    env: {},
+    namespace: 'rudi-product-list-v1',
+    botToken: '123:test',
+    retryDelayMs: 0,
+    attempts: 1,
+    runtimeCache: {
+      async get() { runtimeReads += 1; return { version: 1, items: [{ text: 'старое' }] }; },
+      async set() {},
+      async delete() {},
+      async expireTag() {},
+    },
+    durableFetchImpl: async (_url, init) => {
+      if (init.method === 'GET') {
+        return new Response(JSON.stringify([{
+          value: { version: 2, items: [{ text: 'свежее' }] },
+          expires_at: null,
+        }]), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response('', { status: 201 });
+    },
+  });
+
+  assert.deepEqual(await cache.get('products'), { version: 2, items: [{ text: 'свежее' }] });
+  assert.equal(runtimeReads, 0);
+});
