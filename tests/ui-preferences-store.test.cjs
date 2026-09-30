@@ -181,3 +181,13 @@ test('stale UI preference responses cannot overwrite newer local card state',()=
   assert.match(app,/hasNewerLocalMutation/);
   assert.match(app,/remoteVersion<uiPreferencesServerVersion/);
 });
+
+
+test('recent local UI changes are not remounted from their own save response',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(app,/UI_PREFERENCES_LOCAL_SETTLE_MS=4000/);
+  assert.match(app,/uiPreferencesLastLocalMutationAt=Date\.now\(\)/);
+  assert.match(app,/uiPreferencesDirty\|\|uiPreferencesLocalSettling\(\)/);
+  assert.match(app,/savedVersion/);
+  assert.doesNotMatch(app,/payload\.uiPreferences&&!hasPending&&!hasNewerLocalMutation&&applyRemoteUiPreferences/);
+});
