@@ -85,7 +85,6 @@ function normalizeState(value,actor){
     initialized:Boolean(source.initialized),version:Math.max(0,Number(source.version||0)),actor:who,habits,completions,failures,
     bonusIdsByDate:normalizeBonusMap(source.bonusIdsByDate),
     statusUpdatedAt:normalizeStatusMeta(source.statusUpdatedAt,validIds),
-    remindedDates:normalizeDateFlags(source.remindedDates),
     finalizedDates:normalizeDateFlags(source.finalizedDates),
     scoringStartedDate:cleanDate(source.scoringStartedDate)||SCORING_START_DATE,
     collapsed:Boolean(source.collapsed),updatedAt:isoOrEmpty(source.updatedAt)
@@ -194,10 +193,6 @@ async function setHabitStatus(actor,id,status,options={}){
 async function setHabitsCollapsed(actor,collapsed,options={}){
   const who=cleanActor(actor);return enqueue(who,async()=>{const state=await readHabits(who,options);return writeHabits(who,{...state,version:state.version+1,collapsed:Boolean(collapsed)},options)});
 }
-async function markHabitReminderSent(actor,date,options={}){
-  const who=cleanActor(actor);return enqueue(who,async()=>{const state=await readHabits(who,options),target=cleanDate(date);if(!target)return state;
-    return writeHabits(who,{...state,version:state.version+1,remindedDates:{...state.remindedDates,[target]:new Date(options.now||Date.now()).toISOString()}},options)});
-}
 async function markHabitDayFinalized(actor,date,options={}){
   const who=cleanActor(actor);return enqueue(who,async()=>{const state=await readHabits(who,options),target=cleanDate(date);if(!target)return state;
     return writeHabits(who,{...state,version:state.version+1,finalizedDates:{...state.finalizedDates,[target]:new Date(options.now||Date.now()).toISOString()}},options)});
@@ -207,5 +202,5 @@ function resetMutationQueuesForTests(){tails.clear()}
 module.exports={
   ACTORS,DB_KEY,MAX_HABITS,MAX_DAYS,BONUS_LIMIT,SCORING_START_DATE,moscowDateKey,moscowHour,shiftDateKey,resolveHabitDate,habitStatus,habitStreak,habitCreatedByDate,habitArchivedByDate,habitActiveByDate,
   normalizeHabit,normalizeState,viewHabits,readHabits,writeHabits,ensureHabitDay,addHabit,removeHabit,archiveHabit,setHabitStatus,
-  setHabitsCollapsed,markHabitReminderSent,markHabitDayFinalized,resetMutationQueuesForTests
+  setHabitsCollapsed,markHabitDayFinalized,resetMutationQueuesForTests
 };

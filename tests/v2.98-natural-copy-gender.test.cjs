@@ -64,14 +64,11 @@ test('v2.98 removes stale formal and machine-like UI copy',()=>{
 
 test('v2.98 fixes declension and natural notification copy',()=>{
   const home=read('public/smart-home.js');
-  const habit=read('api/habit-reminder-cron.js');
   const products=read('api/products-update-author.cjs');
   const cinema=read('api/cinema-premieres.cjs');
   const score=read('api/score-store.cjs');
 
   assert.match(home,/mod10===1&&mod100!==11\?'устройство'/);
-  assert.match(habit,/pendingWord/);
-  assert.match(habit,/бонусных привычек/);
   assert.match(products,/Обновлено через Telegram/);
   assert.match(cinema,/На этой неделе новых кинопремьер .* нет/);
   assert.match(score,/Бонус за серию отменён/);

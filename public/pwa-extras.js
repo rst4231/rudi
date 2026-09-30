@@ -607,34 +607,10 @@
     sync();
   }
 
-  async function syncAppBadge(){
-    if(!('setAppBadge' in navigator)||!('clearAppBadge' in navigator)) return;
-    const unread=[
-      byId('homeActivityNotificationDot'),
-      byId('feedTabBadge')
-    ].filter(node=>node&&!node.hidden).length;
-    try{
-      if(unread>0) await navigator.setAppBadge(unread);
-      else await navigator.clearAppBadge();
-    }catch(_){}
-  }
-
   function installBadgeSync(){
-    const observer=new MutationObserver(()=>syncAppBadge());
-    const bind=()=>{
-      ['homeActivityNotificationDot','feedTabBadge'].forEach(id=>{
-        const node=byId(id);
-        if(node&&!node.dataset.badgeObserved){
-          node.dataset.badgeObserved='1';
-          observer.observe(node,{attributes:true,attributeFilter:['hidden','class']});
-        }
-      });
-      syncAppBadge();
-    };
-    bind();
-    const rootObserver=new MutationObserver(bind);
-    rootObserver.observe(document.documentElement,{childList:true,subtree:true});
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible') syncAppBadge()});
+    // Unified app icon badge is owned by app.js.
+    // Keeping this installer as a no-op prevents the legacy partial counter
+    // from overwriting habits, supplements, car tasks, or other attention sources.
   }
 
   function collectSearchEntries(){

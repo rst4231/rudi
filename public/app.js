@@ -5097,6 +5097,14 @@
         if(homeCountIsNew('wishlist',homeDashboardState.wishlistCount)) count+=1;
         if(partnerMessageIsNew()) count+=1;
 
+        const reminderBadgeCount=(node)=>{
+          if(!node||node.hidden) return 0;
+          const value=Math.max(0,Math.floor(Number(String(node.textContent||'').replace(/\D+/g,''))||0));
+          return value||1;
+        };
+        count+=reminderBadgeCount(document.querySelector('#habitHomeTile .personal-home-reminder-badge'));
+        count+=reminderBadgeCount(document.querySelector('#supplementsHomeTile .personal-home-reminder-badge'));
+
         const carCount=Math.max(0,Math.floor(Number(document.documentElement.dataset.carTodayTaskCount)||0));
         count+=carCount;
         return Math.min(99,count);

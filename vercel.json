@@ -21,9 +21,6 @@
     "api/lulu-toilet-cron.js": {
       "maxDuration": 60
     },
-    "api/habit-reminder-cron.js": {
-      "maxDuration": 60
-    },
     "api/partner-message.js": {
       "supportsCancellation": true
     },
@@ -240,14 +237,6 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/habit-reminder-cron",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/habit-reminder-cron",
-      "schedule": "10 17 * * *"
     }
   ],
   "env": {
