@@ -23,6 +23,16 @@ function stateKey(actor) {
   return clean === 'Диана' ? 'diana' : 'rustam';
 }
 
+function normalizeBooleanMap(value, { limit = 128, keyLength = 96 } = {}) {
+  const result = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
+  for (const [rawKey, rawValue] of Object.entries(value).slice(0, limit)) {
+    const key = String(rawKey || '').trim().slice(0, keyLength);
+    if (key) result[key] = Boolean(rawValue);
+  }
+  return result;
+}
+
 function normalizeUiPreferencesState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const homeOrder = [];
@@ -31,13 +41,8 @@ function normalizeUiPreferencesState(value) {
     if (id && !homeOrder.includes(id) && homeOrder.length < 64) homeOrder.push(id);
   }
 
-  const blockStates = {};
-  if (source.blockStates && typeof source.blockStates === 'object' && !Array.isArray(source.blockStates)) {
-    for (const [rawKey, rawValue] of Object.entries(source.blockStates).slice(0, 128)) {
-      const key = String(rawKey || '').trim().slice(0, 96);
-      if (key) blockStates[key] = Boolean(rawValue);
-    }
-  }
+  const blockStates = normalizeBooleanMap(source.blockStates);
+  const viewStates = normalizeBooleanMap(source.viewStates);
 
   const activitySeenId = String(source.activitySeenId || '').trim().slice(0, 80);
   const marketTickerEnabled = Object.prototype.hasOwnProperty.call(source, 'marketTickerEnabled')
@@ -46,6 +51,12 @@ function normalizeUiPreferencesState(value) {
   const themeMode = ['system', 'light', 'dark'].includes(String(source.themeMode || '').trim())
     ? String(source.themeMode).trim()
     : 'system';
+  const autoRefreshEnabled = Object.prototype.hasOwnProperty.call(source, 'autoRefreshEnabled')
+    ? Boolean(source.autoRefreshEnabled)
+    : true;
+  const interfaceTextSize = ['small', 'normal', 'large'].includes(String(source.interfaceTextSize || '').trim())
+    ? String(source.interfaceTextSize).trim()
+    : 'normal';
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const parsed = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   return {
@@ -53,9 +64,12 @@ function normalizeUiPreferencesState(value) {
     version: Math.max(0, Number(source.version || 0)),
     homeOrder,
     blockStates,
+    viewStates,
     activitySeenId,
     marketTickerEnabled,
     themeMode,
+    autoRefreshEnabled,
+    interfaceTextSize,
     updatedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
   };
 }
@@ -87,20 +101,18 @@ async function saveUiPreferences(actor, value, options = {}) {
     const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
     const incoming = normalizeUiPreferencesState(source);
     const updatedAt = new Date(options.now || Date.now()).toISOString();
+    const has = (key) => Object.prototype.hasOwnProperty.call(source, key);
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      homeOrder: incoming.homeOrder,
-      blockStates: incoming.blockStates,
-      activitySeenId: Object.prototype.hasOwnProperty.call(source,'activitySeenId')
-        ? incoming.activitySeenId
-        : current.activitySeenId,
-      marketTickerEnabled: Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled')
-        ? incoming.marketTickerEnabled
-        : current.marketTickerEnabled,
-      themeMode: Object.prototype.hasOwnProperty.call(source,'themeMode')
-        ? incoming.themeMode
-        : current.themeMode,
+      homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
+      blockStates: has('blockStates') ? incoming.blockStates : current.blockStates,
+      viewStates: has('viewStates') ? incoming.viewStates : current.viewStates,
+      activitySeenId: has('activitySeenId') ? incoming.activitySeenId : current.activitySeenId,
+      marketTickerEnabled: has('marketTickerEnabled') ? incoming.marketTickerEnabled : current.marketTickerEnabled,
+      themeMode: has('themeMode') ? incoming.themeMode : current.themeMode,
+      autoRefreshEnabled: has('autoRefreshEnabled') ? incoming.autoRefreshEnabled : current.autoRefreshEnabled,
+      interfaceTextSize: has('interfaceTextSize') ? incoming.interfaceTextSize : current.interfaceTextSize,
       updatedAt,
     }, options);
   });
@@ -112,17 +124,27 @@ async function seedUiPreferences(actor, value, options = {}) {
     if (current.initialized) return current;
     const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
     const incoming = normalizeUiPreferencesState(source);
-    const hasMarketTickerEnabled = Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled');
-    const hasThemeMode = Object.prototype.hasOwnProperty.call(source,'themeMode');
-    if (!incoming.homeOrder.length && !Object.keys(incoming.blockStates).length && !incoming.activitySeenId && !hasMarketTickerEnabled && !hasThemeMode) return current;
+    const has = (key) => Object.prototype.hasOwnProperty.call(source, key);
+    const hasAny = incoming.homeOrder.length
+      || Object.keys(incoming.blockStates).length
+      || Object.keys(incoming.viewStates).length
+      || incoming.activitySeenId
+      || has('marketTickerEnabled')
+      || has('themeMode')
+      || has('autoRefreshEnabled')
+      || has('interfaceTextSize');
+    if (!hasAny) return current;
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
+      viewStates: incoming.viewStates,
       activitySeenId: incoming.activitySeenId,
       marketTickerEnabled: incoming.marketTickerEnabled,
       themeMode: incoming.themeMode,
+      autoRefreshEnabled: incoming.autoRefreshEnabled,
+      interfaceTextSize: incoming.interfaceTextSize,
       updatedAt: incoming.updatedAt || new Date(options.now || Date.now()).toISOString(),
     }, options);
   });
