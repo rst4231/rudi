@@ -100,3 +100,34 @@ test('first feed read on Thursday refreshes events and cinema together', async (
   assert.equal(refreshed.sections.cinema.items[0].title, 'New movie');
   assert.equal(refreshed.date, '2026-10-01');
 });
+
+
+test('Thursday feed refreshes stale cinema even when events were already opened today', async () => {
+  const cache = memoryCache();
+  const now = new Date('2026-10-01T09:00:00+03:00');
+  await updateFeedSections({
+    events: { parts: ['🎤 уже сегодняшние события'], updatedAt: '2026-10-01T08:00:00+03:00' },
+    cinema: { parts: ['🎬 кино прошлой недели'], updatedAt: '2026-09-24T00:02:00+03:00' },
+  }, { feedCache: cache, now, date: '2026-10-01' });
+
+  const current = await readFeedSnapshot({ feedCache: cache, now });
+  let previewCalls = 0;
+  let cinemaCalls = 0;
+  const refreshed = await refreshFeedFromPreviewIfNeeded(current, {
+    feedCache: cache,
+    now,
+    fetchImpl: async () => { previewCalls += 1; throw new Error('preview should not be needed'); },
+    publishCinemaForFeed: async () => {
+      cinemaCalls += 1;
+      return {
+        feedMessage: '🎬 <b>Кинопремьеры</b>\n\nСегодняшний фильм',
+        feedItems: [{ title: 'Сегодняшний фильм', releaseDate: '2026-10-01' }],
+      };
+    },
+  });
+
+  assert.equal(previewCalls, 0);
+  assert.equal(cinemaCalls, 1);
+  assert.match(refreshed.sections.cinema.parts[0], /Сегодняшний фильм/);
+  assert.equal(refreshed.sections.cinema.items[0].title, 'Сегодняшний фильм');
+});

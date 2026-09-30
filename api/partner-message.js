@@ -1210,7 +1210,9 @@ async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
   const date = moscowDateKey(now);
   const hasToday = feed?.date === date
     && Array.isArray(feed?.sections?.events?.parts) && feed.sections.events.parts.length;
-  if (hasToday) return feed;
+  const cinemaUpdatedDate = moscowDateKey(Date.parse(String(feed?.sections?.cinema?.updatedAt || '')) || 0);
+  const cinemaFreshToday = cinemaUpdatedDate === date;
+  if (hasToday && (!isThursdayMoscow(now) || cinemaFreshToday)) return feed;
 
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') return feed;
