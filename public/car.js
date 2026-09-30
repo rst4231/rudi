@@ -58,7 +58,7 @@
       requestAnimationFrame(()=>document.getElementById('carWashGuideBack')?.focus());
       try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
     }else{
-      document.getElementById('carWashGuideOpen')?.focus?.({preventScroll:true});
+      document.querySelector('.car-recommendation-wash-button')?.focus?.({preventScroll:true});
     }
   }
 
@@ -260,17 +260,14 @@
     return Math.max(0,next-mileage);
   }
 
-  const CAR_SMART_DEFAULT_ORDER=['weather','service','mileage','errors','tasks','wash'];
+  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks'];
   const CAR_SMART_FALLBACK_PRIORITY={
-    base:{weather:60,service:50,mileage:40,errors:30,tasks:20,wash:10},
+    base:{mileage:60,errors:50,tasks:40},
     tasks:{overdue:1000,today:900,tomorrow:650,week:500,any:250},
     service:{due:980,within500:860,within1000:780,within2500:560,within5000:320},
     mileage:{missing:700},
-    errors:{active:950,perError:8},
-    weather:{frost:760,seasonal:620,wet:500,spread:350},
-    wash:{goodWindow:120}
+    errors:{active:950,perError:8}
   };
-  let carDragState=null;
   let carTabObserver=null;
 
   function carPrioritySection(name){
@@ -319,25 +316,23 @@
       }
     }
 
-    if(id==='service'){
-      const rules=carPrioritySection('service');
+    if(id==='mileage'){
+      const mileageRules=carPrioritySection('mileage');
+      const serviceRules=carPrioritySection('service');
       const remaining=serviceRemaining(state.car);
-      if(remaining===0&&state.car?.state?.mileage!=null){
-        score=Math.max(score,rules.due);reason='Пора на ТО';
+      if(state.car?.state?.mileage==null){
+        score=Math.max(score,mileageRules.missing);reason='Нужен пробег для расчёта ТО';
+      }else if(remaining===0){
+        score=Math.max(score,serviceRules.due);reason='Пора на ТО';
       }else if(Number.isFinite(remaining)&&remaining<=500){
-        score=Math.max(score,rules.within500);reason='До ТО не больше 500 км';
+        score=Math.max(score,serviceRules.within500);reason='До ТО не больше 500 км';
       }else if(Number.isFinite(remaining)&&remaining<=1000){
-        score=Math.max(score,rules.within1000);reason='До ТО не больше 1 000 км';
+        score=Math.max(score,serviceRules.within1000);reason='До ТО не больше 1 000 км';
       }else if(Number.isFinite(remaining)&&remaining<=2500){
-        score=Math.max(score,rules.within2500);reason='ТО приближается';
+        score=Math.max(score,serviceRules.within2500);reason='ТО приближается';
       }else if(Number.isFinite(remaining)&&remaining<=5000){
-        score=Math.max(score,rules.within5000);reason='ТО уже стоит планировать';
+        score=Math.max(score,serviceRules.within5000);reason='ТО уже стоит планировать';
       }
-    }
-
-    if(id==='mileage'&&state.car?.state?.mileage==null){
-      const rules=carPrioritySection('mileage');
-      score=Math.max(score,rules.missing);reason='Нужен пробег для расчёта ТО';
     }
 
     if(id==='errors'){
@@ -347,23 +342,6 @@
         score=Math.max(score,rules.active+Math.max(0,count-1)*rules.perError);
         reason='Есть активная ошибка на приборке';
       }
-    }
-
-    if(id==='weather'&&state.weather){
-      const rules=carPrioritySection('weather');
-      const min=Number(state.weather.minForecast);
-      const avg=Number(state.weather.avgMean);
-      const precipitation=Number(state.weather.precipitationSum);
-      const spread=Number(state.weather.maxForecast)-Number(state.weather.minForecast);
-      if(Number.isFinite(min)&&min<=0){score=Math.max(score,rules.frost);reason='В прогнозе заморозки';}
-      else if(Number.isFinite(avg)&&avg<=7){score=Math.max(score,rules.seasonal);reason='Температура у порога смены шин';}
-      if(Number.isFinite(precipitation)&&precipitation>=5&&rules.wet>score){score=rules.wet;reason='Ожидаются заметные осадки';}
-      if(Number.isFinite(spread)&&spread>=10&&rules.spread>score){score=rules.spread;reason='Большой перепад температуры';}
-    }
-
-    if(id==='wash'&&state.weather&&carWashAdvice(state.weather)?.kind==='ok'){
-      const rules=carPrioritySection('wash');
-      score=Math.max(score,rules.goodWindow);reason='Хорошее окно для мойки';
     }
 
     return {score,reason};
@@ -430,19 +408,13 @@
 
     const actions=document.createElement('div');
     actions.className='car-smart-card-actions';
-    const drag=document.createElement('button');
-    drag.type='button';
-    drag.className='car-card-drag-handle';
-    drag.dataset.carDrag='1';
-    drag.setAttribute('aria-label','Перетащить карточку '+title);
-    drag.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="1.35"/><circle cx="15" cy="7" r="1.35"/><circle cx="9" cy="12" r="1.35"/><circle cx="15" cy="12" r="1.35"/><circle cx="9" cy="17" r="1.35"/><circle cx="15" cy="17" r="1.35"/></svg>';
     const collapse=document.createElement('button');
     collapse.type='button';
     collapse.className='car-card-collapse';
     collapse.dataset.carCollapse='1';
     collapse.setAttribute('aria-label','Свернуть или развернуть '+title);
     collapse.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
-    actions.append(drag,collapse);
+    actions.append(collapse);
     head.append(titleWrap,actions);
 
     const body=document.createElement('div');
@@ -457,7 +429,6 @@
       setCarCardCollapsed(card,!card.classList.contains('is-collapsed'));
       try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
     });
-    drag.addEventListener('pointerdown',event=>startCarCardDrag(event,drag));
     setCarCardCollapsed(card,readCarCardCollapsed(id),{persist:false});
     return card;
   }
@@ -475,30 +446,27 @@
       page.insertBefore(recommendations,body);
     }
 
-    const weather=body.querySelector('.car-weather-card');
     const service=body.querySelector('.car-service-card');
     const mileage=body.querySelector('.car-mileage-panel');
     const errors=body.querySelector('.car-errors');
     const tasks=body.querySelector('.car-tasks');
-    const wash=body.querySelector('#carWashGuideOpen');
     const progress=body.querySelector(':scope > .car-service-progress');
     const status=body.querySelector('#carStatus');
 
+    const mileageService=document.createElement('div');
+    mileageService.className='car-mileage-service-content';
+    if(mileage) mileageService.appendChild(mileage);
+    if(service) mileageService.appendChild(service);
+    if(progress) mileageService.appendChild(progress);
+
     const cards=[
-      buildCarSmartCard('weather','Погода и шины',weather),
-      buildCarSmartCard('service','Следующее ТО',service),
-      buildCarSmartCard('mileage','Текущий пробег',mileage),
+      buildCarSmartCard('mileage','Пробег и ТО',mileageService),
       buildCarSmartCard('errors','Ошибки на приборке',errors),
-      buildCarSmartCard('tasks','Задачи по машине',tasks),
-      buildCarSmartCard('wash','Как мыть машину',wash)
+      buildCarSmartCard('tasks','Задачи по машине',tasks)
     ].filter(Boolean);
 
-    weather?.querySelector('.car-card-title')?.remove();
     service?.querySelector('.car-card-title')?.remove();
     mileage?.querySelector('.car-card-title')?.remove();
-
-    const serviceCard=cards.find(card=>card.dataset.carCard==='service');
-    if(progress&&serviceCard) serviceCard.querySelector('.car-smart-card-body-inner')?.appendChild(progress);
 
     const errorCard=cards.find(card=>card.dataset.carCard==='errors');
     const errorActions=errors?.querySelector('.car-errors-head-actions');
@@ -538,7 +506,7 @@
 
   function applyCarSmartOrder({animate=true}={}){
     const host=document.getElementById('carBody');
-    if(!host||host.dataset.smartCardsReady!=='1'||carDragState) return;
+    if(!host||host.dataset.smartCardsReady!=='1') return;
     const cards=[...host.querySelectorAll(':scope > .car-smart-card')];
     if(cards.length<2) return;
     const before=animate?carCardRects(host):null;
@@ -551,52 +519,6 @@
 
     ranked.forEach(({card})=>host.insertBefore(card,document.getElementById('carStatus')||null));
     if(animate) animateCarCardOrder(host,before);
-  }
-
-  function startCarCardDrag(event,handle){
-    if(event.pointerType==='mouse'&&event.button!==0) return;
-    const card=handle.closest('.car-smart-card');
-    const host=document.getElementById('carBody');
-    if(!card||!host||card.parentElement!==host) return;
-    carDragState={pointerId:event.pointerId,card,handle,startY:event.clientY,moved:false};
-    card.classList.add('is-car-dragging');
-    try{handle.setPointerCapture?.(event.pointerId)}catch(_){}
-    event.preventDefault();
-  }
-
-  function moveCarCardDrag(event){
-    const drag=carDragState;
-    const host=document.getElementById('carBody');
-    if(!drag||!host||event.pointerId!==drag.pointerId) return;
-    if(!drag.moved&&Math.abs(event.clientY-drag.startY)<5) return;
-    drag.moved=true;
-    const cards=[...host.querySelectorAll(':scope > .car-smart-card')].filter(card=>card!==drag.card);
-    const before=cards.find(card=>{
-      const rect=card.getBoundingClientRect();
-      return event.clientY<rect.top+rect.height/2;
-    })||null;
-    if(before) host.insertBefore(drag.card,before);
-    else host.insertBefore(drag.card,document.getElementById('carStatus')||null);
-    event.preventDefault();
-  }
-
-  function finishCarCardDrag(event){
-    const drag=carDragState;
-    if(!drag||event.pointerId!==drag.pointerId) return;
-    try{drag.handle.releasePointerCapture?.(drag.pointerId)}catch(_){}
-    drag.card.classList.remove('is-car-dragging');
-    if(drag.moved){
-      try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-    }
-    carDragState=null;
-  }
-
-  function setupCarCardDragEvents(){
-    if(document.body.dataset.carDragBound==='1') return;
-    document.body.dataset.carDragBound='1';
-    document.addEventListener('pointermove',moveCarCardDrag,{passive:false});
-    document.addEventListener('pointerup',finishCarCardDrag);
-    document.addEventListener('pointercancel',finishCarCardDrag);
   }
 
   function setupCarTabObserver(){
@@ -752,12 +674,12 @@
     }
     if(firstWet>=2) {
       const days=firstWet;
-      return {kind:'info',title:'Стоит ли мыть машину',text:'Можно помыть сейчас, но примерно через '+days+' '+(days===2?'дня':'дней')+' ожидаются осадки.'};
+      return {kind:'info',title:'Стоит ли мыть машину',text:'Можно помыть сейчас, но примерно через '+days+' '+(days===2?'дня':'дней')+' ожидаются осадки.',canWash:true};
     }
     if(frost) {
-      return {kind:'cold',title:'Стоит ли мыть машину',text:'Можно, если после мойки хорошо просушат кузов, уплотнители и замки: на неделе возможны заморозки.'};
+      return {kind:'cold',title:'Стоит ли мыть машину',text:'Можно, если после мойки хорошо просушат кузов, уплотнители и замки: на неделе возможны заморозки.',canWash:true};
     }
-    return {kind:'ok',title:'Стоит ли мыть машину',text:'Да. На ближайшую неделю существенных осадков не видно — хороший момент для мойки.'};
+    return {kind:'ok',title:'Стоит ли мыть машину',text:'Да. На ближайшую неделю существенных осадков не видно — хороший момент для мойки.',canWash:true};
   }
 
   function compactWashAdvice(weather) {
@@ -773,8 +695,18 @@
     return 'Проверь погоду перед мойкой.';
   }
 
+  function weatherTyresRecommendation(weather) {
+    if(!weather) return {kind:'info',title:'Погода и шины',text:'Прогноз временно недоступен. '+tyreAdvice(null)};
+    const min=Number(weather.minForecast);
+    const avg=Number(weather.avgMean);
+    const kind=Number.isFinite(min)&&min<=0?'cold':(Number.isFinite(avg)&&avg<=7?'warn':'ok');
+    const current=Number(weather.temperature);
+    const prefix=Number.isFinite(current)?Math.round(current)+'°C · '+weatherLabel(weather.code)+'. ':'';
+    return {kind,title:'Погода и шины',text:(weather.stale?'Сохранённый прогноз. ':'')+prefix+tyreAdvice(weather)};
+  }
+
   function buildRecommendations(car,weather) {
-    const items=[carWashAdvice(weather)];
+    const items=[weatherTyresRecommendation(weather),carWashAdvice(weather)];
     const remaining=serviceRemaining(car);
 
     if(remaining===0 && car?.state?.mileage!=null) {
@@ -783,19 +715,6 @@
       items.push({kind:'warn',title:'ТО скоро',text:'До следующего ТО осталось '+formatKm(remaining)+'. Лучше уже выбрать дату сервиса.'});
     } else if(Number.isFinite(remaining) && remaining<=2500) {
       items.push({kind:'info',title:'Планируй ТО',text:'До следующего ТО '+formatKm(remaining)+'. Можно заранее подобрать удобное окно у сервиса.'});
-    }
-
-    if(weather) {
-      if(Number(weather.minForecast)<=3) {
-        items.push({kind:'cold',title:'Похолодание',text:'Ночью около +3°C или ниже. Проверь омывающую жидкость, состояние аккумулятора и давление в шинах.'});
-      }
-      if(Number(weather.precipitationSum)>=5) {
-        items.push({kind:'rain',title:'Осадки',text:'На неделе ожидаются осадки. Проверь щётки, омыватель и учитывай увеличенный тормозной путь.'});
-      }
-      const spread=Number(weather.maxForecast)-Number(weather.minForecast);
-      if(Number.isFinite(spread) && spread>=10) {
-        items.push({kind:'temp',title:'Перепад температуры',text:'Температура заметно меняется. После похолодания проверь давление в шинах на холодных колёсах.'});
-      }
     }
 
     return items.slice(0,4);
@@ -812,11 +731,21 @@
       dot.className='car-recommendation-dot';
       dot.setAttribute('aria-hidden','true');
       const copy=document.createElement('div');
+      copy.className='car-recommendation-copy';
       const title=document.createElement('strong');
       title.textContent=item.title;
       const text=document.createElement('p');
       text.textContent=item.text;
       copy.append(title,text);
+      if(item.canWash){
+        const guide=document.createElement('button');
+        guide.type='button';
+        guide.className='car-recommendation-wash-button';
+        guide.textContent='Как мыть машину';
+        guide.setAttribute('aria-controls','carWashGuidePage');
+        guide.addEventListener('click',()=>setWashGuideOpen(true));
+        copy.appendChild(guide);
+      }
       row.append(dot,copy);
       root.appendChild(row);
     }
@@ -878,13 +807,32 @@
   }
 
   function syncCarTodayTaskBadge(tasks){
-    document.getElementById('carTodayTaskBadge')?.remove();
-    const badge=document.getElementById('carTasksTodayBadge');
-    if(!badge) return;
     const count=(Array.isArray(tasks)?tasks:[]).filter(task=>String(task?.timing||'')==='today').length;
-    badge.textContent=count?String(Math.min(count,99)):'';
-    badge.hidden=count<1;
-    badge.setAttribute('aria-label',count===1?'1 задача по машине на сегодня':count+' задач по машине на сегодня');
+    const label=count===1?'1 задача по машине на сегодня':count+' задач по машине на сегодня';
+
+    const taskBadge=document.getElementById('carTasksTodayBadge');
+    if(taskBadge){
+      taskBadge.textContent=count?String(Math.min(count,99)):'';
+      taskBadge.hidden=count<1;
+      taskBadge.setAttribute('aria-label',label);
+    }
+
+    const homeTitle=document.getElementById('carHomeTitle');
+    let homeBadge=document.getElementById('carTodayTaskBadge');
+    if(homeTitle&&!homeBadge){
+      homeBadge=document.createElement('span');
+      homeBadge.id='carTodayTaskBadge';
+      homeBadge.className='car-today-task-badge';
+      homeTitle.appendChild(homeBadge);
+    }
+    if(homeBadge){
+      homeBadge.textContent=count?String(Math.min(count,99)):'';
+      homeBadge.hidden=count<1;
+      homeBadge.setAttribute('aria-label',label);
+    }
+
+    document.documentElement.dataset.carTodayTaskCount=String(count);
+    try{window.dispatchEvent(new CustomEvent('rudi:attention-change',{detail:{source:'car-tasks',count}}))}catch(_){}
   }
 
   function renderTasks(ticktick){
@@ -1045,13 +993,11 @@
   function start() {
     setupCarSmartCards();
     setupCarWashModal();
-    setupCarCardDragEvents();
     setupCarTabObserver();
     document.getElementById('carMileageForm')?.addEventListener('submit',saveMileage);
     document.getElementById('carErrorAdd')?.addEventListener('click',()=>setErrorFormOpen(true));
     document.getElementById('carErrorCancel')?.addEventListener('click',()=>setErrorFormOpen(false));
     document.getElementById('carErrorForm')?.addEventListener('submit',saveDashboardError);
-    document.getElementById('carWashGuideOpen')?.addEventListener('click',()=>setWashGuideOpen(true));
     document.getElementById('carWashGuideBack')?.addEventListener('click',()=>setWashGuideOpen(false));
     let attempts=0;
     const wait=()=>{

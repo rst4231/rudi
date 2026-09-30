@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v2.134">
+  <meta name="rudi-version" content="v2.136">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,14 +27,14 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=2.102">
+  <link rel="stylesheet" href="/app.css?v=2.136">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=2.134">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.105">
   <link rel="stylesheet" href="/pwa-extras.css?v=2.74">
   <link rel="stylesheet" href="/calendar.css?v=1.8.7">
   <link rel="stylesheet" href="/smart-home.css?v=1.8.7">
-  <link rel="stylesheet" href="/car.css?v=2.43">
+  <link rel="stylesheet" href="/car.css?v=2.136">
   <link rel="stylesheet" href="/profile-supplements.css?v=2.116">
   <link rel="stylesheet" href="/supplement-advanced.css?v=2.116">
   <script>
@@ -64,11 +64,11 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=2.114"></script>
+  <script defer src="/app.js?v=2.136"></script>
   <script defer src="/pwa-extras.js?v=2.59"></script>
   <script defer src="/weather.js?v=1.8.7"></script>
   <script defer src="/smart-home.js?v=1.8.7"></script>
-  <script defer src="/car.js?v=2.43"></script>
+  <script defer src="/car.js?v=2.136"></script>
   <script defer src="/profile-supplements.js?v=2.134"></script>
   <script defer src="/mood-history.js?v=2.134"></script>
   <script defer src="/supplement-editor.js?v=2.134"></script>
@@ -589,22 +589,6 @@
           </div>
           <div id="carTasksList" class="car-tasks-list"></div>
         </section>
-
-        <button id="carWashGuideOpen" class="car-wash-guide-open" type="button" aria-controls="carWashGuidePage">
-          <span class="car-wash-guide-open-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 3.5C9.7 6.7 6.5 10.4 6.5 14.2a5.5 5.5 0 1 0 11 0C17.5 10.4 14.3 6.7 12 3.5Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M9.2 14.7a3.1 3.1 0 0 0 3.1 3.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <span class="car-wash-guide-open-copy">
-            <strong>Как мыть машину</strong>
-            <small>6 шагов безопасной мойки кузова</small>
-          </span>
-          <span class="car-wash-guide-open-arrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none"><path d="m9 5 7 7-7 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </button>
 
         <div id="carStatus" class="car-status" aria-live="polite"></div>
       </div>

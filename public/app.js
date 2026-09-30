@@ -3299,6 +3299,8 @@
         setupExtendedSettings();
         updateDataSettingsUi();
         updateAboutSettingsUi();
+        updateAppIconBadgeSettingsUi();
+        queueAppIconBadgeSync();
       }
 
       function setSettingsOpen(open){
@@ -3423,6 +3425,7 @@
       function updateActivityNotificationBadge(){
         const dot=document.getElementById('homeActivityNotificationDot');
         if(dot) dot.hidden=!activityNotificationsHaveUnread();
+        queueAppIconBadgeSync();
       }
 
       function markActivityNotificationsSeen(){
@@ -3850,6 +3853,7 @@
           });
           list.appendChild(button);
         }
+        queueAppIconBadgeSync();
       }
 
       function renderHomeDashboard(){
@@ -4286,6 +4290,10 @@
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Получать уведомления о смене настроения партнёра</strong><small>Получать сообщения партнёра в Telegram</small></div>'+
                 '<button id="settingsMoodReceivePartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Получать уведомления о смене настроения партнёра"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Бейдж на иконке</strong><small id="settingsAppBadgeStatus">Показывать непрочитанное на иконке RUDI</small></div>'+
+                '<button id="settingsAppBadgeEnable" class="settings-pwa-install" type="button">Разрешить</button>'+
               '</div>'+
             '</section>'+
 
@@ -5014,6 +5022,17 @@
           moodReceive.dataset.bound='1';
           moodReceive.addEventListener('click',()=>setMoodReceivePartnerEnabled(!moodReceivePartnerEnabled()));
         }
+        const appBadge=document.getElementById('settingsAppBadgeEnable');
+        if(appBadge&&appBadge.dataset.bound!=='1'){
+          appBadge.dataset.bound='1';
+          appBadge.addEventListener('click',enableAppIconBadge);
+        }
+        if(document.documentElement.dataset.appBadgeBound!=='1'){
+          document.documentElement.dataset.appBadgeBound='1';
+          window.addEventListener('rudi:attention-change',queueAppIconBadgeSync);
+          window.addEventListener('focus',queueAppIconBadgeSync);
+          document.addEventListener('visibilitychange',()=>{if(!document.hidden) queueAppIconBadgeSync()});
+        }
         const refresh=document.getElementById('settingsRefreshNow');
         if(refresh&&refresh.dataset.bound!=='1'){
           refresh.dataset.bound='1';
@@ -5041,6 +5060,95 @@
           window.matchMedia?.('(display-mode: standalone)')?.matches
           || window.navigator?.standalone===true
         );
+      }
+
+      let appIconBadgeSyncQueued=false;
+
+      function appIconBadgeSupported(){
+        return typeof navigator?.setAppBadge==='function'||typeof navigator?.clearAppBadge==='function';
+      }
+
+      function appIconBadgePermission(){
+        if(typeof Notification==='undefined') return 'unsupported';
+        return String(Notification.permission||'default');
+      }
+
+      function appAttentionCount(){
+        if(!currentActor) return 0;
+        let count=0;
+        if(activityNotificationsHaveUnread()) count+=1;
+
+        const feedVersion=String(homeDashboardState.feed?.version||'');
+        if(feedVersion&&feedVersion!==feedSeenVersion()) count+=1;
+        if(homeCountIsNew('photos',homeDashboardState.photoCount)) count+=1;
+        if(homeCountIsNew('wishlist',homeDashboardState.wishlistCount)) count+=1;
+        if(partnerMessageIsNew()) count+=1;
+
+        const carCount=Math.max(0,Math.floor(Number(document.documentElement.dataset.carTodayTaskCount)||0));
+        count+=carCount;
+        return Math.min(99,count);
+      }
+
+      async function syncAppIconBadge(){
+        appIconBadgeSyncQueued=false;
+        if(!appIconBadgeSupported()||!currentActor) return;
+        const count=appAttentionCount();
+        try{
+          if(count>0) await navigator.setAppBadge(count);
+          else if(typeof navigator.clearAppBadge==='function') await navigator.clearAppBadge();
+          else await navigator.setAppBadge(0);
+        }catch(_){}
+        updateAppIconBadgeSettingsUi();
+      }
+
+      function queueAppIconBadgeSync(){
+        if(appIconBadgeSyncQueued) return;
+        appIconBadgeSyncQueued=true;
+        Promise.resolve().then(syncAppIconBadge);
+      }
+
+      function updateAppIconBadgeSettingsUi(){
+        const button=document.getElementById('settingsAppBadgeEnable');
+        const status=document.getElementById('settingsAppBadgeStatus');
+        if(!button||!status) return;
+
+        if(!appIconBadgeSupported()){
+          button.disabled=true;
+          button.textContent='Недоступно';
+          status.textContent=/iphone|ipad|ipod/i.test(navigator.userAgent||'')&&!isStandalonePwa()
+            ?'Работает после установки RUDI на экран Домой'
+            :'Не поддерживается этим режимом';
+          return;
+        }
+
+        const permission=appIconBadgePermission();
+        if(permission==='granted'||permission==='unsupported'){
+          button.disabled=true;
+          button.textContent='Включено';
+          status.textContent='Показывает число непрочитанного на иконке';
+          return;
+        }
+        if(permission==='denied'){
+          button.disabled=true;
+          button.textContent='Запрещено';
+          status.textContent='Разреши уведомления для RUDI в настройках устройства';
+          return;
+        }
+        button.disabled=false;
+        button.textContent='Разрешить';
+        status.textContent='Нужно один раз разрешить уведомления';
+      }
+
+      async function enableAppIconBadge(){
+        if(!appIconBadgeSupported()){
+          updateAppIconBadgeSettingsUi();
+          return;
+        }
+        if(typeof Notification!=='undefined'&&Notification.permission==='default'){
+          try{await Notification.requestPermission()}catch(_){}
+        }
+        await syncAppIconBadge();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
       function appVersionLabel(){
@@ -9719,6 +9827,7 @@
         const fresh=document.getElementById('feedFreshBadge');
         if(badge) badge.hidden=!visible;
         if(fresh) fresh.hidden=!visible;
+        queueAppIconBadgeSync();
       }
 
       function feedSeenVersion(){

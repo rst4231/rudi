@@ -1442,3 +1442,136 @@ body.car-wash-modal-open{overflow:hidden!important}
   .car-wash-guide-dialog .car-wash-guide-number{width:25px;height:25px}
 }
 /* end RUDI smart car cards */
+
+
+/* RUDI v2.136 car page simplification + light theme contrast */
+.car-mileage-service-content{
+  display:grid;
+  gap:12px;
+}
+.car-mileage-service-content .car-service-card{
+  padding-top:12px!important;
+  border-top:1px solid color-mix(in srgb,var(--line) 78%,transparent)!important;
+}
+.car-recommendation-copy{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.car-recommendation-wash-button{
+  justify-self:start;
+  min-height:30px;
+  margin-top:6px;
+  padding:0 11px;
+  border:1px solid color-mix(in srgb,#4e8bc5 24%,var(--line));
+  border-radius:10px;
+  background:color-mix(in srgb,#4e8bc5 10%,var(--surface-strong));
+  color:#3978b3;
+  font:inherit;
+  font-size:9.5px;
+  font-weight:820;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.car-recommendation-wash-button:active{transform:scale(.97)}
+.car-card-drag-handle{display:none!important}
+
+.car-wash-guide-dialog{
+  width:min(100%,420px)!important;
+  max-height:min(94dvh,760px)!important;
+}
+.car-wash-guide-dialog .car-wash-guide-steps{
+  grid-template-columns:1fr!important;
+}
+@media(min-width:560px){
+  .car-wash-guide-dialog .car-wash-guide-steps{grid-template-columns:1fr!important}
+}
+
+html[data-theme="light"] .car-smart-card.panel,
+html[data-theme="light"] .car-page>.car-hero-recommendations{
+  border-color:#dfe3e9!important;
+  background:#fff!important;
+  box-shadow:0 9px 24px rgba(31,42,56,.07)!important;
+}
+html[data-theme="light"] .car-smart-card-title>strong,
+html[data-theme="light"] .car-section-title,
+html[data-theme="light"] .car-section-title strong,
+html[data-theme="light"] .car-weather-card strong,
+html[data-theme="light"] .car-service-card strong,
+html[data-theme="light"] .car-mileage-copy strong,
+html[data-theme="light"] .car-recommendation strong,
+html[data-theme="light"] .car-task-copy strong,
+html[data-theme="light"] .car-error-copy strong{
+  color:#171c24!important;
+}
+html[data-theme="light"] .car-weather-card p,
+html[data-theme="light"] .car-service-card p,
+html[data-theme="light"] .car-mileage-copy small,
+html[data-theme="light"] .car-mileage-form label,
+html[data-theme="light"] .car-recommendation p,
+html[data-theme="light"] .car-tasks-meta,
+html[data-theme="light"] .car-task-date,
+html[data-theme="light"] .car-errors-meta,
+html[data-theme="light"] .car-error-date,
+html[data-theme="light"] .car-error-copy p,
+html[data-theme="light"] .car-error-field>span,
+html[data-theme="light"] .car-tasks-empty,
+html[data-theme="light"] .car-errors-empty,
+html[data-theme="light"] .car-status{
+  color:#5c6675!important;
+}
+html[data-theme="light"] .car-mileage-input-row input,
+html[data-theme="light"] .car-error-field input,
+html[data-theme="light"] .car-error-field textarea{
+  border-color:#d6dbe2!important;
+  background:#f5f6f8!important;
+  color:#1b222c!important;
+  caret-color:#1b222c;
+}
+html[data-theme="light"] .car-mileage-input-row input::placeholder,
+html[data-theme="light"] .car-error-field input::placeholder,
+html[data-theme="light"] .car-error-field textarea::placeholder{
+  color:#7d8794!important;
+  opacity:1;
+}
+html[data-theme="light"] .car-error-form,
+html[data-theme="light"] .car-error-row,
+html[data-theme="light"] .car-task-row,
+html[data-theme="light"] .car-recommendation{
+  border-color:#e1e5ea!important;
+  background:#fafbfc!important;
+}
+html[data-theme="light"] .car-error-add,
+html[data-theme="light"] .car-error-save,
+html[data-theme="light"] .car-error-remove{
+  border-color:#f1cfd2!important;
+  background:#fff0f1!important;
+  color:#c94f59!important;
+}
+html[data-theme="light"] .car-error-cancel{
+  border-color:#dde2e8!important;
+  background:#f4f6f8!important;
+  color:#5f6976!important;
+}
+html[data-theme="light"] .car-task-done{
+  border-color:#b9e4c9!important;
+  background:#eef9f2!important;
+  color:#23824c!important;
+}
+html[data-theme="light"] .car-service-progress{
+  background:#e8ebef!important;
+}
+html[data-theme="light"] .car-recommendation-wash-button{
+  border-color:#c8dced!important;
+  background:#edf5fb!important;
+  color:#2e6fa7!important;
+}
+html[data-theme="light"] .car-card-collapse{
+  background:#f2f4f7!important;
+  color:#697382!important;
+}
+html[data-theme="light"] .car-card-notification-badge{
+  border-color:#fff!important;
+  color:#fff!important;
+}
+/* end RUDI v2.136 car page simplification */
