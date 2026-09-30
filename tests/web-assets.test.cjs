@@ -28,8 +28,8 @@ test('built core assets use stable public paths with release version queries',()
     const config=JSON.parse(fs.readFileSync(path.join(dir,'rudi-version.json'),'utf8'));
     const version=config.current.replace(/^v/,'');
     const first=build();
-    assert.match(first,new RegExp('src="/app\\\\.js\\\\?v='+version.replace(/\\./g,'\\\\.')+'"'));
-    assert.match(first,new RegExp('href="/app\\\\.css\\\\?v='+version.replace(/\\./g,'\\\\.')+'"'));
+    assert.match(first,new RegExp('src="/app\\.js\\?v='+version.replace(/\\./g,'\\.')+'"'));
+    assert.match(first,new RegExp('href="/app\\.css\\?v='+version.replace(/\\./g,'\\.')+'"'));
     assert.doesNotMatch(first,/\/assets\/app\.[a-f0-9]{12}\.(?:js|css)/);
     const firstSw=fs.readFileSync(path.join(dir,'public/sw.js'),'utf8');
     assert.ok(firstSw.includes("const CACHE_NAME='rudi-shell-"+config.current+"';"));
