@@ -5,6 +5,11 @@ const HOP_BY_HOP = new Set([
   'te','trailer','transfer-encoding','upgrade','host','content-length','accept-encoding'
 ]);
 
+function isVersionedStaticRequest(url) {
+  return url.searchParams.has('v')
+    && /\.(?:css|js|png|jpe?g|svg|webp|ico|webmanifest)$/i.test(url.pathname);
+}
+
 function rewriteCookie(value) {
   return String(value || '').replace(
     /;\s*Domain=\.?(?:spb-daily-guide-bot\.vercel\.app|vercel\.app)/ig,
@@ -12,7 +17,7 @@ function rewriteCookie(value) {
   );
 }
 
-function responseHeadersFrom(upstream, publicOrigin) {
+function responseHeadersFrom(upstream, publicOrigin, incomingUrl) {
   const headers = new Headers();
 
   for (const [name, value] of upstream.headers) {
@@ -41,6 +46,9 @@ function responseHeadersFrom(upstream, publicOrigin) {
     if (cookie) headers.append('set-cookie', rewriteCookie(cookie));
   }
 
+  if (isVersionedStaticRequest(incomingUrl)) {
+    headers.set('cache-control', 'public, max-age=31536000, immutable');
+  }
   headers.set('x-rudi-proxy', 'deno');
   return headers;
 }
@@ -101,7 +109,7 @@ async function handler(request) {
       {
         status: upstream.status,
         statusText: upstream.statusText,
-        headers: responseHeadersFrom(upstream, incomingUrl.origin),
+        headers: responseHeadersFrom(upstream, incomingUrl.origin, incomingUrl),
       },
     );
   } catch (error) {

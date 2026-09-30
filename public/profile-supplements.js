@@ -2,7 +2,8 @@
 const API='/api/supplements';
 const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
-let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
+const HOME_TOOLS_STALE_MS=5*60*1000;
+let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadedAt=0,homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
 let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -595,7 +596,7 @@ function build(){
 }
 async function loadHomeTools({force=false}={}){
   const nextActor=String(document.body.dataset.rudiActor||'').trim();if(!nextActor)return;
-  if(!force&&homeToolsLoadedActor===nextActor)return;
+  if(!force&&homeToolsLoadedActor===nextActor&&Date.now()-homeToolsLoadedAt<HOME_TOOLS_STALE_MS)return;
   if(homeToolsLoadPromise)return homeToolsLoadPromise;
   actor=nextActor;build();
   if(homeToolsLoadedActor!==actor){applyCollapse(true);habitArchiveExpanded=false;}
@@ -610,7 +611,7 @@ async function loadHomeTools({force=false}={}){
     }else{
       console.error('RUDI_HABITS_HOME_LOAD_ERROR',habitsResult.reason);habitProgressText.textContent='Не удалось загрузить';habitList.replaceChildren();setHabitStatus('Не удалось загрузить привычки.',true);
     }
-    homeToolsLoadedActor=actor;
+    homeToolsLoadedActor=actor;homeToolsLoadedAt=Date.now();
   })().finally(()=>{homeToolsLoadPromise=null});
   return homeToolsLoadPromise;
 }
@@ -621,8 +622,8 @@ function bindName(){
   if(name){name.classList.remove('personal-profile-name-link');name.removeAttribute('role');name.removeAttribute('tabindex');name.removeAttribute('aria-label')}
   const update=()=>{const who=String(document.body.dataset.rudiActor||'').trim();if(who)loadHomeTools()};
   update();new MutationObserver(update).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
-  window.addEventListener('focus',()=>loadHomeTools({force:true}));
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')loadHomeTools({force:true})});
+  window.addEventListener('focus',()=>loadHomeTools());
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')loadHomeTools()});
 }
 window.RudiSupplementApp={
   request,
