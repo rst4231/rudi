@@ -12250,16 +12250,19 @@
       }
 
       function readDateIdeasExpanded(hasIdeas=false){
+        let fallback=Boolean(hasIdeas);
         try{
           const saved=localStorage.getItem(dateIdeasExpandedKey());
-          if(saved==='1') return true;
-          if(saved==='0') return false;
+          if(saved==='1') fallback=true;
+          if(saved==='0') fallback=false;
         }catch(_){}
-        return Boolean(hasIdeas);
+        return uiViewState('date-ideas-expanded',fallback);
       }
 
       function writeDateIdeasExpanded(expanded){
-        try{localStorage.setItem(dateIdeasExpandedKey(),expanded?'1':'0')}catch(_){}
+        const value=Boolean(expanded);
+        try{localStorage.setItem(dateIdeasExpandedKey(),value?'1':'0')}catch(_){}
+        setUiViewState('date-ideas-expanded',value);
       }
 
       function normalizeDateIdeasCache(value){

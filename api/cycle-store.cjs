@@ -183,6 +183,7 @@ function cycleViewForDate(value, dateKey) {
     moodWord,
     cycleDay,
     cycleLengthDays: cycleLength,
+    daysToNext,
     periodActive,
     periodStart: Number.isFinite(periodStartMs)
       ? new Date(periodStartMs).toISOString().slice(0, 10)
