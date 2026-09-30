@@ -10,11 +10,21 @@ const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
 const CONFIG_TTL_MS = 5 * 60 * 1000;
 const TASKS_TTL_MS = 60 * 1000;
+const FALLBACK_CAR_PRIORITY_CONFIG = {
+  base:{ weather:60, service:50, mileage:40, errors:30, tasks:20, wash:10 },
+  tasks:{ overdue:1000, today:900, tomorrow:650, week:500, any:250 },
+  service:{ due:980, within500:860, within1000:780, within2500:560, within5000:320 },
+  mileage:{ missing:700 },
+  errors:{ active:950, perError:8 },
+  weather:{ frost:760, seasonal:620, wet:500, spread:350 },
+  wash:{ goodWindow:120 },
+};
 const FALLBACK_CAR_TASK_CONFIG = {
   ticktickProjectId: '6a5490689ba59102ae9fd144',
   taskKeywords: ['машин','авто','салон','яндекс карт'],
   taskColumnKeywords: ['машин'],
   taskLimit: 3,
+  priority:FALLBACK_CAR_PRIORITY_CONFIG,
 };
 
 let configMemo = null;
@@ -112,6 +122,20 @@ function normalizeTitle(value) {
     .replace(/\s+/g,' ');
 }
 
+function normalizeCarPriorityConfig(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const result = {};
+  for (const [group,defaults] of Object.entries(FALLBACK_CAR_PRIORITY_CONFIG)) {
+    const groupSource = source[group] && typeof source[group] === 'object' && !Array.isArray(source[group]) ? source[group] : {};
+    result[group] = {};
+    for (const [key,fallback] of Object.entries(defaults)) {
+      const numeric = Number(groupSource[key]);
+      result[group][key] = Number.isFinite(numeric) ? Math.max(0,Math.min(5000,numeric)) : fallback;
+    }
+  }
+  return result;
+}
+
 function normalizeCarTaskConfig(value) {
   const source = value && typeof value === 'object' ? value : {};
   const projectId = String(source.ticktickProjectId || FALLBACK_CAR_TASK_CONFIG.ticktickProjectId).trim();
@@ -124,7 +148,13 @@ function normalizeCarTaskConfig(value) {
     .filter(Boolean)
     .slice(0,20);
   const taskLimit = Math.min(6,Math.max(1,Number(source.taskLimit) || FALLBACK_CAR_TASK_CONFIG.taskLimit));
-  return { ticktickProjectId:projectId, taskKeywords:keywords, taskColumnKeywords:columnKeywords, taskLimit };
+  return {
+    ticktickProjectId:projectId,
+    taskKeywords:keywords,
+    taskColumnKeywords:columnKeywords,
+    taskLimit,
+    priority:normalizeCarPriorityConfig(source.priority),
+  };
 }
 
 async function loadCarTaskConfig() {
@@ -319,6 +349,7 @@ async function handleCarRequest(req, res) {
   try {
     if (operation === 'get') {
       const [state,tasks] = await Promise.all([readCarState(),carTasksSafe()]);
+      const config = await loadCarTaskConfig();
       return res.status(200).json({
         ok:true,
         actor:session.actor,
@@ -327,6 +358,7 @@ async function handleCarRequest(req, res) {
         state,
         nextService:serviceScheduleForMileage(state.mileage),
         ticktick:tasks,
+        priorityConfig:config.priority,
       });
     }
 
@@ -394,6 +426,7 @@ module.exports = {
   dayOffset,
   normalizeTitle,
   normalizeCarTaskConfig,
+  normalizeCarPriorityConfig,
   carColumnIds,
   isCarTask,
   selectCurrentCarTasks,

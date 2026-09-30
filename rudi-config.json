@@ -194,7 +194,47 @@
     "taskLimit": 3,
     "taskColumnKeywords": [
       "машин"
-    ]
+    ],
+    "priority": {
+      "base": {
+        "weather": 60,
+        "service": 50,
+        "mileage": 40,
+        "errors": 30,
+        "tasks": 20,
+        "wash": 10
+      },
+      "tasks": {
+        "overdue": 1000,
+        "today": 900,
+        "tomorrow": 650,
+        "week": 500,
+        "any": 250
+      },
+      "service": {
+        "due": 980,
+        "within500": 860,
+        "within1000": 780,
+        "within2500": 560,
+        "within5000": 320
+      },
+      "mileage": {
+        "missing": 700
+      },
+      "errors": {
+        "active": 950,
+        "perError": 8
+      },
+      "weather": {
+        "frost": 760,
+        "seasonal": 620,
+        "wet": 500,
+        "spread": 350
+      },
+      "wash": {
+        "goodWindow": 120
+      }
+    }
   },
   "malePsychology": {
     "enabled": true,
