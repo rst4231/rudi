@@ -255,7 +255,7 @@ function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod10
 function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
 function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
-function todaySupplementProgress(){const today=habitDateKey(new Date()),active=activeSupplementItems();let taken=0,total=0;for(const item of active){const target=supplementPlannedIntakes(item);total+=target;taken+=Math.min(target,supplementIntakesOn(item,today))}return{taken,total}}
+function todaySupplementProgress(){const today=habitDateKey(new Date()),active=activeSupplementItems();const taken=active.filter(item=>supplementIntakesOn(item,today)>0).length;return{taken,total:active.length}}
 function todaySupplementCount(){return todaySupplementProgress().taken}
 function renderSupplementSummary(){
   if(!supplementSummaryNode)return;
