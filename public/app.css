@@ -12379,3 +12379,10 @@ html:not([data-theme="dark"]) .app-tabbar{
     padding-bottom:calc(82px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
   }
 }
+
+
+/* RUDI: align home section title sizes */
+#dailyQuestionTile .daily-question-heading h2{
+  font-size:18px!important;
+}
+/* end home section title alignment */

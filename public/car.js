@@ -48,7 +48,7 @@
   function setWashGuideOpen(open) {
     const body=document.getElementById('carBody');
     const page=document.getElementById('carWashGuidePage');
-    const tile=document.getElementById('carTile');
+    const tile=document.getElementById('carPage');
     if(!body || !page) return;
     body.hidden=Boolean(open);
     page.hidden=!open;
@@ -264,11 +264,15 @@
     const nextNode=document.getElementById('carNextService');
     const meta=document.getElementById('carServiceMeta');
     const progress=document.getElementById('carServiceProgress');
-    const modelNode=document.querySelector('#carTile .car-model');
+    const modelNode=document.querySelector('#carPage .car-model');
     const collapsedMileageNode=document.getElementById('carCollapsedMileageValue');
     const collapsedServiceNode=document.getElementById('carCollapsedServiceValue');
     const collapsedProgress=document.getElementById('carCollapsedServiceProgress');
     const collapsedPercent=document.getElementById('carCollapsedServicePercent');
+    const homeMileageNode=document.getElementById('carHomeMileageValue');
+    const homeServiceNode=document.getElementById('carHomeServiceValue');
+    const homeProgress=document.getElementById('carHomeServiceProgress');
+    const homePercent=document.getElementById('carHomeServicePercent');
 
     if(modelNode){
       modelNode.dataset.mileage=mileage==null?'Пробег не указан':'Пробег · '+formatKm(mileage);
@@ -276,10 +280,12 @@
         ? 'Следующее ТО · ТО-'+next.number+' на '+formatKm(next.mileage)
         : 'Следующее ТО · не определено';
     }
-    if(collapsedMileageNode) collapsedMileageNode.textContent=mileage==null?'Не указан':formatKm(mileage);
-    if(collapsedServiceNode) collapsedServiceNode.textContent=next
-      ? 'ТО-'+next.number+' на '+formatKm(next.mileage)
-      : 'Не определено';
+    const mileageText=mileage==null?'Не указан':formatKm(mileage);
+    const serviceText=next?'ТО-'+next.number+' на '+formatKm(next.mileage):'Не определено';
+    if(collapsedMileageNode) collapsedMileageNode.textContent=mileageText;
+    if(collapsedServiceNode) collapsedServiceNode.textContent=serviceText;
+    if(homeMileageNode) homeMileageNode.textContent=mileageText;
+    if(homeServiceNode) homeServiceNode.textContent=serviceText;
     if(mileageNode) mileageNode.textContent=mileage==null?'Не указан':formatKm(mileage);
     if(updatedNode) updatedNode.textContent=formatUpdated(car?.state?.mileageUpdatedAt||car?.state?.updatedAt);
     if(input && document.activeElement!==input) input.value=mileage==null?'':String(mileage);
@@ -290,6 +296,8 @@
       if(progress) progress.style.width='0%';
       if(collapsedProgress) collapsedProgress.style.width='0%';
       if(collapsedPercent) collapsedPercent.textContent='—';
+      if(homeProgress) homeProgress.style.width='0%';
+      if(homePercent) homePercent.textContent='—';
       return;
     }
 
@@ -307,6 +315,8 @@
     if(progress) progress.style.width=pct.toFixed(1)+'%';
     if(collapsedProgress) collapsedProgress.style.width=pct.toFixed(1)+'%';
     if(collapsedPercent) collapsedPercent.textContent=Math.round(pct)+'% пройдено';
+    if(homeProgress) homeProgress.style.width=pct.toFixed(1)+'%';
+    if(homePercent) homePercent.textContent=Math.round(pct)+'%';
   }
 
   function tyreAdvice(weather) {
@@ -440,8 +450,11 @@
         : 'Погода недоступна';
     }
     if(advice) advice.textContent=(weather?.stale?'Сохранённый прогноз · ':'')+tyreAdvice(weather);
+    const washText=compactWashAdvice(weather);
     const collapsedWash=document.getElementById('carCollapsedWashValue');
-    if(collapsedWash) collapsedWash.textContent=compactWashAdvice(weather);
+    const homeWash=document.getElementById('carHomeWashValue');
+    if(collapsedWash) collapsedWash.textContent=washText;
+    if(homeWash) homeWash.textContent=washText;
   }
 
   function taskDateLabel(task){
@@ -592,8 +605,10 @@
     try {
       const data=await api('get');
       const tile=document.getElementById('carTile');
+      const page=document.getElementById('carPage');
       if(!data.visible) {
         if(tile) tile.hidden=true;
+        if(page) page.hidden=true;
         return;
       }
       state.car=data;
@@ -601,11 +616,17 @@
         tile.dataset.tabAvailable='1';
         tile.hidden=document.body.dataset.appTab!=='home';
       }
+      if(page){
+        page.dataset.tabAvailable='1';
+        page.hidden=document.body.dataset.appTab!=='car';
+      }
       render();
       loadWeather();
     } catch(_) {
       const tile=document.getElementById('carTile');
+      const page=document.getElementById('carPage');
       if(tile) tile.hidden=true;
+      if(page) page.hidden=true;
     } finally {
       state.loading=false;
     }
@@ -656,6 +677,7 @@
         const actor=String(document.body.dataset.rudiActor||'');
         if(actor&&actor!=='Рустам') {
           document.getElementById('carTile')?.remove();
+          document.getElementById('carPage')?.remove();
           return;
         }
         loadCar();

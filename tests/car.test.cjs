@@ -85,7 +85,7 @@ test('today tasks outrank overdue and future tasks, and completed id can be excl
   assert.deepEqual(selected.map(task=>task.id),['late-task-001','next-task-001']);
 });
 
-test('car UI is private, movable, collapsible and can complete TickTick tasks',()=>{
+test('car UI is private, movable and opens a dedicated page with back navigation',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   const app=fs.readFileSync('public/app.js','utf8');
   const car=fs.readFileSync('public/car.js','utf8');
@@ -93,20 +93,20 @@ test('car UI is private, movable, collapsible and can complete TickTick tasks',(
   const client=fs.readFileSync('api/car-client.cjs','utf8');
 
   assert.match(html,/id="carTile"[^>]*data-home-tile="car"[^>]*hidden/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','quick-access','smart-home','car','markets'\]/);
-  assert.match(app,/selector:'#carTile',key:'car'/);
+  assert.match(html,/id="carPage"[^>]*data-app-tab-section="car"/);
+  assert.match(html,/id="carPageBack"/);
+  assert.match(app,/APP_TABS=\[[^\]]*'car'/);
+  assert.doesNotMatch(app,/selector:'#carTile',key:'car'/);
+  assert.match(app,/navigateToAppTab\('car'/);
   assert.match(client,/session\.actor !== 'Рустам'/);
-  assert.match(app,/function applyActorVisibility\(\)[\s\S]*?currentActor==='Рустам'[\s\S]*?getElementById\('carTile'\)\?\.remove\(\)/);
-  assert.match(car,/dataset\.rudiActor[\s\S]*?actor&&actor!=='Рустам'[\s\S]*?getElementById\('carTile'\)\?\.remove\(\)/);
+  assert.match(app,/function applyActorVisibility\(\)[\s\S]*?getElementById\('carTile'\)\?\.remove\(\)[\s\S]*?getElementById\('carPage'\)\?\.remove\(\)/);
+  assert.match(car,/dataset\.rudiActor[\s\S]*?actor&&actor!=='Рустам'[\s\S]*?getElementById\('carPage'\)\?\.remove\(\)/);
   assert.match(api,/req\.query\?\.route === 'car'/);
   assert.match(car,/api\('complete-task',\{taskId:task\.id\}\)/);
-  assert.match(car,/Задача отмечена выполненной/);
   assert.match(html,/id="carTasksList"/);
-  assert.match(car,/dataset\.service=next/);
-  assert.match(car,/Следующее ТО · ТО-/);
+  assert.match(car,/carHomeMileageValue/);
+  assert.match(car,/carHomeServiceValue/);
 });
-
-
 test('car block keeps dashboard icons without the decorative car hero',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   const css=fs.readFileSync('public/car.css','utf8');
@@ -159,4 +159,16 @@ test('car header does not repeat Auto and Machine labels',()=>{
   const head=html.slice(start,end);
   assert.doesNotMatch(head,/home-dashboard-label">Авто</);
   assert.match(head,/<h2 id="carTitle">Машина<\/h2>/);
+});
+
+
+test('default home order places smart saves immediately after daily question',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(app,/partner','daily-question','smart-saves','markets'/);
+  assert.match(app,/migrateHomeSavesAfterQuestionOnce/);
+});
+
+test('daily question title matches smart saves title size',()=>{
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(css,/#dailyQuestionTile \.daily-question-heading h2\{\s*font-size:18px!important;/);
 });

@@ -113,10 +113,10 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','smart-saves','quick-access','smart-home','car','partner','daily-question','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','smart-saves','quick-access','smart-home','car','partner','daily-question','markets'];
+        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','smart-saves','markets'];
       }
       function homeLayoutV254MigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -137,6 +137,32 @@
         try{localStorage.setItem(homeLayoutV254MigrationKey(),'1')}catch(_){}
         return next;
       }
+      function homeSavesAfterQuestionMigrationKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi-home-saves-after-question-v1-'+actor;
+      }
+
+      function migrateHomeSavesAfterQuestionOnce(order){
+        const source=Array.isArray(order)?order.map(String):[];
+        if(!source.length) return source;
+        try{if(localStorage.getItem(homeSavesAfterQuestionMigrationKey())==='1') return source}catch(_){}
+        const savesIndex=source.indexOf('smart-saves');
+        const questionIndex=source.indexOf('daily-question');
+        const looksLikePreviousDefault=
+          savesIndex>0
+          && questionIndex>0
+          && source[savesIndex-1]==='new'
+          && source[savesIndex+1]==='quick-access'
+          && source[questionIndex-1]==='partner';
+        if(looksLikePreviousDefault){
+          source.splice(savesIndex,1);
+          const nextQuestionIndex=source.indexOf('daily-question');
+          source.splice(nextQuestionIndex+1,0,'smart-saves');
+        }
+        try{localStorage.setItem(homeSavesAfterQuestionMigrationKey(),'1')}catch(_){}
+        return source;
+      }
+
       function homeTopOrderMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi-home-top-order-v4-'+actor;
@@ -156,7 +182,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0};
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
       const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
@@ -1152,7 +1178,7 @@
       }
 
       function normalizedHomeOrder(order){
-        const source=migrateHomeOrderV254(Array.isArray(order)?order.map(String):[]);
+        const source=migrateHomeSavesAfterQuestionOnce(migrateHomeOrderV254(Array.isArray(order)?order.map(String):[]));
         const requested=source.flatMap(id=>{
           if(['profile','profile-common','profile-self','profile-partner'].includes(id)) return ['dashboard'];
           return [id];
@@ -1648,7 +1674,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score','settings','smart-saves'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score','settings','smart-saves','car'];
 
       function routeFromLocation(){
         try{
@@ -1715,6 +1741,7 @@
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='settings') refreshSettingsPageUi();
         if(tab==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
+        if(tab==='car') Promise.resolve(window.RUDI_CAR?.refresh?.()).catch(()=>{});
         if(tab==='fasting') loadFastingTracker({silent:true});
         if(tab==='score'){
           const modal=ensureScoreModal();
@@ -1849,6 +1876,24 @@
       }
 
       function setupAppTabs(){
+        const carOpen=document.getElementById('carPageOpen');
+        const carBack=document.getElementById('carPageBack');
+        if(carOpen&&carOpen.dataset.bound!=='1'){
+          carOpen.dataset.bound='1';
+          carOpen.addEventListener('click',event=>{
+            event.preventDefault();
+            navigateToAppTab('car',{scroll:true});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        }
+        if(carBack&&carBack.dataset.bound!=='1'){
+          carBack.dataset.bound='1';
+          carBack.addEventListener('click',()=>{
+            navigateToAppTab('home',{scroll:true});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        }
+
         const initial=routeFromLocation();
         const initialTab=requestedAppTab||initial.tab||'home';
         const initialItem=requestedItemId||initial.item||'';
@@ -4581,11 +4626,6 @@
           selector:'#dailyQuestionTile',key:'daily-question',
           bodySelectors:['#dailyQuestionBody'],
           hostSelector:'.daily-question-head'
-        });
-        setupPersistentCollapsible({
-          selector:'#carTile',key:'car',
-          bodySelectors:['#carBody'],
-          hostSelector:'.car-head'
         });
         setupPersistentCollapsible({
           selector:'#workCalendarCard',key:'calendar-work',
@@ -12250,6 +12290,7 @@
         document.body.dataset.rudiActor=currentActor;
         if(currentActor==='Рустам') return;
         document.getElementById('carTile')?.remove();
+        document.getElementById('carPage')?.remove();
       }
 
       async function init(){
