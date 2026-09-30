@@ -2460,22 +2460,34 @@
         return String(value||'')==='😨'?'🥱':String(value||'');
       }
 
+      let scoreStateReadPromise=null;
       async function scoreRequest(operation='state',payload={}){
-        const backupContext=backupRequestContext();
-        const response=await fetch('/api/partner-message?rudiAction=score',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
-          cache:'no-store'
+        const readOnlyState=operation==='state'&&(!payload||Object.keys(payload).length===0);
+        if(readOnlyState&&scoreStateReadPromise) return scoreStateReadPromise;
+
+        const run=(async()=>{
+          const backupContext=backupRequestContext();
+          const response=await fetch('/api/partner-message?rudiAction=score',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
+            cache:'no-store'
+          });
+          const data=await response.json().catch(()=>({}));
+          if(!response.ok||!data.ok) {
+            const error=new Error(data.error||'score-request-failed');
+            error.status=response.status;
+            throw error;
+          }
+          if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
+          return data;
+        })();
+
+        if(!readOnlyState) return run;
+        scoreStateReadPromise=run.finally(()=>{
+          if(scoreStateReadPromise) scoreStateReadPromise=null;
         });
-        const data=await response.json().catch(()=>({}));
-        if(!response.ok||!data.ok) {
-          const error=new Error(data.error||'score-request-failed');
-          error.status=response.status;
-          throw error;
-        }
-        if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
-        return data;
+        return scoreStateReadPromise;
       }
 
       function renderScoreStickers(score=currentScoreState){
@@ -11128,16 +11140,21 @@
         renderFastingHomeStatus(fastingOverviewState);
       }
 
+      let fastingOverviewLoadPromise=null;
       async function loadFastingOverview(){
         if(!currentActor) return null;
-        try{
-          const data=await fastingRequest('overview');
-          renderFastingHomeStatus(data.fastingOverview||{});
-          return data.fastingOverview||{};
-        }catch(_){
-          renderFastingHomeStatus(fastingOverviewState);
-          return null;
-        }
+        if(fastingOverviewLoadPromise) return fastingOverviewLoadPromise;
+        fastingOverviewLoadPromise=(async()=>{
+          try{
+            const data=await fastingRequest('overview');
+            renderFastingHomeStatus(data.fastingOverview||{});
+            return data.fastingOverview||{};
+          }catch(_){
+            renderFastingHomeStatus(fastingOverviewState);
+            return null;
+          }
+        })().finally(()=>{fastingOverviewLoadPromise=null});
+        return fastingOverviewLoadPromise;
       }
 
       function startFastingHomeTicker(){
@@ -12524,16 +12541,73 @@
           denyApp('Не удалось открыть RUDI','Обнови страницу и попробуй снова.');
         }
       });
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadHomeBootstrap({force:true}).catch(()=>{})},30*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadTickTickNext()},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='photos') loadSharedAlbum()},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='feed') loadFeed({silent:true})},15*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home') loadActivityJournal({silent:true})},10*60*1000);
-      setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},60*1000);
-      setInterval(()=>{if(currentActor&&appVisibleForRefresh()&&!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},30*60*1000);
-      setInterval(()=>{if(currentActor&&appAccessReady&&appVisibleForRefresh()) syncUiPreferencesFromServer()},5*60*1000);
-      setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
+      const backgroundRefreshStartedAt=Date.now();
+      const backgroundRefreshTasks=[
+        {
+          key:'mood-ui',everyMs:60*1000,offsetMs:0,
+          shouldRun:()=>Boolean(currentActor),
+          run:()=>{resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}
+        },
+        {
+          key:'ticktick',everyMs:5*60*1000,offsetMs:15*1000,
+          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'),
+          run:()=>loadTickTickNext()
+        },
+        {
+          key:'ui-preferences',everyMs:5*60*1000,offsetMs:30*1000,
+          shouldRun:()=>Boolean(currentActor&&appAccessReady&&appVisibleForRefresh()),
+          run:()=>syncUiPreferencesFromServer()
+        },
+        {
+          key:'market-ticker',everyMs:5*60*1000,offsetMs:45*1000,
+          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'&&marketTickerEnabled()),
+          run:()=>loadMarketTicker({silent:true})
+        },
+        {
+          key:'activity',everyMs:10*60*1000,offsetMs:60*1000,
+          shouldRun:()=>Boolean(
+            currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'
+            &&Date.now()-homeBootstrapLoadedAt>2*60*1000
+          ),
+          run:()=>loadActivityJournal({silent:true})
+        },
+        {
+          key:'work-calendar',everyMs:15*60*1000,offsetMs:75*1000,
+          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='schedule'),
+          run:()=>loadWorkCalendar(currentWorkCalendarView,{silent:true})
+        },
+        {
+          key:'shared-album',everyMs:15*60*1000,offsetMs:90*1000,
+          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='photos'),
+          run:()=>loadSharedAlbum()
+        },
+        {
+          key:'feed',everyMs:15*60*1000,offsetMs:105*1000,
+          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='feed'),
+          run:()=>loadFeed({silent:true})
+        },
+        {
+          key:'home-bootstrap',everyMs:30*60*1000,offsetMs:0,
+          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'),
+          run:()=>loadHomeBootstrap({force:true}).catch(()=>{})
+        },
+        {
+          key:'state-backup',everyMs:30*60*1000,offsetMs:120*1000,
+          shouldRun:()=>Boolean(currentActor&&appVisibleForRefresh()&&!stateBackupSyncFresh(6*60*60*1000)),
+          run:()=>refreshStateBackup()
+        }
+      ].map(task=>({...task,nextAt:backgroundRefreshStartedAt+task.everyMs+task.offsetMs}));
+
+      function runBackgroundRefreshScheduler(){
+        const now=Date.now();
+        for(const task of backgroundRefreshTasks){
+          if(now<task.nextAt) continue;
+          while(task.nextAt<=now) task.nextAt+=task.everyMs;
+          if(!task.shouldRun()) continue;
+          Promise.resolve().then(task.run).catch(()=>{});
+        }
+      }
+      setInterval(runBackgroundRefreshScheduler,15*1000);
 
       function ensureAppSurface({restoreTab=false}={}){
         applyTheme();
