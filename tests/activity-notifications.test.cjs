@@ -49,7 +49,7 @@ test('activity notification copy is rich, gender-aware and escapes user content'
   assert.match(checklistCompletedNotificationText('Диана', 'Купить мясо', 'Шашлыки'), /☑️ <b>Диана выполнила пункт<\/b>/);
 });
 
-test('telegram sender enables HTML formatting and target app tab', async () => {
+test('telegram notifications stay text-only even when app target options are supplied', async () => {
   let payload;
   const result = await telegramSendMessage(123, '✅ <b>Готово</b>', {
     botToken: 'test-token',
@@ -66,9 +66,7 @@ test('telegram sender enables HTML formatting and target app tab', async () => {
   });
 
   assert.equal(payload.parse_mode, 'HTML');
-  assert.equal(payload.reply_markup.inline_keyboard[0][0].text, 'Открыть вишлист');
-  assert.match(payload.reply_markup.inline_keyboard[0][0].web_app.url, /[?&]tab=wishlist/);
-  assert.match(payload.reply_markup.inline_keyboard[0][0].web_app.url, /[?&]item=wish-123/);
+  assert.equal(payload.reply_markup, undefined);
   assert.equal(result.messageId, 77);
   assert.equal(escapeTelegramHtml('<&>'), '&lt;&amp;&gt;');
 });
@@ -123,7 +121,7 @@ test('wishlist addition notification goes only to the other partner',async()=>{
   assert.equal(fromRustam.recipient,'Диана');
   assert.equal(calls.length,1);
   assert.equal(calls[0].chat_id,222);
-  assert.ok(calls[0].reply_markup);
+  assert.equal(calls[0].reply_markup,undefined);
 
   calls.length=0;
   const fromDiana=await sendWishlistNotificationToPartner('Диана','Мечта',{
