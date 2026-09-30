@@ -61,6 +61,7 @@
     '/api/work-calendar'
   ]);
   const RUDI_SNAPSHOT_FAST_FALLBACK_MS=450;
+  const RUDI_SNAPSHOT_FRESH_MS=30*1000;
 
   function openSnapshotDb(){
     return new Promise((resolve,reject)=>{
@@ -224,7 +225,19 @@
     return response;
   }
 
+  async function freshOfflineSnapshot(snapshotKey){
+    if(!snapshotKey) return null;
+    try{
+      const row=await readOfflineSnapshot(snapshotKey);
+      const updatedAt=Number(row?.updatedAt||0);
+      if(!row||!updatedAt||Date.now()-updatedAt>RUDI_SNAPSHOT_FRESH_MS) return null;
+      return offlineSnapshotResponse(row,{markUnstable:false});
+    }catch(_){return null}
+  }
+
   async function snapshotAwareFetch(input,init,snapshotKey){
+    const fresh=await freshOfflineSnapshot(snapshotKey);
+    if(fresh) return fresh;
     const network=nativeFetch(input,init)
       .then(response=>({kind:'response',response}))
       .catch(error=>({kind:'error',error}));
