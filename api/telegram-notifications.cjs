@@ -32,6 +32,7 @@ function appUrlForTab(tab, options = {}) {
   return url.toString();
 }
 
+// Web App buttons are intentionally omitted from Telegram notification payloads.
 async function telegramSendMessage(chatId, text, options = {}) {
   const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
