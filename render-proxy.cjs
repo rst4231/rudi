@@ -17,7 +17,12 @@ function responseHeadersFrom(upstream, publicOrigin) {
 
   for (const [name, value] of upstream.headers) {
     const lower = name.toLowerCase();
-    if (HOP_BY_HOP.has(lower) || lower === 'set-cookie' || lower === 'location') continue;
+    if (
+      HOP_BY_HOP.has(lower) ||
+      lower === 'set-cookie' ||
+      lower === 'location' ||
+      lower === 'content-encoding'
+    ) continue;
     headers.append(name, value);
   }
 
