@@ -701,6 +701,7 @@
       if(!node) continue;
       node.textContent=text;
       node.dataset.season=season;
+      node.hidden=false;
       node.setAttribute('aria-label','Сейчас лучше использовать '+text.toLowerCase()+' шины');
     }
   }
