@@ -118,8 +118,13 @@ function paintReminderBadge(node,count){
   node.hidden=value<=0;
 }
 function updateReminderBadges(){
-  paintReminderBadge(supplementReminderBadge,overdueSupplementCount());
-  paintReminderBadge(habitReminderBadge,pendingHabitCount());
+  const supplementCount=overdueSupplementCount();
+  const habitCount=pendingHabitCount();
+  paintReminderBadge(supplementReminderBadge,supplementCount);
+  paintReminderBadge(habitReminderBadge,habitCount);
+  document.documentElement.dataset.supplementReminderCount=String(supplementCount);
+  document.documentElement.dataset.habitReminderCount=String(habitCount);
+  try{window.dispatchEvent(new CustomEvent('rudi:attention-change',{detail:{source:'home-reminders',habitCount,supplementCount}}))}catch(_){}
 }
 function startReminderBadgeClock(){
   if(reminderBadgeTimer)return;
