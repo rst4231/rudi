@@ -30,7 +30,7 @@ test('personal supplements support left-edge swipe back without conflicting with
 
 
 test('home tracker and supplements use approved pastel card layout',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');const css=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.css'),'utf8');assert.match(source,/personal-home-tile-icon is-habit/);assert.match(source,/personal-home-tile-icon is-supplement/);assert.match(source,/habitTile\.append\(habitHead,habitProgressRow,habitCalendar,habitBody\)/);assert.match(css,/RUDI v2\.56 — pastel home cards/);assert.match(css,/linear-gradient\(120deg,#f6fbf7/);assert.match(css,/linear-gradient\(120deg,#fffaf4/)}); 
-test('supplement home card shows distinct supplements taken today',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/function todaySupplementCount\(\)/);assert.match(source,/some\(row=>String\(row\?\.date\|\|''\)===today\)/);assert.match(source,/Сегодня принято: /);assert.match(source,/renderSupplementSummary\(\)/)});
+test('supplement home card shows distinct active supplements taken today',()=>{const source=fs.readFileSync(path.join(__dirname,'..','public','profile-supplements.js'),'utf8');assert.match(source,/function todaySupplementCount\(\)/);assert.match(source,/activeSupplementItems\(\)/);assert.match(source,/supplementIntakesOn\(item,today\)>0/);assert.match(source,/Сегодня принято: /);assert.match(source,/renderSupplementSummary\(\)/)});
 
 
 test('archived supplements use explicit red delete button and no swipe delete',()=>{
