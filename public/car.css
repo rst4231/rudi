@@ -1688,8 +1688,8 @@ body.car-wash-modal-open .app-tabbar{
 .car-tyre-sticker{
   position:absolute;
   z-index:4;
-  left:39%;
-  top:59%;
+  left:49%;
+  top:69%;
   transform:translate(-50%,-50%);
   display:inline-flex;
   align-items:center;
