@@ -149,23 +149,11 @@ function syncServiceWorkerPrecache(assetPaths) {
 }
 
 function buildWebAssets() {
-  const publicDir = path.dirname(webIndexPath);
-  const assetDir = path.join(publicDir, 'assets');
-  fs.mkdirSync(assetDir, { recursive: true });
-  let html = fs.readFileSync(webIndexPath, 'utf8');
-  const assetPaths = [];
-  for (const name of WEB_ASSETS) {
-    const content = fs.readFileSync(path.join(publicDir, name));
-    const hash = createHash('sha256').update(content).digest('hex').slice(0, 12);
-    const ext = path.extname(name);
-    const fileName = path.basename(name, ext) + '.' + hash + ext;
-    fs.writeFileSync(path.join(assetDir, fileName), content);
-    assetPaths.push('/assets/' + fileName);
-    const pattern = new RegExp('/' + name.replace('.', '\\.') + '\\?v=[^"\\s]+', 'g');
-    html = html.replace(pattern, '/assets/' + fileName);
-  }
-  fs.writeFileSync(webIndexPath, html);
-  syncServiceWorkerPrecache(assetPaths);
+  // Keep core web assets on their stable public paths and use the version query
+  // that syncWebVersion() already writes into index.html. Vercel reliably serves
+  // these files from /public, while build-generated /assets files can be absent
+  // from the final static output and leave the UI without CSS/JS.
+  syncServiceWorkerPrecache([]);
 }
 
 function buildRuntime() {
