@@ -12403,8 +12403,8 @@ html[data-theme="dark"] .daily-question-waiting{background:rgba(255,255,255,.055
 .app-tabbar{
   bottom:0!important;
   width:min(100%,560px)!important;
-  min-height:calc(84px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
-  padding:8px 7px calc(28px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+  min-height:64px!important;
+  padding:7px 7px max(10px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))!important;
   border-left:0!important;
   border-right:0!important;
   border-bottom:0!important;
@@ -12422,8 +12422,8 @@ html:not([data-theme="dark"]) .app-tabbar{
 @media(max-width:430px){
   .app-tabbar{
     width:100%!important;
-    min-height:calc(82px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
-    padding:8px 6px calc(26px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+    min-height:62px!important;
+    padding:7px 6px max(9px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))!important;
     border-radius:22px 22px 0 0!important;
   }
   .app-tab-button{
