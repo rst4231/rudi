@@ -140,9 +140,8 @@
     if(!errors.length){
       const empty=document.createElement('div');
       empty.className='car-errors-empty';
-      empty.textContent='Ошибок не добавлено';
+      empty.textContent='Сейчас ремонт не требуется';
       root.appendChild(empty);
-      return;
     }
 
     for(const error of errors){
@@ -172,17 +171,54 @@
         copy.appendChild(comment);
       }
 
-      const button=document.createElement('button');
-      button.type='button';
-      button.className='car-error-remove';
-      button.textContent='Убрать';
-      button.addEventListener('click',async()=>{
+      const actions=document.createElement('div');
+      actions.className='car-error-row-actions';
+
+      const repaired=document.createElement('button');
+      repaired.type='button';
+      repaired.className='car-error-repair';
+      repaired.textContent='Починил';
+      repaired.addEventListener('click',()=>repairDashboardError(error,repaired));
+
+      const remove=document.createElement('button');
+      remove.type='button';
+      remove.className='car-error-remove';
+      remove.textContent='Удалить';
+      remove.addEventListener('click',async()=>{
         if(!(await confirmRemoveError(error.title))) return;
-        await removeDashboardError(error,button);
+        await removeDashboardError(error,remove);
       });
 
-      row.append(marker,copy,button);
+      actions.append(repaired,remove);
+      row.append(marker,copy,actions);
       root.appendChild(row);
+    }
+
+    const archive=Array.isArray(car?.state?.repairArchive)?car.state.repairArchive:[];
+    if(archive.length){
+      const details=document.createElement('details');
+      details.className='car-repair-archive';
+      const summary=document.createElement('summary');
+      summary.innerHTML='<span>Архив</span><strong>'+String(archive.length)+'</strong>';
+      const list=document.createElement('div');
+      list.className='car-repair-archive-list';
+      for(const item of archive){
+        const archivedRow=document.createElement('article');
+        archivedRow.className='car-repair-archive-row';
+        const archivedTitle=document.createElement('strong');
+        archivedTitle.textContent=item.title||'Ремонт';
+        const archivedMeta=document.createElement('span');
+        archivedMeta.textContent='Починено '+formatErrorDate(item.repairedAt);
+        archivedRow.append(archivedTitle,archivedMeta);
+        if(item.comment){
+          const archivedComment=document.createElement('p');
+          archivedComment.textContent=item.comment;
+          archivedRow.appendChild(archivedComment);
+        }
+        list.appendChild(archivedRow);
+      }
+      details.append(summary,list);
+      root.appendChild(details);
     }
   }
 
@@ -230,6 +266,28 @@
     }
   }
 
+  async function repairDashboardError(error,button) {
+    if(!error?.id || button?.disabled) return;
+    const row=button.closest('.car-error-row');
+    const buttons=[...(row?.querySelectorAll('button')||[])];
+    buttons.forEach(node=>node.disabled=true);
+    const original=button.textContent;
+    button.textContent='…';
+    try{
+      const data=await api('repair-error',{errorId:error.id});
+      state.car={...state.car,...data};
+      renderErrors(state.car);
+      applyCarSmartOrder({animate:true});
+      setStatus('Перенесено в архив ремонта','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      buttons.forEach(node=>node.disabled=false);
+      button.textContent=original;
+      setStatus('Не удалось отправить в архив','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }
+  }
+
   async function removeDashboardError(error,button) {
     if(!error?.id || button?.disabled) return;
     if(button){
@@ -241,14 +299,14 @@
       state.car={...state.car,...data};
       renderErrors(state.car);
       applyCarSmartOrder({animate:true});
-      setStatus('Ошибка убрана из журнала','success');
+      setStatus('Запись удалена','success');
       try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(_){
       if(button){
         button.disabled=false;
-        button.textContent='Убрать';
+        button.textContent='Удалить';
       }
-      setStatus('Не удалось убрать ошибку','error');
+      setStatus('Не удалось удалить запись','error');
       try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }
   }
@@ -461,7 +519,7 @@
 
     const cards=[
       buildCarSmartCard('mileage','Пробег и ТО',mileageService),
-      buildCarSmartCard('errors','Ошибки на приборке',errors),
+      buildCarSmartCard('errors','Требует ремонт',errors),
       buildCarSmartCard('tasks','Задачи по машине',tasks)
     ].filter(Boolean);
 

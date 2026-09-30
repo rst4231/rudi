@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession } = require('./rudi-session.cjs');
-const { readCarState, writeMileage, addCarError, removeCarError, restoreCarState } = require('./car-store.cjs');
+const { readCarState, writeMileage, addCarError, removeCarError, repairCarError, restoreCarState } = require('./car-store.cjs');
 const { readToken } = require('./ticktick-store.cjs');
 const { fetchProjectData, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
 const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
@@ -341,7 +341,11 @@ async function handleCarRequest(req, res) {
   if(body.backupToken){
     try{
       previousSnapshot=openSnapshot(String(body.backupToken),{});
-      if(previousSnapshot?.carState?.mileage!=null || (Array.isArray(previousSnapshot?.carState?.errors) && previousSnapshot.carState.errors.length)){
+      if(
+        previousSnapshot?.carState?.mileage!=null
+        || (Array.isArray(previousSnapshot?.carState?.errors) && previousSnapshot.carState.errors.length)
+        || (Array.isArray(previousSnapshot?.carState?.repairArchive) && previousSnapshot.carState.repairArchive.length)
+      ){
         await restoreCarState(previousSnapshot.carState).catch(()=>null);
       }
     }catch(_){}
@@ -403,6 +407,20 @@ async function handleCarRequest(req, res) {
         state:result.state,
         nextService:serviceScheduleForMileage(result.state.mileage),
         removedError:result.removed,
+        backupToken,
+      });
+    }
+
+    if (operation === 'repair-error') {
+      const result = await repairCarError(body.errorId);
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        visible:true,
+        state:result.state,
+        nextService:serviceScheduleForMileage(result.state.mileage),
+        repairedError:result.repaired,
         backupToken,
       });
     }

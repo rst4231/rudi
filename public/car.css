@@ -663,6 +663,7 @@
 .car-error-add,
 .car-error-cancel,
 .car-error-save,
+.car-error-repair,
 .car-error-remove{
   border:1px solid rgba(255,255,255,.08);
   font:inherit;
@@ -754,6 +755,7 @@
 .car-error-add:disabled,
 .car-error-cancel:disabled,
 .car-error-save:disabled,
+.car-error-repair:disabled,
 .car-error-remove:disabled{opacity:.55}
 .car-errors-list{
   display:grid;
@@ -812,14 +814,77 @@
   line-height:1.4;
   overflow-wrap:anywhere;
 }
+.car-error-row-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.car-error-repair,
 .car-error-remove{
   min-height:30px;
   padding:0 9px;
   border-radius:10px;
-  background:rgba(224,80,91,.1);
-  color:#e98a91;
   font-size:9px;
   font-weight:800;
+}
+.car-error-repair{
+  background:rgba(73,185,116,.13);
+  color:#76d69b;
+}
+.car-error-remove{
+  background:rgba(224,80,91,.1);
+  color:#e98a91;
+}
+.car-repair-archive{
+  margin-top:3px;
+  border-top:1px solid rgba(255,255,255,.07);
+  padding-top:7px;
+}
+.car-repair-archive summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-height:32px;
+  padding:0 2px;
+  color:#9aa1ac;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+  list-style:none;
+}
+.car-repair-archive summary::-webkit-details-marker{display:none}
+.car-repair-archive summary strong{
+  min-width:20px;
+  height:20px;
+  display:grid;
+  place-items:center;
+  padding:0 5px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  color:#aeb4bd;
+  font-size:9px;
+}
+.car-repair-archive-list{
+  display:grid;
+  gap:6px;
+  padding-top:5px;
+}
+.car-repair-archive-row{
+  display:grid;
+  gap:3px;
+  padding:8px 9px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;
+  background:rgba(255,255,255,.025);
+}
+.car-repair-archive-row>strong{color:#dfe3e8;font-size:10px}
+.car-repair-archive-row>span,
+.car-repair-archive-row>p{
+  margin:0;
+  color:#858d99;
+  font-size:9px;
+  line-height:1.35;
 }
 @media(max-width:560px){
   .car-error-fields{grid-template-columns:1fr}
@@ -828,7 +893,7 @@
   .car-error-form{padding:10px}
   .car-error-row{padding:9px 10px}
   .car-error-add{min-height:29px;padding:0 9px}
-  .car-error-remove{min-height:29px;padding:0 8px}
+  .car-error-repair,.car-error-remove{min-height:29px;padding:0 8px}
 }
 /* end RUDI v2.43 dashboard error journal */
 
@@ -1575,3 +1640,22 @@ html[data-theme="light"] .car-card-notification-badge{
   color:#fff!important;
 }
 /* end RUDI v2.136 car page simplification */
+
+html[data-theme="light"] .car-error-repair{
+  border-color:#b9e4c9!important;
+  background:#eef9f2!important;
+  color:#23824c!important;
+}
+html[data-theme="light"] .car-repair-archive{border-color:#e3e7ec!important}
+html[data-theme="light"] .car-repair-archive summary{color:#697382!important}
+html[data-theme="light"] .car-repair-archive summary strong{
+  background:#eef1f4!important;
+  color:#66717f!important;
+}
+html[data-theme="light"] .car-repair-archive-row{
+  border-color:#e4e8ed!important;
+  background:#f7f8fa!important;
+}
+html[data-theme="light"] .car-repair-archive-row>strong{color:#29313c!important}
+html[data-theme="light"] .car-repair-archive-row>span,
+html[data-theme="light"] .car-repair-archive-row>p{color:#687382!important}

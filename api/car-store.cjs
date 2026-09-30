@@ -6,6 +6,7 @@ const NAMESPACE = 'rudi-car-state-v1';
 const KEY = 'changan-univ-2023';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ERRORS = 50;
+const MAX_REPAIR_ARCHIVE = 100;
 const ERROR_TITLE_MAX = 80;
 const ERROR_COMMENT_MAX = 500;
 const DB_ACTOR = 'Рустам';
@@ -27,7 +28,7 @@ function getCarDb(options = {}) {
 }
 
 function hasStoredState(state) {
-  return state.mileage != null || state.errors.length > 0 || Boolean(state.updatedAt);
+  return state.mileage != null || state.errors.length > 0 || state.repairArchive.length > 0 || Boolean(state.updatedAt);
 }
 
 async function cacheStateBestEffort(cache, state) {
@@ -89,6 +90,25 @@ function normalizeErrors(value) {
     .slice(0, MAX_ERRORS);
 }
 
+function normalizeRepairArchive(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map(item => {
+      const base = normalizeCarError(item);
+      const repairedAt = normalizeIso(item?.repairedAt);
+      return base && repairedAt ? { ...base, repairedAt } : null;
+    })
+    .filter(Boolean)
+    .filter(row => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    })
+    .sort((a,b) => (Date.parse(b.repairedAt) || 0) - (Date.parse(a.repairedAt) || 0))
+    .slice(0, MAX_REPAIR_ARCHIVE);
+}
+
 function normalizeState(value) {
   const mileage = normalizeMileage(value?.mileage);
   const legacyUpdatedAt = normalizeIso(value?.updatedAt);
@@ -96,11 +116,13 @@ function normalizeState(value) {
     ? ''
     : (normalizeIso(value?.mileageUpdatedAt) || legacyUpdatedAt);
   const errors = normalizeErrors(value?.errors);
-  const updatedAt = legacyUpdatedAt || mileageUpdatedAt || errors[0]?.createdAt || '';
+  const repairArchive = normalizeRepairArchive(value?.repairArchive);
+  const updatedAt = legacyUpdatedAt || mileageUpdatedAt || errors[0]?.createdAt || repairArchive[0]?.repairedAt || '';
   return {
     mileage,
     mileageUpdatedAt,
     errors,
+    repairArchive,
     updatedAt,
   };
 }
@@ -209,13 +231,30 @@ async function removeCarError(errorId, options = {}) {
   return { state, removed };
 }
 
+async function repairCarError(errorId, options = {}) {
+  const id = normalizeErrorId(errorId);
+  if (!id) throw new Error('car-error-invalid');
+  const current = await readCarState(options);
+  const repaired = current.errors.find(row => row.id === id);
+  if (!repaired) throw new Error('car-error-not-found');
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  const archived = { ...repaired, repairedAt:nowIso };
+  const state = await writeCarState({
+    ...current,
+    errors:current.errors.filter(row => row.id !== id),
+    repairArchive:[archived,...current.repairArchive],
+    updatedAt:nowIso,
+  },options);
+  return { state, repaired:archived };
+}
+
 async function restoreCarState(value, options = {}) {
   const incoming = normalizeState(value);
-  if (incoming.mileage == null && incoming.errors.length === 0) return readCarState(options);
+  if (incoming.mileage == null && incoming.errors.length === 0 && incoming.repairArchive.length === 0) return readCarState(options);
   const current = await readCarState(options);
   const currentTime = Date.parse(String(current.updatedAt || '')) || 0;
   const incomingTime = Date.parse(String(incoming.updatedAt || '')) || 0;
-  const currentHasData = current.mileage != null || current.errors.length > 0;
+  const currentHasData = current.mileage != null || current.errors.length > 0 || current.repairArchive.length > 0;
   if (currentHasData && currentTime >= incomingTime) return current;
   return writeCarState(incoming,options);
 }
@@ -225,6 +264,7 @@ module.exports = {
   KEY,
   TTL_SECONDS,
   MAX_ERRORS,
+  MAX_REPAIR_ARCHIVE,
   ERROR_TITLE_MAX,
   ERROR_COMMENT_MAX,
   DB_ACTOR,
@@ -232,11 +272,13 @@ module.exports = {
   normalizeMileage,
   normalizeCarError,
   normalizeErrors,
+  normalizeRepairArchive,
   normalizeState,
   readCarState,
   writeCarState,
   writeMileage,
   addCarError,
   removeCarError,
+  repairCarError,
   restoreCarState,
 };
