@@ -108,8 +108,12 @@ async function saveUiPreferences(actor, value, options = {}) {
       version: Math.max(0, Number(current.version || 0)) + 1,
       syncSchemaVersion: 2,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
-      blockStates: has('blockStates') ? incoming.blockStates : current.blockStates,
-      viewStates: has('viewStates') ? incoming.viewStates : current.viewStates,
+      blockStates: has('blockStates')
+        ? { ...current.blockStates, ...incoming.blockStates }
+        : current.blockStates,
+      viewStates: has('viewStates')
+        ? { ...current.viewStates, ...incoming.viewStates }
+        : current.viewStates,
       activitySeenId: has('activitySeenId') ? incoming.activitySeenId : current.activitySeenId,
       marketTickerEnabled: has('marketTickerEnabled') ? incoming.marketTickerEnabled : current.marketTickerEnabled,
       themeMode: has('themeMode') ? incoming.themeMode : current.themeMode,

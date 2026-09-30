@@ -106,3 +106,33 @@ test('frontend exposes shared view-state sync for web, PWA and Telegram surfaces
   assert.match(pwa,/for-di:/);
   assert.match(pwa,/saves:/);
 });
+
+
+test('partial device preference patches preserve sibling card states',async()=>{
+  const cache=memoryCache();
+  await saveUiPreferences('Рустам',{
+    blockStates:{car:true},
+    viewStates:{'products-history':true,'for-di:labor':false},
+    marketTickerEnabled:false,
+  },{uiPreferencesCache:cache,now:Date.parse('2026-09-30T08:00:00Z')});
+  await saveUiPreferences('Рустам',{
+    blockStates:{markets:true},
+    viewStates:{'for-di:saved':true},
+  },{uiPreferencesCache:cache,now:Date.parse('2026-09-30T08:01:00Z')});
+  const saved=await readUiPreferences('Рустам',{uiPreferencesCache:cache});
+  assert.deepEqual(saved.blockStates,{car:true,markets:true});
+  assert.equal(saved.viewStates['products-history'],true);
+  assert.equal(saved.viewStates['for-di:labor'],false);
+  assert.equal(saved.viewStates['for-di:saved'],true);
+  assert.equal(saved.marketTickerEnabled,false);
+});
+
+test('preference sync writes through lightweight endpoint and refreshes on focus',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const api=fs.readFileSync('api/partner-message.js','utf8');
+  assert.match(app,/flushUiPreferencesToServer/);
+  assert.match(app,/uiPreferences:patch/);
+  assert.match(app,/addEventListener\('focus',[\s\S]*syncUiPreferencesFromServer/);
+  assert.match(app,/syncUiPreferencesFromServer\(\)\},60\*1000/);
+  assert.match(api,/saveUiPreferences\(actor, body\.uiPreferences/);
+});

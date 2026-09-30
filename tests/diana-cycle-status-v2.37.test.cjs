@@ -17,12 +17,21 @@ test('Diana profile uses simplified cycle statuses',()=>{
   const profileSource=extract('dianaCycleProfileStatus(modelOrPhase){','dianaCycleDailyAdvice');
   const status=new Function('return ('+statusSource+')')();
   const cycleDateLabel=(ms)=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(ms));
-  const profile=new Function('dianaCycleMoodWord','cycleDateLabel','return ('+profileSource+')')(
+  const parseCycleDate=(value)=>{
+    if(Number.isFinite(value)) return Number(value);
+    const parsed=Date.parse(String(value||'')+'T00:00:00Z');
+    return Number.isFinite(parsed)?parsed:null;
+  };
+  const todayState=()=>({key:'2026-09-30'});
+  const profile=new Function('dianaCycleMoodWord','cycleDateLabel','parseCycleDate','todayState','return ('+profileSource+')')(
     value=>status(value).label,
-    cycleDateLabel
+    cycleDateLabel,
+    parseCycleDate,
+    todayState
   );
 
-  assert.equal(profile({phase:'Месячные',periodActive:true,periodEnd:Date.UTC(2026,8,30)}),'Месячные до 30 сентября');
+  assert.equal(profile({phase:'Месячные',periodActive:true,periodEnd:'2026-09-30'}),'Месячные сегодня');
+  assert.equal(profile({phase:'Месячные',periodActive:true,periodEnd:Date.UTC(2026,9,1)}),'Месячные до 1 октября');
   assert.equal(profile({phase:'Фолликулярная фаза',cycleDay:6,periodLength:5}),'Восстановление');
   assert.equal(profile({phase:'Фолликулярная фаза',cycleDay:10,periodLength:5}),'Энергии больше');
   assert.equal(profile({phase:'Фертильное окно',cycleDay:13,ovulationDay:14}),'Фертильные дни');

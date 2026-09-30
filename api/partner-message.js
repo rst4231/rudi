@@ -2419,6 +2419,12 @@ async function handleRudiAction(req, res, action, options = {}) {
           cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
         }).catch(() => uiPreferences);
       }
+      if (body.uiPreferences && typeof body.uiPreferences === 'object' && !Array.isArray(body.uiPreferences)) {
+        uiPreferences = await saveUiPreferences(actor, body.uiPreferences, {
+          ...options,
+          cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+        });
+      }
       return res.status(200).json({
         ok: true,
         actor,

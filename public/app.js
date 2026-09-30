@@ -723,7 +723,7 @@
         const states=readUiViewStates();
         states[cleanKey]=Boolean(value);
         writeUiViewStates(states);
-        if(sync&&currentActor) markUiPreferencesChanged();
+        if(sync&&currentActor) markUiPreferencesChanged({viewStates:{[cleanKey]:Boolean(value)}});
       }
 
       function dataLastSyncStorageKey(){
@@ -935,11 +935,68 @@
         try{window.dispatchEvent(new CustomEvent('rudi:ui-preferences-applied'))}catch(_){}
       }
 
-      function markUiPreferencesChanged(){
+      let uiPreferencesWritePromise=null;
+      let uiPreferencesWriteTimer=null;
+      let pendingUiPreferencesPatch={};
+
+      function mergeUiPreferencesPatch(base,patch){
+        const left=base&&typeof base==='object'&&!Array.isArray(base)?base:{};
+        const right=patch&&typeof patch==='object'&&!Array.isArray(patch)?patch:{};
+        const merged={...left,...right};
+        if(left.blockStates||right.blockStates) merged.blockStates={...(left.blockStates||{}),...(right.blockStates||{})};
+        if(left.viewStates||right.viewStates) merged.viewStates={...(left.viewStates||{}),...(right.viewStates||{})};
+        return merged;
+      }
+
+      function markUiPreferencesChanged(patch=null){
         uiPreferencesDirty=true;
         try{localStorage.setItem(uiPreferencesMetaKey(),new Date().toISOString())}catch(_){}
-        clearTimeout(uiPreferencesBackupTimer);
-        uiPreferencesBackupTimer=setTimeout(()=>refreshStateBackup(),180);
+        const nextPatch=patch&&typeof patch==='object'&&!Array.isArray(patch)?patch:localUiPreferences();
+        pendingUiPreferencesPatch=mergeUiPreferencesPatch(pendingUiPreferencesPatch,nextPatch);
+        clearTimeout(uiPreferencesWriteTimer);
+        uiPreferencesWriteTimer=setTimeout(()=>flushUiPreferencesToServer(),180);
+      }
+
+      async function flushUiPreferencesToServer(){
+        if(!currentActor) return null;
+        if(uiPreferencesWritePromise) return uiPreferencesWritePromise;
+        const patch=pendingUiPreferencesPatch;
+        if(!patch||!Object.keys(patch).length) return null;
+        pendingUiPreferencesPatch={};
+        const backupContext=backupRequestContext();
+        uiPreferencesWritePromise=(async()=>{
+          try{
+            const response=await fetch('/api/partner-message?rudiAction=ui-preferences',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                initData:telegramInitData(),
+                backupToken:backupContext.token,
+                uiPreferences:patch
+              }),
+              cache:'no-store'
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(!response.ok||!payload.ok) throw new Error(payload.error||'ui-preferences-save-failed');
+            const hasPending=Object.keys(pendingUiPreferencesPatch).length>0;
+            uiPreferencesDirty=hasPending;
+            if(payload.uiPreferences&&!hasPending&&applyRemoteUiPreferences(payload.uiPreferences,{force:true})){
+              applyMountedUiPreferences();
+            }
+            return payload;
+          }catch(_){
+            pendingUiPreferencesPatch=mergeUiPreferencesPatch(patch,pendingUiPreferencesPatch);
+            uiPreferencesDirty=true;
+            return null;
+          }finally{
+            uiPreferencesWritePromise=null;
+            if(Object.keys(pendingUiPreferencesPatch).length){
+              clearTimeout(uiPreferencesWriteTimer);
+              uiPreferencesWriteTimer=setTimeout(()=>flushUiPreferencesToServer(),900);
+            }
+          }
+        })();
+        return uiPreferencesWritePromise;
       }
 
       async function refreshStateBackup(){
@@ -949,8 +1006,6 @@
           return stateBackupRefreshPromise;
         }
         stateBackupRefreshPromise=(async()=>{
-          const outgoing=uiPreferencesDirty?localUiPreferences():null;
-          const outgoingStamp=String(outgoing?.updatedAt||'');
           const backupContext=backupRequestContext();
           try{
             const response=await fetch('/api/partner-message?rudiAction=state-backup',{
@@ -958,8 +1013,7 @@
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({
                 initData:telegramInitData(),
-                backupToken:backupContext.token,
-                uiPreferences:outgoing
+                backupToken:backupContext.token
               }),
               cache:'no-store'
             });
@@ -967,8 +1021,6 @@
             if(response.ok&&payload.ok){
               markStateBackupSyncNow();
               if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
-              const currentStamp=String(localUiPreferences().updatedAt||'');
-              if(outgoingStamp&&currentStamp===outgoingStamp) uiPreferencesDirty=false;
               if(payload.uiPreferences&&!uiPreferencesDirty&&applyRemoteUiPreferences(payload.uiPreferences,{force:true})){
                 applyMountedUiPreferences();
               }
@@ -1130,7 +1182,7 @@
         applyHomeOrder(normalized);
         if(hasSavedOrder){
           try{localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(normalized))}catch(_){}
-          if(JSON.stringify(normalized)!==before) markUiPreferencesChanged();
+          if(JSON.stringify(normalized)!==before) markUiPreferencesChanged({homeOrder:normalized});
         }
       }
 
@@ -1142,7 +1194,7 @@
           localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(order));
           localStorage.setItem(homeTopOrderMigrationKey(),'1');
         }catch(_){}
-        markUiPreferencesChanged();
+        markUiPreferencesChanged({homeOrder:order});
       }
 
       function updateHomeOrderControls(){
@@ -1446,7 +1498,7 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(marketTickerEnabledStorageKey(),next?'1':'0')}catch(_){}
         applyMarketTickerVisibility();
-        if(persist) markUiPreferencesChanged();
+        if(persist) markUiPreferencesChanged({marketTickerEnabled:next});
         if(next) loadMarketTicker({silent:true});
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
@@ -2468,8 +2520,12 @@
 
       function dianaCycleProfileStatus(modelOrPhase){
         const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:null;
-        if(model?.periodActive&&Number.isFinite(model.periodEnd)){
-          return 'Месячные закончатся '+cycleDateLabel(model.periodEnd);
+        const periodEndUtc=Number.isFinite(model?.periodEnd)?Number(model.periodEnd):parseCycleDate(model?.periodEnd);
+        if(model?.periodActive&&Number.isFinite(periodEndUtc)){
+          const todayUtc=parseCycleDate(todayState().key);
+          if(Number.isFinite(todayUtc)&&periodEndUtc===todayUtc) return 'Месячные сегодня';
+          if(Number.isFinite(todayUtc)&&periodEndUtc<todayUtc) return 'Месячные';
+          return 'Месячные до '+cycleDateLabel(periodEndUtc);
         }
         return dianaCycleMoodWord(modelOrPhase);
       }
@@ -3762,7 +3818,7 @@
           return;
         }
         try{localStorage.setItem(activitySeenStorageKey(),id)}catch(_){}
-        markUiPreferencesChanged();
+        markUiPreferencesChanged({activitySeenId:id});
         updateActivityNotificationBadge();
       }
 
@@ -4899,7 +4955,7 @@
           const states=readBlockStates();
           states[key]=Boolean(collapsed);
           localStorage.setItem(blockStateStorageKey(),JSON.stringify(states));
-          markUiPreferencesChanged();
+          markUiPreferencesChanged({blockStates:{[key]:Boolean(collapsed)}});
         }catch(_){}
       }
 
@@ -5136,7 +5192,7 @@
           try{localStorage.setItem(themeModeStorageKey(),next)}catch(_){}
         }
         applyTheme();
-        if(persist&&currentActor) markUiPreferencesChanged();
+        if(persist&&currentActor) markUiPreferencesChanged({themeMode:next});
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5167,7 +5223,7 @@
         const next=['small','normal','large'].includes(String(value||''))?String(value):'normal';
         try{localStorage.setItem(interfaceTextSizeStorageKey(),next)}catch(_){}
         applyInterfacePreferences();
-        if(currentActor) markUiPreferencesChanged();
+        if(currentActor) markUiPreferencesChanged({interfaceTextSize:next});
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5179,7 +5235,7 @@
       function setAutoRefreshEnabled(enabled){
         try{localStorage.setItem(autoRefreshStorageKey(),enabled?'1':'0')}catch(_){}
         updateAutoRefreshUi();
-        if(currentActor) markUiPreferencesChanged();
+        if(currentActor) markUiPreferencesChanged({autoRefreshEnabled:Boolean(enabled)});
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -6149,7 +6205,7 @@
           }
           const appliedRemoteUi=applyRemoteUiPreferences(payload.uiPreferences);
           if(appliedRemoteUi) applyMountedUiPreferences();
-          if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged();
+          if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged(localUiPreferences());
           cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) storeStateBackupToken(payload.backupToken,backupContext).catch(()=>{});
@@ -12715,6 +12771,7 @@
       setInterval(()=>{if(currentActor){syncStaticProfileWorkStatus();syncLuluToiletStatus();renderHomeDashboard()}},30*1000);
       setInterval(()=>{if(currentActor){resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}},5000);
       setInterval(()=>{if(currentActor&&appVisibleForRefresh()&&!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},30*60*1000);
+      setInterval(()=>{if(currentActor&&appAccessReady&&appVisibleForRefresh()) syncUiPreferencesFromServer()},60*1000);
       setInterval(()=>{if(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'&&marketTickerEnabled()) loadMarketTicker({silent:true})},5*60*1000);
 
       function ensureAppSurface({restoreTab=false}={}){
@@ -12738,6 +12795,7 @@
       async function refreshAfterResume(){
         ensureAppSurface();
         if(!currentActor||!appAccessReady) return;
+        await syncUiPreferencesFromServer();
         if(!manualRefreshRequested&&!autoRefreshEnabled()) return;
         if(!manualRefreshRequested&&dataSyncFresh(2*60*1000)) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
@@ -12786,6 +12844,7 @@
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();
+        if(appAccessReady&&currentActor) syncUiPreferencesFromServer();
       });
       window.addEventListener('online',updateDataSettingsUi);
       window.addEventListener('offline',updateDataSettingsUi);
@@ -12796,6 +12855,7 @@
           return;
         }
         ensureAppSurface();
+        if(appAccessReady&&currentActor) syncUiPreferencesFromServer();
         if(appAccessReady&&currentActor&&currentAppTab==='products'){
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
