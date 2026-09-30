@@ -1,5 +1,7 @@
 const crypto = require('node:crypto');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { readScoreState } = require('./score-store.cjs');
+const { readActivityJournal } = require('./activity-journal-store.cjs');
 
 const NAMESPACE = 'rudi-product-list-v1';
 const STATE_KEY = 'products';
@@ -7,6 +9,8 @@ const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ACTIVE = 200;
 const MAX_HISTORY = 500;
 const MAX_TEXT = 180;
+const DIANA_RECOVERY_DATE = '2026-09-30';
+const DIANA_RECOVERY_KEY = 'recovery:diana-products:2026-09-30';
 
 let mutationQueue = Promise.resolve();
 
@@ -231,8 +235,139 @@ async function restoreProductListSnapshot(snapshot, options = {}) {
   return writeState(normalized, options);
 }
 
+function moscowDateKey(value) {
+  const date = new Date(value || 0);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return map.year + '-' + map.month + '-' + map.day;
+}
+
+function recoveryStoreOptions(options = {}) {
+  const { cache: _cache, productCache: _productCache, ...rest } = options;
+  return rest;
+}
+
+function scoreRecoveryRows(scoreState) {
+  return (Array.isArray(scoreState?.history) ? scoreState.history : [])
+    .filter((row) => (
+      row?.actor === 'Диана'
+      && row?.kind === 'earn'
+      && row?.dateKey === DIANA_RECOVERY_DATE
+      && !row?.reversedAt
+      && (
+        String(row?.label || '') === 'Продукты'
+        || String(row?.dedupeKey || '').startsWith('score:product:')
+      )
+    ))
+    .map((row) => {
+      const match = String(row?.detail || '').match(/^Добавлено в продукты:\s*(.+)$/u);
+      return match ? { text: match[1], createdAt: String(row?.createdAt || '') } : null;
+    })
+    .filter(Boolean);
+}
+
+function activityRecoveryRows(journal) {
+  const prefix = 'Диана добавила в список продуктов: ';
+  const rows = [];
+  for (const item of Array.isArray(journal?.items) ? journal.items : []) {
+    if (item?.actor !== 'Диана' || item?.type !== 'products') continue;
+    if (moscowDateKey(item?.createdAt) !== DIANA_RECOVERY_DATE) continue;
+    const text = String(item?.text || '');
+    if (!text.startsWith(prefix)) continue;
+    const body = text.slice(prefix.length).trim();
+    for (const value of body.split(/\s*,\s*/u)) {
+      const product = String(value || '').trim();
+      if (!product || /^\+\d+$/u.test(product)) continue;
+      rows.push({ text: product, createdAt: String(item?.createdAt || '') });
+    }
+  }
+  return rows;
+}
+
+async function recoverDianaProductsFromJournals(state, options = {}) {
+  const cache = cacheOf(options);
+  const marker = await cache.get(DIANA_RECOVERY_KEY).catch(() => null);
+  if (marker?.complete) return state;
+
+  const foreignOptions = recoveryStoreOptions(options);
+  const [scoreResult, activityResult] = await Promise.allSettled([
+    readScoreState(foreignOptions),
+    readActivityJournal(foreignOptions),
+  ]);
+
+  const candidates = new Map();
+  const addCandidate = (row) => {
+    let text = '';
+    try { text = normalizeText(row?.text); } catch { return; }
+    const key = keyOf(text);
+    if (!key) return;
+    const createdAt = String(row?.createdAt || '');
+    const existing = candidates.get(key);
+    if (!existing || Date.parse(createdAt) > Date.parse(existing.createdAt || 0)) {
+      candidates.set(key, { text, createdAt });
+    }
+  };
+
+  if (scoreResult.status === 'fulfilled') {
+    scoreRecoveryRows(scoreResult.value).forEach(addCandidate);
+  } else {
+    console.warn('RUDI_PRODUCTS_RECOVERY_SCORE_WARN', String(scoreResult.reason?.message || scoreResult.reason));
+  }
+  if (activityResult.status === 'fulfilled') {
+    activityRecoveryRows(activityResult.value).forEach(addCandidate);
+  } else {
+    console.warn('RUDI_PRODUCTS_RECOVERY_ACTIVITY_WARN', String(activityResult.reason?.message || activityResult.reason));
+  }
+
+  const existing = new Set([
+    ...(Array.isArray(state?.items) ? state.items : []).map((item) => keyOf(item?.text)),
+    ...(Array.isArray(state?.history) ? state.history : []).map((item) => keyOf(item?.text)),
+  ].filter(Boolean));
+
+  const recovered = [...candidates.values()]
+    .filter((row) => !existing.has(keyOf(row.text)))
+    .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))
+    .map((row) => ({
+      id: crypto.randomUUID(),
+      text: row.text,
+      addedBy: 'Диана',
+      category: categorizeProduct(row.text),
+      weeklyAmount: estimateWeeklyAmount(row.text),
+      checked: false,
+      createdAt: row.createdAt || new Date(options.now || Date.now()).toISOString(),
+    }));
+
+  let next = state;
+  if (recovered.length) {
+    next = await writeState({
+      ...state,
+      items: [...recovered, ...(Array.isArray(state?.items) ? state.items : [])].slice(0, MAX_ACTIVE),
+    }, options);
+  }
+
+  if (scoreResult.status === 'fulfilled' && activityResult.status === 'fulfilled') {
+    await cache.set(DIANA_RECOVERY_KEY, {
+      complete: true,
+      recovered: recovered.length,
+      completedAt: new Date(options.now || Date.now()).toISOString(),
+    }, {
+      ttl: TTL_SECONDS,
+      tags: ['rudi-products-recovery'],
+    });
+  }
+
+  return next;
+}
+
 async function readProductList(options = {}) {
-  return initializeFromLegacy(options);
+  const state = await initializeFromLegacy(options);
+  return recoverDianaProductsFromJournals(state, options);
 }
 
 async function addProducts(values, addedBy = '', options = {}) {
@@ -392,5 +527,8 @@ module.exports = {
   readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, removeProductByText,
   toggleProductChecked, markCheckedProductsBought, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   normalizeProductListState: normalizeState,
+  recoverDianaProductsFromJournals,
+  DIANA_RECOVERY_DATE,
+  DIANA_RECOVERY_KEY,
   resetMutationQueueForTests,
 };
