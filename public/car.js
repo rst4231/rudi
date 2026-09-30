@@ -484,10 +484,6 @@
     const progress=body.querySelector(':scope > .car-service-progress');
     const status=body.querySelector('#carStatus');
 
-    weather?.querySelector('.car-card-title')?.remove();
-    service?.querySelector('.car-card-title')?.remove();
-    mileage?.querySelector('.car-card-title')?.remove();
-
     const cards=[
       buildCarSmartCard('weather','Погода и шины',weather),
       buildCarSmartCard('service','Следующее ТО',service),
@@ -496,6 +492,10 @@
       buildCarSmartCard('tasks','Задачи по машине',tasks),
       buildCarSmartCard('wash','Как мыть машину',wash)
     ].filter(Boolean);
+
+    weather?.querySelector('.car-card-title')?.remove();
+    service?.querySelector('.car-card-title')?.remove();
+    mileage?.querySelector('.car-card-title')?.remove();
 
     const serviceCard=cards.find(card=>card.dataset.carCard==='service');
     if(progress&&serviceCard) serviceCard.querySelector('.car-smart-card-body-inner')?.appendChild(progress);
