@@ -1,5 +1,5 @@
 const crypto=require('node:crypto');
-const {authorizeRequest,statusForError}=require('./partner-message.js');
+const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {
   readSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,
   markSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck
