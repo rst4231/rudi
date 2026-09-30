@@ -169,3 +169,15 @@ test('mood Telegram delivery requires sender and recipient opt-in',()=>{
   assert.match(api,/senderUiPreferences\?\.moodNotifyPartnerEnabled === true/);
   assert.match(api,/recipientUiPreferences\?\.moodReceivePartnerEnabled === true/);
 });
+
+
+test('stale UI preference responses cannot overwrite newer local card state',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(app,/uiPreferencesMutationRevision/);
+  assert.match(app,/uiPreferencesServerVersion/);
+  assert.match(app,/const requestMutationRevision=uiPreferencesMutationRevision/);
+  assert.match(app,/uiPreferencesMutationRevision===requestMutationRevision/);
+  assert.match(app,/const writeMutationRevision=uiPreferencesMutationRevision/);
+  assert.match(app,/hasNewerLocalMutation/);
+  assert.match(app,/remoteVersion<uiPreferencesServerVersion/);
+});

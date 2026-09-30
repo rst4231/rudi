@@ -868,6 +868,8 @@
       function applyRemoteUiPreferences(value,{force=false}={}){
         const remote=value&&typeof value==='object'&&!Array.isArray(value)?value:null;
         if(!remote||(!force&&uiPreferencesDirty)) return false;
+        const remoteVersion=Math.max(0,Number(remote.version||0));
+        if(remoteVersion&&remoteVersion<uiPreferencesServerVersion) return false;
         const remoteSchema=Math.max(1,Number(remote.syncSchemaVersion||1));
         const hasRemoteOrder=Array.isArray(remote.homeOrder)&&remote.homeOrder.length>0;
         const hasRemoteBlocks=remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)&&Object.keys(remote.blockStates).length>0;
@@ -936,6 +938,7 @@
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             markUiPreferencesChanged();
           }
+          if(remoteVersion) uiPreferencesServerVersion=Math.max(uiPreferencesServerVersion,remoteVersion);
           return true;
         }catch(_){return false}
       }
@@ -943,6 +946,8 @@
       let uiPreferencesBackupTimer=null;
       let uiPreferencesDirty=false;
       let uiPreferencesSyncPromise=null;
+      let uiPreferencesMutationRevision=0;
+      let uiPreferencesServerVersion=0;
 
       function applyMountedUiPreferences(){
         loadHomeOrder();
@@ -984,6 +989,7 @@
       }
 
       function markUiPreferencesChanged(patch=null){
+        uiPreferencesMutationRevision+=1;
         uiPreferencesDirty=true;
         try{localStorage.setItem(uiPreferencesMetaKey(),new Date().toISOString())}catch(_){}
         const nextPatch=patch&&typeof patch==='object'&&!Array.isArray(patch)?patch:localUiPreferences();
@@ -999,6 +1005,7 @@
         if(!patch||!Object.keys(patch).length) return null;
         pendingUiPreferencesPatch={};
         const backupContext=backupRequestContext();
+        const writeMutationRevision=uiPreferencesMutationRevision;
         uiPreferencesWritePromise=(async()=>{
           try{
             const response=await fetch('/api/partner-message?rudiAction=ui-preferences',{
@@ -1014,8 +1021,9 @@
             const payload=await response.json().catch(()=>({}));
             if(!response.ok||!payload.ok) throw new Error(payload.error||'ui-preferences-save-failed');
             const hasPending=Object.keys(pendingUiPreferencesPatch).length>0;
-            uiPreferencesDirty=hasPending;
-            if(payload.uiPreferences&&!hasPending&&applyRemoteUiPreferences(payload.uiPreferences,{force:true})){
+            const hasNewerLocalMutation=uiPreferencesMutationRevision!==writeMutationRevision;
+            uiPreferencesDirty=hasPending||hasNewerLocalMutation;
+            if(payload.uiPreferences&&!hasPending&&!hasNewerLocalMutation&&applyRemoteUiPreferences(payload.uiPreferences,{force:true})){
               applyMountedUiPreferences();
             }
             return payload;
@@ -1042,6 +1050,7 @@
         }
         stateBackupRefreshPromise=(async()=>{
           const backupContext=backupRequestContext();
+          const requestMutationRevision=uiPreferencesMutationRevision;
           try{
             const response=await fetch('/api/partner-message?rudiAction=state-backup',{
               method:'POST',
@@ -1056,7 +1065,12 @@
             if(response.ok&&payload.ok){
               markStateBackupSyncNow();
               if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
-              if(payload.uiPreferences&&!uiPreferencesDirty&&applyRemoteUiPreferences(payload.uiPreferences,{force:true})){
+              if(
+                payload.uiPreferences
+                &&uiPreferencesMutationRevision===requestMutationRevision
+                &&!uiPreferencesDirty
+                &&applyRemoteUiPreferences(payload.uiPreferences,{force:true})
+              ){
                 applyMountedUiPreferences();
               }
             }
@@ -1075,6 +1089,7 @@
       async function syncUiPreferencesFromServer(){
         if(!currentActor||uiPreferencesDirty) return null;
         if(uiPreferencesSyncPromise) return uiPreferencesSyncPromise;
+        const requestMutationRevision=uiPreferencesMutationRevision;
         uiPreferencesSyncPromise=(async()=>{
           try{
             const response=await fetch('/api/partner-message?rudiAction=ui-preferences',{
@@ -1087,7 +1102,13 @@
               cache:'no-store'
             });
             const payload=await response.json().catch(()=>({}));
-            if(response.ok&&payload.ok&&payload.uiPreferences&&!uiPreferencesDirty){
+            if(
+              response.ok
+              &&payload.ok
+              &&payload.uiPreferences
+              &&uiPreferencesMutationRevision===requestMutationRevision
+              &&!uiPreferencesDirty
+            ){
               if(applyRemoteUiPreferences(payload.uiPreferences,{force:true})) applyMountedUiPreferences();
             }
             return payload;
@@ -6258,6 +6279,7 @@
           const backupContext=backupRequestContext();
           const backupToken=backupContext.token;
           const includeHome=initialBootstrapTab()==='home';
+          const requestMutationRevision=uiPreferencesMutationRevision;
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-bootstrap',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
@@ -6281,9 +6303,15 @@
             applyTelegramProfiles(selfProfile,partnerProfile);
             writeProfileCache(selfProfile,partnerProfile);
           }
-          const appliedRemoteUi=applyRemoteUiPreferences(payload.uiPreferences);
+          const bootstrapUiStillCurrent=uiPreferencesMutationRevision===requestMutationRevision&&!uiPreferencesDirty;
+          const appliedRemoteUi=bootstrapUiStillCurrent?applyRemoteUiPreferences(payload.uiPreferences):false;
           if(appliedRemoteUi) applyMountedUiPreferences();
-          if(!appliedRemoteUi&&!String(payload.uiPreferences?.updatedAt||'')&&!uiPreferencesDirty) markUiPreferencesChanged(localUiPreferences());
+          if(
+            bootstrapUiStillCurrent
+            &&!appliedRemoteUi
+            &&!String(payload.uiPreferences?.updatedAt||'')
+            &&!uiPreferencesDirty
+          ) markUiPreferencesChanged(localUiPreferences());
           cacheHolidayItems(payload.holidayHighlights);
           clearLegacyStateBackup().catch(()=>{});
           if(payload.backupToken) storeStateBackupToken(payload.backupToken,backupContext).catch(()=>{});
