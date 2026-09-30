@@ -3270,21 +3270,19 @@ async function handleRudiAction(req, res, action, options = {}) {
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-      const savedProducts = normalizeProductListState(previousSnapshot?.products);
-      if (savedProducts?.initialized) {
-        const liveBefore=await readProductListRaw(options).catch(()=>({initialized:false,version:0,items:[]}));
-        const liveVersion=Math.max(0,Number(liveBefore?.version||0));
-        const savedVersion=Math.max(0,Number(savedProducts.version||0));
-        // An initialized empty list is a valid clear. Only a genuinely newer client
-        // snapshot may repair stale shared storage; older backups can never resurrect it.
-        if(!liveBefore?.initialized || savedVersion>liveVersion) {
-          await restoreProductListSnapshot(savedProducts,options).catch(()=>null);
+      if (previousSnapshot?.products?.initialized) {
+        const liveBefore=await readProductListRaw(options).catch(()=>({initialized:false,items:[]}));
+        // An initialized empty list is a valid state after the user clears products.
+        // Restore from backup only on a real cache miss, never just because items is empty.
+        if(!liveBefore?.initialized) {
+          await restoreProductListSnapshot(previousSnapshot.products,options).catch(()=>null);
         }
       }
 
       if (operation === 'list') {
         const live = await readProductList(options).catch(() => ({ initialized: false, version: 0, items: [], history: [] }));
-        const state = normalizeProductListState(live?.initialized ? live : (savedProducts?.initialized ? savedProducts : live));
+        const saved = backupSnapshotFromToken(body.backupToken, options)?.products;
+        const state = normalizeProductListState(live?.initialized ? live : (saved?.initialized ? saved : live));
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'add') {

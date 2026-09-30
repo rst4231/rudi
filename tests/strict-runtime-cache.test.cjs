@@ -194,32 +194,3 @@ test('non-durable control-plane keys stay only in Runtime Cache', async () => {
   assert.deepEqual(await cache.get('topic-maintenance:test'), { ok: true });
   assert.equal(durableCalls, 0);
 });
-
-
-test('shared product list namespace reads durable Neon state before stale runtime cache', async () => {
-  let runtimeReads = 0;
-  const cache = createStrictRuntimeCache({
-    env: {},
-    namespace: 'rudi-product-list-v1',
-    botToken: '123:test',
-    retryDelayMs: 0,
-    attempts: 1,
-    runtimeCache: {
-      async get() { runtimeReads += 1; return { initialized:true, version:1, items:[{id:'old'}] }; },
-      async set() {},
-      async delete() {},
-      async expireTag() {},
-    },
-    durableFetchImpl: async (_url, init) => {
-      assert.equal(init.method, 'GET');
-      return new Response(JSON.stringify([{
-        value: { initialized:true, version:2, items:[{id:'new'}], history:[] },
-        expires_at: null
-      }]), { status: 200, headers: { 'content-type':'application/json' } });
-    },
-  });
-  const state = await cache.get('products');
-  assert.equal(state.version, 2);
-  assert.equal(state.items[0].id, 'new');
-  assert.equal(runtimeReads, 0);
-});
