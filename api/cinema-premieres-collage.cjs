@@ -188,6 +188,7 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const dateKey = legacy.moscowDateKey(now);
   const settings = options.settings || {};
+  const feedOnly = options.feedOnly === true;
   const config = options.config || await loadEventsConfig({ fetchImpl, settings, now: now.getTime() });
   if (!config.cinemaPremieres?.enabled) return { skipped: 'disabled', date: dateKey };
 
@@ -227,17 +228,17 @@ async function publishWeeklyCinemaPremieres(options = {}) {
   });
   const rows = recent.rows.slice(0, config.cinemaPremieres.maxItems);
   const fingerprints = recent.fingerprints.slice(0, rows.length);
-  if (recent.suppressed) {
+  if (recent.suppressed && !feedOnly) {
     try { await (options.incrementMetric || incrementSectionMetric)('cinema', 'duplicateSuppressions', recent.suppressed, { cache: options.analyticsCache || options.controlCache, now }); } catch {}
   }
 
   const complete = kinopolisResult.status === 'fulfilled' && mirageResult.status === 'fulfilled';
-  const publishToTelegram = settings?.sections?.cinema?.publishToTelegram !== false;
+  const publishToTelegram = !feedOnly && settings?.sections?.cinema?.publishToTelegram !== false;
   if (!publishToTelegram) {
-    if (fingerprints.length) {
+    if (!feedOnly && fingerprints.length) {
       await rememberFingerprints('cinema', fingerprints, recent.days, { cache: options.dedupeCache || options.controlCache, now });
     }
-    if (complete) {
+    if (!feedOnly && complete) {
       await cache.set(`done:${dateKey}`, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-cinema-premieres'], name: `cinema-premieres-${dateKey}` });
     }
     return {

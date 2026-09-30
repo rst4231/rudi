@@ -30,4 +30,8 @@ test('home hero shows smart sunrise or sunset line under moon phase',()=>{
   assert.match(app,/RUDI_WEATHER\?\.get/);
   assert.match(app,/\/api\/index\?route=weather/);
   assert.match(css,/\.home-dashboard-sun/);
+  const loadWeather=app.slice(app.indexOf('async function loadWeather'),app.indexOf('function formatTickTickDate'));
+  assert.match(loadWeather,/let data=null;/);
+  assert.ok(loadWeather.indexOf('homeSunTimes={')<loadWeather.indexOf("if(!cfg?.enabled)"));
+  assert.doesNotMatch(loadWeather,/catch\(_\)\{\s*homeSunTimes=null;\s*renderHomeSunEvent\(\);\s*setWeatherVisual\(null\)/);
 });

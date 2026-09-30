@@ -178,6 +178,7 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-morning-summary-v1',
   'rudi-ui-preferences-v1',
   'rudi-fasting-v1',
+  'rudi-daily-question-v1',
   'rudi-daily-question-history-v1',
   'rudi-supplements-v1',
   'rudi-mood-feedback-v1',
@@ -307,6 +308,26 @@ async function durableSet(options, namespace, key, value, cacheOptions = {}) {
   return true;
 }
 
+async function durableSetIfAbsent(options, namespace, key, value, cacheOptions = {}) {
+  const nowIso = new Date().toISOString();
+  const expiredQuery = new URLSearchParams({
+    namespace: 'eq.' + namespace,
+    key: 'eq.' + String(key),
+    expires_at: 'lt.' + nowIso,
+  }).toString();
+  await durableRequest(options, 'DELETE', expiredQuery).catch(() => null);
+  const query = new URLSearchParams({ on_conflict: 'namespace,key' }).toString();
+  const rows = await durableRequest(options, 'POST', query, [{
+    namespace,
+    key: String(key),
+    value,
+    tags: durableTags(cacheOptions.tags),
+    expires_at: durableExpiresAt(cacheOptions),
+    updated_at: new Date().toISOString(),
+  }], 'resolution=ignore-duplicates,return=representation');
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 async function durableDelete(options, namespace, key) {
   await durableRequest(options, 'DELETE', durableExactQuery(namespace, key));
   return true;
@@ -356,6 +377,16 @@ function createDurableStateMirror(runtime, options, namespace) {
       durableWarn('RUDI_DURABLE_DB_WRITE_ERROR', database.reason);
       if (cache.status === 'fulfilled') return true;
       throw database.reason || cache.reason || new Error('RUDI durable state write failed');
+    },
+
+    async setIfAbsent(key, value, cacheOptions = {}) {
+      if (!isDurableKey(namespace, key)) {
+        throw new Error('Atomic setIfAbsent is only available for durable state');
+      }
+      const inserted = await durableSetIfAbsent(options, namespace, key, value, cacheOptions);
+      if (!inserted) return false;
+      runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
+      return true;
     },
 
     async delete(key) {

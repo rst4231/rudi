@@ -7,6 +7,9 @@ const DAY_TTL_SECONDS=60*60*48;
 const HISTORY_TTL_SECONDS=60*60*24*3650;
 const HISTORY_KEY='question-history';
 const MAX_HISTORY=1500;
+const GENERATION_LOCK_TTL_SECONDS=90;
+const GENERATION_WAIT_ATTEMPTS=80;
+const GENERATION_WAIT_MS=250;
 const ACTORS=['Рустам','Диана'];
 let mutationTail=Promise.resolve();
 
@@ -104,6 +107,17 @@ function enqueue(task){
   mutationTail=run.catch(()=>{});
   return run;
 }
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function waitForDailyQuestion(cache,date,options={}){
+  const attempts=Math.max(1,Number(options.generationWaitAttempts||GENERATION_WAIT_ATTEMPTS));
+  const delayMs=Math.max(0,Number(options.generationWaitMs??GENERATION_WAIT_MS));
+  for(let attempt=0;attempt<attempts;attempt+=1){
+    const row=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
+    if(row.question?.text)return row;
+    if(attempt+1<attempts)await sleep(delayMs);
+  }
+  return null;
+}
 async function ensureDailyQuestion(options={}){
   return enqueue(async()=>{
     const now=Number(options.now||Date.now());
@@ -111,6 +125,26 @@ async function ensureDailyQuestion(options={}){
     const cache=cacheOf(options);
     const existing=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
     if(existing.question?.text) return existing;
+
+    const lockKey='generation-lock:'+date;
+    if(typeof cache.setIfAbsent==='function'){
+      const acquired=await cache.setIfAbsent(lockKey,{
+        date,
+        createdAt:new Date(now).toISOString(),
+      },{
+        ttl:GENERATION_LOCK_TTL_SECONDS,
+        tags:['rudi-daily-question-lock'],
+        name:lockKey,
+      });
+      if(!acquired){
+        const generatedElsewhere=await waitForDailyQuestion(cache,date,options);
+        if(generatedElsewhere?.question?.text)return generatedElsewhere;
+        throw new Error('daily-question-generation-busy');
+      }
+    }
+
+    const afterLock=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
+    if(afterLock.question?.text)return afterLock;
 
     const historyCache=historyCacheOf(options);
     const history=normalizeHistory(await historyCache.get(HISTORY_KEY).catch(()=>null));

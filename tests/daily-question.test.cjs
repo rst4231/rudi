@@ -82,10 +82,14 @@ test('answers stay hidden until both answer and reset with next daily question',
   assert.equal(await cache.get('day:'+dateKey(day1)),null,'previous day answers are deleted when next question is generated');
 });
 
-test('daily answers stay runtime-only while question history is durable',()=>{
+test('daily question row and history are durable and generation uses a cross-instance lock',()=>{
   const strict=fs.readFileSync(path.join(root,'api','strict-runtime-cache.cjs'),'utf8');
-  assert.doesNotMatch(strict,/['"]rudi-daily-question-v1['"]/);
+  const store=fs.readFileSync(path.join(root,'api','daily-question-store.cjs'),'utf8');
+  assert.match(strict,/['"]rudi-daily-question-v1['"]/);
   assert.match(strict,/['"]rudi-daily-question-history-v1['"]/);
+  assert.match(strict,/async setIfAbsent\(/);
+  assert.match(store,/generation-lock:/);
+  assert.match(store,/cache\.setIfAbsent/);
 });
 
 test('answer reward is 0.3 stars with one dedupe key per actor and date',()=>{

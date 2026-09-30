@@ -115,6 +115,7 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/pwa-extras\.js\?v=[^"]+/g, '/pwa-extras.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
   html = html.replace(/\/weather\.js\?v=[^"]+/g, '/weather.js?v=' + assetVersion);
+  html = html.replace(/\/mood-history\.js\?v=[^"]+/g, '/mood-history.js?v=' + assetVersion);
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
   html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
   html = html.replace(/\/manifest\.webmanifest\?v=[^"]+/g, '/manifest.webmanifest?v=' + assetVersion);

@@ -9,7 +9,7 @@ test('release config drives the UI version and source asset URLs',()=>{
   syncWebVersion();
   const html=fs.readFileSync('public/index.html','utf8');
   const version=config.current.slice(1).replace(/\./g,'\\.');
-  for(const name of ['app.css','calendar.css','smart-home.css','car.css','app.js','smart-home.js','car.js']){
+  for(const name of ['app.css','calendar.css','smart-home.css','car.css','app.js','smart-home.js','car.js','mood-history.js']){
     const [stem,ext]=name.split('.');
     assert.match(html,new RegExp('/'+stem+'\\.'+ext+'\\?v='+version+'|/assets/'+stem+'\\.[a-f0-9]{12}\\.'+ext));
   }

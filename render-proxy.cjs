@@ -47,7 +47,10 @@ function responseHeadersFrom(upstream, publicOrigin, incomingUrl) {
   }
 
   if (isVersionedStaticRequest(incomingUrl)) {
-    headers.set('cache-control', 'public, max-age=31536000, immutable');
+    headers.set(
+      'cache-control',
+      upstream.ok ? 'public, max-age=31536000, immutable' : 'no-store'
+    );
   }
   headers.set('x-rudi-proxy', 'deno');
   return headers;

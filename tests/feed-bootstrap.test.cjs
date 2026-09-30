@@ -60,3 +60,43 @@ test('feed bootstrap fills split event payload while keeping cinema and ignoring
   assert.deepEqual(refreshed.sections.cinema.parts, ['🎬 old cinema']);
   assert.equal(refreshed.date, '2026-09-21');
 });
+
+
+test('first feed read on Thursday refreshes events and cinema together', async () => {
+  const cache = memoryCache();
+  const now = new Date('2026-10-01T00:02:00+03:00');
+  await updateFeedSections({ cinema: { parts: ['old cinema'] } }, {
+    feedCache: cache,
+    now: new Date('2026-09-30T23:55:00+03:00'),
+    date: '2026-09-30',
+  });
+  const current = await readFeedSnapshot({ feedCache: cache, now });
+  let cinemaCalls = 0;
+  const refreshed = await refreshFeedFromPreviewIfNeeded(current, {
+    feedCache: cache,
+    now,
+    appBaseUrl: 'https://example.test/',
+    fetchImpl: async (url) => {
+      assert.equal(String(url), 'https://example.test/api/preview?date=2026-10-01');
+      return new Response(JSON.stringify({
+        ok: true,
+        sections: { events: { parts: ['concerts', 'stand up'] } },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    },
+    publishCinemaForFeed: async (options) => {
+      cinemaCalls += 1;
+      assert.equal(options.force, true);
+      assert.equal(options.feedOnly, true);
+      assert.equal(options.settings.sections.cinema.publishToTelegram, false);
+      return {
+        feedMessage: 'cinema: new movie',
+        feedItems: [{ title: 'New movie', releaseDate: '2026-10-01' }],
+      };
+    },
+  });
+  assert.equal(cinemaCalls, 1);
+  assert.deepEqual(refreshed.sections.events.parts, ['concerts', 'stand up']);
+  assert.match(refreshed.sections.cinema.parts[0], /new movie/);
+  assert.equal(refreshed.sections.cinema.items[0].title, 'New movie');
+  assert.equal(refreshed.date, '2026-10-01');
+});

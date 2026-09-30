@@ -6718,6 +6718,25 @@
         const elCaption=document.getElementById('weatherCaption');
         const elRain=document.getElementById('weatherRain');
         const elCity=document.getElementById('weatherCity');
+        let data=null;
+        try{
+          data=typeof window.RUDI_WEATHER?.get==='function'
+            ? await window.RUDI_WEATHER.get()
+            : await (async()=>{
+                const r=await fetch('/api/index?route=weather',{cache:'no-store'});
+                if(!r.ok) throw new Error('weather');
+                return r.json();
+              })();
+          homeSunTimes={
+            dates:Array.isArray(data.daily?.time)?data.daily.time:[],
+            sunrise:Array.isArray(data.daily?.sunrise)?data.daily.sunrise:[],
+            sunset:Array.isArray(data.daily?.sunset)?data.daily.sunset:[]
+          };
+          renderHomeSunEvent();
+        }catch(_){
+          homeSunTimes=null;
+          renderHomeSunEvent();
+        }
         if(!cfg?.enabled){
           setWeatherVisual(null);
           elCaption.textContent='Погода выключена';
@@ -6725,20 +6744,8 @@
           return;
         }
         try{
-          const data=typeof window.RUDI_WEATHER?.get==='function'
-            ? await window.RUDI_WEATHER.get()
-            : await (async()=>{
-                const r=await fetch('/api/index?route=weather',{cache:'no-store'});
-                if(!r.ok) throw new Error('weather');
-                return r.json();
-              })();
+          if(!data) throw new Error('weather');
           const c=data.current||{};
-          homeSunTimes={
-            dates:Array.isArray(data.daily?.time)?data.daily.time:[],
-            sunrise:Array.isArray(data.daily?.sunrise)?data.daily.sunrise:[],
-            sunset:Array.isArray(data.daily?.sunset)?data.daily.sunset:[]
-          };
-          renderHomeSunEvent();
           const labels={0:'Ясно',1:'Преимущественно ясно',2:'Облачно',3:'Пасмурно',45:'Туман',48:'Туман',51:'Морось',53:'Морось',55:'Морось',61:'Дождь',63:'Дождь',65:'Сильный дождь',71:'Снег',73:'Снег',75:'Сильный снег',80:'Ливень',81:'Ливень',82:'Сильный ливень',95:'Гроза'};
 
           const times=Array.isArray(data.hourly?.time)?data.hourly.time:[];
@@ -6778,8 +6785,6 @@
           elCaption.textContent=labels[c.weather_code]||'Погода';
           elRain.textContent=rainText;
         }catch(_){
-          homeSunTimes=null;
-          renderHomeSunEvent();
           setWeatherVisual(null);
           elValue.textContent='—';
           elCaption.textContent='Погода недоступна';

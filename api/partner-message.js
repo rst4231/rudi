@@ -1198,6 +1198,13 @@ function feedPreviewBaseUrl(options = {}) {
   return 'https://spb-daily-guide-bot.vercel.app';
 }
 
+function isThursdayMoscow(now = new Date()) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Moscow',
+    weekday: 'short',
+  }).format(now) === 'Thu';
+}
+
 async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const date = moscowDateKey(now);
@@ -1208,25 +1215,54 @@ async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') return feed;
 
+  const sections = {};
   try {
     const response = await fetchImpl(feedPreviewBaseUrl(options) + '/api/preview?date=' + encodeURIComponent(date), {
       method: 'GET',
       headers: { accept: 'application/json' },
       cache: 'no-store',
     });
-    if (!response?.ok) return feed;
-    const preview = await response.json().catch(() => null);
-    const sections = {};
-    const events = Array.isArray(preview?.sections?.events?.parts)
-      ? preview.sections.events.parts.map((value) => String(value || '').trim()).filter(Boolean)
-      : [];
-    if (events.length) sections.events = { parts: events, source: 'preview-bootstrap' };
-    if (!Object.keys(sections).length) return feed;
-    return await updateFeedSections(sections, { ...options, date, now });
+    if (response?.ok) {
+      const preview = await response.json().catch(() => null);
+      const events = Array.isArray(preview?.sections?.events?.parts)
+        ? preview.sections.events.parts.map((value) => String(value || '').trim()).filter(Boolean)
+        : [];
+      if (events.length) sections.events = { parts: events, source: 'preview-bootstrap' };
+    }
   } catch (error) {
     console.warn('RUDI_FEED_PREVIEW_BOOTSTRAP_WARN', String(error?.message || error));
-    return feed;
   }
+
+  if (isThursdayMoscow(now)) {
+    try {
+      const publishCinema = options.publishCinemaForFeed
+        || ((runOptions) => require('./cinema-premieres-collage.cjs').publishWeeklyCinemaPremieres(runOptions));
+      const cinema = await publishCinema({
+        ...options,
+        now,
+        force: true,
+        feedOnly: true,
+        settings: {
+          ...(options.settings || {}),
+          sections: {
+            ...(options.settings?.sections || {}),
+            cinema: {
+              ...(options.settings?.sections?.cinema || {}),
+              publishToTelegram: false,
+            },
+          },
+        },
+      });
+      const parts = String(cinema?.feedMessage || '').trim() ? [String(cinema.feedMessage).trim()] : [];
+      const items = Array.isArray(cinema?.feedItems) ? cinema.feedItems : [];
+      if (parts.length || items.length) sections.cinema = { parts, items, source: 'feed-bootstrap-cinema' };
+    } catch (error) {
+      console.warn('RUDI_FEED_CINEMA_BOOTSTRAP_WARN', String(error?.message || error));
+    }
+  }
+
+  if (!Object.keys(sections).length) return feed;
+  return updateFeedSections(sections, { ...options, date, now });
 }
 
 async function handleTickTick(req, res, action, options = {}) {
