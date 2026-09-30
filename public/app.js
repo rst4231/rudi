@@ -2522,10 +2522,7 @@
         const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:null;
         const periodEndUtc=Number.isFinite(model?.periodEnd)?Number(model.periodEnd):parseCycleDate(model?.periodEnd);
         if(model?.periodActive&&Number.isFinite(periodEndUtc)){
-          const todayUtc=parseCycleDate(todayState().key);
-          if(Number.isFinite(todayUtc)&&periodEndUtc===todayUtc) return 'Месячные сегодня';
-          if(Number.isFinite(todayUtc)&&periodEndUtc<todayUtc) return 'Месячные';
-          return 'Месячные до '+cycleDateLabel(periodEndUtc);
+          return 'Месячные до '+cycleDateLabel(periodEndUtc+DAY);
         }
         return dianaCycleMoodWord(modelOrPhase);
       }
