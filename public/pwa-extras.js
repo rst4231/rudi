@@ -488,14 +488,32 @@
     }catch(_){}
 
     window.addEventListener('load',()=>{
-      navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'})
+      const UPDATE_CHECK_INTERVAL_MS=10*60*1000;
+      const UPDATE_CHECK_KEY='rudi:sw-update-check-at:v1';
+      const lastUpdateCheckAt=()=>{
+        try{return Math.max(0,Number(localStorage.getItem(UPDATE_CHECK_KEY)||0))}catch(_){return 0}
+      };
+      const markUpdateCheck=()=>{
+        try{localStorage.setItem(UPDATE_CHECK_KEY,String(Date.now()))}catch(_){}
+      };
+      const getRegistration=async()=>{
+        const existing=await navigator.serviceWorker.getRegistration('/').catch(()=>null);
+        return existing||navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'});
+      };
+
+      getRegistration()
         .then(registration=>{
           watchRegistration(registration);
-          const checkForUpdate=()=>registration.update().catch(()=>{});
-          checkForUpdate();
-          window.addEventListener('online',checkForUpdate);
-          window.addEventListener('focus',checkForUpdate);
-          window.addEventListener('pageshow',checkForUpdate);
+          const checkForUpdate=(force=false)=>{
+            const now=Date.now();
+            if(!force&&now-lastUpdateCheckAt()<UPDATE_CHECK_INTERVAL_MS) return Promise.resolve();
+            markUpdateCheck();
+            return registration.update().catch(()=>{});
+          };
+          if(Date.now()-lastUpdateCheckAt()>=UPDATE_CHECK_INTERVAL_MS) checkForUpdate();
+          window.addEventListener('online',()=>checkForUpdate(true));
+          window.addEventListener('focus',()=>checkForUpdate());
+          window.addEventListener('pageshow',()=>checkForUpdate());
           document.addEventListener('visibilitychange',()=>{
             if(document.visibilityState==='visible') checkForUpdate();
           });

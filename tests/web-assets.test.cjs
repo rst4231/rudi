@@ -95,10 +95,13 @@ test('service worker never serves app shell assets from an obsolete shell cache'
   assert.doesNotMatch(sw,/caches\.match\(request\)/);
 });
 
-test('PWA checks for a new service worker whenever iOS restores the standalone app',()=>{
+test('PWA throttles service worker checks when iOS restores the standalone app',()=>{
   const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
-  assert.match(pwa,/const checkForUpdate=\(\)=>registration\.update\(\)\.catch\(\(\)=>\{\}\)/);
-  assert.match(pwa,/window\.addEventListener\('focus',checkForUpdate\)/);
-  assert.match(pwa,/window\.addEventListener\('pageshow',checkForUpdate\)/);
+  assert.match(pwa,/UPDATE_CHECK_INTERVAL_MS=10\*60\*1000/);
+  assert.match(pwa,/const checkForUpdate=\(force=false\)=>/);
+  assert.match(pwa,/now-lastUpdateCheckAt\(\)<UPDATE_CHECK_INTERVAL_MS/);
+  assert.match(pwa,/window\.addEventListener\('online',\(\)=>checkForUpdate\(true\)\)/);
+  assert.match(pwa,/window\.addEventListener\('focus',\(\)=>checkForUpdate\(\)\)/);
+  assert.match(pwa,/window\.addEventListener\('pageshow',\(\)=>checkForUpdate\(\)\)/);
   assert.match(pwa,/visibilitychange[\s\S]*?checkForUpdate\(\)/);
 });

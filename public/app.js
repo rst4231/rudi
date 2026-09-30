@@ -1025,7 +1025,7 @@
       }
 
       const UI_PREFERENCES_LOCAL_SETTLE_MS=4000;
-      const UI_PREFERENCES_SYNC_DEDUPE_MS=15*1000;
+      const UI_PREFERENCES_SYNC_DEDUPE_MS=5*60*1000;
       let uiPreferencesBackupTimer=null;
       let uiPreferencesDirty=false;
       let uiPreferencesSyncPromise=null;
@@ -4142,14 +4142,12 @@
         if(supplementOverviewLoadPromise) return supplementOverviewLoadPromise;
         supplementOverviewLoadPromise=(async()=>{
           try{
-            const response=await fetch('/api/supplements',{
-              method:'POST',
-              credentials:'same-origin',
-              headers:{'content-type':'application/json'},
-              body:JSON.stringify({operation:'overview',initData:String(tg?.initData||'')})
+            const data=await managedJsonRequest('supplement-overview','/api/supplements',{
+              body:{operation:'overview',initData:String(tg?.initData||'')},
+              ttlMs:5*60*1000,
+              timeoutMs:7000
             });
-            const data=await response.json().catch(()=>({}));
-            if(!response.ok||!data?.ok) throw new Error(String(data?.error||'supplement-overview-failed'));
+            if(!data?.ok) throw new Error(String(data?.error||'supplement-overview-failed'));
             renderHomeSupplementIntakes('Рустам',data.actors?.['Рустам'],data.progress?.['Рустам']);
             renderHomeSupplementIntakes('Диана',data.actors?.['Диана'],data.progress?.['Диана']);
             return data;
@@ -4163,7 +4161,10 @@
         return supplementOverviewLoadPromise;
       }
 
-      document.addEventListener('rudi:supplement-intake-updated',()=>loadSupplementIntakeOverview({silent:true}));
+      document.addEventListener('rudi:supplement-intake-updated',()=>{
+        invalidateManagedRequests('supplement-overview');
+        loadSupplementIntakeOverview({silent:true});
+      });
 
       function setupProfileSplit(){
         const profile=document.querySelector('.profile');
@@ -12557,7 +12558,7 @@
         if(!currentActor||!appAccessReady) return;
         await syncUiPreferencesFromServer();
         if(!manualRefreshRequested&&!autoRefreshEnabled()) return;
-        if(!manualRefreshRequested&&dataSyncFresh(2*60*1000)) return;
+        if(!manualRefreshRequested&&dataSyncFresh(5*60*1000)) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
@@ -12620,7 +12621,7 @@
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
         }
-        if(hiddenAt&&Date.now()-hiddenAt>1200) refreshAfterResume();
+        if(hiddenAt&&Date.now()-hiddenAt>15*1000) refreshAfterResume();
         hiddenAt=0;
       });
     })();
