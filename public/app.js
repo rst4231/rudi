@@ -93,6 +93,7 @@
       let productsRecoveryChecked = false;
       let currentMoodDateKey = '';
       let currentConfig = null;
+      let homeSunTimes = null;
       let currentMalePsychologyFact = null;
       let currentComplimentDateKey = '';
       let homeLayoutEditing = false;
@@ -2311,6 +2312,44 @@
         return phase.emoji+' '+phase.label;
       }
 
+      function moscowDateClock(now=new Date()){
+        const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
+          timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+        }).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+        return {date:parts.year+'-'+parts.month+'-'+parts.day,minutes:Number(parts.hour||0)*60+Number(parts.minute||0)};
+      }
+
+      function sunTimeParts(value){
+        const match=String(value||'').match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+        if(!match) return null;
+        return {date:match[1],label:match[2]+':'+match[3],minutes:Number(match[2])*60+Number(match[3])};
+      }
+
+      function homeSunEventLabel(now=new Date()){
+        const dates=Array.isArray(homeSunTimes?.dates)?homeSunTimes.dates:[];
+        const sunrise=Array.isArray(homeSunTimes?.sunrise)?homeSunTimes.sunrise:[];
+        const sunset=Array.isArray(homeSunTimes?.sunset)?homeSunTimes.sunset:[];
+        if(!dates.length||!sunrise.length||!sunset.length) return '';
+        const clock=moscowDateClock(now);
+        const todayIndex=dates.findIndex(value=>String(value)===clock.date);
+        if(todayIndex<0) return '';
+        const rise=sunTimeParts(sunrise[todayIndex]);
+        const set=sunTimeParts(sunset[todayIndex]);
+        if(!rise||!set) return '';
+        if(clock.minutes<rise.minutes) return '🌅 Восход в '+rise.label;
+        if(clock.minutes<set.minutes) return '🌇 Закат в '+set.label;
+        const nextRise=sunTimeParts(sunrise[todayIndex+1]);
+        return nextRise?'🌅 Восход завтра в '+nextRise.label:'🌅 Восход в '+rise.label;
+      }
+
+      function renderHomeSunEvent(){
+        const node=document.getElementById('homeDashboardSun');
+        if(!node) return;
+        const label=homeSunEventLabel();
+        node.textContent=label;
+        node.hidden=!label;
+      }
+
       function homeGreeting(){
         const hour=Number(new Intl.DateTimeFormat('en-GB',{
           timeZone:TZ,hour:'2-digit',hourCycle:'h23'
@@ -3878,6 +3917,7 @@
         if(greeting) greeting.textContent=homeGreeting();
         if(date) date.textContent=homeDashboardDateLabel();
         if(moon) moon.textContent=homeMoonPhaseLabel();
+        renderHomeSunEvent();
 
         const today=document.getElementById('homeTodayRows');
         if(today){
@@ -4236,6 +4276,10 @@
         moonPhase.id='homeDashboardMoon';
         moonPhase.className='home-dashboard-moon';
         moonPhase.textContent=homeMoonPhaseLabel();
+        const sunEvent=document.createElement('div');
+        sunEvent.id='homeDashboardSun';
+        sunEvent.className='home-dashboard-sun';
+        sunEvent.hidden=true;
 
         const top=document.createElement('div');
         top.className='home-dashboard-head';
@@ -4368,7 +4412,7 @@
         }
 
         tools.append(notifications,settings);
-        top.append(greeting,tools,dateHeading,moonPhase);
+        top.append(greeting,tools,dateHeading,moonPhase,sunEvent);
 
         const messageNew=document.createElement('button');
         messageNew.id='homeMessageNew';
@@ -6218,6 +6262,7 @@
         if(dashboardDate) dashboardDate.textContent=weekday+', '+date;
         const dashboardMoon=document.getElementById('homeDashboardMoon');
         if(dashboardMoon) dashboardMoon.textContent=homeMoonPhaseLabel();
+        renderHomeSunEvent();
         if(currentActor){
           syncStaticProfileWorkStatus();
           renderHomeDashboard();
@@ -6685,13 +6730,20 @@
             'longitude='+encodeURIComponent(cfg.longitude),
             'current=temperature_2m,apparent_temperature,weather_code,precipitation,rain',
             'hourly=precipitation_probability,precipitation,rain',
-            'forecast_days=1',
+            'daily=sunrise,sunset',
+            'forecast_days=2',
             'timezone='+encodeURIComponent(cfg.timezone||TZ)
           ].join('&');
           const r=await fetch('https://api.open-meteo.com/v1/forecast?'+query,{cache:'no-store'});
           if(!r.ok) throw new Error('weather');
           const data=await r.json();
           const c=data.current||{};
+          homeSunTimes={
+            dates:Array.isArray(data.daily?.time)?data.daily.time:[],
+            sunrise:Array.isArray(data.daily?.sunrise)?data.daily.sunrise:[],
+            sunset:Array.isArray(data.daily?.sunset)?data.daily.sunset:[]
+          };
+          renderHomeSunEvent();
           const labels={0:'Ясно',1:'Преимущественно ясно',2:'Облачно',3:'Пасмурно',45:'Туман',48:'Туман',51:'Морось',53:'Морось',55:'Морось',61:'Дождь',63:'Дождь',65:'Сильный дождь',71:'Снег',73:'Снег',75:'Сильный снег',80:'Ливень',81:'Ливень',82:'Сильный ливень',95:'Гроза'};
 
           const times=Array.isArray(data.hourly?.time)?data.hourly.time:[];
@@ -6729,6 +6781,8 @@
           elCaption.textContent=labels[c.weather_code]||'Погода';
           elRain.textContent=rainText;
         }catch(_){
+          homeSunTimes=null;
+          renderHomeSunEvent();
           setWeatherVisual(null);
           elValue.textContent='—';
           elCaption.textContent='Погода недоступна';
@@ -11443,7 +11497,7 @@
       }
 
       function setupFastingTracker(){
-        const open=document.getElementById('fastingTrackerOpen');
+        const profileButton=document.getElementById('fastingProfileButton');
         const selfStatus=document.getElementById('selfFastingStatus');
         const back=document.getElementById('fastingBackButton');
         const start=document.getElementById('fastingStartButton');
@@ -11452,17 +11506,21 @@
         const status=document.getElementById('fastingStatus');
         const historyToggle=document.getElementById('fastingHistoryToggle');
 
-        const openOwnFasting=()=>{
-          if(selfStatus?.hidden) return;
+        const navigateOwnFasting=()=>{
           fastingReturnTab='home';
           navigateToAppTab('fasting',{scroll:true});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
-        selfStatus?.addEventListener('click',openOwnFasting);
+        const openOwnFastingStatus=()=>{
+          if(selfStatus?.hidden) return;
+          navigateOwnFasting();
+        };
+        profileButton?.addEventListener('click',navigateOwnFasting);
+        selfStatus?.addEventListener('click',openOwnFastingStatus);
         selfStatus?.addEventListener('keydown',(event)=>{
           if(event.key!=='Enter'&&event.key!==' ') return;
           event.preventDefault();
-          openOwnFasting();
+          openOwnFastingStatus();
         });
 
         historyToggle?.addEventListener('click',()=>{
@@ -11489,12 +11547,6 @@
             });
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
-        });
-
-        open?.addEventListener('click',()=>{
-          fastingReturnTab='products';
-          navigateToAppTab('fasting',{scroll:true});
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
         back?.addEventListener('click',()=>{
