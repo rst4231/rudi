@@ -7303,7 +7303,7 @@
         try{
           const payload=await managedJsonRequest('ticktick-today','/api/ticktick/today',{
             body:{initData:telegramInitData(),backupToken:currentStateBackupToken},
-            ttlMs:3000,
+            ttlMs:60*1000,
             timeoutMs:7000
           });
           renderTickTickTodayState(payload,{preserveExpanded});

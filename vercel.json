@@ -9,7 +9,8 @@
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api runtime build.cjs package.json vercel.json public",
   "functions": {
     "api/index.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "supportsCancellation": true
     },
     "api/daily-cron.js": {
       "maxDuration": 300
@@ -22,6 +23,15 @@
     },
     "api/habit-reminder-cron.js": {
       "maxDuration": 60
+    },
+    "api/partner-message.js": {
+      "supportsCancellation": true
+    },
+    "api/supplements.js": {
+      "supportsCancellation": true
+    },
+    "api/habits.js": {
+      "supportsCancellation": true
     }
   },
   "headers": [
@@ -244,4 +254,3 @@
     "NODE_OPTIONS": "--disable-warning=DEP0169"
   }
 }
-
