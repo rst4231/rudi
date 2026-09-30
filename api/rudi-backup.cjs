@@ -115,12 +115,24 @@ function normalizeUiPreferenceEntry(value) {
     if(!/^[A-Za-z0-9:_-]{1,80}$/.test(String(key))) continue;
     blockStates[String(key)]=Boolean(row);
   }
+  const rawViews=source.viewStates&&typeof source.viewStates==='object'&&!Array.isArray(source.viewStates)
+    ? source.viewStates
+    : {};
+  const viewStates={};
+  for(const [key,row] of Object.entries(rawViews)){
+    if(!/^[A-Za-z0-9:_-]{1,96}$/.test(String(key))) continue;
+    viewStates[String(key)]=Boolean(row);
+  }
   return {
     homeOrder:order,
     blockStates,
+    viewStates,
     activitySeenId:String(source.activitySeenId||'').trim().slice(0,80),
     marketTickerEnabled:Object.prototype.hasOwnProperty.call(source,'marketTickerEnabled')?Boolean(source.marketTickerEnabled):true,
     themeMode:['system','light','dark'].includes(String(source.themeMode||'').trim())?String(source.themeMode).trim():'system',
+    autoRefreshEnabled:Object.prototype.hasOwnProperty.call(source,'autoRefreshEnabled')?Boolean(source.autoRefreshEnabled):true,
+    interfaceTextSize:['small','normal','large'].includes(String(source.interfaceTextSize||'').trim())?String(source.interfaceTextSize).trim():'normal',
+    syncSchemaVersion:Math.max(1,Number(source.syncSchemaVersion||1)),
     updatedAt:String(source.updatedAt||''),
   };
 }

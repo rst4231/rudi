@@ -111,16 +111,8 @@ function cycleViewForDate(value, dateKey) {
   const actualPeriodActive = Number.isFinite(latestActualStart)
     && todayMs >= latestActualStart
     && todayMs <= latestActualStart + (periodLength - 1) * DAY;
-  const predictedPeriodActive = !actualPeriodActive
-    && Number.isFinite(nextStartMs)
-    && todayMs >= nextStartMs
-    && todayMs <= nextStartMs + (periodLength - 1) * DAY;
-  const periodActive = actualPeriodActive || predictedPeriodActive;
-  const periodStartMs = actualPeriodActive
-    ? latestActualStart
-    : predictedPeriodActive
-      ? nextStartMs
-      : null;
+  const periodActive = actualPeriodActive;
+  const periodStartMs = actualPeriodActive ? latestActualStart : null;
   const periodEndMs = Number.isFinite(periodStartMs)
     ? periodStartMs + (periodLength - 1) * DAY
     : null;
@@ -130,7 +122,7 @@ function cycleViewForDate(value, dateKey) {
   const currentStartMs = Number.isFinite(latestActualStart)
     ? latestActualStart
     : Number.isFinite(nextStartMs)
-      ? (predictedPeriodActive ? nextStartMs : nextStartMs - cycleLength * DAY)
+      ? nextStartMs - cycleLength * DAY
       : null;
   const cycleDay = Number.isFinite(currentStartMs)
     ? Math.max(1, Math.min(cycleLength, Math.floor((todayMs - currentStartMs) / DAY) + 1))
@@ -150,7 +142,7 @@ function cycleViewForDate(value, dateKey) {
     return items[value % items.length];
   };
   const daysToNext = Number.isFinite(nextStartMs)
-    ? Math.max(0, Math.round((nextStartMs - todayMs) / DAY))
+    ? Math.round((nextStartMs - todayMs) / DAY)
     : null;
 
   let moodWord = '';

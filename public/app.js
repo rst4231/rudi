@@ -670,6 +670,62 @@
         return 'rudi:interface-text-size:v1:'+actor;
       }
 
+      function uiViewStateStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:view-state:v1:'+actor;
+      }
+
+      function readUiViewStates(){
+        let states={};
+        try{
+          const parsed=JSON.parse(localStorage.getItem(uiViewStateStorageKey())||'{}');
+          if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed)) states={...parsed};
+        }catch(_){}
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        const legacy={
+          'products-history':productsHistoryCollapsedStorageKey(),
+          'fasting-history':fastingHistoryCollapsedStorageKey(),
+          'for-di:labor':'rudi:for-di:collapsed:v1:'+actor+':labor',
+          'for-di:saved':'rudi:for-di:collapsed:v1:'+actor+':saved',
+          'for-di:stylist':'rudi:for-di:collapsed:v1:'+actor+':stylist',
+          'saves:date':'rudi:saves:collapsed:v1:'+actor+':date',
+          'saves:recipe':'rudi:saves:collapsed:v1:'+actor+':recipe'
+        };
+        for(const [key,storageKey] of Object.entries(legacy)){
+          if(Object.prototype.hasOwnProperty.call(states,key)) continue;
+          try{
+            const stored=localStorage.getItem(storageKey);
+            if(stored!==null) states[key]=stored==='1';
+          }catch(_){}
+        }
+        return states;
+      }
+
+      function writeUiViewStates(value){
+        const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+        const clean={};
+        Object.entries(source).slice(0,128).forEach(([rawKey,rawValue])=>{
+          const key=String(rawKey||'').trim().slice(0,96);
+          if(key) clean[key]=Boolean(rawValue);
+        });
+        try{localStorage.setItem(uiViewStateStorageKey(),JSON.stringify(clean))}catch(_){}
+        return clean;
+      }
+
+      function uiViewState(key,fallback=false){
+        const states=readUiViewStates();
+        return Object.prototype.hasOwnProperty.call(states,key)?Boolean(states[key]):Boolean(fallback);
+      }
+
+      function setUiViewState(key,value,{sync=true}={}){
+        const cleanKey=String(key||'').trim().slice(0,96);
+        if(!cleanKey) return;
+        const states=readUiViewStates();
+        states[cleanKey]=Boolean(value);
+        writeUiViewStates(states);
+        if(sync&&currentActor) markUiPreferencesChanged();
+      }
+
       function dataLastSyncStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:data-last-sync:v1:'+actor;
@@ -750,25 +806,35 @@
       function localUiPreferences(){
         let homeOrder=[];
         let blockStates={};
+        let viewStates={};
         let activitySeenId='';
         let marketTickerEnabledValue=true;
         let themeModeValue='system';
+        let autoRefreshEnabledValue=true;
+        let interfaceTextSizeValue='normal';
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
+        try{viewStates=readUiViewStates()}catch(_){}
         try{activitySeenId=String(localStorage.getItem(activitySeenStorageKey())||'')}catch(_){}
         try{
           const stored=localStorage.getItem(marketTickerEnabledStorageKey());
           marketTickerEnabledValue=stored===null?true:stored!=='0';
         }catch(_){}
         try{themeModeValue=currentThemeMode()}catch(_){}
+        try{autoRefreshEnabledValue=autoRefreshEnabled()}catch(_){}
+        try{interfaceTextSizeValue=currentInterfaceTextSize()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
+          syncSchemaVersion:2,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
+          viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
           activitySeenId,
           marketTickerEnabled:marketTickerEnabledValue,
           themeMode:themeModeValue,
+          autoRefreshEnabled:autoRefreshEnabledValue,
+          interfaceTextSize:interfaceTextSizeValue,
           updatedAt
         };
       }
@@ -776,13 +842,17 @@
       function applyRemoteUiPreferences(value,{force=false}={}){
         const remote=value&&typeof value==='object'&&!Array.isArray(value)?value:null;
         if(!remote||(!force&&uiPreferencesDirty)) return false;
+        const remoteSchema=Math.max(1,Number(remote.syncSchemaVersion||1));
         const hasRemoteOrder=Array.isArray(remote.homeOrder)&&remote.homeOrder.length>0;
         const hasRemoteBlocks=remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)&&Object.keys(remote.blockStates).length>0;
+        const hasRemoteViews=remoteSchema>=2&&remote.viewStates&&typeof remote.viewStates==='object'&&!Array.isArray(remote.viewStates);
         const hasRemoteActivitySeen=Object.prototype.hasOwnProperty.call(remote,'activitySeenId');
         const hasRemoteMarketTicker=Object.prototype.hasOwnProperty.call(remote,'marketTickerEnabled');
         const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
+        const hasRemoteAutoRefresh=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'autoRefreshEnabled');
+        const hasRemoteTextSize=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'interfaceTextSize');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -807,6 +877,9 @@
           if(hasRemoteBlocks){
             localStorage.setItem(blockStateStorageKey(),JSON.stringify(remote.blockStates));
           }
+          if(hasRemoteViews){
+            writeUiViewStates(remote.viewStates);
+          }
           if(hasRemoteActivitySeen){
             localStorage.setItem(activitySeenStorageKey(),String(remote.activitySeenId||''));
           }
@@ -817,9 +890,16 @@
             const mode=['system','light','dark'].includes(String(remote.themeMode||''))?String(remote.themeMode):'system';
             localStorage.setItem(themeModeStorageKey(),mode);
           }
+          if(hasRemoteAutoRefresh){
+            localStorage.setItem(autoRefreshStorageKey(),remote.autoRefreshEnabled===false?'0':'1');
+          }
+          if(hasRemoteTextSize){
+            const size=['small','normal','large'].includes(String(remote.interfaceTextSize||''))?String(remote.interfaceTextSize):'normal';
+            localStorage.setItem(interfaceTextSizeStorageKey(),size);
+          }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder){
-            localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
+          if(keepLocalOrder||remoteSchema<2){
+            if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             markUiPreferencesChanged();
           }
           return true;
@@ -848,6 +928,11 @@
         applyMarketTickerVisibility();
         applyTheme();
         updateThemeSettingControls();
+        updateAutoRefreshUi();
+        applyInterfacePreferences();
+        if(document.querySelector('.products-history')) setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
+        if(document.querySelector('.fasting-history-card')) setFastingHistoryCollapsed(readFastingHistoryCollapsed(),{persist:false});
+        try{window.dispatchEvent(new CustomEvent('rudi:ui-preferences-applied'))}catch(_){}
       }
 
       function markUiPreferencesChanged(){
@@ -929,6 +1014,11 @@
         getToken:()=>String(currentStateBackupToken||''),
         storeToken:(token)=>storeStateBackupToken(token),
         refresh:()=>refreshStateBackup()
+      };
+      window.RUDI_UI_PREFERENCES={
+        getViewState:(key,fallback=false)=>uiViewState(String(key||''),fallback),
+        setViewState:(key,value)=>setUiViewState(String(key||''),Boolean(value)),
+        refresh:()=>syncUiPreferencesFromServer()
       };
 
       function homeLayoutStorageKey(){
@@ -2302,6 +2392,7 @@
         const periodLength=Math.max(1,Number(model.periodLength)||5);
         const ovulationDay=Number(model.ovulationDay);
         const daysToNext=Number(model.daysToNext);
+        const periodActive=Boolean(model.periodActive);
 
         const makeStatus=(label,advice)=>({
           label,
@@ -2312,6 +2403,20 @@
           return makeStatus(
             'Месячные',
             'Лучше снизить нагрузку, оставить больше времени на отдых и ориентироваться на самочувствие.'
+          );
+        }
+
+        if(!periodActive&&Number.isFinite(daysToNext)&&daysToNext===0){
+          return makeStatus(
+            'Ожидаются сегодня',
+            'Сегодня прогнозная дата начала. Факт месячных появится только после отметки Дианы.'
+          );
+        }
+
+        if(!periodActive&&Number.isFinite(daysToNext)&&daysToNext<0){
+          return makeStatus(
+            'Прогнозная дата прошла',
+            'Месячные пока не отмечены. Когда они фактически начнутся, Диана сможет отметить начало.'
           );
         }
 
@@ -5062,6 +5167,7 @@
         const next=['small','normal','large'].includes(String(value||''))?String(value):'normal';
         try{localStorage.setItem(interfaceTextSizeStorageKey(),next)}catch(_){}
         applyInterfacePreferences();
+        if(currentActor) markUiPreferencesChanged();
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5073,6 +5179,7 @@
       function setAutoRefreshEnabled(enabled){
         try{localStorage.setItem(autoRefreshStorageKey(),enabled?'1':'0')}catch(_){}
         updateAutoRefreshUi();
+        if(currentActor) markUiPreferencesChanged();
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -6527,16 +6634,8 @@
         const actualPeriodActive=Number.isFinite(latestActualStart)
           &&todayUtc>=latestActualStart
           &&todayUtc<=latestActualStart+(periodLength-1)*DAY;
-        const predictedPeriodActive=!actualPeriodActive
-          &&Number.isFinite(nextStart)
-          &&todayUtc>=nextStart
-          &&todayUtc<=nextStart+(periodLength-1)*DAY;
-        const periodActive=actualPeriodActive||predictedPeriodActive;
-        const periodStart=actualPeriodActive
-          ?latestActualStart
-          :predictedPeriodActive
-            ?nextStart
-            :null;
+        const periodActive=actualPeriodActive;
+        const periodStart=actualPeriodActive?latestActualStart:null;
         const periodEnd=Number.isFinite(periodStart)?periodStart+(periodLength-1)*DAY:null;
         const periodDay=Number.isFinite(periodStart)
           ?Math.floor((todayUtc-periodStart)/DAY)+1
@@ -6544,12 +6643,12 @@
         const currentStart=Number.isFinite(latestActualStart)
           ?latestActualStart
           :Number.isFinite(nextStart)
-            ?(predictedPeriodActive?nextStart:nextStart-cycleLength*DAY)
+            ?nextStart-cycleLength*DAY
             :null;
         const cycleDay=Number.isFinite(currentStart)
           ?Math.max(1,Math.min(cycleLength,Math.floor((todayUtc-currentStart)/DAY)+1))
           :null;
-        const daysToNext=Number.isFinite(nextStart)?Math.max(0,Math.round((nextStart-todayUtc)/DAY)):null;
+        const daysToNext=Number.isFinite(nextStart)?Math.round((nextStart-todayUtc)/DAY):null;
         const currentOvulationUtc=Number.isFinite(currentStart)?currentStart+(ovulationDay-1)*DAY:null;
         const ovulationUtc=Number.isFinite(currentOvulationUtc)&&currentOvulationUtc>=todayUtc
           ?currentOvulationUtc
@@ -6614,9 +6713,13 @@
           if(model.daysToNext>0){
             countdown.textContent=String(model.daysToNext);
             countdownLabel.textContent=dayWord(model.daysToNext)+' до месячных';
-          }else{
+          }else if(model.daysToNext===0){
             countdown.textContent='Сегодня';
             countdownLabel.textContent='ожидаемое начало месячных';
+          }else{
+            const passed=Math.abs(model.daysToNext);
+            countdown.textContent=String(passed);
+            countdownLabel.textContent=dayWord(passed)+' после прогнозной даты';
           }
         }else{
           countdown.textContent='—';
@@ -6629,6 +6732,10 @@
         progress.style.width=model.progress.toFixed(1)+'%';
         if(model.periodActive&&Number.isFinite(model.periodStart)&&Number.isFinite(model.periodEnd)){
           period.textContent='Начались '+cycleDateLabel(model.periodStart)+' · '+model.periodDay+'-й день · закончатся '+cycleDateLabel(model.periodEnd);
+        }else if(model.daysToNext===0&&Number.isFinite(model.nextStart)){
+          period.textContent='Ожидаются сегодня · прогноз '+cycleDateLabel(model.nextStart);
+        }else if(Number.isFinite(model.daysToNext)&&model.daysToNext<0&&Number.isFinite(model.nextStart)){
+          period.textContent='Прогноз был '+cycleDateLabel(model.nextStart)+' · фактическое начало не отмечено';
         }else{
           period.textContent='Следующие ≈ '+cycleRangeLabel(model.nextStart,model.periodLength);
         }
@@ -10750,10 +10857,12 @@
       }
 
       function readProductsHistoryCollapsed(){
+        let fallback=true;
         try{
           const stored=localStorage.getItem(productsHistoryCollapsedStorageKey());
-          return stored===null?true:stored==='1';
-        }catch(_){return true}
+          fallback=stored===null?true:stored==='1';
+        }catch(_){}
+        return uiViewState('products-history',fallback);
       }
 
       function setProductsHistoryCollapsed(collapsed,{persist=true}={}){
@@ -10772,6 +10881,7 @@
         }
         if(persist){
           try{localStorage.setItem(productsHistoryCollapsedStorageKey(),value?'1':'0')}catch(_){}
+          setUiViewState('products-history',value);
         }
       }
 
@@ -11107,10 +11217,12 @@
       }
 
       function readFastingHistoryCollapsed(){
+        let fallback=true;
         try{
           const stored=localStorage.getItem(fastingHistoryCollapsedStorageKey());
-          return stored===null?true:stored==='1';
-        }catch(_){return true}
+          fallback=stored===null?true:stored==='1';
+        }catch(_){}
+        return uiViewState('fasting-history',fallback);
       }
 
       function setFastingHistoryCollapsed(collapsed,{persist=true}={}){
@@ -11130,6 +11242,7 @@
         }
         if(persist){
           try{localStorage.setItem(fastingHistoryCollapsedStorageKey(),value?'1':'0')}catch(_){}
+          setUiViewState('fasting-history',value);
         }
       }
 

@@ -1034,7 +1034,8 @@
     let stored=null;
     try{stored=localStorage.getItem(savesCollapseKey(type))}catch(_){}
     const dateCount=savesState.filter(item=>item?.type==='date').length;
-    const collapsed=stored===null ? (type==='date'&&dateCount>3) : stored==='1';
+    const fallback=stored===null ? (type==='date'&&dateCount>3) : stored==='1';
+    const collapsed=window.RUDI_UI_PREFERENCES?.getViewState?.('saves:'+type,fallback)??fallback;
     applySavesCategoryState(type,collapsed);
   }
 
@@ -1044,6 +1045,7 @@
     const collapsed=!section.classList.contains('is-collapsed');
     applySavesCategoryState(type,collapsed);
     try{localStorage.setItem(savesCollapseKey(type),collapsed?'1':'0')}catch(_){}
+    window.RUDI_UI_PREFERENCES?.setViewState?.('saves:'+type,collapsed);
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
   }
 
@@ -1460,7 +1462,8 @@
   function restoreForDiCategoryState(type){
     let stored=null;
     try{stored=localStorage.getItem(forDiCollapseKey(type))}catch(_){}
-    const collapsed=stored===null?true:stored==='1';
+    const fallback=stored===null?true:stored==='1';
+    const collapsed=window.RUDI_UI_PREFERENCES?.getViewState?.('for-di:'+type,fallback)??fallback;
     if(!collapsed){
       FOR_DI_CATEGORY_TYPES.filter(other=>other!==type).forEach(other=>applyForDiCategoryState(other,true));
     }
@@ -1475,10 +1478,12 @@
       FOR_DI_CATEGORY_TYPES.filter(other=>other!==type).forEach(other=>{
         applyForDiCategoryState(other,true);
         try{localStorage.setItem(forDiCollapseKey(other),'1')}catch(_){}
+        window.RUDI_UI_PREFERENCES?.setViewState?.('for-di:'+other,true);
       });
     }
     applyForDiCategoryState(type,collapsed);
     try{localStorage.setItem(forDiCollapseKey(type),collapsed?'1':'0')}catch(_){}
+    window.RUDI_UI_PREFERENCES?.setViewState?.('for-di:'+type,collapsed);
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
   }
 
@@ -1704,4 +1709,10 @@
 
   const observer=new MutationObserver(()=>installDynamicExtras());
   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-rudi-actor']});
+
+  window.addEventListener('rudi:ui-preferences-applied',()=>{
+    try{FOR_DI_CATEGORY_TYPES.forEach(type=>restoreForDiCategoryState(type))}catch(_){}
+    try{['date','recipe'].forEach(type=>restoreSavesCategoryState(type))}catch(_){}
+  });
+
 })();

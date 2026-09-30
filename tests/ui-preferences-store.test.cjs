@@ -25,6 +25,9 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
     activitySeenId:'event-1',
     marketTickerEnabled:false,
     themeMode:'dark',
+    autoRefreshEnabled:false,
+    interfaceTextSize:'large',
+    viewStates:{'products-history':false,'saves:date':true},
   },{uiPreferencesCache:cache,now:Date.parse('2026-09-23T08:00:00Z')});
   assert.equal(first.version,1);
 
@@ -40,6 +43,11 @@ test('shared UI preferences keep the latest layout per actor',async()=>{
   assert.equal(saved.activitySeenId,'event-1');
   assert.equal(saved.marketTickerEnabled,false);
   assert.equal(saved.themeMode,'dark');
+  assert.equal(saved.autoRefreshEnabled,false);
+  assert.equal(saved.interfaceTextSize,'large');
+  assert.equal(saved.viewStates['products-history'],false);
+  assert.equal(saved.viewStates['saves:date'],true);
+  assert.equal(saved.syncSchemaVersion,2);
 
   await saveUiPreferences('Диана',{
     homeOrder:['dashboard','diana','rustam','lulu','nearest'],
@@ -83,4 +91,18 @@ test('ticker visibility survives layout-only saves',async()=>{
   const saved=await readUiPreferences('Рустам',{uiPreferencesCache:cache});
   assert.equal(saved.marketTickerEnabled,false);
   assert.deepEqual(saved.homeOrder,['dashboard','markets','rustam']);
+});
+
+
+test('frontend exposes shared view-state sync for web, PWA and Telegram surfaces',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  assert.match(app,/RUDI_UI_PREFERENCES/);
+  assert.match(app,/autoRefreshEnabled/);
+  assert.match(app,/interfaceTextSize/);
+  assert.match(app,/viewStates/);
+  assert.match(app,/rudi:ui-preferences-applied/);
+  assert.match(pwa,/RUDI_UI_PREFERENCES/);
+  assert.match(pwa,/for-di:/);
+  assert.match(pwa,/saves:/);
 });

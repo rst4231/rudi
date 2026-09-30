@@ -62,6 +62,7 @@ function normalizeUiPreferencesState(value) {
   return {
     initialized: Boolean(source.initialized),
     version: Math.max(0, Number(source.version || 0)),
+    syncSchemaVersion: Math.max(1, Number(source.syncSchemaVersion || 1)),
     homeOrder,
     blockStates,
     viewStates,
@@ -105,6 +106,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
+      syncSchemaVersion: 2,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates') ? incoming.blockStates : current.blockStates,
       viewStates: has('viewStates') ? incoming.viewStates : current.viewStates,
@@ -137,6 +139,7 @@ async function seedUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
+      syncSchemaVersion: 2,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
       viewStates: incoming.viewStates,
