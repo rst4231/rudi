@@ -1688,7 +1688,7 @@ body.car-wash-modal-open .app-tabbar{
 .car-tyre-sticker{
   position:absolute;
   z-index:4;
-  left:49%;
+  left:38%;
   top:69%;
   transform:translate(-50%,-50%);
   display:inline-flex;
@@ -1718,8 +1718,8 @@ body.car-wash-modal-open .app-tabbar{
   border-color:rgba(157,220,255,.42);
   background:linear-gradient(135deg,rgba(50,116,176,.94),rgba(95,166,211,.86));
 }
-.car-home-visual .car-tyre-sticker{left:49%;top:59%;font-size:7.8px;min-height:18px;padding:3px 7px}
-.car-page>.car-head .car-tyre-sticker{left:49%;top:62%}
+.car-home-visual .car-tyre-sticker{left:38%;top:59%;font-size:7.8px;min-height:18px;padding:3px 7px}
+.car-page>.car-head .car-tyre-sticker{left:38%;top:62%}
 
 .car-page>.car-hero-recommendations.car-wash-decision{
   position:relative;
@@ -1798,7 +1798,7 @@ html[data-theme="light"] .car-wash-decision .car-recommendation-wash-button{
   color:#235f83!important;
 }
 @media(max-width:430px){
-  .car-home-visual .car-tyre-sticker{left:49%;top:58%;font-size:7px;min-height:16px;padding:3px 6px}
-  .car-page>.car-head .car-tyre-sticker{left:49%;top:61%;font-size:7.4px;min-height:17px;padding:3px 6px}
+  .car-home-visual .car-tyre-sticker{left:38%;top:58%;font-size:7px;min-height:16px;padding:3px 6px}
+  .car-page>.car-head .car-tyre-sticker{left:38%;top:61%;font-size:7.4px;min-height:17px;padding:3px 6px}
 }
 /* end RUDI v2.141 */
