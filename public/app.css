@@ -9986,7 +9986,8 @@ html[data-theme="dark"] .app-tab-button.active .app-tab-icon{
 
 
 /* RUDI v2.46 — current moon phase under home date */
-.home-dashboard-moon{
+.home-dashboard-moon,
+.home-dashboard-sun{
   grid-column:1;
   color:var(--muted);
   font-size:10.5px;
@@ -9995,6 +9996,7 @@ html[data-theme="dark"] .app-tab-button.active .app-tab-icon{
   margin-top:1px;
   min-height:14px;
 }
+.home-dashboard-sun[hidden]{display:none!important}
 
 
 /* RUDI v2.48 — keep profile name clickable in desktop browser layout */
@@ -11474,7 +11476,8 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 
 /* RUDI v2.96 mood picker placement and control sizing */
 .profile-person-card #moodCurrentButton,
-.profile-person-card #moodHistoryButton{
+.profile-person-card #moodHistoryButton,
+.profile-person-card #fastingProfileButton{
   flex:0 0 30px!important;
   width:30px!important;
   height:30px!important;
@@ -11489,6 +11492,15 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 .profile-person-card #moodHistoryButton svg{
   width:15px!important;
   height:15px!important;
+}
+.profile-person-card #fastingProfileButton{
+  border:1px solid rgba(255,255,255,.10)!important;
+  background:rgba(255,255,255,.055)!important;
+  color:inherit!important;
+}
+html[data-theme="light"] .profile-person-card #fastingProfileButton{
+  border-color:rgba(32,40,54,.10)!important;
+  background:rgba(32,40,54,.045)!important;
 }
 .profile-person-card .mood-choices{
   width:100%!important;
@@ -11549,7 +11561,8 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
 }
 .home-dashboard-summary[data-daypart="night"] .home-dashboard-greeting{color:#f6f8ff}
 .home-dashboard-summary[data-daypart="night"] .home-dashboard-date,
-.home-dashboard-summary[data-daypart="night"] .home-dashboard-moon{color:rgba(232,238,252,.70)}
+.home-dashboard-summary[data-daypart="night"] .home-dashboard-moon,
+.home-dashboard-summary[data-daypart="night"] .home-dashboard-sun{color:rgba(232,238,252,.70)}
 .home-dashboard-summary .home-dashboard-greeting{
   position:relative;
   z-index:1;
@@ -11557,7 +11570,8 @@ body.mood-history-open{overflow:hidden!important}.mood-history-page{position:fix
   text-shadow:0 1px 16px rgba(255,255,255,.36);
 }
 .home-dashboard-summary .home-dashboard-date,
-.home-dashboard-summary .home-dashboard-moon{position:relative;z-index:1}
+.home-dashboard-summary .home-dashboard-moon,
+.home-dashboard-summary .home-dashboard-sun{position:relative;z-index:1}
 .home-dashboard-summary .home-dashboard-tools{position:relative;z-index:40}
 .home-dashboard-summary .home-activity-notifications-button,
 .home-dashboard-summary .home-settings-button{
