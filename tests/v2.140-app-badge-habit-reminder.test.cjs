@@ -5,12 +5,18 @@ const path=require('node:path');
 
 const root=path.join(__dirname,'..');
 
-test('v2.140 app icon badge includes habit and supplement reminder badges',()=>{
-  const source=fs.readFileSync(path.join(root,'public','app-badge-extras.js'),'utf8');
-  assert.match(source,/#habitHomeTile \.personal-home-reminder-badge/);
-  assert.match(source,/#supplementsHomeTile \.personal-home-reminder-badge/);
-  assert.match(source,/setAppBadge/);
-  assert.match(source,/clearAppBadge/);
+test('v2.140 app icon badge includes habit, supplement and car attention',()=>{
+  const app=fs.readFileSync(path.join(root,'public','app.js'),'utf8');
+  assert.match(app,/#habitHomeTile \.personal-home-reminder-badge/);
+  assert.match(app,/#supplementsHomeTile \.personal-home-reminder-badge/);
+  assert.match(app,/dataset\.carTodayTaskCount/);
+});
+
+test('habit and supplement badges trigger app icon resync',()=>{
+  const source=fs.readFileSync(path.join(root,'public','profile-supplements.js'),'utf8');
+  assert.match(source,/dataset\.supplementReminderCount/);
+  assert.match(source,/dataset\.habitReminderCount/);
+  assert.match(source,/rudi:attention-change/);
 });
 
 test('legacy pwa badge sync cannot overwrite the unified count',()=>{
