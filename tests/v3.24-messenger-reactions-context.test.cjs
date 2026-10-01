@@ -20,16 +20,15 @@ test('v3.24 shows reactions directly in context menu',()=>{
   assert.doesNotMatch(client,/\['Реакция',\(\)=>showReactionPicker/);
 });
 
-test('double tap uses delegated pointerdown and only toggles heart',()=>{
-  assert.match(client,/messages\.addEventListener\('pointerdown'/);
-  assert.match(client,/state\.tapMessageId===id&&now-state\.tapAt<=460/);
-  assert.match(client,/setMessageReaction\(row,'❤️'\)/);
+test('double tap uses the original click counter and only toggles heart',()=>{
+  assert.match(client,/function bindMessageTapGestures\(article,row,payload\)/);
+  assert.match(client,/article\.addEventListener\('click',event=>\{/);
+  assert.match(client,/if\(count===2\) setMessageReaction\(row,'❤️'\)/);
   assert.doesNotMatch(client,/count>=3/);
 });
 
-test('tapping a reaction is delegated on pointerdown and shows actor avatars',()=>{
-  assert.match(client,/page\.addEventListener\('pointerdown',event=>\{/);
-  assert.match(client,/\[data-messenger-reaction\]\[data-message-id\]/);
+test('tapping a reaction uses a direct click and shows actor avatars',()=>{
+  assert.match(client,/reaction\.addEventListener\('click',event=>\{/);
   assert.match(client,/setMessageReaction\(row,emoji\)/);
   assert.match(client,/function appendReactionAvatars\(container,actors\)/);
   assert.match(client,/appendReactionAvatars\(reaction,actors\)/);
@@ -37,11 +36,11 @@ test('tapping a reaction is delegated on pointerdown and shows actor avatars',()
   assert.match(css,/\.messenger-reaction-avatar img\{/);
 });
 
-test('context menu opens only from hold and not from contextmenu or double click',()=>{
+test('context menu opens only from hold while double tap remains a normal click sequence',()=>{
   assert.match(client,/timer=setTimeout\(\(\)=>\{[\s\S]*?showMessageContext\(article,row,payload\)/);
   assert.match(client,/article\.addEventListener\('contextmenu',event=>\{[\s\S]*?event\.preventDefault\(\)[\s\S]*?event\.stopPropagation\(\)[\s\S]*?cancel\(\)/);
   assert.doesNotMatch(client,/contextmenu'[\s\S]*?showMessageContext/);
-  assert.match(client,/article\.addEventListener\('dblclick',event=>\{/);
+  assert.doesNotMatch(client,/article\.addEventListener\('dblclick'/);
 });
 
 test('emoji tray toggle keeps messenger input focused',()=>{
