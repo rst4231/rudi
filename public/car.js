@@ -208,9 +208,11 @@
         const archivedTitle=document.createElement('strong');
         archivedTitle.textContent=item.title||'Ремонт';
         const archivedMeta=document.createElement('span');
-        const repairCost=Number.isInteger(Number(item.repairCost))&&Number(item.repairCost)>=0
-          ? Number(item.repairCost)
-          : null;
+        const repairCost=item.repairCost==null||item.repairCost===''
+          ? null
+          : (Number.isInteger(Number(item.repairCost))&&Number(item.repairCost)>=0
+            ? Number(item.repairCost)
+            : null);
         archivedMeta.textContent='Починено '+formatErrorDate(item.repairedAt)
           +(repairCost==null?'':' · '+new Intl.NumberFormat('ru-RU').format(repairCost)+' ₽');
         archivedRow.append(archivedTitle,archivedMeta);

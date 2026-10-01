@@ -64,3 +64,9 @@ test('car repair UI asks for ruble cost after repaired and renders it in archive
   assert.match(css,/\.car-repair-cost-editor/);
   assert.match(client,/repairCarError\(body\.errorId,\{repairCost:body\.repairCost\}\)/);
 });
+
+
+test('old archive row without cost does not render a fake zero cost',()=>{
+  const js=fs.readFileSync('public/car.js','utf8');
+  assert.match(js,/item\.repairCost==null\|\|item\.repairCost===''/);
+});
