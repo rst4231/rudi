@@ -38,7 +38,6 @@
     keyboardStickToBottom:true,
     tapMessageId:'',
     tapAt:0,
-    tapPointer:null,
   };
 
   function telegramInitData(){
@@ -1563,36 +1562,19 @@
       });
 
       messages.addEventListener('pointerdown',event=>{
-        if(event.target.closest('a,button,input,textarea')) return;
+        if(event.target.closest('a,button,input,textarea,[data-messenger-reaction]')) return;
         if(event.pointerType==='mouse'&&event.button!==0) return;
         const article=event.target.closest('.messenger-message[data-message-id]');
         if(!article) return;
-        state.tapPointer={
-          id:String(article.dataset.messageId||''),
-          x:Number(event.clientX||0),
-          y:Number(event.clientY||0),
-          at:Date.now()
-        };
-      });
-
-      messages.addEventListener('pointerup',event=>{
-        if(event.target.closest('a,button,input,textarea')) return;
-        const article=event.target.closest('.messenger-message[data-message-id]');
-        const pointer=state.tapPointer;
-        state.tapPointer=null;
-        if(!article||!pointer) return;
         const id=String(article.dataset.messageId||'');
-        if(!id||id!==pointer.id||id.startsWith('pending:')) return;
-        const longPressedAt=Number(article.dataset.longPressedAt||0);
-        if(longPressedAt&&Date.now()-longPressedAt<900) return;
-        const duration=Date.now()-Number(pointer.at||0);
-        const moved=Math.hypot(Number(event.clientX||0)-pointer.x,Number(event.clientY||0)-pointer.y);
-        if(duration>450||moved>16) return;
+        if(!id||id.startsWith('pending:')) return;
 
         const now=Date.now();
         if(state.tapMessageId===id&&now-state.tapAt<=460){
           state.tapMessageId='';
           state.tapAt=0;
+          event.preventDefault();
+          event.stopPropagation();
           const row=state.rows.find(item=>String(item?.id||'')===id);
           if(row){
             setMessageReaction(row,'❤️');
@@ -1600,9 +1582,10 @@
           }
           return;
         }
+
         state.tapMessageId=id;
         state.tapAt=now;
-      });
+      },true);
 
       messages.addEventListener('scroll',()=>{
         state.nearBottom=isMessagesNearBottom(messages);
