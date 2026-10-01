@@ -75,6 +75,9 @@ function normalizeUiPreferencesState(value) {
   const dailyQuestionNotificationEnabled = Object.prototype.hasOwnProperty.call(source, 'dailyQuestionNotificationEnabled')
     ? Boolean(source.dailyQuestionNotificationEnabled)
     : true;
+  const messengerNotificationsEnabled = Object.prototype.hasOwnProperty.call(source, 'messengerNotificationsEnabled')
+    ? Boolean(source.messengerNotificationsEnabled)
+    : true;
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const parsed = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   return {
@@ -95,6 +98,7 @@ function normalizeUiPreferencesState(value) {
     morningSummaryEnabled,
     rewardNotificationsEnabled,
     dailyQuestionNotificationEnabled,
+    messengerNotificationsEnabled,
     updatedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
   };
 }
@@ -130,7 +134,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 5,
+      syncSchemaVersion: 6,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
         ? { ...current.blockStates, ...incoming.blockStates }
@@ -149,6 +153,7 @@ async function saveUiPreferences(actor, value, options = {}) {
       morningSummaryEnabled: has('morningSummaryEnabled') ? incoming.morningSummaryEnabled : current.morningSummaryEnabled,
       rewardNotificationsEnabled: has('rewardNotificationsEnabled') ? incoming.rewardNotificationsEnabled : current.rewardNotificationsEnabled,
       dailyQuestionNotificationEnabled: has('dailyQuestionNotificationEnabled') ? incoming.dailyQuestionNotificationEnabled : current.dailyQuestionNotificationEnabled,
+      messengerNotificationsEnabled: has('messengerNotificationsEnabled') ? incoming.messengerNotificationsEnabled : current.messengerNotificationsEnabled,
       updatedAt,
     }, options);
   });
@@ -174,12 +179,13 @@ async function seedUiPreferences(actor, value, options = {}) {
       || has('humidityAlertEnabled')
       || has('morningSummaryEnabled')
       || has('rewardNotificationsEnabled')
-      || has('dailyQuestionNotificationEnabled');
+      || has('dailyQuestionNotificationEnabled')
+      || has('messengerNotificationsEnabled');
     if (!hasAny) return current;
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
-      syncSchemaVersion: 5,
+      syncSchemaVersion: 6,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
       viewStates: incoming.viewStates,
@@ -194,6 +200,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       morningSummaryEnabled: incoming.morningSummaryEnabled,
       rewardNotificationsEnabled: incoming.rewardNotificationsEnabled,
       dailyQuestionNotificationEnabled: incoming.dailyQuestionNotificationEnabled,
+      messengerNotificationsEnabled: incoming.messengerNotificationsEnabled,
       updatedAt: incoming.updatedAt || new Date(options.now || Date.now()).toISOString(),
     }, options);
   });
