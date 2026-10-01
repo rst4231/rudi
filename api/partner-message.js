@@ -303,7 +303,8 @@ async function sendPartnerMessageNotification(actor, options = {}) {
   const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
   if (!recipientActor) return { sent: false, reason: 'actor-invalid' };
   const verb = actor === 'Диана' ? 'оставила' : 'оставил';
-  return sendPushNotification(recipientActor, {
+  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+  return sendPush(recipientActor, {
     title: '💌 Новое послание',
     body: actor + ' ' + verb + ' для тебя новое послание.',
     tag: 'partner-message',
@@ -363,7 +364,8 @@ async function sendStarGiftNotification(result, options = {}) {
       tag:'star-gift',
       url:'/?tab=score&item='+encodeURIComponent(to),
     };
-    return await Promise.all(['Рустам','Диана'].map(actor=>sendPushNotification(actor,payload,options)));
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    return await Promise.all(['Рустам','Диана'].map(actor=>sendPush(actor,payload,options)));
   } catch (error) {
     console.warn('RUDI_STAR_GIFT_NOTIFICATION_WARN',String(error?.message||error));
     return [];
@@ -419,7 +421,8 @@ async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) 
   if (!recipient) return { sent:false, reason:'actor-invalid' };
   try {
     const action = actor === 'Диана' ? 'погуляла' : 'погулял';
-    const result = await sendPushNotification(recipient, {
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result = await sendPush(recipient, {
       title: '🐾 Прогулка с Лулу',
       body: actor + ' ' + action + ' с Лулу.',
       tag: 'lulu-walk',
@@ -447,7 +450,8 @@ async function sendWishlistNotificationToPartner(owner, text, options = {}) {
   try {
     const action = owner === 'Диана' ? 'добавила' : 'добавил';
     const item = String(text || '').trim();
-    const result = await sendPushNotification(recipient, {
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result = await sendPush(recipient, {
       title: '🎁 Новое в вишлисте',
       body: owner + ' ' + action + (item ? ': ' + item : ' новое желание.'),
       tag: 'wishlist',
@@ -470,7 +474,8 @@ async function sendDailyQuestionAnswerNotification(actor,options={}) {
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   try{
     const action=actor==='Диана'?'ответила':'ответил';
-    const result=await sendPushNotification(recipient,{
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result=await sendPush(recipient,{
       title:'💬 Ответ на вопрос дня',
       body:actor+' '+action+'. Сам ответ откроется в RUDI, когда ответите вы оба.',
       tag:'daily-question',
@@ -907,7 +912,8 @@ async function sendMoodNotificationToPartner(actor, mood, options = {}) {
       text = fallback;
     }
     const item = actor === 'Диана' ? 'diana' : 'rustam';
-    const result = await sendPushNotification(recipient, {
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result = await sendPush(recipient, {
       title: '🙂 Настроение партнёра',
       body: stripTelegramHtml(text),
       tag: 'partner-mood',
