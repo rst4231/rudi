@@ -447,7 +447,33 @@
     if(menu){menu.hidden=true;menu.replaceChildren()}
   }
 
-  function showReactionPicker(row){
+  function positionContextMenu(menu,article){
+    if(!menu||!article) return;
+    const page=document.getElementById('messengerPage');
+    const pageRect=page?.getBoundingClientRect?.();
+    const articleRect=article.getBoundingClientRect?.();
+    if(!pageRect||!articleRect) return;
+    requestAnimationFrame(()=>{
+      const width=Math.max(220,Math.min(280,menu.offsetWidth||280));
+      const height=Math.max(44,menu.offsetHeight||44);
+      const center=articleRect.left-pageRect.left+articleRect.width/2;
+      const minLeft=12+width/2;
+      const maxLeft=Math.max(minLeft,pageRect.width-12-width/2);
+      const left=Math.max(minLeft,Math.min(maxLeft,center));
+      const spaceBelow=pageRect.bottom-articleRect.bottom;
+      const openAbove=spaceBelow<height+88;
+      let top=openAbove
+        ?articleRect.top-pageRect.top-height-8
+        :articleRect.bottom-pageRect.top+8;
+      top=Math.max(8,Math.min(top,pageRect.height-height-8));
+      menu.style.left=left+'px';
+      menu.style.top=top+'px';
+      menu.style.bottom='auto';
+      menu.dataset.placement=openAbove?'above':'below';
+    });
+  }
+
+  function showReactionPicker(row,article){
     const menu=ensureContextMenu();
     menu.replaceChildren();
     const title=document.createElement('div');
@@ -470,6 +496,7 @@
     }
     menu.append(title,tray);
     menu.hidden=false;
+    positionContextMenu(menu,article);
   }
 
   function showMessageContext(article,row,payload){
@@ -480,13 +507,14 @@
       ?[
         ['Ответить',()=>setReply(row,payload)],
         ['Копировать',()=>copyMessageText(payload.text)],
+        ['Реакция',()=>showReactionPicker(row,article)],
         ['Редактировать',()=>startMessageEdit(row,payload)],
         ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
       ]
       :[
         ['Ответить',()=>setReply(row,payload)],
         ['Копировать',()=>copyMessageText(payload.text)],
-        ['Реакция',()=>showReactionPicker(row)],
+        ['Реакция',()=>showReactionPicker(row,article)],
       ];
     for(const [label,handler,className] of actions){
       const button=document.createElement('button');
@@ -501,6 +529,7 @@
       menu.appendChild(button);
     }
     menu.hidden=false;
+    positionContextMenu(menu,article);
     article.classList.add('is-long-press');
     setTimeout(()=>article.classList.remove('is-long-press'),180);
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
@@ -693,10 +722,26 @@
     if(!article||!row||!payload) return;
     let taps=0;
     let timer=0;
-    article.addEventListener('click',event=>{
+    let downAt=0;
+    let startX=0;
+    let startY=0;
+
+    article.addEventListener('pointerdown',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      if(event.pointerType==='mouse'&&event.button!==0) return;
+      downAt=Date.now();
+      startX=Number(event.clientX||0);
+      startY=Number(event.clientY||0);
+    });
+
+    article.addEventListener('pointerup',event=>{
       if(event.target.closest('a,button,input,textarea')) return;
       const longPressedAt=Number(article.dataset.longPressedAt||0);
-      if(longPressedAt&&Date.now()-longPressedAt<700) return;
+      if(longPressedAt&&Date.now()-longPressedAt<800) return;
+      const duration=Date.now()-downAt;
+      const moved=Math.hypot(Number(event.clientX||0)-startX,Number(event.clientY||0)-startY);
+      if(!downAt||duration>280||moved>12) return;
+
       taps+=1;
       clearTimeout(timer);
       timer=setTimeout(()=>{
@@ -706,8 +751,11 @@
           startMessageEdit(row,payload);
           return;
         }
-        if(count===2) setMessageReaction(row,'❤️');
-      },320);
+        if(count===2){
+          setMessageReaction(row,'❤️');
+          try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+        }
+      },300);
     });
   }
 
