@@ -12115,10 +12115,9 @@
 
       function recipeErrorText(error){
         const code=String(error?.message||'');
-        if(code==='recipe-ai-quota'||Number(error?.status)===429) return 'Бесплатный лимит ИИ на сегодня закончился. Попробуй позже.';
+        if(code==='recipe-ai-rate-limited'||code==='recipe-ai-busy'||Number(error?.status)===429) return 'ИИ временно занят. Попробуй ещё раз через несколько секунд.';
         if(code==='groq-api-key-missing') return 'Groq пока не подключён к приложению.';
         if(code==='recipe-ai-timeout') return 'ИИ отвечает слишком долго. Попробуй ещё раз.';
-        if(code==='recipe-ai-busy') return 'ИИ сейчас перегружен. Попробуй ещё раз через несколько секунд.';
         if(code==='recipe-ai-unavailable') return 'ИИ временно недоступен. Попробуй ещё раз.';
         return 'Не удалось сгенерировать рецепт. Попробуй ещё раз.';
       }

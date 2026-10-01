@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   DEFAULT_MODEL,
+  FALLBACK_MODEL,
   normalizeRecipeRequest,
   normalizeStepList,
   generateRecipeSuggestions,
@@ -109,10 +110,11 @@ test('detail is generated with a separate short Groq request', async () => {
     calls += 1;
     assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
     const body = JSON.parse(options.body);
-    assert.equal(body.max_completion_tokens, 2200);
+    assert.equal(body.max_completion_tokens, 2800);
     assert.equal(body.response_format.json_schema.strict, true);
     assert.ok(body.response_format.json_schema.schema.properties.recipe.properties.ingredients);
-    assert.equal(body.response_format.json_schema.schema.properties.recipe.properties.steps.minItems, 3);
+    assert.equal(body.response_format.json_schema.schema.properties.recipe.properties.steps.minItems, 1);
+    assert.equal(body.response_format.json_schema.schema.properties.recipe.properties.steps.maxItems, 12);
     assert.match(body.messages[0].content, /Выбранное блюдо: Чахохбили/);
 
     return {
@@ -181,23 +183,59 @@ test('Groq key is required and Gemini key is not used', async () => {
   );
 });
 
-test('Groq 429 remains an explicit quota error', async () => {
-  const fakeFetch = async () => ({
-    ok: false,
-    status: 429,
-    async text() { return ''; },
-  });
+test('Groq 429 falls back to the secondary model instead of exposing a daily quota', async () => {
+  const models = [];
+  let calls = 0;
+  const fakeFetch = async (_url, options) => {
+    calls += 1;
+    const body = JSON.parse(options.body);
+    models.push(body.model);
+    if (calls === 1) {
+      return {
+        ok: false,
+        status: 429,
+        headers: { get: () => '0' },
+        async text() { return ''; },
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      async json() { return suggestionPayload('Омлет', 5); },
+    };
+  };
+
+  const result = await generateRecipeSuggestions({
+    ...baseRequest,
+    ingredients: 'яйца, сыр',
+    meal: 'breakfast',
+    cuisine: 'russian',
+    timeMinutes: 5,
+  }, { apiKey: 'secret-key', fetch: fakeFetch });
+
+  assert.equal(calls, 2);
+  assert.deepEqual(models, [DEFAULT_MODEL, FALLBACK_MODEL]);
+  assert.equal(result.model, FALLBACK_MODEL);
+  assert.equal(result.recipes.length, 4);
+});
+
+test('rate limits on both recipe models become a temporary busy error', async () => {
+  let calls = 0;
+  const fakeFetch = async () => {
+    calls += 1;
+    return {
+      ok: false,
+      status: 429,
+      headers: { get: () => '0' },
+      async text() { return ''; },
+    };
+  };
 
   await assert.rejects(
-    generateRecipeSuggestions({
-      ...baseRequest,
-      ingredients: 'яйца, сыр',
-      meal: 'breakfast',
-      cuisine: 'russian',
-      timeMinutes: 5,
-    }, { apiKey: 'secret-key', fetch: fakeFetch }),
-    /recipe-ai-quota/
+    generateRecipeSuggestions(baseRequest, { apiKey: 'secret-key', fetch: fakeFetch }),
+    /recipe-ai-busy/
   );
+  assert.equal(calls, 2);
 });
 
 

@@ -95,3 +95,8 @@ test('fasting tracker button is removed from Kitchen without removing the tracke
   assert.match(html, /id="fastingPage"/);
   assert.doesNotMatch(html, /gemini\.google\.com\/share\/a09a924c005c/);
 });
+
+test('recipe UI has no fake daily AI limit message', () => {
+  assert.doesNotMatch(js, /Бесплатный лимит ИИ на сегодня закончился/);
+  assert.match(js, /ИИ временно занят\. Попробуй ещё раз через несколько секунд/);
+});

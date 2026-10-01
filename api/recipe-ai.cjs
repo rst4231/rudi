@@ -1,4 +1,5 @@
 const DEFAULT_MODEL = 'openai/gpt-oss-20b';
+const FALLBACK_MODEL = 'openai/gpt-oss-120b';
 const COOK_TIMES = [5, 10, 15, 30, 45];
 const TIME_WINDOWS = Object.freeze({
   5: { min: 1, max: 5 },
@@ -117,6 +118,7 @@ function detailPrompt(input) {
     req.summary ? 'Описание варианта: ' + req.summary : '',
     '',
     'Дай точные количества ингредиентов, список того, что нужно докупить, и 3–8 понятных шагов.',
+    'Всегда заполняй все поля JSON. missing и tips должны присутствовать даже если это пустые массивы.',
     'Каждый элемент steps должен быть одним отдельным действием. Никогда не складывай несколько нумерованных шагов в одну строку.',
     'Шаги должны идти в правильном порядке и быть достаточно подробными, чтобы по ним реально приготовить блюдо.',
     'Для духовки укажи температуру в нужном шаге.',
@@ -343,7 +345,7 @@ function detailSchema(requestOrMaxTime) {
             },
           },
           missing: { type: 'array', maxItems: 10, items: { type: 'string' } },
-          steps: { type: 'array', minItems: 3, maxItems: 8, items: { type: 'string' } },
+          steps: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string' } },
           tips: { type: 'array', maxItems: 3, items: { type: 'string' } },
         },
         required: ['title', 'summary', 'timeMinutes', 'difficulty', 'ingredients', 'missing', 'steps', 'tips'],
@@ -361,7 +363,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function callGroqModel({ mode, request, apiKey, fetchImpl, timeoutMs, strictRetry = false }) {
+async function callGroqModel({ mode, request, apiKey, fetchImpl, timeoutMs, model = DEFAULT_MODEL, strictRetry = false }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.max(2500, timeoutMs));
   const isDetail = mode === 'detail';
@@ -376,7 +378,7 @@ async function callGroqModel({ mode, request, apiKey, fetchImpl, timeoutMs, stri
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model,
         messages: [{
           role: 'user',
           content: [
@@ -392,7 +394,7 @@ async function callGroqModel({ mode, request, apiKey, fetchImpl, timeoutMs, stri
         reasoning_effort: 'low',
         include_reasoning: false,
         temperature: strictRetry ? 0.7 : 0.4,
-        max_completion_tokens: isDetail ? 2200 : 850,
+        max_completion_tokens: isDetail ? 2800 : 850,
         stream: false,
         response_format: {
           type: 'json_schema',
@@ -411,17 +413,24 @@ async function callGroqModel({ mode, request, apiKey, fetchImpl, timeoutMs, stri
     clearTimeout(timeout);
   }
 
-  if (response.status === 429) throw new Error('recipe-ai-quota');
+  if (response.status === 429) {
+    const retryAfterSeconds = Number(response.headers?.get?.('retry-after') || 0);
+    const error = new Error('recipe-ai-rate-limited');
+    error.retryAfterMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? Math.min(2500, Math.ceil(retryAfterSeconds * 1000))
+      : 350;
+    throw error;
+  }
 
   if ([500, 502, 503, 504].includes(response.status)) {
     const detail = await response.text().catch(() => '');
-    console.warn('RUDI_RECIPE_AI_PROVIDER_WARN', mode, DEFAULT_MODEL, response.status, detail.slice(0, 400));
+    console.warn('RUDI_RECIPE_AI_PROVIDER_WARN', mode, model, response.status, detail.slice(0, 400));
     throw new Error('recipe-ai-busy');
   }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    console.warn('RUDI_RECIPE_AI_PROVIDER_WARN', mode, DEFAULT_MODEL, response.status, detail.slice(0, 400));
+    console.warn('RUDI_RECIPE_AI_PROVIDER_WARN', mode, model, response.status, detail.slice(0, 400));
     if (response.status === 400 && /json_validate_failed|failed_generation|schema/i.test(detail)) {
       throw new Error('recipe-ai-structured-output');
     }
@@ -447,24 +456,60 @@ async function runWithRetry(mode, input, options = {}) {
   const timeoutMs = mode === 'detail'
     ? Math.max(5000, Number(options.detailTimeoutMs) || 15000)
     : Math.max(4000, Number(options.suggestionTimeoutMs) || 10000);
-  const maxAttempts = mode === 'suggestions' ? 4 : 2;
+  const defaultModels = mode === 'detail'
+    ? [FALLBACK_MODEL, DEFAULT_MODEL]
+    : [DEFAULT_MODEL, FALLBACK_MODEL];
+  const models = (Array.isArray(options.models) ? options.models : defaultModels)
+    .map((value) => cleanText(value, 120))
+    .filter(Boolean);
+  if (!models.length) models.push(DEFAULT_MODEL);
+
+  const maxAttempts = mode === 'suggestions' ? 3 : 3;
   let lastError = null;
+  let modelIndex = 0;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const model = models[Math.min(modelIndex, models.length - 1)];
     try {
-      const result = await callGroqModel({ mode, request, apiKey, fetchImpl, timeoutMs, strictRetry: attempt > 0 });
-      if (attempt > 0) console.info('RUDI_RECIPE_AI_RECOVERED', mode, DEFAULT_MODEL, 'attempt', attempt + 1);
-      return { ...result, model: DEFAULT_MODEL, provider: 'groq' };
+      const result = await callGroqModel({
+        mode,
+        request,
+        apiKey,
+        fetchImpl,
+        timeoutMs,
+        model,
+        strictRetry: attempt > 0,
+      });
+      if (attempt > 0) console.info('RUDI_RECIPE_AI_RECOVERED', mode, model, 'attempt', attempt + 1);
+      return { ...result, model, provider: 'groq' };
     } catch (error) {
       lastError = error;
       const code = String(error?.message || error);
-      console.warn('RUDI_RECIPE_AI_ATTEMPT_FAIL', mode, DEFAULT_MODEL, 'attempt', attempt + 1, code);
+      console.warn('RUDI_RECIPE_AI_ATTEMPT_FAIL', mode, model, 'attempt', attempt + 1, code);
+
+      if (code === 'recipe-ai-rate-limited') {
+        if (modelIndex + 1 < models.length) {
+          modelIndex += 1;
+          await sleep(Math.min(800, Math.max(100, Number(error?.retryAfterMs) || 350)));
+          continue;
+        }
+        throw new Error('recipe-ai-busy');
+      }
+
       const retryable = [
         'recipe-ai-busy', 'recipe-ai-timeout', 'recipe-ai-unavailable', 'recipe-ai-invalid-json',
-        'recipe-ai-structured-output',         'recipe-ai-no-recipes', 'recipe-ai-duplicate-recipes', 'recipe-ai-repeat-recipes',
-        'recipe-ai-time-mismatch', 'recipe-ai-no-recipe', 'recipe-ai-steps-invalid',
+        'recipe-ai-structured-output', 'recipe-ai-no-recipes', 'recipe-ai-duplicate-recipes',
+        'recipe-ai-repeat-recipes', 'recipe-ai-time-mismatch', 'recipe-ai-no-recipe',
+        'recipe-ai-steps-invalid',
       ];
+
       if (attempt + 1 < maxAttempts && retryable.includes(code)) {
+        if (
+          modelIndex + 1 < models.length
+          && ['recipe-ai-busy', 'recipe-ai-timeout', 'recipe-ai-unavailable', 'recipe-ai-structured-output'].includes(code)
+        ) {
+          modelIndex += 1;
+        }
         await sleep(['recipe-ai-busy', 'recipe-ai-timeout', 'recipe-ai-unavailable'].includes(code) ? 250 : 80);
         continue;
       }
@@ -472,6 +517,9 @@ async function runWithRetry(mode, input, options = {}) {
     }
   }
 
+  if (String(lastError?.message || lastError) === 'recipe-ai-rate-limited') {
+    throw new Error('recipe-ai-busy');
+  }
   throw lastError || new Error('recipe-ai-provider');
 }
 
@@ -485,6 +533,7 @@ function generateRecipeDetail(input, options = {}) {
 
 module.exports = {
   DEFAULT_MODEL,
+  FALLBACK_MODEL,
   COOK_TIMES,
   TIME_WINDOWS,
   EQUIPMENT,
