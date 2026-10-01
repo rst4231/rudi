@@ -18,6 +18,7 @@ const { telegramSendMessage, escapeTelegramHtml } = require('./telegram-notifica
 const { readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { loadCarTasks, serviceScheduleForMileage } = require('./car-client.cjs');
 const { readCarState } = require('./car-store.cjs');
+const { readUiPreferences } = require('./ui-preferences-store.cjs');
 
 const NAMESPACE = 'rudi-morning-summary-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -658,6 +659,7 @@ async function sendDailyMorningSummaries(options = {}) {
       failed: [],
       missingRecipients: [],
       skippedAlreadySent: [],
+      skippedDisabled: [],
       skippedRecovery: true,
       forced: Boolean(options.force),
       recoveryKey,
@@ -670,8 +672,15 @@ async function sendDailyMorningSummaries(options = {}) {
   const failed = [];
   const missingRecipients = [];
   const skippedAlreadySent = [];
+  const skippedDisabled = [];
+  const readPreferences = options.readUiPreferencesImpl || readUiPreferences;
 
   for (const actor of ACTORS) {
+    const preferences = await readPreferences(actor, options).catch(() => null);
+    if (preferences?.morningSummaryEnabled === false) {
+      skippedDisabled.push(actor);
+      continue;
+    }
     const chatId = Number(recipients?.[actor]);
     if (!Number.isInteger(chatId) || chatId <= 0) {
       missingRecipients.push(actor);
@@ -722,6 +731,7 @@ async function sendDailyMorningSummaries(options = {}) {
       failed,
       missingRecipients,
       skippedAlreadySent,
+      skippedDisabled,
       forced: Boolean(options.force),
       recoveryKey: recoveryKey || null,
       date,
@@ -742,6 +752,7 @@ async function sendDailyMorningSummaries(options = {}) {
     failed,
     missingRecipients,
     skippedAlreadySent,
+    skippedDisabled,
     skippedRecovery: false,
     forced: Boolean(options.force),
     recoveryKey: recoveryKey || null,

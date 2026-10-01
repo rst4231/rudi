@@ -321,15 +321,41 @@ async function sendActivityNotification(text, _tab, options = {}) {
   }
 }
 
+async function sendRewardNotificationToEnabledRecipients(text, options = {}) {
+  const recipients=options.recipients||await readRecipients(options)||{};
+  const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
+  const send=options.telegramSendMessageImpl||telegramSendMessage;
+  const results=[];
+  for(const recipient of ['Рустам','Диана']){
+    const preferences=await readPreferences(recipient,options).catch(()=>null);
+    if(preferences?.rewardNotificationsEnabled===false){
+      results.push({actor:recipient,sent:false,reason:'disabled'});
+      continue;
+    }
+    const chatId=Number(recipients?.[recipient]);
+    if(!Number.isInteger(chatId)||chatId<=0){
+      results.push({actor:recipient,sent:false,reason:'recipient-not-configured'});
+      continue;
+    }
+    try{
+      const result=await send(chatId,text,{...options,tab:'home',buttonText:'Открыть RUDI'});
+      results.push({actor:recipient,sent:true,...result});
+    }catch(error){
+      results.push({actor:recipient,sent:false,error:String(error?.message||error)});
+    }
+  }
+  return results;
+}
+
 async function sendRewardRedeemedNotification(actor, reward, options = {}) {
   try {
     const label=escapeTelegramHtml(String(reward?.label||'Награда'));
     const icon=String(reward?.icon||'🎁');
     const cost=pointsFromUnits(reward?.costUnits||0);
     const verb=activityVerb(actor,'активировал','активировала');
-    return await sendToAllRecipients(
+    return await sendRewardNotificationToEnabledRecipients(
       `🎁 <b>${escapeTelegramHtml(actor)} ${verb} награду</b>\n\n${icon} <b>${label}</b>\nСписано: <b>${cost} звезд</b>`,
-      {...options,tab:'home',buttonText:'Открыть RUDI'}
+      options
     );
   } catch (error) {
     console.warn('RUDI_REWARD_REDEEM_NOTIFICATION_WARN', String(error?.message || error));
@@ -342,9 +368,9 @@ async function sendRewardCompletedNotification(actor, redemption, options = {}) 
     const label=escapeTelegramHtml(String(redemption?.label||'Награда'));
     const buyer=escapeTelegramHtml(String(redemption?.buyerActor||''));
     const confirmVerb=activityVerb(actor,'Подтвердил','Подтвердила');
-    return await sendToAllRecipients(
+    return await sendRewardNotificationToEnabledRecipients(
       `✅ <b>Награда выполнена</b>\n\n${String(redemption?.icon||'🎁')} <b>${label}</b>\nДля: <b>${buyer}</b>\n${confirmVerb}: <b>${escapeTelegramHtml(actor)}</b>`,
-      {...options,tab:'home',buttonText:'Открыть RUDI'}
+      options
     );
   } catch (error) {
     console.warn('RUDI_REWARD_COMPLETE_NOTIFICATION_WARN', String(error?.message || error));
@@ -473,6 +499,11 @@ async function sendDailyQuestionAnswerNotification(actor,options={}) {
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   try{
+    const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
+    const preferences=await readPreferences(recipient,options).catch(()=>null);
+    if(preferences?.dailyQuestionNotificationEnabled===false){
+      return {sent:false,recipient,reason:'disabled'};
+    }
     const action=actor==='Диана'?'ответила':'ответил';
     const sendPush=options.sendPushNotificationImpl||sendPushNotification;
     const result=await sendPush(recipient,{
@@ -3716,6 +3747,8 @@ module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.sendWishlistNotificationToPartner = sendWishlistNotificationToPartner;
 module.exports.dailyQuestionAnswerNotificationText = dailyQuestionAnswerNotificationText;
 module.exports.sendDailyQuestionAnswerNotification = sendDailyQuestionAnswerNotification;
+module.exports.sendRewardRedeemedNotification = sendRewardRedeemedNotification;
+module.exports.sendRewardCompletedNotification = sendRewardCompletedNotification;
 module.exports.moodNotificationText = moodNotificationText;
 module.exports.sendMoodNotificationToPartner = sendMoodNotificationToPartner;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;

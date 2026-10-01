@@ -696,6 +696,21 @@
         return 'rudi:humidity-alert-enabled:v1:'+actor;
       }
 
+      function morningSummaryStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:morning-summary-enabled:v1:'+actor;
+      }
+
+      function rewardNotificationsStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:reward-notifications-enabled:v1:'+actor;
+      }
+
+      function dailyQuestionNotificationStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:daily-question-notification-enabled:v1:'+actor;
+      }
+
       function interfaceTextSizeStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:interface-text-size:v1:'+actor;
@@ -789,6 +804,30 @@
         if(!currentActor) return true;
         try{
           const value=localStorage.getItem(humidityAlertStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
+      }
+
+      function morningSummaryEnabled(){
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(morningSummaryStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
+      }
+
+      function rewardNotificationsEnabled(){
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(rewardNotificationsStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
+      }
+
+      function dailyQuestionNotificationEnabled(){
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(dailyQuestionNotificationStorageKey());
           return value===null?true:value!=='0';
         }catch(_){return true}
       }
@@ -926,6 +965,9 @@
         let moodNotifyPartnerEnabledValue=false;
         let moodReceivePartnerEnabledValue=false;
         let humidityAlertEnabledValue=true;
+        let morningSummaryEnabledValue=true;
+        let rewardNotificationsEnabledValue=true;
+        let dailyQuestionNotificationEnabledValue=true;
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
@@ -941,9 +983,12 @@
         try{moodNotifyPartnerEnabledValue=moodNotifyPartnerEnabled()}catch(_){}
         try{moodReceivePartnerEnabledValue=moodReceivePartnerEnabled()}catch(_){}
         try{humidityAlertEnabledValue=humidityAlertEnabled()}catch(_){}
+        try{morningSummaryEnabledValue=morningSummaryEnabled()}catch(_){}
+        try{rewardNotificationsEnabledValue=rewardNotificationsEnabled()}catch(_){}
+        try{dailyQuestionNotificationEnabledValue=dailyQuestionNotificationEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:4,
+          syncSchemaVersion:5,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
@@ -955,6 +1000,9 @@
           moodNotifyPartnerEnabled:moodNotifyPartnerEnabledValue,
           moodReceivePartnerEnabled:moodReceivePartnerEnabledValue,
           humidityAlertEnabled:humidityAlertEnabledValue,
+          morningSummaryEnabled:morningSummaryEnabledValue,
+          rewardNotificationsEnabled:rewardNotificationsEnabledValue,
+          dailyQuestionNotificationEnabled:dailyQuestionNotificationEnabledValue,
           updatedAt
         };
       }
@@ -978,8 +1026,11 @@
         const hasRemoteMoodNotify=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodNotifyPartnerEnabled');
         const hasRemoteMoodReceive=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodReceivePartnerEnabled');
         const hasRemoteHumidityAlert=remoteSchema>=4&&Object.prototype.hasOwnProperty.call(remote,'humidityAlertEnabled');
+        const hasRemoteMorningSummary=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'morningSummaryEnabled');
+        const hasRemoteRewardNotifications=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'rewardNotificationsEnabled');
+        const hasRemoteDailyQuestionNotification=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'dailyQuestionNotificationEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -1034,8 +1085,17 @@
           if(hasRemoteHumidityAlert){
             localStorage.setItem(humidityAlertStorageKey(),remote.humidityAlertEnabled===false?'0':'1');
           }
+          if(hasRemoteMorningSummary){
+            localStorage.setItem(morningSummaryStorageKey(),remote.morningSummaryEnabled===false?'0':'1');
+          }
+          if(hasRemoteRewardNotifications){
+            localStorage.setItem(rewardNotificationsStorageKey(),remote.rewardNotificationsEnabled===false?'0':'1');
+          }
+          if(hasRemoteDailyQuestionNotification){
+            localStorage.setItem(dailyQuestionNotificationStorageKey(),remote.dailyQuestionNotificationEnabled===false?'0':'1');
+          }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<4){
+          if(keepLocalOrder||remoteSchema<5){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             markUiPreferencesChanged();
           }
@@ -1082,6 +1142,7 @@
         updateAutoRefreshUi();
         updateMoodNotificationSettingsUi();
         updateHumidityAlertSettingsUi();
+        updateGeneralNotificationSettingsUi();
         applyInterfacePreferences();
         if(document.querySelector('.products-history')) setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
         if(document.querySelector('.fasting-history-card')) setFastingHistoryCollapsed(readFastingHistoryCollapsed(),{persist:false});
@@ -4380,6 +4441,18 @@
                 '<button id="settingsHumidityAlertToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о низкой влажности дома"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Утренняя сводка</strong><small>Получать ежедневную утреннюю сводку</small></div>'+
+                '<button id="settingsMorningSummaryToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Утренняя сводка"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Награды</strong><small>Получать уведомления об активации и выполнении наград</small></div>'+
+                '<button id="settingsRewardNotificationsToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о наградах"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Ответ на вопрос дня</strong><small>Присылать push, когда партнёр ответил</small></div>'+
+                '<button id="settingsDailyQuestionNotificationToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления об ответе партнёра на вопрос дня"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Push-уведомления</strong><small id="settingsAppBadgeStatus">Получать уведомления RUDI на этом устройстве</small></div>'+
                 '<button id="settingsAppBadgeEnable" class="settings-pwa-install" type="button">Разрешить</button>'+
               '</div>'+
@@ -4971,7 +5044,40 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(humidityAlertStorageKey(),next?'1':'0')}catch(_){}
         updateHumidityAlertSettingsUi();
-        if(currentActor) markUiPreferencesChanged({humidityAlertEnabled:next,syncSchemaVersion:4});
+        if(currentActor) markUiPreferencesChanged({humidityAlertEnabled:next,syncSchemaVersion:5});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function updateGeneralNotificationSettingsUi(){
+        const morning=document.getElementById('settingsMorningSummaryToggle');
+        const rewards=document.getElementById('settingsRewardNotificationsToggle');
+        const question=document.getElementById('settingsDailyQuestionNotificationToggle');
+        if(morning) morning.setAttribute('aria-checked',morningSummaryEnabled()?'true':'false');
+        if(rewards) rewards.setAttribute('aria-checked',rewardNotificationsEnabled()?'true':'false');
+        if(question) question.setAttribute('aria-checked',dailyQuestionNotificationEnabled()?'true':'false');
+      }
+
+      function setMorningSummaryEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(morningSummaryStorageKey(),next?'1':'0')}catch(_){}
+        updateGeneralNotificationSettingsUi();
+        if(currentActor) markUiPreferencesChanged({morningSummaryEnabled:next,syncSchemaVersion:5});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setRewardNotificationsEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(rewardNotificationsStorageKey(),next?'1':'0')}catch(_){}
+        updateGeneralNotificationSettingsUi();
+        if(currentActor) markUiPreferencesChanged({rewardNotificationsEnabled:next,syncSchemaVersion:5});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setDailyQuestionNotificationEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(dailyQuestionNotificationStorageKey(),next?'1':'0')}catch(_){}
+        updateGeneralNotificationSettingsUi();
+        if(currentActor) markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:5});
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5121,6 +5227,21 @@
           humidityAlert.dataset.bound='1';
           humidityAlert.addEventListener('click',()=>setHumidityAlertEnabled(!humidityAlertEnabled()));
         }
+        const morningSummary=document.getElementById('settingsMorningSummaryToggle');
+        if(morningSummary&&morningSummary.dataset.bound!=='1'){
+          morningSummary.dataset.bound='1';
+          morningSummary.addEventListener('click',()=>setMorningSummaryEnabled(!morningSummaryEnabled()));
+        }
+        const rewardNotifications=document.getElementById('settingsRewardNotificationsToggle');
+        if(rewardNotifications&&rewardNotifications.dataset.bound!=='1'){
+          rewardNotifications.dataset.bound='1';
+          rewardNotifications.addEventListener('click',()=>setRewardNotificationsEnabled(!rewardNotificationsEnabled()));
+        }
+        const dailyQuestionNotification=document.getElementById('settingsDailyQuestionNotificationToggle');
+        if(dailyQuestionNotification&&dailyQuestionNotification.dataset.bound!=='1'){
+          dailyQuestionNotification.dataset.bound='1';
+          dailyQuestionNotification.addEventListener('click',()=>setDailyQuestionNotificationEnabled(!dailyQuestionNotificationEnabled()));
+        }
         const appBadge=document.getElementById('settingsAppBadgeEnable');
         if(appBadge&&appBadge.dataset.bound!=='1'){
           appBadge.dataset.bound='1';
@@ -5149,6 +5270,8 @@
         }
         updateAutoRefreshUi();
         updateMoodNotificationSettingsUi();
+        updateHumidityAlertSettingsUi();
+        updateGeneralNotificationSettingsUi();
         applyInterfacePreferences();
         updateDataSettingsUi();
         updateAboutSettingsUi();
