@@ -454,6 +454,7 @@
     const anchor=article.querySelector('.messenger-bubble')||article;
     const articleRect=anchor.getBoundingClientRect?.();
     if(!pageRect||!articleRect) return;
+    menu.style.visibility='hidden';
     requestAnimationFrame(()=>{
       const width=Math.max(220,Math.min(280,menu.offsetWidth||280));
       const height=Math.max(44,menu.offsetHeight||44);
@@ -471,51 +472,48 @@
       menu.style.top=top+'px';
       menu.style.bottom='auto';
       menu.dataset.placement=openAbove?'above':'below';
+      menu.style.visibility='visible';
     });
   }
 
-  function showReactionPicker(row,article){
-    const menu=ensureContextMenu();
-    menu.replaceChildren();
-    const title=document.createElement('div');
-    title.className='messenger-context-title';
-    title.textContent='Реакция';
+  function appendContextReactionTray(menu,row){
     const tray=document.createElement('div');
-    tray.className='messenger-reaction-picker';
+    tray.className='messenger-reaction-picker is-context';
     for(const emoji of REACTIONS){
       const button=document.createElement('button');
       button.type='button';
       button.textContent=emoji;
+      button.setAttribute('aria-label','Реакция '+emoji);
       const actors=Array.isArray(row?.reactions?.[emoji])?row.reactions[emoji]:[];
       if(actors.includes(state.actor)) button.classList.add('is-selected');
       button.addEventListener('click',event=>{
+        event.preventDefault();
         event.stopPropagation();
         hideContextMenu();
         setMessageReaction(row,emoji);
       });
       tray.appendChild(button);
     }
-    menu.append(title,tray);
-    menu.hidden=false;
-    positionContextMenu(menu,article);
+    menu.appendChild(tray);
   }
 
   function showMessageContext(article,row,payload){
     if(!article||!row||!payload) return;
     const menu=ensureContextMenu();
     menu.replaceChildren();
+
+    appendContextReactionTray(menu,row);
+
     const actions=row.sender===state.actor
       ?[
         ['Ответить',()=>setReply(row,payload)],
         ['Копировать',()=>copyMessageText(payload.text)],
-        ['Реакция',()=>showReactionPicker(row,article)],
         ['Редактировать',()=>startMessageEdit(row,payload)],
         ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
       ]
       :[
         ['Ответить',()=>setReply(row,payload)],
         ['Копировать',()=>copyMessageText(payload.text)],
-        ['Реакция',()=>showReactionPicker(row,article)],
       ];
     for(const [label,handler,className] of actions){
       const button=document.createElement('button');
@@ -523,18 +521,21 @@
       button.textContent=label;
       if(className) button.classList.add(className);
       button.addEventListener('click',event=>{
+        event.preventDefault();
         event.stopPropagation();
-        if(label!=='Реакция') hideContextMenu();
+        hideContextMenu();
         handler();
       });
       menu.appendChild(button);
     }
+    menu.style.visibility='hidden';
     menu.hidden=false;
     positionContextMenu(menu,article);
     article.classList.add('is-long-press');
     setTimeout(()=>article.classList.remove('is-long-press'),180);
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
   }
+
 
   function bindLongPressContext(article,row,payload){
     if(!article||!row||!payload) return;
