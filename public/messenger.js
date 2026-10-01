@@ -617,7 +617,9 @@
   function syncMessengerViewport(){
     const viewport=window.visualViewport;
     const height=Math.max(320,Math.round(Number(viewport?.height||window.innerHeight||0)));
+    const top=Math.max(0,Math.round(Number(viewport?.offsetTop||0)));
     document.documentElement.style.setProperty('--messenger-viewport-height',height+'px');
+    document.documentElement.style.setProperty('--messenger-viewport-top',top+'px');
   }
 
   syncMessengerViewport();
