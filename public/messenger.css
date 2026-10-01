@@ -89,7 +89,7 @@
 }
 .messenger-empty[hidden]{display:none!important}
 .messenger-message{
-  width:min(86%,520px);
+  width:min(84%,520px);
   display:flex;
   align-items:flex-end;
   gap:5px;
@@ -97,46 +97,103 @@
 .messenger-message.is-own{align-self:flex-end;flex-direction:row-reverse}
 .messenger-message.is-partner{align-self:flex-start}
 .messenger-bubble{
-  min-width:74px;
+  position:relative;
+  min-width:46px;
   max-width:100%;
   display:grid;
   gap:5px;
-  padding:9px 10px 6px;
-  border:1px solid var(--line);
-  border-radius:16px 16px 16px 5px;
-  background:color-mix(in srgb,var(--surface-strong) 98%,var(--surface));
-  box-shadow:0 5px 16px rgba(20,24,36,.06);
+  padding:9px 13px 8px;
+  border:0;
+  border-radius:20px;
+  background:#e9e9eb;
+  color:#000;
+  box-shadow:none;
+}
+.messenger-message.is-partner .messenger-bubble{
+  border-bottom-left-radius:5px;
+}
+.messenger-message.is-partner .messenger-bubble::before{
+  content:'';
+  position:absolute;
+  left:-7px;
+  bottom:0;
+  width:14px;
+  height:18px;
+  background:#e9e9eb;
+  border-bottom-right-radius:13px 11px;
+  z-index:-1;
+}
+.messenger-message.is-partner .messenger-bubble::after{
+  content:'';
+  position:absolute;
+  left:-10px;
+  bottom:-1px;
+  width:10px;
+  height:20px;
+  background:var(--bg);
+  border-bottom-right-radius:10px 12px;
+  z-index:-1;
 }
 .messenger-message.is-own .messenger-bubble{
-  border-color:color-mix(in srgb,var(--accent) 24%,var(--line));
-  border-radius:16px 16px 5px 16px;
-  background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 88%,var(--surface)),color-mix(in srgb,var(--accent-soft) 52%,var(--surface)));
+  border-bottom-right-radius:5px;
+  background:linear-gradient(180deg,#149bff 0%,#0a84ff 100%);
+  color:#fff;
+}
+.messenger-message.is-own .messenger-bubble::before{
+  content:'';
+  position:absolute;
+  right:-7px;
+  bottom:0;
+  width:14px;
+  height:18px;
+  background:#0a84ff;
+  border-bottom-left-radius:13px 11px;
+  z-index:-1;
+}
+.messenger-message.is-own .messenger-bubble::after{
+  content:'';
+  position:absolute;
+  right:-10px;
+  bottom:-1px;
+  width:10px;
+  height:20px;
+  background:var(--bg);
+  border-bottom-left-radius:10px 12px;
+  z-index:-1;
 }
 .messenger-message-text{
-  color:var(--text);
-  font-size:13px;
-  line-height:1.38;
-  font-weight:560;
+  color:inherit;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.28;
+  font-weight:400;
+  letter-spacing:-.012em;
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   user-select:none;
   -webkit-user-select:none;
 }
-.messenger-message-text.is-unavailable{color:var(--muted);font-style:italic}
+.messenger-message-text.is-unavailable{color:#777;font-style:italic}
+.messenger-message.is-own .messenger-message-text.is-unavailable{color:rgba(255,255,255,.78)}
 .messenger-message-text a{
-  color:color-mix(in srgb,var(--accent) 80%,var(--text));
+  color:#007aff;
   text-decoration:underline;
   text-decoration-thickness:1px;
   text-underline-offset:2px;
   overflow-wrap:anywhere;
 }
+.messenger-message.is-own .messenger-message-text a{color:#fff}
 .messenger-quote{
   display:grid;
   gap:2px;
   padding:5px 7px;
-  border-left:2px solid color-mix(in srgb,var(--accent) 68%,transparent);
+  border-left:2px solid #8e8e93;
   border-radius:7px;
-  background:rgba(127,132,255,.08);
+  background:rgba(0,0,0,.055);
+}
+.messenger-message.is-own .messenger-quote{
+  border-left-color:rgba(255,255,255,.82);
+  background:rgba(255,255,255,.14);
 }
 .messenger-quote strong{
   color:color-mix(in srgb,var(--accent) 74%,var(--text));
@@ -160,12 +217,14 @@
   justify-content:flex-end;
   gap:5px;
   min-height:10px;
-  color:var(--muted);
-  font-size:7.8px;
+  color:#7c7c80;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  font-size:9px;
   line-height:1;
-  font-weight:650;
+  font-weight:500;
 }
-.messenger-read-status{color:color-mix(in srgb,var(--accent) 60%,var(--muted))}
+.messenger-message.is-own .messenger-message-meta{color:rgba(255,255,255,.72)}
+.messenger-read-status{color:inherit}
 .messenger-reaction{
   justify-self:start;
   margin-top:-1px;
