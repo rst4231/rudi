@@ -23,9 +23,9 @@ function calendarOptions(cache,calls,now,events=[]){
         {date:'2026-09-25',working:events.length>0,events},
       ],
     }),
-    telegramSendMessage:async(chatId,text)=>{
-      calls.push({chatId,text});
-      return {chatId,messageId:calls.length};
+    sendPushNotification:async(actor,payload)=>{
+      calls.push({actor,payload});
+      return {sent:true,actor,delivered:1};
     },
   };
 }
@@ -49,12 +49,15 @@ test('100% Lulu alert goes to Rustam while Diana is inside her shift',async()=>{
   ));
   assert.equal(result.targetActor,'Рустам');
   assert.equal(result.routing.onShift,true);
-  assert.deepEqual(calls.map((row)=>row.chatId),[901637773]);
+  assert.deepEqual(calls.map((row)=>row.actor),['Рустам']);
 });
 
 test('100% Lulu alert goes to Diana before her shift starts',async()=>{
   const cache=memoryCache();
-  await makeOldWalk(cache);
+  await markLuluWalk('Рустам',{
+    luluCache:cache,
+    now:Date.parse('2026-09-25T02:00:00.000Z'),
+  });
   const calls=[];
   const result=await runLuluToiletAlert(calendarOptions(
     cache,calls,'2026-09-25T08:30:00.000Z',
@@ -62,7 +65,7 @@ test('100% Lulu alert goes to Diana before her shift starts',async()=>{
   ));
   assert.equal(result.targetActor,'Диана');
   assert.equal(result.routing.onShift,false);
-  assert.deepEqual(calls.map((row)=>row.chatId),[941263519]);
+  assert.deepEqual(calls.map((row)=>row.actor),['Диана']);
 });
 
 test('100% Lulu alert goes to Diana after her shift ends',async()=>{
@@ -75,7 +78,7 @@ test('100% Lulu alert goes to Diana after her shift ends',async()=>{
   ));
   assert.equal(result.targetActor,'Диана');
   assert.equal(result.routing.onShift,false);
-  assert.deepEqual(calls.map((row)=>row.chatId),[941263519]);
+  assert.deepEqual(calls.map((row)=>row.actor),['Диана']);
 });
 
 test('100% Lulu alert goes to Diana on a day off',async()=>{
@@ -87,7 +90,7 @@ test('100% Lulu alert goes to Diana on a day off',async()=>{
   ));
   assert.equal(result.targetActor,'Диана');
   assert.equal(result.routing.onShift,false);
-  assert.deepEqual(calls.map((row)=>row.chatId),[941263519]);
+  assert.deepEqual(calls.map((row)=>row.actor),['Диана']);
 });
 
 test('overnight Diana shift routes alert to Rustam after midnight',async()=>{
@@ -110,7 +113,7 @@ test('overnight Diana shift routes alert to Rustam after midnight',async()=>{
   const result=await runLuluToiletAlert(options);
   assert.equal(result.targetActor,'Рустам');
   assert.equal(result.routing.onShift,true);
-  assert.deepEqual(calls.map((row)=>row.chatId),[901637773]);
+  assert.deepEqual(calls.map((row)=>row.actor),['Рустам']);
 });
 
 test('one walk produces only one 100% alert even after shift state changes',async()=>{
@@ -143,5 +146,5 @@ test('100% Lulu alert falls back to Rustam if work calendar cannot be read',asyn
   assert.equal(result.targetActor,'Рустам');
   assert.equal(result.routing.fallback,true);
   assert.equal(result.routing.reason,'work-calendar-error');
-  assert.deepEqual(calls.map((row)=>row.chatId),[901637773]);
+  assert.deepEqual(calls.map((row)=>row.actor),['Рустам']);
 });

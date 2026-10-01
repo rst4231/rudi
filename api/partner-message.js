@@ -103,6 +103,7 @@ const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
+const { publicApplicationServerKey, savePushSubscription, resolvePushActor, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
 const CYCLE_BOOTSTRAP_HASH = '12818afbe0d73e63efcf5ab9f181ff8e6b9d48cdbcaf126bddeadac611818de5';
@@ -299,33 +300,16 @@ function backupSnapshotWithPin(snapshot, actor, record) {
 }
 
 async function sendPartnerMessageNotification(actor, options = {}) {
-  const recipients = await readRecipients(options);
   const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
-  const chatId = recipientFor(actor, recipients);
-  if (!recipientActor || !chatId) return { sent: false, reason: 'recipient-not-configured' };
-
-  const previous = await readMessageNotice(recipientActor, options).catch(() => null);
-
-  const sent = await telegramSendMessage(
-    chatId,
-    `💌 <b>${recipientActor}, для вас оставлено новое послание</b>\n\n<i>Откройте RUDI, чтобы прочитать.</i>`,
-    {
-      ...options,
-      tab: 'home',
-      buttonText: 'Открыть RUDI',
-    }
-  );
-  if (previous?.messageId && previous.messageId !== sent.messageId) {
-    try {
-      await telegramDeleteMessage(previous.chatId || chatId, previous.messageId, options);
-    } catch (error) {
-      console.warn('RUDI_PARTNER_NOTIFICATION_DELETE_WARN', String(error?.message || error));
-    }
-  }
-  if (sent.messageId) {
-    await saveMessageNotice(recipientActor, { chatId, messageId: sent.messageId }, options);
-  }
-  return { sent: true, messageId: sent.messageId || null };
+  if (!recipientActor) return { sent: false, reason: 'actor-invalid' };
+  const verb = actor === 'Диана' ? 'оставила' : 'оставил';
+  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+  return sendPush(recipientActor, {
+    title: '💌 Новое послание',
+    body: actor + ' ' + verb + ' для тебя новое послание.',
+    tag: 'partner-message',
+    url: '/?item=partner',
+  }, options);
 }
 
 async function sendActivityNotification(text, _tab, options = {}) {
@@ -370,14 +354,18 @@ async function sendRewardCompletedNotification(actor, redemption, options = {}) 
 
 async function sendStarGiftNotification(result, options = {}) {
   try {
-    const from=escapeTelegramHtml(String(result?.from||''));
-    const to=escapeTelegramHtml(String(result?.to||''));
+    const from=String(result?.from||'');
+    const to=String(result?.to||'');
     const points=Number(result?.points||0);
     const verb=result?.from==='Диана'?'подарила':'подарил';
-    return await sendToAllRecipients(
-      `🎁 <b>${from} ${verb} ${to} ${points} ⭐</b>`,
-      {...options,tab:'home',buttonText:'Открыть RUDI'}
-    );
+    const payload={
+      title:'⭐ Подарок звёзд',
+      body:from+' '+verb+' '+to+' '+points+' ⭐',
+      tag:'star-gift',
+      url:'/?tab=score&item='+encodeURIComponent(to),
+    };
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    return await Promise.all(['Рустам','Диана'].map(actor=>sendPush(actor,payload,options)));
   } catch (error) {
     console.warn('RUDI_STAR_GIFT_NOTIFICATION_WARN',String(error?.message||error));
     return [];
@@ -432,34 +420,15 @@ async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) 
   const recipient = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
   if (!recipient) return { sent:false, reason:'actor-invalid' };
   try {
-    const recipients = options.recipients || await readRecipients(options);
-    const chatId = Number(recipients?.[recipient]);
-    if (!Number.isInteger(chatId) || chatId <= 0) {
-      return { sent:false, recipient, reason:'recipient-not-configured' };
-    }
-    const {
-      tab: _ignoredTab,
-      buttonText: _ignoredButtonText,
-      item: _ignoredItem,
-      ...notificationOptions
-    } = options;
-    const result = await telegramSendMessage(
-      chatId,
-      luluWalkNotificationText(actor),
-      notificationOptions
-    );
-    if (result?.messageId) {
-      try {
-        await saveLuluWalkNotice(walkedAt, {
-          recipient,
-          chatId,
-          messageId: result.messageId,
-        }, options);
-      } catch (error) {
-        console.warn('RUDI_LULU_NOTIFICATION_NOTICE_WARN', String(error?.message || error));
-      }
-    }
-    return { sent:true, recipient, ...result };
+    const action = actor === 'Диана' ? 'погуляла' : 'погулял';
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result = await sendPush(recipient, {
+      title: '🐾 Прогулка с Лулу',
+      body: actor + ' ' + action + ' с Лулу.',
+      tag: 'lulu-walk',
+      url: '/?item=lulu',
+    }, options);
+    return { ...result, recipient, walkedAt };
   } catch (error) {
     console.warn('RUDI_LULU_NOTIFICATION_WARN', String(error?.message || error));
     return { sent:false, recipient, error:String(error?.message || error) };
@@ -479,15 +448,16 @@ async function sendWishlistNotificationToPartner(owner, text, options = {}) {
   const recipient = owner === 'Рустам' ? 'Диана' : owner === 'Диана' ? 'Рустам' : '';
   if (!recipient) return { sent:false, reason:'actor-invalid' };
   try {
-    const recipients = options.recipients || await readRecipients(options);
-    const chatId = Number(recipients?.[recipient]);
-    if (!Number.isInteger(chatId) || chatId <= 0) return { sent:false, reason:'recipient-not-configured' };
-    const result = await telegramSendMessage(chatId, wishlistNotificationText(owner,text), {
-      ...options,
-      tab:'wishlist',
-      buttonText:'Открыть вишлист',
-    });
-    return { sent:true, recipient, ...result };
+    const action = owner === 'Диана' ? 'добавила' : 'добавил';
+    const item = String(text || '').trim();
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result = await sendPush(recipient, {
+      title: '🎁 Новое в вишлисте',
+      body: owner + ' ' + action + (item ? ': ' + item : ' новое желание.'),
+      tag: 'wishlist',
+      url: '/?tab=wishlist',
+    }, options);
+    return { ...result, recipient };
   } catch (error) {
     console.warn('RUDI_WISHLIST_NOTIFICATION_WARN', String(error?.message || error));
     return { sent:false, recipient, error:String(error?.message || error) };
@@ -503,15 +473,15 @@ async function sendDailyQuestionAnswerNotification(actor,options={}) {
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   try{
-    const recipients=options.recipients||await readRecipients(options);
-    const chatId=Number(recipients?.[recipient]);
-    if(!Number.isInteger(chatId)||chatId<=0) return {sent:false,recipient,reason:'recipient-not-configured'};
-    const result=await telegramSendMessage(
-      chatId,
-      dailyQuestionAnswerNotificationText(actor),
-      {...options,tab:'home',buttonText:'Открыть вопрос дня'}
-    );
-    return {sent:true,recipient,...result};
+    const action=actor==='Диана'?'ответила':'ответил';
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result=await sendPush(recipient,{
+      title:'💬 Ответ на вопрос дня',
+      body:actor+' '+action+'. Сам ответ откроется в RUDI, когда ответите вы оба.',
+      tag:'daily-question',
+      url:'/?item=daily-question',
+    },options);
+    return {...result,recipient};
   }catch(error){
     console.warn('RUDI_DAILY_QUESTION_NOTIFICATION_WARN',String(error?.message||error));
     return {sent:false,recipient,error:String(error?.message||error)};
@@ -924,12 +894,6 @@ async function sendMoodNotificationToPartner(actor, mood, options = {}) {
   const recipient = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
   if (!recipient) return { sent: false, reason: 'actor-invalid' };
   try {
-    const recipients = options.recipients || await readRecipients(options);
-    const chatId = Number(recipients?.[recipient]);
-    if (!Number.isInteger(chatId) || chatId <= 0) {
-      return { sent: false, reason: 'recipient-not-configured' };
-    }
-
     const fallback = moodNotificationText(recipient, actor, mood);
     let text = fallback;
     let aiGenerated = false;
@@ -947,9 +911,15 @@ async function sendMoodNotificationToPartner(actor, mood, options = {}) {
       console.warn('RUDI_MOOD_AI_FALLBACK', String(error?.message || error));
       text = fallback;
     }
-
-    const result = await telegramSendMessage(chatId, text, options);
-    return { sent: true, recipient, aiGenerated, ...result };
+    const item = actor === 'Диана' ? 'diana' : 'rustam';
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result = await sendPush(recipient, {
+      title: '🙂 Настроение партнёра',
+      body: stripTelegramHtml(text),
+      tag: 'partner-mood',
+      url: '/?item=' + item,
+    }, options);
+    return { ...result, recipient, aiGenerated };
   } catch (error) {
     console.warn('RUDI_MOOD_NOTIFICATION_WARN', String(error?.message || error));
     return { sent: false, recipient, error: String(error?.message || error) };
@@ -1794,6 +1764,49 @@ async function handleTickTick(req, res, action, options = {}) {
 }
 
 async function handleRudiAction(req, res, action, options = {}) {
+  if (['push-config','push-subscribe','push-unsubscribe','push-pending'].includes(action)) {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      let actor='';
+      if(action==='push-pending'){
+        actor=await resolvePushActor(body.endpoint,body.deviceToken,options);
+        if(!actor){
+          try{ actor=authorizeRequest(req,body.initData,options).actor; }catch(_){}
+        }
+        if(!actor) return res.status(401).json({ok:false,error:'push-device-unauthorized'});
+      }else{
+        actor=authorizeRequest(req,body.initData,options).actor;
+      }
+
+      if(action==='push-config'){
+        return res.status(200).json({ok:true,actor,publicKey:publicApplicationServerKey(options)});
+      }
+      if(action==='push-subscribe'){
+        const subscription=await savePushSubscription(actor,body.subscription,{
+          ...options,
+          userAgent:String(req.headers?.['user-agent']||''),
+          deviceToken:String(body.deviceToken||''),
+        });
+        return res.status(200).json({ok:true,actor,subscription:{id:subscription.id,updatedAt:subscription.updatedAt}});
+      }
+      if(action==='push-unsubscribe'){
+        const endpoint=String(body.endpoint||'').trim();
+        const subscriptions=await removePushSubscriptions(actor,endpoint,options);
+        return res.status(200).json({ok:true,actor,count:subscriptions.length});
+      }
+      const notifications=await readPendingPushNotifications(actor,{
+        ...options,
+        seenIds:Array.isArray(body.seenIds)?body.seenIds:[],
+      });
+      return res.status(200).json({ok:true,actor,notifications});
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=['push-subscription-invalid','push-device-token-required'].includes(code)?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
   if (action === 'cycle-bootstrap') {
     if (req.method !== 'GET' && req.method) return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {

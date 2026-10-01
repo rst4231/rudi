@@ -1,7 +1,6 @@
 const { readAppState, writeAppState } = require('./rudi-auth-db.cjs');
 const { readUiPreferences } = require('./ui-preferences-store.cjs');
-const { readRecipients } = require('./partner-notification-store.cjs');
-const { telegramSendMessage } = require('./telegram-notifications.cjs');
+const { sendPushNotification } = require('./web-push.cjs');
 
 const DB_ACTOR='Рустам';
 const DB_KEY='smart-home:humidity-alert';
@@ -67,9 +66,7 @@ async function evaluateHumidityAlert(snapshot,options={}){
     }
   }else if(humidity<LOW_THRESHOLD){
     const readPrefs=options.readUiPreferencesImpl||readUiPreferences;
-    const readRecipientsImpl=options.readRecipientsImpl||readRecipients;
-    const send=options.telegramSendMessageImpl||telegramSendMessage;
-    const recipients=await readRecipientsImpl(options).catch(()=>null);
+    const send=options.sendPushNotificationImpl||sendPushNotification;
 
     for(const actor of ACTORS){
       const actorState=state.actors[actor];
@@ -85,10 +82,14 @@ async function evaluateHumidityAlert(snapshot,options={}){
         continue;
       }
 
-      const chatId=Number(recipients?.[actor]);
-      if(!Number.isInteger(chatId)||chatId<=0){skipped.push(actor+':recipient-missing');continue;}
       try{
-        await send(chatId,alertText(humidity),{...options,parseMode:false});
+        const push=await send(actor,{
+          title:'💧 Низкая влажность дома',
+          body:alertText(humidity).replace(/^💧\s*/, ''),
+          tag:'home-humidity',
+          url:'/?item=smart-home',
+        },options);
+        if(!push?.sent){skipped.push(actor+':push-not-configured');continue;}
         actorState.armed=false;
         actorState.lastNotifiedAt=nowIso;
         changed=true;

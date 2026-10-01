@@ -1785,7 +1785,7 @@
           const url=new URL(window.location.href);
           if(next==='home') url.searchParams.delete('tab');
           else url.searchParams.set('tab',next);
-          if(item&&['wishlist','products','dates','for-di','schedule','score','smart-saves'].includes(next)) url.searchParams.set('item',String(item));
+          if(item&&['home','wishlist','products','dates','for-di','schedule','score','smart-saves'].includes(next)) url.searchParams.set('item',String(item));
           else url.searchParams.delete('item');
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
@@ -1796,15 +1796,42 @@
 
       function focusDeepLinkedItem(tab,item){
         const id=String(item||'').trim();
-        if(!id||!['wishlist','products','dates','for-di','smart-saves'].includes(tab)) return;
-        requestAnimationFrame(()=>requestAnimationFrame(()=>{
-          const target=[...document.querySelectorAll('[data-rudi-item-id]')]
-            .find(node=>String(node.dataset.rudiItemId||'')===id);
-          if(!target) return;
+        if(!id) return;
+
+        const homeSelectors={
+          partner:'[data-home-tile="partner"]',
+          lulu:'#homeLuluTile',
+          'daily-question':'#dailyQuestionTile',
+          'smart-home':'#smartHomeTile',
+          rustam:'#homeRustamTile',
+          diana:'#homeDianaTile'
+        };
+
+        const tryFocus=(attempt=0)=>{
+          let target=null;
+          if(tab==='home'){
+            const selector=homeSelectors[id];
+            if(selector) target=document.querySelector(selector);
+          }else if(['wishlist','products','dates','for-di','smart-saves'].includes(tab)){
+            target=[...document.querySelectorAll('[data-rudi-item-id]')]
+              .find(node=>String(node.dataset.rudiItemId||'')===id)||null;
+          }
+          if(!target){
+            if(attempt<12) setTimeout(()=>tryFocus(attempt+1),140);
+            return;
+          }
+
+          if(target.classList.contains('is-collapsed')){
+            const toggle=target.querySelector('.block-collapse-button,[aria-expanded="false"]');
+            try{toggle?.click?.()}catch(_){}
+          }
           target.classList.add('rudi-deep-link-target');
           target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
           setTimeout(()=>target.classList.remove('rudi-deep-link-target'),2200);
-        }));
+          if(id==='partner') try{markPartnerMessageSeen()}catch(_){}
+        };
+
+        requestAnimationFrame(()=>requestAnimationFrame(()=>tryFocus(0)));
       }
 
       function runTabSideEffects(tab,{item=''}={}){
@@ -1813,6 +1840,7 @@
           loadFastingOverview();
           ensureHomeBootstrap().catch(()=>{});
           loadTickTickNext();
+          if(item) focusDeepLinkedItem('home',item);
         }
         if(tab==='feed') loadFeed({silent:true});
         if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
@@ -4340,19 +4368,19 @@
             '<section class="settings-group">'+
               '<div class="settings-group-title">Уведомления</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Уведомлять партнёра о смене моего настроения</strong><small>Отправлять партнёру сообщение в Telegram</small></div>'+
+                '<div class="home-settings-copy"><strong>Уведомлять партнёра о смене моего настроения</strong><small>Отправлять партнёру push-уведомление</small></div>'+
                 '<button id="settingsMoodNotifyPartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Уведомлять партнёра о смене моего настроения"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Получать уведомления о смене настроения партнёра</strong><small>Получать сообщения партнёра в Telegram</small></div>'+
+                '<div class="home-settings-copy"><strong>Получать уведомления о смене настроения партнёра</strong><small>Получать push-уведомления партнёра</small></div>'+
                 '<button id="settingsMoodReceivePartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Получать уведомления о смене настроения партнёра"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Низкая влажность дома</strong><small>Сообщать, если влажность опустилась ниже 40%</small></div>'+
+                '<div class="home-settings-copy"><strong>Низкая влажность дома</strong><small>Присылать push, если влажность опустилась ниже 40%</small></div>'+
                 '<button id="settingsHumidityAlertToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о низкой влажности дома"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Бейдж на иконке</strong><small id="settingsAppBadgeStatus">Показывать непрочитанное на иконке RUDI</small></div>'+
+                '<div class="home-settings-copy"><strong>Push-уведомления</strong><small id="settingsAppBadgeStatus">Получать уведомления RUDI на этом устройстве</small></div>'+
                 '<button id="settingsAppBadgeEnable" class="settings-pwa-install" type="button">Разрешить</button>'+
               '</div>'+
             '</section>'+
@@ -5144,6 +5172,106 @@
         return String(Notification.permission||'default');
       }
 
+      function appPushSupported(){
+        return Boolean(
+          'serviceWorker' in navigator
+          && 'PushManager' in window
+          && typeof Notification!=='undefined'
+        );
+      }
+
+      function pushApplicationServerKey(value){
+        const source=String(value||'').replace(/-/g,'+').replace(/_/g,'/');
+        const padded=source+'='.repeat((4-source.length%4)%4);
+        const raw=atob(padded);
+        return Uint8Array.from(raw,char=>char.charCodeAt(0));
+      }
+
+      function rudiPushDeviceToken(){
+        const key='rudi:push-device-token:v1';
+        try{
+          const existing=String(localStorage.getItem(key)||'').trim();
+          if(existing) return existing;
+          const bytes=new Uint8Array(32);
+          crypto.getRandomValues(bytes);
+          const token=Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');
+          localStorage.setItem(key,token);
+          return token;
+        }catch(_){
+          const bytes=new Uint8Array(32);
+          crypto.getRandomValues(bytes);
+          return Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');
+        }
+      }
+
+      function bindRudiPushNavigation(){
+        if(!('serviceWorker' in navigator)||window.__rudiPushNavigationBound==='1') return;
+        window.__rudiPushNavigationBound='1';
+        navigator.serviceWorker.addEventListener('message',event=>{
+          if(event.data?.type!=='RUDI_PUSH_NAVIGATE') return;
+          const raw=String(event.data?.url||'/');
+          try{
+            const target=new URL(raw,window.location.origin);
+            if(target.origin!==window.location.origin) return;
+            window.location.href=target.pathname+target.search+target.hash;
+          }catch(_){}
+        });
+      }
+
+      async function rudiPushApi(action,payload={}){
+        const response=await fetch('/api/partner-message?rudiAction='+encodeURIComponent(action),{
+          method:'POST',
+          credentials:'same-origin',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({
+            initData:String(tg?.initData||''),
+            ...payload
+          }),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data?.ok) throw new Error(String(data?.error||'push-request-failed'));
+        return data;
+      }
+
+      async function ensureRudiPushSubscription({prompt=false}={}){
+        if(!appPushSupported()) return {ok:false,reason:'unsupported'};
+        let permission=String(Notification.permission||'default');
+        if(permission==='default'&&prompt){
+          try{permission=String(await Notification.requestPermission())}catch(_){}
+        }
+        if(permission!=='granted'){
+          document.documentElement.dataset.rudiPushReady='0';
+          updateAppIconBadgeSettingsUi();
+          return {ok:false,reason:permission};
+        }
+
+        const registration=await navigator.serviceWorker.ready;
+        let subscription=await registration.pushManager.getSubscription();
+        if(!subscription){
+          const config=await rudiPushApi('push-config');
+          subscription=await registration.pushManager.subscribe({
+            userVisibleOnly:true,
+            applicationServerKey:pushApplicationServerKey(config.publicKey)
+          });
+        }
+        const deviceToken=rudiPushDeviceToken();
+        await rudiPushApi('push-subscribe',{
+          subscription:subscription.toJSON?subscription.toJSON():subscription,
+          deviceToken
+        });
+        try{
+          registration.active?.postMessage?.({
+            type:'RUDI_PUSH_DEVICE_TOKEN',
+            token:deviceToken,
+            endpoint:String(subscription.endpoint||'')
+          });
+        }catch(_){}
+        document.documentElement.dataset.rudiPushReady='1';
+        updateAppIconBadgeSettingsUi();
+        return {ok:true,subscription};
+      }
+
       function appAttentionCount(){
         if(!currentActor) return 0;
         let count=0;
@@ -5191,20 +5319,27 @@
         const status=document.getElementById('settingsAppBadgeStatus');
         if(!button||!status) return;
 
-        if(!appIconBadgeSupported()){
+        if(!appPushSupported()){
           button.disabled=true;
           button.textContent='Недоступно';
           status.textContent=/iphone|ipad|ipod/i.test(navigator.userAgent||'')&&!isStandalonePwa()
-            ?'Работает после установки RUDI на экран Домой'
-            :'Не поддерживается этим режимом';
+            ?'Установи RUDI на экран Домой, чтобы получать push'
+            :'Push не поддерживается этим режимом';
           return;
         }
 
         const permission=appIconBadgePermission();
-        if(permission==='granted'||permission==='unsupported'){
+        const ready=document.documentElement.dataset.rudiPushReady==='1';
+        if(permission==='granted'&&ready){
           button.disabled=true;
           button.textContent='Включено';
-          status.textContent='Показывает число непрочитанного на иконке';
+          status.textContent='Push-уведомления включены на этом устройстве';
+          return;
+        }
+        if(permission==='granted'){
+          button.disabled=false;
+          button.textContent='Подключить';
+          status.textContent='Разрешение есть, осталось подключить устройство';
           return;
         }
         if(permission==='denied'){
@@ -5215,19 +5350,29 @@
         }
         button.disabled=false;
         button.textContent='Разрешить';
-        status.textContent='Нужно один раз разрешить уведомления';
+        status.textContent='Нужно один раз разрешить push-уведомления';
       }
 
       async function enableAppIconBadge(){
-        if(!appIconBadgeSupported()){
+        const button=document.getElementById('settingsAppBadgeEnable');
+        const status=document.getElementById('settingsAppBadgeStatus');
+        if(button){button.disabled=true;button.textContent='Подключаю…'}
+        try{
+          const result=await ensureRudiPushSubscription({prompt:true});
+          if(!result?.ok){
+            updateAppIconBadgeSettingsUi();
+            return;
+          }
+          await syncAppIconBadge();
           updateAppIconBadgeSettingsUi();
-          return;
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(error){
+          document.documentElement.dataset.rudiPushReady='0';
+          if(button){button.disabled=false;button.textContent='Повторить'}
+          if(status) status.textContent='Не удалось подключить push. Попробуй ещё раз.';
+          console.warn('RUDI_PUSH_SETUP_WARN',String(error?.message||error));
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
         }
-        if(typeof Notification!=='undefined'&&Notification.permission==='default'){
-          try{await Notification.requestPermission()}catch(_){}
-        }
-        await syncAppIconBadge();
-        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
       function appVersionLabel(){
@@ -6117,6 +6262,13 @@
           }
         }
         if(!currentActor) return false;
+        if(appPushSupported()&&Notification.permission==='granted'){
+          setTimeout(()=>{
+            ensureRudiPushSubscription({prompt:false})
+              .then(()=>queueAppIconBadgeSync())
+              .catch(error=>console.warn('RUDI_PUSH_RESYNC_WARN',String(error?.message||error)));
+          },0);
+        }
         if(telegramInitData()) await ensureTelegramPin();
         appAccessReady=true;
         showAuthenticatedApp();
@@ -6136,6 +6288,7 @@
       },{passive:false});
 
       applyTheme();
+      bindRudiPushNavigation();
       setupBrowserPullToRefresh();
       tg?.ready?.();
       tg?.expand?.();

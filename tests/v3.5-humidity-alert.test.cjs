@@ -21,23 +21,21 @@ test('extracts climate humidity',()=>assert.equal(extractHumidity(snapshot(37)),
 test('low humidity sends once to both enabled recipients',async()=>{
   const db=memoryDb(),sent=[];
   const base={
-    db,readRecipientsImpl:async()=>({'Рустам':1,'Диана':2}),
-    readUiPreferencesImpl:async()=>({humidityAlertEnabled:true}),
-    telegramSendMessageImpl:async chatId=>{sent.push(chatId);return{chatId,messageId:1};}
+    db,readUiPreferencesImpl:async()=>({humidityAlertEnabled:true}),
+    sendPushNotificationImpl:async actor=>{sent.push(actor);return{sent:true,actor,delivered:1};}
   };
   const first=await evaluateHumidityAlert(snapshot(37),{...base,now:'2026-10-01T08:00:00Z'});
   assert.deepEqual(first.sent,['Рустам','Диана']);
   const second=await evaluateHumidityAlert(snapshot(36),{...base,now:'2026-10-01T09:00:00Z'});
   assert.deepEqual(second.sent,[]);
-  assert.deepEqual(sent,[1,2]);
+  assert.deepEqual(sent,['Рустам','Диана']);
 });
 
 test('rearm needs 45 percent and cooldown prevents bounce spam',async()=>{
   const db=memoryDb(),sent=[];
   const base={
-    db,readRecipientsImpl:async()=>({'Рустам':1,'Диана':2}),
-    readUiPreferencesImpl:async()=>({humidityAlertEnabled:true}),
-    telegramSendMessageImpl:async chatId=>{sent.push(chatId);return{chatId,messageId:1};}
+    db,readUiPreferencesImpl:async()=>({humidityAlertEnabled:true}),
+    sendPushNotificationImpl:async actor=>{sent.push(actor);return{sent:true,actor,delivered:1};}
   };
   await evaluateHumidityAlert(snapshot(37),{...base,now:'2026-10-01T08:00:00Z'});
   await evaluateHumidityAlert(snapshot(46),{...base,now:'2026-10-01T09:00:00Z'});
@@ -53,10 +51,9 @@ test('disabled recipient does not get humidity alert',async()=>{
   const db=memoryDb(),sent=[];
   const result=await evaluateHumidityAlert(snapshot(35),{
     db,now:'2026-10-01T08:00:00Z',
-    readRecipientsImpl:async()=>({'Рустам':1,'Диана':2}),
     readUiPreferencesImpl:async actor=>({humidityAlertEnabled:actor!=='Диана'}),
-    telegramSendMessageImpl:async chatId=>{sent.push(chatId);return{chatId,messageId:1};}
+    sendPushNotificationImpl:async actor=>{sent.push(actor);return{sent:true,actor,delivered:1};}
   });
   assert.deepEqual(result.sent,['Рустам']);
-  assert.deepEqual(sent,[1]);
+  assert.deepEqual(sent,['Рустам']);
 });

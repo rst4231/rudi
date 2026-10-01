@@ -28,7 +28,8 @@ test('v2.118 fasting goal reuses the existing Lulu scheduler and stays within Ho
   const workflow=read('.github/workflows/lulu-toilet-alert.yml');
   const apiJs=fs.readdirSync('api').filter(name=>name.endsWith('.js'));
   assert.match(cron,/Цель голодания достигнута/);
-  assert.match(cron,/buttonText: 'Открыть трекер', tab: 'fasting'/);
+  assert.match(cron,/title: '⏱ Цель голодания достигнута'/);
+  assert.match(cron,/url: '\/\?tab=fasting'/);
   assert.match(cron,/active\.goalNotifiedAt/);
   assert.match(cron,/runFastingGoalNotifications/);
   assert.match(store,/async function markFastingGoalNotified/);

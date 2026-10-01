@@ -1,8 +1,7 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs');
 const { runLuluToiletAlert } = require('./lulu-toilet-alert.cjs');
-const { readRecipients } = require('./partner-notification-store.cjs');
-const { telegramSendMessage } = require('./telegram-notifications.cjs');
+const { sendPushNotification } = require('./web-push.cjs');
 const { readFastingState, markFastingGoalNotified } = require('./fasting-store.cjs');
 
 function goalReached(active, now = Date.now()) {
@@ -13,7 +12,6 @@ function goalReached(active, now = Date.now()) {
 }
 
 async function runFastingGoalNotifications(now = Date.now()) {
-  const recipients = await readRecipients().catch(() => null);
   const results = {};
   for (const actor of ['Рустам', 'Диана']) {
     try {
@@ -31,19 +29,19 @@ async function runFastingGoalNotifications(now = Date.now()) {
         results[actor] = { skipped: 'goal-not-reached' };
         continue;
       }
-      const chatId = Number(recipients?.[actor]);
-      if (!Number.isInteger(chatId) || chatId <= 0) {
-        results[actor] = { sent: false, error: 'recipient-unavailable' };
+      const hours = Math.max(1, Math.round(Number(active.goalHours || 0)));
+      const push = await sendPushNotification(actor, {
+        title: '⏱ Цель голодания достигнута',
+        body: 'Ты выдержал'+(actor === 'Диана' ? 'а' : '')+' '+hours+' ч. Можно завершить голодание и сохранить результат в истории.',
+        tag: 'fasting-goal',
+        url: '/?tab=fasting',
+      }, { now });
+      if (!push?.sent) {
+        results[actor] = { sent: false, skipped: push?.reason || 'push-not-configured', goalHours: hours };
         continue;
       }
-      const hours = Math.max(1, Math.round(Number(active.goalHours || 0)));
-      await telegramSendMessage(
-        chatId,
-        '⏱ <b>Цель голодания достигнута</b>\n\nТы выдержал'+(actor === 'Диана' ? 'а' : '')+' <b>'+hours+' ч</b>. Можно завершить голодание и сохранить результат в истории.',
-        { buttonText: 'Открыть трекер', tab: 'fasting' }
-      );
       await markFastingGoalNotified(actor, active.id, { now });
-      results[actor] = { sent: true, goalHours: hours };
+      results[actor] = { sent: true, goalHours: hours, delivered: push.delivered || 0 };
     } catch (error) {
       results[actor] = { sent: false, error: String(error?.message || error) };
       console.error('RUDI_FASTING_GOAL_NOTIFY_ERROR', actor, String(error?.message || error));
