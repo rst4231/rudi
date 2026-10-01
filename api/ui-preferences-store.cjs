@@ -59,10 +59,10 @@ function normalizeUiPreferencesState(value) {
     : 'normal';
   const moodNotifyPartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodNotifyPartnerEnabled')
     ? Boolean(source.moodNotifyPartnerEnabled)
-    : false;
+    : true;
   const moodReceivePartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodReceivePartnerEnabled')
     ? Boolean(source.moodReceivePartnerEnabled)
-    : false;
+    : true;
   const humidityAlertEnabled = Object.prototype.hasOwnProperty.call(source, 'humidityAlertEnabled')
     ? Boolean(source.humidityAlertEnabled)
     : true;

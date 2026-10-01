@@ -70,3 +70,16 @@ test('v3.21 tapping anywhere else hides the visible delete action',()=>{
   assert.match(client,/if\(event\.target\.closest\('\.messenger-delete-action'\)\) return/);
   assert.match(client,/hideDeleteActions\(\)/);
 });
+
+test('v3.21 mood notifications default on while explicit opt-out stays off',()=>{
+  const prefs=require('../api/ui-preferences-store.cjs');
+  const defaults=prefs.normalizeUiPreferencesState({});
+  const off=prefs.normalizeUiPreferencesState({moodNotifyPartnerEnabled:false,moodReceivePartnerEnabled:false});
+  assert.equal(defaults.moodNotifyPartnerEnabled,true);
+  assert.equal(defaults.moodReceivePartnerEnabled,true);
+  assert.equal(off.moodNotifyPartnerEnabled,false);
+  assert.equal(off.moodReceivePartnerEnabled,false);
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(app,/id="settingsMoodNotifyPartnerToggle"[^>]+aria-checked="true"/);
+  assert.match(app,/id="settingsMoodReceivePartnerToggle"[^>]+aria-checked="true"/);
+});

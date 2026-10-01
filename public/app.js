@@ -796,13 +796,19 @@
       }
 
       function moodNotifyPartnerEnabled(){
-        if(!currentActor) return false;
-        try{return localStorage.getItem(moodNotifyPartnerStorageKey())==='1'}catch(_){return false}
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(moodNotifyPartnerStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
       }
 
       function moodReceivePartnerEnabled(){
-        if(!currentActor) return false;
-        try{return localStorage.getItem(moodReceivePartnerStorageKey())==='1'}catch(_){return false}
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(moodReceivePartnerStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
       }
 
       function humidityAlertEnabled(){
@@ -975,8 +981,8 @@
         let themeModeValue='system';
         let autoRefreshEnabledValue=true;
         let interfaceTextSizeValue='normal';
-        let moodNotifyPartnerEnabledValue=false;
-        let moodReceivePartnerEnabledValue=false;
+        let moodNotifyPartnerEnabledValue=true;
+        let moodReceivePartnerEnabledValue=true;
         let humidityAlertEnabledValue=true;
         let morningSummaryEnabledValue=true;
         let rewardNotificationsEnabledValue=true;
@@ -4601,11 +4607,11 @@
               '<div class="settings-group-title">Уведомления</div>'+
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Уведомлять партнёра о смене моего настроения</strong><small>Отправлять партнёру push-уведомление</small></div>'+
-                '<button id="settingsMoodNotifyPartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Уведомлять партнёра о смене моего настроения"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+                '<button id="settingsMoodNotifyPartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомлять партнёра о смене моего настроения"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Получать уведомления о смене настроения партнёра</strong><small>Получать push-уведомления партнёра</small></div>'+
-                '<button id="settingsMoodReceivePartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Получать уведомления о смене настроения партнёра"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+                '<button id="settingsMoodReceivePartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Получать уведомления о смене настроения партнёра"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Низкая влажность дома</strong><small>Присылать push, если влажность опустилась ниже 40%</small></div>'+

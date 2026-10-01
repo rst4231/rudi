@@ -9,16 +9,22 @@ const {
 
 test('new notification preferences default on and can be disabled',()=>{
   const defaults=normalizeUiPreferencesState({});
+  assert.equal(defaults.moodNotifyPartnerEnabled,true);
+  assert.equal(defaults.moodReceivePartnerEnabled,true);
   assert.equal(defaults.morningSummaryEnabled,true);
   assert.equal(defaults.rewardNotificationsEnabled,true);
   assert.equal(defaults.dailyQuestionNotificationEnabled,true);
   assert.equal(defaults.messengerNotificationsEnabled,true);
   const off=normalizeUiPreferencesState({
+    moodNotifyPartnerEnabled:false,
+    moodReceivePartnerEnabled:false,
     morningSummaryEnabled:false,
     rewardNotificationsEnabled:false,
     dailyQuestionNotificationEnabled:false,
     messengerNotificationsEnabled:false,
   });
+  assert.equal(off.moodNotifyPartnerEnabled,false);
+  assert.equal(off.moodReceivePartnerEnabled,false);
   assert.equal(off.morningSummaryEnabled,false);
   assert.equal(off.rewardNotificationsEnabled,false);
   assert.equal(off.dailyQuestionNotificationEnabled,false);
@@ -51,6 +57,8 @@ test('reward notification respects each recipient preference',async()=>{
 test('settings expose default-on notification switches and schema v6',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const morning=fs.readFileSync('api/morning-summary.cjs','utf8');
+  assert.match(app,/id="settingsMoodNotifyPartnerToggle"[^>]+aria-checked="true"/);
+  assert.match(app,/id="settingsMoodReceivePartnerToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsMorningSummaryToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsRewardNotificationsToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsDailyQuestionNotificationToggle"[^>]+aria-checked="true"/);
