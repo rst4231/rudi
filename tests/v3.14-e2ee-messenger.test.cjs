@@ -161,8 +161,10 @@ test('push routes force fresh messenger and partner-message reads',()=>{
 test('messenger push can be disabled but defaults enabled',()=>{
   const pref=fs.readFileSync('api/ui-preferences-store.cjs','utf8');
   const api=fs.readFileSync('api/partner-message.js','utf8');
+  const messengerPush=api.match(/async function sendMessengerNotificationToPartner[\s\S]*?\n\}/)?.[0]||'';
   assert.match(pref,/messengerNotificationsEnabled[\s\S]*?\? Boolean\(source\.messengerNotificationsEnabled\)[\s\S]*?: true/);
-  assert.match(api,/preferences\?\.messengerNotificationsEnabled===false/);
-  assert.match(api,/title:actor==='Диана'\?'Диана прислала сообщение':'Рустам прислал сообщение'/);
-  assert.doesNotMatch(api,/body:[^'\n]*text/);
+  assert.match(messengerPush,/preferences\?\.messengerNotificationsEnabled===false/);
+  assert.match(messengerPush,/title:actor==='Диана'\?'Диана прислала сообщение':'Рустам прислал сообщение'/);
+  assert.match(messengerPush,/body:''/);
+  assert.doesNotMatch(messengerPush,/body:[^'\n]*text/);
 });
