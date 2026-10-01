@@ -112,6 +112,7 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
   html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/messenger\.css\?v=[^"]+/g, '/messenger.css?v=' + assetVersion);
+  html = html.replace(/\/messenger\.css\?v=[^"]+/g, '/messenger.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
   html = html.replace(/\/pwa-extras\.js\?v=[^"]+/g, '/pwa-extras.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
@@ -123,6 +124,7 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/supplement-editor\.js\?v=[^"]+/g, '/supplement-editor.js?v=' + assetVersion);
   html = html.replace(/\/supplement-advanced\.js\?v=[^"]+/g, '/supplement-advanced.js?v=' + assetVersion);
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
+  html = html.replace(/\/messenger\.js\?v=[^"]+/g, '/messenger.js?v=' + assetVersion);
   html = html.replace(/\/messenger\.js\?v=[^"]+/g, '/messenger.js?v=' + assetVersion);
   html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
   html = html.replace(/\/manifest\.webmanifest\?v=[^"]+/g, '/manifest.webmanifest?v=' + assetVersion);

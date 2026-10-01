@@ -110,6 +110,8 @@
   background:#e9e9eb;
   color:#000;
   box-shadow:none;
+  isolation:isolate;
+  overflow:visible;
 }
 .messenger-message.is-partner .messenger-bubble{
   border-bottom-left-radius:5px;
@@ -460,3 +462,6 @@ body[data-app-tab="messenger"] .shell{
 @media (prefers-reduced-motion:reduce){
   .messenger-message.is-new,.messenger-message.is-sent,.messenger-delete-action.is-visible,.messenger-typing-bubble i{animation:none!important}
 }
+
+.messenger-message.is-own .messenger-quote strong{color:#fff}
+.messenger-message.is-own .messenger-quote span{color:rgba(255,255,255,.78)}
