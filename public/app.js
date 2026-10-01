@@ -2274,13 +2274,99 @@
         return '';
       }
 
+      let dianaRhythmCycleModel=null;
+
       function setDianaCycleMood(modelOrPhase){
+        dianaRhythmCycleModel=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:null;
         const node=document.getElementById('dianaCycleMood');
+        if(node){
+          const word=dianaCycleProfileStatus(modelOrPhase);
+          node.textContent=word;
+          node.hidden=!word;
+          node.title=word?'Ориентировочный статус по календарю цикла':'';
+        }
+        syncDianaRhythmStatus(new Date(),dianaRhythmCycleModel);
+      }
+
+      function dianaRhythmBaseStatus(now=new Date()){
+        const parts=Object.fromEntries(
+          new Intl.DateTimeFormat('en-GB',{
+            timeZone:TZ,
+            hour:'2-digit',
+            minute:'2-digit',
+            hourCycle:'h23'
+          }).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value])
+        );
+        const minutes=(Number(parts.hour)||0)*60+(Number(parts.minute)||0);
+        if(minutes<8*60||minutes>=22*60) return 'Сон';
+        if(minutes<9*60) return 'Старт';
+        if(minutes<11*60) return 'Разгон';
+        if(minutes<13*60+30) return 'Движ';
+        if(minutes<14*60) return 'Пауза';
+        if(minutes<17*60) return 'Пик';
+        if(minutes<18*60) return 'Темп';
+        if(minutes<18*60+30) return 'Спад';
+        if(minutes<20*60) return 'Выдох';
+        if(minutes<21*60+30) return 'Чилл';
+        return 'Тише';
+      }
+
+      function dianaRhythmCycleAdjustment(model){
+        if(!model||typeof model!=='object') return 'normal';
+        const phase=String(model.phase||'');
+        const cycleDay=Number(model.cycleDay);
+        const periodLength=Math.max(1,Number(model.periodLength)||5);
+        const daysToNext=Number(model.daysToNext);
+        if(Boolean(model.periodActive)||phase==='Месячные') return 'gentle';
+        if(phase==='Лютеиновая фаза'&&Number.isFinite(daysToNext)&&daysToNext>=0&&daysToNext<=5) return 'softer';
+        if(phase==='Фолликулярная фаза'&&Number.isFinite(cycleDay)&&cycleDay>0&&cycleDay<=periodLength+2) return 'softer';
+        return 'normal';
+      }
+
+      function dianaRhythmStatus(now=new Date(),model=dianaRhythmCycleModel){
+        const base=dianaRhythmBaseStatus(now);
+        const adjustment=dianaRhythmCycleAdjustment(model);
+        const activeStates=['Разгон','Движ','Пик','Темп'];
+        if(adjustment==='gentle'&&activeStates.includes(base)) return base+' · бережно';
+        if(adjustment==='softer'&&activeStates.includes(base)) return base+' · мягче';
+        return base;
+      }
+
+      function dianaRhythmRecommendation(now=new Date(),model=dianaRhythmCycleModel){
+        const base=dianaRhythmBaseStatus(now);
+        const adjustment=dianaRhythmCycleAdjustment(model);
+        const regular={
+          'Старт':'спокойно проснуться, позавтракать и войти в день',
+          'Разгон':'делать обычные дела без максимальной нагрузки',
+          'Движ':'подходящее окно для прогулки или физической активности',
+          'Пауза':'поесть и дать себе около 30 минут на восстановление',
+          'Пик':'лучшее окно для сложной работы и концентрации',
+          'Темп':'закончить важные дела, не набирая лишнюю нагрузку',
+          'Спад':'сделать перерыв и постепенно снижать темп',
+          'Выдох':'оставить спокойные дела и переключиться на отдых',
+          'Чилл':'отдыхать и не ставить сложные задачи',
+          'Тише':'приглушить темп и готовиться ко сну',
+          'Сон':'спать и восстанавливаться'
+        }[base]||'';
+        if(adjustment==='gentle'&&['Разгон','Движ','Пик','Темп'].includes(base)){
+          if(base==='Пик') return 'это лучшее окно дня по её ритму, но во время месячных лучше выбрать одну важную задачу без перегруза';
+          if(base==='Движ') return 'активность подходит по времени, но лучше оставить её лёгкой и ориентироваться на самочувствие';
+          return regular+', но сегодня лучше оставить больше запаса по нагрузке';
+        }
+        if(adjustment==='softer'&&['Разгон','Движ','Пик','Темп'].includes(base)){
+          return regular+', но лучше держать темп немного мягче обычного';
+        }
+        return regular;
+      }
+
+      function syncDianaRhythmStatus(now=new Date(),model=dianaRhythmCycleModel){
+        const node=document.getElementById('dianaRhythmStatus');
         if(!node) return;
-        const word=dianaCycleProfileStatus(modelOrPhase);
-        node.textContent=word;
-        node.hidden=!word;
-        node.title=word?'Ориентировочный статус по календарю цикла':'';
+        const status=dianaRhythmStatus(now,model);
+        node.textContent=status;
+        node.hidden=!status;
+        const advice=dianaRhythmRecommendation(now,model);
+        node.title=advice?'Лучше сейчас: '+advice:'';
       }
 
       function rustamWorkState(now=new Date()){
@@ -2359,6 +2445,7 @@
           rustamWorking?'working':'off'
         );
         syncRustamRhythmStatus();
+        syncDianaRhythmStatus();
         const diana=profileStatusElement('Диана');
         if(!diana) return;
         if(diana.dataset.calendarReady&&homeDashboardState.workDay){
@@ -4350,6 +4437,12 @@
         dianaCycleMood.hidden=true;
         dianaPerson.appendChild(dianaCycleMood);
 
+        const dianaRhythm=document.createElement('div');
+        dianaRhythm.id='dianaRhythmStatus';
+        dianaRhythm.className='profile-rhythm-status';
+        dianaRhythm.hidden=true;
+        dianaPerson.appendChild(dianaRhythm);
+
         selfIdentity.appendChild(selfMood);
         partnerIdentity.replaceChildren(partnerAvatar,partnerPerson,partnerMood);
 
@@ -5397,26 +5490,7 @@
 
       function appAttentionCount(){
         if(!currentActor) return 0;
-        let count=0;
-        if(activityNotificationsHaveUnread()) count+=1;
-
-        const feedVersion=String(homeDashboardState.feed?.version||'');
-        if(feedVersion&&feedVersion!==feedSeenVersion()) count+=1;
-        if(homeCountIsNew('photos',homeDashboardState.photoCount)) count+=1;
-        if(homeCountIsNew('wishlist',homeDashboardState.wishlistCount)) count+=1;
-        if(partnerMessageIsNew()) count+=1;
-
-        const reminderBadgeCount=(node)=>{
-          if(!node||node.hidden) return 0;
-          const value=Math.max(0,Math.floor(Number(String(node.textContent||'').replace(/\D+/g,''))||0));
-          return value||1;
-        };
-        count+=reminderBadgeCount(document.querySelector('#habitHomeTile .personal-home-reminder-badge'));
-        count+=reminderBadgeCount(document.querySelector('#supplementsHomeTile .personal-home-reminder-badge'));
-
-        const carCount=Math.max(0,Math.floor(Number(document.documentElement.dataset.carTodayTaskCount)||0));
-        count+=carCount;
-        return Math.min(99,count);
+        return activityNotificationsHaveUnread()?1:0;
       }
 
       async function syncAppIconBadge(){
