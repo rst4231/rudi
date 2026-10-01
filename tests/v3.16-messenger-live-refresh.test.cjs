@@ -63,12 +63,13 @@ test('right-to-left swipe replies to a message',()=>{
   assert.match(client,/setReply\(row,payload\)/);
 });
 
-test('double tap hearts and triple tap edits own message after gesture delay',()=>{
+test('double tap hearts reliably on touch and click without fighting long press',()=>{
   assert.match(client,/function bindMessageTapGestures\(article,row,payload\)/);
-  assert.match(client,/count>=3&&row\.sender===state\.actor/);
-  assert.match(client,/startMessageEdit\(row,payload\)/);
-  assert.match(client,/if\(count===2\) setMessageReaction\(row,'❤️'\)/);
-  assert.match(client,/\},320\)/);
+  assert.match(client,/article\.addEventListener\('touchend'/);
+  assert.match(client,/if\(count>=2\)/);
+  assert.match(client,/setMessageReaction\(row,'❤️'\)/);
+  assert.match(client,/\},420\)/);
+  assert.match(client,/Date\.now\(\)-lastTouchEndAt<700/);
 });
 
 test('typing indicator is shared through short-lived server presence',()=>{
