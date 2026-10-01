@@ -3026,10 +3026,11 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       authorizeRequest(req, body.initData, options);
       const previousSnapshot=backupSnapshotFromToken(body.backupToken,options);
-      if(previousSnapshot?.partnerMessage){
+      let message = await readPartnerMessageForHome(options);
+      if(!message&&previousSnapshot?.partnerMessage){
         await restoreStateBackup(body.backupToken,{...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}}).catch(()=>null);
+        message = await readPartnerMessageForHome(options);
       }
-      const message = await readPartnerMessageForHome(options);
       return res.status(200).json({ ok: true, message });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
