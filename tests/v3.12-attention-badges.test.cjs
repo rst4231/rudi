@@ -42,3 +42,9 @@ test('unavailable TickTick state clears stale shared task attention',()=>{
   assert.match(app,/if\(payload\?\.connected===false\)\{\s*homeDashboardState\.tasks=\[\];\s*renderHomeDashboard\(\)/);
   assert.match(app,/if\(payload\?\.enabled===false\)\{\s*homeDashboardState\.tasks=\[\];\s*renderHomeDashboard\(\)/);
 });
+
+
+test('fasting profile button keeps the same translucent style in light theme as mood history',()=>{
+  assert.match(css,/\.mood-history-button\{[^}]*border:1px solid rgba\(255,255,255,\.12\)[^}]*background:rgba\(255,255,255,\.055\)[^}]*color:rgba\(229,233,246,\.72\)/);
+  assert.match(css,/html\[data-theme="light"\] \.profile-person-card #fastingProfileButton\{[^}]*border-color:rgba\(255,255,255,\.12\)!important;[^}]*background:rgba\(255,255,255,\.055\)!important;[^}]*color:rgba\(229,233,246,\.72\)!important;/);
+});
