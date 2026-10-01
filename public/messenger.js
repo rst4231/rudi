@@ -36,6 +36,9 @@
     readTimer:0,
     retrying:false,
     keyboardStickToBottom:true,
+    tapMessageId:'',
+    tapAt:0,
+    tapPointer:null,
   };
 
   function telegramInitData(){
@@ -486,12 +489,17 @@
       button.setAttribute('aria-label','Реакция '+emoji);
       const actors=Array.isArray(row?.reactions?.[emoji])?row.reactions[emoji]:[];
       if(actors.includes(state.actor)) button.classList.add('is-selected');
-      button.addEventListener('click',event=>{
+      let activatedAt=0;
+      const activate=event=>{
         event.preventDefault();
         event.stopPropagation();
+        if(Date.now()-activatedAt<450) return;
+        activatedAt=Date.now();
         hideContextMenu();
         setMessageReaction(row,emoji);
-      });
+      };
+      button.addEventListener('pointerup',activate);
+      button.addEventListener('click',activate);
       tray.appendChild(button);
     }
     menu.appendChild(tray);
@@ -759,64 +767,6 @@
     }
   }
 
-  function bindMessageTapGestures(article,row,payload){
-    if(!article||!row||!payload) return;
-
-    let tapCount=0;
-    let tapTimer=0;
-    let touchStartAt=0;
-    let touchStartX=0;
-    let touchStartY=0;
-    let lastTouchEndAt=0;
-
-    const triggerTap=()=>{
-      tapCount+=1;
-      clearTimeout(tapTimer);
-      tapTimer=setTimeout(()=>{
-        const count=tapCount;
-        tapCount=0;
-        if(count>=3&&row.sender===state.actor){
-          startMessageEdit(row,payload);
-          return;
-        }
-        if(count>=2){
-          setMessageReaction(row,'❤️');
-          try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
-        }
-      },420);
-    };
-
-    article.addEventListener('touchstart',event=>{
-      if(event.target.closest('a,button,input,textarea')) return;
-      const touch=event.touches?.[0];
-      if(!touch) return;
-      touchStartAt=Date.now();
-      touchStartX=touch.clientX;
-      touchStartY=touch.clientY;
-    },{passive:true});
-
-    article.addEventListener('touchend',event=>{
-      if(event.target.closest('a,button,input,textarea')) return;
-      const longPressedAt=Number(article.dataset.longPressedAt||0);
-      if(longPressedAt&&Date.now()-longPressedAt<900) return;
-      const touch=event.changedTouches?.[0];
-      if(!touch||!touchStartAt) return;
-      const duration=Date.now()-touchStartAt;
-      const moved=Math.hypot(touch.clientX-touchStartX,touch.clientY-touchStartY);
-      touchStartAt=0;
-      if(duration>420||moved>14) return;
-      lastTouchEndAt=Date.now();
-      triggerTap();
-    },{passive:true});
-
-    article.addEventListener('click',event=>{
-      if(event.target.closest('a,button,input,textarea')) return;
-      if(Date.now()-lastTouchEndAt<700) return;
-      const longPressedAt=Number(article.dataset.longPressedAt||0);
-      if(longPressedAt&&Date.now()-longPressedAt<900) return;
-      triggerTap();
-    });
-  }
 
   function renderTypingIndicator({autoScroll=true}={}){
     const list=document.getElementById('messengerMessages');
@@ -944,12 +894,16 @@
           reaction.appendChild(emojiText);
           appendReactionAvatars(reaction,actors);
           reaction.title=actors.includes(state.actor)?'Снять реакцию':actors.join(', ');
-          reaction.addEventListener('click',event=>{
+          let activatedAt=0;
+          const activateReaction=event=>{
             event.preventDefault();
             event.stopPropagation();
-            if(actors.includes(state.actor)) setMessageReaction(row,emoji);
-            else if(row.sender!==state.actor) setMessageReaction(row,emoji);
-          });
+            if(Date.now()-activatedAt<450) return;
+            activatedAt=Date.now();
+            setMessageReaction(row,emoji);
+          };
+          reaction.addEventListener('pointerup',activateReaction);
+          reaction.addEventListener('click',activateReaction);
           wrap.appendChild(reaction);
         }
         bubble.appendChild(wrap);
@@ -959,7 +913,6 @@
       if(payload){
         bindSwipeReply(article,row,payload);
         bindLongPressContext(article,row,payload);
-        bindMessageTapGestures(article,row,payload);
       }
       list.appendChild(article);
     }
@@ -1584,6 +1537,49 @@
         event.preventDefault();
         openSafeLink(link.href);
       });
+
+      messages.addEventListener('pointerdown',event=>{
+        if(event.target.closest('a,button,input,textarea')) return;
+        if(event.pointerType==='mouse'&&event.button!==0) return;
+        const article=event.target.closest('.messenger-message[data-message-id]');
+        if(!article) return;
+        state.tapPointer={
+          id:String(article.dataset.messageId||''),
+          x:Number(event.clientX||0),
+          y:Number(event.clientY||0),
+          at:Date.now()
+        };
+      });
+
+      messages.addEventListener('pointerup',event=>{
+        if(event.target.closest('a,button,input,textarea')) return;
+        const article=event.target.closest('.messenger-message[data-message-id]');
+        const pointer=state.tapPointer;
+        state.tapPointer=null;
+        if(!article||!pointer) return;
+        const id=String(article.dataset.messageId||'');
+        if(!id||id!==pointer.id||id.startsWith('pending:')) return;
+        const longPressedAt=Number(article.dataset.longPressedAt||0);
+        if(longPressedAt&&Date.now()-longPressedAt<900) return;
+        const duration=Date.now()-Number(pointer.at||0);
+        const moved=Math.hypot(Number(event.clientX||0)-pointer.x,Number(event.clientY||0)-pointer.y);
+        if(duration>450||moved>16) return;
+
+        const now=Date.now();
+        if(state.tapMessageId===id&&now-state.tapAt<=460){
+          state.tapMessageId='';
+          state.tapAt=0;
+          const row=state.rows.find(item=>String(item?.id||'')===id);
+          if(row){
+            setMessageReaction(row,'❤️');
+            try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+          }
+          return;
+        }
+        state.tapMessageId=id;
+        state.tapAt=now;
+      });
+
       messages.addEventListener('scroll',()=>{
         state.nearBottom=isMessagesNearBottom(messages);
         if(state.nearBottom) state.newBelowCount=0;
