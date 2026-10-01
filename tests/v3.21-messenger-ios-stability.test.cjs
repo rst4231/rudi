@@ -58,18 +58,17 @@ test('v3.21 shows current partner mood emoji next to messenger name and observes
   assert.match(client,/new MutationObserver\(updateHeader\)\.observe\(partnerMood,\{attributes:true,attributeFilter:\['data-mood'\]\}\)/);
 });
 
-test('v3.21 one tap on own heart removes the like without triggering message gestures',()=>{
-  assert.match(client,/const canUnlike=likedBy\.includes\(state\.actor\)/);
-  assert.match(client,/document\.createElement\(canUnlike\?'button':'div'\)/);
-  assert.match(client,/reaction\.setAttribute\('aria-label','Снять лайк'\)/);
-  assert.match(client,/event\.stopPropagation\(\);[\s\S]*?toggleMessageLike\(row\)/);
-  assert.match(client,/renderMessages\(\{preserveScrollTop:preservedScrollTop\}\)/);
+test('one tap on own reaction removes it without triggering message gestures',()=>{
+  assert.match(client,/function setMessageReaction\(row,emoji\)/);
+  assert.match(client,/actors\.includes\(state\.actor\)\) setMessageReaction\(row,emoji\)/);
+  assert.match(client,/event\.stopPropagation\(\)/);
+  assert.match(client,/renderMessages\(\{preserveScrollTop\}/);
 });
 
-test('v3.21 tapping anywhere else hides the visible delete action',()=>{
+test('tapping anywhere else hides the unified message context menu',()=>{
   assert.match(client,/page\.addEventListener\('pointerdown',event=>\{/);
-  assert.match(client,/if\(event\.target\.closest\('\.messenger-delete-action'\)\) return/);
-  assert.match(client,/hideDeleteActions\(\)/);
+  assert.match(client,/if\(event\.target\.closest\('\.messenger-context-menu'\)\) return/);
+  assert.match(client,/hideContextMenu\(\)/);
 });
 
 test('v3.21 mood notifications default on while explicit opt-out stays off',()=>{
