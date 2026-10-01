@@ -28,8 +28,8 @@ async function loadJwks(options = {}) {
   return jwks;
 }
 
-function audienceMatches(aud) {
-  return Array.isArray(aud) ? aud.includes(AUDIENCE) : String(aud || '') === AUDIENCE;
+function audienceMatches(aud, expected = AUDIENCE) {
+  return Array.isArray(aud) ? aud.includes(expected) : String(aud || '') === expected;
 }
 
 async function verifyGitHubActionsToken(token, options = {}) {
@@ -41,10 +41,12 @@ async function verifyGitHubActionsToken(token, options = {}) {
   if (!header || !payload || header.alg !== 'RS256' || !header.kid) return null;
 
   const nowSeconds = Math.floor(Number(options.now || Date.now()) / 1000);
-  if (payload.iss !== ISSUER || !audienceMatches(payload.aud)) return null;
+  const expectedAudience = String(options.audience || AUDIENCE);
+  const expectedWorkflowRef = String(options.workflowRef || WORKFLOW_REF);
+  if (payload.iss !== ISSUER || !audienceMatches(payload.aud, expectedAudience)) return null;
   if (payload.repository !== REPOSITORY || payload.ref !== 'refs/heads/main') return null;
   if (!['schedule', 'workflow_dispatch'].includes(String(payload.event_name || ''))) return null;
-  if (String(payload.workflow_ref || '') !== WORKFLOW_REF) return null;
+  if (String(payload.workflow_ref || '') !== expectedWorkflowRef) return null;
   if (!Number.isFinite(Number(payload.exp)) || Number(payload.exp) < nowSeconds - 5) return null;
   if (Number.isFinite(Number(payload.nbf)) && Number(payload.nbf) > nowSeconds + 30) return null;
   if (Number.isFinite(Number(payload.iat)) && Number(payload.iat) > nowSeconds + 60) return null;

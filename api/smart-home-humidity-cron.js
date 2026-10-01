@@ -1,9 +1,14 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
+const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs');
 const { readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { evaluateHumidityAlert } = require('./smart-home-humidity-alert.cjs');
 
 async function handler(req,res){
-  if(!isCronRequestAuthorized(req)){
+  const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {
+    audience: 'rudi-smart-home-humidity',
+    workflowRef: 'rst4231/rudi/.github/workflows/smart-home-humidity-alert.yml@refs/heads/main',
+  });
+  if(!authorized){
     console.warn('RUDI_HUMIDITY_CRON_UNAUTHORIZED');
     return res.status(401).json({ok:false,error:'unauthorized-cron'});
   }

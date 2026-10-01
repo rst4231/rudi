@@ -247,10 +247,6 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/smart-home-humidity-cron",
-      "schedule": "0 * * * *"
     }
   ],
   "env": {
