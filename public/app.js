@@ -7073,6 +7073,57 @@
         return [time,assignee].filter(Boolean).join(' · ');
       }
 
+      const recentlyCompletedTickTickTaskIds=new Map();
+      const RECENTLY_COMPLETED_TICKTICK_TTL_MS=30*1000;
+
+      function markTickTickTaskRecentlyCompleted(taskId){
+        const id=String(taskId||'').trim();
+        if(!id) return;
+        recentlyCompletedTickTickTaskIds.set(id,Date.now()+RECENTLY_COMPLETED_TICKTICK_TTL_MS);
+      }
+
+      function tickTickTaskRecentlyCompleted(taskId){
+        const id=String(taskId||'').trim();
+        if(!id) return false;
+        const now=Date.now();
+        for(const [key,expiresAt] of recentlyCompletedTickTickTaskIds){
+          if(Number(expiresAt)<=now) recentlyCompletedTickTickTaskIds.delete(key);
+        }
+        return Number(recentlyCompletedTickTickTaskIds.get(id)||0)>now;
+      }
+
+      function removeCompletedTickTickTodayRow(taskId,row){
+        markTickTickTaskRecentlyCompleted(taskId);
+        homeDashboardState.tasks=(Array.isArray(homeDashboardState.tasks)?homeDashboardState.tasks:[])
+          .filter(task=>String(task?.id||'')!==String(taskId||''));
+        renderHomeDashboard();
+
+        if(row?.isConnected) row.remove();
+        const list=document.getElementById('ticktickTodayList');
+        const title=document.getElementById('ticktickTitle');
+        const badge=document.getElementById('ticktickBadge');
+        const remaining=list?.querySelectorAll('.ticktick-today-task')?.length||0;
+        if(remaining>0){
+          if(badge){
+            badge.hidden=false;
+            badge.textContent=remaining===1?'1 дело':(remaining<5?remaining+' дела':remaining+' дел');
+          }
+          return;
+        }
+        if(list){
+          list.hidden=true;
+          list.replaceChildren();
+        }
+        if(title){
+          title.hidden=false;
+          title.textContent='Сегодня дел нет';
+        }
+        if(badge){
+          badge.hidden=true;
+          badge.textContent='';
+        }
+      }
+
       async function requestTickTickTaskCompletion(taskId){
         const id=String(taskId||'').trim();
         if(!id) throw new Error('ticktick-task-complete-invalid');
@@ -7121,11 +7172,13 @@
         try{
           const payload=await requestTickTickTaskCompletion(task.id);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
+          markTickTickTaskRecentlyCompleted(task.id);
           button.setAttribute('aria-checked','true');
           button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
           playCalendarConfetti();
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           await new Promise(resolve=>setTimeout(resolve,300));
+          if(row.isConnected) row.remove();
           await refreshAfterTickTickTaskChange({preserveExpanded:false});
         }catch(error){
           const status=document.getElementById('workCalendarStatus');
@@ -7160,12 +7213,14 @@
           const payload=await requestTickTickTaskCompletion(task.id);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
 
+          markTickTickTaskRecentlyCompleted(task.id);
           row.classList.add('done');
           button.setAttribute('aria-checked','true');
           button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
           playTaskCompletionConfetti();
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           await new Promise(resolve=>setTimeout(resolve,420));
+          removeCompletedTickTickTodayRow(task.id,row);
           await refreshAfterTickTickTaskChange({preserveExpanded:false});
         }catch(_){
           row.classList.remove('done');
@@ -7213,7 +7268,9 @@
           badge.hidden=false;badge.textContent='Выключено';return;
         }
 
-        const tasks=Array.isArray(payload?.tasks)?payload.tasks.filter(task=>!task?.completed):[];
+        const tasks=Array.isArray(payload?.tasks)
+          ?payload.tasks.filter(task=>!task?.completed&&!tickTickTaskRecentlyCompleted(task?.id))
+          :[];
         homeDashboardState.tasks=tasks;
         renderHomeDashboard();
         if(!tasks.length){
@@ -7761,7 +7818,7 @@
           const date=dateFromKey(day.date);
           const events=Array.isArray(day.events)?day.events:[];
           const tasks=(Array.isArray(tickDays.get(String(day.date))?.events)?tickDays.get(String(day.date)).events:[])
-            .filter(event=>!event?.completed);
+            .filter(event=>!event?.completed&&!tickTickTaskRecentlyCompleted(event?.id));
           const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
             .slice(0,5)
             .filter(Boolean);
@@ -8116,7 +8173,8 @@
         const today=todayState().key;
         for(const day of days){
           const date=dateFromKey(day.date);
-          const events=Array.isArray(day.events)?day.events:[];
+          const events=(Array.isArray(day.events)?day.events:[])
+            .filter(event=>!event?.completed&&!tickTickTaskRecentlyCompleted(event?.id));
           const hasEvents=events.length>0;
           const cell=document.createElement('button');
           cell.type='button';

@@ -194,3 +194,86 @@ test('non-durable control-plane keys stay only in Runtime Cache', async () => {
   assert.deepEqual(await cache.get('topic-maintenance:test'), { ok: true });
   assert.equal(durableCalls, 0);
 });
+
+
+test('critical RUDI feed state reads durable database before Runtime Cache', async () => {
+  let runtimeReads = 0;
+  const cache = createStrictRuntimeCache({
+    env: {},
+    namespace: 'rudi-feed-v1',
+    botToken: '123:test',
+    retryDelayMs: 0,
+    attempts: 1,
+    runtimeCache: {
+      async get() { runtimeReads += 1; return { source: 'runtime' }; },
+      async set() {},
+      async delete() {},
+      async expireTag() {},
+    },
+    durableFetchImpl: async (_url, init) => {
+      assert.equal(init.method, 'GET');
+      return new Response(JSON.stringify([{ value: { source: 'neon', sections: { cinema: { parts: ['film'] } } }, expires_at: null }]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+
+  assert.equal((await cache.get('current')).source, 'neon');
+  assert.equal(runtimeReads, 0);
+});
+
+test('TickTick OAuth nonce remains transient while the access token is durable', async () => {
+  const values = new Map([['state:abc', { createdAt: 1 }]]);
+  let durableCalls = 0;
+  const cache = createStrictRuntimeCache({
+    env: {},
+    namespace: 'rudi-ticktick-oauth-v1',
+    botToken: '123:test',
+    retryDelayMs: 0,
+    attempts: 1,
+    runtimeCache: {
+      async get(key) { return values.get(key) ?? null; },
+      async set(key, value) { values.set(key, value); },
+      async delete(key) { values.delete(key); },
+      async expireTag() {},
+    },
+    durableFetchImpl: async () => {
+      durableCalls += 1;
+      return new Response('[]', { status: 200 });
+    },
+  });
+
+  assert.deepEqual(await cache.get('state:abc'), { createdAt: 1 });
+  assert.equal(durableCalls, 0);
+
+  await cache.set('oauth-token', { accessToken: 'token' }, { ttl: 60 * 60 * 24 * 3650 });
+  assert.ok(durableCalls > 0);
+});
+
+
+test('TickTick checklist audit reads durable state before Runtime Cache', async () => {
+  let runtimeReads = 0;
+  const cache = createStrictRuntimeCache({
+    env: {},
+    namespace: 'rudi-ticktick-checklist-audit',
+    botToken: '123:test',
+    retryDelayMs: 0,
+    attempts: 1,
+    runtimeCache: {
+      async get() { runtimeReads += 1; return { source: 'runtime' }; },
+      async set() {},
+      async delete() {},
+      async expireTag() {},
+    },
+    durableFetchImpl: async (_url, init) => {
+      assert.equal(init.method, 'GET');
+      return new Response(JSON.stringify([{ value: { source: 'neon' }, expires_at: null }]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+  assert.deepEqual(await cache.get('state'), { source: 'neon' });
+  assert.equal(runtimeReads, 0);
+});

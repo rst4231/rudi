@@ -1,5 +1,5 @@
 {
-  "version": 12,
+  "version": 13,
   "blockedVenueTokens": [
     "севкабель",
     "sevkabel",
@@ -117,6 +117,80 @@
           "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7539.jpg",
           "source": "Мираж Синема Санкт-Петербург",
           "sourceUrl": "https://www.mirage.ru/film/7539/"
+        }
+      ],
+      "2026-10-01": [
+        {
+          "title": "Приключения Мамонтёнка. В поисках мамы",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7580.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7580/priklyucheniya-mamontenka.-v-poiskah-mamy.htm"
+        },
+        {
+          "title": "Царевна Несмеяна",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7582.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7582/carevna-nesmeyana.htm"
+        },
+        {
+          "title": "Сердце зверя",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7557.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7557/serdce-zverya.htm"
+        },
+        {
+          "title": "Мстители: Финал – Расширенная версия",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7599.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7599/mstiteli-final-%E2%80%93-rasshirennaya-versiya-.htm"
+        },
+        {
+          "title": "Арахнид",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7589.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7589/arahnid-.htm"
+        },
+        {
+          "title": "Мстители: Война бесконечности",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7606.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7606/mstiteli-voyna-beskonechnosti.htm"
+        },
+        {
+          "title": "Чарли и Харпер",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7583.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7583/charli-i-harper.htm"
+        },
+        {
+          "title": "Сделано в Милане: история Армани и итальянской моды",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7581.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7581/sdelano-v-milane-istoriya-armani-i-italyanskoy-mody.htm"
+        },
+        {
+          "title": "Первый мститель: Противостояние",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7601.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7601/pervyy-mstitel-protivostoyanie.htm"
+        },
+        {
+          "title": "Без оглядки",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7587.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7587/bez-oglyadki.htm"
+        },
+        {
+          "title": "Добро пожаловать в Декорадо",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7588.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7588/dobro-pozhalovat-v-dekorado-.htm"
+        },
+        {
+          "title": "Доктор Стрэндж",
+          "posterUrl": "https://cdn.mirage.ru/images/film/7000/small/p7602.jpg",
+          "source": "Мираж Синема Санкт-Петербург",
+          "sourceUrl": "https://www.mirage.ru/film/7602/doktor-strendzh.htm"
         }
       ]
     }

@@ -187,6 +187,51 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-for-di-private-v1',
   'rudi-labor-code-v1',
 ]);
+
+const DURABLE_TARGETED_NAMESPACES = new Set([
+  'rudi-ticktick-oauth-v1',
+  'rudi-work-calendar-v1',
+  'rudi-private-cycle-v1',
+  'rudi-partner-message-v1',
+  'rudi-wishlist-v1',
+  'rudi-product-list-v1',
+  'rudi-feed-v1',
+  'rudi-cinema-premieres-v1',
+  'rudi-lulu-v1',
+  'rudi-shared-album-v1',
+  'rudi-saved-items-v1',
+  'rudi-holiday-highlights-v1',
+  'rudi-ticktick-checklist-audit',
+]);
+
+const DURABLE_TARGETED_KEY_TTLS = new Map([
+  ['rudi-ticktick-oauth-v1\0oauth-token', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-work-calendar-v1\0calendar-url', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-private-cycle-v1\0diana-cycle', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-partner-message-v1\0partner-message', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-wishlist-v1\0wishlist', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-product-list-v1\0products', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-feed-v1\0current', 60 * 60 * 24 * 365],
+  ['rudi-lulu-v1\0lulu', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-shared-album-v1\0album-config', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-saved-items-v1\0shared-saves', DURABLE_LONG_TTL_SECONDS],
+  ['rudi-ticktick-checklist-audit\0state', DURABLE_LONG_TTL_SECONDS],
+]);
+
+function targetedDurableTtlSeconds(namespace, key) {
+  const exact = DURABLE_TARGETED_KEY_TTLS.get(namespace + '\0' + String(key || ''));
+  if (exact) return exact;
+  if (namespace === 'rudi-feed-v1' && String(key || '').startsWith('notice:')) {
+    return 60 * 60 * 24 * 14;
+  }
+  if (namespace === 'rudi-cinema-premieres-v1') {
+    return 60 * 60 * 24 * 365 * 5;
+  }
+  if (namespace === 'rudi-holiday-highlights-v1' && String(key || '').startsWith('day:')) {
+    return 60 * 60 * 48;
+  }
+  return 0;
+}
 const DURABLE_CONTROL_PLANE_TAGS = new Set([
   'rudi-daily-cron-state',
   'rudi-settings',
@@ -196,6 +241,7 @@ const DURABLE_CONTROL_PLANE_TAGS = new Set([
 
 function isDurableKey(namespace, key) {
   if (DURABLE_NAMESPACES.has(namespace)) return true;
+  if (targetedDurableTtlSeconds(namespace, key) > 0) return true;
   if (namespace !== 'rudi-control-plane-v1') return false;
   const text = String(key || '');
   return text === 'daily-cron:last-attempt'
@@ -206,6 +252,8 @@ function isDurableKey(namespace, key) {
 
 function migrationTtlSeconds(namespace, key) {
   if (DURABLE_NAMESPACES.has(namespace)) return DURABLE_LONG_TTL_SECONDS;
+  const targetedTtl = targetedDurableTtlSeconds(namespace, key);
+  if (targetedTtl > 0) return targetedTtl;
   if (namespace === 'rudi-control-plane-v1' && String(key || '') === 'daily-cron:last-attempt') {
     return 60 * 60 * 24 * 35;
   }
@@ -213,7 +261,7 @@ function migrationTtlSeconds(namespace, key) {
 }
 
 function isDurableTag(namespace, tag) {
-  if (DURABLE_NAMESPACES.has(namespace)) return true;
+  if (DURABLE_NAMESPACES.has(namespace) || DURABLE_TARGETED_NAMESPACES.has(namespace)) return true;
   return namespace === 'rudi-control-plane-v1' && DURABLE_CONTROL_PLANE_TAGS.has(String(tag || ''));
 }
 
