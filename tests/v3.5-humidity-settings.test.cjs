@@ -8,11 +8,13 @@ test('humidity alert preference defaults on and can be disabled',()=>{
   assert.equal(normalizeUiPreferencesState({humidityAlertEnabled:false}).humidityAlertEnabled,false);
 });
 
-test('settings expose low humidity toggle and hourly cron',()=>{
+test('settings expose low humidity toggle and GitHub hourly check',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
-  const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
+  const workflow=fs.readFileSync('.github/workflows/smart-home-humidity-alert.yml','utf8');
   assert.match(app,/id="settingsHumidityAlertToggle"/);
   assert.match(app,/function humidityAlertEnabled\(\)/);
   assert.match(app,/humidityAlertEnabled:next,syncSchemaVersion:4/);
-  assert.ok(config.crons.some(row=>row.path==='/api/smart-home-humidity-cron'&&row.schedule==='0 * * * *'));
+  assert.match(workflow,/cron: '7 \* \* \* \*'/);
+  assert.match(workflow,/rudi-smart-home-humidity/);
+  assert.match(workflow,/\/api\/smart-home-humidity-cron/);
 });
