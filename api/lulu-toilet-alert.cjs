@@ -1,8 +1,7 @@
 // 100% alert routing follows Diana's active calendar shift at the moment the threshold is reached.
 const { readLuluState, recordLuluToiletAlertRecipients } = require('./lulu-store.cjs');
 const { luluToiletProbability, localMinutes } = require('./lulu-toilet.cjs');
-const { readRecipients } = require('./partner-notification-store.cjs');
-const { telegramSendMessage } = require('./telegram-notifications.cjs');
+const { sendPushNotification } = require('./web-push.cjs');
 const { getWorkWeek } = require('./work-calendar.cjs');
 
 const ALERT_TEXT = '🐾 <b>Лулу хочет в туалет</b>\nВероятность: <b>100%</b>';
@@ -132,20 +131,20 @@ async function runLuluToiletAlert(options = {}) {
 
   const routing = await resolveLuluAlertRecipient(now, options);
   const targetActor = routing.actor;
-  const recipients = options.recipients || await readRecipients(options) || {};
-  const send = options.telegramSendMessage || telegramSendMessage;
+  const send = options.sendPushNotification || sendPushNotification;
   const sent = [], failed = [], missing = [];
-  const chatId = Number(recipients?.[targetActor]);
 
-  if (!Number.isInteger(chatId) || chatId <= 0) {
-    missing.push(targetActor);
-  } else {
-    try {
-      const result = await send(chatId, ALERT_TEXT, options);
-      sent.push({ actor: targetActor, ...result });
-    } catch (error) {
-      failed.push({ actor: targetActor, error: String(error?.message || error) });
-    }
+  try {
+    const result = await send(targetActor, {
+      title: '🐾 Лулу хочет в туалет',
+      body: 'Вероятность: 100%',
+      tag: 'lulu-toilet',
+      url: '/?item=lulu',
+    }, options);
+    if (result?.sent) sent.push({ actor: targetActor, ...result });
+    else missing.push(targetActor);
+  } catch (error) {
+    failed.push({ actor: targetActor, error: String(error?.message || error) });
   }
 
   if (sent.length) {
