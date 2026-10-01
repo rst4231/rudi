@@ -115,8 +115,8 @@
   font-weight:560;
   white-space:pre-wrap;
   overflow-wrap:anywhere;
-  user-select:text;
-  -webkit-user-select:text;
+  user-select:none;
+  -webkit-user-select:none;
 }
 .messenger-message-text.is-unavailable{color:var(--muted);font-style:italic}
 .messenger-message-text a{
@@ -167,7 +167,6 @@
   filter:brightness(.98);
 }
 .messenger-bubble{-webkit-touch-callout:none}
-.messenger-message-text{-webkit-user-select:none;user-select:none}
 .messenger-composer-wrap{
   grid-row:4;
   position:relative;
