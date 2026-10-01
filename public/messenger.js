@@ -722,42 +722,60 @@
 
   function bindMessageTapGestures(article,row,payload){
     if(!article||!row||!payload) return;
-    let taps=0;
-    let timer=0;
-    let downAt=0;
-    let startX=0;
-    let startY=0;
 
-    article.addEventListener('pointerdown',event=>{
-      if(event.target.closest('a,button,input,textarea')) return;
-      if(event.pointerType==='mouse'&&event.button!==0) return;
-      downAt=Date.now();
-      startX=Number(event.clientX||0);
-      startY=Number(event.clientY||0);
-    });
+    let tapCount=0;
+    let tapTimer=0;
+    let touchStartAt=0;
+    let touchStartX=0;
+    let touchStartY=0;
+    let lastTouchEndAt=0;
 
-    article.addEventListener('pointerup',event=>{
-      if(event.target.closest('a,button,input,textarea')) return;
-      const longPressedAt=Number(article.dataset.longPressedAt||0);
-      if(longPressedAt&&Date.now()-longPressedAt<800) return;
-      const duration=Date.now()-downAt;
-      const moved=Math.hypot(Number(event.clientX||0)-startX,Number(event.clientY||0)-startY);
-      if(!downAt||duration>280||moved>12) return;
-
-      taps+=1;
-      clearTimeout(timer);
-      timer=setTimeout(()=>{
-        const count=taps;
-        taps=0;
+    const triggerTap=()=>{
+      tapCount+=1;
+      clearTimeout(tapTimer);
+      tapTimer=setTimeout(()=>{
+        const count=tapCount;
+        tapCount=0;
         if(count>=3&&row.sender===state.actor){
           startMessageEdit(row,payload);
           return;
         }
-        if(count===2){
+        if(count>=2){
           setMessageReaction(row,'❤️');
           try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
         }
-      },300);
+      },420);
+    };
+
+    article.addEventListener('touchstart',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      const touch=event.touches?.[0];
+      if(!touch) return;
+      touchStartAt=Date.now();
+      touchStartX=touch.clientX;
+      touchStartY=touch.clientY;
+    },{passive:true});
+
+    article.addEventListener('touchend',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      const longPressedAt=Number(article.dataset.longPressedAt||0);
+      if(longPressedAt&&Date.now()-longPressedAt<900) return;
+      const touch=event.changedTouches?.[0];
+      if(!touch||!touchStartAt) return;
+      const duration=Date.now()-touchStartAt;
+      const moved=Math.hypot(touch.clientX-touchStartX,touch.clientY-touchStartY);
+      touchStartAt=0;
+      if(duration>420||moved>14) return;
+      lastTouchEndAt=Date.now();
+      triggerTap();
+    },{passive:true});
+
+    article.addEventListener('click',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      if(Date.now()-lastTouchEndAt<700) return;
+      const longPressedAt=Number(article.dataset.longPressedAt||0);
+      if(longPressedAt&&Date.now()-longPressedAt<900) return;
+      triggerTap();
     });
   }
 
