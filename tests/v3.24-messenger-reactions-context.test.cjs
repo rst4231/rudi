@@ -20,17 +20,33 @@ test('v3.24 shows reactions directly in context menu',()=>{
   assert.doesNotMatch(client,/\['Реакция',\(\)=>showReactionPicker/);
 });
 
-test('v3.24 double tap toggles heart reliably on touch devices',()=>{
-  assert.match(client,/article\.addEventListener\('touchend'/);
-  assert.match(client,/if\(count>=2\)/);
+test('double tap uses delegated pointer events and only toggles heart',()=>{
+  assert.match(client,/messages\.addEventListener\('pointerdown'/);
+  assert.match(client,/messages\.addEventListener\('pointerup'/);
+  assert.match(client,/state\.tapMessageId===id&&now-state\.tapAt<=460/);
   assert.match(client,/setMessageReaction\(row,'❤️'\)/);
-  assert.match(client,/Date\.now\(\)-lastTouchEndAt<700/);
+  assert.doesNotMatch(client,/count>=3/);
 });
 
-test('v3.24 tapping own reaction removes it and reaction shows actor avatars',()=>{
-  assert.match(client,/if\(actors\.includes\(state\.actor\)\) setMessageReaction\(row,emoji\)/);
+test('tapping a reaction toggles it and reaction shows actor avatars',()=>{
+  assert.match(client,/reaction\.addEventListener\('pointerup',activateReaction\)/);
+  assert.match(client,/setMessageReaction\(row,emoji\)/);
   assert.match(client,/function appendReactionAvatars\(container,actors\)/);
   assert.match(client,/appendReactionAvatars\(reaction,actors\)/);
   assert.match(css,/\.messenger-reaction-avatar\{/);
   assert.match(css,/\.messenger-reaction-avatar img\{/);
+});
+
+test('context menu opens only from hold and not from contextmenu or double click',()=>{
+  assert.match(client,/timer=setTimeout\(\(\)=>\{[\s\S]*?showMessageContext\(article,row,payload\)/);
+  assert.match(client,/article\.addEventListener\('contextmenu',event=>\{[\s\S]*?event\.preventDefault\(\)[\s\S]*?event\.stopPropagation\(\)[\s\S]*?cancel\(\)/);
+  assert.doesNotMatch(client,/contextmenu'[\s\S]*?showMessageContext/);
+  assert.match(client,/article\.addEventListener\('dblclick',event=>\{/);
+});
+
+test('emoji tray toggle keeps messenger input focused',()=>{
+  assert.match(client,/function bindPage\(\)/);
+  assert.match(client,/toggleEmojiTrayWithoutBlur/);
+  assert.match(client,/emoji\.addEventListener\('pointerdown',toggleEmojiTrayWithoutBlur\)/);
+  assert.match(client,/input\.focus\(\{preventScroll:true\}\)/);
 });
