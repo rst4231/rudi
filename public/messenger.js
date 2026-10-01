@@ -569,8 +569,12 @@
     ['pointerup','pointercancel','pointerleave'].forEach(type=>article.addEventListener(type,cancel));
     article.addEventListener('contextmenu',event=>{
       event.preventDefault();
+      event.stopPropagation();
       cancel();
-      showMessageContext(article,row,payload);
+    });
+    article.addEventListener('dblclick',event=>{
+      event.preventDefault();
+      event.stopPropagation();
     });
   }
 
