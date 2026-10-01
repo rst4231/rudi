@@ -486,20 +486,11 @@
       const button=document.createElement('button');
       button.type='button';
       button.textContent=emoji;
+      button.dataset.messengerReaction=emoji;
+      button.dataset.messageId=String(row?.id||'');
       button.setAttribute('aria-label','Реакция '+emoji);
       const actors=Array.isArray(row?.reactions?.[emoji])?row.reactions[emoji]:[];
       if(actors.includes(state.actor)) button.classList.add('is-selected');
-      let activatedAt=0;
-      const activate=event=>{
-        event.preventDefault();
-        event.stopPropagation();
-        if(Date.now()-activatedAt<450) return;
-        activatedAt=Date.now();
-        hideContextMenu();
-        setMessageReaction(row,emoji);
-      };
-      button.addEventListener('pointerup',activate);
-      button.addEventListener('click',activate);
       tray.appendChild(button);
     }
     menu.appendChild(tray);
@@ -767,6 +758,11 @@
     }catch(error){
       state.rows=state.rows.map(item=>item.id===row.id?before:item);
       renderMessages({preserveScrollTop});
+      const status=document.getElementById('messengerStatus');
+      if(status){
+        status.hidden=false;
+        status.textContent='Не удалось поставить реакцию: '+String(error?.message||'ошибка');
+      }
       console.warn('RUDI_MESSENGER_REACTION_WARN',String(error?.message||error));
     }
   }
@@ -891,6 +887,8 @@
           if(!actors.length) continue;
           const reaction=document.createElement('button');
           reaction.type='button';
+          reaction.dataset.messengerReaction=emoji;
+          reaction.dataset.messageId=String(row?.id||'');
           reaction.className='messenger-reaction'+(actors.includes(state.actor)?' is-own-reaction':'');
           const emojiText=document.createElement('span');
           emojiText.className='messenger-reaction-emoji';
@@ -898,16 +896,6 @@
           reaction.appendChild(emojiText);
           appendReactionAvatars(reaction,actors);
           reaction.title=actors.includes(state.actor)?'Снять реакцию':actors.join(', ');
-          let activatedAt=0;
-          const activateReaction=event=>{
-            event.preventDefault();
-            event.stopPropagation();
-            if(Date.now()-activatedAt<450) return;
-            activatedAt=Date.now();
-            setMessageReaction(row,emoji);
-          };
-          reaction.addEventListener('pointerup',activateReaction);
-          reaction.addEventListener('click',activateReaction);
           wrap.appendChild(reaction);
         }
         bubble.appendChild(wrap);
@@ -1443,6 +1431,26 @@
     const messages=document.getElementById('messengerMessages');
 
     const page=document.getElementById('messengerPage');
+    if(page&&page.dataset.reactionPointerBound!=='1'){
+      page.dataset.reactionPointerBound='1';
+      let reactionGuardAt=0;
+      page.addEventListener('pointerdown',event=>{
+        const button=event.target.closest('[data-messenger-reaction][data-message-id]');
+        if(!button) return;
+        if(event.pointerType==='mouse'&&event.button!==0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const now=Date.now();
+        if(now-reactionGuardAt<220) return;
+        reactionGuardAt=now;
+        const id=String(button.dataset.messageId||'');
+        const emoji=String(button.dataset.messengerReaction||'');
+        const row=state.rows.find(item=>String(item?.id||'')===id);
+        if(!row) return;
+        hideContextMenu();
+        setMessageReaction(row,emoji);
+      },true);
+    }
     if(page&&page.dataset.dismissContextBound!=='1'){
       page.dataset.dismissContextBound='1';
       page.addEventListener('pointerdown',event=>{
