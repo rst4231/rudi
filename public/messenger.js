@@ -8,6 +8,8 @@
   const decoder=new TextDecoder();
   const AAD_V1=encoder.encode('rudi-messenger-v1');
   const AAD_V2=encoder.encode('rudi-messenger-shared-v2');
+  const OUTBOX_KEY='rudi-messenger-outbox-v1';
+  const REACTIONS=['❤️','😂','😘','😢','👍','🔥'];
   const state={
     actor:'',
     partner:'',
@@ -28,6 +30,11 @@
     liveTimer:0,
     typingTimer:0,
     typingLastSent:0,
+    unreadBoundaryId:'',
+    newBelowCount:0,
+    nearBottom:true,
+    readTimer:0,
+    retrying:false,
   };
 
   function telegramInitData(){
@@ -269,6 +276,93 @@
     if(last<source.length) container.append(document.createTextNode(source.slice(last)));
   }
 
+  function readMessengerOutbox(){
+    try{
+      const rows=JSON.parse(localStorage.getItem(OUTBOX_KEY)||'[]');
+      return (Array.isArray(rows)?rows:[]).filter(row=>row&&row.clientId&&row.ciphertext&&row.iv).slice(-64);
+    }catch(_){return []}
+  }
+
+  function writeMessengerOutbox(rows){
+    try{localStorage.setItem(OUTBOX_KEY,JSON.stringify((Array.isArray(rows)?rows:[]).slice(-64)))}catch(_){}
+  }
+
+  function upsertMessengerOutbox(entry){
+    const rows=readMessengerOutbox();
+    const next=[...rows.filter(row=>row.clientId!==entry.clientId),entry].slice(-64);
+    writeMessengerOutbox(next);
+    return entry;
+  }
+
+  function removeMessengerOutbox(clientId){
+    const id=String(clientId||'');
+    if(!id) return;
+    writeMessengerOutbox(readMessengerOutbox().filter(row=>row.clientId!==id));
+  }
+
+  function pendingRowFromOutbox(entry){
+    const createdAt=String(entry?.createdAt||new Date().toISOString());
+    const createdMs=Date.parse(createdAt);
+    return {
+      id:'pending:'+String(entry.clientId||''),
+      clientId:String(entry.clientId||''),
+      sender:state.actor,
+      scheme:'shared-v2',
+      ciphertext:String(entry.ciphertext||''),
+      iv:String(entry.iv||''),
+      keyVersions:entry.keyVersions||{},
+      createdAt,
+      expiresAt:new Date((Number.isFinite(createdMs)?createdMs:Date.now())+24*60*60*1000).toISOString(),
+      readAt:'',
+      editedAt:'',
+      reactions:{},
+      likedBy:[],
+      _pending:true,
+      _failed:Boolean(entry.failed),
+    };
+  }
+
+  function mergePendingRows(serverRows){
+    const rows=Array.isArray(serverRows)?serverRows:[];
+    const serverClientIds=new Set(rows.map(row=>String(row?.clientId||'')).filter(Boolean));
+    const outbox=readMessengerOutbox();
+    const remaining=outbox.filter(entry=>!serverClientIds.has(String(entry.clientId||'')));
+    if(remaining.length!==outbox.length) writeMessengerOutbox(remaining);
+    const pending=remaining.map(pendingRowFromOutbox);
+    return [...rows,...pending].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+  }
+
+  function selfAvatarUrl(){
+    const image=document.getElementById('avatarImage');
+    const src=String(image?.currentSrc||image?.src||'').trim();
+    return /^https:\/\//i.test(src)?src:'';
+  }
+
+  function messageDateKey(value){
+    const date=new Date(String(value||''));
+    if(Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+  }
+
+  function formatMessageDate(value){
+    const date=new Date(String(value||''));
+    if(Number.isNaN(date.getTime())) return '';
+    const now=new Date();
+    const today=messageDateKey(now);
+    const yesterday=messageDateKey(new Date(now.getTime()-24*60*60*1000));
+    const key=messageDateKey(date);
+    if(key===today) return 'Сегодня';
+    if(key===yesterday) return 'Вчера';
+    const sameYear=new Intl.DateTimeFormat('en',{timeZone:'Europe/Moscow',year:'numeric'}).format(date)===
+      new Intl.DateTimeFormat('en',{timeZone:'Europe/Moscow',year:'numeric'}).format(now);
+    return new Intl.DateTimeFormat('ru-RU',{
+      timeZone:'Europe/Moscow',
+      day:'numeric',
+      month:'long',
+      ...(sameYear?{}:{year:'numeric'})
+    }).format(date);
+  }
+
   function renderReplyDraft(){
     const box=document.getElementById('messengerReplyDraft');
     const text=document.getElementById('messengerReplyDraftText');
@@ -319,35 +413,125 @@
     }
   }
 
-  function hideDeleteActions(except=null){
-    document.querySelectorAll('.messenger-delete-action.is-visible').forEach(button=>{
-      if(button!==except) button.classList.remove('is-visible');
-    });
+  function copyMessageText(text){
+    const value=String(text||'');
+    if(!value) return;
+    if(navigator.clipboard?.writeText){
+      navigator.clipboard.writeText(value).catch(()=>{});
+      return;
+    }
+    const area=document.createElement('textarea');
+    area.value=value;
+    area.style.position='fixed';
+    area.style.opacity='0';
+    document.body.appendChild(area);
+    area.select();
+    try{document.execCommand('copy')}catch(_){}
+    area.remove();
   }
 
-  function bindLongPressDelete(article,row,button){
-    if(!article||!row||row.sender!==state.actor||!button) return;
+  function ensureContextMenu(){
+    let menu=document.getElementById('messengerContextMenu');
+    if(menu) return menu;
+    menu=document.createElement('div');
+    menu.id='messengerContextMenu';
+    menu.className='messenger-context-menu';
+    menu.hidden=true;
+    document.getElementById('messengerPage')?.appendChild(menu);
+    return menu;
+  }
+
+  function hideContextMenu(){
+    const menu=document.getElementById('messengerContextMenu');
+    if(menu){menu.hidden=true;menu.replaceChildren()}
+  }
+
+  function showReactionPicker(row){
+    const menu=ensureContextMenu();
+    menu.replaceChildren();
+    const title=document.createElement('div');
+    title.className='messenger-context-title';
+    title.textContent='Реакция';
+    const tray=document.createElement('div');
+    tray.className='messenger-reaction-picker';
+    for(const emoji of REACTIONS){
+      const button=document.createElement('button');
+      button.type='button';
+      button.textContent=emoji;
+      const actors=Array.isArray(row?.reactions?.[emoji])?row.reactions[emoji]:[];
+      if(actors.includes(state.actor)) button.classList.add('is-selected');
+      button.addEventListener('click',event=>{
+        event.stopPropagation();
+        hideContextMenu();
+        setMessageReaction(row,emoji);
+      });
+      tray.appendChild(button);
+    }
+    menu.append(title,tray);
+    menu.hidden=false;
+  }
+
+  function showMessageContext(article,row,payload){
+    if(!article||!row||!payload) return;
+    const menu=ensureContextMenu();
+    menu.replaceChildren();
+    const actions=row.sender===state.actor
+      ?[
+        ['Ответить',()=>setReply(row,payload)],
+        ['Копировать',()=>copyMessageText(payload.text)],
+        ['Редактировать',()=>startMessageEdit(row,payload)],
+        ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
+      ]
+      :[
+        ['Ответить',()=>setReply(row,payload)],
+        ['Копировать',()=>copyMessageText(payload.text)],
+        ['Реакция',()=>showReactionPicker(row)],
+      ];
+    for(const [label,handler,className] of actions){
+      const button=document.createElement('button');
+      button.type='button';
+      button.textContent=label;
+      if(className) button.classList.add(className);
+      button.addEventListener('click',event=>{
+        event.stopPropagation();
+        if(label!=='Реакция') hideContextMenu();
+        handler();
+      });
+      menu.appendChild(button);
+    }
+    menu.hidden=false;
+    article.classList.add('is-long-press');
+    setTimeout(()=>article.classList.remove('is-long-press'),180);
+    try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+  }
+
+  function bindLongPressContext(article,row,payload){
+    if(!article||!row||!payload) return;
     let timer=0,startX=0,startY=0,pressed=false;
     const cancel=()=>{pressed=false;if(timer){clearTimeout(timer);timer=0}};
     article.addEventListener('pointerdown',event=>{
+      if(event.target.closest('a,button')) return;
       if(event.pointerType==='mouse'&&event.button!==0) return;
-      pressed=true;startX=Number(event.clientX||0);startY=Number(event.clientY||0);
+      pressed=true;
+      startX=Number(event.clientX||0);
+      startY=Number(event.clientY||0);
       timer=setTimeout(()=>{
         if(!pressed) return;
-        pressed=false;timer=0;
+        pressed=false;
+        timer=0;
         article.dataset.longPressedAt=String(Date.now());
-        hideDeleteActions(button);
-        button.classList.add('is-visible');
-        article.classList.add('is-long-press');
-        setTimeout(()=>article.classList.remove('is-long-press'),180);
-        try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
-      },520);
+        showMessageContext(article,row,payload);
+      },480);
     });
     article.addEventListener('pointermove',event=>{
       if(Math.abs(Number(event.clientX||0)-startX)>12||Math.abs(Number(event.clientY||0)-startY)>12) cancel();
     });
     ['pointerup','pointercancel','pointerleave'].forEach(type=>article.addEventListener(type,cancel));
-    article.addEventListener('contextmenu',event=>event.preventDefault());
+    article.addEventListener('contextmenu',event=>{
+      event.preventDefault();
+      cancel();
+      showMessageContext(article,row,payload);
+    });
   }
 
   function bindSwipeReply(article,row,payload){
@@ -355,7 +539,7 @@
     let startX=0,startY=0,tracking=false;
     article.addEventListener('touchstart',event=>{
       const touch=event.touches?.[0];
-      if(!touch) return;
+      if(!touch||event.target.closest('a,button')) return;
       startX=touch.clientX;startY=touch.clientY;tracking=true;
     },{passive:true});
     article.addEventListener('touchend',event=>{
@@ -364,7 +548,7 @@
       const touch=event.changedTouches?.[0];
       if(!touch) return;
       const dx=touch.clientX-startX,dy=touch.clientY-startY;
-      if(dx<-55&&Math.abs(dy)<38){
+      if(dx>55&&Math.abs(dy)<38){
         article.classList.add('is-swipe-reply');
         setTimeout(()=>article.classList.remove('is-swipe-reply'),180);
         setReply(row,payload);
@@ -373,12 +557,43 @@
     },{passive:true});
   }
 
-  function scrollMessagesToBottom(){
+  function isMessagesNearBottom(list=document.getElementById('messengerMessages')){
+    if(!list) return true;
+    return list.scrollHeight-list.scrollTop-list.clientHeight<72;
+  }
+
+  function ensureJumpLatest(){
+    let button=document.getElementById('messengerJumpLatest');
+    if(button) return button;
+    button=document.createElement('button');
+    button.id='messengerJumpLatest';
+    button.type='button';
+    button.className='messenger-jump-latest';
+    button.hidden=true;
+    button.addEventListener('click',()=>{
+      state.newBelowCount=0;
+      scrollMessagesToBottom();
+    });
+    document.getElementById('messengerPage')?.appendChild(button);
+    return button;
+  }
+
+  function updateJumpLatest(){
+    const button=ensureJumpLatest();
+    const count=Math.max(0,Number(state.newBelowCount||0));
+    const shouldShow=!state.nearBottom&&count>0;
+    button.hidden=!shouldShow;
+    button.textContent=count>0?'↓ '+(count>99?'99+':count):'↓';
+  }
+
+  function scrollMessagesToBottom({clearNew=true}={}){
     const list=document.getElementById('messengerMessages');
     if(!list) return;
+    if(clearNew) state.newBelowCount=0;
+    state.nearBottom=true;
     requestAnimationFrame(()=>{
       list.scrollTop=list.scrollHeight;
-      requestAnimationFrame(()=>{list.scrollTop=list.scrollHeight});
+      requestAnimationFrame(()=>{list.scrollTop=list.scrollHeight;updateJumpLatest()});
     });
   }
 
@@ -430,45 +645,51 @@
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
   }
 
-  async function toggleMessageLike(row){
-    if(!row?.id) return;
+  function reactionStateForRow(row){
+    const source=row?.reactions&&typeof row.reactions==='object'?row.reactions:{};
+    const result={};
+    for(const emoji of REACTIONS){
+      const actors=Array.isArray(source[emoji])?source[emoji]:[];
+      if(actors.length) result[emoji]=[...new Set(actors)];
+    }
+    if(!Object.keys(result).length&&Array.isArray(row?.likedBy)&&row.likedBy.length){
+      result['❤️']=[...new Set(row.likedBy)];
+    }
+    return result;
+  }
+
+  function locallyToggleReaction(row,emoji){
+    const reactions=reactionStateForRow(row);
+    const hadSame=(reactions[emoji]||[]).includes(state.actor);
+    for(const key of Object.keys(reactions)){
+      reactions[key]=reactions[key].filter(actor=>actor!==state.actor);
+      if(!reactions[key].length) delete reactions[key];
+    }
+    if(!hadSame) reactions[emoji]=[...(reactions[emoji]||[]),state.actor];
+    return {...row,reactions,likedBy:reactions['❤️']||[]};
+  }
+
+  async function setMessageReaction(row,emoji){
+    if(!row?.id||String(row.id).startsWith('pending:')||!REACTIONS.includes(emoji)) return;
     const list=document.getElementById('messengerMessages');
     const preservedScrollTop=Number(list?.scrollTop||0);
+    const before=row;
+    const optimistic=locallyToggleReaction(row,emoji);
+    state.rows=state.rows.map(item=>item.id===row.id?optimistic:item);
+    renderMessages({preserveScrollTop});
     try{
-      const data=await api('messenger-like',{id:row.id});
-      if(data?.message){
-        state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
-        renderMessages({preserveScrollTop:preservedScrollTop});
-      }
+      const data=await api('messenger-reaction',{id:row.id,reaction:emoji});
+      if(data?.message) state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
+      renderMessages({preserveScrollTop});
       try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
     }catch(error){
-      console.warn('RUDI_MESSENGER_LIKE_WARN',String(error?.message||error));
+      state.rows=state.rows.map(item=>item.id===row.id?before:item);
+      renderMessages({preserveScrollTop});
+      console.warn('RUDI_MESSENGER_REACTION_WARN',String(error?.message||error));
     }
   }
 
-  function bindMessageTapGestures(article,row,payload){
-    if(!article||!row||!payload) return;
-    let taps=0;
-    let gestureTimer=0;
-    article.addEventListener('click',event=>{
-      if(event.target.closest('a,button,input,textarea')) return;
-      const longPressedAt=Number(article.dataset.longPressedAt||0);
-      if(longPressedAt&&Date.now()-longPressedAt<700) return;
-      taps+=1;
-      clearTimeout(gestureTimer);
-      gestureTimer=setTimeout(()=>{
-        const count=taps;
-        taps=0;
-        if(count>=3){
-          if(row.sender===state.actor) startMessageEdit(row,payload);
-          else toggleMessageLike(row);
-          return;
-        }
-        if(count===2) toggleMessageLike(row);
-      },340);
-    });
-  }
-
+  function renderTypingIndicator({autoScroll=true}={}){
   function renderTypingIndicator({autoScroll=true}={}){
     const list=document.getElementById('messengerMessages');
     if(!list) return;
@@ -481,32 +702,56 @@
     if(autoScroll) scrollMessagesToBottom();
   }
 
-  function renderMessages({preserveScrollTop=null}={}){
+  function renderMessages({preserveScrollTop=null,forceBottom=false}={}){
     const list=document.getElementById('messengerMessages');
     const empty=document.getElementById('messengerEmpty');
     if(!list) return;
+    const previousTop=Number(list.scrollTop||0);
+    const stickToBottom=Boolean(forceBottom||state.nearBottom||isMessagesNearBottom(list));
     list.replaceChildren();
     const rows=Array.isArray(state.rows)?state.rows:[];
     if(empty) empty.hidden=rows.length>0;
+    let previousDay='';
     for(const row of rows){
+      const day=messageDateKey(row.createdAt);
+      if(day&&day!==previousDay){
+        const divider=document.createElement('div');
+        divider.className='messenger-date-separator';
+        divider.textContent=formatMessageDate(row.createdAt);
+        list.appendChild(divider);
+        previousDay=day;
+      }
+      if(state.unreadBoundaryId&&row.id===state.unreadBoundaryId){
+        const unread=document.createElement('div');
+        unread.className='messenger-unread-separator';
+        unread.innerHTML='<span>Новые сообщения</span>';
+        list.appendChild(unread);
+      }
+
       const own=row.sender===state.actor;
       const payload=state.decrypted.get(row.id);
       const article=document.createElement('article');
       const isFresh=state.initialized&&!state.renderedIds.has(row.id);
-      article.className='messenger-message '+(own?'is-own':'is-partner')+(isFresh?' is-new':'')+(state.justSentId===row.id?' is-sent':'');
+      article.className='messenger-message '+(own?'is-own':'is-partner')+(isFresh?' is-new':'')+(state.justSentId===row.id?' is-sent':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
       article.dataset.messageId=row.id;
 
       const bubble=document.createElement('div');
       bubble.className='messenger-bubble';
 
       if(payload?.reply){
-        const quote=document.createElement('div');
+        const quote=document.createElement('button');
+        quote.type='button';
         quote.className='messenger-quote';
+        quote.dataset.replyTarget=String(payload.reply.id||'');
         const author=document.createElement('strong');
         author.textContent=payload.reply.author||'Сообщение';
         const quoteText=document.createElement('span');
         quoteText.textContent=String(payload.reply.text||'Сообщение недоступно').replace(/https?:\/\/[^\s<]+/giu,'ссылка');
         quote.append(author,quoteText);
+        quote.addEventListener('click',event=>{
+          event.stopPropagation();
+          scrollToMessageId(payload.reply.id);
+        });
         bubble.appendChild(quote);
       }
 
@@ -522,71 +767,105 @@
 
       const meta=document.createElement('div');
       meta.className='messenger-message-meta';
+      if(row.editedAt){
+        const edited=document.createElement('span');
+        edited.className='messenger-edited';
+        edited.textContent='изм.';
+        meta.appendChild(edited);
+      }
       const time=document.createElement('time');
       time.dateTime=String(row.createdAt||'');
       time.textContent=formatTime(row.createdAt);
       meta.appendChild(time);
       if(own){
         const status=document.createElement('span');
-        status.className='messenger-read-status'+(row.readAt?' is-read':'');
-        status.textContent=row.readAt?'✓✓':'✓';
-        status.title=row.readAt?'Прочитано':'Отправлено';
+        status.className='messenger-read-status'+(row.readAt?' is-read':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
+        if(row._failed){
+          status.textContent='!';
+          status.title='Не отправлено. Тапните, чтобы повторить';
+          status.role='button';
+          status.tabIndex=0;
+          status.addEventListener('click',event=>{
+            event.stopPropagation();
+            flushMessengerOutbox();
+          });
+        }else if(row._pending){
+          status.textContent='◷';
+          status.title='Отправляется';
+        }else{
+          status.textContent=row.readAt?'✓✓':'✓';
+          status.title=row.readAt?'Прочитано':'Отправлено';
+        }
         meta.appendChild(status);
       }
       bubble.appendChild(meta);
 
-      const likedBy=Array.isArray(row.likedBy)?row.likedBy:[];
-      if(likedBy.length){
-        const canUnlike=likedBy.includes(state.actor);
-        const reaction=document.createElement(canUnlike?'button':'div');
-        if(canUnlike) reaction.type='button';
-        reaction.className='messenger-reaction'+(canUnlike?' is-own-like':'');
-        reaction.textContent='❤️'+(likedBy.length>1?' '+likedBy.length:'');
-        reaction.title=canUnlike?'Снять лайк':'Нравится: '+likedBy.join(', ');
-        if(canUnlike){
-          reaction.setAttribute('aria-label','Снять лайк');
+      const reactions=reactionStateForRow(row);
+      if(Object.keys(reactions).length){
+        const wrap=document.createElement('div');
+        wrap.className='messenger-reactions';
+        for(const emoji of REACTIONS){
+          const actors=reactions[emoji]||[];
+          if(!actors.length) continue;
+          const reaction=document.createElement('button');
+          reaction.type='button';
+          reaction.className='messenger-reaction'+(actors.includes(state.actor)?' is-own-reaction':'');
+          reaction.textContent=emoji+(actors.length>1?' '+actors.length:'');
+          reaction.title=actors.includes(state.actor)?'Снять реакцию':actors.join(', ');
           reaction.addEventListener('click',event=>{
             event.preventDefault();
             event.stopPropagation();
-            toggleMessageLike(row);
+            if(actors.includes(state.actor)) setMessageReaction(row,emoji);
+            else if(row.sender!==state.actor) setMessageReaction(row,emoji);
           });
+          wrap.appendChild(reaction);
         }
-        bubble.appendChild(reaction);
+        bubble.appendChild(wrap);
       }
 
       article.appendChild(bubble);
-      if(own){
-        const remove=document.createElement('button');
-        remove.type='button';
-        remove.className='messenger-delete-action';
-        remove.textContent='Удалить';
-        remove.addEventListener('click',event=>{event.stopPropagation();hideDeleteActions();deleteOwnMessage(row)});
-        article.appendChild(remove);
-        bindLongPressDelete(article,row,remove);
-      }
       if(payload){
         bindSwipeReply(article,row,payload);
-        bindMessageTapGestures(article,row,payload);
+        bindLongPressContext(article,row,payload);
       }
       list.appendChild(article);
     }
     state.renderedIds=new Set(rows.map(row=>row.id));
     state.justSentId='';
     const preserving=Number.isFinite(preserveScrollTop);
-    renderTypingIndicator({autoScroll:!preserving});
+    renderTypingIndicator({autoScroll:!preserving&&stickToBottom});
     if(preserving){
       const restore=()=>{
         const maxTop=Math.max(0,list.scrollHeight-list.clientHeight);
         list.scrollTop=Math.max(0,Math.min(Number(preserveScrollTop||0),maxTop));
+        state.nearBottom=isMessagesNearBottom(list);
+        updateJumpLatest();
       };
       restore();
       requestAnimationFrame(restore);
-    }else{
+    }else if(stickToBottom){
       scrollMessagesToBottom();
+    }else{
+      list.scrollTop=previousTop;
+      state.nearBottom=isMessagesNearBottom(list);
+      updateJumpLatest();
     }
   }
 
-  async function decryptMessages(rows){
+  function scrollToMessageId(id,{flash=true}={}){
+    const messageId=String(id||'').trim();
+    if(!messageId) return false;
+    const article=[...document.querySelectorAll('.messenger-message')].find(node=>node.dataset.messageId===messageId);
+    if(!article) return false;
+    article.scrollIntoView({behavior:'smooth',block:'center'});
+    if(flash){
+      article.classList.add('is-highlighted');
+      setTimeout(()=>article.classList.remove('is-highlighted'),1100);
+    }
+    return true;
+  }
+
+  async function decryptMessages  async function decryptMessages(rows){
     state.decrypted.clear();
     if(!state.aesKey&&!state.legacyAesKey) return;
     for(const row of rows){
@@ -745,7 +1024,8 @@
 
   function rowsSignature(rows){
     return (Array.isArray(rows)?rows:[]).map(row=>[
-      row.id,row.readAt,row.editedAt,(Array.isArray(row.likedBy)?row.likedBy:[]).join(',')
+      row.id,row.clientId,row.readAt,row.editedAt,row._pending?'pending':'',row._failed?'failed':'',
+      JSON.stringify(reactionStateForRow(row))
     ].join(':')).join('|');
   }
 
