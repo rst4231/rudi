@@ -65,7 +65,7 @@ test('recipe request validates selectors including cooking time', () => {
   assert.throws(() => normalizeRecipeRequest({ ...baseRequest, timeMinutes: 20 }), /recipe-time-invalid/);
 });
 
-test('suggestions use Groq GPT-OSS 20B with strict structured output', async () => {
+test('suggestions use Groq GPT-OSS 20B with app-side JSON validation', async () => {
   let calls = 0;
   const fakeFetch = async (url, options) => {
     calls += 1;
@@ -77,13 +77,11 @@ test('suggestions use Groq GPT-OSS 20B with strict structured output', async () 
     assert.equal(body.model, DEFAULT_MODEL);
     assert.equal(body.reasoning_effort, 'low');
     assert.equal(body.include_reasoning, false);
-    assert.equal(body.max_completion_tokens, 850);
+    assert.equal(body.max_completion_tokens, 900);
     assert.equal(body.stream, false);
-    assert.equal(body.response_format.type, 'json_schema');
-    assert.equal(body.response_format.json_schema.strict, true);
-    assert.equal(body.response_format.json_schema.schema.properties.recipes.items.properties.timeMinutes.minimum, 11);
-    assert.equal(body.response_format.json_schema.schema.properties.recipes.items.properties.timeMinutes.maximum, 15);
-    assert.equal('ingredients' in body.response_format.json_schema.schema.properties.recipes.items.properties, false);
+    assert.equal('response_format' in body, false);
+    assert.match(body.messages[0].content, /Верни только один валидный JSON-объект/);
+    assert.match(body.messages[0].content, /"recipes"/);
 
     return {
       ok: true,
@@ -109,10 +107,10 @@ test('detail is generated with a separate short Groq request', async () => {
     calls += 1;
     assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
     const body = JSON.parse(options.body);
-    assert.equal(body.max_completion_tokens, 2200);
-    assert.equal(body.response_format.json_schema.strict, true);
-    assert.ok(body.response_format.json_schema.schema.properties.recipe.properties.ingredients);
-    assert.equal(body.response_format.json_schema.schema.properties.recipe.properties.steps.minItems, 3);
+    assert.equal(body.max_completion_tokens, 2600);
+    assert.equal('response_format' in body, false);
+    assert.match(body.messages[0].content, /"ingredients"/);
+    assert.match(body.messages[0].content, /"steps"/);
     assert.match(body.messages[0].content, /Выбранное блюдо: Чахохбили/);
 
     return {
@@ -181,23 +179,35 @@ test('Groq key is required and Gemini key is not used', async () => {
   );
 });
 
-test('Groq 429 remains an explicit quota error', async () => {
-  const fakeFetch = async () => ({
-    ok: false,
-    status: 429,
-    async text() { return ''; },
-  });
+test('Groq 429 is retried as temporary load and does not become a daily quota error', async () => {
+  let calls = 0;
+  const fakeFetch = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return {
+        ok: false,
+        status: 429,
+        headers: { get: () => '0' },
+        async text() { return ''; },
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      async json() { return suggestionPayload('Омлет', 5); },
+    };
+  };
 
-  await assert.rejects(
-    generateRecipeSuggestions({
-      ...baseRequest,
-      ingredients: 'яйца, сыр',
-      meal: 'breakfast',
-      cuisine: 'russian',
-      timeMinutes: 5,
-    }, { apiKey: 'secret-key', fetch: fakeFetch }),
-    /recipe-ai-quota/
-  );
+  const result = await generateRecipeSuggestions({
+    ...baseRequest,
+    ingredients: 'яйца, сыр',
+    meal: 'breakfast',
+    cuisine: 'russian',
+    timeMinutes: 5,
+  }, { apiKey: 'secret-key', fetch: fakeFetch });
+
+  assert.equal(calls, 2);
+  assert.equal(result.recipes.length, 4);
 });
 
 
