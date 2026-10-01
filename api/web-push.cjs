@@ -84,6 +84,11 @@ function vapidAuthorization(endpoint, options = {}) {
   };
 }
 
+function hashDeviceToken(value) {
+  const token=String(value||'').trim();
+  return token ? crypto.createHash('sha256').update(token).digest('base64url') : '';
+}
+
 function normalizeSubscription(value) {
   const endpoint = String(value?.endpoint || '').trim();
   if (!/^https:\/\//i.test(endpoint) || endpoint.length > 4096) return null;
@@ -94,6 +99,7 @@ function normalizeSubscription(value) {
     createdAt: String(value?.createdAt || ''),
     updatedAt: String(value?.updatedAt || ''),
     userAgent: String(value?.userAgent || '').slice(0, 240),
+    deviceTokenHash: String(value?.deviceTokenHash || '').trim(),
   };
 }
 
@@ -122,6 +128,8 @@ async function savePushSubscription(actor, subscription, options = {}) {
   const nowIso = new Date(options.now || Date.now()).toISOString();
   const current = await readPushSubscriptions(safeActor, options);
   const previous = current.find((row) => row.endpoint === normalized.endpoint);
+  const tokenHash=hashDeviceToken(options.deviceToken);
+  if(!tokenHash) throw new Error('push-device-token-required');
   const next = [
     ...current.filter((row) => row.endpoint !== normalized.endpoint),
     {
@@ -129,10 +137,23 @@ async function savePushSubscription(actor, subscription, options = {}) {
       createdAt: previous?.createdAt || nowIso,
       updatedAt: nowIso,
       userAgent: String(options.userAgent || normalized.userAgent || '').slice(0, 240),
+      deviceTokenHash: tokenHash,
     },
   ].slice(-MAX_SUBSCRIPTIONS);
   await writeAppState(safeActor, SUBSCRIPTIONS_KEY, { items: next, updatedAt: nowIso }, options.dbOptions || options);
   return next[next.length - 1];
+}
+
+async function resolvePushActor(endpoint, deviceToken, options = {}) {
+  const safeEndpoint=String(endpoint||'').trim();
+  const tokenHash=hashDeviceToken(deviceToken);
+  if(!safeEndpoint||!tokenHash) return '';
+  for(const actor of ACTORS){
+    const rows=await readPushSubscriptions(actor,options).catch(()=>[]);
+    const match=rows.find((row)=>row.endpoint===safeEndpoint&&row.deviceTokenHash===tokenHash);
+    if(match) return actor;
+  }
+  return '';
 }
 
 async function removePushSubscriptions(actor, endpoints, options = {}) {
@@ -268,10 +289,12 @@ module.exports = {
   vapidKeyMaterial,
   publicApplicationServerKey,
   vapidAuthorization,
+  hashDeviceToken,
   normalizeSubscription,
   normalizeSubscriptions,
   readPushSubscriptions,
   savePushSubscription,
+  resolvePushActor,
   removePushSubscriptions,
   queuePushNotification,
   readPendingPushNotifications,
