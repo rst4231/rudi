@@ -67,6 +67,14 @@ const {
 const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
+const {
+  readMessengerPublicKeys,
+  registerMessengerPublicKey,
+  addMessengerMessage,
+  readMessengerMessages,
+  markMessengerRead,
+  unreadMessengerCount,
+} = require('./messenger-store.cjs');
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
 const { readSupplements } = require('./supplements-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
@@ -308,8 +316,27 @@ async function sendPartnerMessageNotification(actor, options = {}) {
     title: '💌 Новое послание',
     body: actor + ' ' + verb + ' для тебя новое послание.',
     tag: 'partner-message',
-    url: '/?item=partner',
+    url: '/?item=partner&fresh=1',
   }, options);
+}
+
+async function sendMessengerNotificationToPartner(actor, messageId, options = {}) {
+  const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
+  if (!recipientActor) return { sent:false, reason:'actor-invalid' };
+  const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
+  const preferences=await readPreferences(recipientActor,options).catch(()=>null);
+  if(preferences?.messengerNotificationsEnabled===false){
+    return { sent:false, recipient:recipientActor, reason:'disabled' };
+  }
+  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+  const result=await sendPush(recipientActor,{
+    title:'Новое сообщение от '+actor,
+    body:'',
+    tag:'rudi-messenger',
+    url:'/?tab=messenger&fresh=1',
+    data:{messageId:String(messageId||'')},
+  },options);
+  return {...result,recipient:recipientActor};
 }
 
 async function sendActivityNotification(text, _tab, options = {}) {
@@ -1842,6 +1869,98 @@ async function handleRudiAction(req, res, action, options = {}) {
     } catch (error) {
       const code=String(error?.message||error);
       const status=['push-subscription-invalid','push-device-token-required'].includes(code)?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-key') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const operation=String(body.operation||'get').trim();
+      if(operation==='register'){
+        await registerMessengerPublicKey(actor,body.publicJwk,options);
+      }else if(operation!=='get'){
+        return res.status(400).json({ok:false,error:'messenger-key-operation-invalid'});
+      }
+      const keys=await readMessengerPublicKeys(options);
+      return res.status(200).json({ok:true,actor,keys});
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-list') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const [keys,messages]=await Promise.all([
+        readMessengerPublicKeys(options),
+        readMessengerMessages(options),
+      ]);
+      return res.status(200).json({
+        ok:true,
+        actor,
+        keys,
+        messages,
+        unread:unreadMessengerCount(messages,actor),
+        ttlSeconds:24*60*60,
+      });
+    } catch (error) {
+      const code=String(error?.message||error);
+      return res.status(statusForError(error)).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-send') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const message=await addMessengerMessage(actor,{
+        ciphertext:body.ciphertext,
+        iv:body.iv,
+        keyVersions:body.keyVersions,
+      },options);
+      const notificationTask=sendMessengerNotificationToPartner(actor,message.id,options).catch(error=>({
+        sent:false,error:String(error?.message||error)
+      }));
+      try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
+      const messages=await readMessengerMessages(options);
+      return res.status(200).json({
+        ok:true,
+        actor,
+        message,
+        unread:unreadMessengerCount(messages,actor),
+        notification:{sent:false,pending:true},
+      });
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-read') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const result=await markMessengerRead(actor,body.ids,options);
+      return res.status(200).json({
+        ok:true,
+        actor,
+        updated:result.updated,
+        messages:result.messages,
+        unread:unreadMessengerCount(result.messages,actor),
+      });
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
       return res.status(status).json({ok:false,error:code});
     }
   }
@@ -3751,6 +3870,7 @@ module.exports.statusForError = statusForError;
 module.exports.handleTickTick = handleTickTick;
 module.exports.handleRudiAction = handleRudiAction;
 module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
+module.exports.sendMessengerNotificationToPartner = sendMessengerNotificationToPartner;
 module.exports.boughtNotificationText = boughtNotificationText;
 module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.sendWishlistNotificationToPartner = sendWishlistNotificationToPartner;
