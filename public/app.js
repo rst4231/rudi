@@ -6262,9 +6262,6 @@
           }
         }
         if(!currentActor) return false;
-        if(telegramInitData()) await ensureTelegramPin();
-        appAccessReady=true;
-        showAuthenticatedApp();
         if(appPushSupported()&&Notification.permission==='granted'){
           setTimeout(()=>{
             ensureRudiPushSubscription({prompt:false})
@@ -6272,6 +6269,9 @@
               .catch(error=>console.warn('RUDI_PUSH_RESYNC_WARN',String(error?.message||error)));
           },0);
         }
+        if(telegramInitData()) await ensureTelegramPin();
+        appAccessReady=true;
+        showAuthenticatedApp();
         appBootstrapPromise=loadAppBootstrap().catch(error=>{
           console.warn('RUDI_APP_BOOTSTRAP_BACKGROUND_WARN',String(error?.message||error));
           return null;
