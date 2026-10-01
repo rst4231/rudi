@@ -1,19 +1,20 @@
-/* RUDI v3.18 encrypted messenger */
+/* RUDI v3.19 encrypted messenger */
 .messenger-page{
+  --messenger-safe-top:max(env(safe-area-inset-top),var(--tg-content-safe-top,0px),44px);
   position:fixed;
-  top:var(--messenger-viewport-top,0px);
+  top:var(--messenger-visual-top,0px);
   left:0;
   right:0;
-  bottom:auto;
+  bottom:var(--messenger-visual-bottom,0px);
   z-index:4400;
   width:100%;
-  height:var(--messenger-viewport-height,100dvh);
+  height:auto;
   min-height:0;
   box-sizing:border-box;
   display:grid;
   grid-template-rows:auto auto minmax(0,1fr) auto;
   gap:8px;
-  padding:max(10px,env(safe-area-inset-top)) 8px max(5px,calc(env(safe-area-inset-bottom) - 16px));
+  padding:calc(var(--messenger-safe-top) + 12px) 8px max(8px,env(safe-area-inset-bottom));
   overflow:hidden;
   background:var(--bg);
 }
@@ -331,7 +332,8 @@ body[data-app-tab="messenger"] .shell{
 @media(max-width:430px){
   .messenger-page{
     gap:6px;
-    padding:max(8px,env(safe-area-inset-top)) 6px max(4px,calc(env(safe-area-inset-bottom) - 16px));
+    padding-left:6px;
+    padding-right:6px;
   }
   .messenger-head{
     min-height:38px;
@@ -361,7 +363,7 @@ body[data-app-tab="messenger"] .shell{
     border-radius:14px;
   }
   .messenger-emoji,.messenger-send{width:34px;height:34px;border-radius:10px}
-  #messengerInput{min-height:34px;padding:8px 6px 6px;font-size:12px}
+  #messengerInput{min-height:34px;padding:8px 6px 6px;font-size:16px;line-height:1.2}
   .messenger-emoji-tray{height:41px;min-height:41px;padding:4px 5px}
   .messenger-emoji-tray button{width:31px;height:31px}
 }
