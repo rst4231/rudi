@@ -1,7 +1,7 @@
 {
   "current": "v3.8",
   "versionBranch": "feat/push-notifications-v38",
-  "releaseCommit": null,
+  "releaseCommit": "6b0f43a75510817166aa48d31619b00e9a741dd1",
   "createdAt": "2026-10-01",
   "basedOnProduction": "4d54bfe96e67862737e92cf9a3924f2f6af570aa",
   "notes": [
