@@ -2473,6 +2473,24 @@
         return tickTickTaskCanComplete(task);
       }
 
+      function sharedTasksAttentionCount(){
+        const tasks=Array.isArray(homeDashboardState.tasks)?homeDashboardState.tasks:[];
+        return tasks.filter(homeTaskForActor).length;
+      }
+
+      function updateSharedTasksAttentionBadge(){
+        const count=sharedTasksAttentionCount();
+        const badge=document.getElementById('priorityAttentionBadge');
+        if(badge){
+          badge.textContent=count>99?'99+':String(count);
+          badge.hidden=count<1;
+          badge.setAttribute('aria-label',count+' невыполненных совместных дел на сегодня');
+        }
+        document.documentElement.dataset.sharedTaskAttentionCount=String(count);
+        queueAppIconBadgeSync();
+        return count;
+      }
+
       function homeTaskCountLabel(count){
         const n=Math.abs(Number(count)||0),mod100=n%100,mod10=n%10;
         const word=mod100>=11&&mod100<=14?'дел':mod10===1?'дело':mod10>=2&&mod10<=4?'дела':'дел';
@@ -4085,6 +4103,7 @@
       function renderHomeDashboard(){
         const dashboard=document.getElementById('homeDashboard');
         if(!dashboard) return;
+        updateSharedTasksAttentionBadge();
         const greeting=document.getElementById('homeDashboardGreeting');
         const date=document.getElementById('homeDashboardDate');
         const moon=document.getElementById('homeDashboardMoon');
@@ -5488,9 +5507,18 @@
         return {ok:true,subscription};
       }
 
+      function attentionCountFromDataset(name){
+        return Math.max(0,Math.floor(Number(document.documentElement.dataset[String(name||'')])||0));
+      }
+
       function appAttentionCount(){
         if(!currentActor) return 0;
-        return activityNotificationsHaveUnread()?1:0;
+        let count=activityNotificationsHaveUnread()?1:0;
+        count+=attentionCountFromDataset('habitReminderCount');
+        count+=attentionCountFromDataset('supplementReminderCount');
+        count+=sharedTasksAttentionCount();
+        if(currentActor==='Рустам') count+=attentionCountFromDataset('carTodayTaskCount');
+        return Math.min(99,count);
       }
 
       async function syncAppIconBadge(){
@@ -7651,14 +7679,20 @@
         title.hidden=false;
 
         if(payload?.configured===false){
+          homeDashboardState.tasks=[];
+          renderHomeDashboard();
           title.textContent='Интеграция TickTick ещё не настроена.';
           badge.hidden=false;badge.textContent='Настройка';return;
         }
         if(payload?.connected===false){
+          homeDashboardState.tasks=[];
+          renderHomeDashboard();
           title.textContent='Подключите общий список TickTick.';
           badge.hidden=false;badge.textContent='Не подключён';connect.classList.add('show');return;
         }
         if(payload?.enabled===false){
+          homeDashboardState.tasks=[];
+          renderHomeDashboard();
           title.textContent='Синхронизация TickTick выключена.';
           badge.hidden=false;badge.textContent='Выключено';return;
         }
