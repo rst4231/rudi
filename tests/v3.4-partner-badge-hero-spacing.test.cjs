@@ -24,3 +24,11 @@ test('RUDI release is v3.4 and changed assets are cache-busted',()=>{
   assert.match(html,/\/app\.css\?v=3\.4/);
   assert.match(html,/\/app\.js\?v=3\.4/);
 });
+
+
+test('habit stars info no longer promises a 21:00 reminder',()=>{
+  const source=fs.readFileSync('public/profile-supplements.js','utf8');
+  assert.doesNotMatch(source,/В <b>21:00<\/b> RUDI напомнит/);
+  const html=fs.readFileSync('public/index.html','utf8');
+  assert.match(html,/\/profile-supplements\.js\?v=3\.4/);
+});
