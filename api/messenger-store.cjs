@@ -136,6 +136,8 @@ function normalizeMessage(row){
       createdAt:new Date(createdAt).toISOString(),
       expiresAt:new Date(expiresAt).toISOString(),
       readAt:row.readAt&&Number.isFinite(Date.parse(String(row.readAt)))?new Date(String(row.readAt)).toISOString():'',
+      editedAt:row.editedAt&&Number.isFinite(Date.parse(String(row.editedAt)))?new Date(String(row.editedAt)).toISOString():'',
+      likedBy:Array.isArray(row.likedBy)?row.likedBy.map(cleanActor).filter(Boolean).filter((value,index,array)=>array.indexOf(value)===index):[],
     };
   }catch(_){return null}
 }
@@ -179,6 +181,8 @@ async function addMessengerMessage(actor,payload,options={}){
       createdAt,
       expiresAt,
       readAt:'',
+      editedAt:'',
+      likedBy:[],
     };
     await cacheOf(options).set('message:'+id,message,{
       ttl:MESSAGE_TTL_SECONDS,
@@ -189,6 +193,61 @@ async function addMessengerMessage(actor,payload,options={}){
     const live=current.filter(item=>Date.parse(item.expiresAt)>now&&item.id!==id);
     await writeIndex([...live,{id,expiresAt}],options);
     return message;
+  });
+}
+
+async function editMessengerMessage(actor,id,payload,options={}){
+  return enqueueMutation(async()=>{
+    const editor=cleanActor(actor);
+    if(!editor) throw new Error('messenger-actor-invalid');
+    const messageId=String(id||'').trim();
+    if(!messageId) throw new Error('messenger-message-id-invalid');
+    const raw=await cacheOf(options).get('message:'+messageId).catch(()=>null);
+    const current=normalizeMessage(raw);
+    if(!current) throw new Error('messenger-message-not-found');
+    if(current.sender!==editor) throw new Error('messenger-edit-owner-required');
+    const now=Number(options.now||Date.now());
+    const remainingMs=Date.parse(current.expiresAt)-now;
+    if(remainingMs<=0) throw new Error('messenger-message-expired');
+    const next={
+      ...current,
+      scheme:normalizeScheme(payload?.scheme),
+      ciphertext:normalizeCiphertext(payload?.ciphertext),
+      iv:normalizeIv(payload?.iv),
+      keyVersions:normalizeKeyVersions(payload?.keyVersions),
+      editedAt:new Date(now).toISOString(),
+    };
+    await cacheOf(options).set('message:'+messageId,next,{
+      ttl:Math.max(1,Math.ceil(remainingMs/1000)),
+      tags:['rudi-messenger-message'],
+      name:'message:'+messageId,
+    });
+    return next;
+  });
+}
+
+async function toggleMessengerLike(actor,id,options={}){
+  return enqueueMutation(async()=>{
+    const viewer=cleanActor(actor);
+    if(!viewer) throw new Error('messenger-actor-invalid');
+    const messageId=String(id||'').trim();
+    if(!messageId) throw new Error('messenger-message-id-invalid');
+    const raw=await cacheOf(options).get('message:'+messageId).catch(()=>null);
+    const current=normalizeMessage(raw);
+    if(!current) throw new Error('messenger-message-not-found');
+    const now=Number(options.now||Date.now());
+    const remainingMs=Date.parse(current.expiresAt)-now;
+    if(remainingMs<=0) throw new Error('messenger-message-expired');
+    const likedBy=new Set(Array.isArray(current.likedBy)?current.likedBy:[]);
+    if(likedBy.has(viewer)) likedBy.delete(viewer);
+    else likedBy.add(viewer);
+    const next={...current,likedBy:[...likedBy]};
+    await cacheOf(options).set('message:'+messageId,next,{
+      ttl:Math.max(1,Math.ceil(remainingMs/1000)),
+      tags:['rudi-messenger-message'],
+      name:'message:'+messageId,
+    });
+    return next;
   });
 }
 
@@ -289,6 +348,8 @@ module.exports={
   readMessengerPublicKeys,
   registerMessengerPublicKey,
   addMessengerMessage,
+  editMessengerMessage,
+  toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,
   markMessengerRead,
