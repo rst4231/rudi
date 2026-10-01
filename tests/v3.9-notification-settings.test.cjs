@@ -12,14 +12,17 @@ test('new notification preferences default on and can be disabled',()=>{
   assert.equal(defaults.morningSummaryEnabled,true);
   assert.equal(defaults.rewardNotificationsEnabled,true);
   assert.equal(defaults.dailyQuestionNotificationEnabled,true);
+  assert.equal(defaults.messengerNotificationsEnabled,true);
   const off=normalizeUiPreferencesState({
     morningSummaryEnabled:false,
     rewardNotificationsEnabled:false,
     dailyQuestionNotificationEnabled:false,
+    messengerNotificationsEnabled:false,
   });
   assert.equal(off.morningSummaryEnabled,false);
   assert.equal(off.rewardNotificationsEnabled,false);
   assert.equal(off.dailyQuestionNotificationEnabled,false);
+  assert.equal(off.messengerNotificationsEnabled,false);
 });
 
 test('daily question push respects recipient preference',async()=>{
@@ -45,12 +48,13 @@ test('reward notification respects each recipient preference',async()=>{
   assert.equal(result.find(row=>row.actor==='Диана').reason,'disabled');
 });
 
-test('settings expose all three default-on switches and schema v5',()=>{
+test('settings expose default-on notification switches and schema v6',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const morning=fs.readFileSync('api/morning-summary.cjs','utf8');
   assert.match(app,/id="settingsMorningSummaryToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsRewardNotificationsToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsDailyQuestionNotificationToggle"[^>]+aria-checked="true"/);
-  assert.match(app,/syncSchemaVersion:5/);
+  assert.match(app,/id="settingsMessengerNotificationsToggle"[^>]+aria-checked="true"/);
+  assert.match(app,/syncSchemaVersion:6/);
   assert.match(morning,/preferences\?\.morningSummaryEnabled === false/);
 });
