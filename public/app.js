@@ -5187,6 +5187,37 @@
         return Uint8Array.from(raw,char=>char.charCodeAt(0));
       }
 
+      function rudiPushDeviceToken(){
+        const key='rudi:push-device-token:v1';
+        try{
+          const existing=String(localStorage.getItem(key)||'').trim();
+          if(existing) return existing;
+          const bytes=new Uint8Array(32);
+          crypto.getRandomValues(bytes);
+          const token=Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');
+          localStorage.setItem(key,token);
+          return token;
+        }catch(_){
+          const bytes=new Uint8Array(32);
+          crypto.getRandomValues(bytes);
+          return Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');
+        }
+      }
+
+      function bindRudiPushNavigation(){
+        if(!('serviceWorker' in navigator)||window.__rudiPushNavigationBound==='1') return;
+        window.__rudiPushNavigationBound='1';
+        navigator.serviceWorker.addEventListener('message',event=>{
+          if(event.data?.type!=='RUDI_PUSH_NAVIGATE') return;
+          const raw=String(event.data?.url||'/');
+          try{
+            const target=new URL(raw,window.location.origin);
+            if(target.origin!==window.location.origin) return;
+            window.location.href=target.pathname+target.search+target.hash;
+          }catch(_){}
+        });
+      }
+
       async function rudiPushApi(action,payload={}){
         const response=await fetch('/api/partner-message?rudiAction='+encodeURIComponent(action),{
           method:'POST',
@@ -5224,9 +5255,18 @@
             applicationServerKey:pushApplicationServerKey(config.publicKey)
           });
         }
+        const deviceToken=rudiPushDeviceToken();
         await rudiPushApi('push-subscribe',{
-          subscription:subscription.toJSON?subscription.toJSON():subscription
+          subscription:subscription.toJSON?subscription.toJSON():subscription,
+          deviceToken
         });
+        try{
+          registration.active?.postMessage?.({
+            type:'RUDI_PUSH_DEVICE_TOKEN',
+            token:deviceToken,
+            endpoint:String(subscription.endpoint||'')
+          });
+        }catch(_){}
         document.documentElement.dataset.rudiPushReady='1';
         updateAppIconBadgeSettingsUi();
         return {ok:true,subscription};
@@ -6248,6 +6288,7 @@
       },{passive:false});
 
       applyTheme();
+      bindRudiPushNavigation();
       setupBrowserPullToRefresh();
       tg?.ready?.();
       tg?.expand?.();
