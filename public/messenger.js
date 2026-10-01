@@ -614,6 +614,17 @@
     }
   }
 
+  function syncMessengerViewport(){
+    const viewport=window.visualViewport;
+    const height=Math.max(320,Math.round(Number(viewport?.height||window.innerHeight||0)));
+    document.documentElement.style.setProperty('--messenger-viewport-height',height+'px');
+  }
+
+  syncMessengerViewport();
+  window.visualViewport?.addEventListener?.('resize',syncMessengerViewport);
+  window.visualViewport?.addEventListener?.('scroll',syncMessengerViewport);
+  window.addEventListener('resize',syncMessengerViewport);
+
   window.addEventListener('rudi:profile-ready',ensureProfileButton);
   window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')) syncUnread()});
   document.addEventListener('visibilitychange',()=>{
