@@ -243,10 +243,13 @@
   border:1px solid color-mix(in srgb,var(--love,#ff6b9a) 28%,var(--line));
   border-radius:999px;
   background:color-mix(in srgb,var(--love-soft,rgba(255,107,154,.12)) 80%,var(--surface));
+  color:inherit;
+  font:inherit;
   font-size:10px;
   line-height:1.15;
   box-shadow:0 3px 10px rgba(20,24,36,.05);
 }
+.messenger-reaction.is-own-like{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .messenger-message.is-own .messenger-reaction{justify-self:end}
 .messenger-message.is-long-press .messenger-bubble{
   transform:scale(.985);

@@ -432,11 +432,13 @@
 
   async function toggleMessageLike(row){
     if(!row?.id) return;
+    const list=document.getElementById('messengerMessages');
+    const preservedScrollTop=Number(list?.scrollTop||0);
     try{
       const data=await api('messenger-like',{id:row.id});
       if(data?.message){
         state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
-        renderMessages();
+        renderMessages({preserveScrollTop:preservedScrollTop});
       }
       try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
     }catch(error){
@@ -535,10 +537,20 @@
 
       const likedBy=Array.isArray(row.likedBy)?row.likedBy:[];
       if(likedBy.length){
-        const reaction=document.createElement('div');
-        reaction.className='messenger-reaction';
+        const canUnlike=likedBy.includes(state.actor);
+        const reaction=document.createElement(canUnlike?'button':'div');
+        if(canUnlike) reaction.type='button';
+        reaction.className='messenger-reaction'+(canUnlike?' is-own-like':'');
         reaction.textContent='❤️'+(likedBy.length>1?' '+likedBy.length:'');
-        reaction.title='Нравится: '+likedBy.join(', ');
+        reaction.title=canUnlike?'Снять лайк':'Нравится: '+likedBy.join(', ');
+        if(canUnlike){
+          reaction.setAttribute('aria-label','Снять лайк');
+          reaction.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            toggleMessageLike(row);
+          });
+        }
         bubble.appendChild(reaction);
       }
 
@@ -888,6 +900,15 @@
     const emojiTray=document.getElementById('messengerEmojiTray');
     const cancelReply=document.getElementById('messengerReplyCancel');
     const messages=document.getElementById('messengerMessages');
+
+    const page=document.getElementById('messengerPage');
+    if(page&&page.dataset.dismissDeleteBound!=='1'){
+      page.dataset.dismissDeleteBound='1';
+      page.addEventListener('pointerdown',event=>{
+        if(event.target.closest('.messenger-delete-action')) return;
+        hideDeleteActions();
+      },true);
+    }
 
     if(back&&back.dataset.bound!=='1'){
       back.dataset.bound='1';
