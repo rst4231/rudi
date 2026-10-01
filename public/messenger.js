@@ -741,7 +741,7 @@
         :await api('messenger-reaction',{id:row.id,reaction:emoji});
       if(data?.message){
         state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
-        renderMessages({preserveScrollTop});
+        renderMessages({preserveScrollTop:preservedScrollTop});
       }
       const status=document.getElementById('messengerStatus');
       if(status){status.hidden=true;status.textContent=''}
