@@ -45,14 +45,14 @@ test('messenger v3.17 assets and PWA shell are cache-busted',()=>{
 test('messenger v3.17 uses compact separated header and partner avatar',()=>{
   assert.match(html,/id="messengerBack"[\s\S]*?id="messengerPartnerName"[\s\S]*?id="messengerPartnerAvatar"/);
   assert.match(css,/\.messenger-head\{[\s\S]*?grid-template-columns:40px minmax\(0,1fr\) 40px/);
-  assert.doesNotMatch(css,/\.messenger-head\{[\s\S]*?border:1px solid[\s\S]*?backdrop-filter/);
+  assert.doesNotMatch(css,/\.messenger-head\{[^}]*border:/);
   assert.match(client,/function syncHeaderAvatar\(\)/);
   assert.match(client,/partnerProfileImage/);
 });
 
 test('messenger v3.17 replies by long press without permanent reply button',()=>{
   assert.match(client,/function bindLongPressReply\(article,row,payload\)/);
-  assert.match(client,/setTimeout\(\(\)=>\{[\s\S]*?setReply\(row,payload\)[\s\S]*?\},520\)/);
+  assert.match(client,/setTimeout\(\(\)=>\{[\s\S]*?setReply\(row,payload\)[\s\S]*?\},520\);/);
   assert.doesNotMatch(client,/messenger-reply-button/);
   assert.doesNotMatch(html,/messenger-reply-button/);
 });
