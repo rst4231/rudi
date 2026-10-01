@@ -175,7 +175,7 @@ async function readIndex(options={}){
 }
 
 async function writeIndex(items,options={}){
-  const clean=Array.isArray(items)?items.slice(-256):[];
+  const clean=Array.isArray(items)?items.slice(-2048):[];
   await cacheOf(options).set('index',{
     items:clean,
     updatedAt:new Date(options.now||Date.now()).toISOString(),
@@ -399,9 +399,16 @@ async function readMessengerMessages(options={}){
   let messages=rows.map(normalizeMessage).filter(row=>row&&Date.parse(row.expiresAt)>now)
     .sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt));
 
-  const liveIds=new Set(messages.map(row=>row.id));
-  if(index.length!==messages.length||liveIndex.some(item=>!liveIds.has(item.id))){
-    await writeIndex(liveIndex.filter(item=>liveIds.has(item.id)),options).catch(()=>null);
+  if(index.length!==liveIndex.length){
+    await writeIndex(liveIndex,options).catch(()=>null);
+  }
+  const missingCount=liveIndex.length-messages.length;
+  if(missingCount>0){
+    console.warn('RUDI_MESSENGER_INDEX_MISS',JSON.stringify({
+      missingCount,
+      indexed:liveIndex.length,
+      visible:messages.length,
+    }));
   }
   return messages;
 }
