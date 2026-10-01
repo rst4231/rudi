@@ -71,6 +71,8 @@ const {
   readMessengerPublicKeys,
   registerMessengerPublicKey,
   addMessengerMessage,
+  editMessengerMessage,
+  toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,
   markMessengerRead,
@@ -1975,6 +1977,39 @@ async function handleRudiAction(req, res, action, options = {}) {
         unread:unreadMessengerCount(messages,actor),
         notification:{sent:false,pending:true},
       });
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-edit') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const message=await editMessengerMessage(actor,body.id,{
+        scheme:body.scheme,
+        ciphertext:body.ciphertext,
+        iv:body.iv,
+        keyVersions:body.keyVersions,
+      },options);
+      return res.status(200).json({ok:true,actor,message});
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-like') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const message=await toggleMessengerLike(actor,body.id,options);
+      return res.status(200).json({ok:true,actor,message});
     } catch (error) {
       const code=String(error?.message||error);
       const status=code.startsWith('messenger-')?400:statusForError(error);
