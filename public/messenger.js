@@ -18,6 +18,7 @@
     rows:[],
     decrypted:new Map(),
     reply:null,
+    edit:null,
     loading:false,
     initialized:false,
   };
@@ -264,17 +265,27 @@
   function renderReplyDraft(){
     const box=document.getElementById('messengerReplyDraft');
     const text=document.getElementById('messengerReplyDraftText');
+    const label=box?.querySelector('strong');
     if(!box||!text) return;
+    if(state.edit){
+      box.hidden=false;
+      if(label) label.textContent='Редактирование';
+      text.textContent=state.edit.text||'';
+      return;
+    }
     if(!state.reply){
       box.hidden=true;
+      if(label) label.textContent='Ответ';
       text.textContent='';
       return;
     }
     box.hidden=false;
+    if(label) label.textContent='Ответ';
     text.textContent=(state.reply.author?state.reply.author+': ':'')+state.reply.text;
   }
 
   function setReply(row,payload){
+    state.edit=null;
     state.reply={
       id:String(row?.id||''),
       author:String(row?.sender||''),
@@ -305,6 +316,7 @@
         pressed=false;
         timer=0;
         article.classList.add('is-long-press');
+        article.dataset.longPressedAt=String(Date.now());
         setTimeout(()=>article.classList.remove('is-long-press'),180);
         setReply(row,payload);
         try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
@@ -356,6 +368,72 @@
     setTimeout(settle,520);
   }
 
+  function startMessageEdit(row,payload){
+    if(!row||row.sender!==state.actor||!payload) return;
+    state.reply=null;
+    state.edit={
+      id:String(row.id||''),
+      text:String(payload.text||''),
+      reply:payload.reply&&typeof payload.reply==='object'?{...payload.reply}:null
+    };
+    const input=document.getElementById('messengerInput');
+    if(input){
+      input.value=state.edit.text;
+      input.style.height='auto';
+      input.style.height=Math.min(112,input.scrollHeight)+'px';
+      input.focus();
+      input.setSelectionRange?.(input.value.length,input.value.length);
+    }
+    renderReplyDraft();
+    keepKeyboardAtLatest();
+    try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+  }
+
+  async function toggleMessageLike(row){
+    if(!row?.id) return;
+    try{
+      const data=await api('messenger-like',{id:row.id});
+      if(data?.message){
+        state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
+        renderMessages();
+      }
+      try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+    }catch(error){
+      console.warn('RUDI_MESSENGER_LIKE_WARN',String(error?.message||error));
+    }
+  }
+
+  function bindMessageTapGestures(article,row,payload){
+    if(!article||!row||!payload) return;
+    let taps=0;
+    let resetTimer=0;
+    let likeTimer=0;
+    article.addEventListener('click',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      const longPressedAt=Number(article.dataset.longPressedAt||0);
+      if(longPressedAt&&Date.now()-longPressedAt<700) return;
+      taps+=1;
+      clearTimeout(resetTimer);
+      resetTimer=setTimeout(()=>{taps=0},520);
+      if(taps===2){
+        clearTimeout(likeTimer);
+        likeTimer=setTimeout(()=>{
+          if(taps===2) toggleMessageLike(row);
+          taps=0;
+        },260);
+        return;
+      }
+      if(taps>=3){
+        clearTimeout(likeTimer);
+        clearTimeout(resetTimer);
+        const own=row.sender===state.actor;
+        if(own) startMessageEdit(row,payload);
+        else toggleMessageLike(row);
+        taps=0;
+      }
+    });
+  }
+
   function renderMessages(){
     const list=document.getElementById('messengerMessages');
     const empty=document.getElementById('messengerEmpty');
@@ -403,13 +481,25 @@
       if(own){
         const status=document.createElement('span');
         status.className='messenger-read-status';
-        status.textContent=row.readAt?'Прочитано':'Отправлено';
+        status.textContent=row.editedAt?'Изменено':(row.readAt?'Прочитано':'Отправлено');
         meta.appendChild(status);
       }
       bubble.appendChild(meta);
 
+      const likedBy=Array.isArray(row.likedBy)?row.likedBy:[];
+      if(likedBy.length){
+        const reaction=document.createElement('div');
+        reaction.className='messenger-reaction';
+        reaction.textContent='❤️'+(likedBy.length>1?' '+likedBy.length:'');
+        reaction.title='Нравится: '+likedBy.join(', ');
+        bubble.appendChild(reaction);
+      }
+
       article.appendChild(bubble);
-      if(payload) bindLongPressReply(article,row,payload);
+      if(payload){
+        bindLongPressReply(article,row,payload);
+        bindMessageTapGestures(article,row,payload);
+      }
       list.appendChild(article);
     }
     scrollMessagesToBottom();
@@ -553,17 +643,26 @@
     try{
       await ensureKeys();
       if(!state.aesKey) throw new Error('messenger-shared-key-missing');
-      const encrypted=await encryptPayload({
+      const payload={
         text,
-        reply:state.reply?{...state.reply}:null
-      });
+        reply:state.edit
+          ?(state.edit.reply?{...state.edit.reply}:null)
+          :(state.reply?{...state.reply}:null)
+      };
+      const encrypted=await encryptPayload(payload);
       const keyVersions={
         'Рустам':Number(state.keys?.['Рустам']?.version||0),
         'Диана':Number(state.keys?.['Диана']?.version||0)
       };
-      await api('messenger-send',{scheme:'shared-v2',...encrypted,keyVersions});
+      if(state.edit?.id){
+        await api('messenger-edit',{id:state.edit.id,scheme:'shared-v2',...encrypted,keyVersions});
+      }else{
+        await api('messenger-send',{scheme:'shared-v2',...encrypted,keyVersions});
+      }
       input.value='';
+      input.style.height='auto';
       state.reply=null;
+      state.edit=null;
       renderReplyDraft();
       await load({markRead:true});
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
@@ -687,6 +786,9 @@
       cancelReply.dataset.bound='1';
       cancelReply.addEventListener('click',()=>{
         state.reply=null;
+        state.edit=null;
+        const input=document.getElementById('messengerInput');
+        if(input){input.value='';input.style.height='auto'}
         renderReplyDraft();
       });
     }
