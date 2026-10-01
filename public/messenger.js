@@ -258,7 +258,7 @@
       }
       const link=document.createElement('a');
       link.href=url;
-      link.textContent=url;
+      link.textContent='ссылка';
       link.rel='noopener noreferrer';
       link.target='_blank';
       link.dataset.messengerLink='1';
@@ -288,7 +288,7 @@
     }
     box.hidden=false;
     if(label) label.textContent='Ответ';
-    text.textContent=(state.reply.author?state.reply.author+': ':'')+state.reply.text;
+    text.textContent=(state.reply.author?state.reply.author+': ':'')+String(state.reply.text||'').replace(/https?:\/\/[^\s<]+/giu,'ссылка');
   }
 
   function setReply(row,payload){
@@ -501,7 +501,7 @@
         const author=document.createElement('strong');
         author.textContent=payload.reply.author||'Сообщение';
         const quoteText=document.createElement('span');
-        quoteText.textContent=payload.reply.text||'Сообщение недоступно';
+        quoteText.textContent=String(payload.reply.text||'Сообщение недоступно').replace(/https?:\/\/[^\s<]+/giu,'ссылка');
         quote.append(author,quoteText);
         bubble.appendChild(quote);
       }
