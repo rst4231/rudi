@@ -1,4 +1,4 @@
-/* RUDI v3.17 encrypted messenger */
+/* RUDI v3.18 encrypted messenger */
 .messenger-page{
   position:fixed;
   top:var(--messenger-viewport-top,0px);
@@ -13,7 +13,7 @@
   display:grid;
   grid-template-rows:auto auto minmax(0,1fr) auto;
   gap:8px;
-  padding:max(5px,calc(env(safe-area-inset-top) - 12px)) 8px max(5px,calc(env(safe-area-inset-bottom) - 16px));
+  padding:max(10px,env(safe-area-inset-top)) 8px max(5px,calc(env(safe-area-inset-bottom) - 16px));
   overflow:hidden;
   background:var(--bg);
 }
@@ -162,6 +162,18 @@
   font-weight:650;
 }
 .messenger-read-status{color:color-mix(in srgb,var(--accent) 60%,var(--muted))}
+.messenger-reaction{
+  justify-self:start;
+  margin-top:-1px;
+  padding:2px 6px;
+  border:1px solid color-mix(in srgb,var(--love,#ff6b9a) 28%,var(--line));
+  border-radius:999px;
+  background:color-mix(in srgb,var(--love-soft,rgba(255,107,154,.12)) 80%,var(--surface));
+  font-size:10px;
+  line-height:1.15;
+  box-shadow:0 3px 10px rgba(20,24,36,.05);
+}
+.messenger-message.is-own .messenger-reaction{justify-self:end}
 .messenger-message.is-long-press .messenger-bubble{
   transform:scale(.985);
   filter:brightness(.98);
@@ -319,7 +331,7 @@ body[data-app-tab="messenger"] .shell{
 @media(max-width:430px){
   .messenger-page{
     gap:6px;
-    padding:max(4px,calc(env(safe-area-inset-top) - 12px)) 6px max(4px,calc(env(safe-area-inset-bottom) - 16px));
+    padding:max(8px,env(safe-area-inset-top)) 6px max(4px,calc(env(safe-area-inset-bottom) - 16px));
   }
   .messenger-head{
     min-height:38px;
