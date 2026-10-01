@@ -172,7 +172,6 @@ const DURABLE_LONG_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const DURABLE_NAMESPACES = new Set([
   'rudi-score-v1',
   'rudi-reactions-v1',
-  'rudi-messenger-reactions-v1',
   'rudi-activity-journal-v1',
   'rudi-smart-saves-v1',
   'rudi-partner-notifications-v1',
