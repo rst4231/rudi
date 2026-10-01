@@ -1,6 +1,7 @@
 require('@vercel/functions');
 const fs = require('node:fs');
 const { stripStagePriceLines, compactEventTelegramRequest } = require('./event-text-sanitizer.cjs');
+const { maybeSendEventImages } = require('./event-images.cjs');
 const { runWithCronSecretHidden, installGlobalTelegramFetchGuard } = require('./runtime-guard.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const {
@@ -68,6 +69,14 @@ globalThis.fetch = async function stageSafeFetch(input, init = {}) {
     }
   } catch (error) { console.error('RUDI_STAGE_PRICE_SANITIZER_ERROR', error); }
   nextInit = compactEventTelegramRequest(nextInit);
+  try {
+    await maybeSendEventImages(input, nextInit, {
+      fetchImpl: nativeFetch,
+      sendTelegram: (eventInput, eventInit) => handleTelegramTopicRequest(eventInput, eventInit, { fetchImpl: nativeFetch }),
+    });
+  } catch (error) {
+    console.error('RUDI_EVENT_IMAGES_ERROR', String(error?.message || error));
+  }
   return handleTelegramTopicRequest(input, nextInit, { fetchImpl: nativeFetch });
 };
 installGlobalTelegramFetchGuard();
