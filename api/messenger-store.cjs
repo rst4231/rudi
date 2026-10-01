@@ -6,6 +6,7 @@ const MESSAGE_TTL_SECONDS=24*60*60;
 const INDEX_TTL_SECONDS=48*60*60;
 const KEY_TTL_SECONDS=365*24*60*60;
 const TYPING_TTL_SECONDS=8;
+const REACTION_EMOJIS=new Set(['❤️','😂','😘','😢','👍','🔥']);
 let mutationTail=Promise.resolve();
 
 function cacheOf(options={}){
@@ -119,6 +120,26 @@ function normalizeScheme(value){
   return String(value||'').trim()==='shared-v2'?'shared-v2':'legacy-v1';
 }
 
+function normalizeClientId(value){
+  const id=String(value||'').trim();
+  if(!id) return '';
+  if(!/^client-[A-Za-z0-9_-]{8,96}$/.test(id)) throw new Error('messenger-client-id-invalid');
+  return id;
+}
+
+function normalizeReactions(value,legacyLikes=[]){
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const result={};
+  for(const emoji of REACTION_EMOJIS){
+    const actors=Array.isArray(source[emoji])?source[emoji]:[];
+    const clean=actors.map(cleanActor).filter(Boolean).filter((actor,index,array)=>array.indexOf(actor)===index);
+    if(clean.length) result[emoji]=clean;
+  }
+  const legacy=(Array.isArray(legacyLikes)?legacyLikes:[]).map(cleanActor).filter(Boolean).filter((actor,index,array)=>array.indexOf(actor)===index);
+  if(legacy.length&&!result['❤️']) result['❤️']=legacy;
+  return result;
+}
+
 function normalizeMessage(row){
   if(!row||typeof row!=='object') return null;
   const sender=cleanActor(row.sender);
@@ -138,7 +159,9 @@ function normalizeMessage(row){
       expiresAt:new Date(expiresAt).toISOString(),
       readAt:row.readAt&&Number.isFinite(Date.parse(String(row.readAt)))?new Date(String(row.readAt)).toISOString():'',
       editedAt:row.editedAt&&Number.isFinite(Date.parse(String(row.editedAt)))?new Date(String(row.editedAt)).toISOString():'',
-      likedBy:Array.isArray(row.likedBy)?row.likedBy.map(cleanActor).filter(Boolean).filter((value,index,array)=>array.indexOf(value)===index):[],
+      clientId:normalizeClientId(row.clientId||''),
+      reactions:normalizeReactions(row.reactions,row.likedBy),
+      likedBy:normalizeReactions(row.reactions,row.likedBy)['❤️']||[],
     };
   }catch(_){return null}
 }
@@ -169,12 +192,20 @@ async function addMessengerMessage(actor,payload,options={}){
     const sender=cleanActor(actor);
     if(!sender) throw new Error('messenger-actor-invalid');
     const now=Number(options.now||Date.now());
+    const clientId=normalizeClientId(payload?.clientId||'');
+    if(clientId){
+      const index=await readIndex(options);
+      const rows=await Promise.all(index.map(item=>cacheOf(options).get('message:'+item.id).catch(()=>null)));
+      const existing=rows.map(normalizeMessage).find(row=>row&&row.sender===sender&&row.clientId===clientId&&Date.parse(row.expiresAt)>now);
+      if(existing) return {...existing,deduplicated:true};
+    }
     const createdAt=new Date(now).toISOString();
     const expiresAt=new Date(now+MESSAGE_TTL_SECONDS*1000).toISOString();
     const id='chat-'+crypto.randomUUID();
     const message={
       id,
       sender,
+      clientId,
       scheme:normalizeScheme(payload?.scheme),
       ciphertext:normalizeCiphertext(payload?.ciphertext),
       iv:normalizeIv(payload?.iv),
@@ -183,6 +214,7 @@ async function addMessengerMessage(actor,payload,options={}){
       expiresAt,
       readAt:'',
       editedAt:'',
+      reactions:{},
       likedBy:[],
     };
     await cacheOf(options).set('message:'+id,message,{
@@ -193,9 +225,10 @@ async function addMessengerMessage(actor,payload,options={}){
     const current=await readIndex(options);
     const live=current.filter(item=>Date.parse(item.expiresAt)>now&&item.id!==id);
     await writeIndex([...live,{id,expiresAt}],options);
-    return message;
+    return {...message,deduplicated:false};
   });
 }
+
 
 async function editMessengerMessage(actor,id,payload,options={}){
   return enqueueMutation(async()=>{
@@ -271,22 +304,31 @@ async function readMessengerTyping(actor,options={}){
   return Number(options.now||Date.now())-updated<TYPING_TTL_SECONDS*1000;
 }
 
-async function toggleMessengerLike(actor,id,options={}){
+async function toggleMessengerReaction(actor,id,reaction,options={}){
   return enqueueMutation(async()=>{
     const viewer=cleanActor(actor);
     if(!viewer) throw new Error('messenger-actor-invalid');
     const messageId=String(id||'').trim();
     if(!messageId) throw new Error('messenger-message-id-invalid');
+    const emoji=String(reaction||'').trim();
+    if(!REACTION_EMOJIS.has(emoji)) throw new Error('messenger-reaction-invalid');
     const raw=await cacheOf(options).get('message:'+messageId).catch(()=>null);
     const current=normalizeMessage(raw);
     if(!current) throw new Error('messenger-message-not-found');
     const now=Number(options.now||Date.now());
     const remainingMs=Date.parse(current.expiresAt)-now;
     if(remainingMs<=0) throw new Error('messenger-message-expired');
-    const likedBy=new Set(Array.isArray(current.likedBy)?current.likedBy:[]);
-    if(likedBy.has(viewer)) likedBy.delete(viewer);
-    else likedBy.add(viewer);
-    const next={...current,likedBy:[...likedBy]};
+
+    const reactions=normalizeReactions(current.reactions,current.likedBy);
+    const hadSame=Array.isArray(reactions[emoji])&&reactions[emoji].includes(viewer);
+    for(const key of Object.keys(reactions)){
+      reactions[key]=reactions[key].filter(actorName=>actorName!==viewer);
+      if(!reactions[key].length) delete reactions[key];
+    }
+    if(!hadSame){
+      reactions[emoji]=[...(reactions[emoji]||[]),viewer];
+    }
+    const next={...current,reactions,likedBy:reactions['❤️']||[]};
     await cacheOf(options).set('message:'+messageId,next,{
       ttl:Math.max(1,Math.ceil(remainingMs/1000)),
       tags:['rudi-messenger-message'],
@@ -295,6 +337,11 @@ async function toggleMessengerLike(actor,id,options={}){
     return next;
   });
 }
+
+async function toggleMessengerLike(actor,id,options={}){
+  return toggleMessengerReaction(actor,id,'❤️',options);
+}
+
 
 async function rekeyMessengerMessages(actor,items,options={}){
   return enqueueMutation(async()=>{
@@ -397,6 +444,7 @@ module.exports={
   deleteMessengerMessage,
   setMessengerTyping,
   readMessengerTyping,
+  toggleMessengerReaction,
   toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,
