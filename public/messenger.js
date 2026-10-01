@@ -6,13 +6,15 @@
   const STORE_NAME='identity';
   const encoder=new TextEncoder();
   const decoder=new TextDecoder();
-  const AAD=encoder.encode('rudi-messenger-v1');
+  const AAD_V1=encoder.encode('rudi-messenger-v1');
+  const AAD_V2=encoder.encode('rudi-messenger-shared-v2');
   const state={
     actor:'',
     partner:'',
     identity:null,
     keys:null,
     aesKey:null,
+    legacyAesKey:null,
     rows:[],
     decrypted:new Map(),
     reply:null,
@@ -132,39 +134,54 @@
     state.actor=actor;
     state.partner=actor==='Рустам'?'Диана':'Рустам';
     state.identity=await ensureIdentity(actor);
+
     const own=data.keys?.[actor]?.publicJwk||null;
-    if(!samePublicKey(own,state.identity.publicJwk)){
+    if(!own){
       data=await api('messenger-key',{operation:'register',publicJwk:state.identity.publicJwk});
     }
     state.keys=data.keys||{};
-    const partnerKey=state.keys?.[state.partner]?.publicJwk||null;
-    if(!partnerKey){
-      state.aesKey=null;
-      return data;
-    }
-    const importedPartner=await crypto.subtle.importKey(
-      'jwk',
-      partnerKey,
-      {name:'ECDH',namedCurve:'P-256'},
-      false,
-      []
-    );
-    state.aesKey=await crypto.subtle.deriveKey(
-      {name:'ECDH',public:importedPartner},
-      state.identity.privateKey,
-      {name:'AES-GCM',length:256},
+
+    const sharedRaw=base64UrlDecode(data.conversationKey||'');
+    if(sharedRaw.length!==32) throw new Error('messenger-shared-key-invalid');
+    state.aesKey=await crypto.subtle.importKey(
+      'raw',
+      sharedRaw,
+      {name:'AES-GCM'},
       false,
       ['encrypt','decrypt']
     );
+
+    state.legacyAesKey=null;
+    const partnerKey=state.keys?.[state.partner]?.publicJwk||null;
+    if(partnerKey){
+      try{
+        const importedPartner=await crypto.subtle.importKey(
+          'jwk',
+          partnerKey,
+          {name:'ECDH',namedCurve:'P-256'},
+          false,
+          []
+        );
+        state.legacyAesKey=await crypto.subtle.deriveKey(
+          {name:'ECDH',public:importedPartner},
+          state.identity.privateKey,
+          {name:'AES-GCM',length:256},
+          false,
+          ['decrypt']
+        );
+      }catch(_){
+        state.legacyAesKey=null;
+      }
+    }
     return data;
   }
 
   async function encryptPayload(payload){
-    if(!state.aesKey) throw new Error('messenger-partner-key-missing');
+    if(!state.aesKey) throw new Error('messenger-shared-key-missing');
     const iv=crypto.getRandomValues(new Uint8Array(12));
     const bytes=encoder.encode(JSON.stringify(payload));
     const encrypted=await crypto.subtle.encrypt(
-      {name:'AES-GCM',iv,additionalData:AAD,tagLength:128},
+      {name:'AES-GCM',iv,additionalData:AAD_V2,tagLength:128},
       state.aesKey,
       bytes
     );
@@ -172,10 +189,17 @@
   }
 
   async function decryptRow(row){
-    if(!state.aesKey) throw new Error('messenger-partner-key-missing');
+    const shared=String(row?.scheme||'legacy-v1')==='shared-v2';
+    const key=shared?state.aesKey:state.legacyAesKey;
+    if(!key) throw new Error(shared?'messenger-shared-key-missing':'messenger-legacy-key-unavailable');
     const clear=await crypto.subtle.decrypt(
-      {name:'AES-GCM',iv:base64UrlDecode(row.iv),additionalData:AAD,tagLength:128},
-      state.aesKey,
+      {
+        name:'AES-GCM',
+        iv:base64UrlDecode(row.iv),
+        additionalData:shared?AAD_V2:AAD_V1,
+        tagLength:128
+      },
+      key,
       base64UrlDecode(row.ciphertext)
     );
     const payload=JSON.parse(decoder.decode(clear));
@@ -258,6 +282,7 @@
     };
     renderReplyDraft();
     document.getElementById('messengerInput')?.focus?.();
+    keepKeyboardAtLatest();
   }
 
   function bindLongPressReply(article,row,payload){
@@ -297,6 +322,25 @@
     article.addEventListener('pointercancel',cancel);
     article.addEventListener('pointerleave',cancel);
     article.addEventListener('contextmenu',event=>event.preventDefault());
+  }
+
+  function scrollMessagesToBottom(){
+    const list=document.getElementById('messengerMessages');
+    if(!list) return;
+    requestAnimationFrame(()=>{
+      list.scrollTop=list.scrollHeight;
+      requestAnimationFrame(()=>{list.scrollTop=list.scrollHeight});
+    });
+  }
+
+  function keepKeyboardAtLatest(){
+    if(document.body.dataset.appTab!=='messenger') return;
+    const input=document.getElementById('messengerInput');
+    if(document.activeElement!==input) return;
+    scrollMessagesToBottom();
+    setTimeout(scrollMessagesToBottom,70);
+    setTimeout(scrollMessagesToBottom,180);
+    setTimeout(scrollMessagesToBottom,360);
   }
 
   function renderMessages(){
@@ -355,17 +399,42 @@
       if(payload) bindLongPressReply(article,row,payload);
       list.appendChild(article);
     }
-    requestAnimationFrame(()=>{list.scrollTop=list.scrollHeight});
+    scrollMessagesToBottom();
   }
 
   async function decryptMessages(rows){
     state.decrypted.clear();
-    if(!state.aesKey) return;
+    if(!state.aesKey&&!state.legacyAesKey) return;
     for(const row of rows){
       try{
         const payload=await decryptRow(row);
         state.decrypted.set(row.id,payload);
       }catch(_){}
+    }
+  }
+
+  async function repairLegacyMessages(rows){
+    if(!state.aesKey) return rows;
+    const items=[];
+    for(const row of (Array.isArray(rows)?rows:[])){
+      if(String(row?.scheme||'legacy-v1')==='shared-v2') continue;
+      const payload=state.decrypted.get(row.id);
+      if(!payload) continue;
+      try{
+        const encrypted=await encryptPayload(payload);
+        items.push({id:row.id,...encrypted});
+      }catch(_){}
+      if(items.length>=64) break;
+    }
+    if(!items.length) return rows;
+    try{
+      const data=await api('messenger-rekey',{items});
+      const updated=new Map((Array.isArray(data.messages)?data.messages:[]).map(row=>[row.id,row]));
+      if(!updated.size) return rows;
+      return rows.map(row=>updated.get(row.id)||row);
+    }catch(error){
+      console.warn('RUDI_MESSENGER_REKEY_WARN',String(error?.message||error));
+      return rows;
     }
   }
 
@@ -392,6 +461,7 @@
       state.rows=Array.isArray(data.messages)?data.messages:[];
       setUnread(data.unread);
       await decryptMessages(state.rows);
+      state.rows=await repairLegacyMessages(state.rows);
       renderMessages();
       if(markRead){
         const after=await markVisibleUnreadRead(state.rows);
@@ -442,7 +512,7 @@
     const title=document.getElementById('messengerPartnerName');
     if(title) title.textContent=state.partner||'Партнёр';
     const lock=document.getElementById('messengerSecurityStatus');
-    if(lock) lock.textContent=state.aesKey?'🔒 Сквозное шифрование · сообщения живут 24 часа':'🔒 Ожидаю ключ партнёра';
+    if(lock) lock.textContent=state.aesKey?'🔒 Защищённый чат · сообщения живут 24 часа':'🔒 Получаю ключ чата';
     syncHeaderAvatar();
   }
 
@@ -469,7 +539,7 @@
     send.disabled=true;
     try{
       await ensureKeys();
-      if(!state.aesKey) throw new Error('messenger-partner-key-missing');
+      if(!state.aesKey) throw new Error('messenger-shared-key-missing');
       const encrypted=await encryptPayload({
         text,
         reply:state.reply?{...state.reply}:null
@@ -478,7 +548,7 @@
         'Рустам':Number(state.keys?.['Рустам']?.version||0),
         'Диана':Number(state.keys?.['Диана']?.version||0)
       };
-      await api('messenger-send',{...encrypted,keyVersions});
+      await api('messenger-send',{scheme:'shared-v2',...encrypted,keyVersions});
       input.value='';
       state.reply=null;
       renderReplyDraft();
@@ -488,14 +558,13 @@
       const status=document.getElementById('messengerStatus');
       if(status){
         status.hidden=false;
-        status.textContent=String(error?.message||'').includes('partner-key-missing')
-          ?'Партнёр должен один раз открыть обновлённый RUDI, чтобы активировать защищённый чат.'
-          :'Не удалось отправить сообщение.';
+        status.textContent='Не удалось отправить сообщение.';
       }
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }finally{
       send.disabled=false;
       input.focus();
+      keepKeyboardAtLatest();
     }
   }
 
@@ -567,6 +636,7 @@
     }
     if(input&&input.dataset.bound!=='1'){
       input.dataset.bound='1';
+      input.addEventListener('focus',keepKeyboardAtLatest);
       input.addEventListener('keydown',event=>{
         if(event.key==='Enter'&&!event.shiftKey){
           event.preventDefault();
@@ -576,6 +646,7 @@
       input.addEventListener('input',()=>{
         input.style.height='auto';
         input.style.height=Math.min(112,input.scrollHeight)+'px';
+        keepKeyboardAtLatest();
       });
     }
     if(emoji&&emoji.dataset.bound!=='1'){
@@ -662,6 +733,7 @@
     const top=Math.max(0,Math.round(Number(viewport?.offsetTop||0)));
     document.documentElement.style.setProperty('--messenger-viewport-height',height+'px');
     document.documentElement.style.setProperty('--messenger-viewport-top',top+'px');
+    keepKeyboardAtLatest();
   }
 
   syncMessengerViewport();
