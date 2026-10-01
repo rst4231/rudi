@@ -77,3 +77,11 @@ test('messenger v3.17 shares encrypted chat across web PWA and Telegram clients'
   assert.match(client,/repairLegacyMessages/);
   assert.match(html,/🔒 Защищённый чат · сообщения живут 24 часа/);
 });
+
+test('messenger v3.17 restores full layout after iPhone keyboard closes',()=>{
+  assert.match(client,/function restoreMessengerAfterKeyboard\(\)/);
+  assert.match(client,/input\.addEventListener\('blur',restoreMessengerAfterKeyboard\)/);
+  assert.match(client,/setTimeout\(settle,520\)/);
+  assert.match(client,/const keyboardLikelyOpen=typing&&viewportHeight>0&&windowHeight>0&&\(windowHeight-viewportHeight\)>80/);
+  assert.match(client,/keyboardLikelyOpen[\s\S]*?Math\.max\(viewportHeight,windowHeight\)/);
+});
