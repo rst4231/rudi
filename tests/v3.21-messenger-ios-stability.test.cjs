@@ -58,11 +58,11 @@ test('v3.21 shows current partner mood emoji next to messenger name and observes
   assert.match(client,/new MutationObserver\(updateHeader\)\.observe\(partnerMood,\{attributes:true,attributeFilter:\['data-mood'\]\}\)/);
 });
 
-test('one tap on a reaction toggles the current actor reaction without triggering message gestures',()=>{
+test('one tap on a reaction is delegated on pointerdown and toggles it',()=>{
   assert.match(client,/function setMessageReaction\(row,emoji\)/);
-  assert.match(client,/reaction\.addEventListener\('pointerup',activateReaction\)/);
+  assert.match(client,/page\.addEventListener\('pointerdown',event=>\{/);
+  assert.match(client,/\[data-messenger-reaction\]\[data-message-id\]/);
   assert.match(client,/setMessageReaction\(row,emoji\)/);
-  assert.match(client,/event\.stopPropagation\(\)/);
   assert.match(client,/renderMessages\(\{preserveScrollTop\}/);
 });
 
