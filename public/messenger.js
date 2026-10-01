@@ -732,6 +732,17 @@
     syncHeaderAvatar();
   }
 
+  function triggerForegroundMessageHaptic(){
+    try{
+      const haptic=window.Telegram?.WebApp?.HapticFeedback;
+      if(haptic?.impactOccurred){
+        haptic.impactOccurred('medium');
+        return;
+      }
+    }catch(_){}
+    try{navigator.vibrate?.(35)}catch(_){}
+  }
+
   function rowsSignature(rows){
     return (Array.isArray(rows)?rows:[]).map(row=>[
       row.id,row.readAt,row.editedAt,(Array.isArray(row.likedBy)?row.likedBy:[]).join(',')
@@ -743,6 +754,8 @@
     try{
       const data=await api('messenger-list');
       const nextRows=Array.isArray(data.messages)?data.messages:[];
+      const knownIds=new Set((Array.isArray(state.rows)?state.rows:[]).map(row=>String(row.id||'')));
+      const hasNewPartnerMessage=nextRows.some(row=>row.sender!==state.actor&&!knownIds.has(String(row.id||'')));
       const changed=rowsSignature(nextRows)!==rowsSignature(state.rows);
       const typingChanged=Boolean(data.partnerTyping)!==state.partnerTyping;
       state.partnerTyping=Boolean(data.partnerTyping);
@@ -757,6 +770,7 @@
           await decryptMessages(state.rows);
         }
         renderMessages();
+        if(hasNewPartnerMessage) triggerForegroundMessageHaptic();
       }else if(typingChanged){
         renderTypingIndicator();
       }

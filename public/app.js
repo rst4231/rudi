@@ -5544,6 +5544,13 @@
           try{
             const target=new URL(raw,window.location.origin);
             if(target.origin!==window.location.origin) return;
+            const tab=String(target.searchParams.get('tab')||'').trim();
+            const item=String(target.searchParams.get('item')||'').trim();
+            if(tab&&typeof window.RUDI_NAVIGATE_TO_TAB==='function'){
+              history.replaceState(history.state||null,'',target.pathname+target.search+target.hash);
+              window.RUDI_NAVIGATE_TO_TAB(tab,{scroll:true,item,replace:true});
+              return;
+            }
             window.location.href=target.pathname+target.search+target.hash;
           }catch(_){}
         });

@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v3.21';
+const CACHE_NAME='rudi-shell-v3.22';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -281,22 +281,31 @@ async function deliverPendingPushNotifications(){
   const payload=await response.json().catch(()=>null);
   const rows=Array.isArray(payload?.notifications)?payload.notifications:[];
   const shown=[];
+  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true}).catch(()=>[]);
   for(const row of rows){
     const id=String(row?.id||'');
     if(!id) continue;
     const notificationTag=String(row?.tag||id);
     const notificationUrl=String(row?.url||'/');
-    await self.registration.showNotification(String(row?.title||'RUDI'),{
-      body:String(row?.body||''),
-      tag:notificationTag,
-      icon:String(row?.icon||'/icon-192-v176.jpg'),
-      badge:String(row?.badge||'/icon-192-v176.jpg'),
-      data:{url:notificationUrl,id},
-      renotify:false
+    const isMessenger=notificationTag==='rudi-messenger'||notificationUrl.includes('tab=messenger');
+    const messengerVisible=isMessenger&&windows.some(client=>{
+      try{
+        const url=new URL(client.url);
+        return client.visibilityState==='visible'&&url.origin===self.location.origin&&url.searchParams.get('tab')==='messenger';
+      }catch(_){return false}
     });
-    const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true}).catch(()=>[]);
+    if(!messengerVisible){
+      await self.registration.showNotification(String(row?.title||'RUDI'),{
+        body:String(row?.body||''),
+        tag:notificationTag,
+        icon:String(row?.icon||'/icon-192-v176.jpg'),
+        badge:String(row?.badge||'/icon-192-v176.jpg'),
+        data:{url:notificationUrl,id},
+        renotify:false
+      });
+    }
     for(const client of windows){
-      try{client.postMessage({type:'RUDI_PUSH_RECEIVED',id,tag:notificationTag,url:notificationUrl})}catch(_){}
+      try{client.postMessage({type:'RUDI_PUSH_RECEIVED',id,tag:notificationTag,url:notificationUrl,foreground:messengerVisible})}catch(_){}
     }
     shown.push(id);
   }
@@ -315,13 +324,8 @@ self.addEventListener('notificationclick',event=>{
     const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
     for(const client of windows){
       if(new URL(client.url).origin!==self.location.origin) continue;
-      try{
-        if('navigate' in client) await client.navigate(target);
-        else client.postMessage({type:'RUDI_PUSH_NAVIGATE',url:rawUrl});
-      }catch(_){
-        try{client.postMessage({type:'RUDI_PUSH_NAVIGATE',url:rawUrl})}catch(__){}
-      }
-      await client.focus();
+      try{await client.focus()}catch(_){}
+      try{client.postMessage({type:'RUDI_PUSH_NAVIGATE',url:rawUrl})}catch(_){}
       return;
     }
     await self.clients.openWindow(target);
