@@ -19,7 +19,7 @@ test('messenger refreshes open chat automatically without status noise',()=>{
   assert.match(client,/setInterval\(syncLiveMessages,2200\)/);
   assert.match(client,/rowsSignature\(nextRows\)!==rowsSignature\(state\.rows\)/);
   assert.match(client,/await decryptMessages\(state\.rows\)/);
-  assert.match(client,/renderMessages\(\)/);
+  assert.match(client,/renderMessages\(\{preserveScrollTop:/);
 });
 
 test('messenger push is an additional immediate live-refresh trigger',()=>{
