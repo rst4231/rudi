@@ -13,6 +13,8 @@ const PRECACHE=[
 const SYNC_DB='rudi-background-sync-v1';
 const SYNC_STORE='outbox';
 const SYNC_TAG='rudi-outbox';
+const PUSH_SEEN_DB='rudi-push-seen-v1';
+const PUSH_SEEN_STORE='seen';
 
 function fetchWithTimeout(request,timeoutMs){
   const controller=new AbortController();
@@ -180,4 +182,97 @@ self.addEventListener('sync',event=>{
 self.addEventListener('message',event=>{
   if(event.data?.type==='SKIP_WAITING') self.skipWaiting();
   if(event.data?.type==='FLUSH_OUTBOX') event.waitUntil(flushOutbox());
+});
+
+function openPushSeenDb(){
+  return new Promise((resolve,reject)=>{
+    const request=indexedDB.open(PUSH_SEEN_DB,1);
+    request.onupgradeneeded=()=>{
+      const db=request.result;
+      if(!db.objectStoreNames.contains(PUSH_SEEN_STORE)){
+        db.createObjectStore(PUSH_SEEN_STORE,{keyPath:'id'});
+      }
+    };
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error||new Error('push-seen-open-failed'));
+  });
+}
+
+async function readPushSeenIds(){
+  const db=await openPushSeenDb();
+  try{
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(PUSH_SEEN_STORE,'readonly');
+      const request=tx.objectStore(PUSH_SEEN_STORE).getAll();
+      request.onsuccess=()=>resolve((Array.isArray(request.result)?request.result:[]).map(row=>String(row?.id||'')).filter(Boolean).slice(-50));
+      request.onerror=()=>reject(request.error||new Error('push-seen-read-failed'));
+    });
+  }finally{db.close()}
+}
+
+async function rememberPushSeen(ids){
+  const clean=(Array.isArray(ids)?ids:[]).map(String).filter(Boolean);
+  if(!clean.length) return;
+  const db=await openPushSeenDb();
+  try{
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(PUSH_SEEN_STORE,'readwrite');
+      const store=tx.objectStore(PUSH_SEEN_STORE);
+      const now=Date.now();
+      clean.forEach(id=>store.put({id,seenAt:now}));
+      tx.oncomplete=()=>resolve(true);
+      tx.onerror=()=>reject(tx.error||new Error('push-seen-write-failed'));
+    });
+  }finally{db.close()}
+}
+
+async function deliverPendingPushNotifications(){
+  const seenIds=await readPushSeenIds().catch(()=>[]);
+  const response=await fetch('/api/partner-message?rudiAction=push-pending',{
+    method:'POST',
+    credentials:'include',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({seenIds}),
+    cache:'no-store'
+  }).catch(()=>null);
+  if(!response?.ok) return;
+  const payload=await response.json().catch(()=>null);
+  const rows=Array.isArray(payload?.notifications)?payload.notifications:[];
+  const shown=[];
+  for(const row of rows){
+    const id=String(row?.id||'');
+    if(!id) continue;
+    await self.registration.showNotification(String(row?.title||'RUDI'),{
+      body:String(row?.body||''),
+      tag:String(row?.tag||id),
+      icon:String(row?.icon||'/icon-192-v176.jpg'),
+      badge:String(row?.badge||'/icon-192-v176.jpg'),
+      data:{url:String(row?.url||'/'),id},
+      renotify:false
+    });
+    shown.push(id);
+  }
+  await rememberPushSeen(shown).catch(()=>{});
+}
+
+self.addEventListener('push',event=>{
+  event.waitUntil(deliverPendingPushNotifications());
+});
+
+self.addEventListener('notificationclick',event=>{
+  event.notification.close();
+  const rawUrl=String(event.notification?.data?.url||'/');
+  event.waitUntil((async()=>{
+    const target=new URL(rawUrl,self.location.origin).href;
+    const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    for(const client of windows){
+      if(new URL(client.url).origin!==self.location.origin) continue;
+      try{
+        if('navigate' in client) await client.navigate(target);
+      }catch(_){}
+      await client.focus();
+      return;
+    }
+    await self.clients.openWindow(target);
+  })());
 });
