@@ -36,8 +36,6 @@
     readTimer:0,
     retrying:false,
     keyboardStickToBottom:true,
-    tapMessageId:'',
-    tapAt:0,
   };
 
   function telegramInitData(){
@@ -490,6 +488,12 @@
       button.setAttribute('aria-label','Реакция '+emoji);
       const actors=Array.isArray(row?.reactions?.[emoji])?row.reactions[emoji]:[];
       if(actors.includes(state.actor)) button.classList.add('is-selected');
+      button.addEventListener('click',event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        hideContextMenu();
+        setMessageReaction(row,emoji);
+      });
       tray.appendChild(button);
     }
     menu.appendChild(tray);
@@ -561,10 +565,6 @@
       event.preventDefault();
       event.stopPropagation();
       cancel();
-    });
-    article.addEventListener('dblclick',event=>{
-      event.preventDefault();
-      event.stopPropagation();
     });
   }
 
@@ -745,18 +745,18 @@
     if(!row?.id||String(row.id).startsWith('pending:')||!REACTIONS.includes(emoji)) return;
     const list=document.getElementById('messengerMessages');
     const preservedScrollTop=Number(list?.scrollTop||0);
-    const before=row;
-    const optimistic=locallyToggleReaction(row,emoji);
-    state.rows=state.rows.map(item=>item.id===row.id?optimistic:item);
-    renderMessages({preserveScrollTop});
     try{
-      const data=await api('messenger-reaction',{id:row.id,reaction:emoji});
-      if(data?.message) state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
-      renderMessages({preserveScrollTop});
+      const data=emoji==='❤️'
+        ?await api('messenger-like',{id:row.id})
+        :await api('messenger-reaction',{id:row.id,reaction:emoji});
+      if(data?.message){
+        state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
+        renderMessages({preserveScrollTop});
+      }
+      const status=document.getElementById('messengerStatus');
+      if(status){status.hidden=true;status.textContent=''}
       try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
     }catch(error){
-      state.rows=state.rows.map(item=>item.id===row.id?before:item);
-      renderMessages({preserveScrollTop});
       const status=document.getElementById('messengerStatus');
       if(status){
         status.hidden=false;
@@ -765,6 +765,25 @@
       console.warn('RUDI_MESSENGER_REACTION_WARN',String(error?.message||error));
     }
   }
+
+  function bindMessageTapGestures(article,row,payload){
+    if(!article||!row||!payload) return;
+    let taps=0;
+    let gestureTimer=0;
+    article.addEventListener('click',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      const longPressedAt=Number(article.dataset.longPressedAt||0);
+      if(longPressedAt&&Date.now()-longPressedAt<700) return;
+      taps+=1;
+      clearTimeout(gestureTimer);
+      gestureTimer=setTimeout(()=>{
+        const count=taps;
+        taps=0;
+        if(count===2) setMessageReaction(row,'❤️');
+      },340);
+    });
+  }
+
 
 
   function renderTypingIndicator({autoScroll=true}={}){
@@ -895,6 +914,11 @@
           reaction.appendChild(emojiText);
           appendReactionAvatars(reaction,actors);
           reaction.title=actors.includes(state.actor)?'Снять реакцию':actors.join(', ');
+          reaction.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            setMessageReaction(row,emoji);
+          });
           wrap.appendChild(reaction);
         }
         bubble.appendChild(wrap);
@@ -904,6 +928,7 @@
       if(payload){
         bindSwipeReply(article,row,payload);
         bindLongPressContext(article,row,payload);
+        bindMessageTapGestures(article,row,payload);
       }
       list.appendChild(article);
     }
@@ -1430,26 +1455,6 @@
     const messages=document.getElementById('messengerMessages');
 
     const page=document.getElementById('messengerPage');
-    if(page&&page.dataset.reactionPointerBound!=='1'){
-      page.dataset.reactionPointerBound='1';
-      let reactionGuardAt=0;
-      page.addEventListener('pointerdown',event=>{
-        const button=event.target.closest('[data-messenger-reaction][data-message-id]');
-        if(!button) return;
-        if(event.pointerType==='mouse'&&event.button!==0) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const now=Date.now();
-        if(now-reactionGuardAt<220) return;
-        reactionGuardAt=now;
-        const id=String(button.dataset.messageId||'');
-        const emoji=String(button.dataset.messengerReaction||'');
-        const row=state.rows.find(item=>String(item?.id||'')===id);
-        if(!row) return;
-        hideContextMenu();
-        setMessageReaction(row,emoji);
-      },true);
-    }
     if(page&&page.dataset.dismissContextBound!=='1'){
       page.dataset.dismissContextBound='1';
       page.addEventListener('pointerdown',event=>{
@@ -1560,32 +1565,6 @@
         event.preventDefault();
         openSafeLink(link.href);
       });
-
-      messages.addEventListener('pointerdown',event=>{
-        if(event.target.closest('a,button,input,textarea,[data-messenger-reaction]')) return;
-        if(event.pointerType==='mouse'&&event.button!==0) return;
-        const article=event.target.closest('.messenger-message[data-message-id]');
-        if(!article) return;
-        const id=String(article.dataset.messageId||'');
-        if(!id||id.startsWith('pending:')) return;
-
-        const now=Date.now();
-        if(state.tapMessageId===id&&now-state.tapAt<=460){
-          state.tapMessageId='';
-          state.tapAt=0;
-          event.preventDefault();
-          event.stopPropagation();
-          const row=state.rows.find(item=>String(item?.id||'')===id);
-          if(row){
-            setMessageReaction(row,'❤️');
-            try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
-          }
-          return;
-        }
-
-        state.tapMessageId=id;
-        state.tapAt=now;
-      },true);
 
       messages.addEventListener('scroll',()=>{
         state.nearBottom=isMessagesNearBottom(messages);
