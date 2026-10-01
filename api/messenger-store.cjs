@@ -216,7 +216,6 @@ function mergeReactionStates(row,states){
 }
 
 function normalizeMessage(row){
-function normalizeMessage(row){
   if(!row||typeof row!=='object') return null;
   const sender=cleanActor(row.sender);
   const id=String(row.id||'').trim();
