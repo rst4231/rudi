@@ -53,7 +53,7 @@ test('v3.21 shows current partner mood emoji next to messenger name and observes
   assert.match(client,/sadness:'😢'/);
   assert.match(client,/joy:'😄'/);
   assert.match(client,/love:'🥰'/);
-  assert.match(client,/title\.textContent=\(state\.partner\|\|'Партнёр'\)\+\(moodEmoji\?' ':''\)\+moodEmoji/);
+  assert.match(client,/title\.textContent=\(state\.partner\|\|'Партнёр'\)\+\(moodEmoji\?' '\+moodEmoji:''\)/);
   assert.match(client,/new MutationObserver\(updateHeader\)\.observe\(partnerMood,\{attributes:true,attributeFilter:\['data-mood'\]\}\)/);
 });
 
