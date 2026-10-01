@@ -1231,6 +1231,16 @@ html[data-theme="light"] .car-wash-guide-note strong{color:#7c2d28}
   box-shadow:0 16px 38px rgba(0,0,0,.12);
 }
 .car-page .car-registration{display:inline;margin-left:6px;color:#f4f6fa;font-weight:820;letter-spacing:.035em}
+.car-age{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.25;
+  font-weight:700;
+  letter-spacing:.01em;
+}
+.car-home-title-row .car-age{font-size:9.5px}
+html[data-theme="light"] .car-age{color:#697382}
 .car-page .car-collapsed-metrics,
 .car-page .car-collapsed-service-progress,
 .car-page .car-collapsed-wash{display:none!important}

@@ -687,7 +687,49 @@
     });
   }
 
+  const CAR_PURCHASE_DATE='2023-09-07';
+
+  function russianCount(value,one,few,many){
+    const n=Math.abs(Number(value)||0)%100;
+    const last=n%10;
+    if(n>=11&&n<=14) return many;
+    if(last===1) return one;
+    if(last>=2&&last<=4) return few;
+    return many;
+  }
+
+  function carAgeLabel(now=new Date()){
+    const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
+      timeZone:'Europe/Moscow',
+      year:'numeric',
+      month:'2-digit',
+      day:'2-digit'
+    }).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+    const currentYear=Number(parts.year);
+    const currentMonth=Number(parts.month);
+    const currentDay=Number(parts.day);
+    const [purchaseYear,purchaseMonth,purchaseDay]=CAR_PURCHASE_DATE.split('-').map(Number);
+
+    let totalMonths=(currentYear-purchaseYear)*12+(currentMonth-purchaseMonth);
+    if(currentDay<purchaseDay) totalMonths-=1;
+    totalMonths=Math.max(0,totalMonths);
+
+    const years=Math.floor(totalMonths/12);
+    const months=totalMonths%12;
+    return years+' '+russianCount(years,'год','года','лет')
+      +' '+months+' '+russianCount(months,'месяц','месяца','месяцев');
+  }
+
+  function renderCarAge(){
+    const label=carAgeLabel();
+    for(const id of ['carHomeAge','carPageAge']){
+      const node=document.getElementById(id);
+      if(node) node.textContent=label;
+    }
+  }
+
   function renderService(car) {
+    renderCarAge();
     const mileage=car?.state?.mileage;
     const next=car?.nextService;
     const mileageNode=document.getElementById('carMileageValue');
