@@ -614,6 +614,7 @@
     }
   }
 
+  window.addEventListener('rudi:profile-ready',ensureProfileButton);
   window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')) syncUnread()});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')) return;
