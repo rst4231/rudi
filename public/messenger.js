@@ -1501,9 +1501,21 @@
     }
     if(emoji&&emoji.dataset.bound!=='1'){
       emoji.dataset.bound='1';
-      emoji.addEventListener('click',()=>{
+      const toggleEmojiTrayWithoutBlur=event=>{
+        if(event.pointerType==='mouse'&&event.button!==0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const start=input?.selectionStart??input?.value?.length??0;
+        const end=input?.selectionEnd??input?.value?.length??start;
         if(emojiTray) emojiTray.hidden=!emojiTray.hidden;
-      });
+        if(input){
+          input.focus({preventScroll:true});
+          try{input.setSelectionRange(start,end)}catch(_){}
+          keepKeyboardAtLatest();
+        }
+      };
+      emoji.addEventListener('pointerdown',toggleEmojiTrayWithoutBlur);
+      emoji.addEventListener('click',event=>event.preventDefault());
     }
     if(emojiTray&&emojiTray.dataset.bound!=='1'){
       emojiTray.dataset.bound='1';
