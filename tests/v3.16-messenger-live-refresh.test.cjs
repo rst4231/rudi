@@ -3,144 +3,115 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 
 const client=fs.readFileSync('public/messenger.js','utf8');
+const server=fs.readFileSync('api/partner-message.js','utf8');
 const sw=fs.readFileSync('public/sw.js','utf8');
 const css=fs.readFileSync('public/messenger.css','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 
-test('messenger overlay is moved outside transformed shell',()=>{
+test('messenger v3.20 overlay stays outside transformed app shell',()=>{
   assert.match(client,/function mountMessengerOverlay\(\)[\s\S]*?document\.body\.appendChild\(page\)/);
-  assert.match(client,/async function open\([\s\S]*?mountMessengerOverlay\(\)/);
-  assert.match(client,/async function initialize\(\)[\s\S]*?mountMessengerOverlay\(\)/);
   assert.match(css,/\.messenger-page\{[\s\S]*?position:fixed;[\s\S]*?z-index:4400/);
 });
 
-test('normal messenger sync never shows the word updating',()=>{
+test('messenger v3.20 refreshes open chat automatically without status noise',()=>{
   assert.doesNotMatch(client,/Обновляю…/);
+  assert.match(client,/function syncLiveMessages\(\)/);
+  assert.match(client,/setInterval\(syncLiveMessages,2200\)/);
+  assert.match(client,/rowsSignature\(nextRows\)!==rowsSignature\(state\.rows\)/);
+  assert.match(client,/await decryptMessages\(state\.rows\)/);
+  assert.match(client,/renderMessages\(\)/);
 });
 
-test('messenger does not poll every 12 seconds',()=>{
-  assert.doesNotMatch(client,/setInterval\([\s\S]*?12000/);
-  assert.doesNotMatch(client,/function scheduleRefresh/);
-});
-
-test('service worker broadcasts incoming push to open app windows',()=>{
+test('messenger push is an additional immediate live-refresh trigger',()=>{
   assert.match(sw,/client\.postMessage\(\{type:'RUDI_PUSH_RECEIVED',id,tag:notificationTag,url:notificationUrl\}\)/);
-});
-
-test('messenger refreshes immediately for messenger push',()=>{
   assert.match(client,/navigator\.serviceWorker\?\.addEventListener\?\.\('message'/);
-  assert.match(client,/data\.type!=='RUDI_PUSH_RECEIVED'/);
-  assert.match(client,/tag!=='rudi-messenger'&&!url\.includes\('tab=messenger'\)/);
-  assert.match(client,/dataset\.appTab==='messenger'[\s\S]*?load\(\{markRead:true\}\)/);
+  assert.match(client,/dataset\.appTab==='messenger'[\s\S]*?syncLiveMessages\(\)/);
   assert.match(client,/else\{[\s\S]*?syncUnread\(\)/);
 });
 
-test('messenger v3.19 assets and PWA shell are cache-busted',()=>{
-  assert.match(html,/messenger\.js\?v=3\.17/);
-  assert.match(html,/messenger\.css\?v=3\.17/);
-  assert.match(html,/meta name="rudi-version" content="v3\.17"/);
-  assert.match(sw,/rudi-shell-v3\.17/);
+test('messenger v3.20 assets and PWA shell are cache-busted',()=>{
+  assert.match(html,/messenger\.js\?v=3\.20/);
+  assert.match(html,/messenger\.css\?v=3\.20/);
+  assert.match(html,/meta name="rudi-version" content="v3\.20"/);
+  assert.match(sw,/rudi-shell-v3\.20/);
 });
 
-test('messenger v3.19 uses compact separated header and partner avatar',()=>{
-  assert.match(html,/id="messengerBack"[\s\S]*?id="messengerPartnerName"[\s\S]*?id="messengerPartnerAvatar"/);
-  assert.match(css,/\.messenger-head\{[\s\S]*?grid-template-columns:40px minmax\(0,1fr\) 40px/);
-  assert.doesNotMatch(css,/\.messenger-head\{[^}]*border:/);
-  assert.match(client,/function syncHeaderAvatar\(\)/);
-  assert.match(client,/partnerProfileImage/);
+test('messenger header uses compact partner status instead of 24-hour security copy',()=>{
+  assert.match(client,/function compactPartnerStatus\(\)/);
+  assert.match(client,/dianaRhythmStatus/);
+  assert.match(client,/rustamRhythmStatus/);
+  assert.match(client,/dianaCycleMood/);
+  assert.match(client,/partnerWorkStatus/);
+  assert.doesNotMatch(html,/Защищённый чат · сообщения живут 24 часа/);
 });
 
-test('messenger v3.19 replies by long press without permanent reply button',()=>{
-  assert.match(client,/function bindLongPressReply\(article,row,payload\)/);
-  assert.match(client,/setTimeout\(\(\)=>\{[\s\S]*?setReply\(row,payload\)[\s\S]*?\},520\);/);
-  assert.doesNotMatch(client,/messenger-reply-button/);
-  assert.doesNotMatch(html,/messenger-reply-button/);
+test('long press on own message reveals delete and server enforces sender ownership',()=>{
+  assert.match(client,/function bindLongPressDelete\(article,row,button\)/);
+  assert.match(client,/row\.sender!==state\.actor/);
+  assert.match(client,/remove\.textContent='Удалить'/);
+  assert.match(client,/api\('messenger-delete',\{id:row\.id\}\)/);
+  assert.match(server,/action === 'messenger-delete'/);
+  assert.match(server,/deleteMessengerMessage\(actor,body\.id,options\)/);
 });
 
-test('messenger v3.19 reduces iPhone safe-area spacing',()=>{
-  assert.match(css,/safe-area-inset-top\) - 12px/);
-  assert.match(css,/safe-area-inset-bottom\) - 16px/);
+test('right-to-left swipe replies to a message',()=>{
+  assert.match(client,/function bindSwipeReply\(article,row,payload\)/);
+  assert.match(client,/if\(dx<-55&&Math\.abs\(dy\)<38\)/);
+  assert.match(client,/setReply\(row,payload\)/);
 });
 
-test('messenger v3.19 keeps latest message visible while iPhone keyboard resizes viewport',()=>{
-  assert.match(client,/function keepKeyboardAtLatest\(\)/);
-  assert.match(client,/input\.addEventListener\('focus',keepKeyboardAtLatest\)/);
-  assert.match(client,/input\.addEventListener\('input',[\s\S]*?keepKeyboardAtLatest\(\)/);
-  assert.match(client,/function syncMessengerViewport\(\)[\s\S]*?keepKeyboardAtLatest\(\)/);
-  assert.match(client,/function scrollMessagesToBottom\(\)/);
-});
-
-test('messenger v3.19 shares encrypted chat across web PWA and Telegram clients',()=>{
-  assert.match(client,/AAD_V2=encoder\.encode\('rudi-messenger-shared-v2'\)/);
-  assert.match(client,/conversationKey/);
-  assert.match(client,/scheme:'shared-v2'/);
-  assert.match(client,/repairLegacyMessages/);
-  assert.match(html,/🔒 Защищённый чат · сообщения живут 24 часа/);
-});
-
-test('messenger v3.19 restores full layout after iPhone keyboard closes',()=>{
-  assert.match(client,/function restoreMessengerAfterKeyboard\(\)/);
-  assert.match(client,/input\.addEventListener\('blur',restoreMessengerAfterKeyboard\)/);
-  assert.match(client,/setTimeout\(settle,520\)/);
-  assert.match(client,/const keyboardLikelyOpen=typing&&viewportHeight>0&&windowHeight>0&&\(windowHeight-viewportHeight\)>80/);
-  assert.match(client,/keyboardLikelyOpen[\s\S]*?Math\.max\(viewportHeight,windowHeight\)/);
-});
-
-test('messenger v3.19 supports like on double tap and edit on triple tap',()=>{
+test('double tap likes and triple tap edits own message after gesture delay',()=>{
   assert.match(client,/function bindMessageTapGestures\(article,row,payload\)/);
-  assert.match(client,/if\(taps===2\)[\s\S]*?toggleMessageLike\(row\)/);
-  assert.match(client,/if\(taps>=3\)[\s\S]*?startMessageEdit\(row,payload\)/);
-  assert.match(client,/messenger-edit/);
-  assert.match(client,/messenger-like/);
-  assert.match(client,/row\.editedAt\?'Изменено'/);
-  assert.match(css,/\.messenger-reaction\{/);
-});
-
-test('messenger v3.19 keeps header below iPhone safe area',()=>{
-  assert.match(css,/padding:max\(10px,env\(safe-area-inset-top\)\)/);
-  assert.match(css,/padding:max\(8px,env\(safe-area-inset-top\)\)/);
-});
-
-test('messenger v3.19 assets and shell are cache-busted',()=>{
-  assert.match(html,/messenger\.js\?v=3\.18/);
-  assert.match(html,/messenger\.css\?v=3\.18/);
-  assert.match(html,/meta name="rudi-version" content="v3\.18"/);
-  assert.match(sw,/rudi-shell-v3\.18/);
-});
-
-test('messenger v3.19 push title uses natural sender wording',()=>{
-  assert.match(server,/Диана прислала сообщение/);
-  assert.match(server,/Рустам прислал сообщение/);
-  assert.doesNotMatch(server,/Новое сообщение от '\+actor/);
-});
-
-test('messenger v3.19 waits before resolving double vs triple tap',()=>{
-  assert.match(client,/let gestureTimer=0/);
-  assert.match(client,/gestureTimer=setTimeout\(\(\)=>\{/);
   assert.match(client,/if\(count>=3\)/);
+  assert.match(client,/row\.sender===state\.actor\) startMessageEdit\(row,payload\)/);
   assert.match(client,/if\(count===2\) toggleMessageLike\(row\)/);
   assert.match(client,/\},340\)/);
 });
 
-test('messenger v3.19 uses safe-area and visual viewport edges instead of height hacks',()=>{
-  assert.match(css,/--messenger-safe-top:max\(env\(safe-area-inset-top\),var\(--tg-content-safe-top,0px\),44px\)/);
-  assert.match(css,/top:var\(--messenger-visual-top,0px\)/);
-  assert.match(css,/bottom:var\(--messenger-visual-bottom,0px\)/);
-  assert.doesNotMatch(css,/--messenger-viewport-height/);
-  assert.doesNotMatch(css,/--messenger-viewport-top/);
-  assert.match(client,/--messenger-visual-top/);
-  assert.match(client,/--messenger-visual-bottom/);
+test('typing indicator is shared through short-lived server presence',()=>{
+  assert.match(client,/function notifyTyping\(active\)/);
+  assert.match(client,/api\('messenger-typing',\{active:Boolean\(active\)\}\)/);
+  assert.match(client,/function renderTypingIndicator\(\)/);
+  assert.match(server,/action === 'messenger-typing'/);
+  assert.match(server,/partnerTyping/);
+  assert.match(css,/@keyframes messengerTyping/);
 });
 
-test('messenger v3.19 prevents iPhone input focus zoom and resets layout on blur',()=>{
-  assert.match(css,/#messengerInput\{[^}]*font-size:16px/);
-  assert.match(client,/input\.addEventListener\('blur',restoreMessengerAfterKeyboard\)/);
-  assert.match(client,/root\.style\.setProperty\('--messenger-visual-top','0px'\)/);
-  assert.match(client,/root\.style\.setProperty\('--messenger-visual-bottom','0px'\)/);
-  assert.doesNotMatch(client,/document\.getElementById\('messengerInput'\)\?\.focus/);
+test('links are displayed as a compact clickable word',()=>{
+  assert.match(client,/link\.textContent='ссылка'/);
+  assert.match(client,/link\.href=url/);
+  assert.match(client,/openSafeLink\(link\.href\)/);
 });
 
-test('messenger v3.19 keeps header below iPhone and Telegram safe areas',()=>{
-  assert.match(css,/padding:calc\(var\(--messenger-safe-top\) \+ 12px\)/);
-  assert.match(css,/max\(8px,env\(safe-area-inset-bottom\)\)/);
+test('message bubbles match iMessage-style gray and blue shapes with subtle heart background',()=>{
+  assert.match(css,/background:#e9e9eb/);
+  assert.match(css,/background:linear-gradient\(180deg,#149bff 0%,#0a84ff 100%\)/);
+  assert.match(css,/border-bottom-left-radius:5px/);
+  assert.match(css,/border-bottom-right-radius:5px/);
+  assert.match(css,/font-size:17px/);
+  assert.match(css,/background-image:url\("data:image\/svg\+xml/);
+});
+
+test('new and sent messages animate smoothly with reduced-motion fallback',()=>{
+  assert.match(css,/\.messenger-message\.is-new\{animation:messengerMessageIn/);
+  assert.match(css,/\.messenger-message\.is-sent\{animation:messengerMessageSent/);
+  assert.match(css,/@keyframes messengerMessageIn/);
+  assert.match(css,/prefers-reduced-motion:reduce/);
+});
+
+test('iPhone keyboard uses VisualViewport height and 16px composer text',()=>{
+  assert.match(css,/height:var\(--messenger-visual-height,100dvh\)/);
+  assert.match(css,/#messengerInput\{[\s\S]*?font-size:16px/);
+  assert.match(client,/window\.visualViewport/);
+  assert.match(client,/--messenger-visual-height/);
+  assert.match(client,/page\?\.classList\.add\('is-keyboard-open'\)/);
+  assert.match(client,/input\.addEventListener\('blur',[\s\S]*?restoreMessengerAfterKeyboard\(\)/);
+});
+
+test('messenger keeps shared-v2 encryption and natural push sender wording',()=>{
+  assert.match(client,/AAD_V2=encoder\.encode\('rudi-messenger-shared-v2'\)/);
+  assert.match(client,/scheme:'shared-v2'/);
+  assert.match(server,/Диана прислала сообщение/);
+  assert.match(server,/Рустам прислал сообщение/);
+  assert.match(server,/url:'\/\?tab=messenger&fresh=1'/);
 });

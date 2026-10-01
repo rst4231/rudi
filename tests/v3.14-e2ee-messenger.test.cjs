@@ -5,6 +5,9 @@ const fs=require('node:fs');
 const {
   MESSAGE_TTL_SECONDS,
   addMessengerMessage,
+  deleteMessengerMessage,
+  setMessengerTyping,
+  readMessengerTyping,
   readMessengerMessages,
   markMessengerRead,
   unreadMessengerCount,
@@ -26,6 +29,10 @@ function memoryCache(nowRef){
       const ttl=Math.max(1,Number(options.ttl||1));
       rows.set(key,{value:structuredClone(value),expiresAt:nowRef.now+ttl*1000});
       writes.push({key,ttl,value:structuredClone(value)});
+      return true;
+    },
+    async delete(key){
+      rows.delete(key);
       return true;
     }
   };
@@ -80,6 +87,36 @@ test('server-side message rows contain ciphertext but no plaintext body or reply
   assert.equal(rows[0].ciphertext,'E'.repeat(64));
 });
 
+test('only the sender can delete a message and deletion removes it for both readers',async()=>{
+  resetMutationQueueForTests();
+  const nowRef={now:Date.parse('2026-10-01T10:00:00Z')};
+  const cache=memoryCache(nowRef);
+  const options={now:nowRef.now,messengerCache:cache};
+  const message=await addMessengerMessage('Рустам',{
+    ciphertext:'G'.repeat(48),
+    iv:'H'.repeat(16),
+    keyVersions:{'Рустам':1,'Диана':1},
+  },options);
+  await assert.rejects(
+    deleteMessengerMessage('Диана',message.id,options),
+    /messenger-delete-owner-required/
+  );
+  assert.equal((await readMessengerMessages(options)).length,1);
+  const deleted=await deleteMessengerMessage('Рустам',message.id,options);
+  assert.equal(deleted.deleted,true);
+  assert.equal((await readMessengerMessages(options)).length,0);
+});
+
+test('typing presence is short-lived and can be cleared immediately',async()=>{
+  const nowRef={now:Date.parse('2026-10-01T10:00:00Z')};
+  const cache=memoryCache(nowRef);
+  const options={now:nowRef.now,messengerCache:cache};
+  assert.equal(await setMessengerTyping('Диана',true,options),true);
+  assert.equal(await readMessengerTyping('Диана',options),true);
+  assert.equal(await setMessengerTyping('Диана',false,options),false);
+  assert.equal(await readMessengerTyping('Диана',options),false);
+});
+
 test('unread count is partner-only',()=>{
   const rows=[
     {sender:'Рустам',readAt:''},
@@ -97,6 +134,7 @@ test('client uses ECDH plus AES-GCM and keeps reply, emoji, links and read statu
   assert.match(client,/payload\?\.reply/);
   assert.match(client,/data-emoji/);
   assert.match(client,/https\?:\\\/\\\/\[\^\\s<\]\+/);
+  assert.match(client,/link\.textContent='ссылка'/);
   assert.match(client,/row\.readAt\?'Прочитано':'Отправлено'/);
 });
 

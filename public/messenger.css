@@ -1,4 +1,4 @@
-/* RUDI v3.19 encrypted messenger */
+/* RUDI v3.20 encrypted messenger */
 .messenger-page{
   --messenger-safe-top:max(env(safe-area-inset-top),var(--tg-content-safe-top,0px),44px);
   position:fixed;
@@ -98,6 +98,8 @@
 .messenger-message.is-partner{align-self:flex-start}
 .messenger-bubble{
   position:relative;
+  z-index:0;
+  overflow:visible;
   min-width:46px;
   max-width:100%;
   display:grid;
@@ -164,7 +166,7 @@
 .messenger-message-text{
   color:inherit;
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
-  font-size:16px;
+  font-size:17px;
   line-height:1.28;
   font-weight:400;
   letter-spacing:-.012em;
@@ -336,8 +338,8 @@
   background:transparent;
   color:var(--text);
   font:inherit;
-  font-size:12px;
-  line-height:1.35;
+  font-size:16px;
+  line-height:1.3;
 }
 #messengerInput::placeholder{color:var(--muted)}
 .partner-profile-actions{
