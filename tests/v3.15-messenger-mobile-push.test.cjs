@@ -15,14 +15,16 @@ test('emoji tray is compact and has an expanded palette',()=>{
   assert.doesNotMatch(css,/\.messenger-emoji-tray\{[\s\S]*?min-height:48vh/);
 });
 
-test('iPhone messenger follows visual viewport without sticky layout jumps',()=>{
-  assert.match(css,/\.messenger-page\{[\s\S]*?position:fixed;[\s\S]*?height:var\(--messenger-viewport-height,100dvh\)/);
-  assert.match(css,/top:var\(--messenger-viewport-top,0px\)/);
+test('iPhone messenger follows VisualViewport without sticky layout jumps',()=>{
+  assert.match(css,/\.messenger-page\{[\s\S]*?position:fixed;[\s\S]*?height:var\(--messenger-visual-height,100dvh\)/);
+  assert.match(css,/top:var\(--messenger-visual-top,0px\)/);
+  assert.match(css,/\.messenger-page\.is-keyboard-open\{padding-bottom:2px/);
   assert.match(css,/\.messenger-messages\{[\s\S]*?grid-row:3;[\s\S]*?min-height:0;[\s\S]*?max-height:none/);
   assert.match(css,/\.messenger-composer-wrap\{[\s\S]*?grid-row:4;[\s\S]*?position:relative/);
-  assert.match(client,/visualViewport/);
-  assert.match(client,/--messenger-viewport-height/);
-  assert.match(client,/--messenger-viewport-top/);
+  assert.match(client,/const viewport=window\.visualViewport/);
+  assert.match(client,/--messenger-visual-height/);
+  assert.match(client,/--messenger-visual-top/);
+  assert.match(client,/page\?\.classList\.add\('is-keyboard-open'\)/);
 });
 
 test('completed shared task uses partner-only app push',()=>{

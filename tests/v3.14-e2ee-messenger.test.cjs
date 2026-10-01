@@ -163,6 +163,6 @@ test('messenger push can be disabled but defaults enabled',()=>{
   const api=fs.readFileSync('api/partner-message.js','utf8');
   assert.match(pref,/messengerNotificationsEnabled[\s\S]*?\? Boolean\(source\.messengerNotificationsEnabled\)[\s\S]*?: true/);
   assert.match(api,/preferences\?\.messengerNotificationsEnabled===false/);
-  assert.match(api,/title:'Новое сообщение от '\+actor/);
-  assert.doesNotMatch(api,/title:'Новое сообщение от '\+actor[\s\S]{0,300}?body:[^'\n]*text/);
+  assert.match(api,/title:actor==='Диана'\?'Диана прислала сообщение':'Рустам прислал сообщение'/);
+  assert.doesNotMatch(api,/body:[^'\n]*text/);
 });
