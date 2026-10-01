@@ -694,9 +694,27 @@
     return parts.join(' · ');
   }
 
+  function partnerMoodEmoji(){
+    const mood=String(document.getElementById('partnerMoodValue')?.dataset?.mood||'').trim();
+    const icons={
+      sadness:'😢',
+      boredom:'🥱',
+      fear:'🥱',
+      neutral:'😐',
+      fatigue:'😩',
+      anger:'😡',
+      joy:'😄',
+      love:'🥰',
+    };
+    return icons[mood]||'';
+  }
+
   function updateHeader(){
     const title=document.getElementById('messengerPartnerName');
-    if(title) title.textContent=state.partner||'Партнёр';
+    if(title){
+      const moodEmoji=partnerMoodEmoji();
+      title.textContent=(state.partner||'Партнёр')+(moodEmoji?' '+moodEmoji:'');
+    }
     const lock=document.getElementById('messengerSecurityStatus');
     if(lock) lock.textContent=compactPartnerStatus()||(state.aesKey?'🔒 Защищённый чат':'🔒 Получаю ключ чата');
     syncHeaderAvatar();
@@ -960,6 +978,11 @@
         event.preventDefault();
         openSafeLink(link.href);
       });
+    }
+    const partnerMood=document.getElementById('partnerMoodValue');
+    if(partnerMood&&partnerMood.dataset.messengerMoodObserved!=='1'){
+      partnerMood.dataset.messengerMoodObserved='1';
+      new MutationObserver(updateHeader).observe(partnerMood,{attributes:true,attributeFilter:['data-mood']});
     }
   }
 

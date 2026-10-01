@@ -47,3 +47,12 @@ test('v3.21 cache-busts messenger shell',()=>{
   assert.match(html,/meta name="rudi-version" content="v3\.21"/);
   assert.match(sw,/rudi-shell-v3\.21/);
 });
+
+test('v3.21 shows current partner mood emoji next to messenger name and observes mood changes',()=>{
+  assert.match(client,/function partnerMoodEmoji\(\)/);
+  assert.match(client,/sadness:'😢'/);
+  assert.match(client,/joy:'😄'/);
+  assert.match(client,/love:'🥰'/);
+  assert.match(client,/title\.textContent=\(state\.partner\|\|'Партнёр'\)\+\(moodEmoji\?' ':''\)\+moodEmoji/);
+  assert.match(client,/new MutationObserver\(updateHeader\)\.observe\(partnerMood,\{attributes:true,attributeFilter:\['data-mood'\]\}\)/);
+});
