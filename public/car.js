@@ -208,7 +208,11 @@
         const archivedTitle=document.createElement('strong');
         archivedTitle.textContent=item.title||'Ремонт';
         const archivedMeta=document.createElement('span');
-        archivedMeta.textContent='Починено '+formatErrorDate(item.repairedAt);
+        const repairCost=Number.isInteger(Number(item.repairCost))&&Number(item.repairCost)>=0
+          ? Number(item.repairCost)
+          : null;
+        archivedMeta.textContent='Починено '+formatErrorDate(item.repairedAt)
+          +(repairCost==null?'':' · '+new Intl.NumberFormat('ru-RU').format(repairCost)+' ₽');
         archivedRow.append(archivedTitle,archivedMeta);
         if(item.comment){
           const archivedComment=document.createElement('p');
@@ -266,26 +270,88 @@
     }
   }
 
-  async function repairDashboardError(error,button) {
+  function openRepairCostEditor(error,button) {
     if(!error?.id || button?.disabled) return;
     const row=button.closest('.car-error-row');
-    const buttons=[...(row?.querySelectorAll('button')||[])];
+    if(!row || row.querySelector('.car-repair-cost-editor')) return;
+
+    const actions=row.querySelector('.car-error-row-actions');
+    const buttons=[...(actions?.querySelectorAll('button')||[])];
     buttons.forEach(node=>node.disabled=true);
-    const original=button.textContent;
-    button.textContent='…';
-    try{
-      const data=await api('repair-error',{errorId:error.id});
-      state.car={...state.car,...data};
-      renderErrors(state.car);
-      applyCarSmartOrder({animate:true});
-      setStatus('Перенесено в архив ремонта','success');
-      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-    }catch(_){
+
+    const editor=document.createElement('form');
+    editor.className='car-repair-cost-editor';
+
+    const field=document.createElement('label');
+    field.className='car-repair-cost-field';
+    const label=document.createElement('span');
+    label.textContent='Сумма ремонта, ₽';
+    const input=document.createElement('input');
+    input.type='number';
+    input.min='0';
+    input.max='99999999';
+    input.step='1';
+    input.inputMode='numeric';
+    input.placeholder='Необязательно';
+    field.append(label,input);
+
+    const editorActions=document.createElement('div');
+    editorActions.className='car-repair-cost-actions';
+    const cancel=document.createElement('button');
+    cancel.type='button';
+    cancel.className='car-repair-cost-cancel';
+    cancel.textContent='Отмена';
+    const save=document.createElement('button');
+    save.type='submit';
+    save.className='car-repair-cost-save';
+    save.textContent='Сохранить';
+    editorActions.append(cancel,save);
+    editor.append(field,editorActions);
+    row.appendChild(editor);
+
+    const close=()=>{
+      editor.remove();
       buttons.forEach(node=>node.disabled=false);
-      button.textContent=original;
-      setStatus('Не удалось отправить в архив','error');
-      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-    }
+    };
+    cancel.addEventListener('click',close);
+    editor.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const raw=String(input.value||'').trim();
+      const repairCost=raw===''?null:Number(raw);
+      if(repairCost!==null&&(!Number.isInteger(repairCost)||repairCost<0||repairCost>99999999)){
+        setStatus('Укажи сумму ремонта целым числом в рублях','error');
+        input.focus();
+        return;
+      }
+
+      input.disabled=true;
+      cancel.disabled=true;
+      save.disabled=true;
+      save.textContent='Сохраняю…';
+      try{
+        const data=await api('repair-error',{errorId:error.id,repairCost});
+        state.car={...state.car,...data};
+        renderErrors(state.car);
+        applyCarSmartOrder({animate:true});
+        setStatus(repairCost==null
+          ?'Перенесено в архив ремонта'
+          :'Ремонт сохранён · '+new Intl.NumberFormat('ru-RU').format(repairCost)+' ₽','success');
+        try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+      }catch(_){
+        input.disabled=false;
+        cancel.disabled=false;
+        save.disabled=false;
+        save.textContent='Сохранить';
+        setStatus('Не удалось отправить в архив','error');
+        try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+      }
+    });
+
+    requestAnimationFrame(()=>input.focus());
+  }
+
+  async function repairDashboardError(error,button) {
+    openRepairCostEditor(error,button);
   }
 
   async function removeDashboardError(error,button) {

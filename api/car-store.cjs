@@ -9,6 +9,7 @@ const MAX_ERRORS = 50;
 const MAX_REPAIR_ARCHIVE = 100;
 const ERROR_TITLE_MAX = 80;
 const ERROR_COMMENT_MAX = 500;
+const REPAIR_COST_MAX = 99999999;
 const DB_ACTOR = 'Рустам';
 const DB_KEY = 'car:changan-univ-2023';
 
@@ -57,6 +58,13 @@ function normalizeErrorId(value) {
   return /^[A-Za-z0-9_-]{8,100}$/.test(id) ? id : '';
 }
 
+function normalizeRepairCost(value) {
+  if (value === '' || value == null) return null;
+  const amount = Number(value);
+  if (!Number.isInteger(amount) || amount < 0 || amount > REPAIR_COST_MAX) return null;
+  return amount;
+}
+
 function normalizeCarError(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const id = normalizeErrorId(value.id);
@@ -97,7 +105,8 @@ function normalizeRepairArchive(value) {
     .map(item => {
       const base = normalizeCarError(item);
       const repairedAt = normalizeIso(item?.repairedAt);
-      return base && repairedAt ? { ...base, repairedAt } : null;
+      const repairCost = normalizeRepairCost(item?.repairCost);
+      return base && repairedAt ? { ...base, repairedAt, repairCost } : null;
     })
     .filter(Boolean)
     .filter(row => {
@@ -185,6 +194,15 @@ function cleanOccurredAt(value) {
   return occurredAt;
 }
 
+function cleanRepairCost(value) {
+  if (value === '' || value == null) return null;
+  const amount = Number(value);
+  if (!Number.isInteger(amount) || amount < 0 || amount > REPAIR_COST_MAX) {
+    throw new Error('car-repair-cost-invalid');
+  }
+  return amount;
+}
+
 async function writeMileage(mileage, options = {}) {
   const normalized = normalizeMileage(mileage);
   if (normalized == null) throw new Error('car-mileage-invalid');
@@ -234,11 +252,12 @@ async function removeCarError(errorId, options = {}) {
 async function repairCarError(errorId, options = {}) {
   const id = normalizeErrorId(errorId);
   if (!id) throw new Error('car-error-invalid');
+  const repairCost = cleanRepairCost(options.repairCost);
   const current = await readCarState(options);
   const repaired = current.errors.find(row => row.id === id);
   if (!repaired) throw new Error('car-error-not-found');
   const nowIso = new Date(options.now || Date.now()).toISOString();
-  const archived = { ...repaired, repairedAt:nowIso };
+  const archived = { ...repaired, repairedAt:nowIso, repairCost };
   const state = await writeCarState({
     ...current,
     errors:current.errors.filter(row => row.id !== id),
@@ -267,9 +286,11 @@ module.exports = {
   MAX_REPAIR_ARCHIVE,
   ERROR_TITLE_MAX,
   ERROR_COMMENT_MAX,
+  REPAIR_COST_MAX,
   DB_ACTOR,
   DB_KEY,
   normalizeMileage,
+  normalizeRepairCost,
   normalizeCarError,
   normalizeErrors,
   normalizeRepairArchive,

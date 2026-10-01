@@ -835,6 +835,66 @@
   background:rgba(224,80,91,.1);
   color:#e98a91;
 }
+.car-repair-cost-editor{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:end;
+  margin-top:2px;
+  padding-top:9px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.car-repair-cost-field{display:grid;gap:5px;min-width:0}
+.car-repair-cost-field>span{color:#8e95a0;font-size:9px;font-weight:750}
+.car-repair-cost-field input{
+  width:100%;
+  min-height:34px;
+  box-sizing:border-box;
+  padding:0 10px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:10px;
+  background:rgba(255,255,255,.045);
+  color:#f5f6f8;
+  font:inherit;
+  font-size:11px;
+  outline:none;
+}
+.car-repair-cost-field input:focus{border-color:rgba(118,214,155,.48)}
+.car-repair-cost-actions{display:flex;gap:6px}
+.car-repair-cost-cancel,
+.car-repair-cost-save{
+  min-height:34px;
+  padding:0 10px;
+  border-radius:10px;
+  font-size:9px;
+  font-weight:800;
+}
+.car-repair-cost-cancel{background:rgba(255,255,255,.06);color:#aeb4bd}
+.car-repair-cost-save{background:rgba(73,185,116,.13);color:#76d69b}
+.car-repair-cost-cancel:disabled,
+.car-repair-cost-save:disabled{opacity:.55}
+html[data-theme="light"] .car-repair-cost-field>span{color:#687382}
+html[data-theme="light"] .car-repair-cost-field input{
+  border-color:#d6dbe2;
+  background:#f5f6f8;
+  color:#1b222c;
+}
+html[data-theme="light"] .car-repair-cost-cancel{
+  border-color:#dde2e8;
+  background:#f4f6f8;
+  color:#5f6976;
+}
+html[data-theme="light"] .car-repair-cost-save{
+  border-color:#b9e4c9;
+  background:#eef9f2;
+  color:#23824c;
+}
+@media(max-width:430px){
+  .car-repair-cost-editor{grid-template-columns:1fr}
+  .car-repair-cost-actions{justify-content:flex-end}
+}
+
 .car-repair-archive{
   margin-top:3px;
   border-top:1px solid rgba(255,255,255,.07);

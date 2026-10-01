@@ -73,7 +73,7 @@ function statusFor(error) {
   const code = String(error?.message || error || '');
   if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid' || code.startsWith('rudi-session')) return 401;
   if (code === 'rudi-access-denied') return 403;
-  if (code === 'car-mileage-invalid' || code === 'car-task-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found') return 400;
+  if (code === 'car-mileage-invalid' || code === 'car-task-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found' || code === 'car-repair-cost-invalid') return 400;
   if (code === 'ticktick-not-connected') return 503;
   if (code.startsWith('ticktick-')) return 502;
   return 500;
@@ -412,7 +412,7 @@ async function handleCarRequest(req, res) {
     }
 
     if (operation === 'repair-error') {
-      const result = await repairCarError(body.errorId);
+      const result = await repairCarError(body.errorId,{repairCost:body.repairCost});
       const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
       return res.status(200).json({
         ok:true,
