@@ -27,5 +27,9 @@ test('GitHub Actions OIDC token is accepted only for the Lulu workflow on main',
   };
   const token=tokenFor(payload,privateKey);
   assert.ok(await verifyGitHubActionsToken(token,{jwks:{keys:[jwk]},now}));
+  const withoutWorkflowRef={...payload};
+  delete withoutWorkflowRef.workflow_ref;
+  assert.ok(await verifyGitHubActionsToken(tokenFor(withoutWorkflowRef,privateKey),{jwks:{keys:[jwk]},now}));
+  assert.equal(await verifyGitHubActionsToken(tokenFor({...payload,workflow_ref:'rst4231/rudi/.github/workflows/other.yml@refs/heads/main'},privateKey),{jwks:{keys:[jwk]},now}),null);
   assert.equal(await verifyGitHubActionsToken(tokenFor({...payload,repository:'other/repo'},privateKey),{jwks:{keys:[jwk]},now}),null);
 });
