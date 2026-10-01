@@ -2068,6 +2068,15 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await toggleMessengerReaction(actor,body.id,body.reaction,options);
+      const actors=Array.isArray(message?.reactions?.[String(body.reaction||'')])
+        ?message.reactions[String(body.reaction||'')]
+        :[];
+      console.info('RUDI_MESSENGER_REACTION_OK',JSON.stringify({
+        actor,
+        messageId:String(message?.id||body.id||''),
+        reaction:String(body.reaction||''),
+        active:actors.includes(actor),
+      }));
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
       const code=String(error?.message||error);
