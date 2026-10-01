@@ -865,7 +865,7 @@
     return true;
   }
 
-  async function decryptMessages  async function decryptMessages(rows){
+  async function decryptMessages(rows){
     state.decrypted.clear();
     if(!state.aesKey&&!state.legacyAesKey) return;
     for(const row of rows){
@@ -903,13 +903,36 @@
 
   async function markVisibleUnreadRead(rows){
     if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden') return rows;
+    const list=document.getElementById('messengerMessages');
+    const listRect=list?.getBoundingClientRect?.();
     const ids=(Array.isArray(rows)?rows:[])
-      .filter(row=>row.sender!==state.actor&&!row.readAt)
+      .filter(row=>row.sender!==state.actor&&!row.readAt&&!String(row.id||'').startsWith('pending:'))
+      .filter(row=>{
+        const article=[...document.querySelectorAll('.messenger-message')].find(node=>node.dataset.messageId===row.id);
+        if(!article||!listRect) return false;
+        const rect=article.getBoundingClientRect();
+        return rect.bottom>listRect.top+4&&rect.top<listRect.bottom-4;
+      })
       .map(row=>row.id);
     if(!ids.length) return rows;
     const data=await api('messenger-read',{ids});
     setUnread(data.unread);
-    return Array.isArray(data.messages)?data.messages:rows;
+    return mergePendingRows(Array.isArray(data.messages)?data.messages:rows);
+  }
+
+  function scheduleVisibleRead(){
+    clearTimeout(state.readTimer);
+    state.readTimer=setTimeout(async()=>{
+      try{
+        const after=await markVisibleUnreadRead(state.rows);
+        if(rowsSignature(after)!==rowsSignature(state.rows)){
+          state.rows=after;
+          await decryptMessages(state.rows);
+          const list=document.getElementById('messengerMessages');
+          renderMessages({preserveScrollTop:Number(list?.scrollTop||0)});
+        }
+      }catch(_){}
+    },180);
   }
 
   async function load({markRead=true}={}){
@@ -919,23 +942,35 @@
     try{
       if(status){status.hidden=true;status.textContent=''}
       await ensureKeys();
-      let data=await api('messenger-list');
+      const data=await api('messenger-list');
       state.keys=data.keys||state.keys;
-      state.rows=Array.isArray(data.messages)?data.messages:[];
+      state.partnerTyping=Boolean(data.partnerTyping);
+      const serverRows=Array.isArray(data.messages)?data.messages:[];
+      if(!state.unreadBoundaryId){
+        state.unreadBoundaryId=String(serverRows.find(row=>row.sender!==state.actor&&!row.readAt)?.id||'');
+      }
+      state.rows=mergePendingRows(serverRows);
       setUnread(data.unread);
       await decryptMessages(state.rows);
-      state.rows=await repairLegacyMessages(state.rows);
-      renderMessages();
+      const repaired=await repairLegacyMessages(state.rows.filter(row=>!row._pending));
+      if(repaired!==state.rows){
+        const repairedById=new Map(repaired.map(row=>[row.id,row]));
+        state.rows=state.rows.map(row=>repairedById.get(row.id)||row);
+      }
+      renderMessages({forceBottom:!state.initialized});
       if(markRead){
         const after=await markVisibleUnreadRead(state.rows);
-        if(after!==state.rows){
+        if(rowsSignature(after)!==rowsSignature(state.rows)){
+          const list=document.getElementById('messengerMessages');
+          const top=Number(list?.scrollTop||0);
           state.rows=after;
           await decryptMessages(state.rows);
-          renderMessages();
+          renderMessages({preserveScrollTop:top});
         }
       }
       updateHeader();
       if(status){status.hidden=true;status.textContent=''}
+      setTimeout(()=>flushMessengerOutbox(),0);
       return data;
     }catch(error){
       if(status){
@@ -1032,10 +1067,18 @@
   async function syncLiveMessages(){
     if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden'||state.loading) return;
     try{
+      const list=document.getElementById('messengerMessages');
+      const wasNearBottom=isMessagesNearBottom(list);
+      const preservedTop=Number(list?.scrollTop||0);
       const data=await api('messenger-list');
-      const nextRows=Array.isArray(data.messages)?data.messages:[];
+      const serverRows=Array.isArray(data.messages)?data.messages:[];
+      const nextRows=mergePendingRows(serverRows);
       const knownIds=new Set((Array.isArray(state.rows)?state.rows:[]).map(row=>String(row.id||'')));
-      const hasNewPartnerMessage=nextRows.some(row=>row.sender!==state.actor&&!knownIds.has(String(row.id||'')));
+      const newPartnerRows=serverRows.filter(row=>row.sender!==state.actor&&!knownIds.has(String(row.id||'')));
+      const hasNewPartnerMessage=newPartnerRows.length>0;
+      if(!state.unreadBoundaryId&&newPartnerRows.length){
+        state.unreadBoundaryId=String(newPartnerRows[0].id||'');
+      }
       const changed=rowsSignature(nextRows)!==rowsSignature(state.rows);
       const typingChanged=Boolean(data.partnerTyping)!==state.partnerTyping;
       state.partnerTyping=Boolean(data.partnerTyping);
@@ -1044,15 +1087,24 @@
         state.keys=data.keys||state.keys;
         state.rows=nextRows;
         await decryptMessages(state.rows);
+        renderMessages({preserveScrollTop:wasNearBottom?null:preservedTop,forceBottom:wasNearBottom});
         const after=await markVisibleUnreadRead(state.rows);
-        if(after!==state.rows){
+        if(rowsSignature(after)!==rowsSignature(state.rows)){
+          const top=Number(list?.scrollTop||0);
           state.rows=after;
           await decryptMessages(state.rows);
+          renderMessages({preserveScrollTop:top});
         }
-        renderMessages();
-        if(hasNewPartnerMessage) triggerForegroundMessageHaptic();
+        if(hasNewPartnerMessage){
+          if(!wasNearBottom){
+            state.newBelowCount+=newPartnerRows.length;
+            state.nearBottom=false;
+            updateJumpLatest();
+          }
+          triggerForegroundMessageHaptic();
+        }
       }else if(typingChanged){
-        renderTypingIndicator();
+        renderTypingIndicator({autoScroll:wasNearBottom});
       }
       updateHeader();
     }catch(_){}
@@ -1079,7 +1131,7 @@
     try{
       await ensureKeys();
       const data=await api('messenger-list');
-      state.rows=Array.isArray(data.messages)?data.messages:state.rows;
+      state.rows=mergePendingRows(Array.isArray(data.messages)?data.messages:state.rows);
       state.partnerTyping=Boolean(data.partnerTyping);
       setUnread(data.unread);
       updateHeader();
@@ -1091,12 +1143,61 @@
     }
   }
 
+  function reconcileSentMessage(entry,message){
+    if(!entry?.clientId||!message?.id) return;
+    const pendingId='pending:'+entry.clientId;
+    const payload=state.decrypted.get(pendingId);
+    state.rows=state.rows
+      .filter(row=>row.id!==pendingId&&row.clientId!==entry.clientId)
+      .concat(message)
+      .sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+    if(payload){
+      state.decrypted.delete(pendingId);
+      state.decrypted.set(message.id,payload);
+    }
+    state.justSentId=message.id;
+    removeMessengerOutbox(entry.clientId);
+    renderMessages({forceBottom:state.nearBottom});
+  }
+
+  async function flushMessengerOutbox(){
+    if(state.retrying||!navigator.onLine) return;
+    const rows=readMessengerOutbox();
+    if(!rows.length) return;
+    state.retrying=true;
+    try{
+      await ensureKeys();
+      for(const entry of rows){
+        try{
+          const result=await api('messenger-send',{
+            clientId:entry.clientId,
+            scheme:'shared-v2',
+            ciphertext:entry.ciphertext,
+            iv:entry.iv,
+            keyVersions:entry.keyVersions,
+            preview:entry.preview,
+            avatarUrl:entry.avatarUrl,
+          });
+          reconcileSentMessage(entry,result?.message);
+        }catch(error){
+          upsertMessengerOutbox({...entry,failed:true});
+          state.rows=state.rows.map(row=>row.clientId===entry.clientId?{...row,_pending:true,_failed:true}:row);
+          renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+          break;
+        }
+      }
+    }finally{
+      state.retrying=false;
+    }
+  }
+
   async function sendCurrentMessage(){
     const input=document.getElementById('messengerInput');
     const send=document.getElementById('messengerSend');
     const text=String(input?.value||'').trim();
     if(!text||!input||!send) return;
     send.disabled=true;
+    const status=document.getElementById('messengerStatus');
     try{
       await ensureKeys();
       if(!state.aesKey) throw new Error('messenger-shared-key-missing');
@@ -1111,23 +1212,77 @@
         'Рустам':Number(state.keys?.['Рустам']?.version||0),
         'Диана':Number(state.keys?.['Диана']?.version||0)
       };
-      let result;
+
       if(state.edit?.id){
-        result=await api('messenger-edit',{id:state.edit.id,scheme:'shared-v2',...encrypted,keyVersions});
+        const editId=state.edit.id;
+        const result=await api('messenger-edit',{id:editId,scheme:'shared-v2',...encrypted,keyVersions});
+        if(result?.message){
+          state.rows=state.rows.map(row=>row.id===editId?result.message:row);
+          state.decrypted.set(editId,payload);
+          renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+        }
       }else{
-        result=await api('messenger-send',{scheme:'shared-v2',...encrypted,keyVersions});
-        state.justSentId=String(result?.message?.id||'');
+        const clientId='client-'+crypto.randomUUID();
+        const createdAt=new Date().toISOString();
+        const entry={
+          clientId,
+          scheme:'shared-v2',
+          ...encrypted,
+          keyVersions,
+          preview:text.slice(0,120),
+          avatarUrl:selfAvatarUrl(),
+          createdAt,
+          failed:false,
+        };
+        upsertMessengerOutbox(entry);
+        const pending=pendingRowFromOutbox(entry);
+        state.rows=[...state.rows,pending].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+        state.decrypted.set(pending.id,payload);
+        state.justSentId=pending.id;
+        state.nearBottom=true;
+        renderMessages({forceBottom:true});
+
+        notifyTyping(false);
+        input.value='';
+        input.style.height='auto';
+        state.reply=null;
+        state.edit=null;
+        renderReplyDraft();
+        if(status){status.hidden=true;status.textContent=''}
+
+        try{
+          const result=await api('messenger-send',{
+            clientId,
+            scheme:'shared-v2',
+            ...encrypted,
+            keyVersions,
+            preview:entry.preview,
+            avatarUrl:entry.avatarUrl,
+          });
+          reconcileSentMessage(entry,result?.message);
+          try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(error){
+          upsertMessengerOutbox({...entry,failed:true});
+          state.rows=state.rows.map(row=>row.clientId===clientId?{...row,_pending:true,_failed:true}:row);
+          renderMessages({forceBottom:true});
+          if(status){
+            status.hidden=false;
+            status.textContent=navigator.onLine?'Не удалось отправить. Повторю автоматически.':'Нет сети. Отправлю автоматически.';
+          }
+          try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }
+        return;
       }
+
       notifyTyping(false);
       input.value='';
       input.style.height='auto';
       state.reply=null;
       state.edit=null;
       renderReplyDraft();
-      await load({markRead:true});
+      if(status){status.hidden=true;status.textContent=''}
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(error){
-      const status=document.getElementById('messengerStatus');
       if(status){
         status.hidden=false;
         status.textContent='Не удалось отправить сообщение.';
@@ -1196,11 +1351,11 @@
     const messages=document.getElementById('messengerMessages');
 
     const page=document.getElementById('messengerPage');
-    if(page&&page.dataset.dismissDeleteBound!=='1'){
-      page.dataset.dismissDeleteBound='1';
+    if(page&&page.dataset.dismissContextBound!=='1'){
+      page.dataset.dismissContextBound='1';
       page.addEventListener('pointerdown',event=>{
-        if(event.target.closest('.messenger-delete-action')) return;
-        hideDeleteActions();
+        if(event.target.closest('.messenger-context-menu')) return;
+        hideContextMenu();
       },true);
     }
 
@@ -1293,6 +1448,13 @@
         event.preventDefault();
         openSafeLink(link.href);
       });
+      messages.addEventListener('scroll',()=>{
+        state.nearBottom=isMessagesNearBottom(messages);
+        if(state.nearBottom) state.newBelowCount=0;
+        updateJumpLatest();
+        hideContextMenu();
+        scheduleVisibleRead();
+      },{passive:true});
     }
     const partnerMood=document.getElementById('partnerMoodValue');
     if(partnerMood&&partnerMood.dataset.messengerMoodObserved!=='1'){
@@ -1316,6 +1478,12 @@
     state.initialized=true;
     ensureLiveSync();
     restoreMessengerAfterKeyboard();
+    const requested=String(new URL(window.location.href).searchParams.get('message')||'').trim();
+    if(requested){
+      setTimeout(()=>scrollToMessageId(requested),80);
+      setTimeout(()=>scrollToMessageId(requested),260);
+    }
+    flushMessengerOutbox();
   }
 
   async function initialize(){
@@ -1389,7 +1557,8 @@
   });
 
   window.addEventListener('rudi:profile-ready',()=>{ensureProfileButton();syncHeaderAvatar();updateHeader()});
-  window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')) syncUnread()});
+  window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')){syncUnread();flushMessengerOutbox()}});
+  window.addEventListener('online',()=>{flushMessengerOutbox();if(document.body.dataset.appTab==='messenger')syncLiveMessages()});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')) return;
     if(document.body.dataset.appTab==='messenger') load({markRead:true});
