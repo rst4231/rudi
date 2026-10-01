@@ -546,6 +546,32 @@
       line-height:1;
       font-weight:740;
     }
+    .priority-title-row{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      min-width:0;
+    }
+    .priority-attention-badge{
+      min-width:20px;
+      height:20px;
+      box-sizing:border-box;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex:none;
+      padding:0 5px;
+      border:2px solid color-mix(in srgb,var(--surface-strong) 90%,#000);
+      border-radius:999px;
+      background:#ff3b30;
+      color:#fff;
+      font-size:10px;
+      line-height:1;
+      font-weight:850;
+      letter-spacing:-.02em;
+      box-shadow:0 2px 7px rgba(255,59,48,.32);
+    }
+    .priority-attention-badge[hidden]{display:none!important}
     .ticktick-title{
       color:var(--text);
       font-size:15px;
