@@ -730,16 +730,6 @@
     return result;
   }
 
-  function locallyToggleReaction(row,emoji){
-    const reactions=reactionStateForRow(row);
-    const hadSame=(reactions[emoji]||[]).includes(state.actor);
-    for(const key of Object.keys(reactions)){
-      reactions[key]=reactions[key].filter(actor=>actor!==state.actor);
-      if(!reactions[key].length) delete reactions[key];
-    }
-    if(!hadSame) reactions[emoji]=[...(reactions[emoji]||[]),state.actor];
-    return {...row,reactions,likedBy:reactions['❤️']||[]};
-  }
 
   async function setMessageReaction(row,emoji){
     if(!row?.id||String(row.id).startsWith('pending:')||!REACTIONS.includes(emoji)) return;
