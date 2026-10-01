@@ -451,7 +451,8 @@
     if(!menu||!article) return;
     const page=document.getElementById('messengerPage');
     const pageRect=page?.getBoundingClientRect?.();
-    const articleRect=article.getBoundingClientRect?.();
+    const anchor=article.querySelector('.messenger-bubble')||article;
+    const articleRect=anchor.getBoundingClientRect?.();
     if(!pageRect||!articleRect) return;
     requestAnimationFrame(()=>{
       const width=Math.max(220,Math.min(280,menu.offsetWidth||280));
