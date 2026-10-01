@@ -21,7 +21,7 @@ test('v3.21 fixes first iPhone keyboard focus immediately and resyncs VisualView
 test('v3.21 delete preserves current scroll position',()=>{
   assert.match(client,/preservedScrollTop=Number\(list\?\.scrollTop\|\|0\)/);
   assert.match(client,/renderMessages\(\{preserveScrollTop:preservedScrollTop\}\)/);
-  assert.match(client,/function renderMessages\(\{preserveScrollTop=null\}=\{\}\)/);
+  assert.match(client,/function renderMessages\(\{preserveScrollTop=null,forceBottom=false\}=\{\}\)/);
 });
 
 test('v3.21 sends before iPhone blur consumes the first tap',()=>{
