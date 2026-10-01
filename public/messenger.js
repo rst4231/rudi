@@ -343,6 +343,19 @@
     setTimeout(scrollMessagesToBottom,360);
   }
 
+  function restoreMessengerAfterKeyboard(){
+    if(document.body.dataset.appTab!=='messenger') return;
+    const settle=()=>{
+      syncMessengerViewport();
+      scrollMessagesToBottom();
+    };
+    settle();
+    setTimeout(settle,60);
+    setTimeout(settle,160);
+    setTimeout(settle,320);
+    setTimeout(settle,520);
+  }
+
   function renderMessages(){
     const list=document.getElementById('messengerMessages');
     const empty=document.getElementById('messengerEmpty');
@@ -637,6 +650,7 @@
     if(input&&input.dataset.bound!=='1'){
       input.dataset.bound='1';
       input.addEventListener('focus',keepKeyboardAtLatest);
+      input.addEventListener('blur',restoreMessengerAfterKeyboard);
       input.addEventListener('keydown',event=>{
         if(event.key==='Enter'&&!event.shiftKey){
           event.preventDefault();
@@ -729,11 +743,23 @@
 
   function syncMessengerViewport(){
     const viewport=window.visualViewport;
-    const height=Math.max(320,Math.round(Number(viewport?.height||window.innerHeight||0)));
-    const top=Math.max(0,Math.round(Number(viewport?.offsetTop||0)));
+    const input=document.getElementById('messengerInput');
+    const typing=document.activeElement===input;
+    const viewportHeight=Math.round(Number(viewport?.height||0));
+    const windowHeight=Math.round(Number(window.innerHeight||0));
+    const keyboardLikelyOpen=typing&&viewportHeight>0&&windowHeight>0&&(windowHeight-viewportHeight)>80;
+    const height=Math.max(
+      320,
+      keyboardLikelyOpen
+        ? viewportHeight
+        : Math.max(viewportHeight,windowHeight)
+    );
+    const top=keyboardLikelyOpen
+      ? Math.max(0,Math.round(Number(viewport?.offsetTop||0)))
+      : 0;
     document.documentElement.style.setProperty('--messenger-viewport-height',height+'px');
     document.documentElement.style.setProperty('--messenger-viewport-top',top+'px');
-    keepKeyboardAtLatest();
+    if(typing) keepKeyboardAtLatest();
   }
 
   syncMessengerViewport();
