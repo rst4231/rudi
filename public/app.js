@@ -1932,13 +1932,15 @@
         if(tab==='home'){
           loadSmartSaves({silent:true}).catch(()=>{});
           loadFastingOverview();
-          ensureHomeBootstrap().catch(()=>{});
+          const freshPartnerMessage=item==='partner'&&routeFreshRequested();
+          if(!freshPartnerMessage) ensureHomeBootstrap().catch(()=>{});
           loadTickTickNext();
-          if(item==='partner'&&routeFreshRequested()){
+          if(freshPartnerMessage){
             loadPartnerMessage()
               .finally(()=>{
                 focusDeepLinkedItem('home',item);
                 clearRouteFreshFlag();
+                ensureHomeBootstrap({force:true}).catch(()=>{});
               });
           }else if(item) focusDeepLinkedItem('home',item);
         }
