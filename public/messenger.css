@@ -1,7 +1,10 @@
 /* RUDI v3.15 encrypted messenger */
 .messenger-page{
   position:fixed;
-  inset:0;
+  top:var(--messenger-viewport-top,0px);
+  left:0;
+  right:0;
+  bottom:auto;
   z-index:90;
   width:100%;
   height:var(--messenger-viewport-height,100dvh);
