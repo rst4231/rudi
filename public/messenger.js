@@ -676,6 +676,45 @@
     try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
   }
 
+  function actorReactionAvatar(actor){
+    const clean=String(actor||'').trim();
+    const self=clean===state.actor;
+    const image=self
+      ?document.getElementById('avatarImage')
+      :document.getElementById('partnerProfileImage');
+    const source=String(image?.currentSrc||image?.src||'').trim();
+    return {
+      src:source,
+      initial:(clean.charAt(0)||'•').toUpperCase(),
+      name:clean||'Партнёр'
+    };
+  }
+
+  function appendReactionAvatars(container,actors){
+    const stack=document.createElement('span');
+    stack.className='messenger-reaction-avatars';
+    for(const actor of (Array.isArray(actors)?actors:[]).slice(0,2)){
+      const profile=actorReactionAvatar(actor);
+      const avatar=document.createElement('span');
+      avatar.className='messenger-reaction-avatar';
+      avatar.title=profile.name;
+      if(profile.src){
+        const image=document.createElement('img');
+        image.src=profile.src;
+        image.alt='';
+        image.addEventListener('error',()=>{
+          image.remove();
+          avatar.textContent=profile.initial;
+        },{once:true});
+        avatar.appendChild(image);
+      }else{
+        avatar.textContent=profile.initial;
+      }
+      stack.appendChild(avatar);
+    }
+    container.appendChild(stack);
+  }
+
   function reactionStateForRow(row){
     const source=row?.reactions&&typeof row.reactions==='object'?row.reactions:{};
     const result={};
@@ -899,7 +938,11 @@
           const reaction=document.createElement('button');
           reaction.type='button';
           reaction.className='messenger-reaction'+(actors.includes(state.actor)?' is-own-reaction':'');
-          reaction.textContent=emoji+(actors.length>1?' '+actors.length:'');
+          const emojiText=document.createElement('span');
+          emojiText.className='messenger-reaction-emoji';
+          emojiText.textContent=emoji+(actors.length>1?' '+actors.length:'');
+          reaction.appendChild(emojiText);
+          appendReactionAvatars(reaction,actors);
           reaction.title=actors.includes(state.actor)?'Снять реакцию':actors.join(', ');
           reaction.addEventListener('click',event=>{
             event.preventDefault();
