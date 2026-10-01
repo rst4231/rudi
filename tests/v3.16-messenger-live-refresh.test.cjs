@@ -61,3 +61,19 @@ test('messenger v3.17 reduces iPhone safe-area spacing',()=>{
   assert.match(css,/safe-area-inset-top\) - 12px/);
   assert.match(css,/safe-area-inset-bottom\) - 16px/);
 });
+
+test('messenger v3.17 keeps latest message visible while iPhone keyboard resizes viewport',()=>{
+  assert.match(client,/function keepKeyboardAtLatest\(\)/);
+  assert.match(client,/input\.addEventListener\('focus',keepKeyboardAtLatest\)/);
+  assert.match(client,/input\.addEventListener\('input',[\s\S]*?keepKeyboardAtLatest\(\)/);
+  assert.match(client,/function syncMessengerViewport\(\)[\s\S]*?keepKeyboardAtLatest\(\)/);
+  assert.match(client,/function scrollMessagesToBottom\(\)/);
+});
+
+test('messenger v3.17 shares encrypted chat across web PWA and Telegram clients',()=>{
+  assert.match(client,/AAD_V2=encoder\.encode\('rudi-messenger-shared-v2'\)/);
+  assert.match(client,/conversationKey/);
+  assert.match(client,/scheme:'shared-v2'/);
+  assert.match(client,/repairLegacyMessages/);
+  assert.match(html,/🔒 Защищённый чат · сообщения живут 24 часа/);
+});
