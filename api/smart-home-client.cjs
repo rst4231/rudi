@@ -7,6 +7,9 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const BASE = 'https://api.iot.yandex.net/v1.0';
 const CACHE_MS = 30000;
+const YANDEX_TIMEOUT_MS = 4000;
+const YANDEX_VERIFY_TIMEOUT_MS = 2000;
+const YANDEX_RETRY_DELAY_MS = 200;
 let cache = null;
 let cacheAt = 0;
 const CAMERA_STATUS_NAMESPACE = 'rudi-camera-status-v1';
@@ -31,7 +34,11 @@ async function observeCameraStatus(snapshot, options = {}) {
 
   let detail;
   try{
-    detail=await yandex('/devices/'+encodeURIComponent(camera.id));
+    detail=await yandex('/devices/'+encodeURIComponent(camera.id),{
+      fetchImpl:options.fetchImpl || globalThis.fetch,
+      tokenValue:options.tokenValue || '',
+      retries:1,
+    });
   }catch(error){
     console.warn('RUDI_CAMERA_STATUS_QUERY_WARN',String(error?.message||error));
     return {found:true,error:String(error?.message||error)};
@@ -96,22 +103,54 @@ function status(error) {
   return Number(error?.status) || 500;
 }
 
-function token() {
-  const value = String(process.env.YANDEX_IOT_TOKEN || '').trim();
+function token(override='') {
+  const value = String(override || process.env.YANDEX_IOT_TOKEN || '').trim();
   if (!value) throw new Error('yandex-iot-not-configured');
   return value;
 }
 
-async function yandex(path, { method='GET', body=null }={}) {
-  const response = await fetch(BASE + path, {
-    method,
-    headers: {
-      Authorization: 'Bearer ' + token(),
-      ...(body == null ? {} : { 'Content-Type':'application/json' }),
-    },
-    body: body == null ? undefined : JSON.stringify(body),
-    cache:'no-store',
-  });
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+function isTransientYandexError(error) {
+  const code = Number(error?.status || 0);
+  const message = String(error?.message || error || '');
+  return [502,503,504].includes(code)
+    || message === 'yandex-iot-timeout'
+    || message === 'yandex-iot-network';
+}
+
+async function yandexOnce(path, {
+  method='GET',
+  body=null,
+  fetchImpl=globalThis.fetch,
+  timeoutMs=YANDEX_TIMEOUT_MS,
+  tokenValue='',
+}={}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(250, Number(timeoutMs) || YANDEX_TIMEOUT_MS));
+  let response;
+  try {
+    response = await fetchImpl(BASE + path, {
+      method,
+      headers: {
+        Authorization: 'Bearer ' + token(tokenValue),
+        ...(body == null ? {} : { 'Content-Type':'application/json' }),
+      },
+      body: body == null ? undefined : JSON.stringify(body),
+      cache:'no-store',
+      signal:controller.signal,
+    });
+  } catch (cause) {
+    const timedOut = controller.signal.aborted || cause?.name === 'AbortError';
+    const error = new Error(timedOut ? 'yandex-iot-timeout' : 'yandex-iot-network');
+    error.status = timedOut ? 504 : 503;
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.status === 'error') {
     const error = new Error('yandex-iot-error:' + String(data?.message || data?.error || response.status));
@@ -119,6 +158,22 @@ async function yandex(path, { method='GET', body=null }={}) {
     throw error;
   }
   return data;
+}
+
+async function yandex(path, options={}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const retries = options.retries == null ? (method === 'GET' ? 1 : 0) : Math.max(0, Number(options.retries) || 0);
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await yandexOnce(path, { ...options, method });
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retries || !isTransientYandexError(error)) throw error;
+      await wait(YANDEX_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError;
 }
 
 function cap(c) {
@@ -160,7 +215,11 @@ function normalize(data) {
 
 async function home(force=false, options={}) {
   if (!force && cache && Date.now() - cacheAt < CACHE_MS) return cache;
-  cache = normalize(await yandex('/user/info'));
+  cache = normalize(await yandex('/user/info',{
+    fetchImpl:options.fetchImpl || globalThis.fetch,
+    tokenValue:options.tokenValue || '',
+    retries:1,
+  }));
   cacheAt = Date.now();
   observeCameraStatus(cache,options).catch(error=>{
     console.warn('RUDI_CAMERA_STATUS_WARN',String(error?.message||error));
@@ -178,18 +237,76 @@ function cleanName(value) {
   return String(value || '').replace(/\s+/g,' ').trim().slice(0,80);
 }
 
-async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рустам') {
-  const id = cleanId(deviceId,'device-id');
-  const name = cleanName(deviceName) || 'Устройство';
-  if (typeof value !== 'boolean') throw new Error('bad-value');
+function onOffStateFromDevice(device) {
+  const capability=(Array.isArray(device?.capabilities)?device.capabilities:[]).find(item=>
+    item?.type === 'devices.capabilities.on_off'
+    && String(item?.state?.instance || item?.parameters?.instance || '') === 'on'
+    && typeof item?.state?.value === 'boolean'
+  );
+  return typeof capability?.state?.value === 'boolean' ? capability.state.value : null;
+}
 
-  const result = await yandex('/devices/actions', {
+async function readDeviceOnOffState(deviceId, options={}) {
+  const detail=await yandex('/devices/'+encodeURIComponent(deviceId),{
+    fetchImpl:options.fetchImpl || globalThis.fetch,
+    tokenValue:options.tokenValue || '',
+    timeoutMs:YANDEX_VERIFY_TIMEOUT_MS,
+    retries:0,
+  });
+  return onOffStateFromDevice(detail);
+}
+
+async function sendOnOffAction(deviceId, value, options={}) {
+  return yandex('/devices/actions', {
     method:'POST',
-    body:{devices:[{id,actions:[{
+    fetchImpl:options.fetchImpl || globalThis.fetch,
+    tokenValue:options.tokenValue || '',
+    timeoutMs:YANDEX_TIMEOUT_MS,
+    retries:0,
+    body:{devices:[{id:deviceId,actions:[{
       type:'devices.capabilities.on_off',
       state:{instance:'on',value}
     }]}]},
   });
+}
+
+function recoveredOnOffResult() {
+  return {
+    request_id:'',
+    recovered:true,
+    devices:[{capabilities:[{state:{action_result:{status:'DONE'}}}]}],
+  };
+}
+
+async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рустам', options={}) {
+  const id = cleanId(deviceId,'device-id');
+  const name = cleanName(deviceName) || 'Устройство';
+  if (typeof value !== 'boolean') throw new Error('bad-value');
+
+  let result;
+  try {
+    result = await sendOnOffAction(id,value,options);
+  } catch (error) {
+    if (!isTransientYandexError(error)) throw error;
+    console.warn('RUDI_SMART_HOME_SWITCH_RETRY',name,'first',String(error?.message||error));
+    await wait(YANDEX_RETRY_DELAY_MS);
+
+    const currentState = await readDeviceOnOffState(id,options).catch(() => null);
+    if (currentState === value) {
+      result = recoveredOnOffResult();
+    } else {
+      try {
+        result = await sendOnOffAction(id,value,options);
+      } catch (retryError) {
+        if (!isTransientYandexError(retryError)) throw retryError;
+        console.warn('RUDI_SMART_HOME_SWITCH_RETRY',name,'second',String(retryError?.message||retryError));
+        await wait(YANDEX_RETRY_DELAY_MS);
+        const finalState = await readDeviceOnOffState(id,options).catch(() => null);
+        if (finalState === value) result = recoveredOnOffResult();
+        else throw retryError;
+      }
+    }
+  }
 
   const requestId = String(result?.request_id || '');
   const actionStatus = String(result?.devices?.[0]?.capabilities?.[0]?.state?.action_result?.status || '');
@@ -202,7 +319,8 @@ async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рус�
     const verb = value ? (female ? 'включила' : 'включил') : (female ? 'выключила' : 'выключил');
     if(!/камера|camera/iu.test(name)){
       activity = { text:actor + ' ' + verb + ' ' + name, icon:'🏠', createdAt:new Date().toISOString() };
-      await appendActivity({
+      const appendActivityImpl = options.appendActivityImpl || appendActivity;
+      await appendActivityImpl({
         type:'smart-home',
         actor,
         text:activity.text,
@@ -213,7 +331,7 @@ async function switchSmartHomeDevice(deviceId, deviceName, value, actor='Рус�
     }
   }
 
-  return { requestId, status:actionStatus, activity };
+  return { requestId, status:actionStatus, activity, recovered:Boolean(result?.recovered) };
 }
 
 async function runSmartHomeCapability(deviceId, deviceName, capabilityType, instance, value, actor='Рустам') {
@@ -345,4 +463,7 @@ module.exports = {
   runSmartHomeCapability,
   isCameraDevice,
   observeCameraStatus,
+  yandex,
+  isTransientYandexError,
+  readDeviceOnOffState,
 };
