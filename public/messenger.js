@@ -305,12 +305,14 @@
 
   async function deleteOwnMessage(row){
     if(!row?.id||row.sender!==state.actor) return;
+    const list=document.getElementById('messengerMessages');
+    const preservedScrollTop=Number(list?.scrollTop||0);
     try{
       const data=await api('messenger-delete',{id:row.id});
       state.rows=Array.isArray(data.messages)?data.messages:state.rows.filter(item=>item.id!==row.id);
       state.decrypted.delete(row.id);
       state.renderedIds.delete(row.id);
-      renderMessages();
+      renderMessages({preserveScrollTop:preservedScrollTop});
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(error){
       console.warn('RUDI_MESSENGER_DELETE_WARN',String(error?.message||error));
@@ -465,7 +467,7 @@
     });
   }
 
-  function renderTypingIndicator(){
+  function renderTypingIndicator({autoScroll=true}={}){
     const list=document.getElementById('messengerMessages');
     if(!list) return;
     list.querySelector('.messenger-typing-message')?.remove();
@@ -474,10 +476,10 @@
     article.className='messenger-message is-partner messenger-typing-message';
     article.innerHTML='<div class="messenger-bubble messenger-typing-bubble" aria-label="Партнёр печатает"><i></i><i></i><i></i></div>';
     list.appendChild(article);
-    scrollMessagesToBottom();
+    if(autoScroll) scrollMessagesToBottom();
   }
 
-  function renderMessages(){
+  function renderMessages({preserveScrollTop=null}={}){
     const list=document.getElementById('messengerMessages');
     const empty=document.getElementById('messengerEmpty');
     if(!list) return;
@@ -524,8 +526,9 @@
       meta.appendChild(time);
       if(own){
         const status=document.createElement('span');
-        status.className='messenger-read-status';
-        status.textContent=row.editedAt?'Изменено':(row.readAt?'Прочитано':'Отправлено');
+        status.className='messenger-read-status'+(row.readAt?' is-read':'');
+        status.textContent=row.readAt?'✓✓':'✓';
+        status.title=row.readAt?'Прочитано':'Отправлено';
         meta.appendChild(status);
       }
       bubble.appendChild(meta);
@@ -557,8 +560,18 @@
     }
     state.renderedIds=new Set(rows.map(row=>row.id));
     state.justSentId='';
-    renderTypingIndicator();
-    scrollMessagesToBottom();
+    const preserving=Number.isFinite(preserveScrollTop);
+    renderTypingIndicator({autoScroll:!preserving});
+    if(preserving){
+      const restore=()=>{
+        const maxTop=Math.max(0,list.scrollHeight-list.clientHeight);
+        list.scrollTop=Math.max(0,Math.min(Number(preserveScrollTop||0),maxTop));
+      };
+      restore();
+      requestAnimationFrame(restore);
+    }else{
+      scrollMessagesToBottom();
+    }
   }
 
   async function decryptMessages(rows){
@@ -867,7 +880,15 @@
     }
     if(send&&send.dataset.bound!=='1'){
       send.dataset.bound='1';
-      send.addEventListener('click',sendCurrentMessage);
+      const sendBeforeBlur=event=>{
+        if(event.pointerType==='mouse'&&event.button!==0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if(send.disabled) return;
+        sendCurrentMessage();
+      };
+      send.addEventListener('pointerdown',sendBeforeBlur);
+      send.addEventListener('click',event=>event.preventDefault());
     }
     if(input&&input.dataset.bound!=='1'){
       input.dataset.bound='1';
@@ -878,8 +899,14 @@
           Number(window.innerHeight||0),
           Number(document.documentElement?.clientHeight||0)
         );
+        document.getElementById('messengerPage')?.classList.add('is-keyboard-open');
         syncMessengerViewport();
         keepKeyboardAtLatest();
+        [40,90,160,260,420].forEach(delay=>setTimeout(()=>{
+          if(document.activeElement!==input) return;
+          syncMessengerViewport();
+          keepKeyboardAtLatest();
+        },delay));
       });
       input.addEventListener('blur',()=>{notifyTyping(false);restoreMessengerAfterKeyboard()});
       input.addEventListener('keydown',event=>{

@@ -1,4 +1,4 @@
-/* RUDI v3.20 encrypted messenger */
+/* RUDI v3.21 encrypted messenger */
 .messenger-page{
   --messenger-safe-top:max(env(safe-area-inset-top),var(--tg-content-safe-top,0px),44px);
   position:fixed;
@@ -16,6 +16,8 @@
   gap:8px;
   padding:calc(var(--messenger-safe-top) + 12px) 8px max(8px,env(safe-area-inset-bottom));
   overflow:hidden;
+  overscroll-behavior:none;
+  touch-action:none;
   background-color:var(--bg);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='58' height='58' viewBox='0 0 58 58'%3E%3Cpath d='M15 20c-3.8-5.1-12-2.7-12 3.8 0 6.2 12 13.5 12 13.5s12-7.3 12-13.5c0-6.5-8.2-8.9-12-3.8Z' fill='none' stroke='%23868b96' stroke-width='1.2' opacity='.085'/%3E%3Cpath d='M44 5c-2.4-3.2-7.6-1.7-7.6 2.4 0 3.9 7.6 8.5 7.6 8.5s7.6-4.6 7.6-8.5C51.6 3.3 46.4 1.8 44 5Z' fill='none' stroke='%23868b96' stroke-width='1' opacity='.06'/%3E%3C/svg%3E");
   background-size:58px 58px;
@@ -25,6 +27,7 @@
 .messenger-head{
   grid-row:1;
   position:relative;
+  margin-top:6px;
   z-index:3;
   display:grid;
   grid-template-columns:40px minmax(0,1fr) 40px;
@@ -74,7 +77,9 @@
   flex-direction:column;
   gap:7px;
   padding:8px 2px 18px;
-  overscroll-behavior:contain;
+  overscroll-behavior:none;
+  touch-action:pan-y;
+  -webkit-overflow-scrolling:touch;
   scrollbar-width:none;
 }
 .messenger-messages::-webkit-scrollbar{display:none}
@@ -91,6 +96,7 @@
 .messenger-message{
   width:min(84%,520px);
   display:flex;
+  touch-action:pan-y;
   align-items:flex-end;
   gap:5px;
 }
@@ -228,7 +234,8 @@
   font-weight:500;
 }
 .messenger-message.is-own .messenger-message-meta{color:rgba(255,255,255,.72)}
-.messenger-read-status{color:inherit}
+.messenger-read-status{color:rgba(255,255,255,.78);font-size:11px;font-weight:750;letter-spacing:-.08em}
+.messenger-read-status.is-read{color:#83d4ff}
 .messenger-reaction{
   justify-self:start;
   margin-top:-1px;
