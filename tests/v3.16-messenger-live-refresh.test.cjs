@@ -63,13 +63,14 @@ test('right-to-left swipe replies to a message',()=>{
   assert.match(client,/setReply\(row,payload\)/);
 });
 
-test('double tap hearts reliably on touch and click without fighting long press',()=>{
-  assert.match(client,/function bindMessageTapGestures\(article,row,payload\)/);
-  assert.match(client,/article\.addEventListener\('touchend'/);
-  assert.match(client,/if\(count>=2\)/);
+test('double tap is reserved exclusively for heart reactions',()=>{
+  assert.doesNotMatch(client,/function bindMessageTapGestures\(/);
+  assert.match(client,/messages\.addEventListener\('pointerdown'/);
+  assert.match(client,/messages\.addEventListener\('pointerup'/);
+  assert.match(client,/state\.tapMessageId===id&&now-state\.tapAt<=460/);
   assert.match(client,/setMessageReaction\(row,'❤️'\)/);
-  assert.match(client,/\},420\)/);
-  assert.match(client,/Date\.now\(\)-lastTouchEndAt<700/);
+  assert.doesNotMatch(client,/count>=3/);
+  assert.doesNotMatch(client,/startMessageEdit\(row,payload\)[\s\S]*?tap/);
 });
 
 test('typing indicator is shared through short-lived server presence',()=>{
