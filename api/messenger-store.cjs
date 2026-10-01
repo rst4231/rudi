@@ -5,6 +5,7 @@ const NAMESPACE='rudi-messenger-v1';
 const MESSAGE_TTL_SECONDS=24*60*60;
 const INDEX_TTL_SECONDS=48*60*60;
 const KEY_TTL_SECONDS=365*24*60*60;
+const TYPING_TTL_SECONDS=8;
 let mutationTail=Promise.resolve();
 
 function cacheOf(options={}){
@@ -226,6 +227,50 @@ async function editMessengerMessage(actor,id,payload,options={}){
   });
 }
 
+async function deleteMessengerMessage(actor,id,options={}){
+  return enqueueMutation(async()=>{
+    const owner=cleanActor(actor);
+    if(!owner) throw new Error('messenger-actor-invalid');
+    const messageId=String(id||'').trim();
+    if(!messageId) throw new Error('messenger-message-id-invalid');
+    const cache=cacheOf(options);
+    const raw=await cache.get('message:'+messageId).catch(()=>null);
+    const current=normalizeMessage(raw);
+    if(!current) throw new Error('messenger-message-not-found');
+    if(current.sender!==owner) throw new Error('messenger-delete-owner-required');
+    await cache.delete('message:'+messageId).catch(()=>null);
+    const index=await readIndex(options);
+    await writeIndex(index.filter(item=>item.id!==messageId),options);
+    return {deleted:true,id:messageId};
+  });
+}
+
+async function setMessengerTyping(actor,active,options={}){
+  const clean=cleanActor(actor);
+  if(!clean) throw new Error('messenger-actor-invalid');
+  const cache=cacheOf(options);
+  const key='typing:'+actorKey(clean);
+  if(!active){
+    await cache.delete(key).catch(()=>null);
+    return false;
+  }
+  await cache.set(key,{actor:clean,updatedAt:new Date(options.now||Date.now()).toISOString()},{
+    ttl:TYPING_TTL_SECONDS,
+    tags:['rudi-messenger-typing'],
+    name:key,
+  });
+  return true;
+}
+
+async function readMessengerTyping(actor,options={}){
+  const clean=cleanActor(actor);
+  if(!clean) return false;
+  const row=await cacheOf(options).get('typing:'+actorKey(clean)).catch(()=>null);
+  const updated=Date.parse(String(row?.updatedAt||''));
+  if(!Number.isFinite(updated)) return false;
+  return Number(options.now||Date.now())-updated<TYPING_TTL_SECONDS*1000;
+}
+
 async function toggleMessengerLike(actor,id,options={}){
   return enqueueMutation(async()=>{
     const viewer=cleanActor(actor);
@@ -349,6 +394,9 @@ module.exports={
   registerMessengerPublicKey,
   addMessengerMessage,
   editMessengerMessage,
+  deleteMessengerMessage,
+  setMessengerTyping,
+  readMessengerTyping,
   toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,

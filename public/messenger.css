@@ -5,10 +5,10 @@
   top:var(--messenger-visual-top,0px);
   left:0;
   right:0;
-  bottom:var(--messenger-visual-bottom,0px);
+  bottom:auto;
   z-index:4400;
   width:100%;
-  height:auto;
+  height:var(--messenger-visual-height,100dvh);
   min-height:0;
   box-sizing:border-box;
   display:grid;
@@ -16,9 +16,12 @@
   gap:8px;
   padding:calc(var(--messenger-safe-top) + 12px) 8px max(8px,env(safe-area-inset-bottom));
   overflow:hidden;
-  background:var(--bg);
+  background-color:var(--bg);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='58' height='58' viewBox='0 0 58 58'%3E%3Cpath d='M15 20c-3.8-5.1-12-2.7-12 3.8 0 6.2 12 13.5 12 13.5s12-7.3 12-13.5c0-6.5-8.2-8.9-12-3.8Z' fill='none' stroke='%23868b96' stroke-width='1.2' opacity='.085'/%3E%3Cpath d='M44 5c-2.4-3.2-7.6-1.7-7.6 2.4 0 3.9 7.6 8.5 7.6 8.5s7.6-4.6 7.6-8.5C51.6 3.3 46.4 1.8 44 5Z' fill='none' stroke='%23868b96' stroke-width='1' opacity='.06'/%3E%3C/svg%3E");
+  background-size:58px 58px;
 }
 .messenger-page[hidden]{display:none!important}
+.messenger-page.is-keyboard-open{padding-bottom:2px;gap:5px}
 .messenger-head{
   grid-row:1;
   position:relative;
@@ -366,4 +369,33 @@ body[data-app-tab="messenger"] .shell{
   #messengerInput{min-height:34px;padding:8px 6px 6px;font-size:16px;line-height:1.2}
   .messenger-emoji-tray{height:41px;min-height:41px;padding:4px 5px}
   .messenger-emoji-tray button{width:31px;height:31px}
+}
+
+.messenger-delete-action{
+  display:none;
+  align-self:flex-end;
+  margin:4px 2px 0;
+  padding:6px 10px;
+  border:0;
+  border-radius:10px;
+  background:color-mix(in srgb,#ff453a 14%,var(--surface));
+  color:#ff453a;
+  font-size:11px;
+  font-weight:780;
+}
+.messenger-delete-action.is-visible{display:block;animation:messengerActionIn .16s ease-out both}
+.messenger-message.is-swipe-reply .messenger-bubble{transform:translateX(-8px)}
+.messenger-message.is-new{animation:messengerMessageIn .22s cubic-bezier(.2,.8,.2,1) both}
+.messenger-message.is-sent{animation:messengerMessageSent .24s cubic-bezier(.2,.8,.2,1) both}
+.messenger-typing-message{pointer-events:none}
+.messenger-typing-bubble{display:flex!important;align-items:center;gap:4px;width:max-content;padding:10px 13px!important}
+.messenger-typing-bubble i{width:5px;height:5px;border-radius:999px;background:var(--muted);opacity:.45;animation:messengerTyping 1.05s infinite ease-in-out}
+.messenger-typing-bubble i:nth-child(2){animation-delay:.14s}
+.messenger-typing-bubble i:nth-child(3){animation-delay:.28s}
+@keyframes messengerTyping{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:.9}}
+@keyframes messengerMessageIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes messengerMessageSent{from{opacity:.45;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes messengerActionIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .messenger-message.is-new,.messenger-message.is-sent,.messenger-delete-action.is-visible,.messenger-typing-bubble i{animation:none!important}
 }

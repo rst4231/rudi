@@ -22,6 +22,12 @@
     loading:false,
     initialized:false,
     layoutViewportHeight:0,
+    partnerTyping:false,
+    renderedIds:new Set(),
+    justSentId:'',
+    liveTimer:0,
+    typingTimer:0,
+    typingLastSent:0,
   };
 
   function telegramInitData(){
@@ -297,44 +303,72 @@
     keepKeyboardAtLatest();
   }
 
-  function bindLongPressReply(article,row,payload){
-    if(!article||!payload) return;
-    let timer=0;
-    let startX=0;
-    let startY=0;
-    let pressed=false;
-    const cancel=()=>{
-      pressed=false;
-      if(timer){clearTimeout(timer);timer=0}
-    };
-    const begin=event=>{
+  async function deleteOwnMessage(row){
+    if(!row?.id||row.sender!==state.actor) return;
+    try{
+      const data=await api('messenger-delete',{id:row.id});
+      state.rows=Array.isArray(data.messages)?data.messages:state.rows.filter(item=>item.id!==row.id);
+      state.decrypted.delete(row.id);
+      state.renderedIds.delete(row.id);
+      renderMessages();
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(error){
+      console.warn('RUDI_MESSENGER_DELETE_WARN',String(error?.message||error));
+    }
+  }
+
+  function hideDeleteActions(except=null){
+    document.querySelectorAll('.messenger-delete-action.is-visible').forEach(button=>{
+      if(button!==except) button.classList.remove('is-visible');
+    });
+  }
+
+  function bindLongPressDelete(article,row,button){
+    if(!article||!row||row.sender!==state.actor||!button) return;
+    let timer=0,startX=0,startY=0,pressed=false;
+    const cancel=()=>{pressed=false;if(timer){clearTimeout(timer);timer=0}};
+    article.addEventListener('pointerdown',event=>{
       if(event.pointerType==='mouse'&&event.button!==0) return;
-      pressed=true;
-      startX=Number(event.clientX||0);
-      startY=Number(event.clientY||0);
+      pressed=true;startX=Number(event.clientX||0);startY=Number(event.clientY||0);
       timer=setTimeout(()=>{
         if(!pressed) return;
-        pressed=false;
-        timer=0;
-        article.classList.add('is-long-press');
+        pressed=false;timer=0;
         article.dataset.longPressedAt=String(Date.now());
+        hideDeleteActions(button);
+        button.classList.add('is-visible');
+        article.classList.add('is-long-press');
         setTimeout(()=>article.classList.remove('is-long-press'),180);
-        setReply(row,payload);
         try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
       },520);
-    };
-    const move=event=>{
-      if(!pressed) return;
-      const dx=Math.abs(Number(event.clientX||0)-startX);
-      const dy=Math.abs(Number(event.clientY||0)-startY);
-      if(dx>12||dy>12) cancel();
-    };
-    article.addEventListener('pointerdown',begin);
-    article.addEventListener('pointermove',move);
-    article.addEventListener('pointerup',cancel);
-    article.addEventListener('pointercancel',cancel);
-    article.addEventListener('pointerleave',cancel);
+    });
+    article.addEventListener('pointermove',event=>{
+      if(Math.abs(Number(event.clientX||0)-startX)>12||Math.abs(Number(event.clientY||0)-startY)>12) cancel();
+    });
+    ['pointerup','pointercancel','pointerleave'].forEach(type=>article.addEventListener(type,cancel));
     article.addEventListener('contextmenu',event=>event.preventDefault());
+  }
+
+  function bindSwipeReply(article,row,payload){
+    if(!article||!row||!payload) return;
+    let startX=0,startY=0,tracking=false;
+    article.addEventListener('touchstart',event=>{
+      const touch=event.touches?.[0];
+      if(!touch) return;
+      startX=touch.clientX;startY=touch.clientY;tracking=true;
+    },{passive:true});
+    article.addEventListener('touchend',event=>{
+      if(!tracking) return;
+      tracking=false;
+      const touch=event.changedTouches?.[0];
+      if(!touch) return;
+      const dx=touch.clientX-startX,dy=touch.clientY-startY;
+      if(dx<-55&&Math.abs(dy)<38){
+        article.classList.add('is-swipe-reply');
+        setTimeout(()=>article.classList.remove('is-swipe-reply'),180);
+        setReply(row,payload);
+        try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+    },{passive:true});
   }
 
   function scrollMessagesToBottom(){
@@ -360,7 +394,8 @@
     if(document.body.dataset.appTab!=='messenger') return;
     const root=document.documentElement;
     root.style.setProperty('--messenger-visual-top','0px');
-    root.style.setProperty('--messenger-visual-bottom','0px');
+    root.style.setProperty('--messenger-visual-height','100dvh');
+    document.getElementById('messengerPage')?.classList.remove('is-keyboard-open');
     scrollMessagesToBottom();
     const settle=()=>{
       syncMessengerViewport();
@@ -430,6 +465,18 @@
     });
   }
 
+  function renderTypingIndicator(){
+    const list=document.getElementById('messengerMessages');
+    if(!list) return;
+    list.querySelector('.messenger-typing-message')?.remove();
+    if(!state.partnerTyping) return;
+    const article=document.createElement('article');
+    article.className='messenger-message is-partner messenger-typing-message';
+    article.innerHTML='<div class="messenger-bubble messenger-typing-bubble" aria-label="Партнёр печатает"><i></i><i></i><i></i></div>';
+    list.appendChild(article);
+    scrollMessagesToBottom();
+  }
+
   function renderMessages(){
     const list=document.getElementById('messengerMessages');
     const empty=document.getElementById('messengerEmpty');
@@ -441,7 +488,8 @@
       const own=row.sender===state.actor;
       const payload=state.decrypted.get(row.id);
       const article=document.createElement('article');
-      article.className='messenger-message '+(own?'is-own':'is-partner');
+      const isFresh=state.initialized&&!state.renderedIds.has(row.id);
+      article.className='messenger-message '+(own?'is-own':'is-partner')+(isFresh?' is-new':'')+(state.justSentId===row.id?' is-sent':'');
       article.dataset.messageId=row.id;
 
       const bubble=document.createElement('div');
@@ -492,12 +540,24 @@
       }
 
       article.appendChild(bubble);
+      if(own){
+        const remove=document.createElement('button');
+        remove.type='button';
+        remove.className='messenger-delete-action';
+        remove.textContent='Удалить';
+        remove.addEventListener('click',event=>{event.stopPropagation();hideDeleteActions();deleteOwnMessage(row)});
+        article.appendChild(remove);
+        bindLongPressDelete(article,row,remove);
+      }
       if(payload){
-        bindLongPressReply(article,row,payload);
+        bindSwipeReply(article,row,payload);
         bindMessageTapGestures(article,row,payload);
       }
       list.appendChild(article);
     }
+    state.renderedIds=new Set(rows.map(row=>row.id));
+    state.justSentId='';
+    renderTypingIndicator();
     scrollMessagesToBottom();
   }
 
@@ -607,12 +667,75 @@
     }
   }
 
+  function compactPartnerStatus(){
+    const parts=[];
+    const rhythmId=state.partner==='Диана'?'dianaRhythmStatus':'rustamRhythmStatus';
+    const rhythm=String(document.getElementById(rhythmId)?.textContent||'').trim();
+    if(rhythm) parts.push((rhythm==='Сон'?'🌙':'⚡')+' '+rhythm);
+    if(state.partner==='Диана'){
+      const cycle=String(document.getElementById('dianaCycleMood')?.textContent||'').trim();
+      if(cycle) parts.push((/^Месячные/iu.test(cycle)?'🩸':'🌸')+' '+cycle);
+    }
+    const work=String(document.getElementById('partnerWorkStatus')?.textContent||'').trim();
+    if(work&&work!=='Проверяю график…') parts.push((/^Работаю/iu.test(work)?'💼':'🛋')+' '+work);
+    return parts.join(' · ');
+  }
+
   function updateHeader(){
     const title=document.getElementById('messengerPartnerName');
     if(title) title.textContent=state.partner||'Партнёр';
     const lock=document.getElementById('messengerSecurityStatus');
-    if(lock) lock.textContent=state.aesKey?'🔒 Защищённый чат · сообщения живут 24 часа':'🔒 Получаю ключ чата';
+    if(lock) lock.textContent=compactPartnerStatus()||(state.aesKey?'🔒 Защищённый чат':'🔒 Получаю ключ чата');
     syncHeaderAvatar();
+  }
+
+  function rowsSignature(rows){
+    return (Array.isArray(rows)?rows:[]).map(row=>[
+      row.id,row.readAt,row.editedAt,(Array.isArray(row.likedBy)?row.likedBy:[]).join(',')
+    ].join(':')).join('|');
+  }
+
+  async function syncLiveMessages(){
+    if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden'||state.loading) return;
+    try{
+      const data=await api('messenger-list');
+      const nextRows=Array.isArray(data.messages)?data.messages:[];
+      const changed=rowsSignature(nextRows)!==rowsSignature(state.rows);
+      const typingChanged=Boolean(data.partnerTyping)!==state.partnerTyping;
+      state.partnerTyping=Boolean(data.partnerTyping);
+      setUnread(data.unread);
+      if(changed){
+        state.keys=data.keys||state.keys;
+        state.rows=nextRows;
+        await decryptMessages(state.rows);
+        const after=await markVisibleUnreadRead(state.rows);
+        if(after!==state.rows){
+          state.rows=after;
+          await decryptMessages(state.rows);
+        }
+        renderMessages();
+      }else if(typingChanged){
+        renderTypingIndicator();
+      }
+      updateHeader();
+    }catch(_){}
+  }
+
+  function ensureLiveSync(){
+    if(state.liveTimer) return;
+    state.liveTimer=setInterval(syncLiveMessages,2200);
+  }
+
+  function notifyTyping(active){
+    clearTimeout(state.typingTimer);
+    const now=Date.now();
+    if(active&&now-state.typingLastSent<1800){
+      state.typingTimer=setTimeout(()=>notifyTyping(false),2400);
+      return;
+    }
+    state.typingLastSent=active?now:0;
+    api('messenger-typing',{active:Boolean(active)}).catch(()=>{});
+    if(active) state.typingTimer=setTimeout(()=>notifyTyping(false),2400);
   }
 
   async function syncUnread(){
@@ -620,6 +743,7 @@
       await ensureKeys();
       const data=await api('messenger-list');
       state.rows=Array.isArray(data.messages)?data.messages:state.rows;
+      state.partnerTyping=Boolean(data.partnerTyping);
       setUnread(data.unread);
       updateHeader();
       ensureProfileButton();
@@ -650,11 +774,14 @@
         'Рустам':Number(state.keys?.['Рустам']?.version||0),
         'Диана':Number(state.keys?.['Диана']?.version||0)
       };
+      let result;
       if(state.edit?.id){
-        await api('messenger-edit',{id:state.edit.id,scheme:'shared-v2',...encrypted,keyVersions});
+        result=await api('messenger-edit',{id:state.edit.id,scheme:'shared-v2',...encrypted,keyVersions});
       }else{
-        await api('messenger-send',{scheme:'shared-v2',...encrypted,keyVersions});
+        result=await api('messenger-send',{scheme:'shared-v2',...encrypted,keyVersions});
+        state.justSentId=String(result?.message?.id||'');
       }
+      notifyTyping(false);
       input.value='';
       input.style.height='auto';
       state.reply=null;
@@ -754,7 +881,7 @@
         syncMessengerViewport();
         keepKeyboardAtLatest();
       });
-      input.addEventListener('blur',restoreMessengerAfterKeyboard);
+      input.addEventListener('blur',()=>{notifyTyping(false);restoreMessengerAfterKeyboard()});
       input.addEventListener('keydown',event=>{
         if(event.key==='Enter'&&!event.shiftKey){
           event.preventDefault();
@@ -764,6 +891,7 @@
       input.addEventListener('input',()=>{
         input.style.height='auto';
         input.style.height=Math.min(112,input.scrollHeight)+'px';
+        notifyTyping(Boolean(String(input.value||'').trim()));
         keepKeyboardAtLatest();
       });
     }
@@ -821,6 +949,7 @@
     if(force||fromPush||!state.initialized) await load({markRead:true});
     else await load({markRead:true});
     state.initialized=true;
+    ensureLiveSync();
     restoreMessengerAfterKeyboard();
   }
 
@@ -861,17 +990,18 @@
       viewportHeight+viewportTop
     );
 
+    const page=document.getElementById('messengerPage');
     if(!typing||!viewport){
       state.layoutViewportHeight=Math.max(320,layoutNow);
       root.style.setProperty('--messenger-visual-top','0px');
-      root.style.setProperty('--messenger-visual-bottom','0px');
+      root.style.setProperty('--messenger-visual-height','100dvh');
+      page?.classList.remove('is-keyboard-open');
       return;
     }
 
-    const layoutHeight=Math.max(320,Number(state.layoutViewportHeight||0),layoutNow);
-    const visualBottom=Math.max(0,layoutHeight-(viewportTop+viewportHeight));
     root.style.setProperty('--messenger-visual-top',viewportTop+'px');
-    root.style.setProperty('--messenger-visual-bottom',visualBottom+'px');
+    root.style.setProperty('--messenger-visual-height',Math.max(320,viewportHeight)+'px');
+    page?.classList.add('is-keyboard-open');
     keepKeyboardAtLatest();
   }
 
@@ -887,13 +1017,13 @@
     const url=String(data.url||'');
     if(tag!=='rudi-messenger'&&!url.includes('tab=messenger')) return;
     if(document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger'){
-      load({markRead:true});
+      syncLiveMessages();
     }else{
       syncUnread();
     }
   });
 
-  window.addEventListener('rudi:profile-ready',()=>{ensureProfileButton();syncHeaderAvatar()});
+  window.addEventListener('rudi:profile-ready',()=>{ensureProfileButton();syncHeaderAvatar();updateHeader()});
   window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')) syncUnread()});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')) return;
@@ -901,7 +1031,7 @@
     else syncUnread();
   });
   window.addEventListener('rudi:ui-preferences-applied',()=>{});
-  window.RUDI_MESSENGER={open,refresh:()=>load({markRead:document.body.dataset.appTab==='messenger'}),syncUnread};
+  window.RUDI_MESSENGER={open,refresh:()=>load({markRead:document.body.dataset.appTab==='messenger'}),syncUnread,syncLiveMessages};
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initialize,{once:true});
   else initialize();

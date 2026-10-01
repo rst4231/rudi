@@ -72,6 +72,9 @@ const {
   registerMessengerPublicKey,
   addMessengerMessage,
   editMessengerMessage,
+  deleteMessengerMessage,
+  setMessengerTyping,
+  readMessengerTyping,
   toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,
@@ -1936,15 +1939,18 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
-      const [keys,messages]=await Promise.all([
+      const partner=actor==='Рустам'?'Диана':'Рустам';
+      const [keys,messages,partnerTyping]=await Promise.all([
         readMessengerPublicKeys(options),
         readMessengerMessages(options),
+        readMessengerTyping(partner,options),
       ]);
       return res.status(200).json({
         ok:true,
         actor,
         keys,
         messages,
+        partnerTyping,
         unread:unreadMessengerCount(messages,actor),
         ttlSeconds:24*60*60,
       });
@@ -1977,6 +1983,35 @@ async function handleRudiAction(req, res, action, options = {}) {
         unread:unreadMessengerCount(messages,actor),
         notification:{sent:false,pending:true},
       });
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-typing') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const active=await setMessengerTyping(actor,Boolean(body.active),options);
+      return res.status(200).json({ok:true,actor,active});
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-delete') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      await deleteMessengerMessage(actor,body.id,options);
+      const messages=await readMessengerMessages(options);
+      return res.status(200).json({ok:true,actor,deleted:true,messages,unread:unreadMessengerCount(messages,actor)});
     } catch (error) {
       const code=String(error?.message||error);
       const status=code.startsWith('messenger-')?400:statusForError(error);
