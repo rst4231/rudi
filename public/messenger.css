@@ -552,7 +552,8 @@ body[data-app-tab="messenger"] .shell{
 .messenger-context-menu{
   position:absolute;
   left:50%;
-  bottom:84px;
+  top:0;
+  bottom:auto;
   z-index:12;
   width:min(280px,calc(100% - 24px));
   transform:translateX(-50%);
@@ -593,6 +594,11 @@ body[data-app-tab="messenger"] .shell{
   display:grid;
   grid-template-columns:repeat(6,1fr);
   gap:4px;
+}
+.messenger-reaction-picker.is-context{
+  margin-bottom:4px;
+  padding-bottom:6px;
+  border-bottom:1px solid color-mix(in srgb,var(--line) 72%,transparent);
 }
 .messenger-reaction-picker button{
   height:38px;
