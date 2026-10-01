@@ -63,6 +63,9 @@ function normalizeUiPreferencesState(value) {
   const moodReceivePartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodReceivePartnerEnabled')
     ? Boolean(source.moodReceivePartnerEnabled)
     : false;
+  const humidityAlertEnabled = Object.prototype.hasOwnProperty.call(source, 'humidityAlertEnabled')
+    ? Boolean(source.humidityAlertEnabled)
+    : true;
   const rawUpdatedAt = String(source.updatedAt || '').trim();
   const parsed = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
   return {
@@ -79,6 +82,7 @@ function normalizeUiPreferencesState(value) {
     interfaceTextSize,
     moodNotifyPartnerEnabled,
     moodReceivePartnerEnabled,
+    humidityAlertEnabled,
     updatedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
   };
 }
@@ -114,7 +118,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 3,
+      syncSchemaVersion: 4,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
         ? { ...current.blockStates, ...incoming.blockStates }
@@ -129,6 +133,7 @@ async function saveUiPreferences(actor, value, options = {}) {
       interfaceTextSize: has('interfaceTextSize') ? incoming.interfaceTextSize : current.interfaceTextSize,
       moodNotifyPartnerEnabled: has('moodNotifyPartnerEnabled') ? incoming.moodNotifyPartnerEnabled : current.moodNotifyPartnerEnabled,
       moodReceivePartnerEnabled: has('moodReceivePartnerEnabled') ? incoming.moodReceivePartnerEnabled : current.moodReceivePartnerEnabled,
+      humidityAlertEnabled: has('humidityAlertEnabled') ? incoming.humidityAlertEnabled : current.humidityAlertEnabled,
       updatedAt,
     }, options);
   });
@@ -150,7 +155,8 @@ async function seedUiPreferences(actor, value, options = {}) {
       || has('autoRefreshEnabled')
       || has('interfaceTextSize')
       || has('moodNotifyPartnerEnabled')
-      || has('moodReceivePartnerEnabled');
+      || has('moodReceivePartnerEnabled')
+      || has('humidityAlertEnabled');
     if (!hasAny) return current;
     return persistUiPreferences(actor, {
       initialized: true,
@@ -166,6 +172,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       interfaceTextSize: incoming.interfaceTextSize,
       moodNotifyPartnerEnabled: incoming.moodNotifyPartnerEnabled,
       moodReceivePartnerEnabled: incoming.moodReceivePartnerEnabled,
+      humidityAlertEnabled: incoming.humidityAlertEnabled,
       updatedAt: incoming.updatedAt || new Date(options.now || Date.now()).toISOString(),
     }, options);
   });

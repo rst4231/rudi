@@ -134,6 +134,7 @@ function normalizeUiPreferenceEntry(value) {
     interfaceTextSize:['small','normal','large'].includes(String(source.interfaceTextSize||'').trim())?String(source.interfaceTextSize).trim():'normal',
     moodNotifyPartnerEnabled:Object.prototype.hasOwnProperty.call(source,'moodNotifyPartnerEnabled')?Boolean(source.moodNotifyPartnerEnabled):false,
     moodReceivePartnerEnabled:Object.prototype.hasOwnProperty.call(source,'moodReceivePartnerEnabled')?Boolean(source.moodReceivePartnerEnabled):false,
+    humidityAlertEnabled:Object.prototype.hasOwnProperty.call(source,'humidityAlertEnabled')?Boolean(source.humidityAlertEnabled):true,
     syncSchemaVersion:Math.max(1,Number(source.syncSchemaVersion||1)),
     updatedAt:String(source.updatedAt||''),
   };

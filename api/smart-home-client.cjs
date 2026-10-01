@@ -221,9 +221,11 @@ async function home(force=false, options={}) {
     retries:1,
   }));
   cacheAt = Date.now();
-  observeCameraStatus(cache,options).catch(error=>{
-    console.warn('RUDI_CAMERA_STATUS_WARN',String(error?.message||error));
-  });
+  if(options.observeCamera!==false){
+    observeCameraStatus(cache,options).catch(error=>{
+      console.warn('RUDI_CAMERA_STATUS_WARN',String(error?.message||error));
+    });
+  }
   return cache;
 }
 

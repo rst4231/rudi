@@ -18,7 +18,7 @@
         '#partnerMessageText:not(.partner-empty)','#dailyQuestionRustamAnswer','#dailyQuestionDianaAnswer',
         '.wish-text','.ticktick-today-title','.ticktick-description','.ticktick-checklist',
 '#photoViewerCaption',
-        '.car-error-title','.car-error-comment','.product-text','.holiday-partner-note'
+        '.car-error-title','.car-error-comment','.car-note-copy','.product-text','.holiday-partner-note'
       ].join(',');
       function rudiElementFromTarget(target){
         if(!target) return null;
@@ -691,6 +691,11 @@
         return 'rudi:mood-receive-partner:v1:'+actor;
       }
 
+      function humidityAlertStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:humidity-alert-enabled:v1:'+actor;
+      }
+
       function interfaceTextSizeStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:interface-text-size:v1:'+actor;
@@ -778,6 +783,14 @@
       function moodReceivePartnerEnabled(){
         if(!currentActor) return false;
         try{return localStorage.getItem(moodReceivePartnerStorageKey())==='1'}catch(_){return false}
+      }
+
+      function humidityAlertEnabled(){
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(humidityAlertStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
       }
 
       function lastDataSyncAt(){
@@ -912,6 +925,7 @@
         let interfaceTextSizeValue='normal';
         let moodNotifyPartnerEnabledValue=false;
         let moodReceivePartnerEnabledValue=false;
+        let humidityAlertEnabledValue=true;
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
@@ -926,9 +940,10 @@
         try{interfaceTextSizeValue=currentInterfaceTextSize()}catch(_){}
         try{moodNotifyPartnerEnabledValue=moodNotifyPartnerEnabled()}catch(_){}
         try{moodReceivePartnerEnabledValue=moodReceivePartnerEnabled()}catch(_){}
+        try{humidityAlertEnabledValue=humidityAlertEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:3,
+          syncSchemaVersion:4,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
@@ -939,6 +954,7 @@
           interfaceTextSize:interfaceTextSizeValue,
           moodNotifyPartnerEnabled:moodNotifyPartnerEnabledValue,
           moodReceivePartnerEnabled:moodReceivePartnerEnabledValue,
+          humidityAlertEnabled:humidityAlertEnabledValue,
           updatedAt
         };
       }
@@ -961,8 +977,9 @@
         const hasRemoteTextSize=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'interfaceTextSize');
         const hasRemoteMoodNotify=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodNotifyPartnerEnabled');
         const hasRemoteMoodReceive=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodReceivePartnerEnabled');
+        const hasRemoteHumidityAlert=remoteSchema>=4&&Object.prototype.hasOwnProperty.call(remote,'humidityAlertEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -1014,8 +1031,11 @@
           if(hasRemoteMoodReceive){
             localStorage.setItem(moodReceivePartnerStorageKey(),remote.moodReceivePartnerEnabled===true?'1':'0');
           }
+          if(hasRemoteHumidityAlert){
+            localStorage.setItem(humidityAlertStorageKey(),remote.humidityAlertEnabled===false?'0':'1');
+          }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<3){
+          if(keepLocalOrder||remoteSchema<4){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             markUiPreferencesChanged();
           }
@@ -1061,6 +1081,7 @@
         updateThemeSettingControls();
         updateAutoRefreshUi();
         updateMoodNotificationSettingsUi();
+        updateHumidityAlertSettingsUi();
         applyInterfacePreferences();
         if(document.querySelector('.products-history')) setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
         if(document.querySelector('.fasting-history-card')) setFastingHistoryCollapsed(readFastingHistoryCollapsed(),{persist:false});
@@ -4327,6 +4348,10 @@
                 '<button id="settingsMoodReceivePartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="false" aria-label="Получать уведомления о смене настроения партнёра"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Низкая влажность дома</strong><small>Сообщать, если влажность опустилась ниже 40%</small></div>'+
+                '<button id="settingsHumidityAlertToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о низкой влажности дома"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Бейдж на иконке</strong><small id="settingsAppBadgeStatus">Показывать непрочитанное на иконке RUDI</small></div>'+
                 '<button id="settingsAppBadgeEnable" class="settings-pwa-install" type="button">Разрешить</button>'+
               '</div>'+
@@ -4897,7 +4922,7 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(moodNotifyPartnerStorageKey(),next?'1':'0')}catch(_){}
         updateMoodNotificationSettingsUi();
-        if(currentActor) markUiPreferencesChanged({moodNotifyPartnerEnabled:next,syncSchemaVersion:3});
+        if(currentActor) markUiPreferencesChanged({moodNotifyPartnerEnabled:next,syncSchemaVersion:4});
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -4905,7 +4930,20 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(moodReceivePartnerStorageKey(),next?'1':'0')}catch(_){}
         updateMoodNotificationSettingsUi();
-        if(currentActor) markUiPreferencesChanged({moodReceivePartnerEnabled:next,syncSchemaVersion:3});
+        if(currentActor) markUiPreferencesChanged({moodReceivePartnerEnabled:next,syncSchemaVersion:4});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function updateHumidityAlertSettingsUi(){
+        const toggle=document.getElementById('settingsHumidityAlertToggle');
+        if(toggle) toggle.setAttribute('aria-checked',humidityAlertEnabled()?'true':'false');
+      }
+
+      function setHumidityAlertEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(humidityAlertStorageKey(),next?'1':'0')}catch(_){}
+        updateHumidityAlertSettingsUi();
+        if(currentActor) markUiPreferencesChanged({humidityAlertEnabled:next,syncSchemaVersion:4});
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5049,6 +5087,11 @@
         if(moodReceive&&moodReceive.dataset.bound!=='1'){
           moodReceive.dataset.bound='1';
           moodReceive.addEventListener('click',()=>setMoodReceivePartnerEnabled(!moodReceivePartnerEnabled()));
+        }
+        const humidityAlert=document.getElementById('settingsHumidityAlertToggle');
+        if(humidityAlert&&humidityAlert.dataset.bound!=='1'){
+          humidityAlert.dataset.bound='1';
+          humidityAlert.addEventListener('click',()=>setHumidityAlertEnabled(!humidityAlertEnabled()));
         }
         const appBadge=document.getElementById('settingsAppBadgeEnable');
         if(appBadge&&appBadge.dataset.bound!=='1'){
