@@ -689,7 +689,28 @@
     }
   }
 
-  function renderTypingIndicator({autoScroll=true}={}){
+  function bindMessageTapGestures(article,row,payload){
+    if(!article||!row||!payload) return;
+    let taps=0;
+    let timer=0;
+    article.addEventListener('click',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      const longPressedAt=Number(article.dataset.longPressedAt||0);
+      if(longPressedAt&&Date.now()-longPressedAt<700) return;
+      taps+=1;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        const count=taps;
+        taps=0;
+        if(count>=3&&row.sender===state.actor){
+          startMessageEdit(row,payload);
+          return;
+        }
+        if(count===2) setMessageReaction(row,'❤️');
+      },320);
+    });
+  }
+
   function renderTypingIndicator({autoScroll=true}={}){
     const list=document.getElementById('messengerMessages');
     if(!list) return;
@@ -827,6 +848,7 @@
       if(payload){
         bindSwipeReply(article,row,payload);
         bindLongPressContext(article,row,payload);
+        bindMessageTapGestures(article,row,payload);
       }
       list.appendChild(article);
     }
@@ -917,6 +939,7 @@
     if(!ids.length) return rows;
     const data=await api('messenger-read',{ids});
     setUnread(data.unread);
+    if(Number(data.unread||0)===0) state.unreadBoundaryId='';
     return mergePendingRows(Array.isArray(data.messages)?data.messages:rows);
   }
 
@@ -1083,6 +1106,7 @@
       const typingChanged=Boolean(data.partnerTyping)!==state.partnerTyping;
       state.partnerTyping=Boolean(data.partnerTyping);
       setUnread(data.unread);
+      if(Number(data.unread||0)===0) state.unreadBoundaryId='';
       if(changed){
         state.keys=data.keys||state.keys;
         state.rows=nextRows;
