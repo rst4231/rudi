@@ -54,7 +54,10 @@ test('100% Lulu alert goes to Rustam while Diana is inside her shift',async()=>{
 
 test('100% Lulu alert goes to Diana before her shift starts',async()=>{
   const cache=memoryCache();
-  await makeOldWalk(cache);
+  await markLuluWalk('Рустам',{
+    luluCache:cache,
+    now:Date.parse('2026-09-25T02:00:00.000Z'),
+  });
   const calls=[];
   const result=await runLuluToiletAlert(calendarOptions(
     cache,calls,'2026-09-25T08:30:00.000Z',
