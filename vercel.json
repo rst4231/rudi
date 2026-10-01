@@ -32,9 +32,6 @@
     },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
-    },
-    "api/smart-home-humidity-cron.js": {
-      "maxDuration": 60
     }
   },
   "headers": [
@@ -233,6 +230,10 @@
     {
       "source": "/api/rudi-jwks",
       "destination": "/api/index?route=rudi-jwks"
+    },
+    {
+      "source": "/api/smart-home-humidity-cron",
+      "destination": "/api/index?route=smart-home-humidity-cron"
     }
   ],
   "crons": [

@@ -21,11 +21,13 @@ const { publishLaborArticle } = require('./labor-code.cjs');
 const { withLaborPublicationLease } = require('./labor-publication-lock.cjs');
 const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
+const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const handleRudiJwks = require('./rudi-jwks.cjs');
-const { handleSmartHomeRequest } = require('./smart-home-client.cjs');
+const { handleSmartHomeRequest, readSmartHomeSnapshot } = require('./smart-home-client.cjs');
+const { evaluateHumidityAlert } = require('./smart-home-humidity-alert.cjs');
 const { handleWeatherRequest } = require('./weather.cjs');
 const { handleCarRequest } = require('./car-client.cjs');
 const {
@@ -129,6 +131,36 @@ async function handler(req, res) {
   try {
     if (req.query?.route === 'rudi-jwks') return handleRudiJwks(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
+    if (req.query?.route === 'smart-home-humidity-cron') {
+      const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {
+        audience: 'rudi-smart-home-humidity',
+        workflowRef: 'rst4231/rudi/.github/workflows/smart-home-humidity-alert.yml@refs/heads/main',
+      });
+      if (!authorized) {
+        console.warn('RUDI_HUMIDITY_CRON_UNAUTHORIZED');
+        return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
+      }
+      try {
+        const snapshot = await readSmartHomeSnapshot(true, {
+          env: process.env,
+          fetchImpl: globalThis.fetch,
+          observeCamera: false,
+        });
+        const result = await evaluateHumidityAlert(snapshot, {
+          env: process.env,
+          fetchImpl: globalThis.fetch,
+        });
+        console.log('RUDI_HUMIDITY_CRON_RESULT', JSON.stringify({
+          humidity: result.humidity,
+          sent: result.sent,
+          skipped: result.skipped,
+        }));
+        return res.status(200).json({ ok: true, ...result });
+      } catch (error) {
+        console.error('RUDI_HUMIDITY_CRON_ERROR', String(error?.message || error));
+        return res.status(500).json({ ok: false, error: 'humidity-check-failed' });
+      }
+    }
     if (req.query?.route === 'weather') return handleWeatherRequest(req, res);
     if (req.query?.route === 'car') return handleCarRequest(req, res);
     if (req.query?.route === 'telegram') {
