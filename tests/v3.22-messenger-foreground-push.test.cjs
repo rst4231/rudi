@@ -31,9 +31,11 @@ test('v3.22 notification click always sends explicit SPA navigation command to a
   assert.match(app,/window\.RUDI_NAVIGATE_TO_TAB\(tab,\{scroll:true,item,replace:true\}\)/);
 });
 
-test('v3.22 cache busts the app and messenger shell',()=>{
-  assert.match(html,/meta name="rudi-version" content="v3\.22"/);
-  assert.match(html,/app\.js\?v=3\.22/);
-  assert.match(html,/messenger\.js\?v=3\.22/);
-  assert.match(sw,/rudi-shell-v3\.22/);
+test('cache busts the app and messenger shell to current RUDI version',()=>{
+  const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.replace(/^v/,'');
+  const escaped=version.replace(/\./g,'\\.');
+  assert.match(html,new RegExp('meta name="rudi-version" content="v'+escaped+'"'));
+  assert.match(html,new RegExp('app\\.js\\?v='+escaped));
+  assert.match(html,new RegExp('messenger\\.js\\?v='+escaped));
+  assert.match(sw,new RegExp('rudi-shell-v'+escaped));
 });
