@@ -260,6 +260,45 @@
     document.getElementById('messengerInput')?.focus?.();
   }
 
+  function bindLongPressReply(article,row,payload){
+    if(!article||!payload) return;
+    let timer=0;
+    let startX=0;
+    let startY=0;
+    let pressed=false;
+    const cancel=()=>{
+      pressed=false;
+      if(timer){clearTimeout(timer);timer=0}
+    };
+    const begin=event=>{
+      if(event.pointerType==='mouse'&&event.button!==0) return;
+      pressed=true;
+      startX=Number(event.clientX||0);
+      startY=Number(event.clientY||0);
+      timer=setTimeout(()=>{
+        if(!pressed) return;
+        pressed=false;
+        timer=0;
+        article.classList.add('is-long-press');
+        setTimeout(()=>article.classList.remove('is-long-press'),180);
+        setReply(row,payload);
+        try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      },520);
+    };
+    const move=event=>{
+      if(!pressed) return;
+      const dx=Math.abs(Number(event.clientX||0)-startX);
+      const dy=Math.abs(Number(event.clientY||0)-startY);
+      if(dx>12||dy>12) cancel();
+    };
+    article.addEventListener('pointerdown',begin);
+    article.addEventListener('pointermove',move);
+    article.addEventListener('pointerup',cancel);
+    article.addEventListener('pointercancel',cancel);
+    article.addEventListener('pointerleave',cancel);
+    article.addEventListener('contextmenu',event=>event.preventDefault());
+  }
+
   function renderMessages(){
     const list=document.getElementById('messengerMessages');
     const empty=document.getElementById('messengerEmpty');
@@ -312,22 +351,8 @@
       }
       bubble.appendChild(meta);
 
-      if(payload){
-        const reply=document.createElement('button');
-        reply.type='button';
-        reply.className='messenger-reply-button';
-        reply.setAttribute('aria-label','Ответить на сообщение');
-        reply.title='Ответить';
-        reply.textContent='↩';
-        reply.addEventListener('click',event=>{
-          event.preventDefault();
-          event.stopPropagation();
-          setReply(row,payload);
-        });
-        article.append(bubble,reply);
-      }else{
-        article.appendChild(bubble);
-      }
+      article.appendChild(bubble);
+      if(payload) bindLongPressReply(article,row,payload);
       list.appendChild(article);
     }
     requestAnimationFrame(()=>{list.scrollTop=list.scrollHeight});
@@ -393,11 +418,32 @@
     }
   }
 
+  function syncHeaderAvatar(){
+    const holder=document.getElementById('messengerPartnerAvatar');
+    const image=document.getElementById('messengerPartnerImage');
+    const initial=document.getElementById('messengerPartnerInitial');
+    if(!holder||!image||!initial) return;
+    const sourceImage=document.getElementById('partnerProfileImage');
+    const sourceInitial=document.getElementById('partnerProfileInitial');
+    const partnerName=state.partner||'Партнёр';
+    initial.textContent=String(sourceInitial?.textContent||partnerName.charAt(0)||'П').trim().slice(0,2).toUpperCase();
+    const src=String(sourceImage?.currentSrc||sourceImage?.src||'').trim();
+    if(src){
+      image.alt='Фото профиля '+partnerName;
+      if(image.src!==src) image.src=src;
+      holder.classList.add('has-photo');
+    }else{
+      image.removeAttribute('src');
+      holder.classList.remove('has-photo');
+    }
+  }
+
   function updateHeader(){
     const title=document.getElementById('messengerPartnerName');
     if(title) title.textContent=state.partner||'Партнёр';
     const lock=document.getElementById('messengerSecurityStatus');
     if(lock) lock.textContent=state.aesKey?'🔒 Сквозное шифрование · сообщения живут 24 часа':'🔒 Ожидаю ключ партнёра';
+    syncHeaderAvatar();
   }
 
   async function syncUnread(){
@@ -636,7 +682,7 @@
     }
   });
 
-  window.addEventListener('rudi:profile-ready',ensureProfileButton);
+  window.addEventListener('rudi:profile-ready',()=>{ensureProfileButton();syncHeaderAvatar()});
   window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')) syncUnread()});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')) return;
