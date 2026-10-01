@@ -58,12 +58,12 @@ test('v3.21 shows current partner mood emoji next to messenger name and observes
   assert.match(client,/new MutationObserver\(updateHeader\)\.observe\(partnerMood,\{attributes:true,attributeFilter:\['data-mood'\]\}\)/);
 });
 
-test('one tap on a reaction is delegated on pointerdown and toggles it',()=>{
+test('one tap on a reaction uses a direct click handler and toggles it',()=>{
   assert.match(client,/function setMessageReaction\(row,emoji\)/);
-  assert.match(client,/page\.addEventListener\('pointerdown',event=>\{/);
-  assert.match(client,/\[data-messenger-reaction\]\[data-message-id\]/);
+  assert.match(client,/reaction\.addEventListener\('click',event=>\{/);
   assert.match(client,/setMessageReaction\(row,emoji\)/);
   assert.match(client,/renderMessages\(\{preserveScrollTop\}/);
+  assert.doesNotMatch(client,/reactionPointerBound/);
 });
 
 test('tapping anywhere else hides the unified message context menu',()=>{
