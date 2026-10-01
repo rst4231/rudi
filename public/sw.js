@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v3.15';
+const CACHE_NAME='rudi-shell-v3.16';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -284,14 +284,20 @@ async function deliverPendingPushNotifications(){
   for(const row of rows){
     const id=String(row?.id||'');
     if(!id) continue;
+    const notificationTag=String(row?.tag||id);
+    const notificationUrl=String(row?.url||'/');
     await self.registration.showNotification(String(row?.title||'RUDI'),{
       body:String(row?.body||''),
-      tag:String(row?.tag||id),
+      tag:notificationTag,
       icon:String(row?.icon||'/icon-192-v176.jpg'),
       badge:String(row?.badge||'/icon-192-v176.jpg'),
-      data:{url:String(row?.url||'/'),id},
+      data:{url:notificationUrl,id},
       renotify:false
     });
+    const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true}).catch(()=>[]);
+    for(const client of windows){
+      try{client.postMessage({type:'RUDI_PUSH_RECEIVED',id,tag:notificationTag,url:notificationUrl})}catch(_){}
+    }
     shown.push(id);
   }
   await rememberPushSeen(shown).catch(()=>{});
