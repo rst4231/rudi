@@ -3,24 +3,62 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { parseCarNoteCommand } = require('../api/car-notes-telegram.cjs');
 
-test('car note command extracts everything after trigger', () => {
+const COMMANDS = [
+  'Сохрани в авто заметки',
+  'Сохрани в заметки авто',
+  'Сохрани в заметки машины',
+  'Добавь в авто заметки',
+  'Добавь в заметки машины',
+  'Добавь заметку по машине',
+  'Запиши в авто заметки',
+  'Запиши в заметки машины',
+  'Запиши по машине',
+  'Сохрани по машине',
+  'Заметка по машине',
+  'Заметка в авто',
+  'Авто заметка',
+  'В заметки авто',
+  'В заметки машины',
+  'Для машины сохрани',
+  'По машине сохрани',
+  'Сохрани для машины',
+  'Добавь для машины',
+  'Закинь в заметки машины',
+  'Кинь в авто заметки',
+  'Запомни по машине',
+  'Сохрани это по машине',
+  'Добавь в авто',
+];
+
+test('all supported car note phrases extract the note text', () => {
+  for (const command of COMMANDS) {
+    assert.deepEqual(
+      parseCarNoteCommand({ text:command + ': проверить масло и давление' }),
+      { matched:true, text:'проверить масло и давление' },
+      command
+    );
+  }
+});
+
+test('car note command preserves links and multiline text', () => {
   assert.deepEqual(
-    parseCarNoteCommand({ text:'Сохрани в авто заметки купить масло 5W-30' }),
-    { matched:true, text:'купить масло 5W-30' }
-  );
-  assert.deepEqual(
-    parseCarNoteCommand({ text:'Сохрани в авто заметки: https://example.com/part' }),
+    parseCarNoteCommand({ text:'Добавь в авто https://example.com/part' }),
     { matched:true, text:'https://example.com/part' }
   );
   assert.deepEqual(
-    parseCarNoteCommand({ text:'Сохрани в авто заметки\nПроверить давление в шинах' }),
-    { matched:true, text:'Проверить давление в шинах' }
+    parseCarNoteCommand({ text:'Сохрани по машине\nПроверить давление\nКупить масло' }),
+    { matched:true, text:'Проверить давление\nКупить масло' }
   );
+});
+
+test('empty supported command is consumed but ordinary text is not', () => {
   assert.deepEqual(
-    parseCarNoteCommand({ text:'Сохрани в авто заметки' }),
+    parseCarNoteCommand({ text:'Добавь в авто' }),
     { matched:true, text:'' }
   );
+  assert.equal(parseCarNoteCommand({ text:'Добавь встречу в календарь' }).matched, false);
   assert.equal(parseCarNoteCommand({ text:'Просто сохрани это' }).matched, false);
+  assert.equal(parseCarNoteCommand({ text:'Машина сегодня чистая' }).matched, false);
 });
 
 test('car note handler runs before generic smart saves', () => {

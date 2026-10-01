@@ -7,12 +7,43 @@ function messageOf(req) {
   return req?.body?.message || null;
 }
 
+const CAR_NOTE_COMMAND_PATTERNS = [
+  /^сохрани\s+в\s+авто\s+заметк(?:у|и)(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^сохрани\s+в\s+заметк(?:у|и)\s+авто(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^сохрани\s+в\s+заметк(?:у|и)\s+машины(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^добавь\s+в\s+авто\s+заметк(?:у|и)(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^добавь\s+в\s+заметк(?:у|и)\s+машины(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^добавь\s+заметк(?:у|и)\s+по\s+машине(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^запиши\s+в\s+авто\s+заметк(?:у|и)(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^запиши\s+в\s+заметк(?:у|и)\s+машины(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^закинь\s+в\s+заметк(?:у|и)\s+машины(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^кинь\s+в\s+авто\s+заметк(?:у|и)(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^сохрани\s+это\s+по\s+машине(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^запомни\s+по\s+машине(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^запиши\s+по\s+машине(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^сохрани\s+по\s+машине(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^для\s+машины\s+сохрани(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^по\s+машине\s+сохрани(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^сохрани\s+для\s+машины(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^добавь\s+для\s+машины(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^заметка\s+по\s+машине(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^заметка\s+в\s+авто(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^авто\s+заметка(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^в\s+заметк(?:у|и)\s+авто(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^в\s+заметк(?:у|и)\s+машины(?=$|\s|[:.,!;?…\-–—])/iu,
+  /^добавь\s+в\s+авто(?=$|\s|[:.,!;?…\-–—])/iu,
+];
+
 function parseCarNoteCommand(message) {
   const raw = String(message?.text || message?.caption || '').trim();
   if (!raw) return { matched:false, text:'' };
-  const match = raw.match(/^сохрани\s+в\s+авто\s+заметки(?=$|\s|[:.,!;?\-–—])(?:\s*[:.,;\-–—]?\s*)([\s\S]*)$/iu);
-  if (!match) return { matched:false, text:'' };
-  return { matched:true, text:String(match[1] || '').trim() };
+  for (const pattern of CAR_NOTE_COMMAND_PATTERNS) {
+    const match = raw.match(pattern);
+    if (!match) continue;
+    const text = raw.slice(match[0].length).replace(/^\s*[:.,;!?…\-–—]?\s*/u, '').trim();
+    return { matched:true, text };
+  }
+  return { matched:false, text:'' };
 }
 
 function canHandleCarNoteTelegram(req) {
@@ -92,6 +123,7 @@ function scheduleCarNoteTelegram(req, options = {}) {
 
 module.exports = {
   messageOf,
+  CAR_NOTE_COMMAND_PATTERNS,
   parseCarNoteCommand,
   canHandleCarNoteTelegram,
   processCarNoteTelegram,
