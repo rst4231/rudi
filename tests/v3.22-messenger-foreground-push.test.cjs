@@ -19,7 +19,7 @@ test('v3.22 still notifies the page about a foreground message and messenger hap
   assert.match(messenger,/function triggerForegroundMessageHaptic\(\)/);
   assert.match(messenger,/haptic\.impactOccurred\('medium'\)/);
   assert.match(messenger,/navigator\.vibrate\?\.\(35\)/);
-  assert.match(messenger,/const hasNewPartnerMessage=nextRows\.some/);
+  assert.match(messenger,/const hasNewPartnerMessage=newPartnerRows\.length>0/);
   assert.match(messenger,/if\(hasNewPartnerMessage\) triggerForegroundMessageHaptic\(\)/);
 });
 
