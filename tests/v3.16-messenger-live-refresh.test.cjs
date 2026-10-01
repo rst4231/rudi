@@ -8,12 +8,12 @@ const sw=fs.readFileSync('public/sw.js','utf8');
 const css=fs.readFileSync('public/messenger.css','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 
-test('messenger v3.20 overlay stays outside transformed app shell',()=>{
+test('messenger v3.22 overlay stays outside transformed app shell',()=>{
   assert.match(client,/function mountMessengerOverlay\(\)[\s\S]*?document\.body\.appendChild\(page\)/);
   assert.match(css,/\.messenger-page\{[\s\S]*?position:fixed;[\s\S]*?z-index:4400/);
 });
 
-test('messenger v3.20 refreshes open chat automatically without status noise',()=>{
+test('messenger v3.22 refreshes open chat automatically without status noise',()=>{
   assert.doesNotMatch(client,/Обновляю…/);
   assert.match(client,/function syncLiveMessages\(\)/);
   assert.match(client,/setInterval\(syncLiveMessages,2200\)/);
@@ -23,17 +23,17 @@ test('messenger v3.20 refreshes open chat automatically without status noise',()
 });
 
 test('messenger push is an additional immediate live-refresh trigger',()=>{
-  assert.match(sw,/client\.postMessage\(\{type:'RUDI_PUSH_RECEIVED',id,tag:notificationTag,url:notificationUrl\}\)/);
+  assert.match(sw,/client\.postMessage\(\{type:'RUDI_PUSH_RECEIVED',id,tag:notificationTag,url:notificationUrl,foreground:messengerVisible\}\)/);
   assert.match(client,/navigator\.serviceWorker\?\.addEventListener\?\.\('message'/);
   assert.match(client,/dataset\.appTab==='messenger'[\s\S]*?syncLiveMessages\(\)/);
   assert.match(client,/else\{[\s\S]*?syncUnread\(\)/);
 });
 
-test('messenger v3.20 assets and PWA shell are cache-busted',()=>{
-  assert.match(html,/messenger\.js\?v=3\.20/);
-  assert.match(html,/messenger\.css\?v=3\.20/);
+test('messenger v3.22 assets and PWA shell are cache-busted',()=>{
+  assert.match(html,/messenger\.js\?v=3\.22/);
+  assert.match(html,/messenger\.css\?v=3\.22/);
   assert.match(html,/meta name="rudi-version" content="v3\.20"/);
-  assert.match(sw,/rudi-shell-v3\.20/);
+  assert.match(sw,/rudi-shell-v3\.22/);
 });
 
 test('messenger header uses compact partner status instead of 24-hour security copy',()=>{

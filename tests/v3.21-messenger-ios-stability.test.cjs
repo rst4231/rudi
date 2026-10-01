@@ -41,11 +41,12 @@ test('v3.21 lowers messenger header below the top blur',()=>{
   assert.match(css,/\.messenger-head\{[\s\S]*?margin-top:6px/);
 });
 
-test('v3.21 cache-busts messenger shell',()=>{
-  assert.match(html,/messenger\.js\?v=3\.21/);
-  assert.match(html,/messenger\.css\?v=3\.21/);
-  assert.match(html,/meta name="rudi-version" content="v3\.21"/);
-  assert.match(sw,/rudi-shell-v3\.21/);
+test('messenger shell cache-busts to the current RUDI version',()=>{
+  const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.replace(/^v/,'');
+  assert.match(html,new RegExp('messenger\\.js\\?v='+version.replace(/\\./g,'\\\\.')));
+  assert.match(html,new RegExp('messenger\\.css\\?v='+version.replace(/\\./g,'\\\\.')));
+  assert.match(html,new RegExp('meta name="rudi-version" content="v'+version.replace(/\\./g,'\\\\.')+'"'));
+  assert.match(sw,new RegExp('rudi-shell-v'+version.replace(/\\./g,'\\\\.')));
 });
 
 test('v3.21 shows current partner mood emoji next to messenger name and observes mood changes',()=>{
