@@ -71,6 +71,7 @@ const {
   readMessengerPublicKeys,
   registerMessengerPublicKey,
   addMessengerMessage,
+  rekeyMessengerMessages,
   readMessengerMessages,
   markMessengerRead,
   unreadMessengerCount,
@@ -1850,6 +1851,14 @@ async function handleTickTick(req, res, action, options = {}) {
   return res.status(404).json({ ok: false, error: 'ticktick-route-not-found' });
 }
 
+function messengerConversationKey(options={}){
+  const token=String(options.botToken||resolveTelegramBotToken(options.env||process.env)||'').trim();
+  if(!token) throw new Error('messenger-key-secret-missing');
+  return crypto.createHmac('sha256',token)
+    .update('rudi-messenger-shared-v2')
+    .digest('base64url');
+}
+
 async function handleRudiAction(req, res, action, options = {}) {
   if (['push-config','push-subscribe','push-unsubscribe','push-pending'].includes(action)) {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
@@ -1906,7 +1915,13 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(400).json({ok:false,error:'messenger-key-operation-invalid'});
       }
       const keys=await readMessengerPublicKeys(options);
-      return res.status(200).json({ok:true,actor,keys});
+      return res.status(200).json({
+        ok:true,
+        actor,
+        keys,
+        conversationKey:messengerConversationKey(options),
+        scheme:'shared-v2',
+      });
     } catch (error) {
       const code=String(error?.message||error);
       const status=code.startsWith('messenger-')?400:statusForError(error);
@@ -1943,6 +1958,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await addMessengerMessage(actor,{
+        scheme:body.scheme,
         ciphertext:body.ciphertext,
         iv:body.iv,
         keyVersions:body.keyVersions,
@@ -1959,6 +1975,20 @@ async function handleRudiAction(req, res, action, options = {}) {
         unread:unreadMessengerCount(messages,actor),
         notification:{sent:false,pending:true},
       });
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-rekey') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const result=await rekeyMessengerMessages(actor,body.items,options);
+      return res.status(200).json({ok:true,actor,updated:result.updated,messages:result.messages});
     } catch (error) {
       const code=String(error?.message||error);
       const status=code.startsWith('messenger-')?400:statusForError(error);
