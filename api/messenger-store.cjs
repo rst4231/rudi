@@ -7,19 +7,11 @@ const INDEX_TTL_SECONDS=48*60*60;
 const KEY_TTL_SECONDS=365*24*60*60;
 const TYPING_TTL_SECONDS=8;
 const REACTION_EMOJIS=new Set(['❤️','😂','😘','😢','👍','🔥']);
-const REACTION_NAMESPACE='rudi-messenger-reactions-v1';
 let mutationTail=Promise.resolve();
 
 function cacheOf(options={}){
   return options.messengerCache||options.cache||createStrictRuntimeCache({
     namespace:NAMESPACE,
-    ...(options.cacheOptions||{}),
-  });
-}
-
-function reactionCacheOf(options={}){
-  return options.messengerReactionCache||createStrictRuntimeCache({
-    namespace:REACTION_NAMESPACE,
     ...(options.cacheOptions||{}),
   });
 }
@@ -146,73 +138,6 @@ function normalizeReactions(value,legacyLikes=[]){
   const legacy=(Array.isArray(legacyLikes)?legacyLikes:[]).map(cleanActor).filter(Boolean).filter((actor,index,array)=>array.indexOf(actor)===index);
   if(legacy.length&&!result['❤️']) result['❤️']=legacy;
   return result;
-}
-
-function normalizeActorReactionState(actor,value,now=Date.now()){
-  const viewer=cleanActor(actor);
-  if(!viewer) throw new Error('messenger-actor-invalid');
-  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
-  const items=source.items&&typeof source.items==='object'&&!Array.isArray(source.items)?source.items:{};
-  const clean={};
-  for(const [id,row] of Object.entries(items)){
-    const messageId=String(id||'').trim();
-    const expiresAt=String(row?.expiresAt||'');
-    const emoji=String(row?.emoji||'').trim();
-    if(!messageId||!Number.isFinite(Date.parse(expiresAt))||Date.parse(expiresAt)<=Number(now)) continue;
-    if(emoji&&!REACTION_EMOJIS.has(emoji)) continue;
-    clean[messageId]={
-      emoji,
-      expiresAt:new Date(expiresAt).toISOString(),
-    };
-  }
-  return {
-    actor:viewer,
-    items:clean,
-    updatedAt:String(source.updatedAt||''),
-  };
-}
-
-async function readActorReactionState(actor,options={}){
-  const viewer=cleanActor(actor);
-  if(!viewer) throw new Error('messenger-actor-invalid');
-  const row=await reactionCacheOf(options).get('actor:'+actorKey(viewer)).catch(()=>null);
-  return normalizeActorReactionState(viewer,row,Number(options.now||Date.now()));
-}
-
-async function writeActorReactionState(actor,state,options={}){
-  const viewer=cleanActor(actor);
-  if(!viewer) throw new Error('messenger-actor-invalid');
-  const now=Number(options.now||Date.now());
-  const clean=normalizeActorReactionState(viewer,state,now);
-  clean.updatedAt=new Date(now).toISOString();
-  await reactionCacheOf(options).set('actor:'+actorKey(viewer),clean,{
-    ttl:INDEX_TTL_SECONDS,
-    tags:['rudi-messenger-reactions'],
-    name:'actor:'+actorKey(viewer),
-  });
-  return clean;
-}
-
-function legacyReactionForActor(row,actor){
-  const reactions=normalizeReactions(row?.reactions,row?.likedBy);
-  for(const emoji of REACTION_EMOJIS){
-    if(Array.isArray(reactions[emoji])&&reactions[emoji].includes(actor)) return emoji;
-  }
-  return '';
-}
-
-function mergeReactionStates(row,states){
-  const reactions={};
-  for(const actor of ['Рустам','Диана']){
-    const state=states?.[actor];
-    const hasStored=Boolean(state?.items&&Object.prototype.hasOwnProperty.call(state.items,row.id));
-    const emoji=hasStored
-      ?String(state.items[row.id]?.emoji||'')
-      :legacyReactionForActor(row,actor);
-    if(!emoji||!REACTION_EMOJIS.has(emoji)) continue;
-    reactions[emoji]=[...(reactions[emoji]||[]),actor];
-  }
-  return reactions;
 }
 
 function normalizeMessage(row){
