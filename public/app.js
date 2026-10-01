@@ -2365,8 +2365,13 @@
         const status=dianaRhythmStatus(now,model);
         node.textContent=status;
         node.hidden=!status;
-        const advice=dianaRhythmRecommendation(now,model);
-        node.title=advice?'Лучше сейчас: '+advice:'';
+        const recommendation=dianaRhythmRecommendation(now,model);
+        node.title=recommendation?'Лучше сейчас: '+recommendation:'';
+        const advice=document.getElementById('dianaRhythmAdvice');
+        if(advice){
+          advice.textContent=recommendation?'Лучше сейчас: '+recommendation:'';
+          advice.hidden=!recommendation;
+        }
       }
 
       function rustamWorkState(now=new Date()){
@@ -4732,7 +4737,7 @@
 
         const rhythmAdvice=document.createElement('div');
         rhythmAdvice.id='rustamRhythmAdvice';
-        rhythmAdvice.className='rustam-rhythm-advice';
+        rhythmAdvice.className='rhythm-advice rustam-rhythm-advice';
         rhythmAdvice.style.setProperty('color','#eef2ff','important');
         rhythmAdvice.style.setProperty('-webkit-text-fill-color','#eef2ff','important');
         rhythmAdvice.style.setProperty('opacity','1','important');
@@ -4741,6 +4746,17 @@
         rhythmAdvice.textContent=currentRecommendation?'Лучше сейчас: '+currentRecommendation:'';
         rhythmAdvice.hidden=!currentRecommendation;
         rustamCard.details.appendChild(rhythmAdvice);
+
+        const dianaRhythmAdvice=document.createElement('div');
+        dianaRhythmAdvice.id='dianaRhythmAdvice';
+        dianaRhythmAdvice.className='rhythm-advice diana-rhythm-advice';
+        dianaRhythmAdvice.style.setProperty('color','#eef2ff','important');
+        dianaRhythmAdvice.style.setProperty('-webkit-text-fill-color','#eef2ff','important');
+        dianaRhythmAdvice.style.setProperty('opacity','1','important');
+        const dianaRecommendation=dianaRhythmRecommendation(new Date(),dianaRhythmCycleModel);
+        dianaRhythmAdvice.textContent=dianaRecommendation?'Лучше сейчас: '+dianaRecommendation:'';
+        dianaRhythmAdvice.hidden=!dianaRecommendation;
+        dianaCard.details.appendChild(dianaRhythmAdvice);
 
         const makeSupplementIntakeBlock=(actor)=>{
           const block=document.createElement('article');

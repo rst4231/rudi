@@ -5813,7 +5813,7 @@ html[data-theme="dark"] .profile-person-card .profile-work-status.is-off{color:#
   display:grid;
   gap:8px;
 }
-.profile-rustam-card .rustam-rhythm-advice{
+.profile-person-card .rhythm-advice{
   padding:8px 10px;
   border:1px solid rgba(137,151,255,.14);
   border-radius:12px;
