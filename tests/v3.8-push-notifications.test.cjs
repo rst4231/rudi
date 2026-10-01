@@ -49,7 +49,8 @@ test('service worker receives pushes and deep-links notification clicks',()=>{
   assert.match(sw,/addEventListener\('push'/);
   assert.match(sw,/rudiAction=push-pending/);
   assert.match(sw,/addEventListener\('notificationclick'/);
-  assert.match(sw,/client\.navigate\(target\)/);
+  assert.match(sw,/client\.postMessage\(\{type:'RUDI_PUSH_NAVIGATE',url:rawUrl\}\)/);
+  assert.doesNotMatch(sw,/client\.navigate\(target\)/);
 });
 
 test('app registers device push subscription and keeps home deep links',()=>{
@@ -75,7 +76,7 @@ test('all requested personal alerts use app push routes',()=>{
   assert.match(api,/title: '🐾 Прогулка с Лулу'[\s\S]*?url: '\/\?item=lulu'/);
   assert.match(api,/title: '🎁 Новое в вишлисте'[\s\S]*?url: '\/\?tab=wishlist'/);
   assert.match(api,/title:'💬 Ответ на вопрос дня'[\s\S]*?url:'\/\?item=daily-question'/);
-  assert.match(api,/title:'Новое сообщение от '\+actor[\s\S]*?url:'\/\?tab=messenger&fresh=1'/);
+  assert.match(api,/title:actor==='Диана'\?'Диана прислала сообщение':'Рустам прислал сообщение'[\s\S]*?url:'\/\?tab=messenger&fresh=1'/);
   assert.match(api,/title:'⭐ Подарок звёзд'[\s\S]*?url:'\/\?tab=score&item='/);
   assert.match(lulu,/title: '🐾 Лулу хочет в туалет'[\s\S]*?url: '\/\?item=lulu'/);
   assert.match(fasting,/title: '⏱ Цель голодания достигнута'[\s\S]*?url: '\/\?tab=fasting'/);
