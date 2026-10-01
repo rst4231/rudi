@@ -610,7 +610,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
   const activity = journal ? {
     initialized: Boolean(journal.initialized),
     version: Math.max(0, Number(journal.version || 0)),
-    items: (Array.isArray(journal.items) ? journal.items : []).slice(0, 10),
+    items: activityItemsForActor(journal.items, actor).slice(0, 10),
     lulu: lulu || null,
     score: score ? {
       initialized: Boolean(score.initialized),
@@ -664,6 +664,14 @@ async function recordActivity(input, options = {}) {
     console.warn('RUDI_ACTIVITY_JOURNAL_WARN', String(error?.message || error));
     return null;
   }
+}
+
+function activityItemsForActor(items, actor) {
+  const viewer = actor === 'Диана' ? 'Диана' : 'Рустам';
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    if (String(item?.type || '') !== 'fasting-stop') return true;
+    return String(item?.actor || '') !== viewer;
+  });
 }
 
 function fastingDurationDetail(durationMinutes) {
@@ -2594,7 +2602,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
       const [journal,lulu,scoreState]=await Promise.all([readActivityJournal(options),readLuluState(options),readScoreState(options)]);
-      return res.status(200).json({ok:true,actor,...journal,lulu,score:scoreView(scoreState,{now:options.now||Date.now()})});
+      const visibleJournal={...journal,items:activityItemsForActor(journal?.items,actor)};
+      return res.status(200).json({ok:true,actor,...visibleJournal,lulu,score:scoreView(scoreState,{now:options.now||Date.now()})});
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -3757,6 +3766,7 @@ module.exports.checklistCompletedNotificationText = checklistCompletedNotificati
 module.exports.luluWalkStatusLabel = luluWalkStatusLabel;
 module.exports.luluWalkNotificationText = luluWalkNotificationText;
 module.exports.sendLuluWalkNotificationToPartner = sendLuluWalkNotificationToPartner;
+module.exports.activityItemsForActor = activityItemsForActor;
 module.exports.feedPreviewBaseUrl = feedPreviewBaseUrl;
 module.exports.refreshFeedFromPreviewIfNeeded = refreshFeedFromPreviewIfNeeded;
 
