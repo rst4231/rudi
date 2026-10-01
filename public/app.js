@@ -1897,14 +1897,21 @@
           lulu:'#homeLuluTile',
           'daily-question':'#dailyQuestionTile',
           'smart-home':'#smartHomeTile',
+          priority:'[data-home-tile="priority"]',
           rustam:'#homeRustamTile',
           diana:'#homeDianaTile'
+        };
+        const scheduleSelectors={
+          cycle:'#dianaCycleCard'
         };
 
         const tryFocus=(attempt=0)=>{
           let target=null;
           if(tab==='home'){
             const selector=homeSelectors[id];
+            if(selector) target=document.querySelector(selector);
+          }else if(tab==='schedule'){
+            const selector=scheduleSelectors[id];
             if(selector) target=document.querySelector(selector);
           }else if(['wishlist','products','dates','for-di','smart-saves'].includes(tab)){
             target=[...document.querySelectorAll('[data-rudi-item-id]')]
@@ -1949,7 +1956,7 @@
             .finally(()=>clearRouteFreshFlag());
         }
         if(tab==='feed') loadFeed({silent:true});
-        if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
+        if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true}).finally(()=>focusDeepLinkedItem('schedule',item));
         if(tab==='products'){
           loadProducts({silent:true}).finally(()=>focusDeepLinkedItem('products',item));
           Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('products',item));
