@@ -8,12 +8,12 @@ const sw=fs.readFileSync('public/sw.js','utf8');
 const css=fs.readFileSync('public/messenger.css','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 
-test('messenger v3.22 overlay stays outside transformed app shell',()=>{
+test('messenger overlay stays outside transformed app shell',()=>{
   assert.match(client,/function mountMessengerOverlay\(\)[\s\S]*?document\.body\.appendChild\(page\)/);
   assert.match(css,/\.messenger-page\{[\s\S]*?position:fixed;[\s\S]*?z-index:4400/);
 });
 
-test('messenger v3.22 refreshes open chat automatically without status noise',()=>{
+test('messenger refreshes open chat automatically without status noise',()=>{
   assert.doesNotMatch(client,/Обновляю…/);
   assert.match(client,/function syncLiveMessages\(\)/);
   assert.match(client,/setInterval\(syncLiveMessages,2200\)/);
@@ -29,11 +29,13 @@ test('messenger push is an additional immediate live-refresh trigger',()=>{
   assert.match(client,/else\{[\s\S]*?syncUnread\(\)/);
 });
 
-test('messenger v3.22 assets and PWA shell are cache-busted',()=>{
-  assert.match(html,/messenger\.js\?v=3\.22/);
-  assert.match(html,/messenger\.css\?v=3\.22/);
-  assert.match(html,/meta name="rudi-version" content="v3\.20"/);
-  assert.match(sw,/rudi-shell-v3\.22/);
+test('messenger assets and PWA shell are cache-busted to current version',()=>{
+  const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.replace(/^v/,'');
+  const escaped=version.replace(/\./g,'\\.');
+  assert.match(html,new RegExp('messenger\\.js\\?v='+escaped));
+  assert.match(html,new RegExp('messenger\\.css\\?v='+escaped));
+  assert.match(html,new RegExp('meta name="rudi-version" content="v'+escaped+'"'));
+  assert.match(sw,new RegExp('rudi-shell-v'+escaped));
 });
 
 test('messenger header uses compact partner status instead of 24-hour security copy',()=>{
@@ -45,10 +47,11 @@ test('messenger header uses compact partner status instead of 24-hour security c
   assert.doesNotMatch(html,/Защищённый чат · сообщения живут 24 часа/);
 });
 
-test('long press on own message reveals delete and server enforces sender ownership',()=>{
-  assert.match(client,/function bindLongPressDelete\(article,row,button\)/);
-  assert.match(client,/row\.sender!==state\.actor/);
-  assert.match(client,/remove\.textContent='Удалить'/);
+test('long press opens unified context actions and server enforces delete ownership',()=>{
+  assert.match(client,/function bindLongPressContext\(article,row,payload\)/);
+  assert.match(client,/\['Ответить',\(\)=>setReply\(row,payload\)\]/);
+  assert.match(client,/\['Редактировать',\(\)=>startMessageEdit\(row,payload\)\]/);
+  assert.match(client,/\['Удалить',\(\)=>deleteOwnMessage\(row\),'is-danger'\]/);
   assert.match(client,/api\('messenger-delete',\{id:row\.id\}\)/);
   assert.match(server,/action === 'messenger-delete'/);
   assert.match(server,/deleteMessengerMessage\(actor,body\.id,options\)/);
@@ -56,16 +59,16 @@ test('long press on own message reveals delete and server enforces sender owners
 
 test('right-to-left swipe replies to a message',()=>{
   assert.match(client,/function bindSwipeReply\(article,row,payload\)/);
-  assert.match(client,/if\(dx<-55&&Math\.abs\(dy\)<38\)/);
+  assert.match(client,/if\(dx>55&&Math\.abs\(dy\)<38\)/);
   assert.match(client,/setReply\(row,payload\)/);
 });
 
-test('double tap likes and triple tap edits own message after gesture delay',()=>{
+test('double tap hearts and triple tap edits own message after gesture delay',()=>{
   assert.match(client,/function bindMessageTapGestures\(article,row,payload\)/);
-  assert.match(client,/if\(count>=3\)/);
-  assert.match(client,/row\.sender===state\.actor\) startMessageEdit\(row,payload\)/);
-  assert.match(client,/if\(count===2\) toggleMessageLike\(row\)/);
-  assert.match(client,/\},340\)/);
+  assert.match(client,/count>=3&&row\.sender===state\.actor/);
+  assert.match(client,/startMessageEdit\(row,payload\)/);
+  assert.match(client,/if\(count===2\) setMessageReaction\(row,'❤️'\)/);
+  assert.match(client,/\},320\)/);
 });
 
 test('typing indicator is shared through short-lived server presence',()=>{
@@ -113,5 +116,5 @@ test('messenger keeps shared-v2 encryption and natural push sender wording',()=>
   assert.match(client,/scheme:'shared-v2'/);
   assert.match(server,/Диана прислала сообщение/);
   assert.match(server,/Рустам прислал сообщение/);
-  assert.match(server,/url:'\/\?tab=messenger&fresh=1'/);
+  assert.match(server,/url:'\/\?tab=messenger&message='/);
 });
