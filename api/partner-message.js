@@ -103,7 +103,7 @@ const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
-const { publicApplicationServerKey, savePushSubscription, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
+const { publicApplicationServerKey, savePushSubscription, resolvePushActor, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
 const CYCLE_BOOTSTRAP_HASH = '12818afbe0d73e63efcf5ab9f181ff8e6b9d48cdbcaf126bddeadac611818de5';
@@ -1768,7 +1768,17 @@ async function handleRudiAction(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const { actor }=authorizeRequest(req,body.initData,options);
+      let actor='';
+      if(action==='push-pending'){
+        actor=await resolvePushActor(body.endpoint,body.deviceToken,options);
+        if(!actor){
+          try{ actor=authorizeRequest(req,body.initData,options).actor; }catch(_){}
+        }
+        if(!actor) return res.status(401).json({ok:false,error:'push-device-unauthorized'});
+      }else{
+        actor=authorizeRequest(req,body.initData,options).actor;
+      }
+
       if(action==='push-config'){
         return res.status(200).json({ok:true,actor,publicKey:publicApplicationServerKey(options)});
       }
@@ -1776,6 +1786,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const subscription=await savePushSubscription(actor,body.subscription,{
           ...options,
           userAgent:String(req.headers?.['user-agent']||''),
+          deviceToken:String(body.deviceToken||''),
         });
         return res.status(200).json({ok:true,actor,subscription:{id:subscription.id,updatedAt:subscription.updatedAt}});
       }
@@ -1791,7 +1802,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({ok:true,actor,notifications});
     } catch (error) {
       const code=String(error?.message||error);
-      const status=code==='push-subscription-invalid'?400:statusForError(error);
+      const status=['push-subscription-invalid','push-device-token-required'].includes(code)?400:statusForError(error);
       return res.status(status).json({ok:false,error:code});
     }
   }
