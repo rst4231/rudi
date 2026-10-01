@@ -11540,7 +11540,7 @@ html[data-theme="light"] .profile-person-card #fastingProfileButton{
   isolation:isolate;
   min-height:92px;
   padding:14px 14px 15px;
-  margin:-7px -8px 1px;
+  margin:-7px -8px -8px;
   overflow:visible;
   border:1px solid rgba(255,255,255,.34);
   border-radius:20px;

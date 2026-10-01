@@ -3455,22 +3455,24 @@
       }
 
       function activityNotificationsHaveUnread(){
-        const latest=homeDashboardState.activity?.[0];
+        const items=Array.isArray(homeDashboardState.activity)?homeDashboardState.activity:[];
+        const partnerActor=currentActor==='Диана'?'Рустам':'Диана';
+        const latest=items.find(item=>String(item?.actor||'').trim()===partnerActor);
         const latestId=String(latest?.id||'').trim();
         if(!latestId) return false;
+
         const seen=currentActivitySeenMarker();
         if(!seen.id) return true;
         if(latestId===seen.id) return false;
 
         const latestAt=Date.parse(String(latest?.createdAt||''))||0;
-        if(seen.at&&latestAt){
-          if(latestAt!==seen.at) return latestAt>seen.at;
-          return Math.max(0,Number(homeDashboardState.activityVersion||0))>seen.version;
-        }
+        if(seen.at&&latestAt) return latestAt>seen.at;
 
-        const items=Array.isArray(homeDashboardState.activity)?homeDashboardState.activity:[];
+        const latestIndex=items.findIndex(item=>String(item?.id||'')===latestId);
         const seenIndex=items.findIndex(item=>String(item?.id||'')===seen.id);
-        return seenIndex>0;
+        if(latestIndex<0) return false;
+        if(seenIndex<0) return true;
+        return latestIndex<seenIndex;
       }
 
       function updateActivityNotificationBadge(){
