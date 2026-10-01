@@ -20,16 +20,16 @@ test('v3.24 shows reactions directly in context menu',()=>{
   assert.doesNotMatch(client,/\['Реакция',\(\)=>showReactionPicker/);
 });
 
-test('double tap uses delegated pointer events and only toggles heart',()=>{
+test('double tap uses delegated pointerdown and only toggles heart',()=>{
   assert.match(client,/messages\.addEventListener\('pointerdown'/);
-  assert.match(client,/messages\.addEventListener\('pointerup'/);
   assert.match(client,/state\.tapMessageId===id&&now-state\.tapAt<=460/);
   assert.match(client,/setMessageReaction\(row,'❤️'\)/);
   assert.doesNotMatch(client,/count>=3/);
 });
 
-test('tapping a reaction toggles it and reaction shows actor avatars',()=>{
-  assert.match(client,/reaction\.addEventListener\('pointerup',activateReaction\)/);
+test('tapping a reaction is delegated on pointerdown and shows actor avatars',()=>{
+  assert.match(client,/page\.addEventListener\('pointerdown',event=>\{/);
+  assert.match(client,/\[data-messenger-reaction\]\[data-message-id\]/);
   assert.match(client,/setMessageReaction\(row,emoji\)/);
   assert.match(client,/function appendReactionAvatars\(container,actors\)/);
   assert.match(client,/appendReactionAvatars\(reaction,actors\)/);
