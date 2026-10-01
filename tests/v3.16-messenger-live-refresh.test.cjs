@@ -107,3 +107,9 @@ test('messenger v3.18 assets and shell are cache-busted',()=>{
   assert.match(html,/meta name="rudi-version" content="v3\.18"/);
   assert.match(sw,/rudi-shell-v3\.18/);
 });
+
+test('messenger v3.18 push title uses natural sender wording',()=>{
+  assert.match(server,/Диана прислала сообщение/);
+  assert.match(server,/Рустам прислал сообщение/);
+  assert.doesNotMatch(server,/Новое сообщение от '\+actor/);
+});
