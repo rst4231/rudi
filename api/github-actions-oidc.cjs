@@ -46,7 +46,10 @@ async function verifyGitHubActionsToken(token, options = {}) {
   if (payload.iss !== ISSUER || !audienceMatches(payload.aud, expectedAudience)) return null;
   if (payload.repository !== REPOSITORY || payload.ref !== 'refs/heads/main') return null;
   if (!['schedule', 'workflow_dispatch'].includes(String(payload.event_name || ''))) return null;
-  if (String(payload.workflow_ref || '') !== expectedWorkflowRef) return null;
+  const workflowClaims=[payload.workflow_ref,payload.job_workflow_ref]
+    .map((value)=>String(value||'').trim())
+    .filter(Boolean);
+  if (workflowClaims.length && !workflowClaims.includes(expectedWorkflowRef)) return null;
   if (!Number.isFinite(Number(payload.exp)) || Number(payload.exp) < nowSeconds - 5) return null;
   if (Number.isFinite(Number(payload.nbf)) && Number(payload.nbf) > nowSeconds + 30) return null;
   if (Number.isFinite(Number(payload.iat)) && Number(payload.iat) > nowSeconds + 60) return null;
