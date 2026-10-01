@@ -35,14 +35,14 @@ test('messenger refreshes immediately for messenger push',()=>{
   assert.match(client,/else\{[\s\S]*?syncUnread\(\)/);
 });
 
-test('messenger v3.18 assets and PWA shell are cache-busted',()=>{
+test('messenger v3.19 assets and PWA shell are cache-busted',()=>{
   assert.match(html,/messenger\.js\?v=3\.17/);
   assert.match(html,/messenger\.css\?v=3\.17/);
   assert.match(html,/meta name="rudi-version" content="v3\.17"/);
   assert.match(sw,/rudi-shell-v3\.17/);
 });
 
-test('messenger v3.18 uses compact separated header and partner avatar',()=>{
+test('messenger v3.19 uses compact separated header and partner avatar',()=>{
   assert.match(html,/id="messengerBack"[\s\S]*?id="messengerPartnerName"[\s\S]*?id="messengerPartnerAvatar"/);
   assert.match(css,/\.messenger-head\{[\s\S]*?grid-template-columns:40px minmax\(0,1fr\) 40px/);
   assert.doesNotMatch(css,/\.messenger-head\{[^}]*border:/);
@@ -50,19 +50,19 @@ test('messenger v3.18 uses compact separated header and partner avatar',()=>{
   assert.match(client,/partnerProfileImage/);
 });
 
-test('messenger v3.18 replies by long press without permanent reply button',()=>{
+test('messenger v3.19 replies by long press without permanent reply button',()=>{
   assert.match(client,/function bindLongPressReply\(article,row,payload\)/);
   assert.match(client,/setTimeout\(\(\)=>\{[\s\S]*?setReply\(row,payload\)[\s\S]*?\},520\);/);
   assert.doesNotMatch(client,/messenger-reply-button/);
   assert.doesNotMatch(html,/messenger-reply-button/);
 });
 
-test('messenger v3.18 reduces iPhone safe-area spacing',()=>{
+test('messenger v3.19 reduces iPhone safe-area spacing',()=>{
   assert.match(css,/safe-area-inset-top\) - 12px/);
   assert.match(css,/safe-area-inset-bottom\) - 16px/);
 });
 
-test('messenger v3.18 keeps latest message visible while iPhone keyboard resizes viewport',()=>{
+test('messenger v3.19 keeps latest message visible while iPhone keyboard resizes viewport',()=>{
   assert.match(client,/function keepKeyboardAtLatest\(\)/);
   assert.match(client,/input\.addEventListener\('focus',keepKeyboardAtLatest\)/);
   assert.match(client,/input\.addEventListener\('input',[\s\S]*?keepKeyboardAtLatest\(\)/);
@@ -70,7 +70,7 @@ test('messenger v3.18 keeps latest message visible while iPhone keyboard resizes
   assert.match(client,/function scrollMessagesToBottom\(\)/);
 });
 
-test('messenger v3.18 shares encrypted chat across web PWA and Telegram clients',()=>{
+test('messenger v3.19 shares encrypted chat across web PWA and Telegram clients',()=>{
   assert.match(client,/AAD_V2=encoder\.encode\('rudi-messenger-shared-v2'\)/);
   assert.match(client,/conversationKey/);
   assert.match(client,/scheme:'shared-v2'/);
@@ -78,7 +78,7 @@ test('messenger v3.18 shares encrypted chat across web PWA and Telegram clients'
   assert.match(html,/🔒 Защищённый чат · сообщения живут 24 часа/);
 });
 
-test('messenger v3.18 restores full layout after iPhone keyboard closes',()=>{
+test('messenger v3.19 restores full layout after iPhone keyboard closes',()=>{
   assert.match(client,/function restoreMessengerAfterKeyboard\(\)/);
   assert.match(client,/input\.addEventListener\('blur',restoreMessengerAfterKeyboard\)/);
   assert.match(client,/setTimeout\(settle,520\)/);
@@ -86,7 +86,7 @@ test('messenger v3.18 restores full layout after iPhone keyboard closes',()=>{
   assert.match(client,/keyboardLikelyOpen[\s\S]*?Math\.max\(viewportHeight,windowHeight\)/);
 });
 
-test('messenger v3.18 supports like on double tap and edit on triple tap',()=>{
+test('messenger v3.19 supports like on double tap and edit on triple tap',()=>{
   assert.match(client,/function bindMessageTapGestures\(article,row,payload\)/);
   assert.match(client,/if\(taps===2\)[\s\S]*?toggleMessageLike\(row\)/);
   assert.match(client,/if\(taps>=3\)[\s\S]*?startMessageEdit\(row,payload\)/);
@@ -96,28 +96,51 @@ test('messenger v3.18 supports like on double tap and edit on triple tap',()=>{
   assert.match(css,/\.messenger-reaction\{/);
 });
 
-test('messenger v3.18 keeps header below iPhone safe area',()=>{
+test('messenger v3.19 keeps header below iPhone safe area',()=>{
   assert.match(css,/padding:max\(10px,env\(safe-area-inset-top\)\)/);
   assert.match(css,/padding:max\(8px,env\(safe-area-inset-top\)\)/);
 });
 
-test('messenger v3.18 assets and shell are cache-busted',()=>{
+test('messenger v3.19 assets and shell are cache-busted',()=>{
   assert.match(html,/messenger\.js\?v=3\.18/);
   assert.match(html,/messenger\.css\?v=3\.18/);
   assert.match(html,/meta name="rudi-version" content="v3\.18"/);
   assert.match(sw,/rudi-shell-v3\.18/);
 });
 
-test('messenger v3.18 push title uses natural sender wording',()=>{
+test('messenger v3.19 push title uses natural sender wording',()=>{
   assert.match(server,/Диана прислала сообщение/);
   assert.match(server,/Рустам прислал сообщение/);
   assert.doesNotMatch(server,/Новое сообщение от '\+actor/);
 });
 
-test('messenger v3.18 waits before resolving double vs triple tap',()=>{
+test('messenger v3.19 waits before resolving double vs triple tap',()=>{
   assert.match(client,/let gestureTimer=0/);
   assert.match(client,/gestureTimer=setTimeout\(\(\)=>\{/);
   assert.match(client,/if\(count>=3\)/);
   assert.match(client,/if\(count===2\) toggleMessageLike\(row\)/);
   assert.match(client,/\},340\)/);
+});
+
+test('messenger v3.19 uses safe-area and visual viewport edges instead of height hacks',()=>{
+  assert.match(css,/--messenger-safe-top:max\(env\(safe-area-inset-top\),var\(--tg-content-safe-top,0px\),44px\)/);
+  assert.match(css,/top:var\(--messenger-visual-top,0px\)/);
+  assert.match(css,/bottom:var\(--messenger-visual-bottom,0px\)/);
+  assert.doesNotMatch(css,/--messenger-viewport-height/);
+  assert.doesNotMatch(css,/--messenger-viewport-top/);
+  assert.match(client,/--messenger-visual-top/);
+  assert.match(client,/--messenger-visual-bottom/);
+});
+
+test('messenger v3.19 prevents iPhone input focus zoom and resets layout on blur',()=>{
+  assert.match(css,/#messengerInput\{[^}]*font-size:16px/);
+  assert.match(client,/input\.addEventListener\('blur',restoreMessengerAfterKeyboard\)/);
+  assert.match(client,/root\.style\.setProperty\('--messenger-visual-top','0px'\)/);
+  assert.match(client,/root\.style\.setProperty\('--messenger-visual-bottom','0px'\)/);
+  assert.doesNotMatch(client,/document\.getElementById\('messengerInput'\)\?\.focus/);
+});
+
+test('messenger v3.19 keeps header below iPhone and Telegram safe areas',()=>{
+  assert.match(css,/padding:calc\(var\(--messenger-safe-top\) \+ 12px\)/);
+  assert.match(css,/max\(8px,env\(safe-area-inset-bottom\)\)/);
 });
