@@ -114,6 +114,10 @@ function normalizeKeyVersions(value){
   };
 }
 
+function normalizeScheme(value){
+  return String(value||'').trim()==='shared-v2'?'shared-v2':'legacy-v1';
+}
+
 function normalizeMessage(row){
   if(!row||typeof row!=='object') return null;
   const sender=cleanActor(row.sender);
@@ -125,6 +129,7 @@ function normalizeMessage(row){
     return {
       id,
       sender,
+      scheme:normalizeScheme(row.scheme),
       ciphertext:normalizeCiphertext(row.ciphertext),
       iv:normalizeIv(row.iv),
       keyVersions:normalizeKeyVersions(row.keyVersions),
@@ -167,6 +172,7 @@ async function addMessengerMessage(actor,payload,options={}){
     const message={
       id,
       sender,
+      scheme:normalizeScheme(payload?.scheme),
       ciphertext:normalizeCiphertext(payload?.ciphertext),
       iv:normalizeIv(payload?.iv),
       keyVersions:normalizeKeyVersions(payload?.keyVersions),
@@ -183,6 +189,46 @@ async function addMessengerMessage(actor,payload,options={}){
     const live=current.filter(item=>Date.parse(item.expiresAt)>now&&item.id!==id);
     await writeIndex([...live,{id,expiresAt}],options);
     return message;
+  });
+}
+
+async function rekeyMessengerMessages(actor,items,options={}){
+  return enqueueMutation(async()=>{
+    const viewer=cleanActor(actor);
+    if(!viewer) throw new Error('messenger-actor-invalid');
+    const rows=(Array.isArray(items)?items:[]).slice(0,64);
+    if(!rows.length) return {updated:0,messages:[]};
+    const now=Number(options.now||Date.now());
+    let updated=0;
+    const messages=[];
+    for(const item of rows){
+      const id=String(item?.id||'').trim();
+      if(!id) continue;
+      const raw=await cacheOf(options).get('message:'+id).catch(()=>null);
+      const current=normalizeMessage(raw);
+      if(!current||Date.parse(current.expiresAt)<=now) continue;
+      if(current.scheme==='shared-v2'){
+        messages.push(current);
+        continue;
+      }
+      const remainingMs=Date.parse(current.expiresAt)-now;
+      if(remainingMs<=0) continue;
+      const next={
+        ...current,
+        scheme:'shared-v2',
+        ciphertext:normalizeCiphertext(item?.ciphertext),
+        iv:normalizeIv(item?.iv),
+        keyVersions:{'Рустам':0,'Диана':0},
+      };
+      await cacheOf(options).set('message:'+id,next,{
+        ttl:Math.max(1,Math.ceil(remainingMs/1000)),
+        tags:['rudi-messenger-message'],
+        name:'message:'+id,
+      });
+      updated+=1;
+      messages.push(next);
+    }
+    return {updated,messages};
   });
 }
 
@@ -243,6 +289,7 @@ module.exports={
   readMessengerPublicKeys,
   registerMessengerPublicKey,
   addMessengerMessage,
+  rekeyMessengerMessages,
   readMessengerMessages,
   markMessengerRead,
   unreadMessengerCount,
