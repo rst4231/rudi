@@ -75,6 +75,7 @@ const {
   deleteMessengerMessage,
   setMessengerTyping,
   readMessengerTyping,
+  toggleMessengerReaction,
   toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,
@@ -326,7 +327,20 @@ async function sendPartnerMessageNotification(actor, options = {}) {
   }, options);
 }
 
-async function sendMessengerNotificationToPartner(actor, messageId, options = {}) {
+function messengerPushPreview(value){
+  return String(value||'').replace(/\s+/g,' ').trim().slice(0,120);
+}
+
+function messengerAvatarUrl(value){
+  const raw=String(value||'').trim();
+  if(!raw||raw.length>500) return '';
+  try{
+    const url=new URL(raw);
+    return url.protocol==='https:'?url.href:'';
+  }catch(_){return ''}
+}
+
+async function sendMessengerNotificationToPartner(actor, messageId, notification = {}, options = {}) {
   const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
   if (!recipientActor) return { sent:false, reason:'actor-invalid' };
   const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
@@ -335,12 +349,15 @@ async function sendMessengerNotificationToPartner(actor, messageId, options = {}
     return { sent:false, recipient:recipientActor, reason:'disabled' };
   }
   const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+  const preview=messengerPushPreview(notification?.preview);
+  const avatarUrl=messengerAvatarUrl(notification?.avatarUrl);
+  const id=String(messageId||'').trim();
   const result=await sendPush(recipientActor,{
     title:actor==='Диана'?'Диана прислала сообщение':'Рустам прислал сообщение',
-    body:'',
+    body:preview||'Новое сообщение',
     tag:'rudi-messenger',
-    url:'/?tab=messenger&fresh=1',
-    data:{messageId:String(messageId||'')},
+    url:'/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1',
+    ...(avatarUrl?{icon:avatarUrl}:{}),
   },options);
   return {...result,recipient:recipientActor};
 }
@@ -1966,14 +1983,21 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await addMessengerMessage(actor,{
+        clientId:body.clientId,
         scheme:body.scheme,
         ciphertext:body.ciphertext,
         iv:body.iv,
         keyVersions:body.keyVersions,
       },options);
-      const notificationTask=sendMessengerNotificationToPartner(actor,message.id,options).catch(error=>({
-        sent:false,error:String(error?.message||error)
-      }));
+      const deduplicated=message?.deduplicated===true;
+      const notificationTask=deduplicated
+        ?Promise.resolve({sent:false,reason:'duplicate'})
+        :sendMessengerNotificationToPartner(actor,message.id,{
+          preview:body.preview,
+          avatarUrl:body.avatarUrl,
+        },options).catch(error=>({
+          sent:false,error:String(error?.message||error)
+        }));
       try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
       const messages=await readMessengerMessages(options);
       return res.status(200).json({
@@ -2030,6 +2054,20 @@ async function handleRudiAction(req, res, action, options = {}) {
         iv:body.iv,
         keyVersions:body.keyVersions,
       },options);
+      return res.status(200).json({ok:true,actor,message});
+    } catch (error) {
+      const code=String(error?.message||error);
+      const status=code.startsWith('messenger-')?400:statusForError(error);
+      return res.status(status).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-reaction') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const message=await toggleMessengerReaction(actor,body.id,body.reaction,options);
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
       const code=String(error?.message||error);
