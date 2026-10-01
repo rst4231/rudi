@@ -11,6 +11,8 @@ const {
   dailyQuestionAnswerNotificationText,
   sendDailyQuestionAnswerNotification,
   checklistCompletedNotificationText,
+  sendChecklistCompletedNotificationToPartner,
+  sendCycleStartNotificationToRustam,
   luluWalkStatusLabel,
   luluWalkNotificationText,
   sendLuluWalkNotificationToPartner,
@@ -179,31 +181,58 @@ test('daily question answer notification goes only to the other partner in both 
 });
 
 
-test('completed shared task notification goes only to the other partner in both directions',async()=>{
+test('completed shared task push goes only to the other partner in both directions',async()=>{
   const calls=[];
-  const fetchImpl=async(_url,init)=>{
-    calls.push(JSON.parse(init.body));
-    return new Response(JSON.stringify({ok:true,result:{message_id:600+calls.length}}),{
-      status:200,headers:{'content-type':'application/json'}
-    });
+  const sendPushNotificationImpl=async(actor,payload)=>{
+    calls.push({actor,payload});
+    return {sent:true,delivered:1};
   };
 
-  const fromRustam=await sendTaskCompletedNotificationToPartner('Рустам','Купить продукты',{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
-  });
+  const fromRustam=await sendTaskCompletedNotificationToPartner('Рустам','Купить продукты',{sendPushNotificationImpl});
   assert.equal(fromRustam.sent,true);
   assert.equal(fromRustam.recipient,'Диана');
   assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,222);
-  assert.match(calls[0].text,/Рустам выполнил задачу/);
+  assert.equal(calls[0].actor,'Диана');
+  assert.equal(calls[0].payload.title,'✅ Партнёр выполнил совместную задачу');
+  assert.equal(calls[0].payload.url,'/?item=priority');
+  assert.match(calls[0].payload.body,/Рустам выполнил/);
 
   calls.length=0;
-  const fromDiana=await sendTaskCompletedNotificationToPartner('Диана','Убраться дома',{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
-  });
+  const fromDiana=await sendTaskCompletedNotificationToPartner('Диана','Убраться дома',{sendPushNotificationImpl});
   assert.equal(fromDiana.sent,true);
   assert.equal(fromDiana.recipient,'Рустам');
+  assert.equal(calls[0].actor,'Рустам');
+  assert.match(calls[0].payload.body,/Диана выполнила/);
+});
+
+test('completed checklist item uses partner-only app push',async()=>{
+  const calls=[];
+  const sendPushNotificationImpl=async(actor,payload)=>{
+    calls.push({actor,payload});
+    return {sent:true,delivered:1};
+  };
+  const result=await sendChecklistCompletedNotificationToPartner(
+    'Диана','Купить мясо','Шашлыки',{sendPushNotificationImpl}
+  );
+  assert.equal(result.sent,true);
+  assert.equal(result.recipient,'Рустам');
   assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,111);
-  assert.match(calls[0].text,/Диана выполнила задачу/);
+  assert.equal(calls[0].actor,'Рустам');
+  assert.equal(calls[0].payload.title,'☑️ Выполнен пункт внутри совместной задачи');
+  assert.equal(calls[0].payload.url,'/?item=priority');
+  assert.match(calls[0].payload.body,/Купить мясо/);
+});
+
+test('cycle start is an app push to Rustam only',async()=>{
+  const calls=[];
+  const sendPushNotificationImpl=async(actor,payload)=>{
+    calls.push({actor,payload});
+    return {sent:true,delivered:1};
+  };
+  const result=await sendCycleStartNotificationToRustam({sendPushNotificationImpl});
+  assert.equal(result.sent,true);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].actor,'Рустам');
+  assert.equal(calls[0].payload.title,'🩸 Диана отметила начало месячных');
+  assert.equal(calls[0].payload.url,'/?tab=schedule&item=cycle');
 });
