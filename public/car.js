@@ -729,8 +729,10 @@
 
     const years=Math.floor(totalMonths/12);
     const months=totalMonths%12;
-    return years+' '+russianCount(years,'год','года','лет')
-      +' '+months+' '+russianCount(months,'месяц','месяца','месяцев');
+    const yearsLabel=years+' '+russianCount(years,'год','года','лет');
+    if(months===0) return yearsLabel;
+    if(years===0) return months+' '+russianCount(months,'месяц','месяца','месяцев');
+    return yearsLabel+' '+months+' '+russianCount(months,'месяц','месяца','месяцев');
   }
 
   function renderCarAge(){
