@@ -35,9 +35,29 @@ test('messenger refreshes immediately for messenger push',()=>{
   assert.match(client,/else\{[\s\S]*?syncUnread\(\)/);
 });
 
-test('messenger v3.16 assets and PWA shell are cache-busted',()=>{
-  assert.match(html,/messenger\.js\?v=3\.16/);
-  assert.match(html,/messenger\.css\?v=3\.16/);
-  assert.match(html,/meta name="rudi-version" content="v3\.16"/);
-  assert.match(sw,/rudi-shell-v3\.16/);
+test('messenger v3.17 assets and PWA shell are cache-busted',()=>{
+  assert.match(html,/messenger\.js\?v=3\.17/);
+  assert.match(html,/messenger\.css\?v=3\.17/);
+  assert.match(html,/meta name="rudi-version" content="v3\.17"/);
+  assert.match(sw,/rudi-shell-v3\.17/);
+});
+
+test('messenger v3.17 uses compact separated header and partner avatar',()=>{
+  assert.match(html,/id="messengerBack"[\s\S]*?id="messengerPartnerName"[\s\S]*?id="messengerPartnerAvatar"/);
+  assert.match(css,/\.messenger-head\{[\s\S]*?grid-template-columns:40px minmax\(0,1fr\) 40px/);
+  assert.doesNotMatch(css,/\.messenger-head\{[\s\S]*?border:1px solid[\s\S]*?backdrop-filter/);
+  assert.match(client,/function syncHeaderAvatar\(\)/);
+  assert.match(client,/partnerProfileImage/);
+});
+
+test('messenger v3.17 replies by long press without permanent reply button',()=>{
+  assert.match(client,/function bindLongPressReply\(article,row,payload\)/);
+  assert.match(client,/setTimeout\(\(\)=>\{[\s\S]*?setReply\(row,payload\)[\s\S]*?\},520\)/);
+  assert.doesNotMatch(client,/messenger-reply-button/);
+  assert.doesNotMatch(html,/messenger-reply-button/);
+});
+
+test('messenger v3.17 reduces iPhone safe-area spacing',()=>{
+  assert.match(css,/safe-area-inset-top\) - 12px/);
+  assert.match(css,/safe-area-inset-bottom\) - 16px/);
 });
