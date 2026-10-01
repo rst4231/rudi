@@ -41,9 +41,9 @@ function isYouTubeShortUrl(raw){
 }
 function hasExplicitEventEvidence(text){
   const value=String(text||'');
-  if(/\b(?:концерт|выставк\w*|спектакл\w*|фестивал\w*|экскурси\w*|лекци\w*|премьер\w*|афиш\w*|билет\w*|сеанс\w*|мероприят\w*)\b/iu.test(value))return true;
-  return /\b(?:театр|музей|филармони)\w*\b/iu.test(value)
-    && /(?:\b\d{1,2}[.\/-]\d{1,2}(?:[.\/-]\d{2,4})?\b|\b\d{1,2}\s+(?:январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)\w*\b|\b(?:сегодня|завтра)\b)/iu.test(value);
+  if(/(?:концерт|выставк\p{L}*|спектакл\p{L}*|фестивал\p{L}*|экскурси\p{L}*|лекци\p{L}*|премьер\p{L}*|афиш\p{L}*|билет\p{L}*|сеанс\p{L}*|мероприят\p{L}*)/iu.test(value))return true;
+  return /(?:театр|музей|филармони)\p{L}*/iu.test(value)
+    && /(?:\d{1,2}[.\/-]\d{1,2}(?:[.\/-]\d{2,4})?|\d{1,2}\s+(?:январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)\p{L}*|(?:сегодня|завтра))/iu.test(value);
 }
 function postProcessSmartSaveClassification(input,result){
   const next={...(result||{})};

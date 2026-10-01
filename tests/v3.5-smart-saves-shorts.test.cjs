@@ -17,3 +17,10 @@ test('Short about an explicit concert may remain an event',()=>{
   },{category:'Культурные мероприятия',title:'Концерт',description:'10 октября'});
   assert.equal(result.category,'Культурные мероприятия');
 });
+
+
+test('Russian event words are recognized without ASCII word-boundary bugs',()=>{
+  const {hasExplicitEventEvidence}=require('../api/smart-saves-ai.cjs');
+  assert.equal(hasExplicitEventEvidence('Концерт 10 октября, билеты уже в продаже'),true);
+  assert.equal(hasExplicitEventEvidence('Короткое видео. Возможно, культурный контент.'),false);
+});
