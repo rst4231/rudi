@@ -406,31 +406,23 @@
   function bindMessageTapGestures(article,row,payload){
     if(!article||!row||!payload) return;
     let taps=0;
-    let resetTimer=0;
-    let likeTimer=0;
+    let gestureTimer=0;
     article.addEventListener('click',event=>{
       if(event.target.closest('a,button,input,textarea')) return;
       const longPressedAt=Number(article.dataset.longPressedAt||0);
       if(longPressedAt&&Date.now()-longPressedAt<700) return;
       taps+=1;
-      clearTimeout(resetTimer);
-      resetTimer=setTimeout(()=>{taps=0},520);
-      if(taps===2){
-        clearTimeout(likeTimer);
-        likeTimer=setTimeout(()=>{
-          if(taps===2) toggleMessageLike(row);
-          taps=0;
-        },260);
-        return;
-      }
-      if(taps>=3){
-        clearTimeout(likeTimer);
-        clearTimeout(resetTimer);
-        const own=row.sender===state.actor;
-        if(own) startMessageEdit(row,payload);
-        else toggleMessageLike(row);
+      clearTimeout(gestureTimer);
+      gestureTimer=setTimeout(()=>{
+        const count=taps;
         taps=0;
-      }
+        if(count>=3){
+          if(row.sender===state.actor) startMessageEdit(row,payload);
+          else toggleMessageLike(row);
+          return;
+        }
+        if(count===2) toggleMessageLike(row);
+      },340);
     });
   }
 
