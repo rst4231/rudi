@@ -35,6 +35,7 @@
     nearBottom:true,
     readTimer:0,
     retrying:false,
+    keyboardStickToBottom:true,
   };
 
   function telegramInitData(){
@@ -598,13 +599,13 @@
   }
 
   function keepKeyboardAtLatest(){
-    if(document.body.dataset.appTab!=='messenger') return;
+    if(document.body.dataset.appTab!=='messenger'||!state.keyboardStickToBottom) return;
     const input=document.getElementById('messengerInput');
     if(document.activeElement!==input) return;
     scrollMessagesToBottom();
-    setTimeout(scrollMessagesToBottom,70);
-    setTimeout(scrollMessagesToBottom,180);
-    setTimeout(scrollMessagesToBottom,360);
+    setTimeout(()=>{if(state.keyboardStickToBottom)scrollMessagesToBottom()},70);
+    setTimeout(()=>{if(state.keyboardStickToBottom)scrollMessagesToBottom()},180);
+    setTimeout(()=>{if(state.keyboardStickToBottom)scrollMessagesToBottom()},360);
   }
 
   function restoreMessengerAfterKeyboard(){
@@ -613,10 +614,9 @@
     root.style.setProperty('--messenger-visual-top','0px');
     root.style.setProperty('--messenger-visual-height','100dvh');
     document.getElementById('messengerPage')?.classList.remove('is-keyboard-open');
-    scrollMessagesToBottom();
     const settle=()=>{
       syncMessengerViewport();
-      scrollMessagesToBottom();
+      if(state.keyboardStickToBottom) scrollMessagesToBottom();
     };
     setTimeout(settle,60);
     setTimeout(settle,160);
@@ -1405,6 +1405,7 @@
     if(input&&input.dataset.bound!=='1'){
       input.dataset.bound='1';
       input.addEventListener('focus',()=>{
+        state.keyboardStickToBottom=isMessagesNearBottom();
         state.layoutViewportHeight=Math.max(
           320,
           Number(state.layoutViewportHeight||0),
