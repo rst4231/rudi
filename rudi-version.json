@@ -1,7 +1,7 @@
 {
   "current": "v3.5",
   "versionBranch": "main",
-  "releaseCommit": null,
+  "releaseCommit": "d8b5a4a652ad5bafac64c724fae0e0c821a54920",
   "createdAt": "2026-10-01",
   "basedOnProduction": "f2abcb60d614b39c4c99f5d646e965484e72c918",
   "notes": [
