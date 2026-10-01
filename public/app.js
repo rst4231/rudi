@@ -4885,6 +4885,7 @@
         profile.after(selfCard.tile,partnerCard.tile,luluTile,nearest);
 
         document.body.dataset.profileSplitReady='1';
+        try{window.dispatchEvent(new CustomEvent('rudi:profile-ready'))}catch(_){}
         syncStaticProfileWorkStatus();
         setupHomeDashboardActions();
         renderHomeDashboard();
