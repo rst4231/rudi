@@ -16,7 +16,6 @@
     rows:[],
     decrypted:new Map(),
     reply:null,
-    refreshTimer:0,
     loading:false,
     initialized:false,
   };
@@ -361,7 +360,7 @@
     state.loading=true;
     const status=document.getElementById('messengerStatus');
     try{
-      if(status){status.hidden=false;status.textContent='Обновляю…'}
+      if(status){status.hidden=true;status.textContent=''}
       await ensureKeys();
       let data=await api('messenger-list');
       state.keys=data.keys||state.keys;
@@ -571,17 +570,14 @@
     }
   }
 
-  function scheduleRefresh(){
-    clearInterval(state.refreshTimer);
-    state.refreshTimer=setInterval(()=>{
-      if(document.visibilityState==='visible'){
-        if(document.body.dataset.appTab==='messenger') load({markRead:true});
-        else syncUnread();
-      }
-    },12000);
+  function mountMessengerOverlay(){
+    const page=document.getElementById('messengerPage');
+    if(page&&page.parentElement!==document.body) document.body.appendChild(page);
+    return page;
   }
 
   async function open({force=false,fromPush=false}={}){
+    mountMessengerOverlay();
     bindPage();
     ensureProfileButton();
     if(force||fromPush||!state.initialized) await load({markRead:true});
@@ -591,6 +587,7 @@
   }
 
   async function initialize(){
+    mountMessengerOverlay();
     bindPage();
     const start=async()=>{
       try{
@@ -598,7 +595,6 @@
         state.initialized=true;
       }catch(_){}
       ensureProfileButton();
-      scheduleRefresh();
       if(document.body.dataset.appTab==='messenger') open({force:true});
     };
     if(document.body.classList.contains('auth-ok')) start();
@@ -626,6 +622,19 @@
   window.visualViewport?.addEventListener?.('resize',syncMessengerViewport);
   window.visualViewport?.addEventListener?.('scroll',syncMessengerViewport);
   window.addEventListener('resize',syncMessengerViewport);
+
+  navigator.serviceWorker?.addEventListener?.('message',event=>{
+    const data=event?.data||{};
+    if(data.type!=='RUDI_PUSH_RECEIVED') return;
+    const tag=String(data.tag||'');
+    const url=String(data.url||'');
+    if(tag!=='rudi-messenger'&&!url.includes('tab=messenger')) return;
+    if(document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger'){
+      load({markRead:true});
+    }else{
+      syncUnread();
+    }
+  });
 
   window.addEventListener('rudi:profile-ready',ensureProfileButton);
   window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')) syncUnread()});
