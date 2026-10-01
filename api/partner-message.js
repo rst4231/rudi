@@ -333,7 +333,7 @@ async function sendMessengerNotificationToPartner(actor, messageId, options = {}
   }
   const sendPush=options.sendPushNotificationImpl||sendPushNotification;
   const result=await sendPush(recipientActor,{
-    title:'Новое сообщение от '+actor,
+    title:actor==='Диана'?'Диана прислала сообщение':'Рустам прислал сообщение',
     body:'',
     tag:'rudi-messenger',
     url:'/?tab=messenger&fresh=1',
