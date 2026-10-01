@@ -427,15 +427,13 @@ async function sendStarGiftNotification(result, options = {}) {
 
 async function sendCycleStartNotificationToRustam(options = {}) {
   try {
-    const recipients=options.recipients||await readRecipients(options);
-    const chatId=Number(recipients?.['Рустам']);
-    if(!Number.isInteger(chatId)||chatId<=0) return {sent:false,reason:'recipient-not-configured'};
-    const result=await telegramSendMessage(
-      chatId,
-      '🩸 <b>Диана отметила начало месячных</b>',
-      {...options,tab:'home',buttonText:'Открыть RUDI'}
-    );
-    return {sent:true,...result};
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    return await sendPush('Рустам',{
+      title:'🩸 Диана отметила начало месячных',
+      body:'Открыть цикл Дианы.',
+      tag:'cycle-start',
+      url:'/?tab=schedule&item=cycle',
+    },options);
   } catch (error) {
     console.warn('RUDI_CYCLE_START_NOTIFICATION_WARN',String(error?.message||error));
     return {sent:false,error:String(error?.message||error)};
@@ -901,15 +899,16 @@ async function sendTaskCompletedNotificationToPartner(actor,title,options={}) {
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   try{
-    const recipients=options.recipients||await readRecipients(options);
-    const chatId=Number(recipients?.[recipient]);
-    if(!Number.isInteger(chatId)||chatId<=0) return {sent:false,recipient,reason:'recipient-not-configured'};
-    const result=await telegramSendMessage(
-      chatId,
-      taskCompletedNotificationText(actor,title),
-      {...options,tab:'schedule',buttonText:'Открыть совместные дела'}
-    );
-    return {sent:true,recipient,...result};
+    const taskTitle=String(title||'Совместное дело').trim();
+    const action=actor==='Диана'?'выполнила':'выполнил';
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result=await sendPush(recipient,{
+      title:'✅ Партнёр выполнил совместную задачу',
+      body:actor+' '+action+': '+taskTitle,
+      tag:'shared-task-complete',
+      url:'/?item=priority',
+    },options);
+    return {...result,recipient};
   }catch(error){
     console.warn('RUDI_TASK_COMPLETE_NOTIFICATION_WARN',String(error?.message||error));
     return {sent:false,recipient,error:String(error?.message||error)};
@@ -920,6 +919,27 @@ function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
   const action = actor === 'Диана' ? 'выполнила пункт' : 'выполнил пункт';
   const parent = String(taskTitle || '').trim();
   return `☑️ <b>${actor} ${action}</b>\n<i>${escapeTelegramHtml(String(itemTitle || 'Пункт задачи').trim())}</i>${parent ? `\nЗадача: <i>${escapeTelegramHtml(parent)}</i>` : ''}`;
+}
+
+async function sendChecklistCompletedNotificationToPartner(actor,itemTitle,taskTitle,options={}) {
+  const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
+  if(!recipient) return {sent:false,reason:'actor-invalid'};
+  try{
+    const item=String(itemTitle||'Пункт задачи').trim();
+    const task=String(taskTitle||'').trim();
+    const action=actor==='Диана'?'выполнила':'выполнил';
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const result=await sendPush(recipient,{
+      title:'☑️ Выполнен пункт внутри совместной задачи',
+      body:actor+' '+action+' пункт: '+item+(task?' · '+task:''),
+      tag:'shared-task-checklist-complete',
+      url:'/?item=priority',
+    },options);
+    return {...result,recipient};
+  }catch(error){
+    console.warn('RUDI_CHECKLIST_COMPLETE_NOTIFICATION_WARN',String(error?.message||error));
+    return {sent:false,recipient,error:String(error?.message||error)};
+  }
 }
 
 const MOOD_NOTICE = {
@@ -1766,9 +1786,10 @@ async function handleTickTick(req, res, action, options = {}) {
 
       const wasCompleted = Number(updated?.previousItem?.status || 0) === 1;
       if (body.completed && !wasCompleted) {
-        await sendActivityNotification(
-          checklistCompletedNotificationText(actor, updated?.item?.title, updated?.task?.title),
-          'schedule',
+        await sendChecklistCompletedNotificationToPartner(
+          actor,
+          updated?.item?.title,
+          updated?.task?.title,
           options
         );
         const itemTitle = String(updated?.item?.title || 'Пункт задачи').trim();
@@ -3884,6 +3905,8 @@ module.exports.sendMoodNotificationToPartner = sendMoodNotificationToPartner;
 module.exports.taskCompletedNotificationText = taskCompletedNotificationText;
 module.exports.sendTaskCompletedNotificationToPartner = sendTaskCompletedNotificationToPartner;
 module.exports.checklistCompletedNotificationText = checklistCompletedNotificationText;
+module.exports.sendChecklistCompletedNotificationToPartner = sendChecklistCompletedNotificationToPartner;
+module.exports.sendCycleStartNotificationToRustam = sendCycleStartNotificationToRustam;
 module.exports.luluWalkStatusLabel = luluWalkStatusLabel;
 module.exports.luluWalkNotificationText = luluWalkNotificationText;
 module.exports.sendLuluWalkNotificationToPartner = sendLuluWalkNotificationToPartner;

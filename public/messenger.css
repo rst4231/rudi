@@ -1,16 +1,26 @@
-/* RUDI v3.14 encrypted messenger */
+/* RUDI v3.15 encrypted messenger */
 .messenger-page{
-  position:relative;
-  min-height:calc(100dvh - 24px);
+  position:fixed;
+  top:var(--messenger-viewport-top,0px);
+  left:0;
+  right:0;
+  bottom:auto;
+  z-index:90;
+  width:100%;
+  height:var(--messenger-viewport-height,100dvh);
+  min-height:0;
+  box-sizing:border-box;
   display:grid;
   grid-template-rows:auto auto minmax(0,1fr) auto;
-  gap:10px;
-  padding:12px 12px calc(16px + env(safe-area-inset-bottom));
+  gap:8px;
+  padding:calc(6px + env(safe-area-inset-top)) 8px calc(6px + env(safe-area-inset-bottom));
+  overflow:hidden;
+  background:var(--bg);
 }
 .messenger-page[hidden]{display:none!important}
 .messenger-head{
-  position:sticky;
-  top:0;
+  grid-row:1;
+  position:relative;
   z-index:3;
   display:grid;
   grid-template-columns:40px minmax(0,1fr) 40px;
@@ -33,6 +43,7 @@
 .messenger-head-copy small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8.5px;line-height:1.2;font-weight:690;color:var(--muted)}
 .messenger-head-spacer{width:36px;height:36px}
 .messenger-status{
+  grid-row:2;
   justify-self:center;
   max-width:92%;
   padding:6px 9px;
@@ -46,8 +57,9 @@
 }
 .messenger-status[hidden]{display:none!important}
 .messenger-messages{
-  min-height:48vh;
-  max-height:calc(100dvh - 230px);
+  grid-row:3;
+  min-height:0;
+  max-height:none;
   overflow:auto;
   display:flex;
   flex-direction:column;
@@ -153,15 +165,18 @@
   opacity:.76;
 }
 .messenger-composer-wrap{
-  position:sticky;
-  bottom:0;
+  grid-row:4;
+  position:relative;
   z-index:4;
   display:grid;
-  gap:6px;
-  padding-top:3px;
-  background:linear-gradient(to bottom,transparent 0,color-mix(in srgb,var(--bg) 94%,transparent) 18px,var(--bg) 100%);
+  grid-template-rows:auto auto auto;
+  gap:5px;
+  min-height:0;
+  padding-top:2px;
+  background:var(--bg);
 }
 .messenger-reply-draft{
+  grid-row:1;
   position:relative;
   display:grid;
   gap:2px;
@@ -179,11 +194,22 @@
   border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:17px
 }
 .messenger-emoji-tray{
+  grid-row:2;
+  align-self:end;
   display:flex;
   align-items:center;
+  flex-wrap:nowrap;
   gap:4px;
-  padding:6px;
-  overflow:auto;
+  width:100%;
+  max-width:100%;
+  height:43px;
+  min-height:43px;
+  box-sizing:border-box;
+  padding:5px 6px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
   border:1px solid var(--line);
   border-radius:13px;
   background:var(--surface);
@@ -196,6 +222,7 @@
   border:0;border-radius:9px;background:var(--soft);font-size:18px;line-height:1
 }
 .messenger-composer{
+  grid-row:3;
   display:grid;
   grid-template-columns:36px minmax(0,1fr) 38px;
   align-items:end;
@@ -278,15 +305,49 @@ html[data-theme="light"] .messenger-profile-button{
 }
 body[data-app-tab="messenger"] #appTabBar,
 body[data-app-tab="messenger"] .footer{display:none!important}
-body[data-app-tab="messenger"] .shell{padding-bottom:0!important}
+body[data-app-tab="messenger"]{
+  overflow:hidden!important;
+  overscroll-behavior:none;
+}
+body[data-app-tab="messenger"] .shell{
+  padding-bottom:0!important;
+  overflow:hidden!important;
+}
 @media(max-width:430px){
-  .messenger-page{padding:8px 8px calc(10px + env(safe-area-inset-bottom));gap:8px}
-  .messenger-head{border-radius:17px}
-  .messenger-messages{max-height:calc(100dvh - 206px)}
-  .messenger-message{width:min(91%,500px)}
+  .messenger-page{
+    gap:6px;
+    padding:calc(4px + env(safe-area-inset-top)) 6px calc(4px + env(safe-area-inset-bottom));
+  }
+  .messenger-head{
+    min-height:44px;
+    padding:6px 8px;
+    border-radius:15px;
+    grid-template-columns:34px minmax(0,1fr) 34px;
+    gap:6px;
+  }
+  .messenger-back,.messenger-head-spacer{width:32px;height:32px}
+  .messenger-head-copy strong{font-size:14px}
+  .messenger-head-copy small{font-size:7.5px}
+  .messenger-messages{
+    min-height:0;
+    max-height:none;
+    padding:4px 1px 8px;
+    gap:5px;
+  }
+  .messenger-message{width:min(94%,500px)}
   .messenger-profile-button{
     flex-basis:27px!important;width:27px!important;height:27px!important;min-width:27px!important;min-height:27px!important;
     border-radius:9px!important
   }
   .messenger-profile-button svg{width:14px;height:14px}
+  .messenger-composer{
+    grid-template-columns:34px minmax(0,1fr) 36px;
+    gap:5px;
+    padding:5px;
+    border-radius:14px;
+  }
+  .messenger-emoji,.messenger-send{width:34px;height:34px;border-radius:10px}
+  #messengerInput{min-height:34px;padding:8px 6px 6px;font-size:12px}
+  .messenger-emoji-tray{height:41px;min-height:41px;padding:4px 5px}
+  .messenger-emoji-tray button{width:31px;height:31px}
 }
