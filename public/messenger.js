@@ -21,6 +21,7 @@
     edit:null,
     loading:false,
     initialized:false,
+    layoutViewportHeight:0,
   };
 
   function telegramInitData(){
@@ -357,11 +358,14 @@
 
   function restoreMessengerAfterKeyboard(){
     if(document.body.dataset.appTab!=='messenger') return;
+    const root=document.documentElement;
+    root.style.setProperty('--messenger-visual-top','0px');
+    root.style.setProperty('--messenger-visual-bottom','0px');
+    scrollMessagesToBottom();
     const settle=()=>{
       syncMessengerViewport();
       scrollMessagesToBottom();
     };
-    settle();
     setTimeout(settle,60);
     setTimeout(settle,160);
     setTimeout(settle,320);
@@ -740,7 +744,16 @@
     }
     if(input&&input.dataset.bound!=='1'){
       input.dataset.bound='1';
-      input.addEventListener('focus',keepKeyboardAtLatest);
+      input.addEventListener('focus',()=>{
+        state.layoutViewportHeight=Math.max(
+          320,
+          Number(state.layoutViewportHeight||0),
+          Number(window.innerHeight||0),
+          Number(document.documentElement?.clientHeight||0)
+        );
+        syncMessengerViewport();
+        keepKeyboardAtLatest();
+      });
       input.addEventListener('blur',restoreMessengerAfterKeyboard);
       input.addEventListener('keydown',event=>{
         if(event.key==='Enter'&&!event.shiftKey){
@@ -808,7 +821,7 @@
     if(force||fromPush||!state.initialized) await load({markRead:true});
     else await load({markRead:true});
     state.initialized=true;
-    document.getElementById('messengerInput')?.focus?.({preventScroll:true});
+    restoreMessengerAfterKeyboard();
   }
 
   async function initialize(){
@@ -837,23 +850,29 @@
 
   function syncMessengerViewport(){
     const viewport=window.visualViewport;
+    const root=document.documentElement;
     const input=document.getElementById('messengerInput');
     const typing=document.activeElement===input;
-    const viewportHeight=Math.round(Number(viewport?.height||0));
-    const windowHeight=Math.round(Number(window.innerHeight||0));
-    const keyboardLikelyOpen=typing&&viewportHeight>0&&windowHeight>0&&(windowHeight-viewportHeight)>80;
-    const height=Math.max(
-      320,
-      keyboardLikelyOpen
-        ? viewportHeight
-        : Math.max(viewportHeight,windowHeight)
+    const viewportHeight=Math.max(0,Math.round(Number(viewport?.height||0)));
+    const viewportTop=Math.max(0,Math.round(Number(viewport?.offsetTop||0)));
+    const layoutNow=Math.max(
+      Math.round(Number(window.innerHeight||0)),
+      Math.round(Number(document.documentElement?.clientHeight||0)),
+      viewportHeight+viewportTop
     );
-    const top=keyboardLikelyOpen
-      ? Math.max(0,Math.round(Number(viewport?.offsetTop||0)))
-      : 0;
-    document.documentElement.style.setProperty('--messenger-viewport-height',height+'px');
-    document.documentElement.style.setProperty('--messenger-viewport-top',top+'px');
-    if(typing) keepKeyboardAtLatest();
+
+    if(!typing||!viewport){
+      state.layoutViewportHeight=Math.max(320,layoutNow);
+      root.style.setProperty('--messenger-visual-top','0px');
+      root.style.setProperty('--messenger-visual-bottom','0px');
+      return;
+    }
+
+    const layoutHeight=Math.max(320,Number(state.layoutViewportHeight||0),layoutNow);
+    const visualBottom=Math.max(0,layoutHeight-(viewportTop+viewportHeight));
+    root.style.setProperty('--messenger-visual-top',viewportTop+'px');
+    root.style.setProperty('--messenger-visual-bottom',visualBottom+'px');
+    keepKeyboardAtLatest();
   }
 
   syncMessengerViewport();
