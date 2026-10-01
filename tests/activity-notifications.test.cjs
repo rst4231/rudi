@@ -73,65 +73,54 @@ test('telegram sender enables HTML formatting without Web App buttons', async ()
 
 
 test('mood change notification goes only to the other partner', async () => {
-  const calls = [];
-  const fetchImpl = async (_url, init) => {
-    calls.push(JSON.parse(init.body));
-    return new Response(JSON.stringify({ ok: true, result: { message_id: 91 + calls.length } }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
+  const calls=[];
+  const sendPushNotificationImpl=async(actor,payload)=>{
+    calls.push({actor,payload});
+    return {sent:true,delivered:1};
   };
 
-  const fromRustam = await sendMoodNotificationToPartner('Рустам', 'joy', {
-    recipients: { 'Рустам': 111, 'Диана': 222 },
-    botToken: 'test-token',
-    fetchImpl,
+  const fromRustam=await sendMoodNotificationToPartner('Рустам','joy',{
+    sendPushNotificationImpl,
+    fetch:async()=>{throw new Error('no-ai')},
   });
-  assert.equal(fromRustam.sent, true);
-  assert.equal(fromRustam.recipient, 'Диана');
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].chat_id, 222);
+  assert.equal(fromRustam.sent,true);
+  assert.equal(fromRustam.recipient,'Диана');
+  assert.equal(calls[0].actor,'Диана');
+  assert.equal(calls[0].payload.url,'/?item=rustam');
 
-  calls.length = 0;
-  const fromDiana = await sendMoodNotificationToPartner('Диана', 'love', {
-    recipients: { 'Рустам': 111, 'Диана': 222 },
-    botToken: 'test-token',
-    fetchImpl,
+  calls.length=0;
+  const fromDiana=await sendMoodNotificationToPartner('Диана','love',{
+    sendPushNotificationImpl,
+    fetch:async()=>{throw new Error('no-ai')},
   });
-  assert.equal(fromDiana.sent, true);
-  assert.equal(fromDiana.recipient, 'Рустам');
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].chat_id, 111);
+  assert.equal(fromDiana.sent,true);
+  assert.equal(fromDiana.recipient,'Рустам');
+  assert.equal(calls[0].actor,'Рустам');
+  assert.equal(calls[0].payload.url,'/?item=diana');
 });
+
 
 
 test('wishlist addition notification goes only to the other partner',async()=>{
   const calls=[];
-  const fetchImpl=async(_url,init)=>{
-    calls.push(JSON.parse(init.body));
-    return new Response(JSON.stringify({ok:true,result:{message_id:200+calls.length}}),{
-      status:200,headers:{'content-type':'application/json'}
-    });
+  const sendPushNotificationImpl=async(actor,payload)=>{
+    calls.push({actor,payload});
+    return {sent:true,delivered:1};
   };
 
-  const fromRustam=await sendWishlistNotificationToPartner('Рустам','Подарок',{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
-  });
+  const fromRustam=await sendWishlistNotificationToPartner('Рустам','Подарок',{sendPushNotificationImpl});
   assert.equal(fromRustam.sent,true);
   assert.equal(fromRustam.recipient,'Диана');
-  assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,222);
-  assert.equal(calls[0].reply_markup,undefined);
+  assert.equal(calls[0].actor,'Диана');
+  assert.equal(calls[0].payload.url,'/?tab=wishlist');
 
   calls.length=0;
-  const fromDiana=await sendWishlistNotificationToPartner('Диана','Мечта',{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
-  });
+  const fromDiana=await sendWishlistNotificationToPartner('Диана','Мечта',{sendPushNotificationImpl});
   assert.equal(fromDiana.sent,true);
   assert.equal(fromDiana.recipient,'Рустам');
-  assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,111);
+  assert.equal(calls[0].actor,'Рустам');
 });
+
 
 
 test('Lulu walk notification is one line without time',()=>{
@@ -146,64 +135,49 @@ test('Lulu walk notification is one line without time',()=>{
 
 test('Lulu walk notification goes only to the other partner',async()=>{
   const calls=[];
-  const fetchImpl=async(_url,init)=>{
-    calls.push(JSON.parse(init.body));
-    return new Response(JSON.stringify({ok:true,result:{message_id:300+calls.length}}),{
-      status:200,headers:{'content-type':'application/json'}
-    });
+  const sendPushNotificationImpl=async(actor,payload)=>{
+    calls.push({actor,payload});
+    return {sent:true,delivered:1};
   };
   const walkedAt='2026-09-23T06:42:00.000Z';
 
-  const fromRustam=await sendLuluWalkNotificationToPartner('Рустам',walkedAt,{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl,
-  });
+  const fromRustam=await sendLuluWalkNotificationToPartner('Рустам',walkedAt,{sendPushNotificationImpl});
   assert.equal(fromRustam.sent,true);
   assert.equal(fromRustam.recipient,'Диана');
-  assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,222);
-  assert.equal(calls[0].reply_markup,undefined);
+  assert.equal(calls[0].actor,'Диана');
+  assert.equal(calls[0].payload.url,'/?item=lulu');
 
   calls.length=0;
-  const fromDiana=await sendLuluWalkNotificationToPartner('Диана',walkedAt,{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl,
-  });
+  const fromDiana=await sendLuluWalkNotificationToPartner('Диана',walkedAt,{sendPushNotificationImpl});
   assert.equal(fromDiana.sent,true);
   assert.equal(fromDiana.recipient,'Рустам');
-  assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,111);
+  assert.equal(calls[0].actor,'Рустам');
 });
+
 
 
 test('daily question answer notification goes only to the other partner in both directions',async()=>{
   const calls=[];
-  const fetchImpl=async(_url,init)=>{
-    calls.push(JSON.parse(init.body));
-    return new Response(JSON.stringify({ok:true,result:{message_id:500+calls.length}}),{
-      status:200,headers:{'content-type':'application/json'}
-    });
+  const sendPushNotificationImpl=async(actor,payload)=>{
+    calls.push({actor,payload});
+    return {sent:true,delivered:1};
   };
 
-  const fromRustam=await sendDailyQuestionAnswerNotification('Рустам',{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
-  });
+  const fromRustam=await sendDailyQuestionAnswerNotification('Рустам',{sendPushNotificationImpl});
   assert.equal(fromRustam.sent,true);
   assert.equal(fromRustam.recipient,'Диана');
-  assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,222);
-  assert.match(calls[0].text,/Рустам ответил на вопрос дня/);
-  assert.doesNotMatch(calls[0].text,/ответ пользователя/i);
+  assert.equal(calls[0].actor,'Диана');
+  assert.equal(calls[0].payload.url,'/?item=daily-question');
+  assert.match(calls[0].payload.body,/Сам ответ откроется/);
 
   calls.length=0;
-  const fromDiana=await sendDailyQuestionAnswerNotification('Диана',{
-    recipients:{'Рустам':111,'Диана':222},botToken:'test-token',fetchImpl
-  });
+  const fromDiana=await sendDailyQuestionAnswerNotification('Диана',{sendPushNotificationImpl});
   assert.equal(fromDiana.sent,true);
   assert.equal(fromDiana.recipient,'Рустам');
-  assert.equal(calls.length,1);
-  assert.equal(calls[0].chat_id,111);
-  assert.match(calls[0].text,/Диана ответила на вопрос дня/);
+  assert.equal(calls[0].actor,'Рустам');
   assert.match(dailyQuestionAnswerNotificationText('Диана'),/Сам ответ скрыт/);
 });
+
 
 test('completed shared task notification goes only to the other partner in both directions',async()=>{
   const calls=[];
