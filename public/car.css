@@ -1872,3 +1872,40 @@ html[data-theme="light"] .car-wash-decision .car-recommendation-wash-button{
   .car-page>.car-head .car-tyre-sticker{left:38%;top:61%;font-size:7.4px;min-height:17px;padding:3px 6px}
 }
 /* end RUDI v2.141 */
+
+
+/* RUDI v3.5 — car notes */
+.car-notes{display:grid;gap:8px}
+.car-notes-head-actions{display:flex;align-items:center;gap:7px}
+.car-notes-meta{color:var(--muted);font-size:10px;font-weight:750}
+.car-note-add{min-height:30px;padding:0 10px;border-radius:10px;background:rgba(89,118,255,.12);color:#8fa3ff;font-size:9px;font-weight:800}
+.car-note-form{display:grid;gap:9px;padding:10px 11px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(255,255,255,.035)}
+.car-note-field{display:grid;gap:5px}
+.car-note-field>span{color:#8e95a0;font-size:9px;font-weight:750}
+.car-note-field textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:76px;padding:9px 10px;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:rgba(255,255,255,.045);color:#f5f6f8;font:inherit;font-size:11px;line-height:1.45;outline:none}
+.car-note-field textarea:focus{border-color:rgba(143,163,255,.48)}
+.car-note-form-actions{display:flex;justify-content:flex-end;gap:6px}
+.car-note-cancel,.car-note-save{min-height:31px;padding:0 10px;border-radius:10px;font-size:9px;font-weight:800}
+.car-note-cancel{background:rgba(255,255,255,.06);color:#aeb4bd}
+.car-note-save{background:rgba(73,185,116,.13);color:#76d69b}
+.car-notes-list{display:grid;gap:7px}
+.car-notes-empty{padding:11px;border:1px dashed rgba(255,255,255,.09);border-radius:14px;color:#8c939d;font-size:10px;line-height:1.35;text-align:center}
+.car-note-row{display:grid;grid-template-columns:minmax(0,1fr) 30px;gap:8px;align-items:start;padding:10px 10px 9px 11px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(255,255,255,.035)}
+.car-note-copy{display:grid;gap:5px;min-width:0}
+.car-note-copy p{margin:0;color:#e8ebef;font-size:10.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.car-note-copy a{color:#8fa3ff;text-decoration:none;overflow-wrap:anywhere}
+.car-note-copy a:active{text-decoration:underline}
+.car-note-date{color:#858d99;font-size:9px;line-height:1.3}
+.car-note-remove{width:30px;height:30px;display:grid;place-items:center;padding:0;border-radius:10px;background:rgba(224,80,91,.10);color:#e98a91;font-size:20px;line-height:1;font-weight:500}
+.car-note-undo{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid rgba(143,163,255,.18);border-radius:12px;background:rgba(89,118,255,.08);color:#b8c3ff;font-size:10px;font-weight:700}
+.car-note-undo[hidden]{display:none!important}
+.car-note-undo button{min-height:29px;padding:0 9px;border-radius:9px;background:rgba(89,118,255,.15);color:#aebcff;font-size:9px;font-weight:850}
+.car-note-add:disabled,.car-note-cancel:disabled,.car-note-save:disabled,.car-note-remove:disabled,.car-note-undo button:disabled{opacity:.55}
+html[data-theme="light"] .car-note-field>span,html[data-theme="light"] .car-note-date{color:#687382}
+html[data-theme="light"] .car-note-form,html[data-theme="light"] .car-note-row{border-color:#e1e5ea;background:#fafbfc}
+html[data-theme="light"] .car-note-field textarea{border-color:#d6dbe2;background:#f5f6f8;color:#1b222c}
+html[data-theme="light"] .car-note-copy p{color:#29313c}
+html[data-theme="light"] .car-note-copy a{color:#536ee8}
+html[data-theme="light"] .car-note-add{border-color:#ccd4ff;background:#f0f2ff;color:#536ee8}
+html[data-theme="light"] .car-note-remove{border-color:#f1cfd2;background:#fff0f1;color:#c94f59}
+html[data-theme="light"] .car-note-undo{border-color:#d7ddff;background:#f3f5ff;color:#5367bd}

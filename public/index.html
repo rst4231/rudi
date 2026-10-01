@@ -596,6 +596,38 @@
           <div id="carTasksList" class="car-tasks-list"></div>
         </section>
 
+        <section class="car-notes" aria-labelledby="carNotesTitle">
+          <div class="car-section-head">
+            <div class="car-section-title">
+              <span class="car-section-icon is-note" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M6 4.5h12v15H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </span>
+              <strong id="carNotesTitle">Заметки</strong>
+            </div>
+            <div class="car-notes-head-actions">
+              <span id="carNotesMeta" class="car-notes-meta"></span>
+              <button id="carNoteAdd" class="car-note-add" type="button">+ Добавить</button>
+            </div>
+          </div>
+
+          <form id="carNoteForm" class="car-note-form" hidden>
+            <label class="car-note-field">
+              <span>Текст или ссылка</span>
+              <textarea id="carNoteText" maxlength="3000" rows="3" placeholder="Например ссылка на запчасть, сервис или любая заметка"></textarea>
+            </label>
+            <div class="car-note-form-actions">
+              <button id="carNoteCancel" class="car-note-cancel" type="button">Отмена</button>
+              <button id="carNoteSave" class="car-note-save" type="submit">Сохранить</button>
+            </div>
+          </form>
+
+          <div id="carNotesList" class="car-notes-list"></div>
+          <div id="carNoteUndo" class="car-note-undo" hidden>
+            <span>Заметка удалена</span>
+            <button id="carNoteUndoButton" type="button">Отменить</button>
+          </div>
+        </section>
+
         <div id="carStatus" class="car-status" aria-live="polite"></div>
       </div>
 

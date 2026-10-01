@@ -7,6 +7,8 @@ const KEY = 'changan-univ-2023';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ERRORS = 50;
 const MAX_REPAIR_ARCHIVE = 100;
+const MAX_NOTES = 100;
+const NOTE_TEXT_MAX = 3000;
 const ERROR_TITLE_MAX = 80;
 const ERROR_COMMENT_MAX = 500;
 const REPAIR_COST_MAX = 99999999;
@@ -29,7 +31,7 @@ function getCarDb(options = {}) {
 }
 
 function hasStoredState(state) {
-  return state.mileage != null || state.errors.length > 0 || state.repairArchive.length > 0 || Boolean(state.updatedAt);
+  return state.mileage != null || state.errors.length > 0 || state.repairArchive.length > 0 || state.notes.length > 0 || Boolean(state.updatedAt);
 }
 
 async function cacheStateBestEffort(cache, state) {
@@ -118,6 +120,30 @@ function normalizeRepairArchive(value) {
     .slice(0, MAX_REPAIR_ARCHIVE);
 }
 
+function normalizeCarNote(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const id = normalizeErrorId(value.id);
+  const text = String(value.text || '').trim().slice(0, NOTE_TEXT_MAX);
+  const createdAt = normalizeIso(value.createdAt);
+  if (!id || !text || !createdAt) return null;
+  return { id, text, createdAt };
+}
+
+function normalizeNotes(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map(normalizeCarNote)
+    .filter(Boolean)
+    .filter(note => {
+      if (seen.has(note.id)) return false;
+      seen.add(note.id);
+      return true;
+    })
+    .sort((a,b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))
+    .slice(0, MAX_NOTES);
+}
+
 function normalizeState(value) {
   const mileage = normalizeMileage(value?.mileage);
   const legacyUpdatedAt = normalizeIso(value?.updatedAt);
@@ -126,12 +152,14 @@ function normalizeState(value) {
     : (normalizeIso(value?.mileageUpdatedAt) || legacyUpdatedAt);
   const errors = normalizeErrors(value?.errors);
   const repairArchive = normalizeRepairArchive(value?.repairArchive);
-  const updatedAt = legacyUpdatedAt || mileageUpdatedAt || errors[0]?.createdAt || repairArchive[0]?.repairedAt || '';
+  const notes = normalizeNotes(value?.notes);
+  const updatedAt = legacyUpdatedAt || mileageUpdatedAt || errors[0]?.createdAt || repairArchive[0]?.repairedAt || notes[0]?.createdAt || '';
   return {
     mileage,
     mileageUpdatedAt,
     errors,
     repairArchive,
+    notes,
     updatedAt,
   };
 }
@@ -267,13 +295,60 @@ async function repairCarError(errorId, options = {}) {
   return { state, repaired:archived };
 }
 
+async function addCarNote(text, options = {}) {
+  const value = String(text || '').trim();
+  if (!value || value.length > NOTE_TEXT_MAX) throw new Error('car-note-invalid');
+  const current = await readCarState(options);
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  const note = {
+    id:'note_' + crypto.randomUUID().replace(/-/g,''),
+    text:value,
+    createdAt:nowIso,
+  };
+  const state = await writeCarState({
+    ...current,
+    notes:[note,...current.notes],
+    updatedAt:nowIso,
+  },options);
+  return { state, note };
+}
+
+async function removeCarNote(noteId, options = {}) {
+  const id = normalizeErrorId(noteId);
+  if (!id) throw new Error('car-note-invalid');
+  const current = await readCarState(options);
+  const note = current.notes.find(row => row.id === id);
+  if (!note) throw new Error('car-note-not-found');
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  const state = await writeCarState({
+    ...current,
+    notes:current.notes.filter(row => row.id !== id),
+    updatedAt:nowIso,
+  },options);
+  return { state, note };
+}
+
+async function restoreCarNote(value, options = {}) {
+  const note = normalizeCarNote(value);
+  if (!note) throw new Error('car-note-invalid');
+  const current = await readCarState(options);
+  if (current.notes.some(row => row.id === note.id)) return { state:current, note, restored:false };
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  const state = await writeCarState({
+    ...current,
+    notes:[note,...current.notes],
+    updatedAt:nowIso,
+  },options);
+  return { state, note, restored:true };
+}
+
 async function restoreCarState(value, options = {}) {
   const incoming = normalizeState(value);
-  if (incoming.mileage == null && incoming.errors.length === 0 && incoming.repairArchive.length === 0) return readCarState(options);
+  if (incoming.mileage == null && incoming.errors.length === 0 && incoming.repairArchive.length === 0 && incoming.notes.length === 0) return readCarState(options);
   const current = await readCarState(options);
   const currentTime = Date.parse(String(current.updatedAt || '')) || 0;
   const incomingTime = Date.parse(String(incoming.updatedAt || '')) || 0;
-  const currentHasData = current.mileage != null || current.errors.length > 0 || current.repairArchive.length > 0;
+  const currentHasData = current.mileage != null || current.errors.length > 0 || current.repairArchive.length > 0 || current.notes.length > 0;
   if (currentHasData && currentTime >= incomingTime) return current;
   return writeCarState(incoming,options);
 }
@@ -284,6 +359,8 @@ module.exports = {
   TTL_SECONDS,
   MAX_ERRORS,
   MAX_REPAIR_ARCHIVE,
+  MAX_NOTES,
+  NOTE_TEXT_MAX,
   ERROR_TITLE_MAX,
   ERROR_COMMENT_MAX,
   REPAIR_COST_MAX,
@@ -294,6 +371,8 @@ module.exports = {
   normalizeCarError,
   normalizeErrors,
   normalizeRepairArchive,
+  normalizeCarNote,
+  normalizeNotes,
   normalizeState,
   readCarState,
   writeCarState,
@@ -301,5 +380,8 @@ module.exports = {
   addCarError,
   removeCarError,
   repairCarError,
+  addCarNote,
+  removeCarNote,
+  restoreCarNote,
   restoreCarState,
 };

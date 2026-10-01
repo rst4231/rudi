@@ -32,16 +32,38 @@ async function fetchPageMetadata(raw,o={}){
   }catch{return{url:u.toString(),title:'',description:'',imageUrl:''}}finally{clearTimeout(timer)}
 }
 function parseJson(text){const raw=clean(text,6000).replace(/^\s*\`\`\`(?:json)?\s*/i,'').replace(/\s*\`\`\`\s*$/i,'');return JSON.parse(raw)}
+function isYouTubeShortUrl(raw){
+  try{
+    const u=new URL(String(raw||''));
+    const host=u.hostname.toLowerCase().replace(/^www\./,'');
+    return host==='youtube.com'&&/^\/shorts\//i.test(u.pathname);
+  }catch{return false}
+}
+function hasExplicitEventEvidence(text){
+  const value=String(text||'');
+  if(/\b(?:концерт|выставк\w*|спектакл\w*|фестивал\w*|экскурси\w*|лекци\w*|премьер\w*|афиш\w*|билет\w*|сеанс\w*|мероприят\w*)\b/iu.test(value))return true;
+  return /\b(?:театр|музей|филармони)\w*\b/iu.test(value)
+    && /(?:\b\d{1,2}[.\/-]\d{1,2}(?:[.\/-]\d{2,4})?\b|\b\d{1,2}\s+(?:январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)\w*\b|\b(?:сегодня|завтра)\b)/iu.test(value);
+}
+function postProcessSmartSaveClassification(input,result){
+  const next={...(result||{})};
+  const url=String(input?.pageMeta?.url||extractUrl(input?.text||'')||'');
+  const evidence=[input?.text,input?.pageMeta?.title,input?.pageMeta?.description,next.title,next.description].filter(Boolean).join('\n');
+  if(/мероприят/iu.test(String(next.category||''))&&isYouTubeShortUrl(url)&&!hasExplicitEventEvidence(evidence)){
+    next.category='Видео';
+  }
+  return next;
+}
 async function classifySmartSave(input={},o={}){
   const env=o.env||process.env,apiKey=clean(o.apiKey||env.GROQ_API_KEY,500);if(!apiKey)throw new Error('groq-api-key-missing');
   const fetchImpl=o.fetchImpl||globalThis.fetch,categories=(Array.isArray(input.categories)?input.categories:[]).map(x=>clean(x,48)).filter(Boolean).slice(0,40);
-  const prompt=['Ты классифицируешь сохранения в приложении RUDI.','Верни короткое название, краткое описание и категорию.','Переиспользуй существующую категорию, если она подходит по смыслу. Новую создавай только когда ни одна существующая реально не подходит. Не создавай почти одинаковые категории вроде «Туры», «Путешествия», «Отдых», если уже есть подходящая.','Категория: 1–3 слова, по-русски. Название до 90 символов. Описание 1–2 коротких предложения.','Существующие категории: '+(categories.join(', ')||'пока нет'),'Текст пользователя: '+clean(input.text,2400),input.pageMeta?.title?'Заголовок страницы: '+clean(input.pageMeta.title,220):'',input.pageMeta?.description?'Описание страницы: '+clean(input.pageMeta.description,700):''].filter(Boolean).join('\n');
+  const prompt=['Ты классифицируешь сохранения в приложении RUDI.','Верни короткое название, краткое описание и категорию.','Переиспользуй существующую категорию, если она подходит по смыслу. Новую создавай только когда ни одна существующая реально не подходит. Не создавай почти одинаковые категории вроде «Туры», «Путешествия», «Отдых», если уже есть подходящая.','YouTube Shorts сами по себе не являются культурными мероприятиями. Категорию мероприятия используй только если есть явное конкретное событие: концерт, выставка, спектакль, фестиваль, экскурсия, лекция, премьера, билеты, дата или афиша.','Категория: 1–3 слова, по-русски. Название до 90 символов. Описание 1–2 коротких предложения.','Существующие категории: '+(categories.join(', ')||'пока нет'),'Текст пользователя: '+clean(input.text,2400),input.pageMeta?.title?'Заголовок страницы: '+clean(input.pageMeta.title,220):'',input.pageMeta?.description?'Описание страницы: '+clean(input.pageMeta.description,700):''].filter(Boolean).join('\n');
   const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12000);
   try{
     const response=await fetchImpl('https://api.groq.com/openai/v1/chat/completions',{method:'POST',signal:ctrl.signal,headers:{'content-type':'application/json',authorization:'Bearer '+apiKey},body:JSON.stringify({model:MODEL,messages:[{role:'user',content:prompt}],reasoning_effort:'low',include_reasoning:false,temperature:.2,max_completion_tokens:450,stream:false,response_format:{type:'json_schema',json_schema:{name:'rudi_smart_save',strict:true,schema:{type:'object',properties:{category:{type:'string'},title:{type:'string'},description:{type:'string'}},required:['category','title','description'],additionalProperties:false}}}})});
     if(!response.ok)throw new Error('smart-save-ai-provider');
     const payload=await response.json(),parsed=parseJson(payload?.choices?.[0]?.message?.content||'');
-    return{category:clean(parsed.category,48)||categories[0]||'Другое',title:clean(parsed.title,180),description:clean(parsed.description,700)};
+    return postProcessSmartSaveClassification(input,{category:clean(parsed.category,48)||categories[0]||'Другое',title:clean(parsed.title,180),description:clean(parsed.description,700)});
   }finally{clearTimeout(timer)}
 }
-module.exports={MODEL,extractUrl,fetchPageMetadata,classifySmartSave};
+module.exports={MODEL,extractUrl,fetchPageMetadata,classifySmartSave,isYouTubeShortUrl,hasExplicitEventEvidence,postProcessSmartSaveClassification};

@@ -2,6 +2,8 @@
   const tg = window.Telegram?.WebApp;
   const API = '/api/index?route=car';
   const state = { car:null, weather:null, loading:false };
+  let pendingNoteUndo=null;
+  let pendingNoteUndoTimer=null;
 
   function formatKm(value) {
     const number = Number(value);
@@ -386,7 +388,7 @@
     return Math.max(0,next-mileage);
   }
 
-  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks'];
+  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks','notes'];
   const CAR_SMART_FALLBACK_PRIORITY={
     base:{mileage:60,errors:50,tasks:40},
     tasks:{overdue:1000,today:900,tomorrow:650,week:500,any:250},
@@ -576,6 +578,7 @@
     const mileage=body.querySelector('.car-mileage-panel');
     const errors=body.querySelector('.car-errors');
     const tasks=body.querySelector('.car-tasks');
+    const notes=body.querySelector('.car-notes');
     const progress=body.querySelector(':scope > .car-service-progress');
     const status=body.querySelector('#carStatus');
 
@@ -588,7 +591,8 @@
     const cards=[
       buildCarSmartCard('mileage','Пробег и ТО',mileageService),
       buildCarSmartCard('errors','Требует ремонт',errors),
-      buildCarSmartCard('tasks','Задачи по машине',tasks)
+      buildCarSmartCard('tasks','Задачи по машине',tasks),
+      buildCarSmartCard('notes','Заметки',notes)
     ].filter(Boolean);
 
     service?.querySelector('.car-card-title')?.remove();
@@ -603,6 +607,11 @@
     const taskMeta=tasks?.querySelector('#carTasksMeta');
     if(taskMeta&&taskCard) taskCard.querySelector('.car-smart-card-title')?.appendChild(taskMeta);
     tasks?.querySelector('.car-section-head')?.remove();
+
+    const noteCard=cards.find(card=>card.dataset.carCard==='notes');
+    const noteActions=notes?.querySelector('.car-notes-head-actions');
+    if(noteActions&&noteCard) noteCard.querySelector('.car-smart-card-actions')?.prepend(noteActions);
+    notes?.querySelector('.car-section-head')?.remove();
 
     const fragment=document.createDocumentFragment();
     cards.forEach(card=>fragment.appendChild(card));
@@ -636,7 +645,8 @@
     const cards=[...host.querySelectorAll(':scope > .car-smart-card')];
     if(cards.length<2) return;
     const before=animate?carCardRects(host):null;
-    const ranked=cards.map(card=>{
+    const notesCard=cards.find(card=>card.dataset.carCard==='notes')||null;
+    const ranked=cards.filter(card=>card!==notesCard).map(card=>{
       const priority=carCardPriority(card.dataset.carCard);
       card.dataset.priorityScore=String(priority.score);
       card.dataset.priorityReason=priority.reason;
@@ -644,6 +654,9 @@
     }).sort((a,b)=>b.score-a.score||a.rank-b.rank);
 
     ranked.forEach(({card})=>host.insertBefore(card,document.getElementById('carStatus')||null));
+    const taskCard=host.querySelector(':scope > .car-smart-card[data-car-card="tasks"]');
+    if(notesCard&&taskCard) host.insertBefore(notesCard,taskCard.nextSibling);
+    else if(notesCard) host.insertBefore(notesCard,document.getElementById('carStatus')||null);
     if(animate) animateCarCardOrder(host,before);
   }
 
@@ -990,6 +1003,159 @@
     try{window.dispatchEvent(new CustomEvent('rudi:attention-change',{detail:{source:'car-tasks',count}}))}catch(_){}
   }
 
+  function setNoteFormOpen(open){
+    const form=document.getElementById('carNoteForm');
+    if(!form) return;
+    form.hidden=!open;
+    if(open) requestAnimationFrame(()=>document.getElementById('carNoteText')?.focus());
+    else form.reset();
+  }
+
+  function appendNoteContent(root,text){
+    const value=String(text||'');
+    const urlPattern=/https?:\/\/[^\s<>"']+/giu;
+    let last=0;
+    for(const match of value.matchAll(urlPattern)){
+      const index=Number(match.index||0);
+      if(index>last) root.appendChild(document.createTextNode(value.slice(last,index)));
+      let raw=String(match[0]||'');
+      let suffix='';
+      while(/[),.;!?]$/u.test(raw)){suffix=raw.slice(-1)+suffix;raw=raw.slice(0,-1);}
+      try{
+        const url=new URL(raw);
+        if(['http:','https:'].includes(url.protocol)){
+          const link=document.createElement('a');
+          link.href=url.toString();
+          link.textContent=raw;
+          link.rel='noopener noreferrer';
+          root.appendChild(link);
+        }else root.appendChild(document.createTextNode(raw));
+      }catch(_){root.appendChild(document.createTextNode(raw))}
+      if(suffix) root.appendChild(document.createTextNode(suffix));
+      last=index+String(match[0]||'').length;
+    }
+    if(last<value.length) root.appendChild(document.createTextNode(value.slice(last)));
+  }
+
+  function formatNoteDate(value){
+    const date=new Date(value);
+    if(Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('ru-RU',{
+      timeZone:'Europe/Moscow',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'
+    }).format(date);
+  }
+
+  function renderNotes(car){
+    const root=document.getElementById('carNotesList');
+    const meta=document.getElementById('carNotesMeta');
+    if(!root) return;
+    root.replaceChildren();
+    const notes=Array.isArray(car?.state?.notes)?car.state.notes:[];
+    if(meta) meta.textContent=notes.length?String(notes.length):'';
+    if(!notes.length){
+      const empty=document.createElement('div');
+      empty.className='car-notes-empty';
+      empty.textContent='Заметок пока нет';
+      root.appendChild(empty);
+      return;
+    }
+    for(const note of notes){
+      const row=document.createElement('article');
+      row.className='car-note-row';
+      const copy=document.createElement('div');
+      copy.className='car-note-copy';
+      const text=document.createElement('p');
+      appendNoteContent(text,note.text);
+      const date=document.createElement('span');
+      date.className='car-note-date';
+      date.textContent=formatNoteDate(note.createdAt);
+      copy.append(text,date);
+
+      const remove=document.createElement('button');
+      remove.type='button';
+      remove.className='car-note-remove';
+      remove.setAttribute('aria-label','Удалить заметку');
+      remove.textContent='×';
+      remove.addEventListener('click',()=>removeCarNote(note,remove));
+      row.append(copy,remove);
+      root.appendChild(row);
+    }
+  }
+
+  function hideNoteUndo(){
+    if(pendingNoteUndoTimer){clearTimeout(pendingNoteUndoTimer);pendingNoteUndoTimer=null;}
+    pendingNoteUndo=null;
+    const bar=document.getElementById('carNoteUndo');
+    if(bar) bar.hidden=true;
+  }
+
+  function showNoteUndo(note){
+    if(pendingNoteUndoTimer) clearTimeout(pendingNoteUndoTimer);
+    pendingNoteUndo=note;
+    const bar=document.getElementById('carNoteUndo');
+    if(bar) bar.hidden=false;
+    pendingNoteUndoTimer=setTimeout(()=>hideNoteUndo(),5000);
+  }
+
+  async function saveCarNote(event){
+    event?.preventDefault?.();
+    const input=document.getElementById('carNoteText');
+    const button=document.getElementById('carNoteSave');
+    const text=String(input?.value||'').trim();
+    if(!text){setStatus('Напиши текст или вставь ссылку','error');input?.focus();return;}
+    if(button){button.disabled=true;button.textContent='Сохраняю…';}
+    try{
+      const data=await api('add-note',{text});
+      state.car={...state.car,...data};
+      renderNotes(state.car);
+      setNoteFormOpen(false);
+      applyCarSmartOrder({animate:true});
+      setStatus('Заметка сохранена','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      setStatus('Не удалось сохранить заметку','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }finally{
+      if(button){button.disabled=false;button.textContent='Сохранить';}
+    }
+  }
+
+  async function removeCarNote(note,button){
+    if(!note?.id||button?.disabled) return;
+    button.disabled=true;
+    try{
+      const data=await api('remove-note',{noteId:note.id});
+      state.car={...state.car,...data};
+      renderNotes(state.car);
+      showNoteUndo(data.removedNote||note);
+      setStatus('');
+      try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+    }catch(_){
+      button.disabled=false;
+      setStatus('Не удалось удалить заметку','error');
+    }
+  }
+
+  async function undoCarNoteRemoval(){
+    const note=pendingNoteUndo;
+    if(!note) return;
+    const button=document.getElementById('carNoteUndoButton');
+    if(button) button.disabled=true;
+    try{
+      const data=await api('restore-note',{note});
+      state.car={...state.car,...data};
+      hideNoteUndo();
+      renderNotes(state.car);
+      applyCarSmartOrder({animate:true});
+      setStatus('Заметка восстановлена','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      setStatus('Не удалось восстановить заметку','error');
+    }finally{
+      if(button) button.disabled=false;
+    }
+  }
+
   function renderTasks(ticktick){
     const root=document.getElementById('carTasksList');
     const meta=document.getElementById('carTasksMeta');
@@ -1048,6 +1214,7 @@
     renderErrors(state.car);
     renderRecommendations(state.car,state.weather);
     renderTasks(state.car.ticktick);
+    renderNotes(state.car);
   }
 
   async function loadWeather() {
@@ -1153,6 +1320,10 @@
     document.getElementById('carErrorAdd')?.addEventListener('click',()=>setErrorFormOpen(true));
     document.getElementById('carErrorCancel')?.addEventListener('click',()=>setErrorFormOpen(false));
     document.getElementById('carErrorForm')?.addEventListener('submit',saveDashboardError);
+    document.getElementById('carNoteAdd')?.addEventListener('click',()=>setNoteFormOpen(true));
+    document.getElementById('carNoteCancel')?.addEventListener('click',()=>setNoteFormOpen(false));
+    document.getElementById('carNoteForm')?.addEventListener('submit',saveCarNote);
+    document.getElementById('carNoteUndoButton')?.addEventListener('click',undoCarNoteRemoval);
     document.getElementById('carWashGuideBack')?.addEventListener('click',()=>setWashGuideOpen(false));
     let attempts=0;
     const wait=()=>{
