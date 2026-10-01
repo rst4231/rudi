@@ -2080,6 +2080,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
       const code=String(error?.message||error);
+      console.warn('RUDI_MESSENGER_REACTION_ERROR',code);
       const status=code.startsWith('messenger-')?400:statusForError(error);
       return res.status(status).json({ok:false,error:code});
     }
