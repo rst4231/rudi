@@ -8,3 +8,9 @@ test('automatic Git deployments are globally disabled without changing cron', ()
   assert.equal(config.crons[0].path, '/api/daily');
   assert.equal(config.crons[0].schedule, '30 21 * * *');
 });
+
+
+test('version source changes always trigger a Vercel build',()=>{
+  const config=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));
+  assert.match(String(config.ignoreCommand||''),/rudi-version\.json/);
+});
