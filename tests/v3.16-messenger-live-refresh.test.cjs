@@ -113,3 +113,11 @@ test('messenger v3.18 push title uses natural sender wording',()=>{
   assert.match(server,/Рустам прислал сообщение/);
   assert.doesNotMatch(server,/Новое сообщение от '\+actor/);
 });
+
+test('messenger v3.18 waits before resolving double vs triple tap',()=>{
+  assert.match(client,/let gestureTimer=0/);
+  assert.match(client,/gestureTimer=setTimeout\(\(\)=>\{/);
+  assert.match(client,/if\(count>=3\)/);
+  assert.match(client,/if\(count===2\) toggleMessageLike\(row\)/);
+  assert.match(client,/\},340\)/);
+});
