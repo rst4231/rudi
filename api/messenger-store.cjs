@@ -148,39 +148,74 @@ function normalizeReactions(value,legacyLikes=[]){
   return result;
 }
 
-function normalizeReactionState(value,now=Date.now()){
+function normalizeActorReactionState(actor,value,now=Date.now()){
+  const viewer=cleanActor(actor);
+  if(!viewer) throw new Error('messenger-actor-invalid');
   const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
-  const messages=source.messages&&typeof source.messages==='object'&&!Array.isArray(source.messages)?source.messages:{};
+  const items=source.items&&typeof source.items==='object'&&!Array.isArray(source.items)?source.items:{};
   const clean={};
-  for(const [id,row] of Object.entries(messages)){
+  for(const [id,row] of Object.entries(items)){
     const messageId=String(id||'').trim();
     const expiresAt=String(row?.expiresAt||'');
+    const emoji=String(row?.emoji||'').trim();
     if(!messageId||!Number.isFinite(Date.parse(expiresAt))||Date.parse(expiresAt)<=Number(now)) continue;
+    if(emoji&&!REACTION_EMOJIS.has(emoji)) continue;
     clean[messageId]={
-      reactions:normalizeReactions(row?.reactions,[]),
+      emoji,
       expiresAt:new Date(expiresAt).toISOString(),
     };
   }
-  return {messages:clean,updatedAt:String(source.updatedAt||'')};
+  return {
+    actor:viewer,
+    items:clean,
+    updatedAt:String(source.updatedAt||''),
+  };
 }
 
-async function readReactionState(options={}){
-  const row=await reactionCacheOf(options).get('state').catch(()=>null);
-  return normalizeReactionState(row,Number(options.now||Date.now()));
+async function readActorReactionState(actor,options={}){
+  const viewer=cleanActor(actor);
+  if(!viewer) throw new Error('messenger-actor-invalid');
+  const row=await reactionCacheOf(options).get('actor:'+actorKey(viewer)).catch(()=>null);
+  return normalizeActorReactionState(viewer,row,Number(options.now||Date.now()));
 }
 
-async function writeReactionState(state,options={}){
+async function writeActorReactionState(actor,state,options={}){
+  const viewer=cleanActor(actor);
+  if(!viewer) throw new Error('messenger-actor-invalid');
   const now=Number(options.now||Date.now());
-  const clean=normalizeReactionState(state,now);
+  const clean=normalizeActorReactionState(viewer,state,now);
   clean.updatedAt=new Date(now).toISOString();
-  await reactionCacheOf(options).set('state',clean,{
+  await reactionCacheOf(options).set('actor:'+actorKey(viewer),clean,{
     ttl:INDEX_TTL_SECONDS,
     tags:['rudi-messenger-reactions'],
-    name:'state',
+    name:'actor:'+actorKey(viewer),
   });
   return clean;
 }
 
+function legacyReactionForActor(row,actor){
+  const reactions=normalizeReactions(row?.reactions,row?.likedBy);
+  for(const emoji of REACTION_EMOJIS){
+    if(Array.isArray(reactions[emoji])&&reactions[emoji].includes(actor)) return emoji;
+  }
+  return '';
+}
+
+function mergeReactionStates(row,states){
+  const reactions={};
+  for(const actor of ['Рустам','Диана']){
+    const state=states?.[actor];
+    const hasStored=Boolean(state?.items&&Object.prototype.hasOwnProperty.call(state.items,row.id));
+    const emoji=hasStored
+      ?String(state.items[row.id]?.emoji||'')
+      :legacyReactionForActor(row,actor);
+    if(!emoji||!REACTION_EMOJIS.has(emoji)) continue;
+    reactions[emoji]=[...(reactions[emoji]||[]),actor];
+  }
+  return reactions;
+}
+
+function normalizeMessage(row){
 function normalizeMessage(row){
   if(!row||typeof row!=='object') return null;
   const sender=cleanActor(row.sender);
@@ -313,11 +348,18 @@ async function deleteMessengerMessage(actor,id,options={}){
     if(!current) throw new Error('messenger-message-not-found');
     if(current.sender!==owner) throw new Error('messenger-delete-owner-required');
     await cache.delete('message:'+messageId).catch(()=>null);
-    const reactionState=await readReactionState(options).catch(()=>null);
-    if(reactionState?.messages?.[messageId]){
-      delete reactionState.messages[messageId];
-      await writeReactionState(reactionState,options).catch(()=>null);
-    }
+    const [rustamReactions,dianaReactions]=await Promise.all([
+      readActorReactionState('Рустам',options).catch(()=>null),
+      readActorReactionState('Диана',options).catch(()=>null),
+    ]);
+    await Promise.all([
+      rustamReactions?.items&&Object.prototype.hasOwnProperty.call(rustamReactions.items,messageId)
+        ?(delete rustamReactions.items[messageId],writeActorReactionState('Рустам',rustamReactions,options).catch(()=>null))
+        :Promise.resolve(),
+      dianaReactions?.items&&Object.prototype.hasOwnProperty.call(dianaReactions.items,messageId)
+        ?(delete dianaReactions.items[messageId],writeActorReactionState('Диана',dianaReactions,options).catch(()=>null))
+        :Promise.resolve(),
+    ]);
     const index=await readIndex(options);
     await writeIndex(index.filter(item=>item.id!==messageId),options);
     return {deleted:true,id:messageId};
@@ -358,31 +400,34 @@ async function toggleMessengerReaction(actor,id,reaction,options={}){
     if(!messageId) throw new Error('messenger-message-id-invalid');
     const emoji=String(reaction||'').trim();
     if(!REACTION_EMOJIS.has(emoji)) throw new Error('messenger-reaction-invalid');
+
     const raw=await cacheOf(options).get('message:'+messageId).catch(()=>null);
     const current=normalizeMessage(raw);
     if(!current) throw new Error('messenger-message-not-found');
+
     const now=Number(options.now||Date.now());
     const remainingMs=Date.parse(current.expiresAt)-now;
     if(remainingMs<=0) throw new Error('messenger-message-expired');
 
-    const state=await readReactionState(options);
-    const existing=state.messages[messageId];
-    const reactions=existing
-      ?normalizeReactions(existing.reactions,[])
-      :normalizeReactions(current.reactions,current.likedBy);
-    const hadSame=Array.isArray(reactions[emoji])&&reactions[emoji].includes(viewer);
+    const viewerState=await readActorReactionState(viewer,options);
+    const hasStored=Object.prototype.hasOwnProperty.call(viewerState.items,messageId);
+    const currentEmoji=hasStored
+      ?String(viewerState.items[messageId]?.emoji||'')
+      :legacyReactionForActor(current,viewer);
 
-    for(const key of Object.keys(reactions)){
-      reactions[key]=reactions[key].filter(actorName=>actorName!==viewer);
-      if(!reactions[key].length) delete reactions[key];
-    }
-    if(!hadSame) reactions[emoji]=[...(reactions[emoji]||[]),viewer];
-
-    state.messages[messageId]={
-      reactions,
+    viewerState.items[messageId]={
+      emoji:currentEmoji===emoji?'':emoji,
       expiresAt:current.expiresAt,
     };
-    await writeReactionState(state,options);
+    await writeActorReactionState(viewer,viewerState,options);
+
+    const partner=viewer==='Рустам'?'Диана':'Рустам';
+    const partnerState=await readActorReactionState(partner,options);
+    const states={
+      [viewer]:viewerState,
+      [partner]:partnerState,
+    };
+    const reactions=mergeReactionStates(current,states);
 
     return {
       ...current,
@@ -391,6 +436,7 @@ async function toggleMessengerReaction(actor,id,reaction,options={}){
     };
   });
 }
+
 
 async function toggleMessengerLike(actor,id,options={}){
   return toggleMessengerReaction(actor,id,'❤️',options);
@@ -445,11 +491,16 @@ async function readMessengerMessages(options={}){
   let messages=rows.map(normalizeMessage).filter(row=>row&&Date.parse(row.expiresAt)>now)
     .sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt));
 
-  const reactionState=await readReactionState(options);
+  const [rustamReactions,dianaReactions]=await Promise.all([
+    readActorReactionState('Рустам',options),
+    readActorReactionState('Диана',options),
+  ]);
+  const reactionStates={
+    'Рустам':rustamReactions,
+    'Диана':dianaReactions,
+  };
   messages=messages.map(row=>{
-    const entry=reactionState.messages[row.id];
-    if(!entry) return row;
-    const reactions=normalizeReactions(entry.reactions,[]);
+    const reactions=mergeReactionStates(row,reactionStates);
     return {...row,reactions,likedBy:reactions['❤️']||[]};
   });
 
