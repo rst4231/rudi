@@ -24,7 +24,7 @@ test('v3.22 still notifies the page about a foreground message and messenger hap
   assert.match(messenger,/haptic\.impactOccurred\('medium'\)/);
   assert.match(messenger,/navigator\.vibrate\?\.\(35\)/);
   assert.match(messenger,/const hasNewPartnerMessage=newPartnerRows\.length>0/);
-  assert.match(messenger,/if\(hasNewPartnerMessage\) triggerForegroundMessageHaptic\(\)/);
+  assert.match(messenger,/if\(hasNewPartnerMessage\)\{[\s\S]*?triggerForegroundMessageHaptic\(\)/);
 });
 
 test('v3.22 notification click always sends explicit SPA navigation command to an open RUDI window',()=>{
