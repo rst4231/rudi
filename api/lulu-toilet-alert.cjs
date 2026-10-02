@@ -139,7 +139,7 @@ async function runLuluToiletAlert(options = {}) {
       title: '🐾 Лулу хочет в туалет',
       body: 'Вероятность: 100%',
       tag: 'lulu-toilet',
-      url: '/?item=lulu',
+      url: '/?tab=home&item=lulu',
     }, options);
     if (result?.sent) sent.push({ actor: targetActor, ...result });
     else missing.push(targetActor);
