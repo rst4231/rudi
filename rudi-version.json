@@ -2,7 +2,7 @@
   "current": "v3.38",
   "versionBranch": "main",
   "releaseCommit": null,
-  "deploymentSourceCommit": null,
+  "deploymentSourceCommit": "2402b2ca9a19520097645c71d0e4c89c6fc19e2c",
   "deploymentRequestedAt": "2026-10-02",
   "createdAt": "2026-10-02",
   "basedOnProduction": "v3.37",
