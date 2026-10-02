@@ -1500,7 +1500,7 @@
         quality-=.1;
         blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
       }
-      if(!blob||blob.size>650000) throw new Error('messenger-photo-too-large');
+      if(!blob||blob.size>420000) throw new Error('messenger-photo-too-large');
       return {kind:'photo',mime:'image/jpeg',data:await blobBase64(blob),width,height,name:String(file.name||'photo.jpg').slice(0,120)};
     }finally{
       try{source.close()}catch(_){}
