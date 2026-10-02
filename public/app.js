@@ -10207,7 +10207,6 @@
         ['health','🫶','Самочувствие'],
         ['sport','🏃','Спорт'],
         ['sleep','😴','Сон'],
-        ['fatigue','😩','Усталость'],
         ['other','✍️','Свой ответ']
       ];
       function setMoodReasonPromptBusy(box,busy){
