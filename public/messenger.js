@@ -960,6 +960,7 @@
     const stickToBottom=Boolean(forceBottom||state.nearBottom||isMessagesNearBottom(list));
     list.replaceChildren();
     const rows=Array.isArray(state.rows)?state.rows:[];
+    list.classList.toggle('has-messages',rows.length>0);
     if(empty) empty.hidden=rows.length>0;
     let previousDay='';
     for(const row of rows){
