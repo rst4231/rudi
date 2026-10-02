@@ -242,6 +242,17 @@
     try{window.dispatchEvent(new CustomEvent('rudi:attention-change',{detail:{source:'messenger',count:clean}}))}catch(_){}
   }
 
+  function rowUnreadForActor(row,actor=state.actor){
+    const viewer=String(actor||'').trim();
+    if(!row||!viewer) return false;
+    const recipients=Array.isArray(row.systemRecipients)?row.systemRecipients:[];
+    if(recipients.length){
+      const readBy=Array.isArray(row.systemReadBy)?row.systemReadBy:[];
+      return recipients.includes(viewer)&&!readBy.includes(viewer);
+    }
+    return row.sender!==viewer&&!row.readAt;
+  }
+
   function formatTime(value){
     const date=new Date(String(value||''));
     if(Number.isNaN(date.getTime())) return '';
@@ -1001,7 +1012,7 @@
     const list=document.getElementById('messengerMessages');
     const listRect=list?.getBoundingClientRect?.();
     const ids=(Array.isArray(rows)?rows:[])
-      .filter(row=>row.sender!==state.actor&&!row.readAt&&!String(row.id||'').startsWith('pending:'))
+      .filter(row=>rowUnreadForActor(row)&&!String(row.id||'').startsWith('pending:'))
       .filter(row=>{
         const article=[...document.querySelectorAll('.messenger-message')].find(node=>node.dataset.messageId===row.id);
         if(!article||!listRect) return false;
@@ -1043,7 +1054,7 @@
       state.partnerTyping=Boolean(data.partnerTyping);
       const serverRows=Array.isArray(data.messages)?data.messages:[];
       if(!state.unreadBoundaryId){
-        state.unreadBoundaryId=String(serverRows.find(row=>row.sender!==state.actor&&!row.readAt)?.id||'');
+        state.unreadBoundaryId=String(serverRows.find(row=>rowUnreadForActor(row))?.id||'');
       }
       state.rows=mergePendingRows(serverRows);
       setUnread(data.unread);
@@ -1156,6 +1167,7 @@
   function rowsSignature(rows){
     return (Array.isArray(rows)?rows:[]).map(row=>[
       row.id,row.clientId,row.readAt,row.editedAt,row._pending?'pending':'',row._failed?'failed':'',
+      JSON.stringify(row.systemRecipients||[]),JSON.stringify(row.systemReadBy||[]),
       JSON.stringify(reactionStateForRow(row))
     ].join(':')).join('|');
   }
@@ -1170,7 +1182,7 @@
       const serverRows=Array.isArray(data.messages)?data.messages:[];
       const nextRows=mergePendingRows(serverRows);
       const knownIds=new Set((Array.isArray(state.rows)?state.rows:[]).map(row=>String(row.id||'')));
-      const newPartnerRows=serverRows.filter(row=>row.sender!==state.actor&&!knownIds.has(String(row.id||'')));
+      const newPartnerRows=serverRows.filter(row=>rowUnreadForActor(row)&&!knownIds.has(String(row.id||'')));
       const hasNewPartnerMessage=newPartnerRows.length>0;
       if(!state.unreadBoundaryId&&newPartnerRows.length){
         state.unreadBoundaryId=String(newPartnerRows[0].id||'');

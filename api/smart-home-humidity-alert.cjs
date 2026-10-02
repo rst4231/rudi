@@ -87,7 +87,7 @@ async function evaluateHumidityAlert(snapshot,options={}){
           title:'💧 Низкая влажность дома',
           body:alertText(humidity).replace(/^💧\s*/, ''),
           tag:'home-humidity',
-          url:'/?item=smart-home',
+          url:'/?tab=home&item=smart-home',
         },options);
         if(!push?.sent){skipped.push(actor+':push-not-configured');continue;}
         actorState.armed=false;

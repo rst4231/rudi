@@ -116,6 +116,10 @@ function normalizeKeyVersions(value){
   };
 }
 
+function normalizeActorList(value){
+  return [...new Set((Array.isArray(value)?value:[]).map(cleanActor).filter(Boolean))];
+}
+
 function normalizeScheme(value){
   return String(value||'').trim()==='shared-v2'?'shared-v2':'legacy-v1';
 }
@@ -155,6 +159,8 @@ function normalizeMessage(row){
       ciphertext:normalizeCiphertext(row.ciphertext),
       iv:normalizeIv(row.iv),
       keyVersions:normalizeKeyVersions(row.keyVersions),
+      systemRecipients:normalizeActorList(row.systemRecipients),
+      systemReadBy:normalizeActorList(row.systemReadBy),
       createdAt:new Date(createdAt).toISOString(),
       expiresAt:new Date(expiresAt).toISOString(),
       readAt:row.readAt&&Number.isFinite(Date.parse(String(row.readAt)))?new Date(String(row.readAt)).toISOString():'',
@@ -210,6 +216,8 @@ async function addMessengerMessage(actor,payload,options={}){
       ciphertext:normalizeCiphertext(payload?.ciphertext),
       iv:normalizeIv(payload?.iv),
       keyVersions:normalizeKeyVersions(payload?.keyVersions),
+      systemRecipients:normalizeActorList(payload?.systemRecipients),
+      systemReadBy:[],
       createdAt,
       expiresAt,
       readAt:'',
@@ -424,10 +432,16 @@ async function markMessengerRead(actor,ids,options={}){
     for(const id of wanted){
       const raw=await cacheOf(options).get('message:'+id).catch(()=>null);
       const row=normalizeMessage(raw);
-      if(!row||row.sender===viewer||row.readAt) continue;
+      if(!row) continue;
       const remainingMs=Date.parse(row.expiresAt)-now;
       if(remainingMs<=0) continue;
-      row.readAt=new Date(now).toISOString();
+      if(row.systemRecipients.length){
+        if(!row.systemRecipients.includes(viewer)||row.systemReadBy.includes(viewer)) continue;
+        row.systemReadBy=[...row.systemReadBy,viewer];
+      }else{
+        if(row.sender===viewer||row.readAt) continue;
+        row.readAt=new Date(now).toISOString();
+      }
       await cacheOf(options).set('message:'+id,row,{
         ttl:Math.max(1,Math.ceil(remainingMs/1000)),
         tags:['rudi-messenger-message'],
@@ -442,7 +456,12 @@ async function markMessengerRead(actor,ids,options={}){
 function unreadMessengerCount(messages,actor){
   const viewer=cleanActor(actor);
   if(!viewer) return 0;
-  return (Array.isArray(messages)?messages:[]).filter(row=>row?.sender&&row.sender!==viewer&&!row.readAt).length;
+  return (Array.isArray(messages)?messages:[]).filter(row=>{
+    if(!row?.sender) return false;
+    const recipients=normalizeActorList(row.systemRecipients);
+    if(recipients.length) return recipients.includes(viewer)&&!normalizeActorList(row.systemReadBy).includes(viewer);
+    return row.sender!==viewer&&!row.readAt;
+  }).length;
 }
 
 function resetMutationQueueForTests(){mutationTail=Promise.resolve()}

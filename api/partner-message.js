@@ -323,7 +323,7 @@ async function sendPartnerMessageNotification(actor, options = {}) {
     title: '💌 Новое послание',
     body: actor + ' ' + verb + ' для тебя новое послание.',
     tag: 'partner-message',
-    url: '/?item=partner&fresh=1',
+    url: '/?tab=home&item=partner&fresh=1',
   }, options);
 }
 
@@ -395,7 +395,7 @@ async function sendRewardMessengerEvent(actor,text,pushPayload={},options={}){
   const cleanActor=actor==='Диана'?'Диана':actor==='Рустам'?'Рустам':'';
   if(!cleanActor) return [];
   const encrypted=encryptMessengerSystemPayload(text,pushPayload.systemKind||'reward',options);
-  const message=await addMessengerMessage(cleanActor,encrypted,options);
+  const message=await addMessengerMessage(cleanActor,{...encrypted,systemRecipients:['Рустам','Диана']},options);
   const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
   const sendPush=options.sendPushNotificationImpl||sendPushNotification;
   const pushes=[];
@@ -529,7 +529,7 @@ async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) 
       title: '🐾 Прогулка с Лулу',
       body: actor + ' ' + action + ' с Лулу.',
       tag: 'lulu-walk',
-      url: '/?item=lulu',
+      url: '/?tab=home&item=lulu',
     }, options);
     return { ...result, recipient, walkedAt };
   } catch (error) {
@@ -587,7 +587,7 @@ async function sendDailyQuestionAnswerNotification(actor,options={}) {
       title:'💬 Ответ на вопрос дня',
       body:actor+' '+action+'. Сам ответ откроется в RUDI, когда ответите вы оба.',
       tag:'daily-question',
-      url:'/?item=daily-question',
+      url:'/?tab=home&item=daily-question',
     },options);
     return {...result,recipient};
   }catch(error){
@@ -960,7 +960,7 @@ async function sendTaskCompletedNotificationToPartner(actor,title,options={}) {
       title:'✅ Партнёр выполнил совместную задачу',
       body:actor+' '+action+': '+taskTitle,
       tag:'shared-task-complete',
-      url:'/?item=priority',
+      url:'/?tab=home&item=priority',
     },options);
     return {...result,recipient};
   }catch(error){
@@ -987,7 +987,7 @@ async function sendChecklistCompletedNotificationToPartner(actor,itemTitle,taskT
       title:'☑️ Выполнен пункт внутри совместной задачи',
       body:actor+' '+action+' пункт: '+item+(task?' · '+task:''),
       tag:'shared-task-checklist-complete',
-      url:'/?item=priority',
+      url:'/?tab=home&item=priority',
     },options);
     return {...result,recipient};
   }catch(error){
@@ -1057,7 +1057,7 @@ async function sendMoodNotificationToPartner(actor, mood, options = {}) {
       title: '🙂 Настроение партнёра',
       body: stripTelegramHtml(text),
       tag: 'partner-mood',
-      url: '/?item=' + item,
+      url: '/?tab=home&item=' + item,
     }, options);
     return { ...result, recipient, aiGenerated };
   } catch (error) {
