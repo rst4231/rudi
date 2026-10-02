@@ -761,10 +761,10 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
 @keyframes rudiRecordingPulse{0%,100%{opacity:1}50%{opacity:.35}}
 
 .messenger-photo-button{
-  display:block;width:min(70vw,360px);max-width:100%;padding:0;border:0;border-radius:15px;
+  display:block;width:min(62vw,270px);max-width:100%;padding:0;border:0;border-radius:15px;
   overflow:hidden;background:transparent
 }
-.messenger-photo{display:block;width:100%;max-height:440px;object-fit:cover;border-radius:15px}
+.messenger-photo{display:block;width:100%;height:auto;max-height:340px;object-fit:cover;border-radius:15px}
 .messenger-photo-viewer{
   position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:24px;
   background:rgba(0,0,0,.92)
@@ -812,7 +812,8 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
 }
 
 @media(max-width:520px){
-  .messenger-photo-button{width:min(76vw,330px)}
+  .messenger-photo-button{width:min(62vw,260px)}
+  .messenger-photo{max-height:330px}
   .messenger-voice{min-width:205px}
 }
 
