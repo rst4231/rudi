@@ -12,7 +12,7 @@ test('home exposes activity history through notification bell',()=>{
   assert.match(app,/homeActivityNotificationsButton/);
   assert.match(app,/homeActivityNotificationDot/);
   assert.match(app,/homeActivityNotificationsPanel/);
-  assert.match(app,/Что произошло у нас/);
+  assert.match(app,/home-activity-notifications-title">Уведомления/);
   assert.match(app,/function renderActivityJournal\(payload\)/);
   assert.match(app,/function loadActivityJournal/);
   assert.match(app,/function markActivityNotificationsSeen\(\)/);

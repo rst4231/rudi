@@ -3737,7 +3737,12 @@
       function latestPartnerActivityItem(items=homeDashboardState.activity){
         const source=Array.isArray(items)?items:[];
         const partnerActor=currentActor==='Диана'?'Рустам':'Диана';
-        return source.find(item=>String(item?.actor||'').trim()===partnerActor)||null;
+        return source.find(item=>{
+          const actor=String(item?.actor||'').trim();
+          const visibleTo=String(item?.visibleTo||'').trim();
+          if(String(item?.type||'')==='reward-unlock'&&visibleTo===currentActor) return true;
+          return actor===partnerActor;
+        })||null;
       }
 
       function activityNotificationsHaveUnread(){
@@ -4564,12 +4569,12 @@
         notifications.id='homeActivityNotifications';
         notifications.className='home-activity-notifications';
         notifications.innerHTML=
-          '<button id="homeActivityNotificationsButton" class="home-activity-notifications-button" type="button" aria-label="Что нового произошло" aria-expanded="false">'+
+          '<button id="homeActivityNotificationsButton" class="home-activity-notifications-button" type="button" aria-label="Уведомления" aria-expanded="false">'+
             '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>'+
             '<span id="homeActivityNotificationDot" class="home-activity-notification-dot" hidden></span>'+
           '</button>'+
           '<div id="homeActivityNotificationsPanel" class="home-activity-notifications-panel" hidden>'+
-            '<div class="home-activity-notifications-title">Что произошло у нас</div>'+
+            '<div class="home-activity-notifications-title">Уведомления</div>'+
             '<div id="homeActivityList" class="home-activity-list" aria-live="polite"></div>'+
             '<div id="homeActivityEmpty" class="home-activity-empty">Пока здесь тихо — новые события появятся автоматически.</div>'+
           '</div>';
@@ -12955,10 +12960,10 @@
         const wishlist=document.getElementById('quickWishlistButton');
         const dates=document.getElementById('quickDateButton');
         const forDi=document.getElementById('quickForDiButton');
-        const fasting=document.getElementById('quickFastingButton');
+        const calendar=document.getElementById('quickCalendarButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!dates||!forDi||!fasting||!choices||choices.dataset.dateBound==='1') return;
+        if(!wishlist||!dates||!forDi||!calendar||!choices||choices.dataset.dateBound==='1') return;
         choices.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
@@ -12975,9 +12980,8 @@
           window.RUDI_FOR_DI?.load?.();
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
-        fasting.addEventListener('click',()=>{
-          fastingReturnTab='home';
-          navigateToAppTab('fasting',{scroll:true});
+        calendar.addEventListener('click',()=>{
+          navigateToAppTab('schedule',{scroll:true});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 

@@ -62,6 +62,10 @@ test('partner message has distinct romantic styling for light and dark themes',(
 test('quick access owns wishlist entry, date generator and five-tab bottom navigation',()=>{
   assert.match(html,/id="quickAccessTile"[\s\S]*?data-home-tile="quick-access"/);
   assert.match(html,/id="quickWishlistButton"/);
+  assert.match(html,/id="quickCalendarButton"/);
+  assert.doesNotMatch(html,/id="quickFastingButton"/);
+  assert.match(html,/data-app-tab="messenger"/);
+  assert.match(html,/id="messengerTabBadge"/);
   assert.match(html,/id="dateIdeaButton"/);
   assert.match(html,/data-date-period="morning"/);
   assert.match(html,/data-date-period="day"/);

@@ -225,14 +225,16 @@
         id:String(payload.reply.id||''),
         author:String(payload.reply.author||''),
         text:String(payload.reply.text||'').slice(0,240)
-      }:null
+      }:null,
+      system:payload?.system===true,
+      systemKind:String(payload?.systemKind||''),
     };
   }
 
   function setUnread(count){
     const clean=Math.max(0,Math.floor(Number(count)||0));
     document.documentElement.dataset.messengerUnreadCount=String(clean);
-    const badge=document.getElementById('partnerMessengerBadge');
+    const badge=document.getElementById('messengerTabBadge');
     if(badge){
       badge.textContent=clean>99?'99+':String(clean);
       badge.hidden=clean<1;
@@ -816,9 +818,10 @@
 
       const own=row.sender===state.actor;
       const payload=state.decrypted.get(row.id);
+      const systemEvent=payload?.system===true;
       const article=document.createElement('article');
       const isFresh=state.initialized&&!state.renderedIds.has(row.id);
-      article.className='messenger-message '+(own?'is-own':'is-partner')+(isFresh?' is-new':'')+(state.justSentId===row.id?' is-sent':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
+      article.className='messenger-message '+(systemEvent?'is-system-event':(own?'is-own':'is-partner'))+(isFresh?' is-new':'')+(state.justSentId===row.id?' is-sent':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
       article.dataset.messageId=row.id;
 
       const bubble=document.createElement('div');
@@ -863,7 +866,7 @@
       time.dateTime=String(row.createdAt||'');
       time.textContent=formatTime(row.createdAt);
       meta.appendChild(time);
-      if(own){
+      if(own&&!systemEvent){
         const status=document.createElement('span');
         status.className='messenger-read-status'+(row.readAt?' is-read':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
         if(row._failed){
@@ -915,7 +918,7 @@
       }
 
       article.appendChild(bubble);
-      if(payload){
+      if(payload&&!systemEvent){
         bindSwipeReply(article,row,payload);
         bindLongPressContext(article,row,payload);
         bindMessageTapGestures(article,row,payload);
@@ -1399,37 +1402,13 @@
   }
 
   function ensureProfileButton(){
-    if(!state.actor) return false;
-    const partnerCard=document.getElementById(state.partner==='Диана'?'homeDianaTile':'homeRustamTile');
-    const identity=partnerCard?.querySelector('.identity');
-    const mood=partnerCard?.querySelector('.mood-partner');
-    if(!partnerCard||!identity||!mood) return false;
-    let button=document.getElementById('partnerMessengerButton');
-    let actions=identity.querySelector('.partner-profile-actions');
-    if(!actions){
-      actions=document.createElement('div');
-      actions.className='partner-profile-actions';
-      identity.insertBefore(actions,mood);
-      actions.appendChild(mood);
-    }
-    if(!button){
-      button=document.createElement('button');
-      button.id='partnerMessengerButton';
-      button.className='messenger-profile-button';
-      button.type='button';
-      button.setAttribute('aria-label','Открыть мессенджер');
-      button.title='Мессенджер';
-      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3 3.8 10.1c-1.17.47-1.16 1.13-.21 1.42l4.42 1.38 1.71 5.35c.21.58.11.81.73.81.48 0 .69-.22.96-.48l2.12-2.06 4.41 3.26c.81.45 1.39.22 1.59-.75L22.4 5.18C22.7 3.95 21.93 3.39 21 3Z"/><path d="m8.7 12.6 8.9-5.6c.44-.27.84-.13.51.17l-7.35 6.63-.29 3.04-1.77-4.24Z"/></svg><span id="partnerMessengerBadge" class="messenger-profile-badge" hidden></span>';
-      button.addEventListener('click',event=>{
-        event.preventDefault();
-        event.stopPropagation();
-        if(typeof window.RUDI_NAVIGATE_TO_TAB==='function'){
-          window.RUDI_NAVIGATE_TO_TAB('messenger',{scroll:true});
-        }else{
-          window.location.href='/?tab=messenger';
-        }
-      });
-      actions.appendChild(button);
+    const button=document.getElementById('partnerMessengerButton');
+    if(button) button.remove();
+    const actions=document.querySelector('.partner-profile-actions');
+    const mood=actions?.querySelector('.mood-partner');
+    if(actions&&mood&&actions.parentElement){
+      actions.parentElement.insertBefore(mood,actions);
+      actions.remove();
     }
     setUnread(Number(document.documentElement.dataset.messengerUnreadCount||0));
     return true;
