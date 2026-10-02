@@ -2,10 +2,38 @@ const MODEL='openai/gpt-oss-20b';
 const LABELS={sadness:'грусть',boredom:'скука',neutral:'нейтрально',fatigue:'усталость',anger:'злость',joy:'радость',love:'любовь'};
 const REASONS={work:'работа',food:'еда',relationship:'отношения',money:'деньги',health:'самочувствие',sport:'спорт',fatigue:'усталость',sleep:'сон',fasting:'голодание',other:'другое'};
 
+function reasonLabel(sample){
+  const reason=String(sample?.reason||'');
+  const custom=String(sample?.reasonText||'').trim();
+  return reason==='other'&&custom?custom:(REASONS[reason]||'');
+}
+
+function factorSummary(rows){
+  const factors=new Map();
+  for(const row of Array.isArray(rows)?rows:[]){
+    for(const sample of Array.isArray(row?.samples)?row.samples:[]){
+      const label=reasonLabel(sample);
+      if(!label) continue;
+      const mood=LABELS[sample?.mood]?String(sample.mood):String(row?.mood||'');
+      const current=factors.get(label)||{total:0,moods:new Map()};
+      current.total+=1;
+      if(LABELS[mood]) current.moods.set(mood,(current.moods.get(mood)||0)+1);
+      factors.set(label,current);
+    }
+  }
+  return [...factors.entries()]
+    .sort((a,b)=>b[1].total-a[1].total)
+    .slice(0,8)
+    .map(([label,data])=>{
+      const top=[...data.moods.entries()].sort((a,b)=>b[1]-a[1])[0];
+      return label+': '+data.total+' '+(data.total===1?'отметка':'отметок')+(top?' · чаще '+LABELS[top[0]]+' ('+top[1]+'/'+data.total+')':'');
+    });
+}
+
 function clean(value,max=7000){return String(value||'').replace(/\r\n?/g,'\n').trim().slice(0,max)}
 function rowLine(row){
   const parts=[];
-  const reasons=[...new Set((Array.isArray(row?.samples)?row.samples:[]).map(s=>{const reason=String(s?.reason||'');const custom=String(s?.reasonText||'').trim();return reason==='other'&&custom?custom:REASONS[reason]}).filter(Boolean))];
+  const reasons=[...new Set((Array.isArray(row?.samples)?row.samples:[]).map(reasonLabel).filter(Boolean))];
   if(reasons.length)parts.push('причины: '+reasons.join(', '));
   const h=row?.context?.habits;
   if(h&&Number(h.total)>0)parts.push('привычки: '+Number(h.done||0)+' из '+Number(h.total||0)+' выполнено'+(Number(h.notDone||0)?', '+Number(h.notDone)+' не выполнено':''));
@@ -25,6 +53,7 @@ function promptForMoodAnalysis({history,cycle,windowDays=30,level='full',context
     Number.isFinite(Number(cycle.periodDay))?'день месячных: '+Number(cycle.periodDay):''
   ].filter(Boolean).join(', '):'';
   const summary=(Array.isArray(contextSummary)?contextSummary:[]).filter(Boolean).slice(0,8).join('\n');
+  const factors=factorSummary(rows);
   return[
     'Сделайте бережный персональный разбор истории настроения пользователя RUDI.',
     'Обращайтесь к пользователю напрямую и только на «вы», во втором лице. Не называйте пользователя по имени.',
@@ -32,13 +61,16 @@ function promptForMoodAnalysis({history,cycle,windowDays=30,level='full',context
     'Строго разделяйте связь и причинность: привычка, сон, голодание, цикл или другое событие не считаются причиной без доказательств.',
     'Корреляции формулируйте как «в такие дни чаще отмечалось...», а не «из-за этого...».',
     level==='preliminary'?'Данных пока немного: прямо назовите разбор предварительным и избегайте сильных выводов.':'Данных достаточно для обычного разбора, но отмечайте неопределённость.',
-    'Причины, выбранные самим пользователем после отметки настроения, можно использовать как прямой контекст, не расширяя их смысл.',
+    'Причины, выбранные самим пользователем после отметки настроения, считаются важным пользовательским контекстом и должны учитываться в анализе.',
+    'Если один и тот же фактор выбран минимум два раза, отдельно проверьте, с каким настроением он чаще совпадал. Не называйте это причиной, если данных недостаточно.',
+    'В разделе «Связи» при наличии данных обязательно упомяните 1–3 наиболее повторяющихся выбранных фактора. Для единичной отметки прямо укажите, что данных мало для вывода.',
     'Учитывайте привычки, трекер голодания и отмеченные приёмы БАДов только когда они реально присутствуют в данных.',
     'Для БАДов не делайте выводов по единичным дням и не утверждайте лечебный эффект. Связь с настроением описывайте только при повторяющихся наблюдениях и только как корреляцию, а не причину.',
     'Дайте практичные рекомендации на ближайшие 1–3 дня.',
     'Период анализа: последние '+Number(windowDays||30)+' дней.',
     cycleText?'Дополнительный контекст цикла: '+cycleText+'. Не утверждайте, что цикл является причиной настроения.':'',
     summary?'Проверенные сводные наблюдения:\n'+summary:'',
+    factors.length?'Факторы, которые пользователь сам выбрал после отметки настроения:\n'+factors.join('\n'):'',
     'История:',
     lines,
     '',

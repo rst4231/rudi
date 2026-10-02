@@ -815,3 +815,115 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   .messenger-photo-button{width:min(76vw,330px)}
   .messenger-voice{min-width:205px}
 }
+
+
+/* RUDI v3.39 — compact iPhone composer + attachment popovers */
+.messenger-composer{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  grid-template-columns:38px 34px minmax(0,1fr) 38px;
+  grid-template-rows:auto;
+  align-items:end;
+}
+.messenger-composer>.messenger-attach{
+  grid-column:1;
+  grid-row:1;
+}
+.messenger-composer>.messenger-emoji{
+  grid-column:2;
+  grid-row:1;
+}
+.messenger-composer>#messengerInput{
+  grid-column:3;
+  grid-row:1;
+  min-width:0;
+  width:100%;
+  max-width:100%;
+}
+.messenger-composer>.messenger-mic,
+.messenger-composer>.messenger-send{
+  grid-column:4;
+  grid-row:1;
+  justify-self:end;
+}
+.messenger-composer>.messenger-mic[hidden],
+.messenger-composer>.messenger-send[hidden]{
+  display:none!important;
+}
+
+.messenger-attach-tray,
+.messenger-star-tray{
+  position:absolute;
+  left:0;
+  bottom:calc(100% + 7px);
+  grid-row:auto;
+  max-width:min(360px,calc(100vw - 24px));
+  box-sizing:border-box;
+  margin:0;
+  z-index:20;
+}
+.messenger-attach-tray{
+  width:min(190px,calc(100vw - 24px));
+}
+.messenger-star-tray{
+  width:min(330px,calc(100vw - 24px));
+}
+.messenger-star-tray>div{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:5px;
+  min-width:0;
+}
+.messenger-star-tray button{
+  min-width:0;
+  width:100%;
+  padding:0 5px;
+  white-space:nowrap;
+}
+
+@media(max-width:430px){
+  .messenger-composer{
+    grid-template-columns:34px 34px minmax(0,1fr) 36px;
+    gap:4px;
+    padding:5px 6px;
+  }
+  .messenger-composer>.messenger-attach{
+    width:34px;
+    height:34px;
+  }
+  .messenger-composer>.messenger-mic,
+  .messenger-composer>.messenger-send{
+    width:36px;
+    height:36px;
+  }
+  .messenger-composer>#messengerInput{
+    min-height:34px;
+    max-height:96px;
+    padding-left:5px;
+    padding-right:5px;
+  }
+  .messenger-attach-tray,
+  .messenger-star-tray{
+    left:0;
+    right:auto;
+    max-width:calc(100vw - 24px);
+  }
+  .messenger-star-tray{
+    width:calc(100vw - 24px);
+  }
+}
+
+
+.messenger-recording-bar{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:calc(100% + 7px);
+  grid-row:auto;
+  width:auto;
+  max-width:100%;
+  box-sizing:border-box;
+  margin:0;
+  z-index:21;
+}

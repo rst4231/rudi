@@ -1928,9 +1928,11 @@
         const type=String(button.dataset.messengerAttach||'');
         if(type==='photo'){
           attachTray.hidden=true;
+          if(starTray) starTray.hidden=true;
           photoInput?.click?.();
         }else if(type==='stars'){
-          if(starTray) starTray.hidden=!starTray.hidden;
+          attachTray.hidden=true;
+          if(starTray) starTray.hidden=false;
           refreshStarGiftState();
         }
       });
