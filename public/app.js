@@ -3734,10 +3734,15 @@
         });
       }
 
+      function latestPartnerActivityItem(items=homeDashboardState.activity){
+        const source=Array.isArray(items)?items:[];
+        const partnerActor=currentActor==='Диана'?'Рустам':'Диана';
+        return source.find(item=>String(item?.actor||'').trim()===partnerActor)||null;
+      }
+
       function activityNotificationsHaveUnread(){
         const items=Array.isArray(homeDashboardState.activity)?homeDashboardState.activity:[];
-        const partnerActor=currentActor==='Диана'?'Рустам':'Диана';
-        const latest=items.find(item=>String(item?.actor||'').trim()===partnerActor);
+        const latest=latestPartnerActivityItem(items);
         const latestId=String(latest?.id||'').trim();
         if(!latestId) return false;
 
@@ -3762,7 +3767,7 @@
       }
 
       function markActivityNotificationsSeen(){
-        const latest=homeDashboardState.activity?.[0];
+        const latest=latestPartnerActivityItem();
         const value=activitySeenMarkerValue(latest,homeDashboardState.activityVersion);
         if(!value){
           updateActivityNotificationBadge();
