@@ -12452,3 +12452,18 @@ html:not([data-theme="dark"]) .app-tabbar{
 .messenger-tab-icon{position:relative}
 #messengerTabBadge.app-tab-notification{top:-2px;right:-3px;min-width:7px;width:auto;height:7px;padding:0 2px;font-size:0}
 /* end RUDI v3.34 messenger navigation */
+
+/* RUDI v3.37 — actionable notifications + separate history */
+.home-activity-notifications-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:1px 2px 7px}
+.home-activity-notifications-head .home-activity-notifications-title{padding:0}
+.home-activity-mark-all{border:0;background:transparent;color:var(--accent);font:inherit;font-size:9.5px;font-weight:800;padding:5px 0;cursor:pointer}
+.home-activity-mark-all[hidden]{display:none!important}
+.home-activity-mode{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:0 0 5px;padding:3px;border-radius:11px;background:color-mix(in srgb,var(--soft) 86%,transparent)}
+.home-activity-mode button{min-height:28px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:inherit;font-size:9.5px;font-weight:780;cursor:pointer}
+.home-activity-mode button.is-active{background:var(--surface-strong);color:var(--text);box-shadow:0 2px 8px rgba(20,24,36,.08)}
+.home-activity-notifications-panel button.home-activity-row{cursor:pointer!important;-webkit-tap-highlight-color:transparent}
+.home-activity-notifications-panel button.home-activity-row:active{transform:scale(.992)!important}
+.home-activity-row.is-unread{position:relative;background:color-mix(in srgb,var(--accent-soft) 35%,transparent)}
+.home-activity-row.is-unread::after{content:'';position:absolute;left:0;top:50%;width:5px;height:5px;border-radius:999px;background:#ef3f55;transform:translate(-1px,-50%)}
+.home-activity-row.is-unread .home-activity-copy strong{font-weight:830}
+/* end RUDI v3.37 */

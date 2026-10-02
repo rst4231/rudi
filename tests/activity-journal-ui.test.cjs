@@ -53,16 +53,13 @@ test('activity journal is included in encrypted RUDI backup',()=>{
 });
 
 
-test('activity bell does not resurrect already-read items and rows are informational only',()=>{
-  assert.match(app,/function parseActivitySeenMarker\(value\)/);
-  assert.match(app,/function newerActivitySeenValue\(localValue,remoteValue\)/);
-  assert.match(app,/function migrateLegacyActivitySeenMarker\(items,version\)/);
-  assert.match(app,/homeDashboardState\.activityVersion=Math\.max/);
-  assert.match(app,/const row=document\.createElement\('div'\);/);
-  const renderStart=app.indexOf('function renderActivityJournal(payload)');
-  const renderEnd=app.indexOf('async function loadActivityJournal',renderStart);
-  const renderBlock=app.slice(renderStart,renderEnd);
-  assert.doesNotMatch(renderBlock,/row\.addEventListener\('click'/);
-  assert.doesNotMatch(renderBlock,/document\.createElement\(activityTab\?'button':'div'\)/);
-  assert.match(css,/home-activity-notifications-panel \.home-activity-row\{[\s\S]*cursor:default!important/);
+test('activity bell uses per-event read state and rows navigate to targets',()=>{
+  assert.match(app,/activityReadIds/);
+  assert.match(app,/function activityNotificationItem\(item\)/);
+  assert.match(app,/function markActivityItemsRead\(items/);
+  assert.match(app,/data-activity-mode="history"/);
+  assert.match(app,/homeActivityMarkAllButton/);
+  assert.match(app,/row\.addEventListener\('click'/);
+  assert.match(css,/\.home-activity-row\.is-unread/);
+
 });

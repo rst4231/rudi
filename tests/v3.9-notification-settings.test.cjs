@@ -52,7 +52,7 @@ test('reward notification is stored in messenger and push respects each recipien
   assert.doesNotMatch(block,/telegramSendMessage/);
 });
 
-test('settings expose default-on notification switches and schema v6',()=>{
+test('settings expose default-on notification switches and schema v7',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const morning=fs.readFileSync('api/morning-summary.cjs','utf8');
   assert.match(app,/id="settingsMoodNotifyPartnerToggle"[^>]+aria-checked="true"/);
@@ -61,6 +61,6 @@ test('settings expose default-on notification switches and schema v6',()=>{
   assert.match(app,/id="settingsRewardNotificationsToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsDailyQuestionNotificationToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsMessengerNotificationsToggle"[^>]+aria-checked="true"/);
-  assert.match(app,/syncSchemaVersion:6/);
+  assert.match(app,/syncSchemaVersion:7/);
   assert.match(morning,/preferences\?\.morningSummaryEnabled === false/);
 });

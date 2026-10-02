@@ -33,6 +33,16 @@ function normalizeBooleanMap(value, { limit = 128, keyLength = 96 } = {}) {
   return result;
 }
 
+function normalizeStringList(value, { limit = 160, itemLength = 80 } = {}) {
+  const result = [];
+  for (const raw of Array.isArray(value) ? value : []) {
+    const item = String(raw || '').trim().slice(0, itemLength);
+    if (item && !result.includes(item)) result.push(item);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
 function normalizeUiPreferencesState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const homeOrder = [];
@@ -45,6 +55,7 @@ function normalizeUiPreferencesState(value) {
   const viewStates = normalizeBooleanMap(source.viewStates);
 
   const activitySeenId = String(source.activitySeenId || '').trim().slice(0, 80);
+  const activityReadIds = normalizeStringList(source.activityReadIds);
   const marketTickerEnabled = Object.prototype.hasOwnProperty.call(source, 'marketTickerEnabled')
     ? Boolean(source.marketTickerEnabled)
     : true;
@@ -88,6 +99,7 @@ function normalizeUiPreferencesState(value) {
     blockStates,
     viewStates,
     activitySeenId,
+    activityReadIds,
     marketTickerEnabled,
     themeMode,
     autoRefreshEnabled,
@@ -134,7 +146,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 6,
+      syncSchemaVersion: 7,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
         ? { ...current.blockStates, ...incoming.blockStates }
@@ -143,6 +155,9 @@ async function saveUiPreferences(actor, value, options = {}) {
         ? { ...current.viewStates, ...incoming.viewStates }
         : current.viewStates,
       activitySeenId: has('activitySeenId') ? incoming.activitySeenId : current.activitySeenId,
+      activityReadIds: has('activityReadIds')
+        ? normalizeStringList([...(incoming.activityReadIds || []), ...(current.activityReadIds || [])])
+        : current.activityReadIds,
       marketTickerEnabled: has('marketTickerEnabled') ? incoming.marketTickerEnabled : current.marketTickerEnabled,
       themeMode: has('themeMode') ? incoming.themeMode : current.themeMode,
       autoRefreshEnabled: has('autoRefreshEnabled') ? incoming.autoRefreshEnabled : current.autoRefreshEnabled,
@@ -170,6 +185,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       || Object.keys(incoming.blockStates).length
       || Object.keys(incoming.viewStates).length
       || incoming.activitySeenId
+      || incoming.activityReadIds.length
       || has('marketTickerEnabled')
       || has('themeMode')
       || has('autoRefreshEnabled')
@@ -185,11 +201,12 @@ async function seedUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
-      syncSchemaVersion: 6,
+      syncSchemaVersion: 7,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
       viewStates: incoming.viewStates,
       activitySeenId: incoming.activitySeenId,
+      activityReadIds: incoming.activityReadIds,
       marketTickerEnabled: incoming.marketTickerEnabled,
       themeMode: incoming.themeMode,
       autoRefreshEnabled: incoming.autoRefreshEnabled,

@@ -666,6 +666,32 @@
         return 'rudi:activity-seen:v1:'+actor;
       }
 
+      function activityReadIdsStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:activity-read-ids:v1:'+actor;
+      }
+      function normalizeActivityReadIds(value){
+        const result=[];
+        for(const raw of Array.isArray(value)?value:[]){
+          const id=String(raw||'').trim().slice(0,80);
+          if(id&&!result.includes(id)) result.push(id);
+          if(result.length>=160) break;
+        }
+        return result;
+      }
+      function currentActivityReadIds(){
+        try{return normalizeActivityReadIds(JSON.parse(localStorage.getItem(activityReadIdsStorageKey())||'[]'))}
+        catch(_){return []}
+      }
+      function storeActivityReadIds(value){
+        const ids=normalizeActivityReadIds(value);
+        try{localStorage.setItem(activityReadIdsStorageKey(),JSON.stringify(ids))}catch(_){}
+        return ids;
+      }
+      function mergeActivityReadIds(primary,secondary){
+        return normalizeActivityReadIds([...(Array.isArray(primary)?primary:[]),...(Array.isArray(secondary)?secondary:[])]);
+      }
+
       function marketTickerEnabledStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:market-ticker-enabled:v1:'+actor;
@@ -972,11 +998,33 @@
         markUiPreferencesChanged({activitySeenId:value});
       }
 
+      function migrateLegacyActivityReadState(items){
+        if(currentActivityReadIds().length) return;
+        const marker=currentActivitySeenMarker();
+        if(!marker.id) return;
+        const source=Array.isArray(items)?items:[];
+        const matched=source.find(item=>String(item?.id||'')===marker.id)||null;
+        const cutoff=marker.at||(matched?Date.parse(String(matched.createdAt||''))||0:0);
+        const seenIndex=matched?source.indexOf(matched):-1;
+        const read=source.filter((item,index)=>{
+          if(!activityNotificationItem(item)) return false;
+          if(cutoff){
+            const created=Date.parse(String(item?.createdAt||''))||0;
+            return created>0&&created<=cutoff;
+          }
+          return seenIndex>=0&&index>=seenIndex;
+        }).map(item=>String(item?.id||'')).filter(Boolean);
+        if(!read.length) return;
+        const ids=storeActivityReadIds(read);
+        markUiPreferencesChanged({activityReadIds:ids});
+      }
+
       function localUiPreferences(){
         let homeOrder=[];
         let blockStates={};
         let viewStates={};
         let activitySeenId='';
+        let activityReadIds=[];
         let marketTickerEnabledValue=true;
         let themeModeValue='system';
         let autoRefreshEnabledValue=true;
@@ -993,6 +1041,7 @@
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
         try{viewStates=readUiViewStates()}catch(_){}
         try{activitySeenId=String(localStorage.getItem(activitySeenStorageKey())||'')}catch(_){}
+        try{activityReadIds=currentActivityReadIds()}catch(_){}
         try{
           const stored=localStorage.getItem(marketTickerEnabledStorageKey());
           marketTickerEnabledValue=stored===null?true:stored!=='0';
@@ -1009,11 +1058,12 @@
         try{messengerNotificationsEnabledValue=messengerNotificationsEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:6,
+          syncSchemaVersion:7,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
           activitySeenId,
+          activityReadIds,
           marketTickerEnabled:marketTickerEnabledValue,
           themeMode:themeModeValue,
           autoRefreshEnabled:autoRefreshEnabledValue,
@@ -1041,6 +1091,7 @@
         const hasRemoteBlocks=remote.blockStates&&typeof remote.blockStates==='object'&&!Array.isArray(remote.blockStates)&&Object.keys(remote.blockStates).length>0;
         const hasRemoteViews=remoteSchema>=2&&remote.viewStates&&typeof remote.viewStates==='object'&&!Array.isArray(remote.viewStates);
         const hasRemoteActivitySeen=Object.prototype.hasOwnProperty.call(remote,'activitySeenId');
+        const hasRemoteActivityReadIds=remoteSchema>=7&&Array.isArray(remote.activityReadIds);
         const hasRemoteMarketTicker=Object.prototype.hasOwnProperty.call(remote,'marketTickerEnabled');
         const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
         const hasRemoteAutoRefresh=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'autoRefreshEnabled');
@@ -1053,7 +1104,7 @@
         const hasRemoteDailyQuestionNotification=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'dailyQuestionNotificationEnabled');
         const hasRemoteMessengerNotifications=remoteSchema>=6&&Object.prototype.hasOwnProperty.call(remote,'messengerNotificationsEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification&&!hasRemoteMessengerNotifications) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification&&!hasRemoteMessengerNotifications) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -1084,6 +1135,9 @@
             const localSeen=String(localStorage.getItem(activitySeenStorageKey())||'');
             const mergedSeen=newerActivitySeenValue(localSeen,String(remote.activitySeenId||''));
             localStorage.setItem(activitySeenStorageKey(),mergedSeen);
+          }
+          if(hasRemoteActivityReadIds){
+            storeActivityReadIds(mergeActivityReadIds(remote.activityReadIds,currentActivityReadIds()));
           }
           if(hasRemoteMarketTicker){
             localStorage.setItem(marketTickerEnabledStorageKey(),remote.marketTickerEnabled===false?'0':'1');
@@ -1121,7 +1175,7 @@
             localStorage.setItem(messengerNotificationsStorageKey(),remote.messengerNotificationsEnabled===false?'0':'1');
           }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<6){
+          if(keepLocalOrder||remoteSchema<7){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             markUiPreferencesChanged();
           }
@@ -1185,6 +1239,7 @@
         const merged={...left,...right};
         if(left.blockStates||right.blockStates) merged.blockStates={...(left.blockStates||{}),...(right.blockStates||{})};
         if(left.viewStates||right.viewStates) merged.viewStates={...(left.viewStates||{}),...(right.viewStates||{})};
+        if(left.activityReadIds||right.activityReadIds) merged.activityReadIds=mergeActivityReadIds(right.activityReadIds,left.activityReadIds);
         return merged;
       }
 
@@ -3734,57 +3789,51 @@
         });
       }
 
-      function latestPartnerActivityItem(items=homeDashboardState.activity){
-        const source=Array.isArray(items)?items:[];
+      const ACTIVITY_NOTIFICATION_TYPES=new Set([
+        'mood','partner-message','daily-question','wishlist','lulu-walk',
+        'task-complete','checklist-complete','fasting-stop','like','photo','calendar'
+      ]);
+      function activityNotificationItem(item){
+        const type=String(item?.type||'');
+        const actor=String(item?.actor||'').trim();
+        const visibleTo=String(item?.visibleTo||'').trim();
         const partnerActor=currentActor==='Диана'?'Рустам':'Диана';
-        return source.find(item=>{
-          const actor=String(item?.actor||'').trim();
-          const visibleTo=String(item?.visibleTo||'').trim();
-          if(String(item?.type||'')==='reward-unlock'&&visibleTo===currentActor) return true;
-          return actor===partnerActor;
-        })||null;
+        if(type==='reward-unlock'&&visibleTo===currentActor) return true;
+        if(type==='photo'||type==='calendar') return true;
+        return actor===partnerActor&&ACTIVITY_NOTIFICATION_TYPES.has(type);
       }
-
-      function activityNotificationsHaveUnread(){
-        const items=Array.isArray(homeDashboardState.activity)?homeDashboardState.activity:[];
-        const latest=latestPartnerActivityItem(items);
-        const latestId=String(latest?.id||'').trim();
-        if(!latestId) return false;
-
-        const seen=currentActivitySeenMarker();
-        if(!seen.id) return true;
-        if(latestId===seen.id) return false;
-
-        const latestAt=Date.parse(String(latest?.createdAt||''))||0;
-        if(seen.at&&latestAt) return latestAt>seen.at;
-
-        const latestIndex=items.findIndex(item=>String(item?.id||'')===latestId);
-        const seenIndex=items.findIndex(item=>String(item?.id||'')===seen.id);
-        if(latestIndex<0) return false;
-        if(seenIndex<0) return true;
-        return latestIndex<seenIndex;
+      function activityItemIsRead(item){
+        const id=String(item?.id||'').trim();
+        return !id||currentActivityReadIds().includes(id);
       }
-
+      function activityNotificationItems(items=homeDashboardState.activity){
+        return (Array.isArray(items)?items:[]).filter(activityNotificationItem);
+      }
+      function activityUnreadItems(items=homeDashboardState.activity){
+        const read=new Set(currentActivityReadIds());
+        return activityNotificationItems(items).filter(item=>!read.has(String(item?.id||'')));
+      }
+      function activityNotificationsHaveUnread(){return activityUnreadItems().length>0}
       function updateActivityNotificationBadge(){
+        const unread=activityUnreadItems();
         const dot=document.getElementById('homeActivityNotificationDot');
-        if(dot) dot.hidden=!activityNotificationsHaveUnread();
+        if(dot) dot.hidden=unread.length===0;
+        const markAll=document.getElementById('homeActivityMarkAllButton');
+        if(markAll) markAll.hidden=activityPanelMode!=='notifications'||unread.length===0;
         queueAppIconBadgeSync();
       }
-
-      function markActivityNotificationsSeen(){
-        const latest=latestPartnerActivityItem();
-        const value=activitySeenMarkerValue(latest,homeDashboardState.activityVersion);
-        if(!value){
-          updateActivityNotificationBadge();
-          return;
-        }
-        const current=String(currentActivitySeenMarker().raw||'');
-        if(value!==current){
-          try{localStorage.setItem(activitySeenStorageKey(),value)}catch(_){}
-          markUiPreferencesChanged({activitySeenId:value});
-        }
+      function markActivityItemsRead(items,{render=true}={}){
+        const ids=(Array.isArray(items)?items:[items]).map(item=>String(item?.id||'').trim()).filter(Boolean);
+        if(!ids.length){updateActivityNotificationBadge();return false}
+        const previous=currentActivityReadIds();
+        const next=mergeActivityReadIds(ids,previous);
+        const changed=next.length!==previous.length||next.some((id,index)=>id!==previous[index]);
+        if(changed){storeActivityReadIds(next);markUiPreferencesChanged({activityReadIds:next})}
+        if(render) renderActivityJournalItems(homeDashboardState.activity);
         updateActivityNotificationBadge();
+        return changed;
       }
+      function markActivityNotificationsSeen(){return markActivityItemsRead(activityNotificationItems())}
 
       let activityNotificationsCloseTimer=null;
 
@@ -3842,7 +3891,7 @@
         }
         button.setAttribute('aria-expanded',next?'true':'false');
         dashboard?.classList.toggle('activity-notifications-open',next);
-        if(next) markActivityNotificationsSeen();
+        if(next) renderActivityJournalItems(homeDashboardState.activity);
       }
 
       function setupActivityNotifications(){
@@ -3850,9 +3899,26 @@
         const panel=document.getElementById('homeActivityNotificationsPanel');
         if(!button||!panel||button.dataset.bound==='1') return;
         button.dataset.bound='1';
+        document.querySelectorAll('[data-activity-mode]').forEach(modeButton=>{
+          if(modeButton.dataset.bound==='1') return;
+          modeButton.dataset.bound='1';
+          modeButton.addEventListener('click',event=>{
+            event.preventDefault();event.stopPropagation();
+            activityPanelMode=modeButton.dataset.activityMode==='history'?'history':'notifications';
+            activityJournalExpanded=false;renderActivityJournalItems(homeDashboardState.activity);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+        const markAll=document.getElementById('homeActivityMarkAllButton');
+        if(markAll&&markAll.dataset.bound!=='1'){
+          markAll.dataset.bound='1';
+          markAll.addEventListener('click',event=>{
+            event.preventDefault();event.stopPropagation();markActivityNotificationsSeen();
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          });
+        }
         button.addEventListener('click',event=>{
-          event.preventDefault();
-          event.stopPropagation();
+          event.preventDefault();event.stopPropagation();
           setActivityNotificationsOpen(!panel.classList.contains('is-open'));
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
@@ -3861,12 +3927,8 @@
           if(event.target.closest?.('#homeActivityNotifications')) return;
           setActivityNotificationsOpen(false);
         });
-        document.addEventListener('keydown',event=>{
-          if(event.key==='Escape') setActivityNotificationsOpen(false);
-        });
-        const reposition=()=>{
-          if(!panel.hidden&&panel.classList.contains('is-open')) positionActivityNotificationsPanel();
-        };
+        document.addEventListener('keydown',event=>{if(event.key==='Escape') setActivityNotificationsOpen(false)});
+        const reposition=()=>{if(!panel.hidden&&panel.classList.contains('is-open')) positionActivityNotificationsPanel()};
         window.addEventListener('resize',reposition,{passive:true});
         window.addEventListener('orientationchange',reposition,{passive:true});
         window.visualViewport?.addEventListener?.('resize',reposition,{passive:true});
@@ -3874,6 +3936,7 @@
       }
 
       let activityJournalExpanded=false;
+      let activityPanelMode='notifications';
       function activityMoodView(item){
         const emoji=normalizeLegacyMoodIcon(item?.icon||'🙂');
         const labels={'😢':'Грусть','🥱':'Скука','😐':'Нейтрально','😩':'Усталость','😡':'Злость','😄':'Радость','🥰':'Любовь'};
@@ -3925,89 +3988,99 @@
         return {title:raw,detail:''};
       }
 
+      function activityTargetTab(item){
+        const type=String(item?.type||'');
+        if(type==='task-complete'||type==='checklist-complete') return 'home';
+        if(type==='saved-recipe') return 'products';
+        const raw=String(item?.targetTab||'');
+        return raw==='saves'?'dates':raw;
+      }
+      function activityTargetItem(item){
+        const type=String(item?.type||'');
+        if(type==='partner-message') return 'partner';
+        if(type==='daily-question') return 'daily-question';
+        if(type==='lulu-walk') return 'lulu';
+        if(type==='mood') return String(item?.actor||'')==='Диана'?'diana':'rustam';
+        if(type==='reward-unlock') return currentActor;
+        if(type==='task-complete'||type==='checklist-complete') return 'priority';
+        return '';
+      }
       function openActivityTarget(item){
-        const activityTab=item?.type==='saved-recipe'?'products':String(item?.targetTab||'');
-        if(!activityTab) return;
-        navigateToAppTab(activityTab,{scroll:true});
+        const activityTab=activityTargetTab(item);if(!activityTab) return;
+        const targetItem=activityTargetItem(item);
+        setActivityNotificationsOpen(false);
+        navigateToAppTab(activityTab,{scroll:true,item:targetItem});
         if(activityTab==='products'){
           loadProducts({silent:true});
           Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>{
-            if(item?.type==='saved-recipe'){
-              requestAnimationFrame(()=>requestAnimationFrame(()=>{
-                const section=document.querySelector('.kitchen-saved-recipes');
-                const body=document.getElementById('savedRecipesBody');
-                const toggle=document.querySelector('[data-saves-toggle="recipe"]');
-                if(section&&(section.classList.contains('is-collapsed')||body?.hidden)) toggle?.click();
-                section?.scrollIntoView({behavior:'smooth',block:'start'});
-              }));
-            }
+            if(item?.type==='saved-recipe') requestAnimationFrame(()=>requestAnimationFrame(()=>{
+              const section=document.querySelector('.kitchen-saved-recipes');
+              const body=document.getElementById('savedRecipesBody');
+              const toggle=document.querySelector('[data-saves-toggle="recipe"]');
+              if(section&&(section.classList.contains('is-collapsed')||body?.hidden)) toggle?.click();
+              section?.scrollIntoView({behavior:'smooth',block:'start'});
+            }));
           });
         }
         if(activityTab==='photos') loadSharedAlbum();
         if(activityTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
         if(activityTab==='smart-saves') loadSmartSaves({silent:true});
       }
+      function activityEntryItems(entry){
+        if(Array.isArray(entry?.items)&&entry.items.length) return entry.items;
+        return entry?.item?[entry.item]:[];
+      }
 
       function renderActivityJournalItems(items){
-        const list=document.getElementById('homeActivityList');
-        const empty=document.getElementById('homeActivityEmpty');
+        const list=document.getElementById('homeActivityList'),empty=document.getElementById('homeActivityEmpty');
         if(!list||!empty) return;
-        const summaries=compactActivityItems(items);
-        const visible=activityJournalExpanded?summaries:summaries.slice(0,4);
-        list.replaceChildren();
-        empty.hidden=summaries.length>0;
-
+        const source=Array.isArray(items)?items:[];
+        const filtered=activityPanelMode==='history'?source:source.filter(activityNotificationItem);
+        const summaries=compactActivityItems(filtered);
+        const visible=activityJournalExpanded?summaries:summaries.slice(0,5);
+        const read=new Set(currentActivityReadIds());
+        list.replaceChildren();empty.hidden=summaries.length>0;
+        empty.textContent=activityPanelMode==='history'?'История пока пустая.':'Новых уведомлений пока нет.';
+        const title=document.querySelector('.home-activity-notifications-title');
+        if(title) title.textContent=activityPanelMode==='history'?'История активности':'Уведомления';
+        document.querySelectorAll('[data-activity-mode]').forEach(button=>{
+          const active=button.dataset.activityMode===activityPanelMode;
+          button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',active?'true':'false');
+        });
         for(const entry of visible){
           const item=entry.kind==='mood-summary'?entry.latest:entry.item;
-          const row=document.createElement('div');
-          row.className='home-activity-row'+(entry.kind==='mood-summary'?' is-mood-summary':'');
-
-          const icon=document.createElement('span');
-          icon.className='home-activity-icon';
-
-          const copy=document.createElement('span');
-          copy.className='home-activity-copy';
-          const textNode=document.createElement('strong');
-          const detail=document.createElement('time');
-
+          const entryItems=activityEntryItems(entry);
+          const unread=activityPanelMode==='notifications'&&entryItems.some(row=>!read.has(String(row?.id||'')));
+          const row=document.createElement('button');row.type='button';
+          row.className='home-activity-row'+(entry.kind==='mood-summary'?' is-mood-summary':'')+(unread?' is-unread':'');
+          const icon=document.createElement('span');icon.className='home-activity-icon';
+          const copy=document.createElement('span');copy.className='home-activity-copy';
+          const textNode=document.createElement('strong'),detail=document.createElement('time');
           if(entry.kind==='mood-summary'){
-            const mood=activityMoodView(item);
-            icon.textContent=mood.emoji;
-            textNode.textContent=entry.actor+' · '+mood.label;
-            const count=entry.count>1?activityChangeCountLabel(entry.count)+' · ':'';
-            detail.textContent=count+activityTimeLabel(item.createdAt);
+            const mood=activityMoodView(item);icon.textContent=mood.emoji;textNode.textContent=entry.actor+' · '+mood.label;
+            detail.textContent=(entry.count>1?activityChangeCountLabel(entry.count)+' · ':'')+activityTimeLabel(item.createdAt);
           }else if(entry.kind==='smart-save-summary'){
-            icon.textContent='🔖';
-            textNode.textContent=entry.actor+' · '+(entry.count===1?'добавлено сохранение':'добавлено '+entry.count+' сохранения');
-            detail.textContent=activityTimeLabel(item.createdAt);
+            icon.textContent='🔖';textNode.textContent=entry.actor+' · '+(entry.count===1?'добавлено сохранение':'добавлено '+entry.count+' сохранения');detail.textContent=activityTimeLabel(item.createdAt);
           }else{
-            const view=activityEventView(item);
-            icon.textContent=String(item?.icon||'•');
-            textNode.textContent=view.title;
-            detail.textContent=(view.detail?view.detail+' · ':'')+activityTimeLabel(item?.createdAt);
+            const view=activityEventView(item);icon.textContent=String(item?.icon||'•');textNode.textContent=view.title;detail.textContent=(view.detail?view.detail+' · ':'')+activityTimeLabel(item?.createdAt);
           }
-
           copy.append(textNode,detail);
-          row.append(icon,copy);
+          const arrow=document.createElement('span');arrow.className='home-activity-arrow';arrow.textContent=activityTargetTab(item)?'›':'';
+          row.append(icon,copy,arrow);
+          row.addEventListener('click',()=>{
+            if(activityPanelMode==='notifications') markActivityItemsRead(entryItems,{render:false});
+            if(activityTargetTab(item)) openActivityTarget(item);else renderActivityJournalItems(homeDashboardState.activity);
+          });
           list.appendChild(row);
         }
-
-        const hiddenCount=Math.max(0,summaries.length-4);
+        const hiddenCount=Math.max(0,summaries.length-5);
         if(hiddenCount>0){
-          const more=document.createElement('button');
-          more.type='button';
-          more.className='home-activity-more';
+          const more=document.createElement('button');more.type='button';more.className='home-activity-more';
           more.textContent=activityJournalExpanded?'Свернуть':'Показать ещё '+hiddenCount;
-          more.addEventListener('click',event=>{
-            event.preventDefault();
-            event.stopPropagation();
-            activityJournalExpanded=!activityJournalExpanded;
-            renderActivityJournalItems(homeDashboardState.activity);
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          });
+          more.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();activityJournalExpanded=!activityJournalExpanded;renderActivityJournalItems(homeDashboardState.activity)});
           list.appendChild(more);
         }
-        animateRudiCollection(list,'.home-activity-row',8);
+        animateRudiCollection(list,'.home-activity-row',8);updateActivityNotificationBadge();
       }
 
       function activityMoodLabel(icon){
@@ -4058,36 +4131,11 @@
 
       function renderActivityJournal(payload){
         renderLulu(payload?.lulu);if(payload?.score)renderScoreStickers(payload.score);
-        const list=document.getElementById('homeActivityList'),empty=document.getElementById('homeActivityEmpty');if(!list||!empty)return;
-        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,24);
-        homeDashboardState.activity=items;
-        homeDashboardState.activityVersion=Math.max(0,Number(payload?.version||0));
+        const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,80);
+        homeDashboardState.activity=items;homeDashboardState.activityVersion=Math.max(0,Number(payload?.version||0));
         migrateLegacyActivitySeenMarker(items,homeDashboardState.activityVersion);
-        const summary=summarizeActivityItems(items);list.replaceChildren();empty.hidden=summary.length>0;
-        for(const item of summary){
-          const kind=String(item?._activityKind||'item'),isMood=kind==='mood-summary',isSave=kind==='smart-save-summary';
-          const row=document.createElement('div');
-          row.className='home-activity-row'+(isMood?' is-mood-summary':'')+(isSave?' is-save-summary':'');
-          const icon=document.createElement('span');icon.className='home-activity-icon';icon.textContent=isMood?String(item._latestMoodIcon||'🙂'):isSave?'🔖':String(item.icon||'•');
-          const copy=document.createElement('span');copy.className='home-activity-copy';const strong=document.createElement('strong');
-          if(isMood)strong.textContent=String(item.actor||'Настроение')+' · '+activityMoodLabel(item._latestMoodIcon);
-          else if(isSave&&Number(item._saveCount||1)>1)strong.textContent=String(item.actor||'')+' '+(item.actor==='Диана'?'добавила ':'добавил ')+item._saveCount+' сохранения';
-          else strong.textContent=String(item.text||'');
-          copy.appendChild(strong);
-          if(isMood){const d=activityMoodDetail(item);if(d){const detail=document.createElement('span');detail.className='home-activity-detail';detail.textContent=d;copy.appendChild(detail)}}
-          const time=document.createElement('time');time.textContent=activityTimeLabel(item.createdAt);copy.appendChild(time);
-          row.append(icon,copy);list.appendChild(row);
-        }
-        const rows=[...list.querySelectorAll('.home-activity-row')],compactLimit=4;
-        if(rows.length>compactLimit){
-          const extra=rows.slice(compactLimit);extra.forEach(row=>row.classList.add('is-activity-hidden'));
-          const more=document.createElement('button');more.type='button';more.className='home-activity-more';more.setAttribute('aria-expanded','false');
-          const sync=expanded=>{extra.forEach(row=>row.classList.toggle('is-activity-hidden',!expanded));more.setAttribute('aria-expanded',expanded?'true':'false');more.textContent=expanded?'Свернуть':'Показать ещё '+extra.length};
-          sync(false);more.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();sync(more.getAttribute('aria-expanded')!=='true');try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
-          list.appendChild(more);
-        }
-        animateRudiCollection(list,'.home-activity-row:not(.is-activity-hidden)',10);
-        const panel=document.getElementById('homeActivityNotificationsPanel');if(panel&&!panel.hidden)markActivityNotificationsSeen();else updateActivityNotificationBadge();
+        migrateLegacyActivityReadState(items);
+        renderActivityJournalItems(items);
       }
 
       async function loadActivityJournal({silent=false}={}){
@@ -4574,9 +4622,16 @@
             '<span id="homeActivityNotificationDot" class="home-activity-notification-dot" hidden></span>'+
           '</button>'+
           '<div id="homeActivityNotificationsPanel" class="home-activity-notifications-panel" hidden>'+
-            '<div class="home-activity-notifications-title">Уведомления</div>'+
+            '<div class="home-activity-notifications-head">'+
+              '<div class="home-activity-notifications-title">Уведомления</div>'+
+              '<button id="homeActivityMarkAllButton" class="home-activity-mark-all" type="button" hidden>Прочитать все</button>'+
+            '</div>'+
+            '<div class="home-activity-mode" role="group" aria-label="Раздел событий">'+
+              '<button type="button" data-activity-mode="notifications" class="is-active" aria-pressed="true">Уведомления</button>'+
+              '<button type="button" data-activity-mode="history" aria-pressed="false">История</button>'+
+            '</div>'+
             '<div id="homeActivityList" class="home-activity-list" aria-live="polite"></div>'+
-            '<div id="homeActivityEmpty" class="home-activity-empty">Пока здесь тихо — новые события появятся автоматически.</div>'+
+            '<div id="homeActivityEmpty" class="home-activity-empty">Новых уведомлений пока нет.</div>'+
           '</div>';
 
         const settings=document.createElement('div');

@@ -5,6 +5,7 @@ const NAMESPACE = 'rudi-activity-journal-v1';
 const STATE_KEY = 'activity-journal';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ITEMS = 80;
+const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_TEXT = 220;
 const MAX_MARKERS = 24;
 
@@ -28,7 +29,7 @@ function cleanActor(value) {
 
 function cleanTab(value) {
   const tab = cleanText(value, 20);
-  return new Set(['home', 'feed', 'schedule', 'wishlist', 'photos', 'products', 'saves', 'smart-saves', 'score', 'messenger']).has(tab) ? tab : '';
+  return new Set(['home', 'feed', 'schedule', 'wishlist', 'photos', 'products', 'saves', 'smart-saves', 'score', 'messenger', 'fasting', 'dates', 'car']).has(tab) ? tab : '';
 }
 
 function normalizeItem(input) {
@@ -64,6 +65,15 @@ function normalizeMarkers(value) {
   return Object.fromEntries(rows);
 }
 
+function pruneActivityItems(items, now = Date.now()) {
+  const stamp = Number(now) || Date.now();
+  const cutoff = stamp - RETENTION_MS;
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    const createdAt = Date.parse(String(item?.createdAt || ''));
+    return Number.isFinite(createdAt) && createdAt >= cutoff;
+  });
+}
+
 function normalizeState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const items = (Array.isArray(source.items) ? source.items : [])
@@ -94,6 +104,7 @@ async function writeActivityJournal(value, options = {}) {
   const state = normalizeState({
     ...value,
     initialized: true,
+    items: pruneActivityItems(value?.items, options.now || Date.now()),
   });
   await cacheOf(options).set(STATE_KEY, state, {
     ttl: TTL_SECONDS,
@@ -198,6 +209,7 @@ module.exports = {
   STATE_KEY,
   TTL_SECONDS,
   MAX_ITEMS,
+  RETENTION_MS,
   normalizeState,
   readActivityJournal,
   writeActivityJournal,

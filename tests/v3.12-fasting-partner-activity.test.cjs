@@ -9,17 +9,17 @@ const rows=[
   {id:'wish',type:'wishlist',actor:'Рустам',text:'Рустам добавил желание'},
 ];
 
-test('fasting completion is hidden from the person who completed it',()=>{
+test('activity history keeps fasting completion visible to both partners',()=>{
   const rustam=activityItemsForActor(rows,'Рустам');
-  assert.equal(rustam.some(row=>row.id==='r-stop'),false);
+  assert.equal(rustam.some(row=>row.id==='r-stop'),true);
   assert.equal(rustam.some(row=>row.id==='d-stop'),true);
-
   const diana=activityItemsForActor(rows,'Диана');
-  assert.equal(diana.some(row=>row.id==='d-stop'),false);
+  assert.equal(diana.some(row=>row.id==='d-stop'),true);
   assert.equal(diana.some(row=>row.id==='r-stop'),true);
+
 });
 
-test('filter changes only fasting completion events',()=>{
+test('visibility filter keeps ordinary shared activity events',()=>{
   const rustam=activityItemsForActor(rows,'Рустам');
   assert.equal(rustam.some(row=>row.id==='r-start'),true);
   assert.equal(rustam.some(row=>row.id==='wish'),true);

@@ -747,9 +747,7 @@ function activityItemsForActor(items, actor) {
   const viewer = actor === 'Диана' ? 'Диана' : 'Рустам';
   return (Array.isArray(items) ? items : []).filter((item) => {
     const visibleTo=String(item?.visibleTo||'').trim();
-    if(visibleTo&&visibleTo!==viewer) return false;
-    if (String(item?.type || '') !== 'fasting-stop') return true;
-    return String(item?.actor || '') !== viewer;
+    return !visibleTo || visibleTo===viewer;
   });
 }
 

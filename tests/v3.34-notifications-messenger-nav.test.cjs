@@ -47,9 +47,12 @@ test('partner profile messenger icon is removed and unread badge is on bottom me
   assert.match(app,/attentionCountFromDataset\('messengerUnreadCount'\)/);
 });
 
-test('activity section is renamed to Notifications and reward unlock counts as unread for owner',()=>{
+test('activity section separates Notifications and History and reward unlock is private',()=>{
   assert.match(app,/home-activity-notifications-title">Уведомления</);
-  assert.match(app,/String\(item\?\.type\|\|''\)==='reward-unlock'&&visibleTo===currentActor/);
+  assert.match(app,/data-activity-mode="notifications"/);
+  assert.match(app,/data-activity-mode="history"/);
+  assert.match(app,/type==='reward-unlock'&&visibleTo===currentActor/);
+
 });
 
 test('reward messenger messages render as system events',()=>{
