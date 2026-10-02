@@ -457,10 +457,11 @@
     try{
       const data=await api('messenger-delete',{id:row.id});
       await animateMessageRemoval(row.id);
+      const settledScrollTop=Number(list?.scrollTop??preservedScrollTop);
       state.rows=Array.isArray(data.messages)?data.messages:state.rows.filter(item=>item.id!==row.id);
       state.decrypted.delete(row.id);
       state.renderedIds.delete(row.id);
-      renderMessages({preserveScrollTop:preservedScrollTop});
+      renderMessages({preserveScrollTop:settledScrollTop});
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(error){
       console.warn('RUDI_MESSENGER_DELETE_WARN',String(error?.message||error));
