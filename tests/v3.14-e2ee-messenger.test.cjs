@@ -138,12 +138,16 @@ test('client uses ECDH plus AES-GCM and keeps reply, emoji, links and read statu
   assert.match(client,/row\.readAt\?'Прочитано':'Отправлено'/);
 });
 
-test('messenger unread participates in profile badge and RUDI app badge',()=>{
+test('messenger unread participates in bottom navigation badge and RUDI app badge',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const client=fs.readFileSync('public/messenger.js','utf8');
+  const html=fs.readFileSync('public/index.html','utf8');
   assert.match(app,/attentionCountFromDataset\('messengerUnreadCount'\)/);
-  assert.match(client,/id='partnerMessengerButton'/);
-  assert.match(client,/partnerMessengerBadge/);
+  assert.match(html,/id="messengerTabBadge"/);
+  assert.match(html,/data-app-tab="messenger"/);
+  assert.match(client,/getElementById\('messengerTabBadge'\)/);
+  assert.doesNotMatch(client,/id='partnerMessengerButton'/);
+  assert.doesNotMatch(client,/partnerMessengerBadge/);
   assert.match(client,/document\.documentElement\.dataset\.messengerUnreadCount/);
 });
 
