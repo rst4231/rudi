@@ -8,8 +8,9 @@ test('activity bell badge reacts only to the other partner',()=>{
   const end=app.indexOf('function updateActivityNotificationBadge',start);
   assert.ok(start>=0&&end>start);
   const section=app.slice(start,end);
-  assert.match(section,/const partnerActor=currentActor==='Диана'\?'Рустам':'Диана';/);
-  assert.match(section,/items\.find\(item=>String\(item\?\.actor\|\|''\)\.trim\(\)===partnerActor\)/);
+  assert.match(app,/const partnerActor=currentActor==='Диана'\?'Рустам':'Диана';/);
+  assert.match(app,/String\(item\?\.type\|\|''\)==='reward-unlock'&&visibleTo===currentActor/);
+  assert.match(app,/return actor===partnerActor/);
   assert.doesNotMatch(section,/homeDashboardState\.activity\?\.\[0\]/);
 });
 
