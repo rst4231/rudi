@@ -261,6 +261,40 @@ async function readPushDeviceAuth(){
   }finally{db.close()}
 }
 
+async function clientHasVisibleMessenger(client){
+  if(!client||client.visibilityState!=='visible') return false;
+  try{
+    const url=new URL(client.url);
+    if(url.origin!==self.location.origin) return false;
+    if(url.searchParams.get('tab')==='messenger') return true;
+  }catch(_){return false}
+  return await new Promise(resolve=>{
+    const channel=new MessageChannel();
+    let settled=false;
+    const finish=value=>{
+      if(settled) return;
+      settled=true;
+      clearTimeout(timer);
+      try{channel.port1.close()}catch(_){}
+      resolve(Boolean(value));
+    };
+    const timer=setTimeout(()=>finish(false),180);
+    channel.port1.onmessage=event=>finish(event?.data?.messengerVisible===true);
+    try{
+      client.postMessage({type:'RUDI_QUERY_MESSENGER_VISIBLE'},[channel.port2]);
+    }catch(_){
+      finish(false);
+    }
+  });
+}
+
+async function hasVisibleMessenger(windows){
+  for(const client of (Array.isArray(windows)?windows:[])){
+    if(await clientHasVisibleMessenger(client)) return true;
+  }
+  return false;
+}
+
 async function deliverPendingPushNotifications(){
   const [seenIds,auth,subscription]=await Promise.all([
     readPushSeenIds().catch(()=>[]),
@@ -288,12 +322,7 @@ async function deliverPendingPushNotifications(){
     const notificationTag=String(row?.tag||id);
     const notificationUrl=String(row?.url||'/');
     const isMessenger=notificationTag==='rudi-messenger'||notificationUrl.includes('tab=messenger');
-    const messengerVisible=isMessenger&&windows.some(client=>{
-      try{
-        const url=new URL(client.url);
-        return client.visibilityState==='visible'&&url.origin===self.location.origin&&url.searchParams.get('tab')==='messenger';
-      }catch(_){return false}
-    });
+    const messengerVisible=isMessenger?await hasVisibleMessenger(windows):false;
     if(!messengerVisible){
       await self.registration.showNotification(String(row?.title||'RUDI'),{
         body:String(row?.body||''),

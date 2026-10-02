@@ -1632,6 +1632,11 @@
 
   navigator.serviceWorker?.addEventListener?.('message',event=>{
     const data=event?.data||{};
+    if(data.type==='RUDI_QUERY_MESSENGER_VISIBLE'){
+      const messengerVisible=document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger';
+      try{event.ports?.[0]?.postMessage({messengerVisible})}catch(_){}
+      return;
+    }
     if(data.type!=='RUDI_PUSH_RECEIVED') return;
     const tag=String(data.tag||'');
     const url=String(data.url||'');
