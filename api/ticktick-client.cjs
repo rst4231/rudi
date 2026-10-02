@@ -279,6 +279,44 @@ async function updateTaskChecklistItem(accessToken, projectId, taskId, itemId, c
   };
 }
 
+async function createTickTickTask(accessToken, value, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const title = String(value?.title || '').trim();
+  const projectId = String(value?.projectId || '').trim();
+  if (!title || !projectId) throw new Error('ticktick-task-create-invalid');
+
+  const body = { title, projectId };
+  if (value?.isAllDay != null) body.isAllDay = Boolean(value.isAllDay);
+  for (const key of ['startDate','dueDate','timeZone','content','desc']) {
+    const raw = String(value?.[key] || '').trim();
+    if (raw) body[key] = raw;
+  }
+
+  const response = await fetchImpl(API_BASE_URL + '/task', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'user-agent': 'RUDI-TickTick/1.0',
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (response.status === 401) {
+    const error = new Error('ticktick-token-invalid');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 403) {
+    const error = new Error('ticktick-write-forbidden');
+    error.status = response.status;
+    throw error;
+  }
+  if (!response.ok && response.status !== 201) throw new Error('ticktick-create-failed:' + response.status);
+  return response.json().catch(() => ({ ...body }));
+}
+
 async function completeTickTickTask(accessToken, projectId, taskId, options = {}) {
   const id = String(taskId || '').trim();
   const project = String(projectId || '').trim();
@@ -500,6 +538,7 @@ module.exports = {
   fetchTask,
   checklistUpdateBody,
   updateTaskChecklistItem,
+  createTickTickTask,
   completeTickTickTask,
   fetchProjectData,
   CALENDAR_TIMEZONE,
