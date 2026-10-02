@@ -1069,7 +1069,7 @@
     if(homePercent) homePercent.textContent=remainingLabel;
   }
 
-  function tyreSeason(weather) {  function tyreSeason(weather) {
+  function tyreSeason(weather) {
     const min=Number(weather?.minForecast);
     const avg=Number(weather?.avgMean);
     if(Number.isFinite(min)&&min<=0) return 'winter';
