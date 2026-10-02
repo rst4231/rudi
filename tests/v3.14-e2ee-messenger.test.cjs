@@ -154,7 +154,7 @@ test('messenger unread participates in bottom navigation badge and RUDI app badg
 test('push routes force fresh messenger and partner-message reads',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const api=fs.readFileSync('api/partner-message.js','utf8');
-  assert.match(api,/url:'\/\?tab=messenger&fresh=1'/);
+  assert.match(api,/url:'\/\?tab=messenger&message='\+encodeURIComponent\(id\)\+'&fresh=1'/);
   assert.match(api,/url: '\/\?item=partner&fresh=1'/);
   assert.match(app,/freshPartnerMessage=item==='partner'&&routeFreshRequested\(\)/);
   assert.match(app,/if\(!freshPartnerMessage\) ensureHomeBootstrap\(\)/);
@@ -169,6 +169,6 @@ test('messenger push can be disabled but defaults enabled',()=>{
   assert.match(pref,/messengerNotificationsEnabled[\s\S]*?\? Boolean\(source\.messengerNotificationsEnabled\)[\s\S]*?: true/);
   assert.match(messengerPush,/preferences\?\.messengerNotificationsEnabled===false/);
   assert.match(messengerPush,/title:actor==='Диана'\?'Диана прислала сообщение':'Рустам прислал сообщение'/);
-  assert.match(messengerPush,/body:''/);
-  assert.doesNotMatch(messengerPush,/body:[^'\n]*text/);
+  assert.match(messengerPush,/body:preview\|\|'Новое сообщение'/);
+  assert.doesNotMatch(messengerPush,/body:[^\n]*notification\?\.text/);
 });
