@@ -578,7 +578,8 @@
     let timer=0,startX=0,startY=0,pressed=false;
     const cancel=()=>{pressed=false;if(timer){clearTimeout(timer);timer=0}};
     article.addEventListener('pointerdown',event=>{
-      if(event.target.closest('a,button')) return;
+      const interactive=event.target.closest('a,button');
+      if(interactive&&!interactive.classList.contains('messenger-photo-button')) return;
       if(event.pointerType==='mouse'&&event.button!==0) return;
       pressed=true;
       startX=Number(event.clientX||0);
@@ -849,6 +850,12 @@
     button.appendChild(image);
     button.addEventListener('click',event=>{
       event.stopPropagation();
+      const article=button.closest('.messenger-message');
+      const longPressedAt=Number(article?.dataset?.longPressedAt||0);
+      if(longPressedAt&&Date.now()-longPressedAt<700){
+        event.preventDefault();
+        return;
+      }
       const viewer=document.createElement('div');
       viewer.className='messenger-photo-viewer';
       viewer.innerHTML='<button type="button" aria-label="Закрыть">×</button><img alt="Фото">';
