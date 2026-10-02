@@ -12472,7 +12472,7 @@ html:not([data-theme="dark"]) .app-tabbar{
 /* RUDI v3.38 nearest opens Calendar */
 .home-nearest-open{
   appearance:none;-webkit-appearance:none;border:0;padding:0;margin:0;background:transparent;
-  color:inherit;font:inherit;text-align:left;cursor:pointer
+  color:inherit;font-family:inherit;text-align:left;cursor:pointer
 }
 .home-nearest-open:active{opacity:.7}
 
