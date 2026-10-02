@@ -10,6 +10,7 @@ const META={
   love:{emoji:'🥰',label:'Любовь'}
 };
 const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
+function reasonLabel(sample){const custom=String(sample?.reasonText||'').trim();return sample?.reason==='other'&&custom?custom:(REASONS[sample?.reason]||'')}
 let state=null,visibleWeekEnd='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
 
 function initData(){
@@ -165,7 +166,7 @@ function renderStats(history,today){
     if(META[row?.mood])counts[row.mood]=(counts[row.mood]||0)+1;
     for(const sample of row?.samples||[]){
       marks+=1;
-      if(REASONS[sample.reason])reasonCounts[sample.reason]=(reasonCounts[sample.reason]||0)+1;
+      const label=reasonLabel(sample);if(label)reasonCounts[label]=(reasonCounts[label]||0)+1;
     }
   }
   host.replaceChildren();
@@ -178,7 +179,7 @@ function renderStats(history,today){
   }
   const summary=document.createElement('div');summary.className='mood-stat-summary';
   const topReason=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1])[0];
-  summary.textContent=rows.length+' '+plural(rows.length,'день','дня','дней')+' с настроением · '+marks+' '+plural(marks,'отметка','отметки','отметок')+(topReason?' · чаще причина: '+REASONS[topReason[0]]:'');
+  summary.textContent=rows.length+' '+plural(rows.length,'день','дня','дней')+' с настроением · '+marks+' '+plural(marks,'отметка','отметки','отметок')+(topReason?' · чаще причина: '+topReason[0]:'');
   host.append(summary);
   page.querySelector('#moodStatsPeriod').textContent='за '+windowDays+' дней';
 }
@@ -195,7 +196,7 @@ function renderDayDetail(row){
     const time=document.createElement('span');time.textContent=fmtTime(sample.updatedAt);
     const mood=document.createElement('b');mood.textContent=meta.emoji+' '+meta.label;
     line.append(time,mood);
-    if(REASONS[sample.reason]){const reason=document.createElement('em');reason.textContent=REASONS[sample.reason];line.append(reason)}
+    const reasonText=reasonLabel(sample);if(reasonText){const reason=document.createElement('em');reason.textContent=reasonText;line.append(reason)}
     box.append(line);
   }
 }
