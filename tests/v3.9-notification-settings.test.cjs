@@ -42,16 +42,14 @@ test('daily question push respects recipient preference',async()=>{
   assert.equal(calls.length,0);
 });
 
-test('reward notification respects each recipient preference',async()=>{
-  const calls=[];
-  const result=await sendRewardRedeemedNotification('Рустам',{label:'Кофе',icon:'☕',costUnits:20},{
-    recipients:{'Рустам':111,'Диана':222},
-    readUiPreferencesImpl:async actor=>({rewardNotificationsEnabled:actor!=='Диана'}),
-    telegramSendMessageImpl:async(chatId,text)=>{calls.push({chatId,text});return{chatId,messageId:calls.length+1};},
-  });
-  assert.equal(result.length,2);
-  assert.deepEqual(calls.map(row=>row.chatId),[111]);
-  assert.equal(result.find(row=>row.actor==='Диана').reason,'disabled');
+test('reward notification is stored in messenger and push respects each recipient preference',()=>{
+  const api=fs.readFileSync('api/partner-message.js','utf8');
+  const block=api.match(/async function sendRewardMessengerEvent[\s\S]*?\n\}/)?.[0]||'';
+  assert.match(block,/addMessengerMessage\(cleanActor,encrypted,options\)/);
+  assert.match(block,/preferences\?\.rewardNotificationsEnabled===false/);
+  assert.match(block,/sendPush\(recipient/);
+  assert.match(block,/tab=messenger&message=/);
+  assert.doesNotMatch(block,/telegramSendMessage/);
 });
 
 test('settings expose default-on notification switches and schema v6',()=>{
