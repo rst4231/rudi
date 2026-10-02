@@ -371,42 +371,57 @@ async function sendActivityNotification(text, _tab, options = {}) {
   }
 }
 
-async function sendRewardNotificationToEnabledRecipients(text, options = {}) {
-  const recipients=options.recipients||await readRecipients(options)||{};
+function encryptMessengerSystemText(text,options={}){
+  const key=Buffer.from(messengerConversationKey(options),'base64url');
+  if(key.length!==32) throw new Error('messenger-shared-key-invalid');
+  const iv=crypto.randomBytes(12);
+  const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+  cipher.setAAD(Buffer.from('rudi-messenger-shared-v2','utf8'));
+  const clear=Buffer.from(JSON.stringify({text:String(text||''),reply:null}),'utf8');
+  const encrypted=Buffer.concat([cipher.update(clear),cipher.final(),cipher.getAuthTag()]);
+  return {ciphertext:encrypted.toString('base64url'),iv:iv.toString('base64url')};
+}
+
+async function addRewardMessengerEvent(actor,text,dedupeKey,options={}){
+  const cleanActor=actor==='Диана'?'Диана':actor==='Рустам'?'Рустам':'';
+  if(!cleanActor) throw new Error('messenger-actor-invalid');
+  const encrypted=encryptMessengerSystemText(text,options);
+  const digest=crypto.createHash('sha256').update(String(dedupeKey||text)).digest('hex').slice(0,24);
+  const message=await addMessengerMessage(cleanActor,{
+    clientId:'client-system-'+digest,
+    scheme:'shared-v2',
+    ...encrypted,
+    keyVersions:{'Рустам':0,'Диана':0},
+  },options);
+  if(message?.deduplicated===true) return {message,push:{sent:false,reason:'duplicate'}};
+  const recipient=cleanActor==='Рустам'?'Диана':'Рустам';
   const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
-  const send=options.telegramSendMessageImpl||telegramSendMessage;
-  const results=[];
-  for(const recipient of ['Рустам','Диана']){
-    const preferences=await readPreferences(recipient,options).catch(()=>null);
-    if(preferences?.rewardNotificationsEnabled===false){
-      results.push({actor:recipient,sent:false,reason:'disabled'});
-      continue;
-    }
-    const chatId=Number(recipients?.[recipient]);
-    if(!Number.isInteger(chatId)||chatId<=0){
-      results.push({actor:recipient,sent:false,reason:'recipient-not-configured'});
-      continue;
-    }
-    try{
-      const result=await send(chatId,text,{...options,tab:'home',buttonText:'Открыть RUDI'});
-      results.push({actor:recipient,sent:true,...result});
-    }catch(error){
-      results.push({actor:recipient,sent:false,error:String(error?.message||error)});
-    }
+  const preferences=await readPreferences(recipient,options).catch(()=>null);
+  if(preferences?.rewardNotificationsEnabled===false){
+    return {message,push:{sent:false,recipient,reason:'disabled'}};
   }
-  return results;
+  const push=await sendMessengerNotificationToPartner(cleanActor,message.id,{preview:String(text||'').slice(0,120)},options)
+    .catch(error=>({sent:false,recipient,error:String(error?.message||error)}));
+  return {message,push};
 }
 
 async function sendRewardRedeemedNotification(actor, reward, options = {}) {
   try {
-    const label=escapeTelegramHtml(String(reward?.label||'Награда'));
+    const label=String(reward?.label||'Награда').trim();
     const icon=String(reward?.icon||'🎁');
     const cost=pointsFromUnits(reward?.costUnits||0);
     const verb=activityVerb(actor,'активировал','активировала');
-    return await sendRewardNotificationToEnabledRecipients(
-      `🎁 <b>${escapeTelegramHtml(actor)} ${verb} награду</b>\n\n${icon} <b>${label}</b>\nСписано: <b>${cost} звезд</b>`,
-      options
-    );
+    const text='🎁 '+actor+' '+verb+' награду\n\n'+icon+' '+label+'\nСписано: '+cost+' ⭐';
+    await recordActivity({
+      type:'reward-redeemed',
+      actor,
+      text:actor+' '+verb+' награду: '+icon+' '+label,
+      icon:'🎁',
+      targetTab:'home',
+      dedupeKey:'reward-redeemed:'+actor+':'+String(reward?.id||label),
+    },options);
+    const result=await addRewardMessengerEvent(actor,text,'reward-redeemed:'+actor+':'+String(reward?.id||label),options);
+    return [result];
   } catch (error) {
     console.warn('RUDI_REWARD_REDEEM_NOTIFICATION_WARN', String(error?.message || error));
     return [];
@@ -415,13 +430,21 @@ async function sendRewardRedeemedNotification(actor, reward, options = {}) {
 
 async function sendRewardCompletedNotification(actor, redemption, options = {}) {
   try {
-    const label=escapeTelegramHtml(String(redemption?.label||'Награда'));
-    const buyer=escapeTelegramHtml(String(redemption?.buyerActor||''));
+    const label=String(redemption?.label||'Награда').trim();
+    const buyer=String(redemption?.buyerActor||'').trim();
+    const icon=String(redemption?.icon||'🎁');
     const confirmVerb=activityVerb(actor,'Подтвердил','Подтвердила');
-    return await sendRewardNotificationToEnabledRecipients(
-      `✅ <b>Награда выполнена</b>\n\n${String(redemption?.icon||'🎁')} <b>${label}</b>\nДля: <b>${buyer}</b>\n${confirmVerb}: <b>${escapeTelegramHtml(actor)}</b>`,
-      options
-    );
+    const text='✅ Награда выполнена\n\n'+icon+' '+label+'\nДля: '+buyer+'\n'+confirmVerb+': '+actor;
+    await recordActivity({
+      type:'reward-completed',
+      actor,
+      text:'Награда выполнена: '+icon+' '+label+' · '+confirmVerb+': '+actor,
+      icon:'✅',
+      targetTab:'home',
+      dedupeKey:'reward-completed:'+String(redemption?.id||label),
+    },options);
+    const result=await addRewardMessengerEvent(actor,text,'reward-completed:'+String(redemption?.id||label),options);
+    return [result];
   } catch (error) {
     console.warn('RUDI_REWARD_COMPLETE_NOTIFICATION_WARN', String(error?.message || error));
     return [];
@@ -547,11 +570,6 @@ async function sendDailyQuestionAnswerNotification(actor,options={}) {
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   try{
-    const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
-    const preferences=await readPreferences(recipient,options).catch(()=>null);
-    if(preferences?.dailyQuestionNotificationEnabled===false){
-      return {sent:false,recipient,reason:'disabled'};
-    }
     const action=actor==='Диана'?'ответила':'ответил';
     const sendPush=options.sendPushNotificationImpl||sendPushNotification;
     const result=await sendPush(recipient,{
@@ -717,6 +735,8 @@ async function recordActivity(input, options = {}) {
 function activityItemsForActor(items, actor) {
   const viewer = actor === 'Диана' ? 'Диана' : 'Рустам';
   return (Array.isArray(items) ? items : []).filter((item) => {
+    const recipient=String(item?.recipient||'').trim();
+    if(recipient&&recipient!==viewer) return false;
     if (String(item?.type || '') !== 'fasting-stop') return true;
     return String(item?.actor || '') !== viewer;
   });
@@ -754,13 +774,42 @@ function fastingViewWithRewards(state, actor, scoreState) {
 async function sendShopUnlockNotification(actor,rewards,options={}){
   const rows=(Array.isArray(rewards)?rewards:[]).filter(Boolean);
   if(!rows.length)return [];
-  const recipients=await readRecipients(options).catch(()=>null);
-  const chatId=Number(recipients?.[actor]);
-  if(!Number.isInteger(chatId)||chatId<=0)return [];
+  const results=[];
+  for(const row of rows){
+    const label=String(row?.label||'Награда').trim();
+    const icon=String(row?.icon||'🎁');
+    const cost=pointsFromUnits(row?.costUnits||0);
+    const rewardId=String(row?.id||label).trim();
+    await recordActivity({
+      type:'reward-unlock',
+      actor,
+      recipient:actor,
+      text:'Открылась новая награда: '+icon+' '+label+' · '+cost+' ⭐',
+      icon:'🔓',
+      targetTab:'home',
+      dedupeKey:'reward-unlock:'+actor+':'+rewardId+':'+String(row?.costUnits||0),
+    },options);
+  }
+  const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
+  const preferences=await readPreferences(actor,options).catch(()=>null);
+  if(preferences?.rewardNotificationsEnabled===false){
+    return rows.map(row=>({actor,sent:false,reason:'disabled',rewardId:String(row?.id||'')}));
+  }
+  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
   const plural=rows.length>1;
-  const lines=rows.map(row=>String(row.icon||'🎁')+' <b>'+escapeTelegramHtml(row.label||'Награда')+'</b> — <b>'+pointsFromUnits(row.costUnits)+' ⭐</b>');
-  const text=(plural?'🔓 <b>В магазине стали доступны новые награды</b>':'🔓 <b>В магазине стала доступна новая награда</b>')+'\n\n'+lines.join('\n');
-  return [await telegramSendMessage(chatId,text,{...options,buttonText:'Открыть RUDI',tab:'home'})];
+  const summary=rows.map(row=>String(row?.icon||'🎁')+' '+String(row?.label||'Награда')).join(', ');
+  try{
+    const result=await sendPush(actor,{
+      title:plural?'🔓 Открылись новые награды':'🔓 Открылась новая награда',
+      body:summary,
+      tag:'reward-unlock',
+      url:'/?tab=score&item='+encodeURIComponent(actor),
+    },options);
+    results.push({actor,...result});
+  }catch(error){
+    results.push({actor,sent:false,error:String(error?.message||error)});
+  }
+  return results;
 }
 
 function scheduleShopUnlockNotification(actor,rewards,options={}){
