@@ -8,12 +8,13 @@ const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'public', 'app.css'), 'utf8');
 
-test('fasting tracker leaves Kitchen and opens from profile emoji or Quick Access', () => {
+test('fasting tracker leaves Kitchen and remains available from profile while Calendar owns Quick Access', () => {
   assert.doesNotMatch(html, /id="fastingTrackerOpen"/);
   assert.match(html, /id="fastingProfileButton"/);
-  assert.match(html, /id="quickFastingButton"/);
+  assert.doesNotMatch(html, /id="quickFastingButton"/);
+  assert.match(html, /id="quickCalendarButton"/);
   assert.match(app, /profileButton\?\.addEventListener\('click',navigateOwnFasting\)/);
-  assert.match(app, /fastingReturnTab='home'/);
+  assert.match(app, /navigateToAppTab\('schedule'/);
   assert.match(css, /#fastingProfileButton/);
 });
 
