@@ -1580,6 +1580,24 @@
       date.textContent=formatNoteDate(note.createdAt);
       copy.append(text,date);
 
+      const expand=document.createElement('button');
+      expand.type='button';
+      expand.className='car-note-expand';
+      expand.textContent='Показать полностью';
+      expand.hidden=true;
+      expand.addEventListener('click',()=>{
+        const expanded=text.classList.toggle('is-expanded');
+        expand.textContent=expanded?'Свернуть':'Показать полностью';
+      });
+      copy.appendChild(expand);
+      requestAnimationFrame(()=>{
+        const line=parseFloat(getComputedStyle(text).lineHeight)||15;
+        if(text.scrollHeight>line*5.25){
+          text.classList.add('is-collapsed');
+          expand.hidden=false;
+        }
+      });
+
       const remove=document.createElement('button');
       remove.type='button';
       remove.className='car-note-remove';

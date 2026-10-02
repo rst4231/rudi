@@ -18,7 +18,8 @@
         '#partnerMessageText:not(.partner-empty)','#dailyQuestionRustamAnswer','#dailyQuestionDianaAnswer',
         '.wish-text','.ticktick-today-title','.ticktick-description','.ticktick-checklist',
 '#photoViewerCaption',
-        '.car-error-title','.car-error-comment','.car-note-copy','.product-text','.holiday-partner-note'
+        '.car-error-title','.car-error-comment','.car-note-copy','.product-text','.holiday-partner-note',
+        '.messenger-message','.messenger-message-text','.messenger-bubble'
       ].join(',');
       function rudiElementFromTarget(target){
         if(!target) return null;
@@ -1177,7 +1178,15 @@
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
           if(keepLocalOrder||remoteSchema<7){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
-            markUiPreferencesChanged();
+            const structural=localUiPreferences();
+            markUiPreferencesChanged({
+              syncSchemaVersion:7,
+              homeOrder:structural.homeOrder,
+              blockStates:structural.blockStates,
+              viewStates:structural.viewStates,
+              activitySeenId:structural.activitySeenId,
+              activityReadIds:structural.activityReadIds
+            });
           }
           if(remoteVersion) uiPreferencesServerVersion=Math.max(uiPreferencesServerVersion,remoteVersion);
           if(remoteTime) uiPreferencesServerUpdatedAt=Math.max(uiPreferencesServerUpdatedAt,remoteTime);
@@ -4335,6 +4344,8 @@
       function setupHomeDashboardActions(){
         setupActivityNotifications();
         setupSettingsPanel();
+        const calendarBack=document.getElementById('workCalendarBack');if(calendarBack&&calendarBack.dataset.bound!=='1'){calendarBack.dataset.bound='1';calendarBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
+        const nearestOpen=document.getElementById('homeNearestOpen');if(nearestOpen&&nearestOpen.dataset.bound!=='1'){nearestOpen.dataset.bound='1';nearestOpen.addEventListener('click',()=>navigateToAppTab('schedule',{scroll:true}))}
         const smartMore=document.getElementById('smartSavesHomeMore');if(smartMore&&smartMore.dataset.bound!=='1'){smartMore.dataset.bound='1';smartMore.addEventListener('click',()=>navigateToAppTab('smart-saves',{scroll:true}))}
         document.querySelectorAll('[data-smart-saves-filter]').forEach(button=>{if(button.dataset.bound==='1')return;button.dataset.bound='1';button.addEventListener('click',()=>{smartSavesFilter=button.dataset.smartSavesFilter||'all';renderSmartSaves();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}})});
         const smartBack=document.getElementById('smartSavesBackButton');if(smartBack&&smartBack.dataset.bound!=='1'){smartBack.dataset.bound='1';smartBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
@@ -4959,7 +4970,7 @@
         nearest.dataset.homeTile='nearest';
         nearest.hidden=true;
         nearest.innerHTML=
-          '<div class="home-nearest-head"><div class="home-nearest-title">Ближайшее</div></div>'+
+          '<div class="home-nearest-head"><button id="homeNearestOpen" class="home-nearest-title home-nearest-open" type="button">Ближайшее</button></div>'+
           '<div id="homeNearestRows" class="home-nearest-rows"></div>';
 
         profile.after(selfCard.tile,partnerCard.tile,luluTile,nearest);
@@ -5046,7 +5057,7 @@
         host.appendChild(button);
       }
 
-      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false}){
+      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
         const body=wrapCollapseBody(section,bodySelectors);
@@ -5063,11 +5074,11 @@
           button.setAttribute('aria-expanded',collapsed?'false':'true');
           body.setAttribute('aria-hidden',collapsed?'true':'false');
         };
-        apply(resetCollapsedOnInit?Boolean(defaultCollapsed):getBlockCollapsed(key,defaultCollapsed));
+        apply(!persist||resetCollapsedOnInit?Boolean(defaultCollapsed):getBlockCollapsed(key,defaultCollapsed));
         const toggleCollapsed=()=>{
           const collapsed=!section.classList.contains('is-collapsed');
           apply(collapsed);
-          setBlockCollapsed(key,collapsed);
+          if(persist) setBlockCollapsed(key,collapsed);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
         button.addEventListener('click',toggleCollapsed);
@@ -5075,7 +5086,7 @@
           section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{
             if(section.classList.contains('is-collapsed')){
               apply(false);
-              setBlockCollapsed(key,false);
+              if(persist) setBlockCollapsed(key,false);
             }
           });
         }
@@ -5085,22 +5096,18 @@
         setupPersistentCollapsible({
           selector:'#homeRustamTile',key:'profile-rustam',
           bodySelectors:['#homeRustamDetails'],
-          hostSelector:'.profile-person-head'
+          hostSelector:'.profile-person-head',
+          defaultCollapsed:true,
+          resetCollapsedOnInit:true,
+          persist:false
         });
         setupPersistentCollapsible({
           selector:'#homeDianaTile',key:'profile-diana',
           bodySelectors:['#homeDianaDetails'],
-          hostSelector:'.profile-person-head'
-        });
-        setupPersistentCollapsible({
-          selector:'#homeNearestBlock',key:'nearest',
-          bodySelectors:['#homeNearestRows'],
-          hostSelector:'.home-nearest-head'
-        });
-        setupPersistentCollapsible({
-          selector:'#dianaCycleCard',key:'diana-cycle',
-          bodySelectors:['#dianaCycleBody'],
-          hostSelector:'.cycle-head'
+          hostSelector:'.profile-person-head',
+          defaultCollapsed:true,
+          resetCollapsedOnInit:true,
+          persist:false
         });
         setupPersistentCollapsible({
           selector:'#smartSavesHomeTile',key:'smart-saves-home',
@@ -5118,11 +5125,6 @@
           selector:'#dailyQuestionTile',key:'daily-question',
           bodySelectors:['#dailyQuestionBody'],
           hostSelector:'.daily-question-head'
-        });
-        setupPersistentCollapsible({
-          selector:'#workCalendarCard',key:'calendar-work',
-          bodySelectors:['#workCalendarStatus','#workCalendarRanges','#workCalendarDays','#workCalendarSelected'],
-          hostSelector:'.work-calendar-head'
         });
         setupPersistentCollapsible({
           selector:'#productsListCard',key:'kitchen-products-v2',
@@ -5321,7 +5323,7 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(morningSummaryStorageKey(),next?'1':'0')}catch(_){}
         updateGeneralNotificationSettingsUi();
-        if(currentActor) markUiPreferencesChanged({morningSummaryEnabled:next,syncSchemaVersion:5});
+        if(currentActor){markUiPreferencesChanged({morningSummaryEnabled:next,syncSchemaVersion:5});flushUiPreferencesToServer().catch(()=>{});}
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5329,7 +5331,7 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(rewardNotificationsStorageKey(),next?'1':'0')}catch(_){}
         updateGeneralNotificationSettingsUi();
-        if(currentActor) markUiPreferencesChanged({rewardNotificationsEnabled:next,syncSchemaVersion:5});
+        if(currentActor){markUiPreferencesChanged({rewardNotificationsEnabled:next,syncSchemaVersion:5});flushUiPreferencesToServer().catch(()=>{});}
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5337,7 +5339,7 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(dailyQuestionNotificationStorageKey(),next?'1':'0')}catch(_){}
         updateGeneralNotificationSettingsUi();
-        if(currentActor) markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:6});
+        if(currentActor){markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:7});flushUiPreferencesToServer().catch(()=>{});}
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5345,7 +5347,7 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(messengerNotificationsStorageKey(),next?'1':'0')}catch(_){}
         updateGeneralNotificationSettingsUi();
-        if(currentActor) markUiPreferencesChanged({messengerNotificationsEnabled:next,syncSchemaVersion:6});
+        if(currentActor){markUiPreferencesChanged({messengerNotificationsEnabled:next,syncSchemaVersion:7});flushUiPreferencesToServer().catch(()=>{});}
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -7076,15 +7078,25 @@
         let nextStart=parseCycleDate(source.nextPeriodStart);
         if(!Number.isFinite(nextStart)&&Number.isFinite(latestActualStart)) nextStart=latestActualStart+cycleLength*DAY;
         while(Number.isFinite(nextStart)&&nextStart+(periodLength-1)*DAY<todayUtc) nextStart+=cycleLength*DAY;
+        const explicitEnd=parseCycleDate(source.lastPeriodEnd);
+        const explicitEndForCurrent=Number.isFinite(latestActualStart)
+          &&Number.isFinite(explicitEnd)
+          &&explicitEnd>=latestActualStart
+          &&explicitEnd<latestActualStart+cycleLength*DAY;
+        const effectivePeriodEnd=explicitEndForCurrent
+          ?explicitEnd
+          :(Number.isFinite(latestActualStart)?latestActualStart+(periodLength-1)*DAY:null);
         const actualPeriodActive=Number.isFinite(latestActualStart)
           &&todayUtc>=latestActualStart
-          &&todayUtc<=latestActualStart+(periodLength-1)*DAY;
+          &&Number.isFinite(effectivePeriodEnd)
+          &&todayUtc<=effectivePeriodEnd;
         const periodActive=actualPeriodActive;
-        const periodStart=actualPeriodActive?latestActualStart:null;
-        const periodEnd=Number.isFinite(periodStart)?periodStart+(periodLength-1)*DAY:null;
+        const periodStart=Number.isFinite(latestActualStart)?latestActualStart:null;
+        const periodEnd=Number.isFinite(effectivePeriodEnd)?effectivePeriodEnd:null;
         const periodDay=Number.isFinite(periodStart)
           ?Math.floor((todayUtc-periodStart)/DAY)+1
           :null;
+        const periodEndedToday=explicitEndForCurrent&&explicitEnd===todayUtc;
         const currentStart=Number.isFinite(latestActualStart)
           ?latestActualStart
           :Number.isFinite(nextStart)
@@ -7108,7 +7120,7 @@
         return {
           cycleLength,periodLength,ovulationDay,fertileStart,fertileEnd,
           currentStart,nextStart,cycleDay,daysToNext,ovulationUtc,phase,
-          periodActive,periodStart,periodEnd,periodDay,
+          periodActive,periodStart,periodEnd,periodDay,periodEndedToday,
           progress:cycleDay?Math.max(0,Math.min(100,(cycleDay/cycleLength)*100)):0,
           historyCount:history.length
         };
@@ -7149,8 +7161,16 @@
           return;
         }
 
-        if(recordButton) recordButton.disabled=false;
         const model=dianaCycleModel(cfg);
+        if(recordButton){
+          const owner=currentActor==='Диана';
+          recordButton.hidden=!owner;
+          recordButton.disabled=!owner||Boolean(model.periodEndedToday);
+          recordButton.textContent=model.periodEndedToday
+            ?'Месячные закончились сегодня'
+            :(model.periodActive?'Отметить конец сегодня':'Отметить начало сегодня');
+          recordButton.dataset.cycleOperation=model.periodActive&&!model.periodEndedToday?'record-end':'record-start';
+        }
         homeDashboardState.cycle=model;
         setDianaCycleMood(model);
         renderHomeDashboard();
@@ -7175,7 +7195,9 @@
           ?model.cycleDay+'-й день цикла · средний цикл '+model.cycleLength+' '+dayWord(model.cycleLength)
           :'Недостаточно истории';
         progress.style.width=model.progress.toFixed(1)+'%';
-        if(model.periodActive&&Number.isFinite(model.periodStart)&&Number.isFinite(model.periodEnd)){
+        if(model.periodEndedToday&&Number.isFinite(model.periodStart)&&Number.isFinite(model.periodEnd)){
+          period.textContent='Начались '+cycleDateLabel(model.periodStart)+' · закончились сегодня';
+        }else if(model.periodActive&&Number.isFinite(model.periodStart)&&Number.isFinite(model.periodEnd)){
           period.textContent='Начались '+cycleDateLabel(model.periodStart)+' · '+model.periodDay+'-й день · закончатся '+cycleDateLabel(model.periodEnd);
         }else if(model.daysToNext===0&&Number.isFinite(model.nextStart)){
           period.textContent='Ожидаются сегодня · прогноз '+cycleDateLabel(model.nextStart);
@@ -7233,6 +7255,18 @@
         });
       }
 
+      function confirmCycleEnd(){
+        return new Promise(resolve=>{
+          try{
+            if(tg?.showConfirm){
+              tg.showConfirm('Отметить сегодня как последний день месячных?',value=>resolve(Boolean(value)));
+              return;
+            }
+          }catch(_){}
+          resolve(window.confirm('Отметить сегодня как последний день месячных?'));
+        });
+      }
+
       function setupDianaCycleActions(){
         const actions=document.getElementById('dianaCycleActions');
         const button=document.getElementById('dianaCycleStartToday');
@@ -7242,19 +7276,23 @@
         button.dataset.bound='1';
         button.addEventListener('click',async()=>{
           if(currentActor!=='Диана'||button.disabled) return;
-          if(!await confirmCycleStart()) return;
+          const operation=String(button.dataset.cycleOperation||'record-start');
+          const confirmed=operation==='record-end'?await confirmCycleEnd():await confirmCycleStart();
+          if(!confirmed) return;
           button.disabled=true;
           const original=button.textContent;
           button.textContent='Сохраняю…';
           try{
-            const data=await cycleRequest('record-start');
+            const data=await cycleRequest(operation);
             renderDianaCycle(data.cycle);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
-            button.textContent=original;
-            button.disabled=false;
+            if(button.textContent==='Сохраняю…'){
+              button.textContent=original;
+              button.disabled=false;
+            }
           }
         });
       }

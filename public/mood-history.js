@@ -160,13 +160,20 @@ function renderAnalysisText(host,text){
 }
 
 function renderStats(history,today){
-  const page=ensure(),host=page.querySelector('#moodStats'),rows=rowsForWindow(history,today,windowDays),counts={},reasonCounts={};
+  const page=ensure(),host=page.querySelector('#moodStats'),rows=rowsForWindow(history,today,windowDays),counts={},reasonCounts={},reasonMoods={};
   let marks=0;
   for(const row of rows){
     if(META[row?.mood])counts[row.mood]=(counts[row.mood]||0)+1;
     for(const sample of row?.samples||[]){
       marks+=1;
-      const label=reasonLabel(sample);if(label)reasonCounts[label]=(reasonCounts[label]||0)+1;
+      const label=reasonLabel(sample);
+      if(!label) continue;
+      reasonCounts[label]=(reasonCounts[label]||0)+1;
+      const mood=String(sample?.mood||row?.mood||'');
+      if(META[mood]){
+        reasonMoods[label]=reasonMoods[label]||{};
+        reasonMoods[label][mood]=(reasonMoods[label][mood]||0)+1;
+      }
     }
   }
   host.replaceChildren();
@@ -177,9 +184,35 @@ function renderStats(history,today){
     el.innerHTML='<b>'+META[key].emoji+' '+Math.round(counts[key]/total*100)+'%</b><span>'+META[key].label+'</span>';
     host.append(el);
   }
+
+  const factors=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1]);
+  if(factors.length){
+    const factorBlock=document.createElement('div');
+    factorBlock.className='mood-factor-stats';
+    const title=document.createElement('strong');
+    title.textContent='Что влияло на настроение';
+    factorBlock.appendChild(title);
+    const list=document.createElement('div');
+    list.className='mood-factor-list';
+    for(const [label,count] of factors.slice(0,8)){
+      const moods=reasonMoods[label]||{};
+      const topMood=Object.entries(moods).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+      const item=document.createElement('div');
+      item.className='mood-factor-item';
+      const name=document.createElement('b');
+      name.textContent=label;
+      const meta=document.createElement('span');
+      meta.textContent=count+' '+plural(count,'раз','раза','раз')+(topMood&&META[topMood]?' · чаще '+META[topMood].emoji+' '+META[topMood].label:'');
+      item.append(name,meta);
+      list.appendChild(item);
+    }
+    factorBlock.appendChild(list);
+    host.appendChild(factorBlock);
+  }
+
   const summary=document.createElement('div');summary.className='mood-stat-summary';
-  const topReason=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1])[0];
-  summary.textContent=rows.length+' '+plural(rows.length,'день','дня','дней')+' с настроением · '+marks+' '+plural(marks,'отметка','отметки','отметок')+(topReason?' · чаще причина: '+topReason[0]:'');
+  const topReason=factors[0];
+  summary.textContent=rows.length+' '+plural(rows.length,'день','дня','дней')+' с настроением · '+marks+' '+plural(marks,'отметка','отметки','отметок')+(topReason?' · чаще отмечалось: '+topReason[0]:'');
   host.append(summary);
   page.querySelector('#moodStatsPeriod').textContent='за '+windowDays+' дней';
 }

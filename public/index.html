@@ -762,7 +762,25 @@
       </div>
     </section>
 
-    <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="График">
+    <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="Календарь">
+      <header class="work-page-head">
+        <button id="workCalendarBack" class="work-page-back" type="button" aria-label="Назад">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div><span>RUDI</span><h1>Календарь</h1></div>
+        <span class="work-page-head-spacer" aria-hidden="true"></span>
+      </header>
+      <article class="panel nearest-panel schedule-nearest">
+        <div class="panel-label">Ближайшее</div>
+        <div class="nearest-content">
+          <div>
+            <div id="nearestTitle" class="nearest-title"></div>
+            <div id="nearestMeta" class="nearest-meta"></div>
+          </div>
+          <div id="nearestDays" class="nearest-days"></div>
+        </div>
+      </article>
+
       <div id="workCalendarCard" class="work-calendar-card calendar-disclosure-card">
         <div class="work-calendar-head">
           <div class="calendar-heading-copy">
@@ -786,17 +804,6 @@
         </div>
         <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
       </div>
-
-      <article class="panel nearest-panel schedule-nearest">
-        <div class="panel-label">Ближайшее</div>
-        <div class="nearest-content">
-          <div>
-            <div id="nearestTitle" class="nearest-title"></div>
-            <div id="nearestMeta" class="nearest-meta"></div>
-          </div>
-          <div id="nearestDays" class="nearest-days"></div>
-        </div>
-      </article>
 
     <section id="dianaCycleCard" class="panel cycle-card" data-app-tab-section="schedule" aria-labelledby="dianaCycleTitle">
       <div class="cycle-head">
@@ -1367,10 +1374,37 @@
           <button type="button" data-emoji="🍕">🍕</button>
           <button type="button" data-emoji="🐾">🐾</button>
         </div>
+        <div id="messengerAttachTray" class="messenger-attach-tray" hidden>
+          <button type="button" data-messenger-attach="photo"><span aria-hidden="true">🖼️</span><b>Фото</b></button>
+          <button type="button" data-messenger-attach="stars"><span aria-hidden="true">⭐</span><b>Звёзды</b><small id="messengerStarsRemaining"></small></button>
+        </div>
+        <div id="messengerStarTray" class="messenger-star-tray" hidden aria-label="Подарить звёзды">
+          <span>Подарить</span>
+          <div>
+            <button type="button" data-star-amount="1">1 ⭐</button>
+            <button type="button" data-star-amount="2">2 ⭐</button>
+            <button type="button" data-star-amount="3">3 ⭐</button>
+            <button type="button" data-star-amount="4">4 ⭐</button>
+            <button type="button" data-star-amount="5">5 ⭐</button>
+          </div>
+        </div>
+        <input id="messengerPhotoInput" type="file" accept="image/*" hidden>
+        <div id="messengerRecordingBar" class="messenger-recording-bar" hidden>
+          <span class="messenger-recording-dot" aria-hidden="true"></span>
+          <strong id="messengerRecordingTime">0:00</strong>
+          <span>Запись голосового</span>
+          <button id="messengerRecordingCancel" type="button">Отмена</button>
+        </div>
         <div class="messenger-composer">
+          <button id="messengerAttach" class="messenger-attach" type="button" aria-label="Прикрепить">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 12.5 14.8 6.2a3.2 3.2 0 0 1 4.5 4.5l-8.1 8.1a5 5 0 0 1-7.1-7.1l8.3-8.3"/></svg>
+          </button>
           <button id="messengerEmoji" class="messenger-emoji" type="button" aria-label="Добавить эмодзи">☺</button>
           <textarea id="messengerInput" maxlength="1000" rows="1" placeholder="Сообщение…"></textarea>
-          <button id="messengerSend" class="messenger-send" type="button" aria-label="Отправить">
+          <button id="messengerMic" class="messenger-mic" type="button" aria-label="Записать голосовое">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5.5 10.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 17.5V21M9 21h6"/></svg>
+          </button>
+          <button id="messengerSend" class="messenger-send" type="button" aria-label="Отправить" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3 3.8 10.1c-1.17.47-1.16 1.13-.21 1.42l4.42 1.38 1.71 5.35c.21.58.11.81.73.81.48 0 .69-.22.96-.48l2.12-2.06 4.41 3.26c.81.45 1.39.22 1.59-.75L22.4 5.18C22.7 3.95 21.93 3.39 21 3Z"/></svg>
           </button>
         </div>

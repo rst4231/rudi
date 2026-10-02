@@ -2176,3 +2176,40 @@ html[data-theme="light"] .car-last-service-form button{
   box-shadow:0 4px 10px rgba(167,55,61,.15);
 }
 /* end RUDI v3.32 car archive delete controls */
+
+
+/* RUDI v3.38 expandable car notes */
+.car-note-copy p.is-collapsed{
+  position:relative;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:5;
+  overflow:hidden;
+}
+.car-note-copy p.is-collapsed:not(.is-expanded)::after{
+  content:'';
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:1.45em;
+  pointer-events:none;
+  background:linear-gradient(to bottom,transparent,rgba(255,255,255,.035));
+}
+.car-note-copy p.is-collapsed.is-expanded{
+  display:block;
+  -webkit-line-clamp:unset;
+  overflow:visible;
+}
+.car-note-expand{
+  justify-self:start;
+  min-height:26px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#8fa3ff;
+  font-size:9.5px;
+  font-weight:800;
+}
+html[data-theme="light"] .car-note-copy p.is-collapsed:not(.is-expanded)::after{
+  background:linear-gradient(to bottom,transparent,#fafbfc);
+}
+html[data-theme="light"] .car-note-expand{color:#536ee8}

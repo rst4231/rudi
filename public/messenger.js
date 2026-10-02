@@ -36,6 +36,13 @@
     readTimer:0,
     retrying:false,
     keyboardStickToBottom:true,
+    partnerPresence:null,
+    presenceTimer:0,
+    mediaRecorder:null,
+    recordingChunks:[],
+    recordingStartedAt:0,
+    recordingTimer:0,
+    recordingStream:null,
   };
 
   function telegramInitData(){
@@ -47,7 +54,7 @@
       method:'POST',
       credentials:'same-origin',
       headers:{'content-type':'application/json'},
-      body:JSON.stringify({initData:telegramInitData(),...payload}),
+      body:JSON.stringify({initData:telegramInitData(),messengerVisible:document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger',...payload}),
       cache:'no-store'
     });
     const data=await response.json().catch(()=>({}));
@@ -228,6 +235,15 @@
       }:null,
       system:payload?.system===true,
       systemKind:String(payload?.systemKind||''),
+      attachment:payload?.attachment&&typeof payload.attachment==='object'?{
+        kind:String(payload.attachment.kind||''),
+        mime:String(payload.attachment.mime||''),
+        data:String(payload.attachment.data||''),
+        duration:Math.max(0,Number(payload.attachment.duration||0)),
+        width:Math.max(0,Number(payload.attachment.width||0)),
+        height:Math.max(0,Number(payload.attachment.height||0)),
+        name:String(payload.attachment.name||'').slice(0,120),
+      }:null,
     };
   }
 
@@ -327,6 +343,7 @@
       keyVersions:entry.keyVersions||{},
       createdAt,
       expiresAt:new Date((Number.isFinite(createdMs)?createdMs:Date.now())+24*60*60*1000).toISOString(),
+      deliveredAt:'',
       readAt:'',
       editedAt:'',
       reactions:{},
@@ -404,7 +421,9 @@
     state.reply={
       id:String(row?.id||''),
       author:String(row?.sender||''),
-      text:String(payload?.text||'').slice(0,240)
+      text:String(payload?.text||'').trim()
+        ?String(payload.text).slice(0,240)
+        :(payload?.attachment?.kind==='photo'?'Фото':payload?.attachment?.kind==='voice'?'Голосовое сообщение':'Сообщение')
     };
     renderReplyDraft();
     document.getElementById('messengerInput')?.focus?.();
@@ -519,16 +538,18 @@
 
     appendContextReactionTray(menu,row);
 
+    const hasText=Boolean(String(payload?.text||'').trim());
+    const hasAttachment=Boolean(payload?.attachment);
     const actions=row.sender===state.actor
       ?[
         ['Ответить',()=>setReply(row,payload)],
-        ['Копировать',()=>copyMessageText(payload.text)],
-        ['Редактировать',()=>startMessageEdit(row,payload)],
+        ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
+        ...(!hasAttachment&&hasText?[['Редактировать',()=>startMessageEdit(row,payload)]]:[]),
         ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
       ]
       :[
         ['Ответить',()=>setReply(row,payload)],
-        ['Копировать',()=>copyMessageText(payload.text)],
+        ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
       ];
     for(const [label,handler,className] of actions){
       const button=document.createElement('button');
@@ -578,6 +599,7 @@
       event.preventDefault();
       event.stopPropagation();
       cancel();
+      showMessageContext(article,row,payload);
     });
   }
 
@@ -682,6 +704,7 @@
     if(input){
       input.value=state.edit.text;
       input.style.height='auto';
+      updateComposerAction();
       input.style.height=Math.min(112,input.scrollHeight)+'px';
       input.focus();
       input.setSelectionRange?.(input.value.length,input.value.length);
@@ -801,6 +824,105 @@
     if(autoScroll) scrollMessagesToBottom();
   }
 
+  function secondsLabel(value){
+    const seconds=Math.max(0,Math.round(Number(value)||0));
+    return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+  }
+
+  function attachmentDataUrl(attachment){
+    const data=String(attachment?.data||'');
+    if(!data) return '';
+    return 'data:'+String(attachment?.mime||'application/octet-stream')+';base64,'+data;
+  }
+
+  function appendPhotoAttachment(bubble,attachment){
+    const src=attachmentDataUrl(attachment);
+    if(!src) return;
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='messenger-photo-button';
+    button.setAttribute('aria-label','Открыть фото');
+    const image=document.createElement('img');
+    image.className='messenger-photo';
+    image.src=src;
+    image.alt='Фото';
+    button.appendChild(image);
+    button.addEventListener('click',event=>{
+      event.stopPropagation();
+      const viewer=document.createElement('div');
+      viewer.className='messenger-photo-viewer';
+      viewer.innerHTML='<button type="button" aria-label="Закрыть">×</button><img alt="Фото">';
+      viewer.querySelector('img').src=src;
+      viewer.addEventListener('click',e=>{if(e.target===viewer||e.target.closest('button'))viewer.remove()});
+      document.body.appendChild(viewer);
+    });
+    bubble.appendChild(button);
+  }
+
+  function appendVoiceAttachment(bubble,attachment){
+    const src=attachmentDataUrl(attachment);
+    if(!src) return;
+    const audio=document.createElement('audio');
+    audio.preload='metadata';
+    audio.src=src;
+    audio.dataset.rudiVoice='1';
+    const wrap=document.createElement('div');
+    wrap.className='messenger-voice';
+    const play=document.createElement('button');
+    play.type='button';
+    play.className='messenger-voice-play';
+    play.setAttribute('aria-label','Воспроизвести');
+    play.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg>';
+    const body=document.createElement('div');
+    body.className='messenger-voice-body';
+    const wave=document.createElement('div');
+    wave.className='messenger-voice-wave';
+    [8,13,18,11,20,15,9,17,21,12,16,10,19,14,8,17,12,20,10,15,18,9,14,11].forEach(height=>{
+      const bar=document.createElement('i');
+      bar.style.setProperty('--h',height+'px');
+      wave.appendChild(bar);
+    });
+    const meta=document.createElement('div');
+    meta.className='messenger-voice-time';
+    const elapsed=document.createElement('span');
+    elapsed.textContent='0:00';
+    const duration=document.createElement('span');
+    duration.textContent=secondsLabel(attachment.duration);
+    meta.append(elapsed,duration);
+    body.append(wave,meta);
+    wrap.append(play,body,audio);
+    bubble.appendChild(wrap);
+    const update=()=>{
+      const total=Number(audio.duration)||Number(attachment.duration)||1;
+      const progress=Math.max(0,Math.min(1,(Number(audio.currentTime)||0)/total));
+      wrap.style.setProperty('--voice-progress',(progress*100)+'%');
+      elapsed.textContent=secondsLabel(audio.currentTime);
+    };
+    play.addEventListener('click',event=>{
+      event.stopPropagation();
+      if(audio.paused){
+        document.querySelectorAll('audio[data-rudi-voice="1"]').forEach(item=>{if(item!==audio)item.pause()});
+        audio.play().catch(()=>{});
+      }else audio.pause();
+    });
+    audio.addEventListener('play',()=>wrap.classList.add('is-playing'));
+    audio.addEventListener('pause',()=>wrap.classList.remove('is-playing'));
+    audio.addEventListener('timeupdate',update);
+    audio.addEventListener('ended',()=>{audio.currentTime=0;update()});
+    wave.addEventListener('click',event=>{
+      event.stopPropagation();
+      const rect=wave.getBoundingClientRect();
+      const ratio=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
+      const total=Number(audio.duration)||Number(attachment.duration)||0;
+      if(total) audio.currentTime=ratio*total;
+    });
+  }
+
+  function appendMessageAttachment(bubble,attachment){
+    if(attachment?.kind==='photo') appendPhotoAttachment(bubble,attachment);
+    if(attachment?.kind==='voice') appendVoiceAttachment(bubble,attachment);
+  }
+
   function renderMessages({preserveScrollTop=null,forceBottom=false}={}){
     const list=document.getElementById('messengerMessages');
     const empty=document.getElementById('messengerEmpty');
@@ -855,10 +977,12 @@
         bubble.appendChild(quote);
       }
 
+      if(payload?.attachment) appendMessageAttachment(bubble,payload.attachment);
       const text=document.createElement('div');
       text.className='messenger-message-text';
       if(payload){
         appendLinkified(text,payload.text);
+        if(!String(payload.text||'').trim()) text.hidden=true;
       }else{
         text.classList.add('is-unavailable');
         text.textContent=state.aesKey?'Не удалось расшифровать сообщение':'Защищённое сообщение';
@@ -879,7 +1003,7 @@
       meta.appendChild(time);
       if(own&&!systemEvent){
         const status=document.createElement('span');
-        status.className='messenger-read-status'+(row.readAt?' is-read':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
+        status.className='messenger-read-status'+(row.readAt?' is-read':row.deliveredAt?' is-delivered':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
         if(row._failed){
           status.textContent='!';
           status.title='Не отправлено. Тапните, чтобы повторить';
@@ -892,9 +1016,15 @@
         }else if(row._pending){
           status.textContent='◷';
           status.title='Отправляется';
+        }else if(row.readAt){
+          status.textContent='✓✓';
+          status.title='Прочитано';
+        }else if(row.deliveredAt){
+          status.textContent='✓✓';
+          status.title='Доставлено';
         }else{
-          status.textContent=row.readAt?'✓✓':'✓';
-          status.title=row.readAt?'Прочитано':'Отправлено';
+          status.textContent='✓';
+          status.title='Отправлено';
         }
         meta.appendChild(status);
       }
@@ -1052,6 +1182,7 @@
       const data=await api('messenger-list');
       state.keys=data.keys||state.keys;
       state.partnerTyping=Boolean(data.partnerTyping);
+      state.partnerPresence=data.partnerPresence||null;
       const serverRows=Array.isArray(data.messages)?data.messages:[];
       if(!state.unreadBoundaryId){
         state.unreadBoundaryId=String(serverRows.find(row=>rowUnreadForActor(row))?.id||'');
@@ -1149,7 +1280,11 @@
       title.textContent=(state.partner||'Партнёр')+(moodEmoji?' '+moodEmoji:'');
     }
     const lock=document.getElementById('messengerSecurityStatus');
-    if(lock) lock.textContent=compactPartnerStatus()||(state.aesKey?'🔒 Защищённый чат':'🔒 Получаю ключ чата');
+    if(lock){
+      lock.textContent=state.partnerPresence?.online
+        ?'в RUDI сейчас'
+        :(compactPartnerStatus()||(state.aesKey?'🔒 Защищённый чат':'🔒 Получаю ключ чата'));
+    }
     syncHeaderAvatar();
   }
 
@@ -1166,7 +1301,7 @@
 
   function rowsSignature(rows){
     return (Array.isArray(rows)?rows:[]).map(row=>[
-      row.id,row.clientId,row.readAt,row.editedAt,row._pending?'pending':'',row._failed?'failed':'',
+      row.id,row.clientId,row.deliveredAt,row.readAt,row.editedAt,row._pending?'pending':'',row._failed?'failed':'',
       JSON.stringify(row.systemRecipients||[]),JSON.stringify(row.systemReadBy||[]),
       JSON.stringify(reactionStateForRow(row))
     ].join(':')).join('|');
@@ -1189,7 +1324,9 @@
       }
       const changed=rowsSignature(nextRows)!==rowsSignature(state.rows);
       const typingChanged=Boolean(data.partnerTyping)!==state.partnerTyping;
+      const presenceChanged=Boolean(data.partnerPresence?.online)!==Boolean(state.partnerPresence?.online);
       state.partnerTyping=Boolean(data.partnerTyping);
+      state.partnerPresence=data.partnerPresence||null;
       setUnread(data.unread);
       if(Number(data.unread||0)===0) state.unreadBoundaryId='';
       if(changed){
@@ -1215,8 +1352,21 @@
       }else if(typingChanged){
         renderTypingIndicator({autoScroll:wasNearBottom});
       }
-      updateHeader();
+      if(presenceChanged||changed||typingChanged) updateHeader();
     }catch(_){}
+  }
+
+  function ensurePresenceHeartbeat(){
+    if(state.presenceTimer) return;
+    const ping=()=>{
+      if(!document.body.classList.contains('auth-ok')) return;
+      api('messenger-presence',{messengerVisible:document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger'}).then(data=>{
+        state.partnerPresence=data?.partnerPresence||null;
+        updateHeader();
+      }).catch(()=>{});
+    };
+    ping();
+    state.presenceTimer=setInterval(ping,12000);
   }
 
   function ensureLiveSync(){
@@ -1242,6 +1392,7 @@
       const data=await api('messenger-list');
       state.rows=mergePendingRows(Array.isArray(data.messages)?data.messages:state.rows);
       state.partnerTyping=Boolean(data.partnerTyping);
+      state.partnerPresence=data.partnerPresence||null;
       setUnread(data.unread);
       updateHeader();
       ensureProfileButton();
@@ -1297,6 +1448,254 @@
       }
     }finally{
       state.retrying=false;
+    }
+  }
+
+  function bytesToBase64(bytes){
+    const source=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
+    let binary='';
+    for(let i=0;i<source.length;i+=0x8000){
+      binary+=String.fromCharCode(...source.subarray(i,Math.min(source.length,i+0x8000)));
+    }
+    return btoa(binary);
+  }
+
+  async function blobBase64(blob){
+    return bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
+  }
+
+  async function loadPhotoSource(file){
+    if(typeof createImageBitmap==='function'){
+      const bitmap=await createImageBitmap(file);
+      return {width:bitmap.width,height:bitmap.height,draw:(ctx,w,h)=>ctx.drawImage(bitmap,0,0,w,h),close:()=>bitmap.close()};
+    }
+    const url=URL.createObjectURL(file);
+    const image=await new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.onload=()=>resolve(img);
+      img.onerror=()=>reject(new Error('messenger-photo-invalid'));
+      img.src=url;
+    });
+    URL.revokeObjectURL(url);
+    return {width:image.naturalWidth,height:image.naturalHeight,draw:(ctx,w,h)=>ctx.drawImage(image,0,0,w,h),close:()=>{}};
+  }
+
+  async function compressMessengerPhoto(file){
+    if(!file||!String(file.type||'').startsWith('image/')) throw new Error('messenger-photo-invalid');
+    const source=await loadPhotoSource(file);
+    try{
+      const maxSide=1280;
+      const scale=Math.min(1,maxSide/Math.max(source.width,source.height));
+      const width=Math.max(1,Math.round(source.width*scale));
+      const height=Math.max(1,Math.round(source.height*scale));
+      const canvas=document.createElement('canvas');
+      canvas.width=width;
+      canvas.height=height;
+      const ctx=canvas.getContext('2d',{alpha:false});
+      if(!ctx) throw new Error('messenger-photo-invalid');
+      source.draw(ctx,width,height);
+      let quality=.82;
+      let blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+      while(blob&&blob.size>420000&&quality>.48){
+        quality-=.1;
+        blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+      }
+      if(!blob||blob.size>650000) throw new Error('messenger-photo-too-large');
+      return {kind:'photo',mime:'image/jpeg',data:await blobBase64(blob),width,height,name:String(file.name||'photo.jpg').slice(0,120)};
+    }finally{
+      try{source.close()}catch(_){}
+    }
+  }
+
+  function updateComposerAction(){
+    const input=document.getElementById('messengerInput');
+    const send=document.getElementById('messengerSend');
+    const mic=document.getElementById('messengerMic');
+    const hasText=Boolean(String(input?.value||'').trim())||Boolean(state.edit);
+    if(send) send.hidden=!hasText;
+    if(mic) mic.hidden=hasText;
+  }
+
+  async function sendAttachmentMessage(attachment,preview){
+    await ensureKeys();
+    if(!state.aesKey) throw new Error('messenger-shared-key-missing');
+    const payload={text:'',reply:state.reply?{...state.reply}:null,attachment};
+    const encrypted=await encryptPayload(payload);
+    const keyVersions={
+      'Рустам':Number(state.keys?.['Рустам']?.version||0),
+      'Диана':Number(state.keys?.['Диана']?.version||0)
+    };
+    const clientId='client-'+crypto.randomUUID();
+    const createdAt=new Date().toISOString();
+    const entry={clientId,scheme:'shared-v2',...encrypted,keyVersions,preview:String(preview||'Новое сообщение').slice(0,120),avatarUrl:selfAvatarUrl(),createdAt,failed:false};
+    upsertMessengerOutbox(entry);
+    const pending=pendingRowFromOutbox(entry);
+    state.rows=[...state.rows,pending].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+    state.decrypted.set(pending.id,payload);
+    state.justSentId=pending.id;
+    state.nearBottom=true;
+    renderMessages({forceBottom:true});
+    const result=await api('messenger-send',{clientId,scheme:'shared-v2',...encrypted,keyVersions,preview:entry.preview,avatarUrl:entry.avatarUrl});
+    reconcileSentMessage(entry,result?.message);
+    return result?.message||null;
+  }
+
+  async function silentCorrectSentMessage(messageId,payload){
+    const original=String(payload?.text||'').trim();
+    if(!messageId||!original||payload?.attachment) return;
+    try{
+      const corrected=String((await api('messenger-correct',{text:original}))?.text||'').trim();
+      if(!corrected||corrected===original) return;
+      const correctedPayload={...payload,text:corrected};
+      const encrypted=await encryptPayload(correctedPayload);
+      const keyVersions={
+        'Рустам':Number(state.keys?.['Рустам']?.version||0),
+        'Диана':Number(state.keys?.['Диана']?.version||0)
+      };
+      const result=await api('messenger-edit',{id:messageId,scheme:'shared-v2',...encrypted,keyVersions,silent:true});
+      if(result?.message){
+        state.rows=state.rows.map(row=>row.id===messageId?result.message:row);
+        state.decrypted.set(messageId,correctedPayload);
+        renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+      }
+    }catch(_){}
+  }
+
+  async function sendPhotoFile(file){
+    const status=document.getElementById('messengerStatus');
+    try{
+      if(status){status.hidden=false;status.textContent='Подготавливаю фото…'}
+      const attachment=await compressMessengerPhoto(file);
+      await sendAttachmentMessage(attachment,'📷 Фото');
+      state.reply=null;
+      renderReplyDraft();
+      if(status){status.hidden=true;status.textContent=''}
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(error){
+      if(status){
+        status.hidden=false;
+        status.textContent=String(error?.message||'').includes('too-large')?'Фото слишком большое.':'Не удалось отправить фото.';
+      }
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }
+  }
+
+  async function startVoiceRecording(){
+    if(state.mediaRecorder) return;
+    const status=document.getElementById('messengerStatus');
+    try{
+      if(!window.MediaRecorder||!navigator.mediaDevices?.getUserMedia) throw new Error('messenger-voice-unavailable');
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const preferred=['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(type=>window.MediaRecorder.isTypeSupported?.(type))||'';
+      const recorder=new MediaRecorder(stream,preferred?{mimeType:preferred,audioBitsPerSecond:32000}:undefined);
+      state.mediaRecorder=recorder;
+      state.recordingStream=stream;
+      state.recordingChunks=[];
+      state.recordingStartedAt=Date.now();
+      const bar=document.getElementById('messengerRecordingBar');
+      const time=document.getElementById('messengerRecordingTime');
+      if(bar) bar.hidden=false;
+      if(time) time.textContent='0:00';
+      state.recordingTimer=setInterval(()=>{
+        const seconds=(Date.now()-state.recordingStartedAt)/1000;
+        if(time) time.textContent=secondsLabel(seconds);
+        if(seconds>=60) stopVoiceRecording({send:true});
+      },250);
+      recorder.ondataavailable=event=>{if(event.data?.size)state.recordingChunks.push(event.data)};
+      recorder.start(250);
+      if(status){status.hidden=true;status.textContent=''}
+    }catch(_){
+      if(status){status.hidden=false;status.textContent='Не удалось получить доступ к микрофону.'}
+    }
+  }
+
+  async function finishVoiceBlob(recorder){
+    if(!recorder) return null;
+    return await new Promise(resolve=>{
+      let doneCalled=false;
+      const done=()=>{
+        if(doneCalled) return;
+        doneCalled=true;
+        const duration=Math.max(.1,(Date.now()-state.recordingStartedAt)/1000);
+        const type=recorder.mimeType||state.recordingChunks[0]?.type||'audio/webm';
+        resolve({blob:new Blob(state.recordingChunks,{type}),duration,type});
+      };
+      recorder.addEventListener('stop',done,{once:true});
+      try{recorder.stop()}catch(_){done()}
+    });
+  }
+
+  async function stopVoiceRecording({send=true}={}){
+    const recorder=state.mediaRecorder;
+    if(!recorder) return;
+    state.mediaRecorder=null;
+    clearInterval(state.recordingTimer);
+    state.recordingTimer=0;
+    const bar=document.getElementById('messengerRecordingBar');
+    if(bar) bar.hidden=true;
+    const result=await finishVoiceBlob(recorder);
+    state.recordingStream?.getTracks?.().forEach(track=>track.stop());
+    state.recordingStream=null;
+    state.recordingChunks=[];
+    if(!send||!result?.blob||result.duration<.35) return;
+    if(result.blob.size>650000){
+      const status=document.getElementById('messengerStatus');
+      if(status){status.hidden=false;status.textContent='Голосовое получилось слишком большим.'}
+      return;
+    }
+    const status=document.getElementById('messengerStatus');
+    try{
+      if(status){status.hidden=false;status.textContent='Отправляю голосовое…'}
+      await sendAttachmentMessage({
+        kind:'voice',
+        mime:result.type,
+        data:await blobBase64(result.blob),
+        duration:result.duration,
+        name:'voice',
+      },'🎤 Голосовое сообщение');
+      state.reply=null;
+      renderReplyDraft();
+      if(status){status.hidden=true;status.textContent=''}
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      if(status){status.hidden=false;status.textContent='Не удалось отправить голосовое.'}
+    }
+  }
+
+  async function refreshStarGiftState(){
+    try{
+      const data=await api('score',{operation:'state'});
+      const gift=data?.score?.gifts?.[state.actor]||{};
+      const remaining=Math.max(0,Number(gift.remaining||0));
+      const label=document.getElementById('messengerStarsRemaining');
+      if(label) label.textContent='Осталось '+remaining+' из '+Number(gift.limit||5);
+      document.querySelectorAll('[data-star-amount]').forEach(button=>{
+        button.disabled=Number(button.dataset.starAmount||0)>remaining;
+      });
+      return remaining;
+    }catch(_){return 0}
+  }
+
+  async function sendStarsFromMessenger(amount){
+    const value=Math.max(1,Math.min(5,Math.round(Number(amount)||0)));
+    const status=document.getElementById('messengerStatus');
+    try{
+      const data=await api('score',{operation:'gift',amount:value});
+      const remaining=Number(data?.gift?.remaining??0);
+      if(status){status.hidden=false;status.textContent='Подарено '+value+' ⭐ · осталось '+remaining+' на этой неделе'}
+      const starTray=document.getElementById('messengerStarTray');
+      const attachTray=document.getElementById('messengerAttachTray');
+      if(starTray) starTray.hidden=true;
+      if(attachTray) attachTray.hidden=true;
+      refreshStarGiftState();
+      setTimeout(()=>{if(status?.textContent?.startsWith('Подарено ')){status.hidden=true;status.textContent=''}},2400);
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(error){
+      const code=String(error?.message||'');
+      if(status){
+        status.hidden=false;
+        status.textContent=code.includes('weekly-limit')?'Лимит 5 ⭐ на эту неделю уже использован.':code.includes('balance')?'Не хватает звёзд на балансе.':'Не удалось подарить звёзды.';
+      }
     }
   }
 
@@ -1357,6 +1756,7 @@
         state.reply=null;
         state.edit=null;
         renderReplyDraft();
+        updateComposerAction();
         if(status){status.hidden=true;status.textContent=''}
 
         try{
@@ -1369,6 +1769,7 @@
             avatarUrl:entry.avatarUrl,
           });
           reconcileSentMessage(entry,result?.message);
+          if(result?.message?.id) setTimeout(()=>silentCorrectSentMessage(result.message.id,payload),0);
           try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(error){
           upsertMessengerOutbox({...entry,failed:true});
@@ -1389,6 +1790,7 @@
       state.reply=null;
       state.edit=null;
       renderReplyDraft();
+      updateComposerAction();
       if(status){status.hidden=true;status.textContent=''}
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(error){
@@ -1432,6 +1834,12 @@
     const send=document.getElementById('messengerSend');
     const emoji=document.getElementById('messengerEmoji');
     const emojiTray=document.getElementById('messengerEmojiTray');
+    const attach=document.getElementById('messengerAttach');
+    const attachTray=document.getElementById('messengerAttachTray');
+    const starTray=document.getElementById('messengerStarTray');
+    const photoInput=document.getElementById('messengerPhotoInput');
+    const mic=document.getElementById('messengerMic');
+    const recordingCancel=document.getElementById('messengerRecordingCancel');
     const cancelReply=document.getElementById('messengerReplyCancel');
     const messages=document.getElementById('messengerMessages');
 
@@ -1441,6 +1849,10 @@
       page.addEventListener('pointerdown',event=>{
         if(event.target.closest('.messenger-context-menu')) return;
         hideContextMenu();
+        if(!event.target.closest('#messengerAttach,#messengerAttachTray,#messengerStarTray')){
+          if(attachTray) attachTray.hidden=true;
+          if(starTray) starTray.hidden=true;
+        }
       },true);
     }
 
@@ -1493,9 +1905,71 @@
         input.style.height='auto';
         input.style.height=Math.min(112,input.scrollHeight)+'px';
         notifyTyping(Boolean(String(input.value||'').trim()));
+        updateComposerAction();
         keepKeyboardAtLatest();
       });
     }
+    if(attach&&attach.dataset.bound!=='1'){
+      attach.dataset.bound='1';
+      attach.addEventListener('click',event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        if(emojiTray) emojiTray.hidden=true;
+        if(starTray) starTray.hidden=true;
+        if(attachTray) attachTray.hidden=!attachTray.hidden;
+        if(!attachTray?.hidden) refreshStarGiftState();
+      });
+    }
+    if(attachTray&&attachTray.dataset.bound!=='1'){
+      attachTray.dataset.bound='1';
+      attachTray.addEventListener('click',event=>{
+        const button=event.target.closest('[data-messenger-attach]');
+        if(!button) return;
+        const type=String(button.dataset.messengerAttach||'');
+        if(type==='photo'){
+          attachTray.hidden=true;
+          photoInput?.click?.();
+        }else if(type==='stars'){
+          if(starTray) starTray.hidden=!starTray.hidden;
+          refreshStarGiftState();
+        }
+      });
+    }
+    if(starTray&&starTray.dataset.bound!=='1'){
+      starTray.dataset.bound='1';
+      starTray.addEventListener('click',event=>{
+        const button=event.target.closest('[data-star-amount]');
+        if(!button||button.disabled) return;
+        sendStarsFromMessenger(button.dataset.starAmount);
+      });
+    }
+    if(photoInput&&photoInput.dataset.bound!=='1'){
+      photoInput.dataset.bound='1';
+      photoInput.addEventListener('change',()=>{
+        const file=photoInput.files?.[0]||null;
+        photoInput.value='';
+        if(file) sendPhotoFile(file);
+      });
+    }
+    if(mic&&mic.dataset.bound!=='1'){
+      mic.dataset.bound='1';
+      mic.addEventListener('pointerdown',event=>{
+        if(event.pointerType==='mouse'&&event.button!==0) return;
+        event.preventDefault();
+        startVoiceRecording();
+      });
+      mic.addEventListener('pointerup',event=>{
+        event.preventDefault();
+        stopVoiceRecording({send:true});
+      });
+      mic.addEventListener('pointercancel',()=>stopVoiceRecording({send:false}));
+      mic.addEventListener('click',event=>event.preventDefault());
+    }
+    if(recordingCancel&&recordingCancel.dataset.bound!=='1'){
+      recordingCancel.dataset.bound='1';
+      recordingCancel.addEventListener('click',()=>stopVoiceRecording({send:false}));
+    }
+
     if(emoji&&emoji.dataset.bound!=='1'){
       emoji.dataset.bound='1';
       const toggleEmojiTrayWithoutBlur=event=>{
@@ -1504,6 +1978,8 @@
         event.stopPropagation();
         const start=input?.selectionStart??input?.value?.length??0;
         const end=input?.selectionEnd??input?.value?.length??start;
+        if(attachTray) attachTray.hidden=true;
+        if(starTray) starTray.hidden=true;
         if(emojiTray) emojiTray.hidden=!emojiTray.hidden;
         if(input){
           input.focus({preventScroll:true});
@@ -1535,9 +2011,11 @@
         state.edit=null;
         const input=document.getElementById('messengerInput');
         if(input){input.value='';input.style.height='auto'}
+        updateComposerAction();
         renderReplyDraft();
       });
     }
+    updateComposerAction();
     if(messages&&messages.dataset.linkBound!=='1'){
       messages.dataset.linkBound='1';
       messages.addEventListener('click',event=>{
@@ -1576,6 +2054,7 @@
     else await load({markRead:true});
     state.initialized=true;
     ensureLiveSync();
+    ensurePresenceHeartbeat();
     restoreMessengerAfterKeyboard();
     const requested=String(new URL(window.location.href).searchParams.get('message')||'').trim();
     if(requested){
@@ -1594,6 +2073,7 @@
         state.initialized=true;
       }catch(_){}
       ensureProfileButton();
+      ensurePresenceHeartbeat();
       if(document.body.dataset.appTab==='messenger') open({force:true});
     };
     if(document.body.classList.contains('auth-ok')) start();
@@ -1665,6 +2145,7 @@
   window.addEventListener('online',()=>{flushMessengerOutbox();if(document.body.dataset.appTab==='messenger')syncLiveMessages()});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')) return;
+    api('messenger-presence',{messengerVisible:document.body.dataset.appTab==='messenger'}).catch(()=>{});
     if(document.body.dataset.appTab==='messenger') load({markRead:true});
     else syncUnread();
   });

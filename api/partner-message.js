@@ -52,11 +52,12 @@ const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDate
 const { readDailyQuestion, answerDailyQuestion } = require('./daily-question-store.cjs');
 const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { generateMoodAnalysis } = require('./mood-analysis-ai.cjs');
+const { correctMessengerText } = require('./messenger-correction-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readSmartSaves, removeSmartSave, restoreSmartSave } = require('./smart-saves-store.cjs');
 const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
-const { readCycleState, bootstrapCycleState, recordCycleStart, normalizeCycleState, cycleViewForDate, cycleStateWithStart, writeCycleState } = require('./cycle-store.cjs');
+const { readCycleState, bootstrapCycleState, recordCycleStart, recordCycleEnd, normalizeCycleState, cycleViewForDate, cycleStateWithStart, cycleStateWithEnd, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
   readActivityJournal,
@@ -75,6 +76,9 @@ const {
   deleteMessengerMessage,
   setMessengerTyping,
   readMessengerTyping,
+  setMessengerPresence,
+  readMessengerPresence,
+  markMessengerDelivered,
   toggleMessengerReaction,
   toggleMessengerLike,
   rekeyMessengerMessages,
@@ -117,7 +121,7 @@ const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
-const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml } = require('./telegram-notifications.cjs');
+const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml, appUrlForTab } = require('./telegram-notifications.cjs');
 const { publicApplicationServerKey, savePushSubscription, resolvePushActor, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
@@ -348,6 +352,10 @@ async function sendMessengerNotificationToPartner(actor, messageId, notification
   if(preferences?.messengerNotificationsEnabled===false){
     return { sent:false, recipient:recipientActor, reason:'disabled' };
   }
+  const presence=await readMessengerPresence(recipientActor,options).catch(()=>null);
+  if(presence?.online&&presence?.messengerVisible){
+    return { sent:false, recipient:recipientActor, reason:'active-chat' };
+  }
   const sendPush=options.sendPushNotificationImpl||sendPushNotification;
   const preview=messengerPushPreview(notification?.preview);
   const avatarUrl=messengerAvatarUrl(notification?.avatarUrl);
@@ -359,7 +367,27 @@ async function sendMessengerNotificationToPartner(actor, messageId, notification
     url:'/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1',
     ...(avatarUrl?{icon:avatarUrl}:{}),
   },options);
-  return {...result,recipient:recipientActor};
+  let telegramFallback=null;
+  if(!result?.sent){
+    try{
+      const recipients=await readRecipients(options);
+      const chatId=Number(recipients?.[recipientActor]||0);
+      if(Number.isInteger(chatId)&&chatId>0){
+        const url=new URL(appUrlForTab('messenger',options));
+        if(id) url.searchParams.set('message',id);
+        url.searchParams.set('fresh','1');
+        const verb=actor==='Диана'?'прислала':'прислал';
+        telegramFallback=await telegramSendMessage(
+          chatId,
+          actor+' '+verb+' сообщение'+(preview?'\n'+preview:'')+'\n'+url.toString(),
+          {...options,parseMode:false}
+        );
+      }
+    }catch(error){
+      telegramFallback={sent:false,error:String(error?.message||error)};
+    }
+  }
+  return {...result,recipient:recipientActor,telegramFallback};
 }
 
 async function sendActivityNotification(text, _tab, options = {}) {
@@ -1986,20 +2014,63 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const partner=actor==='Рустам'?'Диана':'Рустам';
-      const [keys,messages,partnerTyping]=await Promise.all([
+      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
+      const [keys,beforeDelivery,partnerTyping,partnerPresence]=await Promise.all([
         readMessengerPublicKeys(options),
         readMessengerMessages(options),
         readMessengerTyping(partner,options),
+        readMessengerPresence(partner,options),
       ]);
+      const delivered=await markMessengerDelivered(
+        actor,
+        beforeDelivery.filter(row=>row?.sender===partner).map(row=>row.id),
+        options
+      ).catch(()=>({messages:beforeDelivery}));
+      const messages=Array.isArray(delivered?.messages)?delivered.messages:beforeDelivery;
       return res.status(200).json({
         ok:true,
         actor,
         keys,
         messages,
         partnerTyping,
+        partnerPresence,
         unread:unreadMessengerCount(messages,actor),
         ttlSeconds:24*60*60,
       });
+    } catch (error) {
+      const code=String(error?.message||error);
+      return res.status(statusForError(error)).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-presence') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const partner=actor==='Рустам'?'Диана':'Рустам';
+      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options);
+      const partnerPresence=await readMessengerPresence(partner,options);
+      return res.status(200).json({ok:true,actor,partnerPresence});
+    } catch (error) {
+      const code=String(error?.message||error);
+      return res.status(statusForError(error)).json({ok:false,error:code});
+    }
+  }
+
+  if (action === 'messenger-correct') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const original=String(body.text||'').trim().slice(0,1000);
+      if(!original) return res.status(200).json({ok:true,actor,text:''});
+      const text=await correctMessengerText(original,{
+        ...options,
+        env:options.env||process.env,
+        fetch:options.fetch||global.fetch,
+      });
+      return res.status(200).json({ok:true,actor,text:String(text||original).slice(0,1000)});
     } catch (error) {
       const code=String(error?.message||error);
       return res.status(statusForError(error)).json({ok:false,error:code});
@@ -2011,6 +2082,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
+      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
       const message=await addMessengerMessage(actor,{
         clientId:body.clientId,
         scheme:body.scheme,
@@ -2048,6 +2120,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
+      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
       const active=await setMessengerTyping(actor,Boolean(body.active),options);
       return res.status(200).json({ok:true,actor,active});
     } catch (error) {
@@ -2082,6 +2155,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         ciphertext:body.ciphertext,
         iv:body.iv,
         keyVersions:body.keyVersions,
+        silent:body.silent===true,
       },options);
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
@@ -2374,6 +2448,22 @@ async function handleRudiAction(req, res, action, options = {}) {
           const notificationTask=sendCycleStartNotificationToRustam(options).catch(()=>null);
           try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
         }
+        const previousSnapshot = mergeBackupSnapshots(backupSnapshot, {
+          version: 2,
+          createdAt: new Date(options.now || Date.now()).toISOString(),
+          cycle,
+        });
+        const backupToken = await createStateBackup({ ...options, previousSnapshot });
+        return res.status(200).json({ ok: true, actor, configured: true, cycle, backupToken });
+      }
+      if (operation === 'record-end') {
+        if (actor !== 'Диана') return res.status(403).json({ ok: false, error: 'cycle-owner-required' });
+        const liveCycle = await readCycleState(options).catch(() => null);
+        const baseCycle = liveCycle || normalizeCycleState(backupSnapshot?.cycle);
+        const endDate=moscowDateKey(options.now || Date.now());
+        const cycle = cycleStateWithEnd(baseCycle, endDate);
+        cycle.updatedAt = new Date(options.now || Date.now()).toISOString();
+        await writeCycleState(cycle, options).catch(() => false);
         const previousSnapshot = mergeBackupSnapshots(backupSnapshot, {
           version: 2,
           createdAt: new Date(options.now || Date.now()).toISOString(),

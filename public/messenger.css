@@ -698,3 +698,120 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   background:rgba(255,255,255,.055);
 }
 /* end RUDI v3.34 reward system messages */
+
+
+/* RUDI v3.38 messenger attachments, delivery and Telegram-like voice notes */
+.messenger-read-status.is-delivered{color:rgba(255,255,255,.82)}
+.messenger-attach,.messenger-mic{
+  flex:0 0 38px;width:38px;height:38px;padding:0;border:0;border-radius:999px;
+  display:grid;place-items:center;background:transparent;color:var(--muted);
+}
+.messenger-attach svg,.messenger-mic svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.messenger-mic{color:#0a84ff}
+.messenger-attach:active,.messenger-mic:active{transform:scale(.93)}
+.messenger-attach-tray,.messenger-star-tray{
+  grid-row:4;
+  justify-self:start;
+  margin:0 8px 2px;
+  padding:7px;
+  border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  border-radius:18px;
+  background:color-mix(in srgb,var(--surface-strong) 96%,transparent);
+  box-shadow:0 14px 34px rgba(15,18,28,.16);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  z-index:8;
+}
+.messenger-attach-tray[hidden],.messenger-star-tray[hidden],.messenger-recording-bar[hidden]{display:none!important}
+.messenger-attach-tray{display:flex;gap:7px}
+.messenger-attach-tray>button{
+  min-width:86px;min-height:62px;padding:8px 10px;border:0;border-radius:14px;
+  display:grid;justify-items:center;align-content:center;gap:2px;
+  background:var(--soft);color:var(--text)
+}
+.messenger-attach-tray>button span{font-size:22px;line-height:1}
+.messenger-attach-tray>button b{font-size:11px;line-height:1.2}
+.messenger-attach-tray>button small{font-size:8.5px;color:var(--muted);font-weight:650}
+.messenger-star-tray{display:grid;gap:7px}
+.messenger-star-tray>span{padding:1px 5px;font-size:10px;font-weight:760;color:var(--muted)}
+.messenger-star-tray>div{display:flex;gap:5px}
+.messenger-star-tray button{
+  min-width:42px;min-height:34px;padding:0 8px;border:0;border-radius:11px;
+  background:var(--soft);color:var(--text);font-size:10px;font-weight:780
+}
+.messenger-star-tray button:disabled{opacity:.35}
+.messenger-recording-bar{
+  grid-row:4;
+  display:grid;
+  grid-template-columns:auto auto minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  min-height:44px;
+  margin:0 8px 2px;
+  padding:0 10px;
+  border-radius:18px;
+  background:color-mix(in srgb,var(--surface-strong) 97%,transparent);
+  border:1px solid color-mix(in srgb,var(--line) 76%,transparent);
+  z-index:9;
+}
+.messenger-recording-dot{width:9px;height:9px;border-radius:50%;background:#ff3b30;animation:rudiRecordingPulse 1.1s ease-in-out infinite}
+.messenger-recording-bar strong{font-size:12px;color:#ff3b30;font-variant-numeric:tabular-nums}
+.messenger-recording-bar>span:not(.messenger-recording-dot){font-size:10px;color:var(--muted)}
+.messenger-recording-bar button{border:0;background:transparent;color:#0a84ff;font-size:11px;font-weight:760}
+@keyframes rudiRecordingPulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.messenger-photo-button{
+  display:block;width:min(70vw,360px);max-width:100%;padding:0;border:0;border-radius:15px;
+  overflow:hidden;background:transparent
+}
+.messenger-photo{display:block;width:100%;max-height:440px;object-fit:cover;border-radius:15px}
+.messenger-photo-viewer{
+  position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:24px;
+  background:rgba(0,0,0,.92)
+}
+.messenger-photo-viewer img{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}
+.messenger-photo-viewer button{
+  position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;width:40px;height:40px;
+  border:0;border-radius:50%;background:rgba(255,255,255,.13);color:#fff;font-size:27px
+}
+
+.messenger-voice{
+  --voice-progress:0%;
+  min-width:220px;max-width:320px;
+  display:grid;grid-template-columns:42px minmax(0,1fr);gap:9px;align-items:center;
+}
+.messenger-voice audio{display:none}
+.messenger-voice-play{
+  width:42px;height:42px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;
+  background:#0a84ff;color:#fff
+}
+.messenger-message.is-own .messenger-voice-play{background:#fff;color:#0a84ff}
+.messenger-voice-play svg{width:21px;height:21px;fill:currentColor}
+.messenger-voice.is-playing .messenger-voice-play svg path{d:path("M8 7h3v10H8zm5 0h3v10h-3z")}
+.messenger-voice-body{display:grid;gap:2px;min-width:0}
+.messenger-voice-wave{
+  position:relative;height:24px;display:flex;align-items:center;gap:2px;cursor:pointer;overflow:hidden
+}
+.messenger-voice-wave::after{
+  content:'';position:absolute;inset:0 auto 0 0;width:var(--voice-progress);
+  background:currentColor;opacity:.16;pointer-events:none;border-radius:4px
+}
+.messenger-voice-wave i{
+  display:block;width:2px;height:var(--h);max-height:22px;border-radius:99px;background:currentColor;opacity:.48
+}
+.messenger-message.is-own .messenger-voice-wave i{opacity:.78}
+.messenger-voice-time{display:flex;justify-content:space-between;gap:8px;font-size:9px;line-height:1;color:inherit;opacity:.68;font-variant-numeric:tabular-nums}
+
+.messenger-message.is-highlighted .messenger-bubble{
+  animation:rudiMessengerTargetFlash 1.1s ease-out
+}
+@keyframes rudiMessengerTargetFlash{
+  0%{box-shadow:0 0 0 0 rgba(10,132,255,.55)}
+  45%{box-shadow:0 0 0 7px rgba(10,132,255,.16)}
+  100%{box-shadow:0 0 0 0 rgba(10,132,255,0)}
+}
+
+@media(max-width:520px){
+  .messenger-photo-button{width:min(76vw,330px)}
+  .messenger-voice{min-width:205px}
+}

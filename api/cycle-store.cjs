@@ -69,6 +69,7 @@ function normalizeCycleState(value) {
   return {
     enabled: true,
     person: 'Диана',
+    lastPeriodEnd: validDateKey(value.lastPeriodEnd),
     timezone: 'Europe/Moscow',
     cycleLengthDays,
     periodLengthDays,
@@ -108,14 +109,22 @@ function cycleViewForDate(value, dateKey) {
     nextStartMs += cycleLength * DAY;
   }
 
-  const actualPeriodActive = Number.isFinite(latestActualStart)
-    && todayMs >= latestActualStart
-    && todayMs <= latestActualStart + (periodLength - 1) * DAY;
-  const periodActive = actualPeriodActive;
-  const periodStartMs = actualPeriodActive ? latestActualStart : null;
-  const periodEndMs = Number.isFinite(periodStartMs)
-    ? periodStartMs + (periodLength - 1) * DAY
-    : null;
+  const explicitEndKey=validDateKey(state.lastPeriodEnd);
+  const explicitEndMs=explicitEndKey?Date.parse(explicitEndKey+'T00:00:00Z'):NaN;
+  const explicitEndForCurrent=Number.isFinite(latestActualStart)
+    && Number.isFinite(explicitEndMs)
+    && explicitEndMs>=latestActualStart
+    && explicitEndMs<latestActualStart+cycleLength*DAY;
+  const effectivePeriodEndMs=explicitEndForCurrent
+    ?explicitEndMs
+    :(Number.isFinite(latestActualStart)?latestActualStart+(periodLength-1)*DAY:NaN);
+  const actualPeriodActive=Number.isFinite(latestActualStart)
+    && todayMs>=latestActualStart
+    && Number.isFinite(effectivePeriodEndMs)
+    && todayMs<=effectivePeriodEndMs;
+  const periodActive=actualPeriodActive;
+  const periodStartMs=Number.isFinite(latestActualStart)?latestActualStart:null;
+  const periodEndMs=Number.isFinite(effectivePeriodEndMs)?effectivePeriodEndMs:null;
   const periodDay = Number.isFinite(periodStartMs)
     ? Math.floor((todayMs - periodStartMs) / DAY) + 1
     : null;
@@ -235,6 +244,7 @@ function cycleStateWithStart(current, value) {
     historyStarts: history,
     cycleLengthDays,
     nextPeriodStart: shiftDateKey(latest, cycleLengthDays),
+    lastPeriodEnd:'',
   });
 }
 
@@ -242,6 +252,29 @@ async function recordCycleStart(value, options = {}) {
   const current = await readCycleState(options);
   const next = cycleStateWithStart(current, value);
   return writeCycleState(next, options);
+}
+
+function cycleStateWithEnd(current, value) {
+  const date=validDateKey(value);
+  if(!date) throw new Error('cycle-date-invalid');
+  const normalized=normalizeCycleState(current);
+  if(!normalized||!normalized.historyStarts.length) throw new Error('cycle-not-configured');
+  const latest=normalized.historyStarts[normalized.historyStarts.length-1];
+  const startMs=Date.parse(latest+'T00:00:00Z');
+  const endMs=Date.parse(date+'T00:00:00Z');
+  const length=Math.round((endMs-startMs)/DAY)+1;
+  if(!Number.isFinite(length)||length<1||length>10) throw new Error('cycle-period-end-invalid');
+  return normalizeCycleState({
+    ...normalized,
+    periodLengthDays:length,
+    lastPeriodEnd:date,
+  });
+}
+
+async function recordCycleEnd(value, options = {}) {
+  const current=await readCycleState(options);
+  const next=cycleStateWithEnd(current,value);
+  return writeCycleState(next,options);
 }
 
 module.exports = {
@@ -255,8 +288,10 @@ module.exports = {
   normalizeCycleState,
   cycleViewForDate,
   cycleStateWithStart,
+  cycleStateWithEnd,
   readCycleState,
   writeCycleState,
   bootstrapCycleState,
   recordCycleStart,
+  recordCycleEnd,
 };

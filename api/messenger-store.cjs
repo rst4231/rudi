@@ -6,6 +6,7 @@ const MESSAGE_TTL_SECONDS=24*60*60;
 const INDEX_TTL_SECONDS=48*60*60;
 const KEY_TTL_SECONDS=365*24*60*60;
 const TYPING_TTL_SECONDS=8;
+const PRESENCE_TTL_SECONDS=35;
 const REACTION_EMOJIS=new Set(['❤️','😂','😘','😢','👍','🔥']);
 let mutationTail=Promise.resolve();
 
@@ -98,7 +99,7 @@ async function registerMessengerPublicKey(actor,jwk,options={}){
 
 function normalizeCiphertext(value){
   const text=String(value||'').trim();
-  if(!/^[A-Za-z0-9_-]{16,12000}$/.test(text)) throw new Error('messenger-ciphertext-invalid');
+  if(!/^[A-Za-z0-9_-]{16,1400000}$/.test(text)) throw new Error('messenger-ciphertext-invalid');
   return text;
 }
 
@@ -163,6 +164,7 @@ function normalizeMessage(row){
       systemReadBy:normalizeActorList(row.systemReadBy),
       createdAt:new Date(createdAt).toISOString(),
       expiresAt:new Date(expiresAt).toISOString(),
+      deliveredAt:row.deliveredAt&&Number.isFinite(Date.parse(String(row.deliveredAt)))?new Date(String(row.deliveredAt)).toISOString():'',
       readAt:row.readAt&&Number.isFinite(Date.parse(String(row.readAt)))?new Date(String(row.readAt)).toISOString():'',
       editedAt:row.editedAt&&Number.isFinite(Date.parse(String(row.editedAt)))?new Date(String(row.editedAt)).toISOString():'',
       clientId:normalizeClientId(row.clientId||''),
@@ -220,6 +222,7 @@ async function addMessengerMessage(actor,payload,options={}){
       systemReadBy:[],
       createdAt,
       expiresAt,
+      deliveredAt:'',
       readAt:'',
       editedAt:'',
       reactions:{},
@@ -257,7 +260,7 @@ async function editMessengerMessage(actor,id,payload,options={}){
       ciphertext:normalizeCiphertext(payload?.ciphertext),
       iv:normalizeIv(payload?.iv),
       keyVersions:normalizeKeyVersions(payload?.keyVersions),
-      editedAt:new Date(now).toISOString(),
+      editedAt:payload?.silent===true?current.editedAt:new Date(now).toISOString(),
     };
     await cacheOf(options).set('message:'+messageId,next,{
       ttl:Math.max(1,Math.ceil(remainingMs/1000)),
@@ -310,6 +313,62 @@ async function readMessengerTyping(actor,options={}){
   const updated=Date.parse(String(row?.updatedAt||''));
   if(!Number.isFinite(updated)) return false;
   return Number(options.now||Date.now())-updated<TYPING_TTL_SECONDS*1000;
+}
+
+async function setMessengerPresence(actor,meta={},options={}){
+  const clean=cleanActor(actor);
+  if(!clean) throw new Error('messenger-actor-invalid');
+  const row={
+    actor:clean,
+    updatedAt:new Date(options.now||Date.now()).toISOString(),
+    messengerVisible:meta?.messengerVisible===true,
+  };
+  await cacheOf(options).set('presence:'+actorKey(clean),row,{
+    ttl:PRESENCE_TTL_SECONDS,
+    tags:['rudi-messenger-presence'],
+    name:'presence:'+actorKey(clean),
+  });
+  return row;
+}
+
+async function readMessengerPresence(actor,options={}){
+  const clean=cleanActor(actor);
+  if(!clean) return null;
+  const row=await cacheOf(options).get('presence:'+actorKey(clean)).catch(()=>null);
+  const updated=Date.parse(String(row?.updatedAt||''));
+  if(!Number.isFinite(updated)||Number(options.now||Date.now())-updated>=PRESENCE_TTL_SECONDS*1000) return null;
+  return {
+    actor:clean,
+    online:true,
+    updatedAt:new Date(updated).toISOString(),
+    messengerVisible:row?.messengerVisible===true,
+  };
+}
+
+async function markMessengerDelivered(actor,ids,options={}){
+  return enqueueMutation(async()=>{
+    const viewer=cleanActor(actor);
+    if(!viewer) throw new Error('messenger-actor-invalid');
+    const wanted=new Set((Array.isArray(ids)?ids:[]).map(value=>String(value||'').trim()).filter(Boolean).slice(0,256));
+    if(!wanted.size) return {updated:0,messages:await readMessengerMessages(options)};
+    const now=Number(options.now||Date.now());
+    let updated=0;
+    for(const id of wanted){
+      const raw=await cacheOf(options).get('message:'+id).catch(()=>null);
+      const row=normalizeMessage(raw);
+      if(!row||row.sender===viewer||row.deliveredAt) continue;
+      const remainingMs=Date.parse(row.expiresAt)-now;
+      if(remainingMs<=0) continue;
+      row.deliveredAt=new Date(now).toISOString();
+      await cacheOf(options).set('message:'+id,row,{
+        ttl:Math.max(1,Math.ceil(remainingMs/1000)),
+        tags:['rudi-messenger-message'],
+        name:'message:'+id,
+      });
+      updated+=1;
+    }
+    return {updated,messages:await readMessengerMessages(options)};
+  });
 }
 
 async function toggleMessengerReaction(actor,id,reaction,options={}){
@@ -479,6 +538,9 @@ module.exports={
   deleteMessengerMessage,
   setMessengerTyping,
   readMessengerTyping,
+  setMessengerPresence,
+  readMessengerPresence,
+  markMessengerDelivered,
   toggleMessengerReaction,
   toggleMessengerLike,
   rekeyMessengerMessages,

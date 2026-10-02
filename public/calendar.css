@@ -591,3 +591,44 @@ body[data-app-tab="schedule"] .footer{margin-top:22px!important}
 .work-page .work-calendar-selected .calendar-selected-group{
   border-top-color:color-mix(in srgb,#7787ff 14%,var(--line))!important;
 }
+
+
+/* RUDI v3.38 Calendar page header and always-open calendar */
+.work-page-head{
+  display:grid!important;
+  grid-template-columns:42px minmax(0,1fr) 42px!important;
+  align-items:center!important;
+  gap:10px!important;
+  margin:0 0 14px!important;
+  padding:0 2px!important;
+}
+.work-page-head>div{display:grid!important;gap:1px!important;min-width:0!important}
+.work-page-head>div>span{
+  color:var(--muted)!important;
+  font-size:10px!important;
+  font-weight:720!important;
+  letter-spacing:.045em!important;
+  text-transform:uppercase!important;
+}
+.work-page-head h1{
+  margin:0!important;
+  color:var(--text)!important;
+  font-size:26px!important;
+  line-height:1.05!important;
+  font-weight:870!important;
+  letter-spacing:-.035em!important;
+}
+.work-page-back{
+  width:40px!important;height:40px!important;padding:0!important;
+  display:grid!important;place-items:center!important;
+  border:1px solid color-mix(in srgb,var(--line) 80%,transparent)!important;
+  border-radius:15px!important;
+  background:color-mix(in srgb,var(--surface) 92%,transparent)!important;
+  color:var(--text)!important;
+  box-shadow:0 8px 24px rgba(20,24,36,.07)!important;
+}
+.work-page-back svg{width:19px!important;height:19px!important;fill:none!important;stroke:currentColor!important;stroke-width:2!important;stroke-linecap:round!important;stroke-linejoin:round!important}
+.work-page-head-spacer{width:40px;height:40px}
+#workCalendarCard .block-collapse-button{display:none!important}
+#workCalendarCard.is-collapsed .rudi-collapse-body{grid-template-rows:1fr!important}
+#workCalendarCard.is-collapsed .rudi-collapse-body-inner{visibility:visible!important;opacity:1!important;transform:none!important}
