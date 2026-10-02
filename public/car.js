@@ -131,6 +131,17 @@
     });
   }
 
+  function confirmArchiveDelete(message) {
+    const text=String(message||'Удалить запись из истории?');
+    return new Promise(resolve=>{
+      if(typeof tg?.showConfirm==='function'){
+        tg.showConfirm(text,value=>resolve(Boolean(value)));
+        return;
+      }
+      resolve(window.confirm(text));
+    });
+  }
+
   function renderErrors(car) {
     const root=document.getElementById('carErrorsList');
     const meta=document.getElementById('carErrorsMeta');
@@ -223,10 +234,36 @@
           archivedComment.textContent=item.comment;
           archivedRow.appendChild(archivedComment);
         }
+        const archivedRemove=document.createElement('button');
+        archivedRemove.type='button';
+        archivedRemove.className='car-archive-remove';
+        archivedRemove.setAttribute('aria-label','Удалить запись из архива ремонта');
+        archivedRemove.textContent='×';
+        archivedRemove.addEventListener('click',async()=>{
+          if(!(await confirmArchiveDelete('Удалить «'+String(item.title||'Ремонт')+'» из архива ремонта?'))) return;
+          await removeRepairArchiveItem(item,archivedRemove);
+        });
+        archivedRow.appendChild(archivedRemove);
         list.appendChild(archivedRow);
       }
       details.append(summary,list);
       root.appendChild(details);
+    }
+  }
+
+  async function removeRepairArchiveItem(item,button) {
+    if(!item?.id || button?.disabled) return;
+    button.disabled=true;
+    try{
+      const data=await api('remove-repair-archive',{errorId:item.id});
+      state.car={...state.car,...data};
+      renderErrors(state.car);
+      setStatus('Удалено из архива ремонта','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      button.disabled=false;
+      setStatus('Не удалось удалить из архива ремонта','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }
   }
 
@@ -854,17 +891,11 @@
 
   function mileageHistoryEntries(car){
     const rows=Array.isArray(car?.state?.mileageHistory)?car.state.mileageHistory:[];
-    const normalized=rows.map(row=>({
+    return rows.map(row=>({
       mileage:Number(row?.mileage),
       at:new Date(row?.at)
-    })).filter(row=>Number.isFinite(row.mileage)&&Number.isFinite(row.at.getTime()));
-    const currentMileage=Number(car?.state?.mileage);
-    const currentAt=new Date(car?.state?.mileageUpdatedAt||'');
-    if(Number.isFinite(currentMileage)&&Number.isFinite(currentAt.getTime())){
-      const exists=normalized.some(row=>row.mileage===currentMileage&&row.at.getTime()===currentAt.getTime());
-      if(!exists) normalized.push({mileage:currentMileage,at:currentAt});
-    }
-    return normalized.sort((a,b)=>a.at-b.at);
+    })).filter(row=>Number.isFinite(row.mileage)&&Number.isFinite(row.at.getTime()))
+      .sort((a,b)=>a.at-b.at);
   }
 
   function mileageAnalytics(car,now=new Date()){
@@ -983,10 +1014,37 @@
           value.textContent=formatKm(row.mileage);
           const date=document.createElement('span');
           date.textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).format(row.at);
-          item.append(value,date);
+          const remove=document.createElement('button');
+          remove.type='button';
+          remove.className='car-archive-remove car-mileage-history-remove';
+          remove.setAttribute('aria-label','Удалить запись из истории пробега');
+          remove.textContent='×';
+          remove.addEventListener('click',async()=>{
+            if(!(await confirmArchiveDelete('Удалить '+formatKm(row.mileage)+' из истории пробега?'))) return;
+            await removeMileageHistoryItem(row,remove);
+          });
+          item.append(value,date,remove);
           historyList.appendChild(item);
         });
       }
+    }
+  }
+
+  async function removeMileageHistoryItem(row,button) {
+    if(!row || button?.disabled) return;
+    const at=row.at instanceof Date ? row.at.toISOString() : new Date(row.at).toISOString();
+    button.disabled=true;
+    try{
+      const data=await api('remove-mileage-history',{mileage:row.mileage,at});
+      state.car={...state.car,...data};
+      renderService(state.car);
+      renderCarAttention(state.car,state.weather);
+      setStatus('Запись пробега удалена из истории','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      button.disabled=false;
+      setStatus('Не удалось удалить запись пробега','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }
   }
 

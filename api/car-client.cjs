@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession } = require('./rudi-session.cjs');
-const { readCarState, writeMileage, setTyreSeasonInstalled, setLastServiceAt, addCarError, removeCarError, repairCarError, addCarNote, removeCarNote, restoreCarNote, restoreCarState } = require('./car-store.cjs');
+const { readCarState, writeMileage, setTyreSeasonInstalled, setLastServiceAt, addCarError, removeCarError, repairCarError, removeRepairArchiveEntry, removeMileageHistoryEntry, addCarNote, removeCarNote, restoreCarNote, restoreCarState } = require('./car-store.cjs');
 const { readToken } = require('./ticktick-store.cjs');
 const { fetchProjectData, createTickTickTask, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
 const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
@@ -73,7 +73,7 @@ function statusFor(error) {
   const code = String(error?.message || error || '');
   if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid' || code.startsWith('rudi-session')) return 401;
   if (code === 'rudi-access-denied') return 403;
-  if (code === 'car-mileage-invalid' || code === 'car-task-invalid' || code === 'car-task-title-invalid' || code === 'car-task-date-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found' || code === 'car-repair-cost-invalid' || code === 'car-note-invalid' || code === 'car-note-not-found' || code === 'car-tyre-season-invalid' || code === 'car-service-date-invalid') return 400;
+  if (code === 'car-mileage-invalid' || code === 'car-mileage-history-invalid' || code === 'car-mileage-history-not-found' || code === 'car-task-invalid' || code === 'car-task-title-invalid' || code === 'car-task-date-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found' || code === 'car-repair-archive-invalid' || code === 'car-repair-archive-not-found' || code === 'car-repair-cost-invalid' || code === 'car-note-invalid' || code === 'car-note-not-found' || code === 'car-tyre-season-invalid' || code === 'car-service-date-invalid') return 400;
   if (code === 'ticktick-not-connected') return 503;
   if (code.startsWith('ticktick-')) return 502;
   return 500;
@@ -505,6 +505,34 @@ async function handleCarRequest(req, res) {
         state:result.state,
         nextService:serviceScheduleForMileage(result.state.mileage),
         repairedError:result.repaired,
+        backupToken,
+      });
+    }
+
+    if (operation === 'remove-repair-archive') {
+      const result = await removeRepairArchiveEntry(body.errorId);
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        visible:true,
+        state:result.state,
+        nextService:serviceScheduleForMileage(result.state.mileage),
+        removedRepair:result.removed,
+        backupToken,
+      });
+    }
+
+    if (operation === 'remove-mileage-history') {
+      const result = await removeMileageHistoryEntry({mileage:body.mileage,at:body.at});
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        visible:true,
+        state:result.state,
+        nextService:serviceScheduleForMileage(result.state.mileage),
+        removedMileage:result.removed,
         backupToken,
       });
     }
