@@ -27,3 +27,31 @@ test('legacy mood values migrate without losing saved state',()=>{
   const legacyFear=normalizeRow({moods:{'Рустам':{mood:'fear',updatedAt:'2026-09-24T09:03:00.000Z'}}},date);
   assert.equal(legacyFear.moods['Рустам'].mood,'boredom');
 });
+
+
+test('custom mood reason text is preserved only for the other reason',()=>{
+  const date='2026-10-02';
+  const custom=normalizeRow({
+    moods:{
+      'Рустам':{
+        mood:'joy',
+        updatedAt:'2026-10-02T09:00:00.000Z',
+        samples:[{mood:'joy',updatedAt:'2026-10-02T09:00:00.000Z',reason:'other',reasonText:'  Хорошая встреча   с друзьями  '}],
+      },
+    },
+  },date);
+  assert.equal(custom.moods['Рустам'].samples[0].reason,'other');
+  assert.equal(custom.moods['Рустам'].samples[0].reasonText,'Хорошая встреча с друзьями');
+
+  const standard=normalizeRow({
+    moods:{
+      'Рустам':{
+        mood:'joy',
+        updatedAt:'2026-10-02T10:00:00.000Z',
+        samples:[{mood:'joy',updatedAt:'2026-10-02T10:00:00.000Z',reason:'work',reasonText:'не должно сохраниться'}],
+      },
+    },
+  },date);
+  assert.equal(standard.moods['Рустам'].samples[0].reason,'work');
+  assert.equal(standard.moods['Рустам'].samples[0].reasonText,'');
+});
