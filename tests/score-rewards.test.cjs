@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { REWARDS, DAILY_LIMIT_UNITS, scoreView, awardScore, redeemReward, resetMutationQueueForTests } = require('../api/score-store.cjs');
+const { REWARDS, DAILY_LIMIT_UNITS, scoreView, awardScore, awardProductScore, redeemReward, resetMutationQueueForTests } = require('../api/score-store.cjs');
 
 const expected = [
   ['playlist', 5, 'Ты выбираешь музыку/плейлист в машине на весь день.'],
@@ -120,4 +120,32 @@ test('movie and series are one shop reward and legacy series stays compatible', 
     ()=>redeemReward('Рустам','movie',{scoreCache:cache,now}),
     /score-reward-active/
   );
+});
+
+
+test('adding products no longer awards fractional stars', async () => {
+  resetMutationQueueForTests();
+  const now=Date.parse('2026-10-02T12:00:00Z');
+  const cache=memoryCache({
+    initialized:true,
+    balances:{'Рустам':25,'Диана':10},
+    lifetimeEarned:{'Рустам':25,'Диана':10},
+    dailyEarned:{'2026-10-02':{'Рустам':5,'Диана':0}},
+    history:[],
+  });
+
+  const result=await awardProductScore('Рустам','Молоко',{scoreCache:cache,now});
+  assert.equal(result.awardedUnits,0);
+  assert.equal(result.disabled,true);
+  assert.equal(result.state.balances['Рустам'],25);
+  assert.equal(result.state.lifetimeEarned['Рустам'],25);
+  assert.equal(result.state.history.length,0);
+});
+
+test('products API does not call product score award when adding positions', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const api = fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  assert.doesNotMatch(api,/awardProductScoreSafe/);
+  assert.doesNotMatch(api,/for\s*\(const item of addedItems\)\s*await awardProductScore/);
 });

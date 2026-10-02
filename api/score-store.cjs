@@ -295,52 +295,17 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
 async function awardProductScore(actor,productText,options={}) {
   const who=cleanActor(actor);
   const text=cleanText(productText,180);
-  const dedupeKey=productScoreDedupeKey(text);
-  if(!who||!text||!dedupeKey) throw new Error('score-product-award-invalid');
-  return enqueueMutation(async()=>{
-    const state=await readScoreState(options);
-    const now=new Date(options.now||Date.now());
-    const nowMs=now.getTime();
-    const recent=state.history.find((row)=>{
-      if(row.kind!=='earn'||row.actor!==who||row.dedupeKey!==dedupeKey||row.reversedAt) return false;
-      const stamp=Date.parse(row.createdAt);
-      return Number.isFinite(stamp)&&nowMs-stamp<PRODUCT_REPEAT_MS;
-    });
-    if(recent) return {state,awardedUnits:0,duplicate:true,productCapped:false,globalCapped:false,unlockedRewards:[]};
-
-    const dateKey=scoreDateKey(now);
-    const day=normalizeActorUnits(state.dailyEarned[dateKey]);
-    const productEarnedToday=state.history
-      .filter((row)=>row.kind==='earn'&&row.actor===who&&row.dateKey===dateKey&&!row.reversedAt&&String(row.dedupeKey||'').startsWith('score:product:'))
-      .reduce((sum,row)=>sum+Math.max(0,normalizeUnits(row.units)),0);
-    const productRemaining=Math.max(0,PRODUCT_DAILY_LIMIT_UNITS-productEarnedToday);
-    const globalRemaining=Math.max(0,DAILY_LIMIT_UNITS-day[who]);
-    const awardedUnits=Math.min(1,productRemaining,globalRemaining);
-    if(awardedUnits<=0) {
-      return {
-        state,awardedUnits:0,duplicate:false,
-        productCapped:productRemaining<=0,globalCapped:globalRemaining<=0,unlockedRewards:[],
-      };
-    }
-
-    const next={
-      ...state,initialized:true,version:Math.max(0,Number(state.version||0))+1,
-      balances:{...state.balances},lifetimeEarned:{...state.lifetimeEarned},
-      dailyEarned:{...state.dailyEarned,[dateKey]:day},
-      streakDays:{...state.streakDays},
-      history:[...state.history],dedupe:{...state.dedupe},
-    };
-    next.balances[who]+=awardedUnits;
-    next.lifetimeEarned[who]+=awardedUnits;
-    next.dailyEarned[dateKey][who]+=awardedUnits;
-    next.history.unshift(normalizeHistoryItem({
-      id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:1,
-      label:'Продукты',detail:'Добавлено в продукты: '+text,icon:'🛒',dedupeKey,dateKey,createdAt:now.toISOString(),
-    }));
-    const unlockedRewards=claimUnlockedRewards(next,who,state.balances[who],next.balances[who],now);
-    const saved=await writeScoreState(next,options);
-    return {state:saved,awardedUnits,duplicate:false,productCapped:false,globalCapped:false,unlockedRewards};
-  });
+  if(!who||!text) throw new Error('score-product-award-invalid');
+  const state=await readScoreState(options);
+  return {
+    state,
+    awardedUnits:0,
+    duplicate:false,
+    productCapped:false,
+    globalCapped:false,
+    unlockedRewards:[],
+    disabled:true,
+  };
 }
 async function penalizeScore(actor,requestedUnits,meta={},options={}) {
   const who=cleanActor(actor);

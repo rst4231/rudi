@@ -65,7 +65,7 @@ const {
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
 const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
-const { readScoreState, awardScore, awardProductScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
+const { readScoreState, awardScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const {
   readMessengerPublicKeys,
@@ -776,15 +776,6 @@ async function awardScoreSafe(actor, units, meta = {}, options = {}) {
     return result;
   }
   catch (error) { console.warn('RUDI_SCORE_AWARD_WARN', String(error?.message || error)); return null; }
-}
-
-async function awardProductScoreSafe(actor, text, options = {}) {
-  try {
-    const result=await awardProductScore(actor, text, options);
-    scheduleShopUnlockNotification(actor,result?.unlockedRewards,options);
-    return result;
-  }
-  catch (error) { console.warn('RUDI_PRODUCT_SCORE_AWARD_WARN', String(error?.message || error)); return null; }
 }
 
 function reactionActivityView(target) {
@@ -3660,7 +3651,6 @@ async function handleRudiAction(req, res, action, options = {}) {
         const added=compactActivityValues(addedItems.map((item)=>item.text));
         if(added){
           await recordActivity({type:'products',actor,text:actor+' '+activityVerb(actor,'добавил','добавила')+' в список продуктов: '+added,icon:'🛒',targetTab:'products'},options);
-          for(const item of addedItems) await awardProductScoreSafe(actor,String(item.text||'').trim(),options);
         }
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ok:true,actor,...state,backupToken});
