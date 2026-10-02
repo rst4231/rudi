@@ -394,6 +394,38 @@ async function repairCarError(errorId, options = {}) {
   return { state, repaired:archived };
 }
 
+async function removeRepairArchiveEntry(errorId, options = {}) {
+  const id = normalizeErrorId(errorId);
+  if (!id) throw new Error('car-repair-archive-invalid');
+  const current = await readCarState(options);
+  const removed = current.repairArchive.find(row => row.id === id);
+  if (!removed) throw new Error('car-repair-archive-not-found');
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  const state = await writeCarState({
+    ...current,
+    repairArchive:current.repairArchive.filter(row => row.id !== id),
+    updatedAt:nowIso,
+  },options);
+  return { state, removed };
+}
+
+async function removeMileageHistoryEntry(value, options = {}) {
+  const mileage = normalizeMileage(value?.mileage);
+  const at = normalizeIso(value?.at);
+  if (mileage == null || !at) throw new Error('car-mileage-history-invalid');
+  const current = await readCarState(options);
+  const index = current.mileageHistory.findIndex(row => row.mileage === mileage && row.at === at);
+  if (index < 0) throw new Error('car-mileage-history-not-found');
+  const removed = current.mileageHistory[index];
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  const state = await writeCarState({
+    ...current,
+    mileageHistory:current.mileageHistory.filter((_, rowIndex) => rowIndex !== index),
+    updatedAt:nowIso,
+  },options);
+  return { state, removed };
+}
+
 async function addCarNote(text, options = {}) {
   const value = String(text || '').trim();
   if (!value || value.length > NOTE_TEXT_MAX) throw new Error('car-note-invalid');
@@ -486,6 +518,8 @@ module.exports = {
   addCarError,
   removeCarError,
   repairCarError,
+  removeRepairArchiveEntry,
+  removeMileageHistoryEntry,
   addCarNote,
   removeCarNote,
   restoreCarNote,
