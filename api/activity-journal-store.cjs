@@ -28,7 +28,7 @@ function cleanActor(value) {
 
 function cleanTab(value) {
   const tab = cleanText(value, 20);
-  return new Set(['home', 'feed', 'schedule', 'wishlist', 'photos', 'products', 'saves', 'smart-saves']).has(tab) ? tab : '';
+  return new Set(['home', 'feed', 'schedule', 'wishlist', 'photos', 'products', 'saves', 'smart-saves', 'score', 'messenger']).has(tab) ? tab : '';
 }
 
 function normalizeItem(input) {
@@ -40,6 +40,7 @@ function normalizeItem(input) {
     id: cleanText(input.id, 80) || crypto.randomUUID(),
     type: cleanText(input.type, 40) || 'activity',
     actor: cleanActor(input.actor),
+    visibleTo: cleanActor(input.visibleTo),
     text,
     icon: cleanText(input.icon, 8) || '•',
     targetTab: cleanTab(input.targetTab),
