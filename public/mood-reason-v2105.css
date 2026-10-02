@@ -46,6 +46,46 @@
 }
 .mood-reason-options button:active{transform:scale(.98)}
 .mood-reason-options button:disabled{opacity:.55}
+.mood-reason-custom{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:7px;
+  align-items:center;
+}
+.mood-reason-custom[hidden]{display:none!important}
+.mood-reason-custom-input{
+  min-width:0;
+  height:40px;
+  padding:0 11px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--soft);
+  color:var(--text);
+  font:inherit;
+  font-size:12px;
+  outline:none;
+  -webkit-appearance:none;
+}
+.mood-reason-custom-input::placeholder{color:var(--muted)}
+.mood-reason-custom-input:focus{
+  border-color:color-mix(in srgb,var(--accent) 55%,var(--line));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent);
+}
+.mood-reason-custom-save{
+  min-height:40px;
+  padding:8px 12px;
+  border:0;
+  border-radius:12px;
+  background:var(--accent);
+  color:#fff;
+  font:inherit;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+.mood-reason-custom-save:active{transform:scale(.98)}
+.mood-reason-custom-save:disabled,
+.mood-reason-custom-input:disabled{opacity:.55}
 .mood-reason-skip{
   justify-self:start;
   border:0;
@@ -62,6 +102,10 @@ html[data-theme="dark"] .mood-reason-prompt{
   box-shadow:none;
 }
 html[data-theme="dark"] .mood-reason-options button{
+  background:rgba(255,255,255,.055);
+  border-color:rgba(255,255,255,.09);
+}
+html[data-theme="dark"] .mood-reason-custom-input{
   background:rgba(255,255,255,.055);
   border-color:rgba(255,255,255,.09);
 }
