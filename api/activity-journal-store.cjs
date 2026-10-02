@@ -40,6 +40,7 @@ function normalizeItem(input) {
     id: cleanText(input.id, 80) || crypto.randomUUID(),
     type: cleanText(input.type, 40) || 'activity',
     actor: cleanActor(input.actor),
+    recipient: cleanActor(input.recipient),
     text,
     icon: cleanText(input.icon, 8) || '•',
     targetTab: cleanTab(input.targetTab),
