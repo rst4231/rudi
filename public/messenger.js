@@ -430,12 +430,33 @@
     keepKeyboardAtLatest();
   }
 
+  function animateMessageRemoval(rowId){
+    const list=document.getElementById('messengerMessages');
+    if(!list) return Promise.resolve();
+    const id=String(rowId||'');
+    const article=[...list.querySelectorAll('.messenger-message')].find(node=>String(node.dataset.messageId||'')===id);
+    if(!article) return Promise.resolve();
+    const height=Math.max(1,Math.ceil(article.getBoundingClientRect().height));
+    article.style.setProperty('--messenger-delete-height',height+'px');
+    article.style.maxHeight=height+'px';
+    article.style.overflow='hidden';
+    article.getBoundingClientRect();
+    article.classList.add('is-deleting');
+    requestAnimationFrame(()=>{
+      article.style.maxHeight='0px';
+      article.style.marginTop='0px';
+      article.style.marginBottom='0px';
+    });
+    return new Promise(resolve=>setTimeout(resolve,240));
+  }
+
   async function deleteOwnMessage(row){
     if(!row?.id||row.sender!==state.actor) return;
     const list=document.getElementById('messengerMessages');
     const preservedScrollTop=Number(list?.scrollTop||0);
     try{
       const data=await api('messenger-delete',{id:row.id});
+      await animateMessageRemoval(row.id);
       state.rows=Array.isArray(data.messages)?data.messages:state.rows.filter(item=>item.id!==row.id);
       state.decrypted.delete(row.id);
       state.renderedIds.delete(row.id);
