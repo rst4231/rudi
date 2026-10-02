@@ -501,20 +501,38 @@ async function sendRewardCompletedNotification(actor, redemption, options = {}) 
   }
 }
 
+function starGiftWord(points){
+  const value=Math.abs(Math.trunc(Number(points)||0));
+  const mod100=value%100;
+  const mod10=value%10;
+  if(mod100>=11&&mod100<=14) return 'звёзд';
+  if(mod10===1) return 'звезду';
+  if(mod10>=2&&mod10<=4) return 'звезды';
+  return 'звёзд';
+}
+
 async function sendStarGiftNotification(result, options = {}) {
   try {
     const from=String(result?.from||'');
     const to=String(result?.to||'');
     const points=Number(result?.points||0);
-    const verb=result?.from==='Диана'?'подарила':'подарил';
+    const verb=from==='Диана'?'подарила':'подарил';
+    const toDative=to==='Диана'?'Диане':to==='Рустам'?'Рустаму':to;
+    const text='⭐ '+from+' '+verb+' '+toDative+' '+points+' '+starGiftWord(points);
+    const encrypted=encryptMessengerSystemPayload(text,'star-gift',options);
+    const message=await addMessengerMessage(from,{
+      ...encrypted,
+      systemRecipients:['Рустам','Диана']
+    },options);
     const payload={
       title:'⭐ Подарок звёзд',
-      body:from+' '+verb+' '+to+' '+points+' ⭐',
+      body:text,
       tag:'star-gift',
-      url:'/?tab=score&item='+encodeURIComponent(to),
+      url:'/?tab=messenger&message='+encodeURIComponent(message.id)+'&fresh=1',
     };
     const sendPush=options.sendPushNotificationImpl||sendPushNotification;
-    return await Promise.all(['Рустам','Диана'].map(actor=>sendPush(actor,payload,options)));
+    const push=await sendPush(to,payload,options);
+    return [{message,pushes:[{actor:to,...push}]}];
   } catch (error) {
     console.warn('RUDI_STAR_GIFT_NOTIFICATION_WARN',String(error?.message||error));
     return [];

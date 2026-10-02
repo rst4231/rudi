@@ -6,6 +6,7 @@ const app=fs.readFileSync('public/app.js','utf8');
 const appCss=fs.readFileSync('public/app.css','utf8');
 const mood=fs.readFileSync('public/mood-history.js','utf8');
 const moodCss=fs.readFileSync('public/mood-history-v2101.css','utf8');
+const partner=fs.readFileSync('api/partner-message.js','utf8');
 
 test('joy and love are always positive when dominant for a mood factor',()=>{
   assert.match(mood,/const isPositive=topMood==='joy'\|\|topMood==='love'\|\|\(positive>negative&&positive>0\)/);
@@ -27,4 +28,18 @@ test('cycle brain and appetite guidance changes inside phases',()=>{
 test('cycle brain and appetite cards use white text',()=>{
   assert.match(appCss,/\.cycle-insight-card span\{color:#fff/);
   assert.match(appCss,/\.cycle-insight-card strong\{color:#fff/);
+});
+
+test('star gift message uses correct names, dative case and declension',()=>{
+  assert.match(partner,/const toDative=to==='Диана'\?'Диане':to==='Рустам'\?'Рустаму':to/);
+  assert.match(partner,/const text='⭐ '\+from\+' '\+verb\+' '\+toDative\+' '\+points\+' '\+starGiftWord\(points\)/);
+  assert.match(partner,/if\(mod10===1\) return 'звезду'/);
+  assert.match(partner,/if\(mod10>=2&&mod10<=4\) return 'звезды'/);
+  assert.match(partner,/return 'звёзд'/);
+});
+
+test('star gift push goes only to the recipient and chat event is visible to both',()=>{
+  assert.match(partner,/const push=await sendPush\(to,payload,options\)/);
+  assert.doesNotMatch(partner,/Promise\.all\(\['Рустам','Диана'\]\.map\(actor=>sendPush\(actor,payload,options\)\)\)/);
+  assert.match(partner,/systemRecipients:\['Рустам','Диана'\]/);
 });
