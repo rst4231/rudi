@@ -2094,7 +2094,7 @@ html[data-theme="light"] .car-mileage-history{border-top-color:#e2e6eb}
 /* end RUDI v3.31 car dashboard */
 
 
-/* RUDI v3.32 — car archive delete controls + consistent car buttons */
+/* RUDI v3.32 — car archive delete controls + service button polish */
 .car-repair-archive-row{
   position:relative;
   padding-right:40px;
@@ -2140,41 +2140,6 @@ html[data-theme="light"] .car-mileage-history{border-top-color:#e2e6eb}
 }
 .car-mileage-history-row>span{text-align:right}
 
-/* Use the same intentional controls as the rest of the car page instead of native WebView buttons. */
-.car-tyre-buttons{
-  display:flex;
-  align-items:center;
-  gap:5px;
-  padding:4px;
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:12px;
-  background:rgba(255,255,255,.035);
-}
-.car-tyre-buttons button{
-  -webkit-appearance:none;
-  appearance:none;
-  min-height:32px;
-  padding:0 11px;
-  border:1px solid transparent;
-  border-radius:9px;
-  background:transparent;
-  color:#8f97a2;
-  font:inherit;
-  font-size:9px;
-  font-weight:820;
-  line-height:1;
-  cursor:pointer;
-  box-shadow:none;
-  -webkit-tap-highlight-color:transparent;
-}
-.car-tyre-buttons button:active{transform:scale(.96)}
-.car-tyre-buttons button.is-active{
-  border-color:rgba(222,73,73,.30);
-  background:linear-gradient(180deg,rgba(213,75,75,.96),rgba(174,44,50,.96));
-  color:#fff;
-  box-shadow:0 5px 12px rgba(183,46,51,.18),inset 0 1px 0 rgba(255,255,255,.16);
-}
-
 .car-last-service-form button{
   -webkit-appearance:none;
   appearance:none;
@@ -2204,19 +2169,6 @@ html[data-theme="light"] .car-archive-remove:hover{
   border-color:#efcdd0;
   background:#fff0f1;
   color:#c94f59;
-}
-html[data-theme="light"] .car-tyre-buttons{
-  border-color:#e0e4e9;
-  background:#f4f6f8;
-}
-html[data-theme="light"] .car-tyre-buttons button{
-  color:#687382;
-}
-html[data-theme="light"] .car-tyre-buttons button.is-active{
-  border-color:#c94c52;
-  background:linear-gradient(180deg,#df5a5a,#bd3f45);
-  color:#fff;
-  box-shadow:0 4px 10px rgba(167,55,61,.16);
 }
 html[data-theme="light"] .car-last-service-form button{
   background:linear-gradient(180deg,#d95050,#b93a40);
