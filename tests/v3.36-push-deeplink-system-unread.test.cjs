@@ -35,6 +35,15 @@ test('all home-targeted push notifications use explicit home tab deep links',()=
   assert.doesNotMatch(partner,/url:\s*['"]\/\?item=/);
   assert.doesNotMatch(lulu,/url:\s*['"]\/\?item=/);
   assert.doesNotMatch(humidity,/url:\s*['"]\/\?item=/);
+  assert.match(partner,/systemRecipients:\['Рустам','Диана'\]/);
+});
+
+test('messenger client uses per-viewer system unread state for the bottom badge',()=>{
+  const messenger=fs.readFileSync('public/messenger.js','utf8');
+  assert.match(messenger,/function rowUnreadForActor\(row,actor=state\.actor\)/);
+  assert.match(messenger,/recipients\.includes\(viewer\)&&!readBy\.includes\(viewer\)/);
+  assert.match(messenger,/filter\(row=>rowUnreadForActor\(row\)/);
+  assert.match(messenger,/getElementById\('messengerTabBadge'\)/);
 });
 
 test('system messenger events are unread independently for both actors until each opens them',async()=>{
