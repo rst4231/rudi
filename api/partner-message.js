@@ -3050,7 +3050,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         }
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'reason') {
-        row=await setDailyMoodReason(date,actor,body.reason,options);
+        row=await setDailyMoodReason(date,actor,body.reason,{...options,reasonText:body.reasonText});
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'get') {
         row = await readDailyMood(date, options);
