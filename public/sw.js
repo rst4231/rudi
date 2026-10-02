@@ -321,9 +321,33 @@ async function deliverPendingPushNotifications(){
     if(!id) continue;
     const notificationTag=String(row?.tag||id);
     const notificationUrl=String(row?.url||'/');
-    const isMessenger=notificationTag==='rudi-messenger'||notificationUrl.includes('tab=messenger');
+    const notificationKind=String(row?.kind||'show');
+    const isMessenger=notificationTag.startsWith('rudi-messenger')||notificationUrl.includes('tab=messenger');
     const messengerVisible=isMessenger?await hasVisibleMessenger(windows):false;
-    if(!messengerVisible){
+    if(notificationKind==='dismiss'){
+      // Safari/iOS requires a user-visible notification for each push event.
+      // Present a technical replacement, then immediately close every matching
+      // notification (including legacy RUDI versions that used one shared tag).
+      await self.registration.showNotification('RUDI',{
+        body:'Сообщение удалено',
+        tag:notificationTag,
+        icon:String(row?.icon||'/icon-192-v176.jpg'),
+        badge:String(row?.badge||'/icon-192-v176.jpg'),
+        data:{url:notificationUrl,id,dismiss:true},
+        renotify:false
+      }).catch(()=>{});
+      for(let attempt=0;attempt<2;attempt+=1){
+        if(attempt) await new Promise(resolve=>setTimeout(resolve,80));
+        const notifications=await self.registration.getNotifications().catch(()=>[]);
+        for(const notification of notifications){
+          const tag=String(notification?.tag||'');
+          const url=String(notification?.data?.url||'');
+          if(tag===notificationTag||url===notificationUrl){
+            try{notification.close()}catch(_){}
+          }
+        }
+      }
+    }else if(!messengerVisible){
       await self.registration.showNotification(String(row?.title||'RUDI'),{
         body:String(row?.body||''),
         tag:notificationTag,
@@ -334,7 +358,13 @@ async function deliverPendingPushNotifications(){
       });
     }
     for(const client of windows){
-      try{client.postMessage({type:'RUDI_PUSH_RECEIVED',id,tag:notificationTag,url:notificationUrl,foreground:messengerVisible})}catch(_){}
+      try{client.postMessage({
+        type:notificationKind==='dismiss'?'RUDI_PUSH_DISMISSED':'RUDI_PUSH_RECEIVED',
+        id,
+        tag:notificationTag,
+        url:notificationUrl,
+        foreground:messengerVisible
+      })}catch(_){}
     }
     shown.push(id);
   }

@@ -197,12 +197,16 @@ function renderStats(history,today){
     for(const [label,count] of factors.slice(0,8)){
       const moods=reasonMoods[label]||{};
       const topMood=Object.entries(moods).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+      const positive=(Number(moods.joy||0)+Number(moods.love||0));
+      const negative=(Number(moods.fatigue||0)+Number(moods.sadness||0)+Number(moods.boredom||0)+Number(moods.anger||0));
+      const isPositive=positive>negative&&positive>0;
       const item=document.createElement('div');
-      item.className='mood-factor-item';
+      item.className='mood-factor-item'+(isPositive?' is-positive':'');
       const name=document.createElement('b');
       name.textContent=label;
       const meta=document.createElement('span');
-      meta.textContent=count+' '+plural(count,'раз','раза','раз')+(topMood&&META[topMood]?' · чаще '+META[topMood].emoji+' '+META[topMood].label:'');
+      const moodHint=topMood&&META[topMood]?' · '+META[topMood].emoji+' '+META[topMood].label:'';
+      meta.textContent=(isPositive?'↑ положительно · ':'')+count+'×'+moodHint;
       item.append(name,meta);
       list.appendChild(item);
     }

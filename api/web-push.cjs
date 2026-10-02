@@ -174,6 +174,7 @@ function normalizePushNotification(value) {
   if (!value?.id || !Number.isFinite(createdMs)) return null;
   return {
     id: String(value.id).slice(0, 96),
+    kind: String(value.kind || 'show') === 'dismiss' ? 'dismiss' : 'show',
     title: String(value.title || 'RUDI').slice(0, 120),
     body: String(value.body || '').slice(0, 500),
     tag: String(value.tag || 'rudi').slice(0, 80),
@@ -201,6 +202,7 @@ async function queuePushNotification(actor, payload, options = {}) {
   const current = normalizeNotificationQueue(currentRaw, now);
   const row = normalizePushNotification({
     id: payload?.id || crypto.randomUUID(),
+    kind: payload?.kind || 'show',
     title: payload?.title || 'RUDI',
     body: payload?.body || '',
     tag: payload?.tag || 'rudi',
@@ -209,7 +211,14 @@ async function queuePushNotification(actor, payload, options = {}) {
     badge: payload?.badge || '/icon-192-v176.jpg',
     createdAt: new Date(now).toISOString(),
   });
-  const next = [...current.filter((item) => item.id !== row.id), row].slice(-MAX_NOTIFICATIONS);
+  const next = [
+    ...current.filter((item) => {
+      if (item.id === row.id) return false;
+      if (row.kind !== 'dismiss') return true;
+      return item.tag !== row.tag && item.url !== row.url;
+    }),
+    row,
+  ].slice(-MAX_NOTIFICATIONS);
   await writeAppState(safeActor, NOTIFICATIONS_KEY, { items: next, updatedAt: row.createdAt }, options.dbOptions || options);
   return row;
 }

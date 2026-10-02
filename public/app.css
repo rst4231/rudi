@@ -12487,3 +12487,20 @@ html:not([data-theme="dark"]) .app-tabbar{
 .mood-factor-item b{font-size:10px;line-height:1.2;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mood-factor-item span{font-size:8.5px;line-height:1.25;color:var(--muted)}
 @media(max-width:420px){.mood-factor-list{grid-template-columns:1fr}}
+
+
+/* RUDI v3.40 compact mood influence stats */
+.mood-factor-item.is-positive{
+  border:1px solid color-mix(in srgb,#32d583 42%,var(--line));
+  background:color-mix(in srgb,#32d583 10%,var(--surface));
+}
+.mood-factor-item.is-positive b{color:color-mix(in srgb,#32d583 78%,var(--text))}
+.mood-factor-item.is-positive span{color:color-mix(in srgb,#32d583 62%,var(--muted))}
+@media(max-width:430px){
+  .mood-factor-stats{gap:6px;padding:8px;border-radius:14px}
+  .mood-factor-stats>strong{font-size:10px}
+  .mood-factor-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .mood-factor-item{gap:1px;padding:6px 7px;border-radius:10px}
+  .mood-factor-item b{font-size:9.5px}
+  .mood-factor-item span{font-size:7.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}

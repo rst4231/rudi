@@ -360,10 +360,11 @@ async function sendMessengerNotificationToPartner(actor, messageId, notification
   const preview=messengerPushPreview(notification?.preview);
   const avatarUrl=messengerAvatarUrl(notification?.avatarUrl);
   const id=String(messageId||'').trim();
+  const pushTag=id?'rudi-messenger:'+id:'rudi-messenger';
   const result=await sendPush(recipientActor,{
     title:actor==='Диана'?'Диана прислала сообщение':'Рустам прислал сообщение',
     body:preview||'Новое сообщение',
-    tag:'rudi-messenger',
+    tag:pushTag,
     url:'/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1',
     ...(avatarUrl?{icon:avatarUrl}:{}),
   },options);
@@ -388,6 +389,21 @@ async function sendMessengerNotificationToPartner(actor, messageId, notification
     }
   }
   return {...result,recipient:recipientActor,telegramFallback};
+}
+
+async function dismissMessengerNotificationForPartner(actor,messageId,options={}){
+  const recipientActor=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
+  const id=String(messageId||'').trim();
+  if(!recipientActor||!id) return {sent:false,reason:'dismiss-invalid'};
+  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+  const url='/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1';
+  return sendPush(recipientActor,{
+    kind:'dismiss',
+    title:'RUDI',
+    body:'Сообщение удалено',
+    tag:'rudi-messenger:'+id,
+    url,
+  },{...options,ttlSeconds:60,urgency:'high'});
 }
 
 async function sendActivityNotification(text, _tab, options = {}) {
@@ -2136,8 +2152,20 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       await deleteMessengerMessage(actor,body.id,options);
+      const pushDismiss=await dismissMessengerNotificationForPartner(actor,body.id,options).catch(error=>({
+        sent:false,
+        reason:'dismiss-failed',
+        error:String(error?.message||error),
+      }));
       const messages=await readMessengerMessages(options);
-      return res.status(200).json({ok:true,actor,deleted:true,messages,unread:unreadMessengerCount(messages,actor)});
+      return res.status(200).json({
+        ok:true,
+        actor,
+        deleted:true,
+        pushDismiss,
+        messages,
+        unread:unreadMessengerCount(messages,actor)
+      });
     } catch (error) {
       const code=String(error?.message||error);
       const status=code.startsWith('messenger-')?400:statusForError(error);
@@ -4161,6 +4189,7 @@ module.exports.handleTickTick = handleTickTick;
 module.exports.handleRudiAction = handleRudiAction;
 module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
 module.exports.sendMessengerNotificationToPartner = sendMessengerNotificationToPartner;
+module.exports.dismissMessengerNotificationForPartner = dismissMessengerNotificationForPartner;
 module.exports.boughtNotificationText = boughtNotificationText;
 module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.sendWishlistNotificationToPartner = sendWishlistNotificationToPartner;
