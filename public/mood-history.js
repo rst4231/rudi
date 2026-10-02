@@ -199,7 +199,7 @@ function renderStats(history,today){
       const topMood=Object.entries(moods).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
       const positive=(Number(moods.joy||0)+Number(moods.love||0));
       const negative=(Number(moods.fatigue||0)+Number(moods.sadness||0)+Number(moods.boredom||0)+Number(moods.anger||0));
-      const isPositive=positive>negative&&positive>0;
+      const isPositive=topMood==='joy'||topMood==='love'||(positive>negative&&positive>0);
       const item=document.createElement('div');
       item.className='mood-factor-item'+(isPositive?' is-positive':'');
       const name=document.createElement('b');

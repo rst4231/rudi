@@ -74,4 +74,9 @@
   .mood-history-week-strip .mood-history-day{min-height:66px;border-radius:12px}
   .mood-history-hero{padding:14px;grid-template-columns:52px minmax(0,1fr)}
   .mood-history-hero-emoji{width:52px;height:52px;border-radius:17px;font-size:29px}
+  .mood-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .mood-stat-chip{min-width:0;padding:7px 5px;border-radius:11px;text-align:center}
+  .mood-stat-chip b{font-size:10.5px;white-space:nowrap}
+  .mood-stat-chip span{font-size:7.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mood-factor-stats,.mood-stat-summary{grid-column:1/-1}
 }
