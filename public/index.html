@@ -322,11 +322,11 @@
           </span>
           <span class="quick-access-copy"><strong>Для Ди</strong></span>
         </button>
-        <button id="quickFastingButton" class="quick-access-button is-fasting" type="button">
+        <button id="quickCalendarButton" class="quick-access-button is-calendar" type="button">
           <span class="quick-access-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.3v5l3.4 2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 9.5h17"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01"/></svg>
           </span>
-          <span class="quick-access-copy"><strong>Трекер голодания</strong><small>Стадия и история</small></span>
+          <span class="quick-access-copy"><strong>Календарь</strong><small>График и цикл</small></span>
         </button>
       </div>
     </section>
@@ -1406,11 +1406,12 @@
       </span>
       <span>Лента</span>
     </button>
-    <button role="tab" class="app-tab-button" type="button" data-app-tab="schedule" aria-selected="false">
-      <span class="app-tab-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="messenger" aria-selected="false">
+      <span class="app-tab-icon messenger-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M7.5 9.5h9M7.5 13h6"/></svg>
+        <span id="messengerTabBadge" class="app-tab-notification" hidden></span>
       </span>
-      <span>Календарь</span>
+      <span>Мессенджер</span>
     </button>
     <button role="tab" class="app-tab-button" type="button" data-app-tab="products" aria-selected="false">
       <span class="app-tab-icon products-tab-icon" aria-hidden="true">
