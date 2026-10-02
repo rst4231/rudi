@@ -32,3 +32,17 @@ test('habit stars info no longer promises a 21:00 reminder',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   assert.match(html,/\/profile-supplements\.js\?v=3\.4/);
 });
+
+test('activity bell read marker follows partner activity only',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(app,/function latestPartnerActivityItem\(items=homeDashboardState\.activity\)/);
+  const unreadStart=app.indexOf('function activityNotificationsHaveUnread');
+  const unreadEnd=app.indexOf('function updateActivityNotificationBadge',unreadStart);
+  const unread=app.slice(unreadStart,unreadEnd);
+  assert.match(unread,/const latest=latestPartnerActivityItem\(items\)/);
+  const seenStart=app.indexOf('function markActivityNotificationsSeen');
+  const seenEnd=app.indexOf('let activityNotificationsCloseTimer',seenStart);
+  const seen=app.slice(seenStart,seenEnd);
+  assert.match(seen,/const latest=latestPartnerActivityItem\(\)/);
+  assert.doesNotMatch(seen,/homeDashboardState\.activity\?\.\[0\]/);
+});
