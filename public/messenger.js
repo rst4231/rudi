@@ -1994,16 +1994,32 @@
     }
     if(emojiTray&&emojiTray.dataset.bound!=='1'){
       emojiTray.dataset.bound='1';
-      emojiTray.addEventListener('click',event=>{
-        const button=event.target.closest('[data-emoji]');
+      const insertEmoji=button=>{
         if(!button||!input) return;
         const value=String(button.dataset.emoji||'');
+        if(!value) return;
         const start=input.selectionStart??input.value.length;
         const end=input.selectionEnd??input.value.length;
         input.value=input.value.slice(0,start)+value+input.value.slice(end);
-        input.focus();
         const next=start+value.length;
-        input.setSelectionRange(next,next);
+        input.focus({preventScroll:true});
+        try{input.setSelectionRange(next,next)}catch(_){}
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+      };
+      emojiTray.addEventListener('pointerdown',event=>{
+        const button=event.target.closest('[data-emoji]');
+        if(!button||!input) return;
+        if(event.pointerType==='mouse'&&event.button!==0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        insertEmoji(button);
+      });
+      emojiTray.addEventListener('click',event=>{
+        const button=event.target.closest('[data-emoji]');
+        if(!button||!input) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if(event.detail===0) insertEmoji(button);
       });
     }
     if(cancelReply&&cancelReply.dataset.bound!=='1'){
