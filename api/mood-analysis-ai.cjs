@@ -5,7 +5,7 @@ const REASONS={work:'работа',food:'еда',relationship:'отношени�
 function clean(value,max=7000){return String(value||'').replace(/\r\n?/g,'\n').trim().slice(0,max)}
 function rowLine(row){
   const parts=[];
-  const reasons=[...new Set((Array.isArray(row?.samples)?row.samples:[]).map(s=>REASONS[String(s?.reason||'')]).filter(Boolean))];
+  const reasons=[...new Set((Array.isArray(row?.samples)?row.samples:[]).map(s=>{const reason=String(s?.reason||'');const custom=String(s?.reasonText||'').trim();return reason==='other'&&custom?custom:REASONS[reason]}).filter(Boolean))];
   if(reasons.length)parts.push('причины: '+reasons.join(', '));
   const h=row?.context?.habits;
   if(h&&Number(h.total)>0)parts.push('привычки: '+Number(h.done||0)+' из '+Number(h.total||0)+' выполнено'+(Number(h.notDone||0)?', '+Number(h.notDone)+' не выполнено':''));
