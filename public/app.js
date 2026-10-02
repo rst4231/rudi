@@ -10202,16 +10202,42 @@
         ['health','🫶','Самочувствие'],
         ['sport','🏃','Спорт'],
         ['sleep','😴','Сон'],
-        ['fatigue','😩','Усталость']
+        ['fatigue','😩','Усталость'],
+        ['other','✍️','Свой ответ']
       ];
+      function setMoodReasonPromptBusy(box,busy){
+        box?.querySelectorAll('button,input').forEach(item=>{item.disabled=Boolean(busy)});
+      }
       function ensureMoodReasonPrompt(){
         let box=document.getElementById('moodReasonPrompt');if(box)return box;
         const own=document.getElementById(currentActor==='Диана'?'homeDianaTile':'homeRustamTile');if(!own)return null;
         box=document.createElement('div');box.id='moodReasonPrompt';box.className='mood-reason-prompt';box.hidden=true;
-        box.innerHTML='<div class="mood-reason-title">Что повлияло?</div><div class="mood-reason-options"></div><button class="mood-reason-skip" type="button">Пропустить</button>';
+        box.innerHTML='<div class="mood-reason-title">Что повлияло?</div><div class="mood-reason-options"></div><form class="mood-reason-custom" hidden><input class="mood-reason-custom-input" type="text" maxlength="160" autocomplete="off" enterkeyhint="done" placeholder="Напишите свой ответ"><button class="mood-reason-custom-save" type="submit">Сохранить</button></form><button class="mood-reason-skip" type="button">Пропустить</button>';
         const options=box.querySelector('.mood-reason-options');
         for(const [key,emoji,label] of MOOD_REASONS){const button=document.createElement('button');button.type='button';button.dataset.moodReason=key;button.innerHTML='<span>'+emoji+'</span><b>'+label+'</b>';options.append(button)}
-        box.addEventListener('click',async event=>{const button=event.target.closest('[data-mood-reason]');if(!button)return;box.querySelectorAll('button').forEach(item=>item.disabled=true);try{await moodRequest('reason','',{reason:button.dataset.moodReason});hideMoodReasonPrompt();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}}catch(_){box.querySelectorAll('button').forEach(item=>item.disabled=false);try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
+        box.addEventListener('click',async event=>{
+          const button=event.target.closest('[data-mood-reason]');if(!button)return;
+          const reason=String(button.dataset.moodReason||'');
+          if(reason==='other'){
+            clearTimeout(moodReasonTimer);
+            const form=box.querySelector('.mood-reason-custom'),input=box.querySelector('.mood-reason-custom-input');
+            if(form)form.hidden=false;
+            requestAnimationFrame(()=>input?.focus?.({preventScroll:true}));
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            return;
+          }
+          setMoodReasonPromptBusy(box,true);
+          try{await moodRequest('reason','',{reason});hideMoodReasonPrompt();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}}
+          catch(_){setMoodReasonPromptBusy(box,false);try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}
+        });
+        box.querySelector('.mood-reason-custom').addEventListener('submit',async event=>{
+          event.preventDefault();
+          const input=box.querySelector('.mood-reason-custom-input'),reasonText=String(input?.value||'').trim();
+          if(!reasonText){input?.focus?.();return}
+          setMoodReasonPromptBusy(box,true);
+          try{await moodRequest('reason','',{reason:'other',reasonText});hideMoodReasonPrompt();try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}
+          catch(_){setMoodReasonPromptBusy(box,false);input?.focus?.();try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}
+        });
         box.querySelector('.mood-reason-skip').addEventListener('click',hideMoodReasonPrompt);
         const details=own.querySelector('.profile-person-details');
         const host=details?.parentNode||own;
@@ -10219,7 +10245,7 @@
         else if(details&&details.parentNode===host&&box.nextSibling!==details)host.insertBefore(box,details);
         return box;
       }
-      function hideMoodReasonPrompt(){clearTimeout(moodReasonTimer);const box=document.getElementById('moodReasonPrompt');if(box){box.hidden=true;box.querySelectorAll('button').forEach(item=>item.disabled=false)}}
+      function hideMoodReasonPrompt(){clearTimeout(moodReasonTimer);const box=document.getElementById('moodReasonPrompt');if(box){const form=box.querySelector('.mood-reason-custom'),input=box.querySelector('.mood-reason-custom-input');input?.blur?.();if(input)input.value='';if(form)form.hidden=true;setMoodReasonPromptBusy(box,false);box.hidden=true}}
       function showMoodReasonPrompt(){
         const box=ensureMoodReasonPrompt();if(!box)return;
         const own=document.getElementById(currentActor==='Диана'?'homeDianaTile':'homeRustamTile');
