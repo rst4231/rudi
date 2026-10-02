@@ -800,19 +800,7 @@ async function sendShopUnlockNotification(actor,rewards,options={}){
     targetTab:'score',
     dedupeKey:dedupe,
   },options);
-  const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
-  const preferences=await readPreferences(cleanActor,options).catch(()=>null);
-  if(preferences?.rewardNotificationsEnabled===false){
-    return [{actor:cleanActor,sent:false,reason:'disabled'}];
-  }
-  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
-  const result=await sendPush(cleanActor,{
-    title:plural?'🔓 Открылись новые награды':'🔓 Открылась новая награда',
-    body:rewardText,
-    tag:'reward-unlock',
-    url:'/?tab=score&item='+encodeURIComponent(cleanActor),
-  },options);
-  return [{actor:cleanActor,...result}];
+  return [{actor:cleanActor,recorded:true,push:false}];
 }
 
 function scheduleShopUnlockNotification(actor,rewards,options={}){
