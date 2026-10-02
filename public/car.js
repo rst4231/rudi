@@ -479,20 +479,41 @@
     return 'car-card:'+String(id||'');
   }
 
+  function carCardLegacyStorageKey(id){
+    return 'rudi:'+carCardViewKey(id)+':collapsed';
+  }
+
   function readCarCardCollapsed(id){
     const key=carCardViewKey(id);
+    const legacyKey=carCardLegacyStorageKey(id);
     try{
-      if(typeof window.RUDI_UI_PREFERENCES?.getViewState==='function'){
-        return Boolean(window.RUDI_UI_PREFERENCES.getViewState(key,false));
+      const preferences=window.RUDI_UI_PREFERENCES;
+      const legacy=localStorage.getItem(legacyKey);
+      if(typeof preferences?.getViewState==='function'){
+        if(legacy!==null){
+          const value=legacy==='1';
+          preferences.setViewState?.(key,value);
+          localStorage.removeItem(legacyKey);
+          return value;
+        }
+        return Boolean(preferences.getViewState(key,false));
       }
-      return localStorage.getItem('rudi:'+key+':collapsed')==='1';
+      return legacy==='1';
     }catch(_){return false}
   }
 
   function writeCarCardCollapsed(id,collapsed){
     const key=carCardViewKey(id);
-    try{localStorage.setItem('rudi:'+key+':collapsed',collapsed?'1':'0')}catch(_){}
-    try{window.RUDI_UI_PREFERENCES?.setViewState?.(key,Boolean(collapsed))}catch(_){}
+    const legacyKey=carCardLegacyStorageKey(id);
+    const value=Boolean(collapsed);
+    try{
+      if(typeof window.RUDI_UI_PREFERENCES?.setViewState==='function'){
+        window.RUDI_UI_PREFERENCES.setViewState(key,value);
+        localStorage.removeItem(legacyKey);
+        return;
+      }
+      localStorage.setItem(legacyKey,value?'1':'0');
+    }catch(_){}
   }
 
   function setCarCardCollapsed(card,collapsed,{persist=true}={}){
@@ -502,6 +523,12 @@
     const button=card.querySelector('[data-car-collapse]');
     button?.setAttribute('aria-expanded',value?'false':'true');
     if(persist) writeCarCardCollapsed(card.dataset.carCard,value);
+  }
+
+  function syncCarCardCollapseStates(){
+    document.querySelectorAll('#carBody > .car-smart-card[data-car-card]').forEach(card=>{
+      setCarCardCollapsed(card,readCarCardCollapsed(card.dataset.carCard),{persist:false});
+    });
   }
 
   function carSmartIcon(source){
@@ -561,6 +588,87 @@
     return card;
   }
 
+  function ensureCarEnhancementUi(){
+    const page=document.getElementById('carPage');
+    const body=document.getElementById('carBody');
+    if(!page||!body) return;
+
+    if(!document.getElementById('carAttentionSummary')){
+      const summary=document.createElement('section');
+      summary.id='carAttentionSummary';
+      summary.className='car-attention-summary is-loading';
+      summary.setAttribute('aria-live','polite');
+      summary.innerHTML=
+        '<div class="car-attention-main">'
+        +'<span id="carAttentionIndicator" class="car-attention-indicator" aria-hidden="true"></span>'
+        +'<div class="car-attention-copy"><strong id="carAttentionTitle">Проверяю состояние машины…</strong><span id="carAttentionText"></span></div>'
+        +'</div>'
+        +'<div id="carAttentionChips" class="car-attention-chips"></div>'
+        +'<div class="car-tyre-status">'
+        +'<div class="car-tyre-status-copy"><span>Шины</span><strong id="carTyreInstalled">Установленные не указаны</strong><small id="carTyreRecommended">Рекомендация загружается…</small></div>'
+        +'<div class="car-tyre-buttons" role="group" aria-label="Какие шины установлены">'
+        +'<button type="button" data-car-tyre-season="summer">Летние</button>'
+        +'<button type="button" data-car-tyre-season="winter">Зимние</button>'
+        +'</div></div>';
+      const anchor=page.querySelector('.car-hero-recommendations')||body;
+      page.insertBefore(summary,anchor);
+    }
+
+    const mileageContent=body.querySelector('[data-car-card="mileage"] .car-mileage-service-content');
+    if(mileageContent&&!document.getElementById('carMileageInsights')){
+      const insights=document.createElement('section');
+      insights.id='carMileageInsights';
+      insights.className='car-mileage-insights';
+      insights.innerHTML=
+        '<div class="car-service-dimensions">'
+        +'<div><span>По пробегу</span><strong id="carServiceByMileage">—</strong><small id="carServiceByMileageMeta"></small></div>'
+        +'<div><span>По времени</span><strong id="carServiceByTime">—</strong><small id="carServiceByTimeMeta"></small></div>'
+        +'</div>'
+        +'<div class="car-mileage-stats">'
+        +'<div><span>За 30 дней</span><strong id="carMileage30d">—</strong></div>'
+        +'<div><span>Средний темп</span><strong id="carMileageDaily">—</strong></div>'
+        +'<div><span>ТО примерно</span><strong id="carMileageEta">—</strong></div>'
+        +'</div>'
+        +'<form id="carLastServiceForm" class="car-last-service-form">'
+        +'<label><span>Последнее ТО</span><input id="carLastServiceInput" type="date"></label>'
+        +'<button id="carLastServiceSave" type="submit">Сохранить</button>'
+        +'</form>'
+        +'<details class="car-mileage-history"><summary><span>История пробега</span><strong id="carMileageHistoryCount">0</strong></summary><div id="carMileageHistoryList"></div></details>';
+      mileageContent.appendChild(insights);
+    }
+
+    const taskCard=body.querySelector('[data-car-card="tasks"]');
+    const tasks=taskCard?.querySelector('.car-tasks');
+    if(taskCard&&tasks&&!document.getElementById('carTaskAdd')){
+      const add=document.createElement('button');
+      add.id='carTaskAdd';
+      add.className='car-task-add';
+      add.type='button';
+      add.textContent='+ Задача';
+      taskCard.querySelector('.car-smart-card-actions')?.prepend(add);
+
+      const form=document.createElement('form');
+      form.id='carTaskForm';
+      form.className='car-task-form';
+      form.hidden=true;
+      form.innerHTML=
+        '<label class="car-task-field"><span>Задача</span><input id="carTaskTitle" maxlength="120" autocomplete="off" placeholder="Например переобуться" required></label>'
+        +'<label class="car-task-field"><span>Дата</span><input id="carTaskDate" type="date"></label>'
+        +'<div class="car-task-form-actions"><button id="carTaskCancel" type="button">Отмена</button><button id="carTaskSave" type="submit">Добавить</button></div>';
+      tasks.prepend(form);
+    }
+
+    if(page.dataset.carEnhancementsReady==='1') return;
+    page.dataset.carEnhancementsReady='1';
+    page.querySelectorAll('[data-car-tyre-season]').forEach(button=>{
+      button.addEventListener('click',()=>saveTyreSeason(button.dataset.carTyreSeason,button));
+    });
+    document.getElementById('carLastServiceForm')?.addEventListener('submit',saveLastServiceDate);
+    document.getElementById('carTaskAdd')?.addEventListener('click',()=>setTaskFormOpen(true));
+    document.getElementById('carTaskCancel')?.addEventListener('click',()=>setTaskFormOpen(false));
+    document.getElementById('carTaskForm')?.addEventListener('submit',saveCarTask);
+  }
+
   function setupCarSmartCards(){
     const page=document.getElementById('carPage');
     const body=document.getElementById('carBody');
@@ -617,6 +725,7 @@
     cards.forEach(card=>fragment.appendChild(card));
     if(status) fragment.appendChild(status);
     body.replaceChildren(fragment);
+    ensureCarEnhancementUi();
     applyCarSmartOrder({animate:false});
   }
 
@@ -743,10 +852,149 @@
     }
   }
 
+  function mileageHistoryEntries(car){
+    const rows=Array.isArray(car?.state?.mileageHistory)?car.state.mileageHistory:[];
+    const normalized=rows.map(row=>({
+      mileage:Number(row?.mileage),
+      at:new Date(row?.at)
+    })).filter(row=>Number.isFinite(row.mileage)&&Number.isFinite(row.at.getTime()));
+    const currentMileage=Number(car?.state?.mileage);
+    const currentAt=new Date(car?.state?.mileageUpdatedAt||'');
+    if(Number.isFinite(currentMileage)&&Number.isFinite(currentAt.getTime())){
+      const exists=normalized.some(row=>row.mileage===currentMileage&&row.at.getTime()===currentAt.getTime());
+      if(!exists) normalized.push({mileage:currentMileage,at:currentAt});
+    }
+    return normalized.sort((a,b)=>a.at-b.at);
+  }
+
+  function mileageAnalytics(car,now=new Date()){
+    const history=mileageHistoryEntries(car);
+    if(history.length<2) return {history,delta30:null,avgDaily:null,spanDays:null};
+    const latest=history[history.length-1];
+    const cutoff=latest.at.getTime()-30*86400000;
+    let baseline=history[0];
+    for(const row of history){
+      if(row.at.getTime()<=cutoff) baseline=row;
+      else if(baseline===history[0]&&history[0].at.getTime()>cutoff) baseline=history[0];
+    }
+    const spanDays=Math.max((latest.at-baseline.at)/86400000,0);
+    const delta=Math.max(0,latest.mileage-baseline.mileage);
+    const avgDaily=spanDays>=0.5&&delta>0?delta/spanDays:null;
+    return {
+      history,
+      delta30:spanDays>0?delta:null,
+      avgDaily:Number.isFinite(avgDaily)?avgDaily:null,
+      spanDays
+    };
+  }
+
+  function addYearDateKey(dateKey){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey||''))) return null;
+    const date=new Date(String(dateKey)+'T12:00:00Z');
+    if(!Number.isFinite(date.getTime())) return null;
+    date.setUTCFullYear(date.getUTCFullYear()+1);
+    return date;
+  }
+
+  function shortDate(value){
+    const date=value instanceof Date?value:new Date(value);
+    if(!Number.isFinite(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(date);
+  }
+
+  function fullDate(value){
+    const date=value instanceof Date?value:new Date(value);
+    if(!Number.isFinite(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).format(date);
+  }
+
+  function serviceInsight(car,now=new Date()){
+    const mileage=Number(car?.state?.mileage);
+    const nextMileage=Number(car?.nextService?.mileage);
+    const remaining=Number.isFinite(mileage)&&Number.isFinite(nextMileage)?Math.max(0,nextMileage-mileage):null;
+    const analytics=mileageAnalytics(car,now);
+    let mileageDueAt=null;
+    if(Number.isFinite(remaining)&&remaining===0) mileageDueAt=new Date(now);
+    else if(Number.isFinite(remaining)&&Number.isFinite(analytics.avgDaily)&&analytics.avgDaily>0){
+      mileageDueAt=new Date(now.getTime()+(remaining/analytics.avgDaily)*86400000);
+    }
+
+    const timeDueAt=addYearDateKey(car?.state?.lastServiceAt);
+    const timeDays=timeDueAt?Math.ceil((timeDueAt.getTime()-now.getTime())/86400000):null;
+    const mileageDays=mileageDueAt?Math.ceil((mileageDueAt.getTime()-now.getTime())/86400000):null;
+
+    let primary='mileage';
+    if(timeDueAt&&mileageDueAt) primary=timeDueAt<=mileageDueAt?'time':'mileage';
+    else if(timeDueAt&&!mileageDueAt) primary='time';
+
+    const due=(Number.isFinite(remaining)&&remaining<=0)||(Number.isFinite(timeDays)&&timeDays<=0);
+    const soon=!due&&(
+      (Number.isFinite(remaining)&&remaining<=2500)
+      ||(Number.isFinite(timeDays)&&timeDays<=30)
+    );
+    return {mileage,nextMileage,remaining,analytics,mileageDueAt,mileageDays,timeDueAt,timeDays,primary,due,soon};
+  }
+
+  function renderMileageInsights(car,insight){
+    const byMileage=document.getElementById('carServiceByMileage');
+    const byMileageMeta=document.getElementById('carServiceByMileageMeta');
+    const byTime=document.getElementById('carServiceByTime');
+    const byTimeMeta=document.getElementById('carServiceByTimeMeta');
+    const delta=document.getElementById('carMileage30d');
+    const daily=document.getElementById('carMileageDaily');
+    const eta=document.getElementById('carMileageEta');
+    const input=document.getElementById('carLastServiceInput');
+    const historyList=document.getElementById('carMileageHistoryList');
+    const historyCount=document.getElementById('carMileageHistoryCount');
+
+    if(byMileage){
+      byMileage.textContent=Number.isFinite(insight.remaining)?(insight.remaining===0?'Пора на ТО':'Осталось '+formatKm(insight.remaining)):'Добавь пробег';
+    }
+    if(byMileageMeta){
+      byMileageMeta.textContent=insight.mileageDueAt&&insight.remaining>0?'Примерно '+fullDate(insight.mileageDueAt):'';
+    }
+    if(byTime){
+      if(!insight.timeDueAt) byTime.textContent='Дата не указана';
+      else if(insight.timeDays<=0) byTime.textContent='Срок наступил';
+      else byTime.textContent='До '+fullDate(insight.timeDueAt);
+    }
+    if(byTimeMeta){
+      byTimeMeta.textContent=insight.timeDueAt&&insight.timeDays>0?insight.timeDays+' дн.':'';
+    }
+    if(delta) delta.textContent=Number.isFinite(insight.analytics.delta30)?'+'+formatKm(insight.analytics.delta30):'—';
+    if(daily) daily.textContent=Number.isFinite(insight.analytics.avgDaily)?Math.round(insight.analytics.avgDaily)+' км/день':'—';
+    if(eta) eta.textContent=insight.mileageDueAt&&insight.remaining>0?shortDate(insight.mileageDueAt):'—';
+    if(input&&document.activeElement!==input) input.value=String(car?.state?.lastServiceAt||'');
+
+    if(historyList){
+      historyList.replaceChildren();
+      const rows=[...insight.analytics.history].sort((a,b)=>b.at-a.at).slice(0,8);
+      if(historyCount) historyCount.textContent=String(insight.analytics.history.length);
+      if(!rows.length){
+        const empty=document.createElement('div');
+        empty.className='car-mileage-history-empty';
+        empty.textContent='История появится после обновлений пробега';
+        historyList.appendChild(empty);
+      }else{
+        rows.forEach(row=>{
+          const item=document.createElement('div');
+          item.className='car-mileage-history-row';
+          const value=document.createElement('strong');
+          value.textContent=formatKm(row.mileage);
+          const date=document.createElement('span');
+          date.textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).format(row.at);
+          item.append(value,date);
+          historyList.appendChild(item);
+        });
+      }
+    }
+  }
+
   function renderService(car) {
     renderCarAge();
     const mileage=car?.state?.mileage;
     const next=car?.nextService;
+    const insight=serviceInsight(car);
     const mileageNode=document.getElementById('carMileageValue');
     const updatedNode=document.getElementById('carMileageUpdated');
     const input=document.getElementById('carMileageInput');
@@ -763,49 +1011,62 @@
     const homeProgress=document.getElementById('carHomeServiceProgress');
     const homePercent=document.getElementById('carHomeServicePercent');
 
+    const mileageText=mileage==null?'Не указан':formatKm(mileage);
+    let serviceText=next?'ТО-'+next.number+' · '+formatKm(next.mileage):'Не определено';
+    if(next&&insight.primary==='time'&&insight.timeDueAt){
+      serviceText='ТО-'+next.number+' · до '+shortDate(insight.timeDueAt);
+    }
+
     if(modelNode){
       modelNode.dataset.mileage=mileage==null?'Пробег не указан':'Пробег · '+formatKm(mileage);
-      modelNode.dataset.service=next
-        ? 'Следующее ТО · ТО-'+next.number+' на '+formatKm(next.mileage)
-        : 'Следующее ТО · не определено';
+      modelNode.dataset.service='Следующее ТО · '+serviceText;
     }
-    const mileageText=mileage==null?'Не указан':formatKm(mileage);
-    const serviceText=next?'ТО-'+next.number+' на '+formatKm(next.mileage):'Не определено';
     if(collapsedMileageNode) collapsedMileageNode.textContent=mileageText;
     if(collapsedServiceNode) collapsedServiceNode.textContent=serviceText;
     if(homeMileageNode) homeMileageNode.textContent=mileageText;
     if(homeServiceNode) homeServiceNode.textContent=serviceText;
-    if(mileageNode) mileageNode.textContent=mileage==null?'Не указан':formatKm(mileage);
+    if(mileageNode) mileageNode.textContent=mileageText;
     if(updatedNode) updatedNode.textContent=formatUpdated(car?.state?.mileageUpdatedAt||car?.state?.updatedAt);
-    if(input && document.activeElement!==input) input.value=mileage==null?'':String(mileage);
+    if(input&&document.activeElement!==input) input.value=mileage==null?'':String(mileage);
 
-    if(!next || mileage==null) {
-      if(nextNode) nextNode.textContent='Добавь пробег';
-      if(meta) meta.textContent='Покажу ближайшее ТО по пробегу';
-      if(progress) progress.style.width='0%';
-      if(collapsedProgress) collapsedProgress.style.width='0%';
-      if(collapsedPercent) collapsedPercent.textContent='—';
-      if(homeProgress) homeProgress.style.width='0%';
-      if(homePercent) homePercent.textContent='—';
+    renderMileageInsights(car,insight);
+
+    if(!next||mileage==null) {
+      if(nextNode) nextNode.textContent=insight.timeDueAt?'По времени · '+(insight.timeDays<=0?'срок наступил':'до '+shortDate(insight.timeDueAt)):'Добавь пробег';
+      if(meta) meta.textContent=insight.timeDueAt?'Добавь пробег, чтобы сравнить оба лимита':'Добавь пробег и дату последнего ТО';
+      [progress,collapsedProgress,homeProgress].forEach(node=>{if(node)node.style.width='0%'});
+      if(collapsedPercent) collapsedPercent.textContent=insight.timeDueAt?(insight.timeDays<=0?'Срок':insight.timeDays+' дн.'):'—';
+      if(homePercent) homePercent.textContent=insight.timeDueAt?(insight.timeDays<=0?'Срок':insight.timeDays+' дн.'):'—';
       return;
     }
 
-    const remaining=Math.max(0,Number(next.mileage)-Number(mileage));
-    if(nextNode) nextNode.textContent='ТО-'+next.number+' · '+formatKm(next.mileage);
-    if(meta) {
-      meta.textContent=remaining===0
-        ? 'Пора на ТО'
-        : 'До ТО '+formatKm(remaining)+' · учитывается и срок эксплуатации';
+    if(nextNode){
+      nextNode.textContent=insight.primary==='time'&&insight.timeDueAt
+        ?'ТО-'+next.number+' · до '+shortDate(insight.timeDueAt)
+        :'ТО-'+next.number+' · '+formatKm(next.mileage);
+    }
+    if(meta){
+      if(insight.due) meta.textContent='Пора на ТО · сработал ближайший лимит';
+      else if(insight.primary==='time'&&insight.timeDueAt) meta.textContent='Раньше наступает срок по времени';
+      else if(insight.mileageDueAt) meta.textContent='По текущему темпу раньше наступает лимит пробега';
+      else meta.textContent='Сравниваю пробег и срок после последнего ТО';
     }
 
     const previous=next.mileage===5000?0:next.mileage-10000;
     const span=Math.max(1,next.mileage-previous);
-    const pct=Math.max(0,Math.min(100,((Number(mileage)-previous)/span)*100));
-    if(progress) progress.style.width=pct.toFixed(1)+'%';
-    if(collapsedProgress) collapsedProgress.style.width=pct.toFixed(1)+'%';
-    if(collapsedPercent) collapsedPercent.textContent=Math.round(pct)+'% пройдено';
-    if(homeProgress) homeProgress.style.width=pct.toFixed(1)+'%';
-    if(homePercent) homePercent.textContent=Math.round(pct)+'%';
+    const mileagePct=Math.max(0,Math.min(100,((Number(mileage)-previous)/span)*100));
+    let combinedPct=mileagePct;
+    if(insight.primary==='time'&&car?.state?.lastServiceAt&&insight.timeDueAt){
+      const start=new Date(String(car.state.lastServiceAt)+'T12:00:00Z');
+      const total=Math.max(1,insight.timeDueAt-start);
+      combinedPct=Math.max(0,Math.min(100,((Date.now()-start.getTime())/total)*100));
+    }
+    [progress,collapsedProgress,homeProgress].forEach(node=>{if(node)node.style.width=combinedPct.toFixed(1)+'%'});
+    const remainingLabel=insight.primary==='time'&&Number.isFinite(insight.timeDays)
+      ?(insight.timeDays<=0?'Срок':insight.timeDays+' дн.')
+      :(Number.isFinite(insight.remaining)?formatKm(insight.remaining):'—');
+    if(collapsedPercent) collapsedPercent.textContent=remainingLabel;
+    if(homePercent) homePercent.textContent=remainingLabel;
   }
 
   function tyreSeason(weather) {
@@ -819,16 +1080,36 @@
   }
 
   function renderTyreSeason(weather) {
-    const season=tyreSeason(weather);
-    const text=season==='winter'?'Зимние':'Летние';
+    const recommended=tyreSeason(weather);
+    const installed=String(state.car?.state?.tyreSeasonInstalled||'');
+    const recommendedText=recommended==='winter'?'зимние':'летние';
+    const installedText=installed==='winter'?'Зимние':installed==='summer'?'Летние':'Не указаны';
+
     for(const id of ['carHomeTyreSticker','carPageTyreSticker']){
       const node=document.getElementById(id);
       if(!node) continue;
-      node.textContent=text;
-      node.dataset.season=season;
-      node.hidden=false;
-      node.setAttribute('aria-label','Сейчас лучше использовать '+text.toLowerCase()+' шины');
+      node.hidden=!installed;
+      if(installed){
+        node.textContent=installedText+' стоят';
+        node.dataset.season=installed;
+        node.setAttribute('aria-label','Сейчас установлены '+installedText.toLowerCase()+' шины');
+      }
     }
+
+    const installedNode=document.getElementById('carTyreInstalled');
+    const recommendedNode=document.getElementById('carTyreRecommended');
+    if(installedNode) installedNode.textContent='Установлены: '+installedText.toLowerCase();
+    if(recommendedNode){
+      recommendedNode.textContent=installed&&installed!==recommended
+        ?'Рекомендуются '+recommendedText+' · пора менять'
+        :'Рекомендуются '+recommendedText;
+      recommendedNode.classList.toggle('is-mismatch',Boolean(installed&&installed!==recommended));
+    }
+    document.querySelectorAll('[data-car-tyre-season]').forEach(button=>{
+      const active=button.dataset.carTyreSeason===installed;
+      button.classList.toggle('is-active',active);
+      button.setAttribute('aria-pressed',active?'true':'false');
+    });
   }
 
   function carWashAdvice(weather) {
@@ -935,6 +1216,174 @@
     const homeWash=document.getElementById('carHomeWashValue');
     if(collapsedWash) collapsedWash.textContent=washText;
     if(homeWash) homeWash.textContent=washText;
+  }
+
+  async function saveTyreSeason(season,button){
+    const value=season==='winter'?'winter':'summer';
+    const buttons=[...document.querySelectorAll('[data-car-tyre-season]')];
+    buttons.forEach(node=>node.disabled=true);
+    try{
+      const data=await api('set-tyre-season',{season:value});
+      state.car={...state.car,...data};
+      render();
+      setStatus('Комплект шин сохранён','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      setStatus('Не удалось сохранить комплект шин','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }finally{
+      buttons.forEach(node=>node.disabled=false);
+    }
+  }
+
+  async function saveLastServiceDate(event){
+    event?.preventDefault?.();
+    const input=document.getElementById('carLastServiceInput');
+    const button=document.getElementById('carLastServiceSave');
+    const date=String(input?.value||'').trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
+      setStatus('Укажи дату последнего ТО','error');
+      input?.focus();
+      return;
+    }
+    if(button){button.disabled=true;button.textContent='Сохраняю…';}
+    try{
+      const data=await api('set-last-service',{date});
+      state.car={...state.car,...data};
+      render();
+      setStatus('Дата последнего ТО сохранена','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      setStatus('Не удалось сохранить дату ТО','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }finally{
+      if(button){button.disabled=false;button.textContent='Сохранить';}
+    }
+  }
+
+  function setTaskFormOpen(open){
+    const form=document.getElementById('carTaskForm');
+    if(!form) return;
+    form.hidden=!open;
+    if(open){
+      const date=document.getElementById('carTaskDate');
+      if(date&&!date.value) date.value=clientMoscowDateKey();
+      requestAnimationFrame(()=>document.getElementById('carTaskTitle')?.focus());
+    }else{
+      form.reset();
+    }
+  }
+
+  async function saveCarTask(event){
+    event?.preventDefault?.();
+    const titleInput=document.getElementById('carTaskTitle');
+    const dateInput=document.getElementById('carTaskDate');
+    const button=document.getElementById('carTaskSave');
+    const title=String(titleInput?.value||'').trim();
+    const date=String(dateInput?.value||'').trim();
+    if(!title){
+      setStatus('Напиши задачу по машине','error');
+      titleInput?.focus();
+      return;
+    }
+    if(button){button.disabled=true;button.textContent='Добавляю…';}
+    try{
+      const data=await api('add-task',{title,date});
+      state.car={...state.car,ticktick:data.ticktick};
+      renderTasks(state.car.ticktick);
+      renderCarAttention(state.car,state.weather);
+      setTaskFormOpen(false);
+      setStatus('Задача добавлена в TickTick','success');
+      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(_){
+      setStatus('Не удалось добавить задачу в TickTick','error');
+      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }finally{
+      if(button){button.disabled=false;button.textContent='Добавить';}
+    }
+  }
+
+  function attentionCountLabel(count){
+    const n=Math.max(0,Number(count)||0);
+    const mod100=n%100;
+    const mod10=n%10;
+    const word=mod100>=11&&mod100<=14?'пунктов':mod10===1?'пункт':mod10>=2&&mod10<=4?'пункта':'пунктов';
+    return n+' '+word+' требуют внимания';
+  }
+
+  function ensureHomeCarAlert(id,className,label){
+    const title=document.getElementById('carHomeTitle');
+    if(!title) return null;
+    let badge=document.getElementById(id);
+    if(!badge){
+      badge=document.createElement('span');
+      badge.id=id;
+      badge.className='car-home-alert '+className;
+      badge.hidden=true;
+      badge.textContent=label;
+      title.appendChild(badge);
+    }
+    return badge;
+  }
+
+  function renderCarAttention(car,weather){
+    const summary=document.getElementById('carAttentionSummary');
+    if(!summary) return;
+    const errors=Array.isArray(car?.state?.errors)?car.state.errors:[];
+    const tasks=Array.isArray(car?.ticktick?.tasks)?car.ticktick.tasks:[];
+    const overdue=tasks.filter(task=>task.timing==='overdue').length;
+    const today=tasks.filter(task=>task.timing==='today').length;
+    const insight=serviceInsight(car);
+    const recommended=tyreSeason(weather);
+    const installed=String(car?.state?.tyreSeasonInstalled||'');
+    const tyreMismatch=Boolean(installed&&installed!==recommended);
+
+    const items=[];
+    if(errors.length) items.push({kind:'danger',text:errors.length===1?'1 неисправность':errors.length+' неисправности'});
+    if(insight.due) items.push({kind:'danger',text:'Пора на ТО'});
+    else if(insight.soon) items.push({kind:'warn',text:'ТО приближается'});
+    if(overdue) items.push({kind:'danger',text:overdue===1?'1 просроченная задача':overdue+' просроченных задач'});
+    else if(today) items.push({kind:'warn',text:today===1?'1 задача сегодня':today+' задачи сегодня'});
+    if(tyreMismatch) items.push({kind:'warn',text:'Пора менять шины'});
+
+    const danger=items.some(item=>item.kind==='danger');
+    const warn=!danger&&items.length>0;
+    summary.classList.remove('is-loading','is-ok','is-warn','is-danger');
+    summary.classList.add(danger?'is-danger':warn?'is-warn':'is-ok');
+
+    const title=document.getElementById('carAttentionTitle');
+    const text=document.getElementById('carAttentionText');
+    if(title) title.textContent=items.length?attentionCountLabel(items.length):'Всё в порядке';
+    if(text){
+      text.textContent=items.length
+        ?items.map(item=>item.text).join(' · ')
+        :'Активных неисправностей и срочных задач нет';
+    }
+    const chips=document.getElementById('carAttentionChips');
+    if(chips){
+      chips.replaceChildren();
+      items.forEach(item=>{
+        const chip=document.createElement('span');
+        chip.className='is-'+item.kind;
+        chip.textContent=item.text;
+        chips.appendChild(chip);
+      });
+    }
+
+    const repairBadge=ensureHomeCarAlert('carHomeRepairBadge','is-danger','Ремонт');
+    if(repairBadge){
+      repairBadge.hidden=errors.length<1;
+      repairBadge.textContent=errors.length>1?'Ремонт '+errors.length:'Ремонт';
+    }
+    const serviceBadge=ensureHomeCarAlert('carHomeServiceBadge',insight.due?'is-danger':'is-warn','ТО');
+    if(serviceBadge){
+      serviceBadge.className='car-home-alert '+(insight.due?'is-danger':'is-warn');
+      serviceBadge.hidden=!(insight.due||insight.soon);
+      serviceBadge.textContent=insight.due?'ТО сейчас':'ТО скоро';
+    }
+    const tile=document.getElementById('carTile');
+    tile?.classList.toggle('has-car-danger',danger);
+    tile?.classList.toggle('has-car-warning',!danger&&warn);
   }
 
   function taskDateLabel(task){
@@ -1217,6 +1666,7 @@
     renderRecommendations(state.car,state.weather);
     renderTasks(state.car.ticktick);
     renderNotes(state.car);
+    renderCarAttention(state.car,state.weather);
   }
 
   async function loadWeather() {
@@ -1318,6 +1768,7 @@
     setupCarSmartCards();
     setupCarWashModal();
     setupCarTabObserver();
+    window.addEventListener('rudi:ui-preferences-applied',syncCarCardCollapseStates);
     document.getElementById('carMileageForm')?.addEventListener('submit',saveMileage);
     document.getElementById('carErrorAdd')?.addEventListener('click',()=>setErrorFormOpen(true));
     document.getElementById('carErrorCancel')?.addEventListener('click',()=>setErrorFormOpen(false));

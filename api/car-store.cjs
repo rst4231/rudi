@@ -8,6 +8,7 @@ const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ERRORS = 50;
 const MAX_REPAIR_ARCHIVE = 100;
 const MAX_NOTES = 100;
+const MAX_MILEAGE_HISTORY = 180;
 const NOTE_TEXT_MAX = 3000;
 const ERROR_TITLE_MAX = 80;
 const ERROR_COMMENT_MAX = 500;
@@ -31,7 +32,14 @@ function getCarDb(options = {}) {
 }
 
 function hasStoredState(state) {
-  return state.mileage != null || state.errors.length > 0 || state.repairArchive.length > 0 || state.notes.length > 0 || Boolean(state.updatedAt);
+  return state.mileage != null
+    || state.errors.length > 0
+    || state.repairArchive.length > 0
+    || state.notes.length > 0
+    || state.mileageHistory.length > 0
+    || Boolean(state.tyreSeasonInstalled)
+    || Boolean(state.lastServiceAt)
+    || Boolean(state.updatedAt);
 }
 
 async function cacheStateBestEffort(cache, state) {
@@ -53,6 +61,45 @@ function normalizeMileage(value) {
 function normalizeIso(value) {
   const time = Date.parse(String(value || ''));
   return Number.isFinite(time) ? new Date(time).toISOString() : '';
+}
+
+function normalizeDateKey(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+  const date = new Date(raw + 'T12:00:00Z');
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toISOString().slice(0,10) === raw ? raw : '';
+}
+
+function normalizeTyreSeason(value) {
+  const season = String(value || '').trim().toLowerCase();
+  return season === 'summer' || season === 'winter' ? season : '';
+}
+
+function normalizeMileagePoint(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const mileage = normalizeMileage(value.mileage);
+  const at = normalizeIso(value.at || value.createdAt || value.updatedAt);
+  if (mileage == null || !at) return null;
+  return { mileage, at };
+}
+
+function normalizeMileageHistory(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map(normalizeMileagePoint)
+    .filter(Boolean)
+    .filter((row) => {
+      const key = row.mileage + ':' + row.at;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a,b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0))
+    .slice(0, MAX_MILEAGE_HISTORY);
 }
 
 function normalizeErrorId(value) {
@@ -153,10 +200,22 @@ function normalizeState(value) {
   const errors = normalizeErrors(value?.errors);
   const repairArchive = normalizeRepairArchive(value?.repairArchive);
   const notes = normalizeNotes(value?.notes);
-  const updatedAt = legacyUpdatedAt || mileageUpdatedAt || errors[0]?.createdAt || repairArchive[0]?.repairedAt || notes[0]?.createdAt || '';
+  const mileageHistory = normalizeMileageHistory(value?.mileageHistory);
+  const tyreSeasonInstalled = normalizeTyreSeason(value?.tyreSeasonInstalled);
+  const lastServiceAt = normalizeDateKey(value?.lastServiceAt);
+  const updatedAt = legacyUpdatedAt
+    || mileageUpdatedAt
+    || mileageHistory[0]?.at
+    || errors[0]?.createdAt
+    || repairArchive[0]?.repairedAt
+    || notes[0]?.createdAt
+    || '';
   return {
     mileage,
     mileageUpdatedAt,
+    mileageHistory,
+    tyreSeasonInstalled,
+    lastServiceAt,
     errors,
     repairArchive,
     notes,
@@ -236,10 +295,50 @@ async function writeMileage(mileage, options = {}) {
   if (normalized == null) throw new Error('car-mileage-invalid');
   const current = await readCarState(options);
   const nowIso = new Date(options.now || Date.now()).toISOString();
+  const history = [...current.mileageHistory];
+  if (
+    current.mileage != null
+    && current.mileageUpdatedAt
+    && !history.some((row) => row.mileage === current.mileage && row.at === current.mileageUpdatedAt)
+  ) {
+    history.push({ mileage:current.mileage, at:current.mileageUpdatedAt });
+  }
+  if (
+    current.mileage !== normalized
+    || !history.some((row) => row.mileage === normalized)
+  ) {
+    history.push({ mileage:normalized, at:nowIso });
+  }
   return writeCarState({
     ...current,
     mileage:normalized,
     mileageUpdatedAt:nowIso,
+    mileageHistory:history,
+    updatedAt:nowIso,
+  },options);
+}
+
+async function setTyreSeasonInstalled(value, options = {}) {
+  const season = normalizeTyreSeason(value);
+  if (!season) throw new Error('car-tyre-season-invalid');
+  const current = await readCarState(options);
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  return writeCarState({
+    ...current,
+    tyreSeasonInstalled:season,
+    updatedAt:nowIso,
+  },options);
+}
+
+async function setLastServiceAt(value, options = {}) {
+  const raw = String(value || '').trim();
+  const lastServiceAt = raw ? normalizeDateKey(raw) : '';
+  if (raw && !lastServiceAt) throw new Error('car-service-date-invalid');
+  const current = await readCarState(options);
+  const nowIso = new Date(options.now || Date.now()).toISOString();
+  return writeCarState({
+    ...current,
+    lastServiceAt,
     updatedAt:nowIso,
   },options);
 }
@@ -344,11 +443,11 @@ async function restoreCarNote(value, options = {}) {
 
 async function restoreCarState(value, options = {}) {
   const incoming = normalizeState(value);
-  if (incoming.mileage == null && incoming.errors.length === 0 && incoming.repairArchive.length === 0 && incoming.notes.length === 0) return readCarState(options);
+  if (!hasStoredState(incoming)) return readCarState(options);
   const current = await readCarState(options);
   const currentTime = Date.parse(String(current.updatedAt || '')) || 0;
   const incomingTime = Date.parse(String(incoming.updatedAt || '')) || 0;
-  const currentHasData = current.mileage != null || current.errors.length > 0 || current.repairArchive.length > 0 || current.notes.length > 0;
+  const currentHasData = hasStoredState(current);
   if (currentHasData && currentTime >= incomingTime) return current;
   return writeCarState(incoming,options);
 }
@@ -360,6 +459,7 @@ module.exports = {
   MAX_ERRORS,
   MAX_REPAIR_ARCHIVE,
   MAX_NOTES,
+  MAX_MILEAGE_HISTORY,
   NOTE_TEXT_MAX,
   ERROR_TITLE_MAX,
   ERROR_COMMENT_MAX,
@@ -368,6 +468,10 @@ module.exports = {
   DB_KEY,
   normalizeMileage,
   normalizeRepairCost,
+  normalizeDateKey,
+  normalizeTyreSeason,
+  normalizeMileagePoint,
+  normalizeMileageHistory,
   normalizeCarError,
   normalizeErrors,
   normalizeRepairArchive,
@@ -377,6 +481,8 @@ module.exports = {
   readCarState,
   writeCarState,
   writeMileage,
+  setTyreSeasonInstalled,
+  setLastServiceAt,
   addCarError,
   removeCarError,
   repairCarError,

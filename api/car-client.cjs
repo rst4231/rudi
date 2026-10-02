@@ -2,9 +2,9 @@ const crypto = require('node:crypto');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession } = require('./rudi-session.cjs');
-const { readCarState, writeMileage, addCarError, removeCarError, repairCarError, addCarNote, removeCarNote, restoreCarNote, restoreCarState } = require('./car-store.cjs');
+const { readCarState, writeMileage, setTyreSeasonInstalled, setLastServiceAt, addCarError, removeCarError, repairCarError, addCarNote, removeCarNote, restoreCarNote, restoreCarState } = require('./car-store.cjs');
 const { readToken } = require('./ticktick-store.cjs');
-const { fetchProjectData, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
+const { fetchProjectData, createTickTickTask, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
 const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
 
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
@@ -73,7 +73,7 @@ function statusFor(error) {
   const code = String(error?.message || error || '');
   if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid' || code.startsWith('rudi-session')) return 401;
   if (code === 'rudi-access-denied') return 403;
-  if (code === 'car-mileage-invalid' || code === 'car-task-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found' || code === 'car-repair-cost-invalid' || code === 'car-note-invalid' || code === 'car-note-not-found') return 400;
+  if (code === 'car-mileage-invalid' || code === 'car-task-invalid' || code === 'car-task-title-invalid' || code === 'car-task-date-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found' || code === 'car-repair-cost-invalid' || code === 'car-note-invalid' || code === 'car-note-not-found' || code === 'car-tyre-season-invalid' || code === 'car-service-date-invalid') return 400;
   if (code === 'ticktick-not-connected') return 503;
   if (code.startsWith('ticktick-')) return 502;
   return 500;
@@ -191,7 +191,9 @@ function carColumnIds(project, config) {
 function isCarTask(task, config, allowedColumns = new Set()) {
   const columnId = String(task?.columnId || '').trim();
   if (columnId && allowedColumns.has(columnId)) return true;
-  const title = String(task?.title || '').toLocaleLowerCase('ru-RU');
+  const rawTitle = String(task?.title || '').trim();
+  if (/^[🚗🚙🚘]/u.test(rawTitle)) return true;
+  const title = rawTitle.toLocaleLowerCase('ru-RU');
   return Boolean(title) && config.taskKeywords.some(keyword => title.includes(keyword));
 }
 
@@ -214,7 +216,7 @@ function normalizeTask(task,todayKey) {
   return {
     id:String(task?.id || ''),
     projectId:String(task?.projectId || ''),
-    title:String(task?.title || '').trim(),
+    title:String(task?.title || '').trim().replace(/^[🚗🚙🚘]\s*/u,''),
     date:priority.dateKey,
     timing:priority.timing,
     repeat:Boolean(String(task?.repeatFlag || '').trim()),
@@ -278,6 +280,58 @@ function cleanTaskId(value) {
   const id = String(value || '').trim();
   if (!/^[A-Za-z0-9_-]{8,100}$/.test(id)) throw new Error('car-task-invalid');
   return id;
+}
+
+function cleanCarTaskTitle(value) {
+  const title = String(value || '').trim().replace(/^[🚗🚙🚘]\s*/u,'');
+  if (!title || title.length > 120) throw new Error('car-task-title-invalid');
+  return title;
+}
+
+function cleanCarTaskDate(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error('car-task-date-invalid');
+  const date = new Date(raw + 'T12:00:00Z');
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== raw) throw new Error('car-task-date-invalid');
+  return raw;
+}
+
+async function createCarTask(value = {}) {
+  const title = cleanCarTaskTitle(value.title);
+  const date = cleanCarTaskDate(value.date);
+  const [config,token] = await Promise.all([loadCarTaskConfig(),readToken()]);
+  if (!token?.accessToken) throw new Error('ticktick-not-connected');
+
+  const task = {
+    projectId:config.ticktickProjectId,
+    title:'🚗 ' + title,
+  };
+  if (date) {
+    const timestamp = date + 'T00:00:00+0300';
+    task.isAllDay = true;
+    task.startDate = timestamp;
+    task.dueDate = timestamp;
+    task.timeZone = 'Europe/Moscow';
+  }
+
+  const created = await createTickTickTask(token.accessToken,task);
+  tasksMemo = null;
+  tasksMemoAt = 0;
+  const refreshed = await loadCarTasks({force:true}).catch(() => ({
+    available:true,
+    projectId:config.ticktickProjectId,
+    tasks:[],
+    updatedAt:new Date().toISOString(),
+  }));
+  return {
+    createdTask:{
+      id:String(created?.id || ''),
+      title,
+      date,
+    },
+    ...refreshed,
+  };
 }
 
 async function completeCarTask(taskId) {
@@ -346,6 +400,9 @@ async function handleCarRequest(req, res) {
         || (Array.isArray(previousSnapshot?.carState?.errors) && previousSnapshot.carState.errors.length)
         || (Array.isArray(previousSnapshot?.carState?.repairArchive) && previousSnapshot.carState.repairArchive.length)
         || (Array.isArray(previousSnapshot?.carState?.notes) && previousSnapshot.carState.notes.length)
+        || (Array.isArray(previousSnapshot?.carState?.mileageHistory) && previousSnapshot.carState.mileageHistory.length)
+        || previousSnapshot?.carState?.tyreSeasonInstalled
+        || previousSnapshot?.carState?.lastServiceAt
       ){
         await restoreCarState(previousSnapshot.carState).catch(()=>null);
       }
@@ -369,6 +426,32 @@ async function handleCarRequest(req, res) {
 
     if (operation === 'set-mileage') {
       const state = await writeMileage(body.mileage);
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        visible:true,
+        state,
+        nextService:serviceScheduleForMileage(state.mileage),
+        backupToken,
+      });
+    }
+
+    if (operation === 'set-tyre-season') {
+      const state = await setTyreSeasonInstalled(body.season);
+      const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
+      return res.status(200).json({
+        ok:true,
+        actor:session.actor,
+        visible:true,
+        state,
+        nextService:serviceScheduleForMileage(state.mileage),
+        backupToken,
+      });
+    }
+
+    if (operation === 'set-last-service') {
+      const state = await setLastServiceAt(body.date);
       const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
       return res.status(200).json({
         ok:true,
@@ -459,6 +542,11 @@ async function handleCarRequest(req, res) {
       });
     }
 
+    if (operation === 'add-task') {
+      const ticktick = await createCarTask({title:body.title,date:body.date});
+      return res.status(200).json({ ok:true, actor:session.actor, visible:true, ticktick });
+    }
+
     if (operation === 'complete-task') {
       const ticktick = await completeCarTask(body.taskId);
       return res.status(200).json({ ok:true, actor:session.actor, visible:true, ticktick });
@@ -482,5 +570,8 @@ module.exports = {
   carColumnIds,
   isCarTask,
   selectCurrentCarTasks,
+  cleanCarTaskTitle,
+  cleanCarTaskDate,
+  createCarTask,
   loadCarTasks,
 };
