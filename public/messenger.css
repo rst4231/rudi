@@ -666,3 +666,35 @@ body[data-app-tab="messenger"] .shell{
 
 .messenger-message.is-own .messenger-quote strong{color:#fff}
 .messenger-message.is-own .messenger-quote span{color:rgba(255,255,255,.78)}
+
+/* RUDI v3.34 reward system messages */
+.messenger-message.is-system-event{
+  align-self:center;
+  width:min(92%,520px);
+  justify-content:center;
+}
+.messenger-message.is-system-event .messenger-bubble{
+  max-width:min(100%,420px);
+  padding:8px 12px;
+  border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  border-radius:14px;
+  background:color-mix(in srgb,var(--surface-strong) 90%,var(--accent-soft));
+  color:var(--text);
+  box-shadow:none;
+}
+.messenger-message.is-system-event .messenger-message-text{
+  font-size:13px;
+  line-height:1.35;
+  font-weight:650;
+  text-align:center;
+  white-space:pre-line;
+}
+.messenger-message.is-system-event .messenger-message-meta{
+  justify-content:center;
+  color:var(--muted);
+}
+html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
+  border-color:rgba(255,255,255,.08);
+  background:rgba(255,255,255,.055);
+}
+/* end RUDI v3.34 reward system messages */
