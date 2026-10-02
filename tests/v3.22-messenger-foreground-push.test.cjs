@@ -7,11 +7,15 @@ const app=fs.readFileSync('public/app.js','utf8');
 const messenger=fs.readFileSync('public/messenger.js','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 
-test('v3.22 suppresses messenger notification when a visible messenger client exists',()=>{
-  assert.match(sw,/const isMessenger=notificationTag==='rudi-messenger'\|\|notificationUrl\.includes\('tab=messenger'\)/);
-  assert.match(sw,/client\.visibilityState==='visible'/);
-  assert.match(sw,/url\.searchParams\.get\('tab'\)==='messenger'/);
+test('messenger push is suppressed when the visible client reports the messenger is open',()=>{
+  assert.match(sw,/function clientHasVisibleMessenger/);
+  assert.match(sw,/RUDI_QUERY_MESSENGER_VISIBLE/);
+  assert.match(sw,/MessageChannel/);
+  assert.match(sw,/const messengerVisible=isMessenger\?await hasVisibleMessenger\(windows\):false/);
   assert.match(sw,/if\(!messengerVisible\)\{[\s\S]*?showNotification/);
+  assert.match(messenger,/data\.type==='RUDI_QUERY_MESSENGER_VISIBLE'/);
+  assert.match(messenger,/document\.visibilityState==='visible'&&document\.body\.dataset\.appTab==='messenger'/);
+  assert.match(messenger,/postMessage\(\{messengerVisible\}\)/);
 });
 
 test('v3.22 still notifies the page about a foreground message and messenger haptics once on new partner message',()=>{
