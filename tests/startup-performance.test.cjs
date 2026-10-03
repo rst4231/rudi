@@ -73,3 +73,19 @@ test('cycle read falls back sooner on an unstable connection', () => {
   const end=source.indexOf('async function loadDianaCycle',start);
   assert.match(source.slice(start,end),/\},5000\);/);
 });
+
+
+test('home uses the consolidated bootstrap instead of rebuilding dashboard data client-side',()=>{
+  assert.match(source,/rudiAction=home-bootstrap/);
+  assert.match(source,/Date\.now\(\)-homeBootstrapLoadedAt<2\*60\*1000/);
+  assert.match(source,/rudiAction=app-bootstrap/);
+  assert.match(source,/includeHome/);
+});
+
+test('private habit and supplement reads use a short 30 second client cache',()=>{
+  const profile=fs.readFileSync('public/profile-supplements.js','utf8');
+  assert.match(profile,/READ_CACHE_TTL_MS=30\*1000/);
+  assert.match(profile,/operation==='list'\|\|operation==='overview'/);
+  assert.match(profile,/clearReadCache\(supplementReadCache\)/);
+  assert.match(profile,/clearReadCache\(habitReadCache\)/);
+});
