@@ -2,7 +2,6 @@ const {
   DEFAULT_PROJECT_ID,
   DEFAULT_TEAM_ID,
   createBlobJsonStore: createRawBlobJsonStore,
-  ensureMigrationReady,
   isBlobUnavailableError,
   fullPath,
 }=require('./blob-json-store.cjs');
@@ -22,12 +21,10 @@ function createMigratingStateStore(options={}){
   const blobStore=options.blobStore||createBlobJsonStore(options);
 
   async function read(){
-    await ensureMigrationReady(options);
     return blobStore.read(key);
   }
 
   async function write(value){
-    await ensureMigrationReady(options);
     await blobStore.write(key,value);
     return value;
   }
