@@ -13,13 +13,34 @@ test('messenger overlay stays outside transformed app shell',()=>{
   assert.match(css,/\.messenger-page\{[\s\S]*?position:fixed;[\s\S]*?z-index:4400/);
 });
 
-test('messenger refreshes open chat automatically without status noise',()=>{
+test('messenger refreshes only while visible at a 12 second cadence',()=>{
   assert.doesNotMatch(client,/Обновляю…/);
   assert.match(client,/function syncLiveMessages\(\)/);
-  assert.match(client,/setInterval\(syncLiveMessages,2200\)/);
+  assert.match(client,/function messengerIsVisible\(\)/);
+  assert.match(client,/setInterval\([\s\S]*?syncLiveMessages\(\)[\s\S]*?,12000\)/);
+  assert.match(client,/stopLiveSync\(\)/);
+  assert.match(client,/document\.visibilityState==='visible'/);
+  assert.doesNotMatch(client,/setInterval\(syncLiveMessages,2200\)/);
   assert.match(client,/rowsSignature\(nextRows\)!==rowsSignature\(state\.rows\)/);
   assert.match(client,/await decryptMessages\(state\.rows\)/);
   assert.match(client,/renderMessages\(\{preserveScrollTop:/);
+});
+
+test('unread badge uses a compact endpoint without returning the whole chat',()=>{
+  assert.match(server,/action === 'messenger-unread'/);
+  const unreadStart=server.indexOf("if (action === 'messenger-unread')");
+  const unreadEnd=server.indexOf("if (action === 'messenger-list')",unreadStart);
+  const unreadBlock=server.slice(unreadStart,unreadEnd);
+  assert.match(unreadBlock,/unread:unreadMessengerCount/);
+  assert.doesNotMatch(unreadBlock,/messages,/);
+
+  const readStart=server.indexOf("if (action === 'messenger-read')");
+  const readEnd=server.indexOf("if (action === 'cycle-bootstrap')",readStart);
+  const readBlock=server.slice(readStart,readEnd);
+  assert.match(readBlock,/readIds:requestedIds/);
+  assert.doesNotMatch(readBlock,/\n\s*messages,/);
+
+  assert.match(client,/api\('messenger-unread'\)/);
 });
 
 test('messenger push is an additional immediate live-refresh trigger',()=>{
