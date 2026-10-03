@@ -1,6 +1,6 @@
 const { isDeepStrictEqual } = require('node:util');
 const crypto = require('node:crypto');
-const { createBlobJsonStore, safeSegment } = require('./blob-json-store.cjs');
+const { createBlobJsonStore, ensureMigrationReady, safeSegment } = require('./blob-json-store.cjs');
 const CACHE_STATE_HEADER = 'x-vercel-cache-state';
 const DEFAULT_TIMEOUT_MS = 3500;
 const DEFAULT_ATTEMPTS = 4;
@@ -521,12 +521,14 @@ function createDurableStateMirror(runtime, options, namespace) {
   return {
     async get(key) {
       if (!isDurableKey(namespace, key)) return runtime.get(key);
+      await ensureMigrationReady(options);
       const blob = await blobDurableGet(options, namespace, key);
       return blob;
     },
 
     async set(key, value, cacheOptions = {}) {
       if (!isDurableKey(namespace, key)) return runtime.set(key, value, cacheOptions);
+      await ensureMigrationReady(options);
       await blobDurableSet(options, namespace, key, value, cacheOptions);
       runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
       return true;
@@ -536,6 +538,7 @@ function createDurableStateMirror(runtime, options, namespace) {
       if (!isDurableKey(namespace, key)) {
         throw new Error('Atomic setIfAbsent is only available for durable state');
       }
+      await ensureMigrationReady(options);
       const inserted = await blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions);
       if (!inserted) return false;
       runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
@@ -544,6 +547,7 @@ function createDurableStateMirror(runtime, options, namespace) {
 
     async delete(key) {
       if (!isDurableKey(namespace, key)) return runtime.delete(key);
+      await ensureMigrationReady(options);
       await blobDurableDelete(options, namespace, key);
       runtime.delete(key).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', error));
       return true;
@@ -554,6 +558,7 @@ function createDurableStateMirror(runtime, options, namespace) {
         if (typeof runtime.expireTag !== 'function') throw new Error('Vercel Runtime Cache expireTag is unavailable');
         return runtime.expireTag(tag);
       }
+      await ensureMigrationReady(options);
       await blobDurableExpireTag(options, namespace, tag);
       if (typeof runtime.expireTag === 'function') {
         runtime.expireTag(tag).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_EXPIRE_TAG_ERROR', error));
