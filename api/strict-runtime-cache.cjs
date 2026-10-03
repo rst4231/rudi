@@ -202,7 +202,6 @@ const DURABLE_TARGETED_NAMESPACES = new Set([
   'rudi-saved-items-v1',
   'rudi-holiday-highlights-v1',
   'rudi-ticktick-checklist-audit',
-  'rudi-messenger-v1',
 ]);
 
 const DURABLE_TARGETED_KEY_TTLS = new Map([
@@ -230,12 +229,6 @@ function targetedDurableTtlSeconds(namespace, key) {
   }
   if (namespace === 'rudi-holiday-highlights-v1' && String(key || '').startsWith('day:')) {
     return 60 * 60 * 48;
-  }
-  if (namespace === 'rudi-messenger-v1') {
-    const text = String(key || '');
-    if (text === 'index') return 60 * 60 * 48;
-    if (text.startsWith('message:')) return 60 * 60 * 24;
-    if (text.startsWith('key:')) return 60 * 60 * 24 * 365;
   }
   return 0;
 }
