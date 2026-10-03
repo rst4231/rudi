@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
   setProductCheckedSelection,
+  markProductsBoughtByIds,
   addProducts,
   readProductList,
 }=require('../api/product-list-store.cjs');
@@ -28,4 +29,16 @@ test('multiple product checkmarks stay selected together',async()=>{
 
   const persisted=await readProductList({productCache:cache});
   assert.equal(persisted.items.filter(item=>item.checked).length,2);
+});
+
+
+test('buy checked removes exactly the selected ids and preserves the rest',async()=>{
+  const cache=memoryCache();
+  let state=await addProducts(['молоко','яйца','хлеб'],'Рустам',{productCache:cache});
+  const [a,b,c]=state.items.map(item=>item.id);
+  state=await setProductCheckedSelection([a,b],{productCache:cache});
+  state=await markProductsBoughtByIds([a,b],'Рустам',{productCache:cache});
+  assert.deepEqual(state.items.map(item=>item.id),[c]);
+  assert.equal(state.history.length,2);
+  assert.deepEqual(new Set(state.history.map(item=>item.text)),new Set(['молоко','яйца']));
 });
