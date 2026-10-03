@@ -43,6 +43,8 @@
     recordingStartedAt:0,
     recordingTimer:0,
     recordingStream:null,
+    micPointerHeld:false,
+    dragDepth:0,
   };
 
   function telegramInitData(){
@@ -2394,12 +2396,26 @@
     }
   }
 
+  function setMicRecordingVisual(active){
+    const mic=document.getElementById('messengerMic');
+    if(!mic) return;
+    const on=Boolean(active);
+    mic.classList.toggle('is-recording',on);
+    mic.setAttribute('aria-pressed',on?'true':'false');
+    mic.setAttribute('aria-label',on?'Идёт запись голосового':'Записать голосовое');
+  }
+
   async function startVoiceRecording(){
     if(state.mediaRecorder) return;
     const status=document.getElementById('messengerStatus');
     try{
       if(!window.MediaRecorder||!navigator.mediaDevices?.getUserMedia) throw new Error('messenger-voice-unavailable');
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      if(!state.micPointerHeld){
+        stream.getTracks?.().forEach(track=>track.stop());
+        setMicRecordingVisual(false);
+        return;
+      }
       const preferred=['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(type=>window.MediaRecorder.isTypeSupported?.(type))||'';
       const recorder=new MediaRecorder(stream,preferred?{mimeType:preferred,audioBitsPerSecond:32000}:undefined);
       state.mediaRecorder=recorder;
@@ -2417,8 +2433,11 @@
       },250);
       recorder.ondataavailable=event=>{if(event.data?.size)state.recordingChunks.push(event.data)};
       recorder.start(250);
+      setMicRecordingVisual(true);
       if(status){status.hidden=true;status.textContent=''}
     }catch(_){
+      state.micPointerHeld=false;
+      setMicRecordingVisual(false);
       if(status){status.hidden=false;status.textContent='Не удалось получить доступ к микрофону.'}
     }
   }
@@ -2440,6 +2459,8 @@
   }
 
   async function stopVoiceRecording({send=true}={}){
+    state.micPointerHeld=false;
+    setMicRecordingVisual(false);
     const recorder=state.mediaRecorder;
     if(!recorder) return;
     state.mediaRecorder=null;
@@ -2645,6 +2666,24 @@
     return true;
   }
 
+  function insertDroppedComposerText(value){
+    const input=document.getElementById('messengerInput');
+    const text=String(value||'').trim();
+    if(!input||!text) return false;
+    const start=input.selectionStart??input.value.length;
+    const end=input.selectionEnd??input.value.length;
+    const prefix=input.value.slice(0,start);
+    const suffix=input.value.slice(end);
+    const spacer=prefix&&!/\s$/u.test(prefix)?' ':'';
+    const nextValue=(prefix+spacer+text+suffix).slice(0,1000);
+    input.value=nextValue;
+    const caret=Math.min(nextValue.length,prefix.length+spacer.length+text.length);
+    input.focus({preventScroll:true});
+    try{input.setSelectionRange(caret,caret)}catch(_){}
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    return true;
+  }
+
   function bindPage(){
     const back=document.getElementById('messengerBack');
     const input=document.getElementById('messengerInput');
@@ -2671,6 +2710,61 @@
           if(starTray) starTray.hidden=true;
         }
       },true);
+    }
+
+    if(page&&page.dataset.dragDropBound!=='1'){
+      page.dataset.dragDropBound='1';
+      const supportsDrag=event=>{
+        const types=[...(event.dataTransfer?.types||[])];
+        return types.includes('Files')||types.includes('text/plain')||types.includes('text/uri-list');
+      };
+      const clearDrag=()=>{
+        state.dragDepth=0;
+        page.classList.remove('is-drag-over');
+      };
+      page.addEventListener('dragenter',event=>{
+        if(!supportsDrag(event)) return;
+        event.preventDefault();
+        state.dragDepth+=1;
+        page.classList.add('is-drag-over');
+      });
+      page.addEventListener('dragover',event=>{
+        if(!supportsDrag(event)) return;
+        event.preventDefault();
+        if(event.dataTransfer) event.dataTransfer.dropEffect='copy';
+        page.classList.add('is-drag-over');
+      });
+      page.addEventListener('dragleave',event=>{
+        if(!supportsDrag(event)) return;
+        state.dragDepth=Math.max(0,state.dragDepth-1);
+        if(state.dragDepth===0) page.classList.remove('is-drag-over');
+      });
+      page.addEventListener('drop',event=>{
+        if(!supportsDrag(event)) return;
+        event.preventDefault();
+        clearDrag();
+
+        const files=[...(event.dataTransfer?.files||[])];
+        if(files.length){
+          const images=files.filter(file=>String(file?.type||'').startsWith('image/')).slice(0,5);
+          if(!images.length){
+            const status=document.getElementById('messengerStatus');
+            if(status){status.hidden=false;status.textContent='Drag & drop поддерживает фото.'}
+            return;
+          }
+          void (async()=>{
+            for(const file of images) await sendPhotoFile(file);
+          })();
+          return;
+        }
+
+        const text=String(
+          event.dataTransfer?.getData('text/uri-list')
+          ||event.dataTransfer?.getData('text/plain')
+          ||''
+        ).trim();
+        if(text) insertDroppedComposerText(text);
+      });
     }
 
     if(back&&back.dataset.bound!=='1'){
@@ -2777,21 +2871,40 @@
     }
     if(mic&&mic.dataset.bound!=='1'){
       mic.dataset.bound='1';
+      mic.setAttribute('aria-pressed','false');
       mic.addEventListener('pointerdown',event=>{
         if(event.pointerType==='mouse'&&event.button!==0) return;
         event.preventDefault();
+        state.micPointerHeld=true;
+        setMicRecordingVisual(true);
+        try{mic.setPointerCapture?.(event.pointerId)}catch(_){}
         startVoiceRecording();
       });
       mic.addEventListener('pointerup',event=>{
         event.preventDefault();
+        state.micPointerHeld=false;
+        setMicRecordingVisual(false);
+        try{mic.releasePointerCapture?.(event.pointerId)}catch(_){}
         stopVoiceRecording({send:true});
       });
-      mic.addEventListener('pointercancel',()=>stopVoiceRecording({send:false}));
+      mic.addEventListener('pointercancel',()=>{
+        state.micPointerHeld=false;
+        setMicRecordingVisual(false);
+        stopVoiceRecording({send:false});
+      });
+      mic.addEventListener('lostpointercapture',()=>{
+        if(state.micPointerHeld) return;
+        setMicRecordingVisual(false);
+      });
       mic.addEventListener('click',event=>event.preventDefault());
     }
     if(recordingCancel&&recordingCancel.dataset.bound!=='1'){
       recordingCancel.dataset.bound='1';
-      recordingCancel.addEventListener('click',()=>stopVoiceRecording({send:false}));
+      recordingCancel.addEventListener('click',()=>{
+        state.micPointerHeld=false;
+        setMicRecordingVisual(false);
+        stopVoiceRecording({send:false});
+      });
     }
 
     if(emoji&&emoji.dataset.bound!=='1'){
