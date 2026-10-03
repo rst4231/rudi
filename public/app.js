@@ -5547,12 +5547,14 @@
         try{
           manualRefreshRequested=true;
           await refreshAfterResume();
-          await Promise.allSettled([
-            window.RUDI_CAR?.refresh?.(),
-            window.RUDI_SMART_HOME?.refresh?.(),
-            window.RUDI_SAVES?.load?.(),
-            (currentConfig?.weather?loadWeather(currentConfig.weather):Promise.resolve())
-          ]);
+          if(currentAppTab!=='home'){
+            await Promise.allSettled([
+              window.RUDI_CAR?.refresh?.(),
+              window.RUDI_SMART_HOME?.refresh?.(),
+              window.RUDI_SAVES?.load?.(),
+              (currentConfig?.weather?loadWeather(currentConfig.weather):Promise.resolve())
+            ]);
+          }
           markDataSyncNow();
           if(button) button.textContent='Обновлено';
           setTimeout(()=>{if(button&&button.textContent==='Обновлено') button.textContent=original},900);
@@ -13524,7 +13526,11 @@
               loadSupplementIntakeOverview({silent:true,force:true}),
               window.RudiSupplementApp?.refresh?.(),
               loadFastingOverview(),
-              marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()
+              marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve(),
+              window.RUDI_CAR?.refresh?.(),
+              window.RUDI_SMART_HOME?.refresh?.(),
+              window.RUDI_SAVES?.load?.(),
+              currentConfig?.weather?loadWeather(currentConfig.weather):Promise.resolve()
             );
           }else if(currentAppTab==='schedule'){
             tabTasks.push(loadWorkCalendar(currentWorkCalendarView,{force:true}));
