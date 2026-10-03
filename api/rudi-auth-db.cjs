@@ -131,6 +131,26 @@ async function listLegacyRawRecords(options = {}) {
   return (Array.isArray(rows) ? rows : []).filter((row) => normalizeActor(row?.actor));
 }
 
+async function writeLegacyRawRecord(actor, row, options = {}) {
+  const safeActor = normalizeActor(actor);
+  if (!safeActor) throw new Error('rudi-access-denied');
+  const clean = row && typeof row === 'object' && !Array.isArray(row)
+    ? { ...row, actor: safeActor }
+    : null;
+  if (!clean) throw new Error('rudi-auth-db-unavailable');
+
+  const query = new URLSearchParams({ on_conflict: 'actor' });
+  const rows = await request('/' + TABLE + '?' + query.toString(), {
+    method: 'POST',
+    headers: { prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify([clean]),
+  }, options);
+
+  const saved = Array.isArray(rows) ? rows[0] : null;
+  if (!saved) throw new Error('rudi-auth-db-unavailable');
+  return saved;
+}
+
 async function readRawRecord(actor, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
@@ -161,8 +181,15 @@ async function writeRawBlobRecord(actor, row, options = {}) {
   if (!safeActor) throw new Error('rudi-access-denied');
   const clean = row && typeof row === 'object' && !Array.isArray(row) ? { ...row, actor: safeActor } : null;
   if (!clean) throw new Error('rudi-auth-db-unavailable');
-  await authBlobStore(options).write(authBlobKey(safeActor), clean);
-  return clean;
+
+  try {
+    await authBlobStore(options).write(authBlobKey(safeActor), clean);
+    return clean;
+  } catch (error) {
+    if (!isBlobUnavailableError(error)) throw error;
+    console.warn('RUDI_AUTH_BLOB_WRITE_UNAVAILABLE', safeActor, String(error?.detail || error?.message || error));
+    return writeLegacyRawRecord(safeActor, clean, options);
+  }
 }
 
 async function writeAuthRecord(actor, value = {}, options = {}) {
@@ -249,6 +276,7 @@ module.exports = {
   readRawRecord,
   readLegacyRawRecord,
   listLegacyRawRecords,
+  writeLegacyRawRecord,
   writeRawBlobRecord,
   readAppState,
   writeAppState,
