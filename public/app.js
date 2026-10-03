@@ -2113,6 +2113,9 @@
         const changed=next!==currentAppTab;
         currentAppTab=next;
         document.body.dataset.appTab=next;
+        if(changed){
+          try{window.dispatchEvent(new CustomEvent('rudi:app-tab-change',{detail:{tab:next}}))}catch(_){}
+        }
         const marketTickerSetting=document.querySelector('.market-ticker-setting');
         if(marketTickerSetting){
           marketTickerSetting.hidden=next!=='home';
