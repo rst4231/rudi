@@ -4,7 +4,7 @@ const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 const HOME_TOOLS_STALE_MS=5*60*1000;
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadedAt=0,homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
-let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:true,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false;
+let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false;
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -112,7 +112,7 @@ function applyHabitView(data){
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
   renderHabitDates();renderHabits();applyHabitCollapse();updateReminderBadges();
 }
-function applyHabitCollapse(){if(!habitTile||!habitCollapseButton)return;habitTile.classList.toggle('is-collapsed',habitState.collapsed===true);habitCollapseButton.setAttribute('aria-expanded',String(!habitState.collapsed));habitCollapseButton.setAttribute('aria-label',habitState.collapsed?'Развернуть «Трекер привычек»':'Свернуть «Трекер привычек»');updateReminderBadges()}
+function applyHabitCollapse(){if(!habitTile)return;habitState={...habitState,collapsed:false};habitTile.classList.remove('is-collapsed');updateReminderBadges()}
 
 function moscowClockMinutes(now=new Date()){
   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now);
@@ -378,11 +378,9 @@ async function enrichExistingSupplementGuidance(){
   })().finally(()=>{guidanceEnrichmentPromise=null});
   return guidanceEnrichmentPromise;
 }
-function applyCollapse(collapsed=true){
-  if(!tile||!collapseButton)return;
-  tile.classList.toggle('is-collapsed',Boolean(collapsed));
-  collapseButton.setAttribute('aria-expanded',String(!collapsed));
-  collapseButton.setAttribute('aria-label',collapsed?'Развернуть «БАДы и витамины»':'Свернуть «БАДы и витамины»');
+function applyCollapse(){
+  if(!tile)return;
+  tile.classList.remove('is-collapsed');
   updateReminderBadges();
 }
 function applyPosition(){}
@@ -500,18 +498,17 @@ function build(){
 
   const homeToolsHost=document.getElementById('homeTileHost')||document.querySelector('.shell');
   habitTile=document.getElementById('habitHomeTile');
-  if(!habitTile){habitTile=document.createElement('section');habitTile.id='habitHomeTile';habitTile.className='personal-habits-tile home-tools-tile';habitTile.dataset.appTabSection='home';habitTile.dataset.homeTile='habits';homeToolsHost?.appendChild(habitTile)}
+  if(!habitTile){habitTile=document.createElement('section');habitTile.id='habitHomeTile';habitTile.className='personal-habits-tile home-tools-tile';habitTile.dataset.appTabSection='habits';habitTile.hidden=true;homeToolsHost?.appendChild(habitTile)}
   const habitHead=document.createElement('div');habitHead.className='personal-habits-head';
   const habitLead=document.createElement('div');habitLead.className='personal-home-tile-lead';
-  const habitIcon=document.createElement('span');habitIcon.className='personal-home-tile-icon is-habit';habitIcon.textContent='🌱';habitReminderBadge=document.createElement('span');habitReminderBadge.className='personal-home-reminder-badge';habitReminderBadge.hidden=true;habitIcon.appendChild(habitReminderBadge);
+  const habitIcon=document.createElement('span');habitIcon.className='personal-home-tile-icon is-habit';habitIcon.textContent='🌱';habitReminderBadge=document.getElementById('habitProfileBadge');
   const habitTitleWrap=document.createElement('div');habitTitleWrap.className='personal-habits-title-wrap';
   const habitHeading=document.createElement('h2');habitHeading.textContent='Трекер привычек';
   habitProgressText=document.createElement('div');habitProgressText.className='personal-habits-progress-text';habitProgressText.textContent='Загружаю…';
   habitTitleWrap.append(habitHeading,habitProgressText);habitLead.append(habitIcon,habitTitleWrap);
   const habitHeadActions=document.createElement('div');habitHeadActions.className='personal-habits-head-actions';
   habitInfoButton=document.createElement('button');habitInfoButton.type='button';habitInfoButton.className='personal-habits-info';habitInfoButton.textContent='ⓘ';habitInfoButton.setAttribute('aria-label','Как работают звёзды за привычки');
-  habitCollapseButton=document.createElement('button');habitCollapseButton.type='button';habitCollapseButton.className='personal-habits-collapse';habitCollapseButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
-  habitHeadActions.append(habitInfoButton,habitCollapseButton);habitHead.append(habitLead,habitHeadActions);
+  habitHeadActions.append(habitInfoButton);habitHead.append(habitLead,habitHeadActions);
   habitInfoModal=document.createElement('div');habitInfoModal.className='habit-info-modal';habitInfoModal.hidden=true;habitInfoModal.setAttribute('role','presentation');
   const habitInfoBackdrop=document.createElement('button');habitInfoBackdrop.type='button';habitInfoBackdrop.className='habit-info-modal-backdrop';habitInfoBackdrop.setAttribute('aria-label','Закрыть информацию');
   const habitInfoDialog=document.createElement('section');habitInfoDialog.className='habit-info-modal-dialog';habitInfoDialog.setAttribute('role','dialog');habitInfoDialog.setAttribute('aria-modal','true');habitInfoDialog.setAttribute('aria-labelledby','habitInfoModalTitle');
@@ -539,17 +536,15 @@ function build(){
   habitBody.append(habitList,habitStatusNode,habitAddButton,habitForm);habitTile.append(habitHead,habitProgressRow,habitCalendar,habitBody);
 
   tile=document.getElementById('supplementsHomeTile');
-  if(!tile){tile=document.createElement('section');tile.id='supplementsHomeTile';tile.className='personal-supplements-tile home-tools-tile';tile.dataset.appTabSection='home';tile.dataset.homeTile='supplements';homeToolsHost?.appendChild(tile)}
+  if(!tile){tile=document.createElement('section');tile.id='supplementsHomeTile';tile.className='personal-supplements-tile home-tools-tile';tile.dataset.appTabSection='supplements';tile.hidden=true;homeToolsHost?.appendChild(tile)}
   const head=document.createElement('div');head.className='personal-supplements-head';
   const supplementLead=document.createElement('div');supplementLead.className='personal-home-tile-lead';
-  const supplementIcon=document.createElement('span');supplementIcon.className='personal-home-tile-icon is-supplement';supplementIcon.textContent='💊';supplementReminderBadge=document.createElement('span');supplementReminderBadge.className='personal-home-reminder-badge';supplementReminderBadge.hidden=true;supplementIcon.appendChild(supplementReminderBadge);
+  const supplementIcon=document.createElement('span');supplementIcon.className='personal-home-tile-icon is-supplement';supplementIcon.textContent='💊';supplementReminderBadge=document.getElementById('supplementProfileBadge');
   const supplementTitleWrap=document.createElement('div');supplementTitleWrap.className='personal-supplements-title-wrap';
   const heading=document.createElement('h2');heading.textContent='БАДы и витамины';
   supplementSummaryNode=document.createElement('div');supplementSummaryNode.className='personal-supplements-summary';supplementSummaryNode.textContent='Сегодня принято: 0 из 0';
   supplementTitleWrap.append(heading,supplementSummaryNode);supplementLead.append(supplementIcon,supplementTitleWrap);
-  const actions=document.createElement('div');actions.className='personal-supplements-actions';
-  collapseButton=document.createElement('button');collapseButton.type='button';collapseButton.className='personal-supplements-collapse';collapseButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>';
-  actions.append(collapseButton);head.append(supplementLead,actions);
+  head.append(supplementLead);
   const supplementProgressRow=document.createElement('div');supplementProgressRow.className='personal-supplements-progress-row';
   const supplementProgress=document.createElement('div');supplementProgress.className='personal-supplements-progress';
   supplementProgressFill=document.createElement('span');supplementProgressFill.className='personal-supplements-progress-fill';supplementProgress.append(supplementProgressFill);
@@ -562,7 +557,7 @@ function build(){
   statusNode=document.createElement('div');statusNode.className='personal-supplements-status';statusNode.hidden=true;
   list=document.createElement('div');list.className='personal-supplements-list';
   body.append(form,statusNode,list);tile.append(head,supplementProgressRow,body);
-  const movedNotice=document.createElement('article');movedNotice.className='personal-tools-moved-notice';movedNotice.innerHTML='<strong>Трекер привычек и БАДы теперь на главной</strong>';
+  const movedNotice=document.createElement('article');movedNotice.className='personal-tools-moved-notice';movedNotice.innerHTML='<strong>Трекер привычек и БАДы открываются из твоего блока на главной</strong>';
   content.append(summary,movedNotice);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
   habitInfoButton.setAttribute('aria-controls','habitInfoModalTitle');
@@ -584,12 +579,6 @@ function build(){
     const hit=target.closest('button,a,input,select,textarea,label,[role="button"],[role="link"],[contenteditable="true"],[data-action],[onclick],.score-sticker,.profile-score-sticker,[data-score-actor]');
     return Boolean(hit&&root.contains(hit));
   };
-  const toggleHabitCollapse=()=>{
-    habitState={...habitState,collapsed:!habitState.collapsed};
-    applyHabitCollapse();
-    try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
-  };
-  habitCollapseButton.addEventListener('click',toggleHabitCollapse);
   habitDateInput.addEventListener('change',()=>{const value=habitDateInput.value;if(value)loadHabitsForDate(value)});
   habitAddButton.addEventListener('click',()=>{habitAddButton.hidden=true;habitForm.hidden=false;habitInput.value='';habitPurposeInput.value='';requestAnimationFrame(()=>habitInput.focus({preventScroll:true}))});
   habitCancel.addEventListener('click',()=>{habitForm.hidden=true;habitAddButton.hidden=false;habitInput.value='';habitPurposeInput.value='';setHabitStatus('')});
@@ -600,8 +589,6 @@ function build(){
     catch(error){const code=String(error?.message||error);setHabitStatus(code==='habit-duplicate'?'Такая привычка уже есть.':code==='habit-purpose-required'?'Напиши, зачем тебе эта привычка.':'Не удалось добавить привычку.',true)}
     finally{habitSave.disabled=false;habitInput.disabled=false;habitPurposeInput.disabled=false;habitCancel.disabled=false}
   });
-  const toggleSupplementsCollapse=()=>applyCollapse(!tile.classList.contains('is-collapsed'));
-  collapseButton.addEventListener('click',toggleSupplementsCollapse);
   form.addEventListener('submit',async(event)=>{
     event.preventDefault();
     const name=input.value.trim();
@@ -625,14 +612,14 @@ function build(){
       }
     }
   });
-  applyCollapse(true);startReminderBadgeClock();updateReminderBadges();document.dispatchEvent(new CustomEvent('rudi:home-tiles-ready'));setupEdgeSwipeBack();return overlay;
+  applyCollapse(false);applyHabitCollapse();startReminderBadgeClock();updateReminderBadges();document.dispatchEvent(new CustomEvent('rudi:home-tiles-ready'));setupEdgeSwipeBack();return overlay;
 }
 async function loadHomeTools({force=false}={}){
   const nextActor=String(document.body.dataset.rudiActor||'').trim();if(!nextActor)return;
   if(!force&&homeToolsLoadedActor===nextActor&&Date.now()-homeToolsLoadedAt<HOME_TOOLS_STALE_MS)return;
   if(homeToolsLoadPromise)return homeToolsLoadPromise;
   actor=nextActor;build();
-  if(homeToolsLoadedActor!==actor){applyCollapse(true);habitState={...habitState,collapsed:true};habitArchiveExpanded=false;}
+  if(homeToolsLoadedActor!==actor){applyCollapse(false);habitState={...habitState,collapsed:false};habitArchiveExpanded=false;}
   setStatus('Загружаю…');setHabitStatus('');
   homeToolsLoadPromise=(async()=>{
     const [supplementsResult,habitsResult]=await Promise.allSettled([request('list',{}, {force}),habitRequest('list',{}, {force})]);
