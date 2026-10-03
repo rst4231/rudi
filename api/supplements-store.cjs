@@ -1,5 +1,6 @@
 const crypto=require('node:crypto');
 const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
+const {createMigratingStateStore}=require('./vercel-persistent-json.cjs');
 
 const NAMESPACE='rudi-supplements-v1';
 const TTL_SECONDS=315360000;
@@ -25,7 +26,25 @@ function cleanIngredients(v){
   return out;
 }
 function keyFor(a){return 'supplements:'+cleanActor(a)}
-function cacheOf(o={}){return o.supplementsCache||o.cache||createStrictRuntimeCache({namespace:NAMESPACE,confirmWrites:false,...(o.cacheOptions||{})})}
+function actorSlug(a){return cleanActor(a)==='Рустам'?'rustam':'diana'}
+function legacyCacheOf(o={}){return o.supplementsCache||o.cache||createStrictRuntimeCache({namespace:NAMESPACE,confirmWrites:false,...(o.cacheOptions||{})})}
+function stateStoreOf(actor,o={}){
+  const who=cleanActor(actor);
+  const explicit=o.supplementsCache||o.cache;
+  if(explicit&&typeof explicit.get==='function'&&typeof explicit.set==='function'){
+    const key=keyFor(who);
+    return{read:()=>explicit.get(key),write:async(value)=>{await explicit.set(key,value,{ttl:TTL_SECONDS,tags:['rudi-supplements'],name:key});return value}};
+  }
+  if(o.stateStore&&typeof o.stateStore.read==='function'&&typeof o.stateStore.write==='function')return o.stateStore;
+  const legacy=legacyCacheOf(o),key=keyFor(who);
+  return createMigratingStateStore({
+    key:'supplements/'+actorSlug(who),
+    ...(o.blobStore?{blobStore:o.blobStore}:{}),
+    legacyRead:()=>legacy.get(key),
+    legacyWrite:async(value)=>{await legacy.set(key,value,{ttl:TTL_SECONDS,tags:['rudi-supplements'],name:key});return value},
+    onWarn:(event,error)=>{try{console.warn(event,'supplements',who,String(error?.detail||error?.message||error))}catch(_){}},
+  });
+}
 function moscowDateKey(now=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now))}
 function isoOrEmpty(v){if(!v)return'';const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toISOString()}
 
@@ -102,10 +121,10 @@ function normalizeState(value,actor){
   };
 }
 function enqueue(actor,task){const key=cleanActor(actor),tail=tails.get(key)||Promise.resolve(),run=tail.then(task,task);tails.set(key,run.catch(()=>{}));return run}
-async function readSupplements(actor,o={}){const who=cleanActor(actor);return normalizeState(await cacheOf(o).get(keyFor(who)),who)}
+async function readSupplements(actor,o={}){const who=cleanActor(actor);return normalizeState(await stateStoreOf(who,o).read(),who)}
 async function writeSupplements(actor,state,o={}){
   const who=cleanActor(actor),now=new Date(o.now||Date.now()).toISOString(),next=normalizeState({...state,initialized:true,actor:who,updatedAt:now},who);
-  await cacheOf(o).set(keyFor(who),next,{ttl:TTL_SECONDS,tags:['rudi-supplements'],name:keyFor(who)});
+  await stateStoreOf(who,o).write(next);
   return next;
 }
 async function addSupplement(actor,name,o={}){
