@@ -1,0 +1,231 @@
+const crypto=require('node:crypto');
+const {createBlobJsonStore}=require('./blob-json-store.cjs');
+const {
+  durableRequest,
+  blobDurableSetRecord,
+  blobDurableGetRecord,
+}=require('./strict-runtime-cache.cjs');
+const {
+  APP_STATE_FIELD,
+  listLegacyRawRecords,
+  writeRawBlobRecord,
+  readRawRecord,
+}=require('./rudi-auth-db.cjs');
+
+const MIGRATION_ID='neon-to-blob-2026-10-03-v1';
+const MIGRATION_TOKEN='rudi-migrate-20261003-8f7c1e4b6a2d9c53';
+
+function canonicalize(value){
+  if(Array.isArray(value))return value.map(canonicalize);
+  if(value&&typeof value==='object'){
+    return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonicalize(value[key])]));
+  }
+  return value;
+}
+function canonicalJson(value){return JSON.stringify(canonicalize(value))}
+function checksum(value){return crypto.createHash('sha256').update(canonicalJson(value)).digest('hex')}
+function actorSlug(actor){return String(actor||'')==='Диана'?'diana':'rustam'}
+function plain(value){return value&&typeof value==='object'&&!Array.isArray(value)?value:{}}
+function newer(left,right){
+  const a=Date.parse(String(left||'')),b=Date.parse(String(right||''));
+  return Number.isFinite(a)&&Number.isFinite(b)&&a>b;
+}
+async function mapLimit(items,limit,worker){
+  const rows=Array.isArray(items)?items:[];
+  const results=new Array(rows.length);
+  let cursor=0;
+  async function run(){
+    while(true){
+      const index=cursor++;
+      if(index>=rows.length)return;
+      results[index]=await worker(rows[index],index);
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(Math.max(1,limit),rows.length||1)},run));
+  return results;
+}
+async function readLegacyDurableRows(options={}){
+  const query=new URLSearchParams({
+    select:'namespace,key,value,tags,expires_at,updated_at',
+    order:'namespace.asc,key.asc',
+    limit:'1000',
+  }).toString();
+  const rows=await durableRequest(options,'GET',query);
+  return Array.isArray(rows)?rows:[];
+}
+function namespaceSummary(rows){
+  const map=new Map();
+  for(const row of rows){
+    const ns=String(row?.namespace||'');
+    map.set(ns,(map.get(ns)||0)+1);
+  }
+  return Object.fromEntries([...map.entries()].sort(([a],[b])=>a.localeCompare(b)));
+}
+async function migrateNeonToBlob(options={}){
+  const coreStore=options.coreStore||createBlobJsonStore({
+    prefix:'rudi-state-v2',
+    env:options.env||process.env,
+    ...(options.fetchImpl?{fetchImpl:options.fetchImpl}:{}),
+    ...(options.blobClient?{client:options.blobClient}:{}),
+  });
+  const specializedStore=options.specializedStore||createBlobJsonStore({
+    prefix:'rudi-state-v1',
+    env:options.env||process.env,
+    ...(options.fetchImpl?{fetchImpl:options.fetchImpl}:{}),
+    ...(options.blobClient?{client:options.blobClient}:{}),
+  });
+
+  const markerKey='migration/'+MIGRATION_ID;
+  const existingMarker=await coreStore.read(markerKey).catch(()=>null);
+  if(existingMarker?.status==='complete'&&options.force!==true)return existingMarker;
+
+  const startedAt=new Date().toISOString();
+  const [authRows,durableRows]=await Promise.all([
+    listLegacyRawRecords(options),
+    readLegacyDurableRows(options),
+  ]);
+
+  const source={
+    exportedAt:startedAt,
+    database:'rudi_auth',
+    tables:{
+      rudi_browser_auth:authRows,
+      rudi_durable_state:durableRows,
+    },
+  };
+  const sourceChecksum=checksum(source.tables);
+  const backupKey='backups/neon/'+MIGRATION_ID;
+  await coreStore.write(backupKey,{...source,checksum:sourceChecksum});
+
+  let durableWritten=0,durablePreservedNewer=0;
+  await mapLimit(durableRows,12,async row=>{
+    const current=await blobDurableGetRecord(options,row.namespace,row.key).catch(()=>null);
+    if(current&&newer(current.updated_at,row.updated_at)){
+      durablePreservedNewer+=1;
+      return;
+    }
+    await blobDurableSetRecord(options,row);
+    durableWritten+=1;
+  });
+
+  let authWritten=0,authPreservedNewer=0;
+  await mapLimit(authRows,2,async row=>{
+    const current=await readRawRecord(row.actor,{...options,authBlobStore:coreStore}).catch(()=>null);
+    if(current&&newer(current.updated_at,row.updated_at)){
+      authPreservedNewer+=1;
+      return;
+    }
+    await writeRawBlobRecord(row.actor,row,{...options,authBlobStore:coreStore});
+    authWritten+=1;
+  });
+
+  let habitsWritten=0,habitsPreservedNewer=0;
+  await mapLimit(authRows,2,async row=>{
+    const sourceState=plain(row?.pin_record)?.[APP_STATE_FIELD]?.['habits:v1'];
+    if(!sourceState)return;
+    const key='habits/'+actorSlug(row.actor);
+    const current=await specializedStore.read(key).catch(()=>null);
+    if(current&&newer(current.updatedAt,sourceState.updatedAt)){
+      habitsPreservedNewer+=1;
+      return;
+    }
+    await specializedStore.write(key,sourceState);
+    habitsWritten+=1;
+  });
+
+  const supplementRows=durableRows.filter(row=>String(row?.namespace||'')==='rudi-supplements-v1');
+  let supplementsWritten=0,supplementsPreservedNewer=0;
+  await mapLimit(supplementRows,2,async row=>{
+    const actor=String(row?.key||'').includes('Диана')?'Диана':'Рустам';
+    const key='supplements/'+actorSlug(actor);
+    const current=await specializedStore.read(key).catch(()=>null);
+    if(current&&newer(current.updatedAt,row?.value?.updatedAt)){
+      supplementsPreservedNewer+=1;
+      return;
+    }
+    await specializedStore.write(key,row.value);
+    supplementsWritten+=1;
+  });
+
+  let durableVerified=0,durableMismatches=[];
+  await mapLimit(durableRows,12,async row=>{
+    const stored=await blobDurableGetRecord(options,row.namespace,row.key).catch(()=>null);
+    if(stored&&canonicalJson(stored.value)===canonicalJson(row.value)){
+      durableVerified+=1;
+      return;
+    }
+    if(stored&&newer(stored.updated_at,row.updated_at))return;
+    durableMismatches.push(row.namespace+'\0'+row.key);
+  });
+
+  let authVerified=0,authMismatches=[];
+  await mapLimit(authRows,2,async row=>{
+    const stored=await coreStore.read('auth/'+actorSlug(row.actor)).catch(()=>null);
+    if(stored&&canonicalJson(stored)===canonicalJson(row)){
+      authVerified+=1;
+      return;
+    }
+    if(stored&&newer(stored.updated_at,row.updated_at))return;
+    authMismatches.push(String(row.actor||''));
+  });
+
+  let habitsVerified=0,supplementsVerified=0;
+  for(const row of authRows){
+    const sourceState=plain(row?.pin_record)?.[APP_STATE_FIELD]?.['habits:v1'];
+    if(!sourceState)continue;
+    const stored=await specializedStore.read('habits/'+actorSlug(row.actor)).catch(()=>null);
+    if(stored&&canonicalJson(stored)===canonicalJson(sourceState))habitsVerified+=1;
+    else if(!(stored&&newer(stored.updatedAt,sourceState.updatedAt)))authMismatches.push('habits:'+row.actor);
+  }
+  for(const row of supplementRows){
+    const actor=String(row?.key||'').includes('Диана')?'Диана':'Рустам';
+    const stored=await specializedStore.read('supplements/'+actorSlug(actor)).catch(()=>null);
+    if(stored&&canonicalJson(stored)===canonicalJson(row.value))supplementsVerified+=1;
+    else if(!(stored&&newer(stored.updatedAt,row?.value?.updatedAt)))durableMismatches.push('supplements:'+actor);
+  }
+
+  const completedAt=new Date().toISOString();
+  const complete=durableMismatches.length===0&&authMismatches.length===0;
+  const result={
+    migrationId:MIGRATION_ID,
+    status:complete?'complete':'verification-failed',
+    startedAt,
+    completedAt,
+    source:{
+      authRows:authRows.length,
+      durableRows:durableRows.length,
+      namespaces:namespaceSummary(durableRows),
+      checksum:sourceChecksum,
+    },
+    backup:{key:backupKey,checksum:sourceChecksum},
+    migrated:{
+      durableWritten,
+      durablePreservedNewer,
+      authWritten,
+      authPreservedNewer,
+      habitsWritten,
+      habitsPreservedNewer,
+      supplementsWritten,
+      supplementsPreservedNewer,
+    },
+    verified:{
+      durable:durableVerified,
+      auth:authVerified,
+      habits:habitsVerified,
+      supplements:supplementsVerified,
+      durableMismatches:durableMismatches.slice(0,20),
+      authMismatches:authMismatches.slice(0,20),
+    },
+    neonDeleted:false,
+  };
+  await coreStore.write(markerKey,result);
+  return result;
+}
+
+module.exports={
+  MIGRATION_ID,
+  MIGRATION_TOKEN,
+  migrateNeonToBlob,
+  canonicalJson,
+  checksum,
+};
