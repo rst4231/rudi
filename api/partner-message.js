@@ -2085,10 +2085,31 @@ async function handleRudiAction(req, res, action, options = {}) {
         const subscriptions=await removePushSubscriptions(actor,endpoint,options);
         return res.status(200).json({ok:true,actor,count:subscriptions.length});
       }
-      const notifications=await readPendingPushNotifications(actor,{
+      const pending=await readPendingPushNotifications(actor,{
         ...options,
         seenIds:Array.isArray(body.seenIds)?body.seenIds:[],
+        maxAgeMs:5*60*1000,
       });
+
+      const active=(Array.isArray(pending)?pending:[])
+        .filter(row=>String(row?.kind||'show')!=='dismiss');
+      const messengerRows=active
+        .filter(row=>{
+          const tag=String(row?.tag||'');
+          const url=String(row?.url||'');
+          return tag.startsWith('rudi-messenger')||url.includes('tab=messenger');
+        })
+        .sort((a,b)=>Date.parse(a?.createdAt||0)-Date.parse(b?.createdAt||0));
+      const newestMessenger=messengerRows[messengerRows.length-1]||null;
+      const notifications=active
+        .filter(row=>{
+          const tag=String(row?.tag||'');
+          const url=String(row?.url||'');
+          return !(tag.startsWith('rudi-messenger')||url.includes('tab=messenger'));
+        })
+        .concat(newestMessenger?[newestMessenger]:[])
+        .sort((a,b)=>Date.parse(a?.createdAt||0)-Date.parse(b?.createdAt||0));
+
       return res.status(200).json({ok:true,actor,notifications});
     } catch (error) {
       const code=String(error?.message||error);
