@@ -13527,12 +13527,17 @@
       let resumeRefreshPromise=null;
       let manualRefreshRequested=false;
       let lastResumeRefreshAt=0;
-      async function refreshAfterResume(){
+      const AUTO_RESUME_MIN_BACKGROUND_MS=15*1000;
+      const AUTO_RESUME_DEEP_REFRESH_MS=60*1000;
+      const AUTO_RESUME_HEAVY_REFRESH_MS=5*60*1000;
+      async function refreshAfterResume({backgroundMs=0}={}){
         ensureAppSurface();
         if(!currentActor||!appAccessReady) return;
         const force=manualRefreshRequested;
+        const awayMs=Math.max(0,Number(backgroundMs)||0);
         const now=Date.now();
-        if(!force&&now-lastResumeRefreshAt<2*1000) return;
+        if(!force&&awayMs<AUTO_RESUME_MIN_BACKGROUND_MS) return;
+        if(!force&&now-lastResumeRefreshAt<5*1000) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
@@ -13543,20 +13548,40 @@
           resetMoodForNewDay();
           const tabTasks=[];
           if(currentAppTab==='home'){
-            tabTasks.push(
-              loadHomeBootstrap({force:true}),
-              loadTickTickNext({force:true}),
-              loadSupplementIntakeOverview({silent:true,force:true}),
-              window.RudiSupplementApp?.refresh?.(),
-              loadFastingOverview(),
-              marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve(),
-              window.RUDI_CAR?.refresh?.(),
-              window.RUDI_SMART_HOME?.refresh?.(),
-              window.RUDI_SAVES?.load?.(),
-              currentConfig?.weather?loadWeather(currentConfig.weather):Promise.resolve()
-            );
+            tabTasks.push(loadHomeBootstrap({force:true}));
+            if(force){
+              tabTasks.push(
+                loadTickTickNext({force:true}),
+                loadSupplementIntakeOverview({silent:true,force:true}),
+                window.RudiSupplementApp?.refresh?.(),
+                loadFastingOverview(),
+                marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve(),
+                window.RUDI_CAR?.refresh?.(),
+                window.RUDI_SMART_HOME?.refresh?.(),
+                window.RUDI_SAVES?.load?.(),
+                currentConfig?.weather?loadWeather(currentConfig.weather):Promise.resolve()
+              );
+            }else{
+              tabTasks.push(
+                loadTickTickNext({force:false}),
+                window.RudiSupplementApp?.loadHomeTools?.({force:false})
+              );
+              if(awayMs>=AUTO_RESUME_DEEP_REFRESH_MS){
+                tabTasks.push(
+                  loadSupplementIntakeOverview({silent:true,force:true}),
+                  window.RudiSupplementApp?.loadHomeTools?.({force:true}),
+                  loadFastingOverview()
+                );
+              }
+              if(awayMs>=AUTO_RESUME_HEAVY_REFRESH_MS){
+                tabTasks.push(
+                  marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve(),
+                  window.RUDI_CAR?.refresh?.()
+                );
+              }
+            }
           }else if(currentAppTab==='schedule'){
-            tabTasks.push(loadWorkCalendar(currentWorkCalendarView,{force:true}));
+            tabTasks.push(loadWorkCalendar(currentWorkCalendarView,{force}));
           }else if(currentAppTab==='photos'){
             tabTasks.push(loadSharedAlbum());
           }else if(currentAppTab==='feed'){
@@ -13568,7 +13593,9 @@
           }else if(currentAppTab==='fasting'){
             tabTasks.push(loadFastingTracker({silent:true}));
           }else if(currentAppTab==='messenger'){
-            tabTasks.push(window.RUDI_MESSENGER?.refresh?.());
+            if(force) tabTasks.push(window.RUDI_MESSENGER?.refresh?.());
+          }else if(currentAppTab==='car'){
+            tabTasks.push(window.RUDI_CAR?.refresh?.());
           }
           await Promise.allSettled(tabTasks);
         }).then(()=>{
@@ -13585,36 +13612,48 @@
       function syncUiPreferencesAfterForeground(){
         if(!appAccessReady||!currentActor) return;
         const now=Date.now();
-        if(now-lastForegroundUiSyncAt<15*1000) return;
+        if(now-lastForegroundUiSyncAt<2*60*1000) return;
         lastForegroundUiSyncAt=now;
         syncUiPreferencesFromServer();
       }
-      window.addEventListener('pageshow',()=>{
+      let hiddenAt=0;
+      let blurredAt=0;
+      window.addEventListener('pageshow',event=>{
         ensureAppSurface();
         syncUiPreferencesAfterForeground();
-        refreshAfterResume();
+        if(event.persisted) refreshAfterResume({backgroundMs:AUTO_RESUME_MIN_BACKGROUND_MS});
+      });
+      window.addEventListener('blur',()=>{
+        if(!blurredAt) blurredAt=Date.now();
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();
         syncUiPreferencesAfterForeground();
-        refreshAfterResume();
+        if(!hiddenAt&&blurredAt){
+          const awayMs=Date.now()-blurredAt;
+          blurredAt=0;
+          refreshAfterResume({backgroundMs:awayMs});
+        }
       });
       window.addEventListener('online',updateDataSettingsUi);
       window.addEventListener('offline',updateDataSettingsUi);
-      let hiddenAt=0;
       document.addEventListener('visibilitychange',()=>{
         if(document.visibilityState==='hidden'){
           hiddenAt=Date.now();
+          if(!blurredAt) blurredAt=hiddenAt;
           return;
         }
         ensureAppSurface();
         syncUiPreferencesAfterForeground();
         if(appAccessReady&&currentActor&&currentAppTab==='products'){
-          loadProducts({silent:true});
           scheduleProductsRefresh(15000);
         }
-        if(hiddenAt) refreshAfterResume();
-        hiddenAt=0;
+        if(hiddenAt){
+          const awayMs=Date.now()-hiddenAt;
+          hiddenAt=0;
+          blurredAt=0;
+          refreshAfterResume({backgroundMs:awayMs});
+        }
       });
     })();
 
