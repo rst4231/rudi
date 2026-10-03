@@ -187,6 +187,7 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-for-di-feed-v1',
   'rudi-for-di-private-v1',
   'rudi-labor-code-v1',
+  'rudi-supplements-v1',
 ]);
 
 const DURABLE_TARGETED_NAMESPACES = new Set([
@@ -567,19 +568,35 @@ function createDurableStateMirror(runtime, options, namespace) {
         if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', cache.reason);
         return true;
       }
+
       durableWarn('RUDI_DURABLE_BLOB_WRITE_ERROR', blob.reason);
-      if (cache.status === 'fulfilled') return true;
-      throw blob.reason || cache.reason || new Error('RUDI durable state write failed');
+      try {
+        await durableSet(options, namespace, key, value, cacheOptions);
+        if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', cache.reason);
+        return true;
+      } catch (databaseError) {
+        durableWarn('RUDI_DURABLE_DB_WRITE_ERROR', databaseError);
+        if (cache.status === 'fulfilled') return true;
+        throw databaseError || blob.reason || cache.reason || new Error('RUDI durable state write failed');
+      }
     },
 
     async setIfAbsent(key, value, cacheOptions = {}) {
       if (!isDurableKey(namespace, key)) {
         throw new Error('Atomic setIfAbsent is only available for durable state');
       }
-      const inserted = await blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions);
-      if (!inserted) return false;
-      runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
-      return true;
+      try {
+        const inserted = await blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions);
+        if (!inserted) return false;
+        runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
+        return true;
+      } catch (blobError) {
+        durableWarn('RUDI_DURABLE_BLOB_WRITE_ERROR', blobError);
+        const inserted = await durableSetIfAbsent(options, namespace, key, value, cacheOptions);
+        if (!inserted) return false;
+        runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
+        return true;
+      }
     },
 
     async delete(key) {
@@ -592,9 +609,17 @@ function createDurableStateMirror(runtime, options, namespace) {
         if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', cache.reason);
         return true;
       }
+
       durableWarn('RUDI_DURABLE_BLOB_DELETE_ERROR', blob.reason);
-      if (cache.status === 'fulfilled') return true;
-      throw blob.reason || cache.reason || new Error('RUDI durable state delete failed');
+      try {
+        await durableDelete(options, namespace, key);
+        if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', cache.reason);
+        return true;
+      } catch (databaseError) {
+        durableWarn('RUDI_DURABLE_DB_DELETE_ERROR', databaseError);
+        if (cache.status === 'fulfilled') return true;
+        throw databaseError || blob.reason || cache.reason || new Error('RUDI durable state delete failed');
+      }
     },
 
     async expireTag(tag) {
