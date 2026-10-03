@@ -396,15 +396,7 @@ async function dismissMessengerNotificationForPartner(actor,messageId,options={}
   const recipientActor=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   const id=String(messageId||'').trim();
   if(!recipientActor||!id) return {sent:false,reason:'dismiss-invalid'};
-  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
-  const url='/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1';
-  return sendPush(recipientActor,{
-    kind:'dismiss',
-    title:'RUDI',
-    body:'Сообщение удалено',
-    tag:'rudi-messenger:'+id,
-    url,
-  },{...options,ttlSeconds:60,urgency:'high'});
+  return {sent:false,recipient:recipientActor,reason:'delete-push-disabled'};
 }
 
 async function sendActivityNotification(text, _tab, options = {}) {
