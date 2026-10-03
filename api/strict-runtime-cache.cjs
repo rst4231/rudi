@@ -521,105 +521,32 @@ function createDurableStateMirror(runtime, options, namespace) {
   return {
     async get(key) {
       if (!isDurableKey(namespace, key)) return runtime.get(key);
-
-      try {
-        const blob = await blobDurableGet(options, namespace, key);
-        if (blob !== null && blob !== undefined) return blob;
-      } catch (error) {
-        durableWarn('RUDI_DURABLE_BLOB_READ_ERROR', error);
-      }
-
-      try {
-        const legacy = await durableGet(options, namespace, key);
-        if (legacy !== null && legacy !== undefined) {
-          const rows = await durableRequest(
-            options,
-            'GET',
-            durableExactQuery(namespace, key, { select: 'namespace,key,value,tags,expires_at,updated_at', limit: '1' })
-          );
-          const row = Array.isArray(rows) ? rows[0] : null;
-          if (row) {
-            await blobDurableSetRecord(options, row).catch((error) => durableWarn('RUDI_DURABLE_BLOB_MIGRATION_ERROR', error));
-          }
-          return legacy;
-        }
-      } catch (error) {
-        durableWarn('RUDI_DURABLE_DB_READ_ERROR', error);
-      }
-
-      const fallback = await runtime.get(key);
-      if (fallback !== null && fallback !== undefined) {
-        const ttl = migrationTtlSeconds(namespace, key);
-        blobDurableSet(options, namespace, key, fallback, {
-          ...(ttl ? { ttl } : {}),
-          tags: ['rudi-migrated-from-runtime-cache'],
-        }).catch((error) => durableWarn('RUDI_DURABLE_BLOB_MIGRATION_ERROR', error));
-      }
-      return fallback;
+      const blob = await blobDurableGet(options, namespace, key);
+      return blob;
     },
 
     async set(key, value, cacheOptions = {}) {
       if (!isDurableKey(namespace, key)) return runtime.set(key, value, cacheOptions);
-      const [blob, cache] = await Promise.allSettled([
-        blobDurableSet(options, namespace, key, value, cacheOptions),
-        runtime.set(key, value, cacheOptions),
-      ]);
-      if (blob.status === 'fulfilled') {
-        if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', cache.reason);
-        return true;
-      }
-
-      durableWarn('RUDI_DURABLE_BLOB_WRITE_ERROR', blob.reason);
-      try {
-        await durableSet(options, namespace, key, value, cacheOptions);
-        if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', cache.reason);
-        return true;
-      } catch (databaseError) {
-        durableWarn('RUDI_DURABLE_DB_WRITE_ERROR', databaseError);
-        if (cache.status === 'fulfilled') return true;
-        throw databaseError || blob.reason || cache.reason || new Error('RUDI durable state write failed');
-      }
+      await blobDurableSet(options, namespace, key, value, cacheOptions);
+      runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
+      return true;
     },
 
     async setIfAbsent(key, value, cacheOptions = {}) {
       if (!isDurableKey(namespace, key)) {
         throw new Error('Atomic setIfAbsent is only available for durable state');
       }
-      try {
-        const inserted = await blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions);
-        if (!inserted) return false;
-        runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
-        return true;
-      } catch (blobError) {
-        durableWarn('RUDI_DURABLE_BLOB_WRITE_ERROR', blobError);
-        const inserted = await durableSetIfAbsent(options, namespace, key, value, cacheOptions);
-        if (!inserted) return false;
-        runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
-        return true;
-      }
+      const inserted = await blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions);
+      if (!inserted) return false;
+      runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
+      return true;
     },
 
     async delete(key) {
       if (!isDurableKey(namespace, key)) return runtime.delete(key);
-      const [blob, cache] = await Promise.allSettled([
-        blobDurableDelete(options, namespace, key),
-        runtime.delete(key),
-      ]);
-      if (blob.status === 'fulfilled') {
-        if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', cache.reason);
-        return true;
-      }
-
-      durableWarn('RUDI_DURABLE_BLOB_DELETE_ERROR', blob.reason);
-      try {
-        await durableDelete(options, namespace, key);
-        if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', cache.reason);
-        return true;
-      } catch (databaseError) {
-        durableWarn('RUDI_DURABLE_DB_DELETE_ERROR', databaseError);
-        if (cache.status === 'fulfilled') return true;
-        throw databaseError || blob.reason || cache.reason || new Error('RUDI durable state delete failed');
-      }
+      await blobDurableDelete(options, namespace, key);
+      runtime.delete(key).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', error));
+      return true;
     },
 
     async expireTag(tag) {
@@ -627,18 +554,11 @@ function createDurableStateMirror(runtime, options, namespace) {
         if (typeof runtime.expireTag !== 'function') throw new Error('Vercel Runtime Cache expireTag is unavailable');
         return runtime.expireTag(tag);
       }
-      const blobPromise = blobDurableExpireTag(options, namespace, tag);
-      const cachePromise = typeof runtime.expireTag === 'function'
-        ? runtime.expireTag(tag)
-        : Promise.reject(new Error('Vercel Runtime Cache expireTag is unavailable'));
-      const [blob, cache] = await Promise.allSettled([blobPromise, cachePromise]);
-      if (blob.status === 'fulfilled') {
-        if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_EXPIRE_TAG_ERROR', cache.reason);
-        return true;
+      await blobDurableExpireTag(options, namespace, tag);
+      if (typeof runtime.expireTag === 'function') {
+        runtime.expireTag(tag).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_EXPIRE_TAG_ERROR', error));
       }
-      durableWarn('RUDI_DURABLE_BLOB_EXPIRE_TAG_ERROR', blob.reason);
-      if (cache.status === 'fulfilled') return true;
-      throw blob.reason || cache.reason || new Error('RUDI durable state expireTag failed');
+      return true;
     },
   };
 }
