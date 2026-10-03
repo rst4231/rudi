@@ -15,6 +15,7 @@ function transformRuntimeCacheKey(key, namespace = '', separator = '$') {
 }
 
 function createStrictRuntimeCache(options = {}) {
+  if (options.runtimeCache) return options.runtimeCache;
   const namespace = String(options.namespace || '').trim();
   if (!namespace) throw new Error('RUDI D1 namespace is required');
 
