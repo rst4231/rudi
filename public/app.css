@@ -6594,6 +6594,42 @@ body.home-layout-editing .market-ticker-tile{min-height:38px}
       cursor:default;
     }
 
+    /* Kitchen section switcher */
+    .kitchen-switcher{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:5px;
+      padding:4px;
+      border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+      border-radius:13px;
+      background:color-mix(in srgb,var(--soft) 70%,transparent);
+    }
+    .kitchen-switcher button{
+      min-width:0;
+      min-height:34px;
+      padding:7px 6px;
+      border:0;
+      border-radius:9px;
+      background:transparent;
+      color:var(--muted);
+      font:inherit;
+      font-size:10.5px;
+      font-weight:740;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .kitchen-switcher button[aria-pressed="true"],
+    .kitchen-switcher button.is-active{
+      background:var(--surface-strong);
+      color:var(--text);
+      box-shadow:0 2px 8px rgba(20,24,36,.07),inset 0 0 0 1px color-mix(in srgb,var(--line) 76%,transparent);
+    }
+    .kitchen-switcher button:active{transform:scale(.98)}
+    body[data-app-tab="products"] [data-kitchen-panel][hidden]{display:none!important}
+    body[data-app-tab="products"] .kitchen-saved-recipes .saved-category-head{
+      cursor:default;
+    }
+
     /* Kitchen recipe generator */
     body[data-app-tab="products"] .products-section{
       display:grid;
