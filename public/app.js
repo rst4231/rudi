@@ -4588,6 +4588,7 @@
       let supplementOverviewLoadPromise=null;
       async function loadSupplementIntakeOverview(options={}){
         if(!currentActor) return null;
+        if(options.force) invalidateManagedRequests('supplement-overview');
         if(supplementOverviewLoadPromise) return supplementOverviewLoadPromise;
         supplementOverviewLoadPromise=(async()=>{
           try{
@@ -5539,8 +5540,8 @@
         updatePwaInstallUi();
       }
 
-      async function refreshAppDataNow(){
-        const button=document.getElementById('settingsRefreshNow');
+      async function refreshAppDataNow({showButton=true}={}){
+        const button=showButton?document.getElementById('settingsRefreshNow'):null;
         const original=button?.textContent||'Обновить сейчас';
         if(button){button.disabled=true;button.textContent='Обновляю…'}
         try{
@@ -5905,7 +5906,7 @@
       }
 
       function setupBrowserPullToRefresh(){
-        if(tg?.initData||!('ontouchstart' in window)) return;
+        if(!('ontouchstart' in window)) return;
         if(document.querySelector('.pull-refresh-indicator')) return;
 
         const indicator=document.createElement('div');
@@ -5980,9 +5981,8 @@
           indicator.style.setProperty('--pull-distance','72px');
           if(label) label.textContent='Обновляю…';
           const startedAt=Date.now();
-          manualRefreshRequested=true;
           Promise.allSettled([
-            Promise.resolve(refreshAfterResume()),
+            Promise.resolve(refreshAppDataNow({showButton:false})),
             Promise.resolve(window.rudiRequestPwaUpdate?.())
           ])
             .then(()=>{
@@ -6777,6 +6777,7 @@
       setupBrowserPullToRefresh();
       tg?.ready?.();
       tg?.expand?.();
+      try{tg?.disableVerticalSwipes?.()}catch(_){}
       updateTelegramSafeArea();
       setTimeout(updateTelegramSafeArea,60);
       setTimeout(updateTelegramSafeArea,300);
@@ -13500,15 +13501,17 @@
 
       let resumeRefreshPromise=null;
       let manualRefreshRequested=false;
+      let lastResumeRefreshAt=0;
       async function refreshAfterResume(){
         ensureAppSurface();
         if(!currentActor||!appAccessReady) return;
-        await syncUiPreferencesFromServer();
-        if(!manualRefreshRequested&&!autoRefreshEnabled()) return;
-        if(!manualRefreshRequested&&dataSyncFresh(5*60*1000)) return;
+        const force=manualRefreshRequested;
+        const now=Date.now();
+        if(!force&&(now-lastResumeRefreshAt<20*1000||dataSyncFresh(20*1000))) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
+        lastResumeRefreshAt=now;
         resumeRefreshPromise=new Promise(resolve=>{
           requestAnimationFrame(()=>requestAnimationFrame(resolve));
         }).then(async()=>{
@@ -13518,7 +13521,8 @@
             tabTasks.push(
               loadHomeBootstrap({force:true}),
               loadTickTickNext({force:true}),
-              loadSupplementIntakeOverview({silent:true}),
+              loadSupplementIntakeOverview({silent:true,force:true}),
+              window.RudiSupplementApp?.refresh?.(),
               loadFastingOverview(),
               marketTickerEnabled()?loadMarketTicker({silent:true}):Promise.resolve()
             );
@@ -13534,6 +13538,8 @@
             tabTasks.push(wishlistRequest('list').then(renderWishlist));
           }else if(currentAppTab==='fasting'){
             tabTasks.push(loadFastingTracker({silent:true}));
+          }else if(currentAppTab==='messenger'){
+            tabTasks.push(window.RUDI_MESSENGER?.refresh?.());
           }
           await Promise.allSettled(tabTasks);
         }).then(()=>{
@@ -13568,7 +13574,7 @@
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
         }
-        if(hiddenAt&&Date.now()-hiddenAt>15*1000) refreshAfterResume();
+        if(hiddenAt&&Date.now()-hiddenAt>5*1000) refreshAfterResume();
         hiddenAt=0;
       });
     })();
