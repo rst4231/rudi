@@ -453,7 +453,7 @@
     state.edit=null;
     state.reply={
       id:String(row?.id||''),
-      author:String(row?.sender||''),
+      author:payload?.system===true?'RUDI':String(row?.sender||''),
       text:String(payload?.text||'').trim()
         ?String(payload.text).slice(0,240)
         :(payload?.attachment?.kind==='photo'?'Фото':payload?.attachment?.kind==='voice'?'Голосовое сообщение':'Сообщение')
@@ -626,17 +626,23 @@
 
     const hasText=Boolean(String(payload?.text||'').trim());
     const hasAttachment=Boolean(payload?.attachment);
-    const actions=row.sender===state.actor
+    const systemEvent=payload?.system===true;
+    const actions=systemEvent
       ?[
         ['Ответить',()=>setReply(row,payload)],
         ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
-        ...(!hasAttachment&&hasText?[['Редактировать',()=>startMessageEdit(row,payload)]]:[]),
-        ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
       ]
-      :[
-        ['Ответить',()=>setReply(row,payload)],
-        ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
-      ];
+      :row.sender===state.actor
+        ?[
+          ['Ответить',()=>setReply(row,payload)],
+          ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
+          ...(!hasAttachment&&hasText?[['Редактировать',()=>startMessageEdit(row,payload)]]:[]),
+          ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
+        ]
+        :[
+          ['Ответить',()=>setReply(row,payload)],
+          ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
+        ];
     for(const [label,handler,className] of actions){
       const button=document.createElement('button');
       button.type='button';
@@ -1088,6 +1094,11 @@
     }
     if(source==='wishlist'){
       if(typeof window.RUDI_NAVIGATE_TO_TAB==='function') window.RUDI_NAVIGATE_TO_TAB('wishlist',{scroll:true,item:sourceId});
+      return;
+    }
+    if(source==='event'){
+      const url=String(attachment?.url||'').trim();
+      if(url) openSafeLink(url);
     }
   }
 
@@ -1338,6 +1349,140 @@
     };
   }
 
+  function messengerFeedSource(value){
+    return String(value||'')
+      .trim()
+      .replace(/\\r\\n|\\n|\\r/g,'\n')
+      .replace(/\r\n?/g,'\n')
+      .replace(/\n{3,}/g,'\n\n');
+  }
+
+  function messengerFeedLineData(line){
+    const template=document.createElement('template');
+    template.innerHTML=String(line||'');
+    const anchor=template.content.querySelector('a[href]');
+    const href=String(anchor?.getAttribute('href')||'').trim();
+    const text=String(template.content.textContent||'').replace(/\s+/g,' ').trim();
+    return {text,href:/^https?:\/\//i.test(href)?href:''};
+  }
+
+  function messengerCleanEventDetail(value){
+    return String(value||'')
+      .replace(/\s*\|\s*/g,' · ')
+      .replace(/·\s*,/g,'· ')
+      .replace(/\s+,/g,',')
+      .replace(/\s{2,}/g,' ')
+      .trim();
+  }
+
+  function messengerParseFeedEvents(value,name){
+    const lines=messengerFeedSource(value).split('\n');
+    const items=[];
+    let current=null;
+    const push=()=>{
+      if(current?.title) items.push(current);
+      current=null;
+    };
+    for(const rawLine of lines){
+      const row=messengerFeedLineData(rawLine);
+      const text=row.text;
+      if(!text) continue;
+      if(
+        /^(?:🎤\s*)?Поп и хип-хоп концерты$/iu.test(text)
+        ||/^(?:🎙\s*)?Stage StandUp Club$/iu.test(text)
+        ||/^📅/u.test(text)
+        ||/^Найдено событий\/сеансов/iu.test(text)
+      ) continue;
+      const numbered=text.match(/^\d+\.\s*(.+)$/u);
+      if(numbered){
+        push();
+        current={title:numbered[1].trim(),details:[],href:''};
+        continue;
+      }
+      if(!current) continue;
+      if(row.href){
+        current.href=row.href;
+        continue;
+      }
+      if(/^(Подробнее|Официальная страница)\s*→?$/iu.test(text)) continue;
+      current.details.push(messengerCleanEventDetail(text));
+    }
+    push();
+    return items;
+  }
+
+  function messengerResolveEventHref(item,name){
+    const href=String(item?.href||'').trim();
+    if(name!=='standup') return href;
+    if(/gostandup\.ru\/spb\/events\/[^/?#]+/i.test(href)) return href;
+    const title=String(item?.title||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
+    const known=[
+      [/лямур\s+с\s+нидалем/u,'https://gostandup.ru/spb/events/lyamur_s_nidalem'],
+      [/комики\s+проездом/u,'https://gostandup.ru/spb/events/komiki_proezdom'],
+      [/дневн[а-я]*\s+микрофон/u,'https://gostandup.ru/spb/events/dnevnoy_mikrofon'],
+      [/(?:стендап\s+для\s+детей|семейное\s+комедийное\s+шоу\s+выходного\s+дня)/u,'https://gostandup.ru/spb/events/stendap_dlya_detey_v_sankt_peterburge']
+    ];
+    for(const [pattern,url] of known){
+      if(pattern.test(title)) return url;
+    }
+    return href;
+  }
+
+  function messengerCinemaDateLabel(value){
+    const date=String(value||'').trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/u.test(date)) return '';
+    const parsed=new Date(date+'T12:00:00Z');
+    if(Number.isNaN(parsed.getTime())) return '';
+    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(parsed);
+  }
+
+  function messengerParseLegacyCinema(value){
+    const lines=messengerFeedSource(value).split('\n');
+    const items=[];
+    let current=null;
+    const push=()=>{
+      if(!current?.title) return;
+      current.sources=current.sources.filter(Boolean);
+      items.push(current);
+      current=null;
+    };
+    for(const rawLine of lines){
+      const row=messengerFeedLineData(rawLine);
+      const text=row.text;
+      if(!text) continue;
+      if(/Кинопремьеры/iu.test(text)&&!/^\d+\./u.test(text)) continue;
+      const numbered=text.match(/^\d+\.\s*(.+)$/u);
+      if(numbered){
+        push();
+        current={title:numbered[1].trim(),releaseDate:'',sources:[],sourceUrls:[],kinopoiskUrl:row.href||''};
+        continue;
+      }
+      if(!current) continue;
+      if(row.href){
+        if(!current.kinopoiskUrl) current.kinopoiskUrl=row.href;
+        continue;
+      }
+      if(!/^(Подробнее|Открыть|Источник)\s*→?$/iu.test(text)){
+        current.sources.push(messengerCleanEventDetail(text));
+      }
+    }
+    push();
+    return items;
+  }
+
+  function messengerEventAttachment({title,description,url,label,icon}){
+    return {
+      kind:'shared-item',
+      source:'event',
+      sourceId:'',
+      icon:String(icon||'🎟'),
+      label:compactAttachmentText(label||'Событие',80),
+      title:compactAttachmentText(title||'Событие',220),
+      description:compactAttachmentText(description,520),
+      url:compactAttachmentText(url,1600)
+    };
+  }
+
   async function loadAttachmentPickerRows(type){
     if(type==='smart-save'){
       const data=await api('smart-saves',{operation:'list'});
@@ -1384,6 +1529,70 @@
           };
         });
     }
+    if(type==='feed'){
+      const data=await api('feed');
+      const sections=data?.sections&&typeof data.sections==='object'?data.sections:{};
+      const eventParts=Array.isArray(sections.events?.parts)?sections.events.parts:[];
+      const rows=[];
+
+      for(const [index,name,label,icon] of [
+        [0,'concerts','Концерт','🎤'],
+        [1,'standup','Stand Up','🎙']
+      ]){
+        const items=messengerParseFeedEvents(eventParts[index]||'',name);
+        items.forEach((item,itemIndex)=>{
+          const url=messengerResolveEventHref(item,name);
+          if(!/^https?:\/\//i.test(url)) return;
+          const description=(Array.isArray(item.details)?item.details:[]).slice(0,3).join(' · ');
+          const attachment=messengerEventAttachment({
+            title:item.title,
+            description,
+            url,
+            label,
+            icon
+          });
+          rows.push({
+            id:name+':'+itemIndex+':'+url,
+            title:attachment.title,
+            subtitle:[label,compactAttachmentText(description,160)].filter(Boolean).join(' · '),
+            icon,
+            attachment,
+            preview:icon+' '+compactAttachmentText(attachment.title,90)
+          });
+        });
+      }
+
+      const cinemaSection=sections.cinema&&typeof sections.cinema==='object'?sections.cinema:{};
+      const cinemaItems=Array.isArray(cinemaSection.items)&&cinemaSection.items.length
+        ?cinemaSection.items
+        :messengerParseLegacyCinema(Array.isArray(cinemaSection.parts)?cinemaSection.parts[0]||'':'');
+      cinemaItems.forEach((item,itemIndex)=>{
+        const sourceUrl=(Array.isArray(item?.sourceUrls)?item.sourceUrls:[])
+          .find(row=>/^https?:\/\//i.test(String(row?.url||'')))?.url;
+        const url=String(sourceUrl||item?.kinopoiskUrl||'').trim();
+        if(!/^https?:\/\//i.test(url)) return;
+        const date=messengerCinemaDateLabel(item?.releaseDate);
+        const sources=(Array.isArray(item?.sources)?item.sources:[]).filter(Boolean).slice(0,2).join(', ');
+        const description=[date?('Премьера '+date):'',sources].filter(Boolean).join(' · ');
+        const attachment=messengerEventAttachment({
+          title:item?.title||'Фильм',
+          description,
+          url,
+          label:'Кинопремьера',
+          icon:'🎬'
+        });
+        rows.push({
+          id:'cinema:'+itemIndex+':'+url,
+          title:attachment.title,
+          subtitle:['Кинопремьера',description].filter(Boolean).join(' · '),
+          icon:'🎬',
+          attachment,
+          preview:'🎬 '+compactAttachmentText(attachment.title,90)
+        });
+      });
+
+      return rows;
+    }
     return [];
   }
 
@@ -1399,7 +1608,8 @@
     const titles={
       'smart-save':'Сохранённые',
       wishlist:'Мой вишлист',
-      recipe:'Сохранённые рецепты'
+      recipe:'Сохранённые рецепты',
+      feed:'Афиша'
     };
     const picker=document.createElement('div');
     picker.id='messengerAttachmentPicker';
@@ -1443,7 +1653,9 @@
           ?'В твоём вишлисте нет активных позиций.'
           :type==='recipe'
             ?'Сохранённых рецептов пока нет.'
-            :'В «Сохранённых» пока пусто.';
+            :type==='feed'
+              ?'В афише пока нет событий со ссылками.'
+              :'В «Сохранённых» пока пусто.';
         list.appendChild(empty);
         return;
       }
@@ -1635,10 +1847,12 @@
       }
 
       article.appendChild(bubble);
-      if(payload&&!systemEvent){
-        bindSwipeReply(article,row,payload);
+      if(payload){
         bindLongPressContext(article,row,payload);
-        bindMessageTapGestures(article,row,payload);
+        if(!systemEvent){
+          bindSwipeReply(article,row,payload);
+          bindMessageTapGestures(article,row,payload);
+        }
       }
       list.appendChild(article);
     }
@@ -2533,7 +2747,7 @@
           attachTray.hidden=true;
           if(starTray) starTray.hidden=true;
           photoInput?.click?.();
-        }else if(['smart-save','wishlist','recipe'].includes(type)){
+        }else if(['smart-save','wishlist','recipe','feed'].includes(type)){
           attachTray.hidden=true;
           if(starTray) starTray.hidden=true;
           document.activeElement?.blur?.();
