@@ -14,7 +14,9 @@ test('v3.63 refreshes the visible app immediately whenever it becomes active',()
 });
 
 test('v3.63 home entry refresh includes all visible home data sources',()=>{
-  const start=app.indexOf("if(currentAppTab==='home')");
+  const refreshStart=app.indexOf('async function refreshAfterResume');
+  assert.ok(refreshStart>=0,'refreshAfterResume missing');
+  const start=app.indexOf("if(currentAppTab==='home')",refreshStart);
   const block=app.slice(start,start+5000);
   for(const token of [
     'loadHomeBootstrap({force:true})',
