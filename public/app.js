@@ -4634,12 +4634,11 @@
         const partnerIdentity=people?.querySelector('.identity-partner');
         const mood=profile.querySelector('.profile-mood');
         const selfMood=mood?.querySelector('.mood-self');
-        const partnerMood=mood?.querySelector('.mood-partner');
         const moodChoices=document.getElementById('moodChoices');
         const moodPrompt=document.getElementById('moodPrompt');
         const moodMessage=document.getElementById('moodMessage');
         const dateHeading=document.getElementById('profileMeta');
-        if(!selfIdentity||!partnerIdentity||!selfMood||!partnerMood||!dateHeading) return;
+        if(!selfIdentity||!partnerIdentity||!selfMood||!dateHeading) return;
 
         const selfPerson=selfIdentity.querySelector('.person');
         const partnerPerson=partnerIdentity.querySelector('.person');
@@ -4676,7 +4675,7 @@
         dianaPerson.appendChild(dianaRhythm);
 
         selfIdentity.appendChild(selfMood);
-        partnerIdentity.replaceChildren(partnerAvatar,partnerPerson,partnerMood);
+        partnerIdentity.replaceChildren(partnerAvatar,partnerPerson);
 
         profile.id='homeDashboard';
         profile.className='home-dashboard home-dashboard-summary';
@@ -10526,13 +10525,16 @@
         const holder=document.getElementById('partnerMoodValue');
         const empty=document.getElementById('partnerMoodEmpty');
         const mood=String(value||'');
+        const normalizedMood=mood==='fear'?'boredom':mood;
         const visiblePartner=partnerProfileName||partner||'Партнёр';
+        const hasMood=['sadness','boredom','neutral','fatigue','anger','joy','love'].includes(normalizedMood);
         if(label) label.textContent='';
-        holder.dataset.mood=mood;
+        holder.dataset.mood=normalizedMood;
+        holder.hidden=!hasMood;
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
-          icon.hidden=icon.dataset.partnerMood!==mood;
+          icon.hidden=icon.dataset.partnerMood!==normalizedMood;
         });
-        empty.hidden=['sadness','boredom','neutral','fatigue','anger','joy','love'].includes(mood==='fear'?'boredom':mood);
+        empty.hidden=true;
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
