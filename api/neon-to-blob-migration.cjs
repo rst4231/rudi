@@ -14,6 +14,15 @@ const {
 
 const MIGRATION_ID='neon-to-blob-2026-10-03-v1';
 const MIGRATION_TOKEN='rudi-migrate-20261003-8f7c1e4b6a2d9c53';
+const MISSED_TASK_COMPENSATION=Object.freeze({
+  taskId:'6ac0c3d78f08929497a1e5f3',
+  actor:'Рустам',
+  title:'🛒 Купить продукты',
+  dateKey:'2026-10-03',
+  completedAt:'2026-10-03T08:59:03.000Z',
+  units:20,
+  dedupeKey:'score:task:6ac0c3d78f08929497a1e5f3:2026-10-03:Рустам',
+});
 
 function canonicalize(value){
   if(Array.isArray(value))return value.map(canonicalize);
@@ -41,6 +50,55 @@ function sanitizeAuthRowForBlob(row){
   return{
     ...source,
     pin_record:{...pin,[APP_STATE_FIELD]:nextAppState},
+  };
+}
+function compensateMissedTaskScore(value){
+  const source=plain(value);
+  const history=Array.isArray(source.history)?source.history.map(row=>({...plain(row)})):[];
+  const dedupe={...plain(source.dedupe)};
+  const key=MISSED_TASK_COMPENSATION.dedupeKey;
+  if(dedupe[key]||history.some(row=>String(row?.dedupeKey||'')===key)){
+    return{value:source,applied:false};
+  }
+  const actor=MISSED_TASK_COMPENSATION.actor;
+  const dateKey=MISSED_TASK_COMPENSATION.dateKey;
+  const balances={...plain(source.balances)};
+  const lifetimeEarned={...plain(source.lifetimeEarned)};
+  const dailyEarned={...plain(source.dailyEarned)};
+  const day={...plain(dailyEarned[dateKey])};
+  balances[actor]=Number(balances[actor]||0)+MISSED_TASK_COMPENSATION.units;
+  lifetimeEarned[actor]=Number(lifetimeEarned[actor]||0)+MISSED_TASK_COMPENSATION.units;
+  day[actor]=Number(day[actor]||0)+MISSED_TASK_COMPENSATION.units;
+  dailyEarned[dateKey]=day;
+  const createdAt=new Date().toISOString();
+  history.unshift({
+    id:crypto.randomUUID(),
+    actor,
+    kind:'earn',
+    units:MISSED_TASK_COMPENSATION.units,
+    requestedUnits:MISSED_TASK_COMPENSATION.units,
+    label:'Задача',
+    detail:MISSED_TASK_COMPENSATION.title,
+    icon:'✅',
+    dedupeKey:key,
+    rewardId:'',
+    dateKey,
+    createdAt,
+    reversedAt:'',
+  });
+  dedupe[key]=createdAt;
+  return{
+    applied:true,
+    value:{
+      ...source,
+      initialized:true,
+      version:Math.max(0,Number(source.version||0))+1,
+      balances,
+      lifetimeEarned,
+      dailyEarned,
+      history,
+      dedupe,
+    },
   };
 }
 function newer(left,right){
@@ -177,6 +235,23 @@ async function migrateNeonToBlob(options={}){
     durableMismatches.push(row.namespace+'\0'+row.key);
   });
 
+  let taskCompensationApplied=false;
+  const scoreSource=durableRows.find(row=>String(row?.namespace||'')==='rudi-score-v1'&&String(row?.key||'')==='score-state');
+  if(scoreSource){
+    const stored=await blobDurableGetRecord(options,'rudi-score-v1','score-state');
+    if(stored){
+      const compensation=compensateMissedTaskScore(stored.value);
+      taskCompensationApplied=compensation.applied;
+      if(compensation.applied){
+        await blobDurableSetRecord(options,{
+          ...stored,
+          value:compensation.value,
+          updated_at:new Date().toISOString(),
+        });
+      }
+    }
+  }
+
   let authVerified=0,authMismatches=[];
   await mapLimit(authRows,2,async row=>{
     const desired=sanitizeAuthRowForBlob(row);
@@ -228,6 +303,7 @@ async function migrateNeonToBlob(options={}){
       habitsPreservedNewer,
       supplementsWritten,
       supplementsPreservedNewer,
+      taskCompensationApplied,
     },
     verified:{
       durable:durableVerified,
