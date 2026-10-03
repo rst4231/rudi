@@ -2000,7 +2000,17 @@
     const data=await api('messenger-read',{ids});
     setUnread(data.unread);
     if(Number(data.unread||0)===0) state.unreadBoundaryId='';
-    return mergePendingRows(Array.isArray(data.messages)?data.messages:rows);
+    const confirmed=new Set((Array.isArray(data.readIds)?data.readIds:ids).map(value=>String(value||'')));
+    const readAt=new Date().toISOString();
+    return (Array.isArray(rows)?rows:[]).map(row=>{
+      if(!confirmed.has(String(row?.id||''))) return row;
+      const recipients=Array.isArray(row?.systemRecipients)?row.systemRecipients:[];
+      if(recipients.length){
+        return {...row,systemReadBy:[...new Set([...(Array.isArray(row.systemReadBy)?row.systemReadBy:[]),state.actor])]};
+      }
+      if(row?.sender!==state.actor&&!row?.readAt) return {...row,readAt};
+      return row;
+    });
   }
 
   function scheduleVisibleRead(){
@@ -2203,22 +2213,56 @@
     }catch(_){}
   }
 
+  function messengerIsVisible(){
+    return document.visibilityState==='visible'
+      &&document.body.dataset.appTab==='messenger'
+      &&document.body.classList.contains('auth-ok');
+  }
+
+  function stopPresenceHeartbeat(){
+    if(!state.presenceTimer) return;
+    clearInterval(state.presenceTimer);
+    state.presenceTimer=0;
+  }
+
   function ensurePresenceHeartbeat(){
+    if(!messengerIsVisible()){
+      stopPresenceHeartbeat();
+      return;
+    }
     if(state.presenceTimer) return;
     const ping=()=>{
-      if(!document.body.classList.contains('auth-ok')) return;
-      api('messenger-presence',{messengerVisible:document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger'}).then(data=>{
+      if(!messengerIsVisible()){
+        stopPresenceHeartbeat();
+        return;
+      }
+      api('messenger-presence',{messengerVisible:true}).then(data=>{
         state.partnerPresence=data?.partnerPresence||null;
         updateHeader();
       }).catch(()=>{});
     };
-    ping();
-    state.presenceTimer=setInterval(ping,12000);
+    state.presenceTimer=setInterval(ping,30000);
+  }
+
+  function stopLiveSync(){
+    if(!state.liveTimer) return;
+    clearInterval(state.liveTimer);
+    state.liveTimer=0;
   }
 
   function ensureLiveSync(){
+    if(!messengerIsVisible()){
+      stopLiveSync();
+      return;
+    }
     if(state.liveTimer) return;
-    state.liveTimer=setInterval(syncLiveMessages,2200);
+    state.liveTimer=setInterval(()=>{
+      if(!messengerIsVisible()){
+        stopLiveSync();
+        return;
+      }
+      syncLiveMessages();
+    },12000);
   }
 
   function notifyTyping(active){
@@ -2235,39 +2279,18 @@
 
   async function syncUnread(){
     try{
-      await ensureKeys();
-      const data=await api('messenger-list');
-      const nextRows=mergePendingRows(Array.isArray(data.messages)?data.messages:state.rows);
-      const changed=rowsSignature(nextRows)!==rowsSignature(state.rows);
-      const messengerVisible=document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger';
-      const list=document.getElementById('messengerMessages');
-      const wasNearBottom=messengerVisible?isMessagesNearBottom(list):false;
-      const preservedTop=Number(list?.scrollTop||0);
-
-      state.rows=nextRows;
-      state.partnerTyping=Boolean(data.partnerTyping);
-      state.partnerPresence=data.partnerPresence||null;
-      setUnread(data.unread);
-
-      if(messengerVisible&&changed){
-        await decryptMessages(state.rows);
-        renderMessages({preserveScrollTop:wasNearBottom?null:preservedTop,forceBottom:wasNearBottom});
-        const after=await markVisibleUnreadRead(state.rows);
-        if(rowsSignature(after)!==rowsSignature(state.rows)){
-          state.rows=after;
-          await decryptMessages(state.rows);
-          renderMessages({preserveScrollTop:Number(list?.scrollTop||0)});
-        }
-      }else if(messengerVisible){
-        renderTypingIndicator({autoScroll:wasNearBottom});
+      if(messengerIsVisible()){
+        await syncLiveMessages();
+        ensureProfileButton();
+        return Number(document.documentElement.dataset.messengerUnreadCount||0);
       }
-
-      updateHeader();
+      const data=await api('messenger-unread');
+      setUnread(data.unread);
       ensureProfileButton();
-      return data.unread;
+      return Number(data.unread||0);
     }catch(_){
       ensureProfileButton();
-      return 0;
+      return Number(document.documentElement.dataset.messengerUnreadCount||0);
     }
   }
 
@@ -3080,8 +3103,8 @@
         state.initialized=true;
       }catch(_){}
       ensureProfileButton();
-      ensurePresenceHeartbeat();
       if(document.body.dataset.appTab==='messenger') open({force:true});
+      else syncUnread();
     };
     if(document.body.classList.contains('auth-ok')) start();
     else{
@@ -3151,10 +3174,32 @@
   window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')){syncUnread();flushMessengerOutbox()}});
   window.addEventListener('online',()=>{flushMessengerOutbox();if(document.body.dataset.appTab==='messenger')syncLiveMessages()});
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')) return;
-    api('messenger-presence',{messengerVisible:document.body.dataset.appTab==='messenger'}).catch(()=>{});
-    if(document.body.dataset.appTab==='messenger') load({markRead:true});
-    else syncUnread();
+    if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')){
+      stopLiveSync();
+      stopPresenceHeartbeat();
+      return;
+    }
+    if(document.body.dataset.appTab==='messenger'){
+      load({markRead:true}).finally(()=>{
+        ensureLiveSync();
+        ensurePresenceHeartbeat();
+      });
+    }else{
+      stopLiveSync();
+      stopPresenceHeartbeat();
+      syncUnread();
+    }
+  });
+  window.addEventListener('rudi:app-tab-change',event=>{
+    const tab=String(event?.detail?.tab||document.body.dataset.appTab||'');
+    if(tab==='messenger'&&document.visibilityState==='visible'){
+      ensureLiveSync();
+      ensurePresenceHeartbeat();
+    }else{
+      stopLiveSync();
+      stopPresenceHeartbeat();
+      syncUnread();
+    }
   });
   window.addEventListener('rudi:ui-preferences-applied',()=>{});
   window.RUDI_MESSENGER={open,refresh:()=>load({markRead:document.body.dataset.appTab==='messenger'}),syncUnread,syncLiveMessages};
