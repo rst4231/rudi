@@ -2184,6 +2184,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         ok:true,
         actor,
         keys,
+        conversationKey:messengerConversationKey(options),
+        scheme:'shared-v2',
         messages,
         partnerTyping,
         partnerPresence,
