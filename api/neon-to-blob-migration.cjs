@@ -1,5 +1,5 @@
 const crypto=require('node:crypto');
-const {createBlobJsonStore}=require('./blob-json-store.cjs');
+const {createBlobJsonStore,markMigrationReadyForProcess}=require('./blob-json-store.cjs');
 const {
   durableRequest,
   blobDurableSetRecord,
@@ -110,12 +110,12 @@ async function migrateNeonToBlob(options={}){
 
   let authWritten=0,authPreservedNewer=0;
   await mapLimit(authRows,2,async row=>{
-    const current=await readRawRecord(row.actor,{...options,authBlobStore:coreStore}).catch(()=>null);
+    const current=await readRawRecord(row.actor,{...options,authBlobStore:coreStore,bypassMigrationGate:true}).catch(()=>null);
     if(current&&newer(current.updated_at,row.updated_at)){
       authPreservedNewer+=1;
       return;
     }
-    await writeRawBlobRecord(row.actor,row,{...options,authBlobStore:coreStore});
+    await writeRawBlobRecord(row.actor,row,{...options,authBlobStore:coreStore,bypassMigrationGate:true});
     authWritten+=1;
   });
 
@@ -219,6 +219,7 @@ async function migrateNeonToBlob(options={}){
     neonDeleted:false,
   };
   await coreStore.write(markerKey,result);
+  if(complete)markMigrationReadyForProcess();
   return result;
 }
 
