@@ -516,3 +516,10 @@ html[data-theme="dark"] .personal-home-reminder-badge{border-color:#181b22}
 /* RUDI v2.122 — enforce supplement surfaces by app theme */
 html[data-theme="dark"] .supplement-card{background:var(--surface,#20242f);color:var(--text,#f5f7fb)}
 html[data-theme="dark"] .supplement-card-name,html[data-theme="dark"] .supplement-card-meta{color:inherit}
+
+
+/* RUDI v3.66 — habits and supplements are dedicated pages, always expanded */
+.personal-habits-collapse,.personal-supplements-collapse{display:none!important}
+.personal-habits-body,.personal-supplements-body{display:block!important}
+body[data-app-tab="habits"] .personal-habits-tile,
+body[data-app-tab="supplements"] .personal-supplements-tile{width:100%;box-sizing:border-box}
