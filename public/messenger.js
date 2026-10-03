@@ -964,15 +964,30 @@
     audio.preload='metadata';
     audio.src=src;
     audio.dataset.rudiVoice='1';
+
     const wrap=document.createElement('div');
     wrap.className='messenger-voice';
+
     const play=document.createElement('button');
     play.type='button';
     play.className='messenger-voice-play';
+
+    const playIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg>';
+    const pauseIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="6.5" width="3.5" height="11" rx="1"/><rect x="13" y="6.5" width="3.5" height="11" rx="1"/></svg>';
+    const syncPlayState=()=>{
+      const playing=!audio.paused&&!audio.ended;
+      wrap.classList.toggle('is-playing',playing);
+      play.innerHTML=playing?pauseIcon:playIcon;
+      play.setAttribute('aria-label',playing?'Пауза':'Воспроизвести');
+      play.setAttribute('aria-pressed',playing?'true':'false');
+    };
+    play.innerHTML=playIcon;
     play.setAttribute('aria-label','Воспроизвести');
-    play.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg>';
+    play.setAttribute('aria-pressed','false');
+
     const body=document.createElement('div');
     body.className='messenger-voice-body';
+
     const wave=document.createElement('div');
     wave.className='messenger-voice-wave';
     [8,13,18,11,20,15,9,17,21,12,16,10,19,14,8,17,12,20,10,15,18,9,14,11].forEach(height=>{
@@ -980,33 +995,71 @@
       bar.style.setProperty('--h',height+'px');
       wave.appendChild(bar);
     });
+
     const meta=document.createElement('div');
     meta.className='messenger-voice-time';
     const elapsed=document.createElement('span');
     elapsed.textContent='0:00';
     const duration=document.createElement('span');
     duration.textContent=secondsLabel(attachment.duration);
-    meta.append(elapsed,duration);
+    const speed=document.createElement('button');
+    speed.type='button';
+    speed.className='messenger-voice-speed';
+    speed.textContent='1×';
+    speed.setAttribute('aria-label','Скорость воспроизведения 1×');
+    speed.setAttribute('aria-pressed','false');
+    meta.append(elapsed,duration,speed);
+
     body.append(wave,meta);
     wrap.append(play,body,audio);
     bubble.appendChild(wrap);
+
     const update=()=>{
       const total=Number(audio.duration)||Number(attachment.duration)||1;
       const progress=Math.max(0,Math.min(1,(Number(audio.currentTime)||0)/total));
       wrap.style.setProperty('--voice-progress',(progress*100)+'%');
       elapsed.textContent=secondsLabel(audio.currentTime);
     };
+
     play.addEventListener('click',event=>{
       event.stopPropagation();
       if(audio.paused){
         document.querySelectorAll('audio[data-rudi-voice="1"]').forEach(item=>{if(item!==audio)item.pause()});
-        audio.play().catch(()=>{});
-      }else audio.pause();
+        audio.play().then(syncPlayState).catch(()=>syncPlayState());
+      }else{
+        audio.pause();
+        syncPlayState();
+      }
     });
-    audio.addEventListener('play',()=>wrap.classList.add('is-playing'));
-    audio.addEventListener('pause',()=>wrap.classList.remove('is-playing'));
+
+    speed.addEventListener('click',event=>{
+      event.stopPropagation();
+      const fast=Number(audio.playbackRate||1)<1.5;
+      audio.playbackRate=fast?2:1;
+      audio.defaultPlaybackRate=audio.playbackRate;
+      speed.textContent=fast?'2×':'1×';
+      speed.setAttribute('aria-label','Скорость воспроизведения '+(fast?'2×':'1×'));
+      speed.setAttribute('aria-pressed',fast?'true':'false');
+      wrap.classList.toggle('is-fast',fast);
+    });
+
+    audio.addEventListener('play',syncPlayState);
+    audio.addEventListener('playing',syncPlayState);
+    audio.addEventListener('pause',syncPlayState);
+    audio.addEventListener('waiting',syncPlayState);
     audio.addEventListener('timeupdate',update);
-    audio.addEventListener('ended',()=>{audio.currentTime=0;update()});
+    audio.addEventListener('ratechange',()=>{
+      const fast=Number(audio.playbackRate||1)>=1.5;
+      speed.textContent=fast?'2×':'1×';
+      speed.setAttribute('aria-pressed',fast?'true':'false');
+      wrap.classList.toggle('is-fast',fast);
+    });
+    audio.addEventListener('ended',()=>{
+      audio.currentTime=0;
+      update();
+      syncPlayState();
+    });
+
     wave.addEventListener('click',event=>{
       event.stopPropagation();
       const rect=wave.getBoundingClientRect();
@@ -1014,6 +1067,8 @@
       const total=Number(audio.duration)||Number(attachment.duration)||0;
       if(total) audio.currentTime=ratio*total;
     });
+
+    syncPlayState();
   }
 
   function attachmentClickWasLongPress(button){
