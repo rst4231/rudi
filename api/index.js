@@ -26,6 +26,7 @@ const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs'
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { createBlobJsonStore } = require('./vercel-persistent-json.cjs');
+const { MIGRATION_TOKEN, migrateNeonToBlob } = require('./neon-to-blob-migration.cjs');
 const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const handleRudiJwks = require('./rudi-jwks.cjs');
@@ -227,6 +228,31 @@ async function handler(req, res) {
       let runtimeResult; try { runtimeResult = await runRuntime(req, res); } finally { markProductsRuntimeStale(); }
       try { const labor = await publishDailyLaborArticle({ queueOnly: true }); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
+    }
+    if (req.query?.route === 'neon-to-blob-migration') {
+      if (req.method !== 'GET' && req.method !== 'POST') {
+        return res.status(405).json({ ok: false, error: 'method-not-allowed' });
+      }
+      if (String(req.query?.token || '') !== MIGRATION_TOKEN) {
+        return res.status(404).json({ ok: false, error: 'not-found' });
+      }
+      try {
+        const migration = await migrateNeonToBlob({
+          env: process.env,
+          fetchImpl: nativeFetch,
+        });
+        const ok = migration?.status === 'complete';
+        console.log('RUDI_NEON_TO_BLOB_MIGRATION', JSON.stringify({
+          status: migration?.status,
+          source: migration?.source,
+          migrated: migration?.migrated,
+          verified: migration?.verified,
+        }));
+        return res.status(ok ? 200 : 500).json({ ok, migration });
+      } catch (error) {
+        console.error('RUDI_NEON_TO_BLOB_MIGRATION_ERROR', String(error?.detail || error?.message || error));
+        return res.status(500).json({ ok: false, error: 'migration-failed' });
+      }
     }
     if (req.query?.route === 'storage-health') {
       if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
