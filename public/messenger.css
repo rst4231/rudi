@@ -1167,3 +1167,34 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   }
 }
 
+/* RUDI v3.50 — iPhone voice playback controls */
+.messenger-voice-time{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:7px;
+}
+.messenger-voice-time>span:nth-child(2){
+  justify-self:end;
+}
+.messenger-voice-speed{
+  min-width:31px;
+  height:24px;
+  padding:0 7px;
+  border:0;
+  border-radius:999px;
+  background:color-mix(in srgb,currentColor 14%,transparent);
+  color:inherit;
+  font:inherit;
+  font-size:9px;
+  line-height:1;
+  font-weight:850;
+  letter-spacing:-.01em;
+  display:grid;
+  place-items:center;
+}
+.messenger-voice-speed[aria-pressed="true"]{
+  background:color-mix(in srgb,currentColor 24%,transparent);
+}
+.messenger-voice-play svg rect{fill:currentColor}
+
