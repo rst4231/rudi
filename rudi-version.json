@@ -1,16 +1,18 @@
 {
-  "current": "v3.55",
+  "current": "v3.56",
   "versionBranch": "main",
   "releaseCommit": null,
-  "deploymentSourceCommit": "45011e2a0e4e432ad43bbf14a55d4fe3c02c43cd",
+  "deploymentSourceCommit": "08c4135477667dc1ef7a5a12d3e5edb8a1c4bc4c",
   "deploymentRequestedAt": "2026-10-03",
   "createdAt": "2026-10-03",
-  "basedOnProduction": "v3.54",
+  "basedOnProduction": "v3.55",
   "notes": [
-    "Мессенджер полностью выведен из Neon Data API: namespace rudi-messenger-v1 больше не считается durable.",
-    "Сообщения, индекс чата, реакции, статусы доставки/прочтения, presence/typing и ключи мессенджера теперь обслуживаются только через Vercel Runtime Cache.",
-    "TTL сообщений сохранён 24 часа; текущий Runtime Cache уже содержит зеркальные данные, поэтому отдельная миграция истории не требуется.",
-    "Старые записи rudi-messenger-v1 в Neon больше не читаются и не обновляются приложением."
+    "Привычки и БАДы переведены на постоянное Private Vercel Blob как основной источник истины.",
+    "В Blob сохраняется полный state: текущие элементы, история выполнения/пропусков, статусы, заметки, архивы, рекомендации и метаданные.",
+    "Добавлена одноразовая миграция legacy state: при отсутствии Blob-объекта система читает старый источник целиком, сохраняет его в Blob и после этого больше не обращается к legacy для этого state.",
+    "БАДы больше не входят в Neon durable namespaces; их legacy fallback остаётся в Runtime Cache только до успешной Blob-миграции.",
+    "Для привычек legacy-источник Neon сохранён только как источник одноразового импорта истории. Перед переносом создан snapshot snap-long-hill-b51jlwps.",
+    "Backend умеет найти подключённый Blob store или попытаться создать project-default private store через Vercel OIDC без ручного подключения."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
