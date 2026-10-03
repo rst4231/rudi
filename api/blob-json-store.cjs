@@ -2,8 +2,10 @@ const DEFAULT_PREFIX='rudi-state-v2';
 const DEFAULT_PROJECT_ID='prj_tg663wlSXTaoE2HNfekiymY0IF63';
 const DEFAULT_TEAM_ID='team_XGmOyYr1uet38Pk9Ze7ScQCz';
 const DEFAULT_STORE_NAME='rudi-state';
+const MIGRATION_MARKER_KEY='migration/neon-to-blob-2026-10-03-v1';
 
 let rememberedStoreId='';
+let migrationReady=false;
 
 function safeSegment(value){
   return String(value||'')
@@ -185,11 +187,42 @@ function createBlobJsonStore(options={}){
   return{read,write,writeIfAbsent,remove,listKeys,auth};
 }
 
+
+async function ensureMigrationReady(options={}){
+  if(options.bypassMigrationGate===true||migrationReady)return true;
+  const store=options.migrationBlobStore||createBlobJsonStore({
+    prefix:'rudi-state-v2',
+    env:options.env||process.env,
+    ...(options.blobClient||options.client?{client:options.blobClient||options.client}:{}),
+    ...(options.fetchImpl?{fetchImpl:options.fetchImpl}:{}),
+  });
+  const marker=await store.read(MIGRATION_MARKER_KEY);
+  if(marker&&marker.status==='complete'){
+    migrationReady=true;
+    return true;
+  }
+  const error=new Error('rudi-storage-migrating');
+  error.status=503;
+  throw error;
+}
+
+function markMigrationReadyForProcess(){
+  migrationReady=true;
+}
+
+function resetMigrationReadyForTests(){
+  migrationReady=false;
+}
+
 module.exports={
   DEFAULT_PREFIX,
   DEFAULT_PROJECT_ID,
   DEFAULT_TEAM_ID,
+  MIGRATION_MARKER_KEY,
   createBlobJsonStore,
+  ensureMigrationReady,
+  markMigrationReadyForProcess,
+  resetMigrationReadyForTests,
   isBlobUnavailableError,
   isAlreadyExistsError,
   fullPath,
