@@ -58,6 +58,7 @@ const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items
 const { readSmartSaves, removeSmartSave, restoreSmartSave } = require('./smart-saves-store.cjs');
 const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, recordCycleEnd, normalizeCycleState, cycleViewForDate, cycleStateWithStart, cycleStateWithEnd, writeCycleState } = require('./cycle-store.cjs');
+const { claimCycleAdvice, releaseCycleAdvice } = require('./cycle-messenger-advice-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
   readActivityJournal,
@@ -433,6 +434,94 @@ function encryptMessengerSystemPayload(text,systemKind,options={}){
     iv:iv.toString('base64url'),
     keyVersions:{'Рустам':0,'Диана':0},
   };
+}
+
+function messengerMessagesVisibleToActor(rows,actor){
+  const viewer=actor==='Рустам'?'Рустам':actor==='Диана'?'Диана':'';
+  if(!viewer) return [];
+  return (Array.isArray(rows)?rows:[]).filter(row=>{
+    const recipients=Array.isArray(row?.systemRecipients)?row.systemRecipients:[];
+    return !recipients.length||recipients.includes(viewer);
+  });
+}
+
+function cycleAdviceForRustam(view,state){
+  if(!view||!state) return null;
+  const phase=String(view.phase||'');
+  const cycleDay=Number(view.cycleDay);
+  const periodLength=Math.max(1,Number(state.periodLengthDays)||5);
+  const daysToNext=Number(view.daysToNext);
+  const anchor=String(view.periodStart||view.nextPeriodStart||moscowDateKey()).replace(/[^0-9-]/g,'');
+
+  if(view.periodActive||phase==='Месячные'){
+    return {
+      key:'period:'+anchor,
+      text:'💡 Подсказка для тебя: у Дианы сейчас месячные. Лучше мягче, без давления и лишних споров; спроси, как она себя чувствует.'
+    };
+  }
+
+  if(phase==='Фолликулярная фаза'){
+    if(Number.isFinite(cycleDay)&&cycleDay<=periodLength+2){
+      return {
+        key:'follicular-recovery:'+anchor,
+        text:'💡 Подсказка для тебя: Диана сейчас выходит из месячных. Лучше лёгкий темп и без резких требований — энергия может возвращаться постепенно.'
+      };
+    }
+    return {
+      key:'follicular:'+anchor,
+      text:'💡 Подсказка для тебя: сейчас у Дианы обычно более энергичная часть цикла. Можно смелее предлагать планы, но ориентируйся на её настроение.'
+    };
+  }
+
+  if(phase==='Фертильное окно'){
+    return {
+      key:'fertile:'+anchor,
+      text:'💡 Подсказка для тебя: сейчас у Дианы фертильное окно. Будь теплее и внимательнее, но не делай выводов о её настроении только по календарю.'
+    };
+  }
+
+  if(phase==='Лютеиновая фаза'){
+    if(Number.isFinite(daysToNext)&&daysToNext>=0&&daysToNext<=5){
+      return {
+        key:'premenstrual:'+anchor,
+        text:'💡 Подсказка для тебя: до месячных осталось немного. Лучше говорить мягче, меньше давить и не обесценивать эмоции.'
+      };
+    }
+    return {
+      key:'luteal:'+anchor,
+      text:'💡 Подсказка для тебя: сейчас вторая половина цикла. Спокойный тон и чуть больше терпения будут уместнее; ориентируйся на её реакцию.'
+    };
+  }
+
+  return null;
+}
+
+async function maybeCreateRustamCycleAdvice(options={}){
+  const state=await readCycleState(options).catch(()=>null);
+  if(!state) return null;
+  const date=moscowDateKey(options.now||Date.now());
+  const view=cycleViewForDate(state,date);
+  const advice=cycleAdviceForRustam(view,state);
+  if(!advice?.key||!advice?.text) return null;
+
+  const claimed=await claimCycleAdvice(advice.key,options).catch(()=>false);
+  if(!claimed) return null;
+
+  try{
+    const encrypted=encryptMessengerSystemPayload(advice.text,'cycle-advice',options);
+    const clientId='cycle-advice-'+crypto.createHash('sha256').update(advice.key).digest('hex').slice(0,24);
+    const message=await addMessengerMessage('Рустам',{
+      ...encrypted,
+      clientId,
+      systemRecipients:['Рустам']
+    },options);
+    await markMessengerRead('Рустам',[message.id],options).catch(()=>null);
+    return message;
+  }catch(error){
+    await releaseCycleAdvice(advice.key,options).catch(()=>null);
+    console.warn('RUDI_CYCLE_MESSENGER_ADVICE_WARN',String(error?.message||error));
+    return null;
+  }
 }
 
 async function sendRewardMessengerEvent(actor,text,pushPayload={},options={}){
@@ -2049,18 +2138,22 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       const partner=actor==='Рустам'?'Диана':'Рустам';
       await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
-      const [keys,beforeDelivery,partnerTyping,partnerPresence]=await Promise.all([
+      const [keys,allBeforeDelivery,partnerTyping,partnerPresence]=await Promise.all([
         readMessengerPublicKeys(options),
         readMessengerMessages(options),
         readMessengerTyping(partner,options),
         readMessengerPresence(partner,options),
       ]);
+      const beforeDelivery=messengerMessagesVisibleToActor(allBeforeDelivery,actor);
       const delivered=await markMessengerDelivered(
         actor,
         beforeDelivery.filter(row=>row?.sender===partner).map(row=>row.id),
         options
       ).catch(()=>({messages:beforeDelivery}));
-      const messages=Array.isArray(delivered?.messages)?delivered.messages:beforeDelivery;
+      const messages=messengerMessagesVisibleToActor(
+        Array.isArray(delivered?.messages)?delivered.messages:beforeDelivery,
+        actor
+      );
       return res.status(200).json({
         ok:true,
         actor,
@@ -2134,11 +2227,16 @@ async function handleRudiAction(req, res, action, options = {}) {
           sent:false,error:String(error?.message||error)
         }));
       try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
-      const messages=await readMessengerMessages(options);
+
+      const cycleAdvice=actor==='Рустам'&&body.cycleAdviceEligible===true
+        ?await maybeCreateRustamCycleAdvice(options).catch(()=>null)
+        :null;
+      const messages=messengerMessagesVisibleToActor(await readMessengerMessages(options),actor);
       return res.status(200).json({
         ok:true,
         actor,
         message,
+        cycleAdviceCreated:Boolean(cycleAdvice?.id),
         unread:unreadMessengerCount(messages,actor),
         notification:{sent:false,pending:true},
       });
@@ -2175,7 +2273,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         reason:'dismiss-failed',
         error:String(error?.message||error),
       }));
-      const messages=await readMessengerMessages(options);
+      const messages=messengerMessagesVisibleToActor(await readMessengerMessages(options),actor);
       return res.status(200).json({
         ok:true,
         actor,
@@ -2271,12 +2369,13 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const result=await markMessengerRead(actor,body.ids,options);
+      const messages=messengerMessagesVisibleToActor(result.messages,actor);
       return res.status(200).json({
         ok:true,
         actor,
         updated:result.updated,
-        messages:result.messages,
-        unread:unreadMessengerCount(result.messages,actor),
+        messages,
+        unread:unreadMessengerCount(messages,actor),
       });
     } catch (error) {
       const code=String(error?.message||error);
