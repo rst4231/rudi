@@ -12574,3 +12574,28 @@ html:not([data-theme="dark"]) .app-tabbar{
   .mood-factor-item b{font-size:9.5px}
   .mood-factor-item span{font-size:7.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
+
+
+/* RUDI v3.66 — compact profile mood placement + personal tool shortcuts */
+.profile-name-row{display:flex;align-items:center;gap:6px;min-width:0}
+.profile-name-row .name{min-width:0}
+.profile-name-row-partner{justify-content:flex-end}
+.profile-name-row-partner .partner-header-name{width:auto!important;max-width:min(160px,70%);flex:0 1 auto}
+.profile-name-row .mood-current-button,
+.profile-name-row .partner-mood-value{flex:0 0 28px!important;width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;border-radius:9px!important}
+.profile-name-row .mood-emoji,
+.profile-name-row .partner-mood-icon .mood-emoji{font-size:17px!important}
+.profile .profile-mood{justify-content:flex-start!important}
+.profile .profile-mood .mood-self{display:block!important;min-width:0!important;padding:0!important;border:0!important}
+.profile .profile-mood .mood-self-buttons{margin:0!important}
+.profile-tool-button{position:relative;overflow:visible!important}
+.profile-tool-reminder-badge{
+  position:absolute;top:-5px;right:-5px;z-index:8;
+  min-width:15px;height:15px;padding:0 3px;box-sizing:border-box;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:2px solid #171a22;border-radius:999px;background:#ff453a;color:#fff;
+  font-size:8px;line-height:1;font-weight:850;box-shadow:0 2px 7px rgba(255,69,58,.34)
+}
+.profile-tool-reminder-badge[hidden]{display:none!important}
+html[data-theme="light"] .profile-tool-reminder-badge{border-color:#fff}
+.personal-tool-page-head{padding:4px 1px 2px}
