@@ -5160,7 +5160,32 @@
         }
       }
 
+      function ensureSmartSavesAlwaysExpanded(){
+        const section=document.getElementById('smartSavesHomeTile');
+        if(!section)return;
+        section.classList.remove('is-collapsed','rudi-collapsible');
+        delete section.dataset.collapseReady;
+        delete section.dataset.collapseKey;
+        section.querySelector('.smart-saves-home-head .block-collapse-button')?.remove();
+        section.querySelectorAll('.rudi-collapse-body').forEach(wrapper=>{
+          const inner=wrapper.querySelector(':scope > .rudi-collapse-body-inner');
+          if(inner){
+            const parent=wrapper.parentNode;
+            while(inner.firstChild)parent.insertBefore(inner.firstChild,wrapper);
+          }
+          wrapper.remove();
+        });
+        try{
+          const states=readBlockStates();
+          if(Object.prototype.hasOwnProperty.call(states,'smart-saves-home')){
+            delete states['smart-saves-home'];
+            localStorage.setItem(blockStateStorageKey(),JSON.stringify(states));
+          }
+        }catch(_){}
+      }
+
       function setupPersistentCollapsibles(){
+        ensureSmartSavesAlwaysExpanded();
         setupPersistentCollapsible({
           selector:'#homeRustamTile',key:'profile-rustam',
           bodySelectors:['#homeRustamDetails'],
@@ -5176,11 +5201,6 @@
           defaultCollapsed:true,
           resetCollapsedOnInit:true,
           persist:false
-        });
-        setupPersistentCollapsible({
-          selector:'#smartSavesHomeTile',key:'smart-saves-home',
-          bodySelectors:['#smartSavesHomeList','#smartSavesHomeEmpty','#smartSavesHomeMore'],
-          hostSelector:'.smart-saves-home-head'
         });
         setupPersistentCollapsible({
           selector:'#smartHomeTile',key:'smart-home',
