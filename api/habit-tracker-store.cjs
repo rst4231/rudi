@@ -88,7 +88,7 @@ function normalizeState(value,actor){
     statusUpdatedAt:normalizeStatusMeta(source.statusUpdatedAt,validIds),
     finalizedDates:normalizeDateFlags(source.finalizedDates),
     scoringStartedDate:cleanDate(source.scoringStartedDate)||SCORING_START_DATE,
-    collapsed:Boolean(source.collapsed),updatedAt:isoOrEmpty(source.updatedAt)
+    updatedAt:isoOrEmpty(source.updatedAt)
   };
 }
 function legacyDbOf(actor,options={}){
@@ -154,7 +154,7 @@ function viewHabits(state,options={}){
   const notDoneIds=(Array.isArray(state.failures?.[date])?state.failures[date]:[]).filter(id=>activeIds.has(id));
   const bonusIds=(Array.isArray(state.bonusIdsByDate?.[date])?state.bonusIdsByDate[date]:[]).filter(id=>activeIds.has(id));
   const statuses={},streaks={},stats={};for(const habit of habits){statuses[habit.id]=habitStatus(state,date,habit.id);streaks[habit.id]=habitStreak(state,habit.id,date,today);stats[habit.id]=habitHistoryStats(state,habit.id,date)}
-  return{habits,archivedHabits,completedIds,notDoneIds,statuses,streaks,stats,bonusIds,collapsed:state.collapsed,today,date,canCompleteToday:moscowHour(now)>=20,done:completedIds.length,notDone:notDoneIds.length,pending:Math.max(0,habits.length-completedIds.length-notDoneIds.length),total:habits.length,version:state.version,updatedAt:state.updatedAt};
+  return{habits,archivedHabits,completedIds,notDoneIds,statuses,streaks,stats,bonusIds,today,date,canCompleteToday:moscowHour(now)>=20,done:completedIds.length,notDone:notDoneIds.length,pending:Math.max(0,habits.length-completedIds.length-notDoneIds.length),total:habits.length,version:state.version,updatedAt:state.updatedAt};
 }
 async function ensureHabitDay(actor,date,options={}){
   const who=cleanActor(actor);
@@ -215,8 +215,8 @@ async function setHabitStatus(actor,id,status,options={}){
     return writeHabits(who,{...state,version:state.version+1,completions,failures,statusUpdatedAt},options);
   });
 }
-async function setHabitsCollapsed(actor,collapsed,options={}){
-  const who=cleanActor(actor);return enqueue(who,async()=>{const state=await readHabits(who,options);return writeHabits(who,{...state,version:state.version+1,collapsed:Boolean(collapsed)},options)});
+async function setHabitsCollapsed(actor,_collapsed,options={}){
+  return readHabits(cleanActor(actor),options);
 }
 async function markHabitDayFinalized(actor,date,options={}){
   const who=cleanActor(actor);return enqueue(who,async()=>{const state=await readHabits(who,options),target=cleanDate(date);if(!target)return state;
