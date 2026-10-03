@@ -33,4 +33,11 @@ async function claimCycleAdvice(key,options={}){
   return true;
 }
 
-module.exports={NAMESPACE,TTL_SECONDS,claimCycleAdvice};
+async function releaseCycleAdvice(key,options={}){
+  const clean=cleanKey(key);
+  if(!clean) return false;
+  await cacheOf(options).delete('shown:'+clean).catch(()=>null);
+  return true;
+}
+
+module.exports={NAMESPACE,TTL_SECONDS,claimCycleAdvice,releaseCycleAdvice};
