@@ -243,6 +243,32 @@
         width:Math.max(0,Number(payload.attachment.width||0)),
         height:Math.max(0,Number(payload.attachment.height||0)),
         name:String(payload.attachment.name||'').slice(0,120),
+        source:String(payload.attachment.source||'').slice(0,80),
+        sourceId:String(payload.attachment.sourceId||'').slice(0,160),
+        icon:String(payload.attachment.icon||'').slice(0,16),
+        label:String(payload.attachment.label||'').slice(0,80),
+        title:String(payload.attachment.title||'').slice(0,240),
+        description:String(payload.attachment.description||'').slice(0,700),
+        category:String(payload.attachment.category||'').slice(0,120),
+        url:String(payload.attachment.url||'').slice(0,1600),
+        imageUrl:String(payload.attachment.imageUrl||'').slice(0,1600),
+        actor:String(payload.attachment.actor||'').slice(0,60),
+        owner:String(payload.attachment.owner||'').slice(0,60),
+        savedBy:String(payload.attachment.savedBy||'').slice(0,60),
+        summary:String(payload.attachment.summary||'').slice(0,900),
+        timeMinutes:Math.max(0,Math.min(480,Number(payload.attachment.timeMinutes||0))),
+        difficulty:String(payload.attachment.difficulty||'').slice(0,120),
+        missing:(Array.isArray(payload.attachment.missing)?payload.attachment.missing:[])
+          .slice(0,24).map(value=>String(value||'').slice(0,160)),
+        ingredients:(Array.isArray(payload.attachment.ingredients)?payload.attachment.ingredients:[])
+          .slice(0,48).map(value=>({
+            name:String(value?.name||'').slice(0,220),
+            amount:String(value?.amount||'').slice(0,140)
+          })).filter(value=>value.name),
+        steps:(Array.isArray(payload.attachment.steps)?payload.attachment.steps:[])
+          .slice(0,24).map(value=>String(value||'').slice(0,900)).filter(Boolean),
+        tips:(Array.isArray(payload.attachment.tips)?payload.attachment.tips:[])
+          .slice(0,12).map(value=>String(value||'').slice(0,700)).filter(Boolean),
       }:null,
     };
   }
