@@ -97,7 +97,12 @@
           </div>
           <div class="person">
             <div id="selfFastingStatus" class="profile-fasting-status" hidden></div>
-            <div id="displayName" class="name">RUDI</div>
+            <div class="profile-name-row">
+              <div id="displayName" class="name">RUDI</div>
+              <button id="moodCurrentButton" class="mood-current-button partner-mood-value" type="button" aria-label="Выбрать настроение" aria-expanded="false" aria-controls="moodChoices">
+                <span id="moodCurrentEmoji" class="mood-emoji" aria-hidden="true">🙂</span>
+              </button>
+            </div>
             <div id="profileMeta" class="profile-meta"></div>
           </div>
         </div>
@@ -105,7 +110,19 @@
         <div class="identity identity-partner">
           <div class="person partner-person">
             <div id="partnerFastingStatus" class="profile-fasting-status partner-profile-fasting-status" hidden></div>
-            <div id="partnerHeaderName" class="name partner-header-name">Диана</div>
+            <div class="profile-name-row profile-name-row-partner">
+              <div id="partnerHeaderName" class="name partner-header-name">Диана</div>
+              <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
+                <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
+                <span class="partner-mood-icon" data-partner-mood="sadness" hidden><span class="mood-emoji" aria-hidden="true">😢</span></span>
+                <span class="partner-mood-icon" data-partner-mood="boredom" hidden><span class="mood-emoji" aria-hidden="true">🥱</span></span>
+                <span class="partner-mood-icon" data-partner-mood="neutral" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
+                <span class="partner-mood-icon" data-partner-mood="fatigue" hidden><span class="mood-emoji" aria-hidden="true">😩</span></span>
+                <span class="partner-mood-icon" data-partner-mood="anger" hidden><span class="mood-emoji" aria-hidden="true">😡</span></span>
+                <span class="partner-mood-icon" data-partner-mood="joy" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
+                <span class="partner-mood-icon" data-partner-mood="love" hidden><span class="mood-emoji" aria-hidden="true">🥰</span></span>
+              </div>
+            </div>
           </div>
           <div id="partnerProfileAvatar" class="avatar partner-header-avatar" aria-hidden="true">
             <span id="partnerProfileInitial">Д</span>
@@ -118,28 +135,20 @@
           <div class="mood-person mood-self">
             <span class="mood-person-label" aria-hidden="true"></span>
             <div class="mood-self-buttons">
-              <button id="moodCurrentButton" class="mood-current-button partner-mood-value" type="button" aria-label="Выбрать настроение" aria-expanded="false" aria-controls="moodChoices">
-                <span id="moodCurrentEmoji" class="mood-emoji" aria-hidden="true">🙂</span>
-              </button>
               <button id="moodHistoryButton" class="mood-history-button" type="button" aria-label="История настроения" title="История настроения">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
               </button>
               <button id="fastingProfileButton" class="fasting-profile-button partner-mood-value" type="button" aria-label="Открыть трекер голодания" title="Трекер голодания">
                 <span class="mood-emoji" aria-hidden="true">⏱️</span>
               </button>
-            </div>
-          </div>
-          <div class="mood-person mood-partner">
-            <span id="partnerMoodLabel" class="mood-person-label" aria-hidden="true"></span>
-            <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
-              <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
-              <span class="partner-mood-icon" data-partner-mood="sadness" hidden><span class="mood-emoji" aria-hidden="true">😢</span></span>
-              <span class="partner-mood-icon" data-partner-mood="boredom" hidden><span class="mood-emoji" aria-hidden="true">🥱</span></span>
-              <span class="partner-mood-icon" data-partner-mood="neutral" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
-              <span class="partner-mood-icon" data-partner-mood="fatigue" hidden><span class="mood-emoji" aria-hidden="true">😩</span></span>
-              <span class="partner-mood-icon" data-partner-mood="anger" hidden><span class="mood-emoji" aria-hidden="true">😡</span></span>
-              <span class="partner-mood-icon" data-partner-mood="joy" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
-              <span class="partner-mood-icon" data-partner-mood="love" hidden><span class="mood-emoji" aria-hidden="true">🥰</span></span>
+              <button id="habitProfileButton" class="profile-tool-button partner-mood-value" type="button" aria-label="Открыть трекер привычек" title="Трекер привычек">
+                <span class="mood-emoji" aria-hidden="true">🌱</span>
+                <span id="habitProfileBadge" class="profile-tool-reminder-badge" hidden></span>
+              </button>
+              <button id="supplementProfileButton" class="profile-tool-button partner-mood-value" type="button" aria-label="Открыть БАДы и витамины" title="БАДы и витамины">
+                <span class="mood-emoji" aria-hidden="true">💊</span>
+                <span id="supplementProfileBadge" class="profile-tool-reminder-badge" hidden></span>
+              </button>
             </div>
           </div>
           <div id="moodPrompt" class="mood-prompt">Выбери настроение</div>
@@ -205,9 +214,17 @@
       </div>
     </section>
 
-    <section id="habitHomeTile" class="personal-habits-tile home-tools-tile" data-app-tab-section="home" data-home-tile="habits" aria-label="Трекер привычек"></section>
+    <section class="personal-tool-page-head fasting-page-head" data-app-tab-section="habits" aria-labelledby="habitPageTitle" hidden>
+      <button id="habitBackButton" class="fasting-back-button" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="fasting-page-title"><div class="section-eyebrow">Личное</div><h1 id="habitPageTitle">Трекер привычек</h1></div>
+    </section>
+    <section id="habitHomeTile" class="personal-habits-tile home-tools-tile" data-app-tab-section="habits" aria-label="Трекер привычек" hidden></section>
 
-    <section id="supplementsHomeTile" class="personal-supplements-tile home-tools-tile" data-app-tab-section="home" data-home-tile="supplements" aria-label="БАДы и витамины"></section>
+    <section class="personal-tool-page-head fasting-page-head" data-app-tab-section="supplements" aria-labelledby="supplementPageTitle" hidden>
+      <button id="supplementBackButton" class="fasting-back-button" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="fasting-page-title"><div class="section-eyebrow">Личное</div><h1 id="supplementPageTitle">БАДы и витамины</h1></div>
+    </section>
+    <section id="supplementsHomeTile" class="personal-supplements-tile home-tools-tile" data-app-tab-section="supplements" aria-label="БАДы и витамины" hidden></section>
 
     <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
       <div class="love-hearts" aria-hidden="true">
