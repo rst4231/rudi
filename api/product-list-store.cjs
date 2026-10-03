@@ -333,6 +333,38 @@ async function markCheckedProductsBought(boughtBy = '', options = {}) {
   });
 }
 
+async function markProductsBoughtByIds(ids, boughtBy = '', options = {}) {
+  return enqueue(async () => {
+    const state = await readProductList(options);
+    const selected = new Set(
+      (Array.isArray(ids) ? ids : [])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .slice(0, MAX_ACTIVE)
+    );
+    if (!selected.size) return state;
+
+    const bought = state.items.filter((item) => selected.has(String(item.id || '')));
+    if (!bought.length) return state;
+
+    const boughtAt = new Date(options.now || Date.now()).toISOString();
+    const boughtIds = new Set(bought.map((item) => String(item.id || '')));
+    const historyRows = bought.map((item) => ({
+      id: crypto.randomUUID(),
+      text: item.text,
+      addedBy: String(item.addedBy || ''),
+      boughtBy: String(boughtBy || ''),
+      category: categorizeProduct(item.text),
+      weeklyAmount: estimateWeeklyAmount(item.text),
+      boughtAt,
+    }));
+
+    state.items = state.items.filter((item) => !boughtIds.has(String(item.id || '')));
+    state.history = [...historyRows, ...state.history].slice(0, MAX_HISTORY);
+    return writeState(state, options);
+  });
+}
+
 async function markProductBought(id, boughtBy = '', options = {}) {
   return enqueue(async () => {
     const state = await readProductList(options);
@@ -404,7 +436,7 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
   readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, removeProductByText,
-  toggleProductChecked, setProductCheckedSelection, markCheckedProductsBought, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
+  toggleProductChecked, setProductCheckedSelection, markCheckedProductsBought, markProductsBoughtByIds, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   normalizeProductListState: normalizeState,
   resetMutationQueueForTests,
 };
