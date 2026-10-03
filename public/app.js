@@ -7870,6 +7870,10 @@
         try{
           const payload=await requestTickTickTaskCompletion(task.id);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
+          if(payload?.score){
+            currentScoreState=payload.score;
+            document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:payload.score}}));
+          }
           markTickTickTaskRecentlyCompleted(task.id);
           button.setAttribute('aria-checked','true');
           button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
@@ -7910,6 +7914,10 @@
         try{
           const payload=await requestTickTickTaskCompletion(task.id);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
+          if(payload?.score){
+            currentScoreState=payload.score;
+            document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:payload.score}}));
+          }
 
           markTickTickTaskRecentlyCompleted(task.id);
           row.classList.add('done');
