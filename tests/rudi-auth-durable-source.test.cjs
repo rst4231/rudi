@@ -4,7 +4,7 @@ const fs = require('node:fs');
 
 const api = fs.readFileSync('api/partner-message.js','utf8');
 const store = fs.readFileSync('api/rudi-auth-db.cjs','utf8');
-const jwks = fs.readFileSync('api/rudi-jwks.cjs','utf8');
+const blob = fs.readFileSync('api/blob-json-store.cjs','utf8');
 const index = fs.readFileSync('api/index.js','utf8');
 const vercel = JSON.parse(fs.readFileSync('vercel.json','utf8'));
 
@@ -18,12 +18,12 @@ test('Safari PIN login hydrates the durable record before verification', () => {
   assert.match(block,/pinRecord: hydrated\.durable\.pinRecord/);
 });
 
-test('durable auth hydration migrates cache first and encrypted backup second', () => {
+test('durable auth hydration can restore local cache and encrypted backup into Blob', () => {
   assert.match(api,/async function hydrateActorAuth[\s\S]*?readPinRecord\(actor, storeOptions\)[\s\S]*?saveDurablePinRecord\(actor, cachedPin, dbOptions\)/);
   assert.match(api,/async function hydrateActorAuth[\s\S]*?backupPin[\s\S]*?saveDurablePinRecord\(actor, backupPin, dbOptions\)/);
 });
 
-test('Telegram PIN creation writes the same hash into durable Postgres before reporting success', () => {
+test('Telegram PIN creation writes the same hash into durable Blob before reporting success', () => {
   const start=api.indexOf("operation === 'create-pin'");
   const end=api.indexOf("operation === 'status'",start);
   assert.ok(start>=0&&end>start);
@@ -34,23 +34,21 @@ test('Telegram PIN creation writes the same hash into durable Postgres before re
   assert.ok(hashWrite>=0&&durableWrite>hashWrite&&response>durableWrite);
 });
 
-test('Telegram status migrates an existing encrypted backup PIN into durable server auth', () => {
-  assert.match(api,/async function hydrateActorAuth[\s\S]*?backupPin[\s\S]*?saveDurablePinRecord\(actor, backupPin, dbOptions\)/);
-  assert.match(api,/operation === 'status'[\s\S]*?hydrateActorAuth\(session\.actor, body\.backupToken, options\)[\s\S]*?Boolean\(hydrated\.durable\?\.pinRecord\)/);
-});
-
-test('Face ID passkeys use the same durable server auth record', () => {
+test('Face ID passkeys use the same durable Blob auth record', () => {
   assert.match(api,/saveDurablePasskeys\(verified\.actor, rows, durableAuthOptions\(options\)\)/);
   assert.match(api,/saveDurablePasskeys\(session\.actor, rows, durableAuthOptions\(options\)\)/);
   assert.match(api,/hydrateAllDurablePasskeys/);
 });
 
-test('durable auth store is server-only and uses signed Neon Data API requests', () => {
-  assert.match(store,/signDataApiJwt/);
-  assert.match(store,/authorization: 'Bearer ' \+ token/);
-  assert.match(store,/rudi_browser_auth/);
-  assert.doesNotMatch(store,/123456|password\s*:/i);
-  assert.match(jwks,/publicJwks/);
-  assert.match(index,/route === 'rudi-jwks'/);
-  assert.ok(vercel.rewrites.some((row)=>row.source==='/api/rudi-jwks'&&row.destination==='/api/index?route=rudi-jwks'));
+test('runtime auth store is Blob-only while Neon is isolated to migration helpers', () => {
+  const readRuntime=store.slice(store.indexOf('async function readRawRecord'),store.indexOf('async function readAuthRecord'));
+  const writeRuntime=store.slice(store.indexOf('async function writeRawBlobRecord'),store.indexOf('async function writeAuthRecord'));
+  assert.match(readRuntime,/authBlobStore\(options\)\.read/);
+  assert.match(writeRuntime,/authBlobStore\(options\)\.write/);
+  assert.doesNotMatch(readRuntime,/readLegacyRawRecord/);
+  assert.doesNotMatch(writeRuntime,/writeLegacyRawRecord/);
+  assert.match(store,/listLegacyRawRecords/);
+  assert.match(blob,/ensureMigrationReady/);
+  assert.match(index,/route === 'neon-to-blob-migration'/);
+  assert.equal(vercel.git.deploymentEnabled,false);
 });
