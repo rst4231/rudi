@@ -45,6 +45,8 @@
     recordingStream:null,
     micPointerHeld:false,
     dragDepth:0,
+    voiceAudioContext:null,
+    voiceAudioPrimed:false,
   };
 
   function telegramInitData(){
@@ -968,13 +970,45 @@
     bubble.appendChild(button);
   }
 
+  function primeVoiceAudioSession(){
+    try{
+      if(navigator.audioSession&&'type' in navigator.audioSession){
+        navigator.audioSession.type='playback';
+      }
+    }catch(_){}
+
+    try{
+      const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+      if(!AudioContextClass) return;
+      if(!state.voiceAudioContext) state.voiceAudioContext=new AudioContextClass();
+      const context=state.voiceAudioContext;
+      if(context.state==='suspended') context.resume().catch(()=>{});
+      if(state.voiceAudioPrimed) return;
+
+      const source=context.createBufferSource();
+      source.buffer=context.createBuffer(1,1,22050);
+      const gain=context.createGain();
+      gain.gain.value=0;
+      source.connect(gain);
+      gain.connect(context.destination);
+      source.start(0);
+      state.voiceAudioPrimed=true;
+    }catch(_){}
+  }
+
   function appendVoiceAttachment(bubble,attachment){
     const src=attachmentDataUrl(attachment);
     if(!src) return;
     const audio=document.createElement('audio');
-    audio.preload='metadata';
+    audio.preload='auto';
+    audio.playsInline=true;
+    audio.setAttribute('playsinline','');
+    audio.setAttribute('webkit-playsinline','');
     audio.src=src;
+    audio.muted=false;
+    audio.volume=1;
     audio.dataset.rudiVoice='1';
+    try{audio.load()}catch(_){};
 
     const wrap=document.createElement('div');
     wrap.className='messenger-voice';
@@ -1032,10 +1066,27 @@
       elapsed.textContent=secondsLabel(audio.currentTime);
     };
 
+    play.addEventListener('pointerdown',event=>{
+      if(event.pointerType==='mouse'&&event.button!==0) return;
+      primeVoiceAudioSession();
+      audio.preload='auto';
+      audio.muted=false;
+      audio.volume=1;
+      if(audio.readyState===0){
+        try{audio.load()}catch(_){}
+      }
+    });
+
     play.addEventListener('click',event=>{
       event.stopPropagation();
+      primeVoiceAudioSession();
+      audio.muted=false;
+      audio.volume=1;
       if(audio.paused){
         document.querySelectorAll('audio[data-rudi-voice="1"]').forEach(item=>{if(item!==audio)item.pause()});
+        if(audio.ended||Number(audio.currentTime||0)>=Number(audio.duration||Infinity)-.05){
+          try{audio.currentTime=0}catch(_){}
+        }
         audio.play().then(syncPlayState).catch(()=>syncPlayState());
       }else{
         audio.pause();
