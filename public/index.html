@@ -978,7 +978,13 @@
         </div>
       </div>
 
-      <article id="productsListCard" class="panel products-card kitchen-block">
+      <div id="kitchenSwitcher" class="kitchen-switcher" role="group" aria-label="Разделы кухни">
+        <button type="button" data-kitchen-view="products" aria-pressed="true">Продукты</button>
+        <button type="button" data-kitchen-view="recipes" aria-pressed="false">Рецепты</button>
+        <button type="button" data-kitchen-view="saves" aria-pressed="false">Сохранения</button>
+      </div>
+
+      <article id="productsListCard" class="panel products-card kitchen-block" data-kitchen-panel="products">
         <div class="kitchen-block-head">
           <div class="kitchen-block-title">
             <strong>Продукты</strong>
@@ -1031,7 +1037,7 @@
         </div>
       </article>
 
-      <article id="recipeIdeasCard" class="panel kitchen-recipes-card kitchen-block">
+      <article id="recipeIdeasCard" class="panel kitchen-recipes-card kitchen-block" data-kitchen-panel="recipes" hidden>
         <div class="kitchen-block-head">
           <div class="kitchen-block-title">
             <strong>Что можно приготовить</strong>
@@ -1089,12 +1095,11 @@
         </div>
       </article>
 
-      <section class="saved-category kitchen-saved-recipes" data-saves-category="recipe">
-        <button class="saved-category-head" type="button" data-saves-toggle="recipe" aria-expanded="true">
+      <section class="saved-category kitchen-saved-recipes" data-saves-category="recipe" data-kitchen-panel="saves" hidden>
+        <div class="saved-category-head">
           <span class="saved-category-icon is-recipe" aria-hidden="true">⌁</span>
           <span class="saved-category-copy"><strong>Сохраненные рецепты</strong><small id="savedRecipesCount">0</small></span>
-          <svg class="saved-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-        </button>
+        </div>
         <div id="savedRecipesBody" class="saved-category-body">
           <div id="savedRecipesList" class="saved-items-list"></div>
           <div id="savedRecipesEmpty" class="saved-empty">Пока ничего не сохранено</div>
