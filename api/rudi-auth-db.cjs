@@ -1,7 +1,8 @@
-const { createBlobJsonStore } = require('./blob-json-store.cjs');
+const { createD1StateClient } = require('./d1-state-client.cjs');
 
 const ACTORS = new Set(['Рустам', 'Диана']);
 const APP_STATE_FIELD = '__rudi_app_state';
+const AUTH_NAMESPACE = 'rudi-browser-auth-v1';
 
 function normalizeActor(value) {
   const actor = String(value || '').trim();
@@ -62,26 +63,21 @@ function actorSlug(actor) {
   return normalizeActor(actor) === 'Диана' ? 'diana' : 'rustam';
 }
 
-function authBlobStore(options = {}) {
-  if (options.authBlobStore) return options.authBlobStore;
-  return createBlobJsonStore({
-    prefix: 'rudi-state-v2',
+function authD1Client(options = {}) {
+  return options.d1Client || createD1StateClient({
     env: options.env || process.env,
-    ...(options.blobClient ? { client: options.blobClient } : {}),
-    ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+    fetchImpl: options.fetchImpl || globalThis.fetch,
+    baseUrl: options.d1BaseUrl,
+    secret: options.d1Secret,
+    timeoutMs: options.timeoutMs,
   });
-}
-
-function authBlobKey(actor) {
-  const safeActor = normalizeActor(actor);
-  if (!safeActor) throw new Error('rudi-access-denied');
-  return 'auth/' + actorSlug(safeActor);
 }
 
 async function readRawRecord(actor, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
-  const row = await authBlobStore(options).read(authBlobKey(safeActor));
+  const record = await authD1Client(options).getRecord(AUTH_NAMESPACE, safeActor);
+  const row = record?.value;
   return row && typeof row === 'object' && !Array.isArray(row) ? row : null;
 }
 
@@ -89,12 +85,19 @@ async function readAuthRecord(actor, options = {}) {
   return normalizeRow(await readRawRecord(actor, options));
 }
 
-async function writeRawBlobRecord(actor, row, options = {}) {
+async function writeRawRecord(actor, row, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
   const clean = row && typeof row === 'object' && !Array.isArray(row) ? { ...row, actor: safeActor } : null;
   if (!clean) throw new Error('rudi-auth-db-unavailable');
-  await authBlobStore(options).write(authBlobKey(safeActor), clean);
+  await authD1Client(options).setRecord({
+    namespace: AUTH_NAMESPACE,
+    key: safeActor,
+    value: clean,
+    tags: ['rudi-auth'],
+    expires_at: null,
+    updated_at: String(clean.updated_at || new Date(options.now || Date.now()).toISOString()),
+  });
   return clean;
 }
 
@@ -116,7 +119,7 @@ async function writeAuthRecord(actor, value = {}, options = {}) {
     : normalizePasskeys(currentRaw?.passkeys);
   const updatedAt = String(value.updatedAt || new Date(options.now || Date.now()).toISOString());
 
-  const raw = await writeRawBlobRecord(safeActor, {
+  const raw = await writeRawRecord(safeActor, {
     actor: safeActor,
     pin_record: pinRecord,
     passkeys,
@@ -148,7 +151,7 @@ async function writeAppState(actor, key, value, options = {}) {
   appState[safeKey] = value;
   const updatedAt = new Date(options.now || Date.now()).toISOString();
 
-  await writeRawBlobRecord(safeActor, {
+  await writeRawRecord(safeActor, {
     actor: safeActor,
     pin_record: { ...currentPin, [APP_STATE_FIELD]: appState },
     passkeys: normalizePasskeys(currentRaw?.passkeys),
@@ -169,6 +172,7 @@ async function savePasskeys(actor, passkeys, options = {}) {
 }
 
 module.exports = {
+  AUTH_NAMESPACE,
   normalizeActor,
   normalizePinRecord,
   normalizePasskeys,
@@ -178,7 +182,7 @@ module.exports = {
   savePinRecord,
   APP_STATE_FIELD,
   readRawRecord,
-  writeRawBlobRecord,
+  writeRawRecord,
   readAppState,
   writeAppState,
   savePasskeys,
