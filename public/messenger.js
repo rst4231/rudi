@@ -453,12 +453,15 @@
 
   function setReply(row,payload){
     state.edit=null;
+    const privateSystem=payload?.system===true&&String(payload?.systemKind||'')==='cycle-advice';
     state.reply={
       id:String(row?.id||''),
       author:payload?.system===true?'RUDI':String(row?.sender||''),
-      text:String(payload?.text||'').trim()
-        ?String(payload.text).slice(0,240)
-        :(payload?.attachment?.kind==='photo'?'Фото':payload?.attachment?.kind==='voice'?'Голосовое сообщение':'Сообщение')
+      text:privateSystem
+        ?'Системная подсказка'
+        :String(payload?.text||'').trim()
+          ?String(payload.text).slice(0,240)
+          :(payload?.attachment?.kind==='photo'?'Фото':payload?.attachment?.kind==='voice'?'Голосовое сообщение':'Сообщение')
     };
     renderReplyDraft();
     document.getElementById('messengerInput')?.focus?.();
