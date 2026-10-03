@@ -13507,7 +13507,7 @@
         if(!currentActor||!appAccessReady) return;
         const force=manualRefreshRequested;
         const now=Date.now();
-        if(!force&&(now-lastResumeRefreshAt<20*1000||dataSyncFresh(20*1000))) return;
+        if(!force&&now-lastResumeRefreshAt<2*1000) return;
         if(currentConfig) renderDailyCompliment(currentConfig);
         if(resumeRefreshPromise) return resumeRefreshPromise;
 
@@ -13560,14 +13560,15 @@
         lastForegroundUiSyncAt=now;
         syncUiPreferencesFromServer();
       }
-      window.addEventListener('pageshow',event=>{
+      window.addEventListener('pageshow',()=>{
         ensureAppSurface();
         syncUiPreferencesAfterForeground();
-        if(event.persisted) refreshAfterResume();
+        refreshAfterResume();
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();
         syncUiPreferencesAfterForeground();
+        refreshAfterResume();
       });
       window.addEventListener('online',updateDataSettingsUi);
       window.addEventListener('offline',updateDataSettingsUi);
@@ -13583,7 +13584,7 @@
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
         }
-        if(hiddenAt&&Date.now()-hiddenAt>5*1000) refreshAfterResume();
+        if(hiddenAt) refreshAfterResume();
         hiddenAt=0;
       });
     })();
