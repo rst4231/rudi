@@ -19,6 +19,7 @@ const {
   addProducts,
   removeProduct,
   toggleProductChecked,
+  setProductCheckedSelection,
   markCheckedProductsBought,
   markProductBought,
   clearProducts,
@@ -3938,7 +3939,9 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'toggle') {
-        const state = await toggleProductChecked(body.id, options);
+        const state = Array.isArray(body.checkedIds)
+          ? await setProductCheckedSelection(body.checkedIds, options)
+          : await toggleProductChecked(body.id, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
