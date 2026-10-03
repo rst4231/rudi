@@ -1782,22 +1782,32 @@ async function handleTickTick(req, res, action, options = {}) {
           icon: '✅',
           targetTab: 'schedule',
         }, options);
-
-        const scoreActors = responsibleActor ? [responsibleActor] : ['Рустам', 'Диана'];
-        const scoreDate = moscowDateKey(options.now || Date.now());
-        for (const scoreActor of scoreActors) {
-          await awardScoreSafe(scoreActor, 20, {
-            label: responsibleActor ? 'Задача' : 'Общая задача',
-            detail: String(task?.title || 'Совместное дело').trim(),
-            icon: '✅',
-            dedupeKey: 'score:task:' + taskId + ':' + scoreDate + ':' + scoreActor,
-          }, options);
-        }
       }
+
+      // Award on every completion request, not only the first one. awardScore is
+      // idempotent by dedupeKey, so a retry can repair a reward write that failed
+      // after TickTick had already accepted the completion.
+      const scoreActors = responsibleActor ? [responsibleActor] : ['Рустам', 'Диана'];
+      const completedAt = String(task?.completedTime || '').trim();
+      const scoreDate = completedAt ? moscowDateKey(completedAt) : moscowDateKey(options.now || Date.now());
+      let scoreState = null;
+      for (const scoreActor of scoreActors) {
+        const award = await awardScore(scoreActor, 20, {
+          label: responsibleActor ? 'Задача' : 'Общая задача',
+          detail: String(task?.title || 'Совместное дело').trim(),
+          icon: '✅',
+          dedupeKey: 'score:task:' + taskId + ':' + scoreDate + ':' + scoreActor,
+        }, options);
+        scoreState = award?.state || scoreState;
+        scheduleShopUnlockNotification(scoreActor, award?.unlockedRewards, options);
+      }
+
       const backupToken = await refreshBackupToken(previousSnapshot, options);
       return res.status(200).json({
         ok:true,connected:true,writable:true,taskId,completed:true,
-        title:String(task?.title||'').trim(),backupToken,
+        title:String(task?.title||'').trim(),
+        ...(scoreState ? {score:scoreView(scoreState,{now:options.now||Date.now()})} : {}),
+        backupToken,
       });
     } catch (error) {
       const code = String(error?.message || error);
