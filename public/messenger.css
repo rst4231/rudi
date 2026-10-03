@@ -1148,3 +1148,22 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   margin:0;
   z-index:21;
 }
+
+/* RUDI v3.49 — attachment tray width + iPhone context menu stability */
+.messenger-attach-tray{
+  left:0;
+  right:0;
+  width:auto!important;
+  max-width:none!important;
+  min-width:0;
+  box-sizing:border-box;
+}
+@media(max-width:430px){
+  .messenger-attach-tray{
+    left:0;
+    right:0;
+    width:auto!important;
+    max-width:none!important;
+  }
+}
+
