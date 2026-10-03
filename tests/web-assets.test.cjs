@@ -61,16 +61,17 @@ test('connectivity warning clears after confirmed API recovery',()=>{
 });
 
 
-test('read-only sections use a fast local snapshot while the live API refresh continues',()=>{
+test('read-only sections prefer live API online and use snapshots only as fallback',()=>{
   const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
   for(const route of ['/api/feed','/api/shared-album','/api/ticktick/today','/api/ticktick/calendar','/api/work-calendar']){
     assert.ok(pwa.includes("'" + route + "'"),'missing snapshot route '+route);
   }
-  assert.match(pwa,/const RUDI_SNAPSHOT_FAST_FALLBACK_MS=450/);
   assert.match(pwa,/async function snapshotAwareFetch\(input,init,snapshotKey\)/);
-  assert.match(pwa,/Promise\.race\(\[network,cacheCandidate\]\)/);
-  assert.match(pwa,/if\(winner\.kind==='cache'\)[\s\S]*?network\.then\(result=>/);
-  assert.match(pwa,/if\(snapshotKey&&navigator\.onLine!==false\)\{\s*return snapshotAwareFetch\(input,init,snapshotKey\)/);
+  assert.match(pwa,/if\(navigator\.onLine===false\)[\s\S]*?snapshotFallback\(snapshotKey\)/);
+  assert.match(pwa,/const response=await nativeFetch\(input,init\)/);
+  assert.match(pwa,/catch\(error\)\{[\s\S]*?snapshotFallback\(snapshotKey\)/);
+  assert.doesNotMatch(pwa,/Promise\.race\(\[network,cacheCandidate\]\)/);
+  assert.doesNotMatch(pwa,/if\(winner\.kind==='cache'\)/);
   assert.match(pwa,/'ui-preferences'/);
 });
 
