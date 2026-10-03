@@ -214,7 +214,7 @@ function statusForError(error) {
   if (code === 'rudi-pin-rate-limited') return 429;
   if (code === 'rudi-pin-not-configured') return 409;
   if (code === 'rudi-pin-format') return 400;
-  if (code === 'rudi-auth-db-unavailable') return 503;
+  if (code === 'rudi-auth-db-unavailable' || code === 'rudi-storage-migrating' || code === 'rudi-blob-unavailable') return 503;
   if (code === 'rudi-passkey-not-configured') return 409;
   if (code === 'rudi-passkey-challenge-invalid' || code === 'rudi-passkey-origin-mismatch' || code === 'rudi-passkey-credential-not-found' || code === 'rudi-passkey-registration-failed' || code === 'rudi-passkey-registration-invalid' || code === 'rudi-passkey-authentication-failed') return 400;
   if (code === 'rudi-passkey-host-invalid' || code === 'rudi-passkey-origin-invalid') return 400;
