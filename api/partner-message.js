@@ -369,27 +369,11 @@ async function sendMessengerNotificationToPartner(actor, messageId, notification
     url:'/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1',
     ...(avatarUrl?{icon:avatarUrl}:{}),
   },options);
-  let telegramFallback=null;
-  if(!result?.sent){
-    try{
-      const recipients=await readRecipients(options);
-      const chatId=Number(recipients?.[recipientActor]||0);
-      if(Number.isInteger(chatId)&&chatId>0){
-        const url=new URL(appUrlForTab('messenger',options));
-        if(id) url.searchParams.set('message',id);
-        url.searchParams.set('fresh','1');
-        const verb=actor==='Диана'?'прислала':'прислал';
-        telegramFallback=await telegramSendMessage(
-          chatId,
-          actor+' '+verb+' сообщение'+(preview?'\n'+preview:'')+'\n'+url.toString(),
-          {...options,parseMode:false}
-        );
-      }
-    }catch(error){
-      telegramFallback={sent:false,error:String(error?.message||error)};
-    }
-  }
-  return {...result,recipient:recipientActor,telegramFallback};
+  return {
+    ...result,
+    recipient:recipientActor,
+    telegramFallback:{sent:false,reason:'messenger-telegram-disabled'}
+  };
 }
 
 async function dismissMessengerNotificationForPartner(actor,messageId,options={}){
