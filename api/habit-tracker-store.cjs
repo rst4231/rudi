@@ -1,6 +1,5 @@
 const crypto=require('node:crypto');
 const {readAppState,writeAppState}=require('./rudi-auth-db.cjs');
-const {createMigratingStateStore}=require('./vercel-persistent-json.cjs');
 
 const ACTORS=new Set(['Рустам','Диана']);
 const DB_KEY='habits:v1';
@@ -97,19 +96,11 @@ function legacyDbOf(actor,options={}){
   const dbOptions=options.dbOptions||{};
   return{read:()=>readAppState(who,DB_KEY,dbOptions),write:(value)=>writeAppState(who,DB_KEY,value,dbOptions)};
 }
-function actorSlug(actor){return cleanActor(actor)==='Рустам'?'rustam':'diana'}
 function stateStoreOf(actor,options={}){
   const who=cleanActor(actor);
   if(options.stateStore&&typeof options.stateStore.read==='function'&&typeof options.stateStore.write==='function')return options.stateStore;
   if(options.db&&typeof options.db.read==='function'&&typeof options.db.write==='function')return options.db;
-  const legacy=legacyDbOf(who,options);
-  return createMigratingStateStore({
-    key:'habits/'+actorSlug(who),
-    ...(options.blobStore?{blobStore:options.blobStore}:{}),
-    legacyRead:()=>legacy.read(),
-    legacyWrite:(value)=>legacy.write(value),
-    onWarn:(event,error)=>{try{console.warn(event,'habits',who,String(error?.detail||error?.message||error))}catch(_){}},
-  });
+  return legacyDbOf(who,options);
 }
 function enqueue(actor,task){const who=cleanActor(actor),tail=tails.get(who)||Promise.resolve(),run=tail.then(task,task);tails.set(who,run.catch(()=>{}));return run}
 async function readHabits(actor,options={}){const who=cleanActor(actor);return normalizeState(await stateStoreOf(who,options).read(),who)}
