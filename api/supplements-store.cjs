@@ -1,6 +1,5 @@
 const crypto=require('node:crypto');
 const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
-const {createMigratingStateStore}=require('./vercel-persistent-json.cjs');
 
 const NAMESPACE='rudi-supplements-v1';
 const TTL_SECONDS=315360000;
@@ -26,7 +25,6 @@ function cleanIngredients(v){
   return out;
 }
 function keyFor(a){return 'supplements:'+cleanActor(a)}
-function actorSlug(a){return cleanActor(a)==='Рустам'?'rustam':'diana'}
 function legacyCacheOf(o={}){return o.supplementsCache||o.cache||createStrictRuntimeCache({namespace:NAMESPACE,confirmWrites:false,...(o.cacheOptions||{})})}
 function stateStoreOf(actor,o={}){
   const who=cleanActor(actor);
@@ -36,14 +34,8 @@ function stateStoreOf(actor,o={}){
     return{read:()=>explicit.get(key),write:async(value)=>{await explicit.set(key,value,{ttl:TTL_SECONDS,tags:['rudi-supplements'],name:key});return value}};
   }
   if(o.stateStore&&typeof o.stateStore.read==='function'&&typeof o.stateStore.write==='function')return o.stateStore;
-  const legacy=legacyCacheOf(o),key=keyFor(who);
-  return createMigratingStateStore({
-    key:'supplements/'+actorSlug(who),
-    ...(o.blobStore?{blobStore:o.blobStore}:{}),
-    legacyRead:()=>legacy.get(key),
-    legacyWrite:async(value)=>{await legacy.set(key,value,{ttl:TTL_SECONDS,tags:['rudi-supplements'],name:key});return value},
-    onWarn:(event,error)=>{try{console.warn(event,'supplements',who,String(error?.detail||error?.message||error))}catch(_){}},
-  });
+  const cache=legacyCacheOf(o),key=keyFor(who);
+  return{read:()=>cache.get(key),write:async(value)=>{await cache.set(key,value,{ttl:TTL_SECONDS,tags:['rudi-supplements'],name:key});return value}};
 }
 function moscowDateKey(now=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now))}
 function isoOrEmpty(v){if(!v)return'';const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toISOString()}
