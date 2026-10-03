@@ -601,7 +601,12 @@
     const cancel=()=>{pressed=false;if(timer){clearTimeout(timer);timer=0}};
     article.addEventListener('pointerdown',event=>{
       const interactive=event.target.closest('a,button');
-      if(interactive&&!interactive.classList.contains('messenger-photo-button')) return;
+      const longPressTarget=interactive&&(
+        interactive.classList.contains('messenger-photo-button')
+        ||interactive.classList.contains('messenger-shared-card')
+        ||interactive.classList.contains('messenger-recipe-card')
+      );
+      if(interactive&&!longPressTarget) return;
       if(event.pointerType==='mouse'&&event.button!==0) return;
       pressed=true;
       startX=Number(event.clientX||0);
@@ -947,9 +952,434 @@
     });
   }
 
+  function attachmentClickWasLongPress(button){
+    const article=button?.closest?.('.messenger-message');
+    const stamp=Number(article?.dataset?.longPressedAt||0);
+    return Boolean(stamp&&Date.now()-stamp<700);
+  }
+
+  function navigateToAttachmentSource(attachment){
+    const source=String(attachment?.source||'');
+    const sourceId=String(attachment?.sourceId||'').trim();
+    if(source==='smart-save'){
+      const url=String(attachment?.url||'').trim();
+      if(url){openSafeLink(url);return}
+      if(typeof window.RUDI_NAVIGATE_TO_TAB==='function') window.RUDI_NAVIGATE_TO_TAB('smart-saves',{scroll:true,item:sourceId});
+      return;
+    }
+    if(source==='wishlist'){
+      if(typeof window.RUDI_NAVIGATE_TO_TAB==='function') window.RUDI_NAVIGATE_TO_TAB('wishlist',{scroll:true,item:sourceId});
+    }
+  }
+
+  function appendSharedItemAttachment(bubble,attachment){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='messenger-shared-card';
+    const icon=document.createElement('span');
+    icon.className='messenger-shared-card-icon';
+    icon.textContent=String(attachment?.icon||'🔖');
+    const copy=document.createElement('span');
+    copy.className='messenger-shared-card-copy';
+    const label=document.createElement('small');
+    label.textContent=String(attachment?.label||'Вложение');
+    const title=document.createElement('strong');
+    title.textContent=String(attachment?.title||'Без названия');
+    copy.append(label,title);
+    const description=String(attachment?.description||'').trim();
+    if(description){
+      const desc=document.createElement('span');
+      desc.className='messenger-shared-card-description';
+      desc.textContent=description;
+      copy.appendChild(desc);
+    }
+    const arrow=document.createElement('span');
+    arrow.className='messenger-shared-card-arrow';
+    arrow.textContent='›';
+    button.append(icon,copy,arrow);
+    button.addEventListener('click',event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      if(attachmentClickWasLongPress(button)) return;
+      navigateToAttachmentSource(attachment);
+    });
+    bubble.appendChild(button);
+  }
+
+  function recipeViewerSection(host,titleText){
+    const title=document.createElement('h4');
+    title.className='messenger-recipe-viewer-heading';
+    title.textContent=titleText;
+    host.appendChild(title);
+  }
+
+  function closeRecipeAttachmentViewer(){
+    const viewer=document.getElementById('messengerRecipeViewer');
+    if(!viewer) return;
+    viewer.classList.remove('is-open');
+    setTimeout(()=>viewer.remove(),180);
+  }
+
+  function openRecipeAttachmentViewer(attachment){
+    document.getElementById('messengerRecipeViewer')?.remove();
+    const viewer=document.createElement('div');
+    viewer.id='messengerRecipeViewer';
+    viewer.className='messenger-recipe-viewer';
+    viewer.setAttribute('role','dialog');
+    viewer.setAttribute('aria-modal','true');
+
+    const sheet=document.createElement('div');
+    sheet.className='messenger-recipe-viewer-sheet';
+    const head=document.createElement('div');
+    head.className='messenger-recipe-viewer-head';
+    const headCopy=document.createElement('div');
+    const eyebrow=document.createElement('span');
+    eyebrow.textContent='Сохранённый рецепт';
+    const title=document.createElement('h3');
+    title.textContent=String(attachment?.title||'Рецепт');
+    headCopy.append(eyebrow,title);
+    const close=document.createElement('button');
+    close.type='button';
+    close.setAttribute('aria-label','Закрыть рецепт');
+    close.textContent='×';
+    close.addEventListener('click',closeRecipeAttachmentViewer);
+    head.append(headCopy,close);
+
+    const body=document.createElement('div');
+    body.className='messenger-recipe-viewer-body';
+    const meta=document.createElement('div');
+    meta.className='messenger-recipe-viewer-meta';
+    if(Number(attachment?.timeMinutes)>0){
+      const time=document.createElement('span');
+      time.textContent='≈ '+Math.round(Number(attachment.timeMinutes))+' мин';
+      meta.appendChild(time);
+    }
+    if(String(attachment?.difficulty||'').trim()){
+      const difficulty=document.createElement('span');
+      difficulty.textContent=String(attachment.difficulty);
+      meta.appendChild(difficulty);
+    }
+    if(meta.childNodes.length) body.appendChild(meta);
+
+    const summary=String(attachment?.summary||'').trim();
+    if(summary){
+      const paragraph=document.createElement('p');
+      paragraph.className='messenger-recipe-viewer-summary';
+      paragraph.textContent=summary;
+      body.appendChild(paragraph);
+    }
+
+    const missing=(Array.isArray(attachment?.missing)?attachment.missing:[]).filter(Boolean);
+    if(missing.length){
+      const box=document.createElement('div');
+      box.className='messenger-recipe-viewer-missing';
+      const strong=document.createElement('strong');
+      strong.textContent='Нужно докупить';
+      const value=document.createElement('span');
+      value.textContent=missing.join(', ');
+      box.append(strong,value);
+      body.appendChild(box);
+    }
+
+    const ingredients=Array.isArray(attachment?.ingredients)?attachment.ingredients:[];
+    if(ingredients.length){
+      recipeViewerSection(body,'Ингредиенты');
+      const list=document.createElement('div');
+      list.className='messenger-recipe-viewer-ingredients';
+      ingredients.forEach(item=>{
+        const row=document.createElement('div');
+        const name=document.createElement('span');
+        name.textContent=String(item?.name||'');
+        const amount=document.createElement('strong');
+        amount.textContent=String(item?.amount||'');
+        row.append(name,amount);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+    }
+
+    const steps=(Array.isArray(attachment?.steps)?attachment.steps:[]).filter(Boolean);
+    if(steps.length){
+      recipeViewerSection(body,'Как приготовить');
+      const list=document.createElement('ol');
+      list.className='messenger-recipe-viewer-steps';
+      steps.forEach(value=>{
+        const li=document.createElement('li');
+        li.textContent=String(value);
+        list.appendChild(li);
+      });
+      body.appendChild(list);
+    }
+
+    const tips=(Array.isArray(attachment?.tips)?attachment.tips:[]).filter(Boolean);
+    if(tips.length){
+      recipeViewerSection(body,'Совет');
+      const tip=document.createElement('p');
+      tip.className='messenger-recipe-viewer-tip';
+      tip.textContent=tips.join(' ');
+      body.appendChild(tip);
+    }
+
+    sheet.append(head,body);
+    viewer.appendChild(sheet);
+    viewer.addEventListener('click',event=>{if(event.target===viewer)closeRecipeAttachmentViewer()});
+    document.body.appendChild(viewer);
+    requestAnimationFrame(()=>viewer.classList.add('is-open'));
+  }
+
+  function appendRecipeAttachment(bubble,attachment){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='messenger-recipe-card';
+    const icon=document.createElement('span');
+    icon.className='messenger-recipe-card-icon';
+    icon.textContent='🍳';
+    const copy=document.createElement('span');
+    copy.className='messenger-recipe-card-copy';
+    const label=document.createElement('small');
+    label.textContent='Сохранённый рецепт';
+    const title=document.createElement('strong');
+    title.textContent=String(attachment?.title||'Рецепт');
+    copy.append(label,title);
+    const summary=String(attachment?.summary||'').trim();
+    if(summary){
+      const desc=document.createElement('span');
+      desc.textContent=summary;
+      copy.appendChild(desc);
+    }
+    const meta=document.createElement('span');
+    meta.className='messenger-recipe-card-meta';
+    meta.textContent=(Number(attachment?.timeMinutes)>0?'≈ '+Math.round(Number(attachment.timeMinutes))+' мин':'')+(String(attachment?.difficulty||'').trim()?' · '+String(attachment.difficulty):'');
+    if(meta.textContent.trim()) copy.appendChild(meta);
+    const arrow=document.createElement('span');
+    arrow.className='messenger-shared-card-arrow';
+    arrow.textContent='›';
+    button.append(icon,copy,arrow);
+    button.addEventListener('click',event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      if(attachmentClickWasLongPress(button)) return;
+      openRecipeAttachmentViewer(attachment);
+    });
+    bubble.appendChild(button);
+  }
+
+  function compactAttachmentText(value,max=240){
+    return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);
+  }
+
+  function recipeAttachmentFromSaved(item){
+    const recipe=item?.payload&&typeof item.payload==='object'?item.payload:{};
+    return {
+      kind:'recipe',
+      source:'saved-recipe',
+      sourceId:compactAttachmentText(item?.id,120),
+      savedBy:compactAttachmentText(item?.savedBy,40),
+      title:compactAttachmentText(recipe?.title||'Рецепт',180),
+      summary:compactAttachmentText(recipe?.summary,700),
+      timeMinutes:Math.max(0,Math.min(480,Math.round(Number(recipe?.timeMinutes)||0))),
+      difficulty:compactAttachmentText(recipe?.difficulty,80),
+      missing:(Array.isArray(recipe?.missing)?recipe.missing:[]).slice(0,24).map(value=>compactAttachmentText(value,140)).filter(Boolean),
+      ingredients:(Array.isArray(recipe?.ingredients)?recipe.ingredients:[]).slice(0,48).map(value=>({
+        name:compactAttachmentText(value?.name,180),
+        amount:compactAttachmentText(value?.amount,120)
+      })).filter(value=>value.name),
+      steps:(Array.isArray(recipe?.steps)?recipe.steps:[]).slice(0,24).map(value=>compactAttachmentText(value,700)).filter(Boolean),
+      tips:(Array.isArray(recipe?.tips)?recipe.tips:[]).slice(0,12).map(value=>compactAttachmentText(value,500)).filter(Boolean)
+    };
+  }
+
+  function smartSaveAttachment(item){
+    return {
+      kind:'shared-item',
+      source:'smart-save',
+      sourceId:compactAttachmentText(item?.id,120),
+      icon:'🔖',
+      label:'Сохранённое',
+      title:compactAttachmentText(item?.title||'Сохранение',180),
+      description:compactAttachmentText(item?.description||item?.rawText,420),
+      category:compactAttachmentText(item?.category,80),
+      url:compactAttachmentText(item?.url,1200),
+      imageUrl:compactAttachmentText(item?.imageUrl,1200),
+      actor:compactAttachmentText(item?.actor,40)
+    };
+  }
+
+  function wishlistAttachment(item){
+    return {
+      kind:'shared-item',
+      source:'wishlist',
+      sourceId:compactAttachmentText(item?.id,120),
+      icon:'🎁',
+      label:'Вишлист',
+      title:compactAttachmentText(item?.text||'Желание',220),
+      description:'',
+      url:compactAttachmentText(item?.url,1200),
+      owner:compactAttachmentText(item?.owner,40)
+    };
+  }
+
+  async function loadAttachmentPickerRows(type){
+    if(type==='smart-save'){
+      const data=await api('smart-saves',{operation:'list'});
+      return (Array.isArray(data?.items)?data.items:[])
+        .slice()
+        .sort((a,b)=>Date.parse(b?.createdAt||0)-Date.parse(a?.createdAt||0))
+        .map(item=>({
+          id:String(item?.id||''),
+          title:compactAttachmentText(item?.title||'Сохранение',180),
+          subtitle:[compactAttachmentText(item?.category,60),compactAttachmentText(item?.actor,40)].filter(Boolean).join(' · '),
+          icon:'🔖',
+          attachment:smartSaveAttachment(item),
+          preview:'🔖 '+compactAttachmentText(item?.title||'Сохранение',90)
+        }));
+    }
+    if(type==='wishlist'){
+      const data=await api('wishlist',{operation:'list'});
+      return (Array.isArray(data?.items)?data.items:[])
+        .filter(item=>String(item?.owner||'')===state.actor&&!item?.done)
+        .map(item=>({
+          id:String(item?.id||''),
+          title:compactAttachmentText(item?.text||'Желание',220),
+          subtitle:item?.url?'Есть ссылка':'Мой вишлист',
+          icon:'🎁',
+          attachment:wishlistAttachment(item),
+          preview:'🎁 '+compactAttachmentText(item?.text||'Желание',90)
+        }));
+    }
+    if(type==='recipe'){
+      const data=await api('saves',{operation:'list'});
+      return (Array.isArray(data?.items)?data.items:[])
+        .filter(item=>String(item?.type||'')==='recipe'&&item?.payload)
+        .slice()
+        .sort((a,b)=>Date.parse(b?.createdAt||0)-Date.parse(a?.createdAt||0))
+        .map(item=>{
+          const attachment=recipeAttachmentFromSaved(item);
+          return {
+            id:String(item?.id||''),
+            title:attachment.title,
+            subtitle:[attachment.timeMinutes?'≈ '+attachment.timeMinutes+' мин':'',attachment.difficulty,attachment.savedBy].filter(Boolean).join(' · '),
+            icon:'🍳',
+            attachment,
+            preview:'🍳 '+compactAttachmentText(attachment.title,90)
+          };
+        });
+    }
+    return [];
+  }
+
+  function closeAttachmentPicker(){
+    const picker=document.getElementById('messengerAttachmentPicker');
+    if(!picker) return;
+    picker.classList.remove('is-open');
+    setTimeout(()=>picker.remove(),160);
+  }
+
+  async function openAttachmentPicker(type){
+    closeAttachmentPicker();
+    const titles={
+      'smart-save':'Сохранённые',
+      wishlist:'Мой вишлист',
+      recipe:'Сохранённые рецепты'
+    };
+    const picker=document.createElement('div');
+    picker.id='messengerAttachmentPicker';
+    picker.className='messenger-attachment-picker';
+    picker.setAttribute('role','dialog');
+    picker.setAttribute('aria-modal','true');
+
+    const sheet=document.createElement('div');
+    sheet.className='messenger-attachment-picker-sheet';
+    const head=document.createElement('div');
+    head.className='messenger-attachment-picker-head';
+    const title=document.createElement('strong');
+    title.textContent=titles[type]||'Выбрать вложение';
+    const close=document.createElement('button');
+    close.type='button';
+    close.textContent='×';
+    close.setAttribute('aria-label','Закрыть');
+    close.addEventListener('click',closeAttachmentPicker);
+    head.append(title,close);
+
+    const list=document.createElement('div');
+    list.className='messenger-attachment-picker-list';
+    const loading=document.createElement('div');
+    loading.className='messenger-attachment-picker-empty';
+    loading.textContent='Загружаю…';
+    list.appendChild(loading);
+    sheet.append(head,list);
+    picker.appendChild(sheet);
+    picker.addEventListener('click',event=>{if(event.target===picker)closeAttachmentPicker()});
+    document.body.appendChild(picker);
+    requestAnimationFrame(()=>picker.classList.add('is-open'));
+
+    try{
+      const rows=await loadAttachmentPickerRows(type);
+      if(!picker.isConnected) return;
+      list.replaceChildren();
+      if(!rows.length){
+        const empty=document.createElement('div');
+        empty.className='messenger-attachment-picker-empty';
+        empty.textContent=type==='wishlist'
+          ?'В твоём вишлисте нет активных позиций.'
+          :type==='recipe'
+            ?'Сохранённых рецептов пока нет.'
+            :'В «Сохранённых» пока пусто.';
+        list.appendChild(empty);
+        return;
+      }
+      rows.forEach(row=>{
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='messenger-attachment-picker-row';
+        const icon=document.createElement('span');
+        icon.className='messenger-attachment-picker-icon';
+        icon.textContent=row.icon;
+        const copy=document.createElement('span');
+        const strong=document.createElement('strong');
+        strong.textContent=row.title;
+        copy.appendChild(strong);
+        if(row.subtitle){
+          const small=document.createElement('small');
+          small.textContent=row.subtitle;
+          copy.appendChild(small);
+        }
+        const arrow=document.createElement('span');
+        arrow.className='messenger-attachment-picker-arrow';
+        arrow.textContent='›';
+        button.append(icon,copy,arrow);
+        button.addEventListener('click',async()=>{
+          if(button.disabled) return;
+          button.disabled=true;
+          try{
+            await sendAttachmentMessage(row.attachment,row.preview);
+            state.reply=null;
+            renderReplyDraft();
+            closeAttachmentPicker();
+            try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            button.disabled=false;
+            const status=document.getElementById('messengerStatus');
+            if(status){status.hidden=false;status.textContent='Не удалось отправить вложение.'}
+            try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }
+        });
+        list.appendChild(button);
+      });
+    }catch(_){
+      list.replaceChildren();
+      const empty=document.createElement('div');
+      empty.className='messenger-attachment-picker-empty';
+      empty.textContent='Не удалось загрузить список.';
+      list.appendChild(empty);
+    }
+  }
+
   function appendMessageAttachment(bubble,attachment){
     if(attachment?.kind==='photo') appendPhotoAttachment(bubble,attachment);
     if(attachment?.kind==='voice') appendVoiceAttachment(bubble,attachment);
+    if(attachment?.kind==='shared-item') appendSharedItemAttachment(bubble,attachment);
+    if(attachment?.kind==='recipe') appendRecipeAttachment(bubble,attachment);
   }
 
   function renderMessages({preserveScrollTop=null,forceBottom=false}={}){
@@ -1049,9 +1479,6 @@
         }else if(row.readAt){
           status.textContent='✓✓';
           status.title='Прочитано';
-        }else if(row.deliveredAt){
-          status.textContent='✓✓';
-          status.title='Доставлено';
         }else{
           status.textContent='✓';
           status.title='Отправлено';
@@ -1960,6 +2387,11 @@
           attachTray.hidden=true;
           if(starTray) starTray.hidden=true;
           photoInput?.click?.();
+        }else if(['smart-save','wishlist','recipe'].includes(type)){
+          attachTray.hidden=true;
+          if(starTray) starTray.hidden=true;
+          document.activeElement?.blur?.();
+          openAttachmentPicker(type);
         }else if(type==='stars'){
           attachTray.hidden=true;
           if(starTray) starTray.hidden=false;
