@@ -22,10 +22,10 @@ function cachedRead(cache,key){
 function saveCachedRead(cache,key,data){cache.set(key,{savedAt:Date.now(),data});return data}
 function clearReadCache(cache){cache.clear()}
 
-async function request(operation,payload={}){
+async function request(operation,payload={},options={}){
   const readOnly=operation==='list'||operation==='overview';
   const cacheKey=requestCacheKey(operation,payload);
-  if(readOnly){
+  if(readOnly&&!options.force){
     const cached=cachedRead(supplementReadCache,cacheKey);
     if(cached)return cached;
   }
@@ -36,10 +36,10 @@ async function request(operation,payload={}){
   clearReadCache(supplementReadCache);
   return data;
 }
-async function habitRequest(operation,payload={}){
+async function habitRequest(operation,payload={},options={}){
   const readOnly=operation==='list'||operation==='overview';
   const cacheKey=requestCacheKey(operation,payload);
-  if(readOnly){
+  if(readOnly&&!options.force){
     const cached=cachedRead(habitReadCache,cacheKey);
     if(cached)return cached;
   }
@@ -635,7 +635,7 @@ async function loadHomeTools({force=false}={}){
   if(homeToolsLoadedActor!==actor){applyCollapse(true);habitState={...habitState,collapsed:true};habitArchiveExpanded=false;}
   setStatus('Загружаю…');setHabitStatus('');
   homeToolsLoadPromise=(async()=>{
-    const [supplementsResult,habitsResult]=await Promise.allSettled([request('list'),habitRequest('list')]);
+    const [supplementsResult,habitsResult]=await Promise.allSettled([request('list',{}, {force}),habitRequest('list',{}, {force})]);
     if(supplementsResult.status==='fulfilled'){
       const data=supplementsResult.value;items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;renderProfileMeta();render();setStatus('');enrichExistingSupplementGuidance();
     }else{console.error('RUDI_SUPPLEMENTS_HOME_LOAD_ERROR',supplementsResult.reason);setStatus(errorText(supplementsResult.reason),true)}
@@ -672,6 +672,7 @@ window.RudiSupplementApp={
   showUndo,
   showActionUndo,
   loadHomeTools,
+  refresh:()=>loadHomeTools({force:true}),
 };
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindName,{once:true});else bindName();
 })();
