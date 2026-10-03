@@ -282,6 +282,9 @@ async function deleteMessengerMessage(actor,id,options={}){
     const current=normalizeMessage(raw);
     if(!current) throw new Error('messenger-message-not-found');
     if(current.sender!==owner) throw new Error('messenger-delete-owner-required');
+    if(Array.isArray(current.systemRecipients)&&current.systemRecipients.length){
+      throw new Error('messenger-delete-system-forbidden');
+    }
     await cache.delete('message:'+messageId).catch(()=>null);
     const index=await readIndex(options);
     await writeIndex(index.filter(item=>item.id!==messageId),options);
