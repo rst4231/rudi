@@ -4094,11 +4094,7 @@
           loadProducts({silent:true});
           Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>{
             if(item?.type==='saved-recipe') requestAnimationFrame(()=>requestAnimationFrame(()=>{
-              const section=document.querySelector('.kitchen-saved-recipes');
-              const body=document.getElementById('savedRecipesBody');
-              const toggle=document.querySelector('[data-saves-toggle="recipe"]');
-              if(section&&(section.classList.contains('is-collapsed')||body?.hidden)) toggle?.click();
-              section?.scrollIntoView({behavior:'smooth',block:'start'});
+              setKitchenView('saves',{scroll:true});
             }));
           });
         }
@@ -5215,17 +5211,6 @@
           selector:'#dailyQuestionTile',key:'daily-question',
           bodySelectors:['#dailyQuestionBody'],
           hostSelector:'.daily-question-head'
-        });
-        setupPersistentCollapsible({
-          selector:'#productsListCard',key:'kitchen-products-v2',
-          bodySelectors:['#productsListBody'],
-          hostSelector:'.kitchen-block-head'
-        });
-        setupPersistentCollapsible({
-          selector:'#recipeIdeasCard',key:'kitchen-recipes',
-          bodySelectors:['#recipeGeneratorBody'],
-          hostSelector:'.kitchen-block-head',
-          defaultCollapsed:true
         });
       }
 
@@ -12468,6 +12453,43 @@
         });
       }
 
+      let activeKitchenView='products';
+
+      function setKitchenView(view,{scroll=false}={}){
+        const next=['products','recipes','saves'].includes(String(view||''))?String(view):'products';
+        activeKitchenView=next;
+        document.querySelectorAll('[data-kitchen-view]').forEach(button=>{
+          const active=button.dataset.kitchenView===next;
+          button.setAttribute('aria-pressed',active?'true':'false');
+          button.classList.toggle('is-active',active);
+        });
+        document.querySelectorAll('[data-kitchen-panel]').forEach(panel=>{
+          const active=panel.dataset.kitchenPanel===next;
+          panel.hidden=!active;
+          panel.setAttribute('aria-hidden',active?'false':'true');
+        });
+        if(next==='saves'){
+          const list=document.getElementById('savedRecipesList');
+          if(!list?.children?.length) Promise.resolve(window.RUDI_SAVES?.load?.()).catch(()=>{});
+        }
+        if(scroll){
+          const panel=document.querySelector('[data-kitchen-panel="'+next+'"]');
+          requestAnimationFrame(()=>panel?.scrollIntoView({behavior:'smooth',block:'start'}));
+        }
+      }
+
+      function setupKitchenSwitcher(){
+        const switcher=document.getElementById('kitchenSwitcher');
+        if(!switcher) return;
+        switcher.querySelectorAll('[data-kitchen-view]').forEach(button=>{
+          button.addEventListener('click',()=>{
+            setKitchenView(button.dataset.kitchenView);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+        setKitchenView(activeKitchenView);
+      }
+
       function setupProducts(){
         const form=document.getElementById('productsForm');
         const input=document.getElementById('productsInput');
@@ -13388,6 +13410,7 @@
         currentConfig=config;
         if(config?.weather) loadWeather(config.weather).catch(()=>{});
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
+        setupKitchenSwitcher();
         setupProducts();
         setupFastingTracker();
         startFastingHomeTicker();
