@@ -1916,7 +1916,7 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','dates','for-di','score','settings','smart-saves','car','messenger'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','supplements','dates','for-di','score','settings','smart-saves','car','messenger'];
 
       function routeFromLocation(){
         try{
@@ -2045,6 +2045,7 @@
         if(tab==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
         if(tab==='car') Promise.resolve(window.RUDI_CAR?.refresh?.()).catch(()=>{});
         if(tab==='fasting') loadFastingTracker({silent:true});
+        if(tab==='habits'||tab==='supplements') Promise.resolve(window.RudiSupplementApp?.loadHomeTools?.({force:false})).catch(()=>{});
         if(tab==='score'){
           const modal=ensureScoreModal();
           const actor=String(item||scoreModalActor||currentActor||'').trim();
@@ -2200,6 +2201,18 @@
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
+        [['habitProfileButton','habits'],['supplementProfileButton','supplements']].forEach(([buttonId,tab])=>{
+          const button=document.getElementById(buttonId);
+          if(!button||button.dataset.bound==='1') return;
+          button.dataset.bound='1';
+          button.addEventListener('click',()=>{navigateToAppTab(tab,{scroll:true});try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
+        });
+        [['habitBackButton','habits'],['supplementBackButton','supplements']].forEach(([buttonId,tab])=>{
+          const button=document.getElementById(buttonId);
+          if(!button||button.dataset.bound==='1') return;
+          button.dataset.bound='1';
+          button.addEventListener('click',()=>{appTabScroll[tab]=0;navigateToAppTab('home',{scroll:true});try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
+        });
 
         const initial=routeFromLocation();
         const initialTab=requestedAppTab||initial.tab||'home';
@@ -13592,6 +13605,8 @@
             tabTasks.push(wishlistRequest('list').then(renderWishlist));
           }else if(currentAppTab==='fasting'){
             tabTasks.push(loadFastingTracker({silent:true}));
+          }else if(currentAppTab==='habits'||currentAppTab==='supplements'){
+            tabTasks.push(window.RudiSupplementApp?.loadHomeTools?.({force}));
           }else if(currentAppTab==='messenger'){
             if(force) tabTasks.push(window.RUDI_MESSENGER?.refresh?.());
           }else if(currentAppTab==='car'){
