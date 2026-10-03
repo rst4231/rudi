@@ -13552,13 +13552,22 @@
         return resumeRefreshPromise;
       }
 
+      let lastForegroundUiSyncAt=0;
+      function syncUiPreferencesAfterForeground(){
+        if(!appAccessReady||!currentActor) return;
+        const now=Date.now();
+        if(now-lastForegroundUiSyncAt<15*1000) return;
+        lastForegroundUiSyncAt=now;
+        syncUiPreferencesFromServer();
+      }
       window.addEventListener('pageshow',event=>{
         ensureAppSurface();
+        syncUiPreferencesAfterForeground();
         if(event.persisted) refreshAfterResume();
       });
       window.addEventListener('focus',()=>{
         ensureAppSurface();
-        if(appAccessReady&&currentActor) syncUiPreferencesFromServer();
+        syncUiPreferencesAfterForeground();
       });
       window.addEventListener('online',updateDataSettingsUi);
       window.addEventListener('offline',updateDataSettingsUi);
@@ -13569,7 +13578,7 @@
           return;
         }
         ensureAppSurface();
-        if(appAccessReady&&currentActor) syncUiPreferencesFromServer();
+        syncUiPreferencesAfterForeground();
         if(appAccessReady&&currentActor&&currentAppTab==='products'){
           loadProducts({silent:true});
           scheduleProductsRefresh(15000);
