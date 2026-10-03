@@ -379,8 +379,15 @@
     };
   }
 
+  function rowVisibleForActor(row,actor=state.actor){
+    const viewer=String(actor||'').trim();
+    if(!row||!viewer) return false;
+    const recipients=Array.isArray(row.systemRecipients)?row.systemRecipients:[];
+    return !recipients.length||recipients.includes(viewer);
+  }
+
   function mergePendingRows(serverRows){
-    const rows=Array.isArray(serverRows)?serverRows:[];
+    const rows=(Array.isArray(serverRows)?serverRows:[]).filter(row=>rowVisibleForActor(row));
     const serverClientIds=new Set(rows.map(row=>String(row?.clientId||'')).filter(Boolean));
     const outbox=readMessengerOutbox();
     const remaining=outbox.filter(entry=>!serverClientIds.has(String(entry.clientId||'')));
@@ -1973,8 +1980,10 @@
             keyVersions:entry.keyVersions,
             preview:entry.preview,
             avatarUrl:entry.avatarUrl,
+            cycleAdviceEligible:entry.cycleAdviceEligible===true,
           });
           reconcileSentMessage(entry,result?.message);
+          if(result?.cycleAdviceCreated) setTimeout(()=>syncLiveMessages(),0);
         }catch(error){
           upsertMessengerOutbox({...entry,failed:true});
           state.rows=state.rows.map(row=>row.clientId===entry.clientId?{...row,_pending:true,_failed:true}:row);
@@ -2275,6 +2284,7 @@
           keyVersions,
           preview:text.slice(0,120),
           avatarUrl:selfAvatarUrl(),
+          cycleAdviceEligible:state.actor==='Рустам',
           createdAt,
           failed:false,
         };
@@ -2303,8 +2313,10 @@
             keyVersions,
             preview:entry.preview,
             avatarUrl:entry.avatarUrl,
+            cycleAdviceEligible:entry.cycleAdviceEligible===true,
           });
           reconcileSentMessage(entry,result?.message);
+          if(result?.cycleAdviceCreated) setTimeout(()=>syncLiveMessages(),0);
           if(result?.message?.id) setTimeout(()=>silentCorrectSentMessage(result.message.id,payload),0);
           try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(error){
