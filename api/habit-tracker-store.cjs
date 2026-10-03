@@ -1,5 +1,6 @@
 const crypto=require('node:crypto');
 const {readAppState,writeAppState}=require('./rudi-auth-db.cjs');
+const {createMigratingStateStore}=require('./vercel-persistent-json.cjs');
 
 const ACTORS=new Set(['Рустам','Диана']);
 const DB_KEY='habits:v1';
@@ -90,17 +91,31 @@ function normalizeState(value,actor){
     collapsed:Boolean(source.collapsed),updatedAt:isoOrEmpty(source.updatedAt)
   };
 }
-function dbOf(actor,options={}){
+function legacyDbOf(actor,options={}){
   const who=cleanActor(actor);
   if(options.db&&typeof options.db.read==='function'&&typeof options.db.write==='function')return options.db;
   const dbOptions=options.dbOptions||{};
   return{read:()=>readAppState(who,DB_KEY,dbOptions),write:(value)=>writeAppState(who,DB_KEY,value,dbOptions)};
 }
+function actorSlug(actor){return cleanActor(actor)==='Рустам'?'rustam':'diana'}
+function stateStoreOf(actor,options={}){
+  const who=cleanActor(actor);
+  if(options.stateStore&&typeof options.stateStore.read==='function'&&typeof options.stateStore.write==='function')return options.stateStore;
+  if(options.db&&typeof options.db.read==='function'&&typeof options.db.write==='function')return options.db;
+  const legacy=legacyDbOf(who,options);
+  return createMigratingStateStore({
+    key:'habits/'+actorSlug(who),
+    ...(options.blobStore?{blobStore:options.blobStore}:{}),
+    legacyRead:()=>legacy.read(),
+    legacyWrite:(value)=>legacy.write(value),
+    onWarn:(event,error)=>{try{console.warn(event,'habits',who,String(error?.detail||error?.message||error))}catch(_){}},
+  });
+}
 function enqueue(actor,task){const who=cleanActor(actor),tail=tails.get(who)||Promise.resolve(),run=tail.then(task,task);tails.set(who,run.catch(()=>{}));return run}
-async function readHabits(actor,options={}){const who=cleanActor(actor);return normalizeState(await dbOf(who,options).read(),who)}
+async function readHabits(actor,options={}){const who=cleanActor(actor);return normalizeState(await stateStoreOf(who,options).read(),who)}
 async function writeHabits(actor,value,options={}){
   const who=cleanActor(actor),next=normalizeState({...value,initialized:true,actor:who,updatedAt:new Date(options.now||Date.now()).toISOString()},who);
-  return normalizeState(await dbOf(who,options).write(next),who);
+  return normalizeState(await stateStoreOf(who,options).write(next),who);
 }
 function resolveHabitDate(value,now=Date.now()){
   const today=moscowDateKey(now),date=cleanDate(value)||today;
