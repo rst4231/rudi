@@ -1,5 +1,5 @@
 const { signDataApiJwt } = require('./rudi-data-api-auth.cjs');
-const { createBlobJsonStore, isBlobUnavailableError } = require('./blob-json-store.cjs');
+const { createBlobJsonStore, ensureMigrationReady, isBlobUnavailableError } = require('./blob-json-store.cjs');
 
 const DATA_API_URL = 'https://ep-square-dream-b5uavt85.apirest.c-7.us-east-2.aws.neon.tech/rudi_auth/rest/v1';
 const TABLE = 'rudi_browser_auth';
@@ -135,6 +135,7 @@ async function listLegacyRawRecords(options = {}) {
 async function readRawRecord(actor, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
+  await ensureMigrationReady(options);
   const row = await authBlobStore(options).read(authBlobKey(safeActor));
   return row && typeof row === 'object' && !Array.isArray(row) ? row : null;
 }
@@ -146,6 +147,7 @@ async function readAuthRecord(actor, options = {}) {
 async function writeRawBlobRecord(actor, row, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
+  await ensureMigrationReady(options);
   const clean = row && typeof row === 'object' && !Array.isArray(row) ? { ...row, actor: safeActor } : null;
   if (!clean) throw new Error('rudi-auth-db-unavailable');
   await authBlobStore(options).write(authBlobKey(safeActor), clean);
