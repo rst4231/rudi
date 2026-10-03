@@ -35,10 +35,12 @@ test('v3.62 habit and supplement force refresh bypasses 30 second read cache',()
   assert.match(tools,/refresh:\(\)=>loadHomeTools\(\{force:true\}\)/);
 });
 
-test('v3.62 foreground revalidation is throttled instead of continuous polling',()=>{
-  assert.match(app,/now-lastResumeRefreshAt<20\*1000/);
+test('foreground revalidation starts immediately on entry and only collapses duplicate lifecycle events',()=>{
+  assert.match(app,/now-lastResumeRefreshAt<2\*1000/);
   assert.match(app,/now-lastForegroundUiSyncAt<15\*1000/);
-  assert.match(app,/Date\.now\(\)-hiddenAt>5\*1000/);
+  assert.match(app,/if\(hiddenAt\) refreshAfterResume\(\)/);
+  assert.match(app,/window\.addEventListener\('focus',[\s\S]*?refreshAfterResume\(\)/);
+  assert.match(app,/window\.addEventListener\('pageshow',[\s\S]*?refreshAfterResume\(\)/);
 });
 
 test('v3.62 messenger syncs immediately on visibility and tab entry but keeps 12 second polling',()=>{
