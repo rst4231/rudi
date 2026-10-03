@@ -1,4 +1,5 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { createBlobJsonStore } = require('./blob-json-store.cjs');
 
 const NAMESPACE = 'rudi-feed-v1';
 const STATE_KEY = 'current';
@@ -8,6 +9,7 @@ const SECTION_TTL_MS = {
   events: 25 * 60 * 60 * 1000,
   cinema: null,
 };
+const BLOB_ARCHIVE_BACKUP_KEY = 'backups/neon/neon-to-blob-2026-10-03-v2';
 
 function cacheOf(options = {}) {
   return options.feedCache || options.cache || createStrictRuntimeCache({
@@ -112,11 +114,48 @@ function normalizeSnapshot(value, now = new Date()) {
   };
 }
 
+async function recoverCinemaFromBlobArchive(options = {}) {
+  const store = options.archiveBlobStore || createBlobJsonStore({
+    prefix: 'rudi-state-v2',
+    env: options.env || process.env,
+    ...(options.blobClient ? { client: options.blobClient } : {}),
+    ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+  });
+  const backup = await store.read(BLOB_ARCHIVE_BACKUP_KEY);
+  const rows = Array.isArray(backup?.tables?.rudi_durable_state)
+    ? backup.tables.rudi_durable_state
+    : [];
+  const feedRow = rows.find((row) => String(row?.namespace || '') === NAMESPACE && String(row?.key || '') === STATE_KEY);
+  if (!feedRow?.value) return null;
+  const recovered = normalizeSnapshot(feedRow.value, options.now instanceof Date ? options.now : new Date(options.now || Date.now()));
+  return recovered.sections?.cinema || null;
+}
+
 async function readFeedSnapshot(options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const cache = cacheOf(options);
   const raw = await cache.get(STATE_KEY);
   const normalized = normalizeSnapshot(raw, now);
+
+  if (!normalized.sections.cinema) {
+    try {
+      const recoveredCinema = await recoverCinemaFromBlobArchive({ ...options, now });
+      if (recoveredCinema) {
+        normalized.sections.cinema = recoveredCinema;
+        normalized.changedSections = [...new Set([...(normalized.changedSections || []), 'cinema'])];
+        normalized.version = normalized.version || ('cinema-recovered-' + now.getTime());
+        normalized.updatedAt = normalized.updatedAt || now.toISOString();
+        await cache.set(STATE_KEY, normalized, {
+          ttl: TTL_SECONDS,
+          tags: ['rudi-feed'],
+          name: 'rudi-feed-current',
+        });
+      }
+    } catch (error) {
+      console.warn('RUDI_FEED_CINEMA_BLOB_RECOVERY_WARN', String(error?.message || error));
+    }
+  }
+
   if (!Object.keys(normalized.sections).length) {
     if (raw) await cache.delete(STATE_KEY).catch(() => false);
     return normalized;
@@ -205,6 +244,7 @@ module.exports = {
   SECTION_TTL_MS,
   moscowDateKey,
   normalizeSnapshot,
+  recoverCinemaFromBlobArchive,
   readFeedSnapshot,
   updateFeedSections,
   wasFeedNoticeSent,
