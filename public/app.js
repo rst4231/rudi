@@ -11682,6 +11682,11 @@
               check.setAttribute('aria-label',next?'Снять отметку':'Отметить');
               check.setAttribute('aria-pressed',next?'true':'false');
               const checkedIds=items.filter(row=>Boolean(row?.checked)).map(row=>String(row?.id||'')).filter(Boolean);
+              if(boughtAll){
+                boughtAll.dataset.checkedCount=String(checkedIds.length);
+                boughtAll.classList.toggle('has-selection',checkedIds.length>0);
+                boughtAll.disabled=!items.length;
+              }
               check.disabled=true;
               try{
                 renderProducts(await productsRequest('toggle',{id:item.id,checkedIds}));
@@ -12497,8 +12502,10 @@
 
         boughtAll.addEventListener('click',async()=>{
           if(boughtAll.disabled) return;
-          const checkedCount=Number(boughtAll.dataset.checkedCount||0);
-          if(checkedCount<=0){
+          const checkedIds=[...document.querySelectorAll('.product-item.is-checked[data-rudi-item-id]')]
+            .map(row=>String(row.dataset.rudiItemId||'').trim())
+            .filter(Boolean);
+          if(!checkedIds.length){
             const status=document.getElementById('productsStatus');
             if(status){
               status.hidden=false;
@@ -12509,7 +12516,7 @@
           }
           boughtAll.disabled=true;
           try{
-            renderProducts(await productsRequest('buy-checked'));
+            renderProducts(await productsRequest('buy-checked',{checkedIds}));
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
             boughtAll.disabled=false;
