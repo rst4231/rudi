@@ -110,7 +110,29 @@ function normalizeSubscriptions(value) {
     const row = normalizeSubscription(raw);
     if (row) byEndpoint.set(row.endpoint, row);
   }
-  return [...byEndpoint.values()].slice(-MAX_SUBSCRIPTIONS);
+
+  const normalized=[...byEndpoint.values()];
+  const newestByDevice=new Map();
+  const withoutDeviceToken=[];
+  for(const row of normalized){
+    const token=String(row.deviceTokenHash||'').trim();
+    if(!token){
+      withoutDeviceToken.push(row);
+      continue;
+    }
+    const previous=newestByDevice.get(token);
+    if(!previous){
+      newestByDevice.set(token,row);
+      continue;
+    }
+    const previousTime=Date.parse(previous.updatedAt||previous.createdAt||0)||0;
+    const rowTime=Date.parse(row.updatedAt||row.createdAt||0)||0;
+    if(rowTime>=previousTime) newestByDevice.set(token,row);
+  }
+
+  return [...withoutDeviceToken,...newestByDevice.values()]
+    .sort((a,b)=>(Date.parse(a.updatedAt||a.createdAt||0)||0)-(Date.parse(b.updatedAt||b.createdAt||0)||0))
+    .slice(-MAX_SUBSCRIPTIONS);
 }
 
 async function readPushSubscriptions(actor, options = {}) {
@@ -131,7 +153,10 @@ async function savePushSubscription(actor, subscription, options = {}) {
   const tokenHash=hashDeviceToken(options.deviceToken);
   if(!tokenHash) throw new Error('push-device-token-required');
   const next = [
-    ...current.filter((row) => row.endpoint !== normalized.endpoint),
+    ...current.filter((row) =>
+      row.endpoint !== normalized.endpoint
+      &&(!tokenHash||String(row.deviceTokenHash||'')!==tokenHash)
+    ),
     {
       ...normalized,
       createdAt: previous?.createdAt || nowIso,
@@ -229,7 +254,10 @@ async function readPendingPushNotifications(actor, options = {}) {
   const now = Number(options.now || Date.now());
   const raw = await readAppState(safeActor, NOTIFICATIONS_KEY, options.dbOptions || options).catch(() => null);
   const seen = new Set((Array.isArray(options.seenIds) ? options.seenIds : []).map(String));
-  return normalizeNotificationQueue(raw, now).filter((row) => !seen.has(row.id));
+  const maxAgeMs=Math.max(0,Number(options.maxAgeMs)||0);
+  return normalizeNotificationQueue(raw, now)
+    .filter((row) => !seen.has(row.id))
+    .filter((row) => !maxAgeMs || now-Date.parse(row.createdAt)<=maxAgeMs);
 }
 
 async function sendPushWake(endpoint, options = {}) {
