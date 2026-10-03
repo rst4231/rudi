@@ -225,10 +225,6 @@
       "destination": "/api/partner-message?ticktickAction=task-complete"
     },
     {
-      "source": "/api/rudi-jwks",
-      "destination": "/api/index?route=rudi-jwks"
-    },
-    {
       "source": "/api/smart-home-humidity-cron",
       "destination": "/api/index?route=smart-home-humidity-cron"
     }
