@@ -295,6 +295,20 @@ async function toggleProductChecked(id, options = {}) {
   });
 }
 
+async function setProductCheckedSelection(ids, options = {}) {
+  return enqueue(async () => {
+    const state = await readProductList(options);
+    const selected = new Set(
+      (Array.isArray(ids) ? ids : [])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .slice(0, MAX_ACTIVE)
+    );
+    for (const item of state.items) item.checked = selected.has(String(item.id || ''));
+    return writeState(state, options);
+  });
+}
+
 async function markCheckedProductsBought(boughtBy = '', options = {}) {
   return enqueue(async () => {
     const state = await readProductList(options);
@@ -390,7 +404,7 @@ function resetMutationQueueForTests() {
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
   readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, removeProductByText,
-  toggleProductChecked, markCheckedProductsBought, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
+  toggleProductChecked, setProductCheckedSelection, markCheckedProductsBought, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   normalizeProductListState: normalizeState,
   resetMutationQueueForTests,
 };
