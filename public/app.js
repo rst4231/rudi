@@ -4258,12 +4258,10 @@
           card.tabIndex=0;
           card.addEventListener('click',event=>{if(event.target.closest('a,button'))return;openUrl()});
           card.addEventListener('keydown',event=>{if(event.target!==card||!['Enter',' '].includes(event.key))return;event.preventDefault();openUrl()});
-          if(!compact){
-            const open=document.createElement('button');open.type='button';open.className='smart-save-open';open.innerHTML='<span>Перейти</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
-            open.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openUrl()});
-            body.appendChild(open);
-          }
-        }else if(!compact&&String(item?.rawText||'').trim()){
+          const open=document.createElement('button');open.type='button';open.className='smart-save-open';open.innerHTML='<span>Перейти</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+          open.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openUrl()});
+          body.appendChild(open);
+        }else if(String(item?.rawText||'').trim()){
           const details=document.createElement('div');details.className='smart-save-raw';details.hidden=true;
           const raw=document.createElement('div');raw.className='smart-save-raw-text';raw.textContent=String(item.rawText);details.appendChild(raw);
           const toggle=document.createElement('button');toggle.type='button';toggle.className='smart-save-expand';toggle.setAttribute('aria-expanded','false');
