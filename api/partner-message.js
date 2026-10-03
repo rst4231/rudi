@@ -2140,6 +2140,23 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'messenger-unread') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const messages=messengerMessagesVisibleToActor(await readMessengerMessages(options),actor);
+      return res.status(200).json({
+        ok:true,
+        actor,
+        unread:unreadMessengerCount(messages,actor),
+      });
+    } catch (error) {
+      const code=String(error?.message||error);
+      return res.status(statusForError(error)).json({ok:false,error:code});
+    }
+  }
+
   if (action === 'messenger-list') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
     try {
@@ -2288,7 +2305,6 @@ async function handleRudiAction(req, res, action, options = {}) {
         actor,
         deleted:true,
         pushDismiss,
-        messages,
         unread:unreadMessengerCount(messages,actor)
       });
     } catch (error) {
@@ -2377,13 +2393,17 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
-      const result=await markMessengerRead(actor,body.ids,options);
+      const requestedIds=(Array.isArray(body.ids)?body.ids:[])
+        .map(value=>String(value||'').trim())
+        .filter(Boolean)
+        .slice(0,256);
+      const result=await markMessengerRead(actor,requestedIds,options);
       const messages=messengerMessagesVisibleToActor(result.messages,actor);
       return res.status(200).json({
         ok:true,
         actor,
         updated:result.updated,
-        messages,
+        readIds:requestedIds,
         unread:unreadMessengerCount(messages,actor),
       });
     } catch (error) {
