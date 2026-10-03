@@ -1,6 +1,6 @@
 const { isDeepStrictEqual } = require('node:util');
 const crypto = require('node:crypto');
-const { createBlobJsonStore, ensureMigrationReady, safeSegment } = require('./blob-json-store.cjs');
+const { createBlobJsonStore, safeSegment } = require('./blob-json-store.cjs');
 const CACHE_STATE_HEADER = 'x-vercel-cache-state';
 const DEFAULT_TIMEOUT_MS = 3500;
 const DEFAULT_ATTEMPTS = 4;
@@ -168,8 +168,6 @@ function createDirectRuntimeCache(options, endpoint, headers, namespace, timeout
 }
 
 
-const DURABLE_DATA_API_URL = 'https://ep-square-dream-b5uavt85.apirest.c-7.us-east-2.aws.neon.tech/rudi_auth/rest/v1';
-const DURABLE_TABLE = 'rudi_durable_state';
 const DURABLE_LONG_TTL_SECONDS = 60 * 60 * 24 * 3650;
 const DURABLE_NAMESPACES = new Set([
   'rudi-score-v1',
@@ -408,127 +406,16 @@ async function blobDurableExpireTag(options, namespace, tag) {
   return true;
 }
 
-function durableBaseUrl(options = {}) {
-  return String(
-    options.durableDataApiUrl
-    || options.env?.RUDI_DATA_API_URL
-    || process.env.RUDI_DATA_API_URL
-    || DURABLE_DATA_API_URL
-  ).replace(/\/+$/, '');
-}
-
-async function durableRequest(options, method, query = '', body, prefer = '') {
-  const fetchImpl = options.durableFetchImpl || globalThis.fetch;
-  if (typeof fetchImpl !== 'function') throw new Error('RUDI durable Data API fetch is unavailable');
-  const { signDataApiJwt } = require('./rudi-data-api-auth.cjs');
-  const token = signDataApiJwt({
-    env: options.env || process.env,
-    botToken: options.botToken,
-  });
-  const response = await fetchImpl(
-    durableBaseUrl(options) + '/' + DURABLE_TABLE + (query ? '?' + query : ''),
-    {
-      method,
-      headers: {
-        authorization: 'Bearer ' + token,
-        accept: 'application/json',
-        ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
-        ...(prefer ? { prefer } : {}),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      cache: 'no-store',
-    }
-  );
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error('RUDI durable Data API ' + method + ' failed: HTTP ' + response.status + (text ? ' ' + text.slice(0, 180) : ''));
-  }
-  if (!text) return null;
-  try { return JSON.parse(text); } catch { return null; }
-}
-
-function durableExactQuery(namespace, key, extra = {}) {
-  return new URLSearchParams({
-    namespace: 'eq.' + namespace,
-    key: 'eq.' + String(key),
-    ...extra,
-  }).toString();
-}
-
-async function durableGet(options, namespace, key) {
-  const rows = await durableRequest(
-    options,
-    'GET',
-    durableExactQuery(namespace, key, { select: 'value,expires_at', limit: '1' })
-  );
-  const row = Array.isArray(rows) ? rows[0] : null;
-  if (!row) return null;
-  if (row.expires_at) {
-    const expiresAt = Date.parse(row.expires_at);
-    if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) return null;
-  }
-  return row.value ?? null;
-}
-
-async function durableSet(options, namespace, key, value, cacheOptions = {}) {
-  const query = new URLSearchParams({ on_conflict: 'namespace,key' }).toString();
-  await durableRequest(options, 'POST', query, [{
-    namespace,
-    key: String(key),
-    value,
-    tags: durableTags(cacheOptions.tags),
-    expires_at: durableExpiresAt(cacheOptions),
-    updated_at: new Date().toISOString(),
-  }], 'resolution=merge-duplicates,return=minimal');
-  return true;
-}
-
-async function durableSetIfAbsent(options, namespace, key, value, cacheOptions = {}) {
-  const nowIso = new Date().toISOString();
-  const expiredQuery = new URLSearchParams({
-    namespace: 'eq.' + namespace,
-    key: 'eq.' + String(key),
-    expires_at: 'lt.' + nowIso,
-  }).toString();
-  await durableRequest(options, 'DELETE', expiredQuery).catch(() => null);
-  const query = new URLSearchParams({ on_conflict: 'namespace,key' }).toString();
-  const rows = await durableRequest(options, 'POST', query, [{
-    namespace,
-    key: String(key),
-    value,
-    tags: durableTags(cacheOptions.tags),
-    expires_at: durableExpiresAt(cacheOptions),
-    updated_at: new Date().toISOString(),
-  }], 'resolution=ignore-duplicates,return=representation');
-  return Array.isArray(rows) && rows.length > 0;
-}
-
-async function durableDelete(options, namespace, key) {
-  await durableRequest(options, 'DELETE', durableExactQuery(namespace, key));
-  return true;
-}
-
-async function durableExpireTag(options, namespace, tag) {
-  const query = new URLSearchParams({
-    namespace: 'eq.' + namespace,
-    tags: 'cs.{' + String(tag) + '}',
-  }).toString();
-  await durableRequest(options, 'DELETE', query);
-  return true;
-}
-
 function createDurableStateMirror(runtime, options, namespace) {
   return {
     async get(key) {
       if (!isDurableKey(namespace, key)) return runtime.get(key);
-      await ensureMigrationReady(options);
       const blob = await blobDurableGet(options, namespace, key);
       return blob;
     },
 
     async set(key, value, cacheOptions = {}) {
       if (!isDurableKey(namespace, key)) return runtime.set(key, value, cacheOptions);
-      await ensureMigrationReady(options);
       await blobDurableSet(options, namespace, key, value, cacheOptions);
       runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
       return true;
@@ -538,7 +425,6 @@ function createDurableStateMirror(runtime, options, namespace) {
       if (!isDurableKey(namespace, key)) {
         throw new Error('Atomic setIfAbsent is only available for durable state');
       }
-      await ensureMigrationReady(options);
       const inserted = await blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions);
       if (!inserted) return false;
       runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
@@ -547,7 +433,6 @@ function createDurableStateMirror(runtime, options, namespace) {
 
     async delete(key) {
       if (!isDurableKey(namespace, key)) return runtime.delete(key);
-      await ensureMigrationReady(options);
       await blobDurableDelete(options, namespace, key);
       runtime.delete(key).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', error));
       return true;
@@ -558,7 +443,6 @@ function createDurableStateMirror(runtime, options, namespace) {
         if (typeof runtime.expireTag !== 'function') throw new Error('Vercel Runtime Cache expireTag is unavailable');
         return runtime.expireTag(tag);
       }
-      await ensureMigrationReady(options);
       await blobDurableExpireTag(options, namespace, tag);
       if (typeof runtime.expireTag === 'function') {
         runtime.expireTag(tag).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_EXPIRE_TAG_ERROR', error));
@@ -597,5 +481,4 @@ module.exports = {
   durableBlobKey,
   blobDurableSetRecord,
   blobDurableGetRecord,
-  durableRequest,
 };
