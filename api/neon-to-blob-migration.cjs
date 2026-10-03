@@ -26,6 +26,23 @@ function canonicalJson(value){return JSON.stringify(canonicalize(value))}
 function checksum(value){return crypto.createHash('sha256').update(canonicalJson(value)).digest('hex')}
 function actorSlug(actor){return String(actor||'')==='Диана'?'diana':'rustam'}
 function plain(value){return value&&typeof value==='object'&&!Array.isArray(value)?value:{}}
+function sanitizeHabitState(value){
+  const source=plain(value);
+  const clean={...source};
+  delete clean.collapsed;
+  return clean;
+}
+function sanitizeAuthRowForBlob(row){
+  const source=plain(row);
+  const pin=plain(source.pin_record);
+  const appState=plain(pin[APP_STATE_FIELD]);
+  const nextAppState={...appState};
+  if(nextAppState['habits:v1'])nextAppState['habits:v1']=sanitizeHabitState(nextAppState['habits:v1']);
+  return{
+    ...source,
+    pin_record:{...pin,[APP_STATE_FIELD]:nextAppState},
+  };
+}
 function newer(left,right){
   const a=Date.parse(String(left||'')),b=Date.parse(String(right||''));
   return Number.isFinite(a)&&Number.isFinite(b)&&a>b;
@@ -110,19 +127,21 @@ async function migrateNeonToBlob(options={}){
 
   let authWritten=0,authPreservedNewer=0;
   await mapLimit(authRows,2,async row=>{
+    const cleanRow=sanitizeAuthRowForBlob(row);
     const current=await readRawRecord(row.actor,{...options,authBlobStore:coreStore,bypassMigrationGate:true}).catch(()=>null);
     if(current&&newer(current.updated_at,row.updated_at)){
       authPreservedNewer+=1;
       return;
     }
-    await writeRawBlobRecord(row.actor,row,{...options,authBlobStore:coreStore,bypassMigrationGate:true});
+    await writeRawBlobRecord(row.actor,cleanRow,{...options,authBlobStore:coreStore,bypassMigrationGate:true});
     authWritten+=1;
   });
 
   let habitsWritten=0,habitsPreservedNewer=0;
   await mapLimit(authRows,2,async row=>{
-    const sourceState=plain(row?.pin_record)?.[APP_STATE_FIELD]?.['habits:v1'];
-    if(!sourceState)return;
+    const rawState=plain(row?.pin_record)?.[APP_STATE_FIELD]?.['habits:v1'];
+    if(!rawState)return;
+    const sourceState=sanitizeHabitState(rawState);
     const key='habits/'+actorSlug(row.actor);
     const current=await specializedStore.read(key).catch(()=>null);
     if(current&&newer(current.updatedAt,sourceState.updatedAt)){
@@ -160,8 +179,9 @@ async function migrateNeonToBlob(options={}){
 
   let authVerified=0,authMismatches=[];
   await mapLimit(authRows,2,async row=>{
+    const desired=sanitizeAuthRowForBlob(row);
     const stored=await coreStore.read('auth/'+actorSlug(row.actor)).catch(()=>null);
-    if(stored&&canonicalJson(stored)===canonicalJson(row)){
+    if(stored&&canonicalJson(stored)===canonicalJson(desired)){
       authVerified+=1;
       return;
     }
@@ -171,8 +191,9 @@ async function migrateNeonToBlob(options={}){
 
   let habitsVerified=0,supplementsVerified=0;
   for(const row of authRows){
-    const sourceState=plain(row?.pin_record)?.[APP_STATE_FIELD]?.['habits:v1'];
-    if(!sourceState)continue;
+    const rawState=plain(row?.pin_record)?.[APP_STATE_FIELD]?.['habits:v1'];
+    if(!rawState)continue;
+    const sourceState=sanitizeHabitState(rawState);
     const stored=await specializedStore.read('habits/'+actorSlug(row.actor)).catch(()=>null);
     if(stored&&canonicalJson(stored)===canonicalJson(sourceState))habitsVerified+=1;
     else if(!(stored&&newer(stored.updatedAt,sourceState.updatedAt)))authMismatches.push('habits:'+row.actor);
