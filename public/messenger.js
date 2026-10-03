@@ -2166,6 +2166,9 @@
 
   async function syncLiveMessages(){
     if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden'||state.loading) return;
+    const now=Date.now();
+    if(now-Number(state.lastLiveSyncAt||0)<1500) return;
+    state.lastLiveSyncAt=now;
     try{
       const list=document.getElementById('messengerMessages');
       const wasNearBottom=isMessagesNearBottom(list);
@@ -3180,7 +3183,8 @@
       return;
     }
     if(document.body.dataset.appTab==='messenger'){
-      load({markRead:true}).finally(()=>{
+      const refresh=state.initialized?syncLiveMessages():load({markRead:true});
+      Promise.resolve(refresh).finally(()=>{
         ensureLiveSync();
         ensurePresenceHeartbeat();
       });
@@ -3193,6 +3197,7 @@
   window.addEventListener('rudi:app-tab-change',event=>{
     const tab=String(event?.detail?.tab||document.body.dataset.appTab||'');
     if(tab==='messenger'&&document.visibilityState==='visible'){
+      syncLiveMessages();
       ensureLiveSync();
       ensurePresenceHeartbeat();
     }else{
