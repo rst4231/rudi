@@ -40,15 +40,13 @@ test('Face ID passkeys use the same durable Blob auth record', () => {
   assert.match(api,/hydrateAllDurablePasskeys/);
 });
 
-test('runtime auth store is Blob-only while Neon is isolated to migration helpers', () => {
+test('runtime auth and durable storage are Blob-only with no Neon integration left', () => {
   const readRuntime=store.slice(store.indexOf('async function readRawRecord'),store.indexOf('async function readAuthRecord'));
   const writeRuntime=store.slice(store.indexOf('async function writeRawBlobRecord'),store.indexOf('async function writeAuthRecord'));
   assert.match(readRuntime,/authBlobStore\(options\)\.read/);
   assert.match(writeRuntime,/authBlobStore\(options\)\.write/);
-  assert.doesNotMatch(readRuntime,/readLegacyRawRecord/);
-  assert.doesNotMatch(writeRuntime,/writeLegacyRawRecord/);
-  assert.match(store,/listLegacyRawRecords/);
-  assert.match(blob,/ensureMigrationReady/);
-  assert.match(index,/route === 'neon-to-blob-migration'/);
+  assert.doesNotMatch(store,/neon\.tech|readLegacyRawRecord|listLegacyRawRecords|signDataApiJwt/i);
+  assert.doesNotMatch(blob,/ensureMigrationReady|MIGRATION_MARKER_KEY|neon\.tech/i);
+  assert.doesNotMatch(index,/neon-to-blob-migration|rudi-jwks/i);
   assert.equal(vercel.git.deploymentEnabled,false);
 });
