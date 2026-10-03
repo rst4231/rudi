@@ -237,8 +237,10 @@
   }
 
   async function snapshotAwareFetch(input,init,snapshotKey){
-    const fresh=await freshOfflineSnapshot(snapshotKey);
-    if(fresh) return fresh;
+    if(navigator.onLine===false){
+      const cached=await snapshotFallback(snapshotKey);
+      if(cached) return cached;
+    }
 
     const existing=RUDI_SNAPSHOT_INFLIGHT.get(snapshotKey);
     if(existing){
@@ -247,25 +249,14 @@
     }
 
     const shared=(async()=>{
-      const network=nativeFetch(input,init)
-        .then(response=>({kind:'response',response}))
-        .catch(error=>({kind:'error',error}));
-      const cacheCandidate=Promise.all([
-        readOfflineSnapshot(snapshotKey).catch(()=>null),
-        new Promise(resolve=>setTimeout(resolve,RUDI_SNAPSHOT_FAST_FALLBACK_MS))
-      ]).then(([row])=>row?{kind:'cache',row}:network);
-
-      const winner=await Promise.race([network,cacheCandidate]);
-      if(winner.kind==='cache'){
-        network.then(result=>{
-          if(result.kind==='response') rememberSnapshotResponse(snapshotKey,input,result.response);
-        }).catch(()=>{});
-        return offlineSnapshotResponse(winner.row,{markUnstable:false});
+      try{
+        const response=await nativeFetch(input,init);
+        return rememberSnapshotResponse(snapshotKey,input,response);
+      }catch(error){
+        const cached=await snapshotFallback(snapshotKey);
+        if(cached) return cached;
+        throw error;
       }
-      if(winner.kind==='response') return rememberSnapshotResponse(snapshotKey,input,winner.response);
-      const cached=await snapshotFallback(snapshotKey);
-      if(cached) return cached;
-      throw winner.error;
     })();
 
     RUDI_SNAPSHOT_INFLIGHT.set(snapshotKey,shared);
