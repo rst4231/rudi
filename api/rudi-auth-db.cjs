@@ -131,45 +131,12 @@ async function listLegacyRawRecords(options = {}) {
   return (Array.isArray(rows) ? rows : []).filter((row) => normalizeActor(row?.actor));
 }
 
-async function writeLegacyRawRecord(actor, row, options = {}) {
-  const safeActor = normalizeActor(actor);
-  if (!safeActor) throw new Error('rudi-access-denied');
-  const clean = row && typeof row === 'object' && !Array.isArray(row)
-    ? { ...row, actor: safeActor }
-    : null;
-  if (!clean) throw new Error('rudi-auth-db-unavailable');
-
-  const query = new URLSearchParams({ on_conflict: 'actor' });
-  const rows = await request('/' + TABLE + '?' + query.toString(), {
-    method: 'POST',
-    headers: { prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify([clean]),
-  }, options);
-
-  const saved = Array.isArray(rows) ? rows[0] : null;
-  if (!saved) throw new Error('rudi-auth-db-unavailable');
-  return saved;
-}
 
 async function readRawRecord(actor, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
-
-  try {
-    const row = await authBlobStore(options).read(authBlobKey(safeActor));
-    if (row && typeof row === 'object' && !Array.isArray(row)) return row;
-  } catch (error) {
-    if (!isBlobUnavailableError(error)) throw error;
-  }
-
-  const legacy = await readLegacyRawRecord(safeActor, options);
-  if (legacy) {
-    try { await authBlobStore(options).write(authBlobKey(safeActor), legacy); }
-    catch (error) {
-      if (!isBlobUnavailableError(error)) throw error;
-    }
-  }
-  return legacy;
+  const row = await authBlobStore(options).read(authBlobKey(safeActor));
+  return row && typeof row === 'object' && !Array.isArray(row) ? row : null;
 }
 
 async function readAuthRecord(actor, options = {}) {
@@ -181,15 +148,8 @@ async function writeRawBlobRecord(actor, row, options = {}) {
   if (!safeActor) throw new Error('rudi-access-denied');
   const clean = row && typeof row === 'object' && !Array.isArray(row) ? { ...row, actor: safeActor } : null;
   if (!clean) throw new Error('rudi-auth-db-unavailable');
-
-  try {
-    await authBlobStore(options).write(authBlobKey(safeActor), clean);
-    return clean;
-  } catch (error) {
-    if (!isBlobUnavailableError(error)) throw error;
-    console.warn('RUDI_AUTH_BLOB_WRITE_UNAVAILABLE', safeActor, String(error?.detail || error?.message || error));
-    return writeLegacyRawRecord(safeActor, clean, options);
-  }
+  await authBlobStore(options).write(authBlobKey(safeActor), clean);
+  return clean;
 }
 
 async function writeAuthRecord(actor, value = {}, options = {}) {
@@ -276,7 +236,6 @@ module.exports = {
   readRawRecord,
   readLegacyRawRecord,
   listLegacyRawRecords,
-  writeLegacyRawRecord,
   writeRawBlobRecord,
   readAppState,
   writeAppState,
