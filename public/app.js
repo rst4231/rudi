@@ -11666,11 +11666,23 @@
             check.setAttribute('aria-pressed',item.checked?'true':'false');
             check.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
             check.addEventListener('click',async()=>{
+              if(check.disabled)return;
+              const previous=Boolean(item.checked);
+              const next=!previous;
+              item.checked=next;
+              row.classList.toggle('is-checked',next);
+              check.setAttribute('aria-label',next?'Снять отметку':'Отметить');
+              check.setAttribute('aria-pressed',next?'true':'false');
+              const checkedIds=items.filter(row=>Boolean(row?.checked)).map(row=>String(row?.id||'')).filter(Boolean);
               check.disabled=true;
               try{
-                renderProducts(await productsRequest('toggle',{id:item.id}));
+                renderProducts(await productsRequest('toggle',{id:item.id,checkedIds}));
                 try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               }catch(_){
+                item.checked=previous;
+                row.classList.toggle('is-checked',previous);
+                check.setAttribute('aria-label',previous?'Снять отметку':'Отметить');
+                check.setAttribute('aria-pressed',previous?'true':'false');
                 try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
               }finally{check.disabled=false}
             });
