@@ -1785,6 +1785,7 @@
   function rowsSignature(rows){
     return (Array.isArray(rows)?rows:[]).map(row=>[
       row.id,row.clientId,row.deliveredAt,row.readAt,row.editedAt,row._pending?'pending':'',row._failed?'failed':'',
+      row.scheme,row.iv,row.ciphertext,
       JSON.stringify(row.systemRecipients||[]),JSON.stringify(row.systemReadBy||[]),
       JSON.stringify(reactionStateForRow(row))
     ].join(':')).join('|');
@@ -1873,10 +1874,31 @@
     try{
       await ensureKeys();
       const data=await api('messenger-list');
-      state.rows=mergePendingRows(Array.isArray(data.messages)?data.messages:state.rows);
+      const nextRows=mergePendingRows(Array.isArray(data.messages)?data.messages:state.rows);
+      const changed=rowsSignature(nextRows)!==rowsSignature(state.rows);
+      const messengerVisible=document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger';
+      const list=document.getElementById('messengerMessages');
+      const wasNearBottom=messengerVisible?isMessagesNearBottom(list):false;
+      const preservedTop=Number(list?.scrollTop||0);
+
+      state.rows=nextRows;
       state.partnerTyping=Boolean(data.partnerTyping);
       state.partnerPresence=data.partnerPresence||null;
       setUnread(data.unread);
+
+      if(messengerVisible&&changed){
+        await decryptMessages(state.rows);
+        renderMessages({preserveScrollTop:wasNearBottom?null:preservedTop,forceBottom:wasNearBottom});
+        const after=await markVisibleUnreadRead(state.rows);
+        if(rowsSignature(after)!==rowsSignature(state.rows)){
+          state.rows=after;
+          await decryptMessages(state.rows);
+          renderMessages({preserveScrollTop:Number(list?.scrollTop||0)});
+        }
+      }else if(messengerVisible){
+        renderTypingIndicator({autoScroll:wasNearBottom});
+      }
+
       updateHeader();
       ensureProfileButton();
       return data.unread;
