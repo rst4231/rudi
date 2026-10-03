@@ -1,4 +1,3 @@
-require('@vercel/functions');
 const fs = require('node:fs');
 const { stripStagePriceLines, compactEventTelegramRequest } = require('./event-text-sanitizer.cjs');
 const { maybeSendEventImages } = require('./event-images.cjs');
@@ -25,9 +24,7 @@ const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
-const { createBlobJsonStore } = require('./vercel-persistent-json.cjs');
-const { migrateNeonToD1 } = require('./neon-to-d1-migration.cjs');
-const handleRudiJwks = require('./rudi-jwks.cjs');
+const { createD1StateClient } = require('./d1-state-client.cjs');
 const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const { handleSmartHomeRequest, readSmartHomeSnapshot } = require('./smart-home-client.cjs');
@@ -141,7 +138,6 @@ async function publishDailyLaborArticle(options = {}) {
 
 async function handler(req, res) {
   try {
-    if (req.query?.route === 'rudi-jwks') return handleRudiJwks(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
     if (req.query?.route === 'smart-home-humidity-cron') {
       const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {
@@ -229,39 +225,18 @@ async function handler(req, res) {
       try { const labor = await publishDailyLaborArticle({ queueOnly: true }); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
     }
-    if (req.query?.route === 'neon-to-d1-migration') {
-      if (req.method !== 'GET' && req.method !== 'POST') {
-        return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-      }
-      try {
-        const migration = await migrateNeonToD1({ env: process.env, fetchImpl: nativeFetch });
-        const ok = migration?.status === 'complete';
-        console.log('RUDI_NEON_TO_D1_MIGRATION', JSON.stringify({
-          status: migration?.status,
-          source: migration?.source,
-          migrated: migration?.migrated,
-          verified: migration?.verified,
-        }));
-        return res.status(ok ? 200 : 500).json({ ok, migration });
-      } catch (error) {
-        console.error('RUDI_NEON_TO_D1_MIGRATION_ERROR', String(error?.detail || error?.message || error));
-        return res.status(500).json({ ok: false, error: 'migration-failed' });
-      }
-    }
     if (req.query?.route === 'storage-health') {
       if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
       try {
-        const store = createBlobJsonStore();
-        const auth = await store.auth();
-        await store.read('health/probe');
-        return res.status(200).json({
-          ok: true,
-          storage: 'vercel-private-blob',
-          auth: auth?.storeId ? 'oidc' : 'token',
+        const health = await createD1StateClient({ env: process.env, fetchImpl: nativeFetch }).health();
+        const ok = Boolean(health?.ok && health?.storage === 'cloudflare-d1');
+        return res.status(ok ? 200 : 503).json({
+          ok,
+          storage: health?.storage || 'cloudflare-d1',
         });
       } catch (error) {
-        console.error('RUDI_BLOB_HEALTH_ERROR', String(error?.detail || error?.message || error));
-        return res.status(503).json({ ok: false, error: 'rudi-blob-unavailable' });
+        console.error('RUDI_D1_HEALTH_ERROR', String(error?.message || error));
+        return res.status(503).json({ ok: false, error: 'rudi-d1-unavailable' });
       }
     }
     if (req.query?.route === 'health') {
