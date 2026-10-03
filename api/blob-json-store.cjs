@@ -92,24 +92,24 @@ function createBlobJsonStore(options={}){
 
   async function auth(){
     const token=String(env.BLOB_READ_WRITE_TOKEN||'').trim();
-    if(token)return{token};
+    if(token)return{token,mode:'token'};
     const oidcToken=String(env.VERCEL_OIDC_TOKEN||'').trim();
-    let storeId=String(env.BLOB_STORE_ID||rememberedStoreId||'').trim();
-    if(storeId&&oidcToken)return{oidcToken,storeId};
-    if(oidcToken){
-      storeId=await provisionStore(oidcToken);
-      return{oidcToken,storeId};
-    }
-    throw blobUnavailableError('blob-auth-missing');
+    const storeId=String(env.BLOB_STORE_ID||rememberedStoreId||'').trim();
+    if(oidcToken&&storeId)return{oidcToken,storeId,mode:'oidc-env'};
+    if(oidcToken)return{oidcToken,mode:'oidc-env'};
+    // @vercel/blob 2.8+ resolves the deployment OIDC token from the
+    // Vercel request context automatically. Do not block zero-config auth.
+    return{mode:'oidc-auto'};
   }
 
   async function read(key){
     const pathname=fullPath(prefix,key);
     let credentials;
     try{credentials=await auth()}catch(error){throw isBlobUnavailableError(error)?error:blobUnavailableError(error?.message)}
+    const {mode:_mode,...sdkCredentials}=credentials||{};
     let result;
     try{
-      result=await client.get(pathname,{access:'private',useCache:false,...credentials});
+      result=await client.get(pathname,{access:'private',useCache:false,...sdkCredentials});
     }catch(error){
       if(isBlobUnavailableError(error))throw blobUnavailableError(error?.message||error);
       throw error;
@@ -125,6 +125,7 @@ function createBlobJsonStore(options={}){
     const pathname=fullPath(prefix,key);
     let credentials;
     try{credentials=await auth()}catch(error){throw isBlobUnavailableError(error)?error:blobUnavailableError(error?.message)}
+    const {mode:_mode,...sdkCredentials}=credentials||{};
     const body=JSON.stringify(value);
     try{
       await client.put(pathname,body,{
@@ -133,7 +134,7 @@ function createBlobJsonStore(options={}){
         addRandomSuffix:false,
         cacheControlMaxAge:60,
         contentType:'application/json',
-        ...credentials,
+        ...sdkCredentials,
       });
     }catch(error){
       if(isBlobUnavailableError(error))throw blobUnavailableError(error?.message||error);
@@ -155,17 +156,19 @@ function createBlobJsonStore(options={}){
   async function remove(key){
     const pathname=fullPath(prefix,key);
     const credentials=await auth();
-    await client.del(pathname,{...credentials});
+    const {mode:_mode,...sdkCredentials}=credentials||{};
+    await client.del(pathname,{...sdkCredentials});
     return true;
   }
 
   async function listKeys(keyPrefix=''){
     const credentials=await auth();
+    const {mode:_mode,...sdkCredentials}=credentials||{};
     const prefixPath=(safeSegment(prefix)||DEFAULT_PREFIX)+'/'+safeSegment(keyPrefix);
     const rows=[];
     let cursor;
     do{
-      const result=await client.list({prefix:prefixPath,cursor,limit:1000,...credentials});
+      const result=await client.list({prefix:prefixPath,cursor,limit:1000,...sdkCredentials});
       for(const blob of Array.isArray(result?.blobs)?result.blobs:[]){
         const pathname=String(blob?.pathname||'');
         const root=(safeSegment(prefix)||DEFAULT_PREFIX)+'/';
