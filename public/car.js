@@ -1127,21 +1127,38 @@
     if(homePercent) homePercent.textContent=remainingLabel;
   }
 
-  function tyreSeason(weather) {
+  function tyreForecastAdvice(weather) {
     const min=Number(weather?.minForecast);
     const avg=Number(weather?.avgMean);
-    if(Number.isFinite(min)&&min<=0) return 'winter';
-    if(Number.isFinite(avg)&&avg<=7) return 'winter';
-    if(Number.isFinite(avg)&&avg>=10&&Number.isFinite(min)&&min>5) return 'summer';
-    const month=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',month:'2-digit'}).format(new Date()));
-    return month>=10||month<=3?'winter':'summer';
+    const hasMin=Number.isFinite(min);
+    const hasAvg=Number.isFinite(avg);
+
+    if(hasAvg&&avg<=7) {
+      return {season:'winter',kind:'change',text:'Средняя температура недели ниже +7 °C'};
+    }
+    if(hasAvg&&avg>=10&&hasMin&&min>5) {
+      return {season:'summer',kind:'keep',text:'Прогноз устойчиво тёплый'};
+    }
+    if(hasMin&&min<=0) {
+      return {season:'',kind:'frost',text:'Возможны ночные заморозки · подготовься к смене'};
+    }
+    if(hasAvg||hasMin) {
+      return {season:'',kind:'borderline',text:'Пограничная температура · пока без смены'};
+    }
+    return {season:'',kind:'unknown',text:'Прогноз недоступен · сезон не меняю автоматически'};
+  }
+
+  function tyreSeason(weather) {
+    return tyreForecastAdvice(weather).season;
   }
 
   function renderTyreSeason(weather) {
-    const recommended=tyreSeason(weather);
+    const advice=tyreForecastAdvice(weather);
+    const recommended=advice.season;
     const installed=String(state.car?.state?.tyreSeasonInstalled||'');
-    const recommendedText=recommended==='winter'?'зимние':'летние';
+    const recommendedText=recommended==='winter'?'зимние':recommended==='summer'?'летние':'';
     const installedText=installed==='winter'?'Зимние':installed==='summer'?'Летние':'Не указаны';
+    const mismatch=Boolean(installed&&recommended&&installed!==recommended);
 
     for(const id of ['carHomeTyreSticker','carPageTyreSticker']){
       const node=document.getElementById(id);
@@ -1158,10 +1175,10 @@
     const recommendedNode=document.getElementById('carTyreRecommended');
     if(installedNode) installedNode.textContent='Установлены: '+installedText.toLowerCase();
     if(recommendedNode){
-      recommendedNode.textContent=installed&&installed!==recommended
-        ?'Рекомендуются '+recommendedText+' · пора менять'
-        :'Рекомендуются '+recommendedText;
-      recommendedNode.classList.toggle('is-mismatch',Boolean(installed&&installed!==recommended));
+      recommendedNode.textContent=recommended
+        ?(mismatch?'По прогнозу нужны '+recommendedText+' · пора менять':'По прогнозу '+recommendedText+' подходят')
+        :advice.text;
+      recommendedNode.classList.toggle('is-mismatch',mismatch);
     }
     document.querySelectorAll('[data-car-tyre-season]').forEach(button=>{
       const active=button.dataset.carTyreSeason===installed;
@@ -1392,9 +1409,10 @@
     const overdue=tasks.filter(task=>task.timing==='overdue').length;
     const today=tasks.filter(task=>task.timing==='today').length;
     const insight=serviceInsight(car);
-    const recommended=tyreSeason(weather);
+    const tyreAdvice=tyreForecastAdvice(weather);
+    const recommended=tyreAdvice.season;
     const installed=String(car?.state?.tyreSeasonInstalled||'');
-    const tyreMismatch=Boolean(installed&&installed!==recommended);
+    const tyreMismatch=Boolean(installed&&recommended&&installed!==recommended);
 
     const items=[];
     if(errors.length) items.push({kind:'danger',text:errors.length===1?'1 неисправность':errors.length+' неисправности'});
@@ -1403,6 +1421,7 @@
     if(overdue) items.push({kind:'danger',text:overdue===1?'1 просроченная задача':overdue+' просроченных задач'});
     else if(today) items.push({kind:'warn',text:today===1?'1 задача сегодня':today+' задачи сегодня'});
     if(tyreMismatch) items.push({kind:'warn',text:'Пора менять шины'});
+    else if(installed==='summer'&&tyreAdvice.kind==='frost') items.push({kind:'warn',text:'Ночью возможны заморозки'});
 
     const danger=items.some(item=>item.kind==='danger');
     const warn=!danger&&items.length>0;
