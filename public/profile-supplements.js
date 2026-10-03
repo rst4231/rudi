@@ -656,8 +656,6 @@ function bindName(){
   if(name){name.classList.remove('personal-profile-name-link');name.removeAttribute('role');name.removeAttribute('tabindex');name.removeAttribute('aria-label')}
   const update=()=>{const who=String(document.body.dataset.rudiActor||'').trim();if(who)loadHomeTools()};
   update();new MutationObserver(update).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
-  window.addEventListener('focus',()=>loadHomeTools());
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')loadHomeTools()});
 }
 window.RudiSupplementApp={
   request,
