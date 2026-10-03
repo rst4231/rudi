@@ -21,7 +21,8 @@ test('v3.3 habit UI shows failures, lost stars, starts collapsed and explains 21
   assert.match(ui,/не выполнено · −/);
   assert.match(ui,/21 день подряд без единого штрафа/);
   assert.match(ui,/\+5 ⭐/);
-  assert.match(ui,/firstActorLoad\?\{\.\.\.habitsResult\.value,collapsed:true\}/);
+  assert.match(ui,/habitState=\{\.\.\.habitState,collapsed:true\}/);
+  assert.doesNotMatch(ui,/habitRequest\('collapse'/);
   assert.match(ui,/applyCollapse\(true\)/);
 });
 
