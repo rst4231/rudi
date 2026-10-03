@@ -25,6 +25,23 @@ function groqResponse(question,theme='лёгкий'){
   };
 }
 
+test('semantic anti-repeat catches close paraphrases',()=>{
+  assert.equal(
+    similarQuestion(
+      'Какое необычное место ты мечтаешь исследовать вместе со мной?',
+      'Какое необычное место вы мечтаете однажды исследовать вместе?'
+    ),
+    true
+  );
+  assert.equal(
+    similarQuestion(
+      'Какой совместный проект вы бы начали, если бы появился свободный выходной?',
+      'Если бы у вас был дополнительный выходной день только для совместных проектов, что бы вы сделали?'
+    ),
+    true
+  );
+});
+
 test('Groq daily question retries semantic/exact repeats',async()=>{
   let calls=0;
   const history=[{question:'Куда вы больше всего хотите съездить вдвоём в следующем году?'}];
