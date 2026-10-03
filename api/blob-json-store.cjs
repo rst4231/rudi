@@ -2,7 +2,7 @@ const DEFAULT_PREFIX='rudi-state-v2';
 const DEFAULT_PROJECT_ID='prj_tg663wlSXTaoE2HNfekiymY0IF63';
 const DEFAULT_TEAM_ID='team_XGmOyYr1uet38Pk9Ze7ScQCz';
 const DEFAULT_STORE_NAME='rudi-state';
-const MIGRATION_MARKER_KEY='migration/neon-to-blob-2026-10-03-v1';
+const MIGRATION_MARKER_KEY='migration/neon-to-blob-2026-10-03-v2';
 
 let rememberedStoreId='';
 let migrationReady=false;
