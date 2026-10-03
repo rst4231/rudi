@@ -1,4 +1,6 @@
 const { isDeepStrictEqual } = require('node:util');
+const crypto = require('node:crypto');
+const { createBlobJsonStore, safeSegment } = require('./blob-json-store.cjs');
 const CACHE_STATE_HEADER = 'x-vercel-cache-state';
 const DEFAULT_TIMEOUT_MS = 3500;
 const DEFAULT_ATTEMPTS = 4;
@@ -240,6 +242,10 @@ const DURABLE_CONTROL_PLANE_TAGS = new Set([
 
 function isDurableKey(namespace, key) {
   if (DURABLE_NAMESPACES.has(namespace)) return true;
+  if (namespace === 'rudi-messenger-v1') {
+    const text = String(key || '');
+    return text === 'index' || text.startsWith('key:') || text.startsWith('message:');
+  }
   if (targetedDurableTtlSeconds(namespace, key) > 0) return true;
   if (namespace !== 'rudi-control-plane-v1') return false;
   const text = String(key || '');
@@ -251,6 +257,12 @@ function isDurableKey(namespace, key) {
 
 function migrationTtlSeconds(namespace, key) {
   if (DURABLE_NAMESPACES.has(namespace)) return DURABLE_LONG_TTL_SECONDS;
+  if (namespace === 'rudi-messenger-v1') {
+    const text = String(key || '');
+    if (text === 'index') return 60 * 60 * 48;
+    if (text.startsWith('key:')) return 60 * 60 * 24 * 365;
+    if (text.startsWith('message:')) return 60 * 60 * 24;
+  }
   const targetedTtl = targetedDurableTtlSeconds(namespace, key);
   if (targetedTtl > 0) return targetedTtl;
   if (namespace === 'rudi-control-plane-v1' && String(key || '') === 'daily-cron:last-attempt') {
@@ -260,7 +272,7 @@ function migrationTtlSeconds(namespace, key) {
 }
 
 function isDurableTag(namespace, tag) {
-  if (DURABLE_NAMESPACES.has(namespace) || DURABLE_TARGETED_NAMESPACES.has(namespace)) return true;
+  if (DURABLE_NAMESPACES.has(namespace) || DURABLE_TARGETED_NAMESPACES.has(namespace) || namespace === 'rudi-messenger-v1') return true;
   return namespace === 'rudi-control-plane-v1' && DURABLE_CONTROL_PLANE_TAGS.has(String(tag || ''));
 }
 
@@ -278,6 +290,121 @@ function durableExpiresAt(cacheOptions = {}) {
   const ttl = Number(cacheOptions.ttl || 0);
   if (!Number.isFinite(ttl) || ttl <= 0) return null;
   return new Date(Date.now() + ttl * 1000).toISOString();
+}
+
+function durableBlobNamespace(namespace) {
+  return safeSegment(String(namespace || '')) || 'default';
+}
+
+function durableBlobKey(namespace, key) {
+  const digest = crypto.createHash('sha256')
+    .update(String(namespace || '') + '\0' + String(key || ''))
+    .digest('hex');
+  return 'durable/' + durableBlobNamespace(namespace) + '/' + digest;
+}
+
+function durableBlobStore(options = {}) {
+  if (options.durableBlobStore) return options.durableBlobStore;
+  return createBlobJsonStore({
+    prefix: 'rudi-state-v2',
+    env: options.env || process.env,
+    ...(options.blobClient ? { client: options.blobClient } : {}),
+    ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+  });
+}
+
+function normalizeDurableBlobRecord(row, namespace, key) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return null;
+  if (String(row.namespace || '') !== String(namespace || '')) return null;
+  if (String(row.key || '') !== String(key || '')) return null;
+  return {
+    namespace: String(namespace || ''),
+    key: String(key || ''),
+    value: row.value,
+    tags: durableTags(row.tags),
+    expires_at: row.expires_at ? String(row.expires_at) : null,
+    updated_at: String(row.updated_at || ''),
+  };
+}
+
+async function blobDurableGetRecord(options, namespace, key) {
+  const row = await durableBlobStore(options).read(durableBlobKey(namespace, key));
+  return normalizeDurableBlobRecord(row, namespace, key);
+}
+
+async function blobDurableGet(options, namespace, key) {
+  const row = await blobDurableGetRecord(options, namespace, key);
+  if (!row) return null;
+  if (row.expires_at) {
+    const expiresAt = Date.parse(row.expires_at);
+    if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) return null;
+  }
+  return row.value ?? null;
+}
+
+async function blobDurableSetRecord(options, row, writeOptions = {}) {
+  const record = {
+    namespace: String(row.namespace || ''),
+    key: String(row.key || ''),
+    value: row.value,
+    tags: durableTags(row.tags),
+    expires_at: row.expires_at ? String(row.expires_at) : null,
+    updated_at: String(row.updated_at || new Date().toISOString()),
+  };
+  const store = durableBlobStore(options);
+  if (writeOptions.ifAbsent === true) {
+    return store.writeIfAbsent(durableBlobKey(record.namespace, record.key), record);
+  }
+  await store.write(durableBlobKey(record.namespace, record.key), record);
+  return true;
+}
+
+async function blobDurableSet(options, namespace, key, value, cacheOptions = {}) {
+  return blobDurableSetRecord(options, {
+    namespace,
+    key: String(key),
+    value,
+    tags: durableTags(cacheOptions.tags),
+    expires_at: durableExpiresAt(cacheOptions),
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions = {}) {
+  const existing = await blobDurableGetRecord(options, namespace, key);
+  if (existing) {
+    const expiresAt = existing.expires_at ? Date.parse(existing.expires_at) : NaN;
+    if (!Number.isFinite(expiresAt) || expiresAt > Date.now()) return false;
+    await durableBlobStore(options).remove(durableBlobKey(namespace, key)).catch(() => null);
+  }
+  return blobDurableSetRecord(options, {
+    namespace,
+    key: String(key),
+    value,
+    tags: durableTags(cacheOptions.tags),
+    expires_at: durableExpiresAt(cacheOptions),
+    updated_at: new Date().toISOString(),
+  }, { ifAbsent: true });
+}
+
+async function blobDurableDelete(options, namespace, key) {
+  await durableBlobStore(options).remove(durableBlobKey(namespace, key)).catch((error) => {
+    const text = String(error?.message || error);
+    if (!/404|not found/i.test(text)) throw error;
+  });
+  return true;
+}
+
+async function blobDurableExpireTag(options, namespace, tag) {
+  const store = durableBlobStore(options);
+  const keys = await store.listKeys('durable/' + durableBlobNamespace(namespace));
+  for (const blobKey of keys) {
+    const row = await store.read(blobKey).catch(() => null);
+    if (!row || String(row.namespace || '') !== String(namespace || '')) continue;
+    if (!durableTags(row.tags).includes(String(tag || ''))) continue;
+    await store.remove(blobKey).catch(() => null);
+  }
+  return true;
 }
 
 function durableBaseUrl(options = {}) {
@@ -393,9 +520,28 @@ function createDurableStateMirror(runtime, options, namespace) {
   return {
     async get(key) {
       if (!isDurableKey(namespace, key)) return runtime.get(key);
+
       try {
-        const durable = await durableGet(options, namespace, key);
-        if (durable !== null && durable !== undefined) return durable;
+        const blob = await blobDurableGet(options, namespace, key);
+        if (blob !== null && blob !== undefined) return blob;
+      } catch (error) {
+        durableWarn('RUDI_DURABLE_BLOB_READ_ERROR', error);
+      }
+
+      try {
+        const legacy = await durableGet(options, namespace, key);
+        if (legacy !== null && legacy !== undefined) {
+          const rows = await durableRequest(
+            options,
+            'GET',
+            durableExactQuery(namespace, key, { select: 'namespace,key,value,tags,expires_at,updated_at', limit: '1' })
+          );
+          const row = Array.isArray(rows) ? rows[0] : null;
+          if (row) {
+            await blobDurableSetRecord(options, row).catch((error) => durableWarn('RUDI_DURABLE_BLOB_MIGRATION_ERROR', error));
+          }
+          return legacy;
+        }
       } catch (error) {
         durableWarn('RUDI_DURABLE_DB_READ_ERROR', error);
       }
@@ -403,34 +549,34 @@ function createDurableStateMirror(runtime, options, namespace) {
       const fallback = await runtime.get(key);
       if (fallback !== null && fallback !== undefined) {
         const ttl = migrationTtlSeconds(namespace, key);
-        durableSet(options, namespace, key, fallback, {
+        blobDurableSet(options, namespace, key, fallback, {
           ...(ttl ? { ttl } : {}),
           tags: ['rudi-migrated-from-runtime-cache'],
-        }).catch((error) => durableWarn('RUDI_DURABLE_DB_MIGRATION_ERROR', error));
+        }).catch((error) => durableWarn('RUDI_DURABLE_BLOB_MIGRATION_ERROR', error));
       }
       return fallback;
     },
 
     async set(key, value, cacheOptions = {}) {
       if (!isDurableKey(namespace, key)) return runtime.set(key, value, cacheOptions);
-      const [database, cache] = await Promise.allSettled([
-        durableSet(options, namespace, key, value, cacheOptions),
+      const [blob, cache] = await Promise.allSettled([
+        blobDurableSet(options, namespace, key, value, cacheOptions),
         runtime.set(key, value, cacheOptions),
       ]);
-      if (database.status === 'fulfilled') {
+      if (blob.status === 'fulfilled') {
         if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', cache.reason);
         return true;
       }
-      durableWarn('RUDI_DURABLE_DB_WRITE_ERROR', database.reason);
+      durableWarn('RUDI_DURABLE_BLOB_WRITE_ERROR', blob.reason);
       if (cache.status === 'fulfilled') return true;
-      throw database.reason || cache.reason || new Error('RUDI durable state write failed');
+      throw blob.reason || cache.reason || new Error('RUDI durable state write failed');
     },
 
     async setIfAbsent(key, value, cacheOptions = {}) {
       if (!isDurableKey(namespace, key)) {
         throw new Error('Atomic setIfAbsent is only available for durable state');
       }
-      const inserted = await durableSetIfAbsent(options, namespace, key, value, cacheOptions);
+      const inserted = await blobDurableSetIfAbsent(options, namespace, key, value, cacheOptions);
       if (!inserted) return false;
       runtime.set(key, value, cacheOptions).catch((error) => durableWarn('RUDI_DURABLE_RUNTIME_WRITE_ERROR', error));
       return true;
@@ -438,17 +584,17 @@ function createDurableStateMirror(runtime, options, namespace) {
 
     async delete(key) {
       if (!isDurableKey(namespace, key)) return runtime.delete(key);
-      const [database, cache] = await Promise.allSettled([
-        durableDelete(options, namespace, key),
+      const [blob, cache] = await Promise.allSettled([
+        blobDurableDelete(options, namespace, key),
         runtime.delete(key),
       ]);
-      if (database.status === 'fulfilled') {
+      if (blob.status === 'fulfilled') {
         if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_DELETE_ERROR', cache.reason);
         return true;
       }
-      durableWarn('RUDI_DURABLE_DB_DELETE_ERROR', database.reason);
+      durableWarn('RUDI_DURABLE_BLOB_DELETE_ERROR', blob.reason);
       if (cache.status === 'fulfilled') return true;
-      throw database.reason || cache.reason || new Error('RUDI durable state delete failed');
+      throw blob.reason || cache.reason || new Error('RUDI durable state delete failed');
     },
 
     async expireTag(tag) {
@@ -456,18 +602,18 @@ function createDurableStateMirror(runtime, options, namespace) {
         if (typeof runtime.expireTag !== 'function') throw new Error('Vercel Runtime Cache expireTag is unavailable');
         return runtime.expireTag(tag);
       }
-      const databasePromise = durableExpireTag(options, namespace, tag);
+      const blobPromise = blobDurableExpireTag(options, namespace, tag);
       const cachePromise = typeof runtime.expireTag === 'function'
         ? runtime.expireTag(tag)
         : Promise.reject(new Error('Vercel Runtime Cache expireTag is unavailable'));
-      const [database, cache] = await Promise.allSettled([databasePromise, cachePromise]);
-      if (database.status === 'fulfilled') {
+      const [blob, cache] = await Promise.allSettled([blobPromise, cachePromise]);
+      if (blob.status === 'fulfilled') {
         if (cache.status === 'rejected') durableWarn('RUDI_DURABLE_RUNTIME_EXPIRE_TAG_ERROR', cache.reason);
         return true;
       }
-      durableWarn('RUDI_DURABLE_DB_EXPIRE_TAG_ERROR', database.reason);
+      durableWarn('RUDI_DURABLE_BLOB_EXPIRE_TAG_ERROR', blob.reason);
       if (cache.status === 'fulfilled') return true;
-      throw database.reason || cache.reason || new Error('RUDI durable state expireTag failed');
+      throw blob.reason || cache.reason || new Error('RUDI durable state expireTag failed');
     },
   };
 }
@@ -498,4 +644,8 @@ module.exports = {
   hashRuntimeCacheKey,
   transformRuntimeCacheKey,
   createStrictRuntimeCache,
+  durableBlobKey,
+  blobDurableSetRecord,
+  blobDurableGetRecord,
+  durableRequest,
 };
