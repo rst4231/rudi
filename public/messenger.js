@@ -530,30 +530,61 @@
   function positionContextMenu(menu,article){
     if(!menu||!article) return;
     const page=document.getElementById('messengerPage');
-    const pageRect=page?.getBoundingClientRect?.();
     const anchor=article.querySelector('.messenger-bubble')||article;
-    const articleRect=anchor.getBoundingClientRect?.();
-    if(!pageRect||!articleRect) return;
+    if(!page||!anchor) return;
     menu.style.visibility='hidden';
-    requestAnimationFrame(()=>{
+
+    const place=()=>{
+      if(menu.hidden||!menu.isConnected||!article.isConnected) return;
+      const pageRect=page.getBoundingClientRect();
+      const articleRect=anchor.getBoundingClientRect();
+      if(!pageRect.width||!pageRect.height||!articleRect.width||!articleRect.height) return;
+
       const width=Math.max(220,Math.min(280,menu.offsetWidth||280));
       const height=Math.max(44,menu.offsetHeight||44);
+      const edge=8;
+      const gap=8;
+
       const center=articleRect.left-pageRect.left+articleRect.width/2;
       const minLeft=12+width/2;
       const maxLeft=Math.max(minLeft,pageRect.width-12-width/2);
       const left=Math.max(minLeft,Math.min(maxLeft,center));
-      const spaceBelow=pageRect.bottom-articleRect.bottom;
-      const openAbove=spaceBelow<height+88;
-      let top=openAbove
-        ?articleRect.top-pageRect.top-height-8
-        :articleRect.bottom-pageRect.top+8;
-      top=Math.max(8,Math.min(top,pageRect.height-height-8));
+
+      const anchorTop=articleRect.top-pageRect.top;
+      const anchorBottom=articleRect.bottom-pageRect.top;
+      const spaceAbove=Math.max(0,anchorTop-edge);
+      const spaceBelow=Math.max(0,pageRect.height-edge-anchorBottom);
+
+      let placement='below';
+      let top=anchorBottom+gap;
+
+      if(spaceBelow>=height+gap){
+        placement='below';
+        top=anchorBottom+gap;
+      }else if(spaceAbove>=height+gap){
+        placement='above';
+        top=anchorTop-height-gap;
+      }else{
+        placement=spaceBelow>=spaceAbove?'below':'above';
+        const anchorCenter=(anchorTop+anchorBottom)/2;
+        top=anchorCenter-height/2;
+      }
+
+      const maxTop=Math.max(edge,pageRect.height-height-edge);
+      top=Math.max(edge,Math.min(top,maxTop));
+
       menu.style.left=left+'px';
       menu.style.top=top+'px';
       menu.style.bottom='auto';
-      menu.dataset.placement=openAbove?'above':'below';
+      menu.dataset.placement=placement;
       menu.style.visibility='visible';
+    };
+
+    requestAnimationFrame(()=>{
+      place();
+      requestAnimationFrame(place);
     });
+    setTimeout(place,90);
   }
 
   function appendContextReactionTray(menu,row){
