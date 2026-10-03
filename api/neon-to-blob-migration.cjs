@@ -12,7 +12,7 @@ const {
   readRawRecord,
 }=require('./rudi-auth-db.cjs');
 
-const MIGRATION_ID='neon-to-blob-2026-10-03-v1';
+const MIGRATION_ID='neon-to-blob-2026-10-03-v2';
 const MIGRATION_TOKEN='rudi-migrate-20261003-8f7c1e4b6a2d9c53';
 const MISSED_TASK_COMPENSATION=Object.freeze({
   taskId:'6ac0c3d78f08929497a1e5f3',
@@ -120,13 +120,21 @@ async function mapLimit(items,limit,worker){
   return results;
 }
 async function readLegacyDurableRows(options={}){
-  const query=new URLSearchParams({
-    select:'namespace,key,value,tags,expires_at,updated_at',
-    order:'namespace.asc,key.asc',
-    limit:'1000',
-  }).toString();
-  const rows=await durableRequest(options,'GET',query);
-  return Array.isArray(rows)?rows:[];
+  const pageSize=10;
+  const all=[];
+  for(let offset=0;offset<5000;offset+=pageSize){
+    const query=new URLSearchParams({
+      select:'namespace,key,value,tags,expires_at,updated_at',
+      order:'namespace.asc,key.asc',
+      limit:String(pageSize),
+      offset:String(offset),
+    }).toString();
+    const rows=await durableRequest(options,'GET',query);
+    const page=Array.isArray(rows)?rows:[];
+    all.push(...page);
+    if(page.length<pageSize)break;
+  }
+  return all;
 }
 function namespaceSummary(rows){
   const map=new Map();
