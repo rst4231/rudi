@@ -21,6 +21,7 @@ const {
   toggleProductChecked,
   setProductCheckedSelection,
   markCheckedProductsBought,
+  markProductsBoughtByIds,
   markProductBought,
   clearProducts,
   restoreProducts,
@@ -3961,7 +3962,9 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'buy-checked') {
-        const state = await markCheckedProductsBought(actor, options);
+        const state = Array.isArray(body.checkedIds)
+          ? await markProductsBoughtByIds(body.checkedIds, actor, options)
+          : await markCheckedProductsBought(actor, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
