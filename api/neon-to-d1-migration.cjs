@@ -1,14 +1,23 @@
 const crypto = require('node:crypto');
-const { signDataApiJwt } = require('./rudi-data-api-auth.cjs');
+const net = require('node:net');
+const tls = require('node:tls');
+const { derivePrivateScalar } = require('./rudi-data-api-auth.cjs');
+const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { createD1StateClient } = require('./d1-state-client.cjs');
 
-const MIGRATION_ID = 'neon-to-d1-2026-10-03-v1';
-const DATA_API_URL = 'https://ep-square-dream-b5uavt85.apirest.c-7.us-east-2.aws.neon.tech/rudi_auth/rest/v1';
-const AUTH_TABLE = 'rudi_browser_auth';
-const DURABLE_TABLE = 'rudi_durable_state';
+const MIGRATION_ID = 'neon-to-d1-2026-10-03-v2';
 const AUTH_NAMESPACE = 'rudi-browser-auth-v1';
 const SYSTEM_NAMESPACE = 'rudi-system-v1';
 const MARKER_KEY = 'migration:' + MIGRATION_ID;
+const ECIES_CONTEXT = Buffer.from('rudi-neon-migration-v1');
+const ENCRYPTED_NEON_URI = Object.freeze({
+  v: 1,
+  x: 'xgKL-MH3wddRhHqIb63OZ5X_gP-QlRGY6fAHX-W1TmY',
+  y: 'qrEMrozjL3MfI_EjN9saFfJwPNoN86lhEgLMsrBTLhY',
+  iv: 'Af8KHRa4HhRVwjC4',
+  ct: 'rrjGKwnveNGKOaIEnTjH73OPQFfhJozU5mLKeo_N3TmmBn7qKCvDmCqceB5Mmg-2MvoWN_e2LKpXVoytp3ifWHbU2gL3ZGjDNZugZ5hm-pVxg0GsYiyUuP1zEvS6yECHatceYaullEmS6TmVV0ql-b_uJumYcKryenoAB8LnNWY61GOMAeWJGaAEFlZK0WcJN5NKwSEqsvYyQsw',
+  tag: '228NtBcteYXIcZ50BcM4fQ',
+});
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -49,46 +58,201 @@ function namespaceSummary(rows) {
 }
 function rowKey(row) { return String(row?.namespace || '') + '\0' + String(row?.key || ''); }
 
-async function neonRequest(table, query, options = {}) {
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  if (typeof fetchImpl !== 'function') throw new Error('neon-migration-fetch-unavailable');
-  const token = signDataApiJwt({ env: options.env || process.env });
-  const response = await fetchImpl(DATA_API_URL + '/' + table + (query ? '?' + query : ''), {
-    method: 'GET',
-    headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
-    cache: 'no-store',
-  });
-  const text = await response.text();
-  if (!response.ok) throw new Error('neon-migration-read-failed:' + response.status + ':' + text.slice(0, 180));
-  return text ? JSON.parse(text) : [];
+function decryptNeonUri(env = process.env) {
+  const secret = resolveTelegramBotToken(env);
+  const privateScalar = derivePrivateScalar(secret);
+  const ecdh = crypto.createECDH('prime256v1');
+  ecdh.setPrivateKey(privateScalar);
+  const ephemeralPublic = Buffer.concat([
+    Buffer.from([4]),
+    Buffer.from(ENCRYPTED_NEON_URI.x, 'base64url'),
+    Buffer.from(ENCRYPTED_NEON_URI.y, 'base64url'),
+  ]);
+  const shared = ecdh.computeSecret(ephemeralPublic);
+  const key = crypto.createHash('sha256').update(shared).update(ECIES_CONTEXT).digest();
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ENCRYPTED_NEON_URI.iv, 'base64url'));
+  decipher.setAuthTag(Buffer.from(ENCRYPTED_NEON_URI.tag, 'base64url'));
+  const plaintext = Buffer.concat([
+    decipher.update(Buffer.from(ENCRYPTED_NEON_URI.ct, 'base64url')),
+    decipher.final(),
+  ]).toString('utf8');
+  if (!plaintext.startsWith('postgresql://')) throw new Error('neon-migration-uri-invalid');
+  return plaintext;
 }
 
-async function readAuthRows(options = {}) {
-  const query = new URLSearchParams({
-    select: 'actor,pin_record,passkeys,updated_at',
-    order: 'actor.asc',
-  }).toString();
-  const rows = await neonRequest(AUTH_TABLE, query, options);
-  return (Array.isArray(rows) ? rows : []).filter((row) => ['Рустам', 'Диана'].includes(String(row?.actor || '')));
+function i32(value) { const b = Buffer.alloc(4); b.writeInt32BE(value); return b; }
+function cstr(value) { return Buffer.concat([Buffer.from(String(value), 'utf8'), Buffer.from([0])]); }
+function pgMessage(type, payload = Buffer.alloc(0)) {
+  return Buffer.concat([Buffer.from(type), i32(payload.length + 4), payload]);
 }
-
-async function readDurableRows(options = {}) {
-  const all = [];
-  const pageSize = 10;
-  for (let offset = 0; offset < 5000; offset += pageSize) {
-    const query = new URLSearchParams({
-      select: 'namespace,key,value,tags,expires_at,updated_at',
-      order: 'namespace.asc,key.asc',
-      limit: String(pageSize),
-      offset: String(offset),
-    }).toString();
-    const rows = await neonRequest(DURABLE_TABLE, query, options);
-    const page = Array.isArray(rows) ? rows : [];
-    all.push(...page);
-    if (page.length < pageSize) break;
+function xorBuffers(left, right) {
+  const out = Buffer.alloc(left.length);
+  for (let index = 0; index < left.length; index += 1) out[index] = left[index] ^ right[index];
+  return out;
+}
+function pgHmac(key, value) { return crypto.createHmac('sha256', key).update(value).digest(); }
+function pgSha(value) { return crypto.createHash('sha256').update(value).digest(); }
+function pgError(payload) {
+  const fields = {};
+  let index = 0;
+  while (index < payload.length && payload[index] !== 0) {
+    const code = String.fromCharCode(payload[index]);
+    index += 1;
+    let end = index;
+    while (end < payload.length && payload[end] !== 0) end += 1;
+    fields[code] = payload.subarray(index, end).toString('utf8');
+    index = end + 1;
   }
-  return all;
+  return fields.M || fields.S || 'postgres-error';
 }
+function pgReader(socket) {
+  let buffer = Buffer.alloc(0);
+  const waiters = [];
+  function rejectAll(error) { while (waiters.length) waiters.shift().reject(error); }
+  function drain() {
+    while (waiters.length && buffer.length >= 5) {
+      const length = buffer.readInt32BE(1);
+      if (length < 4 || buffer.length < length + 1) return;
+      const type = String.fromCharCode(buffer[0]);
+      const payload = buffer.subarray(5, length + 1);
+      buffer = buffer.subarray(length + 1);
+      waiters.shift().resolve({ type, payload });
+    }
+  }
+  socket.on('data', (chunk) => { buffer = Buffer.concat([buffer, chunk]); drain(); });
+  socket.on('error', rejectAll);
+  socket.on('end', () => rejectAll(new Error('postgres-ended')));
+  return () => new Promise((resolve, reject) => { waiters.push({ resolve, reject }); drain(); });
+}
+
+async function pgConnect(uri) {
+  const parsed = new URL(uri);
+  const host = parsed.hostname;
+  const port = Number(parsed.port || 5432);
+  const user = decodeURIComponent(parsed.username);
+  const password = decodeURIComponent(parsed.password);
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+
+  const raw = net.createConnection({ host, port });
+  await new Promise((resolve, reject) => {
+    raw.once('connect', resolve);
+    raw.once('error', reject);
+  });
+  raw.write(Buffer.concat([i32(8), i32(80877103)]));
+  const sslResponse = await new Promise((resolve, reject) => {
+    raw.once('data', (chunk) => resolve(chunk.subarray(0, 1).toString('utf8')));
+    raw.once('error', reject);
+  });
+  if (sslResponse !== 'S') throw new Error('postgres-ssl-refused');
+
+  const socket = tls.connect({ socket: raw, servername: host, rejectUnauthorized: true });
+  await new Promise((resolve, reject) => {
+    socket.once('secureConnect', resolve);
+    socket.once('error', reject);
+  });
+  const read = pgReader(socket);
+  const startupPayload = Buffer.concat([
+    i32(196608),
+    cstr('user'), cstr(user),
+    cstr('database'), cstr(database),
+    cstr('client_encoding'), cstr('UTF8'),
+    Buffer.from([0]),
+  ]);
+  socket.write(Buffer.concat([i32(startupPayload.length + 4), startupPayload]));
+
+  let scram = null;
+  while (true) {
+    const message = await read();
+    if (message.type === 'E') throw new Error(pgError(message.payload));
+    if (message.type === 'R') {
+      const code = message.payload.readInt32BE(0);
+      if (code === 0) continue;
+      if (code === 10) {
+        const mechanisms = message.payload.subarray(4).toString('utf8').split('\0').filter(Boolean);
+        if (!mechanisms.includes('SCRAM-SHA-256')) throw new Error('postgres-scram-unavailable');
+        const nonce = crypto.randomBytes(18).toString('base64');
+        const escapedUser = user.replace(/=/g, '=3D').replace(/,/g, '=2C');
+        const clientFirstBare = `n=${escapedUser},r=${nonce}`;
+        const clientFirst = `n,,${clientFirstBare}`;
+        scram = { nonce, clientFirstBare };
+        socket.write(pgMessage('p', Buffer.concat([
+          cstr('SCRAM-SHA-256'),
+          i32(Buffer.byteLength(clientFirst)),
+          Buffer.from(clientFirst),
+        ])));
+        continue;
+      }
+      if (code === 11) {
+        if (!scram) throw new Error('postgres-scram-state');
+        const serverFirst = message.payload.subarray(4).toString('utf8');
+        const parts = Object.fromEntries(serverFirst.split(',').map((item) => [item[0], item.slice(2)]));
+        if (!parts.r || !parts.r.startsWith(scram.nonce)) throw new Error('postgres-scram-nonce');
+        const saltedPassword = crypto.pbkdf2Sync(
+          Buffer.from(password), Buffer.from(parts.s, 'base64'), Number(parts.i), 32, 'sha256'
+        );
+        const clientKey = pgHmac(saltedPassword, 'Client Key');
+        const storedKey = pgSha(clientKey);
+        const finalWithoutProof = `c=biws,r=${parts.r}`;
+        const authMessage = `${scram.clientFirstBare},${serverFirst},${finalWithoutProof}`;
+        const clientSignature = pgHmac(storedKey, authMessage);
+        const clientProof = xorBuffers(clientKey, clientSignature).toString('base64');
+        scram.serverSignature = pgHmac(pgHmac(saltedPassword, 'Server Key'), authMessage).toString('base64');
+        socket.write(pgMessage('p', Buffer.from(`${finalWithoutProof},p=${clientProof}`)));
+        continue;
+      }
+      if (code === 12) {
+        if (!scram) throw new Error('postgres-scram-state');
+        const serverFinal = message.payload.subarray(4).toString('utf8');
+        const parts = Object.fromEntries(serverFinal.split(',').map((item) => [item[0], item.slice(2)]));
+        if (parts.v && parts.v !== scram.serverSignature) throw new Error('postgres-scram-signature');
+        continue;
+      }
+      throw new Error('postgres-auth-' + code);
+    }
+    if (message.type === 'Z') break;
+  }
+  return { socket, read };
+}
+
+async function pgQueryJson(uri, sql) {
+  const { socket, read } = await pgConnect(uri);
+  try {
+    socket.write(pgMessage('Q', cstr(sql)));
+    let result = null;
+    while (true) {
+      const message = await read();
+      if (message.type === 'E') throw new Error(pgError(message.payload));
+      if (message.type === 'D') {
+        const fieldCount = message.payload.readInt16BE(0);
+        if (fieldCount !== 1) throw new Error('postgres-result-shape');
+        const length = message.payload.readInt32BE(2);
+        if (length >= 0) result = message.payload.subarray(6, 6 + length).toString('utf8');
+      }
+      if (message.type === 'Z') break;
+    }
+    if (!result) throw new Error('postgres-empty-result');
+    return JSON.parse(result);
+  } finally {
+    try { socket.write(pgMessage('X')); } catch {}
+    try { socket.end(); } catch {}
+  }
+}
+
+async function readNeonSnapshot(options = {}) {
+  const uri = decryptNeonUri(options.env || process.env);
+  const sql = `SELECT jsonb_build_object(
+    'auth', (SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY a.actor), '[]'::jsonb) FROM public.rudi_browser_auth a),
+    'durable', (SELECT COALESCE(jsonb_agg(to_jsonb(d) ORDER BY d.namespace, d.key), '[]'::jsonb) FROM public.rudi_durable_state d)
+  )::text`;
+  const snapshot = await pgQueryJson(uri, sql);
+  return {
+    auth: Array.isArray(snapshot?.auth) ? snapshot.auth : [],
+    durable: Array.isArray(snapshot?.durable) ? snapshot.durable : [],
+  };
+}
+
+async function readAuthRows(options = {}) { return (await readNeonSnapshot(options)).auth; }
+async function readDurableRows(options = {}) { return (await readNeonSnapshot(options)).durable; }
 
 async function migrateNeonToD1(options = {}) {
   const client = options.client || createD1StateClient({
@@ -103,7 +267,9 @@ async function migrateNeonToD1(options = {}) {
   if (!health?.ok || health?.storage !== 'cloudflare-d1') throw new Error('rudi-d1-health-failed');
 
   const startedAt = new Date().toISOString();
-  const [authRows, durableRows] = await Promise.all([readAuthRows(options), readDurableRows(options)]);
+  const snapshot = await readNeonSnapshot(options);
+  const authRows = snapshot.auth.filter((row) => ['Рустам', 'Диана'].includes(String(row?.actor || '')));
+  const durableRows = snapshot.durable;
   if (authRows.length !== 2) throw new Error('neon-auth-count-unexpected:' + authRows.length);
   if (durableRows.length !== 186) throw new Error('neon-durable-count-unexpected:' + durableRows.length);
 
@@ -193,12 +359,7 @@ async function migrateNeonToD1(options = {}) {
     status: complete ? 'complete' : 'verification-failed',
     startedAt,
     completedAt: new Date().toISOString(),
-    source: {
-      authRows: authRows.length,
-      durableRows: durableRows.length,
-      namespaces,
-      checksum: sourceChecksum,
-    },
+    source: { authRows: authRows.length, durableRows: durableRows.length, namespaces, checksum: sourceChecksum },
     migrated: { authWritten, durableWritten },
     verified: {
       auth: authDest.length,
@@ -218,7 +379,6 @@ async function migrateNeonToD1(options = {}) {
       messenger: Number(namespaces['rudi-messenger-v1'] || 0),
       feed: Number(namespaces['rudi-feed-v1'] || 0),
     },
-    sourceUpdatedAtNote: 'The current Worker assigns D1 updated_at at write time; original auth updated_at is preserved inside each auth value.',
   };
 
   if (complete) {
@@ -240,6 +400,8 @@ module.exports = {
   MARKER_KEY,
   canonicalJson,
   checksum,
+  decryptNeonUri,
+  pgQueryJson,
   readAuthRows,
   readDurableRows,
   migrateNeonToD1,
