@@ -4,10 +4,29 @@ function clean(value,max=1200){
   return String(value||'').replace(/\r\n?/g,'\n').trim().slice(0,max);
 }
 
+function polishText(value){
+  const source=clean(value,1000);
+  if(!source) return source;
+  const parts=source.split(/(https?:\/\/[^\s]+)/giu);
+  const polished=parts.map((part,index)=>{
+    if(index%2===1) return part;
+    let text=part
+      .replace(/[ \t]+([,.;:!?…])/gu,'$1')
+      .replace(/([,;:!?])(?=[\p{L}\p{N}])/gu,'$1 ')
+      .replace(/\.(?=[\p{L}])/gu,'. ')
+      .replace(/[ \t]{2,}/gu,' ');
+    return text;
+  }).join('');
+  const chars=[...polished];
+  const index=chars.findIndex(char=>/\p{L}/u.test(char));
+  if(index>=0) chars[index]=chars[index].toLocaleUpperCase('ru-RU');
+  return chars.join('');
+}
+
 function parse(text){
   const raw=String(text||'').trim().replace(/^\`\`\`(?:json)?\s*/i,'').replace(/\s*\`\`\`$/,'');
   if(!raw) return '';
-  try{return clean(JSON.parse(raw)?.text,1000)}catch{return ''}
+  try{return polishText(JSON.parse(raw)?.text)}catch{return ''}
 }
 
 async function correctMessengerText(text,options={}){
@@ -15,9 +34,9 @@ async function correctMessengerText(text,options={}){
   if(!source) return source;
   const env=options.env||process.env;
   const apiKey=clean(options.apiKey||env.GROQ_API_KEY,500);
-  if(!apiKey) return source;
+  if(!apiKey) return polishText(source);
   const fetchImpl=options.fetch||global.fetch;
-  if(typeof fetchImpl!=='function') return source;
+  if(typeof fetchImpl!=='function') return polishText(source);
 
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),Math.max(4000,Number(options.timeoutMs)||9000));
@@ -30,6 +49,8 @@ async function correctMessengerText(text,options={}){
         model:MODEL,
         messages:[{role:'user',content:[
           'Исправь только орфографию, опечатки и знаки препинания в сообщении.',
+          'Первую буквенную букву сообщения делай заглавной.',
+          'Убирай лишние пробелы перед знаками препинания и нормализуй пробел после них.',
           'Не меняй смысл, лексику, тон, порядок мыслей, имена, ссылки, числа, эмодзи, сленг и мат.',
           'Не смягчай и не цензурируй текст. Если не уверен в правке, оставь как было.',
           'Верни JSON с единственным полем text.',
@@ -48,15 +69,15 @@ async function correctMessengerText(text,options={}){
         }}}
       })
     });
-    if(!response.ok) return source;
+    if(!response.ok) return polishText(source);
     const payload=await response.json().catch(()=>null);
     const corrected=parse(payload?.choices?.[0]?.message?.content);
-    return corrected||source;
+    return corrected||polishText(source);
   }catch(_){
-    return source;
+    return polishText(source);
   }finally{
     clearTimeout(timer);
   }
 }
 
-module.exports={MODEL,correctMessengerText};
+module.exports={MODEL,polishText,correctMessengerText};
