@@ -11595,7 +11595,7 @@
         const history=Array.isArray(payload?.history)?payload.history:[];
         const clientOperation=String(payload?.__clientProductsOperation||'');
         const clientEpoch=Number(payload?.__clientProductsEpoch||0);
-        if(clientOperation==='list'&&clientEpoch<productsMutationEpoch) return;
+        if(clientEpoch>0&&clientEpoch<productsMutationEpoch) return;
         const renderSignature=productsRenderSignature(items,history);
         const unchanged=renderSignature===latestProductsRenderSignature;
         latestProductsRenderSignature=renderSignature;
