@@ -180,7 +180,6 @@ const DURABLE_NAMESPACES = new Set([
   'rudi-fasting-v1',
   'rudi-daily-question-v1',
   'rudi-daily-question-history-v1',
-  'rudi-supplements-v1',
   'rudi-mood-feedback-v1',
   'rudi-mood-analysis-v4',
   'rudi-for-di-feed-v1',
