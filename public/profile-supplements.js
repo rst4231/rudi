@@ -10,17 +10,45 @@ function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
 function readPrefs(){try{return JSON.parse(localStorage.getItem(storageKey())||'{}')||{}}catch{return{}}}
 function writePrefs(patch){try{localStorage.setItem(storageKey(),JSON.stringify({...readPrefs(),...patch}))}catch{}}
+const READ_CACHE_TTL_MS=30*1000;
+const supplementReadCache=new Map();
+const habitReadCache=new Map();
+function requestCacheKey(operation,payload){return String(operation||'')+'|'+JSON.stringify(payload||{})}
+function cachedRead(cache,key){
+  const row=cache.get(key);
+  if(!row||Date.now()-Number(row.savedAt||0)>READ_CACHE_TTL_MS){cache.delete(key);return null}
+  return row.data;
+}
+function saveCachedRead(cache,key,data){cache.set(key,{savedAt:Date.now(),data});return data}
+function clearReadCache(cache){cache.clear()}
+
 async function request(operation,payload={}){
+  const readOnly=operation==='list'||operation==='overview';
+  const cacheKey=requestCacheKey(operation,payload);
+  if(readOnly){
+    const cached=cachedRead(supplementReadCache,cacheKey);
+    if(cached)return cached;
+  }
   const response=await fetch(API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'supplements-request-failed'));error.status=response.status;throw error}
+  if(readOnly)return saveCachedRead(supplementReadCache,cacheKey,data);
+  clearReadCache(supplementReadCache);
   return data;
 }
 async function habitRequest(operation,payload={}){
+  const readOnly=operation==='list'||operation==='overview';
+  const cacheKey=requestCacheKey(operation,payload);
+  if(readOnly){
+    const cached=cachedRead(habitReadCache,cacheKey);
+    if(cached)return cached;
+  }
   const response=await fetch(HABITS_API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'habits-request-failed'));error.status=response.status;throw error}
   if(data.score)document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:data.score}}));
+  if(readOnly)return saveCachedRead(habitReadCache,cacheKey,data);
+  clearReadCache(habitReadCache);
   return data;
 }
 function errorText(error){
