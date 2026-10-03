@@ -1,15 +1,16 @@
 {
-  "current": "v3.54",
+  "current": "v3.55",
   "versionBranch": "main",
   "releaseCommit": null,
-  "deploymentSourceCommit": "c7a032c1cff92588c20978deaee1980a02ea0416",
+  "deploymentSourceCommit": "45011e2a0e4e432ad43bbf14a55d4fe3c02c43cd",
   "deploymentRequestedAt": "2026-10-03",
   "createdAt": "2026-10-03",
-  "basedOnProduction": "v3.53",
+  "basedOnProduction": "v3.54",
   "notes": [
-    "Мессенджер: полностью отключён резервный Telegram fallback для обычных сообщений.",
-    "Если Web Push не отправился, RUDI больше не шлёт в Telegram сообщения вида «Рустам прислал сообщение» / «Диана прислала сообщение» со ссылкой на чат.",
-    "Основной Web Push мессенджера остаётся включённым; остальные отдельные Telegram-уведомления RUDI не изменены."
+    "Мессенджер полностью выведен из Neon Data API: namespace rudi-messenger-v1 больше не считается durable.",
+    "Сообщения, индекс чата, реакции, статусы доставки/прочтения, presence/typing и ключи мессенджера теперь обслуживаются только через Vercel Runtime Cache.",
+    "TTL сообщений сохранён 24 часа; текущий Runtime Cache уже содержит зеркальные данные, поэтому отдельная миграция истории не требуется.",
+    "Старые записи rudi-messenger-v1 в Neon больше не читаются и не обновляются приложением."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
