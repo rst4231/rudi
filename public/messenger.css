@@ -1468,3 +1468,37 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
     filter:none!important;
   }
 }
+
+
+/* RUDI v3.69 messenger save toast */
+.messenger-toast{
+  position:absolute;
+  left:50%;
+  bottom:calc(max(82px,env(safe-area-inset-bottom) + 72px));
+  z-index:120;
+  transform:translate(-50%,8px) scale(.98);
+  max-width:min(86%,360px);
+  padding:9px 13px;
+  border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--surface-strong) 94%,transparent);
+  color:var(--text);
+  box-shadow:0 10px 28px rgba(0,0,0,.16);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  font-size:11px;
+  line-height:1.2;
+  font-weight:780;
+  text-align:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .16s ease,transform .16s cubic-bezier(.2,.8,.2,1);
+}
+.messenger-toast[hidden]{display:none!important}
+.messenger-toast.is-visible{
+  opacity:1;
+  transform:translate(-50%,0) scale(1);
+}
+@media(prefers-reduced-motion:reduce){
+  .messenger-toast{transition:none!important}
+}
