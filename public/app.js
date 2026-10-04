@@ -95,6 +95,7 @@
       let currentMoodDateKey = '';
       let currentConfig = null;
       let homeSunTimes = null;
+      let homeWeatherCurrent = null;
       let currentMalePsychologyFact = null;
       let currentComplimentDateKey = '';
       let homeLayoutEditing = false;
@@ -2721,6 +2722,32 @@
         return text.charAt(0).toLocaleUpperCase('ru-RU')+text.slice(1);
       }
 
+      function homeWeatherEmoji(code){
+        const value=Number(code);
+        if(value===0) return '☀️';
+        if(value===1) return '🌤️';
+        if(value===2||value===3) return '☁️';
+        if(value===45||value===48) return '🌫️';
+        if([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(value)) return '🌧️';
+        if([71,73,75,77,85,86].includes(value)) return '❄️';
+        if([95,96,99].includes(value)) return '⛈️';
+        return '☁️';
+      }
+
+      function homeWeatherInlineLabel(){
+        const temperature=Number(homeWeatherCurrent?.temperature);
+        const code=Number(homeWeatherCurrent?.code);
+        if(!Number.isFinite(temperature)||!Number.isFinite(code)) return '';
+        const rounded=Math.round(temperature);
+        const signed=rounded>0?'+'+rounded:String(rounded);
+        return homeWeatherEmoji(code)+'\u00a0'+signed+'°';
+      }
+
+      function homeDashboardDateWeatherLabel(){
+        const weather=homeWeatherInlineLabel();
+        return homeDashboardDateLabel()+(weather?'\u00a0·\u00a0'+weather:'');
+      }
+
       function homeMoonPhase(date=new Date()){
         const synodicMonth=29.530588853;
         const newMoonEpoch=Date.UTC(2000,0,6,18,14,0);
@@ -4319,7 +4346,7 @@
         const moon=document.getElementById('homeDashboardMoon');
         dashboard.dataset.daypart=homeDaypart();
         if(greeting) greeting.textContent=homeGreeting();
-        if(date) date.textContent=homeDashboardDateLabel();
+        if(date) date.textContent=homeDashboardDateWeatherLabel();
         if(moon) moon.textContent=homeMoonPhaseLabel();
         renderHomeSunEvent();
 
@@ -6913,7 +6940,10 @@
         const legacy=document.getElementById('profileMeta');
         if(legacy) legacy.textContent=weekday+' · '+date;
         const dashboardDate=document.getElementById('homeDashboardDate');
-        if(dashboardDate) dashboardDate.textContent=weekday+', '+date;
+        if(dashboardDate){
+          const weather=homeWeatherInlineLabel();
+          dashboardDate.textContent=weekday+', '+date+(weather?'\u00a0·\u00a0'+weather:'');
+        }
         const dashboardMoon=document.getElementById('homeDashboardMoon');
         if(dashboardMoon) dashboardMoon.textContent=homeMoonPhaseLabel();
         renderHomeSunEvent();
@@ -7422,12 +7452,26 @@
             sunrise:Array.isArray(data.daily?.sunrise)?data.daily.sunrise:[],
             sunset:Array.isArray(data.daily?.sunset)?data.daily.sunset:[]
           };
+          const current=data.current||{};
+          const currentTemperature=Number(current.temperature_2m);
+          const currentWeatherCode=Number(current.weather_code);
+          homeWeatherCurrent=Number.isFinite(currentTemperature)&&Number.isFinite(currentWeatherCode)
+            ?{temperature:currentTemperature,code:currentWeatherCode}
+            :null;
+          const dashboardDate=document.getElementById('homeDashboardDate');
+          if(dashboardDate) dashboardDate.textContent=homeDashboardDateWeatherLabel();
           renderHomeSunEvent();
         }catch(_){
           homeSunTimes=null;
+          homeWeatherCurrent=null;
+          const dashboardDate=document.getElementById('homeDashboardDate');
+          if(dashboardDate) dashboardDate.textContent=homeDashboardDateWeatherLabel();
           renderHomeSunEvent();
         }
         if(!cfg?.enabled){
+          homeWeatherCurrent=null;
+          const dashboardDate=document.getElementById('homeDashboardDate');
+          if(dashboardDate) dashboardDate.textContent=homeDashboardDateWeatherLabel();
           setWeatherVisual(null);
           elCaption.textContent='Погода выключена';
           elRain.textContent='Прогноз дождя выключен';
