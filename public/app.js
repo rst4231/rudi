@@ -3460,9 +3460,9 @@
       function syncLuluToiletStatus(){
         const node=document.getElementById('luluToiletStatus');if(!node)return;
         const state=homeDashboardState.lulu||{},fallback=state?.lastWalk?.walkedAt;
-        const stamps=[state.lastPeeAt||fallback,state.lastPoopAt||fallback].map(value=>new Date(String(value||''))).filter(date=>!Number.isNaN(date.getTime()));
-        if(!stamps.length){setLuluAvatar(false);node.textContent='Следующая прогулка — пока не рассчитана';node.dataset.level='unknown';return}
-        const dueAt=Math.min(...stamps.map(date=>date.getTime()+8*60*60*1000)),now=Date.now(),needsWalk=now>=dueAt;setLuluAvatar(needsWalk);
+        const peeStamp=new Date(String(state.lastPeeAt||fallback||''));
+        if(Number.isNaN(peeStamp.getTime())){setLuluAvatar(false);node.textContent='Следующая прогулка — пока не рассчитана';node.dataset.level='unknown';return}
+        const dueAt=peeStamp.getTime()+8*60*60*1000,now=Date.now(),needsWalk=now>=dueAt;setLuluAvatar(needsWalk);
         if(needsWalk){node.textContent='Пора гулять (терпит '+luluPatienceLabel(now-dueAt)+')';node.dataset.level='high'}
         else{const time=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(dueAt));node.textContent='Следующая прогулка — '+time;const left=dueAt-now;node.dataset.level=left<=3600000?'high':left<=10800000?'medium':'low'}
         clearTimeout(luluDueStatusTimer);luluDueStatusTimer=setTimeout(syncLuluToiletStatus,60000);
