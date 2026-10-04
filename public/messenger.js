@@ -2794,7 +2794,10 @@
     const cancelled=!send;
     setMicRecordingVisual(false);
     const recorder=state.mediaRecorder;
-    if(!recorder) return;
+    if(!recorder){
+      resetVoiceCancelGesture();
+      return;
+    }
     state.mediaRecorder=null;
     clearInterval(state.recordingTimer);
     state.recordingTimer=0;
