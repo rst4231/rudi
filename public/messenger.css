@@ -1274,3 +1274,197 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   }
 }
 
+
+
+/* RUDI v3.68 messenger motion polish */
+.messenger-message .messenger-bubble{
+  transition:transform .11s cubic-bezier(.2,.8,.2,1),filter .14s ease;
+  transform-origin:50% 100%;
+}
+.messenger-message.is-own .messenger-bubble{transform-origin:100% 100%}
+.messenger-message.is-partner .messenger-bubble{transform-origin:0 100%}
+.messenger-message.is-pressing .messenger-bubble{
+  transform:scale(.985);
+  filter:brightness(.985);
+}
+.messenger-message.is-partner.is-new{
+  animation:messengerIncomingIn .22s cubic-bezier(.2,.8,.2,1) both;
+}
+.messenger-message.is-own.is-sent{
+  animation:messengerOutgoingIn .24s cubic-bezier(.2,.8,.2,1) both;
+}
+.messenger-message.is-reaction-pop .messenger-bubble{
+  animation:messengerReactionBubble .26s cubic-bezier(.2,.85,.25,1) both;
+}
+@keyframes messengerIncomingIn{
+  from{opacity:0;transform:translateY(6px) scale(.99)}
+  to{opacity:1;transform:none}
+}
+@keyframes messengerOutgoingIn{
+  from{opacity:.48;transform:translateY(8px) scale(.97)}
+  to{opacity:1;transform:none}
+}
+@keyframes messengerReactionBubble{
+  0%,100%{transform:scale(1)}
+  45%{transform:scale(1.025)}
+}
+
+.messenger-emoji-tray,
+.messenger-attach-tray,
+.messenger-star-tray{
+  will-change:transform,opacity;
+}
+.messenger-emoji-tray.is-opening{
+  transform-origin:50% 100%;
+  animation:messengerTrayIn .18s cubic-bezier(.2,.8,.2,1) both;
+}
+.messenger-emoji-tray.is-closing{
+  pointer-events:none;
+  transform-origin:50% 100%;
+  animation:messengerTrayOut .14s ease both;
+}
+.messenger-attach-tray.is-opening,
+.messenger-star-tray.is-opening{
+  transform-origin:14% 100%;
+  animation:messengerPopoverIn .18s cubic-bezier(.2,.8,.2,1) both;
+}
+.messenger-attach-tray.is-closing,
+.messenger-star-tray.is-closing{
+  pointer-events:none;
+  transform-origin:14% 100%;
+  animation:messengerPopoverOut .14s ease both;
+}
+.messenger-attach-tray.is-opening>button{
+  animation:messengerPopoverItemIn .18s cubic-bezier(.2,.8,.2,1) both;
+}
+.messenger-attach-tray.is-opening>button:nth-child(2){animation-delay:20ms}
+.messenger-attach-tray.is-opening>button:nth-child(3){animation-delay:40ms}
+.messenger-attach-tray.is-opening>button:nth-child(4){animation-delay:60ms}
+.messenger-attach-tray.is-opening>button:nth-child(5){animation-delay:80ms}
+.messenger-attach-tray.is-opening>button:nth-child(6){animation-delay:100ms}
+@keyframes messengerTrayIn{
+  from{opacity:0;transform:translateY(5px) scale(.985)}
+  to{opacity:1;transform:none}
+}
+@keyframes messengerTrayOut{
+  from{opacity:1;transform:none}
+  to{opacity:0;transform:translateY(3px) scale(.99)}
+}
+@keyframes messengerPopoverIn{
+  from{opacity:0;transform:translateY(7px) scale(.97)}
+  to{opacity:1;transform:none}
+}
+@keyframes messengerPopoverOut{
+  from{opacity:1;transform:none}
+  to{opacity:0;transform:translateY(5px) scale(.98)}
+}
+@keyframes messengerPopoverItemIn{
+  from{opacity:0;transform:translateY(4px) scale(.96)}
+  to{opacity:1;transform:none}
+}
+
+.messenger-emoji-tray button.is-emoji-pop{
+  animation:messengerEmojiPop .22s cubic-bezier(.2,.9,.25,1) both;
+}
+.messenger-reaction:active .messenger-reaction-emoji{
+  transform:scale(1.16);
+}
+.messenger-reaction-emoji{
+  transition:transform .12s cubic-bezier(.2,.9,.25,1);
+}
+@keyframes messengerEmojiPop{
+  0%,100%{transform:scale(1)}
+  42%{transform:translateY(-2px) scale(1.2)}
+}
+
+.messenger-unread-separator.is-new{
+  animation:messengerUnreadIn .26s cubic-bezier(.2,.8,.2,1) both;
+}
+.messenger-unread-separator.is-new::before,
+.messenger-unread-separator.is-new::after{
+  transform-origin:center;
+  animation:messengerUnreadLineIn .3s cubic-bezier(.2,.8,.2,1) both;
+}
+.messenger-unread-separator.is-new span{
+  animation:messengerUnreadLabelIn .28s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes messengerUnreadIn{
+  from{opacity:0;transform:translateY(4px)}
+  to{opacity:1;transform:none}
+}
+@keyframes messengerUnreadLineIn{
+  from{opacity:0;transform:scaleX(.35)}
+  to{opacity:1;transform:scaleX(1)}
+}
+@keyframes messengerUnreadLabelIn{
+  from{opacity:0;transform:scale(.94)}
+  to{opacity:1;transform:scale(1)}
+}
+
+.messenger-loading-skeleton{
+  width:100%;
+  margin-top:auto;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:14px 4px 24px;
+  pointer-events:none;
+}
+.messenger-loading-skeleton>i{
+  position:relative;
+  display:block;
+  width:min(62%,300px);
+  height:42px;
+  overflow:hidden;
+  border-radius:18px 18px 18px 6px;
+  background:color-mix(in srgb,var(--soft) 84%,var(--surface));
+  opacity:.82;
+}
+.messenger-loading-skeleton>i.is-own{
+  align-self:flex-end;
+  width:min(54%,270px);
+  border-radius:18px 18px 6px 18px;
+}
+.messenger-loading-skeleton>i.is-short{width:min(42%,220px)}
+.messenger-loading-skeleton>i::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  transform:translateX(-105%);
+  background:linear-gradient(100deg,transparent 18%,color-mix(in srgb,var(--surface-strong) 68%,transparent) 50%,transparent 82%);
+  animation:messengerSkeletonSweep 1.1s ease-in-out infinite;
+}
+@keyframes messengerSkeletonSweep{
+  to{transform:translateX(105%)}
+}
+
+/* Deleting messages collapse without a second visual jump. */
+.messenger-message.is-deleting{
+  transform-origin:center bottom;
+  will-change:opacity,transform,max-height;
+}
+
+@media (prefers-reduced-motion:reduce){
+  .messenger-message.is-partner.is-new,
+  .messenger-message.is-own.is-sent,
+  .messenger-message.is-reaction-pop .messenger-bubble,
+  .messenger-emoji-tray.is-opening,
+  .messenger-emoji-tray.is-closing,
+  .messenger-attach-tray.is-opening,
+  .messenger-attach-tray.is-closing,
+  .messenger-star-tray.is-opening,
+  .messenger-star-tray.is-closing,
+  .messenger-attach-tray.is-opening>button,
+  .messenger-emoji-tray button.is-emoji-pop,
+  .messenger-unread-separator.is-new,
+  .messenger-unread-separator.is-new::before,
+  .messenger-unread-separator.is-new::after,
+  .messenger-unread-separator.is-new span,
+  .messenger-loading-skeleton>i::after{
+    animation:none!important;
+  }
+  .messenger-message.is-pressing .messenger-bubble{
+    transform:none!important;
+    filter:none!important;
+  }
+}
