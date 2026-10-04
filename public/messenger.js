@@ -47,6 +47,8 @@
     recordingTimer:0,
     recordingStream:null,
     micPointerHeld:false,
+    micPointerStartX:0,
+    micCancelArmed:false,
     dragDepth:0,
     voiceAudioContext:null,
     voiceAudioPrimed:false,
@@ -2717,6 +2719,23 @@
     mic.setAttribute('aria-label',on?'Идёт запись голосового':'Записать голосовое');
   }
 
+  const VOICE_CANCEL_THRESHOLD=72;
+  function setVoiceCancelVisual(distance=0,armed=false){
+    const bar=document.getElementById('messengerRecordingBar');
+    if(!bar) return;
+    const label=bar.querySelector('span:not(.messenger-recording-dot)');
+    const progress=Math.max(0,Math.min(1,Number(distance||0)/VOICE_CANCEL_THRESHOLD));
+    bar.style.setProperty('--voice-cancel-progress',String(progress));
+    bar.classList.toggle('is-cancel-armed',Boolean(armed));
+    if(label) label.textContent=armed?'Отпустите для отмены':'← Сдвиньте влево для отмены';
+  }
+
+  function resetVoiceCancelGesture(){
+    state.micPointerStartX=0;
+    state.micCancelArmed=false;
+    setVoiceCancelVisual(0,false);
+  }
+
   async function startVoiceRecording(){
     if(state.mediaRecorder) return;
     const status=document.getElementById('messengerStatus');
@@ -2741,7 +2760,7 @@
       state.recordingTimer=setInterval(()=>{
         const seconds=(Date.now()-state.recordingStartedAt)/1000;
         if(time) time.textContent=secondsLabel(seconds);
-        if(seconds>=60) stopVoiceRecording({send:true});
+        if(seconds>=60) stopVoiceRecording({send:!state.micCancelArmed});
       },250);
       recorder.ondataavailable=event=>{if(event.data?.size)state.recordingChunks.push(event.data)};
       recorder.start(250);
@@ -2772,6 +2791,7 @@
 
   async function stopVoiceRecording({send=true}={}){
     state.micPointerHeld=false;
+    const cancelled=!send;
     setMicRecordingVisual(false);
     const recorder=state.mediaRecorder;
     if(!recorder) return;
@@ -2780,11 +2800,16 @@
     state.recordingTimer=0;
     const bar=document.getElementById('messengerRecordingBar');
     if(bar) bar.hidden=true;
+    resetVoiceCancelGesture();
     const result=await finishVoiceBlob(recorder);
     state.recordingStream?.getTracks?.().forEach(track=>track.stop());
     state.recordingStream=null;
     state.recordingChunks=[];
-    if(!send||!result?.blob||result.duration<.35) return;
+    if(cancelled){
+      showMessengerToast('Запись отменена');
+      return;
+    }
+    if(!result?.blob||result.duration<.35) return;
     if(result.blob.size>650000){
       const status=document.getElementById('messengerStatus');
       if(status){status.hidden=false;status.textContent='Голосовое получилось слишком большим.'}
@@ -3189,19 +3214,37 @@
         if(event.pointerType==='mouse'&&event.button!==0) return;
         event.preventDefault();
         state.micPointerHeld=true;
+        state.micPointerStartX=Number(event.clientX||0);
+        state.micCancelArmed=false;
+        setVoiceCancelVisual(0,false);
         setMicRecordingVisual(true);
         try{mic.setPointerCapture?.(event.pointerId)}catch(_){}
         startVoiceRecording();
       });
+      mic.addEventListener('pointermove',event=>{
+        if(!state.micPointerHeld) return;
+        const start=Number(state.micPointerStartX||0);
+        if(!start) return;
+        const distance=Math.max(0,start-Number(event.clientX||0));
+        const armed=distance>=VOICE_CANCEL_THRESHOLD;
+        if(armed!==state.micCancelArmed){
+          state.micCancelArmed=armed;
+          try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        }
+        setVoiceCancelVisual(distance,armed);
+        if(distance>4) event.preventDefault();
+      });
       mic.addEventListener('pointerup',event=>{
         event.preventDefault();
+        const send=!state.micCancelArmed;
         state.micPointerHeld=false;
         setMicRecordingVisual(false);
         try{mic.releasePointerCapture?.(event.pointerId)}catch(_){}
-        stopVoiceRecording({send:true});
+        stopVoiceRecording({send});
       });
       mic.addEventListener('pointercancel',()=>{
         state.micPointerHeld=false;
+        state.micCancelArmed=true;
         setMicRecordingVisual(false);
         stopVoiceRecording({send:false});
       });
@@ -3215,6 +3258,7 @@
       recordingCancel.dataset.bound='1';
       recordingCancel.addEventListener('click',()=>{
         state.micPointerHeld=false;
+        state.micCancelArmed=true;
         setMicRecordingVisual(false);
         stopVoiceRecording({send:false});
       });
