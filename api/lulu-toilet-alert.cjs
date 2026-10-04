@@ -101,13 +101,10 @@ async function runLuluToiletAlert(options = {}) {
   if (!walkedAt) return { sent: [], skipped: 'no-walk', probability: null };
 
   const peeAt=String(lulu?.lastPeeAt||walkedAt);
-  const poopAt=String(lulu?.lastPoopAt||walkedAt);
   const peeProbability=luluToiletProbability(peeAt,now);
-  const poopProbability=luluToiletProbability(poopAt,now);
-  const values=[peeProbability,poopProbability].filter(Number.isFinite);
-  const probability=values.length?Math.max(...values):null;
+  const probability=Number.isFinite(peeProbability)?peeProbability:null;
   if (probability === null || probability < 100) {
-    return { sent: [], skipped: 'below-threshold', probability, peeProbability, poopProbability };
+    return { sent: [], skipped: 'below-threshold', probability, peeProbability };
   }
 
   const already = new Set(
@@ -119,7 +116,6 @@ async function runLuluToiletAlert(options = {}) {
     return {
       probability,
       peeProbability,
-      poopProbability,
       walkedAt,
       sent: [],
       failed: [],
