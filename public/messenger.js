@@ -10,6 +10,7 @@
   const AAD_V2=encoder.encode('rudi-messenger-shared-v2');
   const OUTBOX_KEY='rudi-messenger-outbox-v1';
   const REACTIONS=['❤️','😂','😘','😢','👍','🔥'];
+  const trayMotionTimers=new WeakMap();
   const state={
     actor:'',
     partner:'',
@@ -49,6 +50,10 @@
     dragDepth:0,
     voiceAudioContext:null,
     voiceAudioPrimed:false,
+    deletingIds:new Set(),
+    deletedSuppressUntil:new Map(),
+    unreadBoundaryAnimatedId:'',
+    loadingSkeletonTimer:0,
   };
 
   function telegramInitData(){
@@ -317,6 +322,81 @@
     }).format(date);
   }
 
+  function retriggerMotionClass(element,className,duration=220){
+    if(!element) return;
+    element.classList.remove(className);
+    void element.offsetWidth;
+    element.classList.add(className);
+    setTimeout(()=>element.classList.remove(className),duration);
+  }
+
+  function setMessengerTrayOpen(element,open){
+    if(!element) return;
+    const previous=trayMotionTimers.get(element);
+    if(previous) clearTimeout(previous);
+    trayMotionTimers.delete(element);
+    element.classList.remove('is-opening','is-closing');
+
+    if(open){
+      element.hidden=false;
+      void element.offsetWidth;
+      element.classList.add('is-opening');
+      const timer=setTimeout(()=>{
+        element.classList.remove('is-opening');
+        trayMotionTimers.delete(element);
+      },220);
+      trayMotionTimers.set(element,timer);
+      return;
+    }
+
+    if(element.hidden) return;
+    element.classList.add('is-closing');
+    const timer=setTimeout(()=>{
+      element.hidden=true;
+      element.classList.remove('is-closing');
+      trayMotionTimers.delete(element);
+    },140);
+    trayMotionTimers.set(element,timer);
+  }
+
+  function pulseMessageReaction(messageId){
+    const id=String(messageId||'').trim();
+    if(!id) return;
+    const article=[...document.querySelectorAll('.messenger-message')]
+      .find(node=>String(node.dataset.messageId||'')===id);
+    retriggerMotionClass(article,'is-reaction-pop',260);
+  }
+
+  function scheduleMessengerLoadingSkeleton(){
+    if(state.loadingSkeletonTimer) clearTimeout(state.loadingSkeletonTimer);
+    state.loadingSkeletonTimer=0;
+    if(state.messagesLoaded||document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden') return;
+    state.loadingSkeletonTimer=setTimeout(()=>{
+      state.loadingSkeletonTimer=0;
+      if(!state.loading||state.messagesLoaded||document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden') return;
+      const list=document.getElementById('messengerMessages');
+      if(!list||list.querySelector('.messenger-message,.messenger-loading-skeleton')) return;
+      const empty=list.querySelector('#messengerEmpty');
+      if(empty) empty.hidden=true;
+      const skeleton=document.createElement('div');
+      skeleton.className='messenger-loading-skeleton';
+      skeleton.setAttribute('aria-hidden','true');
+      skeleton.innerHTML='<i class="is-partner"></i><i class="is-own"></i><i class="is-partner is-short"></i>';
+      list.appendChild(skeleton);
+    },320);
+  }
+
+  function clearMessengerLoadingSkeleton(){
+    if(state.loadingSkeletonTimer){
+      clearTimeout(state.loadingSkeletonTimer);
+      state.loadingSkeletonTimer=0;
+    }
+    const list=document.getElementById('messengerMessages');
+    list?.querySelector('.messenger-loading-skeleton')?.remove();
+    const empty=list?.querySelector('#messengerEmpty');
+    if(empty&&!state.messagesLoaded&&!state.rows.length) empty.hidden=false;
+  }
+
   function appendLinkified(container,text){
     const source=String(text||'');
     const regex=/https?:\/\/[^\s<]+/giu;
@@ -397,8 +477,30 @@
     return !recipients.length||recipients.includes(viewer);
   }
 
+  function pruneDeletedSuppressions(){
+    const now=Date.now();
+    for(const [id,until] of state.deletedSuppressUntil){
+      if(Number(until||0)<=now) state.deletedSuppressUntil.delete(id);
+    }
+  }
+
+  function rowSuppressedForDeletion(row){
+    const id=String(row?.id||'').trim();
+    if(!id) return false;
+    if(state.deletingIds.has(id)) return true;
+    const until=Number(state.deletedSuppressUntil.get(id)||0);
+    if(until>Date.now()) return true;
+    if(until) state.deletedSuppressUntil.delete(id);
+    return false;
+  }
+
+  function filterMessengerRows(rows){
+    pruneDeletedSuppressions();
+    return (Array.isArray(rows)?rows:[]).filter(row=>rowVisibleForActor(row)&&!rowSuppressedForDeletion(row));
+  }
+
   function mergePendingRows(serverRows){
-    const rows=(Array.isArray(serverRows)?serverRows:[]).filter(row=>rowVisibleForActor(row));
+    const rows=filterMessengerRows(serverRows);
     const serverClientIds=new Set(rows.map(row=>String(row?.clientId||'')).filter(Boolean));
     const outbox=readMessengerOutbox();
     const remaining=outbox.filter(entry=>!serverClientIds.has(String(entry.clientId||'')));
@@ -498,20 +600,55 @@
   }
 
   async function deleteOwnMessage(row){
-    if(!row?.id||row.sender!==state.actor) return;
+    const id=String(row?.id||'').trim();
+    if(!id||row.sender!==state.actor||state.deletingIds.has(id)) return;
+
     const list=document.getElementById('messengerMessages');
     const preservedScrollTop=Number(list?.scrollTop||0);
+    const snapshot=state.rows.find(item=>String(item?.id||'')===id)||row;
+    const payload=state.decrypted.get(id);
+    state.deletingIds.add(id);
+
+    const animation=animateMessageRemoval(id);
     try{
-      const data=await api('messenger-delete',{id:row.id});
-      await animateMessageRemoval(row.id);
+      await Promise.all([
+        api('messenger-delete',{id}),
+        animation,
+      ]);
+      state.deletedSuppressUntil.set(id,Date.now()+15000);
+      state.rows=state.rows.filter(item=>String(item?.id||'')!==id);
+      state.decrypted.delete(id);
+      state.renderedIds.delete(id);
+      state.deletingIds.delete(id);
       const settledScrollTop=Number(list?.scrollTop??preservedScrollTop);
-      state.rows=Array.isArray(data.messages)?data.messages:state.rows.filter(item=>item.id!==row.id);
-      state.decrypted.delete(row.id);
-      state.renderedIds.delete(row.id);
       renderMessages({preserveScrollTop:settledScrollTop});
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(error){
-      console.warn('RUDI_MESSENGER_DELETE_WARN',String(error?.message||error));
+      await animation.catch(()=>{});
+      const code=String(error?.message||error||'');
+      state.deletingIds.delete(id);
+
+      if(code.includes('messenger-message-not-found')){
+        state.deletedSuppressUntil.set(id,Date.now()+15000);
+        state.rows=state.rows.filter(item=>String(item?.id||'')!==id);
+        state.decrypted.delete(id);
+        state.renderedIds.delete(id);
+        renderMessages({preserveScrollTop:Number(list?.scrollTop??preservedScrollTop)});
+        return;
+      }
+
+      state.deletedSuppressUntil.delete(id);
+      if(snapshot&&!state.rows.some(item=>String(item?.id||'')===id)){
+        state.rows=[...state.rows,snapshot].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+        if(payload) state.decrypted.set(id,payload);
+      }
+      renderMessages({preserveScrollTop:Number(list?.scrollTop??preservedScrollTop)});
+      const status=document.getElementById('messengerStatus');
+      if(status){
+        status.hidden=false;
+        status.textContent='Не удалось удалить сообщение.';
+      }
+      console.warn('RUDI_MESSENGER_DELETE_WARN',code);
     }
   }
 
@@ -881,6 +1018,7 @@
 
   async function setMessageReaction(row,emoji){
     if(!row?.id||String(row.id).startsWith('pending:')||!REACTIONS.includes(emoji)) return;
+    pulseMessageReaction(row.id);
     const list=document.getElementById('messengerMessages');
     const preservedScrollTop=Number(list?.scrollTop||0);
     try{
@@ -908,6 +1046,20 @@
     if(!article||!row||!payload) return;
     let taps=0;
     let gestureTimer=0;
+    let pressX=0;
+    let pressY=0;
+    const clearPress=()=>article.classList.remove('is-pressing');
+    article.addEventListener('pointerdown',event=>{
+      if(event.target.closest('a,button,input,textarea')) return;
+      if(event.pointerType==='mouse'&&event.button!==0) return;
+      pressX=Number(event.clientX||0);
+      pressY=Number(event.clientY||0);
+      article.classList.add('is-pressing');
+    });
+    article.addEventListener('pointermove',event=>{
+      if(Math.abs(Number(event.clientX||0)-pressX)>8||Math.abs(Number(event.clientY||0)-pressY)>8) clearPress();
+    },{passive:true});
+    ['pointerup','pointercancel','pointerleave'].forEach(type=>article.addEventListener(type,clearPress));
     article.addEventListener('click',event=>{
       if(event.target.closest('a,button,input,textarea')) return;
       const longPressedAt=Number(article.dataset.longPressedAt||0);
@@ -1798,9 +1950,11 @@
       }
       if(state.unreadBoundaryId&&row.id===state.unreadBoundaryId){
         const unread=document.createElement('div');
-        unread.className='messenger-unread-separator';
+        const animateUnread=state.unreadBoundaryAnimatedId!==String(row.id||'');
+        unread.className='messenger-unread-separator'+(animateUnread?' is-new':'');
         unread.innerHTML='<span>Новые сообщения</span>';
         list.appendChild(unread);
+        if(animateUnread) state.unreadBoundaryAnimatedId=String(row.id||'');
       }
 
       const own=row.sender===state.actor;
@@ -2036,8 +2190,12 @@
   }
 
   async function load({markRead=true}={}){
-    if(state.loadPromise) return state.loadPromise;
+    if(state.loadPromise){
+      scheduleMessengerLoadingSkeleton();
+      return state.loadPromise;
+    }
     state.loading=true;
+    scheduleMessengerLoadingSkeleton();
     state.loadPromise=(async()=>{
       const status=document.getElementById('messengerStatus');
       try{
@@ -2085,6 +2243,7 @@
     try{
       return await state.loadPromise;
     }finally{
+      clearMessengerLoadingSkeleton();
       state.loading=false;
       state.loadPromise=null;
     }
@@ -2198,7 +2357,10 @@
       state.partnerTyping=Boolean(data.partnerTyping);
       state.partnerPresence=data.partnerPresence||null;
       setUnread(data.unread);
-      if(Number(data.unread||0)===0) state.unreadBoundaryId='';
+      if(Number(data.unread||0)===0){
+        state.unreadBoundaryId='';
+        state.unreadBoundaryAnimatedId='';
+      }
       if(changed){
         state.keys=data.keys||state.keys;
         state.rows=nextRows;
@@ -2610,8 +2772,8 @@
       if(status){status.hidden=false;status.textContent='Подарено '+value+' ⭐ · осталось '+remaining+' на этой неделе'}
       const starTray=document.getElementById('messengerStarTray');
       const attachTray=document.getElementById('messengerAttachTray');
-      if(starTray) starTray.hidden=true;
-      if(attachTray) attachTray.hidden=true;
+      setMessengerTrayOpen(starTray,false);
+      setMessengerTrayOpen(attachTray,false);
       refreshStarGiftState();
       setTimeout(()=>{if(status?.textContent?.startsWith('Подарено ')){status.hidden=true;status.textContent=''}},2400);
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
@@ -2796,8 +2958,8 @@
         if(event.target.closest('.messenger-context-menu')) return;
         hideContextMenu();
         if(!event.target.closest('#messengerAttach,#messengerAttachTray,#messengerStarTray')){
-          if(attachTray) attachTray.hidden=true;
-          if(starTray) starTray.hidden=true;
+          setMessengerTrayOpen(attachTray,false);
+          setMessengerTrayOpen(starTray,false);
         }
       },true);
     }
@@ -2915,10 +3077,11 @@
       attach.addEventListener('click',event=>{
         event.preventDefault();
         event.stopPropagation();
-        if(emojiTray) emojiTray.hidden=true;
-        if(starTray) starTray.hidden=true;
-        if(attachTray) attachTray.hidden=!attachTray.hidden;
-        if(!attachTray?.hidden) refreshStarGiftState();
+        setMessengerTrayOpen(emojiTray,false);
+        setMessengerTrayOpen(starTray,false);
+        const openAttach=Boolean(attachTray?.hidden||attachTray?.classList.contains('is-closing'));
+        setMessengerTrayOpen(attachTray,openAttach);
+        if(openAttach) refreshStarGiftState();
       });
     }
     if(attachTray&&attachTray.dataset.bound!=='1'){
@@ -2928,17 +3091,17 @@
         if(!button) return;
         const type=String(button.dataset.messengerAttach||'');
         if(type==='photo'){
-          attachTray.hidden=true;
-          if(starTray) starTray.hidden=true;
+          setMessengerTrayOpen(attachTray,false);
+          setMessengerTrayOpen(starTray,false);
           photoInput?.click?.();
         }else if(['smart-save','wishlist','recipe','feed'].includes(type)){
-          attachTray.hidden=true;
-          if(starTray) starTray.hidden=true;
+          setMessengerTrayOpen(attachTray,false);
+          setMessengerTrayOpen(starTray,false);
           document.activeElement?.blur?.();
           openAttachmentPicker(type);
         }else if(type==='stars'){
-          attachTray.hidden=true;
-          if(starTray) starTray.hidden=false;
+          setMessengerTrayOpen(attachTray,false);
+          setMessengerTrayOpen(starTray,true);
           refreshStarGiftState();
         }
       });
@@ -3005,9 +3168,10 @@
         event.stopPropagation();
         const start=input?.selectionStart??input?.value?.length??0;
         const end=input?.selectionEnd??input?.value?.length??start;
-        if(attachTray) attachTray.hidden=true;
-        if(starTray) starTray.hidden=true;
-        if(emojiTray) emojiTray.hidden=!emojiTray.hidden;
+        setMessengerTrayOpen(attachTray,false);
+        setMessengerTrayOpen(starTray,false);
+        const openEmoji=Boolean(emojiTray?.hidden||emojiTray?.classList.contains('is-closing'));
+        setMessengerTrayOpen(emojiTray,openEmoji);
         if(input){
           input.focus({preventScroll:true});
           try{input.setSelectionRange(start,end)}catch(_){}
@@ -3021,6 +3185,7 @@
       emojiTray.dataset.bound='1';
       const insertEmoji=button=>{
         if(!button||!input) return;
+        retriggerMotionClass(button,'is-emoji-pop',220);
         const value=String(button.dataset.emoji||'');
         if(!value) return;
         const start=input.selectionStart??input.value.length;
