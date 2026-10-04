@@ -12601,55 +12601,7 @@ html[data-theme="light"] .profile-tool-reminder-badge{border-color:#fff}
 .personal-tool-page-head{padding:4px 1px 2px}
 
 
-/* RUDI v3.70 — unified home-card alignment */
-.profile-person-card .profile-person-head{
-  width:100%;
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) 34px!important;
-  align-items:center!important;
-  gap:10px!important;
-}
-.profile-person-card .profile-person-head>.identity{
-  width:100%!important;
-  min-width:0!important;
-}
-.profile-person-card .profile-person-head>.block-collapse-button{
-  justify-self:end!important;
-  align-self:center!important;
-  margin:0!important;
-}
-.profile-person-card .identity{
-  grid-template-columns:46px minmax(0,1fr) auto!important;
-  align-items:center!important;
-  gap:10px!important;
-}
-.profile-person-card .person{
-  min-width:0!important;
-}
-.profile-person-card .profile-name-row,
-.profile-person-card .profile-name-row-partner{
-  width:max-content!important;
-  max-width:100%!important;
-  justify-content:flex-start!important;
-  gap:8px!important;
-}
-.profile-person-card .profile-name-row-partner .partner-header-name{
-  width:auto!important;
-  max-width:100%!important;
-  text-align:left!important;
-}
-.profile-person-card .mood-self{
-  justify-self:end!important;
-  width:auto!important;
-  min-width:0!important;
-  padding:0!important;
-  border:0!important;
-  background:transparent!important;
-}
-.profile-person-card .mood-self-buttons{
-  margin:0!important;
-  gap:6px!important;
-}
+/* RUDI v3.70 — Lulu alignment retained */
 .lulu-card .lulu-head{
   width:100%;
   grid-template-columns:minmax(0,1fr) auto!important;
@@ -12668,8 +12620,19 @@ html[data-theme="light"] .profile-tool-reminder-badge{border-color:#fff}
   gap:10px!important;
 }
 @media(max-width:430px){
-  .profile-person-card .profile-person-head{grid-template-columns:minmax(0,1fr) 34px!important;gap:9px!important}
-  .profile-person-card .identity{grid-template-columns:43px minmax(0,1fr) auto!important;gap:9px!important}
   .lulu-card .lulu-identity{grid-template-columns:43px minmax(0,1fr)!important;gap:9px!important}
 }
-/* end RUDI v3.70 */
+/* end RUDI v3.70 Lulu alignment */
+
+/* RUDI v3.71 — restore person-card layout + borderless mood emoji */
+.profile-person-card .profile-name-row .mood-current-button,
+.profile-person-card .profile-name-row .partner-mood-value{
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.profile-person-card .profile-name-row .mood-current-button:active,
+.profile-person-card .profile-name-row .partner-mood-value:active{
+  background:transparent!important;
+}
+/* end RUDI v3.71 */
