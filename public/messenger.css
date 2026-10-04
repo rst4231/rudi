@@ -1502,3 +1502,36 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
 @media(prefers-reduced-motion:reduce){
   .messenger-toast{transition:none!important}
 }
+
+
+/* RUDI v3.69 slide-to-cancel voice */
+.messenger-mic{touch-action:none}
+.messenger-recording-bar{
+  transition:
+    background .14s ease,
+    border-color .14s ease,
+    box-shadow .14s ease;
+}
+.messenger-recording-bar>span:not(.messenger-recording-dot){
+  transition:color .14s ease,transform .08s linear,opacity .14s ease;
+}
+.messenger-recording-bar.is-cancel-armed{
+  background:color-mix(in srgb,#ff3b30 10%,var(--surface-strong));
+  border-color:color-mix(in srgb,#ff3b30 42%,var(--line));
+  box-shadow:0 8px 24px color-mix(in srgb,#ff3b30 12%,transparent);
+}
+.messenger-recording-bar.is-cancel-armed>span:not(.messenger-recording-dot){
+  color:#ff3b30;
+  font-weight:780;
+  transform:translateX(-4px);
+}
+.messenger-recording-bar.is-cancel-armed .messenger-recording-dot{
+  animation:none;
+  opacity:.55;
+}
+@media(prefers-reduced-motion:reduce){
+  .messenger-recording-bar,
+  .messenger-recording-bar>span:not(.messenger-recording-dot){
+    transition:none!important;
+  }
+}
