@@ -669,6 +669,66 @@
     area.remove();
   }
 
+  let messengerToastTimer=0;
+  function showMessengerToast(text){
+    const page=document.getElementById('messengerPage');
+    if(!page) return;
+    let toast=document.getElementById('messengerToast');
+    if(!toast){
+      toast=document.createElement('div');
+      toast.id='messengerToast';
+      toast.className='messenger-toast';
+      toast.setAttribute('role','status');
+      toast.setAttribute('aria-live','polite');
+      page.appendChild(toast);
+    }
+    clearTimeout(messengerToastTimer);
+    toast.textContent=String(text||'');
+    toast.hidden=false;
+    toast.classList.remove('is-visible');
+    void toast.offsetWidth;
+    toast.classList.add('is-visible');
+    messengerToastTimer=setTimeout(()=>{
+      toast.classList.remove('is-visible');
+      setTimeout(()=>{if(!toast.classList.contains('is-visible')) toast.hidden=true},170);
+    },1600);
+  }
+
+  async function saveMessageToSmartSaves(row,payload){
+    const value=String(payload?.text||'').trim();
+    if(!value) return;
+    const firstLine=value.split(/\n+/)[0].trim();
+    const title=(firstLine||'Сообщение из мессенджера').slice(0,180);
+    const exactUrl=/^https?:\/\/\S+$/iu.test(value)?value:'';
+    try{
+      const response=await fetch('/api/partner-message?rudiAction=smart-saves',{
+        method:'POST',
+        credentials:'same-origin',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({
+          initData:telegramInitData(),
+          operation:'add',
+          item:{
+            category:'Сообщения',
+            title,
+            description:'Сообщение из мессенджера · '+String(row?.sender||''),
+            rawText:value,
+            ...(exactUrl?{url:exactUrl}:{})
+          }
+        }),
+        cache:'no-store'
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data?.ok) throw new Error(String(data?.error||'smart-save-request-failed'));
+      showMessengerToast('Сохранено в Сохранения');
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+    }catch(error){
+      showMessengerToast('Не удалось сохранить');
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+      console.warn('RUDI_MESSENGER_SAVE_WARN',String(error?.message||error));
+    }
+  }
+
   function ensureContextMenu(){
     let menu=document.getElementById('messengerContextMenu');
     if(menu) return menu;
@@ -781,18 +841,18 @@
     const actions=systemEvent
       ?[
         ['Ответить',()=>setReply(row,payload)],
-        ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
+        ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
       ]
       :row.sender===state.actor
         ?[
           ['Ответить',()=>setReply(row,payload)],
-          ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
+          ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
           ...(!hasAttachment&&hasText?[['Редактировать',()=>startMessageEdit(row,payload)]]:[]),
           ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
         ]
         :[
           ['Ответить',()=>setReply(row,payload)],
-          ...(hasText?[['Копировать',()=>copyMessageText(payload.text)]]:[]),
+          ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
         ];
     for(const [label,handler,className] of actions){
       const button=document.createElement('button');
