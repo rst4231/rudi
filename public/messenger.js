@@ -1935,7 +1935,7 @@
     const previousTop=Number(list.scrollTop||0);
     const stickToBottom=Boolean(forceBottom||state.nearBottom||isMessagesNearBottom(list));
     list.replaceChildren();
-    const rows=Array.isArray(state.rows)?state.rows:[];
+    const rows=filterMessengerRows(state.rows);
     list.classList.toggle('has-messages',rows.length>0);
     if(empty) empty.hidden=rows.length>0;
     let previousDay='';
