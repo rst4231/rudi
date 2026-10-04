@@ -12636,3 +12636,10 @@ html[data-theme="light"] .profile-tool-reminder-badge{border-color:#fff}
   background:transparent!important;
 }
 /* end RUDI v3.71 */
+
+/* RUDI v3.72 — tighter name/status spacing */
+.profile-person-card .profile-name-row + .profile-work-status{
+  margin-top:-5px!important;
+}
+/* end RUDI v3.72 */
+
