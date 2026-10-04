@@ -1204,7 +1204,7 @@
     return forms[day]||('в '+day);
   }
 
-  function bestCarWashDay(weather){
+  function bestCarWashDay(weather,{startIndex=0}={}){
     if(!weather) return null;
     const precipitation=(Array.isArray(weather.dailyPrecipitation)?weather.dailyPrecipitation:[]).slice(0,7).map(Number);
     const mins=(Array.isArray(weather.dailyMin)?weather.dailyMin:[]).slice(0,7).map(Number);
@@ -1227,19 +1227,20 @@
       return count;
     };
 
+    const firstIndex=Math.max(0,Math.min(length-1,Number(startIndex)||0));
     let candidate=-1;
-    for(let i=0;i<length;i++){
+    for(let i=firstIndex;i<length;i++){
       if(wet(i)) continue;
       if(dryWindow(i)>=2&&Number(mins[i])>0){candidate=i;break}
     }
     if(candidate<0){
-      for(let i=0;i<length;i++){
+      for(let i=firstIndex;i<length;i++){
         if(!wet(i)&&dryWindow(i)>=2){candidate=i;break}
       }
     }
     if(candidate<0){
       let bestScore=Infinity;
-      for(let i=0;i<length;i++){
+      for(let i=firstIndex;i<length;i++){
         if(wet(i)) continue;
         const mm=Number(precipitation[i]);
         const score=(Number.isFinite(mm)?mm:0)+(Number(mins[i])<=0?1.5:0)+i*.05;
@@ -1271,20 +1272,22 @@
     }
 
     const bestDay=bestCarWashDay(weather);
+    const futureBestDay=bestCarWashDay(weather,{startIndex:1});
     const bestDayText=bestDay?.text||'';
+    const futureBestDayText=futureBestDay?.text||'';
     const firstWet=wetDays.length?wetDays[0]:-1;
     const total=precipitation.filter(Number.isFinite).reduce((sum,value)=>sum+value,0);
     const snowSoon=codes.slice(0,3).some(code=>[71,73,75].includes(Number(code)));
     const frost=mins.some(value=>Number.isFinite(value)&&value<=0);
 
     if(snowSoon) {
-      return {kind:'cold',title:'Лучше отложить',text:'В ближайшие дни возможен снег, машина быстро снова испачкается.',bestDayText};
+      return {kind:'cold',title:'Лучше отложить',text:'В ближайшие дни возможен снег, машина быстро снова испачкается.',bestDayText:futureBestDayText};
     }
     if(firstWet===0||firstWet===1) {
-      return {kind:'rain',title:'Лучше отложить',text:'Дождь или другие осадки ожидаются в ближайшие 1–2 дня.',bestDayText};
+      return {kind:'rain',title:'Лучше отложить',text:'Дождь или другие осадки ожидаются в ближайшие 1–2 дня.',bestDayText:futureBestDayText};
     }
     if(wetDays.length>=3||total>=8) {
-      return {kind:'rain',title:'Скорее отложить',text:'Неделя ожидается влажной, чистой машина останется ненадолго.',bestDayText};
+      return {kind:'rain',title:'Скорее отложить',text:'Неделя ожидается влажной, чистой машина останется ненадолго.',bestDayText:futureBestDayText};
     }
     if(firstWet>=2) {
       const days=firstWet;
