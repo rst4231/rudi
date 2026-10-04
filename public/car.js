@@ -1187,6 +1187,70 @@
     });
   }
 
+  function carWashDayPhrase(dateValue,index){
+    if(index===0) return 'сегодня';
+    const date=new Date(String(dateValue||'')+'T12:00:00+03:00');
+    if(Number.isNaN(date.getTime())) return '';
+    const day=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',weekday:'long'}).format(date);
+    const forms={
+      'понедельник':'в понедельник',
+      'вторник':'во вторник',
+      'среда':'в среду',
+      'четверг':'в четверг',
+      'пятница':'в пятницу',
+      'суббота':'в субботу',
+      'воскресенье':'в воскресенье'
+    };
+    return forms[day]||('в '+day);
+  }
+
+  function bestCarWashDay(weather){
+    if(!weather) return null;
+    const precipitation=(Array.isArray(weather.dailyPrecipitation)?weather.dailyPrecipitation:[]).slice(0,7).map(Number);
+    const mins=(Array.isArray(weather.dailyMin)?weather.dailyMin:[]).slice(0,7).map(Number);
+    const codes=(Array.isArray(weather.dailyCodes)?weather.dailyCodes:[]).slice(0,7).map(Number);
+    const dates=(Array.isArray(weather.dailyDates)?weather.dailyDates:[]).slice(0,7);
+    const length=Math.max(precipitation.length,codes.length,dates.length);
+    if(!length) return null;
+    const wetCodes=new Set([51,53,55,56,57,61,63,65,66,67,71,73,75,77,80,81,82,85,86,95,96,99]);
+    const wet=index=>{
+      const mm=Number(precipitation[index]);
+      const code=Number(codes[index]);
+      return (Number.isFinite(mm)&&mm>=1)||wetCodes.has(code);
+    };
+    const dryWindow=index=>{
+      let count=0;
+      for(let i=index;i<Math.min(length,index+3);i++){
+        if(wet(i)) break;
+        count++;
+      }
+      return count;
+    };
+
+    let candidate=-1;
+    for(let i=0;i<length;i++){
+      if(wet(i)) continue;
+      if(dryWindow(i)>=2&&Number(mins[i])>0){candidate=i;break}
+    }
+    if(candidate<0){
+      for(let i=0;i<length;i++){
+        if(!wet(i)&&dryWindow(i)>=2){candidate=i;break}
+      }
+    }
+    if(candidate<0){
+      let bestScore=Infinity;
+      for(let i=0;i<length;i++){
+        if(wet(i)) continue;
+        const mm=Number(precipitation[i]);
+        const score=(Number.isFinite(mm)?mm:0)+(Number(mins[i])<=0?1.5:0)+i*.05;
+        if(score<bestScore){bestScore=score;candidate=i}
+      }
+    }
+    if(candidate<0) return null;
+    const phrase=carWashDayPhrase(dates[candidate],candidate);
+    return phrase?{index:candidate,phrase,text:'Лучше помыть '+phrase}:null;
+  }
+
   function carWashAdvice(weather) {
     if(!weather) {
       return {kind:'info',title:'Проверь погоду',text:'Прогноз на неделю недоступен. Лучше проверить погоду перед мойкой.'};
@@ -1206,40 +1270,43 @@
       if((Number.isFinite(mm)&&mm>=1)||wetCodes.has(code)) wetDays.push(i);
     }
 
+    const bestDay=bestCarWashDay(weather);
+    const bestDayText=bestDay?.text||'';
     const firstWet=wetDays.length?wetDays[0]:-1;
     const total=precipitation.filter(Number.isFinite).reduce((sum,value)=>sum+value,0);
     const snowSoon=codes.slice(0,3).some(code=>[71,73,75].includes(Number(code)));
     const frost=mins.some(value=>Number.isFinite(value)&&value<=0);
 
     if(snowSoon) {
-      return {kind:'cold',title:'Лучше отложить',text:'В ближайшие дни возможен снег, машина быстро снова испачкается.'};
+      return {kind:'cold',title:'Лучше отложить',text:'В ближайшие дни возможен снег, машина быстро снова испачкается.',bestDayText};
     }
     if(firstWet===0||firstWet===1) {
-      return {kind:'rain',title:'Лучше отложить',text:'Дождь или другие осадки ожидаются в ближайшие 1–2 дня.'};
+      return {kind:'rain',title:'Лучше отложить',text:'Дождь или другие осадки ожидаются в ближайшие 1–2 дня.',bestDayText};
     }
     if(wetDays.length>=3||total>=8) {
-      return {kind:'rain',title:'Скорее отложить',text:'Неделя ожидается влажной, чистой машина останется ненадолго.'};
+      return {kind:'rain',title:'Скорее отложить',text:'Неделя ожидается влажной, чистой машина останется ненадолго.',bestDayText};
     }
     if(firstWet>=2) {
       const days=firstWet;
-      return {kind:'info',title:'Можно мыть',text:'Примерно через '+days+' '+(days===2?'дня':'дней')+' ожидаются осадки.',canWash:true};
+      return {kind:'info',title:'Можно мыть',text:'Примерно через '+days+' '+(days===2?'дня':'дней')+' ожидаются осадки.',canWash:true,bestDayText};
     }
     if(frost) {
-      return {kind:'cold',title:'Можно, но с просушкой',text:'На неделе возможны заморозки — после мойки хорошо просушить кузов, уплотнители и замки.',canWash:true};
+      return {kind:'cold',title:'Можно, но с просушкой',text:'На неделе возможны заморозки — после мойки хорошо просушить кузов, уплотнители и замки.',canWash:true,bestDayText};
     }
-    return {kind:'ok',title:'Да, можно мыть',text:'На ближайшую неделю существенных осадков не видно — хороший момент для мойки.',canWash:true};
+    return {kind:'ok',title:'Да, можно мыть',text:'На ближайшую неделю существенных осадков не видно — хороший момент для мойки.',canWash:true,bestDayText};
   }
 
   function compactWashAdvice(weather) {
     const advice=carWashAdvice(weather);
     const text=String(advice?.text||'');
-    if(/снег/i.test(text)) return 'Отложить · возможен снег.';
-    if(/1–2 дня/i.test(text)) return 'Отложить · осадки в ближайшие 1–2 дня.';
-    if(/неделя ожидается влажной/i.test(text)) return 'Скорее не стоит · на неделе ожидаются осадки.';
+    const best=String(advice?.bestDayText||'').replace(/^Лучше помыть\s+/i,'');
+    if(/снег/i.test(text)) return best?'Отложить · лучше '+best+'.':'Отложить · возможен снег.';
+    if(/1–2 дня/i.test(text)) return best?'Отложить · лучше '+best+'.':'Отложить · осадки в ближайшие 1–2 дня.';
+    if(/неделя ожидается влажной/i.test(text)) return best?'Скорее не стоит · лучше '+best+'.':'Скорее не стоит · на неделе ожидаются осадки.';
     const delayed=text.match(/через\s+(\d+)\s+/i);
     if(delayed) return 'Можно · осадки примерно через '+delayed[1]+' дн.';
-    if(/замороз/i.test(text)) return 'Можно · после мойки хорошо просушить.';
-    if(advice?.kind==='ok') return 'Да · существенных осадков на неделе не ожидается.';
+    if(/замороз/i.test(text)) return best?'Можно · лучше '+best+'.':'Можно · после мойки хорошо просушить.';
+    if(advice?.kind==='ok') return best&&best!=='сегодня'?'Да · лучше '+best+'.':'Да · существенных осадков на неделе не ожидается.';
     return 'Проверь погоду перед мойкой.';
   }
 
@@ -1264,6 +1331,12 @@
       const text=document.createElement('p');
       text.textContent=item.text;
       copy.append(title,text);
+      if(item.bestDayText){
+        const best=document.createElement('p');
+        best.className='car-recommendation-best-day';
+        best.textContent=item.bestDayText;
+        copy.appendChild(best);
+      }
       if(item.canWash){
         const guide=document.createElement('button');
         guide.type='button';
@@ -1782,7 +1855,8 @@
         precipitationSum:precipitation.reduce((a,b)=>a+b,0),
         dailyPrecipitation:precipitation.slice(0,7),
         dailyMin:mins.slice(0,7),
-        dailyCodes:(data.daily?.weather_code||[]).slice(0,7).map(Number)
+        dailyCodes:(data.daily?.weather_code||[]).slice(0,7).map(Number),
+        dailyDates:(data.daily?.time||[]).slice(0,7)
       };
       state.weather=value;
     } catch(_) {
