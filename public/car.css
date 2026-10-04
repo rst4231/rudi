@@ -2213,3 +2213,16 @@ html[data-theme="light"] .car-note-copy p.is-collapsed:not(.is-expanded)::after{
   background:linear-gradient(to bottom,transparent,#fafbfc);
 }
 html[data-theme="light"] .car-note-expand{color:#536ee8}
+
+
+/* RUDI v3.69 best wash day */
+.car-recommendation-best-day{
+  margin-top:4px!important;
+  color:color-mix(in srgb,#62c487 78%,var(--text))!important;
+  font-size:10px!important;
+  line-height:1.35!important;
+  font-weight:820!important;
+}
+html[data-theme="light"] .car-recommendation-best-day{
+  color:#2f8c58!important;
+}
