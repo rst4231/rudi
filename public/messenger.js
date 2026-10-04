@@ -22,6 +22,7 @@
     reply:null,
     edit:null,
     loading:false,
+    loadPromise:null,
     initialized:false,
     messagesLoaded:false,
     layoutViewportHeight:0,
@@ -2035,51 +2036,57 @@
   }
 
   async function load({markRead=true}={}){
-    if(state.loading) return;
+    if(state.loadPromise) return state.loadPromise;
     state.loading=true;
-    const status=document.getElementById('messengerStatus');
-    try{
-      if(status){status.hidden=true;status.textContent=''}
-      const data=await api('messenger-list');
-      await ensureKeys(data);
-      state.keys=data.keys||state.keys;
-      state.partnerTyping=Boolean(data.partnerTyping);
-      state.partnerPresence=data.partnerPresence||null;
-      const serverRows=Array.isArray(data.messages)?data.messages:[];
-      if(!state.unreadBoundaryId){
-        state.unreadBoundaryId=String(serverRows.find(row=>rowUnreadForActor(row))?.id||'');
-      }
-      state.rows=mergePendingRows(serverRows);
-      setUnread(data.unread);
-      await decryptMessages(state.rows);
-      renderMessages({forceBottom:!state.messagesLoaded});
-      state.messagesLoaded=true;
-      updateHeader();
-      if(status){status.hidden=true;status.textContent=''}
-
-      if(markRead) scheduleVisibleRead();
-      setTimeout(async()=>{
-        const source=state.rows.filter(row=>!row._pending);
-        const repaired=await repairLegacyMessages(source);
-        if(repaired===source||rowsSignature(repaired)===rowsSignature(source)) return;
-        const repairedById=new Map(repaired.map(row=>[row.id,row]));
-        state.rows=state.rows.map(row=>repairedById.get(row.id)||row);
+    state.loadPromise=(async()=>{
+      const status=document.getElementById('messengerStatus');
+      try{
+        if(status){status.hidden=true;status.textContent=''}
+        const data=await api('messenger-list');
+        await ensureKeys(data);
+        state.keys=data.keys||state.keys;
+        state.partnerTyping=Boolean(data.partnerTyping);
+        state.partnerPresence=data.partnerPresence||null;
+        const serverRows=Array.isArray(data.messages)?data.messages:[];
+        if(!state.unreadBoundaryId){
+          state.unreadBoundaryId=String(serverRows.find(row=>rowUnreadForActor(row))?.id||'');
+        }
+        state.rows=mergePendingRows(serverRows);
+        setUnread(data.unread);
         await decryptMessages(state.rows);
-        renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
-      },0);
-      setTimeout(()=>flushMessengerOutbox(),0);
-      return data;
-    }catch(error){
-      if(status){
-        status.hidden=false;
-        status.textContent=String(error?.message||'').includes('partner-key-missing')
-          ?'Партнёр ещё не активировал защищённый чат.'
-          :'Не удалось обновить чат.';
+        renderMessages({forceBottom:!state.messagesLoaded});
+        state.messagesLoaded=true;
+        updateHeader();
+        if(status){status.hidden=true;status.textContent=''}
+
+        if(markRead) scheduleVisibleRead();
+        setTimeout(async()=>{
+          const source=state.rows.filter(row=>!row._pending);
+          const repaired=await repairLegacyMessages(source);
+          if(repaired===source||rowsSignature(repaired)===rowsSignature(source)) return;
+          const repairedById=new Map(repaired.map(row=>[row.id,row]));
+          state.rows=state.rows.map(row=>repairedById.get(row.id)||row);
+          await decryptMessages(state.rows);
+          renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+        },0);
+        setTimeout(()=>flushMessengerOutbox(),0);
+        return data;
+      }catch(error){
+        if(status){
+          status.hidden=false;
+          status.textContent=String(error?.message||'').includes('partner-key-missing')
+            ?'Партнёр ещё не активировал защищённый чат.'
+            :'Не удалось обновить чат.';
+        }
+        console.warn('RUDI_MESSENGER_LOAD_WARN',String(error?.message||error));
+        return null;
       }
-      console.warn('RUDI_MESSENGER_LOAD_WARN',String(error?.message||error));
-      return null;
+    })();
+    try{
+      return await state.loadPromise;
     }finally{
       state.loading=false;
+      state.loadPromise=null;
     }
   }
 
@@ -3108,13 +3115,19 @@
     mountMessengerOverlay();
     bindPage();
     const start=async()=>{
+      let unread=0;
       try{
-        await syncUnread();
+        unread=await syncUnread();
         state.initialized=true;
       }catch(_){}
       ensureProfileButton();
-      if(document.body.dataset.appTab==='messenger') open({force:true});
-      else syncUnread();
+      if(document.body.dataset.appTab==='messenger'){
+        open({force:true});
+      }else if(unread>0){
+        const preload=()=>load({markRead:false}).catch(()=>{});
+        if(typeof window.requestIdleCallback==='function') window.requestIdleCallback(preload,{timeout:1200});
+        else setTimeout(preload,180);
+      }
     };
     if(document.body.classList.contains('auth-ok')) start();
     else{
