@@ -150,7 +150,6 @@ async function runLuluToiletAlert(options = {}) {
   return {
     probability,
     peeProbability,
-    poopProbability,
     walkedAt,
     sent,
     failed,
