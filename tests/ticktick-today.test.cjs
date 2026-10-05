@@ -4,6 +4,8 @@ const fs=require('node:fs');
 const {
   buildTickTickCalendar,
   tickTickTaskDateKeys,
+  createTickTickTask,
+  deleteTickTickTask,
   completeTickTickTask,
 }=require('../api/ticktick-client.cjs');
 
@@ -31,6 +33,39 @@ test('Moscow all-day UTC payload does not slip to previous day',()=>{
     }),
     ['2026-09-23']
   );
+});
+
+test('task creation forwards recurrence to TickTick',async()=>{
+  const calls=[];
+  const created=await createTickTickTask('token',{
+    title:'Уборка',
+    projectId:'project-1',
+    isAllDay:false,
+    startDate:'2026-10-06T18:30:00+0300',
+    dueDate:'2026-10-06T18:30:00+0300',
+    timeZone:'Europe/Moscow',
+    desc:'Кухня и ванная',
+    repeatFlag:'RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=4',
+    repeatFrom:0,
+  },{
+    fetchImpl:async(url,init={})=>{calls.push({url:String(url),init});return response(201,{id:'task-new'});}
+  });
+  assert.equal(created.id,'task-new');
+  assert.equal(calls.length,1);
+  const body=JSON.parse(calls[0].init.body);
+  assert.equal(body.repeatFlag,'RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=4');
+  assert.equal(body.repeatFrom,0);
+  assert.equal(body.desc,'Кухня и ванная');
+});
+
+test('task deletion uses TickTick delete endpoint',async()=>{
+  const calls=[];
+  await deleteTickTickTask('token','project-1','task-1',{
+    fetchImpl:async(url,init={})=>{calls.push({url:String(url),init});return response(204);}
+  });
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].init.method,'DELETE');
+  assert.match(calls[0].url,/\/project\/project-1\/task\/task-1$/);
 });
 
 test('whole task completion uses TickTick complete endpoint',async()=>{
@@ -61,6 +96,9 @@ test('today task routes are wired in Vercel',()=>{
   const map=new Map(config.rewrites.map(row=>[row.source,row.destination]));
   assert.equal(map.get('/api/ticktick/today'),'/api/partner-message?ticktickAction=today');
   assert.equal(map.get('/api/ticktick/task-complete'),'/api/partner-message?ticktickAction=task-complete');
+  assert.equal(map.get('/api/ticktick/task-create'),'/api/partner-message?ticktickAction=task-create');
+  assert.equal(map.get('/api/ticktick/task-delete'),'/api/partner-message?ticktickAction=task-delete');
+  assert.equal(map.get('/api/ticktick/task-restore'),'/api/partner-message?ticktickAction=task-restore');
 });
 
 
@@ -80,7 +118,7 @@ test('Home shared task assignees use human names and gendered labels',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   assert.match(app,/value==='ди'\|\|value==='диана'\) return 'Ответственная Диана'/);
   assert.match(app,/value==='rst'\|\|value==='рустам'\) return 'Ответственный Рустам'/);
-  assert.match(app,/return 'Ответственные Рустам и Диана'/);
+  assert.match(app,/task\?\.assigned===false\) return 'Общая'/);
   assert.match(app,/const assignee=tickTickAssigneeLabel\(task\)/);
 });
 
@@ -93,4 +131,19 @@ test('today task details render inline under the selected task instead of the bo
   assert.match(app,/reopenTask\.inlineDetails\.hidden=false/);
   assert.match(css,/\.ticktick-today-inline-details\{/);
   assert.match(css,/grid-column:1\/-1/);
+});
+
+test('shared task UI has add form, owner-aware delete and undo',()=>{
+  const html=fs.readFileSync('public/index.html','utf8');
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(html,/id="ticktickAddButton"/);
+  assert.match(html,/id="ticktickTaskResponsibleInput"/);
+  assert.match(html,/id="ticktickTaskRepeatInput"/);
+  assert.match(html,/id="ticktickTaskRepeatCountInput"/);
+  assert.match(app,/task\?\.canDelete/);
+  assert.match(app,/requestTickTickTaskDelete/);
+  assert.match(app,/showUndoSnackbar\('Задача удалена'/);
+  assert.match(css,/\.ticktick-today-delete/);
+  assert.match(css,/color:#ff3b30/);
 });
