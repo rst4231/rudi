@@ -484,7 +484,136 @@
     if(!id) return;
     const article=[...document.querySelectorAll('.messenger-message')]
       .find(node=>String(node.dataset.messageId||'')===id);
-    retriggerMotionClass(article,'is-reaction-pop',260);
+    retriggerMotionClass(article,'is-reaction-pop',210);
+  }
+
+  function messengerArticleById(messageId){
+    const id=String(messageId||'').trim();
+    if(!id) return null;
+    return [...document.querySelectorAll('.messenger-message')]
+      .find(node=>String(node.dataset.messageId||'')===id)||null;
+  }
+
+  function createMessageReactions(row){
+    const reactions=reactionStateForRow(row);
+    if(!Object.keys(reactions).some(emoji=>Array.isArray(reactions[emoji])&&reactions[emoji].length)) return null;
+    const wrap=document.createElement('div');
+    wrap.className='messenger-reactions';
+    for(const emoji of REACTIONS){
+      const actors=reactions[emoji]||[];
+      if(!actors.length) continue;
+      const reaction=document.createElement('button');
+      reaction.type='button';
+      reaction.dataset.messengerReaction=emoji;
+      reaction.dataset.messageId=String(row?.id||'');
+      reaction.className='messenger-reaction'+(actors.includes(state.actor)?' is-own-reaction':'');
+      const emojiText=document.createElement('span');
+      emojiText.className='messenger-reaction-emoji';
+      emojiText.textContent=emoji+(actors.length>1?' '+actors.length:'');
+      reaction.appendChild(emojiText);
+      appendReactionAvatars(reaction,actors);
+      reaction.title=actors.includes(state.actor)?'Снять реакцию':actors.join(', ');
+      reaction.addEventListener('click',event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        setMessageReaction(row,emoji);
+      });
+      wrap.appendChild(reaction);
+    }
+    return wrap;
+  }
+
+  function appendMessageReactions(bubble,row){
+    const wrap=createMessageReactions(row);
+    if(wrap) bubble.appendChild(wrap);
+  }
+
+  function patchMessageReactions(row,{animate=false}={}){
+    const article=messengerArticleById(row?.id);
+    const bubble=article?.querySelector('.messenger-bubble');
+    if(!article||!bubble) return false;
+    const existing=[...bubble.children].find(node=>node.classList?.contains('messenger-reactions'))||null;
+    const next=createMessageReactions(row);
+    if(existing&&next) existing.replaceWith(next);
+    else if(existing) existing.remove();
+    else if(next) bubble.appendChild(next);
+    if(animate) pulseMessageReaction(row.id);
+    return true;
+  }
+
+  function appendReadStatus(meta,row,systemEvent=false){
+    if(!meta||row?.sender!==state.actor||systemEvent) return;
+    const status=document.createElement('span');
+    status.className='messenger-read-status'+(row.readAt?' is-read':row.deliveredAt?' is-delivered':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
+    if(row._failed){
+      status.textContent='!';
+      status.title='Не отправлено. Тапните, чтобы повторить';
+      status.role='button';
+      status.tabIndex=0;
+      status.addEventListener('click',event=>{
+        event.stopPropagation();
+        flushMessengerOutbox();
+      });
+    }else if(row._pending){
+      status.textContent='◷';
+      status.title='Отправляется';
+    }else if(row.readAt){
+      status.textContent='✓✓';
+      status.title='Прочитано';
+    }else{
+      status.textContent='✓';
+      status.title='Отправлено';
+    }
+    meta.appendChild(status);
+  }
+
+  function patchMessageStatus(row){
+    const article=messengerArticleById(row?.id);
+    if(!article) return false;
+    article.classList.toggle('is-failed',Boolean(row?._failed));
+    article.classList.toggle('is-pending',Boolean(row?._pending));
+    const meta=article.querySelector('.messenger-message-meta');
+    if(!meta) return false;
+    meta.querySelector('.messenger-read-status')?.remove();
+    appendReadStatus(meta,row,state.decrypted.get(row.id)?.system===true);
+    return true;
+  }
+
+  function rowContentSignature(row){
+    return [
+      row?.id,row?.sender,row?.createdAt,row?.editedAt,row?.scheme,row?.iv,row?.ciphertext,
+      JSON.stringify(row?.systemRecipients||[])
+    ].join(':');
+  }
+
+  function rowChromeSignature(row){
+    return [
+      row?.deliveredAt,row?.readAt,row?._pending?'pending':'',row?._failed?'failed':'',
+      JSON.stringify(reactionStateForRow(row))
+    ].join(':');
+  }
+
+  function canPatchRenderedRows(previousRows,nextRows){
+    if(!Array.isArray(previousRows)||!Array.isArray(nextRows)||previousRows.length!==nextRows.length) return false;
+    for(let index=0;index<nextRows.length;index+=1){
+      const previous=previousRows[index];
+      const next=nextRows[index];
+      if(String(previous?.id||'')!==String(next?.id||'')) return false;
+      if(rowContentSignature(previous)!==rowContentSignature(next)) return false;
+      if(!messengerArticleById(next?.id)) return false;
+    }
+    return true;
+  }
+
+  function patchRenderedMessageChrome(previousRows,nextRows){
+    const previousById=new Map((Array.isArray(previousRows)?previousRows:[]).map(row=>[String(row?.id||''),row]));
+    for(const row of (Array.isArray(nextRows)?nextRows:[])){
+      const previous=previousById.get(String(row?.id||''));
+      if(!previous||rowChromeSignature(previous)===rowChromeSignature(row)) continue;
+      patchMessageStatus(row);
+      patchMessageReactions(row);
+    }
+    scheduleConversationCachePersist();
   }
 
   function scheduleMessengerLoadingSkeleton(){
@@ -709,18 +838,8 @@
     const id=String(rowId||'');
     const article=[...list.querySelectorAll('.messenger-message')].find(node=>String(node.dataset.messageId||'')===id);
     if(!article) return Promise.resolve();
-    const height=Math.max(1,Math.ceil(article.getBoundingClientRect().height));
-    article.style.setProperty('--messenger-delete-height',height+'px');
-    article.style.maxHeight=height+'px';
-    article.style.overflow='hidden';
-    article.getBoundingClientRect();
     article.classList.add('is-deleting');
-    requestAnimationFrame(()=>{
-      article.style.maxHeight='0px';
-      article.style.marginTop='0px';
-      article.style.marginBottom='0px';
-    });
-    return new Promise(resolve=>setTimeout(resolve,240));
+    return new Promise(resolve=>setTimeout(resolve,170));
   }
 
   async function deleteOwnMessage(row){
@@ -1302,8 +1421,6 @@
   async function setMessageReaction(row,emoji){
     if(!row?.id||String(row.id).startsWith('pending:')||!REACTIONS.includes(emoji)) return;
     pulseMessageReaction(row.id);
-    const list=document.getElementById('messengerMessages');
-    const preservedScrollTop=Number(list?.scrollTop||0);
     const previousRow=state.rows.find(item=>item.id===row.id)||row;
     const optimistic=optimisticReactionRow(previousRow,emoji);
     state.rows=state.rows.map(item=>item.id===row.id?optimistic:item);
@@ -1312,7 +1429,8 @@
       likedBy:optimistic.likedBy,
       until:Date.now()+12000
     });
-    renderMessages({preserveScrollTop:preservedScrollTop});
+    patchMessageReactions(optimistic,{animate:true});
+    scheduleConversationCachePersist();
     try{
       const data=emoji==='❤️'
         ?await api('messenger-like',{id:row.id})
@@ -1325,7 +1443,7 @@
         });
         state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
         scheduleConversationCachePersist();
-        renderMessages({preserveScrollTop:preservedScrollTop});
+        patchMessageReactions(data.message);
       }
       const status=document.getElementById('messengerStatus');
       if(status){status.hidden=true;status.textContent=''}
@@ -1333,7 +1451,7 @@
     }catch(error){
       state.reactionOverrides.delete(String(row.id||''));
       state.rows=state.rows.map(item=>item.id===row.id?previousRow:item);
-      renderMessages({preserveScrollTop:preservedScrollTop});
+      patchMessageReactions(previousRow);
       const status=document.getElementById('messengerStatus');
       if(status){
         status.hidden=false;
@@ -2360,59 +2478,10 @@
       time.dateTime=String(row.createdAt||'');
       time.textContent=formatTime(row.createdAt);
       meta.appendChild(time);
-      if(own&&!systemEvent){
-        const status=document.createElement('span');
-        status.className='messenger-read-status'+(row.readAt?' is-read':row.deliveredAt?' is-delivered':'')+(row._failed?' is-failed':'')+(row._pending?' is-pending':'');
-        if(row._failed){
-          status.textContent='!';
-          status.title='Не отправлено. Тапните, чтобы повторить';
-          status.role='button';
-          status.tabIndex=0;
-          status.addEventListener('click',event=>{
-            event.stopPropagation();
-            flushMessengerOutbox();
-          });
-        }else if(row._pending){
-          status.textContent='◷';
-          status.title='Отправляется';
-        }else if(row.readAt){
-          status.textContent='✓✓';
-          status.title='Прочитано';
-        }else{
-          status.textContent='✓';
-          status.title='Отправлено';
-        }
-        meta.appendChild(status);
-      }
+      appendReadStatus(meta,row,systemEvent);
       bubble.appendChild(meta);
 
-      const reactions=reactionStateForRow(row);
-      if(Object.keys(reactions).length){
-        const wrap=document.createElement('div');
-        wrap.className='messenger-reactions';
-        for(const emoji of REACTIONS){
-          const actors=reactions[emoji]||[];
-          if(!actors.length) continue;
-          const reaction=document.createElement('button');
-          reaction.type='button';
-          reaction.dataset.messengerReaction=emoji;
-          reaction.dataset.messageId=String(row?.id||'');
-          reaction.className='messenger-reaction'+(actors.includes(state.actor)?' is-own-reaction':'');
-          const emojiText=document.createElement('span');
-          emojiText.className='messenger-reaction-emoji';
-          emojiText.textContent=emoji+(actors.length>1?' '+actors.length:'');
-          reaction.appendChild(emojiText);
-          appendReactionAvatars(reaction,actors);
-          reaction.title=actors.includes(state.actor)?'Снять реакцию':actors.join(', ');
-          reaction.addEventListener('click',event=>{
-            event.preventDefault();
-            event.stopPropagation();
-            setMessageReaction(row,emoji);
-          });
-          wrap.appendChild(reaction);
-        }
-        bubble.appendChild(wrap);
-      }
+      appendMessageReactions(bubble,row);
 
       article.appendChild(bubble);
       if(payload){
@@ -2530,12 +2599,17 @@
     clearTimeout(state.readTimer);
     state.readTimer=setTimeout(async()=>{
       try{
-        const after=await markVisibleUnreadRead(state.rows);
-        if(rowsSignature(after)!==rowsSignature(state.rows)){
+        const before=state.rows;
+        const after=await markVisibleUnreadRead(before);
+        if(rowsSignature(after)!==rowsSignature(before)){
           state.rows=after;
-          await decryptMessages(state.rows);
-          const list=document.getElementById('messengerMessages');
-          renderMessages({preserveScrollTop:Number(list?.scrollTop||0)});
+          if(canPatchRenderedRows(before,after)){
+            patchRenderedMessageChrome(before,after);
+          }else{
+            await decryptMessages(state.rows);
+            const list=document.getElementById('messengerMessages');
+            renderMessages({preserveScrollTop:Number(list?.scrollTop||0)});
+          }
         }
       }catch(_){}
     },180);
@@ -2717,15 +2791,26 @@
       }
       if(changed){
         state.keys=data.keys||state.keys;
+        const previousRows=state.rows;
+        const canPatch=canPatchRenderedRows(previousRows,nextRows);
         state.rows=nextRows;
-        await decryptMessages(state.rows);
-        renderMessages({preserveScrollTop:wasNearBottom?null:preservedTop,forceBottom:wasNearBottom});
-        const after=await markVisibleUnreadRead(state.rows);
-        if(rowsSignature(after)!==rowsSignature(state.rows)){
+        if(canPatch){
+          patchRenderedMessageChrome(previousRows,nextRows);
+        }else{
+          await decryptMessages(state.rows);
+          renderMessages({preserveScrollTop:wasNearBottom?null:preservedTop,forceBottom:wasNearBottom});
+        }
+        const beforeRead=state.rows;
+        const after=await markVisibleUnreadRead(beforeRead);
+        if(rowsSignature(after)!==rowsSignature(beforeRead)){
           const top=Number(list?.scrollTop||0);
           state.rows=after;
-          await decryptMessages(state.rows);
-          renderMessages({preserveScrollTop:top});
+          if(canPatchRenderedRows(beforeRead,after)){
+            patchRenderedMessageChrome(beforeRead,after);
+          }else{
+            await decryptMessages(state.rows);
+            renderMessages({preserveScrollTop:top});
+          }
         }
         if(hasNewPartnerMessage){
           if(!wasNearBottom){
