@@ -3264,7 +3264,7 @@
               renderScoreStickers(currentScoreState);
               renderScoreModal(actor,currentScoreState);
               const localGift=window.RUDI_MESSENGER?.showOptimisticStarGift?.(amount);
-              const clientEventId=String(localGift?.clientEventId||('star-gift-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
+              const clientEventId=String(localGift?.clientEventId||('client-star-gift-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
               try{
                 const data=await scoreRequest('gift',{amount,clientEventId});
                 currentScoreState=data.score||currentScoreState;
@@ -12061,7 +12061,12 @@
             const remove=productIconButton('Удалить','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>');
             remove.classList.add('danger');
             remove.addEventListener('click',async()=>{
+              if(remove.disabled) return;
               remove.disabled=true;
+              const parent=row.parentNode;
+              const nextSibling=row.nextSibling;
+              row.remove();
+              try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
               try{
                 const data=await productsRequest('remove',{id:item.id});
                 renderProducts(data);
@@ -12070,10 +12075,11 @@
                   const restored=await productsRequest('restore',{item:removed});
                   renderProducts(restored);
                 });
-                try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
               }catch(_){
+                if(parent&&row.parentNode!==parent) parent.insertBefore(row,nextSibling&&nextSibling.parentNode===parent?nextSibling:null);
+                remove.disabled=false;
                 try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-              }finally{remove.disabled=false}
+              }
             });
 
             actions.append(copy,remove);
@@ -12865,12 +12871,14 @@
           const raw=input.value.trim();
           if(!raw) return;
           const items=raw.split(/\s*[,;\n]+\s*/).map(value=>value.trim()).filter(Boolean);
+          input.value='';
           add.disabled=true;
+          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           try{
             renderProducts(await productsRequest('add',{items}));
-            input.value='';
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
+            input.value=raw;
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{add.disabled=false}
         });
@@ -12890,10 +12898,14 @@
             return;
           }
           boughtAll.disabled=true;
+          const selectedRows=[...document.querySelectorAll('.product-item.is-checked[data-rudi-item-id]')];
+          selectedRows.forEach(row=>row.remove());
+          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           try{
             renderProducts(await productsRequest('buy-checked',{checkedIds}));
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(_){
+            await loadProducts({silent:true}).catch(()=>{});
             boughtAll.disabled=false;
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }
@@ -12902,6 +12914,16 @@
         clear.addEventListener('click',async()=>{
           if(clear.disabled) return;
           clear.disabled=true;
+          const groups=document.getElementById('productsGroups');
+          const empty=document.getElementById('productsEmpty');
+          const status=document.getElementById('productsStatus');
+          if(groups) groups.replaceChildren();
+          if(empty) empty.hidden=false;
+          if(status){status.textContent='';status.hidden=true}
+          setProductsBadge(false);
+          homeDashboardState.productCount=0;
+          renderHomeDashboard();
+          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           try{
             const data=await productsRequest('clear');
             renderProducts(data);
@@ -12915,8 +12937,8 @@
                 renderProducts(restored);
               });
             }
-            try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           }catch(_){
+            await loadProducts({silent:true}).catch(()=>{});
             clear.disabled=false;
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }
