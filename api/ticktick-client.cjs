@@ -135,6 +135,64 @@ function resolveAssigneeName(username) {
   return ASSIGNEE_HASH_TO_NAME.get(hashAssignee(value)) || 'Назначен';
 }
 
+async function listTickTickProjectMembers(accessToken, projectId, options = {}) {
+  const project = String(projectId || '').trim();
+  if (!project) throw new Error('ticktick-project-id-required');
+  const response = await fetchTickTickRead(
+    API_BASE_URL + '/project/' + encodeURIComponent(project) + '/members',
+    {
+      headers: {
+        Authorization: 'Bearer ' + accessToken,
+        Accept: 'application/json',
+        'user-agent': 'RUDI-TickTick/1.0',
+      },
+      cache: 'no-store',
+    },
+    options
+  );
+  if (response.status === 401) throw Object.assign(new Error('ticktick-token-invalid'), { status: 401 });
+  if (response.status === 403) throw Object.assign(new Error('ticktick-write-forbidden'), { status: 403 });
+  if (!response.ok) throw new Error('ticktick-members-failed:' + response.status);
+  const rows = await response.json().catch(() => []);
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    username: String(row?.username || '').trim(),
+    displayName: String(row?.displayName || '').trim(),
+    self: row?.self === true,
+  })).filter((row) => row.username);
+}
+
+async function assignTickTickTask(accessToken, projectId, taskId, displayName, options = {}) {
+  const project = String(projectId || '').trim();
+  const id = String(taskId || '').trim();
+  const wanted = String(displayName || '').trim();
+  if (!project || !id || !wanted) throw new Error('ticktick-task-assign-invalid');
+  const members = await listTickTickProjectMembers(accessToken, project, options);
+  const member = members.find((row) => row.displayName === wanted);
+  if (!member?.username) throw new Error('ticktick-assignee-not-found:' + wanted);
+
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(API_BASE_URL + '/task/assign', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'user-agent': 'RUDI-TickTick/1.0',
+    },
+    body: JSON.stringify({
+      projectId: project,
+      taskId: id,
+      assigneeUsername: member.username,
+    }),
+    cache: 'no-store',
+  });
+  if (response.status === 401) throw Object.assign(new Error('ticktick-token-invalid'), { status: 401 });
+  if (response.status === 403) throw Object.assign(new Error('ticktick-write-forbidden'), { status: 403 });
+  if (response.status === 404) throw new Error('ticktick-task-not-found');
+  if (!response.ok) throw new Error('ticktick-task-assign-failed:' + response.status);
+  return response.json().catch(() => ({ id, projectId: project, assigneeUsername: member.username }));
+}
+
 function taskTimestamp(task) {
   const raw = task?.startDate || task?.dueDate;
   const value = raw ? Date.parse(raw) : NaN;
@@ -605,6 +663,8 @@ module.exports = {
   exchangeCode,
   loadTickTickConfig,
   resolveAssigneeName,
+  listTickTickProjectMembers,
+  assignTickTickTask,
   taskTimestamp,
   startOfMoscowDay,
   chooseNextTask,
