@@ -1078,10 +1078,20 @@
 
           <fieldset class="recipe-choice-group">
             <legend>Приём пищи</legend>
-            <div class="recipe-choice-row" data-recipe-choice="meal">
+            <div class="recipe-choice-row recipe-meal-row" data-recipe-choice="meal">
               <button type="button" data-recipe-meal="breakfast" aria-pressed="false">Завтрак</button>
               <button type="button" data-recipe-meal="lunch" aria-pressed="true">Обед</button>
+              <button type="button" data-recipe-meal="snack" aria-pressed="false">Перекус</button>
               <button type="button" data-recipe-meal="dinner" aria-pressed="false">Ужин</button>
+            </div>
+          </fieldset>
+
+          <fieldset id="recipeTypeGroup" class="recipe-choice-group">
+            <legend>Тип блюда</legend>
+            <div id="recipeTypeChoices" class="recipe-choice-row recipe-type-row" data-recipe-choice="type">
+              <button type="button" data-recipe-type="soup" aria-pressed="true">Суп</button>
+              <button type="button" data-recipe-type="main" aria-pressed="false">Второе</button>
+              <button type="button" data-recipe-type="salad" aria-pressed="false">Салат</button>
             </div>
           </fieldset>
 
