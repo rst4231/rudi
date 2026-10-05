@@ -22,6 +22,8 @@ function sha256(value) {
 
 function extractToken(value) {
   const raw = String(value || '').trim();
+  const modern = raw.match(/^https:\/\/photos\.icloud\.com\/shared\/album\/([A-Za-z0-9_-]+)(?:[/?#].*)?$/i);
+  if (modern) return modern[1];
   const hash = raw.match(/#([A-Za-z0-9_-]+)$/);
   if (hash) return hash[1];
   if (/^[A-Za-z0-9_-]+$/.test(raw)) return raw;
@@ -30,10 +32,10 @@ function extractToken(value) {
 
 function normalizeAlbumUrl(value) {
   const raw = String(value || '').trim();
-  if (!/^https:\/\/www\.icloud\.com\/sharedalbum\/#([A-Za-z0-9_-]+)$/i.test(raw)) {
-    throw new Error('shared-album-invalid');
-  }
-  return raw;
+  if (/^https:\/\/www\.icloud\.com\/sharedalbum\/#([A-Za-z0-9_-]+)$/i.test(raw)) return raw;
+  const modern = raw.match(/^https:\/\/photos\.icloud\.com\/shared\/album\/([A-Za-z0-9_-]+)(?:[/?#].*)?$/i);
+  if (modern) return 'https://photos.icloud.com/shared/album/' + modern[1];
+  throw new Error('shared-album-invalid');
 }
 
 function decodeSetupKey(value) {
