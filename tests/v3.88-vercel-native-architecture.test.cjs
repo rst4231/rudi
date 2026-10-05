@@ -5,17 +5,15 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
-test('v3.88 removes Cloudflare from primary state and realtime hot paths',()=>{
+test('v3.88 keeps storage migration isolated and removes retired messenger realtime',()=>{
   const strict=read('api/strict-runtime-cache.cjs');
   const auth=read('api/rudi-auth-db.cjs');
   const partner=read('api/partner-message.js');
-  const realtime=read('api/realtime.js');
   assert.match(strict,/createRudiStateClient/);
   assert.match(auth,/createRudiStateClient/);
   assert.doesNotMatch(partner,/rudi-db-api\.cpateammail\.workers\.dev/);
-  assert.doesNotMatch(partner,/realtime\/publish/);
-  assert.match(realtime,/WebSocketServer/);
-  assert.match(realtime,/RUDI_REALTIME_RECIPIENT_TIMING/);
+  assert.equal(fs.existsSync(path.join(root,'api/realtime.js')),false);
+  assert.equal(fs.existsSync(path.join(root,'api/realtime-auth.cjs')),false);
 });
 
 test('v3.88 migration only switches after exact verification',()=>{
@@ -25,14 +23,6 @@ test('v3.88 migration only switches after exact verification',()=>{
   assert.match(migration,/!missing\.length&&!extra\.length/);
   assert.match(migration,/setPhase\(dest,'ready'/);
   assert.match(migration,/critical\.browserAuth===2/);
-});
-
-test('v3.88 messenger publishes committed actions over Vercel WebSocket',()=>{
-  const client=read('public/messenger.js');
-  for(const event of ['message','reaction','delete','edit','read','delivered','typing','presence']){
-    assert.match(client,new RegExp("publishRealtime\\('"+event+"'"),event);
-  }
-  assert.match(client,/return realtimeIsOpen\(\)\?60000:12000/);
 });
 
 test('v3.88 push and 21:00 Moscow habit reminder stay intact',()=>{
