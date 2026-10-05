@@ -173,6 +173,7 @@
         <div class="priority-title-row">
           <h2 id="priorityTitle">Совместные дела</h2>
           <span id="priorityAttentionBadge" class="priority-attention-badge" hidden aria-label=""></span>
+          <button id="ticktickAddButton" class="ticktick-add-button" type="button" aria-label="Добавить задачу" title="Добавить задачу">+</button>
         </div>
       </div>
       <div class="priority-grid">
@@ -1448,6 +1449,69 @@
 
     </footer>
   </main>
+
+  <div id="ticktickTaskModal" class="ticktick-task-modal" hidden aria-hidden="true">
+    <button id="ticktickTaskModalBackdrop" class="ticktick-task-modal-backdrop" type="button" aria-label="Закрыть"></button>
+    <section class="ticktick-task-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="ticktickTaskModalTitle">
+      <div class="ticktick-task-modal-head">
+        <div>
+          <small>Совместные дела</small>
+          <h3 id="ticktickTaskModalTitle">Новая задача</h3>
+        </div>
+        <button id="ticktickTaskModalClose" class="ticktick-task-modal-close" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <form id="ticktickTaskForm" class="ticktick-task-form">
+        <label class="ticktick-task-field">
+          <span>Задача</span>
+          <input id="ticktickTaskTitleInput" type="text" maxlength="500" autocomplete="off" placeholder="Например: купить продукты" required>
+        </label>
+        <div class="ticktick-task-field-row">
+          <label class="ticktick-task-field">
+            <span>Дата</span>
+            <input id="ticktickTaskDateInput" type="date" required>
+          </label>
+          <label class="ticktick-task-field">
+            <span>Время</span>
+            <input id="ticktickTaskTimeInput" type="time">
+          </label>
+        </div>
+        <label class="ticktick-task-field">
+          <span>Ответственный</span>
+          <select id="ticktickTaskResponsibleInput">
+            <option value="">Общая</option>
+            <option value="Рустам">Рустам</option>
+            <option value="Диана">Диана</option>
+          </select>
+        </label>
+        <label class="ticktick-task-field">
+          <span>Описание</span>
+          <textarea id="ticktickTaskDescriptionInput" maxlength="5000" rows="3" placeholder="Необязательно"></textarea>
+        </label>
+        <div class="ticktick-task-field-row">
+          <label class="ticktick-task-field">
+            <span>Повтор</span>
+            <select id="ticktickTaskRepeatInput">
+              <option value="none">Не повторять</option>
+              <option value="daily">Каждый день</option>
+              <option value="weekdays">По будням</option>
+              <option value="weekly">Каждую неделю</option>
+              <option value="monthly">Каждый месяц</option>
+              <option value="yearly">Каждый год</option>
+            </select>
+          </label>
+          <label id="ticktickTaskRepeatCountField" class="ticktick-task-field" hidden>
+            <span>Сколько раз</span>
+            <input id="ticktickTaskRepeatCountInput" type="number" min="2" max="365" value="2" inputmode="numeric">
+          </label>
+        </div>
+        <div class="ticktick-task-form-actions">
+          <button id="ticktickTaskCancelButton" type="button">Отмена</button>
+          <button id="ticktickTaskSaveButton" type="submit">Добавить</button>
+        </div>
+        <div id="ticktickTaskFormStatus" class="ticktick-task-form-status" aria-live="polite"></div>
+      </form>
+    </section>
+  </div>
 
   <div id="undoSnackbar" class="undo-snackbar" role="status" aria-live="polite" aria-atomic="true" hidden>
     <span id="undoSnackbarText">Удалено</span>
