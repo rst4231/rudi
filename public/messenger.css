@@ -111,18 +111,10 @@
 .messenger-message.is-deleting{
   pointer-events:none;
   opacity:0;
-  transform:scale(.88);
-  filter:blur(1.5px);
-  padding-top:0!important;
-  padding-bottom:0!important;
-  min-height:0!important;
+  transform:translate3d(0,4px,0) scale(.985);
   transition:
-    opacity .18s ease,
-    transform .22s cubic-bezier(.2,.8,.2,1),
-    filter .18s ease,
-    max-height .22s cubic-bezier(.4,0,.2,1),
-    margin .22s cubic-bezier(.4,0,.2,1),
-    padding .22s cubic-bezier(.4,0,.2,1);
+    opacity .14s ease,
+    transform .16s cubic-bezier(.2,.8,.2,1);
 }
 .messenger-message.is-own.is-deleting{transform-origin:100% 50%}
 .messenger-message.is-partner.is-deleting{transform-origin:0 50%}
@@ -1308,7 +1300,7 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
 
 /* RUDI v3.68 messenger motion polish */
 .messenger-message .messenger-bubble{
-  transition:transform .11s cubic-bezier(.2,.8,.2,1),filter .14s ease;
+  transition:transform .09s cubic-bezier(.2,.8,.2,1),filter .12s ease;
   transform-origin:50% 100%;
 }
 .messenger-message.is-own .messenger-bubble{transform-origin:100% 100%}
@@ -1318,13 +1310,13 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   filter:brightness(.985);
 }
 .messenger-message.is-partner.is-new{
-  animation:messengerIncomingIn .22s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerIncomingIn .18s cubic-bezier(.2,.8,.2,1) both;
 }
 .messenger-message.is-own.is-sent{
-  animation:messengerOutgoingIn .24s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerOutgoingIn .20s cubic-bezier(.2,.8,.2,1) both;
 }
 .messenger-message.is-reaction-pop .messenger-bubble{
-  animation:messengerReactionBubble .26s cubic-bezier(.2,.85,.25,1) both;
+  animation:messengerReactionBubble .20s cubic-bezier(.2,.85,.25,1) both;
 }
 @keyframes messengerIncomingIn{
   from{opacity:0;transform:translateY(6px) scale(.99)}
@@ -1342,30 +1334,38 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
 .messenger-emoji-tray,
 .messenger-attach-tray,
 .messenger-star-tray{
+  will-change:auto;
+}
+.messenger-emoji-tray.is-opening,
+.messenger-emoji-tray.is-closing,
+.messenger-attach-tray.is-opening,
+.messenger-attach-tray.is-closing,
+.messenger-star-tray.is-opening,
+.messenger-star-tray.is-closing{
   will-change:transform,opacity;
 }
 .messenger-emoji-tray.is-opening{
   transform-origin:50% 100%;
-  animation:messengerTrayIn .18s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerTrayIn .16s cubic-bezier(.2,.8,.2,1) both;
 }
 .messenger-emoji-tray.is-closing{
   pointer-events:none;
   transform-origin:50% 100%;
-  animation:messengerTrayOut .14s ease both;
+  animation:messengerTrayOut .12s ease both;
 }
 .messenger-attach-tray.is-opening,
 .messenger-star-tray.is-opening{
   transform-origin:14% 100%;
-  animation:messengerPopoverIn .18s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerPopoverIn .16s cubic-bezier(.2,.8,.2,1) both;
 }
 .messenger-attach-tray.is-closing,
 .messenger-star-tray.is-closing{
   pointer-events:none;
   transform-origin:14% 100%;
-  animation:messengerPopoverOut .14s ease both;
+  animation:messengerPopoverOut .12s ease both;
 }
 .messenger-attach-tray.is-opening>button{
-  animation:messengerPopoverItemIn .18s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerPopoverItemIn .16s cubic-bezier(.2,.8,.2,1) both;
 }
 .messenger-attach-tray.is-opening>button:nth-child(2){animation-delay:20ms}
 .messenger-attach-tray.is-opening>button:nth-child(3){animation-delay:40ms}
@@ -1394,7 +1394,7 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
 }
 
 .messenger-emoji-tray button.is-emoji-pop{
-  animation:messengerEmojiPop .22s cubic-bezier(.2,.9,.25,1) both;
+  animation:messengerEmojiPop .18s cubic-bezier(.2,.9,.25,1) both;
 }
 .messenger-reaction:active .messenger-reaction-emoji{
   transform:scale(1.16);
@@ -1408,15 +1408,15 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
 }
 
 .messenger-unread-separator.is-new{
-  animation:messengerUnreadIn .26s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerUnreadIn .22s cubic-bezier(.2,.8,.2,1) both;
 }
 .messenger-unread-separator.is-new::before,
 .messenger-unread-separator.is-new::after{
   transform-origin:center;
-  animation:messengerUnreadLineIn .3s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerUnreadLineIn .24s cubic-bezier(.2,.8,.2,1) both;
 }
 .messenger-unread-separator.is-new span{
-  animation:messengerUnreadLabelIn .28s cubic-bezier(.2,.8,.2,1) both;
+  animation:messengerUnreadLabelIn .22s cubic-bezier(.2,.8,.2,1) both;
 }
 @keyframes messengerUnreadIn{
   from{opacity:0;transform:translateY(4px)}
@@ -1522,7 +1522,7 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   text-align:center;
   opacity:0;
   pointer-events:none;
-  transition:opacity .16s ease,transform .16s cubic-bezier(.2,.8,.2,1);
+  transition:opacity .14s ease,transform .14s cubic-bezier(.2,.8,.2,1);
 }
 .messenger-toast[hidden]{display:none!important}
 .messenger-toast.is-visible{
