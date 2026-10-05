@@ -13144,6 +13144,7 @@
           String(source.ingredients||'').trim().toLowerCase().replace(/\s+/g,' '),
           String(source.equipment||'').trim(),
           String(source.meal||'').trim(),
+          String(source.dishType||'').trim(),
           String(source.cuisine||'').trim(),
           String(Number(source.timeMinutes)||0)
         ].join('|');
@@ -13244,6 +13245,7 @@
           if(input) input.value=String(currentRecipeContext.ingredients||'');
           setRecipeChoiceValue('data-recipe-equipment',currentRecipeContext.equipment);
           setRecipeChoiceValue('data-recipe-meal',currentRecipeContext.meal);
+          renderRecipeTypeChoices(currentRecipeContext.meal,currentRecipeContext.dishType);
           setRecipeChoiceValue('data-recipe-cuisine',currentRecipeContext.cuisine);
           setRecipeChoiceValue('data-recipe-time',String(currentRecipeContext.timeMinutes||15));
         }
@@ -13257,7 +13259,41 @@
         return String(button.getAttribute(attribute)||'');
       }
 
-      function setupRecipeChoice(groupSelector,attribute){
+      const RECIPE_TYPES_BY_MEAL={
+        breakfast:[
+          ['porridge','Каша'],['eggs','Яйца'],['pastry','Выпечка'],['sandwiches','Бутерброды'],
+          ['dairy','Творог/йогурт'],['syrniki-pancakes','Сырники/блины'],['salad','Салат'],['drink','Напиток']
+        ],
+        lunch:[['soup','Суп'],['main','Второе'],['salad','Салат']],
+        snack:[
+          ['sandwich','Бутерброд'],['pastry','Выпечка'],['fruit','Фрукты'],
+          ['dairy','Творог/йогурт'],['snack','Снэк'],['drink','Напиток']
+        ],
+        dinner:[['main','Второе'],['salad','Салат'],['side','Гарнир'],['light','Лёгкое блюдо']]
+      };
+
+      function renderRecipeTypeChoices(meal,preferred=''){
+        const group=document.getElementById('recipeTypeChoices');
+        if(!group) return '';
+        const options=RECIPE_TYPES_BY_MEAL[String(meal||'')]||RECIPE_TYPES_BY_MEAL.lunch;
+        const selected=options.some(([value])=>value===String(preferred||''))?String(preferred):options[0][0];
+        group.replaceChildren();
+        options.forEach(([value,label])=>{
+          const button=document.createElement('button');
+          button.type='button';
+          button.setAttribute('data-recipe-type',value);
+          button.setAttribute('aria-pressed',value===selected?'true':'false');
+          button.textContent=label;
+          button.addEventListener('click',()=>{
+            group.querySelectorAll('button[data-recipe-type]').forEach(item=>item.setAttribute('aria-pressed',item===button?'true':'false'));
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+          group.appendChild(button);
+        });
+        return selected;
+      }
+
+      function setupRecipeChoice(groupSelector,attribute,onChange=null){
         const group=document.querySelector(groupSelector);
         if(!group||group.dataset.recipeBound==='1') return;
         group.dataset.recipeBound='1';
@@ -13265,6 +13301,7 @@
         buttons.forEach(button=>{
           button.addEventListener('click',()=>{
             buttons.forEach(item=>item.setAttribute('aria-pressed',item===button?'true':'false'));
+            if(typeof onChange==='function') onChange(String(button.getAttribute(attribute)||''));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         });
@@ -14027,7 +14064,8 @@
         generate.dataset.recipeBound='1';
 
         setupRecipeChoice('[data-recipe-choice="equipment"]','data-recipe-equipment');
-        setupRecipeChoice('[data-recipe-choice="meal"]','data-recipe-meal');
+        setupRecipeChoice('[data-recipe-choice="meal"]','data-recipe-meal',meal=>renderRecipeTypeChoices(meal));
+        renderRecipeTypeChoices(recipeChoiceValue('data-recipe-meal')||'lunch');
         setupRecipeChoice('[data-recipe-choice="cuisine"]','data-recipe-cuisine');
         setupRecipeChoice('[data-recipe-choice="time"]','data-recipe-time');
 
@@ -14053,6 +14091,7 @@
             ingredients,
             equipment:recipeChoiceValue('data-recipe-equipment'),
             meal:recipeChoiceValue('data-recipe-meal'),
+            dishType:recipeChoiceValue('data-recipe-type'),
             cuisine:recipeChoiceValue('data-recipe-cuisine'),
             timeMinutes:Number(recipeChoiceValue('data-recipe-time')||15),
             excludeTitles:recentRecipeTitles(24)
@@ -14071,6 +14110,7 @@
               ingredients:payload.ingredients,
               equipment:payload.equipment,
               meal:payload.meal,
+              dishType:payload.dishType,
               cuisine:payload.cuisine,
               timeMinutes:payload.timeMinutes
             };
