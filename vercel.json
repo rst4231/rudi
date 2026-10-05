@@ -27,6 +27,9 @@
     "api/habits.js": {
       "supportsCancellation": true
     },
+    "api/habit-reminder-cron.js": {
+      "maxDuration": 60
+    },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
     }
@@ -245,6 +248,10 @@
     {
       "path": "/api/daily",
       "schedule": "30 21 * * *"
+    },
+    {
+      "path": "/api/habit-reminder-cron",
+      "schedule": "0 18 * * *"
     },
     {
       "path": "/api/cinema-premieres-cron",
