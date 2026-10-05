@@ -126,7 +126,18 @@ function normalizeActorList(value){
 }
 
 function normalizeScheme(value){
-  return String(value||'').trim()==='shared-v2'?'shared-v2':'legacy-v1';
+  const scheme=String(value||'').trim();
+  if(scheme==='plain-v3') return 'plain-v3';
+  if(scheme==='shared-v2') return 'shared-v2';
+  return 'legacy-v1';
+}
+
+function normalizePlainPayload(value){
+  if(!value||typeof value!=='object'||Array.isArray(value)) throw new Error('messenger-payload-invalid');
+  let serialized='';
+  try{serialized=JSON.stringify(value)}catch(_){throw new Error('messenger-payload-invalid')}
+  if(!serialized||serialized.length>1400000) throw new Error('messenger-payload-invalid');
+  try{return JSON.parse(serialized)}catch(_){throw new Error('messenger-payload-invalid')}
 }
 
 function normalizeClientId(value){
@@ -157,12 +168,14 @@ function normalizeMessage(row){
   const expiresAt=String(row.expiresAt||'');
   if(!sender||!id||!Number.isFinite(Date.parse(createdAt))||!Number.isFinite(Date.parse(expiresAt))) return null;
   try{
+    const scheme=normalizeScheme(row.scheme);
     return {
       id,
       sender,
-      scheme:normalizeScheme(row.scheme),
-      ciphertext:normalizeCiphertext(row.ciphertext),
-      iv:normalizeIv(row.iv),
+      scheme,
+      payload:scheme==='plain-v3'?normalizePlainPayload(row.payload):null,
+      ciphertext:scheme==='plain-v3'?'':normalizeCiphertext(row.ciphertext),
+      iv:scheme==='plain-v3'?'':normalizeIv(row.iv),
       keyVersions:normalizeKeyVersions(row.keyVersions),
       systemRecipients:normalizeActorList(row.systemRecipients),
       systemReadBy:normalizeActorList(row.systemReadBy),
@@ -219,8 +232,9 @@ async function addMessengerMessage(actor,payload,options={}){
       sender,
       clientId,
       scheme:normalizeScheme(payload?.scheme),
-      ciphertext:normalizeCiphertext(payload?.ciphertext),
-      iv:normalizeIv(payload?.iv),
+      payload:normalizeScheme(payload?.scheme)==='plain-v3'?normalizePlainPayload(payload?.payload):null,
+      ciphertext:normalizeScheme(payload?.scheme)==='plain-v3'?'':normalizeCiphertext(payload?.ciphertext),
+      iv:normalizeScheme(payload?.scheme)==='plain-v3'?'':normalizeIv(payload?.iv),
       keyVersions:normalizeKeyVersions(payload?.keyVersions),
       systemRecipients:normalizeActorList(payload?.systemRecipients),
       systemReadBy:[],
@@ -261,8 +275,9 @@ async function editMessengerMessage(actor,id,payload,options={}){
     const next={
       ...current,
       scheme:normalizeScheme(payload?.scheme),
-      ciphertext:normalizeCiphertext(payload?.ciphertext),
-      iv:normalizeIv(payload?.iv),
+      payload:normalizeScheme(payload?.scheme)==='plain-v3'?normalizePlainPayload(payload?.payload):null,
+      ciphertext:normalizeScheme(payload?.scheme)==='plain-v3'?'':normalizeCiphertext(payload?.ciphertext),
+      iv:normalizeScheme(payload?.scheme)==='plain-v3'?'':normalizeIv(payload?.iv),
       keyVersions:normalizeKeyVersions(payload?.keyVersions),
       editedAt:payload?.silent===true?current.editedAt:new Date(now).toISOString(),
     };
