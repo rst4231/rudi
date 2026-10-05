@@ -12689,3 +12689,27 @@ body.recipe-cooking-open{overflow:hidden!important}
 .recipe-cooking-mode footer button.is-primary{background:var(--accent);color:#fff}
 .recipe-cooking-mode footer button:disabled{opacity:.4}
 @media(prefers-reduced-motion:reduce){.recipe-step-timer,.recipe-cooking-mode *{transition:none!important;animation:none!important}}
+
+
+/* RUDI v3.80 instant launch surface */
+body.auth-pending .shell{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:none!important;
+}
+body.auth-pending .app-tabbar{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:none!important;
+}
+body.auth-pending .app-gate{
+  display:none!important;
+}
+body.auth-login .app-gate,
+body.auth-denied .app-gate{
+  display:grid!important;
+}
+body.auth-ok .shell,
+body.auth-ok .app-tabbar{
+  pointer-events:auto;
+}
