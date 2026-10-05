@@ -393,6 +393,17 @@
           .slice(0,24).map(value=>String(value||'').slice(0,900)).filter(Boolean),
         tips:(Array.isArray(payload.attachment.tips)?payload.attachment.tips:[])
           .slice(0,12).map(value=>String(value||'').slice(0,700)).filter(Boolean),
+        photos:(Array.isArray(payload.attachment.photos)?payload.attachment.photos:[])
+          .slice(0,10)
+          .map(photo=>({
+            kind:'photo',
+            mime:String(photo?.mime||'image/jpeg').slice(0,80),
+            data:String(photo?.data||''),
+            width:Math.max(0,Number(photo?.width||0)),
+            height:Math.max(0,Number(photo?.height||0)),
+            name:String(photo?.name||'photo.jpg').slice(0,120),
+          }))
+          .filter(photo=>photo.data),
       }:null,
     };
   }
@@ -680,7 +691,11 @@
         ?'Системная подсказка'
         :String(payload?.text||'').trim()
           ?String(payload.text).slice(0,240)
-          :(payload?.attachment?.kind==='photo'?'Фото':payload?.attachment?.kind==='voice'?'Голосовое сообщение':'Сообщение')
+          :(payload?.attachment?.kind==='photo'
+            ?'Фото'
+            :payload?.attachment?.kind==='photo-album'
+              ?'Фото · '+Math.max(1,Number(payload?.attachment?.photos?.length||0))
+              :payload?.attachment?.kind==='voice'?'Голосовое сообщение':'Сообщение')
     };
     renderReplyDraft();
     document.getElementById('messengerInput')?.focus?.();
@@ -815,16 +830,18 @@
     return new File([bytes],name,{type:mime,lastModified:Date.now()});
   }
 
-  async function savePhotoToDevice(attachment){
-    let file;
-    try{file=messengerPhotoFile(attachment)}
+  async function savePhotosToDevice(attachments){
+    const source=(Array.isArray(attachments)?attachments:[]).filter(Boolean).slice(0,10);
+    if(!source.length){showMessengerToast('Не удалось подготовить фото');return false}
+    let files;
+    try{files=source.map(messengerPhotoFile)}
     catch(_){showMessengerToast('Не удалось подготовить фото');return false}
 
     try{
-      const sharePayload={files:[file],title:'Фото из RUDI'};
+      const sharePayload={files,title:files.length>1?'Фото из RUDI · '+files.length:'Фото из RUDI'};
       if(typeof navigator.share==='function'&&(!navigator.canShare||navigator.canShare(sharePayload))){
         await navigator.share(sharePayload);
-        showMessengerToast('Фото открыто в меню сохранения iPhone');
+        showMessengerToast(files.length>1?'Все фото открыты в меню сохранения iPhone':'Фото открыто в меню сохранения iPhone');
         return true;
       }
     }catch(error){
@@ -832,22 +849,28 @@
     }
 
     try{
-      const url=URL.createObjectURL(file);
-      const link=document.createElement('a');
-      link.href=url;
-      link.download=file.name;
-      link.rel='noopener';
-      link.style.display='none';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(()=>URL.revokeObjectURL(url),3000);
-      showMessengerToast('Фото сохранено');
+      for(const file of files){
+        const url=URL.createObjectURL(file);
+        const link=document.createElement('a');
+        link.href=url;
+        link.download=file.name;
+        link.rel='noopener';
+        link.style.display='none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),3000);
+      }
+      showMessengerToast(files.length>1?'Фото сохранены':'Фото сохранено');
       return true;
     }catch(_){
       showMessengerToast('Не удалось сохранить фото');
       return false;
     }
+  }
+
+  async function savePhotoToDevice(attachment){
+    return savePhotosToDevice(attachment?[attachment]:[]);
   }
 
   async function saveMessageToSmartSaves(row,payload){
@@ -994,25 +1017,33 @@
     const hasText=Boolean(String(payload?.text||'').trim());
     const hasAttachment=Boolean(payload?.attachment);
     const photoAttachment=payload?.attachment?.kind==='photo'?payload.attachment:null;
+    const albumPhotos=payload?.attachment?.kind==='photo-album'&&Array.isArray(payload.attachment.photos)
+      ?payload.attachment.photos.filter(photo=>photo?.data).slice(0,10)
+      :[];
+    const photoSaveAction=photoAttachment
+      ?['Сохранить фото',()=>savePhotoToDevice(photoAttachment)]
+      :albumPhotos.length
+        ?['Сохранить все фото',()=>savePhotosToDevice(albumPhotos)]
+        :null;
     const systemEvent=payload?.system===true;
     const actions=systemEvent
       ?[
         ['Ответить',()=>setReply(row,payload)],
         ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
-        ...(photoAttachment?[['Сохранить фото',()=>savePhotoToDevice(photoAttachment)]]:[]),
+        ...(photoSaveAction?[photoSaveAction]:[]),
       ]
       :row.sender===state.actor
         ?[
           ['Ответить',()=>setReply(row,payload)],
           ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
-          ...(photoAttachment?[['Сохранить фото',()=>savePhotoToDevice(photoAttachment)]]:[]),
+          ...(photoSaveAction?[photoSaveAction]:[]),
           ...(!hasAttachment&&hasText?[['Редактировать',()=>startMessageEdit(row,payload)]]:[]),
           ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
         ]
         :[
           ['Ответить',()=>setReply(row,payload)],
           ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
-          ...(photoAttachment?[['Сохранить фото',()=>savePhotoToDevice(photoAttachment)]]:[]),
+          ...(photoSaveAction?[photoSaveAction]:[]),
         ];
     for(const [label,handler,className] of actions){
       const button=document.createElement('button');
@@ -1044,6 +1075,7 @@
       const interactive=event.target.closest('a,button');
       const longPressTarget=interactive&&(
         interactive.classList.contains('messenger-photo-button')
+        ||interactive.classList.contains('messenger-photo-album-item')
         ||interactive.classList.contains('messenger-shared-card')
         ||interactive.classList.contains('messenger-recipe-card')
       );
@@ -1319,6 +1351,34 @@
     return 'data:'+String(attachment?.mime||'application/octet-stream')+';base64,'+data;
   }
 
+  function openPhotoViewer(attachment){
+    const src=attachmentDataUrl(attachment);
+    if(!src) return;
+    const viewer=document.createElement('div');
+    viewer.className='messenger-photo-viewer';
+    viewer.innerHTML='<button class="messenger-photo-viewer-close" data-messenger-photo-close type="button" aria-label="Закрыть">×</button><img alt="Фото"><div class="messenger-photo-viewer-actions"><button class="messenger-photo-viewer-save" data-messenger-photo-save type="button">Сохранить</button></div>';
+    viewer.querySelector('img').src=src;
+    viewer.querySelector('[data-messenger-photo-close]')?.addEventListener('click',()=>viewer.remove());
+    viewer.querySelector('[data-messenger-photo-save]')?.addEventListener('click',event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      savePhotoToDevice(attachment);
+    });
+    viewer.addEventListener('click',event=>{if(event.target===viewer)viewer.remove()});
+    document.body.appendChild(viewer);
+  }
+
+  function photoClickAllowed(button,event){
+    event.stopPropagation();
+    const article=button.closest('.messenger-message');
+    const longPressedAt=Number(article?.dataset?.longPressedAt||0);
+    if(longPressedAt&&Date.now()-longPressedAt<700){
+      event.preventDefault();
+      return false;
+    }
+    return true;
+  }
+
   function appendPhotoAttachment(bubble,attachment){
     const src=attachmentDataUrl(attachment);
     if(!src) return;
@@ -1332,27 +1392,42 @@
     image.alt='Фото';
     button.appendChild(image);
     button.addEventListener('click',event=>{
-      event.stopPropagation();
-      const article=button.closest('.messenger-message');
-      const longPressedAt=Number(article?.dataset?.longPressedAt||0);
-      if(longPressedAt&&Date.now()-longPressedAt<700){
-        event.preventDefault();
-        return;
-      }
-      const viewer=document.createElement('div');
-      viewer.className='messenger-photo-viewer';
-      viewer.innerHTML='<button class="messenger-photo-viewer-close" data-messenger-photo-close type="button" aria-label="Закрыть">×</button><img alt="Фото"><div class="messenger-photo-viewer-actions"><button class="messenger-photo-viewer-save" data-messenger-photo-save type="button">Сохранить</button></div>';
-      viewer.querySelector('img').src=src;
-      viewer.querySelector('[data-messenger-photo-close]')?.addEventListener('click',()=>viewer.remove());
-      viewer.querySelector('[data-messenger-photo-save]')?.addEventListener('click',event=>{
-        event.preventDefault();
-        event.stopPropagation();
-        savePhotoToDevice(attachment);
-      });
-      viewer.addEventListener('click',e=>{if(e.target===viewer)viewer.remove()});
-      document.body.appendChild(viewer);
+      if(!photoClickAllowed(button,event)) return;
+      openPhotoViewer(attachment);
     });
     bubble.appendChild(button);
+  }
+
+  function appendPhotoAlbumAttachment(bubble,attachment){
+    const photos=(Array.isArray(attachment?.photos)?attachment.photos:[])
+      .filter(photo=>photo?.data)
+      .slice(0,10);
+    if(!photos.length) return;
+    if(photos.length===1){
+      appendPhotoAttachment(bubble,photos[0]);
+      return;
+    }
+    const album=document.createElement('div');
+    album.className='messenger-photo-album count-'+Math.min(photos.length,5);
+    album.dataset.photoCount=String(photos.length);
+    photos.forEach((photo,index)=>{
+      const src=attachmentDataUrl(photo);
+      if(!src) return;
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='messenger-photo-album-item';
+      button.setAttribute('aria-label',`Открыть фото ${index+1} из ${photos.length}`);
+      const image=document.createElement('img');
+      image.src=src;
+      image.alt=`Фото ${index+1}`;
+      button.appendChild(image);
+      button.addEventListener('click',event=>{
+        if(!photoClickAllowed(button,event)) return;
+        openPhotoViewer(photo);
+      });
+      album.appendChild(button);
+    });
+    bubble.appendChild(album);
   }
 
   function primeVoiceAudioSession(){
@@ -2149,6 +2224,7 @@
 
   function appendMessageAttachment(bubble,attachment){
     if(attachment?.kind==='photo') appendPhotoAttachment(bubble,attachment);
+    if(attachment?.kind==='photo-album') appendPhotoAlbumAttachment(bubble,attachment);
     if(attachment?.kind==='voice') appendVoiceAttachment(bubble,attachment);
     if(attachment?.kind==='shared-item') appendSharedItemAttachment(bubble,attachment);
     if(attachment?.kind==='recipe') appendRecipeAttachment(bubble,attachment);
@@ -2799,27 +2875,32 @@
     return {width:image.naturalWidth,height:image.naturalHeight,draw:(ctx,w,h)=>ctx.drawImage(image,0,0,w,h),close:()=>{}};
   }
 
-  async function compressMessengerPhoto(file){
+  async function compressMessengerPhoto(file,{maxBytes=420000,maxSide=1280}={}){
     if(!file||!String(file.type||'').startsWith('image/')) throw new Error('messenger-photo-invalid');
     const source=await loadPhotoSource(file);
     try{
-      const maxSide=1280;
-      const scale=Math.min(1,maxSide/Math.max(source.width,source.height));
-      const width=Math.max(1,Math.round(source.width*scale));
-      const height=Math.max(1,Math.round(source.height*scale));
-      const canvas=document.createElement('canvas');
-      canvas.width=width;
-      canvas.height=height;
-      const ctx=canvas.getContext('2d',{alpha:false});
-      if(!ctx) throw new Error('messenger-photo-invalid');
-      source.draw(ctx,width,height);
+      const target=Math.max(32000,Math.min(420000,Math.floor(Number(maxBytes)||420000)));
+      const side=Math.max(420,Math.min(1280,Math.floor(Number(maxSide)||1280)));
+      let scale=Math.min(1,side/Math.max(source.width,source.height));
       let quality=.82;
-      let blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
-      while(blob&&blob.size>420000&&quality>.48){
-        quality-=.1;
+      let blob=null;
+      let width=0;
+      let height=0;
+      for(let attempt=0;attempt<10;attempt++){
+        width=Math.max(1,Math.round(source.width*scale));
+        height=Math.max(1,Math.round(source.height*scale));
+        const canvas=document.createElement('canvas');
+        canvas.width=width;
+        canvas.height=height;
+        const ctx=canvas.getContext('2d',{alpha:false});
+        if(!ctx) throw new Error('messenger-photo-invalid');
+        source.draw(ctx,width,height);
         blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+        if(blob&&blob.size<=target) break;
+        if(quality>.5) quality=Math.max(.5,quality-.1);
+        else scale*=.82;
       }
-      if(!blob||blob.size>420000) throw new Error('messenger-photo-too-large');
+      if(!blob||blob.size>target) throw new Error('messenger-photo-too-large');
       return {kind:'photo',mime:'image/jpeg',data:await blobBase64(blob),width,height,name:String(file.name||'photo.jpg').slice(0,120)};
     }finally{
       try{source.close()}catch(_){}
@@ -2886,23 +2967,26 @@
       .slice(0,10);
     if(!images.length) return false;
     const status=document.getElementById('messengerStatus');
-    let sent=0;
     const initialReply=state.reply?{...state.reply}:null;
     try{
-      for(let index=0;index<images.length;index++){
-        if(status){
-          status.hidden=false;
-          status.textContent=images.length>1
-            ?`Отправляю фото ${index+1} из ${images.length}…`
-            :'Подготавливаю фото…';
+      state.reply=initialReply;
+      if(images.length===1){
+        if(status){status.hidden=false;status.textContent='Подготавливаю фото…'}
+        const attachment=await compressMessengerPhoto(images[0]);
+        await sendAttachmentMessage(attachment,'📷 Фото');
+      }else{
+        const maxBytes=Math.floor(620000/images.length);
+        const maxSide=images.length<=2?1080:images.length<=4?900:720;
+        const photos=[];
+        for(let index=0;index<images.length;index++){
+          if(status){
+            status.hidden=false;
+            status.textContent=`Подготавливаю фото ${index+1} из ${images.length}…`;
+          }
+          photos.push(await compressMessengerPhoto(images[index],{maxBytes,maxSide}));
         }
-        state.reply=index===0?initialReply:null;
-        const attachment=await compressMessengerPhoto(images[index]);
-        await sendAttachmentMessage(
-          attachment,
-          images.length>1?`📷 Фото ${index+1}/${images.length}`:'📷 Фото'
-        );
-        sent+=1;
+        const album={kind:'photo-album',photos};
+        await sendAttachmentMessage(album,`📷 Альбом · ${photos.length} фото`);
       }
       state.reply=null;
       renderReplyDraft();
@@ -2910,15 +2994,13 @@
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
       return true;
     }catch(error){
-      state.reply=sent===0?initialReply:null;
+      state.reply=initialReply;
       renderReplyDraft();
       if(status){
         status.hidden=false;
-        status.textContent=sent>0
-          ?`Отправлено ${sent} из ${images.length}. Следующее фото не отправилось.`
-          :String(error?.message||'').includes('too-large')
-            ?'Фото слишком большое.'
-            :'Не удалось отправить фото.';
+        status.textContent=String(error?.message||'').includes('too-large')
+          ?'Не удалось уместить альбом в одно сообщение.'
+          :'Не удалось отправить фото.';
       }
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
       return false;
