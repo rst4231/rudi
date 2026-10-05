@@ -807,12 +807,21 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:24px;
   background:rgba(0,0,0,.92)
 }
-.messenger-photo-viewer img{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}
+.messenger-photo-viewer img{max-width:100%;max-height:calc(100% - 88px);object-fit:contain;border-radius:14px}
 
-.messenger-photo-viewer button{
+.messenger-photo-viewer-close{
   position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;width:40px;height:40px;
   border:0;border-radius:50%;background:rgba(255,255,255,.13);color:#fff;font-size:27px
 }
+.messenger-photo-viewer-actions{
+  position:absolute;left:16px;right:16px;bottom:max(16px,env(safe-area-inset-bottom));
+  display:flex;justify-content:center
+}
+.messenger-photo-viewer-save{
+  min-width:min(320px,calc(100vw - 32px));min-height:48px;padding:0 22px;border:0;border-radius:14px;
+  background:#fff;color:#111;font:inherit;font-size:15px;font-weight:800
+}
+.messenger-photo-viewer-save:active{transform:scale(.98)}
 
 /* RUDI v3.47 shared messenger attachments */
 .messenger-shared-card,.messenger-recipe-card{
