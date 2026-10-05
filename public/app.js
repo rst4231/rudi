@@ -9858,10 +9858,25 @@
         remove.hidden=!canRemove;
 
         if(canToggle) toggle.addEventListener('click',async()=>{
+          if(toggle.disabled) return;
+          const previous=Boolean(item.done),next=!previous;
+          item.done=next;
+          row.classList.toggle('done',next);
+          toggle.setAttribute('aria-label',next?'Вернуть желание':'Отметить выполненным');
+          homeDashboardState.wishlistCount=Math.max(0,Number(homeDashboardState.wishlistCount||0)+(next?-1:1));
+          renderHomeNew();
           toggle.disabled=true;
-          try{renderWishlist(await wishlistRequest('toggle',{id:item.id}));}
-          catch(_){}
-          finally{toggle.disabled=false}
+          try{
+            await wishlistRequest('toggle',{id:item.id});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          }catch(_){
+            item.done=previous;
+            row.classList.toggle('done',previous);
+            toggle.setAttribute('aria-label',previous?'Вернуть желание':'Отметить выполненным');
+            homeDashboardState.wishlistCount=Math.max(0,Number(homeDashboardState.wishlistCount||0)+(next?1:-1));
+            renderHomeNew();
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{toggle.disabled=false}
         });
         if(canRemove) remove.addEventListener('click',async()=>{
           remove.disabled=true;
