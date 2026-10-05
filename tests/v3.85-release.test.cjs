@@ -13,7 +13,7 @@ test('v3.85 changed JavaScript parses',()=>{
     'api/messenger-store.cjs',
     'api/partner-message.js',
     'api/ticktick-client.cjs',
-    'api/habit-reminder-cron.js',
+    'api/habit-reminder.cjs',
     'cloudflare/rudi-db-api/worker.js',
   ]){
     const source=read(file);
