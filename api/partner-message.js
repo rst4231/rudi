@@ -1572,6 +1572,88 @@ async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
   return updateFeedSections(sections, { ...options, date, now });
 }
 
+
+function sharedTaskResponsibility(task, meta = null) {
+  const metaPresent = Boolean(meta && typeof meta === 'object');
+  if (metaPresent) {
+    const responsible = ['Рустам','Диана'].includes(String(meta.responsible || '').trim())
+      ? String(meta.responsible).trim()
+      : '';
+    return { responsible, known: true, common: !responsible, source: 'rudi' };
+  }
+
+  const assigneeTag = resolveAssigneeName(task?.assigneeUsername);
+  const hasAssignee = Boolean(String(task?.assigneeUsername || '').trim());
+  if (!hasAssignee) return { responsible: '', known: true, common: true, source: 'ticktick' };
+  if (assigneeTag === 'RST') return { responsible: 'Рустам', known: true, common: false, source: 'ticktick' };
+  if (assigneeTag === 'Ди') return { responsible: 'Диана', known: true, common: false, source: 'ticktick' };
+  return { responsible: '', known: false, common: false, source: 'ticktick' };
+}
+
+function sharedTaskAssigneePayload(task, meta = null) {
+  const responsibility = sharedTaskResponsibility(task, meta);
+  return {
+    responsibility,
+    assignee: responsibility.responsible === 'Рустам'
+      ? 'RST'
+      : responsibility.responsible === 'Диана'
+        ? 'Ди'
+        : responsibility.known
+          ? 'Не назначен'
+          : 'Назначен',
+    assigned: Boolean(responsibility.responsible) || !responsibility.known,
+  };
+}
+
+function sharedTaskCanDelete(actor, task, meta = null) {
+  const responsibility = sharedTaskResponsibility(task, meta);
+  return responsibility.known && (!responsibility.responsible || responsibility.responsible === actor);
+}
+
+function tickTickRepeatFlag(value, count) {
+  const repeat = String(value || 'none').trim().toLowerCase();
+  if (!repeat || repeat === 'none') return '';
+  const total = Math.max(2, Math.min(365, Math.round(Number(count) || 2)));
+  const suffix = ';COUNT=' + total;
+  if (repeat === 'daily') return 'RRULE:FREQ=DAILY;INTERVAL=1' + suffix;
+  if (repeat === 'weekdays') return 'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR' + suffix;
+  if (repeat === 'weekly') return 'RRULE:FREQ=WEEKLY;INTERVAL=1' + suffix;
+  if (repeat === 'monthly') return 'RRULE:FREQ=MONTHLY;INTERVAL=1' + suffix;
+  if (repeat === 'yearly') return 'RRULE:FREQ=YEARLY;INTERVAL=1' + suffix;
+  throw new Error('ticktick-task-repeat-invalid');
+}
+
+function tickTickTaskDateTime(date, time = '') {
+  const day = String(date || '').trim();
+  const clock = String(time || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error('ticktick-task-date-invalid');
+  if (clock && !/^([01]\d|2[0-3]):[0-5]\d$/.test(clock)) throw new Error('ticktick-task-time-invalid');
+  return day + 'T' + (clock || '00:00') + ':00+0300';
+}
+
+function tickTickTaskSnapshot(task, meta = null) {
+  const source = task && typeof task === 'object' ? task : {};
+  const responsibility = sharedTaskResponsibility(source, meta);
+  return {
+    title: String(source.title || '').trim().slice(0,500),
+    projectId: String(source.projectId || '').trim(),
+    isAllDay: Boolean(source.isAllDay),
+    startDate: String(source.startDate || '').trim(),
+    dueDate: String(source.dueDate || '').trim(),
+    timeZone: String(source.timeZone || '').trim(),
+    content: String(source.content || '').trim().slice(0,5000),
+    desc: String(source.desc || '').trim().slice(0,5000),
+    repeatFlag: String(source.repeatFlag || '').trim(),
+    repeatFrom: Number.isFinite(Number(source.repeatFrom)) ? Number(source.repeatFrom) : 0,
+    priority: Number.isFinite(Number(source.priority)) ? Number(source.priority) : 0,
+    reminders: Array.isArray(source.reminders) ? source.reminders.slice(0,20) : [],
+    tags: Array.isArray(source.tags) ? source.tags.slice(0,50) : [],
+    items: Array.isArray(source.items) ? source.items.slice(0,100) : [],
+    responsible: responsibility.responsible,
+    createdBy: String(meta?.createdBy || '').trim(),
+  };
+}
+
 async function handleTickTick(req, res, action, options = {}) {
   if (action === 'connect') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
@@ -1722,12 +1804,179 @@ async function handleTickTick(req, res, action, options = {}) {
   }
 
 
+  if (action === 'task-create') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    let body;
+    let actor;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      ({ actor } = authorizeRequest(req, body.initData, options));
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok:false, error:String(error?.message || error) });
+    }
+
+    if (!credentialsConfigured(options.env || process.env)) return res.status(503).json({ok:false,error:'ticktick-not-configured'});
+    const config = await loadTickTickConfig(options);
+    if (!config.enabled) return res.status(409).json({ok:false,error:'ticktick-disabled'});
+    const token = await readTickTickTokenWithBackup(body, options);
+    if (!token?.accessToken) return res.status(401).json({ok:false,connected:false,error:'ticktick-not-connected'});
+    if (tokenHasWriteScope(token) === false) return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+
+    try {
+      const title = String(body.title || '').trim().slice(0,500);
+      if (!title) return res.status(400).json({ok:false,error:'ticktick-task-title-required'});
+      const responsibleValue = String(body.responsible || '').trim();
+      const responsible = ['Рустам','Диана'].includes(responsibleValue) ? responsibleValue : '';
+      const date = String(body.date || '').trim();
+      const time = String(body.time || '').trim();
+      const dateTime = tickTickTaskDateTime(date, time);
+      const repeatFlag = tickTickRepeatFlag(body.repeat, body.repeatCount);
+      const task = await createTickTickTask(token.accessToken, {
+        title,
+        projectId: config.projectId,
+        isAllDay: !time,
+        startDate: dateTime,
+        dueDate: dateTime,
+        timeZone: 'Europe/Moscow',
+        desc: String(body.description || '').trim().slice(0,5000),
+        ...(repeatFlag ? { repeatFlag, repeatFrom: 0 } : {}),
+      }, options);
+      const taskId = String(task?.id || '').trim();
+      if (!taskId) throw new Error('ticktick-task-create-unresolved');
+      await setSharedTaskMeta(taskId, {
+        responsible,
+        createdBy: actor,
+        source: 'rudi',
+      }, options);
+      return res.status(200).json({
+        ok:true,connected:true,writable:true,
+        task:{
+          id:taskId,
+          title,
+          date,
+          startTime:time || null,
+          allDay:!time,
+          responsible,
+          assignee:responsible==='Рустам'?'RST':responsible==='Диана'?'Ди':'Не назначен',
+          assigned:Boolean(responsible),
+          canDelete:!responsible||responsible===actor,
+          description:String(body.description || '').trim().slice(0,5000),
+          repeat:String(body.repeat || 'none'),
+          repeatCount:repeatFlag?Math.max(2,Math.min(365,Math.round(Number(body.repeatCount)||2))):1,
+        }
+      });
+    } catch (error) {
+      const code = String(error?.message || error);
+      if (code === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({ok:false,connected:false,error:'ticktick-reconnect-required'});
+      }
+      if (code === 'ticktick-write-forbidden') return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+      if (/^(ticktick-task-(?:date|time|repeat)-invalid|ticktick-task-create-invalid)$/.test(code)) return res.status(400).json({ok:false,error:code});
+      console.error('RUDI_TICKTICK_TASK_CREATE_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-create-unavailable'});
+    }
+  }
+
+  if (action === 'task-delete') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    let body;
+    let actor;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      ({ actor } = authorizeRequest(req, body.initData, options));
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok:false, error:String(error?.message || error) });
+    }
+    const taskId = String(body.taskId || '').trim();
+    if (!taskId) return res.status(400).json({ok:false,error:'ticktick-task-delete-invalid'});
+    const config = await loadTickTickConfig(options);
+    const token = await readTickTickTokenWithBackup(body, options);
+    if (!token?.accessToken) return res.status(401).json({ok:false,error:'ticktick-not-connected'});
+    if (tokenHasWriteScope(token) === false) return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+
+    try {
+      const task = await fetchTask(token.accessToken, config.projectId, taskId, options);
+      const taskMeta = await getSharedTaskMeta(taskId, options).catch(() => null);
+      if (!sharedTaskCanDelete(actor, task, taskMeta)) return res.status(403).json({ok:false,error:'ticktick-task-delete-forbidden'});
+      const snapshot = tickTickTaskSnapshot(task, taskMeta);
+      await deleteTickTickTask(token.accessToken, config.projectId, taskId, options);
+      await removeSharedTaskMeta(taskId, options).catch(() => null);
+      const deletedAt = Date.now();
+      const undoToken = sealSnapshot({
+        type:'ticktick-task-delete-undo-v1',
+        actor,
+        deletedAt,
+        expiresAt:deletedAt + 30000,
+        task:snapshot,
+      }, options);
+      return res.status(200).json({ok:true,taskId,undoToken,undoExpiresInMs:30000});
+    } catch (error) {
+      const code=String(error?.message || error);
+      if (code === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({ok:false,error:'ticktick-reconnect-required'});
+      }
+      if (code === 'ticktick-task-not-found') return res.status(404).json({ok:false,error:code});
+      if (code === 'ticktick-write-forbidden') return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+      console.error('RUDI_TICKTICK_TASK_DELETE_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-delete-unavailable'});
+    }
+  }
+
+  if (action === 'task-restore') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    let body;
+    let actor;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      ({ actor } = authorizeRequest(req, body.initData, options));
+    } catch (error) {
+      return res.status(statusForError(error)).json({ ok:false, error:String(error?.message || error) });
+    }
+    const config = await loadTickTickConfig(options);
+    const token = await readTickTickTokenWithBackup(body, options);
+    if (!token?.accessToken) return res.status(401).json({ok:false,error:'ticktick-not-connected'});
+    if (tokenHasWriteScope(token) === false) return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+
+    try {
+      const snapshot = openSnapshot(String(body.undoToken || ''), options);
+      if (snapshot?.type !== 'ticktick-task-delete-undo-v1' || snapshot?.actor !== actor) throw new Error('ticktick-task-undo-invalid');
+      if (Number(snapshot?.expiresAt || 0) < Date.now()) throw new Error('ticktick-task-undo-expired');
+      const source = snapshot.task && typeof snapshot.task === 'object' ? snapshot.task : {};
+      const task = await createTickTickTask(token.accessToken, {
+        ...source,
+        projectId: config.projectId,
+      }, options);
+      const taskId=String(task?.id || '').trim();
+      if (!taskId) throw new Error('ticktick-task-create-unresolved');
+      await setSharedTaskMeta(taskId, {
+        responsible:String(source.responsible || '').trim(),
+        createdBy:String(source.createdBy || actor).trim(),
+        source:'rudi',
+      }, options);
+      return res.status(200).json({ok:true,taskId});
+    } catch (error) {
+      const code=String(error?.message || error);
+      if (code === 'ticktick-task-undo-expired') return res.status(410).json({ok:false,error:code});
+      if (code === 'ticktick-task-undo-invalid') return res.status(400).json({ok:false,error:code});
+      if (code === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({ok:false,error:'ticktick-reconnect-required'});
+      }
+      if (code === 'ticktick-write-forbidden') return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+      console.error('RUDI_TICKTICK_TASK_RESTORE_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-restore-unavailable'});
+    }
+  }
+
   if (action === 'today') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     let body;
+    let actor;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeRequest(req, body.initData, options);
+      ({ actor } = authorizeRequest(req, body.initData, options));
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -1751,7 +2000,10 @@ async function handleTickTick(req, res, action, options = {}) {
       const data = await fetchProjectData(token.accessToken, config.projectId, options);
       const sourceTasks = Array.isArray(data?.tasks) ? data.tasks : [];
       const sourceById = new Map(sourceTasks.map((task) => [String(task?.id || ''), task]));
-      const auditState = await readChecklistAuditState(options).catch(() => ({ entries: {} }));
+      const [auditState, sharedTaskMetaState] = await Promise.all([
+        readChecklistAuditState(options).catch(() => ({ entries: {} })),
+        readSharedTaskMetaState(options).catch(() => ({ entries: {} })),
+      ]);
       const calendar = buildTickTickCalendar(sourceTasks, now, 'month');
       const today = calendarDateKey(now);
       const tasks = (calendar.days.find((day) => day.date === today)?.events || [])
@@ -1768,9 +2020,16 @@ async function handleTickTick(req, res, action, options = {}) {
               changedAt: audit?.changedAt || '',
             };
           }).filter((item) => item.title);
+          const meta = sharedTaskMetaState.entries?.[String(event?.id || '')] || null;
+          const assignee = sharedTaskAssigneePayload(source, meta);
           return {
             ...event,
             date: today,
+            assignee: assignee.assignee,
+            assigned: assignee.assigned,
+            responsible: assignee.responsibility.responsible,
+            responsibilityKnown: assignee.responsibility.known,
+            canDelete: sharedTaskCanDelete(actor, source, meta),
             description: String(source.desc || source.content || '').trim().slice(0, 5000),
             checklist,
           };
@@ -1828,10 +2087,10 @@ async function handleTickTick(req, res, action, options = {}) {
     try {
       const task = await fetchTask(token.accessToken, config.projectId, taskId, options);
       const wasOpen = Number(task?.status ?? 0) === 0;
-      const assigneeTag = resolveAssigneeName(task?.assigneeUsername);
-      const hasAssignee = Boolean(String(task?.assigneeUsername || '').trim());
-      const responsibleActor = assigneeTag === 'RST' ? 'Рустам' : assigneeTag === 'Ди' ? 'Диана' : '';
-      if (hasAssignee && !responsibleActor) {
+      const taskMeta = await getSharedTaskMeta(taskId, options).catch(() => null);
+      const responsibility = sharedTaskResponsibility(task, taskMeta);
+      const responsibleActor = responsibility.responsible;
+      if (!responsibility.known) {
         return res.status(409).json({ ok:false, connected:true, error:'ticktick-task-assignee-unknown' });
       }
       if (responsibleActor && actor !== responsibleActor) {
@@ -1945,11 +2204,24 @@ async function handleTickTick(req, res, action, options = {}) {
 
     try {
       const data = await fetchProjectData(token.accessToken, config.projectId, options);
+      const sourceTasks = Array.isArray(data?.tasks) ? data.tasks : [];
+      const sourceById = new Map(sourceTasks.map((task) => [String(task?.id || ''), task]));
+      const sharedTaskMetaState = await readSharedTaskMetaState(options).catch(() => ({ entries: {} }));
       const calendar = buildTickTickCalendar(
-        data?.tasks || [],
+        sourceTasks,
         options.now ? new Date(options.now) : new Date(),
         view
       );
+      for (const day of calendar.days || []) {
+        for (const event of day.events || []) {
+          const source = sourceById.get(String(event?.id || '')) || {};
+          const meta = sharedTaskMetaState.entries?.[String(event?.id || '')] || null;
+          const assignee = sharedTaskAssigneePayload(source, meta);
+          event.assignee = assignee.assignee;
+          event.assigned = assignee.assigned;
+          event.responsible = assignee.responsibility.responsible;
+        }
+      }
       return res.status(200).json({
         ok: true,
         connected: true,
