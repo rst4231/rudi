@@ -34,7 +34,7 @@
   <link rel="stylesheet" href="/pwa-extras.css?v=3.60">
   <link rel="stylesheet" href="/calendar.css?v=3.60">
   <link rel="stylesheet" href="/smart-home.css?v=3.60">
-  <link rel="stylesheet" href="/car.css?v=3.70">
+  <link rel="stylesheet" href="/car.css?v=3.91">
   <link rel="stylesheet" href="/profile-supplements.css?v=3.60">
   <link rel="stylesheet" href="/supplement-advanced.css?v=3.60">
   <script>
@@ -68,7 +68,7 @@
   <script defer src="/pwa-extras.js?v=3.60"></script>
   <script defer src="/weather.js?v=3.60"></script>
   <script defer src="/smart-home.js?v=3.60"></script>
-  <script defer src="/car.js?v=3.69"></script>
+  <script defer src="/car.js?v=3.91"></script>
   <script defer src="/profile-supplements.js?v=3.60"></script>
   <script defer src="/mood-history.js?v=3.91"></script>
   <script defer src="/supplement-editor.js?v=3.60"></script>
@@ -1388,14 +1388,14 @@
           <span>Задача</span>
           <input id="ticktickTaskTitleInput" type="text" maxlength="500" autocomplete="off" placeholder="Например: купить продукты" required>
         </label>
-        <div class="ticktick-task-field-row">
+        <div class="ticktick-task-field-row ticktick-task-date-time-row">
           <label class="ticktick-task-field">
             <span>Дата</span>
             <input id="ticktickTaskDateInput" type="date" required>
           </label>
           <label class="ticktick-task-field">
             <span>Время</span>
-            <input id="ticktickTaskTimeInput" type="time">
+            <input id="ticktickTaskTimeInput" type="time" value="08:00">
           </label>
         </div>
         <label class="ticktick-task-field">
