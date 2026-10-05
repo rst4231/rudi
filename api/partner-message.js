@@ -442,7 +442,7 @@ async function sendMessengerNotificationToPartner(actor, messageId, notification
     tag:pushTag,
     url:'/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1',
     ...(avatarUrl?{icon:avatarUrl}:{}),
-  },options);
+  },{...options,urgency:'high',ttlSeconds:600});
   return {
     ...result,
     recipient:recipientActor,
@@ -2653,7 +2653,8 @@ async function handleRudiAction(req, res, action, options = {}) {
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
-      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
+      const presenceTask=setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
+      try{waitUntil(presenceTask)}catch(_){presenceTask.catch(()=>{})}
       const message=await addMessengerMessage(actor,{
         clientId:body.clientId,
         scheme:body.scheme,
@@ -2675,16 +2676,15 @@ async function handleRudiAction(req, res, action, options = {}) {
         }));
       try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
 
-      const cycleAdvice=actor==='Рустам'&&body.cycleAdviceEligible===true
-        ?await maybeCreateRustamCycleAdvice(options).catch(()=>null)
-        :null;
-      const messages=messengerMessagesVisibleToActor(await readMessengerMessages(options),actor);
+      if(actor==='Рустам'&&body.cycleAdviceEligible===true){
+        const cycleAdviceTask=maybeCreateRustamCycleAdvice(options).catch(()=>null);
+        try{waitUntil(cycleAdviceTask)}catch(_){cycleAdviceTask.catch(()=>{})}
+      }
       return res.status(200).json({
         ok:true,
         actor,
         message:clientMessage,
-        cycleAdviceCreated:Boolean(cycleAdvice?.id),
-        unread:unreadMessengerCount(messages,actor),
+        cycleAdviceCreated:false,
         notification:{sent:false,pending:true},
       });
     } catch (error) {
