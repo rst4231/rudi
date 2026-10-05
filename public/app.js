@@ -13261,15 +13261,15 @@
 
       const RECIPE_TYPES_BY_MEAL={
         breakfast:[
-          ['porridge','Каша'],['eggs','Яйца'],['pastry','Выпечка'],['sandwiches','Бутерброды'],
-          ['dairy','Творог/йогурт'],['syrniki-pancakes','Сырники/блины'],['salad','Салат'],['drink','Напиток']
+          ['porridge','🥣 Каша'],['eggs','🍳 Яйца'],['pastry','🥐 Выпечка'],['sandwiches','🥪 Бутерброды'],
+          ['dairy','🥛 Творог/йогурт'],['syrniki-pancakes','🥞 Сырники/блины'],['salad','🥗 Салат'],['drink','☕ Напиток']
         ],
-        lunch:[['soup','Суп'],['main','Второе'],['salad','Салат']],
+        lunch:[['soup','🍲 Суп'],['main','🍽️ Второе'],['salad','🥗 Салат']],
         snack:[
-          ['sandwich','Бутерброд'],['pastry','Выпечка'],['fruit','Фрукты'],
-          ['dairy','Творог/йогурт'],['snack','Снэк'],['drink','Напиток']
+          ['sandwich','🥪 Бутерброд'],['pastry','🥐 Выпечка'],['fruit','🍎 Фрукты'],
+          ['dairy','🥛 Творог/йогурт'],['snack','🍿 Снэк'],['drink','☕ Напиток']
         ],
-        dinner:[['main','Второе'],['salad','Салат'],['side','Гарнир'],['light','Лёгкое блюдо']]
+        dinner:[['main','🍽️ Второе'],['salad','🥗 Салат'],['side','🍚 Гарнир'],['light','🥙 Лёгкое блюдо']]
       };
 
       function renderRecipeTypeChoices(meal,preferred=''){
@@ -13407,7 +13407,7 @@
         button.classList.add('is-running');
         const update=()=>{
           const remaining=Math.max(0,Math.ceil((finishAt-Date.now())/1000));
-          button.textContent=remaining?('⏱ '+recipeTimerLabel(remaining)):'Готово ✓';
+          button.textContent=remaining?('⏱️ '+recipeTimerLabel(remaining)):'✅ Готово';
           if(remaining) return;
           const active=recipeTimerHandles.get(button);
           if(active) clearInterval(active.interval);
@@ -13503,7 +13503,7 @@
           const seconds=recipeStepSeconds(steps[index]);
           if(timer){
             timer.hidden=!seconds;
-            timer.textContent=seconds?'⏱ Таймер '+recipeTimerLabel(seconds):'';
+            timer.textContent=seconds?'⏱️ Таймер '+recipeTimerLabel(seconds):'';
             timer.onclick=seconds?()=>startRecipeStepTimer(timer,seconds):null;
           }
         };
@@ -13647,7 +13647,7 @@
             if(seconds){
               const timer=document.createElement('button');
               timer.type='button';timer.className='recipe-step-timer';
-              timer.textContent='⏱ '+recipeTimerLabel(seconds);
+              timer.textContent='⏱️ '+recipeTimerLabel(seconds);
               timer.addEventListener('click',()=>startRecipeStepTimer(timer,seconds));
               item.appendChild(timer);
             }
