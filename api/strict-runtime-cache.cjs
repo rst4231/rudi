@@ -1,4 +1,4 @@
-const { createD1StateClient } = require('./d1-state-client.cjs');
+const { createRudiStateClient } = require('./rudi-state-client.cjs');
 
 const CACHE_STATE_HEADER = 'x-rudi-d1-state';
 
@@ -19,11 +19,15 @@ function createStrictRuntimeCache(options = {}) {
   const namespace = String(options.namespace || '').trim();
   if (!namespace) throw new Error('RUDI D1 namespace is required');
 
-  const client = options.d1Client || createD1StateClient({
+  const client = options.stateClient || createRudiStateClient({
     env: options.env || process.env,
     fetchImpl: options.fetchImpl || globalThis.fetch,
-    baseUrl: options.d1BaseUrl,
-    secret: options.d1Secret,
+    d1Client: options.d1Client,
+    vercelClient: options.vercelClient,
+    pool: options.pool,
+    connectionString: options.connectionString,
+    d1BaseUrl: options.d1BaseUrl,
+    d1Secret: options.d1Secret,
     timeoutMs: options.timeoutMs,
   });
 
