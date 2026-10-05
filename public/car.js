@@ -1,7 +1,7 @@
 (() => {
   const tg = window.Telegram?.WebApp;
   const API = '/api/index?route=car';
-  const state = { car:null, weather:null, loading:false };
+  const state = { car:null, weather:null, loading:false, documents:null, documentsLoading:false };
   let pendingNoteUndo=null;
   let pendingNoteUndoTimer=null;
 
@@ -425,7 +425,7 @@
     return Math.max(0,next-mileage);
   }
 
-  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks','notes'];
+  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks','documents','notes'];
   const CAR_SMART_FALLBACK_PRIORITY={
     base:{mileage:60,errors:50,tasks:40},
     tasks:{overdue:1000,today:900,tomorrow:650,week:500,any:250},
@@ -723,6 +723,7 @@
     const mileage=body.querySelector('.car-mileage-panel');
     const errors=body.querySelector('.car-errors');
     const tasks=body.querySelector('.car-tasks');
+    const documents=body.querySelector('.car-documents');
     const notes=body.querySelector('.car-notes');
     const progress=body.querySelector(':scope > .car-service-progress');
     const status=body.querySelector('#carStatus');
@@ -737,6 +738,7 @@
       buildCarSmartCard('mileage','Пробег и ТО',mileageService),
       buildCarSmartCard('errors','Требует ремонт',errors),
       buildCarSmartCard('tasks','Задачи по машине',tasks),
+      buildCarSmartCard('documents','Автодокументы',documents),
       buildCarSmartCard('notes','Заметки',notes)
     ].filter(Boolean);
 
@@ -752,6 +754,11 @@
     const taskMeta=tasks?.querySelector('#carTasksMeta');
     if(taskMeta&&taskCard) taskCard.querySelector('.car-smart-card-title')?.appendChild(taskMeta);
     tasks?.querySelector('.car-section-head')?.remove();
+
+    const documentsCard=cards.find(card=>card.dataset.carCard==='documents');
+    const documentsMeta=documents?.querySelector('#carDocumentsMeta');
+    if(documentsMeta&&documentsCard) documentsCard.querySelector('.car-smart-card-title')?.appendChild(documentsMeta);
+    documents?.querySelector('.car-section-head')?.remove();
 
     const noteCard=cards.find(card=>card.dataset.carCard==='notes');
     const noteActions=notes?.querySelector('.car-notes-head-actions');
@@ -791,8 +798,9 @@
     const cards=[...host.querySelectorAll(':scope > .car-smart-card')];
     if(cards.length<2) return;
     const before=animate?carCardRects(host):null;
+    const documentsCard=cards.find(card=>card.dataset.carCard==='documents')||null;
     const notesCard=cards.find(card=>card.dataset.carCard==='notes')||null;
-    const ranked=cards.filter(card=>card!==notesCard).map(card=>{
+    const ranked=cards.filter(card=>card!==notesCard&&card!==documentsCard).map(card=>{
       const priority=carCardPriority(card.dataset.carCard);
       card.dataset.priorityScore=String(priority.score);
       card.dataset.priorityReason=priority.reason;
@@ -801,7 +809,10 @@
 
     ranked.forEach(({card})=>host.insertBefore(card,document.getElementById('carStatus')||null));
     const taskCard=host.querySelector(':scope > .car-smart-card[data-car-card="tasks"]');
-    if(notesCard&&taskCard) host.insertBefore(notesCard,taskCard.nextSibling);
+    if(documentsCard&&taskCard) host.insertBefore(documentsCard,taskCard.nextSibling);
+    else if(documentsCard) host.insertBefore(documentsCard,document.getElementById('carStatus')||null);
+    if(notesCard&&documentsCard) host.insertBefore(notesCard,documentsCard.nextSibling);
+    else if(notesCard&&taskCard) host.insertBefore(notesCard,taskCard.nextSibling);
     else if(notesCard) host.insertBefore(notesCard,document.getElementById('carStatus')||null);
     if(animate) animateCarCardOrder(host,before);
   }
@@ -813,6 +824,7 @@
       const next=String(document.body.dataset.appTab||'');
       if(next==='car'&&previous!=='car'){
         requestAnimationFrame(()=>applyCarSmartOrder({animate:false}));
+        loadCarDocuments().catch(()=>{});
       }
       previous=next;
     });
@@ -1829,6 +1841,93 @@
     }
   }
 
+
+  function openCarDocumentOriginal(photo){
+    const target=String(photo?.fullUrl||photo?.url||'').trim();
+    if(!/^https:\/\//i.test(target)) return;
+    try{
+      if(tg?.openLink) tg.openLink(target);
+      else window.open(target,'_blank','noopener,noreferrer');
+    }catch(_){
+      window.open(target,'_blank','noopener,noreferrer');
+    }
+  }
+
+  function renderCarDocuments(documents=state.documents){
+    const grid=document.getElementById('carDocumentsGrid');
+    const meta=document.getElementById('carDocumentsMeta');
+    const status=document.getElementById('carDocumentsStatus');
+    if(!grid||!meta||!status) return;
+    const photos=Array.isArray(documents?.photos)?documents.photos:[];
+    meta.textContent=documents?.configured===false?'':photos.length+' фото';
+    grid.replaceChildren();
+
+    if(state.documentsLoading){
+      status.hidden=false;
+      status.textContent='Загружаю документы…';
+      return;
+    }
+    if(documents?.configured===false){
+      status.hidden=false;
+      status.textContent='Альбом документов не настроен';
+      return;
+    }
+    if(documents?.error){
+      status.hidden=false;
+      status.textContent='Не удалось загрузить документы';
+      return;
+    }
+    if(!photos.length){
+      status.hidden=false;
+      status.textContent='В альбоме пока нет фото';
+      return;
+    }
+
+    status.hidden=!documents?.stale;
+    status.textContent=documents?.stale?'Показана сохранённая копия':'';
+    photos.forEach((photo,index)=>{
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='car-document-photo';
+      button.setAttribute('aria-label','Открыть оригинал документа '+(index+1));
+      const image=document.createElement('img');
+      image.src=String(photo?.url||photo?.fullUrl||'');
+      image.alt=String(photo?.caption||'Автодокумент '+(index+1));
+      image.loading=index<4?'eager':'lazy';
+      image.decoding='async';
+      image.draggable=false;
+      image.addEventListener('error',()=>{
+        const full=String(photo?.fullUrl||'');
+        if(full&&image.src!==full) image.src=full;
+      },{once:true});
+      button.appendChild(image);
+      button.addEventListener('click',()=>openCarDocumentOriginal(photo));
+      grid.appendChild(button);
+    });
+  }
+
+  async function loadCarDocuments({force=false}={}){
+    if(!document.body.classList.contains('auth-ok')) return;
+    if(state.documentsLoading) return;
+    if(state.documents&&!force){renderCarDocuments();return state.documents}
+    state.documentsLoading=true;
+    renderCarDocuments();
+    try{
+      const data=await api('documents');
+      if(!data.visible) return null;
+      state.documents=data.documents||{configured:false,photos:[]};
+      renderCarDocuments();
+      return state.documents;
+    }catch(_){
+      state.documents={configured:true,photos:[],error:true};
+      renderCarDocuments();
+      return null;
+    }finally{
+      state.documentsLoading=false;
+      renderCarDocuments();
+    }
+  }
+
   function render() {
     if(!state.car) return;
     renderService(state.car);
@@ -1836,6 +1935,7 @@
     renderErrors(state.car);
     renderRecommendations(state.car,state.weather);
     renderTasks(state.car.ticktick);
+    renderCarDocuments();
     renderNotes(state.car);
     renderCarAttention(state.car,state.weather);
   }
@@ -1893,6 +1993,7 @@
       }
       render();
       applyCarSmartOrder({animate:false});
+      if(document.body.dataset.appTab==='car') loadCarDocuments().catch(()=>{});
       loadWeather();
     } catch(_) {
       const tile=document.getElementById('carTile');
