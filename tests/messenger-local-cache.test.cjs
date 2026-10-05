@@ -29,3 +29,8 @@ test('cached rows render without waiting for messenger-list',()=>{
   assert.match(hydrate,/state\.messagesLoaded=true/);
   assert.doesNotMatch(hydrate,/api\('messenger-list'/);
 });
+
+
+test('local first-paint cache is capped to the latest 30 messages',()=>{
+  assert.match(source,/\.slice\(-30\);/);
+});
