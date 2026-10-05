@@ -8466,7 +8466,6 @@
         const dateInput=document.getElementById('ticktickTaskDateInput');
         const timeInput=document.getElementById('ticktickTaskTimeInput');
         const responsibleInput=document.getElementById('ticktickTaskResponsibleInput');
-        const emojiInput=document.getElementById('ticktickTaskEmojiInput');
         const descriptionInput=document.getElementById('ticktickTaskDescriptionInput');
         const repeatInput=document.getElementById('ticktickTaskRepeatInput');
         const repeatCountField=document.getElementById('ticktickTaskRepeatCountField');
@@ -8491,7 +8490,6 @@
           form.reset();
           if(dateInput) dateInput.value=todayState().key;
           if(responsibleInput) responsibleInput.value='';
-          if(emojiInput) emojiInput.value='';
           if(repeatInput) repeatInput.value='none';
           if(repeatCountInput) repeatCountInput.value='2';
           syncRepeat();
@@ -8526,7 +8524,6 @@
               date,
               time:String(timeInput?.value||'').trim(),
               responsible:String(responsibleInput?.value||'').trim(),
-              emoji:String(emojiInput?.value||'').trim(),
               description:String(descriptionInput?.value||'').trim(),
               repeat:String(repeatInput?.value||'none'),
               repeatCount
