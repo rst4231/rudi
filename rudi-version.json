@@ -1,15 +1,15 @@
 {
-  "current": "v3.92",
-  "versionBranch": "rudi-v3.92-iphone-task-modal",
+  "current": "v3.93",
+  "versionBranch": "rudi-v3.93-supplements-car-documents",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": "",
   "createdAt": "2026-10-05",
-  "basedOnProduction": "v3.91",
+  "basedOnProduction": "v3.92",
   "notes": [
-    "Hotfix iPhone: модалка «Новая задача» переведена на border-box, чтобы её внутренние padding и border не расширяли ширину за пределы экрана.",
-    "Нативные поля date/time дополнительно ограничены max-inline-size:100% и box-sizing:border-box; поле «Время» остаётся по умолчанию 08:00.",
-    "Остальной пакет v3.91 не меняется."
+    "Обновлён дизайн раздела БАДов и витаминов по референсу.",
+    "Убран повторный заголовок внутри основной карточки раздела.",
+    "Исправлена загрузка Автодокументов из нового iCloud Shared Album."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
