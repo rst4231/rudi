@@ -210,7 +210,7 @@ function normalizeMessageText(value) {
 function statusForError(error) {
   const code = String(error?.message || error || '');
   if (code === 'telegram-auth-required' || code === 'telegram-auth-invalid' || code === 'telegram-auth-expired' || code === 'telegram-user-invalid') return 401;
-  if (code === 'rudi-access-denied') return 403;
+  if (code === 'rudi-access-denied' || code === 'smart-save-forbidden') return 403;
   if (code === 'rudi-session-required' || code === 'rudi-session-invalid' || code === 'rudi-session-expired' || code === 'rudi-pin-invalid') return 401;
   if (code === 'rudi-pin-rate-limited') return 429;
   if (code === 'rudi-pin-not-configured') return 409;
@@ -2171,11 +2171,10 @@ async function handleRudiAction(req, res, action, options = {}) {
         readMessengerPresence(partner,options),
       ]);
       const beforeDelivery=messengerMessagesVisibleToActor(allBeforeDelivery,actor);
-      const delivered=await markMessengerDelivered(
-        actor,
-        beforeDelivery.filter(row=>row?.sender===partner).map(row=>row.id),
-        options
-      ).catch(()=>({messages:beforeDelivery}));
+      const pendingDeliveryIds=beforeDelivery.filter(row=>row?.sender===partner&&!row?.deliveredAt).map(row=>row.id);
+      const delivered=pendingDeliveryIds.length
+        ?await markMessengerDelivered(actor,pendingDeliveryIds,options).catch(()=>({messages:beforeDelivery}))
+        :{messages:beforeDelivery};
       const messages=messengerMessagesVisibleToActor(
         Array.isArray(delivered?.messages)?delivered.messages:beforeDelivery,
         actor
@@ -3180,8 +3179,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         const result=await addSmartSave({...input,actor},options);
         return res.status(200).json({ok:true,actor,duplicate:result.duplicate,item:result.item,items:result.state.items||[]});
       }
-      if(operation==='remove'){const result=await removeSmartSave(body.id,options);return res.status(200).json({ok:true,actor,removed:result.removed,item:result.item,items:result.state.items||[]})}
-      if(operation==='restore'){const result=await restoreSmartSave(body.item,options);return res.status(200).json({ok:true,actor,restored:result.restored,item:result.item,items:result.state.items||[]})}
+      if(operation==='remove'){const result=await removeSmartSave(body.id,{...options,actor});return res.status(200).json({ok:true,actor,removed:result.removed,item:result.item,items:result.state.items||[]})}
+      if(operation==='restore'){const result=await restoreSmartSave(body.item,{...options,actor});return res.status(200).json({ok:true,actor,restored:result.restored,item:result.item,items:result.state.items||[]})}
       return res.status(400).json({ok:false,error:'smart-save-operation-invalid'});
     } catch(error) {return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
   }
