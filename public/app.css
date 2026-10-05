@@ -12590,14 +12590,18 @@ html:not([data-theme="dark"]) .app-tabbar{
 .profile .profile-mood .mood-self-buttons{margin:0!important}
 .profile-tool-button{position:relative;overflow:visible!important}
 .profile-tool-reminder-badge{
-  position:absolute;top:-5px;right:-5px;z-index:8;
-  min-width:15px;height:15px;padding:0 3px;box-sizing:border-box;
+  position:absolute;top:1px;right:1px;z-index:8;
+  min-width:14px;height:14px;padding:0 2px;box-sizing:border-box;
   display:inline-flex;align-items:center;justify-content:center;
-  border:2px solid #171a22;border-radius:999px;background:#ff453a;color:#fff;
-  font-size:8px;line-height:1;font-weight:850;box-shadow:0 2px 7px rgba(255,69,58,.34)
+  border:1.5px solid #171a22;border-radius:999px;background:#ff453a;color:#fff;
+  font-size:7.5px;line-height:1;font-weight:850;box-shadow:0 2px 6px rgba(255,69,58,.28);
+  pointer-events:none
 }
 .profile-tool-reminder-badge[hidden]{display:none!important}
 html[data-theme="light"] .profile-tool-reminder-badge{border-color:#fff}
+@media(max-width:420px){
+  .profile .profile-mood .mood-self-buttons{gap:2px!important}
+}
 .personal-tool-page-head{padding:4px 1px 2px}
 
 
