@@ -309,6 +309,7 @@
       }
       setUnread(unread);
       await decryptMessages(state.rows);
+      state.renderedIds=new Set(state.rows.map(row=>row.id));
       renderMessages({forceBottom:true});
       state.messagesLoaded=true;
       state.networkLoaded=false;
