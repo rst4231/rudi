@@ -56,6 +56,7 @@ const baseRequest = {
   ingredients: 'курица, рис',
   equipment: 'stove',
   meal: 'dinner',
+  dishType: 'main',
   cuisine: 'georgian',
   timeMinutes: 15,
 };
@@ -63,7 +64,9 @@ const baseRequest = {
 test('recipe request validates selectors including cooking time', () => {
   assert.deepEqual(normalizeRecipeRequest(baseRequest), baseRequest);
   assert.throws(() => normalizeRecipeRequest({ ...baseRequest, equipment: 'microwave' }), /recipe-equipment-invalid/);
+  assert.throws(() => normalizeRecipeRequest({ ...baseRequest, dishType: 'soup' }), /recipe-type-invalid/);
   assert.throws(() => normalizeRecipeRequest({ ...baseRequest, timeMinutes: 20 }), /recipe-time-invalid/);
+  assert.equal(normalizeRecipeRequest({ ...baseRequest, meal: 'snack', dishType: 'fruit' }).meal, 'snack');
 });
 
 test('suggestions use Groq GPT-OSS 20B with strict structured output', async () => {
