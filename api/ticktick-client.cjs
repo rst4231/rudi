@@ -279,18 +279,45 @@ async function updateTaskChecklistItem(accessToken, projectId, taskId, itemId, c
   };
 }
 
+function cleanTickTickChecklistItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const title = String(item?.title || '').trim();
+      if (!title) return null;
+      const row = { title: title.slice(0, 500) };
+      for (const key of ['startDate','timeZone']) {
+        const raw = String(item?.[key] || '').trim();
+        if (raw) row[key] = raw;
+      }
+      if (item?.isAllDay != null) row.isAllDay = Boolean(item.isAllDay);
+      if (Number.isFinite(Number(item?.sortOrder))) row.sortOrder = Number(item.sortOrder);
+      if (Number.isFinite(Number(item?.status))) row.status = Number(item.status);
+      const completedTime = String(item?.completedTime || '').trim();
+      if (completedTime) row.completedTime = completedTime;
+      return row;
+    })
+    .filter(Boolean)
+    .slice(0, 100);
+}
+
 async function createTickTickTask(accessToken, value, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const title = String(value?.title || '').trim();
   const projectId = String(value?.projectId || '').trim();
   if (!title || !projectId) throw new Error('ticktick-task-create-invalid');
 
-  const body = { title, projectId };
+  const body = { title: title.slice(0, 500), projectId };
   if (value?.isAllDay != null) body.isAllDay = Boolean(value.isAllDay);
-  for (const key of ['startDate','dueDate','timeZone','content','desc']) {
+  for (const key of ['startDate','dueDate','timeZone','content','desc','repeatFlag']) {
     const raw = String(value?.[key] || '').trim();
     if (raw) body[key] = raw;
   }
+  if (Number.isFinite(Number(value?.repeatFrom))) body.repeatFrom = Math.max(0, Math.min(2, Number(value.repeatFrom)));
+  if (Number.isFinite(Number(value?.priority))) body.priority = Math.max(0, Math.min(5, Number(value.priority)));
+  if (Array.isArray(value?.reminders)) body.reminders = value.reminders.map((row) => String(row || '').trim()).filter(Boolean).slice(0, 20);
+  if (Array.isArray(value?.tags)) body.tags = value.tags.map((row) => String(row || '').trim()).filter(Boolean).slice(0, 50);
+  const items = cleanTickTickChecklistItems(value?.items);
+  if (items.length) body.items = items;
 
   const response = await fetchImpl(API_BASE_URL + '/task', {
     method: 'POST',
@@ -314,7 +341,55 @@ async function createTickTickTask(accessToken, value, options = {}) {
     throw error;
   }
   if (!response.ok && response.status !== 201) throw new Error('ticktick-create-failed:' + response.status);
-  return response.json().catch(() => ({ ...body }));
+
+  const created = await response.json().catch(() => null);
+  if (created?.id) return created;
+
+  try {
+    const data = await fetchProjectData(accessToken, projectId, options);
+    const expectedStart = String(body.startDate || '').trim();
+    const expectedDue = String(body.dueDate || '').trim();
+    const candidates = (Array.isArray(data?.tasks) ? data.tasks : [])
+      .filter((task) => Number(task?.status ?? 0) === 0 && String(task?.title || '').trim() === body.title)
+      .filter((task) => !expectedStart || String(task?.startDate || '').trim() === expectedStart)
+      .filter((task) => !expectedDue || String(task?.dueDate || '').trim() === expectedDue);
+    if (candidates.length) return candidates[candidates.length - 1];
+  } catch (_) {}
+
+  return { ...body };
+}
+
+async function deleteTickTickTask(accessToken, projectId, taskId, options = {}) {
+  const id = String(taskId || '').trim();
+  const project = String(projectId || '').trim();
+  if (!id || !project) throw new Error('ticktick-task-delete-invalid');
+
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(
+    API_BASE_URL + '/project/' + encodeURIComponent(project) + '/task/' + encodeURIComponent(id),
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: 'Bearer ' + accessToken,
+        Accept: 'application/json',
+        'user-agent': 'RUDI-TickTick/1.0',
+      },
+      cache: 'no-store',
+    }
+  );
+  if (response.status === 401) {
+    const error = new Error('ticktick-token-invalid');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 403) {
+    const error = new Error('ticktick-write-forbidden');
+    error.status = response.status;
+    throw error;
+  }
+  if (response.status === 404) throw new Error('ticktick-task-not-found');
+  if (!response.ok && response.status !== 204) throw new Error('ticktick-delete-failed:' + response.status);
+  return true;
 }
 
 async function completeTickTickTask(accessToken, projectId, taskId, options = {}) {
@@ -538,7 +613,9 @@ module.exports = {
   fetchTask,
   checklistUpdateBody,
   updateTaskChecklistItem,
+  cleanTickTickChecklistItems,
   createTickTickTask,
+  deleteTickTickTask,
   completeTickTickTask,
   fetchProjectData,
   CALENDAR_TIMEZONE,
