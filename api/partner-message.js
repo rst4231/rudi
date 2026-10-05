@@ -106,6 +106,8 @@ const {
   tokenHasWriteScope,
   visibleChecklistItems,
   updateTaskChecklistItem,
+  createTickTickTask,
+  deleteTickTickTask,
   completeTickTickTask,
   fetchTask,
   calendarDateKey,
@@ -115,6 +117,12 @@ const {
   recordChecklistAudit,
   checklistAuditForItem,
 } = require('./ticktick-checklist-audit-store.cjs');
+const {
+  readSharedTaskMetaState,
+  getSharedTaskMeta,
+  setSharedTaskMeta,
+  removeSharedTaskMeta,
+} = require('./shared-task-meta-store.cjs');
 const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot, mergeUiPreferences, normalizeUiPreferences } = require('./rudi-backup.cjs');
 const { getCinemaPremieresCache, getTopicMaintenanceCache, getLaborCache, getControlPlaneCache } = require('./stateful-cache.cjs');
 const { getDailyCronState } = require('./daily-cron-state.cjs');
