@@ -273,7 +273,189 @@ function assetUrl(assetData, checksum) {
   return `${scheme}://${host}${path}`;
 }
 
+
+const CLOUDKIT_RESOLVE_HOST = 'https://ckdatabasews.icloud.com';
+const CLOUDKIT_CONTAINER = 'com.apple.photos.cloud';
+const CLOUDKIT_BUILD = '2626';
+const CLOUDKIT_RECORD_TYPE = 'CPLAssetAndMasterByAssetDateWithoutHiddenOrDeleted';
+const CLOUDKIT_PAGE_SIZE = 200;
+const CLOUDKIT_HEADERS = {
+  'content-type':'text/plain',
+  origin:'https://www.icloud.com',
+  referer:'https://www.icloud.com/',
+  accept:'application/json',
+};
+
+function isCloudKitAlbumUrl(value) {
+  return /^https:\/\/photos\.icloud\.com\/shared\/album\/[A-Za-z0-9_-]+$/i.test(String(value||'').trim());
+}
+
+function cloudKitField(fields,name) {
+  const field=fields&&typeof fields==='object'?fields[name]:null;
+  return field&&typeof field==='object'?field.value:null;
+}
+
+function cloudKitFilename(fields) {
+  const raw=cloudKitField(fields,'filenameEnc');
+  if(typeof raw!=='string'||!raw) return 'image';
+  try{return Buffer.from(raw,'base64').toString('utf8')||'image'}catch{return 'image'}
+}
+
+function cloudKitDownloadUrl(value,filename='image') {
+  const raw=String(value||'').trim();
+  if(!raw) return '';
+  return raw.replace(/\$\{f\}/g,encodeURIComponent(String(filename||'image')));
+}
+
+function cloudKitResource(fields,key,widthKey,heightKey) {
+  const resource=fields&&typeof fields==='object'?fields[key]:null;
+  const value=resource&&typeof resource==='object'?resource.value:null;
+  const url=cloudKitDownloadUrl(value?.downloadURL,cloudKitFilename(fields));
+  if(!url) return null;
+  return {
+    url,
+    width:Number(cloudKitField(fields,widthKey)||0)||null,
+    height:Number(cloudKitField(fields,heightKey)||0)||null,
+  };
+}
+
+function cloudKitImageResources(fields) {
+  return [
+    cloudKitResource(fields,'resJPEGThumbRes','resJPEGThumbWidth','resJPEGThumbHeight'),
+    cloudKitResource(fields,'resJPEGMedRes','resJPEGMedWidth','resJPEGMedHeight'),
+    cloudKitResource(fields,'resJPEGLargeRes','resJPEGLargeWidth','resJPEGLargeHeight'),
+  ].filter(Boolean);
+}
+
+function cloudKitIsVideo(fields) {
+  const type=String(cloudKitField(fields,'itemType')||'').toLowerCase();
+  return /movie|video|mpeg-4|quicktime/.test(type);
+}
+
+function cloudKitDate(value) {
+  const raw=Number(value);
+  if(!Number.isFinite(raw)||raw<=0) return '';
+  const ms=raw<1e12?raw*1000:raw;
+  const date=new Date(ms);
+  return Number.isNaN(date.getTime())?'':date.toISOString();
+}
+
+async function postCloudKit(url,body,options={}) {
+  const fetchImpl=options.fetchImpl||globalThis.fetch;
+  const response=await fetchImpl(url,{
+    method:'POST',
+    headers:CLOUDKIT_HEADERS,
+    body:JSON.stringify(body),
+    cache:'no-store',
+  });
+  if(!response.ok) throw new Error('shared-album-cloudkit-http-'+response.status);
+  return response.json();
+}
+
+async function resolveCloudKitAlbum(token,options={}) {
+  const url=CLOUDKIT_RESOLVE_HOST
+    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/public/records/resolve'
+    +'?ckjsBuildVersion='+encodeURIComponent(CLOUDKIT_BUILD)
+    +'&shortGUID='+encodeURIComponent(token);
+  const payload=await postCloudKit(url,{shortGUIDs:[{value:token}]},options);
+  const result=Array.isArray(payload?.results)?payload.results[0]:null;
+  const zone=result?.zoneID;
+  const access=result?.anonymousPublicAccess;
+  const accessToken=String(access?.token||'').trim();
+  const partition=String(access?.databasePartition||'').trim().replace(/\/$/,'');
+  let partitionUrl;
+  try{partitionUrl=new URL(partition)}catch{partitionUrl=null}
+  if(
+    !zone
+    || !accessToken
+    || !partitionUrl
+    || partitionUrl.protocol!=='https:'
+    || !/(^|\.)icloud\.com$/i.test(partitionUrl.hostname)
+  ) throw new Error('shared-album-cloudkit-private');
+  const title=String(cloudKitField(result?.share?.fields,'cloudkit.title')||'Общий альбом').trim()||'Общий альбом';
+  return {zone,accessToken,partition:partitionUrl.origin,title};
+}
+
+function parseCloudKitPhotos(records) {
+  const masters=new Map(),assets=[];
+  for(const record of Array.isArray(records)?records:[]){
+    if(record?.recordType==='CPLMaster') masters.set(String(record.recordName||''),record.fields||{});
+    else if(record?.recordType==='CPLAsset') assets.push(record);
+  }
+  const photos=[];
+  const seen=new Set();
+  for(const asset of assets){
+    const fields=asset?.fields||{};
+    if(cloudKitField(fields,'isHidden')||cloudKitField(fields,'trashReason')) continue;
+    const masterName=String(fields?.masterRef?.value?.recordName||'').trim();
+    const masterFields=masters.get(masterName);
+    if(!masterName||!masterFields||seen.has(masterName)||cloudKitIsVideo(masterFields)) continue;
+    const jpgs=cloudKitImageResources(masterFields);
+    const original=cloudKitResource(masterFields,'resOriginalRes','resOriginalWidth','resOriginalHeight');
+    const preview=jpgs[0]||original;
+    const full=jpgs[jpgs.length-1]||original||preview;
+    if(!preview?.url) continue;
+    seen.add(masterName);
+    photos.push({
+      id:masterName,
+      type:'image',
+      url:preview.url,
+      fullUrl:full?.url||preview.url,
+      originalUrl:original?.url||full?.url||preview.url,
+      width:preview.width,
+      height:preview.height,
+      fullWidth:full?.width||preview.width,
+      fullHeight:full?.height||preview.height,
+      originalWidth:original?.width||full?.width||preview.width,
+      originalHeight:original?.height||full?.height||preview.height,
+      date:cloudKitDate(cloudKitField(fields,'assetDate')),
+      caption:'',
+      location:'',
+      latitude:null,
+      longitude:null,
+    });
+  }
+  return photos.sort((a,b)=>Date.parse(b.date||0)-Date.parse(a.date||0));
+}
+
+async function fetchCloudKitPhotos(config,options={}) {
+  const token=String(config?.token||extractToken(config?.url)||'').trim();
+  const resolved=await resolveCloudKitAlbum(token,options);
+  const query=new URLSearchParams({
+    remapEnums:'true',
+    getCurrentSyncToken:'true',
+    sharing_url_key:token,
+    publicAccessAuthToken:resolved.accessToken,
+  });
+  const url=resolved.partition
+    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/shared/records/query?'+query.toString();
+  const records=[];
+  let continuation='';
+  do{
+    const body={
+      zoneID:resolved.zone,
+      query:{recordType:CLOUDKIT_RECORD_TYPE},
+      resultsLimit:CLOUDKIT_PAGE_SIZE,
+    };
+    if(continuation) body.continuationMarker=continuation;
+    const payload=await postCloudKit(url,body,options);
+    const batch=Array.isArray(payload?.records)?payload.records:[];
+    records.push(...batch);
+    continuation=String(payload?.continuationMarker||'');
+    if(!batch.length) break;
+  }while(continuation&&records.length<20000);
+
+  const photos=parseCloudKitPhotos(records);
+  return {
+    photos,
+    totalCount:photos.length,
+    albumUrl:config.url,
+    title:resolved.title,
+  };
+}
+
 async function fetchLatestPhotos(config, options = {}) {
+  if(isCloudKitAlbumUrl(config?.url)) return fetchCloudKitPhotos(config,options);
   const token = config.token;
   let host = initialHost(token);
   const streamResult = await postICloud(host, token, 'webstream', { streamCtag: null }, options);
@@ -366,5 +548,7 @@ module.exports = {
   pickVideoDerivative,
   videoSources,
   fetchLatestPhotos,
+  fetchCloudKitPhotos,
+  parseCloudKitPhotos,
   getLatestPhotos,
 };
