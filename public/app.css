@@ -12713,3 +12713,9 @@ body.auth-ok .shell,
 body.auth-ok .app-tabbar{
   pointer-events:auto;
 }
+
+
+/* Keep instant launch stable while access/bootstrap finishes. */
+body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
+  display:none!important;
+}
