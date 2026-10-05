@@ -27,9 +27,6 @@
     "api/habits.js": {
       "supportsCancellation": true
     },
-    "api/habit-reminder-cron.js": {
-      "maxDuration": 60
-    },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
     }
@@ -242,6 +239,10 @@
     {
       "source": "/api/smart-home-humidity-cron",
       "destination": "/api/index?route=smart-home-humidity-cron"
+    },
+    {
+      "source": "/api/habit-reminder-cron",
+      "destination": "/api/index?route=habit-reminder-cron"
     }
   ],
   "crons": [
