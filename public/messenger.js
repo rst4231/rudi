@@ -699,6 +699,54 @@
     },1600);
   }
 
+  function messengerPhotoFile(attachment){
+    const data=String(attachment?.data||'').trim();
+    if(!data) throw new Error('messenger-photo-empty');
+    const mime=String(attachment?.mime||'image/jpeg').trim()||'image/jpeg';
+    const binary=atob(data);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+    const rawName=String(attachment?.name||'photo.jpg').trim().replace(/[^a-zA-Z0-9._-]+/g,'-').slice(0,120);
+    const extension=mime==='image/png'?'.png':mime==='image/webp'?'.webp':'.jpg';
+    const name=/\.[a-z0-9]{2,5}$/i.test(rawName)?rawName:((rawName||'photo')+extension);
+    return new File([bytes],name,{type:mime,lastModified:Date.now()});
+  }
+
+  async function savePhotoToDevice(attachment){
+    let file;
+    try{file=messengerPhotoFile(attachment)}
+    catch(_){showMessengerToast('Не удалось подготовить фото');return false}
+
+    try{
+      const sharePayload={files:[file],title:'Фото из RUDI'};
+      if(typeof navigator.share==='function'&&(!navigator.canShare||navigator.canShare(sharePayload))){
+        await navigator.share(sharePayload);
+        showMessengerToast('Фото открыто в меню сохранения iPhone');
+        return true;
+      }
+    }catch(error){
+      if(String(error?.name||'')==='AbortError') return false;
+    }
+
+    try{
+      const url=URL.createObjectURL(file);
+      const link=document.createElement('a');
+      link.href=url;
+      link.download=file.name;
+      link.rel='noopener';
+      link.style.display='none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),3000);
+      showMessengerToast('Фото сохранено');
+      return true;
+    }catch(_){
+      showMessengerToast('Не удалось сохранить фото');
+      return false;
+    }
+  }
+
   async function saveMessageToSmartSaves(row,payload){
     const value=String(payload?.text||'').trim();
     if(!value) return;
@@ -842,22 +890,26 @@
 
     const hasText=Boolean(String(payload?.text||'').trim());
     const hasAttachment=Boolean(payload?.attachment);
+    const photoAttachment=payload?.attachment?.kind==='photo'?payload.attachment:null;
     const systemEvent=payload?.system===true;
     const actions=systemEvent
       ?[
         ['Ответить',()=>setReply(row,payload)],
         ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
+        ...(photoAttachment?[['Сохранить фото',()=>savePhotoToDevice(photoAttachment)]]:[]),
       ]
       :row.sender===state.actor
         ?[
           ['Ответить',()=>setReply(row,payload)],
           ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
+          ...(photoAttachment?[['Сохранить фото',()=>savePhotoToDevice(photoAttachment)]]:[]),
           ...(!hasAttachment&&hasText?[['Редактировать',()=>startMessageEdit(row,payload)]]:[]),
           ['Удалить',()=>deleteOwnMessage(row),'is-danger'],
         ]
         :[
           ['Ответить',()=>setReply(row,payload)],
           ...(hasText?[['Копировать',()=>copyMessageText(payload.text)],['Сохранить',()=>saveMessageToSmartSaves(row,payload)]]:[]),
+          ...(photoAttachment?[['Сохранить фото',()=>savePhotoToDevice(photoAttachment)]]:[]),
         ];
     for(const [label,handler,className] of actions){
       const button=document.createElement('button');
@@ -1186,9 +1238,15 @@
       }
       const viewer=document.createElement('div');
       viewer.className='messenger-photo-viewer';
-      viewer.innerHTML='<button type="button" aria-label="Закрыть">×</button><img alt="Фото">';
+      viewer.innerHTML='<button class="messenger-photo-viewer-close" data-messenger-photo-close type="button" aria-label="Закрыть">×</button><img alt="Фото"><div class="messenger-photo-viewer-actions"><button class="messenger-photo-viewer-save" data-messenger-photo-save type="button">Сохранить</button></div>';
       viewer.querySelector('img').src=src;
-      viewer.addEventListener('click',e=>{if(e.target===viewer||e.target.closest('button'))viewer.remove()});
+      viewer.querySelector('[data-messenger-photo-close]')?.addEventListener('click',()=>viewer.remove());
+      viewer.querySelector('[data-messenger-photo-save]')?.addEventListener('click',event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        savePhotoToDevice(attachment);
+      });
+      viewer.addEventListener('click',e=>{if(e.target===viewer)viewer.remove()});
       document.body.appendChild(viewer);
     });
     bubble.appendChild(button);
