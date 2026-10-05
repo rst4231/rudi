@@ -12724,12 +12724,18 @@ body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
 /* RUDI shared task composer */
 .priority-title-row{width:100%}
 .ticktick-add-button{
-  width:28px;height:28px;display:grid;place-items:center;flex:none;margin-left:auto;padding:0;
+  position:relative;width:28px;height:28px;display:block;flex:none;margin-left:auto;padding:0;
   border:1px solid color-mix(in srgb,#35d870 36%,var(--line));border-radius:9px;
   background:color-mix(in srgb,#35d870 10%,var(--surface-strong));color:#23ae60;
-  font:inherit;font-size:22px;line-height:1;font-weight:450;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  font-size:0;line-height:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
   transition:transform .14s ease,background-color .16s ease;
 }
+.ticktick-add-button::before,.ticktick-add-button::after{
+  content:'';position:absolute;left:50%;top:50%;display:block;border-radius:999px;
+  background:currentColor;transform:translate(-50%,-50%);
+}
+.ticktick-add-button::before{width:12px;height:1.8px}
+.ticktick-add-button::after{width:1.8px;height:12px}
 .ticktick-add-button:active{transform:scale(.92)}
 .ticktick-today-task.has-delete{grid-template-columns:34px minmax(0,1fr) 30px}
 .ticktick-today-delete{
@@ -12780,7 +12786,7 @@ body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
 .ticktick-task-form-status{min-height:15px;color:var(--muted);font-size:10.5px;line-height:1.3;text-align:center}
 body.ticktick-task-modal-open{overflow:hidden}
 @media(max-width:430px){
-  .ticktick-add-button{width:27px;height:27px;border-radius:9px;font-size:21px}
+  .ticktick-add-button{width:27px;height:27px;border-radius:9px}
   .ticktick-today-task.has-delete{grid-template-columns:32px minmax(0,1fr) 28px}
   .ticktick-today-delete{width:27px;height:27px;border-radius:8px;font-size:21px}
   .ticktick-task-modal{padding:10px 10px calc(10px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))}
