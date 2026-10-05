@@ -1843,7 +1843,7 @@
 
 
   function openCarDocumentOriginal(photo){
-    const target=String(photo?.fullUrl||photo?.url||'').trim();
+    const target=String(photo?.originalUrl||photo?.fullUrl||photo?.url||'').trim();
     if(!/^https:\/\//i.test(target)) return;
     try{
       if(tg?.openLink) tg.openLink(target);
