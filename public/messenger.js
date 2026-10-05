@@ -4,6 +4,7 @@
   const API='/api/partner-message?rudiAction=';
   const DB_NAME='rudi-messenger-crypto-v1';
   const STORE_NAME='identity';
+  const CACHE_STORE_NAME='conversation-cache';
   const encoder=new TextEncoder();
   const decoder=new TextDecoder();
   const AAD_V1=encoder.encode('rudi-messenger-v1');
@@ -59,6 +60,10 @@
     unreadSyncPromise:null,
     lastUnreadSyncAt:0,
     backgroundPreloadScheduled:false,
+    cacheHydrated:false,
+    cacheHydratePromise:null,
+    cachePersistTimer:0,
+    networkLoaded:false,
   };
 
   function telegramInitData(){
@@ -94,10 +99,11 @@
 
   function openDb(){
     return new Promise((resolve,reject)=>{
-      const request=indexedDB.open(DB_NAME,1);
+      const request=indexedDB.open(DB_NAME,2);
       request.onupgradeneeded=()=>{
         const db=request.result;
         if(!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME,{keyPath:'id'});
+        if(!db.objectStoreNames.contains(CACHE_STORE_NAME)) db.createObjectStore(CACHE_STORE_NAME,{keyPath:'id'});
       };
       request.onsuccess=()=>resolve(request.result);
       request.onerror=()=>reject(request.error||new Error('messenger-crypto-db-failed'));
@@ -127,6 +133,64 @@
       });
     }finally{db.close()}
     return value;
+  }
+
+  async function readConversationCache(actor){
+    const clean=String(actor||'').trim();
+    if(!['Рустам','Диана'].includes(clean)) return null;
+    const db=await openDb();
+    try{
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction(CACHE_STORE_NAME,'readonly');
+        const request=tx.objectStore(CACHE_STORE_NAME).get('conversation:'+clean);
+        request.onsuccess=()=>resolve(request.result||null);
+        request.onerror=()=>reject(request.error||new Error('messenger-cache-read-failed'));
+      });
+    }finally{db.close()}
+  }
+
+  async function writeConversationCache(){
+    if(!state.actor||!state.aesKey) return false;
+    const rows=(Array.isArray(state.rows)?state.rows:[])
+      .filter(row=>row&&!row._pending)
+      .slice(-256);
+    const db=await openDb();
+    try{
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction(CACHE_STORE_NAME,'readwrite');
+        tx.objectStore(CACHE_STORE_NAME).put({
+          id:'conversation:'+state.actor,
+          actor:state.actor,
+          partner:state.partner,
+          aesKey:state.aesKey,
+          keys:state.keys||{},
+          rows,
+          updatedAt:new Date().toISOString()
+        });
+        tx.oncomplete=()=>resolve(true);
+        tx.onerror=()=>reject(tx.error||new Error('messenger-cache-write-failed'));
+      });
+    }finally{db.close()}
+    return true;
+  }
+
+  function scheduleConversationCachePersist(){
+    if(!state.actor||!state.aesKey) return;
+    clearTimeout(state.cachePersistTimer);
+    state.cachePersistTimer=setTimeout(()=>{
+      state.cachePersistTimer=0;
+      writeConversationCache().catch(()=>{});
+    },160);
+  }
+
+  function localMessengerActor(){
+    const fromBody=String(document.body?.dataset?.rudiActor||'').trim();
+    if(fromBody==='Рустам'||fromBody==='Диана') return fromBody;
+    try{
+      const saved=JSON.parse(localStorage.getItem('rudi-offline-access-v1')||'null');
+      const actor=String(saved?.actor||'').trim();
+      return actor==='Рустам'||actor==='Диана'?actor:'';
+    }catch(_){return ''}
   }
 
   async function createIdentity(actor){
@@ -166,6 +230,30 @@
     return Boolean(left&&right&&left.kty==='EC'&&right.kty==='EC'&&left.crv==='P-256'&&right.crv==='P-256'&&left.x===right.x&&left.y===right.y);
   }
 
+  async function refreshLegacyAesKey(){
+    state.legacyAesKey=null;
+    const partnerKey=state.keys?.[state.partner]?.publicJwk||null;
+    if(!partnerKey||!state.identity?.privateKey) return;
+    try{
+      const importedPartner=await crypto.subtle.importKey(
+        'jwk',
+        partnerKey,
+        {name:'ECDH',namedCurve:'P-256'},
+        false,
+        []
+      );
+      state.legacyAesKey=await crypto.subtle.deriveKey(
+        {name:'ECDH',public:importedPartner},
+        state.identity.privateKey,
+        {name:'AES-GCM',length:256},
+        false,
+        ['decrypt']
+      );
+    }catch(_){
+      state.legacyAesKey=null;
+    }
+  }
+
   async function ensureKeys(seedData=null){
     if(!seedData&&state.aesKey&&state.actor&&state.identity){
       return {actor:state.actor,keys:state.keys||{},scheme:'shared-v2'};
@@ -195,29 +283,43 @@
       ['encrypt','decrypt']
     );
 
-    state.legacyAesKey=null;
-    const partnerKey=state.keys?.[state.partner]?.publicJwk||null;
-    if(partnerKey){
-      try{
-        const importedPartner=await crypto.subtle.importKey(
-          'jwk',
-          partnerKey,
-          {name:'ECDH',namedCurve:'P-256'},
-          false,
-          []
-        );
-        state.legacyAesKey=await crypto.subtle.deriveKey(
-          {name:'ECDH',public:importedPartner},
-          state.identity.privateKey,
-          {name:'AES-GCM',length:256},
-          false,
-          ['decrypt']
-        );
-      }catch(_){
-        state.legacyAesKey=null;
-      }
-    }
+    await refreshLegacyAesKey();
     return data;
+  }
+
+  async function hydrateConversationCache(){
+    if(state.cacheHydratePromise) return state.cacheHydratePromise;
+    state.cacheHydratePromise=(async()=>{
+      const actor=localMessengerActor();
+      if(!actor) return false;
+      const cached=await readConversationCache(actor).catch(()=>null);
+      if(!cached||cached.actor!==actor||!cached.aesKey||!Array.isArray(cached.rows)) return false;
+
+      state.actor=actor;
+      state.partner=actor==='Рустам'?'Диана':'Рустам';
+      state.identity=await ensureIdentity(actor);
+      state.keys=cached.keys&&typeof cached.keys==='object'?cached.keys:{};
+      state.aesKey=cached.aesKey;
+      await refreshLegacyAesKey();
+
+      state.rows=mergePendingRows(cached.rows);
+      const unread=state.rows.filter(row=>rowUnreadForActor(row,actor)).length;
+      if(!state.unreadBoundaryId){
+        state.unreadBoundaryId=String(state.rows.find(row=>rowUnreadForActor(row,actor))?.id||'');
+      }
+      setUnread(unread);
+      await decryptMessages(state.rows);
+      renderMessages({forceBottom:true});
+      state.messagesLoaded=true;
+      state.networkLoaded=false;
+      updateHeader();
+      return true;
+    })();
+    try{
+      return await state.cacheHydratePromise;
+    }finally{
+      state.cacheHydrated=true;
+    }
   }
 
   async function encryptPayload(payload){
@@ -2216,6 +2318,7 @@
       state.nearBottom=isMessagesNearBottom(list);
       updateJumpLatest();
     }
+    scheduleConversationCachePersist();
   }
 
   function scrollToMessageId(id,{flash=true}={}){
@@ -2337,6 +2440,8 @@
         await decryptMessages(state.rows);
         renderMessages({forceBottom:!state.messagesLoaded});
         state.messagesLoaded=true;
+        state.networkLoaded=true;
+        scheduleConversationCachePersist();
         updateHeader();
         if(status){status.hidden=true;status.textContent=''}
 
@@ -3445,13 +3550,13 @@
   }
 
   function scheduleBackgroundPreload(){
-    if(state.messagesLoaded||state.loadPromise||state.backgroundPreloadScheduled) return;
+    if(state.networkLoaded||state.loadPromise||state.backgroundPreloadScheduled) return;
     state.backgroundPreloadScheduled=true;
     setTimeout(()=>{
       state.backgroundPreloadScheduled=false;
-      if(state.messagesLoaded||state.loadPromise||!document.body.classList.contains('auth-ok')) return;
+      if(state.networkLoaded||state.loadPromise||!document.body.classList.contains('auth-ok')) return;
       load({markRead:false}).catch(()=>{});
-    },120);
+    },80);
   }
 
   async function open({force=false,fromPush=false}={}){
@@ -3460,7 +3565,8 @@
     ensureProfileButton();
     if(state.messagesLoaded){
       updateHeader();
-      syncLiveMessages();
+      if(state.networkLoaded) syncLiveMessages();
+      else load({markRead:true}).catch(()=>{});
     }else{
       await load({markRead:true});
     }
@@ -3482,8 +3588,10 @@
     const start=()=>{
       state.initialized=true;
       ensureProfileButton();
-      if(document.body.dataset.appTab==='messenger') open({force:true});
-      else scheduleBackgroundPreload();
+      hydrateConversationCache().catch(()=>false).finally(()=>{
+        if(document.body.dataset.appTab==='messenger') open({force:true});
+        else scheduleBackgroundPreload();
+      });
     };
     if(document.body.classList.contains('auth-ok')) start();
     else{
