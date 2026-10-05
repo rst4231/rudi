@@ -225,6 +225,18 @@
       "destination": "/api/partner-message?ticktickAction=task-complete"
     },
     {
+      "source": "/api/ticktick/task-restore",
+      "destination": "/api/partner-message?ticktickAction=task-restore"
+    },
+    {
+      "source": "/api/ticktick/task-delete",
+      "destination": "/api/partner-message?ticktickAction=task-delete"
+    },
+    {
+      "source": "/api/ticktick/task-create",
+      "destination": "/api/partner-message?ticktickAction=task-create"
+    },
+    {
       "source": "/api/smart-home-humidity-cron",
       "destination": "/api/index?route=smart-home-humidity-cron"
     }
