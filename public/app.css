@@ -12766,7 +12766,7 @@ body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
 .ticktick-task-modal[hidden]{display:none!important}
 .ticktick-task-modal-backdrop{position:absolute;inset:0;border:0;background:rgba(10,13,20,.48);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 .ticktick-task-modal-sheet{
-  position:relative;width:min(520px,100%);max-height:min(760px,calc(100dvh - 34px));overflow:auto;
+  position:relative;width:min(520px,100%);max-width:100%;max-height:min(760px,calc(100dvh - 34px));overflow:auto;overflow-x:hidden;
   padding:18px;border:1px solid color-mix(in srgb,var(--line) 82%,transparent);border-radius:23px;
   background:var(--surface);box-shadow:0 24px 70px rgba(10,14,24,.32);
 }
@@ -12778,11 +12778,14 @@ body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
   background:var(--soft);color:var(--muted);font:inherit;font-size:25px;line-height:1;cursor:pointer;
 }
 .ticktick-task-form{display:grid;gap:12px}
-.ticktick-task-field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ticktick-task-field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .ticktick-task-field{display:grid;gap:6px;min-width:0;color:var(--muted);font-size:10.5px;font-weight:760}
 .ticktick-task-field input,.ticktick-task-field select,.ticktick-task-field textarea{
-  width:100%;box-sizing:border-box;min-height:44px;padding:11px 12px;border:1px solid var(--line);border-radius:13px;
+  width:100%;max-width:100%;min-width:0;box-sizing:border-box;min-height:44px;padding:11px 12px;border:1px solid var(--line);border-radius:13px;
   outline:0;background:var(--surface-strong);color:var(--text);font:inherit;font-size:14px;font-weight:600;
+}
+.ticktick-task-field input[type="date"],.ticktick-task-field input[type="time"]{
+  display:block;min-width:0;max-width:100%;overflow:hidden;
 }
 .ticktick-task-field textarea{min-height:78px;resize:vertical;line-height:1.4}
 .ticktick-task-field input:focus,.ticktick-task-field select:focus,.ticktick-task-field textarea:focus{
