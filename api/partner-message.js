@@ -103,7 +103,7 @@ const {
   buildTickTickCalendar,
   chooseNextTask,
   resolveAssigneeName,
-  assignTickTickTask,
+  listTickTickProjectMembers,
   tokenHasWriteScope,
   visibleChecklistItems,
   updateTaskChecklistItem,
@@ -1864,6 +1864,13 @@ async function handleTickTick(req, res, action, options = {}) {
       const time = String(body.time || '').trim();
       const dateTime = tickTickTaskDateTime(date, time);
       const repeatFlag = tickTickRepeatFlag(body.repeat, body.repeatCount);
+      let assigneeUsername='';
+      if (responsible) {
+        const wanted=responsible==='Рустам'?'RST':'Ди';
+        const members=await listTickTickProjectMembers(token.accessToken,config.projectId,options);
+        assigneeUsername=String(members.find(row=>String(row?.displayName||'').trim()===wanted)?.username||'').trim();
+        if(!assigneeUsername) throw new Error('ticktick-assignee-not-found:'+wanted);
+      }
       const task = await createTickTickTask(token.accessToken, {
         title,
         projectId: config.projectId,
@@ -1872,19 +1879,11 @@ async function handleTickTick(req, res, action, options = {}) {
         dueDate: dateTime,
         timeZone: 'Europe/Moscow',
         desc: String(body.description || '').trim().slice(0,5000),
+        ...(assigneeUsername ? { assigneeUsername } : {}),
         ...(repeatFlag ? { repeatFlag, repeatFrom: 0 } : {}),
       }, options);
       const taskId = String(task?.id || '').trim();
       if (!taskId) throw new Error('ticktick-task-create-unresolved');
-      if (responsible) {
-        await assignTickTickTask(
-          token.accessToken,
-          config.projectId,
-          taskId,
-          responsible === 'Рустам' ? 'RST' : 'Ди',
-          options
-        );
-      }
       await setSharedTaskMeta(taskId, {
         responsible,
         createdBy: actor,
@@ -1986,22 +1985,21 @@ async function handleTickTick(req, res, action, options = {}) {
       if (snapshot?.type !== 'ticktick-task-delete-undo-v1' || snapshot?.actor !== actor) throw new Error('ticktick-task-undo-invalid');
       if (Number(snapshot?.expiresAt || 0) < Date.now()) throw new Error('ticktick-task-undo-expired');
       const source = snapshot.task && typeof snapshot.task === 'object' ? snapshot.task : {};
+      const restoredResponsible=String(source.responsible || '').trim();
+      let restoredAssigneeUsername='';
+      if (restoredResponsible === 'Рустам' || restoredResponsible === 'Диана') {
+        const wanted=restoredResponsible==='Рустам'?'RST':'Ди';
+        const members=await listTickTickProjectMembers(token.accessToken,config.projectId,options);
+        restoredAssigneeUsername=String(members.find(row=>String(row?.displayName||'').trim()===wanted)?.username||'').trim();
+        if(!restoredAssigneeUsername) throw new Error('ticktick-assignee-not-found:'+wanted);
+      }
       const task = await createTickTickTask(token.accessToken, {
         ...source,
         projectId: config.projectId,
+        ...(restoredAssigneeUsername ? { assigneeUsername: restoredAssigneeUsername } : {}),
       }, options);
       const taskId=String(task?.id || '').trim();
       if (!taskId) throw new Error('ticktick-task-create-unresolved');
-      const restoredResponsible=String(source.responsible || '').trim();
-      if (restoredResponsible === 'Рустам' || restoredResponsible === 'Диана') {
-        await assignTickTickTask(
-          token.accessToken,
-          config.projectId,
-          taskId,
-          restoredResponsible === 'Рустам' ? 'RST' : 'Ди',
-          options
-        );
-      }
       await setSharedTaskMeta(taskId, {
         responsible:restoredResponsible,
         createdBy:String(source.createdBy || actor).trim(),
