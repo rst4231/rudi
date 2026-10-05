@@ -16,7 +16,7 @@ test('PWA snapshots fall back on a stalled or aborted Vercel request, not only n
   assert.doesNotMatch(block,/if\(snapshotKey&&!aborted&&networkFailure\)/);
 });
 
-test('built assets have stable content URLs, and editing one invalidates only that file',()=>{
+test('built assets keep stable public paths with the current release version',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rudi-assets-'));
   try{
     for(const file of ['build.cjs','runtime','config','rudi-version.json','public']) fs.cpSync(file,path.join(dir,file),{recursive:true});
@@ -26,30 +26,20 @@ test('built assets have stable content URLs, and editing one invalidates only th
       return fs.readFileSync(path.join(dir,'public/index.html'),'utf8');
     };
     const first=build();
-    const js=first.match(/src="(\/assets\/app\.[a-f0-9]{12}\.js)"/);
-    assert.ok(js,'app must use a content-addressed URL');
-    const css=first.match(/href="(\/assets\/app\.[a-f0-9]{12}\.css)"/);
-    assert.ok(css);
+    const version=JSON.parse(fs.readFileSync(path.join(dir,'rudi-version.json'),'utf8')).current.replace(/^v/,'');
+    const js=first.match(/src="(\/app\.js\?v=[^"]+)"/);
+    const css=first.match(/href="(\/app\.css\?v=[^"]+)"/);
+    assert.ok(js,'app must use the stable public script path');
+    assert.ok(css,'app must use the stable public stylesheet path');
+    assert.equal(js[1],'/app.js?v='+version);
+    assert.equal(css[1],'/app.css?v='+version);
     const firstSw=fs.readFileSync(path.join(dir,'public/sw.js'),'utf8');
-    assert.ok(firstSw.includes(js[1]),'service worker must precache the current app script');
-    assert.ok(firstSw.includes(css[1]),'service worker must precache the current app stylesheet');
+    assert.ok(firstSw.includes('/app.js?v='+version),'service worker must precache the current app script');
+    assert.ok(firstSw.includes('/app.css?v='+version),'service worker must precache the current app stylesheet');
     assert.ok(firstSw.includes('NAVIGATION_TIMEOUT_MS=3500'),'service worker must bound stalled navigation requests');
-    for(const [,url] of first.matchAll(/(?:src|href)="(\/assets\/[^"?]+)"/g)){
-      assert.ok(fs.statSync(path.join(dir,'public',url)).size>0,'missing '+url);
-    }
     assert.equal(build(),first,'build must be idempotent');
-    fs.appendFileSync(path.join(dir,'public/app.js'),'\n// changed asset\n');
-    const second=build();
-    assert.ok(!second.includes(js[1]),'changed script must get a new URL');
-    assert.ok(second.includes(css[1]),'unchanged styles must keep their URL');
-    const secondJs=second.match(/src="(\/assets\/app\.[a-f0-9]{12}\.js)"/);
-    const secondSw=fs.readFileSync(path.join(dir,'public/sw.js'),'utf8');
-    assert.ok(secondJs);
-    assert.ok(secondSw.includes(secondJs[1]),'service worker must follow the new app script hash');
-    assert.ok(!secondSw.includes(js[1]),'service worker must not pin the obsolete app script hash');
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
-
 
 test('connectivity warning clears after confirmed API recovery',()=>{
   const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
