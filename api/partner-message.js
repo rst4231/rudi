@@ -2676,19 +2676,12 @@ async function handleRudiAction(req, res, action, options = {}) {
       await deleteMessengerMessage(actor,body.id,options);
       const dbCommittedAt=Date.now();
       const realtime=realtimeTrace('delete',actor,requestStartedAt,dbCommittedAt,String(body.id||''));
-      const pushDismiss=await dismissMessengerNotificationForPartner(actor,body.id,options).catch(error=>({
-        sent:false,
-        reason:'dismiss-failed',
-        error:String(error?.message||error),
+      const pushDismissTask=dismissMessengerNotificationForPartner(actor,body.id,options).catch(error=>({
+        sent:false,reason:'dismiss-failed',error:String(error?.message||error),
       }));
-      const messages=messengerMessagesVisibleToActor(await readMessengerMessages(options),actor);
+      try{waitUntil(pushDismissTask)}catch(_){pushDismissTask.catch(()=>{})}
       return res.status(200).json({
-        ok:true,
-        actor,
-        deleted:true,
-        pushDismiss,
-        unread:unreadMessengerCount(messages,actor),
-        realtime
+        ok:true,actor,deleted:true,pushDismiss:{pending:true},realtime
       });
     } catch (error) {
       const code=String(error?.message||error);
