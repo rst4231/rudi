@@ -17,8 +17,40 @@ const EQUIPMENT = {
 const MEALS = {
   breakfast: 'завтрак',
   lunch: 'обед',
+  snack: 'перекус',
   dinner: 'ужин',
 };
+const DISH_TYPES = Object.freeze({
+  breakfast: Object.freeze({
+    porridge: 'каша',
+    eggs: 'яйца',
+    pastry: 'выпечка',
+    sandwiches: 'бутерброды',
+    dairy: 'творог/йогурт',
+    'syrniki-pancakes': 'сырники/блины',
+    salad: 'салат',
+    drink: 'напиток',
+  }),
+  lunch: Object.freeze({
+    soup: 'суп',
+    main: 'второе',
+    salad: 'салат',
+  }),
+  snack: Object.freeze({
+    sandwich: 'бутерброд',
+    pastry: 'выпечка',
+    fruit: 'фрукты',
+    dairy: 'творог/йогурт',
+    snack: 'снэк',
+    drink: 'напиток',
+  }),
+  dinner: Object.freeze({
+    main: 'второе',
+    salad: 'салат',
+    side: 'гарнир',
+    light: 'лёгкое блюдо',
+  }),
+});
 const CUISINES = {
   russian: 'русская',
   italian: 'итальянская',
@@ -40,6 +72,7 @@ function normalizeRecipeRequest(input = {}) {
   const ingredients = cleanText(input.ingredients, 1200);
   const equipment = String(input.equipment || '').trim();
   const meal = String(input.meal || '').trim();
+  const dishType = String(input.dishType || '').trim();
   const cuisine = String(input.cuisine || '').trim();
   const timeMinutes = Number(input.timeMinutes);
   const excludeTitles = (Array.isArray(input.excludeTitles) ? input.excludeTitles : [])
@@ -50,10 +83,11 @@ function normalizeRecipeRequest(input = {}) {
   if (ingredients.length < 2) throw new Error('recipe-ingredients-required');
   if (!EQUIPMENT[equipment]) throw new Error('recipe-equipment-invalid');
   if (!MEALS[meal]) throw new Error('recipe-meal-invalid');
+  if (dishType && !DISH_TYPES[meal]?.[dishType]) throw new Error('recipe-type-invalid');
   if (!CUISINES[cuisine]) throw new Error('recipe-cuisine-invalid');
   if (!COOK_TIMES.includes(timeMinutes)) throw new Error('recipe-time-invalid');
 
-  const request = { ingredients, equipment, meal, cuisine, timeMinutes };
+  const request = { ingredients, equipment, meal, dishType, cuisine, timeMinutes };
   if (excludeTitles.length) request.excludeTitles = excludeTitles;
   return request;
 }
@@ -77,6 +111,7 @@ function baseRules(req) {
     'Разрешены базовые продукты, которые обычно есть дома: соль, перец, вода и растительное масло.',
     'Если нужны другие продукты, честно укажи их как то, что нужно докупить.',
     'Учитывай способ приготовления и приём пищи.',
+    req.dishType ? 'Строго соблюдай выбранный тип блюда: не подменяй его соседней категорией.' : '',
     'Выбранная кухня должна реально менять блюдо, а не только его название: используй характерный вкус, технику, соус или приправы из профиля кухни, если это уместно.',
     'Не выдавай нейтральное блюдо за выбранную кухню простым переименованием.',
     'Выбранное время — целевой диапазон. Блюдо должно реально занимать от ' + window.min + ' до ' + window.max + ' минут от начала приготовления до подачи.',
@@ -86,6 +121,7 @@ function baseRules(req) {
     '- Ингредиенты пользователя: ' + req.ingredients,
     '- Способ приготовления: ' + EQUIPMENT[req.equipment],
     '- Приём пищи: ' + MEALS[req.meal],
+    req.dishType ? '- Тип блюда: ' + DISH_TYPES[req.meal][req.dishType] : '',
     '- Кухня: ' + CUISINES[req.cuisine],
     '- Характер кухни: ' + CUISINE_RULES[req.cuisine],
     '- Целевое время: ' + window.min + '–' + window.max + ' минут (выбор ' + req.timeMinutes + ' мин)',
@@ -538,6 +574,7 @@ module.exports = {
   TIME_WINDOWS,
   EQUIPMENT,
   MEALS,
+  DISH_TYPES,
   CUISINES,
   CUISINE_RULES,
   normalizeRecipeRequest,
