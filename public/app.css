@@ -12761,7 +12761,7 @@ body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
 .ticktick-task-modal[hidden]{display:none!important}
 .ticktick-task-modal-backdrop{position:absolute;inset:0;border:0;background:rgba(10,13,20,.48);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 .ticktick-task-modal-sheet{
-  position:relative;width:min(520px,100%);max-width:100%;max-height:min(760px,calc(100dvh - 34px));overflow:auto;overflow-x:hidden;
+  position:relative;width:min(520px,100%);max-width:100%;box-sizing:border-box;max-height:min(760px,calc(100dvh - 34px));overflow:auto;overflow-x:hidden;
   padding:18px;border:1px solid color-mix(in srgb,var(--line) 82%,transparent);border-radius:23px;
   background:var(--surface);box-shadow:0 24px 70px rgba(10,14,24,.32);
 }
@@ -12781,7 +12781,7 @@ body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
   outline:0;background:var(--surface-strong);color:var(--text);font:inherit;font-size:14px;font-weight:600;
 }
 .ticktick-task-field input[type="date"],.ticktick-task-field input[type="time"]{
-  display:block;width:100%!important;min-width:0!important;max-width:100%!important;inline-size:100%!important;min-inline-size:0!important;overflow:hidden;
+  display:block;width:100%!important;min-width:0!important;max-width:100%!important;inline-size:100%!important;min-inline-size:0!important;max-inline-size:100%!important;box-sizing:border-box!important;overflow:hidden;
 }
 .ticktick-task-field input[type="date"]::-webkit-date-and-time-value,.ticktick-task-field input[type="time"]::-webkit-date-and-time-value{min-width:0;text-align:left}
 .ticktick-task-field textarea{min-height:78px;resize:vertical;line-height:1.4}
