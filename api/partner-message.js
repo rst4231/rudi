@@ -812,6 +812,51 @@ function moodContextSummary(rows){
   if(top.length)out.push('Чаще всего вы сами указывали причины: '+top.join(', ')+'.');
   return out;
 }
+
+function moodAnalysisVisuals(rows){
+  const source=Array.isArray(rows)?rows:[],reasonLabels={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
+  const moodCounts=new Map(),factorCounts=new Map(),supplementCounts=new Map();
+  let habitDone=0,habitTotal=0,habitDays=0,supplementDays=0;
+  const fastingRows=[];
+  for(const row of source){
+    const mood=String(row?.mood||'');
+    if(MOOD_ACTIVITY[mood])moodCounts.set(mood,(moodCounts.get(mood)||0)+1);
+    for(const sample of Array.isArray(row?.samples)?row.samples:[]){
+      const reason=String(sample?.reason||''),custom=String(sample?.reasonText||'').trim(),label=reason==='other'&&custom?custom:(reasonLabels[reason]||'');
+      if(!label)continue;
+      const current=factorCounts.get(label)||{count:0,moods:new Map()};
+      current.count+=1;
+      const sampleMood=MOOD_ACTIVITY[String(sample?.mood||'')]?String(sample.mood):mood;
+      if(MOOD_ACTIVITY[sampleMood])current.moods.set(sampleMood,(current.moods.get(sampleMood)||0)+1);
+      factorCounts.set(label,current);
+    }
+    const habits=row?.context?.habits;
+    if(Number(habits?.total||0)>0){
+      habitDays+=1;habitDone+=Number(habits.done||0);habitTotal+=Number(habits.total||0);
+    }
+    const fasting=row?.context?.fasting;
+    if(fasting?.active)fastingRows.push(fasting);
+    const taken=[...new Set((Array.isArray(row?.context?.supplements?.taken)?row.context.supplements.taken:[]).map(value=>String(value||'').trim()).filter(Boolean))];
+    if(taken.length)supplementDays+=1;
+    for(const name of taken)supplementCounts.set(name,(supplementCounts.get(name)||0)+1);
+  }
+  const moods=[...moodCounts.entries()].sort((a,b)=>b[1]-a[1]).map(([key,count])=>({key,label:MOOD_ACTIVITY[key].label,emoji:MOOD_ACTIVITY[key].emoji,count,percent:source.length?Math.round(count/source.length*100):0}));
+  const factors=[...factorCounts.entries()].sort((a,b)=>b[1].count-a[1].count||a[0].localeCompare(b[0],'ru')).slice(0,5).map(([label,data])=>{
+    const top=[...data.moods.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    return{label,count:data.count,mood:top,emoji:MOOD_ACTIVITY[top]?.emoji||''};
+  });
+  const goalTracked=fastingRows.filter(item=>typeof item?.goalReached==='boolean').length,goalsReached=fastingRows.filter(item=>item?.goalReached===true).length;
+  const avgHours=fastingRows.length?Math.round(fastingRows.reduce((sum,item)=>sum+Number(item?.hours||0),0)/fastingRows.length*10)/10:0;
+  return{
+    days:source.length,
+    moods,
+    factors,
+    habits:habitTotal?{done:habitDone,total:habitTotal,days:habitDays,percent:Math.round(habitDone/habitTotal*100)}:null,
+    fasting:fastingRows.length?{days:fastingRows.length,avgHours,goalsReached,goalTracked}:null,
+    supplements:supplementCounts.size?{days:supplementDays,top:[...supplementCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ru')).slice(0,4).map(([name,days])=>({name,days}))}:null
+  };
+}
+
 async function enrichMoodHistoryContext(actor,history,date,windowDays,options={}){
   const rows=moodHistoryForWindow(history,date,windowDays);
   const [habits,fasting,supplements]=await Promise.all([
@@ -3108,8 +3153,9 @@ async function handleRudiAction(req, res, action, options = {}) {
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor);
         const selected=moodHistoryForWindow(history,date,windowDays),level=moodAnalysisLevel(selected.length),minAnalysisDays=moodAnalysisMinimumDays(windowDays);
         const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
+        const analysisVisuals=analysis?.text?moodAnalysisVisuals(await enrichMoodHistoryContext(actor,history,date,Number(analysis.windowDays)||windowDays,options)):null;
         const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
-        return res.status(200).json({ok:true,actor,date,history,analysis,feedback,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:selected.length>=minAnalysisDays,retentionDays:180,analysisCacheHours:24});
+        return res.status(200).json({ok:true,actor,date,history,analysis,analysisVisuals,feedback,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:selected.length>=minAnalysisDays,retentionDays:180,analysisCacheHours:24});
       } else if (operation === 'analyze') {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor),selected=moodHistoryForWindow(history,date,windowDays),minAnalysisDays=moodAnalysisMinimumDays(windowDays);
@@ -3120,8 +3166,9 @@ async function handleRudiAction(req, res, action, options = {}) {
         const enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options),contextSummary=moodContextSummary(enriched);
         const generated=await generateMoodAnalysis({actor,history:enriched,cycle,windowDays,level,contextSummary},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
         analysis=await writeMoodAnalysisCache(actor,date,windowDays,{...generated,windowDays,level,historyCount:selected.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
+        const analysisVisuals=moodAnalysisVisuals(enriched);
         const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
-        return res.status(200).json({ok:true,actor,date,history,analysis,feedback,cycle:analysis?.cycle||cycle,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:true,reused,retentionDays:180,analysisCacheHours:24});
+        return res.status(200).json({ok:true,actor,date,history,analysis,analysisVisuals,feedback,cycle:analysis?.cycle||cycle,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:true,reused,retentionDays:180,analysisCacheHours:24});
       } else if (operation === 'feedback') {
         const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
         if(!analysis?.createdAt)throw new Error('mood-feedback-no-analysis');
