@@ -85,6 +85,8 @@ test('v3.91 task composer fits iPhone and defaults to 08:00',()=>{
   assert.match(html,/id="ticktickTaskTimeInput" type="time" value="08:00"/);
   assert.match(html,/ticktick-task-field-row ticktick-task-date-time-row/);
   assert.match(css,/inline-size:100%!important/);
+  assert.match(css,/max-inline-size:100%!important/);
+  assert.match(css,/box-sizing:border-box;max-height/);
   assert.match(css,/ticktick-task-date-time-row\{grid-template-columns:minmax\(0,1\.12fr\) minmax\(104px,\.88fr\)\}/);
 });
 
