@@ -117,10 +117,10 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','smart-saves','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','quick-access','nearest','priority','habits','supplements','new','smart-home','car','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','nearest','priority','habits','supplements','new','quick-access','smart-home','car','partner','daily-question','smart-saves','markets'];
+        return ['dashboard',...people,'lulu','quick-access','nearest','priority','habits','supplements','new','smart-home','car','partner','daily-question','smart-saves','markets'];
       }
       function homeLayoutV254MigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -164,6 +164,26 @@
           source.splice(nextQuestionIndex+1,0,'smart-saves');
         }
         try{localStorage.setItem(homeSavesAfterQuestionMigrationKey(),'1')}catch(_){}
+        return source;
+      }
+
+      function quickAccessAfterLuluMigrationKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi-home-quick-after-lulu-v1-'+actor;
+      }
+
+      function migrateQuickAccessAfterLuluOnce(order){
+        const source=Array.isArray(order)?order.map(String):[];
+        if(!source.length) return source;
+        try{if(localStorage.getItem(quickAccessAfterLuluMigrationKey())==='1') return source}catch(_){}
+        const quickIndex=source.indexOf('quick-access');
+        const luluIndex=source.indexOf('lulu');
+        if(quickIndex>=0&&luluIndex>=0){
+          source.splice(quickIndex,1);
+          const nextLuluIndex=source.indexOf('lulu');
+          source.splice(nextLuluIndex+1,0,'quick-access');
+        }
+        try{localStorage.setItem(quickAccessAfterLuluMigrationKey(),'1')}catch(_){}
         return source;
       }
 
@@ -1421,7 +1441,7 @@
       }
 
       function normalizedHomeOrder(order){
-        const source=migrateHomeSavesAfterQuestionOnce(migrateHomeOrderV254(Array.isArray(order)?order.map(String):[]));
+        const source=migrateQuickAccessAfterLuluOnce(migrateHomeSavesAfterQuestionOnce(migrateHomeOrderV254(Array.isArray(order)?order.map(String):[])));
         const requested=source.flatMap(id=>{
           if(['profile','profile-common','profile-self','profile-partner'].includes(id)) return ['dashboard'];
           return [id];
