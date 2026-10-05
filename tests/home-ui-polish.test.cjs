@@ -9,12 +9,12 @@ const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
 test('quick access is normalized directly after Lulu',()=>{
   assert.match(js,/\['dashboard',\.\.\.people,'lulu','quick-access','nearest'/);
   assert.match(js,/function migrateQuickAccessAfterLuluOnce\(order\)/);
-  assert.match(js,/source\.splice\(luluIndex\+1,0,'quick-access'\)/);
+  assert.match(js,/source\.splice\(nextLuluIndex\+1,0,'quick-access'\)/);
 });
 
 test('foreign smart saves do not render a delete cross',()=>{
   assert.match(js,/const ownSave=String\(item\?\.actor\|\|''\)===String\(currentActor\|\|''\);/);
-  assert.match(js,/if\(ownSave\)\{[\s\S]*?smart-save-delete[\s\S]*?card\.append\(body,del\)/);
+  assert.match(js,/if\(ownSave\)\{[\s\S]*?smart-save-delete[\s\S]*?card\.appendChild\(del\)/);
   assert.doesNotMatch(js,/del\.hidden=!ownSave/);
 });
 
