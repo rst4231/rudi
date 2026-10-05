@@ -12773,15 +12773,17 @@ body.auth-pending [data-app-tab-section]:not([data-app-tab-section="home"]){
   background:var(--soft);color:var(--muted);font:inherit;font-size:25px;line-height:1;cursor:pointer;
 }
 .ticktick-task-form{display:grid;gap:12px}
-.ticktick-task-field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.ticktick-task-field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;width:100%;min-width:0}
+.ticktick-task-field-row>.ticktick-task-field{width:100%;min-width:0;overflow:hidden}
 .ticktick-task-field{display:grid;gap:6px;min-width:0;color:var(--muted);font-size:10.5px;font-weight:760}
 .ticktick-task-field input,.ticktick-task-field select,.ticktick-task-field textarea{
   width:100%;max-width:100%;min-width:0;box-sizing:border-box;min-height:44px;padding:11px 12px;border:1px solid var(--line);border-radius:13px;
   outline:0;background:var(--surface-strong);color:var(--text);font:inherit;font-size:14px;font-weight:600;
 }
 .ticktick-task-field input[type="date"],.ticktick-task-field input[type="time"]{
-  display:block;min-width:0;max-width:100%;overflow:hidden;
+  display:block;width:100%!important;min-width:0!important;max-width:100%!important;inline-size:100%!important;min-inline-size:0!important;overflow:hidden;
 }
+.ticktick-task-field input[type="date"]::-webkit-date-and-time-value,.ticktick-task-field input[type="time"]::-webkit-date-and-time-value{min-width:0;text-align:left}
 .ticktick-task-field textarea{min-height:78px;resize:vertical;line-height:1.4}
 .ticktick-task-field input:focus,.ticktick-task-field select:focus,.ticktick-task-field textarea:focus{
   border-color:color-mix(in srgb,#35d870 56%,var(--line));box-shadow:0 0 0 3px rgba(53,216,112,.10)
@@ -12801,8 +12803,9 @@ body.ticktick-task-modal-open .app-tabbar{display:none!important}
   .ticktick-today-task.has-delete{grid-template-columns:32px minmax(0,1fr) 28px}
   .ticktick-today-delete{width:27px;height:27px;border-radius:8px;font-size:21px}
   .ticktick-task-modal{padding:10px 10px calc(10px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))}
-  .ticktick-task-modal-sheet{padding:16px;border-radius:21px}
-  .ticktick-task-field-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .ticktick-task-modal-sheet{padding:16px;border-radius:21px;min-width:0}
+  .ticktick-task-date-time-row{grid-template-columns:minmax(0,1.12fr) minmax(104px,.88fr)}
+  .ticktick-task-field-row{min-width:0}
 }
-@media(max-width:350px){.ticktick-task-field-row{grid-template-columns:1fr}}
+@media(max-width:350px){.ticktick-task-date-time-row{grid-template-columns:minmax(0,1fr) minmax(92px,.72fr)}.ticktick-task-field-row:not(.ticktick-task-date-time-row){grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.ticktick-add-button,.ticktick-today-delete{transition:none!important}}
