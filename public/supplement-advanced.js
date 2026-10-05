@@ -161,7 +161,8 @@ function applyGrouping(){
     });
     if(!group.length)continue;
     visible+=group.length;
-    const collapsed=!query&&readGroupState()[status]===true;
+    const stored=readGroupState();
+    const collapsed=!query&&(Object.prototype.hasOwnProperty.call(stored,status)?stored[status]===true:status!=='active');
     const title=document.createElement('button');
     title.type='button';
     title.className='supplement-group-title is-'+status+(collapsed?' is-collapsed':'');
