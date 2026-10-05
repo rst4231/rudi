@@ -417,14 +417,14 @@ function parseCloudKitPhotos(records) {
 async function fetchCloudKitPhotos(config,options={}) {
   const token=String(config?.token||extractToken(config?.url)||'').trim();
   const resolved=await resolveCloudKitAlbum(token,options);
-  const query=new URLSearchParams({
-    remapEnums:'true',
-    getCurrentSyncToken:'true',
-    sharing_url_key:token,
-    publicAccessAuthToken:resolved.accessToken,
-  });
+  const query=[
+    'remapEnums=true',
+    'getCurrentSyncToken=true',
+    'sharing_url_key='+encodeURIComponent(token),
+    'publicAccessAuthToken='+encodeURIComponent(resolved.accessToken),
+  ].join('&');
   const url=resolved.partition
-    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/shared/records/query?'+query.toString();
+    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/shared/records/query?'+query;
   const records=[];
   let continuation='';
   do{
