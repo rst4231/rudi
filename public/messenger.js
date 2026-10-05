@@ -65,6 +65,8 @@
     cachePersistTimer:0,
     optimisticSystemRows:new Map(),
     optimisticEdits:new Map(),
+    optimisticComposeRows:new Map(),
+    liveSyncInFlight:false,
     starGiftRemaining:null,
     starGiftLimit:5,
     starGiftSending:false,
@@ -771,7 +773,16 @@
       }
       if(entry?.row) optimistic.push(entry.row);
     }
-    return [...rows,...pending,...optimistic].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+    const composing=[];
+    for(const [clientId,entry] of state.optimisticComposeRows){
+      if(serverClientIds.has(String(clientId||''))){
+        state.optimisticComposeRows.delete(clientId);
+        continue;
+      }
+      if(remaining.some(row=>String(row?.clientId||'')===String(clientId||''))) continue;
+      if(entry?.row) composing.push(entry.row);
+    }
+    return [...rows,...pending,...optimistic,...composing].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
   }
 
   function selfAvatarUrl(){
@@ -2666,6 +2677,9 @@
         .map(entry=>[String(entry.row.id),entry.payload]),
       ...[...state.optimisticEdits.values()]
         .filter(entry=>entry?.row?.id&&entry?.payload)
+        .map(entry=>[String(entry.row.id),entry.payload]),
+      ...[...state.optimisticComposeRows.values()]
+        .filter(entry=>entry?.row?.id&&entry?.payload)
         .map(entry=>[String(entry.row.id),entry.payload])
     ]);
     state.decrypted.clear();
@@ -2902,10 +2916,11 @@
   }
 
   async function syncLiveMessages(){
-    if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden'||state.loading||!state.messagesLoaded||!state.aesKey) return;
+    if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden'||state.loading||!state.messagesLoaded||!state.aesKey||state.liveSyncInFlight) return;
     const now=Date.now();
-    if(now-Number(state.lastLiveSyncAt||0)<1500) return;
+    if(now-Number(state.lastLiveSyncAt||0)<700) return;
     state.lastLiveSyncAt=now;
+    state.liveSyncInFlight=true;
     try{
       const list=document.getElementById('messengerMessages');
       const wasNearBottom=isMessagesNearBottom(list);
@@ -2965,6 +2980,7 @@
       }
       if(presenceChanged||changed||typingChanged) updateHeader();
     }catch(_){}
+    finally{state.liveSyncInFlight=false}
   }
 
   function messengerIsVisible(){
@@ -2998,9 +3014,15 @@
     state.presenceTimer=setInterval(ping,30000);
   }
 
+  function liveSyncDelay(){
+    if(state.partnerTyping) return 1100;
+    if(state.partnerPresence?.online) return 1600;
+    return 2400;
+  }
+
   function stopLiveSync(){
     if(!state.liveTimer) return;
-    clearInterval(state.liveTimer);
+    clearTimeout(state.liveTimer);
     state.liveTimer=0;
   }
 
@@ -3010,13 +3032,13 @@
       return;
     }
     if(state.liveTimer) return;
-    state.liveTimer=setInterval(()=>{
-      if(!messengerIsVisible()){
-        stopLiveSync();
-        return;
-      }
-      syncLiveMessages();
-    },12000);
+    const tick=async()=>{
+      state.liveTimer=0;
+      if(!messengerIsVisible()) return;
+      await syncLiveMessages();
+      if(messengerIsVisible()) state.liveTimer=setTimeout(tick,liveSyncDelay());
+    };
+    state.liveTimer=setTimeout(tick,liveSyncDelay());
   }
 
   function notifyTyping(active){
@@ -3552,130 +3574,29 @@
     const send=document.getElementById('messengerSend');
     const text=String(input?.value||'').trim();
     if(!text||!input||!send) return;
-    send.disabled=true;
     const status=document.getElementById('messengerStatus');
-    try{
-      await ensureKeys();
-      if(!state.aesKey) throw new Error('messenger-shared-key-missing');
-      const payload={
-        text,
-        reply:state.edit
-          ?(state.edit.reply?{...state.edit.reply}:null)
-          :(state.reply?{...state.reply}:null)
-      };
-      const encrypted=await encryptPayload(payload);
-      const keyVersions={
-        'Рустам':Number(state.keys?.['Рустам']?.version||0),
-        'Диана':Number(state.keys?.['Диана']?.version||0)
-      };
+    const editSnapshot=state.edit?{...state.edit}:null;
+    const replySnapshot=state.reply?{...state.reply}:null;
+    const payload={
+      text,
+      reply:editSnapshot
+        ?(editSnapshot.reply?{...editSnapshot.reply}:null)
+        :(replySnapshot?{...replySnapshot}:null)
+    };
 
-      if(state.edit?.id){
-        const editId=state.edit.id;
-        const previousRow=state.rows.find(row=>String(row?.id||'')===String(editId))||null;
-        const previousPayload=state.decrypted.get(editId)||null;
-        const optimisticRow=previousRow?{...previousRow,editedAt:new Date().toISOString(),_pending:true}:null;
+    // Edit: update the existing bubble immediately, then encrypt/send in background.
+    if(editSnapshot?.id){
+      const editId=String(editSnapshot.id);
+      const previousRow=state.rows.find(row=>String(row?.id||'')===editId)||null;
+      const previousPayload=state.decrypted.get(editId)||null;
+      const optimisticRow=previousRow?{...previousRow,editedAt:new Date().toISOString(),_pending:true}:null;
 
-        if(optimisticRow){
-          state.optimisticEdits.set(String(editId),{row:optimisticRow,payload,previousRow,previousPayload});
-          state.rows=state.rows.map(row=>String(row?.id||'')===String(editId)?optimisticRow:row);
-          state.decrypted.set(editId,payload);
-          renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
-          scheduleConversationCachePersist();
-        }
-
-        notifyTyping(false);
-        input.value='';
-        input.style.height='auto';
-        state.reply=null;
-        state.edit=null;
-        renderReplyDraft();
-        updateComposerAction();
-        send.disabled=false;
-        if(status){status.hidden=true;status.textContent=''}
-        try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
-
-        try{
-          const result=await api('messenger-edit',{id:editId,scheme:'shared-v2',...encrypted,keyVersions});
-          state.optimisticEdits.delete(String(editId));
-          if(result?.message){
-            state.rows=state.rows.map(row=>String(row?.id||'')===String(editId)?result.message:row);
-            state.decrypted.set(editId,payload);
-            patchMessageStatus(result.message);
-            scheduleConversationCachePersist();
-          }
-        }catch(error){
-          const snapshot=state.optimisticEdits.get(String(editId));
-          state.optimisticEdits.delete(String(editId));
-          if(snapshot?.previousRow){
-            state.rows=state.rows.map(row=>String(row?.id||'')===String(editId)?snapshot.previousRow:row);
-            if(snapshot.previousPayload) state.decrypted.set(editId,snapshot.previousPayload);
-            renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
-            scheduleConversationCachePersist();
-          }
-          if(status){
-            status.hidden=false;
-            status.textContent='Не удалось изменить сообщение. Вернул предыдущий текст.';
-          }
-          try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-        }
-        input.focus();
-        return;
-      }else{
-        const clientId='client-'+crypto.randomUUID();
-        const createdAt=new Date().toISOString();
-        const entry={
-          clientId,
-          scheme:'shared-v2',
-          ...encrypted,
-          keyVersions,
-          preview:text.slice(0,120),
-          avatarUrl:selfAvatarUrl(),
-          cycleAdviceEligible:state.actor==='Рустам',
-          createdAt,
-          failed:false,
-        };
-        upsertMessengerOutbox(entry);
-        const pending=pendingRowFromOutbox(entry);
-        state.rows=[...state.rows,pending].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
-        state.decrypted.set(pending.id,payload);
-        state.justSentId=pending.id;
-        state.nearBottom=true;
-        renderMessages({forceBottom:true});
-
-        notifyTyping(false);
-        input.value='';
-        input.style.height='auto';
-        state.reply=null;
-        state.edit=null;
-        renderReplyDraft();
-        updateComposerAction();
-        if(status){status.hidden=true;status.textContent=''}
-
-        try{
-          const result=await api('messenger-send',{
-            clientId,
-            scheme:'shared-v2',
-            ...encrypted,
-            keyVersions,
-            preview:entry.preview,
-            avatarUrl:entry.avatarUrl,
-            cycleAdviceEligible:entry.cycleAdviceEligible===true,
-          });
-          reconcileSentMessage(entry,result?.message);
-          if(result?.cycleAdviceCreated) setTimeout(()=>syncLiveMessages(),0);
-          if(result?.message?.id) setTimeout(()=>silentCorrectSentMessage(result.message.id,payload),0);
-          try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-        }catch(error){
-          upsertMessengerOutbox({...entry,failed:true});
-          state.rows=state.rows.map(row=>row.clientId===clientId?{...row,_pending:true,_failed:true}:row);
-          renderMessages({forceBottom:true});
-          if(status){
-            status.hidden=false;
-            status.textContent=navigator.onLine?'Не удалось отправить. Повторю автоматически.':'Нет сети. Отправлю автоматически.';
-          }
-          try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-        }
-        return;
+      if(optimisticRow){
+        state.optimisticEdits.set(editId,{row:optimisticRow,payload,previousRow,previousPayload});
+        state.rows=state.rows.map(row=>String(row?.id||'')===editId?optimisticRow:row);
+        state.decrypted.set(editId,payload);
+        renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+        scheduleConversationCachePersist();
       }
 
       notifyTyping(false);
@@ -3685,18 +3606,142 @@
       state.edit=null;
       renderReplyDraft();
       updateComposerAction();
-      if(status){status.hidden=true;status.textContent=''}
-      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-    }catch(error){
-      if(status){
-        status.hidden=false;
-        status.textContent='Не удалось отправить сообщение.';
-      }
-      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-    }finally{
       send.disabled=false;
+      if(status){status.hidden=true;status.textContent=''}
+      try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
       input.focus();
       keepKeyboardAtLatest();
+
+      try{
+        await ensureKeys();
+        if(!state.aesKey) throw new Error('messenger-shared-key-missing');
+        const encrypted=await encryptPayload(payload);
+        const keyVersions={
+          'Рустам':Number(state.keys?.['Рустам']?.version||0),
+          'Диана':Number(state.keys?.['Диана']?.version||0)
+        };
+        const result=await api('messenger-edit',{id:editId,scheme:'shared-v2',...encrypted,keyVersions});
+        state.optimisticEdits.delete(editId);
+        if(result?.message){
+          state.rows=state.rows.map(row=>String(row?.id||'')===editId?result.message:row);
+          state.decrypted.set(editId,payload);
+          patchMessageStatus(result.message);
+          scheduleConversationCachePersist();
+        }
+      }catch(error){
+        const snapshot=state.optimisticEdits.get(editId);
+        state.optimisticEdits.delete(editId);
+        if(snapshot?.previousRow){
+          state.rows=state.rows.map(row=>String(row?.id||'')===editId?snapshot.previousRow:row);
+          if(snapshot.previousPayload) state.decrypted.set(editId,snapshot.previousPayload);
+          renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+          scheduleConversationCachePersist();
+        }
+        if(status){
+          status.hidden=false;
+          status.textContent='Не удалось изменить сообщение. Вернул предыдущий текст.';
+        }
+        try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+      }
+      return;
+    }
+
+    // New message: paint the bubble before key lookup, encryption or network.
+    const clientId='client-'+crypto.randomUUID();
+    const createdAt=new Date().toISOString();
+    const optimisticRow=pendingRowFromOutbox({
+      clientId,
+      scheme:'optimistic-local',
+      createdAt,
+      failed:false,
+      keyVersions:{}
+    });
+    optimisticRow.scheme='optimistic-local';
+    optimisticRow._optimisticCompose=true;
+    state.optimisticComposeRows.set(clientId,{row:optimisticRow,payload});
+    state.rows=[...state.rows.filter(row=>String(row?.clientId||'')!==clientId),optimisticRow]
+      .sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+    state.decrypted.set(optimisticRow.id,payload);
+    state.justSentId=optimisticRow.id;
+    state.nearBottom=true;
+    renderMessages({forceBottom:true});
+
+    notifyTyping(false);
+    input.value='';
+    input.style.height='auto';
+    state.reply=null;
+    state.edit=null;
+    renderReplyDraft();
+    updateComposerAction();
+    send.disabled=false;
+    if(status){status.hidden=true;status.textContent=''}
+    try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+    input.focus();
+    keepKeyboardAtLatest();
+
+    let entry=null;
+    try{
+      await ensureKeys();
+      if(!state.aesKey) throw new Error('messenger-shared-key-missing');
+      const encrypted=await encryptPayload(payload);
+      const keyVersions={
+        'Рустам':Number(state.keys?.['Рустам']?.version||0),
+        'Диана':Number(state.keys?.['Диана']?.version||0)
+      };
+      entry={
+        clientId,
+        scheme:'shared-v2',
+        ...encrypted,
+        keyVersions,
+        preview:text.slice(0,120),
+        avatarUrl:selfAvatarUrl(),
+        cycleAdviceEligible:state.actor==='Рустам',
+        createdAt,
+        failed:false,
+      };
+      upsertMessengerOutbox(entry);
+      state.optimisticComposeRows.delete(clientId);
+      const encryptedPending=pendingRowFromOutbox(entry);
+      state.rows=state.rows.map(row=>String(row?.clientId||'')===clientId?encryptedPending:row);
+      state.decrypted.set(encryptedPending.id,payload);
+      patchMessageStatus(encryptedPending);
+      scheduleConversationCachePersist();
+
+      const result=await api('messenger-send',{
+        clientId,
+        scheme:'shared-v2',
+        ...encrypted,
+        keyVersions,
+        preview:entry.preview,
+        avatarUrl:entry.avatarUrl,
+        cycleAdviceEligible:entry.cycleAdviceEligible===true,
+      });
+      reconcileSentMessage(entry,result?.message);
+      if(result?.cycleAdviceCreated) setTimeout(()=>syncLiveMessages(),0);
+      if(result?.message?.id) setTimeout(()=>silentCorrectSentMessage(result.message.id,payload),0);
+    }catch(error){
+      state.optimisticComposeRows.delete(clientId);
+      if(entry){
+        upsertMessengerOutbox({...entry,failed:true});
+        state.rows=state.rows.map(row=>String(row?.clientId||'')===clientId?{...row,_pending:true,_failed:true}:row);
+        renderMessages({forceBottom:true});
+        if(status){
+          status.hidden=false;
+          status.textContent=navigator.onLine?'Не удалось отправить. Повторю автоматически.':'Нет сети. Отправлю автоматически.';
+        }
+      }else{
+        state.rows=state.rows.filter(row=>String(row?.clientId||'')!==clientId);
+        state.decrypted.delete('pending:'+clientId);
+        renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+        input.value=text;
+        input.style.height='auto';
+        updateComposerAction();
+        if(status){
+          status.hidden=false;
+          status.textContent='Не удалось подготовить защищённое сообщение. Текст вернул в поле ввода.';
+        }
+      }
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }
   }
 
