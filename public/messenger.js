@@ -1621,16 +1621,29 @@
       if(!changed){touching=false;return}
       if(event.touches?.length){return}
       touching=false;
-      if(scale>1.01){applyTransform();return}
       const dx=changed.clientX-startX,dy=changed.clientY-startY;
+      const now=Date.now();
+      const tap=Math.abs(dx)<12&&Math.abs(dy)<12;
+      if(scale>1.01){
+        if(tap){
+          if(now-lastTapAt<300){
+            scale=1;translateX=0;translateY=0;lastTapAt=0;
+            try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+          }else lastTapAt=now;
+        }
+        applyTransform();
+        return;
+      }
       viewer.style.removeProperty('--messenger-photo-drag-opacity');
       image.style.transform='translate3d(0,0,0) scale(1)';
       if(Math.abs(dy)>90&&Math.abs(dy)>Math.abs(dx)*1.15&&dy>0){close();return}
       if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.15){go(dx<0?1:-1);return}
-      const now=Date.now();
-      if(now-lastTapAt<300){
-        scale=scale>1.01?1:2.5;translateX=0;translateY=0;applyTransform();lastTapAt=0;
-      }else lastTapAt=now;
+      if(tap){
+        if(now-lastTapAt<300){
+          scale=2.5;translateX=0;translateY=0;applyTransform();lastTapAt=0;
+          try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+        }else lastTapAt=now;
+      }
     },{passive:true});
 
     document.body.appendChild(viewer);
