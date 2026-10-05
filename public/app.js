@@ -4207,7 +4207,7 @@
         if(type==='lulu-walk') return 'lulu';
         if(type==='mood') return String(item?.actor||'')==='Диана'?'diana':'rustam';
         if(type==='reward-unlock') return currentActor;
-        if(type==='task-complete'||type==='checklist-complete') return 'priority';
+        if(type==='task-complete'||type==='checklist-complete') return '';
         return '';
       }
       function openActivityTarget(item){
