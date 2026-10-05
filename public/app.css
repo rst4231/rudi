@@ -6057,9 +6057,9 @@ html[data-theme="dark"] .profile-person-card .profile-work-status.is-off{color:#
 
 /* RUDI v1.9.9 motion system */
 :root{
-  --rudi-motion-fast:160ms;
-  --rudi-motion-base:240ms;
-  --rudi-motion-slow:320ms;
+  --rudi-motion-fast:120ms;
+  --rudi-motion-base:190ms;
+  --rudi-motion-slow:250ms;
   --rudi-motion-ease:cubic-bezier(.22,.8,.22,1);
   --rudi-motion-soft:cubic-bezier(.2,.72,.2,1);
 }
