@@ -8447,6 +8447,7 @@
         const open=()=>{
           form.reset();
           if(dateInput) dateInput.value=todayState().key;
+          if(timeInput) timeInput.value='08:00';
           if(responsibleInput) responsibleInput.value='';
           if(repeatInput) repeatInput.value='none';
           if(repeatCountInput) repeatCountInput.value='2';
