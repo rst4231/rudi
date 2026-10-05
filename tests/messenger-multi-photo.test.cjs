@@ -31,7 +31,7 @@ test('multiple selected photos are encrypted and sent as one album message',()=>
 
 test('album uses bounded adaptive compression to stay inside one encrypted message',()=>{
   assert.match(js,/Math\.floor\(620000\/images\.length\)/);
-  assert.match(js,/compressMessengerPhoto\(file,\{maxBytes/);
+  assert.match(js,/compressMessengerPhoto\([^,]+,\{maxBytes,maxSide\}\)/);
 });
 
 test('photo album renders as a Telegram-like collage',()=>{
