@@ -18,8 +18,7 @@
         '#partnerMessageText:not(.partner-empty)','#dailyQuestionRustamAnswer','#dailyQuestionDianaAnswer',
         '.wish-text','.ticktick-today-title','.ticktick-description','.ticktick-checklist',
 '#photoViewerCaption',
-        '.car-error-title','.car-error-comment','.car-note-copy','.product-text','.holiday-partner-note',
-        '.messenger-message','.messenger-message-text','.messenger-bubble'
+        '.car-error-title','.car-error-comment','.car-note-copy','.product-text','.holiday-partner-note'
       ].join(',');
       function rudiElementFromTarget(target){
         if(!target) return null;
@@ -206,7 +205,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,messenger:0,settings:0,habits:0,supplements:0,score:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,settings:0,habits:0,supplements:0,score:0};
       const APP_TAB_SCROLL_SESSION_KEY='rudi:tab-scroll:v1';
       try{
         const saved=JSON.parse(sessionStorage.getItem(APP_TAB_SCROLL_SESSION_KEY)||'{}');
@@ -767,11 +766,6 @@
         return 'rudi:daily-question-notification-enabled:v1:'+actor;
       }
 
-      function messengerNotificationsStorageKey(){
-        const actor=currentActor==='Диана'?'diana':'rustam';
-        return 'rudi:messenger-notifications-enabled:v1:'+actor;
-      }
-
       function interfaceTextSizeStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:interface-text-size:v1:'+actor;
@@ -895,14 +889,6 @@
         if(!currentActor) return true;
         try{
           const value=localStorage.getItem(dailyQuestionNotificationStorageKey());
-          return value===null?true:value!=='0';
-        }catch(_){return true}
-      }
-
-      function messengerNotificationsEnabled(){
-        if(!currentActor) return true;
-        try{
-          const value=localStorage.getItem(messengerNotificationsStorageKey());
           return value===null?true:value!=='0';
         }catch(_){return true}
       }
@@ -1065,7 +1051,6 @@
         let morningSummaryEnabledValue=true;
         let rewardNotificationsEnabledValue=true;
         let dailyQuestionNotificationEnabledValue=true;
-        let messengerNotificationsEnabledValue=true;
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
@@ -1085,7 +1070,6 @@
         try{morningSummaryEnabledValue=morningSummaryEnabled()}catch(_){}
         try{rewardNotificationsEnabledValue=rewardNotificationsEnabled()}catch(_){}
         try{dailyQuestionNotificationEnabledValue=dailyQuestionNotificationEnabled()}catch(_){}
-        try{messengerNotificationsEnabledValue=messengerNotificationsEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
           syncSchemaVersion:7,
@@ -1104,7 +1088,6 @@
           morningSummaryEnabled:morningSummaryEnabledValue,
           rewardNotificationsEnabled:rewardNotificationsEnabledValue,
           dailyQuestionNotificationEnabled:dailyQuestionNotificationEnabledValue,
-          messengerNotificationsEnabled:messengerNotificationsEnabledValue,
           updatedAt
         };
       }
@@ -1132,9 +1115,8 @@
         const hasRemoteMorningSummary=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'morningSummaryEnabled');
         const hasRemoteRewardNotifications=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'rewardNotificationsEnabled');
         const hasRemoteDailyQuestionNotification=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'dailyQuestionNotificationEnabled');
-        const hasRemoteMessengerNotifications=remoteSchema>=6&&Object.prototype.hasOwnProperty.call(remote,'messengerNotificationsEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification&&!hasRemoteMessengerNotifications) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -1200,9 +1182,6 @@
           }
           if(hasRemoteDailyQuestionNotification){
             localStorage.setItem(dailyQuestionNotificationStorageKey(),remote.dailyQuestionNotificationEnabled===false?'0':'1');
-          }
-          if(hasRemoteMessengerNotifications){
-            localStorage.setItem(messengerNotificationsStorageKey(),remote.messengerNotificationsEnabled===false?'0':'1');
           }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
           if(keepLocalOrder||remoteSchema<7){
@@ -1945,13 +1924,20 @@
         setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','supplements','dates','for-di','score','settings','smart-saves','car','messenger'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','supplements','dates','for-di','score','settings','smart-saves','car'];
 
       function routeFromLocation(){
         try{
           const params=new URLSearchParams(window.location.search);
           const rawTab=String(params.get('tab')||'home').trim();
           const tab=rawTab==='saves'?'dates':rawTab;
+          if(rawTab!=='home'&&!APP_TABS.includes(tab)){
+            const clean=new URL(window.location.href);
+            clean.searchParams.delete('tab');
+            clean.searchParams.delete('message');
+            clean.searchParams.delete('fresh');
+            history.replaceState(history.state||null,'',clean.pathname+(clean.search||'')+(clean.hash||''));
+          }
           return {
             tab:APP_TABS.includes(tab)?tab:'home',
             item:String(params.get('item')||'').trim()
@@ -2050,10 +2036,6 @@
               });
           }else if(item) focusDeepLinkedItem('home',item);
         }
-        if(tab==='messenger'){
-          Promise.resolve(window.RUDI_MESSENGER?.open?.({force:true,fromPush:routeFreshRequested()}))
-            .finally(()=>clearRouteFreshFlag());
-        }
         if(tab==='feed') loadFeed({silent:true});
         if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true}).finally(()=>focusDeepLinkedItem('schedule',item));
         if(tab==='products'){
@@ -2104,7 +2086,6 @@
         else if(next==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
         else if(next==='fasting') Promise.resolve(loadFastingTracker({silent:true})).catch(()=>{});
         else if(next==='habits'||next==='supplements') Promise.resolve(window.RudiSupplementApp?.loadHomeTools?.({force:false})).catch(()=>{});
-        else if(next==='messenger') Promise.resolve(window.RUDI_MESSENGER?.preload?.()).catch(()=>{});
       }
 
       function canUseAppViewTransition(){
@@ -3271,21 +3252,18 @@
               currentScoreState=optimisticScore;
               renderScoreStickers(currentScoreState);
               renderScoreModal(actor,currentScoreState);
-              const localGift=window.RUDI_MESSENGER?.showOptimisticStarGift?.(amount);
-              const clientEventId=String(localGift?.clientEventId||('client-star-gift-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
+              const clientEventId='client-star-gift-'+Date.now()+'-'+Math.random().toString(36).slice(2,9);
               try{
                 const data=await scoreRequest('gift',{amount,clientEventId});
                 acceptScoreState(data.score);
                 renderScoreStickers(currentScoreState);
                 renderScoreModal(actor,currentScoreState);
-                window.RUDI_MESSENGER?.confirmOptimisticStarGift?.(clientEventId,data?.gift?.remaining,data?.score?.gifts?.[actor]?.limit);
                 if(!data.backupToken) setTimeout(()=>refreshStateBackup(),200);
                 try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
               }catch(error){
                 currentScoreState=previousScore;
                 renderScoreStickers(currentScoreState);
                 renderScoreModal(actor,currentScoreState);
-                window.RUDI_MESSENGER?.rollbackOptimisticStarGift?.(clientEventId);
                 try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
               }
             });
@@ -4224,7 +4202,7 @@
         const type=String(item?.type||'');
         const raw=String(item?.targetTab||'').trim();
         if(raw) return raw==='saves'?'dates':raw;
-        if(type==='partner-message'||type==='like') return 'messenger';
+        if(type==='partner-message'||type==='like') return 'home';
         if(type==='photo') return 'photos';
         if(type==='calendar') return 'schedule';
         if(type==='wishlist') return 'wishlist';
@@ -4961,10 +4939,6 @@
                 '<button id="settingsDailyQuestionNotificationToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления об ответе партнёра на вопрос дня"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Уведомления мессенджера</strong><small>Получать push о новых сообщениях партнёра</small></div>'+
-                '<button id="settingsMessengerNotificationsToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления мессенджера"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
-              '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Push-уведомления</strong><small id="settingsAppBadgeStatus">Получать уведомления RUDI на этом устройстве</small></div>'+
                 '<button id="settingsAppBadgeEnable" class="settings-pwa-install" type="button">Разрешить</button>'+
               '</div>'+
@@ -5580,11 +5554,9 @@
         const morning=document.getElementById('settingsMorningSummaryToggle');
         const rewards=document.getElementById('settingsRewardNotificationsToggle');
         const question=document.getElementById('settingsDailyQuestionNotificationToggle');
-        const messenger=document.getElementById('settingsMessengerNotificationsToggle');
         if(morning) morning.setAttribute('aria-checked',morningSummaryEnabled()?'true':'false');
         if(rewards) rewards.setAttribute('aria-checked',rewardNotificationsEnabled()?'true':'false');
         if(question) question.setAttribute('aria-checked',dailyQuestionNotificationEnabled()?'true':'false');
-        if(messenger) messenger.setAttribute('aria-checked',messengerNotificationsEnabled()?'true':'false');
       }
 
       function setMorningSummaryEnabled(enabled){
@@ -5608,14 +5580,6 @@
         try{localStorage.setItem(dailyQuestionNotificationStorageKey(),next?'1':'0')}catch(_){}
         updateGeneralNotificationSettingsUi();
         if(currentActor){markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:7});flushUiPreferencesToServer().catch(()=>{});}
-        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-      }
-
-      function setMessengerNotificationsEnabled(enabled){
-        const next=Boolean(enabled);
-        try{localStorage.setItem(messengerNotificationsStorageKey(),next?'1':'0')}catch(_){}
-        updateGeneralNotificationSettingsUi();
-        if(currentActor){markUiPreferencesChanged({messengerNotificationsEnabled:next,syncSchemaVersion:7});flushUiPreferencesToServer().catch(()=>{});}
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5816,11 +5780,6 @@
           dailyQuestionNotification.dataset.bound='1';
           dailyQuestionNotification.addEventListener('click',()=>setDailyQuestionNotificationEnabled(!dailyQuestionNotificationEnabled()));
         }
-        const messengerNotifications=document.getElementById('settingsMessengerNotificationsToggle');
-        if(messengerNotifications&&messengerNotifications.dataset.bound!=='1'){
-          messengerNotifications.dataset.bound='1';
-          messengerNotifications.addEventListener('click',()=>setMessengerNotificationsEnabled(!messengerNotificationsEnabled()));
-        }
         const appBadge=document.getElementById('settingsAppBadgeEnable');
         if(appBadge&&appBadge.dataset.bound!=='1'){
           appBadge.dataset.bound='1';
@@ -5996,7 +5955,6 @@
         count+=attentionCountFromDataset('habitReminderCount');
         count+=attentionCountFromDataset('supplementReminderCount');
         count+=sharedTasksAttentionCount();
-        count+=attentionCountFromDataset('messengerUnreadCount');
         if(currentActor==='Рустам') count+=attentionCountFromDataset('carTodayTaskCount');
         return Math.min(99,count);
       }
@@ -13997,10 +13955,10 @@
         const wishlist=document.getElementById('quickWishlistButton');
         const dates=document.getElementById('quickDateButton');
         const forDi=document.getElementById('quickForDiButton');
-        const calendar=document.getElementById('quickCalendarButton');
+        const photoSession=document.getElementById('quickPhotoSessionButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!dates||!forDi||!calendar||!choices||choices.dataset.dateBound==='1') return;
+        if(!wishlist||!dates||!forDi||!photoSession||!choices||choices.dataset.dateBound==='1') return;
         choices.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
@@ -14017,8 +13975,11 @@
           window.RUDI_FOR_DI?.load?.();
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
-        calendar.addEventListener('click',()=>{
-          navigateToAppTab('schedule',{scroll:true});
+        photoSession.addEventListener('click',()=>{
+          const link=document.querySelector('.shared-album-create');
+          if(link) link.click();
+          else if(tg?.openLink) tg.openLink('https://gemini.google.com/share/41a7861ea171');
+          else window.open('https://gemini.google.com/share/41a7861ea171','_blank','noopener,noreferrer');
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
@@ -14401,8 +14362,6 @@
             tabTasks.push(loadFastingTracker({silent:true}));
           }else if(currentAppTab==='habits'||currentAppTab==='supplements'){
             tabTasks.push(window.RudiSupplementApp?.loadHomeTools?.({force}));
-          }else if(currentAppTab==='messenger'){
-            if(force) tabTasks.push(window.RUDI_MESSENGER?.refresh?.());
           }else if(currentAppTab==='car'){
             tabTasks.push(window.RUDI_CAR?.refresh?.());
           }
