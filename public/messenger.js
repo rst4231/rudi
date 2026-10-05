@@ -73,6 +73,8 @@
     realtimeReconnectAttempt:0,
     realtimeConnected:false,
     realtimeLastEventAt:0,
+    realtimeHeartbeatTimer:0,
+    realtimeLastPongAt:0,
     starGiftRemaining:null,
     starGiftLimit:5,
     starGiftSending:false,
@@ -3155,8 +3157,34 @@
     state.realtimeReconnectTimer=0;
   }
 
+  function stopRealtimeHeartbeat(){
+    if(!state.realtimeHeartbeatTimer) return;
+    clearInterval(state.realtimeHeartbeatTimer);
+    state.realtimeHeartbeatTimer=0;
+  }
+
+  function startRealtimeHeartbeat(socket){
+    stopRealtimeHeartbeat();
+    state.realtimeLastPongAt=Date.now();
+    state.realtimeHeartbeatTimer=setInterval(()=>{
+      if(state.realtimeSocket!==socket||socket.readyState!==WebSocket.OPEN){
+        stopRealtimeHeartbeat();
+        return;
+      }
+      const now=Date.now();
+      if(now-Number(state.realtimeLastPongAt||0)>16000){
+        try{socket.close(4000,'heartbeat-timeout')}catch(_){}
+        return;
+      }
+      try{socket.send('ping')}catch(_){
+        try{socket.close()}catch(_){}
+      }
+    },6000);
+  }
+
   function closeRealtimeSocket(){
     stopRealtimeReconnect();
+    stopRealtimeHeartbeat();
     const socket=state.realtimeSocket;
     state.realtimeSocket=null;
     state.realtimeConnected=false;
@@ -3201,6 +3229,8 @@
             clearTimeout(timer);
             state.realtimeConnected=true;
             state.realtimeReconnectAttempt=0;
+            state.realtimeLastPongAt=Date.now();
+            startRealtimeHeartbeat(socket);
             resolve();
           };
           socket.onerror=()=>{
@@ -3216,9 +3246,15 @@
           if(!data) return;
           if(data.type==='ready'){
             state.realtimeConnected=true;
+            state.realtimeLastPongAt=Date.now();
+            return;
+          }
+          if(data.type==='pong'){
+            state.realtimeLastPongAt=Date.now();
             return;
           }
           if(data.type==='sync'){
+            state.realtimeLastPongAt=Date.now();
             state.realtimeLastEventAt=Date.now();
             Promise.resolve(applyRealtimeEnvelope(data))
               .then(handled=>{if(!handled) syncLiveMessages()})
@@ -3227,6 +3263,7 @@
         };
         socket.onclose=()=>{
           if(state.realtimeSocket===socket) state.realtimeSocket=null;
+          stopRealtimeHeartbeat();
           state.realtimeConnected=false;
           if(messengerIsVisible()) scheduleRealtimeReconnect();
         };
@@ -3253,7 +3290,7 @@
   }
 
   function liveSyncDelay(){
-    if(realtimeIsOpen()) return 60000;
+    if(realtimeIsOpen()) return 30000;
     if(state.partnerTyping) return 1100;
     if(state.partnerPresence?.online) return 1600;
     return 2400;
