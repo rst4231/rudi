@@ -103,6 +103,7 @@ const {
   buildTickTickCalendar,
   chooseNextTask,
   resolveAssigneeName,
+  assignTickTickTask,
   tokenHasWriteScope,
   visibleChecklistItems,
   updateTaskChecklistItem,
@@ -1843,6 +1844,15 @@ async function handleTickTick(req, res, action, options = {}) {
       }, options);
       const taskId = String(task?.id || '').trim();
       if (!taskId) throw new Error('ticktick-task-create-unresolved');
+      if (responsible) {
+        await assignTickTickTask(
+          token.accessToken,
+          config.projectId,
+          taskId,
+          responsible === 'Рустам' ? 'RST' : 'Ди',
+          options
+        );
+      }
       await setSharedTaskMeta(taskId, {
         responsible,
         createdBy: actor,
@@ -1950,8 +1960,18 @@ async function handleTickTick(req, res, action, options = {}) {
       }, options);
       const taskId=String(task?.id || '').trim();
       if (!taskId) throw new Error('ticktick-task-create-unresolved');
+      const restoredResponsible=String(source.responsible || '').trim();
+      if (restoredResponsible === 'Рустам' || restoredResponsible === 'Диана') {
+        await assignTickTickTask(
+          token.accessToken,
+          config.projectId,
+          taskId,
+          restoredResponsible === 'Рустам' ? 'RST' : 'Ди',
+          options
+        );
+      }
       await setSharedTaskMeta(taskId, {
-        responsible:String(source.responsible || '').trim(),
+        responsible:restoredResponsible,
         createdBy:String(source.createdBy || actor).trim(),
         source:'rudi',
       }, options);
