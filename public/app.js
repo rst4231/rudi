@@ -4098,7 +4098,17 @@
         if(markAll&&markAll.dataset.bound!=='1'){
           markAll.dataset.bound='1';
           markAll.addEventListener('click',event=>{
-            event.preventDefault();event.stopPropagation();markActivityNotificationsSeen();
+            event.preventDefault();event.stopPropagation();
+            const previous=currentActivityReadIds();
+            const changed=markActivityNotificationsSeen();
+            if(changed){
+              showUndoSnackbar('Уведомления прочитаны',async()=>{
+                storeActivityReadIds(previous);
+                markUiPreferencesChanged({activityReadIds:previous});
+                renderActivityJournalItems(homeDashboardState.activity);
+                updateActivityNotificationBadge();
+              },5000);
+            }
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           });
         }
@@ -4191,23 +4201,25 @@
         const type=String(item?.type||'');
         const raw=String(item?.targetTab||'').trim();
         if(raw) return raw==='saves'?'dates':raw;
+        if(type==='partner-message'||type==='like') return 'messenger';
         if(type==='photo') return 'photos';
-        if(type==='calendar'||type==='task-complete'||type==='checklist-complete') return 'schedule';
+        if(type==='calendar') return 'schedule';
+        if(type==='wishlist') return 'wishlist';
         if(type==='saved-recipe') return 'products';
         if(type==='reward-unlock') return 'score';
-        if(type==='partner-message'||type==='daily-question'||type==='lulu-walk'||type==='mood') return 'home';
+        if(type==='task-complete'||type==='checklist-complete'||type==='daily-question'||type==='lulu-walk'||type==='mood') return 'home';
         return '';
       }
       function activityTargetItem(item){
-        const explicit=String(item?.targetItem||item?.itemId||'').trim();
-        if(explicit) return explicit;
+        const explicit=[item?.targetItem,item?.targetId,item?.itemId,item?.entityId]
+          .find(value=>typeof value==='string'&&value.trim());
+        if(explicit) return String(explicit).trim();
         const type=String(item?.type||'');
-        if(type==='partner-message') return 'partner';
         if(type==='daily-question') return 'daily-question';
         if(type==='lulu-walk') return 'lulu';
         if(type==='mood') return String(item?.actor||'')==='Диана'?'diana':'rustam';
         if(type==='reward-unlock') return currentActor;
-        if(type==='task-complete'||type==='checklist-complete') return '';
+        if(type==='task-complete'||type==='checklist-complete') return 'priority';
         return '';
       }
       function openActivityTarget(item){
@@ -13149,7 +13161,8 @@
         const previous=button.textContent;
         button.disabled=true;button.textContent='Добавляю…';
         try{
-          await productsRequest('add',{items});
+          const data=await productsRequest('add',{items});
+          if(data) renderProducts(data);
           button.textContent='Добавлено ✓';
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           setTimeout(()=>{button.textContent=previous;button.disabled=false},1500);
@@ -13187,6 +13200,14 @@
         if(title) title.textContent=String(recipe?.title||'Рецепт')+' · '+servings+' '+recipePortionWord(servings);
         let index=0;
         const render=()=>{
+          if(timer){
+            const active=recipeTimerHandles.get(timer);
+            if(active){
+              clearInterval(active.interval);
+              recipeTimerHandles.delete(timer);
+              timer.classList.remove('is-running','is-done');
+            }
+          }
           if(counter) counter.textContent=(index+1)+' / '+steps.length;
           if(step) step.textContent=String(steps[index]||'');
           if(prev) prev.disabled=index===0;
