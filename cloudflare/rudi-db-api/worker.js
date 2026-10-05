@@ -82,7 +82,12 @@ export class MessengerRoom {
     if (url.pathname === '/publish') {
       let body={};
       try{body=await request.json()}catch{}
-      const payload=JSON.stringify({type:'sync',event:clean(body.event,80)||'sync',at:body.at||new Date().toISOString()});
+      const payload=JSON.stringify({
+        type:'sync',
+        event:clean(body.event,80)||'sync',
+        payload:body?.payload&&typeof body.payload==='object'?body.payload:null,
+        at:body.at||new Date().toISOString()
+      });
       let sent=0;
       for (const socket of this.ctx.getWebSockets()) {
         try { socket.send(payload); sent += 1; } catch {}
