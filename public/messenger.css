@@ -709,6 +709,9 @@ body[data-app-tab="messenger"] .shell{
   justify-content:center;
   color:var(--muted);
 }
+.messenger-message.is-system-event .messenger-reactions{
+  justify-content:center;
+}
 html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   border-color:rgba(255,255,255,.08);
   background:rgba(255,255,255,.055);

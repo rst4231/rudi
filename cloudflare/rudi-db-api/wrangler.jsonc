@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rudi-db-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-03",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rudi-db",
+      "database_id": "1dbe9156-1612-4262-96eb-676faa0c3860"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MESSENGER_ROOM",
+        "class_name": "MessengerRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-messenger-room",
+      "new_sqlite_classes": ["MessengerRoom"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

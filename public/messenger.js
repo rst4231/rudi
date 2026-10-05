@@ -67,6 +67,12 @@
     optimisticEdits:new Map(),
     optimisticComposeRows:new Map(),
     liveSyncInFlight:false,
+    realtimeSocket:null,
+    realtimeConnectPromise:null,
+    realtimeReconnectTimer:0,
+    realtimeReconnectAttempt:0,
+    realtimeConnected:false,
+    realtimeLastEventAt:0,
     starGiftRemaining:null,
     starGiftLimit:5,
     starGiftSending:false,
@@ -3014,7 +3020,114 @@
     state.presenceTimer=setInterval(ping,30000);
   }
 
+
+  function realtimeIsOpen(){
+    return Boolean(state.realtimeConnected&&state.realtimeSocket&&state.realtimeSocket.readyState===WebSocket.OPEN);
+  }
+
+  function stopRealtimeReconnect(){
+    if(!state.realtimeReconnectTimer) return;
+    clearTimeout(state.realtimeReconnectTimer);
+    state.realtimeReconnectTimer=0;
+  }
+
+  function closeRealtimeSocket(){
+    stopRealtimeReconnect();
+    const socket=state.realtimeSocket;
+    state.realtimeSocket=null;
+    state.realtimeConnected=false;
+    if(socket){
+      try{socket.onopen=socket.onmessage=socket.onerror=socket.onclose=null}catch(_){}
+      try{socket.close(1000,'hidden')}catch(_){}
+    }
+  }
+
+  function scheduleRealtimeReconnect(){
+    if(!messengerIsVisible()||state.realtimeReconnectTimer) return;
+    const attempt=Math.min(6,Math.max(0,Number(state.realtimeReconnectAttempt||0)));
+    const delay=Math.min(12000,700*Math.pow(1.8,attempt));
+    state.realtimeReconnectAttempt=attempt+1;
+    state.realtimeReconnectTimer=setTimeout(()=>{
+      state.realtimeReconnectTimer=0;
+      ensureRealtimeConnection();
+    },delay);
+  }
+
+  async function connectRealtime(){
+    if(!messengerIsVisible()||realtimeIsOpen()) return true;
+    if(state.realtimeConnectPromise) return state.realtimeConnectPromise;
+    state.realtimeConnectPromise=(async()=>{
+      try{
+        const tokenData=await api('messenger-realtime-token');
+        const url=String(tokenData?.url||'').trim();
+        if(!url||!/^wss?:\/\//i.test(url)) throw new Error('messenger-realtime-url-invalid');
+        const socket=new WebSocket(url);
+        state.realtimeSocket=socket;
+        await new Promise((resolve,reject)=>{
+          let settled=false;
+          const timer=setTimeout(()=>{
+            if(settled) return;
+            settled=true;
+            try{socket.close()}catch(_){}
+            reject(new Error('messenger-realtime-timeout'));
+          },5000);
+          socket.onopen=()=>{
+            if(settled) return;
+            settled=true;
+            clearTimeout(timer);
+            state.realtimeConnected=true;
+            state.realtimeReconnectAttempt=0;
+            resolve();
+          };
+          socket.onerror=()=>{
+            if(settled) return;
+            settled=true;
+            clearTimeout(timer);
+            reject(new Error('messenger-realtime-connect-failed'));
+          };
+        });
+        socket.onmessage=event=>{
+          let data=null;
+          try{data=JSON.parse(String(event.data||''))}catch(_){}
+          if(!data) return;
+          if(data.type==='ready'){
+            state.realtimeConnected=true;
+            return;
+          }
+          if(data.type==='sync'){
+            state.realtimeLastEventAt=Date.now();
+            syncLiveMessages();
+          }
+        };
+        socket.onclose=()=>{
+          if(state.realtimeSocket===socket) state.realtimeSocket=null;
+          state.realtimeConnected=false;
+          if(messengerIsVisible()) scheduleRealtimeReconnect();
+        };
+        socket.onerror=()=>{};
+        return true;
+      }catch(_){
+        state.realtimeConnected=false;
+        scheduleRealtimeReconnect();
+        return false;
+      }finally{
+        state.realtimeConnectPromise=null;
+      }
+    })();
+    return state.realtimeConnectPromise;
+  }
+
+  function ensureRealtimeConnection(){
+    if(!messengerIsVisible()){
+      closeRealtimeSocket();
+      return;
+    }
+    if(realtimeIsOpen()||state.realtimeConnectPromise) return;
+    connectRealtime();
+  }
+
   function liveSyncDelay(){
+    if(realtimeIsOpen()) return 15000;
     if(state.partnerTyping) return 1100;
     if(state.partnerPresence?.online) return 1600;
     return 2400;
@@ -4155,6 +4268,7 @@
       await load({markRead:true});
     }
     state.initialized=true;
+    ensureRealtimeConnection();
     ensureLiveSync();
     ensurePresenceHeartbeat();
     restoreMessengerAfterKeyboard();
@@ -4248,6 +4362,7 @@
   window.addEventListener('online',()=>{flushMessengerOutbox();if(document.body.dataset.appTab==='messenger')syncLiveMessages()});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')){
+      closeRealtimeSocket();
       stopLiveSync();
       stopPresenceHeartbeat();
       return;
@@ -4255,6 +4370,7 @@
     if(document.body.dataset.appTab==='messenger'){
       const refresh=state.messagesLoaded?syncLiveMessages():load({markRead:true});
       Promise.resolve(refresh).finally(()=>{
+        ensureRealtimeConnection();
         ensureLiveSync();
         ensurePresenceHeartbeat();
       });
@@ -4269,9 +4385,11 @@
     const tab=String(event?.detail?.tab||document.body.dataset.appTab||'');
     if(tab==='messenger'&&document.visibilityState==='visible'){
       syncLiveMessages();
+      ensureRealtimeConnection();
       ensureLiveSync();
       ensurePresenceHeartbeat();
     }else{
+      closeRealtimeSocket();
       stopLiveSync();
       stopPresenceHeartbeat();
       if(state.messagesLoaded) syncUnread();

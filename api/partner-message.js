@@ -128,6 +128,64 @@ const { searchGlobalData } = require('./global-search.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml, appUrlForTab } = require('./telegram-notifications.cjs');
 const { publicApplicationServerKey, savePushSubscription, resolvePushActor, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
 
+const RUDI_REALTIME_TOKEN_TTL_MS = 10 * 60 * 1000;
+
+function rudiRealtimeSecret(options = {}) {
+  return String((options.env || process.env).RUDI_API_SECRET || '').trim();
+}
+
+function rudiRealtimeBaseUrl(options = {}) {
+  return String(
+    options.d1BaseUrl ||
+    (options.env || process.env).RUDI_D1_API_URL ||
+    'https://rudi-db-api.cpateammail.workers.dev'
+  ).replace(/\/+$/, '');
+}
+
+function createMessengerRealtimeToken(actor, options = {}) {
+  const secret = rudiRealtimeSecret(options);
+  if (!secret) throw new Error('messenger-realtime-secret-missing');
+  const payload = Buffer.from(JSON.stringify({
+    actor: String(actor || ''),
+    exp: Date.now() + RUDI_REALTIME_TOKEN_TTL_MS,
+  })).toString('base64url');
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  return payload + '.' + signature;
+}
+
+function messengerRealtimeUrl(actor, options = {}) {
+  const base = rudiRealtimeBaseUrl(options).replace(/^http/i, 'ws');
+  return base + '/realtime?token=' + encodeURIComponent(createMessengerRealtimeToken(actor, options));
+}
+
+async function publishMessengerRealtime(event = 'sync', options = {}) {
+  const secret = rudiRealtimeSecret(options);
+  const fetchImpl = options.fetch || global.fetch;
+  if (!secret || typeof fetchImpl !== 'function') return false;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    const response = await fetchImpl(rudiRealtimeBaseUrl(options) + '/realtime/publish', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + secret,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ event: String(event || 'sync').slice(0,80), at: new Date().toISOString() }),
+      signal: controller.signal,
+      cache: 'no-store',
+    }).finally(()=>clearTimeout(timer));
+    return response.ok;
+  } catch (_) {
+    return false;
+  }
+}
+
+function queueMessengerRealtime(event, options = {}) {
+  const task = publishMessengerRealtime(event, options);
+  try { waitUntil(task); } catch (_) { task.catch(() => {}); }
+}
+
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
 const CYCLE_BOOTSTRAP_HASH = '12818afbe0d73e63efcf5ab9f181ff8e6b9d48cdbcaf126bddeadac611818de5';
 const CYCLE_BOOTSTRAP_IV = 'tEvCUig24dBX068Z';
@@ -2116,6 +2174,22 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'messenger-realtime-token') {
+    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      return res.status(200).json({
+        ok:true,
+        actor,
+        url:messengerRealtimeUrl(actor,options),
+        expiresInMs:RUDI_REALTIME_TOKEN_TTL_MS,
+      });
+    } catch (error) {
+      return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)});
+    }
+  }
+
   if (action === 'messenger-key') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
     try {
@@ -2215,6 +2289,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       const partner=actor==='Рустам'?'Диана':'Рустам';
       await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options);
+      queueMessengerRealtime('presence',options);
       const partnerPresence=await readMessengerPresence(partner,options);
       return res.status(200).json({ok:true,actor,partnerPresence});
     } catch (error) {
@@ -2256,6 +2331,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         keyVersions:body.keyVersions,
       },options);
       const deduplicated=message?.deduplicated===true;
+      if(!deduplicated) queueMessengerRealtime('message',options);
       const notificationTask=deduplicated
         ?Promise.resolve({sent:false,reason:'duplicate'})
         :sendMessengerNotificationToPartner(actor,message.id,{
@@ -2292,6 +2368,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
       const active=await setMessengerTyping(actor,Boolean(body.active),options);
+      queueMessengerRealtime('typing',options);
       return res.status(200).json({ok:true,actor,active});
     } catch (error) {
       const code=String(error?.message||error);
@@ -2306,6 +2383,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       await deleteMessengerMessage(actor,body.id,options);
+      queueMessengerRealtime('delete',options);
       const pushDismiss=await dismissMessengerNotificationForPartner(actor,body.id,options).catch(error=>({
         sent:false,
         reason:'dismiss-failed',
@@ -2338,6 +2416,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         keyVersions:body.keyVersions,
         silent:body.silent===true,
       },options);
+      queueMessengerRealtime('edit',options);
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
       const code=String(error?.message||error);
@@ -2355,6 +2434,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const actors=Array.isArray(message?.reactions?.[String(body.reaction||'')])
         ?message.reactions[String(body.reaction||'')]
         :[];
+      queueMessengerRealtime('reaction',options);
       console.info('RUDI_MESSENGER_REACTION_OK',JSON.stringify({
         actor,
         messageId:String(message?.id||body.id||''),
@@ -2376,6 +2456,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await toggleMessengerLike(actor,body.id,options);
+      queueMessengerRealtime('reaction',options);
       console.info('RUDI_MESSENGER_LIKE_OK',JSON.stringify({actor,messageId:String(message?.id||body.id||''),liked:Array.isArray(message?.likedBy)&&message.likedBy.includes(actor)}));
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
@@ -2410,6 +2491,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         .filter(Boolean)
         .slice(0,256);
       const result=await markMessengerRead(actor,requestedIds,options);
+      if(result.updated) queueMessengerRealtime('read',options);
       const messages=messengerMessagesVisibleToActor(result.messages,actor);
       return res.status(200).json({
         ok:true,
