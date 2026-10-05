@@ -590,6 +590,7 @@ async function sendStarGiftNotification(result, options = {}) {
     const encrypted=encryptMessengerSystemPayload(text,'star-gift',options);
     const message=await addMessengerMessage(from,{
       ...encrypted,
+      clientId:String(options?.clientEventId||'').trim(),
       systemRecipients:['Рустам','Диана']
     },options);
     const payload={
@@ -3222,14 +3223,16 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if(operation==='gift'){
         const result=await transferStars(actor,body.amount,options);
+        const clientEventId=String(body.clientEventId||'').trim().slice(0,96);
+        const notificationOptions=clientEventId?{...options,clientEventId}:options;
         const notificationTask=Promise.all([
-          sendStarGiftNotification(result,options),
+          sendStarGiftNotification(result,notificationOptions),
           sendShopUnlockNotification(result.to,result.unlockedRewards,options),
         ]).catch(()=>[]);
         try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({
-          ok:true,actor,gift:{from:result.from,to:result.to,points:result.points,remaining:result.remainingPoints},
+          ok:true,actor,gift:{from:result.from,to:result.to,points:result.points,remaining:result.remainingPoints,clientEventId},
           score:scoreView(result.state,{now:options.now||Date.now()}),backupToken,
           notification:{pending:true},
         });
