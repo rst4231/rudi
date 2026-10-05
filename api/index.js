@@ -29,6 +29,7 @@ const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const { handleSmartHomeRequest, readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { evaluateHumidityAlert } = require('./smart-home-humidity-alert.cjs');
+const { handleHabitReminderCron } = require('./habit-reminder.cjs');
 const { handleWeatherRequest } = require('./weather.cjs');
 const { handleCarRequest } = require('./car-client.cjs');
 const {
@@ -169,6 +170,7 @@ async function handler(req, res) {
         return res.status(500).json({ ok: false, error: 'humidity-check-failed' });
       }
     }
+    if (req.query?.route === 'habit-reminder-cron') return handleHabitReminderCron(req, res);
     if (req.query?.route === 'weather') return handleWeatherRequest(req, res);
     if (req.query?.route === 'car') return handleCarRequest(req, res);
     if (req.query?.route === 'telegram') {
