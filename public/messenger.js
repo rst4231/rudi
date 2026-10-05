@@ -3430,7 +3430,8 @@
   }
 
   function createClientEventId(prefix='event'){
-    try{return prefix+'-'+crypto.randomUUID()}catch(_){return prefix+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}
+    const safe=String(prefix||'event').replace(/[^A-Za-z0-9_-]/g,'-').slice(0,24)||'event';
+    try{return 'client-'+safe+'-'+crypto.randomUUID()}catch(_){return 'client-'+safe+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}
   }
 
   function applyStarGiftRemaining(remaining,limit=state.starGiftLimit||5){
@@ -3509,6 +3510,11 @@
     }
 
     const optimistic=showOptimisticStarGift(value);
+    if(!optimistic){
+      if(status){status.hidden=false;status.textContent='Мессенджер ещё загружается. Попробуй ещё раз.'}
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+      return;
+    }
     state.starGiftSending=true;
     if(previousRemaining!==null) applyStarGiftRemaining(Math.max(0,previousRemaining-value),state.starGiftLimit);
 
