@@ -4312,12 +4312,11 @@
           body.append(toggle,details);
         }
         const ownSave=String(item?.actor||'')===String(currentActor||'');
+        card.appendChild(body);
         if(ownSave){
           const del=document.createElement('button');del.type='button';del.className='smart-save-delete';del.setAttribute('aria-label','Удалить сохранение');del.setAttribute('title','Удалить');del.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>';
           del.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();if(!await smartSaveConfirm('Удалить «'+String(item?.title||'это сохранение')+'»?'))return;del.disabled=true;try{const data=await smartSavesRequest('remove',{id:item.id});const removed=data?.item||item;smartSavesState=Array.isArray(data.items)?data.items:[];renderSmartSaves();showUndoSnackbar('Сохранение удалено',async()=>{const restored=await smartSavesRequest('restore',{item:removed});smartSavesState=Array.isArray(restored.items)?restored.items:[];renderSmartSaves()},5000);try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(_){del.disabled=false;try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
-          card.append(body,del);
-        }else{
-          card.append(body);
+          card.appendChild(del);
         }
         return card;
       }
@@ -10632,6 +10631,7 @@
         holder.dataset.mood=normalizedMood;
         holder.dataset.moodReasonText=partnerMoodReasonText(entry);
         holder.hidden=!hasMood;
+        if(!hasMood) hidePartnerMoodReason();
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==normalizedMood;
         });
