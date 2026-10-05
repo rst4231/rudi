@@ -29,10 +29,6 @@
     },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
-    },
-    "api/realtime.js": {
-      "maxDuration": 300,
-      "supportsCancellation": true
     }
   },
   "headers": [
