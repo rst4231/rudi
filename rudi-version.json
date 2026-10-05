@@ -1,9 +1,9 @@
 {
   "current": "v3.84",
   "versionBranch": "main",
-  "releaseCommit": null,
-  "deploymentSourceCommit": null,
-  "deploymentRequestedAt": null,
+  "releaseCommit": "4753fca33d792eaded447ea2594f5dd76873c015",
+  "deploymentSourceCommit": "4753fca33d792eaded447ea2594f5dd76873c015",
+  "deploymentRequestedAt": "2026-10-05T15:37:58Z",
   "createdAt": "2026-10-05",
   "basedOnProduction": "v3.83",
   "notes": [
