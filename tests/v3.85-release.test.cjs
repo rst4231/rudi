@@ -50,7 +50,7 @@ test('v3.85 task responsibility and stars are protected',()=>{
 });
 
 test('v3.85 habit reminder runs at 21:00 Moscow and opens habits',()=>{
-  const cron=read('api/habit-reminder-cron.js');
+  const cron=read('api/habit-reminder.cjs');
   const vercel=JSON.parse(read('vercel.json'));
   assert.match(cron,/viewHabits/);
   assert.match(cron,/pending/);
