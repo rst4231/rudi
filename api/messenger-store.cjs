@@ -463,10 +463,23 @@ async function rekeyMessengerMessages(actor,items,options={}){
 
 async function readMessengerMessages(options={}){
   const now=Number(options.now||Date.now());
+  const cache=cacheOf(options);
+
+  if(typeof cache.list==='function'){
+    const rows=await cache.list().catch(()=>null);
+    if(Array.isArray(rows)){
+      return rows
+        .filter(row=>String(row?.key||'').startsWith('message:'))
+        .map(row=>normalizeMessage(row?.value))
+        .filter(row=>row&&Date.parse(row.expiresAt)>now)
+        .sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt));
+    }
+  }
+
   const index=await readIndex(options);
   const liveIndex=index.filter(item=>Date.parse(item.expiresAt)>now);
-  const rows=await Promise.all(liveIndex.map(item=>cacheOf(options).get('message:'+item.id).catch(()=>null)));
-  let messages=rows.map(normalizeMessage).filter(row=>row&&Date.parse(row.expiresAt)>now)
+  const rows=await Promise.all(liveIndex.map(item=>cache.get('message:'+item.id).catch(()=>null)));
+  const messages=rows.map(normalizeMessage).filter(row=>row&&Date.parse(row.expiresAt)>now)
     .sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt));
 
   if(index.length!==liveIndex.length){
