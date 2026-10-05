@@ -3026,6 +3026,7 @@
       }
       api('messenger-presence',{messengerVisible:true}).then(data=>{
         state.partnerPresence=data?.partnerPresence||null;
+        if(data?.presence) publishRealtime('presence',{presence:data.presence});
         updateHeader();
       }).catch(()=>{});
     };
@@ -3253,6 +3254,7 @@
             state.realtimeReconnectAttempt=0;
             state.realtimeLastPongAt=Date.now();
             startRealtimeHeartbeat(socket);
+            publishRealtime('presence',{presence:{online:true,messengerVisible:true,updatedAt:new Date().toISOString()}});
             resolve();
           };
           socket.onerror=()=>{
