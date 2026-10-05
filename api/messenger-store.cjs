@@ -49,8 +49,7 @@ function enqueueMutation(task){
   return run;
 }
 
-async function readMessengerPublicKey(actor,options={}){
-  const row=await cacheOf(options).get('key:'+actorKey(actor));
+function normalizeStoredPublicKey(actor,row){
   if(!row||typeof row!=='object') return null;
   try{
     return {
@@ -61,6 +60,11 @@ async function readMessengerPublicKey(actor,options={}){
       updatedAt:String(row.updatedAt||''),
     };
   }catch(_){return null}
+}
+
+async function readMessengerPublicKey(actor,options={}){
+  const row=await cacheOf(options).get('key:'+actorKey(actor));
+  return normalizeStoredPublicKey(actor,row);
 }
 
 async function readMessengerPublicKeys(options={}){
@@ -334,18 +338,24 @@ async function setMessengerPresence(actor,meta={},options={}){
   return row;
 }
 
-async function readMessengerPresence(actor,options={}){
+function normalizeStoredPresence(actor,row,now=Date.now()){
   const clean=cleanActor(actor);
   if(!clean) return null;
-  const row=await cacheOf(options).get('presence:'+actorKey(clean)).catch(()=>null);
   const updated=Date.parse(String(row?.updatedAt||''));
-  if(!Number.isFinite(updated)||Number(options.now||Date.now())-updated>=PRESENCE_TTL_SECONDS*1000) return null;
+  if(!Number.isFinite(updated)||Number(now)-updated>=PRESENCE_TTL_SECONDS*1000) return null;
   return {
     actor:clean,
     online:true,
     updatedAt:new Date(updated).toISOString(),
     messengerVisible:row?.messengerVisible===true,
   };
+}
+
+async function readMessengerPresence(actor,options={}){
+  const clean=cleanActor(actor);
+  if(!clean) return null;
+  const row=await cacheOf(options).get('presence:'+actorKey(clean)).catch(()=>null);
+  return normalizeStoredPresence(clean,row,Number(options.now||Date.now()));
 }
 
 async function markMessengerDelivered(actor,ids,options={}){
@@ -461,6 +471,39 @@ async function rekeyMessengerMessages(actor,items,options={}){
   });
 }
 
+async function readMessengerSnapshot(actor,options={}){
+  const viewer=cleanActor(actor);
+  if(!viewer) throw new Error('messenger-actor-invalid');
+  const partner=viewer==='Рустам'?'Диана':'Рустам';
+  const cache=cacheOf(options);
+  const now=Number(options.now||Date.now());
+
+  if(typeof cache.list!=='function') return null;
+  const rows=await cache.list().catch(()=>null);
+  if(!Array.isArray(rows)) return null;
+
+  const values=new Map(rows.map(row=>[String(row?.key||''),row?.value]));
+  const messages=rows
+    .filter(row=>String(row?.key||'').startsWith('message:'))
+    .map(row=>normalizeMessage(row?.value))
+    .filter(row=>row&&Date.parse(row.expiresAt)>now)
+    .sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt));
+
+  const typingRow=values.get('typing:'+actorKey(partner));
+  const typingUpdated=Date.parse(String(typingRow?.updatedAt||''));
+  const partnerTyping=Number.isFinite(typingUpdated)&&now-typingUpdated<TYPING_TTL_SECONDS*1000;
+
+  return {
+    messages,
+    keys:{
+      'Рустам':normalizeStoredPublicKey('Рустам',values.get('key:rustam')),
+      'Диана':normalizeStoredPublicKey('Диана',values.get('key:diana')),
+    },
+    partnerTyping,
+    partnerPresence:normalizeStoredPresence(partner,values.get('presence:'+actorKey(partner)),now),
+  };
+}
+
 async function readMessengerMessages(options={}){
   const now=Number(options.now||Date.now());
   const cache=cacheOf(options);
@@ -561,6 +604,7 @@ module.exports={
   toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,
+  readMessengerSnapshot,
   markMessengerRead,
   unreadMessengerCount,
   resetMutationQueueForTests,
