@@ -1,12 +1,13 @@
 {
-  "current": "v3.80",
+  "current": "v3.81",
   "versionBranch": "main",
   "releaseCommit": null,
   "deploymentSourceCommit": null,
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-05",
-  "basedOnProduction": "v3.79",
+  "basedOnProduction": "v3.80",
   "notes": [
+    "Cache-bust release for final UI-first fixes from v3.80 so iPhone/Telegram cannot retain the intermediate immutable v3.80 assets.",
     "RUDI закрепляет UI-first/optimistic UI как основной паттерн: безопасные действия отображаются локально сразу, сервер подтверждает их в фоне, при ошибке выполняется rollback.",
     "Подарок звёзд в мессенджере появляется системным сообщением мгновенно после выбора количества, без ожидания score API и фонового push-процесса.",
     "Для подарка звёзд добавлен clientEventId: локальное optimistic-сообщение автоматически заменяется серверным и не дублируется.",
