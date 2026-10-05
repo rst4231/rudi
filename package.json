@@ -11,7 +11,8 @@
   "dependencies": {
     "@simplewebauthn/server": "14.0.2",
     "jpeg-js": "^0.4.4",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0"
