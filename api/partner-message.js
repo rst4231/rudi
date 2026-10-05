@@ -136,67 +136,20 @@ const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml, appUrlForTab } = require('./telegram-notifications.cjs');
 const { publicApplicationServerKey, savePushSubscription, resolvePushActor, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
+const { RUDI_REALTIME_TOKEN_TTL_MS, messengerRealtimeUrl } = require('./realtime-auth.cjs');
 
-const RUDI_REALTIME_TOKEN_TTL_MS = 10 * 60 * 1000;
+// User-driven realtime goes over the authenticated Vercel WebSocket after the DB commit.
+// Server-created events keep push/resync fallback; there is no Cloudflare realtime relay.
+async function publishMessengerRealtime(){ return false; }
+function queueMessengerRealtime(){ return false; }
 
-function rudiRealtimeSecret(options = {}) {
-  return String((options.env || process.env).RUDI_API_SECRET || '').trim();
-}
-
-function rudiRealtimeBaseUrl(options = {}) {
-  return String(
-    options.d1BaseUrl ||
-    (options.env || process.env).RUDI_D1_API_URL ||
-    'https://rudi-db-api.cpateammail.workers.dev'
-  ).replace(/\/+$/, '');
-}
-
-function createMessengerRealtimeToken(actor, options = {}) {
-  const secret = rudiRealtimeSecret(options);
-  if (!secret) throw new Error('messenger-realtime-secret-missing');
-  const payload = Buffer.from(JSON.stringify({
-    actor: String(actor || ''),
-    exp: Date.now() + RUDI_REALTIME_TOKEN_TTL_MS,
-  })).toString('base64url');
-  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
-  return payload + '.' + signature;
-}
-
-function messengerRealtimeUrl(actor, options = {}) {
-  const base = rudiRealtimeBaseUrl(options).replace(/^http/i, 'ws');
-  return base + '/realtime?token=' + encodeURIComponent(createMessengerRealtimeToken(actor, options));
-}
-
-async function publishMessengerRealtime(event = 'sync', payload = null, options = {}) {
-  const secret = rudiRealtimeSecret(options);
-  const fetchImpl = options.fetch || global.fetch;
-  if (!secret || typeof fetchImpl !== 'function') return false;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
-    const response = await fetchImpl(rudiRealtimeBaseUrl(options) + '/realtime/publish', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer ' + secret,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        event: String(event || 'sync').slice(0,80),
-        payload: payload && typeof payload === 'object' ? payload : null,
-        at: new Date().toISOString()
-      }),
-      signal: controller.signal,
-      cache: 'no-store',
-    }).finally(()=>clearTimeout(timer));
-    return response.ok;
-  } catch (_) {
-    return false;
-  }
-}
-
-function queueMessengerRealtime(event, payload = null, options = {}) {
-  const task = publishMessengerRealtime(event, payload, options);
-  try { waitUntil(task); } catch (_) { task.catch(() => {}); }
+function realtimeTrace(action,actor,startedAt,dbCommittedAt,messageId=''){
+  const traceId='rt-'+crypto.randomUUID();
+  console.info('RUDI_MESSENGER_DB_TIMING',JSON.stringify({
+    traceId,action,actor,messageId:String(messageId||''),
+    requestToDbMs:Math.max(0,Number(dbCommittedAt||Date.now())-Number(startedAt||Date.now())),
+  }));
+  return {traceId,apiReceivedAt:Number(startedAt||Date.now()),dbCommittedAt:Number(dbCommittedAt||Date.now())};
 }
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
@@ -2512,7 +2465,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({
         ok:true,
         actor,
-        url:messengerRealtimeUrl(actor,options),
+        url:messengerRealtimeUrl(actor,req,options),
         expiresInMs:RUDI_REALTIME_TOKEN_TTL_MS,
       });
     } catch (error) {
@@ -2606,6 +2559,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         partnerPresence,
         unread:unreadMessengerCount(messages,actor),
         ttlSeconds:24*60*60,
+        deliveredIds:pendingDeliveryIds,
       });
     } catch (error) {
       const code=String(error?.message||error);
@@ -2622,7 +2576,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const presence=await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options);
       publishMessengerRealtime('presence',{actor,presence},options).catch(()=>{});
       const partnerPresence=await readMessengerPresence(partner,options);
-      return res.status(200).json({ok:true,actor,partnerPresence});
+      return res.status(200).json({ok:true,actor,presence,partnerPresence});
     } catch (error) {
       const code=String(error?.message||error);
       return res.status(statusForError(error)).json({ok:false,error:code});
@@ -2650,6 +2604,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
   if (action === 'messenger-send') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    const requestStartedAt=Date.now();
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
@@ -2663,9 +2618,10 @@ async function handleRudiAction(req, res, action, options = {}) {
         keyVersions:body.keyVersions,
         payload:body.payload,
       },options);
+      const dbCommittedAt=Date.now();
       const deduplicated=message?.deduplicated===true;
       const clientMessage=messengerMessageForClient(message,options);
-      if(!deduplicated) await publishMessengerRealtime('message',{actor,message:clientMessage},options);
+      const realtime=deduplicated?null:realtimeTrace('message',actor,requestStartedAt,dbCommittedAt,message.id);
       const notificationTask=deduplicated
         ?Promise.resolve({sent:false,reason:'duplicate'})
         :sendMessengerNotificationToPartner(actor,message.id,{
@@ -2686,6 +2642,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         message:clientMessage,
         cycleAdviceCreated:false,
         notification:{sent:false,pending:true},
+        realtime,
       });
     } catch (error) {
       const code=String(error?.message||error);
@@ -2712,11 +2669,13 @@ async function handleRudiAction(req, res, action, options = {}) {
 
   if (action === 'messenger-delete') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    const requestStartedAt=Date.now();
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       await deleteMessengerMessage(actor,body.id,options);
-      queueMessengerRealtime('delete',{actor,id:String(body.id||'')},options);
+      const dbCommittedAt=Date.now();
+      const realtime=realtimeTrace('delete',actor,requestStartedAt,dbCommittedAt,String(body.id||''));
       const pushDismiss=await dismissMessengerNotificationForPartner(actor,body.id,options).catch(error=>({
         sent:false,
         reason:'dismiss-failed',
@@ -2728,7 +2687,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         actor,
         deleted:true,
         pushDismiss,
-        unread:unreadMessengerCount(messages,actor)
+        unread:unreadMessengerCount(messages,actor),
+        realtime
       });
     } catch (error) {
       const code=String(error?.message||error);
@@ -2739,6 +2699,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
   if (action === 'messenger-edit') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    const requestStartedAt=Date.now();
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
@@ -2750,9 +2711,10 @@ async function handleRudiAction(req, res, action, options = {}) {
         payload:body.payload,
         silent:body.silent===true,
       },options);
+      const dbCommittedAt=Date.now();
       const clientMessage=messengerMessageForClient(message,options);
-      await publishMessengerRealtime('edit',{actor,message:clientMessage},options);
-      return res.status(200).json({ok:true,actor,message:clientMessage});
+      const realtime=realtimeTrace('edit',actor,requestStartedAt,dbCommittedAt,message.id);
+      return res.status(200).json({ok:true,actor,message:clientMessage,realtime});
     } catch (error) {
       const code=String(error?.message||error);
       const status=code.startsWith('messenger-')?400:statusForError(error);
@@ -2762,6 +2724,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
   if (action === 'messenger-reaction') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    const requestStartedAt=Date.now();
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
@@ -2769,15 +2732,16 @@ async function handleRudiAction(req, res, action, options = {}) {
       const actors=Array.isArray(message?.reactions?.[String(body.reaction||'')])
         ?message.reactions[String(body.reaction||'')]
         :[];
+      const dbCommittedAt=Date.now();
       const clientMessage=messengerMessageForClient(message,options);
-      await publishMessengerRealtime('reaction',{actor,message:clientMessage},options);
+      const realtime=realtimeTrace('reaction',actor,requestStartedAt,dbCommittedAt,message.id);
       console.info('RUDI_MESSENGER_REACTION_OK',JSON.stringify({
         actor,
         messageId:String(message?.id||body.id||''),
         reaction:String(body.reaction||''),
         active:actors.includes(actor),
       }));
-      return res.status(200).json({ok:true,actor,message:clientMessage});
+      return res.status(200).json({ok:true,actor,message:clientMessage,realtime});
     } catch (error) {
       const code=String(error?.message||error);
       console.warn('RUDI_MESSENGER_REACTION_ERROR',code);
@@ -2788,14 +2752,16 @@ async function handleRudiAction(req, res, action, options = {}) {
 
   if (action === 'messenger-like') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    const requestStartedAt=Date.now();
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await toggleMessengerLike(actor,body.id,options);
+      const dbCommittedAt=Date.now();
       const clientMessage=messengerMessageForClient(message,options);
-      await publishMessengerRealtime('reaction',{actor,message:clientMessage},options);
+      const realtime=realtimeTrace('reaction',actor,requestStartedAt,dbCommittedAt,message.id);
       console.info('RUDI_MESSENGER_LIKE_OK',JSON.stringify({actor,messageId:String(message?.id||body.id||''),liked:Array.isArray(message?.likedBy)&&message.likedBy.includes(actor)}));
-      return res.status(200).json({ok:true,actor,message:clientMessage});
+      return res.status(200).json({ok:true,actor,message:clientMessage,realtime});
     } catch (error) {
       const code=String(error?.message||error);
       console.warn('RUDI_MESSENGER_LIKE_ERROR',code);
@@ -2820,6 +2786,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
   if (action === 'messenger-read') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
+    const requestStartedAt=Date.now();
     try {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
@@ -2828,7 +2795,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         .filter(Boolean)
         .slice(0,256);
       const result=await markMessengerRead(actor,requestedIds,options);
-      if(result.updated) publishMessengerRealtime('read',{actor,ids:requestedIds},options).catch(()=>{});
+      const dbCommittedAt=Date.now();
+      const realtime=result.updated?realtimeTrace('read',actor,requestStartedAt,dbCommittedAt,requestedIds[0]||''):null;
       const messages=messengerMessagesVisibleToActor(result.messages,actor);
       return res.status(200).json({
         ok:true,
@@ -2836,6 +2804,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         updated:result.updated,
         readIds:requestedIds,
         unread:unreadMessengerCount(messages,actor),
+        realtime,
       });
     } catch (error) {
       const code=String(error?.message||error);
