@@ -64,6 +64,7 @@
     cacheHydratePromise:null,
     cachePersistTimer:0,
     networkLoaded:false,
+    reactionOverrides:new Map(),
   };
 
   function telegramInitData(){
@@ -1267,24 +1268,72 @@
     return result;
   }
 
+  function applyReactionOverrides(rows){
+    const now=Date.now();
+    return (Array.isArray(rows)?rows:[]).map(serverRow=>{
+      const id=String(serverRow?.id||'');
+      const override=state.reactionOverrides.get(id);
+      if(!override) return serverRow;
+      if(Number(override.until||0)<=now){
+        state.reactionOverrides.delete(id);
+        return serverRow;
+      }
+      const expectedRow={...serverRow,reactions:override.reactions||{},likedBy:override.likedBy||[]};
+      if(rowsSignature([serverRow])===rowsSignature([expectedRow])){
+        state.reactionOverrides.delete(id);
+        return serverRow;
+      }
+      return expectedRow;
+    });
+  }
+
+  function optimisticReactionRow(row,emoji){
+    const reactions=reactionStateForRow(row);
+    const hadSame=Array.isArray(reactions[emoji])&&reactions[emoji].includes(state.actor);
+    for(const key of Object.keys(reactions)){
+      reactions[key]=reactions[key].filter(actor=>actor!==state.actor);
+      if(!reactions[key].length) delete reactions[key];
+    }
+    if(!hadSame) reactions[emoji]=[...(reactions[emoji]||[]),state.actor];
+    return {...row,reactions,likedBy:reactions['❤️']||[]};
+  }
+
 
   async function setMessageReaction(row,emoji){
     if(!row?.id||String(row.id).startsWith('pending:')||!REACTIONS.includes(emoji)) return;
     pulseMessageReaction(row.id);
     const list=document.getElementById('messengerMessages');
     const preservedScrollTop=Number(list?.scrollTop||0);
+    const previousRow=state.rows.find(item=>item.id===row.id)||row;
+    const optimistic=optimisticReactionRow(previousRow,emoji);
+    state.rows=state.rows.map(item=>item.id===row.id?optimistic:item);
+    state.reactionOverrides.set(String(row.id||''),{
+      reactions:optimistic.reactions,
+      likedBy:optimistic.likedBy,
+      until:Date.now()+12000
+    });
+    renderMessages({preserveScrollTop:preservedScrollTop});
     try{
       const data=emoji==='❤️'
         ?await api('messenger-like',{id:row.id})
         :await api('messenger-reaction',{id:row.id,reaction:emoji});
       if(data?.message){
+        state.reactionOverrides.set(String(row.id||''),{
+          reactions:data.message.reactions,
+          likedBy:data.message.likedBy,
+          until:Date.now()+12000
+        });
         state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
+        scheduleConversationCachePersist();
         renderMessages({preserveScrollTop:preservedScrollTop});
       }
       const status=document.getElementById('messengerStatus');
       if(status){status.hidden=true;status.textContent=''}
       try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
     }catch(error){
+      state.reactionOverrides.delete(String(row.id||''));
+      state.rows=state.rows.map(item=>item.id===row.id?previousRow:item);
+      renderMessages({preserveScrollTop:preservedScrollTop});
       const status=document.getElementById('messengerStatus');
       if(status){
         status.hidden=false;
@@ -2512,7 +2561,7 @@
         if(!state.unreadBoundaryId){
           state.unreadBoundaryId=String(serverRows.find(row=>rowUnreadForActor(row))?.id||'');
         }
-        state.rows=mergePendingRows(serverRows);
+        state.rows=applyReactionOverrides(mergePendingRows(serverRows));
         setUnread(data.unread);
         await decryptMessages(state.rows);
         renderMessages({forceBottom:!state.messagesLoaded});
@@ -2649,7 +2698,7 @@
       const preservedTop=Number(list?.scrollTop||0);
       const data=await api('messenger-list');
       const serverRows=Array.isArray(data.messages)?data.messages:[];
-      const nextRows=mergePendingRows(serverRows);
+      const nextRows=applyReactionOverrides(mergePendingRows(serverRows));
       const knownIds=new Set((Array.isArray(state.rows)?state.rows:[]).map(row=>String(row.id||'')));
       const newPartnerRows=serverRows.filter(row=>rowUnreadForActor(row)&&!knownIds.has(String(row.id||'')));
       const hasNewPartnerMessage=newPartnerRows.length>0;
