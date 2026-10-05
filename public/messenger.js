@@ -908,7 +908,8 @@
     try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
 
     try{
-      await request;
+      const result=await request;
+      publishRealtime('delete',{id},result?.realtime);
       state.deletingIds.delete(id);
     }catch(error){
       const code=String(error?.message||error||'');
@@ -1485,6 +1486,7 @@
         state.rows=state.rows.map(item=>item.id===row.id?data.message:item);
         scheduleConversationCachePersist();
         patchMessageReactions(data.message);
+        publishRealtime('reaction',{message:data.message},data.realtime);
       }
       const status=document.getElementById('messengerStatus');
       if(status){status.hidden=true;status.textContent=''}
@@ -2752,6 +2754,7 @@
       .map(row=>row.id);
     if(!ids.length) return rows;
     const data=await api('messenger-read',{ids});
+    if(data?.realtime) publishRealtime('read',{ids:Array.isArray(data.readIds)?data.readIds:ids},data.realtime);
     setUnread(data.unread);
     if(Number(data.unread||0)===0) state.unreadBoundaryId='';
     const confirmed=new Set((Array.isArray(data.readIds)?data.readIds:ids).map(value=>String(value||'')));
@@ -2819,6 +2822,7 @@
         state.networkLoaded=true;
         scheduleConversationCachePersist();
         updateHeader();
+        if(Array.isArray(data.deliveredIds)&&data.deliveredIds.length) publishRealtime('delivered',{ids:data.deliveredIds});
         if(status){status.hidden=true;status.textContent=''}
 
         if(markRead) scheduleVisibleRead();
@@ -2952,6 +2956,7 @@
       const presenceChanged=Boolean(data.partnerPresence?.online)!==Boolean(state.partnerPresence?.online);
       state.partnerTyping=Boolean(data.partnerTyping);
       state.partnerPresence=data.partnerPresence||null;
+      if(Array.isArray(data.deliveredIds)&&data.deliveredIds.length) publishRealtime('delivered',{ids:data.deliveredIds});
       setUnread(data.unread);
       if(Number(data.unread||0)===0){
         state.unreadBoundaryId='';
@@ -3122,6 +3127,20 @@
       return true;
     }
 
+    if(event==='delivered'){
+      if(String(payload?.actor||'')!==state.partner) return true;
+      const ids=new Set((Array.isArray(payload?.ids)?payload.ids:[]).map(value=>String(value||'')));
+      if(!ids.size) return false;
+      const before=state.rows;
+      const deliveredAt=new Date().toISOString();
+      const after=before.map(row=>ids.has(String(row?.id||''))&&row?.sender===state.actor&&!row?.deliveredAt?{...row,deliveredAt}:row);
+      state.rows=after;
+      if(canPatchRenderedRows(before,after)) patchRenderedMessageChrome(before,after);
+      else renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+      scheduleConversationCachePersist();
+      return true;
+    }
+
     if(event==='read'){
       if(String(payload?.actor||'')!==state.partner) return true;
       const ids=new Set((Array.isArray(payload?.ids)?payload.ids:[]).map(value=>String(value||'')));
@@ -3211,9 +3230,12 @@
     state.realtimeConnectPromise=(async()=>{
       try{
         const tokenData=await api('messenger-realtime-token');
-        const url=String(tokenData?.url||'').trim();
-        if(!url||!/^wss?:\/\//i.test(url)) throw new Error('messenger-realtime-url-invalid');
-        const socket=new WebSocket(url);
+        const rawUrl=String(tokenData?.url||'').trim();
+        if(!rawUrl) throw new Error('messenger-realtime-url-invalid');
+        const parsedUrl=new URL(rawUrl,window.location.origin);
+        parsedUrl.protocol=parsedUrl.protocol==='http:'?'ws:':parsedUrl.protocol==='https:'?'wss:':parsedUrl.protocol;
+        if(!/^wss?:$/i.test(parsedUrl.protocol)) throw new Error('messenger-realtime-url-invalid');
+        const socket=new WebSocket(parsedUrl.href);
         state.realtimeSocket=socket;
         await new Promise((resolve,reject)=>{
           let settled=false;
@@ -3257,7 +3279,12 @@
             state.realtimeLastPongAt=Date.now();
             state.realtimeLastEventAt=Date.now();
             Promise.resolve(applyRealtimeEnvelope(data))
-              .then(handled=>{if(!handled) syncLiveMessages()})
+              .then(handled=>{
+                if(data.traceId&&socket.readyState===WebSocket.OPEN){
+                  try{socket.send(JSON.stringify({type:'ack',traceId:data.traceId,receivedAt:Date.now()}))}catch(_){}
+                }
+                if(!handled) syncLiveMessages();
+              })
               .catch(()=>syncLiveMessages());
           }
         };
@@ -3280,6 +3307,21 @@
     return state.realtimeConnectPromise;
   }
 
+  function publishRealtime(event,payload={},meta=null){
+    if(!realtimeIsOpen()) return false;
+    try{
+      state.realtimeSocket.send(JSON.stringify({
+        type:'publish',
+        event:String(event||''),
+        payload:payload&&typeof payload==='object'?payload:{},
+        traceId:String(meta?.traceId||('client-'+crypto.randomUUID())),
+        apiReceivedAt:Number(meta?.apiReceivedAt||0)||0,
+        dbCommittedAt:Number(meta?.dbCommittedAt||0)||0,
+      }));
+      return true;
+    }catch(_){return false}
+  }
+
   function ensureRealtimeConnection(){
     if(!messengerIsVisible()){
       closeRealtimeSocket();
@@ -3290,10 +3332,7 @@
   }
 
   function liveSyncDelay(){
-    if(realtimeIsOpen()) return 30000;
-    if(state.partnerTyping) return 1100;
-    if(state.partnerPresence?.online) return 1600;
-    return 2400;
+    return realtimeIsOpen()?60000:12000;
   }
 
   function stopLiveSync(){
@@ -3325,6 +3364,7 @@
       return;
     }
     state.typingLastSent=active?now:0;
+    publishRealtime('typing',{active:Boolean(active)});
     api('messenger-typing',{active:Boolean(active)}).catch(()=>{});
     if(active) state.typingTimer=setTimeout(()=>notifyTyping(false),2400);
   }
@@ -3405,6 +3445,7 @@
             cycleAdviceEligible:entry.cycleAdviceEligible===true,
           });
           reconcileSentMessage(entry,result?.message);
+          if(result?.message) publishRealtime('message',{message:result.message},result.realtime);
           if(result?.cycleAdviceCreated) setTimeout(()=>syncLiveMessages(),0);
         }catch(error){
           upsertMessengerOutbox({...entry,failed:true});
@@ -3502,6 +3543,7 @@
     renderMessages({forceBottom:true});
     const result=await api('messenger-send',{clientId,scheme:'plain-v3',payload,keyVersions:{},preview:entry.preview,avatarUrl:entry.avatarUrl});
     reconcileSentMessage(entry,result?.message);
+    if(result?.message) publishRealtime('message',{message:result.message},result.realtime);
     return result?.message||null;
   }
 
@@ -3516,6 +3558,7 @@
       if(result?.message){
         state.rows=state.rows.map(row=>row.id===messageId?result.message:row);
         state.decrypted.set(messageId,correctedPayload);
+        publishRealtime('edit',{message:result.message},result.realtime);
         renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
       }
     }catch(_){}
@@ -3883,6 +3926,7 @@
           state.rows=state.rows.map(row=>String(row?.id||'')===editId?result.message:row);
           state.decrypted.set(editId,payload);
           patchMessageStatus(result.message);
+          publishRealtime('edit',{message:result.message},result.realtime);
           scheduleConversationCachePersist();
         }
       }catch(error){
@@ -3967,6 +4011,7 @@
         cycleAdviceEligible:entry.cycleAdviceEligible===true,
       });
       reconcileSentMessage(entry,result?.message);
+      if(result?.message) publishRealtime('message',{message:result.message},result.realtime);
       if(result?.cycleAdviceCreated) setTimeout(()=>syncLiveMessages(),0);
       if(result?.message?.id) setTimeout(()=>silentCorrectSentMessage(result.message.id,payload),0);
     }catch(error){
