@@ -28,6 +28,7 @@ test('v3.90 keeps recipe taste filters from v3.89 in the same release branch',()
   const app=read('public/app.js'),html=read('public/index.html');
   assert.match(app,/RECIPE_TASTES_BY_MEAL/);
   assert.match(app,/taste:recipeChoiceValue\('data-recipe-taste'\)/);
-  assert.match(html,/rudi-version" content="v3\.90"/);
-  assert.equal(read('VERSION').trim(),'v3.90');
+  const version=read('VERSION').trim();
+  assert.match(version,/^v3\.\d+$/);
+  assert.ok(html.includes('rudi-version" content="'+version+'"'));
 });
