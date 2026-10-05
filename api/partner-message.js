@@ -54,13 +54,11 @@ const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDate
 const { readDailyQuestion, answerDailyQuestion } = require('./daily-question-store.cjs');
 const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { generateMoodAnalysis } = require('./mood-analysis-ai.cjs');
-const { correctMessengerText } = require('./messenger-correction-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readSmartSaves, addSmartSave, removeSmartSave, restoreSmartSave } = require('./smart-saves-store.cjs');
 const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, recordCycleEnd, normalizeCycleState, cycleViewForDate, cycleStateWithStart, cycleStateWithEnd, writeCycleState } = require('./cycle-store.cjs');
-const { claimCycleAdvice, releaseCycleAdvice } = require('./cycle-messenger-advice-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
   readActivityJournal,
@@ -71,25 +69,6 @@ const {
 const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readScoreState, awardScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
-const {
-  readMessengerPublicKeys,
-  registerMessengerPublicKey,
-  addMessengerMessage,
-  editMessengerMessage,
-  deleteMessengerMessage,
-  setMessengerTyping,
-  readMessengerTyping,
-  setMessengerPresence,
-  readMessengerPresence,
-  markMessengerDelivered,
-  toggleMessengerReaction,
-  toggleMessengerLike,
-  rekeyMessengerMessages,
-  readMessengerMessages,
-  readMessengerSnapshot,
-  markMessengerRead,
-  unreadMessengerCount,
-} = require('./messenger-store.cjs');
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
 const { readSupplements } = require('./supplements-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
@@ -136,68 +115,6 @@ const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml, appUrlForTab } = require('./telegram-notifications.cjs');
 const { publicApplicationServerKey, savePushSubscription, resolvePushActor, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
-
-const RUDI_REALTIME_TOKEN_TTL_MS = 10 * 60 * 1000;
-
-function rudiRealtimeSecret(options = {}) {
-  return String((options.env || process.env).RUDI_API_SECRET || '').trim();
-}
-
-function rudiRealtimeBaseUrl(options = {}) {
-  return String(
-    options.d1BaseUrl ||
-    (options.env || process.env).RUDI_D1_API_URL ||
-    'https://rudi-db-api.cpateammail.workers.dev'
-  ).replace(/\/+$/, '');
-}
-
-function createMessengerRealtimeToken(actor, options = {}) {
-  const secret = rudiRealtimeSecret(options);
-  if (!secret) throw new Error('messenger-realtime-secret-missing');
-  const payload = Buffer.from(JSON.stringify({
-    actor: String(actor || ''),
-    exp: Date.now() + RUDI_REALTIME_TOKEN_TTL_MS,
-  })).toString('base64url');
-  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
-  return payload + '.' + signature;
-}
-
-function messengerRealtimeUrl(actor, options = {}) {
-  const base = rudiRealtimeBaseUrl(options).replace(/^http/i, 'ws');
-  return base + '/realtime?token=' + encodeURIComponent(createMessengerRealtimeToken(actor, options));
-}
-
-async function publishMessengerRealtime(event = 'sync', payload = null, options = {}) {
-  const secret = rudiRealtimeSecret(options);
-  const fetchImpl = options.fetch || global.fetch;
-  if (!secret || typeof fetchImpl !== 'function') return false;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
-    const response = await fetchImpl(rudiRealtimeBaseUrl(options) + '/realtime/publish', {
-      method: 'POST',
-      headers: {
-        authorization: 'Bearer ' + secret,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        event: String(event || 'sync').slice(0,80),
-        payload: payload && typeof payload === 'object' ? payload : null,
-        at: new Date().toISOString()
-      }),
-      signal: controller.signal,
-      cache: 'no-store',
-    }).finally(()=>clearTimeout(timer));
-    return response.ok;
-  } catch (_) {
-    return false;
-  }
-}
-
-function queueMessengerRealtime(event, payload = null, options = {}) {
-  const task = publishMessengerRealtime(event, payload, options);
-  try { waitUntil(task); } catch (_) { task.catch(() => {}); }
-}
 
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
 const CYCLE_BOOTSTRAP_HASH = '12818afbe0d73e63efcf5ab9f181ff8e6b9d48cdbcaf126bddeadac611818de5';
@@ -406,57 +323,6 @@ async function sendPartnerMessageNotification(actor, options = {}) {
   }, options);
 }
 
-function messengerPushPreview(value){
-  return String(value||'').replace(/\s+/g,' ').trim().slice(0,120);
-}
-
-function messengerAvatarUrl(value){
-  const raw=String(value||'').trim();
-  if(!raw||raw.length>500) return '';
-  try{
-    const url=new URL(raw);
-    return url.protocol==='https:'?url.href:'';
-  }catch(_){return ''}
-}
-
-async function sendMessengerNotificationToPartner(actor, messageId, notification = {}, options = {}) {
-  const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
-  if (!recipientActor) return { sent:false, reason:'actor-invalid' };
-  const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
-  const preferences=await readPreferences(recipientActor,options).catch(()=>null);
-  if(preferences?.messengerNotificationsEnabled===false){
-    return { sent:false, recipient:recipientActor, reason:'disabled' };
-  }
-  const presence=await readMessengerPresence(recipientActor,options).catch(()=>null);
-  if(presence?.online&&presence?.messengerVisible){
-    return { sent:false, recipient:recipientActor, reason:'active-chat' };
-  }
-  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
-  const preview=messengerPushPreview(notification?.preview);
-  const avatarUrl=messengerAvatarUrl(notification?.avatarUrl);
-  const id=String(messageId||'').trim();
-  const pushTag=id?'rudi-messenger:'+id:'rudi-messenger';
-  const result=await sendPush(recipientActor,{
-    title:actor==='Диана'?'Диана прислала сообщение':'Рустам прислал сообщение',
-    body:preview||'Новое сообщение',
-    tag:pushTag,
-    url:'/?tab=messenger&message='+encodeURIComponent(id)+'&fresh=1',
-    ...(avatarUrl?{icon:avatarUrl}:{}),
-  },{...options,urgency:'high',ttlSeconds:600});
-  return {
-    ...result,
-    recipient:recipientActor,
-    telegramFallback:{sent:false,reason:'messenger-telegram-disabled'}
-  };
-}
-
-async function dismissMessengerNotificationForPartner(actor,messageId,options={}){
-  const recipientActor=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
-  const id=String(messageId||'').trim();
-  if(!recipientActor||!id) return {sent:false,reason:'dismiss-invalid'};
-  return {sent:false,recipient:recipientActor,reason:'delete-push-disabled'};
-}
-
 async function sendActivityNotification(text, _tab, options = {}) {
   try {
     return await sendToAllRecipients(text, options);
@@ -466,183 +332,16 @@ async function sendActivityNotification(text, _tab, options = {}) {
   }
 }
 
-function messengerSystemPayload(text,systemKind){
-  return {
-    scheme:'plain-v3',
-    payload:{
-      text:String(text||'').trim(),
-      reply:null,
-      system:true,
-      systemKind:String(systemKind||'reward'),
-    },
-    keyVersions:{'Рустам':0,'Диана':0},
-  };
-}
-
-function messengerMessagesVisibleToActor(rows,actor){
-  const viewer=actor==='Рустам'?'Рустам':actor==='Диана'?'Диана':'';
-  if(!viewer) return [];
-  return (Array.isArray(rows)?rows:[]).filter(row=>{
-    const recipients=Array.isArray(row?.systemRecipients)?row.systemRecipients:[];
-    return !recipients.length||recipients.includes(viewer);
-  });
-}
-
-function messengerMessageForClient(row,options={}){
-  if(!row||typeof row!=='object') return row;
-  if(String(row.scheme||'')!=='shared-v2') return row;
-  try{
-    const key=Buffer.from(messengerConversationKey(options),'base64url');
-    const iv=Buffer.from(String(row.iv||''),'base64url');
-    const packed=Buffer.from(String(row.ciphertext||''),'base64url');
-    if(iv.length!==12||packed.length<=16) return row;
-    const ciphertext=packed.subarray(0,packed.length-16);
-    const authTag=packed.subarray(packed.length-16);
-    const decipher=crypto.createDecipheriv('aes-256-gcm',key,iv);
-    decipher.setAAD(Buffer.from('rudi-messenger-shared-v2','utf8'));
-    decipher.setAuthTag(authTag);
-    const clear=Buffer.concat([decipher.update(ciphertext),decipher.final()]);
-    const payload=JSON.parse(clear.toString('utf8'));
-    return {
-      ...row,
-      scheme:'plain-v3',
-      payload,
-      ciphertext:'',
-      iv:'',
-      keyVersions:{'Рустам':0,'Диана':0},
-    };
-  }catch(_){
-    return row;
-  }
-}
-
-function messengerMessagesForClient(rows,options={}){
-  return (Array.isArray(rows)?rows:[]).map(row=>messengerMessageForClient(row,options));
-}
-
-function cycleAdviceForRustam(view,state){
-  if(!view||!state) return null;
-  const phase=String(view.phase||'');
-  const cycleDay=Number(view.cycleDay);
-  const periodLength=Math.max(1,Number(state.periodLengthDays)||5);
-  const daysToNext=Number(view.daysToNext);
-  const anchor=String(view.periodStart||view.nextPeriodStart||moscowDateKey()).replace(/[^0-9-]/g,'');
-
-  if(view.periodActive||phase==='Месячные'){
-    return {
-      key:'period:'+anchor,
-      text:'💡 Подсказка для тебя: у Дианы сейчас месячные. Лучше мягче, без давления и лишних споров; спроси, как она себя чувствует.'
-    };
-  }
-
-  if(phase==='Фолликулярная фаза'){
-    if(Number.isFinite(cycleDay)&&cycleDay<=periodLength+2){
-      return {
-        key:'follicular-recovery:'+anchor,
-        text:'💡 Подсказка для тебя: Диана сейчас выходит из месячных. Лучше лёгкий темп и без резких требований — энергия может возвращаться постепенно.'
-      };
-    }
-    return {
-      key:'follicular:'+anchor,
-      text:'💡 Подсказка для тебя: сейчас у Дианы обычно более энергичная часть цикла. Можно смелее предлагать планы, но ориентируйся на её настроение.'
-    };
-  }
-
-  if(phase==='Фертильное окно'){
-    return {
-      key:'fertile:'+anchor,
-      text:'💡 Подсказка для тебя: сейчас у Дианы фертильное окно. Будь теплее и внимательнее, но не делай выводов о её настроении только по календарю.'
-    };
-  }
-
-  if(phase==='Лютеиновая фаза'){
-    if(Number.isFinite(daysToNext)&&daysToNext>=0&&daysToNext<=5){
-      return {
-        key:'premenstrual:'+anchor,
-        text:'💡 Подсказка для тебя: до месячных осталось немного. Лучше говорить мягче, меньше давить и не обесценивать эмоции.'
-      };
-    }
-    return {
-      key:'luteal:'+anchor,
-      text:'💡 Подсказка для тебя: сейчас вторая половина цикла. Спокойный тон и чуть больше терпения будут уместнее; ориентируйся на её реакцию.'
-    };
-  }
-
-  return null;
-}
-
-async function maybeCreateRustamCycleAdvice(options={}){
-  const state=await readCycleState(options).catch(()=>null);
-  if(!state) return null;
-  const date=moscowDateKey(options.now||Date.now());
-  const view=cycleViewForDate(state,date);
-  const advice=cycleAdviceForRustam(view,state);
-  if(!advice?.key||!advice?.text) return null;
-
-  const claimed=await claimCycleAdvice(advice.key,options).catch(()=>false);
-  if(!claimed) return null;
-
-  try{
-    const encrypted=messengerSystemPayload(advice.text,'cycle-advice',options);
-    const clientId='cycle-advice-'+crypto.createHash('sha256').update(advice.key).digest('hex').slice(0,24);
-    const message=await addMessengerMessage('Рустам',{
-      ...encrypted,
-      clientId,
-      systemRecipients:['Рустам']
-    },options);
-    await markMessengerRead('Рустам',[message.id],options).catch(()=>null);
-    queueMessengerRealtime('message',{actor:'Рустам',message:messengerMessageForClient(message,options)},options);
-    return message;
-  }catch(error){
-    await releaseCycleAdvice(advice.key,options).catch(()=>null);
-    console.warn('RUDI_CYCLE_MESSENGER_ADVICE_WARN',String(error?.message||error));
-    return null;
-  }
-}
-
-async function sendRewardMessengerEvent(actor,text,pushPayload={},options={}){
-  const cleanActor=actor==='Диана'?'Диана':actor==='Рустам'?'Рустам':'';
-  if(!cleanActor) return [];
-  const encrypted=messengerSystemPayload(text,pushPayload.systemKind||'reward',options);
-  const message=await addMessengerMessage(cleanActor,{...encrypted,systemRecipients:['Рустам','Диана']},options);
-  queueMessengerRealtime('message',{actor:cleanActor,message:messengerMessageForClient(message,options)},options);
-  const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
-  const sendPush=options.sendPushNotificationImpl||sendPushNotification;
-  const pushes=[];
-  for(const recipient of ['Рустам','Диана']){
-    const preferences=await readPreferences(recipient,options).catch(()=>null);
-    if(preferences?.rewardNotificationsEnabled===false){
-      pushes.push({actor:recipient,sent:false,reason:'disabled'});
-      continue;
-    }
-    try{
-      const result=await sendPush(recipient,{
-        title:String(pushPayload.title||'🎁 Награда'),
-        body:String(pushPayload.body||text).replace(/\s+/g,' ').trim().slice(0,160),
-        tag:String(pushPayload.tag||'reward-event'),
-        url:'/?tab=messenger&message='+encodeURIComponent(message.id)+'&fresh=1',
-      },options);
-      pushes.push({actor:recipient,...result});
-    }catch(error){
-      pushes.push({actor:recipient,sent:false,error:String(error?.message||error)});
-    }
-  }
-  return [{message,pushes}];
-}
-
 async function sendRewardRedeemedNotification(actor, reward, options = {}) {
   try {
     const label=String(reward?.label||'Награда');
     const icon=String(reward?.icon||'🎁');
     const cost=pointsFromUnits(reward?.costUnits||0);
     const verb=activityVerb(actor,'активировал','активировала');
-    const text=`🎁 ${actor} ${verb} награду\n${icon} ${label}\nСписано: ${cost} ⭐`;
-    return await sendRewardMessengerEvent(actor,text,{
-      systemKind:'reward-redeemed',
-      title:'🎁 Награда активирована',
-      body:actor+' '+verb+': '+label,
-      tag:'reward-redeemed',
-    },options);
+    const text='🎁 <b>'+escapeTelegramHtml(actor+' '+verb+' награду')+'</b>\n'
+      +escapeTelegramHtml(icon+' '+label)+'\n'
+      +'Списано: '+escapeTelegramHtml(cost)+' ⭐';
+    return await sendToAllRecipients(text,options);
   } catch (error) {
     console.warn('RUDI_REWARD_REDEEM_NOTIFICATION_WARN', String(error?.message || error));
     return [];
@@ -654,13 +353,11 @@ async function sendRewardCompletedNotification(actor, redemption, options = {}) 
     const label=String(redemption?.label||'Награда');
     const buyer=String(redemption?.buyerActor||'');
     const confirmVerb=activityVerb(actor,'Подтвердил','Подтвердила');
-    const text=`✅ Награда выполнена\n${String(redemption?.icon||'🎁')} ${label}\nДля: ${buyer}\n${confirmVerb}: ${actor}`;
-    return await sendRewardMessengerEvent(actor,text,{
-      systemKind:'reward-completed',
-      title:'✅ Награда выполнена',
-      body:label+' · для '+buyer,
-      tag:'reward-completed',
-    },options);
+    const text='✅ <b>Награда выполнена</b>\n'
+      +escapeTelegramHtml(String(redemption?.icon||'🎁')+' '+label)+'\n'
+      +'Для: '+escapeTelegramHtml(buyer)+'\n'
+      +escapeTelegramHtml(confirmVerb+': '+actor);
+    return await sendToAllRecipients(text,options);
   } catch (error) {
     console.warn('RUDI_REWARD_COMPLETE_NOTIFICATION_WARN', String(error?.message || error));
     return [];
@@ -684,23 +381,8 @@ async function sendStarGiftNotification(result, options = {}) {
     const points=Number(result?.points||0);
     const verb=from==='Диана'?'подарила':'подарил';
     const toDative=to==='Диана'?'Диане':to==='Рустам'?'Рустаму':to;
-    const text='⭐ '+from+' '+verb+' '+toDative+' '+points+' '+starGiftWord(points);
-    const encrypted=messengerSystemPayload(text,'star-gift',options);
-    const message=await addMessengerMessage(from,{
-      ...encrypted,
-      clientId:String(options?.clientEventId||'').trim(),
-      systemRecipients:['Рустам','Диана']
-    },options);
-    queueMessengerRealtime('message',{actor:from,message:messengerMessageForClient(message,options)},options);
-    const payload={
-      title:'⭐ Подарок звёзд',
-      body:text,
-      tag:'star-gift',
-      url:'/?tab=messenger&message='+encodeURIComponent(message.id)+'&fresh=1',
-    };
-    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
-    const push=await sendPush(to,payload,options);
-    return [{message,pushes:[{actor:to,...push}]}];
+    const text='⭐ <b>'+escapeTelegramHtml(from+' '+verb+' '+toDative+' '+points+' '+starGiftWord(points))+'</b>';
+    return await sendToAllRecipients(text,options);
   } catch (error) {
     console.warn('RUDI_STAR_GIFT_NOTIFICATION_WARN',String(error?.message||error));
     return [];
@@ -2431,14 +2113,6 @@ async function handleTickTick(req, res, action, options = {}) {
   return res.status(404).json({ ok: false, error: 'ticktick-route-not-found' });
 }
 
-function messengerConversationKey(options={}){
-  const token=String(options.botToken||resolveTelegramBotToken(options.env||process.env)||'').trim();
-  if(!token) throw new Error('messenger-key-secret-missing');
-  return crypto.createHmac('sha256',token)
-    .update('rudi-messenger-shared-v2')
-    .digest('base64url');
-}
-
 async function handleRudiAction(req, res, action, options = {}) {
   if (['push-config','push-subscribe','push-unsubscribe','push-pending'].includes(action)) {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
@@ -2477,369 +2151,14 @@ async function handleRudiAction(req, res, action, options = {}) {
         maxAgeMs:5*60*1000,
       });
 
-      const active=(Array.isArray(pending)?pending:[])
-        .filter(row=>String(row?.kind||'show')!=='dismiss');
-      const messengerRows=active
-        .filter(row=>{
-          const tag=String(row?.tag||'');
-          const url=String(row?.url||'');
-          return tag.startsWith('rudi-messenger')||url.includes('tab=messenger');
-        })
-        .sort((a,b)=>Date.parse(a?.createdAt||0)-Date.parse(b?.createdAt||0));
-      const newestMessenger=messengerRows[messengerRows.length-1]||null;
-      const notifications=active
-        .filter(row=>{
-          const tag=String(row?.tag||'');
-          const url=String(row?.url||'');
-          return !(tag.startsWith('rudi-messenger')||url.includes('tab=messenger'));
-        })
-        .concat(newestMessenger?[newestMessenger]:[])
+      const notifications=(Array.isArray(pending)?pending:[])
+        .filter(row=>String(row?.kind||'show')!=='dismiss')
         .sort((a,b)=>Date.parse(a?.createdAt||0)-Date.parse(b?.createdAt||0));
 
       return res.status(200).json({ok:true,actor,notifications});
     } catch (error) {
       const code=String(error?.message||error);
       const status=['push-subscription-invalid','push-device-token-required'].includes(code)?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-realtime-token') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      return res.status(200).json({
-        ok:true,
-        actor,
-        url:messengerRealtimeUrl(actor,options),
-        expiresInMs:RUDI_REALTIME_TOKEN_TTL_MS,
-      });
-    } catch (error) {
-      return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)});
-    }
-  }
-
-  if (action === 'messenger-key') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const operation=String(body.operation||'get').trim();
-      if(operation==='register'){
-        await registerMessengerPublicKey(actor,body.publicJwk,options);
-      }else if(operation!=='get'){
-        return res.status(400).json({ok:false,error:'messenger-key-operation-invalid'});
-      }
-      const keys=await readMessengerPublicKeys(options);
-      return res.status(200).json({
-        ok:true,
-        actor,
-        keys,
-        conversationKey:messengerConversationKey(options),
-        scheme:'shared-v2',
-      });
-    } catch (error) {
-      const code=String(error?.message||error);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-unread') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const messages=messengerMessagesVisibleToActor(await readMessengerMessages(options),actor);
-      return res.status(200).json({
-        ok:true,
-        actor,
-        unread:unreadMessengerCount(messages,actor),
-      });
-    } catch (error) {
-      const code=String(error?.message||error);
-      return res.status(statusForError(error)).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-list') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const partner=actor==='Рустам'?'Диана':'Рустам';
-      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
-      const snapshot=await readMessengerSnapshot(actor,options).catch(()=>null);
-      let keys,allBeforeDelivery,partnerTyping,partnerPresence;
-      if(snapshot){
-        keys=snapshot.keys;
-        allBeforeDelivery=snapshot.messages;
-        partnerTyping=snapshot.partnerTyping;
-        partnerPresence=snapshot.partnerPresence;
-      }else{
-        [keys,allBeforeDelivery,partnerTyping,partnerPresence]=await Promise.all([
-          readMessengerPublicKeys(options),
-          readMessengerMessages(options),
-          readMessengerTyping(partner,options),
-          readMessengerPresence(partner,options),
-        ]);
-      }
-      const beforeDelivery=messengerMessagesVisibleToActor(allBeforeDelivery,actor);
-      const pendingDeliveryIds=beforeDelivery.filter(row=>row?.sender===partner&&!row?.deliveredAt).map(row=>row.id);
-      const delivered=pendingDeliveryIds.length
-        ?await markMessengerDelivered(actor,pendingDeliveryIds,options).catch(()=>({messages:beforeDelivery}))
-        :{messages:beforeDelivery};
-      const messages=messengerMessagesVisibleToActor(
-        Array.isArray(delivered?.messages)?delivered.messages:beforeDelivery,
-        actor
-      );
-      const clientMessages=messengerMessagesForClient(messages,options);
-      return res.status(200).json({
-        ok:true,
-        actor,
-        keys,
-        conversationKey:messengerConversationKey(options),
-        scheme:'plain-v3',
-        messages:clientMessages,
-        partnerTyping,
-        partnerPresence,
-        unread:unreadMessengerCount(messages,actor),
-        ttlSeconds:24*60*60,
-      });
-    } catch (error) {
-      const code=String(error?.message||error);
-      return res.status(statusForError(error)).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-presence') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const partner=actor==='Рустам'?'Диана':'Рустам';
-      const presence=await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options);
-      publishMessengerRealtime('presence',{actor,presence},options).catch(()=>{});
-      const partnerPresence=await readMessengerPresence(partner,options);
-      return res.status(200).json({ok:true,actor,partnerPresence});
-    } catch (error) {
-      const code=String(error?.message||error);
-      return res.status(statusForError(error)).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-correct') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const original=String(body.text||'').trim().slice(0,1000);
-      if(!original) return res.status(200).json({ok:true,actor,text:''});
-      const text=await correctMessengerText(original,{
-        ...options,
-        env:options.env||process.env,
-        fetch:options.fetch||global.fetch,
-      });
-      return res.status(200).json({ok:true,actor,text:String(text||original).slice(0,1000)});
-    } catch (error) {
-      const code=String(error?.message||error);
-      return res.status(statusForError(error)).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-send') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const presenceTask=setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
-      try{waitUntil(presenceTask)}catch(_){presenceTask.catch(()=>{})}
-      const message=await addMessengerMessage(actor,{
-        clientId:body.clientId,
-        scheme:body.scheme,
-        ciphertext:body.ciphertext,
-        iv:body.iv,
-        keyVersions:body.keyVersions,
-        payload:body.payload,
-      },options);
-      const deduplicated=message?.deduplicated===true;
-      const clientMessage=messengerMessageForClient(message,options);
-      if(!deduplicated) await publishMessengerRealtime('message',{actor,message:clientMessage},options);
-      const notificationTask=deduplicated
-        ?Promise.resolve({sent:false,reason:'duplicate'})
-        :sendMessengerNotificationToPartner(actor,message.id,{
-          preview:body.preview,
-          avatarUrl:body.avatarUrl,
-        },options).catch(error=>({
-          sent:false,error:String(error?.message||error)
-        }));
-      try{waitUntil(notificationTask)}catch(_){notificationTask.catch(()=>{})}
-
-      if(actor==='Рустам'&&body.cycleAdviceEligible===true){
-        const cycleAdviceTask=maybeCreateRustamCycleAdvice(options).catch(()=>null);
-        try{waitUntil(cycleAdviceTask)}catch(_){cycleAdviceTask.catch(()=>{})}
-      }
-      return res.status(200).json({
-        ok:true,
-        actor,
-        message:clientMessage,
-        cycleAdviceCreated:false,
-        notification:{sent:false,pending:true},
-      });
-    } catch (error) {
-      const code=String(error?.message||error);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-typing') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
-      const active=await setMessengerTyping(actor,Boolean(body.active),options);
-      publishMessengerRealtime('typing',{actor,active},options).catch(()=>{});
-      return res.status(200).json({ok:true,actor,active});
-    } catch (error) {
-      const code=String(error?.message||error);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-delete') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      await deleteMessengerMessage(actor,body.id,options);
-      queueMessengerRealtime('delete',{actor,id:String(body.id||'')},options);
-      const pushDismiss=await dismissMessengerNotificationForPartner(actor,body.id,options).catch(error=>({
-        sent:false,
-        reason:'dismiss-failed',
-        error:String(error?.message||error),
-      }));
-      const messages=messengerMessagesVisibleToActor(await readMessengerMessages(options),actor);
-      return res.status(200).json({
-        ok:true,
-        actor,
-        deleted:true,
-        pushDismiss,
-        unread:unreadMessengerCount(messages,actor)
-      });
-    } catch (error) {
-      const code=String(error?.message||error);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-edit') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const message=await editMessengerMessage(actor,body.id,{
-        scheme:body.scheme,
-        ciphertext:body.ciphertext,
-        iv:body.iv,
-        keyVersions:body.keyVersions,
-        payload:body.payload,
-        silent:body.silent===true,
-      },options);
-      const clientMessage=messengerMessageForClient(message,options);
-      await publishMessengerRealtime('edit',{actor,message:clientMessage},options);
-      return res.status(200).json({ok:true,actor,message:clientMessage});
-    } catch (error) {
-      const code=String(error?.message||error);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-reaction') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const message=await toggleMessengerReaction(actor,body.id,body.reaction,options);
-      const actors=Array.isArray(message?.reactions?.[String(body.reaction||'')])
-        ?message.reactions[String(body.reaction||'')]
-        :[];
-      const clientMessage=messengerMessageForClient(message,options);
-      await publishMessengerRealtime('reaction',{actor,message:clientMessage},options);
-      console.info('RUDI_MESSENGER_REACTION_OK',JSON.stringify({
-        actor,
-        messageId:String(message?.id||body.id||''),
-        reaction:String(body.reaction||''),
-        active:actors.includes(actor),
-      }));
-      return res.status(200).json({ok:true,actor,message:clientMessage});
-    } catch (error) {
-      const code=String(error?.message||error);
-      console.warn('RUDI_MESSENGER_REACTION_ERROR',code);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-like') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const message=await toggleMessengerLike(actor,body.id,options);
-      const clientMessage=messengerMessageForClient(message,options);
-      await publishMessengerRealtime('reaction',{actor,message:clientMessage},options);
-      console.info('RUDI_MESSENGER_LIKE_OK',JSON.stringify({actor,messageId:String(message?.id||body.id||''),liked:Array.isArray(message?.likedBy)&&message.likedBy.includes(actor)}));
-      return res.status(200).json({ok:true,actor,message:clientMessage});
-    } catch (error) {
-      const code=String(error?.message||error);
-      console.warn('RUDI_MESSENGER_LIKE_ERROR',code);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-rekey') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const result=await rekeyMessengerMessages(actor,body.items,options);
-      return res.status(200).json({ok:true,actor,updated:result.updated,messages:result.messages});
-    } catch (error) {
-      const code=String(error?.message||error);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
-      return res.status(status).json({ok:false,error:code});
-    }
-  }
-
-  if (action === 'messenger-read') {
-    if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
-    try {
-      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-      const {actor}=authorizeRequest(req,body.initData,options);
-      const requestedIds=(Array.isArray(body.ids)?body.ids:[])
-        .map(value=>String(value||'').trim())
-        .filter(Boolean)
-        .slice(0,256);
-      const result=await markMessengerRead(actor,requestedIds,options);
-      if(result.updated) publishMessengerRealtime('read',{actor,ids:requestedIds},options).catch(()=>{});
-      const messages=messengerMessagesVisibleToActor(result.messages,actor);
-      return res.status(200).json({
-        ok:true,
-        actor,
-        updated:result.updated,
-        readIds:requestedIds,
-        unread:unreadMessengerCount(messages,actor),
-      });
-    } catch (error) {
-      const code=String(error?.message||error);
-      const status=code.startsWith('messenger-')?400:statusForError(error);
       return res.status(status).json({ok:false,error:code});
     }
   }
@@ -4778,8 +4097,6 @@ module.exports.statusForError = statusForError;
 module.exports.handleTickTick = handleTickTick;
 module.exports.handleRudiAction = handleRudiAction;
 module.exports.sendPartnerMessageNotification = sendPartnerMessageNotification;
-module.exports.sendMessengerNotificationToPartner = sendMessengerNotificationToPartner;
-module.exports.dismissMessengerNotificationForPartner = dismissMessengerNotificationForPartner;
 module.exports.boughtNotificationText = boughtNotificationText;
 module.exports.wishlistNotificationText = wishlistNotificationText;
 module.exports.sendWishlistNotificationToPartner = sendWishlistNotificationToPartner;
