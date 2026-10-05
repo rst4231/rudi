@@ -1397,6 +1397,7 @@
           <button type="button" data-emoji="🐾">🐾</button>
         </div>
         <div id="messengerAttachTray" class="messenger-attach-tray" hidden>
+          <button type="button" data-messenger-attach="camera"><span aria-hidden="true">📷</span><b>Камера</b></button>
           <button type="button" data-messenger-attach="photo"><span aria-hidden="true">🖼️</span><b>Фото</b></button>
           <button type="button" data-messenger-attach="smart-save"><span aria-hidden="true">🔖</span><b>Сохранённые</b></button>
           <button type="button" data-messenger-attach="wishlist"><span aria-hidden="true">🎁</span><b>Вишлист</b></button>
@@ -1414,7 +1415,8 @@
             <button type="button" data-star-amount="5">5 ⭐</button>
           </div>
         </div>
-        <input id="messengerPhotoInput" type="file" accept="image/*" hidden>
+        <input id="messengerPhotoInput" type="file" accept="image/*" multiple hidden>
+        <input id="messengerCameraInput" type="file" accept="image/*" capture="environment" hidden>
         <div id="messengerRecordingBar" class="messenger-recording-bar" hidden>
           <span class="messenger-recording-dot" aria-hidden="true"></span>
           <strong id="messengerRecordingTime">0:00</strong>
