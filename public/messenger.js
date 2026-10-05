@@ -164,7 +164,7 @@
   }
 
   async function writeConversationCache(){
-    if(!state.actor||!state.aesKey) return false;
+    if(!state.actor) return false;
     const rows=(Array.isArray(state.rows)?state.rows:[])
       .filter(row=>row&&!row._pending)
       .slice(-30);
@@ -176,7 +176,7 @@
           id:'conversation:'+state.actor,
           actor:state.actor,
           partner:state.partner,
-          aesKey:state.aesKey,
+          aesKey:state.aesKey||null,
           keys:state.keys||{},
           rows,
           updatedAt:new Date().toISOString()
@@ -189,7 +189,7 @@
   }
 
   function scheduleConversationCachePersist(){
-    if(!state.actor||!state.aesKey) return;
+    if(!state.actor) return;
     clearTimeout(state.cachePersistTimer);
     state.cachePersistTimer=setTimeout(()=>{
       state.cachePersistTimer=0;
@@ -307,14 +307,12 @@
       const actor=localMessengerActor();
       if(!actor) return false;
       const cached=await readConversationCache(actor).catch(()=>null);
-      if(!cached||cached.actor!==actor||!cached.aesKey||!Array.isArray(cached.rows)) return false;
+      if(!cached||cached.actor!==actor||!Array.isArray(cached.rows)) return false;
 
       state.actor=actor;
       state.partner=actor==='Рустам'?'Диана':'Рустам';
-      state.identity=await ensureIdentity(actor);
       state.keys=cached.keys&&typeof cached.keys==='object'?cached.keys:{};
-      state.aesKey=cached.aesKey;
-      await refreshLegacyAesKey();
+      state.aesKey=cached.aesKey||null;
 
       state.rows=mergePendingRows(cached.rows);
       const unread=state.rows.filter(row=>rowUnreadForActor(row,actor)).length;
@@ -2620,7 +2618,7 @@
         if(!String(payload.text||'').trim()) text.hidden=true;
       }else{
         text.classList.add('is-unavailable');
-        text.textContent=state.aesKey?'Не удалось расшифровать сообщение':'Защищённое сообщение';
+        text.textContent='Сообщение недоступно';
       }
       bubble.appendChild(text);
 
@@ -2804,7 +2802,6 @@
           state.actor=actor;
           state.partner=actor==='Рустам'?'Диана':'Рустам';
         }
-        await ensureKeys(data).catch(error=>console.warn('RUDI_MESSENGER_LEGACY_KEY_WARN',String(error?.message||error)));
         state.keys=data.keys||state.keys;
         state.partnerTyping=Boolean(data.partnerTyping);
         state.partnerPresence=data.partnerPresence||null;
