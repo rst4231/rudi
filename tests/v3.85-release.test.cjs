@@ -44,7 +44,8 @@ test('v3.85 task responsibility and stars are protected',()=>{
   const tick=read('api/ticktick-client.cjs');
   assert.match(app,/Ответственные Рустам и Диана/);
   assert.match(app,/incomingVersion>=currentVersion/);
-  assert.match(api,/responsible === 'Рустам' \? 'RST' : 'Ди'/);
+  assert.match(app,/acceptScoreState\(payload\.score\)/);
+  assert.match(api,/responsible==='Рустам'\?'RST':'Ди'/);
   assert.match(tick,/assigneeUsername/);
 });
 
