@@ -43,11 +43,11 @@ test('v3.91 resolves modern iCloud albums through CloudKit and returns original 
         {recordType:'CPLMaster',recordName:'master-1',fields:{
           itemType:{value:'public.heic'},
           filenameEnc:{value:Buffer.from('sts.heic').toString('base64')},
-          resJPEGThumbRes:{value:{downloadURL:'https://cdn.test/thumb/\${f}'}},
+          resJPEGThumbRes:{value:{downloadURL:'https://cdn.test/thumb/${f}'}},
           resJPEGThumbWidth:{value:320},resJPEGThumbHeight:{value:426},
-          resJPEGLargeRes:{value:{downloadURL:'https://cdn.test/large/\${f}'}},
+          resJPEGLargeRes:{value:{downloadURL:'https://cdn.test/large/${f}'}},
           resJPEGLargeWidth:{value:1600},resJPEGLargeHeight:{value:2133},
-          resOriginalRes:{value:{downloadURL:'https://cdn.test/original/\${f}'}},
+          resOriginalRes:{value:{downloadURL:'https://cdn.test/original/${f}'}},
           resOriginalWidth:{value:3024},resOriginalHeight:{value:4032}
         }},
         {recordType:'CPLAsset',recordName:'asset-1',fields:{
