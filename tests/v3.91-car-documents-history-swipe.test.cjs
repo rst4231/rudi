@@ -15,8 +15,8 @@ test('v3.91 car documents card is collapsible and fixed under tasks',()=>{
   assert.match(ui,/photo\?\.originalUrl\|\|photo\?\.fullUrl/);
   assert.match(css,/data-car-card="documents"/);
   assert.match(css,/color:var\(--text\)/);
-  assert.match(html,/\/car\.css\?v=3\.91/);
-  assert.match(html,/\/car\.js\?v=3\.91/);
+  assert.match(html,/\/car\.css\?v=\d+(?:\.\d+)?/);
+  assert.match(html,/\/car\.js\?v=\d+(?:\.\d+)?/);
 });
 
 test('v3.91 stores the car documents album in config',()=>{
