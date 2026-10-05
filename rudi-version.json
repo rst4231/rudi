@@ -1,9 +1,9 @@
 {
   "current": "v3.90",
   "versionBranch": "rudi-recipe-sweet-savory-filters",
-  "releaseCommit": "",
-  "deploymentSourceCommit": "",
-  "deploymentRequestedAt": "",
+  "releaseCommit": "4952e303320af5a9aa7cca78b3c08fc25bf0706d",
+  "deploymentSourceCommit": "7a9bcfb7242fbf8269fd12a62f6ca77b5ea99a9c",
+  "deploymentRequestedAt": "2026-10-05T20:02:24.099Z",
   "createdAt": "2026-10-05",
   "basedOnProduction": "v3.88",
   "notes": [
