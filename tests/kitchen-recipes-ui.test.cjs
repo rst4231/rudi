@@ -19,11 +19,20 @@ test('Kitchen tab exposes separate Products and recipe blocks', () => {
 test('recipe generator has manual ingredients and all requested selectors', () => {
   assert.match(html, /id="recipeIngredients"/);
   for (const value of ['oven','stove','multicooker']) assert.match(html, new RegExp('data-recipe-equipment="' + value + '"'));
-  for (const value of ['breakfast','lunch','dinner']) assert.match(html, new RegExp('data-recipe-meal="' + value + '"'));
+  for (const value of ['breakfast','lunch','snack','dinner']) assert.match(html, new RegExp('data-recipe-meal="' + value + '"'));
   for (const value of ['russian','italian','mexican','georgian']) assert.match(html, new RegExp('data-recipe-cuisine="' + value + '"'));
   for (const value of ['5','10','15','30','45']) assert.match(html, new RegExp('data-recipe-time="' + value + '"'));
   assert.match(js, /timeMinutes:Number\(recipeChoiceValue\('data-recipe-time'\)\|\|15\)/);
   assert.match(html, /id="recipeGenerate"/);
+});
+
+test('breakfast and snack expose sweet and savory taste filters', () => {
+  assert.match(html, /id="recipeTasteGroup"[^>]*hidden/);
+  assert.match(html, /id="recipeTasteChoices"/);
+  assert.match(js, /RECIPE_TASTES_BY_MEAL=\{[\s\S]*?breakfast:[\s\S]*?sweet[\s\S]*?savory[\s\S]*?snack:[\s\S]*?sweet[\s\S]*?savory/);
+  assert.match(js, /fieldset\.hidden=true/);
+  assert.match(js, /taste:recipeChoiceValue\('data-recipe-taste'\)/);
+  assert.match(js, /currentRecipeContext\.taste=renderRecipeTasteChoices/);
 });
 
 test('Kitchen blocks use persistent RUDI collapse state', () => {
