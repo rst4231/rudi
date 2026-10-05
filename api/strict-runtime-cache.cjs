@@ -51,6 +51,15 @@ function createStrictRuntimeCache(options = {}) {
       return client.remove(namespace, String(key));
     },
 
+    async list() {
+      const rows = await client.list(namespace);
+      return (Array.isArray(rows) ? rows : []).filter((row) => {
+        if (!row?.expires_at) return true;
+        const expiresAt = Date.parse(row.expires_at);
+        return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+      });
+    },
+
     async expireTag(tag) {
       await client.expireTag(namespace, String(tag || ''));
       return true;
