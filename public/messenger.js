@@ -153,7 +153,7 @@
     if(!state.actor||!state.aesKey) return false;
     const rows=(Array.isArray(state.rows)?state.rows:[])
       .filter(row=>row&&!row._pending)
-      .slice(-256);
+      .slice(-30);
     const db=await openDb();
     try{
       await new Promise((resolve,reject)=>{
