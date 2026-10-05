@@ -693,7 +693,12 @@
   function readMessengerOutbox(){
     try{
       const rows=JSON.parse(localStorage.getItem(OUTBOX_KEY)||'[]');
-      return (Array.isArray(rows)?rows:[]).filter(row=>row&&row.clientId&&row.ciphertext&&row.iv).slice(-64);
+      return (Array.isArray(rows)?rows:[]).filter(row=>{
+        if(!row||!row.clientId) return false;
+        return String(row.scheme||'')==='plain-v3'
+          ?Boolean(row.payload&&typeof row.payload==='object')
+          :Boolean(row.ciphertext&&row.iv);
+      }).slice(-64);
     }catch(_){return []}
   }
 
@@ -721,10 +726,11 @@
       id:'pending:'+String(entry.clientId||''),
       clientId:String(entry.clientId||''),
       sender:state.actor,
-      scheme:'shared-v2',
-      ciphertext:String(entry.ciphertext||''),
-      iv:String(entry.iv||''),
-      keyVersions:entry.keyVersions||{},
+      scheme:String(entry?.scheme||'plain-v3'),
+      payload:entry?.payload&&typeof entry.payload==='object'?entry.payload:null,
+      ciphertext:String(entry?.ciphertext||''),
+      iv:String(entry?.iv||''),
+      keyVersions:entry?.keyVersions||{},
       createdAt,
       expiresAt:new Date((Number.isFinite(createdMs)?createdMs:Date.now())+24*60*60*1000).toISOString(),
       deliveredAt:'',
@@ -2697,7 +2703,8 @@
     const results=await Promise.all((Array.isArray(rows)?rows:[]).map(async row=>{
       const local=optimisticPayloads.get(String(row?.id||''));
       if(local) return [row.id,local];
-      if(!state.aesKey&&!state.legacyAesKey) return null;
+      const plain=String(row?.scheme||'')==='plain-v3';
+      if(!plain&&!state.aesKey&&!state.legacyAesKey) return null;
       try{return [row.id,await decryptRow(row)]}catch(_){return null}
     }));
     for(const result of results){
@@ -2792,7 +2799,12 @@
       try{
         if(status){status.hidden=true;status.textContent=''}
         const data=await api('messenger-list');
-        await ensureKeys(data);
+        const actor=String(data?.actor||state.actor||'');
+        if(['Рустам','Диана'].includes(actor)){
+          state.actor=actor;
+          state.partner=actor==='Рустам'?'Диана':'Рустам';
+        }
+        await ensureKeys(data).catch(error=>console.warn('RUDI_MESSENGER_LEGACY_KEY_WARN',String(error?.message||error)));
         state.keys=data.keys||state.keys;
         state.partnerTyping=Boolean(data.partnerTyping);
         state.partnerPresence=data.partnerPresence||null;
@@ -2811,15 +2823,6 @@
         if(status){status.hidden=true;status.textContent=''}
 
         if(markRead) scheduleVisibleRead();
-        setTimeout(async()=>{
-          const source=state.rows.filter(row=>!row._pending);
-          const repaired=await repairLegacyMessages(source);
-          if(repaired===source||rowsSignature(repaired)===rowsSignature(source)) return;
-          const repairedById=new Map(repaired.map(row=>[row.id,row]));
-          state.rows=state.rows.map(row=>repairedById.get(row.id)||row);
-          await decryptMessages(state.rows);
-          renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
-        },0);
         setTimeout(()=>flushMessengerOutbox(),0);
         return data;
       }catch(error){
@@ -2901,7 +2904,7 @@
     if(lock){
       lock.textContent=state.partnerPresence?.online
         ?'в RUDI сейчас'
-        :(compactPartnerStatus()||(state.aesKey?'🔒 Защищённый чат':'🔒 Получаю ключ чата'));
+        :(compactPartnerStatus()||'Чат RUDI');
     }
     syncHeaderAvatar();
   }
@@ -2920,14 +2923,14 @@
   function rowsSignature(rows){
     return (Array.isArray(rows)?rows:[]).map(row=>[
       row.id,row.clientId,row.deliveredAt,row.readAt,row.editedAt,row._pending?'pending':'',row._failed?'failed':'',
-      row.scheme,row.iv,row.ciphertext,
+      row.scheme,row.iv,row.ciphertext,JSON.stringify(row.payload||null),
       JSON.stringify(row.systemRecipients||[]),JSON.stringify(row.systemReadBy||[]),
       JSON.stringify(reactionStateForRow(row))
     ].join(':')).join('|');
   }
 
   async function syncLiveMessages(){
-    if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden'||state.loading||!state.messagesLoaded||!state.aesKey||state.liveSyncInFlight) return;
+    if(document.body.dataset.appTab!=='messenger'||document.visibilityState==='hidden'||state.loading||!state.messagesLoaded||state.liveSyncInFlight) return;
     const now=Date.now();
     if(now-Number(state.lastLiveSyncAt||0)<700) return;
     state.lastLiveSyncAt=now;
@@ -3233,15 +3236,15 @@
     if(!rows.length) return;
     state.retrying=true;
     try{
-      await ensureKeys();
       for(const entry of rows){
         try{
           const result=await api('messenger-send',{
             clientId:entry.clientId,
-            scheme:'shared-v2',
-            ciphertext:entry.ciphertext,
-            iv:entry.iv,
-            keyVersions:entry.keyVersions,
+            scheme:String(entry.scheme||'plain-v3'),
+            payload:entry.payload||null,
+            ciphertext:entry.ciphertext||'',
+            iv:entry.iv||'',
+            keyVersions:entry.keyVersions||{},
             preview:entry.preview,
             avatarUrl:entry.avatarUrl,
             cycleAdviceEligible:entry.cycleAdviceEligible===true,
@@ -3331,17 +3334,10 @@
   }
 
   async function sendAttachmentMessage(attachment,preview){
-    await ensureKeys();
-    if(!state.aesKey) throw new Error('messenger-shared-key-missing');
     const payload={text:'',reply:state.reply?{...state.reply}:null,attachment};
-    const encrypted=await encryptPayload(payload);
-    const keyVersions={
-      'Рустам':Number(state.keys?.['Рустам']?.version||0),
-      'Диана':Number(state.keys?.['Диана']?.version||0)
-    };
     const clientId='client-'+crypto.randomUUID();
     const createdAt=new Date().toISOString();
-    const entry={clientId,scheme:'shared-v2',...encrypted,keyVersions,preview:String(preview||'Новое сообщение').slice(0,120),avatarUrl:selfAvatarUrl(),createdAt,failed:false};
+    const entry={clientId,scheme:'plain-v3',payload,keyVersions:{},preview:String(preview||'Новое сообщение').slice(0,120),avatarUrl:selfAvatarUrl(),createdAt,failed:false};
     upsertMessengerOutbox(entry);
     const pending=pendingRowFromOutbox(entry);
     state.rows=[...state.rows,pending].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
@@ -3349,7 +3345,7 @@
     state.justSentId=pending.id;
     state.nearBottom=true;
     renderMessages({forceBottom:true});
-    const result=await api('messenger-send',{clientId,scheme:'shared-v2',...encrypted,keyVersions,preview:entry.preview,avatarUrl:entry.avatarUrl});
+    const result=await api('messenger-send',{clientId,scheme:'plain-v3',payload,keyVersions:{},preview:entry.preview,avatarUrl:entry.avatarUrl});
     reconcileSentMessage(entry,result?.message);
     return result?.message||null;
   }
@@ -3361,12 +3357,7 @@
       const corrected=String((await api('messenger-correct',{text:original}))?.text||'').trim();
       if(!corrected||corrected===original) return;
       const correctedPayload={...payload,text:corrected};
-      const encrypted=await encryptPayload(correctedPayload);
-      const keyVersions={
-        'Рустам':Number(state.keys?.['Рустам']?.version||0),
-        'Диана':Number(state.keys?.['Диана']?.version||0)
-      };
-      const result=await api('messenger-edit',{id:messageId,scheme:'shared-v2',...encrypted,keyVersions,silent:true});
+      const result=await api('messenger-edit',{id:messageId,scheme:'plain-v3',payload:correctedPayload,keyVersions:{},silent:true});
       if(result?.message){
         state.rows=state.rows.map(row=>row.id===messageId?result.message:row);
         state.decrypted.set(messageId,correctedPayload);
@@ -3702,7 +3693,7 @@
         :(replySnapshot?{...replySnapshot}:null)
     };
 
-    // Edit: update the existing bubble immediately, then encrypt/send in background.
+    // Edit: update locally first, then persist the plain payload in background.
     if(editSnapshot?.id){
       const editId=String(editSnapshot.id);
       const previousRow=state.rows.find(row=>String(row?.id||'')===editId)||null;
@@ -3731,14 +3722,7 @@
       keepKeyboardAtLatest();
 
       try{
-        await ensureKeys();
-        if(!state.aesKey) throw new Error('messenger-shared-key-missing');
-        const encrypted=await encryptPayload(payload);
-        const keyVersions={
-          'Рустам':Number(state.keys?.['Рустам']?.version||0),
-          'Диана':Number(state.keys?.['Диана']?.version||0)
-        };
-        const result=await api('messenger-edit',{id:editId,scheme:'shared-v2',...encrypted,keyVersions});
+        const result=await api('messenger-edit',{id:editId,scheme:'plain-v3',payload,keyVersions:{}});
         state.optimisticEdits.delete(editId);
         if(result?.message){
           state.rows=state.rows.map(row=>String(row?.id||'')===editId?result.message:row);
@@ -3764,7 +3748,7 @@
       return;
     }
 
-    // New message: paint the bubble before key lookup, encryption or network.
+    // New message: paint the bubble before the network request.
     const clientId='client-'+crypto.randomUUID();
     const createdAt=new Date().toISOString();
     const optimisticRow=pendingRowFromOutbox({
@@ -3799,18 +3783,11 @@
 
     let entry=null;
     try{
-      await ensureKeys();
-      if(!state.aesKey) throw new Error('messenger-shared-key-missing');
-      const encrypted=await encryptPayload(payload);
-      const keyVersions={
-        'Рустам':Number(state.keys?.['Рустам']?.version||0),
-        'Диана':Number(state.keys?.['Диана']?.version||0)
-      };
       entry={
         clientId,
-        scheme:'shared-v2',
-        ...encrypted,
-        keyVersions,
+        scheme:'plain-v3',
+        payload,
+        keyVersions:{},
         preview:text.slice(0,120),
         avatarUrl:selfAvatarUrl(),
         cycleAdviceEligible:state.actor==='Рустам',
@@ -3819,17 +3796,17 @@
       };
       upsertMessengerOutbox(entry);
       state.optimisticComposeRows.delete(clientId);
-      const encryptedPending=pendingRowFromOutbox(entry);
-      state.rows=state.rows.map(row=>String(row?.clientId||'')===clientId?encryptedPending:row);
-      state.decrypted.set(encryptedPending.id,payload);
-      patchMessageStatus(encryptedPending);
+      const persistedPending=pendingRowFromOutbox(entry);
+      state.rows=state.rows.map(row=>String(row?.clientId||'')===clientId?persistedPending:row);
+      state.decrypted.set(persistedPending.id,payload);
+      patchMessageStatus(persistedPending);
       scheduleConversationCachePersist();
 
       const result=await api('messenger-send',{
         clientId,
-        scheme:'shared-v2',
-        ...encrypted,
-        keyVersions,
+        scheme:'plain-v3',
+        payload,
+        keyVersions:{},
         preview:entry.preview,
         avatarUrl:entry.avatarUrl,
         cycleAdviceEligible:entry.cycleAdviceEligible===true,
@@ -3856,7 +3833,7 @@
         updateComposerAction();
         if(status){
           status.hidden=false;
-          status.textContent='Не удалось подготовить защищённое сообщение. Текст вернул в поле ввода.';
+          status.textContent='Не удалось отправить сообщение. Текст вернул в поле ввода.';
         }
       }
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
