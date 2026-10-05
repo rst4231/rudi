@@ -12530,11 +12530,6 @@ html:not([data-theme="dark"]) .app-tabbar{
 .home-activity-notifications-panel .home-activity-row:active{transform:none!important}
 /* end RUDI activity bell read-state hardening */
 
-/* RUDI v3.34 messenger navigation */
-.messenger-tab-icon{position:relative}
-#messengerTabBadge.app-tab-notification{top:-2px;right:-3px;min-width:7px;width:auto;height:7px;padding:0 2px;font-size:0}
-/* end RUDI v3.34 messenger navigation */
-
 /* RUDI v3.37 — actionable notifications + separate history */
 .home-activity-notifications-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:1px 2px 7px}
 .home-activity-notifications-head .home-activity-notifications-title{padding:0}
