@@ -51,18 +51,42 @@ function close(){
 function setupEdgeSwipeBack(page){
   if(!page||page.dataset.edgeSwipeBound==='1')return;
   page.dataset.edgeSwipeBound='1';
-  let tracking=false,startX=0,startY=0;
-  const reset=()=>{tracking=false;startX=startY=0};
-  page.addEventListener('pointerdown',e=>{
-    if(page.hidden||e.clientX>32||(e.pointerType==='mouse'&&e.button!==0))return;
-    tracking=true;startX=e.clientX;startY=e.clientY;
-  },{passive:true});
-  page.addEventListener('pointerup',e=>{
+  const START_ZONE=72,MIN_DISTANCE=48,DIRECTION_RATIO=1.08;
+  let tracking=false,startX=0,startY=0,lastX=0,lastY=0;
+  const reset=()=>{tracking=false;startX=startY=lastX=lastY=0};
+  const begin=(x,y)=>{
+    if(page.hidden||Number(x)>START_ZONE)return false;
+    tracking=true;startX=lastX=Number(x)||0;startY=lastY=Number(y)||0;
+    return true;
+  };
+  const move=(x,y)=>{if(!tracking)return;lastX=Number(x)||lastX;lastY=Number(y)||lastY};
+  const finish=(x=lastX,y=lastY)=>{
     if(!tracking)return;
-    const dx=e.clientX-startX,dy=Math.abs(e.clientY-startY);
+    const dx=(Number(x)||lastX)-startX,dy=Math.abs((Number(y)||lastY)-startY);
     reset();
-    if(dx>=70&&dx>=dy*1.35)close();
+    if(dx>=MIN_DISTANCE&&dx>=dy*DIRECTION_RATIO)close();
+  };
+
+  page.addEventListener('touchstart',e=>{
+    if(e.touches?.length!==1)return;
+    const touch=e.touches[0];begin(touch.clientX,touch.clientY);
+  },{passive:true,capture:true});
+  page.addEventListener('touchmove',e=>{
+    if(!tracking||e.touches?.length!==1)return;
+    const touch=e.touches[0];move(touch.clientX,touch.clientY);
+  },{passive:true,capture:true});
+  page.addEventListener('touchend',e=>{
+    if(!tracking)return;
+    const touch=e.changedTouches?.[0];finish(touch?.clientX,touch?.clientY);
+  },{passive:true,capture:true});
+  page.addEventListener('touchcancel',reset,{passive:true,capture:true});
+
+  page.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='touch'||(e.pointerType==='mouse'&&e.button!==0))return;
+    begin(e.clientX,e.clientY);
   },{passive:true});
+  page.addEventListener('pointermove',e=>{if(e.pointerType!=='touch')move(e.clientX,e.clientY)},{passive:true});
+  page.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')finish(e.clientX,e.clientY)},{passive:true});
   page.addEventListener('pointercancel',reset,{passive:true});
 }
 

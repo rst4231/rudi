@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v3.90">
+  <meta name="rudi-version" content="v3.91">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,14 +27,14 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=3.90">
+  <link rel="stylesheet" href="/app.css?v=3.91">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
-  <link rel="stylesheet" href="/mood-history-v2101.css?v=3.90">
+  <link rel="stylesheet" href="/mood-history-v2101.css?v=3.91">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
   <link rel="stylesheet" href="/pwa-extras.css?v=3.60">
   <link rel="stylesheet" href="/calendar.css?v=3.60">
   <link rel="stylesheet" href="/smart-home.css?v=3.60">
-  <link rel="stylesheet" href="/car.css?v=3.70">
+  <link rel="stylesheet" href="/car.css?v=3.91">
   <link rel="stylesheet" href="/profile-supplements.css?v=3.60">
   <link rel="stylesheet" href="/supplement-advanced.css?v=3.60">
   <script>
@@ -64,13 +64,13 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=3.90"></script>
+  <script defer src="/app.js?v=3.91"></script>
   <script defer src="/pwa-extras.js?v=3.60"></script>
   <script defer src="/weather.js?v=3.60"></script>
   <script defer src="/smart-home.js?v=3.60"></script>
-  <script defer src="/car.js?v=3.69"></script>
+  <script defer src="/car.js?v=3.91"></script>
   <script defer src="/profile-supplements.js?v=3.60"></script>
-  <script defer src="/mood-history.js?v=3.90"></script>
+  <script defer src="/mood-history.js?v=3.91"></script>
   <script defer src="/supplement-editor.js?v=3.60"></script>
   <script defer src="/supplement-advanced.js?v=3.60"></script>
 </head>
@@ -613,6 +613,20 @@
             <span id="carTasksMeta" class="car-tasks-meta"></span>
           </div>
           <div id="carTasksList" class="car-tasks-list"></div>
+        </section>
+
+        <section class="car-documents" aria-labelledby="carDocumentsTitle">
+          <div class="car-section-head">
+            <div class="car-section-title">
+              <span class="car-section-icon is-document" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M7 3.5h7l3 3v14H7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3.5v4h4M9.5 11h5M9.5 14.5h5M9.5 18h3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </span>
+              <strong id="carDocumentsTitle">Автодокументы</strong>
+            </div>
+            <span id="carDocumentsMeta" class="car-documents-meta"></span>
+          </div>
+          <div id="carDocumentsStatus" class="car-documents-status">Открой раздел, чтобы загрузить документы</div>
+          <div id="carDocumentsGrid" class="car-documents-grid"></div>
         </section>
 
         <section class="car-notes" aria-labelledby="carNotesTitle">
@@ -1374,14 +1388,14 @@
           <span>Задача</span>
           <input id="ticktickTaskTitleInput" type="text" maxlength="500" autocomplete="off" placeholder="Например: купить продукты" required>
         </label>
-        <div class="ticktick-task-field-row">
+        <div class="ticktick-task-field-row ticktick-task-date-time-row">
           <label class="ticktick-task-field">
             <span>Дата</span>
             <input id="ticktickTaskDateInput" type="date" required>
           </label>
           <label class="ticktick-task-field">
             <span>Время</span>
-            <input id="ticktickTaskTimeInput" type="time">
+            <input id="ticktickTaskTimeInput" type="time" value="08:00">
           </label>
         </div>
         <label class="ticktick-task-field">

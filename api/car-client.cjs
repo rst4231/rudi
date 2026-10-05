@@ -6,6 +6,8 @@ const { readCarState, writeMileage, setTyreSeasonInstalled, setLastServiceAt, ad
 const { readToken } = require('./ticktick-store.cjs');
 const { fetchProjectData, createTickTickTask, completeTickTickTask, tickTickTaskDateKey } = require('./ticktick-client.cjs');
 const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
+const { getLatestPhotos } = require('./shared-album.cjs');
+const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
 const CONFIG_TTL_MS = 5 * 60 * 1000;
@@ -31,6 +33,7 @@ let configMemo = null;
 let configMemoAt = 0;
 let tasksMemo = null;
 let tasksMemoAt = 0;
+const carDocumentsAlbumCache = createStrictRuntimeCache({ namespace:'rudi-car-documents-album-v1' });
 
 function authenticate(rawInitData, botToken) {
   const raw = String(rawInitData || '').trim();
@@ -148,11 +151,13 @@ function normalizeCarTaskConfig(value) {
     .filter(Boolean)
     .slice(0,20);
   const taskLimit = Math.min(6,Math.max(1,Number(source.taskLimit) || FALLBACK_CAR_TASK_CONFIG.taskLimit));
+  const documentsAlbumUrl = String(source.documentsAlbumUrl || '').trim();
   return {
     ticktickProjectId:projectId,
     taskKeywords:keywords,
     taskColumnKeywords:columnKeywords,
     taskLimit,
+    documentsAlbumUrl,
     priority:normalizeCarPriorityConfig(source.priority),
   };
 }
@@ -368,6 +373,46 @@ async function carTasksSafe() {
   }
 }
 
+async function carDocumentsSafe(config) {
+  const albumUrl=String(config?.documentsAlbumUrl||'').trim();
+  if(!albumUrl) return { configured:false, photos:[], totalCount:0, albumUrl:'' };
+  try{
+    const result=await getLatestPhotos({
+      albumConfig:{url:albumUrl},
+      albumCache:carDocumentsAlbumCache,
+    });
+    const photos=(Array.isArray(result?.photos)?result.photos:[])
+      .filter(photo=>String(photo?.type||'image')!=='video')
+      .map(photo=>({
+        id:String(photo?.id||''),
+        url:String(photo?.url||''),
+        fullUrl:String(photo?.fullUrl||photo?.url||''),
+        originalUrl:String(photo?.originalUrl||photo?.fullUrl||photo?.url||''),
+        width:Number(photo?.width||0)||null,
+        height:Number(photo?.height||0)||null,
+        fullWidth:Number(photo?.fullWidth||0)||null,
+        fullHeight:Number(photo?.fullHeight||0)||null,
+        originalWidth:Number(photo?.originalWidth||photo?.fullWidth||0)||null,
+        originalHeight:Number(photo?.originalHeight||photo?.fullHeight||0)||null,
+        date:String(photo?.date||''),
+        caption:String(photo?.caption||'').trim(),
+      }))
+      .filter(photo=>photo.url&&photo.fullUrl);
+    return {
+      configured:true,
+      photos,
+      totalCount:photos.length,
+      albumUrl:String(result?.albumUrl||albumUrl),
+      title:String(result?.title||'Автодокументы'),
+      stale:Boolean(result?.stale),
+      updatedAt:String(result?.updatedAt||''),
+    };
+  }catch(error){
+    console.warn('RUDI_CAR_DOCUMENTS_WARN',String(error?.message||error));
+    return { configured:true, photos:[], totalCount:0, albumUrl, error:true };
+  }
+}
+
 async function handleCarRequest(req, res) {
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
   if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
@@ -409,6 +454,12 @@ async function handleCarRequest(req, res) {
     }catch(_){}
   }
   try {
+    if (operation === 'documents') {
+      const config=await loadCarTaskConfig();
+      const documents=await carDocumentsSafe(config);
+      return res.status(200).json({ok:true,actor:session.actor,visible:true,documents});
+    }
+
     if (operation === 'get') {
       const [state,tasks] = await Promise.all([readCarState(),carTasksSafe()]);
       const config = await loadCarTaskConfig();
