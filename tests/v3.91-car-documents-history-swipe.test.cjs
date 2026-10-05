@@ -38,8 +38,8 @@ test('v3.91 resolves modern iCloud albums through CloudKit and returns original 
         share:{fields:{'cloudkit.title':{value:'Автодокументы'}}}
       }]}),{status:200,headers:{'content-type':'application/json'}});
     }
-    if(value.includes('/shared/records/query')){
-      return new Response(JSON.stringify({records:[
+    if(value.includes('/shared/changes/zone')){
+      return new Response(JSON.stringify({zones:[{records:[
         {recordType:'CPLMaster',recordName:'master-1',fields:{
           itemType:{value:'public.heic'},
           filenameEnc:{value:Buffer.from('sts.heic').toString('base64')},
@@ -54,7 +54,7 @@ test('v3.91 resolves modern iCloud albums through CloudKit and returns original 
           masterRef:{value:{recordName:'master-1'}},
           assetDate:{value:Date.parse('2026-10-01T12:00:00Z')}
         }}
-      ]}),{status:200,headers:{'content-type':'application/json'}});
+      ],moreComing:false,syncToken:'done'}]}),{status:200,headers:{'content-type':'application/json'}});
     }
     throw new Error('unexpected '+value);
   };
