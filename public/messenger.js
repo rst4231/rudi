@@ -3029,6 +3029,125 @@
   }
 
 
+  async function applyRealtimeEnvelope(data){
+    const event=String(data?.event||'');
+    const payload=data?.payload&&typeof data.payload==='object'?data.payload:{};
+    if(!event) return false;
+
+    if(event==='message'&&payload.message){
+      const row=payload.message;
+      if(!rowVisibleForActor(row)) return true;
+      const list=document.getElementById('messengerMessages');
+      const wasNearBottom=isMessagesNearBottom(list);
+      const id=String(row?.id||'');
+      const clientId=String(row?.clientId||'');
+      const known=state.rows.some(item=>String(item?.id||'')===id||(clientId&&String(item?.clientId||'')===clientId));
+      state.rows=state.rows
+        .filter(item=>String(item?.id||'')!==id&&(!clientId||String(item?.clientId||'')!==clientId))
+        .concat(row)
+        .sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+      if(clientId){
+        state.optimisticComposeRows.delete(clientId);
+        state.optimisticSystemRows.delete(clientId);
+        removeMessengerOutbox(clientId);
+      }
+      try{state.decrypted.set(id,await decryptRow(row))}catch(_){}
+      setUnread(state.rows.filter(item=>rowUnreadForActor(item)).length);
+      if(!state.unreadBoundaryId&&rowUnreadForActor(row)) state.unreadBoundaryId=id;
+      renderMessages({preserveScrollTop:wasNearBottom?null:Number(list?.scrollTop||0),forceBottom:wasNearBottom});
+      scheduleConversationCachePersist();
+      if(row.sender!==state.actor&&!known){
+        if(!wasNearBottom){
+          state.newBelowCount+=1;
+          state.nearBottom=false;
+          updateJumpLatest();
+        }
+        triggerForegroundMessageHaptic();
+      }
+      scheduleVisibleRead();
+      return true;
+    }
+
+    if(event==='reaction'&&payload.message){
+      const row=payload.message;
+      const id=String(row?.id||'');
+      if(!id||!state.rows.some(item=>String(item?.id||'')===id)) return false;
+      state.reactionOverrides.delete(id);
+      state.rows=state.rows.map(item=>String(item?.id||'')===id?row:item);
+      patchMessageReactions(row,{animate:true});
+      scheduleConversationCachePersist();
+      return true;
+    }
+
+    if(event==='edit'&&payload.message){
+      const row=payload.message;
+      const id=String(row?.id||'');
+      if(!id||!state.rows.some(item=>String(item?.id||'')===id)) return false;
+      const list=document.getElementById('messengerMessages');
+      const top=Number(list?.scrollTop||0);
+      state.rows=state.rows.map(item=>String(item?.id||'')===id?row:item);
+      try{state.decrypted.set(id,await decryptRow(row))}catch(_){}
+      renderMessages({preserveScrollTop:top});
+      scheduleConversationCachePersist();
+      return true;
+    }
+
+    if(event==='delete'){
+      const id=String(payload?.id||'');
+      if(!id) return false;
+      const list=document.getElementById('messengerMessages');
+      const top=Number(list?.scrollTop||0);
+      state.rows=state.rows.filter(item=>String(item?.id||'')!==id);
+      state.decrypted.delete(id);
+      state.reactionOverrides.delete(id);
+      state.renderedIds.delete(id);
+      setUnread(state.rows.filter(item=>rowUnreadForActor(item)).length);
+      renderMessages({preserveScrollTop:top});
+      scheduleConversationCachePersist();
+      return true;
+    }
+
+    if(event==='typing'){
+      if(String(payload?.actor||'')===state.partner){
+        state.partnerTyping=Boolean(payload?.active);
+        renderTypingIndicator({autoScroll:isMessagesNearBottom(document.getElementById('messengerMessages'))});
+      }
+      return true;
+    }
+
+    if(event==='presence'){
+      if(String(payload?.actor||'')===state.partner){
+        state.partnerPresence=payload?.presence||null;
+        updateHeader();
+      }
+      return true;
+    }
+
+    if(event==='read'){
+      if(String(payload?.actor||'')!==state.partner) return true;
+      const ids=new Set((Array.isArray(payload?.ids)?payload.ids:[]).map(value=>String(value||'')));
+      if(!ids.size) return false;
+      const before=state.rows;
+      const readAt=new Date().toISOString();
+      const after=before.map(row=>{
+        if(!ids.has(String(row?.id||''))) return row;
+        const recipients=Array.isArray(row?.systemRecipients)?row.systemRecipients:[];
+        if(recipients.length){
+          return {...row,systemReadBy:[...new Set([...(Array.isArray(row.systemReadBy)?row.systemReadBy:[]),state.partner])]};
+        }
+        if(row?.sender===state.actor&&!row?.readAt) return {...row,readAt};
+        return row;
+      });
+      state.rows=after;
+      if(canPatchRenderedRows(before,after)) patchRenderedMessageChrome(before,after);
+      else renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+      scheduleConversationCachePersist();
+      return true;
+    }
+
+    return false;
+  }
+
   function realtimeIsOpen(){
     return Boolean(state.realtimeConnected&&state.realtimeSocket&&state.realtimeSocket.readyState===WebSocket.OPEN);
   }
@@ -3104,7 +3223,9 @@
           }
           if(data.type==='sync'){
             state.realtimeLastEventAt=Date.now();
-            syncLiveMessages();
+            Promise.resolve(applyRealtimeEnvelope(data))
+              .then(handled=>{if(!handled) syncLiveMessages()})
+              .catch(()=>syncLiveMessages());
           }
         };
         socket.onclose=()=>{
@@ -3135,7 +3256,7 @@
   }
 
   function liveSyncDelay(){
-    if(realtimeIsOpen()) return 15000;
+    if(realtimeIsOpen()) return 60000;
     if(state.partnerTyping) return 1100;
     if(state.partnerPresence?.online) return 1600;
     return 2400;
