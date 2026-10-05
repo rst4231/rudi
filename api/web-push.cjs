@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const webpush = require('web-push');
 const { readAppState, writeAppState } = require('./rudi-auth-db.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 
@@ -51,6 +52,7 @@ function vapidKeyMaterial(options = {}) {
   const privateKey = crypto.createPrivateKey({ key: privateJwk, format: 'jwk' });
   return {
     privateKey,
+    privateKeyString: privateScalar.toString('base64url'),
     publicKey: publicPoint.toString('base64url'),
   };
 }
@@ -92,6 +94,8 @@ function hashDeviceToken(value) {
 function normalizeSubscription(value) {
   const endpoint = String(value?.endpoint || '').trim();
   if (!/^https:\/\//i.test(endpoint) || endpoint.length > 4096) return null;
+  const p256dh = String(value?.keys?.p256dh || '').trim();
+  const auth = String(value?.keys?.auth || '').trim();
   return {
     id: crypto.createHash('sha256').update(endpoint).digest('base64url').slice(0, 24),
     endpoint,
@@ -100,6 +104,7 @@ function normalizeSubscription(value) {
     updatedAt: String(value?.updatedAt || ''),
     userAgent: String(value?.userAgent || '').slice(0, 240),
     deviceTokenHash: String(value?.deviceTokenHash || '').trim(),
+    keys: p256dh && auth ? { p256dh, auth } : null,
   };
 }
 
@@ -276,6 +281,38 @@ async function sendPushWake(endpoint, options = {}) {
   return { ok: Boolean(response?.ok), status: Number(response?.status || 0) };
 }
 
+async function sendPushPayload(subscription, notification, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  if (typeof fetchImpl !== 'function') throw new Error('push-fetch-unavailable');
+  const normalized = normalizeSubscription(subscription);
+  if (!normalized?.keys?.p256dh || !normalized?.keys?.auth) throw new Error('push-encryption-keys-missing');
+  const material = vapidKeyMaterial(options);
+  const details = webpush.generateRequestDetails(
+    {
+      endpoint: normalized.endpoint,
+      keys: normalized.keys,
+    },
+    JSON.stringify({ rudiPush: 1, notification }),
+    {
+      TTL: Math.max(0, Math.min(86400, Number(options.ttlSeconds || 300))),
+      urgency: String(options.urgency || 'normal'),
+      contentEncoding: 'aes128gcm',
+      vapidDetails: {
+        subject: VAPID_SUBJECT,
+        publicKey: material.publicKey,
+        privateKey: material.privateKeyString,
+      },
+    }
+  );
+  const response = await fetchImpl(details.endpoint, {
+    method: details.method || 'POST',
+    headers: details.headers,
+    body: details.body,
+  });
+  return { ok: Boolean(response?.ok), status: Number(response?.status || 0) };
+}
+
+
 async function sendPushNotification(actor, payload, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
@@ -288,7 +325,9 @@ async function sendPushNotification(actor, payload, options = {}) {
   const failures = [];
   for (const subscription of subscriptions) {
     try {
-      const result = await sendPushWake(subscription.endpoint, options);
+      const result = subscription?.keys?.p256dh && subscription?.keys?.auth
+        ? await sendPushPayload(subscription, notification, options)
+        : await sendPushWake(subscription.endpoint, options);
       if (result.ok) delivered += 1;
       else if (result.status === 404 || result.status === 410) expired.push(subscription.endpoint);
       else failures.push({ status: result.status, endpointId: subscription.id });
@@ -336,6 +375,7 @@ module.exports = {
   queuePushNotification,
   readPendingPushNotifications,
   sendPushWake,
+  sendPushPayload,
   sendPushNotification,
   stripTelegramHtml,
 };
