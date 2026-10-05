@@ -1,4 +1,4 @@
-const { createD1StateClient } = require('./d1-state-client.cjs');
+const { createRudiStateClient } = require('./rudi-state-client.cjs');
 
 const ACTORS = new Set(['Рустам', 'Диана']);
 const APP_STATE_FIELD = '__rudi_app_state';
@@ -63,12 +63,16 @@ function actorSlug(actor) {
   return normalizeActor(actor) === 'Диана' ? 'diana' : 'rustam';
 }
 
-function authD1Client(options = {}) {
-  return options.d1Client || createD1StateClient({
+function authStateClient(options = {}) {
+  return options.stateClient || createRudiStateClient({
     env: options.env || process.env,
     fetchImpl: options.fetchImpl || globalThis.fetch,
-    baseUrl: options.d1BaseUrl,
-    secret: options.d1Secret,
+    d1Client: options.d1Client,
+    vercelClient: options.vercelClient,
+    pool: options.pool,
+    connectionString: options.connectionString,
+    d1BaseUrl: options.d1BaseUrl,
+    d1Secret: options.d1Secret,
     timeoutMs: options.timeoutMs,
   });
 }
@@ -76,7 +80,7 @@ function authD1Client(options = {}) {
 async function readRawRecord(actor, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
-  const record = await authD1Client(options).getRecord(AUTH_NAMESPACE, safeActor);
+  const record = await authStateClient(options).getRecord(AUTH_NAMESPACE, safeActor);
   const row = record?.value;
   return row && typeof row === 'object' && !Array.isArray(row) ? row : null;
 }
@@ -90,7 +94,7 @@ async function writeRawRecord(actor, row, options = {}) {
   if (!safeActor) throw new Error('rudi-access-denied');
   const clean = row && typeof row === 'object' && !Array.isArray(row) ? { ...row, actor: safeActor } : null;
   if (!clean) throw new Error('rudi-auth-db-unavailable');
-  await authD1Client(options).setRecord({
+  await authStateClient(options).setRecord({
     namespace: AUTH_NAMESPACE,
     key: safeActor,
     value: clean,
