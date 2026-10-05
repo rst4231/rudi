@@ -7,11 +7,16 @@ const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
 test('v3.91 car documents card is collapsible and fixed under tasks',()=>{
   const ui=read('public/car.js');
   const html=read('public/index.html');
+  const css=read('public/car.css');
   assert.match(html,/id="carDocumentsTitle">Автодокументы/);
   assert.match(ui,/buildCarSmartCard\('documents','Автодокументы',documents\)/);
   assert.match(ui,/if\(documentsCard&&taskCard\) host\.insertBefore\(documentsCard,taskCard\.nextSibling\)/);
   assert.match(ui,/loadCarDocuments\(\)\.catch/);
-  assert.match(ui,/openCarDocumentOriginal/);
+  assert.match(ui,/photo\?\.originalUrl\|\|photo\?\.fullUrl/);
+  assert.match(css,/data-car-card="documents"/);
+  assert.match(css,/color:var\(--text\)/);
+  assert.match(html,/\/car\.css\?v=3\.91/);
+  assert.match(html,/\/car\.js\?v=3\.91/);
 });
 
 test('v3.91 stores the car documents album in config',()=>{
@@ -19,20 +24,48 @@ test('v3.91 stores the car documents album in config',()=>{
   assert.equal(cfg.car.documentsAlbumUrl,'https://photos.icloud.com/shared/album/068jLYN4Ygz4oRwcWmDzqJWTg');
 });
 
-test('v3.91 accepts modern iCloud shared album URLs',async()=>{
-  const {getLatestPhotos}=require('../api/shared-album.cjs');
-  const memory=new Map();
-  const albumCache={async get(k){return memory.get(k)||null},async set(k,v){memory.set(k,v);return true}};
+test('v3.91 resolves modern iCloud albums through CloudKit and returns original URLs',async()=>{
+  const {fetchLatestPhotos}=require('../api/shared-album.cjs');
+  const albumUrl='https://photos.icloud.com/shared/album/068jLYN4Ygz4oRwcWmDzqJWTg';
   let calls=0;
-  const result=await getLatestPhotos({
-    albumConfig:{url:'https://photos.icloud.com/shared/album/068jLYN4Ygz4oRwcWmDzqJWTg'},
-    albumCache,
-    now:Date.parse('2026-10-05T20:00:00Z'),
-    fetchImpl:async()=>{calls++;return new Response(JSON.stringify({streamName:'Документы',photos:[]}),{status:200,headers:{'content-type':'application/json'}})}
-  });
-  assert.equal(calls,1);
-  assert.equal(result.configured,true);
-  assert.equal(result.albumUrl,'https://photos.icloud.com/shared/album/068jLYN4Ygz4oRwcWmDzqJWTg');
+  const fetchImpl=async(url)=>{
+    calls++;
+    const value=String(url);
+    if(value.includes('/public/records/resolve')){
+      return new Response(JSON.stringify({results:[{
+        zoneID:{zoneName:'zone',ownerRecordName:'owner',zoneType:'REGULAR_CUSTOM_ZONE'},
+        anonymousPublicAccess:{token:'anon',databasePartition:'https://p01-ckdatabasews.icloud.com'},
+        share:{fields:{'cloudkit.title':{value:'Автодокументы'}}}
+      }]}),{status:200,headers:{'content-type':'application/json'}});
+    }
+    if(value.includes('/shared/records/query')){
+      return new Response(JSON.stringify({records:[
+        {recordType:'CPLMaster',recordName:'master-1',fields:{
+          itemType:{value:'public.heic'},
+          filenameEnc:{value:Buffer.from('sts.heic').toString('base64')},
+          resJPEGThumbRes:{value:{downloadURL:'https://cdn.test/thumb/\${f}'}},
+          resJPEGThumbWidth:{value:320},resJPEGThumbHeight:{value:426},
+          resJPEGLargeRes:{value:{downloadURL:'https://cdn.test/large/\${f}'}},
+          resJPEGLargeWidth:{value:1600},resJPEGLargeHeight:{value:2133},
+          resOriginalRes:{value:{downloadURL:'https://cdn.test/original/\${f}'}},
+          resOriginalWidth:{value:3024},resOriginalHeight:{value:4032}
+        }},
+        {recordType:'CPLAsset',recordName:'asset-1',fields:{
+          masterRef:{value:{recordName:'master-1'}},
+          assetDate:{value:Date.parse('2026-10-01T12:00:00Z')}
+        }}
+      ]}),{status:200,headers:{'content-type':'application/json'}});
+    }
+    throw new Error('unexpected '+value);
+  };
+  const result=await fetchLatestPhotos({url:albumUrl,token:'068jLYN4Ygz4oRwcWmDzqJWTg'},{fetchImpl});
+  assert.equal(calls,2);
+  assert.equal(result.title,'Автодокументы');
+  assert.equal(result.photos.length,1);
+  assert.match(result.photos[0].url,/thumb\/sts\.heic/);
+  assert.match(result.photos[0].fullUrl,/large\/sts\.heic/);
+  assert.match(result.photos[0].originalUrl,/original\/sts\.heic/);
+  assert.equal(result.photos[0].originalWidth,3024);
 });
 
 test('v3.91 improves iOS mood history swipe back',()=>{
@@ -42,6 +75,17 @@ test('v3.91 improves iOS mood history swipe back',()=>{
   assert.match(ui,/addEventListener\('touchstart'/);
   assert.match(ui,/addEventListener\('touchend'/);
   assert.match(css,/touch-action:pan-y/);
+});
+
+test('v3.91 task composer fits iPhone and defaults to 08:00',()=>{
+  const ui=read('public/app.js');
+  const css=read('public/app.css');
+  const html=read('public/index.html');
+  assert.match(ui,/if\(timeInput\) timeInput\.value='08:00'/);
+  assert.match(html,/id="ticktickTaskTimeInput" type="time" value="08:00"/);
+  assert.match(html,/ticktick-task-field-row ticktick-task-date-time-row/);
+  assert.match(css,/inline-size:100%!important/);
+  assert.match(css,/ticktick-task-date-time-row\{grid-template-columns:minmax\(0,1\.12fr\) minmax\(104px,\.88fr\)\}/);
 });
 
 test('v3.91 version metadata is aligned',()=>{
