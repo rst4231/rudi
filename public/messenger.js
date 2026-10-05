@@ -2880,23 +2880,53 @@
     }catch(_){}
   }
 
-  async function sendPhotoFile(file){
+  async function sendPhotoFiles(files){
+    const images=[...(files||[])]
+      .filter(file=>String(file?.type||'').startsWith('image/'))
+      .slice(0,10);
+    if(!images.length) return false;
     const status=document.getElementById('messengerStatus');
+    let sent=0;
+    const initialReply=state.reply?{...state.reply}:null;
     try{
-      if(status){status.hidden=false;status.textContent='Подготавливаю фото…'}
-      const attachment=await compressMessengerPhoto(file);
-      await sendAttachmentMessage(attachment,'📷 Фото');
+      for(let index=0;index<images.length;index++){
+        if(status){
+          status.hidden=false;
+          status.textContent=images.length>1
+            ?`Отправляю фото ${index+1} из ${images.length}…`
+            :'Подготавливаю фото…';
+        }
+        state.reply=index===0?initialReply:null;
+        const attachment=await compressMessengerPhoto(images[index]);
+        await sendAttachmentMessage(
+          attachment,
+          images.length>1?`📷 Фото ${index+1}/${images.length}`:'📷 Фото'
+        );
+        sent+=1;
+      }
       state.reply=null;
       renderReplyDraft();
       if(status){status.hidden=true;status.textContent=''}
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+      return true;
     }catch(error){
+      state.reply=sent===0?initialReply:null;
+      renderReplyDraft();
       if(status){
         status.hidden=false;
-        status.textContent=String(error?.message||'').includes('too-large')?'Фото слишком большое.':'Не удалось отправить фото.';
+        status.textContent=sent>0
+          ?`Отправлено ${sent} из ${images.length}. Следующее фото не отправилось.`
+          :String(error?.message||'').includes('too-large')
+            ?'Фото слишком большое.'
+            :'Не удалось отправить фото.';
       }
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+      return false;
     }
+  }
+
+  async function sendPhotoFile(file){
+    return sendPhotoFiles(file?[file]:[]);
   }
 
   function setMicRecordingVisual(active){
@@ -3223,6 +3253,7 @@
     const attachTray=document.getElementById('messengerAttachTray');
     const starTray=document.getElementById('messengerStarTray');
     const photoInput=document.getElementById('messengerPhotoInput');
+    const cameraInput=document.getElementById('messengerCameraInput');
     const mic=document.getElementById('messengerMic');
     const recordingCancel=document.getElementById('messengerRecordingCancel');
     const cancelReply=document.getElementById('messengerReplyCancel');
@@ -3281,9 +3312,7 @@
             if(status){status.hidden=false;status.textContent='Drag & drop поддерживает фото.'}
             return;
           }
-          void (async()=>{
-            for(const file of images) await sendPhotoFile(file);
-          })();
+          void sendPhotoFiles(images);
           return;
         }
 
@@ -3371,6 +3400,10 @@
           setMessengerTrayOpen(attachTray,false);
           setMessengerTrayOpen(starTray,false);
           photoInput?.click?.();
+        }else if(type==='camera'){
+          setMessengerTrayOpen(attachTray,false);
+          setMessengerTrayOpen(starTray,false);
+          cameraInput?.click?.();
         }else if(['smart-save','wishlist','recipe','feed'].includes(type)){
           setMessengerTrayOpen(attachTray,false);
           setMessengerTrayOpen(starTray,false);
@@ -3394,9 +3427,17 @@
     if(photoInput&&photoInput.dataset.bound!=='1'){
       photoInput.dataset.bound='1';
       photoInput.addEventListener('change',()=>{
-        const file=photoInput.files?.[0]||null;
+        const files=[...(photoInput.files??[])];
         photoInput.value='';
-        if(file) sendPhotoFile(file);
+        if(files.length) sendPhotoFiles(files);
+      });
+    }
+    if(cameraInput&&cameraInput.dataset.bound!=='1'){
+      cameraInput.dataset.bound='1';
+      cameraInput.addEventListener('change',()=>{
+        const file=cameraInput.files?.[0]||null;
+        cameraInput.value='';
+        if(file) sendPhotoFiles([file]);
       });
     }
     if(mic&&mic.dataset.bound!=='1'){
