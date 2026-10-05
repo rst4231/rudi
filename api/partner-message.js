@@ -86,6 +86,7 @@ const {
   toggleMessengerLike,
   rekeyMessengerMessages,
   readMessengerMessages,
+  readMessengerSnapshot,
   markMessengerRead,
   unreadMessengerCount,
 } = require('./messenger-store.cjs');
@@ -2164,12 +2165,21 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       const partner=actor==='Рустам'?'Диана':'Рустам';
       await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
-      const [keys,allBeforeDelivery,partnerTyping,partnerPresence]=await Promise.all([
-        readMessengerPublicKeys(options),
-        readMessengerMessages(options),
-        readMessengerTyping(partner,options),
-        readMessengerPresence(partner,options),
-      ]);
+      const snapshot=await readMessengerSnapshot(actor,options).catch(()=>null);
+      let keys,allBeforeDelivery,partnerTyping,partnerPresence;
+      if(snapshot){
+        keys=snapshot.keys;
+        allBeforeDelivery=snapshot.messages;
+        partnerTyping=snapshot.partnerTyping;
+        partnerPresence=snapshot.partnerPresence;
+      }else{
+        [keys,allBeforeDelivery,partnerTyping,partnerPresence]=await Promise.all([
+          readMessengerPublicKeys(options),
+          readMessengerMessages(options),
+          readMessengerTyping(partner,options),
+          readMessengerPresence(partner,options),
+        ]);
+      }
       const beforeDelivery=messengerMessagesVisibleToActor(allBeforeDelivery,actor);
       const pendingDeliveryIds=beforeDelivery.filter(row=>row?.sender===partner&&!row?.deliveredAt).map(row=>row.id);
       const delivered=pendingDeliveryIds.length
