@@ -2620,7 +2620,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       const partner=actor==='Рустам'?'Диана':'Рустам';
       const presence=await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options);
-      queueMessengerRealtime('presence',{actor,presence},options);
+      publishMessengerRealtime('presence',{actor,presence},options).catch(()=>{});
       const partnerPresence=await readMessengerPresence(partner,options);
       return res.status(200).json({ok:true,actor,partnerPresence});
     } catch (error) {
@@ -2664,7 +2664,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       },options);
       const deduplicated=message?.deduplicated===true;
       const clientMessage=messengerMessageForClient(message,options);
-      if(!deduplicated) queueMessengerRealtime('message',{actor,message:clientMessage},options);
+      if(!deduplicated) await publishMessengerRealtime('message',{actor,message:clientMessage},options);
       const notificationTask=deduplicated
         ?Promise.resolve({sent:false,reason:'duplicate'})
         :sendMessengerNotificationToPartner(actor,message.id,{
@@ -2701,7 +2701,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
       const active=await setMessengerTyping(actor,Boolean(body.active),options);
-      queueMessengerRealtime('typing',{actor,active},options);
+      publishMessengerRealtime('typing',{actor,active},options).catch(()=>{});
       return res.status(200).json({ok:true,actor,active});
     } catch (error) {
       const code=String(error?.message||error);
@@ -2751,7 +2751,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         silent:body.silent===true,
       },options);
       const clientMessage=messengerMessageForClient(message,options);
-      queueMessengerRealtime('edit',{actor,message:clientMessage},options);
+      await publishMessengerRealtime('edit',{actor,message:clientMessage},options);
       return res.status(200).json({ok:true,actor,message:clientMessage});
     } catch (error) {
       const code=String(error?.message||error);
@@ -2770,7 +2770,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         ?message.reactions[String(body.reaction||'')]
         :[];
       const clientMessage=messengerMessageForClient(message,options);
-      queueMessengerRealtime('reaction',{actor,message:clientMessage},options);
+      await publishMessengerRealtime('reaction',{actor,message:clientMessage},options);
       console.info('RUDI_MESSENGER_REACTION_OK',JSON.stringify({
         actor,
         messageId:String(message?.id||body.id||''),
@@ -2793,7 +2793,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await toggleMessengerLike(actor,body.id,options);
       const clientMessage=messengerMessageForClient(message,options);
-      queueMessengerRealtime('reaction',{actor,message:clientMessage},options);
+      await publishMessengerRealtime('reaction',{actor,message:clientMessage},options);
       console.info('RUDI_MESSENGER_LIKE_OK',JSON.stringify({actor,messageId:String(message?.id||body.id||''),liked:Array.isArray(message?.likedBy)&&message.likedBy.includes(actor)}));
       return res.status(200).json({ok:true,actor,message:clientMessage});
     } catch (error) {
@@ -2828,7 +2828,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         .filter(Boolean)
         .slice(0,256);
       const result=await markMessengerRead(actor,requestedIds,options);
-      if(result.updated) queueMessengerRealtime('read',{actor,ids:requestedIds},options);
+      if(result.updated) publishMessengerRealtime('read',{actor,ids:requestedIds},options).catch(()=>{});
       const messages=messengerMessagesVisibleToActor(result.messages,actor);
       return res.status(200).json({
         ok:true,
