@@ -2243,3 +2243,17 @@ html[data-theme="light"] .car-recommendation-best-day{
   .car-home-title-row{padding-right:34px}
 }
 /* end RUDI v3.70 */
+
+/* RUDI v3.91 — car documents */
+.car-section-icon.is-document{color:#9f91e8;background:rgba(159,145,232,.12)}
+.car-smart-card .car-documents{width:100%;margin:0;border:0!important;background:transparent!important}
+.car-smart-card-title .car-documents-meta{color:var(--muted);font-size:10px;font-weight:750}
+.car-documents{display:grid;gap:8px}
+.car-documents-status{padding:8px 9px;border-radius:11px;background:color-mix(in srgb,var(--soft) 78%,transparent);color:var(--muted);font-size:9.5px;line-height:1.35}
+.car-documents-status[hidden]{display:none!important}
+.car-documents-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.car-document-photo{position:relative;min-width:0;aspect-ratio:3/4;overflow:hidden;padding:0;border:1px solid color-mix(in srgb,var(--line) 86%,transparent);border-radius:13px;background:color-mix(in srgb,var(--soft) 80%,transparent);box-shadow:0 5px 14px rgba(0,0,0,.08);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.car-document-photo img{display:block;width:100%;height:100%;object-fit:contain;background:color-mix(in srgb,var(--surface) 90%,#fff 10%)}
+.car-document-photo:active{transform:scale(.985)}
+@media(max-width:430px){.car-documents-grid{gap:7px}.car-document-photo{border-radius:12px}}
+
