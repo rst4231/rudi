@@ -1518,21 +1518,125 @@
     return 'data:'+String(attachment?.mime||'application/octet-stream')+';base64,'+data;
   }
 
-  function openPhotoViewer(attachment){
-    const src=attachmentDataUrl(attachment);
-    if(!src) return;
+  function openPhotoViewer(attachment,{photos=null,index=0}={}){
+    const source=(Array.isArray(photos)&&photos.length?photos:[attachment]).filter(photo=>attachmentDataUrl(photo));
+    if(!source.length) return;
+    let current=Math.max(0,Math.min(source.length-1,Number(index)||0));
+    let scale=1,translateX=0,translateY=0,startX=0,startY=0,startTranslateX=0,startTranslateY=0;
+    let pinchDistance=0,pinchScale=1,lastTapAt=0,touching=false,closing=false;
     const viewer=document.createElement('div');
     viewer.className='messenger-photo-viewer';
-    viewer.innerHTML='<button class="messenger-photo-viewer-close" data-messenger-photo-close type="button" aria-label="Закрыть">×</button><img alt="Фото"><div class="messenger-photo-viewer-actions"><button class="messenger-photo-viewer-save" data-messenger-photo-save type="button">Сохранить</button></div>';
-    viewer.querySelector('img').src=src;
-    viewer.querySelector('[data-messenger-photo-close]')?.addEventListener('click',()=>viewer.remove());
-    viewer.querySelector('[data-messenger-photo-save]')?.addEventListener('click',event=>{
-      event.preventDefault();
-      event.stopPropagation();
-      savePhotoToDevice(attachment);
+    viewer.innerHTML='<button class="messenger-photo-viewer-close" data-messenger-photo-close type="button" aria-label="Закрыть">×</button><div class="messenger-photo-viewer-counter" data-messenger-photo-counter></div><button class="messenger-photo-viewer-nav is-prev" data-messenger-photo-prev type="button" aria-label="Предыдущее фото">‹</button><div class="messenger-photo-viewer-stage" data-messenger-photo-stage><img alt="Фото"></div><button class="messenger-photo-viewer-nav is-next" data-messenger-photo-next type="button" aria-label="Следующее фото">›</button><div class="messenger-photo-viewer-actions"><button class="messenger-photo-viewer-save" data-messenger-photo-save type="button">Сохранить</button></div>';
+    const stage=viewer.querySelector('[data-messenger-photo-stage]');
+    const image=viewer.querySelector('img');
+    const counter=viewer.querySelector('[data-messenger-photo-counter]');
+    const prev=viewer.querySelector('[data-messenger-photo-prev]');
+    const next=viewer.querySelector('[data-messenger-photo-next]');
+    const save=viewer.querySelector('[data-messenger-photo-save]');
+
+    const resetTransform=()=>{scale=1;translateX=0;translateY=0;image.style.transform='translate3d(0,0,0) scale(1)';image.classList.remove('is-zoomed')};
+    const applyTransform=()=>{image.style.transform='translate3d('+translateX+'px,'+translateY+'px,0) scale('+scale+')';image.classList.toggle('is-zoomed',scale>1.01)};
+    const preloadAround=()=>{
+      [current-1,current+1].forEach(position=>{
+        if(position<0||position>=source.length) return;
+        const src=attachmentDataUrl(source[position]);if(!src) return;
+        const preload=new Image();preload.decoding='async';preload.src=src;
+      });
+    };
+    const render=({direction=0}={})=>{
+      const src=attachmentDataUrl(source[current]);if(!src) return;
+      resetTransform();
+      image.classList.remove('is-swipe-left','is-swipe-right');
+      if(direction) image.classList.add(direction>0?'is-swipe-left':'is-swipe-right');
+      image.src=src;
+      image.alt=source.length>1?'Фото '+(current+1)+' из '+source.length:'Фото';
+      if(counter){counter.textContent=source.length>1?(current+1)+' из '+source.length:'';counter.hidden=source.length<2}
+      if(prev) prev.hidden=source.length<2||current<=0;
+      if(next) next.hidden=source.length<2||current>=source.length-1;
+      preloadAround();
+      try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+    };
+    const go=delta=>{
+      const target=current+delta;
+      if(target<0||target>=source.length) return false;
+      current=target;render({direction:delta});return true;
+    };
+    const close=()=>{
+      if(closing) return;closing=true;
+      document.body.classList.remove('messenger-photo-viewer-open');
+      viewer.classList.add('is-closing');
+      setTimeout(()=>viewer.remove(),140);
+    };
+
+    viewer.querySelector('[data-messenger-photo-close]')?.addEventListener('click',close);
+    prev?.addEventListener('click',event=>{event.stopPropagation();go(-1)});
+    next?.addEventListener('click',event=>{event.stopPropagation();go(1)});
+    save?.addEventListener('click',event=>{
+      event.preventDefault();event.stopPropagation();savePhotoToDevice(source[current]);
     });
-    viewer.addEventListener('click',event=>{if(event.target===viewer)viewer.remove()});
+    viewer.addEventListener('click',event=>{if(event.target===viewer) close()});
+    viewer.addEventListener('keydown',event=>{
+      if(event.key==='Escape') close();
+      if(event.key==='ArrowLeft') go(-1);
+      if(event.key==='ArrowRight') go(1);
+    });
+    viewer.tabIndex=-1;
+
+    stage?.addEventListener('touchstart',event=>{
+      if(!event.touches?.length) return;
+      touching=true;
+      if(event.touches.length===2){
+        const [a,b]=event.touches;
+        pinchDistance=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1;
+        pinchScale=scale;
+        return;
+      }
+      const touch=event.touches[0];
+      startX=touch.clientX;startY=touch.clientY;
+      startTranslateX=translateX;startTranslateY=translateY;
+    },{passive:true});
+
+    stage?.addEventListener('touchmove',event=>{
+      if(!touching||!event.touches?.length) return;
+      if(event.touches.length===2){
+        const [a,b]=event.touches;
+        const distance=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1;
+        scale=Math.max(1,Math.min(4,pinchScale*(distance/pinchDistance)));
+        if(scale<=1.01){scale=1;translateX=0;translateY=0}
+        applyTransform();
+        event.preventDefault();
+        return;
+      }
+      const touch=event.touches[0],dx=touch.clientX-startX,dy=touch.clientY-startY;
+      if(scale>1.01){
+        translateX=startTranslateX+dx;translateY=startTranslateY+dy;applyTransform();event.preventDefault();return;
+      }
+      image.style.transform='translate3d('+dx+'px,'+dy+'px,0) scale(1)';
+      viewer.style.setProperty('--messenger-photo-drag-opacity',String(Math.max(.45,1-Math.abs(dy)/420)));
+      if(Math.abs(dx)>Math.abs(dy)) event.preventDefault();
+    },{passive:false});
+
+    stage?.addEventListener('touchend',event=>{
+      const changed=event.changedTouches?.[0];
+      if(!changed){touching=false;return}
+      if(event.touches?.length){return}
+      touching=false;
+      if(scale>1.01){applyTransform();return}
+      const dx=changed.clientX-startX,dy=changed.clientY-startY;
+      viewer.style.removeProperty('--messenger-photo-drag-opacity');
+      image.style.transform='translate3d(0,0,0) scale(1)';
+      if(Math.abs(dy)>90&&Math.abs(dy)>Math.abs(dx)*1.15&&dy>0){close();return}
+      if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.15){go(dx<0?1:-1);return}
+      const now=Date.now();
+      if(now-lastTapAt<300){
+        scale=scale>1.01?1:2.5;translateX=0;translateY=0;applyTransform();lastTapAt=0;
+      }else lastTapAt=now;
+    },{passive:true});
+
     document.body.appendChild(viewer);
+    document.body.classList.add('messenger-photo-viewer-open');
+    render();
+    requestAnimationFrame(()=>viewer.focus({preventScroll:true}));
   }
 
   function photoClickAllowed(button,event){
@@ -1590,7 +1694,7 @@
       button.appendChild(image);
       button.addEventListener('click',event=>{
         if(!photoClickAllowed(button,event)) return;
-        openPhotoViewer(photo);
+        openPhotoViewer(photo,{photos,index});
       });
       album.appendChild(button);
     });
