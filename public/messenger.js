@@ -64,6 +64,7 @@
     cacheHydratePromise:null,
     cachePersistTimer:0,
     optimisticSystemRows:new Map(),
+    optimisticEdits:new Map(),
     starGiftRemaining:null,
     starGiftLimit:5,
     starGiftSending:false,
@@ -753,7 +754,10 @@
   }
 
   function mergePendingRows(serverRows){
-    const rows=filterMessengerRows(serverRows);
+    const rows=filterMessengerRows(serverRows).map(row=>{
+      const override=state.optimisticEdits.get(String(row?.id||''));
+      return override?.row||row;
+    });
     const serverClientIds=new Set(rows.map(row=>String(row?.clientId||'')).filter(Boolean));
     const outbox=readMessengerOutbox();
     const remaining=outbox.filter(entry=>!serverClientIds.has(String(entry.clientId||'')));
@@ -863,32 +867,27 @@
     const snapshot=state.rows.find(item=>String(item?.id||'')===id)||row;
     const payload=state.decrypted.get(id);
     state.deletingIds.add(id);
+    state.deletedSuppressUntil.set(id,Date.now()+15000);
 
-    const animation=animateMessageRemoval(id);
+    const request=api('messenger-delete',{id});
+    await animateMessageRemoval(id).catch(()=>{});
+
+    state.rows=state.rows.filter(item=>String(item?.id||'')!==id);
+    state.decrypted.delete(id);
+    state.renderedIds.delete(id);
+    renderMessages({preserveScrollTop:Number(list?.scrollTop??preservedScrollTop)});
+    scheduleConversationCachePersist();
+    try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+
     try{
-      await Promise.all([
-        api('messenger-delete',{id}),
-        animation,
-      ]);
-      state.deletedSuppressUntil.set(id,Date.now()+15000);
-      state.rows=state.rows.filter(item=>String(item?.id||'')!==id);
-      state.decrypted.delete(id);
-      state.renderedIds.delete(id);
+      await request;
       state.deletingIds.delete(id);
-      const settledScrollTop=Number(list?.scrollTop??preservedScrollTop);
-      renderMessages({preserveScrollTop:settledScrollTop});
-      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(error){
-      await animation.catch(()=>{});
       const code=String(error?.message||error||'');
       state.deletingIds.delete(id);
 
       if(code.includes('messenger-message-not-found')){
-        state.deletedSuppressUntil.set(id,Date.now()+15000);
-        state.rows=state.rows.filter(item=>String(item?.id||'')!==id);
-        state.decrypted.delete(id);
-        state.renderedIds.delete(id);
-        renderMessages({preserveScrollTop:Number(list?.scrollTop??preservedScrollTop)});
+        scheduleConversationCachePersist();
         return;
       }
 
@@ -898,11 +897,13 @@
         if(payload) state.decrypted.set(id,payload);
       }
       renderMessages({preserveScrollTop:Number(list?.scrollTop??preservedScrollTop)});
+      scheduleConversationCachePersist();
       const status=document.getElementById('messengerStatus');
       if(status){
         status.hidden=false;
-        status.textContent='Не удалось удалить сообщение.';
+        status.textContent='Не удалось удалить сообщение. Вернул его в чат.';
       }
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
       console.warn('RUDI_MESSENGER_DELETE_WARN',code);
     }
   }
@@ -2659,11 +2660,14 @@
   }
 
   async function decryptMessages(rows){
-    const optimisticPayloads=new Map(
-      [...state.optimisticSystemRows.values()]
+    const optimisticPayloads=new Map([
+      ...[...state.optimisticSystemRows.values()]
+        .filter(entry=>entry?.row?.id&&entry?.payload)
+        .map(entry=>[String(entry.row.id),entry.payload]),
+      ...[...state.optimisticEdits.values()]
         .filter(entry=>entry?.row?.id&&entry?.payload)
         .map(entry=>[String(entry.row.id),entry.payload])
-    );
+    ]);
     state.decrypted.clear();
     const results=await Promise.all((Array.isArray(rows)?rows:[]).map(async row=>{
       const local=optimisticPayloads.get(String(row?.id||''));
@@ -3561,12 +3565,55 @@
 
       if(state.edit?.id){
         const editId=state.edit.id;
-        const result=await api('messenger-edit',{id:editId,scheme:'shared-v2',...encrypted,keyVersions});
-        if(result?.message){
-          state.rows=state.rows.map(row=>row.id===editId?result.message:row);
+        const previousRow=state.rows.find(row=>String(row?.id||'')===String(editId))||null;
+        const previousPayload=state.decrypted.get(editId)||null;
+        const optimisticRow=previousRow?{...previousRow,editedAt:new Date().toISOString(),_pending:true}:null;
+
+        if(optimisticRow){
+          state.optimisticEdits.set(String(editId),{row:optimisticRow,payload,previousRow,previousPayload});
+          state.rows=state.rows.map(row=>String(row?.id||'')===String(editId)?optimisticRow:row);
           state.decrypted.set(editId,payload);
           renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+          scheduleConversationCachePersist();
         }
+
+        notifyTyping(false);
+        input.value='';
+        input.style.height='auto';
+        state.reply=null;
+        state.edit=null;
+        renderReplyDraft();
+        updateComposerAction();
+        send.disabled=false;
+        if(status){status.hidden=true;status.textContent=''}
+        try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+
+        try{
+          const result=await api('messenger-edit',{id:editId,scheme:'shared-v2',...encrypted,keyVersions});
+          state.optimisticEdits.delete(String(editId));
+          if(result?.message){
+            state.rows=state.rows.map(row=>String(row?.id||'')===String(editId)?result.message:row);
+            state.decrypted.set(editId,payload);
+            patchMessageStatus(result.message);
+            scheduleConversationCachePersist();
+          }
+        }catch(error){
+          const snapshot=state.optimisticEdits.get(String(editId));
+          state.optimisticEdits.delete(String(editId));
+          if(snapshot?.previousRow){
+            state.rows=state.rows.map(row=>String(row?.id||'')===String(editId)?snapshot.previousRow:row);
+            if(snapshot.previousPayload) state.decrypted.set(editId,snapshot.previousPayload);
+            renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+            scheduleConversationCachePersist();
+          }
+          if(status){
+            status.hidden=false;
+            status.textContent='Не удалось изменить сообщение. Вернул предыдущий текст.';
+          }
+          try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }
+        input.focus();
+        return;
       }else{
         const clientId='client-'+crypto.randomUUID();
         const createdAt=new Date().toISOString();
