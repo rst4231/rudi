@@ -8,7 +8,7 @@ async function resolveMode(dest,o={}){
   const env=o.env||process.env;if(String(env.RUDI_STORAGE_FORCE_D1||'')==='1')return'd1';if(String(env.RUDI_STORAGE_FORCE_VERCEL||'')==='1')return'ready';
   if(cached.phase&&cached.until>Date.now())return cached.phase;
   let p='d1';try{p=phase((await dest.getRecord(STORAGE_META_NAMESPACE,STORAGE_META_KEY))?.value?.phase)}catch(e){if(o.logModeErrors!==false)console.warn('RUDI_STORAGE_MODE_WARN',String(e?.message||e))}
-  cached={phase:p,until:Date.now()+MODE_CACHE_MS};return p;
+  cached={phase:p,until:Date.now()+(p==='ready'?30000:MODE_CACHE_MS)};return p;
 }
 function createRudiStateClient(o={}){
   const source=o.d1Client||createD1StateClient({env:o.env||process.env,fetchImpl:o.fetchImpl||globalThis.fetch,baseUrl:o.d1BaseUrl,secret:o.d1Secret,timeoutMs:o.d1TimeoutMs||o.timeoutMs});
