@@ -1858,8 +1858,6 @@ async function handleTickTick(req, res, action, options = {}) {
     try {
       const title = String(body.title || '').trim().slice(0,500);
       if (!title) return res.status(400).json({ok:false,error:'ticktick-task-title-required'});
-      const emoji = String(body.emoji || '').trim().replace(/\s+/g,' ').slice(0,16);
-      const taskTitle = emoji && !title.startsWith(emoji) ? (emoji + ' ' + title).slice(0,500) : title;
       const responsibleValue = String(body.responsible || '').trim();
       const responsible = ['Рустам','Диана'].includes(responsibleValue) ? responsibleValue : '';
       const date = String(body.date || '').trim();
@@ -1874,7 +1872,7 @@ async function handleTickTick(req, res, action, options = {}) {
         if(!assigneeUsername) throw new Error('ticktick-assignee-not-found:'+wanted);
       }
       const task = await createTickTickTask(token.accessToken, {
-        title:taskTitle,
+        title,
         projectId: config.projectId,
         isAllDay: !time,
         startDate: dateTime,
