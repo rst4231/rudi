@@ -1930,8 +1930,8 @@
         try{
           const params=new URLSearchParams(window.location.search);
           const rawTab=String(params.get('tab')||'home').trim();
-          const tab=rawTab==='saves'?'dates':rawTab==='messenger'?'home':rawTab;
-          if(rawTab==='messenger'){
+          const tab=rawTab==='saves'?'dates':rawTab;
+          if(rawTab!=='home'&&!APP_TABS.includes(tab)){
             const clean=new URL(window.location.href);
             clean.searchParams.delete('tab');
             clean.searchParams.delete('message');
@@ -13955,10 +13955,10 @@
         const wishlist=document.getElementById('quickWishlistButton');
         const dates=document.getElementById('quickDateButton');
         const forDi=document.getElementById('quickForDiButton');
-        const calendar=document.getElementById('quickCalendarButton');
+        const photoSession=document.getElementById('quickPhotoSessionButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!dates||!forDi||!calendar||!choices||choices.dataset.dateBound==='1') return;
+        if(!wishlist||!dates||!forDi||!photoSession||!choices||choices.dataset.dateBound==='1') return;
         choices.dataset.dateBound='1';
 
         wishlist.addEventListener('click',()=>{
@@ -13975,8 +13975,11 @@
           window.RUDI_FOR_DI?.load?.();
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
-        calendar.addEventListener('click',()=>{
-          navigateToAppTab('schedule',{scroll:true});
+        photoSession.addEventListener('click',()=>{
+          const link=document.querySelector('.shared-album-create');
+          if(link) link.click();
+          else if(tg?.openLink) tg.openLink('https://gemini.google.com/share/41a7861ea171');
+          else window.open('https://gemini.google.com/share/41a7861ea171','_blank','noopener,noreferrer');
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
 
