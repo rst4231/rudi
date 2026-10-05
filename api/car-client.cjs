@@ -387,10 +387,13 @@ async function carDocumentsSafe(config) {
         id:String(photo?.id||''),
         url:String(photo?.url||''),
         fullUrl:String(photo?.fullUrl||photo?.url||''),
+        originalUrl:String(photo?.originalUrl||photo?.fullUrl||photo?.url||''),
         width:Number(photo?.width||0)||null,
         height:Number(photo?.height||0)||null,
         fullWidth:Number(photo?.fullWidth||0)||null,
         fullHeight:Number(photo?.fullHeight||0)||null,
+        originalWidth:Number(photo?.originalWidth||photo?.fullWidth||0)||null,
+        originalHeight:Number(photo?.originalHeight||photo?.fullHeight||0)||null,
         date:String(photo?.date||''),
         caption:String(photo?.caption||'').trim(),
       }))
