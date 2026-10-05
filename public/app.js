@@ -2082,7 +2082,7 @@
             scoreModalActor=actor;
             if(currentScoreState) renderScoreModal(actor,currentScoreState);
             scoreRequest('state').then(data=>{
-              currentScoreState=data.score||currentScoreState;
+              acceptScoreState(data.score);
               renderScoreStickers(currentScoreState);
               renderScoreModal(actor,currentScoreState);
             }).catch(()=>{});
@@ -3049,12 +3049,16 @@
         return scoreStateReadPromise;
       }
 
+      function acceptScoreState(score,{force=false}={}){
+        if(!score) return currentScoreState;
+        const incomingVersion=Math.max(0,Number(score?.version||0));
+        const currentVersion=Math.max(0,Number(currentScoreState?.version||0));
+        if(force||!currentScoreState||incomingVersion>=currentVersion) currentScoreState=score;
+        return currentScoreState;
+      }
+
       function renderScoreStickers(score=currentScoreState){
-        if(score){
-          const incomingVersion=Math.max(0,Number(score?.version||0));
-          const currentVersion=Math.max(0,Number(currentScoreState?.version||0));
-          if(!currentScoreState||incomingVersion>=currentVersion) currentScoreState=score;
-        }
+        if(score) acceptScoreState(score);
         if(!currentScoreState) return;
         document.querySelectorAll('.score-sticker[data-score-actor]').forEach(sticker=>{
           const actor=String(sticker.dataset.scoreActor||'');
@@ -3214,7 +3218,7 @@
               button.disabled=true;
               try{
                 const data=await scoreRequest('complete-reward',{redemptionId:reward.id});
-                currentScoreState=data.score||currentScoreState;
+                acceptScoreState(data.score);
                 renderScoreStickers(currentScoreState);
                 renderScoreModal(actor,currentScoreState);
                 if(!data.backupToken) setTimeout(()=>refreshStateBackup(),200);
@@ -3271,7 +3275,7 @@
               const clientEventId=String(localGift?.clientEventId||('client-star-gift-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
               try{
                 const data=await scoreRequest('gift',{amount,clientEventId});
-                currentScoreState=data.score||currentScoreState;
+                acceptScoreState(data.score);
                 renderScoreStickers(currentScoreState);
                 renderScoreModal(actor,currentScoreState);
                 window.RUDI_MESSENGER?.confirmOptimisticStarGift?.(clientEventId,data?.gift?.remaining,data?.score?.gifts?.[actor]?.limit);
@@ -3413,7 +3417,7 @@
             button.disabled=true;
             try{
               const data=await scoreRequest('redeem',{rewardId:reward.id});
-              currentScoreState=data.score||currentScoreState;
+              acceptScoreState(data.score);
               renderScoreStickers(currentScoreState);
               renderScoreModal(actor,currentScoreState);
               if(!data.backupToken) setTimeout(()=>refreshStateBackup(),200);
@@ -3422,7 +3426,7 @@
               if(['score-balance-insufficient','score-reward-active'].includes(String(error?.message||''))){
                 try{
                   const fresh=await scoreRequest('state');
-                  currentScoreState=fresh.score||currentScoreState;
+                  acceptScoreState(fresh.score);
                   renderScoreStickers(currentScoreState);
                   renderScoreModal(actor,currentScoreState);
                 }catch(_){}
@@ -3444,7 +3448,7 @@
         navigateToAppTab('score',{scroll:true,item:actor});
         try{
           const data=await scoreRequest('state');
-          currentScoreState=data.score||currentScoreState;
+          acceptScoreState(data.score);
           renderScoreStickers(currentScoreState);
           renderScoreModal(actor,currentScoreState);
         }catch(_){}
@@ -8194,7 +8198,7 @@
           const payload=await requestTickTickTaskCompletion(task.id);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
           if(payload?.score){
-            currentScoreState=payload.score;
+            acceptScoreState(payload.score);
             document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:payload.score}}));
           }
           markTickTickTaskRecentlyCompleted(task.id);
@@ -8238,7 +8242,7 @@
           const payload=await requestTickTickTaskCompletion(task.id);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
           if(payload?.score){
-            currentScoreState=payload.score;
+            acceptScoreState(payload.score);
             document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:payload.score}}));
           }
 
@@ -10618,7 +10622,7 @@
               renderDailyQuestion(data);
               try{
                 const fresh=await scoreRequest('state');
-                currentScoreState=fresh.score||currentScoreState;
+                acceptScoreState(fresh.score);
                 renderScoreStickers(currentScoreState);
               }catch(_){}
               if(status) status.textContent='Ответ сохранён.';
