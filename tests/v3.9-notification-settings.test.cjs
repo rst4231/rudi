@@ -14,21 +14,18 @@ test('new notification preferences default on and can be disabled',()=>{
   assert.equal(defaults.morningSummaryEnabled,true);
   assert.equal(defaults.rewardNotificationsEnabled,true);
   assert.equal(defaults.dailyQuestionNotificationEnabled,true);
-  assert.equal(defaults.messengerNotificationsEnabled,true);
   const off=normalizeUiPreferencesState({
     moodNotifyPartnerEnabled:false,
     moodReceivePartnerEnabled:false,
     morningSummaryEnabled:false,
     rewardNotificationsEnabled:false,
     dailyQuestionNotificationEnabled:false,
-    messengerNotificationsEnabled:false,
   });
   assert.equal(off.moodNotifyPartnerEnabled,false);
   assert.equal(off.moodReceivePartnerEnabled,false);
   assert.equal(off.morningSummaryEnabled,false);
   assert.equal(off.rewardNotificationsEnabled,false);
   assert.equal(off.dailyQuestionNotificationEnabled,false);
-  assert.equal(off.messengerNotificationsEnabled,false);
 });
 
 test('daily question push respects recipient preference',async()=>{
@@ -42,14 +39,14 @@ test('daily question push respects recipient preference',async()=>{
   assert.equal(calls.length,0);
 });
 
-test('reward notification is stored in messenger and push respects each recipient preference',()=>{
+test('reward notifications are sent through Telegram and no longer use messenger',()=>{
   const api=fs.readFileSync('api/partner-message.js','utf8');
-  const block=api.match(/async function sendRewardMessengerEvent[\s\S]*?\n\}/)?.[0]||'';
-  assert.match(block,/addMessengerMessage\(cleanActor,encrypted,options\)/);
-  assert.match(block,/preferences\?\.rewardNotificationsEnabled===false/);
-  assert.match(block,/sendPush\(recipient/);
-  assert.match(block,/tab=messenger&message=/);
-  assert.doesNotMatch(block,/telegramSendMessage/);
+  const redeemed=api.slice(api.indexOf('async function sendRewardRedeemedNotification'),api.indexOf('async function sendRewardCompletedNotification'));
+  const completed=api.slice(api.indexOf('async function sendRewardCompletedNotification'),api.indexOf('function starGiftWord'));
+  assert.match(redeemed,/sendToAllRecipients/);
+  assert.match(completed,/sendToAllRecipients/);
+  assert.doesNotMatch(redeemed,/tab=messenger|addMessengerMessage/);
+  assert.doesNotMatch(completed,/tab=messenger|addMessengerMessage/);
 });
 
 test('settings expose default-on notification switches and schema v7',()=>{
@@ -60,7 +57,6 @@ test('settings expose default-on notification switches and schema v7',()=>{
   assert.match(app,/id="settingsMorningSummaryToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsRewardNotificationsToggle"[^>]+aria-checked="true"/);
   assert.match(app,/id="settingsDailyQuestionNotificationToggle"[^>]+aria-checked="true"/);
-  assert.match(app,/id="settingsMessengerNotificationsToggle"[^>]+aria-checked="true"/);
   assert.match(app,/syncSchemaVersion:7/);
   assert.match(morning,/preferences\?\.morningSummaryEnabled === false/);
 });
