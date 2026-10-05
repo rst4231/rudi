@@ -363,17 +363,13 @@ async function resolveCloudKitAlbum(token,options={}) {
   const access=result?.anonymousPublicAccess;
   const accessToken=String(access?.token||'').trim();
   const partition=String(access?.databasePartition||'').trim().replace(/\/$/,'');
-  let partitionUrl;
-  try{partitionUrl=new URL(partition)}catch{partitionUrl=null}
   if(
     !zone
     || !accessToken
-    || !partitionUrl
-    || partitionUrl.protocol!=='https:'
-    || !/(^|\.)icloud\.com$/i.test(partitionUrl.hostname)
+    || !/^https:\/\/[A-Za-z0-9.-]+\.icloud\.com$/i.test(partition)
   ) throw new Error('shared-album-cloudkit-private');
   const title=String(cloudKitField(result?.share?.fields,'cloudkit.title')||'Общий альбом').trim()||'Общий альбом';
-  return {zone,accessToken,partition:partitionUrl.origin,title};
+  return {zone,accessToken,partition,title};
 }
 
 function parseCloudKitPhotos(records) {
