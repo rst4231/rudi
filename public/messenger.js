@@ -349,21 +349,7 @@
     return {ciphertext:base64UrlEncode(new Uint8Array(encrypted)),iv:base64UrlEncode(iv)};
   }
 
-  async function decryptRow(row){
-    const shared=String(row?.scheme||'legacy-v1')==='shared-v2';
-    const key=shared?state.aesKey:state.legacyAesKey;
-    if(!key) throw new Error(shared?'messenger-shared-key-missing':'messenger-legacy-key-unavailable');
-    const clear=await crypto.subtle.decrypt(
-      {
-        name:'AES-GCM',
-        iv:base64UrlDecode(row.iv),
-        additionalData:shared?AAD_V2:AAD_V1,
-        tagLength:128
-      },
-      key,
-      base64UrlDecode(row.ciphertext)
-    );
-    const payload=JSON.parse(decoder.decode(clear));
+  function normalizeMessengerPayload(payload){
     return {
       text:String(payload?.text||''),
       reply:payload?.reply&&typeof payload.reply==='object'?{
@@ -420,6 +406,25 @@
           .filter(photo=>photo.data),
       }:null,
     };
+  }
+
+  async function decryptRow(row){
+    const scheme=String(row?.scheme||'legacy-v1');
+    if(scheme==='plain-v3') return normalizeMessengerPayload(row?.payload||{});
+    const shared=scheme==='shared-v2';
+    const key=shared?state.aesKey:state.legacyAesKey;
+    if(!key) throw new Error(shared?'messenger-shared-key-missing':'messenger-legacy-key-unavailable');
+    const clear=await crypto.subtle.decrypt(
+      {
+        name:'AES-GCM',
+        iv:base64UrlDecode(row.iv),
+        additionalData:shared?AAD_V2:AAD_V1,
+        tagLength:128
+      },
+      key,
+      base64UrlDecode(row.ciphertext)
+    );
+    return normalizeMessengerPayload(JSON.parse(decoder.decode(clear)));
   }
 
   function setUnread(count){
