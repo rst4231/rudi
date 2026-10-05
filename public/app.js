@@ -3249,20 +3249,35 @@
               if(button.disabled) return;
               if(!window.confirm('Подарить '+actorDativeName(partner)+' '+amount+' ⭐?')) return;
               actions.querySelectorAll('button').forEach(item=>item.disabled=true);
+              const previousScore=currentScoreState?JSON.parse(JSON.stringify(currentScoreState)):JSON.parse(JSON.stringify(score||{}));
+              const optimisticScore=JSON.parse(JSON.stringify(previousScore||{}));
+              optimisticScore.balances={...(optimisticScore.balances||{})};
+              optimisticScore.balances[actor]=Math.max(0,Number(optimisticScore.balances[actor]||0)-amount);
+              optimisticScore.balances[partner]=Number(optimisticScore.balances[partner]||0)+amount;
+              optimisticScore.gifts={...(optimisticScore.gifts||{})};
+              optimisticScore.gifts[actor]={
+                ...(optimisticScore.gifts[actor]||{}),
+                gifted:Number(optimisticScore.gifts[actor]?.gifted||0)+amount,
+                remaining:Math.max(0,Number(optimisticScore.gifts[actor]?.remaining??remaining)-amount)
+              };
+              currentScoreState=optimisticScore;
+              renderScoreStickers(currentScoreState);
+              renderScoreModal(actor,currentScoreState);
+              const localGift=window.RUDI_MESSENGER?.showOptimisticStarGift?.(amount);
+              const clientEventId=String(localGift?.clientEventId||('star-gift-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
               try{
-                const data=await scoreRequest('gift',{amount});
+                const data=await scoreRequest('gift',{amount,clientEventId});
                 currentScoreState=data.score||currentScoreState;
                 renderScoreStickers(currentScoreState);
                 renderScoreModal(actor,currentScoreState);
+                window.RUDI_MESSENGER?.confirmOptimisticStarGift?.(clientEventId,data?.gift?.remaining,data?.score?.gifts?.[actor]?.limit);
                 if(!data.backupToken) setTimeout(()=>refreshStateBackup(),200);
                 try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
               }catch(error){
-                try{
-                  const fresh=await scoreRequest('state');
-                  currentScoreState=fresh.score||currentScoreState;
-                  renderScoreStickers(currentScoreState);
-                  renderScoreModal(actor,currentScoreState);
-                }catch(_){}
+                currentScoreState=previousScore;
+                renderScoreStickers(currentScoreState);
+                renderScoreModal(actor,currentScoreState);
+                window.RUDI_MESSENGER?.rollbackOptimisticStarGift?.(clientEventId);
                 try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
               }
             });
@@ -4415,7 +4430,29 @@
         card.appendChild(body);
         if(ownSave){
           const del=document.createElement('button');del.type='button';del.className='smart-save-delete';del.setAttribute('aria-label','Удалить сохранение');del.setAttribute('title','Удалить');del.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>';
-          del.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();if(!await smartSaveConfirm('Удалить «'+String(item?.title||'это сохранение')+'»?'))return;del.disabled=true;try{const data=await smartSavesRequest('remove',{id:item.id});const removed=data?.item||item;smartSavesState=Array.isArray(data.items)?data.items:[];renderSmartSaves();showUndoSnackbar('Сохранение удалено',async()=>{const restored=await smartSavesRequest('restore',{item:removed});smartSavesState=Array.isArray(restored.items)?restored.items:[];renderSmartSaves()},5000);try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(_){del.disabled=false;try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}}});
+          del.addEventListener('click',async event=>{
+            event.preventDefault();event.stopPropagation();
+            if(!await smartSaveConfirm('Удалить «'+String(item?.title||'это сохранение')+'»?')) return;
+            const previous=[...smartSavesState];
+            smartSavesState=smartSavesState.filter(row=>String(row?.id||'')!==String(item?.id||''));
+            renderSmartSaves();
+            try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+            try{
+              const data=await smartSavesRequest('remove',{id:item.id});
+              const removed=data?.item||item;
+              smartSavesState=Array.isArray(data.items)?data.items:smartSavesState;
+              renderSmartSaves();
+              showUndoSnackbar('Сохранение удалено',async()=>{
+                const restored=await smartSavesRequest('restore',{item:removed});
+                smartSavesState=Array.isArray(restored.items)?restored.items:previous;
+                renderSmartSaves();
+              },5000);
+            }catch(_){
+              smartSavesState=previous;
+              renderSmartSaves();
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }
+          });
           card.appendChild(del);
         }
         return card;
@@ -9891,7 +9928,15 @@
           }finally{toggle.disabled=false}
         });
         if(canRemove) remove.addEventListener('click',async()=>{
+          if(remove.disabled) return;
           remove.disabled=true;
+          const parent=row.parentNode;
+          const nextSibling=row.nextSibling;
+          const previousCount=Number(homeDashboardState.wishlistCount||0);
+          row.remove();
+          homeDashboardState.wishlistCount=Math.max(0,previousCount-1);
+          renderHomeNew();
+          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           try{
             const data=await wishlistRequest('remove',{id:item.id});
             renderWishlist(data);
@@ -9900,10 +9945,13 @@
               const restored=await wishlistRequest('restore',{item:removed});
               renderWishlist(restored);
             });
-            try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           }catch(_){
+            if(parent&&row.parentNode!==parent) parent.insertBefore(row,nextSibling&&nextSibling.parentNode===parent?nextSibling:null);
+            homeDashboardState.wishlistCount=previousCount;
+            renderHomeNew();
+            remove.disabled=false;
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }finally{remove.disabled=false}
+          }
         });
 
         if(url){
