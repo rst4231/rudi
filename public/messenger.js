@@ -56,6 +56,9 @@
     deletedSuppressUntil:new Map(),
     unreadBoundaryAnimatedId:'',
     loadingSkeletonTimer:0,
+    unreadSyncPromise:null,
+    lastUnreadSyncAt:0,
+    backgroundPreloadScheduled:false,
   };
 
   function telegramInitData(){
@@ -2514,17 +2517,39 @@
     if(active) state.typingTimer=setTimeout(()=>notifyTyping(false),2400);
   }
 
-  async function syncUnread(){
+  async function syncUnread({force=false}={}){
     try{
       if(messengerIsVisible()){
         await syncLiveMessages();
         ensureProfileButton();
         return Number(document.documentElement.dataset.messengerUnreadCount||0);
       }
-      const data=await api('messenger-unread');
-      setUnread(data.unread);
-      ensureProfileButton();
-      return Number(data.unread||0);
+      if(state.loadPromise){
+        await state.loadPromise.catch(()=>null);
+        ensureProfileButton();
+        return Number(document.documentElement.dataset.messengerUnreadCount||0);
+      }
+      if(state.backgroundPreloadScheduled&&!force){
+        ensureProfileButton();
+        return Number(document.documentElement.dataset.messengerUnreadCount||0);
+      }
+      const now=Date.now();
+      if(!force&&state.messagesLoaded&&now-Number(state.lastUnreadSyncAt||0)<30000){
+        ensureProfileButton();
+        return Number(document.documentElement.dataset.messengerUnreadCount||0);
+      }
+      if(state.unreadSyncPromise) return state.unreadSyncPromise;
+      state.lastUnreadSyncAt=now;
+      state.unreadSyncPromise=(async()=>{
+        const data=await api('messenger-unread');
+        setUnread(data.unread);
+        ensureProfileButton();
+        return Number(data.unread||0);
+      })().catch(()=>{
+        ensureProfileButton();
+        return Number(document.documentElement.dataset.messengerUnreadCount||0);
+      }).finally(()=>{state.unreadSyncPromise=null});
+      return await state.unreadSyncPromise;
     }catch(_){
       ensureProfileButton();
       return Number(document.documentElement.dataset.messengerUnreadCount||0);
@@ -3361,6 +3386,16 @@
     return page;
   }
 
+  function scheduleBackgroundPreload(){
+    if(state.messagesLoaded||state.loadPromise||state.backgroundPreloadScheduled) return;
+    state.backgroundPreloadScheduled=true;
+    setTimeout(()=>{
+      state.backgroundPreloadScheduled=false;
+      if(state.messagesLoaded||state.loadPromise||!document.body.classList.contains('auth-ok')) return;
+      load({markRead:false}).catch(()=>{});
+    },120);
+  }
+
   async function open({force=false,fromPush=false}={}){
     mountMessengerOverlay();
     bindPage();
@@ -3386,20 +3421,11 @@
   async function initialize(){
     mountMessengerOverlay();
     bindPage();
-    const start=async()=>{
-      let unread=0;
-      try{
-        unread=await syncUnread();
-        state.initialized=true;
-      }catch(_){}
+    const start=()=>{
+      state.initialized=true;
       ensureProfileButton();
-      if(document.body.dataset.appTab==='messenger'){
-        open({force:true});
-      }else if(unread>0){
-        const preload=()=>load({markRead:false}).catch(()=>{});
-        if(typeof window.requestIdleCallback==='function') window.requestIdleCallback(preload,{timeout:1200});
-        else setTimeout(preload,180);
-      }
+      if(document.body.dataset.appTab==='messenger') open({force:true});
+      else scheduleBackgroundPreload();
     };
     if(document.body.classList.contains('auth-ok')) start();
     else{
@@ -3460,13 +3486,15 @@
     if(tag!=='rudi-messenger'&&!url.includes('tab=messenger')) return;
     if(document.visibilityState==='visible'&&document.body.dataset.appTab==='messenger'){
       syncLiveMessages();
+    }else if(state.messagesLoaded){
+      syncUnread({force:true});
     }else{
-      syncUnread();
+      load({markRead:false});
     }
   });
 
   window.addEventListener('rudi:profile-ready',()=>{ensureProfileButton();syncHeaderAvatar();updateHeader()});
-  window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')){syncUnread();flushMessengerOutbox()}});
+  window.addEventListener('focus',()=>{if(document.body.classList.contains('auth-ok')){if(state.messagesLoaded)syncUnread();else scheduleBackgroundPreload();flushMessengerOutbox()}});
   window.addEventListener('online',()=>{flushMessengerOutbox();if(document.body.dataset.appTab==='messenger')syncLiveMessages()});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState!=='visible'||!document.body.classList.contains('auth-ok')){
@@ -3483,7 +3511,8 @@
     }else{
       stopLiveSync();
       stopPresenceHeartbeat();
-      syncUnread();
+      if(state.messagesLoaded) syncUnread();
+      else scheduleBackgroundPreload();
     }
   });
   window.addEventListener('rudi:app-tab-change',event=>{
@@ -3495,7 +3524,8 @@
     }else{
       stopLiveSync();
       stopPresenceHeartbeat();
-      syncUnread();
+      if(state.messagesLoaded) syncUnread();
+      else scheduleBackgroundPreload();
     }
   });
   window.addEventListener('rudi:ui-preferences-applied',()=>{});
