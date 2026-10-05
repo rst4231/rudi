@@ -353,20 +353,25 @@ async function postCloudKit(url,body,options={}) {
 }
 
 async function resolveCloudKitAlbum(token,options={}) {
+  const query=[
+    'remapEnums=true',
+    'getCurrentSyncToken=true',
+    'sharing_url_key='+encodeURIComponent(token),
+  ].join('&');
   const url=CLOUDKIT_RESOLVE_HOST
-    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/public/records/resolve'
-    +'?ckjsBuildVersion='+encodeURIComponent(CLOUDKIT_BUILD)
-    +'&shortGUID='+encodeURIComponent(token);
-  const payload=await postCloudKit(url,{shortGUIDs:[{value:token}]},options);
+    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/public/records/resolve?'+query;
+  const payload=await postCloudKit(url,{shortGUIDs:[{value:token,shouldFetchRootRecord:true}]},options);
   const result=Array.isArray(payload?.results)?payload.results[0]:null;
+  if(result?.serverErrorCode) throw new Error('shared-album-cloudkit-'+String(result.serverErrorCode).toLowerCase());
+  if(result?.requireAppleLogin) throw new Error('shared-album-cloudkit-private');
   const zone=result?.zoneID;
   const access=result?.anonymousPublicAccess;
   const accessToken=String(access?.token||'').trim();
-  const partition=String(access?.databasePartition||'').trim().replace(/\/$/,'');
+  const partition=String(access?.databasePartition||'').trim().replace(/\/+$/,'');
   if(
     !zone
     || !accessToken
-    || !/^https:\/\/[A-Za-z0-9.-]+\.icloud\.com$/i.test(partition)
+    || !/^https:\/\/[A-Za-z0-9.-]+\.icloud\.com(?::\d+)?$/i.test(partition)
   ) throw new Error('shared-album-cloudkit-private');
   const title=String(cloudKitField(result?.share?.fields,'cloudkit.title')||'Общий альбом').trim()||'Общий альбом';
   return {zone,accessToken,partition,title};
@@ -424,22 +429,22 @@ async function fetchCloudKitPhotos(config,options={}) {
     'publicAccessAuthToken='+encodeURIComponent(resolved.accessToken),
   ].join('&');
   const url=resolved.partition
-    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/shared/records/query?'+query;
+    +'/database/1/'+CLOUDKIT_CONTAINER+'/production/shared/changes/zone?'+query;
   const records=[];
-  let continuation='';
-  do{
-    const body={
-      zoneID:resolved.zone,
-      query:{recordType:CLOUDKIT_RECORD_TYPE},
-      resultsLimit:CLOUDKIT_PAGE_SIZE,
-    };
-    if(continuation) body.continuationMarker=continuation;
-    const payload=await postCloudKit(url,body,options);
-    const batch=Array.isArray(payload?.records)?payload.records:[];
+  let syncToken='';
+  for(let page=0;page<100&&records.length<20000;page++){
+    const zone={zoneID:resolved.zone,resultsLimit:CLOUDKIT_PAGE_SIZE};
+    if(syncToken) zone.syncToken=syncToken;
+    const payload=await postCloudKit(url,{zones:[zone]},options);
+    const result=Array.isArray(payload?.zones)?payload.zones[0]:null;
+    if(!result) throw new Error('shared-album-cloudkit-zone-missing');
+    if(result?.serverErrorCode) throw new Error('shared-album-cloudkit-'+String(result.serverErrorCode).toLowerCase());
+    const batch=Array.isArray(result?.records)?result.records:[];
     records.push(...batch);
-    continuation=String(payload?.continuationMarker||'');
-    if(!batch.length) break;
-  }while(continuation&&records.length<20000);
+    syncToken=String(result?.syncToken||'');
+    if(!result?.moreComing) break;
+    if(!syncToken&&!batch.length) break;
+  }
 
   const photos=parseCloudKitPhotos(records);
   return {
