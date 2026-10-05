@@ -161,37 +161,6 @@ async function listTickTickProjectMembers(accessToken, projectId, options = {}) 
   })).filter((row) => row.username);
 }
 
-async function assignTickTickTask(accessToken, projectId, taskId, displayName, options = {}) {
-  const project = String(projectId || '').trim();
-  const id = String(taskId || '').trim();
-  const wanted = String(displayName || '').trim();
-  if (!project || !id || !wanted) throw new Error('ticktick-task-assign-invalid');
-  const members = await listTickTickProjectMembers(accessToken, project, options);
-  const member = members.find((row) => row.displayName === wanted);
-  if (!member?.username) throw new Error('ticktick-assignee-not-found:' + wanted);
-
-  const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const response = await fetchImpl(API_BASE_URL + '/task/assign', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + accessToken,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'user-agent': 'RUDI-TickTick/1.0',
-    },
-    body: JSON.stringify({
-      projectId: project,
-      taskId: id,
-      assigneeUsername: member.username,
-    }),
-    cache: 'no-store',
-  });
-  if (response.status === 401) throw Object.assign(new Error('ticktick-token-invalid'), { status: 401 });
-  if (response.status === 403) throw Object.assign(new Error('ticktick-write-forbidden'), { status: 403 });
-  if (response.status === 404) throw new Error('ticktick-task-not-found');
-  if (!response.ok) throw new Error('ticktick-task-assign-failed:' + response.status);
-  return response.json().catch(() => ({ id, projectId: project, assigneeUsername: member.username }));
-}
 
 function taskTimestamp(task) {
   const raw = task?.startDate || task?.dueDate;
@@ -366,7 +335,7 @@ async function createTickTickTask(accessToken, value, options = {}) {
 
   const body = { title: title.slice(0, 500), projectId };
   if (value?.isAllDay != null) body.isAllDay = Boolean(value.isAllDay);
-  for (const key of ['startDate','dueDate','timeZone','content','desc','repeatFlag']) {
+  for (const key of ['startDate','dueDate','timeZone','content','desc','repeatFlag','assigneeUsername']) {
     const raw = String(value?.[key] || '').trim();
     if (raw) body[key] = raw;
   }
@@ -664,7 +633,6 @@ module.exports = {
   loadTickTickConfig,
   resolveAssigneeName,
   listTickTickProjectMembers,
-  assignTickTickTask,
   taskTimestamp,
   startOfMoscowDay,
   chooseNextTask,
