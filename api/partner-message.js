@@ -3642,6 +3642,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         equipment: body.equipment,
         meal: body.meal,
         dishType: body.dishType,
+        taste: body.taste,
         cuisine: body.cuisine,
         timeMinutes: body.timeMinutes,
         excludeTitles: body.excludeTitles,
@@ -3670,6 +3671,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           || code === 'recipe-equipment-invalid'
           || code === 'recipe-meal-invalid'
           || code === 'recipe-type-invalid'
+          || code === 'recipe-taste-invalid'
           || code === 'recipe-cuisine-invalid'
           || code === 'recipe-time-invalid'
           || code === 'recipe-title-required' ? 400
