@@ -24,7 +24,9 @@ const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs');
 const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
-const { createD1StateClient } = require('./d1-state-client.cjs');
+const { createRudiStateClient } = require('./rudi-state-client.cjs');
+const { migrateD1ToVercel, storageMigrationStatus, rollbackStorageToD1, isMigrationAuthorized } = require('./d1-to-vercel-migration.cjs');
+const { runStylistLeadScan } = require('./stylist-web-search.cjs');
 const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const { handleSmartHomeRequest, readSmartHomeSnapshot } = require('./smart-home-client.cjs');
@@ -139,6 +141,14 @@ async function publishDailyLaborArticle(options = {}) {
 
 async function handler(req, res) {
   try {
+    if (req.query?.route === 'stylist-leads-cron') {
+      if (!isCronRequestAuthorized(req)) return res.status(401).json({ ok:false, error:'unauthorized-cron' });
+      try { return res.status(200).json(await runStylistLeadScan()); }
+      catch (error) {
+        console.error('RUDI_STYLIST_LEADS_CRON_ERROR',String(error?.message||error));
+        return res.status(500).json({ok:false,error:'stylist-leads-failed'});
+      }
+    }
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
     if (req.query?.route === 'smart-home-humidity-cron') {
       const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {
@@ -227,18 +237,31 @@ async function handler(req, res) {
       try { const labor = await publishDailyLaborArticle({ queueOnly: true }); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
     }
+    if (req.query?.route === 'storage-migrate') {
+      if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
+      if (!isMigrationAuthorized(req,process.env)) return res.status(404).json({ok:false,error:'not-found'});
+      try {
+        const operation=String(req.query?.operation||'migrate').trim();
+        if(operation==='status') return res.status(200).json({ok:true,...await storageMigrationStatus({env:process.env})});
+        if(operation==='rollback') return res.status(200).json({ok:true,marker:await rollbackStorageToD1({env:process.env})});
+        const migration=await migrateD1ToVercel({env:process.env,fetchImpl:nativeFetch,force:String(req.query?.force||'')==='1'});
+        console.info('RUDI_D1_TO_VERCEL_MIGRATION',JSON.stringify({status:migration.status,source:migration.source?.rows,destination:migration.destination?.rows,checks:migration.checks}));
+        return res.status(migration.status==='complete'||migration.status==='already-complete'?200:500).json({ok:true,migration});
+      } catch (error) {
+        console.error('RUDI_D1_TO_VERCEL_MIGRATION_ERROR',String(error?.message||error),JSON.stringify(error?.detail||null));
+        return res.status(500).json({ok:false,error:String(error?.message||'migration-failed'),detail:error?.detail||null});
+      }
+    }
     if (req.query?.route === 'storage-health') {
       if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
       try {
-        const health = await createD1StateClient({ env: process.env, fetchImpl: nativeFetch }).health();
-        const ok = Boolean(health?.ok && health?.storage === 'cloudflare-d1');
-        return res.status(ok ? 200 : 503).json({
-          ok,
-          storage: health?.storage || 'cloudflare-d1',
+        const health = await createRudiStateClient({ env: process.env, fetchImpl: nativeFetch }).health();
+        return res.status(health?.ok ? 200 : 503).json({
+          ok:Boolean(health?.ok),storage:health?.storage||'',phase:health?.phase||'',primary:health?.primary||''
         });
       } catch (error) {
-        console.error('RUDI_D1_HEALTH_ERROR', String(error?.message || error));
-        return res.status(503).json({ ok: false, error: 'rudi-d1-unavailable' });
+        console.error('RUDI_STORAGE_HEALTH_ERROR', String(error?.message || error));
+        return res.status(503).json({ ok: false, error: 'rudi-storage-unavailable' });
       }
     }
     if (req.query?.route === 'health') {
