@@ -166,7 +166,7 @@ function messengerRealtimeUrl(actor, options = {}) {
   return base + '/realtime?token=' + encodeURIComponent(createMessengerRealtimeToken(actor, options));
 }
 
-async function publishMessengerRealtime(event = 'sync', options = {}) {
+async function publishMessengerRealtime(event = 'sync', payload = null, options = {}) {
   const secret = rudiRealtimeSecret(options);
   const fetchImpl = options.fetch || global.fetch;
   if (!secret || typeof fetchImpl !== 'function') return false;
@@ -179,7 +179,11 @@ async function publishMessengerRealtime(event = 'sync', options = {}) {
         authorization: 'Bearer ' + secret,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ event: String(event || 'sync').slice(0,80), at: new Date().toISOString() }),
+      body: JSON.stringify({
+        event: String(event || 'sync').slice(0,80),
+        payload: payload && typeof payload === 'object' ? payload : null,
+        at: new Date().toISOString()
+      }),
       signal: controller.signal,
       cache: 'no-store',
     }).finally(()=>clearTimeout(timer));
@@ -189,8 +193,8 @@ async function publishMessengerRealtime(event = 'sync', options = {}) {
   }
 }
 
-function queueMessengerRealtime(event, options = {}) {
-  const task = publishMessengerRealtime(event, options);
+function queueMessengerRealtime(event, payload = null, options = {}) {
+  const task = publishMessengerRealtime(event, payload, options);
   try { waitUntil(task); } catch (_) { task.catch(() => {}); }
 }
 
@@ -461,22 +465,15 @@ async function sendActivityNotification(text, _tab, options = {}) {
   }
 }
 
-function encryptMessengerSystemPayload(text,systemKind,options={}){
-  const key=Buffer.from(messengerConversationKey(options),'base64url');
-  const iv=crypto.randomBytes(12);
-  const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
-  cipher.setAAD(Buffer.from('rudi-messenger-shared-v2','utf8'));
-  const clear=Buffer.from(JSON.stringify({
-    text:String(text||'').trim(),
-    reply:null,
-    system:true,
-    systemKind:String(systemKind||'reward'),
-  }),'utf8');
-  const ciphertext=Buffer.concat([cipher.update(clear),cipher.final(),cipher.getAuthTag()]);
+function messengerSystemPayload(text,systemKind){
   return {
-    scheme:'shared-v2',
-    ciphertext:ciphertext.toString('base64url'),
-    iv:iv.toString('base64url'),
+    scheme:'plain-v3',
+    payload:{
+      text:String(text||'').trim(),
+      reply:null,
+      system:true,
+      systemKind:String(systemKind||'reward'),
+    },
     keyVersions:{'Рустам':0,'Диана':0},
   };
 }
@@ -553,7 +550,7 @@ async function maybeCreateRustamCycleAdvice(options={}){
   if(!claimed) return null;
 
   try{
-    const encrypted=encryptMessengerSystemPayload(advice.text,'cycle-advice',options);
+    const encrypted=messengerSystemPayload(advice.text,'cycle-advice',options);
     const clientId='cycle-advice-'+crypto.createHash('sha256').update(advice.key).digest('hex').slice(0,24);
     const message=await addMessengerMessage('Рустам',{
       ...encrypted,
@@ -561,6 +558,7 @@ async function maybeCreateRustamCycleAdvice(options={}){
       systemRecipients:['Рустам']
     },options);
     await markMessengerRead('Рустам',[message.id],options).catch(()=>null);
+    queueMessengerRealtime('message',{actor:'Рустам',message},options);
     return message;
   }catch(error){
     await releaseCycleAdvice(advice.key,options).catch(()=>null);
@@ -572,8 +570,9 @@ async function maybeCreateRustamCycleAdvice(options={}){
 async function sendRewardMessengerEvent(actor,text,pushPayload={},options={}){
   const cleanActor=actor==='Диана'?'Диана':actor==='Рустам'?'Рустам':'';
   if(!cleanActor) return [];
-  const encrypted=encryptMessengerSystemPayload(text,pushPayload.systemKind||'reward',options);
+  const encrypted=messengerSystemPayload(text,pushPayload.systemKind||'reward',options);
   const message=await addMessengerMessage(cleanActor,{...encrypted,systemRecipients:['Рустам','Диана']},options);
+  queueMessengerRealtime('message',{actor:cleanActor,message},options);
   const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
   const sendPush=options.sendPushNotificationImpl||sendPushNotification;
   const pushes=[];
@@ -653,12 +652,13 @@ async function sendStarGiftNotification(result, options = {}) {
     const verb=from==='Диана'?'подарила':'подарил';
     const toDative=to==='Диана'?'Диане':to==='Рустам'?'Рустаму':to;
     const text='⭐ '+from+' '+verb+' '+toDative+' '+points+' '+starGiftWord(points);
-    const encrypted=encryptMessengerSystemPayload(text,'star-gift',options);
+    const encrypted=messengerSystemPayload(text,'star-gift',options);
     const message=await addMessengerMessage(from,{
       ...encrypted,
       clientId:String(options?.clientEventId||'').trim(),
       systemRecipients:['Рустам','Диана']
     },options);
+    queueMessengerRealtime('message',{actor:from,message},options);
     const payload={
       title:'⭐ Подарок звёзд',
       body:text,
@@ -2568,8 +2568,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const partner=actor==='Рустам'?'Диана':'Рустам';
-      await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options);
-      queueMessengerRealtime('presence',options);
+      const presence=await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options);
+      queueMessengerRealtime('presence',{actor,presence},options);
       const partnerPresence=await readMessengerPresence(partner,options);
       return res.status(200).json({ok:true,actor,partnerPresence});
     } catch (error) {
@@ -2609,9 +2609,10 @@ async function handleRudiAction(req, res, action, options = {}) {
         ciphertext:body.ciphertext,
         iv:body.iv,
         keyVersions:body.keyVersions,
+        payload:body.payload,
       },options);
       const deduplicated=message?.deduplicated===true;
-      if(!deduplicated) queueMessengerRealtime('message',options);
+      if(!deduplicated) queueMessengerRealtime('message',{actor,message},options);
       const notificationTask=deduplicated
         ?Promise.resolve({sent:false,reason:'duplicate'})
         :sendMessengerNotificationToPartner(actor,message.id,{
@@ -2648,7 +2649,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const {actor}=authorizeRequest(req,body.initData,options);
       await setMessengerPresence(actor,{messengerVisible:body.messengerVisible===true},options).catch(()=>null);
       const active=await setMessengerTyping(actor,Boolean(body.active),options);
-      queueMessengerRealtime('typing',options);
+      queueMessengerRealtime('typing',{actor,active},options);
       return res.status(200).json({ok:true,actor,active});
     } catch (error) {
       const code=String(error?.message||error);
@@ -2663,7 +2664,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       await deleteMessengerMessage(actor,body.id,options);
-      queueMessengerRealtime('delete',options);
+      queueMessengerRealtime('delete',{actor,id:String(body.id||'')},options);
       const pushDismiss=await dismissMessengerNotificationForPartner(actor,body.id,options).catch(error=>({
         sent:false,
         reason:'dismiss-failed',
@@ -2694,9 +2695,10 @@ async function handleRudiAction(req, res, action, options = {}) {
         ciphertext:body.ciphertext,
         iv:body.iv,
         keyVersions:body.keyVersions,
+        payload:body.payload,
         silent:body.silent===true,
       },options);
-      queueMessengerRealtime('edit',options);
+      queueMessengerRealtime('edit',{actor,message},options);
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
       const code=String(error?.message||error);
@@ -2714,7 +2716,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const actors=Array.isArray(message?.reactions?.[String(body.reaction||'')])
         ?message.reactions[String(body.reaction||'')]
         :[];
-      queueMessengerRealtime('reaction',options);
+      queueMessengerRealtime('reaction',{actor,message},options);
       console.info('RUDI_MESSENGER_REACTION_OK',JSON.stringify({
         actor,
         messageId:String(message?.id||body.id||''),
@@ -2736,7 +2738,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await toggleMessengerLike(actor,body.id,options);
-      queueMessengerRealtime('reaction',options);
+      queueMessengerRealtime('reaction',{actor,message},options);
       console.info('RUDI_MESSENGER_LIKE_OK',JSON.stringify({actor,messageId:String(message?.id||body.id||''),liked:Array.isArray(message?.likedBy)&&message.likedBy.includes(actor)}));
       return res.status(200).json({ok:true,actor,message});
     } catch (error) {
@@ -2771,7 +2773,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         .filter(Boolean)
         .slice(0,256);
       const result=await markMessengerRead(actor,requestedIds,options);
-      if(result.updated) queueMessengerRealtime('read',options);
+      if(result.updated) queueMessengerRealtime('read',{actor,ids:requestedIds},options);
       const messages=messengerMessagesVisibleToActor(result.messages,actor);
       return res.status(200).json({
         ok:true,
