@@ -12807,7 +12807,7 @@ body.ticktick-task-modal-open .app-tabbar{display:none!important}
   .ticktick-today-delete{width:27px;height:27px;border-radius:8px;font-size:21px}
   .ticktick-task-modal{padding:10px 10px calc(10px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))}
   .ticktick-task-modal-sheet{padding:16px;border-radius:21px}
-  .ticktick-task-field-row{grid-template-columns:1fr 1fr}
+  .ticktick-task-field-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 }
 @media(max-width:350px){.ticktick-task-field-row{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.ticktick-add-button,.ticktick-today-delete{transition:none!important}}
