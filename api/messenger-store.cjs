@@ -218,15 +218,42 @@ async function addMessengerMessage(actor,payload,options={}){
     if(!sender) throw new Error('messenger-actor-invalid');
     const now=Number(options.now||Date.now());
     const clientId=normalizeClientId(payload?.clientId||'');
-    if(clientId){
-      const index=await readIndex(options);
-      const rows=await Promise.all(index.map(item=>cacheOf(options).get('message:'+item.id).catch(()=>null)));
-      const existing=rows.map(normalizeMessage).find(row=>row&&row.sender===sender&&row.clientId===clientId&&Date.parse(row.expiresAt)>now);
-      if(existing) return {...existing,deduplicated:true};
-    }
+    const cache=cacheOf(options);
     const createdAt=new Date(now).toISOString();
     const expiresAt=new Date(now+MESSAGE_TTL_SECONDS*1000).toISOString();
     const id='chat-'+crypto.randomUUID();
+    const dedupeKey=clientId?'client:'+actorKey(sender)+':'+clientId:'';
+    let claimed=false;
+
+    if(clientId&&typeof cache.setIfAbsent==='function'){
+      claimed=await cache.setIfAbsent(dedupeKey,{id,expiresAt},{
+        ttl:MESSAGE_TTL_SECONDS,
+        tags:['rudi-messenger-client'],
+        name:dedupeKey,
+      });
+      if(!claimed){
+        const pointer=await cache.get(dedupeKey).catch(()=>null);
+        const existingId=String(pointer?.id||'').trim();
+        if(existingId){
+          const existing=normalizeMessage(await cache.get('message:'+existingId).catch(()=>null));
+          if(existing&&existing.sender===sender&&existing.clientId===clientId&&Date.parse(existing.expiresAt)>now){
+            return {...existing,deduplicated:true};
+          }
+        }
+        await cache.delete(dedupeKey).catch(()=>null);
+        claimed=await cache.setIfAbsent(dedupeKey,{id,expiresAt},{
+          ttl:MESSAGE_TTL_SECONDS,
+          tags:['rudi-messenger-client'],
+          name:dedupeKey,
+        });
+      }
+    }else if(clientId){
+      const index=await readIndex(options);
+      const rows=await Promise.all(index.map(item=>cache.get('message:'+item.id).catch(()=>null)));
+      const existing=rows.map(normalizeMessage).find(row=>row&&row.sender===sender&&row.clientId===clientId&&Date.parse(row.expiresAt)>now);
+      if(existing) return {...existing,deduplicated:true};
+    }
+
     const message={
       id,
       sender,
@@ -246,18 +273,37 @@ async function addMessengerMessage(actor,payload,options={}){
       reactions:{},
       likedBy:[],
     };
-    await cacheOf(options).set('message:'+id,message,{
-      ttl:MESSAGE_TTL_SECONDS,
-      tags:['rudi-messenger-message'],
-      name:'message:'+id,
-    });
-    const current=await readIndex(options);
-    const live=current.filter(item=>Date.parse(item.expiresAt)>now&&item.id!==id);
-    await writeIndex([...live,{id,expiresAt}],options);
+
+    try{
+      await cache.set('message:'+id,message,{
+        ttl:MESSAGE_TTL_SECONDS,
+        tags:['rudi-messenger-message'],
+        name:'message:'+id,
+      });
+    }catch(error){
+      if(claimed&&dedupeKey) await cache.delete(dedupeKey).catch(()=>null);
+      throw error;
+    }
+
+    if(clientId&&!claimed&&typeof cache.setIfAbsent!=='function'){
+      await cache.set(dedupeKey,{id,expiresAt},{
+        ttl:MESSAGE_TTL_SECONDS,
+        tags:['rudi-messenger-client'],
+        name:dedupeKey,
+      }).catch(()=>null);
+    }
+
+    // The production D1 cache supports list(), so the legacy index is unnecessary
+    // on the hot path. Keep it only for custom/fallback caches.
+    if(typeof cache.list!=='function'){
+      const current=await readIndex(options);
+      const live=current.filter(item=>Date.parse(item.expiresAt)>now&&item.id!==id);
+      await writeIndex([...live,{id,expiresAt}],options);
+    }
+
     return {...message,deduplicated:false};
   });
 }
-
 
 async function editMessengerMessage(actor,id,payload,options={}){
   return enqueueMutation(async()=>{
@@ -305,8 +351,13 @@ async function deleteMessengerMessage(actor,id,options={}){
       throw new Error('messenger-delete-system-forbidden');
     }
     await cache.delete('message:'+messageId).catch(()=>null);
-    const index=await readIndex(options);
-    await writeIndex(index.filter(item=>item.id!==messageId),options);
+    if(current.clientId){
+      await cache.delete('client:'+actorKey(owner)+':'+current.clientId).catch(()=>null);
+    }
+    if(typeof cache.list!=='function'){
+      const index=await readIndex(options);
+      await writeIndex(index.filter(item=>item.id!==messageId),options);
+    }
     return {deleted:true,id:messageId};
   });
 }
