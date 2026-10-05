@@ -371,8 +371,67 @@ async function deliverPendingPushNotifications(){
   await rememberPushSeen(shown).catch(()=>{});
 }
 
+async function deliverDirectPushNotification(row){
+  const id=String(row?.id||'');
+  if(!id) return false;
+  const notificationTag=String(row?.tag||id);
+  const notificationUrl=String(row?.url||'/');
+  const notificationKind=String(row?.kind||'show');
+  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true}).catch(()=>[]);
+  const isMessenger=notificationTag.startsWith('rudi-messenger')||notificationUrl.includes('tab=messenger');
+  const messengerVisible=isMessenger?await hasVisibleMessenger(windows):false;
+
+  if(notificationKind==='dismiss'){
+    await self.registration.showNotification('RUDI',{
+      body:'Сообщение удалено',
+      tag:notificationTag,
+      icon:String(row?.icon||'/icon-192-v176.jpg'),
+      badge:String(row?.badge||'/icon-192-v176.jpg'),
+      data:{url:notificationUrl,id,dismiss:true},
+      renotify:false
+    }).catch(()=>{});
+    const notifications=await self.registration.getNotifications().catch(()=>[]);
+    for(const notification of notifications){
+      const tag=String(notification?.tag||'');
+      const url=String(notification?.data?.url||'');
+      if(tag===notificationTag||url===notificationUrl){
+        try{notification.close()}catch(_){}
+      }
+    }
+  }else if(!messengerVisible){
+    await self.registration.showNotification(String(row?.title||'RUDI'),{
+      body:String(row?.body||''),
+      tag:notificationTag,
+      icon:String(row?.icon||'/icon-192-v176.jpg'),
+      badge:String(row?.badge||'/icon-192-v176.jpg'),
+      data:{url:notificationUrl,id},
+      renotify:false
+    });
+  }
+
+  for(const client of windows){
+    try{client.postMessage({
+      type:notificationKind==='dismiss'?'RUDI_PUSH_DISMISSED':'RUDI_PUSH_RECEIVED',
+      id,
+      tag:notificationTag,
+      url:notificationUrl,
+      foreground:messengerVisible
+    })}catch(_){}
+  }
+  await rememberPushSeen([id]).catch(()=>{});
+  return true;
+}
+
 self.addEventListener('push',event=>{
-  event.waitUntil(deliverPendingPushNotifications());
+  event.waitUntil((async()=>{
+    let direct=null;
+    try{direct=event.data?.json?.()||null}catch(_){}
+    if(direct?.rudiPush===1&&direct?.notification?.id){
+      await deliverDirectPushNotification(direct.notification);
+      return;
+    }
+    await deliverPendingPushNotifications();
+  })());
 });
 
 self.addEventListener('notificationclick',event=>{
