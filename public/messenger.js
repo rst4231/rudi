@@ -3443,6 +3443,7 @@
   }
 
   function showOptimisticStarGift(amount,clientEventId=''){
+    if(!state.actor||!state.partner) return null;
     const value=Math.max(1,Math.min(5,Math.round(Number(amount)||0)));
     const clientId=String(clientEventId||createClientEventId('star-gift'));
     const id='optimistic:'+clientId;
