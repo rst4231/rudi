@@ -2,7 +2,7 @@
   "current": "v3.91",
   "versionBranch": "rudi-v3.91-car-documents",
   "releaseCommit": "9a1135d2f4a0e854284703fe7555fd8fd19d07fb",
-  "deploymentSourceCommit": "",
+  "deploymentSourceCommit": "be077a4bbde30a892c2bcc07117487fd2067109a",
   "deploymentRequestedAt": "2026-10-05T20:39:33.992Z",
   "createdAt": "2026-10-05",
   "basedOnProduction": "v3.90",
