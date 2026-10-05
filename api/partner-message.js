@@ -2096,7 +2096,7 @@ async function handleTickTick(req, res, action, options = {}) {
       if (responsibleActor && actor !== responsibleActor) {
         return res.status(403).json({
           ok:false, connected:true, error:'ticktick-task-assignee-forbidden',
-          assignee:assigneeTag,
+          assignee:responsibleActor==='Рустам'?'RST':responsibleActor==='Диана'?'Ди':'Не назначен',
         });
       }
 
