@@ -523,3 +523,46 @@ html[data-theme="dark"] .supplement-card-name,html[data-theme="dark"] .supplemen
 .personal-habits-body,.personal-supplements-body{display:block!important}
 body[data-app-tab="habits"] .personal-habits-tile,
 body[data-app-tab="supplements"] .personal-supplements-tile{width:100%;box-sizing:border-box}
+
+
+/* RUDI v3.93 — supplements page visual refresh */
+body[data-app-tab="supplements"] .personal-tool-page-head{margin-bottom:14px}
+body[data-app-tab="supplements"] .personal-supplements-tile{
+  position:relative;overflow:hidden;padding:20px;border-radius:28px;
+  border:1px solid rgba(231,184,92,.22);
+  background:radial-gradient(circle at 88% 10%,rgba(245,188,72,.18),transparent 34%),linear-gradient(145deg,rgba(76,63,38,.76),rgba(28,33,27,.96))!important;
+  box-shadow:0 18px 42px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.08)
+}
+body[data-app-tab="supplements"] .personal-supplements-tile::before{
+  content:'';position:absolute;right:-24px;top:-30px;width:190px;height:190px;pointer-events:none;opacity:.26;
+  background:radial-gradient(ellipse at 28% 72%,rgba(98,151,75,.72) 0 12%,transparent 13%),radial-gradient(ellipse at 52% 51%,rgba(76,126,60,.62) 0 13%,transparent 14%),radial-gradient(ellipse at 72% 31%,rgba(108,158,81,.52) 0 11%,transparent 12%);transform:rotate(-20deg)
+}
+body[data-app-tab="supplements"] .personal-supplements-head{align-items:center;position:relative;z-index:1}
+body[data-app-tab="supplements"] .personal-home-tile-icon.is-supplement{
+  width:72px;height:72px;flex-basis:72px;border-radius:22px;font-size:38px;
+  background:linear-gradient(145deg,rgba(123,86,39,.74),rgba(86,64,37,.72));
+  box-shadow:inset 0 0 0 1px rgba(245,198,112,.32),0 10px 24px rgba(0,0,0,.16)
+}
+body[data-app-tab="supplements"] .personal-supplements-head h2{display:none}
+body[data-app-tab="supplements"] .personal-supplements-title-wrap{display:grid;align-content:center}
+body[data-app-tab="supplements"] .personal-supplements-summary{margin:0;color:var(--text);font-size:17px;line-height:1.2;font-weight:820;opacity:1;letter-spacing:-.015em}
+body[data-app-tab="supplements"] .personal-supplements-progress-row{margin:16px 0 0;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+body[data-app-tab="supplements"] .personal-supplements-progress{height:11px;background:rgba(255,255,255,.10);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+body[data-app-tab="supplements"] .personal-supplements-progress-fill{background:linear-gradient(90deg,#f0b74d,#ffca61);box-shadow:0 0 16px rgba(242,182,70,.32)}
+body[data-app-tab="supplements"] .personal-supplements-percent{min-width:42px;color:#f3c45f;font-size:15px;font-weight:850;opacity:1}
+body[data-app-tab="supplements"] .personal-supplements-body{margin-top:14px}
+body[data-app-tab="supplements"] .personal-supplements-status{border-radius:13px}
+body[data-app-tab="supplements"] .supplement-card{border-radius:18px;border:1px solid color-mix(in srgb,currentColor 9%,transparent);background:color-mix(in srgb,var(--surface,#20242f) 78%,transparent);box-shadow:0 8px 22px rgba(0,0,0,.08)}
+html[data-theme="light"] body[data-app-tab="supplements"] .personal-supplements-tile{
+  border-color:rgba(183,130,49,.17);
+  background:radial-gradient(circle at 88% 10%,rgba(225,171,75,.20),transparent 34%),linear-gradient(145deg,#f8f2e7,#eee4d2)!important;
+  box-shadow:0 16px 36px rgba(79,62,34,.10),inset 0 1px 0 rgba(255,255,255,.78)
+}
+html[data-theme="light"] body[data-app-tab="supplements"] .personal-home-tile-icon.is-supplement{background:linear-gradient(145deg,#f0d29d,#e8c27e);box-shadow:inset 0 0 0 1px rgba(138,94,35,.12),0 9px 20px rgba(119,84,31,.10)}
+html[data-theme="light"] body[data-app-tab="supplements"] .personal-supplements-summary{color:#29251e}
+html[data-theme="light"] body[data-app-tab="supplements"] .personal-supplements-progress{background:rgba(116,86,43,.11)}
+@media(max-width:430px){
+  body[data-app-tab="supplements"] .personal-supplements-tile{padding:17px;border-radius:25px}
+  body[data-app-tab="supplements"] .personal-home-tile-icon.is-supplement{width:64px;height:64px;flex-basis:64px;border-radius:20px;font-size:34px}
+  body[data-app-tab="supplements"] .personal-supplements-summary{font-size:16px}
+}
