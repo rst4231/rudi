@@ -803,6 +803,27 @@ html[data-theme="dark"] .messenger-message.is-system-event .messenger-bubble{
   overflow:hidden;background:transparent
 }
 .messenger-photo{display:block;width:100%;height:auto;max-height:340px;object-fit:cover;border-radius:15px}
+.messenger-photo-album{
+  width:min(72vw,300px);max-width:100%;display:grid;gap:2px;overflow:hidden;border-radius:15px;
+  grid-auto-flow:dense;background:rgba(0,0,0,.06)
+}
+.messenger-photo-album-item{
+  min-width:0;min-height:0;padding:0;border:0;background:transparent;overflow:hidden
+}
+.messenger-photo-album-item img{
+  display:block;width:100%;height:100%;min-height:0;object-fit:cover
+}
+.messenger-photo-album.count-2{grid-template-columns:repeat(2,1fr);height:min(54vw,220px)}
+.messenger-photo-album.count-3{grid-template-columns:1.45fr 1fr;grid-template-rows:repeat(2,1fr);height:min(70vw,290px)}
+.messenger-photo-album.count-3 .messenger-photo-album-item:first-child{grid-row:1/3}
+.messenger-photo-album.count-4{grid-template-columns:1.45fr 1fr;grid-template-rows:repeat(3,1fr);height:min(76vw,315px)}
+.messenger-photo-album.count-4 .messenger-photo-album-item:first-child{grid-row:1/4}
+.messenger-photo-album.count-5{
+  grid-template-columns:repeat(3,1fr);grid-auto-rows:min(23vw,96px)
+}
+.messenger-photo-album.count-5 .messenger-photo-album-item:first-child{
+  grid-column:1/3;grid-row:1/3
+}
 .messenger-photo-viewer{
   position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:24px;
   background:rgba(0,0,0,.92)
