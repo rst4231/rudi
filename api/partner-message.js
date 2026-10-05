@@ -488,6 +488,38 @@ function messengerMessagesVisibleToActor(rows,actor){
   });
 }
 
+function messengerMessageForClient(row,options={}){
+  if(!row||typeof row!=='object') return row;
+  if(String(row.scheme||'')!=='shared-v2') return row;
+  try{
+    const key=Buffer.from(messengerConversationKey(options),'base64url');
+    const iv=Buffer.from(String(row.iv||''),'base64url');
+    const packed=Buffer.from(String(row.ciphertext||''),'base64url');
+    if(iv.length!==12||packed.length<=16) return row;
+    const ciphertext=packed.subarray(0,packed.length-16);
+    const authTag=packed.subarray(packed.length-16);
+    const decipher=crypto.createDecipheriv('aes-256-gcm',key,iv);
+    decipher.setAAD(Buffer.from('rudi-messenger-shared-v2','utf8'));
+    decipher.setAuthTag(authTag);
+    const clear=Buffer.concat([decipher.update(ciphertext),decipher.final()]);
+    const payload=JSON.parse(clear.toString('utf8'));
+    return {
+      ...row,
+      scheme:'plain-v3',
+      payload,
+      ciphertext:'',
+      iv:'',
+      keyVersions:{'Рустам':0,'Диана':0},
+    };
+  }catch(_){
+    return row;
+  }
+}
+
+function messengerMessagesForClient(rows,options={}){
+  return (Array.isArray(rows)?rows:[]).map(row=>messengerMessageForClient(row,options));
+}
+
 function cycleAdviceForRustam(view,state){
   if(!view||!state) return null;
   const phase=String(view.phase||'');
@@ -559,7 +591,7 @@ async function maybeCreateRustamCycleAdvice(options={}){
       systemRecipients:['Рустам']
     },options);
     await markMessengerRead('Рустам',[message.id],options).catch(()=>null);
-    queueMessengerRealtime('message',{actor:'Рустам',message},options);
+    queueMessengerRealtime('message',{actor:'Рустам',message:messengerMessageForClient(message,options)},options);
     return message;
   }catch(error){
     await releaseCycleAdvice(advice.key,options).catch(()=>null);
@@ -573,7 +605,7 @@ async function sendRewardMessengerEvent(actor,text,pushPayload={},options={}){
   if(!cleanActor) return [];
   const encrypted=messengerSystemPayload(text,pushPayload.systemKind||'reward',options);
   const message=await addMessengerMessage(cleanActor,{...encrypted,systemRecipients:['Рустам','Диана']},options);
-  queueMessengerRealtime('message',{actor:cleanActor,message},options);
+  queueMessengerRealtime('message',{actor:cleanActor,message:messengerMessageForClient(message,options)},options);
   const readPreferences=options.readUiPreferencesImpl||readUiPreferences;
   const sendPush=options.sendPushNotificationImpl||sendPushNotification;
   const pushes=[];
@@ -659,7 +691,7 @@ async function sendStarGiftNotification(result, options = {}) {
       clientId:String(options?.clientEventId||'').trim(),
       systemRecipients:['Рустам','Диана']
     },options);
-    queueMessengerRealtime('message',{actor:from,message},options);
+    queueMessengerRealtime('message',{actor:from,message:messengerMessageForClient(message,options)},options);
     const payload={
       title:'⭐ Подарок звёзд',
       body:text,
@@ -2564,13 +2596,14 @@ async function handleRudiAction(req, res, action, options = {}) {
         Array.isArray(delivered?.messages)?delivered.messages:beforeDelivery,
         actor
       );
+      const clientMessages=messengerMessagesForClient(messages,options);
       return res.status(200).json({
         ok:true,
         actor,
         keys,
         conversationKey:messengerConversationKey(options),
-        scheme:'shared-v2',
-        messages,
+        scheme:'plain-v3',
+        messages:clientMessages,
         partnerTyping,
         partnerPresence,
         unread:unreadMessengerCount(messages,actor),
@@ -2632,7 +2665,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         payload:body.payload,
       },options);
       const deduplicated=message?.deduplicated===true;
-      if(!deduplicated) queueMessengerRealtime('message',{actor,message},options);
+      const clientMessage=messengerMessageForClient(message,options);
+      if(!deduplicated) queueMessengerRealtime('message',{actor,message:clientMessage},options);
       const notificationTask=deduplicated
         ?Promise.resolve({sent:false,reason:'duplicate'})
         :sendMessengerNotificationToPartner(actor,message.id,{
@@ -2650,7 +2684,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       return res.status(200).json({
         ok:true,
         actor,
-        message,
+        message:clientMessage,
         cycleAdviceCreated:Boolean(cycleAdvice?.id),
         unread:unreadMessengerCount(messages,actor),
         notification:{sent:false,pending:true},
@@ -2718,8 +2752,9 @@ async function handleRudiAction(req, res, action, options = {}) {
         payload:body.payload,
         silent:body.silent===true,
       },options);
-      queueMessengerRealtime('edit',{actor,message},options);
-      return res.status(200).json({ok:true,actor,message});
+      const clientMessage=messengerMessageForClient(message,options);
+      queueMessengerRealtime('edit',{actor,message:clientMessage},options);
+      return res.status(200).json({ok:true,actor,message:clientMessage});
     } catch (error) {
       const code=String(error?.message||error);
       const status=code.startsWith('messenger-')?400:statusForError(error);
@@ -2736,14 +2771,15 @@ async function handleRudiAction(req, res, action, options = {}) {
       const actors=Array.isArray(message?.reactions?.[String(body.reaction||'')])
         ?message.reactions[String(body.reaction||'')]
         :[];
-      queueMessengerRealtime('reaction',{actor,message},options);
+      const clientMessage=messengerMessageForClient(message,options);
+      queueMessengerRealtime('reaction',{actor,message:clientMessage},options);
       console.info('RUDI_MESSENGER_REACTION_OK',JSON.stringify({
         actor,
         messageId:String(message?.id||body.id||''),
         reaction:String(body.reaction||''),
         active:actors.includes(actor),
       }));
-      return res.status(200).json({ok:true,actor,message});
+      return res.status(200).json({ok:true,actor,message:clientMessage});
     } catch (error) {
       const code=String(error?.message||error);
       console.warn('RUDI_MESSENGER_REACTION_ERROR',code);
@@ -2758,9 +2794,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const {actor}=authorizeRequest(req,body.initData,options);
       const message=await toggleMessengerLike(actor,body.id,options);
-      queueMessengerRealtime('reaction',{actor,message},options);
+      const clientMessage=messengerMessageForClient(message,options);
+      queueMessengerRealtime('reaction',{actor,message:clientMessage},options);
       console.info('RUDI_MESSENGER_LIKE_OK',JSON.stringify({actor,messageId:String(message?.id||body.id||''),liked:Array.isArray(message?.likedBy)&&message.likedBy.includes(actor)}));
-      return res.status(200).json({ok:true,actor,message});
+      return res.status(200).json({ok:true,actor,message:clientMessage});
     } catch (error) {
       const code=String(error?.message||error);
       console.warn('RUDI_MESSENGER_LIKE_ERROR',code);
