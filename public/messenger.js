@@ -63,6 +63,10 @@
     cacheHydrated:false,
     cacheHydratePromise:null,
     cachePersistTimer:0,
+    optimisticSystemRows:new Map(),
+    starGiftRemaining:null,
+    starGiftLimit:5,
+    starGiftSending:false,
     networkLoaded:false,
     reactionOverrides:new Map(),
   };
@@ -755,7 +759,15 @@
     const remaining=outbox.filter(entry=>!serverClientIds.has(String(entry.clientId||'')));
     if(remaining.length!==outbox.length) writeMessengerOutbox(remaining);
     const pending=remaining.map(pendingRowFromOutbox);
-    return [...rows,...pending].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+    const optimistic=[];
+    for(const [clientId,entry] of state.optimisticSystemRows){
+      if(serverClientIds.has(String(clientId||''))){
+        state.optimisticSystemRows.delete(clientId);
+        continue;
+      }
+      if(entry?.row) optimistic.push(entry.row);
+    }
+    return [...rows,...pending,...optimistic].sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
   }
 
   function selfAvatarUrl(){
@@ -2647,9 +2659,16 @@
   }
 
   async function decryptMessages(rows){
+    const optimisticPayloads=new Map(
+      [...state.optimisticSystemRows.values()]
+        .filter(entry=>entry?.row?.id&&entry?.payload)
+        .map(entry=>[String(entry.row.id),entry.payload])
+    );
     state.decrypted.clear();
-    if(!state.aesKey&&!state.legacyAesKey) return;
     const results=await Promise.all((Array.isArray(rows)?rows:[]).map(async row=>{
+      const local=optimisticPayloads.get(String(row?.id||''));
+      if(local) return [row.id,local];
+      if(!state.aesKey&&!state.legacyAesKey) return null;
       try{return [row.id,await decryptRow(row)]}catch(_){return null}
     }));
     for(const result of results){
@@ -3389,40 +3408,131 @@
     }
   }
 
+  function starGiftWord(points){
+    const value=Math.abs(Math.trunc(Number(points)||0));
+    const mod100=value%100,mod10=value%10;
+    if(mod100>=11&&mod100<=14) return 'звёзд';
+    if(mod10===1) return 'звезду';
+    if(mod10>=2&&mod10<=4) return 'звезды';
+    return 'звёзд';
+  }
+
+  function starGiftText(points){
+    const from=String(state.actor||'');
+    const to=String(state.partner||'');
+    const verb=from==='Диана'?'подарила':'подарил';
+    const toDative=to==='Диана'?'Диане':to==='Рустам'?'Рустаму':to;
+    return '⭐ '+from+' '+verb+' '+toDative+' '+points+' '+starGiftWord(points);
+  }
+
+  function createClientEventId(prefix='event'){
+    try{return prefix+'-'+crypto.randomUUID()}catch(_){return prefix+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}
+  }
+
+  function applyStarGiftRemaining(remaining,limit=state.starGiftLimit||5){
+    const safe=Math.max(0,Number(remaining)||0);
+    const safeLimit=Math.max(1,Number(limit)||5);
+    state.starGiftRemaining=safe;
+    state.starGiftLimit=safeLimit;
+    const label=document.getElementById('messengerStarsRemaining');
+    if(label) label.textContent='Осталось '+safe+' из '+safeLimit;
+    document.querySelectorAll('[data-star-amount]').forEach(button=>{
+      button.disabled=state.starGiftSending||Number(button.dataset.starAmount||0)>safe;
+    });
+    return safe;
+  }
+
+  function showOptimisticStarGift(amount,clientEventId=''){
+    const value=Math.max(1,Math.min(5,Math.round(Number(amount)||0)));
+    const clientId=String(clientEventId||createClientEventId('star-gift'));
+    const id='optimistic:'+clientId;
+    const createdAt=new Date().toISOString();
+    const payload={text:starGiftText(value),system:true,systemKind:'star-gift'};
+    const row={
+      id,clientId,sender:state.actor,scheme:'optimistic-local',ciphertext:'',iv:'',keyVersions:{},
+      createdAt,expiresAt:new Date(Date.now()+24*60*60*1000).toISOString(),
+      deliveredAt:'',readAt:'',editedAt:'',reactions:{},likedBy:[],
+      systemRecipients:['Рустам','Диана'],systemReadBy:[],_pending:true,_optimisticSystem:true
+    };
+    state.optimisticSystemRows.set(clientId,{row,payload});
+    state.rows=[...state.rows.filter(item=>String(item?.clientId||'')!==clientId),row]
+      .sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+    state.decrypted.set(id,payload);
+    renderMessages({forceBottom:true});
+    return {clientEventId:clientId,rowId:id,value};
+  }
+
+  function rollbackOptimisticStarGift(clientEventId){
+    const clientId=String(clientEventId||'');
+    const entry=state.optimisticSystemRows.get(clientId);
+    if(!entry) return false;
+    state.optimisticSystemRows.delete(clientId);
+    state.rows=state.rows.filter(row=>String(row?.clientId||'')!==clientId);
+    if(entry?.row?.id) state.decrypted.delete(entry.row.id);
+    renderMessages({preserveScrollTop:Number(document.getElementById('messengerMessages')?.scrollTop||0)});
+    return true;
+  }
+
+  function confirmOptimisticStarGift(clientEventId,remaining,limit=state.starGiftLimit||5){
+    applyStarGiftRemaining(remaining,limit);
+    const sync=()=>syncLiveMessages().catch(()=>{});
+    setTimeout(sync,80);
+    setTimeout(sync,420);
+    setTimeout(sync,1200);
+    return String(clientEventId||'');
+  }
+
   async function refreshStarGiftState(){
     try{
       const data=await api('score',{operation:'state'});
       const gift=data?.score?.gifts?.[state.actor]||{};
-      const remaining=Math.max(0,Number(gift.remaining||0));
-      const label=document.getElementById('messengerStarsRemaining');
-      if(label) label.textContent='Осталось '+remaining+' из '+Number(gift.limit||5);
-      document.querySelectorAll('[data-star-amount]').forEach(button=>{
-        button.disabled=Number(button.dataset.starAmount||0)>remaining;
-      });
-      return remaining;
-    }catch(_){return 0}
+      return applyStarGiftRemaining(gift.remaining,gift.limit);
+    }catch(_){
+      return Number.isFinite(Number(state.starGiftRemaining))?Number(state.starGiftRemaining):0;
+    }
   }
 
   async function sendStarsFromMessenger(amount){
     const value=Math.max(1,Math.min(5,Math.round(Number(amount)||0)));
+    if(state.starGiftSending) return;
     const status=document.getElementById('messengerStatus');
+    const previousRemaining=Number.isFinite(Number(state.starGiftRemaining))?Number(state.starGiftRemaining):null;
+    if(previousRemaining!==null&&value>previousRemaining){
+      if(status){status.hidden=false;status.textContent='Недостаточно доступных звёзд на эту неделю.'}
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+      return;
+    }
+
+    const optimistic=showOptimisticStarGift(value);
+    state.starGiftSending=true;
+    if(previousRemaining!==null) applyStarGiftRemaining(Math.max(0,previousRemaining-value),state.starGiftLimit);
+
+    const starTray=document.getElementById('messengerStarTray');
+    const attachTray=document.getElementById('messengerAttachTray');
+    setMessengerTrayOpen(starTray,false);
+    setMessengerTrayOpen(attachTray,false);
+    if(status){status.hidden=false;status.textContent='Подарено '+value+' ⭐'}
+    try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+
     try{
-      const data=await api('score',{operation:'gift',amount:value});
-      const remaining=Number(data?.gift?.remaining??0);
+      const data=await api('score',{operation:'gift',amount:value,clientEventId:optimistic.clientEventId});
+      const remaining=Number(data?.gift?.remaining??Math.max(0,(previousRemaining??value)-value));
+      state.starGiftSending=false;
+      confirmOptimisticStarGift(optimistic.clientEventId,remaining,Number(data?.score?.gifts?.[state.actor]?.limit||state.starGiftLimit||5));
       if(status){status.hidden=false;status.textContent='Подарено '+value+' ⭐ · осталось '+remaining+' на этой неделе'}
-      const starTray=document.getElementById('messengerStarTray');
-      const attachTray=document.getElementById('messengerAttachTray');
-      setMessengerTrayOpen(starTray,false);
-      setMessengerTrayOpen(attachTray,false);
-      refreshStarGiftState();
-      setTimeout(()=>{if(status?.textContent?.startsWith('Подарено ')){status.hidden=true;status.textContent=''}},2400);
+      setTimeout(()=>{if(status?.textContent?.startsWith('Подарено ')){status.hidden=true;status.textContent=''}},1600);
       try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(error){
+      state.starGiftSending=false;
+      rollbackOptimisticStarGift(optimistic.clientEventId);
+      if(previousRemaining!==null) applyStarGiftRemaining(previousRemaining,state.starGiftLimit);
+      else refreshStarGiftState();
       const code=String(error?.message||'');
       if(status){
         status.hidden=false;
         status.textContent=code.includes('weekly-limit')?'Лимит 5 ⭐ на эту неделю уже использован.':code.includes('balance')?'Не хватает звёзд на балансе.':'Не удалось подарить звёзды.';
       }
+      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }
   }
 
@@ -4070,7 +4180,15 @@
     }
   });
   window.addEventListener('rudi:ui-preferences-applied',()=>{});
-  window.RUDI_MESSENGER={open,refresh:()=>load({markRead:document.body.dataset.appTab==='messenger'}),syncUnread,syncLiveMessages};
+  window.RUDI_MESSENGER={
+    open,
+    refresh:()=>load({markRead:document.body.dataset.appTab==='messenger'}),
+    syncUnread,
+    syncLiveMessages,
+    showOptimisticStarGift,
+    confirmOptimisticStarGift,
+    rollbackOptimisticStarGift
+  };
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initialize,{once:true});
   else initialize();
