@@ -3050,7 +3050,11 @@
       }
 
       function renderScoreStickers(score=currentScoreState){
-        if(score) currentScoreState=score;
+        if(score){
+          const incomingVersion=Math.max(0,Number(score?.version||0));
+          const currentVersion=Math.max(0,Number(currentScoreState?.version||0));
+          if(!currentScoreState||incomingVersion>=currentVersion) currentScoreState=score;
+        }
         if(!currentScoreState) return;
         document.querySelectorAll('.score-sticker[data-score-actor]').forEach(sticker=>{
           const actor=String(sticker.dataset.scoreActor||'');
@@ -8007,7 +8011,7 @@
       }
 
       function tickTickAssigneeLabel(task){
-        if(task?.assigned===false) return 'Общая';
+        if(task?.assigned===false) return 'Ответственные Рустам и Диана';
         const value=String(task?.assignee||'').trim().toLocaleLowerCase('ru-RU');
         if(value==='ди'||value==='диана') return 'Ответственная Диана';
         if(value==='rst'||value==='рустам') return 'Ответственный Рустам';
