@@ -11,9 +11,10 @@ test('v3.87 chat hot path is reduced and realtime is immediate',()=>{
   const client=read('public/messenger.js');
   assert.match(store,/setIfAbsent\(dedupeKey/);
   assert.match(store,/typeof cache\.list!=='function'/);
-  assert.match(api,/await publishMessengerRealtime\('message'/);
-  assert.match(api,/await publishMessengerRealtime\('reaction'/);
-  assert.match(api,/await publishMessengerRealtime\('delete'/);
+  assert.doesNotMatch(api,/\/realtime\/publish/);
+  assert.match(client,/publishRealtime\('message'/);
+  assert.match(client,/publishRealtime\('reaction'/);
+  assert.match(client,/publishRealtime\('delete'/);
   assert.doesNotMatch(api,/\?await maybeCreateRustamCycleAdvice/);
   assert.match(client,/realtimeHeartbeatTimer/);
   assert.match(client,/heartbeat-timeout/);
