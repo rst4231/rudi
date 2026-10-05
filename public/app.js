@@ -206,7 +206,15 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,messenger:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,messenger:0,settings:0,habits:0,supplements:0,score:0};
+      const APP_TAB_SCROLL_SESSION_KEY='rudi:tab-scroll:v1';
+      try{
+        const saved=JSON.parse(sessionStorage.getItem(APP_TAB_SCROLL_SESSION_KEY)||'{}');
+        if(saved&&typeof saved==='object') Object.keys(appTabScroll).forEach(key=>{if(Number.isFinite(Number(saved[key]))) appTabScroll[key]=Math.max(0,Number(saved[key])||0)});
+      }catch(_){}
+      function persistAppTabScroll(){
+        try{sessionStorage.setItem(APP_TAB_SCROLL_SESSION_KEY,JSON.stringify(appTabScroll))}catch(_){}
+      }
       const STATE_BACKUP_STORAGE_KEY = 'rudi-state-backup-v2';
       const STATE_BACKUP_LOCAL_HISTORY_KEY = 'rudi-state-backup-v2-history';
       const STATE_BACKUP_LOCAL_HISTORY_LIMIT = 10;
@@ -2082,6 +2090,23 @@
         }
       }
 
+      const appTabPreloadAt=new Map();
+      function preloadAppTab(tab){
+        const next=String(tab||'').trim();
+        if(!next||next===currentAppTab) return;
+        const now=Date.now(),previous=Number(appTabPreloadAt.get(next)||0);
+        if(now-previous<7000) return;
+        appTabPreloadAt.set(next,now);
+        if(next==='feed') loadFeed({silent:true}).catch(()=>{});
+        else if(next==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true}).catch(()=>{});
+        else if(next==='products') loadProducts({silent:true}).catch(()=>{});
+        else if(next==='photos') Promise.resolve(loadSharedAlbum()).catch(()=>{});
+        else if(next==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
+        else if(next==='fasting') Promise.resolve(loadFastingTracker({silent:true})).catch(()=>{});
+        else if(next==='habits'||next==='supplements') Promise.resolve(window.RudiSupplementApp?.loadHomeTools?.({force:false})).catch(()=>{});
+        else if(next==='messenger') Promise.resolve(window.RUDI_MESSENGER?.preload?.()).catch(()=>{});
+      }
+
       function canUseAppViewTransition(){
         try{
           return Boolean(
@@ -2112,6 +2137,7 @@
 
       function navigateToAppTab(tab,{scroll=true,item='',replace=false}={}){
         appTabScroll[currentAppTab]=window.scrollY||0;
+        persistAppTabScroll();
         document.activeElement?.blur?.();
         const previous=currentAppTab;
         const update=()=>{
@@ -2249,10 +2275,13 @@
         document.querySelectorAll('#appTabBar [data-app-tab]').forEach(button=>{
           if(button.dataset.routeBound==='1') return;
           button.dataset.routeBound='1';
+          button.addEventListener('pointerdown',()=>preloadAppTab(button.dataset.appTab||'home'),{passive:true});
+          button.addEventListener('pointerenter',()=>preloadAppTab(button.dataset.appTab||'home'),{passive:true});
           button.addEventListener('click',()=>{
             const next=button.dataset.appTab||'home';
             if(next===currentAppTab){
               appTabScroll[next]=0;
+              persistAppTabScroll();
               updateAppRoute(next,{replace:true});
               requestAnimationFrame(()=>modal.scrollTo({top:0,left:0,behavior:'auto'}));
               if(next==='schedule'){
@@ -2275,6 +2304,8 @@
         if(window.__rudiPopstateBound!=='1'){
           window.__rudiPopstateBound='1';
           window.addEventListener('popstate',()=>{
+            appTabScroll[currentAppTab]=window.scrollY||0;
+            persistAppTabScroll();
             const route=routeFromLocation();
             const previous=currentAppTab;
             const update=()=>{
@@ -2285,6 +2316,20 @@
             if(route.tab!==previous) runAppViewTransition(update);
             else update();
           });
+        }
+        if(window.__rudiTabScrollBound!=='1'){
+          window.__rudiTabScrollBound='1';
+          let scrollFrame=0;
+          window.addEventListener('scroll',()=>{
+            if(scrollFrame) return;
+            scrollFrame=requestAnimationFrame(()=>{
+              scrollFrame=0;
+              if(Object.prototype.hasOwnProperty.call(appTabScroll,currentAppTab)){
+                appTabScroll[currentAppTab]=window.scrollY||0;
+              }
+            });
+          },{passive:true});
+          window.addEventListener('pagehide',persistAppTabScroll);
         }
       }
 
@@ -4094,15 +4139,29 @@
         const source=Array.isArray(items)?items:[];
         const moodGroups=new Map();
         const saveGroups=new Map();
+        const eventGroups=new Map();
         const result=[];
         for(const item of source){
           const type=String(item?.type||'');
+          const actor=String(item?.actor||'').trim()||(type==='mood'?'Настроение':'Сохранения');
+          const createdAt=String(item?.createdAt||'');
+          const createdMs=Date.parse(createdAt)||0;
+          const dateKey=sharedAlbumDateKey(new Date(createdAt));
           if(type!=='mood'&&type!=='smart-save'){
-            result.push({kind:'event',item,createdAt:String(item?.createdAt||'')});
+            const bucket=createdMs?Math.floor(createdMs/(20*60*1000)):0;
+            const eventKey=[type,actor,String(item?.text||'').trim(),String(item?.targetTab||''),String(item?.targetItem||item?.itemId||''),bucket].join('|');
+            const existing=eventGroups.get(eventKey);
+            if(existing){
+              existing.count+=1;
+              existing.items.push(item);
+              if((Date.parse(existing.latest?.createdAt||'')||0)<=createdMs) existing.latest=item;
+            }else{
+              const group={kind:'event-summary',count:1,items:[item],latest:item,item,createdAt};
+              eventGroups.set(eventKey,group);
+              result.push(group);
+            }
             continue;
           }
-          const actor=String(item?.actor||'').trim()||(type==='mood'?'Настроение':'Сохранения');
-          const dateKey=sharedAlbumDateKey(new Date(String(item?.createdAt||'')));
           const key=actor+'|'+dateKey;
           const groups=type==='mood'?moodGroups:saveGroups;
           const existing=groups.get(key);
@@ -4110,7 +4169,7 @@
             existing.count+=1;
             existing.items.push(item);
           }else{
-            const group={kind:type==='mood'?'mood-summary':'smart-save-summary',actor,count:1,items:[item],latest:item,createdAt:String(item?.createdAt||'')};
+            const group={kind:type==='mood'?'mood-summary':'smart-save-summary',actor,count:1,items:[item],latest:item,createdAt};
             groups.set(key,group);
             result.push(group);
           }
@@ -4130,12 +4189,18 @@
 
       function activityTargetTab(item){
         const type=String(item?.type||'');
-        if(type==='task-complete'||type==='checklist-complete') return 'home';
+        const raw=String(item?.targetTab||'').trim();
+        if(raw) return raw==='saves'?'dates':raw;
+        if(type==='photo') return 'photos';
+        if(type==='calendar'||type==='task-complete'||type==='checklist-complete') return 'schedule';
         if(type==='saved-recipe') return 'products';
-        const raw=String(item?.targetTab||'');
-        return raw==='saves'?'dates':raw;
+        if(type==='reward-unlock') return 'score';
+        if(type==='partner-message'||type==='daily-question'||type==='lulu-walk'||type==='mood') return 'home';
+        return '';
       }
       function activityTargetItem(item){
+        const explicit=String(item?.targetItem||item?.itemId||'').trim();
+        if(explicit) return explicit;
         const type=String(item?.type||'');
         if(type==='partner-message') return 'partner';
         if(type==='daily-question') return 'daily-question';
@@ -4184,7 +4249,7 @@
           button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',active?'true':'false');
         });
         for(const entry of visible){
-          const item=entry.kind==='mood-summary'?entry.latest:entry.item;
+          const item=(entry.kind==='mood-summary'||entry.kind==='event-summary')?entry.latest:entry.item;
           const entryItems=activityEntryItems(entry);
           const unread=activityPanelMode==='notifications'&&entryItems.some(row=>!read.has(String(row?.id||'')));
           const row=document.createElement('button');row.type='button';
@@ -4198,13 +4263,16 @@
           }else if(entry.kind==='smart-save-summary'){
             icon.textContent='🔖';textNode.textContent=entry.actor+' · '+(entry.count===1?'добавлено сохранение':'добавлено '+entry.count+' сохранения');detail.textContent=activityTimeLabel(item.createdAt);
           }else{
-            const view=activityEventView(item);icon.textContent=String(item?.icon||'•');textNode.textContent=view.title;detail.textContent=(view.detail?view.detail+' · ':'')+activityTimeLabel(item?.createdAt);
+            const view=activityEventView(item);icon.textContent=String(item?.icon||'•');textNode.textContent=view.title;
+            const grouped=entry.kind==='event-summary'&&Number(entry.count||0)>1?('×'+entry.count+' · '):'';
+            detail.textContent=grouped+(view.detail?view.detail+' · ':'')+activityTimeLabel(item?.createdAt);
           }
           copy.append(textNode,detail);
           const arrow=document.createElement('span');arrow.className='home-activity-arrow';arrow.textContent=activityTargetTab(item)?'›':'';
           row.append(icon,copy,arrow);
           row.addEventListener('click',()=>{
             if(activityPanelMode==='notifications') markActivityItemsRead(entryItems,{render:false});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
             if(activityTargetTab(item)) openActivityTarget(item);else renderActivityJournalItems(homeDashboardState.activity);
           });
           list.appendChild(row);
@@ -4859,6 +4927,10 @@
                 '</div>'+
               '</div>'+
               '<div id="settingsBackupStatus" class="settings-backup-status" aria-live="polite" hidden></div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Локальный кэш</strong><small id="settingsCacheStatus">Очистить временные файлы без сброса данных и настроек</small></div>'+
+                '<button id="settingsClearCache" class="settings-backup-button is-secondary" type="button">Очистить</button>'+
+              '</div>'+
             '</section>'+
 
             '<section class="settings-group">'+
@@ -5612,6 +5684,40 @@
         }
       }
 
+      async function clearLocalRuntimeCache(){
+        const button=document.getElementById('settingsClearCache');
+        const status=document.getElementById('settingsCacheStatus');
+        if(button?.disabled) return;
+        if(button) button.disabled=true;
+        if(status) status.textContent='Очищаю временные файлы…';
+        try{
+          if('caches' in window){
+            const keys=await caches.keys();
+            await Promise.all(keys.filter(key=>String(key).startsWith('rudi-shell-')).map(key=>caches.delete(key)));
+          }
+          const localCacheMatchers=[
+            /^rudi:market-ticker-cache:/,
+            /^rudi-profile-cache-v1$/,
+            /^rudi-config-cache-v1$/,
+            /^rudi-recipe-cache-v1-/,
+            /^rudi:date-ideas:v1:/
+          ];
+          const remove=[];
+          for(let index=0;index<localStorage.length;index+=1){
+            const key=String(localStorage.key(index)||'');
+            if(localCacheMatchers.some(pattern=>pattern.test(key))) remove.push(key);
+          }
+          remove.forEach(key=>{try{localStorage.removeItem(key)}catch(_){}});
+          if(status) status.textContent='Кэш очищен. Данные и настройки сохранены.';
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(_){
+          if(status) status.textContent='Не удалось полностью очистить кэш.';
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }finally{
+          if(button) button.disabled=false;
+        }
+      }
+
       function setupExtendedSettings(){
         document.querySelectorAll('[data-text-size]').forEach(button=>{
           if(button.dataset.bound==='1') return;
@@ -5683,6 +5789,11 @@
         if(restore&&restore.dataset.bound!=='1'){
           restore.dataset.bound='1';
           restore.addEventListener('click',restoreBackupNow);
+        }
+        const clearCache=document.getElementById('settingsClearCache');
+        if(clearCache&&clearCache.dataset.bound!=='1'){
+          clearCache.dataset.bound='1';
+          clearCache.addEventListener('click',clearLocalRuntimeCache);
         }
         updateAutoRefreshUi();
         updateMoodNotificationSettingsUi();
@@ -11841,7 +11952,7 @@
               }
               check.disabled=true;
               try{
-                renderProducts(await productsRequest('toggle',{id:item.id,checkedIds}));
+                await productsRequest('toggle',{id:item.id,checkedIds});
                 try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               }catch(_){
                 item.checked=previous;
