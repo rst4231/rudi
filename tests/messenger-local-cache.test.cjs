@@ -27,6 +27,7 @@ test('cached rows render without waiting for messenger-list',()=>{
   assert.match(hydrate,/await decryptMessages\(state\.rows\)/);
   assert.match(hydrate,/renderMessages\(/);
   assert.match(hydrate,/state\.messagesLoaded=true/);
+  assert.match(hydrate,/state\.renderedIds=new Set\(state\.rows\.map\(row=>row\.id\)\)/);
   assert.doesNotMatch(hydrate,/api\('messenger-list'/);
 });
 
