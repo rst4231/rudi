@@ -8007,10 +8007,11 @@
       }
 
       function tickTickAssigneeLabel(task){
+        if(task?.assigned===false) return 'Общая';
         const value=String(task?.assignee||'').trim().toLocaleLowerCase('ru-RU');
         if(value==='ди'||value==='диана') return 'Ответственная Диана';
         if(value==='rst'||value==='рустам') return 'Ответственный Рустам';
-        return 'Ответственные Рустам и Диана';
+        return 'Ответственный назначен';
       }
 
       function tickTickTodayTaskMeta(task){
