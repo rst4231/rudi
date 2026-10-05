@@ -8082,6 +8082,74 @@
         });
       }
 
+      async function requestTickTickTaskCreate(value){
+        return managedJsonRequest('ticktick-task-create','/api/ticktick/task-create',{
+          body:{
+            initData:telegramInitData(),
+            backupToken:currentStateBackupToken,
+            title:String(value?.title||'').trim(),
+            date:String(value?.date||'').trim(),
+            time:String(value?.time||'').trim(),
+            responsible:String(value?.responsible||'').trim(),
+            description:String(value?.description||'').trim(),
+            repeat:String(value?.repeat||'none').trim(),
+            repeatCount:Number(value?.repeatCount||1)
+          },
+          ttlMs:0,
+          timeoutMs:12000
+        });
+      }
+
+      async function requestTickTickTaskDelete(taskId){
+        const id=String(taskId||'').trim();
+        if(!id) throw new Error('ticktick-task-delete-invalid');
+        return managedJsonRequest('ticktick-task-delete:'+id,'/api/ticktick/task-delete',{
+          body:{initData:telegramInitData(),backupToken:currentStateBackupToken,taskId:id},
+          ttlMs:0,
+          timeoutMs:12000
+        });
+      }
+
+      async function requestTickTickTaskRestore(undoToken){
+        const token=String(undoToken||'').trim();
+        if(!token) throw new Error('ticktick-task-undo-invalid');
+        return managedJsonRequest('ticktick-task-restore:'+token.slice(-18),'/api/ticktick/task-restore',{
+          body:{initData:telegramInitData(),backupToken:currentStateBackupToken,undoToken:token},
+          ttlMs:0,
+          timeoutMs:12000
+        });
+      }
+
+      async function deleteTickTickTodayTask(task,row,button){
+        if(!task?.id||!task?.canDelete||row?.dataset?.deleting==='1') return;
+        row.dataset.deleting='1';
+        row.classList.add('syncing');
+        if(button) button.disabled=true;
+        try{
+          const payload=await requestTickTickTaskDelete(task.id);
+          if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-delete');
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          if(row?.isConnected) row.remove();
+          await refreshAfterTickTickTaskChange({preserveExpanded:false});
+          const undoToken=String(payload?.undoToken||'').trim();
+          if(undoToken){
+            showUndoSnackbar('Задача удалена',async()=>{
+              const restored=await requestTickTickTaskRestore(undoToken);
+              if(!restored?.ok) throw new Error(restored?.error||'ticktick-task-restore');
+              await refreshAfterTickTickTaskChange({preserveExpanded:false});
+            },10000);
+          }
+        }catch(_){
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          const badge=document.getElementById('ticktickBadge');
+          if(badge){badge.hidden=false;badge.textContent='Ошибка удаления'}
+        }finally{
+          row.dataset.deleting='0';
+          row.classList.remove('syncing');
+          if(button?.isConnected) button.disabled=false;
+        }
+      }
+
       function invalidateTickTickTaskViews(){
         invalidateManagedRequests('ticktick-today','ticktick-calendar');
         calendarViewCache.month=null;
@@ -8309,6 +8377,21 @@
           }
 
           row.append(complete,copy);
+          if(task?.canDelete){
+            row.classList.add('has-delete');
+            const remove=document.createElement('button');
+            remove.type='button';
+            remove.className='ticktick-today-delete';
+            remove.setAttribute('aria-label','Удалить задачу: '+String(task?.title||'Дело'));
+            remove.title='Удалить';
+            remove.disabled=payload?.writable===false;
+            remove.textContent='×';
+            remove.addEventListener('click',event=>{
+              event.stopPropagation();
+              deleteTickTickTodayTask(task,row,remove);
+            });
+            row.appendChild(remove);
+          }
           if(inlineDetails) row.appendChild(inlineDetails);
           list.appendChild(row);
           if(previousOpenTaskId&&String(task.id)===previousOpenTaskId&&hasDetails) reopenTask={task,copy,inlineDetails};
@@ -8359,6 +8442,95 @@
               badge.textContent='Ошибка';
             }
             button.disabled=false;
+          }
+        });
+      }
+
+      function setupTickTickTaskComposer(){
+        const add=document.getElementById('ticktickAddButton');
+        const modal=document.getElementById('ticktickTaskModal');
+        const form=document.getElementById('ticktickTaskForm');
+        const closeButton=document.getElementById('ticktickTaskModalClose');
+        const cancelButton=document.getElementById('ticktickTaskCancelButton');
+        const backdrop=document.getElementById('ticktickTaskModalBackdrop');
+        const titleInput=document.getElementById('ticktickTaskTitleInput');
+        const dateInput=document.getElementById('ticktickTaskDateInput');
+        const timeInput=document.getElementById('ticktickTaskTimeInput');
+        const responsibleInput=document.getElementById('ticktickTaskResponsibleInput');
+        const descriptionInput=document.getElementById('ticktickTaskDescriptionInput');
+        const repeatInput=document.getElementById('ticktickTaskRepeatInput');
+        const repeatCountField=document.getElementById('ticktickTaskRepeatCountField');
+        const repeatCountInput=document.getElementById('ticktickTaskRepeatCountInput');
+        const save=document.getElementById('ticktickTaskSaveButton');
+        const status=document.getElementById('ticktickTaskFormStatus');
+        if(!add||!modal||!form||add.dataset.bound==='1') return;
+        add.dataset.bound='1';
+
+        const syncRepeat=()=>{
+          const repeating=String(repeatInput?.value||'none')!=='none';
+          if(repeatCountField) repeatCountField.hidden=!repeating;
+          if(repeatCountInput) repeatCountInput.required=repeating;
+        };
+        const close=()=>{
+          modal.hidden=true;
+          modal.setAttribute('aria-hidden','true');
+          document.body.classList.remove('ticktick-task-modal-open');
+          if(status) status.textContent='';
+        };
+        const open=()=>{
+          form.reset();
+          if(dateInput) dateInput.value=todayState().key;
+          if(responsibleInput) responsibleInput.value='';
+          if(repeatInput) repeatInput.value='none';
+          if(repeatCountInput) repeatCountInput.value='2';
+          syncRepeat();
+          modal.hidden=false;
+          modal.setAttribute('aria-hidden','false');
+          document.body.classList.add('ticktick-task-modal-open');
+          if(status) status.textContent='';
+          requestAnimationFrame(()=>titleInput?.focus({preventScroll:true}));
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        };
+
+        add.addEventListener('click',open);
+        closeButton?.addEventListener('click',close);
+        cancelButton?.addEventListener('click',close);
+        backdrop?.addEventListener('click',close);
+        repeatInput?.addEventListener('change',syncRepeat);
+        document.addEventListener('keydown',event=>{
+          if(event.key==='Escape'&&!modal.hidden) close();
+        });
+        form.addEventListener('submit',async event=>{
+          event.preventDefault();
+          const title=String(titleInput?.value||'').trim();
+          const date=String(dateInput?.value||'').trim();
+          if(!title||!date) return;
+          const repeating=String(repeatInput?.value||'none')!=='none';
+          const repeatCount=repeating?Math.max(2,Math.min(365,Math.round(Number(repeatCountInput?.value)||2))):1;
+          if(save) save.disabled=true;
+          if(status) status.textContent='Добавляю…';
+          try{
+            const payload=await requestTickTickTaskCreate({
+              title,
+              date,
+              time:String(timeInput?.value||'').trim(),
+              responsible:String(responsibleInput?.value||'').trim(),
+              description:String(descriptionInput?.value||'').trim(),
+              repeat:String(repeatInput?.value||'none'),
+              repeatCount
+            });
+            if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-create');
+            close();
+            await refreshAfterTickTickTaskChange({preserveExpanded:false});
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            if(status){
+              const code=String(error?.message||'');
+              status.textContent=code.includes('permission')?'Нужно заново разрешить запись в TickTick':'Не удалось добавить задачу';
+            }
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            if(save) save.disabled=false;
           }
         });
       }
@@ -14012,6 +14184,7 @@
         setupStreakAndMood(config);
         setupTickTickDisclosure();
         setupTickTickConnect();
+        setupTickTickTaskComposer();
         setupWishlist();
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
