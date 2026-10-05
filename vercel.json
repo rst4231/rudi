@@ -29,6 +29,10 @@
     },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
+    },
+    "api/realtime.js": {
+      "maxDuration": 300,
+      "supportsCancellation": true
     }
   },
   "headers": [
@@ -243,6 +247,14 @@
     {
       "source": "/api/habit-reminder-cron",
       "destination": "/api/index?route=habit-reminder-cron"
+    },
+    {
+      "source": "/api/stylist-leads-cron",
+      "destination": "/api/index?route=stylist-leads-cron"
+    },
+    {
+      "source": "/api/storage-migrate",
+      "destination": "/api/index?route=storage-migrate"
     }
   ],
   "crons": [
