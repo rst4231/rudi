@@ -30,16 +30,18 @@ test('cycle brain and appetite cards use white text',()=>{
   assert.match(appCss,/\.cycle-insight-card strong\{color:#fff/);
 });
 
-test('star gift message uses correct names, dative case and declension',()=>{
+test('star gift Telegram message uses correct names, dative case and declension',()=>{
   assert.match(partner,/const toDative=to==='Диана'\?'Диане':to==='Рустам'\?'Рустаму':to/);
-  assert.match(partner,/const text='⭐ '\+from\+' '\+verb\+' '\+toDative\+' '\+points\+' '\+starGiftWord\(points\)/);
+  assert.match(partner,/escapeTelegramHtml\(from\+' '\+verb\+' '\+toDative\+' '\+points\+' '\+starGiftWord\(points\)\)/);
   assert.match(partner,/if\(mod10===1\) return 'звезду'/);
   assert.match(partner,/if\(mod10>=2&&mod10<=4\) return 'звезды'/);
   assert.match(partner,/return 'звёзд'/);
 });
 
-test('star gift push goes only to the recipient and chat event is visible to both',()=>{
-  assert.match(partner,/const push=await sendPush\(to,payload,options\)/);
-  assert.doesNotMatch(partner,/Promise\.all\(\['Рустам','Диана'\]\.map\(actor=>sendPush\(actor,payload,options\)\)\)/);
-  assert.match(partner,/systemRecipients:\['Рустам','Диана'\]/);
+test('star gift event goes to Telegram and does not create a chat event',()=>{
+  const start=partner.indexOf('async function sendStarGiftNotification');
+  const end=partner.indexOf('async function sendCycleStartNotificationToRustam',start);
+  const block=partner.slice(start,end);
+  assert.match(block,/sendToAllRecipients\(text,options\)/);
+  assert.doesNotMatch(block,/sendPush\(|addMessengerMessage|systemRecipients|tab=messenger/);
 });

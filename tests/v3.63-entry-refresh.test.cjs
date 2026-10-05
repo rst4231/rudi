@@ -4,7 +4,6 @@ const fs=require('node:fs');
 
 const app=fs.readFileSync('public/app.js','utf8');
 const tools=fs.readFileSync('public/profile-supplements.js','utf8');
-const messenger=fs.readFileSync('public/messenger.js','utf8');
 
 test('v3.63 refreshes the visible app immediately whenever it becomes active',()=>{
   assert.match(app,/window\.addEventListener\('pageshow',[\s\S]*?refreshAfterResume\(\)/);
@@ -37,7 +36,3 @@ test('v3.63 habits and supplements do not register duplicate foreground refresh 
   assert.match(tools,/refresh:\(\)=>loadHomeTools\(\{force:true\}\)/);
 });
 
-test('v3.63 does not speed up messenger polling',()=>{
-  assert.match(messenger,/setInterval\([\s\S]*?syncLiveMessages\(\)[\s\S]*?,12000\)/);
-  assert.doesNotMatch(messenger,/setInterval\(syncLiveMessages,[1-9][0-9]{0,3}\)/);
-});

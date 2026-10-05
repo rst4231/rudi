@@ -5,7 +5,6 @@ const fs=require('node:fs');
 const app=fs.readFileSync('public/app.js','utf8');
 const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
 const tools=fs.readFileSync('public/profile-supplements.js','utf8');
-const messenger=fs.readFileSync('public/messenger.js','utf8');
 
 test('v3.62 online reads prefer live API and keep snapshot only as fallback',()=>{
   const start=pwa.indexOf('async function snapshotAwareFetch');
@@ -43,9 +42,3 @@ test('foreground revalidation starts immediately on entry and only collapses dup
   assert.match(app,/window\.addEventListener\('pageshow',[\s\S]*?refreshAfterResume\(\)/);
 });
 
-test('v3.62 messenger syncs immediately on visibility and tab entry but keeps 12 second polling',()=>{
-  assert.match(messenger,/setInterval\([\s\S]*?syncLiveMessages\(\)[\s\S]*?,12000\)/);
-  assert.match(messenger,/now-Number\(state\.lastLiveSyncAt\|\|0\)<1500/);
-  assert.match(messenger,/const refresh=state\.initialized\?syncLiveMessages\(\):load\(\{markRead:true\}\)/);
-  assert.match(messenger,/if\(tab==='messenger'&&document\.visibilityState==='visible'\)[\s\S]*?syncLiveMessages\(\)/);
-});

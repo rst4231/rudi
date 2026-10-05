@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v3.72">
+  <meta name="rudi-version" content="v3.88">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,8 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=3.72">
-  <link rel="stylesheet" href="/messenger.css?v=3.83">
+  <link rel="stylesheet" href="/app.css?v=3.88">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=2.134">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -65,8 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=3.68"></script>
-  <script defer src="/messenger.js?v=3.83"></script>
+  <script defer src="/app.js?v=3.88"></script>
   <script defer src="/pwa-extras.js?v=3.60"></script>
   <script defer src="/weather.js?v=3.60"></script>
   <script defer src="/smart-home.js?v=3.60"></script>
@@ -340,11 +338,11 @@
           </span>
           <span class="quick-access-copy"><strong>Для Ди</strong></span>
         </button>
-        <button id="quickCalendarButton" class="quick-access-button is-calendar" type="button">
+        <button id="quickPhotoSessionButton" class="quick-access-button is-photo-session" type="button">
           <span class="quick-access-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 9.5h17"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4v-10Z"/><circle cx="12" cy="13.5" r="3.1"/><path d="M19 3v3M17.5 4.5h3"/></svg>
           </span>
-          <span class="quick-access-copy"><strong>Календарь</strong></span>
+          <span class="quick-access-copy"><strong>Создать фотосессию</strong></span>
         </button>
       </div>
     </section>
@@ -1080,8 +1078,8 @@
             <legend>Приём пищи</legend>
             <div class="recipe-choice-row recipe-meal-row" data-recipe-choice="meal">
               <button type="button" data-recipe-meal="breakfast" aria-pressed="false">🌅 Завтрак</button>
-              <button type="button" data-recipe-meal="lunch" aria-pressed="true">🍲 Обед</button>
-              <button type="button" data-recipe-meal="snack" aria-pressed="false">🍎 Перекус</button>
+              <button type="button" data-recipe-meal="lunch" aria-pressed="true">🍽️ Обед</button>
+              <button type="button" data-recipe-meal="snack" aria-pressed="false">🥪 Перекус</button>
               <button type="button" data-recipe-meal="dinner" aria-pressed="false">🌙 Ужин</button>
             </div>
           </fieldset>
@@ -1346,110 +1344,6 @@
       <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
     </section>
 
-    <section id="messengerPage" class="messenger-page" data-app-tab-section="messenger" data-tab-available="1" aria-labelledby="messengerPartnerName" hidden>
-      <header class="messenger-head">
-        <button id="messengerBack" class="messenger-back" type="button" aria-label="Назад">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <div class="messenger-head-copy">
-          <strong id="messengerPartnerName">Партнёр</strong>
-          <small id="messengerSecurityStatus">Статус партнёра</small>
-        </div>
-        <div id="messengerPartnerAvatar" class="messenger-head-avatar" aria-hidden="true">
-          <span id="messengerPartnerInitial">П</span>
-          <img id="messengerPartnerImage" alt="">
-        </div>
-      </header>
-
-      <div id="messengerStatus" class="messenger-status" role="status" aria-live="polite" hidden></div>
-
-      <div id="messengerMessages" class="messenger-messages" data-no-pull-refresh="true" aria-live="polite">
-        <div id="messengerEmpty" class="messenger-empty">Здесь будут сообщения за последние 24 часа.</div>
-      </div>
-
-      <div class="messenger-composer-wrap" data-no-pull-refresh="true">
-        <div id="messengerReplyDraft" class="messenger-reply-draft" hidden>
-          <strong>Ответ</strong>
-          <span id="messengerReplyDraftText"></span>
-          <button id="messengerReplyCancel" class="messenger-reply-cancel" type="button" aria-label="Отменить ответ">×</button>
-        </div>
-        <div id="messengerEmojiTray" class="messenger-emoji-tray" hidden aria-label="Эмодзи">
-          <button type="button" data-emoji="❤️">❤️</button>
-          <button type="button" data-emoji="💕">💕</button>
-          <button type="button" data-emoji="💖">💖</button>
-          <button type="button" data-emoji="🤍">🤍</button>
-          <button type="button" data-emoji="🥰">🥰</button>
-          <button type="button" data-emoji="😍">😍</button>
-          <button type="button" data-emoji="😘">😘</button>
-          <button type="button" data-emoji="😊">😊</button>
-          <button type="button" data-emoji="☺️">☺️</button>
-          <button type="button" data-emoji="😁">😁</button>
-          <button type="button" data-emoji="😂">😂</button>
-          <button type="button" data-emoji="🤣">🤣</button>
-          <button type="button" data-emoji="🥹">🥹</button>
-          <button type="button" data-emoji="😢">😢</button>
-          <button type="button" data-emoji="😭">😭</button>
-          <button type="button" data-emoji="😴">😴</button>
-          <button type="button" data-emoji="😏">😏</button>
-          <button type="button" data-emoji="🤔">🤔</button>
-          <button type="button" data-emoji="🙈">🙈</button>
-          <button type="button" data-emoji="👍">👍</button>
-          <button type="button" data-emoji="👎">👎</button>
-          <button type="button" data-emoji="👌">👌</button>
-          <button type="button" data-emoji="🙏">🙏</button>
-          <button type="button" data-emoji="👏">👏</button>
-          <button type="button" data-emoji="🤗">🤗</button>
-          <button type="button" data-emoji="💪">💪</button>
-          <button type="button" data-emoji="🔥">🔥</button>
-          <button type="button" data-emoji="✨">✨</button>
-          <button type="button" data-emoji="🎉">🎉</button>
-          <button type="button" data-emoji="☕️">☕️</button>
-          <button type="button" data-emoji="🍕">🍕</button>
-          <button type="button" data-emoji="🐾">🐾</button>
-        </div>
-        <div id="messengerAttachTray" class="messenger-attach-tray" hidden>
-          <button type="button" data-messenger-attach="camera"><span aria-hidden="true">📷</span><b>Камера</b></button>
-          <button type="button" data-messenger-attach="photo"><span aria-hidden="true">🖼️</span><b>Фото</b></button>
-          <button type="button" data-messenger-attach="smart-save"><span aria-hidden="true">🔖</span><b>Сохранённые</b></button>
-          <button type="button" data-messenger-attach="wishlist"><span aria-hidden="true">🎁</span><b>Вишлист</b></button>
-          <button type="button" data-messenger-attach="recipe"><span aria-hidden="true">🍳</span><b>Рецепты</b></button>
-          <button type="button" data-messenger-attach="feed"><span aria-hidden="true">🎟</span><b>Афиша</b></button>
-          <button type="button" data-messenger-attach="stars"><span aria-hidden="true">⭐</span><b>Звёзды</b><small id="messengerStarsRemaining"></small></button>
-        </div>
-        <div id="messengerStarTray" class="messenger-star-tray" hidden aria-label="Подарить звёзды">
-          <span>Подарить</span>
-          <div>
-            <button type="button" data-star-amount="1">1 ⭐</button>
-            <button type="button" data-star-amount="2">2 ⭐</button>
-            <button type="button" data-star-amount="3">3 ⭐</button>
-            <button type="button" data-star-amount="4">4 ⭐</button>
-            <button type="button" data-star-amount="5">5 ⭐</button>
-          </div>
-        </div>
-        <input id="messengerPhotoInput" type="file" accept="image/*" multiple hidden>
-        <input id="messengerCameraInput" type="file" accept="image/*" capture="environment" hidden>
-        <div id="messengerRecordingBar" class="messenger-recording-bar" hidden>
-          <span class="messenger-recording-dot" aria-hidden="true"></span>
-          <strong id="messengerRecordingTime">0:00</strong>
-          <span>Запись голосового</span>
-          <button id="messengerRecordingCancel" type="button">Отмена</button>
-        </div>
-        <div class="messenger-composer">
-          <button id="messengerAttach" class="messenger-attach" type="button" aria-label="Прикрепить">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 12.5 14.8 6.2a3.2 3.2 0 0 1 4.5 4.5l-8.1 8.1a5 5 0 0 1-7.1-7.1l8.3-8.3"/></svg>
-          </button>
-          <button id="messengerEmoji" class="messenger-emoji" type="button" aria-label="Добавить эмодзи">☺</button>
-          <textarea id="messengerInput" maxlength="1000" rows="1" placeholder="Сообщение…"></textarea>
-          <button id="messengerMic" class="messenger-mic" type="button" aria-label="Записать голосовое">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 1 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5.5 10.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 17.5V21M9 21h6"/></svg>
-          </button>
-          <button id="messengerSend" class="messenger-send" type="button" aria-label="Отправить" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3 3.8 10.1c-1.17.47-1.16 1.13-.21 1.42l4.42 1.38 1.71 5.35c.21.58.11.81.73.81.48 0 .69-.22.96-.48l2.12-2.06 4.41 3.26c.81.45 1.39.22 1.59-.75L22.4 5.18C22.7 3.95 21.93 3.39 21 3Z"/></svg>
-          </button>
-        </div>
-      </div>
-    </section>
-
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
       <div class="home-layout-actions">
@@ -1542,12 +1436,11 @@
       </span>
       <span>Лента</span>
     </button>
-    <button role="tab" class="app-tab-button" type="button" data-app-tab="messenger" aria-selected="false">
-      <span class="app-tab-icon messenger-tab-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M7.5 9.5h9M7.5 13h6"/></svg>
-        <span id="messengerTabBadge" class="app-tab-notification" hidden></span>
+    <button role="tab" class="app-tab-button" type="button" data-app-tab="schedule" aria-selected="false">
+      <span class="app-tab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 9.5h17"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01"/></svg>
       </span>
-      <span>Мессенджер</span>
+      <span>Календарь</span>
     </button>
     <button role="tab" class="app-tab-button" type="button" data-app-tab="products" aria-selected="false">
       <span class="app-tab-icon products-tab-icon" aria-hidden="true">

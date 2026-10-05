@@ -8,9 +8,7 @@ const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');
 
 test('v3.85 changed JavaScript parses',()=>{
   for(const file of [
-    'public/messenger.js',
     'public/app.js',
-    'api/messenger-store.cjs',
     'api/partner-message.js',
     'api/ticktick-client.cjs',
     'api/habit-reminder.cjs',
@@ -23,19 +21,6 @@ test('v3.85 changed JavaScript parses',()=>{
     }
     assert.doesNotThrow(()=>new Function(source),file);
   }
-});
-
-test('v3.85 messenger uses plain payload and direct realtime updates',()=>{
-  const client=read('public/messenger.js');
-  const backend=read('api/partner-message.js');
-  const store=read('api/messenger-store.cjs');
-  assert.match(client,/scheme:'plain-v3'/);
-  assert.match(client,/applyRealtimeEnvelope/);
-  assert.match(client,/return 60000/);
-  assert.doesNotMatch(client,/Не удалось расшифровать сообщение/);
-  assert.match(backend,/payload:body\.payload/);
-  assert.match(backend,/messengerMessageForClient/);
-  assert.match(store,/plain-v3/);
 });
 
 test('v3.85 task responsibility and stars are protected',()=>{
