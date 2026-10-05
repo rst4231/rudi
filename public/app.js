@@ -10570,7 +10570,57 @@
         if(prompt)prompt.hidden=Boolean(meta);
       }
 
-      function renderPartnerMood(value,partner){
+      const MOOD_REASON_META={
+        work:['💼','Работа'],
+        food:['🍽️','Еда'],
+        relationship:['❤️','Отношения'],
+        money:['💰','Деньги'],
+        health:['🫶','Самочувствие'],
+        sport:['🏃','Спорт'],
+        fatigue:['😩','Усталость'],
+        sleep:['😴','Сон'],
+        fasting:['🥣','Питание'],
+        other:['✍️','Свой ответ']
+      };
+
+      function partnerMoodReasonText(entry){
+        const samples=Array.isArray(entry?.samples)?entry.samples:[];
+        const latest=[...samples].reverse().find(sample=>String(sample?.mood||'')===String(entry?.mood||''))||samples[samples.length-1]||null;
+        const reason=String(latest?.reason||'').trim();
+        const reasonText=String(latest?.reasonText||'').trim();
+        if(reason==='other') return reasonText||'Причина не указана';
+        const meta=MOOD_REASON_META[reason];
+        return meta?(meta[0]+' '+meta[1]):'Причина не указана';
+      }
+
+      let partnerMoodReasonTimer=0;
+      function hidePartnerMoodReason(){
+        clearTimeout(partnerMoodReasonTimer);
+        document.getElementById('partnerMoodReasonPopover')?.remove();
+      }
+      function showPartnerMoodReason(holder){
+        if(!holder||holder.hidden) return;
+        const text=String(holder.dataset.moodReasonText||'Причина не указана').trim()||'Причина не указана';
+        const existing=document.getElementById('partnerMoodReasonPopover');
+        if(existing){existing.remove();if(existing.dataset.reasonText===text)return}
+        const popover=document.createElement('div');
+        popover.id='partnerMoodReasonPopover';
+        popover.className='partner-mood-reason-popover';
+        popover.dataset.reasonText=text;
+        popover.textContent=text;
+        document.body.appendChild(popover);
+        const rect=holder.getBoundingClientRect();
+        const width=Math.min(260,Math.max(150,popover.getBoundingClientRect().width||180));
+        const left=Math.max(10,Math.min(window.innerWidth-width-10,rect.right-width));
+        const top=Math.min(window.innerHeight-60,rect.bottom+8);
+        popover.style.left=left+'px';
+        popover.style.top=top+'px';
+        clearTimeout(partnerMoodReasonTimer);
+        partnerMoodReasonTimer=setTimeout(hidePartnerMoodReason,4200);
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function renderPartnerMood(value,partner,entry=null){
         const label=document.getElementById('partnerMoodLabel');
         const holder=document.getElementById('partnerMoodValue');
         const empty=document.getElementById('partnerMoodEmpty');
@@ -10580,17 +10630,25 @@
         const hasMood=['sadness','boredom','neutral','fatigue','anger','joy','love'].includes(normalizedMood);
         if(label) label.textContent='';
         holder.dataset.mood=normalizedMood;
+        holder.dataset.moodReasonText=partnerMoodReasonText(entry);
         holder.hidden=!hasMood;
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==normalizedMood;
         });
         empty.hidden=true;
+        holder.setAttribute('role','button');
+        holder.tabIndex=hasMood?0:-1;
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
             mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='neutral'?'нейтрально':mood==='fatigue'?'усталость':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
-          )
+          )+'. Нажмите, чтобы увидеть причину.'
         );
+        if(holder.dataset.moodReasonBound!=='1'){
+          holder.dataset.moodReasonBound='1';
+          holder.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();showPartnerMoodReason(holder)});
+          holder.addEventListener('keydown',event=>{if(!['Enter',' '].includes(event.key))return;event.preventDefault();showPartnerMoodReason(holder)});
+        }
       }
 
       function renderDailyMood(payload){
@@ -10598,7 +10656,7 @@
         const mine=String(payload?.mine?.mood||'');
         const partnerMood=String(payload?.partnerMood?.mood||'');
         selectOwnMood(mine);
-        renderPartnerMood(partnerMood,String(payload?.partner||''));
+        renderPartnerMood(partnerMood,String(payload?.partner||''),payload?.partnerMood);
         renderHomeDashboard();
       }
 
