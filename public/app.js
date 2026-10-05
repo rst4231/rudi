@@ -13103,6 +13103,7 @@
           String(source.equipment||'').trim(),
           String(source.meal||'').trim(),
           String(source.dishType||'').trim(),
+          String(source.taste||'').trim(),
           String(source.cuisine||'').trim(),
           String(Number(source.timeMinutes)||0)
         ].join('|');
@@ -13204,6 +13205,7 @@
           setRecipeChoiceValue('data-recipe-equipment',currentRecipeContext.equipment);
           setRecipeChoiceValue('data-recipe-meal',currentRecipeContext.meal);
           renderRecipeTypeChoices(currentRecipeContext.meal,currentRecipeContext.dishType);
+          currentRecipeContext.taste=renderRecipeTasteChoices(currentRecipeContext.meal,currentRecipeContext.taste);
           setRecipeChoiceValue('data-recipe-cuisine',currentRecipeContext.cuisine);
           setRecipeChoiceValue('data-recipe-time',String(currentRecipeContext.timeMinutes||15));
         }
@@ -13244,6 +13246,39 @@
           button.textContent=label;
           button.addEventListener('click',()=>{
             group.querySelectorAll('button[data-recipe-type]').forEach(item=>item.setAttribute('aria-pressed',item===button?'true':'false'));
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+          group.appendChild(button);
+        });
+        return selected;
+      }
+
+      const RECIPE_TASTES_BY_MEAL={
+        breakfast:[['sweet','🍰 Сладкие'],['savory','🧂 Несладкие']],
+        snack:[['sweet','🍰 Сладкие'],['savory','🧂 Несладкие']]
+      };
+
+      function renderRecipeTasteChoices(meal,preferred=''){
+        const fieldset=document.getElementById('recipeTasteGroup');
+        const group=document.getElementById('recipeTasteChoices');
+        if(!fieldset||!group) return '';
+        const options=RECIPE_TASTES_BY_MEAL[String(meal||'')]||[];
+        group.replaceChildren();
+        if(!options.length){
+          fieldset.hidden=true;
+          return '';
+        }
+        fieldset.hidden=false;
+        const requested=String(preferred||'');
+        const selected=options.some(([value])=>value===requested)?requested:'savory';
+        options.forEach(([value,label])=>{
+          const button=document.createElement('button');
+          button.type='button';
+          button.setAttribute('data-recipe-taste',value);
+          button.setAttribute('aria-pressed',value===selected?'true':'false');
+          button.textContent=label;
+          button.addEventListener('click',()=>{
+            group.querySelectorAll('button[data-recipe-taste]').forEach(item=>item.setAttribute('aria-pressed',item===button?'true':'false'));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
           group.appendChild(button);
@@ -14025,8 +14060,13 @@
         generate.dataset.recipeBound='1';
 
         setupRecipeChoice('[data-recipe-choice="equipment"]','data-recipe-equipment');
-        setupRecipeChoice('[data-recipe-choice="meal"]','data-recipe-meal',meal=>renderRecipeTypeChoices(meal));
-        renderRecipeTypeChoices(recipeChoiceValue('data-recipe-meal')||'lunch');
+        setupRecipeChoice('[data-recipe-choice="meal"]','data-recipe-meal',meal=>{
+          renderRecipeTypeChoices(meal);
+          renderRecipeTasteChoices(meal);
+        });
+        const initialRecipeMeal=recipeChoiceValue('data-recipe-meal')||'lunch';
+        renderRecipeTypeChoices(initialRecipeMeal);
+        renderRecipeTasteChoices(initialRecipeMeal);
         setupRecipeChoice('[data-recipe-choice="cuisine"]','data-recipe-cuisine');
         setupRecipeChoice('[data-recipe-choice="time"]','data-recipe-time');
 
@@ -14053,6 +14093,7 @@
             equipment:recipeChoiceValue('data-recipe-equipment'),
             meal:recipeChoiceValue('data-recipe-meal'),
             dishType:recipeChoiceValue('data-recipe-type'),
+            taste:recipeChoiceValue('data-recipe-taste'),
             cuisine:recipeChoiceValue('data-recipe-cuisine'),
             timeMinutes:Number(recipeChoiceValue('data-recipe-time')||15),
             excludeTitles:recentRecipeTitles(24)
@@ -14072,6 +14113,7 @@
               equipment:payload.equipment,
               meal:payload.meal,
               dishType:payload.dishType,
+              taste:payload.taste,
               cuisine:payload.cuisine,
               timeMinutes:payload.timeMinutes
             };

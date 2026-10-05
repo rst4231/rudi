@@ -51,6 +51,10 @@ const DISH_TYPES = Object.freeze({
     light: 'лёгкое блюдо',
   }),
 });
+const TASTES = Object.freeze({
+  sweet: 'сладкие',
+  savory: 'несладкие',
+});
 const CUISINES = {
   russian: 'русская',
   italian: 'итальянская',
@@ -73,6 +77,7 @@ function normalizeRecipeRequest(input = {}) {
   const equipment = String(input.equipment || '').trim();
   const meal = String(input.meal || '').trim();
   const dishType = String(input.dishType || '').trim();
+  const taste = String(input.taste || '').trim();
   const cuisine = String(input.cuisine || '').trim();
   const timeMinutes = Number(input.timeMinutes);
   const excludeTitles = (Array.isArray(input.excludeTitles) ? input.excludeTitles : [])
@@ -84,10 +89,12 @@ function normalizeRecipeRequest(input = {}) {
   if (!EQUIPMENT[equipment]) throw new Error('recipe-equipment-invalid');
   if (!MEALS[meal]) throw new Error('recipe-meal-invalid');
   if (dishType && !DISH_TYPES[meal]?.[dishType]) throw new Error('recipe-type-invalid');
+  if (taste && (!['breakfast', 'snack'].includes(meal) || !TASTES[taste])) throw new Error('recipe-taste-invalid');
   if (!CUISINES[cuisine]) throw new Error('recipe-cuisine-invalid');
   if (!COOK_TIMES.includes(timeMinutes)) throw new Error('recipe-time-invalid');
 
   const request = { ingredients, equipment, meal, dishType, cuisine, timeMinutes };
+  if (taste) request.taste = taste;
   if (excludeTitles.length) request.excludeTitles = excludeTitles;
   return request;
 }
@@ -112,6 +119,11 @@ function baseRules(req) {
     'Если нужны другие продукты, честно укажи их как то, что нужно докупить.',
     'Учитывай способ приготовления и приём пищи.',
     req.dishType ? 'Строго соблюдай выбранный тип блюда: не подменяй его соседней категорией.' : '',
+    req.taste === 'sweet'
+      ? 'Строго соблюдай фильтр вкуса: блюдо должно быть сладким. Не предлагай солёные, пикантные или нейтральные варианты.'
+      : req.taste === 'savory'
+        ? 'Строго соблюдай фильтр вкуса: блюдо должно быть несладким. Не предлагай десертные, сладкие или подслащённые варианты.'
+        : '',
     'Выбранная кухня должна реально менять блюдо, а не только его название: используй характерный вкус, технику, соус или приправы из профиля кухни, если это уместно.',
     'Не выдавай нейтральное блюдо за выбранную кухню простым переименованием.',
     'Выбранное время — целевой диапазон. Блюдо должно реально занимать от ' + window.min + ' до ' + window.max + ' минут от начала приготовления до подачи.',
@@ -122,6 +134,7 @@ function baseRules(req) {
     '- Способ приготовления: ' + EQUIPMENT[req.equipment],
     '- Приём пищи: ' + MEALS[req.meal],
     req.dishType ? '- Тип блюда: ' + DISH_TYPES[req.meal][req.dishType] : '',
+    req.taste ? '- Вкус: ' + TASTES[req.taste] : '',
     '- Кухня: ' + CUISINES[req.cuisine],
     '- Характер кухни: ' + CUISINE_RULES[req.cuisine],
     '- Целевое время: ' + window.min + '–' + window.max + ' минут (выбор ' + req.timeMinutes + ' мин)',
@@ -575,6 +588,7 @@ module.exports = {
   EQUIPMENT,
   MEALS,
   DISH_TYPES,
+  TASTES,
   CUISINES,
   CUISINE_RULES,
   normalizeRecipeRequest,

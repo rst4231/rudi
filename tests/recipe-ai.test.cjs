@@ -69,6 +69,60 @@ test('recipe request validates selectors including cooking time', () => {
   assert.equal(normalizeRecipeRequest({ ...baseRequest, meal: 'snack', dishType: 'fruit' }).meal, 'snack');
 });
 
+test('breakfast and snack support sweet and savory taste filters only', () => {
+  const sweetBreakfast = normalizeRecipeRequest({
+    ...baseRequest,
+    meal: 'breakfast',
+    dishType: 'porridge',
+    taste: 'sweet',
+  });
+  assert.equal(sweetBreakfast.taste, 'sweet');
+
+  const savorySnack = normalizeRecipeRequest({
+    ...baseRequest,
+    meal: 'snack',
+    dishType: 'sandwich',
+    taste: 'savory',
+  });
+  assert.equal(savorySnack.taste, 'savory');
+
+  assert.throws(
+    () => normalizeRecipeRequest({ ...baseRequest, meal: 'breakfast', dishType: 'eggs', taste: 'spicy' }),
+    /recipe-taste-invalid/
+  );
+  assert.throws(
+    () => normalizeRecipeRequest({ ...baseRequest, taste: 'sweet' }),
+    /recipe-taste-invalid/
+  );
+});
+
+test('sweet taste is passed into the recipe AI prompt', async () => {
+  const fakeFetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    assert.match(body.messages[0].content, /Вкус: сладкие/);
+    assert.match(body.messages[0].content, /блюдо должно быть сладким/);
+    return {
+      ok: true,
+      status: 200,
+      async json() { return suggestionPayload('Сладкая овсянка', 15); },
+    };
+  };
+
+  const result = await generateRecipeSuggestions({
+    ...baseRequest,
+    ingredients: 'овсянка, молоко, банан',
+    meal: 'breakfast',
+    dishType: 'porridge',
+    taste: 'sweet',
+    cuisine: 'russian',
+  }, {
+    apiKey: 'secret-key',
+    fetch: fakeFetch,
+  });
+
+  assert.equal(result.recipes.length, 4);
+});
+
 test('suggestions use Groq GPT-OSS 20B with strict structured output', async () => {
   let calls = 0;
   const fakeFetch = async (url, options) => {

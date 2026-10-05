@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v3.88">
+  <meta name="rudi-version" content="v3.89">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=3.88">
+  <link rel="stylesheet" href="/app.css?v=3.89">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=2.134">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -64,7 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=3.88"></script>
+  <script defer src="/app.js?v=3.89"></script>
   <script defer src="/pwa-extras.js?v=3.60"></script>
   <script defer src="/weather.js?v=3.60"></script>
   <script defer src="/smart-home.js?v=3.60"></script>
@@ -1091,6 +1091,11 @@
               <button type="button" data-recipe-type="main" aria-pressed="false">🍽️ Второе</button>
               <button type="button" data-recipe-type="salad" aria-pressed="false">🥗 Салат</button>
             </div>
+          </fieldset>
+
+          <fieldset id="recipeTasteGroup" class="recipe-choice-group" hidden>
+            <legend>Вкус</legend>
+            <div id="recipeTasteChoices" class="recipe-choice-row recipe-taste-row" data-recipe-choice="taste"></div>
           </fieldset>
 
           <fieldset class="recipe-choice-group">
