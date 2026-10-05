@@ -12910,6 +12910,188 @@
         });
       }
 
+      let recipeWakeLock=null;
+      let recipeCookingOpen=false;
+      const recipeTimerHandles=new Map();
+
+      function recipePortionWord(value){
+        const n=Math.max(1,Math.round(Number(value)||1));
+        const mod10=n%10,mod100=n%100;
+        if(mod100>=11&&mod100<=14) return 'порций';
+        if(mod10===1) return 'порция';
+        if(mod10>=2&&mod10<=4) return 'порции';
+        return 'порций';
+      }
+
+      function recipeBaseServings(recipe){
+        const value=Math.round(Number(recipe?.servings)||2);
+        return Math.max(1,Math.min(12,value));
+      }
+
+      function recipeScaledNumber(value,ratio){
+        const scaled=Number(value)*Number(ratio||1);
+        if(!Number.isFinite(scaled)) return String(value);
+        const rounded=Math.round(scaled*100)/100;
+        return String(rounded).replace('.',',');
+      }
+
+      function scaleRecipeAmount(value,ratio){
+        const text=String(value||'');
+        if(!text||Math.abs(Number(ratio||1)-1)<.001) return text;
+        return text.replace(/\d+(?:[.,]\d+)?(?:\s*\/\s*\d+)?/g,token=>{
+          const parts=token.split('/');
+          if(parts.length===2){
+            const numerator=Number(parts[0].replace(',','.')),denominator=Number(parts[1].replace(',','.'));
+            if(Number.isFinite(numerator)&&Number.isFinite(denominator)&&denominator) return recipeScaledNumber(numerator/denominator,ratio);
+          }
+          const number=Number(token.replace(',','.'));
+          return Number.isFinite(number)?recipeScaledNumber(number,ratio):token;
+        });
+      }
+
+      function recipeStepSeconds(value){
+        const text=String(value||'');
+        const rangeMinutes=text.match(/(\d+)\s*[–—-]\s*(\d+)\s*(?:мин(?:ут[аы]?)?|мин\.?)/iu);
+        if(rangeMinutes) return Math.max(1,Number(rangeMinutes[1])||0)*60;
+        const minutes=text.match(/(\d+(?:[.,]\d+)?)\s*(?:мин(?:ут[аы]?)?|мин\.?)/iu);
+        if(minutes) return Math.max(1,Math.round(Number(minutes[1].replace(',','.'))*60));
+        const seconds=text.match(/(\d+)\s*(?:сек(?:унд[аы]?)?|сек\.?)/iu);
+        if(seconds) return Math.max(1,Number(seconds[1])||0);
+        return 0;
+      }
+
+      function recipeTimerLabel(seconds){
+        const value=Math.max(0,Math.round(Number(seconds)||0));
+        const minutes=Math.floor(value/60),rest=value%60;
+        return minutes+':'+String(rest).padStart(2,'0');
+      }
+
+      function startRecipeStepTimer(button,seconds){
+        if(!button||!seconds) return;
+        const previous=recipeTimerHandles.get(button);
+        if(previous){
+          clearInterval(previous.interval);
+          recipeTimerHandles.delete(button);
+          button.textContent=previous.label;
+          button.classList.remove('is-running');
+          return;
+        }
+        const label=button.textContent;
+        const startedAt=Date.now(),finishAt=startedAt+seconds*1000;
+        button.classList.add('is-running');
+        const update=()=>{
+          const remaining=Math.max(0,Math.ceil((finishAt-Date.now())/1000));
+          button.textContent=remaining?('⏱ '+recipeTimerLabel(remaining)):'Готово ✓';
+          if(remaining) return;
+          const active=recipeTimerHandles.get(button);
+          if(active) clearInterval(active.interval);
+          recipeTimerHandles.delete(button);
+          button.classList.remove('is-running');
+          button.classList.add('is-done');
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          setTimeout(()=>{button.classList.remove('is-done');button.textContent=label},2200);
+        };
+        const interval=setInterval(update,250);
+        recipeTimerHandles.set(button,{interval,label});
+        update();
+        try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
+      }
+
+      async function acquireRecipeWakeLock(){
+        if(!recipeCookingOpen||!('wakeLock' in navigator)) return;
+        try{
+          recipeWakeLock=await navigator.wakeLock.request('screen');
+          recipeWakeLock.addEventListener?.('release',()=>{recipeWakeLock=null},{once:true});
+        }catch(_){}
+      }
+
+      async function releaseRecipeWakeLock(){
+        const lock=recipeWakeLock;recipeWakeLock=null;
+        try{await lock?.release?.()}catch(_){}
+      }
+
+      async function addRecipeIngredientsToProducts(recipe,servings,button){
+        const ingredients=Array.isArray(recipe?.ingredients)?recipe.ingredients.filter(row=>row?.name):[];
+        if(!ingredients.length||button?.disabled) return;
+        const base=recipeBaseServings(recipe),ratio=Math.max(1,Number(servings)||base)/base;
+        const items=ingredients.map(row=>{
+          const name=String(row?.name||'').trim();
+          const amount=scaleRecipeAmount(row?.amount||'',ratio).trim();
+          return (name+(amount?' · '+amount:'')).trim();
+        }).filter(Boolean);
+        if(!items.length) return;
+        const previous=button.textContent;
+        button.disabled=true;button.textContent='Добавляю…';
+        try{
+          await productsRequest('add',{items});
+          button.textContent='Добавлено ✓';
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          setTimeout(()=>{button.textContent=previous;button.disabled=false},1500);
+        }catch(_){
+          button.textContent='Не удалось';
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          setTimeout(()=>{button.textContent=previous;button.disabled=false},1500);
+        }
+      }
+
+      function closeRecipeCookingMode(){
+        recipeCookingOpen=false;
+        document.body.classList.remove('recipe-cooking-open');
+        document.querySelector('.recipe-cooking-mode')?.remove();
+        releaseRecipeWakeLock();
+      }
+
+      function openRecipeCookingMode(recipe,servings){
+        const steps=Array.isArray(recipe?.steps)?recipe.steps.filter(Boolean):[];
+        if(!steps.length) return;
+        closeRecipeCookingMode();
+        recipeCookingOpen=true;
+        const modal=document.createElement('section');
+        modal.className='recipe-cooking-mode';
+        modal.setAttribute('role','dialog');
+        modal.setAttribute('aria-modal','true');
+        modal.setAttribute('aria-label','Режим готовки');
+        modal.innerHTML='<header><button type="button" data-cooking-close aria-label="Закрыть">×</button><div><small>Режим готовки</small><strong data-cooking-title></strong></div><span data-cooking-counter></span></header><main><div class="recipe-cooking-step" data-cooking-step></div><button class="recipe-cooking-timer" type="button" data-cooking-timer hidden></button></main><footer><button type="button" data-cooking-prev>Назад</button><button type="button" class="is-primary" data-cooking-next>Следующий шаг</button></footer>';
+        const title=modal.querySelector('[data-cooking-title]');
+        const counter=modal.querySelector('[data-cooking-counter]');
+        const step=modal.querySelector('[data-cooking-step]');
+        const timer=modal.querySelector('[data-cooking-timer]');
+        const prev=modal.querySelector('[data-cooking-prev]');
+        const next=modal.querySelector('[data-cooking-next]');
+        if(title) title.textContent=String(recipe?.title||'Рецепт')+' · '+servings+' '+recipePortionWord(servings);
+        let index=0;
+        const render=()=>{
+          if(counter) counter.textContent=(index+1)+' / '+steps.length;
+          if(step) step.textContent=String(steps[index]||'');
+          if(prev) prev.disabled=index===0;
+          if(next) next.textContent=index===steps.length-1?'Готово':'Следующий шаг';
+          const seconds=recipeStepSeconds(steps[index]);
+          if(timer){
+            timer.hidden=!seconds;
+            timer.textContent=seconds?'⏱ Таймер '+recipeTimerLabel(seconds):'';
+            timer.onclick=seconds?()=>startRecipeStepTimer(timer,seconds):null;
+          }
+        };
+        modal.querySelector('[data-cooking-close]')?.addEventListener('click',closeRecipeCookingMode);
+        prev?.addEventListener('click',()=>{if(index>0){index-=1;render();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}}});
+        next?.addEventListener('click',()=>{
+          if(index>=steps.length-1){
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            closeRecipeCookingMode();return;
+          }
+          index+=1;render();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        document.body.appendChild(modal);
+        document.body.classList.add('recipe-cooking-open');
+        render();
+        acquireRecipeWakeLock();
+      }
+
+      if(document.documentElement.dataset.recipeWakeBound!=='1'){
+        document.documentElement.dataset.recipeWakeBound='1';
+        document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&recipeCookingOpen&&!recipeWakeLock) acquireRecipeWakeLock()});
+      }
+
       function renderRecipeDetails(recipe,selectedId=''){
         const details=document.getElementById('recipeDetails');
         if(!details||!recipe) return;
@@ -12947,6 +13129,37 @@
         head.append(title,meta,save);
         details.appendChild(head);
 
+        const baseServings=recipeBaseServings(recipe);
+        let currentServings=baseServings;
+        const actions=document.createElement('div');
+        actions.className='recipe-action-bar';
+        const portions=document.createElement('div');
+        portions.className='recipe-portions';
+        const portionsMinus=document.createElement('button');
+        portionsMinus.type='button';portionsMinus.textContent='−';portionsMinus.setAttribute('aria-label','Уменьшить количество порций');
+        const portionsValue=document.createElement('strong');
+        const portionsPlus=document.createElement('button');
+        portionsPlus.type='button';portionsPlus.textContent='+';portionsPlus.setAttribute('aria-label','Увеличить количество порций');
+        const addIngredients=document.createElement('button');
+        addIngredients.type='button';addIngredients.className='recipe-add-products';addIngredients.textContent='В покупки';
+        const cook=document.createElement('button');
+        cook.type='button';cook.className='recipe-cook-start';cook.textContent='Готовить';
+        const refreshPortions=()=>{
+          portionsValue.textContent=currentServings+' '+recipePortionWord(currentServings);
+          const ratio=currentServings/baseServings;
+          details.querySelectorAll('[data-recipe-base-amount]').forEach(node=>{
+            node.textContent=scaleRecipeAmount(node.dataset.recipeBaseAmount||'',ratio);
+          });
+          portionsMinus.disabled=currentServings<=1;portionsPlus.disabled=currentServings>=12;
+        };
+        portionsMinus.addEventListener('click',()=>{currentServings=Math.max(1,currentServings-1);refreshPortions();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
+        portionsPlus.addEventListener('click',()=>{currentServings=Math.min(12,currentServings+1);refreshPortions();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
+        addIngredients.addEventListener('click',()=>addRecipeIngredientsToProducts(recipe,currentServings,addIngredients));
+        cook.addEventListener('click',()=>{openRecipeCookingMode(recipe,currentServings);try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}});
+        portions.append(portionsMinus,portionsValue,portionsPlus);
+        actions.append(portions,addIngredients,cook);
+        details.appendChild(actions);
+
         if(recipe.summary){
           const summary=document.createElement('p');
           summary.className='recipe-detail-summary';
@@ -12977,6 +13190,7 @@
             const name=document.createElement('span');
             name.textContent=String(item?.name||'');
             const amount=document.createElement('strong');
+            amount.dataset.recipeBaseAmount=String(item?.amount||'');
             amount.textContent=String(item?.amount||'');
             row.append(name,amount);
             list.appendChild(row);
@@ -12991,7 +13205,17 @@
           list.className='recipe-steps';
           steps.forEach(value=>{
             const item=document.createElement('li');
-            item.textContent=String(value);
+            const copy=document.createElement('span');
+            copy.textContent=String(value);
+            item.appendChild(copy);
+            const seconds=recipeStepSeconds(value);
+            if(seconds){
+              const timer=document.createElement('button');
+              timer.type='button';timer.className='recipe-step-timer';
+              timer.textContent='⏱ '+recipeTimerLabel(seconds);
+              timer.addEventListener('click',()=>startRecipeStepTimer(timer,seconds));
+              item.appendChild(timer);
+            }
             list.appendChild(item);
           });
           details.appendChild(list);
@@ -13009,6 +13233,7 @@
           details.appendChild(tip);
         }
 
+        refreshPortions();
         details.hidden=false;
         setTimeout(()=>details.scrollIntoView({behavior:'smooth',block:'nearest'}),40);
       }
