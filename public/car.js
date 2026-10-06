@@ -1903,7 +1903,7 @@
       const image=document.createElement('img');
       image.src=String(photo?.url||photo?.fullUrl||'');
       image.alt=String(photo?.caption||'Автодокумент '+(index+1));
-      image.loading=index<4?'eager':'lazy';
+      image.loading=index<5?'eager':'lazy';
       image.decoding='async';
       image.draggable=false;
       image.addEventListener('error',()=>{
