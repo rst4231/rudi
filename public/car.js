@@ -1853,6 +1853,16 @@
     }
   }
 
+  function openCarDocumentViewer(photo,index,photos){
+    const viewer=window.RUDI_PHOTO_VIEWER;
+    if(viewer&&typeof viewer.open==='function'){
+      try{
+        if(viewer.open(photos,index)) return;
+      }catch(_){}
+    }
+    openCarDocumentOriginal(photo);
+  }
+
   function renderCarDocuments(documents=state.documents){
     const grid=document.getElementById('carDocumentsGrid');
     const meta=document.getElementById('carDocumentsMeta');
@@ -1889,7 +1899,7 @@
       const button=document.createElement('button');
       button.type='button';
       button.className='car-document-photo';
-      button.setAttribute('aria-label','Открыть оригинал документа '+(index+1));
+      button.setAttribute('aria-label','Открыть документ '+(index+1)+' в просмотрщике');
       const image=document.createElement('img');
       image.src=String(photo?.url||photo?.fullUrl||'');
       image.alt=String(photo?.caption||'Автодокумент '+(index+1));
@@ -1901,7 +1911,7 @@
         if(full&&image.src!==full) image.src=full;
       },{once:true});
       button.appendChild(image);
-      button.addEventListener('click',()=>openCarDocumentOriginal(photo));
+      button.addEventListener('click',()=>openCarDocumentViewer(photo,index,photos));
       grid.appendChild(button);
     });
   }
