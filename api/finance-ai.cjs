@@ -171,7 +171,6 @@ async function getMonthlyFinanceInsight(context = {}, options = {}) {
     'Опирайся только на переданные цифры. Если данных мало, так и скажи и предложи одно простое действие.',
     'Пользователь: ' + actor + '. Месяц: ' + month + '.',
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
-    'Подушка: ' + Number(context.reserve || 0) + ' ₽.',
     categories ? 'Категории: ' + categories : 'Расходы по категориям пока не добавлены.',
   ].join('\n');
   const parsed = await requestJson(prompt, monthlyInsightSchema(), { ...options, timeoutMs: 10000 });
@@ -215,7 +214,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
 
   const prompt = [
     'Ты — финансовый аналитик внутри приложения RUDI.',
-    'Сделай персональный разбор финансов пользователя на русском языке на основе его фактических доходов, расходов по категориям, подушки, цели и долгов.',
+    'Сделай персональный разбор финансов пользователя на русском языке на основе его фактических доходов, расходов по категориям, цели и долгов.',
     'Используй здравые принципы личных финансов из качественной литературы: The Psychology of Money, The Millionaire Next Door, Your Money or Your Life, The Little Book of Common Sense Investing, A Random Walk Down Wall Street, I Will Teach You to Be Rich и других.',
     'Если есть сегодняшняя статья по финансовой грамотности, используй её идею как дополнительный контекст, но не копируй её текст.',
     'Не давай конкретных рекомендаций купить или продать ценные бумаги, криптовалюту или иной актив. Не обещай доходность.',
@@ -225,7 +224,6 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
     'risks — конкретные слабые места/риски, только если они видны.',
     'Пользователь: ' + actor + '. Месяц: ' + month + '.',
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
-    'Подушка: ' + Number(context.reserve || 0) + ' ₽.',
     'Цель: ' + (compact(context.goalTitle, 80) || 'не задана') + ', накоплено ' + Number(context.goalCurrent || 0) + ' ₽ из ' + Number(context.goalTarget || 0) + ' ₽.',
     categories ? 'Категории расходов:\n' + categories : 'Расходы по категориям пока не добавлены.',
     debts ? 'Активные долги:\n' + debts : 'Активных долгов нет.',
