@@ -5553,7 +5553,11 @@
             if(moodBadge){
               moodBadge.classList.remove('score-avatar-mood-badge','profile-card-mood-badge','avatar-mood-sticker');
               const nameRow=identity.querySelector('.profile-name-row');
-              if(nameRow) nameRow.appendChild(moodBadge);
+              const nameElement=identity.querySelector(actor===currentActor?'#displayName':'#partnerHeaderName')||nameRow?.querySelector('.name');
+              if(nameRow){
+                if(nameElement&&nameElement.parentNode===nameRow) nameElement.insertAdjacentElement('afterend',moodBadge);
+                else nameRow.appendChild(moodBadge);
+              }
             }
           }else{
             identity.appendChild(scoreSticker);
@@ -5657,10 +5661,23 @@
         dianaCard.details.appendChild(cycleSummary);
         const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
         const ownSupplementBlock=selfActor==='Диана'?dianaSupplementBlock:rustamSupplementBlock;
-        const moodHistoryMenuButton=document.getElementById('moodHistoryButton');
-        if(moodHistoryMenuButton){
-          moodHistoryMenuButton.classList.add('profile-mood-history-row');
-          moodHistoryMenuButton.textContent='История настроения';
+        const moodHistoryTrigger=document.getElementById('moodHistoryButton');
+        if(moodHistoryTrigger){
+          moodHistoryTrigger.hidden=true;
+          let moodHistoryMenuButton=document.getElementById('profileMoodHistoryMenuButton');
+          if(!moodHistoryMenuButton){
+            moodHistoryMenuButton=document.createElement('button');
+            moodHistoryMenuButton.id='profileMoodHistoryMenuButton';
+            moodHistoryMenuButton.className='profile-mood-history-row';
+            moodHistoryMenuButton.type='button';
+            moodHistoryMenuButton.textContent='История настроения';
+            moodHistoryMenuButton.setAttribute('aria-label','Открыть историю настроения');
+            moodHistoryMenuButton.addEventListener('click',event=>{
+              event.preventDefault();
+              event.stopPropagation();
+              moodHistoryTrigger.click();
+            });
+          }
           moodHistoryMenuButton.hidden=false;
           ownCard.details.insertBefore(moodHistoryMenuButton,ownSupplementBlock);
         }
@@ -7623,11 +7640,11 @@
       let firstName = '';
 
       function applySessionIdentity(){
-        if(user||!currentActor) return;
+        if(!currentActor) return;
         firstName=currentActor;
         displayName.textContent=currentActor;
         initials.textContent=currentActor.charAt(0).toUpperCase();
-        avatar.classList.remove('has-photo');
+        if(!user) avatar.classList.remove('has-photo');
       }
 
       if(user){
@@ -7682,8 +7699,8 @@
           avatarImage.addEventListener('error',()=>avatar.classList.remove('has-photo'),{once:true});
         }
 
-        const rawPartnerName=String(partnerProfile?.name||'').trim()
-          || (currentActor==='Рустам'?'Диана':currentActor==='Диана'?'Рустам':'Партнёр');
+        const canonicalPartnerName=currentActor==='Рустам'?'Диана':currentActor==='Диана'?'Рустам':'';
+        const rawPartnerName=canonicalPartnerName||String(partnerProfile?.name||'').trim()||'Партнёр';
         const partnerName=rawPartnerName.split(/\s+/)[0]||'Партнёр';
         partnerProfileName=partnerName;
 
@@ -11679,9 +11696,28 @@
         const currentButton=document.getElementById('moodCurrentButton');
         if(currentButton&&currentButton.dataset.moodPickerBound!=='1'){
           currentButton.dataset.moodPickerBound='1';
+          let moodLongPressTimer=0;
+          let moodLongPressActivated=false;
+          const cancelMoodLongPress=()=>{clearTimeout(moodLongPressTimer);moodLongPressTimer=0};
+          currentButton.addEventListener('pointerdown',event=>{
+            if(event.pointerType==='mouse'&&event.button!==0) return;
+            moodLongPressActivated=false;
+            cancelMoodLongPress();
+            moodLongPressTimer=setTimeout(()=>{
+              moodLongPressActivated=true;
+              setMoodChoicesOpen(false);
+              document.getElementById('moodHistoryButton')?.click();
+              try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
+            },600);
+          });
+          currentButton.addEventListener('pointerup',cancelMoodLongPress);
+          currentButton.addEventListener('pointercancel',cancelMoodLongPress);
+          currentButton.addEventListener('pointerleave',cancelMoodLongPress);
+          currentButton.addEventListener('contextmenu',event=>event.preventDefault());
           currentButton.addEventListener('click',(event)=>{
             event.preventDefault();
             event.stopPropagation();
+            if(moodLongPressActivated){moodLongPressActivated=false;return;}
             const choices=document.getElementById('moodChoices');
             setMoodChoicesOpen(Boolean(choices?.hidden));
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}

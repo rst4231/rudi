@@ -13810,3 +13810,68 @@ html[data-theme="light"] .profile-person-card .profile-mood-history-row{
   color:#2f3542!important;
 }
 /* end RUDI v4.19 */
+
+
+/* RUDI v4.20 — profile names, inline mood and stable history button */
+.profile-person-card .profile-name-row,
+.profile-person-card .profile-name-row-partner{
+  display:inline-flex!important;
+  width:auto!important;
+  max-width:100%!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  justify-self:start!important;
+  gap:7px!important;
+}
+.profile-person-card .profile-name-row > .name,
+.profile-person-card .profile-name-row > .partner-header-name{
+  flex:0 1 auto!important;
+  width:auto!important;
+  max-width:100%!important;
+  text-align:left!important;
+}
+.profile-person-card .profile-name-row > .avatar-mood-badge{
+  position:static!important;
+  inset:auto!important;
+  flex:0 0 25px!important;
+  width:25px!important;
+  height:25px!important;
+  min-width:25px!important;
+  min-height:25px!important;
+  margin:0!important;
+  padding:0!important;
+  transform:none!important;
+  align-self:center!important;
+}
+.profile-person-card .profile-name-row > .avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > .avatar-mood-badge .partner-mood-icon .mood-emoji{
+  font-size:22px!important;
+  line-height:1!important;
+}
+#profileMoodHistoryMenuButton[hidden]{display:none!important}
+.profile-person-card #profileMoodHistoryMenuButton.profile-mood-history-row{
+  width:100%!important;
+  height:auto!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:0 14px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid rgba(137,151,255,.22)!important;
+  border-radius:14px!important;
+  background:rgba(255,255,255,.065)!important;
+  color:#f4f6ff!important;
+  font:inherit!important;
+  font-size:12px!important;
+  line-height:1.2!important;
+  font-weight:820!important;
+  text-align:center!important;
+  cursor:pointer!important;
+}
+html[data-theme="light"] .profile-person-card #profileMoodHistoryMenuButton.profile-mood-history-row{
+  border-color:rgba(70,78,98,.15)!important;
+  background:#fff!important;
+  color:#2f3542!important;
+}
+/* end RUDI v4.20 */

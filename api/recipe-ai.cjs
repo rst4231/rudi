@@ -114,6 +114,7 @@ function timeWindowFor(timeMinutes) {
 function baseRules(req) {
   const window = timeWindowFor(req.timeMinutes);
   return [
+    'Весь текст для пользователя пиши только на русском языке: названия блюд, описания, сложность, ингредиенты, количества, список покупок, шаги и советы. Иностранные названия допускаются только как общеупотребимые названия продуктов или блюд внутри русской фразы.',
     'Используй прежде всего продукты, которые пользователь перечислил.',
     'Разрешены базовые продукты, которые обычно есть дома: соль, перец, вода и растительное масло.',
     'Если нужны другие продукты, честно укажи их как то, что нужно докупить.',
@@ -242,6 +243,13 @@ function normalizeSuggestion(recipe, index, minTime, maxTime) {
   };
 }
 
+function ensureRussianRecipeText(value) {
+  const text = String(value || '');
+  const cyrillic = (text.match(/[А-Яа-яЁё]/g) || []).length;
+  const latin = (text.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g) || []).length;
+  if (cyrillic < 12 || (latin > 24 && latin > cyrillic)) throw new Error('recipe-ai-language');
+}
+
 function normalizeSuggestionSet(payload, requestOrMaxTime) {
   const request = requestOrMaxTime && typeof requestOrMaxTime === 'object'
     ? requestOrMaxTime
@@ -253,6 +261,7 @@ function normalizeSuggestionSet(payload, requestOrMaxTime) {
     .slice(0, 4);
 
   if (recipes.length < 4) throw new Error('recipe-ai-no-recipes');
+  ensureRussianRecipeText(recipes.map((recipe) => recipe.title + ' ' + recipe.summary + ' ' + recipe.difficulty).join(' '));
 
   for (let index = 0; index < recipes.length; index += 1) {
     for (let other = index + 1; other < recipes.length; other += 1) {
@@ -319,6 +328,7 @@ function normalizeRecipeDetail(payload, requestOrMaxTime) {
   const tips = cleanList(source.tips, 3, 220);
   if (!ingredients.length) throw new Error('recipe-ai-no-recipe');
   if (steps.length < 3) throw new Error('recipe-ai-steps-invalid');
+  ensureRussianRecipeText([title, summary, difficulty, ...ingredients.flatMap((row) => [row.name, row.amount]), ...missing, ...steps, ...tips].join(' '));
   return {
     recipe: {
       id: 'recipe-detail',
@@ -549,7 +559,7 @@ async function runWithRetry(mode, input, options = {}) {
         'recipe-ai-busy', 'recipe-ai-timeout', 'recipe-ai-unavailable', 'recipe-ai-invalid-json',
         'recipe-ai-structured-output', 'recipe-ai-no-recipes', 'recipe-ai-duplicate-recipes',
         'recipe-ai-repeat-recipes', 'recipe-ai-time-mismatch', 'recipe-ai-no-recipe',
-        'recipe-ai-steps-invalid',
+        'recipe-ai-steps-invalid', 'recipe-ai-language',
       ];
 
       if (attempt + 1 < maxAttempts && retryable.includes(code)) {
