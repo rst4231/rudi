@@ -5651,18 +5651,18 @@
         };
         const rustamSupplementBlock=makeSupplementIntakeBlock('Рустам');
         const dianaSupplementBlock=makeSupplementIntakeBlock('Диана');
-        rustamCard.details.insertBefore(rustamSupplementBlock,rhythmAdvice);
-        dianaCard.details.insertBefore(dianaSupplementBlock,dianaRhythmAdvice);
+        rustamCard.details.appendChild(rustamSupplementBlock);
+        dianaCard.details.appendChild(dianaSupplementBlock);
 
         dianaCard.details.appendChild(cycleSummary);
         const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
-        const ownRhythmAdvice=selfActor==='Диана'?dianaRhythmAdvice:rhythmAdvice;
+        const ownSupplementBlock=selfActor==='Диана'?dianaSupplementBlock:rustamSupplementBlock;
         const moodHistoryMenuButton=document.getElementById('moodHistoryButton');
         if(moodHistoryMenuButton){
           moodHistoryMenuButton.classList.add('profile-mood-history-row');
           moodHistoryMenuButton.textContent='История настроения';
           moodHistoryMenuButton.hidden=false;
-          ownCard.details.insertBefore(moodHistoryMenuButton,ownRhythmAdvice);
+          ownCard.details.insertBefore(moodHistoryMenuButton,ownSupplementBlock);
         }
         if(moodChoices){
           moodChoices.hidden=true;
