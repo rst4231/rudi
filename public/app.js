@@ -5692,6 +5692,9 @@
         syncStaticProfileWorkStatus();
         setupHomeDashboardActions();
         renderHomeDashboard();
+        const restoredOwnMood=String(homeDashboardState.moods?.mine?.mood||'');
+        if(restoredOwnMood) selectOwnMood(restoredOwnMood);
+        else refreshDailyMood().catch(()=>{});
         loadSupplementIntakeOverview({silent:true});
       }
 
@@ -7683,8 +7686,12 @@
           name:firstName||currentActor,
           photoDataUrl:String(user?.photo_url||selfProfile?.photoDataUrl||'').trim()
         };
-        setWishlistProfile('Рустам',currentActor==='Рустам'?selfForWishlist:partnerProfile);
-        setWishlistProfile('Диана',currentActor==='Диана'?selfForWishlist:partnerProfile);
+        const rustamProfile=currentActor==='Рустам'?selfForWishlist:partnerProfile;
+        const dianaProfile=currentActor==='Диана'?selfForWishlist:partnerProfile;
+        setWishlistProfile('Рустам',rustamProfile);
+        setWishlistProfile('Диана',dianaProfile);
+        applyAvatarProfile(document.getElementById('financeRustamAvatar'),rustamProfile,'Рустам');
+        applyAvatarProfile(document.getElementById('financeDianaAvatar'),dianaProfile,'Диана');
       }
 
       function getMoscowParts(date=new Date()){

@@ -13243,3 +13243,56 @@ body[data-app-tab="finances"]{
 }
 @media(prefers-reduced-motion:reduce){.finance-save-button,.finance-history-row,.profile .avatar-mood-badge{transition:none!important}}
 /* end RUDI v4.10 */
+
+
+/* RUDI v4.11 — profile mood/name hotfix + finance avatars */
+.profile-person-card .profile-name-row-partner{
+  width:100%!important;
+  min-width:0!important;
+  justify-content:flex-start!important;
+}
+.profile-person-card .profile-name-row-partner .partner-header-name{
+  width:100%!important;
+  max-width:none!important;
+  flex:1 1 auto!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.finance-person-avatar{
+  position:relative;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:12px;
+  font-size:12px;
+  font-weight:900;
+}
+.finance-person-avatar>span{
+  position:relative;
+  z-index:0;
+}
+.finance-person-avatar>img{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:0;
+}
+.finance-person-avatar.has-photo>img{opacity:1}
+.finance-split-card.is-diana .finance-person-avatar{
+  background:color-mix(in srgb,#d8589a 13%,var(--surface));
+  color:#c54888;
+}
+.finance-split-card.is-rustam .finance-person-avatar{
+  background:color-mix(in srgb,#4a78df 13%,var(--surface));
+  color:#3d69ca;
+}
+@media(max-width:430px){
+  .finance-person-avatar{width:30px;height:30px;border-radius:10px}
+}
+/* end RUDI v4.11 */
