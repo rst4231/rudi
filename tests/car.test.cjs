@@ -194,3 +194,14 @@ test('daily question title matches smart saves title size',()=>{
   const css=fs.readFileSync('public/app.css','utf8');
   assert.match(css,/#dailyQuestionTile \.daily-question-heading h2\{\s*font-size:18px!important;/);
 });
+
+
+test('primary bottom navigation is limited to the five main tabs',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(app,/PRIMARY_NAV_TABS=new Set\(\['home','feed','schedule','products','photos'\]\)/);
+  assert.match(app,/document\.body\.dataset\.primaryNav=primaryNavVisible\?'visible':'hidden'/);
+  assert.match(app,/appTabBar\.hidden=!primaryNavVisible/);
+  assert.match(css,/\.app-tabbar\[hidden\]\{display:none !important\}/);
+  assert.match(css,/body\[data-primary-nav="hidden"\] \.shell/);
+});
