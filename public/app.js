@@ -4808,7 +4808,15 @@
         const title=item?.url?document.createElement('a'):document.createElement('strong');title.className='smart-save-title';title.textContent=String(item?.title||'Сохранение');
         if(item?.url){title.href=String(item.url);title.target='_blank';title.rel='noopener noreferrer'}
         body.append(meta,title);
-        if(!compact&&item?.description){const desc=document.createElement('p');desc.textContent=String(item.description);body.appendChild(desc)}
+        if(!compact&&item?.description){
+          const description=String(item.description).trim();
+          const hideCoffee3Address=/^coffee\s*3$/iu.test(String(item?.title||'').trim())&&/восстан/iu.test(description);
+          if(description&&!hideCoffee3Address){
+            const desc=document.createElement('p');
+            desc.textContent=description;
+            body.appendChild(desc);
+          }
+        }
         const itemUrl=String(item?.url||'').trim();
         if(itemUrl){
           const openUrl=()=>{try{if(tg?.openLink){tg.openLink(itemUrl);return}}catch(_){}window.open(itemUrl,'_blank','noopener,noreferrer')};
