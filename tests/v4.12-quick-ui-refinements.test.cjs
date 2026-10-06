@@ -23,3 +23,12 @@ test('v4.12 quick UI refinements',()=>{
   assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.avatar\{[\s\S]*overflow:hidden!important;/);
   assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.score-avatar-mood-badge\{/);
 });
+
+test('v4.15 fully contains avatar layers inside profile card',()=>{
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap\{[\s\S]*height:94px!important/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.avatar\{[\s\S]*top:18px!important[\s\S]*overflow:hidden!important/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.score-avatar-mood-badge[\s\S]*top:66px!important/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.score-avatar-mood-badge\[hidden\]\{[\s\S]*display:none!important/);
+  assert.match(css,/@media\(max-width:430px\)[\s\S]*height:90px!important[\s\S]*top:62px!important/);
+});
