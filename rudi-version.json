@@ -1,7 +1,7 @@
 {
   "current": "v3.94",
   "versionBranch": "rudi-v3.94-car-documents-viewer",
-  "releaseCommit": null,
+  "releaseCommit": "361d72863fdda00b8ca1f16409f13f1eac2283e1",
   "deploymentSourceCommit": null,
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-06",
