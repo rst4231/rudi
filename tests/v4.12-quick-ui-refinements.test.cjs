@@ -46,7 +46,7 @@ test('v4.15 restores avatar mood overlay and strips Coffee 3 Vostaniya address',
 test('v4.16 mood emoji is a pure sticker on avatar bottom edge',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const css=fs.readFileSync('public/app.css','utf8');
-  assert.match(app,/classList\.remove\('score-avatar-mood-badge','profile-card-mood-badge'\)/);
+  assert.match(app,/classList\.remove\('score-avatar-mood-badge','profile-card-mood-badge','avatar-mood-sticker'\)/);
   assert.match(css,/#moodCurrentButton\.avatar-mood-badge[\s\S]*bottom:-4px!important/);
   assert.match(css,/#moodCurrentButton\.avatar-mood-badge[\s\S]*border:0!important/);
   assert.match(css,/#moodCurrentButton\.avatar-mood-badge[\s\S]*background:transparent!important/);
