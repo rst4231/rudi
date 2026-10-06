@@ -9,6 +9,13 @@ test('v4.26 keeps removed messenger assets out of build precache',()=>{
   assert.doesNotMatch(build,/messenger\.(?:js|css)/i);
 });
 
+
+test('v4.26 service worker install tolerates an individual precache fetch failure',()=>{
+  const sw=read('public/sw.js');
+  assert.match(sw,/Promise\.allSettled\(PRECACHE\.map\(url=>cache\.add\(url\)\)\)/);
+  assert.doesNotMatch(sw,/cache\.addAll\(PRECACHE\)/);
+});
+
 test('v4.26 removes expired runtime routes and recovery bypasses',()=>{
   const api=read('api/index.js');
   const feed=read('api/feed-notify-cron.js');
