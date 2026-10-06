@@ -115,7 +115,6 @@ async function runHealthWithoutCouple(req, res) {
   try { return await runRuntime(req, res); } finally { res.json = originalJson; }
 }
 
-function isLaborBootstrapAllowed(date = new Date()) { return ['2026-08-20', '2026-08-26'].includes(getMoscowDateKey(date)); }
 function readGeneratedRuntimeSource() { try { return fs.readFileSync(require.resolve('../runtime/generated-runtime.cjs'), 'utf8'); } catch { return ''; } }
 
 async function publishDailyLaborArticle(options = {}) {
@@ -223,12 +222,6 @@ async function handler(req, res) {
       return res.status(200).json(buildAliceProductAddedResponse(req));
     }
 
-    if (req.query?.route === 'init-products') return res.status(200).json({ ok: true, ignored: 'init-products-disabled' });
-    if (req.query?.route === 'labor-bootstrap') {
-      if (!isLaborBootstrapAllowed()) return res.status(410).json({ ok: false, error: 'labor-bootstrap-expired' });
-      const labor = await publishDailyLaborArticle(); if (labor) console.log('RUDI_LABOR_BOOTSTRAP_RESULT', labor);
-      return res.status(labor ? 200 : 503).json({ ok: Boolean(labor), labor });
-    }
     if (req.query?.route === 'daily') {
       if (!isCronRequestAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
       try { const cleanup = await prepareDailyTopicCleanup({ token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch }); console.log('RUDI_TOPIC_CLEANUP_RESULT', cleanup); }
@@ -289,5 +282,4 @@ module.exports = handler;
 module.exports.runRuntime = runRuntime;
 module.exports.runHealthWithoutCouple = runHealthWithoutCouple;
 module.exports.publishDailyLaborArticle = publishDailyLaborArticle;
-module.exports.isLaborBootstrapAllowed = isLaborBootstrapAllowed;
 module.exports.sanitizeStagePriceText = sanitizeStagePriceText;

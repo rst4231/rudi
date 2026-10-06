@@ -213,10 +213,6 @@
       "destination": "/api/index?route=alice-shopping"
     },
     {
-      "source": "/api/init-products",
-      "destination": "/api/index?route=init-products"
-    },
-    {
       "source": "/api/ticktick/today",
       "destination": "/api/partner-message?ticktickAction=today"
     },
