@@ -237,6 +237,17 @@
         </div>
       </div>
 
+      <section id="marketTickerTile" class="market-ticker-tile finance-market-ticker" data-app-tab-section="finances" data-tab-available="1" aria-label="Курсы валют и криптовалют">
+        <div class="market-ticker-viewport">
+          <div id="marketTickerTrack" class="market-ticker-track" aria-hidden="true">
+            <div class="market-ticker-group">
+              <span class="market-ticker-loading">Курсы загружаются…</span>
+            </div>
+          </div>
+        </div>
+        <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
+      </section>
+
       <nav id="financeTabs" class="finance-tabs" role="tablist" aria-label="Разделы финансов">
         <button type="button" class="finance-tab is-active" data-finance-tab="shared" role="tab" aria-selected="true">Совместные</button>
         <button type="button" class="finance-tab" data-finance-tab="personal" role="tab" aria-selected="false">Личные</button>
@@ -1651,16 +1662,6 @@
       </section>
     </section>
 
-    <section id="marketTickerTile" class="market-ticker-tile" data-app-tab-section="home" data-home-tile="markets" data-tab-available="1" aria-label="Курсы валют и криптовалют">
-      <div class="market-ticker-viewport">
-        <div id="marketTickerTrack" class="market-ticker-track" aria-hidden="true">
-          <div class="market-ticker-group">
-            <span class="market-ticker-loading">Курсы загружаются…</span>
-          </div>
-        </div>
-      </div>
-      <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
-    </section>
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
