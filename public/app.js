@@ -2371,31 +2371,19 @@
         list.replaceChildren();
         for(const category of categories){
           const spent=Math.round(expenses.filter(row=>row.categoryId===category.id).reduce((sum,row)=>sum+Number(row.amount||0),0)*100)/100;
-          const limit=Math.max(0,Number(category.monthlyLimit||0)),pct=limit>0?Math.min(100,spent/limit*100):0;
           const card=document.createElement('article');card.className='finance-category-card';card.dataset.categoryId=category.id;
 
           const head=document.createElement('div');head.className='finance-category-card-head';
           const name=document.createElement('div');name.className='finance-category-card-name';
           const icon=document.createElement('span');icon.className='finance-category-card-icon';icon.textContent=category.icon||'💳';
           const title=document.createElement('strong');title.textContent=category.name||'Категория';name.append(icon,title);
+
+          const side=document.createElement('div');side.className='finance-category-card-side';
           const stats=document.createElement('div');stats.className='finance-category-card-stats';
-          const spentText=document.createElement('strong');spentText.textContent=limit>0?financeMoney(spent)+' / '+financeMoney(limit):financeMoney(spent);
-          const statsLabel=document.createElement('span');statsLabel.textContent=limit>0?'потрачено / лимит':'потрачено';stats.append(spentText,statsLabel);head.append(name,stats);
-
-          const progress=document.createElement('div');progress.className='finance-category-progress'+(limit>0&&spent>limit?' is-over':'');
-          const progressBar=document.createElement('span');progressBar.style.width=(limit>0?pct:0)+'%';progress.append(progressBar);
-
-          const settings=document.createElement('div');settings.className='finance-category-settings';
-          const limitLabel=document.createElement('label');limitLabel.className='finance-input-field';
-          const limitCaption=document.createElement('span');limitCaption.textContent='Лимит в месяц';
-          const limitWrap=document.createElement('div');limitWrap.className='finance-money-input';
-          const limitInput=document.createElement('input');limitInput.type='number';limitInput.min='0';limitInput.max='100000000';limitInput.step='1';limitInput.inputMode='decimal';limitInput.placeholder='Без лимита';limitInput.value=limit>0?String(limit):'';
-          const rub=document.createElement('b');rub.textContent='₽';limitWrap.append(limitInput,rub);limitLabel.append(limitCaption,limitWrap);
-
-          const noteLabel=document.createElement('label');noteLabel.className='finance-input-field';
-          const noteCaption=document.createElement('span');noteCaption.textContent='Заметка категории';
-          const noteInput=document.createElement('input');noteInput.className='finance-text-input';noteInput.maxLength=180;noteInput.placeholder='Например, аренда, бензин, продукты';noteInput.value=String(category.note||'');noteLabel.append(noteCaption,noteInput);
-          settings.append(limitLabel,noteLabel);
+          const spentText=document.createElement('strong');spentText.textContent=financeMoney(spent);
+          const statsLabel=document.createElement('span');statsLabel.textContent='потрачено';stats.append(spentText,statsLabel);
+          const remove=document.createElement('button');remove.type='button';remove.className='finance-category-delete';remove.textContent='Удалить';remove.setAttribute('aria-label','Удалить категорию '+String(category.name||''));
+          side.append(stats,remove);head.append(name,side);
 
           const expense=document.createElement('div');expense.className='finance-category-expense-add';
           const amountWrap=document.createElement('div');amountWrap.className='finance-money-input';
@@ -2416,11 +2404,20 @@
             item.append(copy,value,del);recent.append(item);
           }
 
-          const saveCategory=()=>financeDebounce('category:'+category.id,async()=>{
-            try{const data=await financeRequest('update-category',{id:category.id,monthlyLimit:Number(limitInput.value||0),note:noteInput.value||''});financeState.version=Math.max(0,Number(data?.version||financeState.version));const row=(data?.categories||[]).find(item=>item.id===category.id);if(row)Object.assign(category,row);renderFinancePulse(month)}
-            catch(_){}
-          },650);
-          limitInput.addEventListener('input',saveCategory);noteInput.addEventListener('input',saveCategory);
+          remove.addEventListener('click',async()=>{
+            const label=String(category.name||'Категория');
+            if(!window.confirm('Удалить категорию «'+label+'»? Все расходы внутри неё тоже будут удалены.'))return;
+            remove.disabled=true;remove.textContent='…';
+            try{
+              const data=await financeRequest('delete-category',{id:category.id});
+              renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
+              refreshFinanceInsight(true).catch(()=>{});
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            }catch(_){
+              remove.disabled=false;remove.textContent='Удалить';
+              const status=document.getElementById('financeCategoryStatus');if(status)status.textContent='Не удалось удалить категорию';
+            }
+          });
           add.addEventListener('click',async()=>{
             const value=Number(amount.value||0);if(value<=0){amount.focus();return}
             add.disabled=true;add.textContent='…';
@@ -2433,10 +2430,9 @@
           });
           amount.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();add.click()}});
 
-          card.append(head,progress,settings,expense,recent);list.append(card);
+          card.append(head,expense,recent);list.append(card);
         }
       }
-
       function renderFinanceDebts(){
         const list=document.getElementById('financeDebtList'),empty=document.getElementById('financeDebtEmpty'),count=document.getElementById('financeDebtCount');
         const oweTotal=document.getElementById('financeDebtOweTotal'),owedTotal=document.getElementById('financeDebtOwedTotal');
@@ -2488,8 +2484,7 @@
         host.append(summary);
         const groups=[
           ['Сильные стороны',Array.isArray(report.strengths)?report.strengths:[],'strengths'],
-          ['Риски',Array.isArray(report.risks)?report.risks:[],'risks'],
-          ['Что делать',Array.isArray(report.actions)?report.actions:[],'actions']
+          ['Риски',Array.isArray(report.risks)?report.risks:[],'risks']
         ];
         for(const [title,items,tone] of groups){
           if(!items.length)continue;
@@ -2505,7 +2500,7 @@
         const button=document.getElementById('financeAnalystButton'),status=document.getElementById('financeAnalystStatus');
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         if(button){button.disabled=true;button.textContent='Анализирую…'}
-        if(status)status.textContent='Сопоставляю доходы, расходы, лимиты и долги…';
+        if(status)status.textContent='Сопоставляю доходы, расходы и долги…';
         try{
           const data=await financeRequest('analyst',{month});
           renderFinancialAnalyst(data.report);
