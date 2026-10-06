@@ -205,3 +205,17 @@ test('primary bottom navigation is limited to the five main tabs',()=>{
   assert.match(css,/\.app-tabbar\[hidden\]\{display:none !important\}/);
   assert.match(css,/body\[data-primary-nav="hidden"\] \.shell/);
 });
+
+
+test('internal pages use smooth transitions and animated bottom navigation',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(app,/INTERNAL_ANIMATED_TABS=new Set\(\['habits','fasting','supplements','car','wishlist','dates','for-di','smart-saves'\]\)/);
+  assert.match(app,/runAppViewTransition\(update,\{from:previous,to:tab\}\)/);
+  assert.match(app,/appTabBar\.classList\.toggle\('is-hidden',!primaryNavVisible\)/);
+  assert.doesNotMatch(app,/appTabBar\.hidden=!primaryNavVisible/);
+  assert.match(css,/\.app-tabbar\.is-hidden\{/);
+  assert.match(css,/@keyframes rudiInternalViewEnter/);
+  assert.match(css,/rudi-internal-view-enter/);
+  assert.match(css,/data-rudi-route-transition="internal"/);
+});
