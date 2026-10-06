@@ -19,3 +19,14 @@ test('v4.12 quick UI refinements',()=>{
   assert.match(mood,/начни с диалога/);
   assert.match(mood,/skipDialogueBlock/);
 });
+
+test('v4.14 profile card separates avatar crop from mood badge',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(app,/const moodBadge=avatar\.querySelector\('\.avatar-mood-badge'\)/);
+  assert.match(app,/moodBadge\.classList\.add\('profile-card-mood-badge'\)/);
+  assert.match(app,/avatarWrap\.appendChild\(moodBadge\)/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.avatar\{[\s\S]*overflow:hidden!important/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.profile-card-mood-badge\{[\s\S]*top:66px!important/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap\{[\s\S]*height:82px!important/);
+});

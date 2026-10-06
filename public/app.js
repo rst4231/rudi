@@ -5532,8 +5532,13 @@
           if(avatar){
             const avatarWrap=document.createElement('div');
             avatarWrap.className='score-avatar-wrap';
+            const moodBadge=avatar.querySelector('.avatar-mood-badge');
             avatar.parentNode.insertBefore(avatarWrap,avatar);
             avatarWrap.append(avatar,scoreSticker);
+            if(moodBadge){
+              moodBadge.classList.add('profile-card-mood-badge');
+              avatarWrap.appendChild(moodBadge);
+            }
           }else{
             identity.appendChild(scoreSticker);
           }
