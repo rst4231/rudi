@@ -7,7 +7,7 @@
     "postinstall": "node build.cjs",
     "test": "npm run test:current",
     "test:ui": "playwright test",
-    "test:current": "node --test tests/v4.29-bootstrap-performance.test.cjs tests/v4.28-unlimited-mood-analysis.test.cjs tests/v4.27-mood-factor-groups.test.cjs tests/v4.26-dead-code-cleanup.test.cjs tests/v4.03-critical-fixes.test.cjs tests/cron-auth.test.cjs tests/d1-state-client.test.cjs tests/rudi-auth-db.test.cjs tests/saved-items.test.cjs tests/cinema-poster-proxy.test.cjs tests/web-assets.test.cjs tests/rudi-version.test.cjs",
+    "test:current": "node --test tests/v4.30-finance-intelligence.test.cjs tests/v4.29-bootstrap-performance.test.cjs tests/v4.28-unlimited-mood-analysis.test.cjs tests/v4.27-mood-factor-groups.test.cjs tests/v4.26-dead-code-cleanup.test.cjs tests/v4.03-critical-fixes.test.cjs tests/cron-auth.test.cjs tests/d1-state-client.test.cjs tests/rudi-auth-db.test.cjs tests/saved-items.test.cjs tests/cinema-poster-proxy.test.cjs tests/web-assets.test.cjs tests/rudi-version.test.cjs",
     "test:legacy": "node --test tests/*.test.cjs"
   },
   "dependencies": {
