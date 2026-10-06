@@ -18,4 +18,8 @@ test('v4.12 quick UI refinements',()=>{
   assert.match(css,/\.profile-person-card \.score-avatar-wrap \.avatar > #moodCurrentButton\.avatar-mood-badge/);
   assert.match(mood,/начни с диалога/);
   assert.match(mood,/skipDialogueBlock/);
+  assert.match(app,/moodBadge=avatar\.querySelector\('\.avatar-mood-badge'\)/);
+  assert.match(app,/moodBadge\.classList\.add\('score-avatar-mood-badge'\)/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.avatar\{[\s\S]*overflow:hidden!important;/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.score-avatar-mood-badge\{/);
 });

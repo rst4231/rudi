@@ -13386,3 +13386,56 @@ body[data-app-tab="finances"]{
   overflow:visible!important;
 }
 /* end RUDI v4.13 avatar mood placement */
+
+
+/* RUDI v4.14 — structurally separate mood badge from clipped avatar */
+.profile-person-card .score-avatar-wrap{
+  position:relative!important;
+  overflow:visible!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar{
+  position:relative!important;
+  overflow:hidden!important;
+  border-radius:14px!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar > img{
+  width:100%!important;
+  height:100%!important;
+  display:block!important;
+  object-fit:cover!important;
+  border-radius:inherit!important;
+}
+.profile-person-card .score-avatar-wrap > .score-avatar-mood-badge{
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:calc(100% + 5px)!important;
+  bottom:auto!important;
+  z-index:12!important;
+  width:27px!important;
+  height:27px!important;
+  min-width:27px!important;
+  min-height:27px!important;
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  margin:0!important;
+  border:1px solid color-mix(in srgb,#fff 54%,var(--line))!important;
+  border-radius:10px!important;
+  background:color-mix(in srgb,var(--surface-strong) 92%,transparent)!important;
+  box-shadow:0 7px 16px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.20)!important;
+  transform:translateX(-50%) rotate(-10deg)!important;
+  overflow:visible!important;
+}
+.profile-person-card .score-avatar-wrap > .score-avatar-mood-badge .mood-emoji,
+.profile-person-card .score-avatar-wrap > .score-avatar-mood-badge .partner-mood-icon .mood-emoji{
+  font-size:16px!important;
+  line-height:1!important;
+}
+.profile-person-card .score-avatar-wrap > .score-avatar-mood-badge:active{
+  transform:translateX(-50%) rotate(-10deg) scale(.93)!important;
+}
+@media(max-width:430px){
+  .profile-person-card .score-avatar-wrap > .avatar{border-radius:13px!important}
+}
+/* end RUDI v4.14 avatar/mood structure */

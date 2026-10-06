@@ -1,12 +1,14 @@
 {
-  "current": "v4.13",
+  "current": "v4.14",
   "versionBranch": "pending-release",
   "releaseCommit": null,
   "deploymentSourceCommit": null,
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-06",
-  "basedOnProduction": "v4.12",
+  "basedOnProduction": "v4.13",
   "notes": [
+    "Mood emoji вынесен из DOM аватара в общую score-avatar-wrap, поэтому теперь показывается снаружи и не влияет на обрезку фото.",
+    "Фото аватара снова жёстко обрезается по скруглённой рамке через overflow:hidden.",
     "Emoji настроения в карточке профиля вынесен полностью за рамку аватара с зазором 6 px.",
     "В анализаторе настроения под цветной полосой снова показываются подписи с emoji, названием настроения и процентом.",
     "Финансы разделены на три вкладки: Совместные, Личные и Долги.",
