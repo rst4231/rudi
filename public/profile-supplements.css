@@ -696,3 +696,19 @@ html[data-theme="dark"] .personal-habit-status-button.is-history-locked.is-activ
   -webkit-text-fill-color:currentColor;
 }
 /* end RUDI v4.00 past habit dates */
+
+
+/* RUDI v4.01 — force readable past-day button text */
+html[data-theme="light"] .personal-habit-row.is-history .personal-habit-status-button.is-history-locked,
+html[data-theme="light"] .personal-habit-row.is-history .personal-habit-status-button.is-history-locked.is-active,
+html[data-theme="light"] .personal-habit-row.is-history .personal-habit-status-button.is-history-locked:disabled{
+  color:#111418!important;
+  -webkit-text-fill-color:#111418!important;
+}
+html[data-theme="dark"] .personal-habit-row.is-history .personal-habit-status-button.is-history-locked,
+html[data-theme="dark"] .personal-habit-row.is-history .personal-habit-status-button.is-history-locked.is-active,
+html[data-theme="dark"] .personal-habit-row.is-history .personal-habit-status-button.is-history-locked:disabled{
+  color:rgba(255,255,255,.86)!important;
+  -webkit-text-fill-color:rgba(255,255,255,.86)!important;
+}
+/* end RUDI v4.01 past-day text contrast */
