@@ -192,17 +192,25 @@ function renderAnalysisReport(host,text,visuals){
 function renderAnalysisText(host,text){
   host.replaceChildren();
   const lines=String(text||'').replace(/\r\n?/g,'\n').split('\n');
-  let list=null;
+  let list=null,skipDialogueBlock=false;
   for(const raw of lines){
     const line=raw.trim();
     if(!line){list=null;continue}
     const heading=line.match(/^(?:#{1,3}\s*)?\*\*([^*]+)\*\*:?$/)||line.match(/^#{1,3}\s+(.+)$/);
     if(heading){
+      const headingText=String(heading[1]||'').replace(/\*\*/g,'').replace(/:$/,'').trim();
+      if(/^начни с диалога$/i.test(headingText)){
+        skipDialogueBlock=true;
+        list=null;
+        continue;
+      }
+      skipDialogueBlock=false;
       list=null;
       const h=document.createElement('h3');
-      h.textContent=String(heading[1]||'').replace(/\*\*/g,'').replace(/:$/,'');
+      h.textContent=headingText;
       host.append(h);continue;
     }
+    if(skipDialogueBlock||/^напишите пару слов о том, как прош[её]л день/i.test(line))continue;
     const bullet=line.match(/^[-•]\s+(.+)$/);
     if(bullet){
       if(!list){list=document.createElement('ul');host.append(list)}

@@ -12,4 +12,6 @@ test('v4.12 quick UI refinements',()=>{
   assert.match(mood,/mood-analysis-visuals-compact/);
   assert.doesNotMatch(mood,/chartTitle\.textContent='Настроение'/);
   assert.match(css,/\.profile \.avatar-mood-badge\{\s*bottom:-30px!important;/);
+  assert.match(mood,/начни с диалога/);
+  assert.match(mood,/skipDialogueBlock/);
 });
