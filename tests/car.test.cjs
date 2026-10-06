@@ -201,8 +201,9 @@ test('primary bottom navigation is limited to the five main tabs',()=>{
   const css=fs.readFileSync('public/app.css','utf8');
   assert.match(app,/PRIMARY_NAV_TABS=new Set\(\['home','feed','schedule','products','photos'\]\)/);
   assert.match(app,/document\.body\.dataset\.primaryNav=primaryNavVisible\?'visible':'hidden'/);
-  assert.match(app,/appTabBar\.hidden=!primaryNavVisible/);
-  assert.match(css,/\.app-tabbar\[hidden\]\{display:none !important\}/);
+  assert.match(app,/appTabBar\.classList\.toggle\('is-hidden',!primaryNavVisible\)/);
+  assert.doesNotMatch(app,/appTabBar\.hidden=!primaryNavVisible/);
+  assert.match(css,/\.app-tabbar\.is-hidden\{/);
   assert.match(css,/body\[data-primary-nav="hidden"\] \.shell/);
 });
 
@@ -237,4 +238,22 @@ test('route motion animates exits, returns and primary tabs',()=>{
   assert.match(css,/@keyframes rudiPageNewBack/);
   assert.match(css,/data-rudi-fallback-transition="tab"/);
   assert.match(css,/data-rudi-fallback-transition="page"/);
+});
+
+
+test('habit history uses cached recent days and reliable iOS date events',()=>{
+  const client=fs.readFileSync('public/profile-supplements.js','utf8');
+  const css=fs.readFileSync('public/profile-supplements.css','utf8');
+  const api=fs.readFileSync('api/habits.js','utf8');
+  assert.match(client,/data\?\.history/);
+  assert.match(client,/cachedRead\(habitReadCache,cacheKey\)/);
+  assert.match(client,/habitDateInput\.addEventListener\('input',commitHabitCalendarDate\)/);
+  assert.match(client,/habitDateInput\.addEventListener\('change',commitHabitCalendarDate\)/);
+  assert.match(client,/habitDateInput\.addEventListener\('blur',commitHabitCalendarDate\)/);
+  assert.match(client,/Выполнено в этот день/);
+  assert.match(client,/Не выполнено в этот день/);
+  assert.match(css,/body\[data-app-tab="habits"\] \.personal-habits-title-wrap h2/);
+  assert.match(css,/\.personal-habits-archive\{[\s\S]*?border-top:0!important/);
+  assert.match(api,/const shouldFinalize=operation!=='list'\|\|requestedDate===today/);
+  assert.match(api,/for\(let offset=1;offset<=6;offset\+=1\)/);
 });
