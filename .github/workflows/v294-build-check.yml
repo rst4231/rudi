@@ -1,4 +1,4 @@
-name: Verify v2.94 build
+name: Verify current build
 
 on:
   pull_request:
@@ -18,10 +18,17 @@ jobs:
       - run: npm install
       - run: |
           node --check public/app.js
+          node --check public/car.js
+          node --check public/pwa-extras.js
           node --check public/mood-history.js
           node --check public/profile-supplements.js
           node --check api/partner-message.js
+          node --check api/d1-state-client.cjs
+          node --check api/rudi-auth-db.cjs
+          node --check api/poster-proxy.js
           node --check api/mood-analysis-store.cjs
+      - run: |
+          node --test             tests/v4.03-critical-fixes.test.cjs             tests/cron-auth.test.cjs             tests/d1-state-client.test.cjs             tests/rudi-auth-db.test.cjs             tests/saved-items.test.cjs             tests/cinema-poster-proxy.test.cjs             tests/web-assets.test.cjs             tests/rudi-version.test.cjs
       - run: npm run build
       - run: |
           node -e "JSON.parse(require('fs').readFileSync('rudi-version.json','utf8')); JSON.parse(require('fs').readFileSync('vercel.json','utf8'));"
