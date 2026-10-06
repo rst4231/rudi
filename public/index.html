@@ -234,7 +234,6 @@
         <div class="finance-page-title">
           <div class="section-eyebrow">Деньги</div>
           <h1 id="financePageTitle">Финансы</h1>
-          <small id="financePageSubtitle">Совместные, личные и долги</small>
         </div>
       </div>
 
@@ -242,6 +241,7 @@
         <button type="button" class="finance-tab is-active" data-finance-tab="shared" role="tab" aria-selected="true">Совместные</button>
         <button type="button" class="finance-tab" data-finance-tab="personal" role="tab" aria-selected="false">Личные</button>
         <button type="button" class="finance-tab" data-finance-tab="debts" role="tab" aria-selected="false">Долги</button>
+        <button type="button" class="finance-tab" data-finance-tab="literacy" role="tab" aria-selected="false">Грамотность</button>
       </nav>
 
       <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared">
@@ -343,14 +343,74 @@
           <div id="financePersonalStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
 
-        <section class="finance-summary" aria-label="Личный итог">
-          <article class="finance-total-card finance-personal-total-card">
-            <div class="finance-total-label">Баланс за месяц</div>
-            <strong id="financePersonalBalanceValue">0 ₽</strong>
-            <span>Доходы − расходы</span>
-            <div id="financePersonalComparison" class="finance-month-comparison">Нет данных за прошлый месяц</div>
-          </article>
+        <section class="finance-pulse-card" aria-labelledby="financePulseTitle">
+          <div class="finance-history-head">
+            <div>
+              <span class="section-eyebrow">Сейчас</span>
+              <h2 id="financePulseTitle">Финансовый пульс</h2>
+            </div>
+          </div>
+          <div class="finance-pulse-grid">
+            <article>
+              <span>Баланс</span>
+              <strong id="financePersonalBalanceValue">0 ₽</strong>
+            </article>
+            <article>
+              <span>Сбережения</span>
+              <strong id="financeSavingsRate">0%</strong>
+            </article>
+            <article>
+              <span>Подушка</span>
+              <strong id="financeReserveMonths">0 мес.</strong>
+            </article>
+          </div>
+          <div id="financePersonalComparison" class="finance-month-comparison">Нет данных за прошлый месяц</div>
         </section>
+
+        <section class="finance-planning-card" aria-labelledby="financePlanningTitle">
+          <div class="finance-history-head">
+            <div>
+              <span class="section-eyebrow">План</span>
+              <h2 id="financePlanningTitle">Подушка и цель</h2>
+            </div>
+          </div>
+          <div class="finance-plan-grid">
+            <label class="finance-input-field">
+              <span>Подушка сейчас</span>
+              <div class="finance-money-input">
+                <input id="financeReserveInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Размер финансовой подушки">
+                <b>₽</b>
+              </div>
+            </label>
+            <label class="finance-input-field">
+              <span>Название цели</span>
+              <input id="financeGoalTitleInput" class="finance-text-input" maxlength="80" placeholder="Например, квартира" aria-label="Название финансовой цели">
+            </label>
+            <label class="finance-input-field">
+              <span>Накоплено</span>
+              <div class="finance-money-input">
+                <input id="financeGoalCurrentInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Уже накоплено на цель">
+                <b>₽</b>
+              </div>
+            </label>
+            <label class="finance-input-field">
+              <span>Цель</span>
+              <div class="finance-money-input">
+                <input id="financeGoalTargetInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Сумма финансовой цели">
+                <b>₽</b>
+              </div>
+            </label>
+          </div>
+          <div class="finance-goal-progress" aria-label="Прогресс финансовой цели"><span id="financeGoalProgressBar"></span></div>
+          <div id="financeGoalProgressText" class="finance-goal-progress-text">Добавь цель, чтобы видеть прогресс</div>
+          <button id="financePlanSaveButton" class="finance-save-button" type="button">Сохранить план</button>
+          <div id="financePlanStatus" class="finance-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <blockquote class="finance-ai-insight">
+          <span class="section-eyebrow">ИИ-инсайт месяца</span>
+          <p id="financeAiInsightText">Добавь доходы и расходы, и здесь появится короткий разбор.</p>
+        </blockquote>
 
         <section class="finance-history-card" aria-labelledby="financePersonalHistoryTitle">
           <div class="finance-history-head">
@@ -424,6 +484,19 @@
           <div id="financeDebtList" class="finance-debt-list"></div>
           <div id="financeDebtEmpty" class="finance-history-empty">Активных долгов пока нет</div>
         </section>
+      </div>
+
+      <div id="financeLiteracyPanel" class="finance-tab-panel finance-literacy-panel" data-finance-panel="literacy" hidden>
+        <article class="finance-literacy-card" aria-labelledby="financeLiteracyTitle">
+          <div class="finance-literacy-kicker">Статья дня</div>
+          <h2 id="financeLiteracyTitle">Финансовая грамотность</h2>
+          <div id="financeLiteracyMeta" class="finance-literacy-meta">Новая статья каждый день</div>
+          <div id="financeLiteracyBody" class="finance-literacy-body">
+            <p>Готовлю сегодняшнюю статью…</p>
+          </div>
+          <div id="financeLiteracySource" class="finance-literacy-source" hidden></div>
+          <div id="financeLiteracyStatus" class="finance-status" role="status" aria-live="polite"></div>
+        </article>
       </div>
     </section>
     <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
