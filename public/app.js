@@ -76,6 +76,7 @@
       let sharedAlbumUrl = '';
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
+      let photoViewerRestoreState = null;
       const sharedAlbumHdLoads = new Map();
       let currentAppTab = 'home';
       let appViewTransitionActive = false;
@@ -9387,6 +9388,8 @@
       }
 
       function sharedAlbumOriginalUrl(photo){
+        const direct=String(photo?.viewerOriginalUrl||'').trim();
+        if(/^https:\/\//i.test(direct)) return direct;
         const id=String(photo?.id||'').trim();
         return id&&sharedAlbumUrl ? sharedAlbumUrl+';'+id : sharedAlbumUrl;
       }
@@ -9614,6 +9617,12 @@
         if(date){date.textContent='';date.hidden=true}
         setPhotoViewerLoading('', '');
         currentSharedAlbumPhotoIndex=-1;
+        if(photoViewerRestoreState){
+          sharedAlbumPhotos=photoViewerRestoreState.photos;
+          sharedAlbumUrl=photoViewerRestoreState.albumUrl;
+          currentSharedAlbumPhotoIndex=photoViewerRestoreState.index;
+          photoViewerRestoreState=null;
+        }
       }
 
       function openSharedAlbumPhoto(photo,index=-1){
@@ -9634,6 +9643,42 @@
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         setTimeout(()=>close?.focus?.({preventScroll:true}),0);
       }
+
+      function openExternalPhotoViewer(photos,index=0){
+        const items=(Array.isArray(photos)?photos:[])
+          .map((photo,photoIndex)=>{
+            const preview=String(photo?.url||photo?.fullUrl||photo?.originalUrl||'').trim();
+            const full=String(photo?.fullUrl||photo?.originalUrl||preview).trim();
+            const original=String(photo?.originalUrl||full||preview).trim();
+            if(!/^https:\/\//i.test(preview)) return null;
+            return {
+              ...photo,
+              id:String(photo?.id||('external-'+photoIndex)),
+              type:'image',
+              url:preview,
+              fullUrl:/^https:\/\//i.test(full)?full:preview,
+              viewerOriginalUrl:/^https:\/\//i.test(original)?original:'',
+            };
+          })
+          .filter(Boolean);
+        if(!items.length) return false;
+        const target=Math.max(0,Math.min(items.length-1,Number.isInteger(index)?index:0));
+        if(!photoViewerRestoreState){
+          photoViewerRestoreState={
+            photos:sharedAlbumPhotos,
+            albumUrl:sharedAlbumUrl,
+            index:currentSharedAlbumPhotoIndex,
+          };
+        }
+        sharedAlbumPhotos=items;
+        sharedAlbumUrl='';
+        openSharedAlbumPhoto(items[target],target);
+        return document.getElementById('photoViewer')?.classList.contains('open')||false;
+      }
+
+      window.RUDI_PHOTO_VIEWER={
+        open:openExternalPhotoViewer,
+      };
 
       function sharedAlbumPhotoTime(photo){
         const time=Date.parse(String(photo?.date||''));
