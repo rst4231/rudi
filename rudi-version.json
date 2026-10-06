@@ -3,7 +3,7 @@
   "versionBranch": "pending-release",
   "releaseCommit": null,
   "deploymentSourceCommit": null,
-  "deploymentRequestedAt": null,
+  "deploymentRequestedAt": "2026-10-06",
   "createdAt": "2026-10-06",
   "basedOnProduction": "v4.28",
   "notes": [
