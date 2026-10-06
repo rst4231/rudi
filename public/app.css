@@ -2583,6 +2583,10 @@
       padding-bottom:calc(94px + env(safe-area-inset-bottom)) !important;
     }
     [data-app-tab-section][hidden]{display:none !important}
+    .app-tabbar[hidden]{display:none !important}
+    body[data-primary-nav="hidden"] .shell{
+      padding-bottom:max(24px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)) !important;
+    }
     .app-tabbar{
       position:fixed;
       left:50%;
