@@ -42,8 +42,8 @@ test('Face ID passkeys use the same durable D1 auth record', () => {
 test('runtime auth and durable storage are D1-only with no Neon or Blob integration left', () => {
   const readRuntime=store.slice(store.indexOf('async function readRawRecord'),store.indexOf('async function readAuthRecord'));
   const writeRuntime=store.slice(store.indexOf('async function writeRawRecord'),store.indexOf('async function writeAuthRecord'));
-  assert.match(readRuntime,/authD1Client\(options\)\.getRecord\(AUTH_NAMESPACE, safeActor\)/);
-  assert.match(writeRuntime,/authD1Client\(options\)\.setRecord/);
+  assert.match(readRuntime,/authStateClient\(options\)\.getRecord\(AUTH_NAMESPACE, safeActor\)/);
+  assert.match(writeRuntime,/authStateClient\(options\)\.setRecord/);
   assert.match(store,/AUTH_NAMESPACE = 'rudi-browser-auth-v1'/);
   assert.doesNotMatch(store,/blob|neon\.tech|readLegacyRawRecord|listLegacyRawRecords|signDataApiJwt/i);
   assert.doesNotMatch(index,/neon-to-d1-migration|neon-to-blob-migration|rudi-jwks|@vercel\/blob/i);

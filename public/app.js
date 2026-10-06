@@ -13771,6 +13771,11 @@
         acquireRecipeWakeLock();
       }
 
+      window.RUDI_RECIPE_COOKING={
+        open:(recipe,servings)=>openRecipeCookingMode(recipe,Math.max(1,Math.min(12,Math.round(Number(servings)||recipeBaseServings(recipe))))),
+        baseServings:recipe=>recipeBaseServings(recipe)
+      };
+
       if(document.documentElement.dataset.recipeWakeBound!=='1'){
         document.documentElement.dataset.recipeWakeBound='1';
         document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&recipeCookingOpen&&!recipeWakeLock) acquireRecipeWakeLock()});
@@ -13824,8 +13829,6 @@
         const portionsValue=document.createElement('strong');
         const portionsPlus=document.createElement('button');
         portionsPlus.type='button';portionsPlus.textContent='+';portionsPlus.setAttribute('aria-label','Увеличить количество порций');
-        const addIngredients=document.createElement('button');
-        addIngredients.type='button';addIngredients.className='recipe-add-products';addIngredients.textContent='В покупки';
         const cook=document.createElement('button');
         cook.type='button';cook.className='recipe-cook-start';cook.textContent='Готовить';
         const refreshPortions=()=>{
@@ -13838,10 +13841,9 @@
         };
         portionsMinus.addEventListener('click',()=>{currentServings=Math.max(1,currentServings-1);refreshPortions();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
         portionsPlus.addEventListener('click',()=>{currentServings=Math.min(12,currentServings+1);refreshPortions();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
-        addIngredients.addEventListener('click',()=>addRecipeIngredientsToProducts(recipe,currentServings,addIngredients));
         cook.addEventListener('click',()=>{openRecipeCookingMode(recipe,currentServings);try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}});
         portions.append(portionsMinus,portionsValue,portionsPlus);
-        actions.append(portions,addIngredients,cook);
+        actions.append(portions,cook);
         details.appendChild(actions);
 
         if(recipe.summary){

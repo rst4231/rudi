@@ -12994,3 +12994,29 @@ body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="back"] 
   .photo-viewer-stage img{transition:none!important}
 }
 /* end RUDI v3.98 photo viewer zoom */
+
+
+/* RUDI v4.03 — compact recipe actions and iPhone time grid */
+@media(max-width:430px){
+  body[data-app-tab="products"] .recipe-time-row{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:5px;
+  }
+  body[data-app-tab="products"] .recipe-time-row button{
+    width:100%;
+    min-width:0;
+    padding-left:5px;
+    padding-right:5px;
+    font-size:9px;
+  }
+  body[data-app-tab="products"] .recipe-suggestion{
+    grid-template-columns:minmax(0,1fr) auto auto;
+    gap:6px;
+  }
+  body[data-app-tab="products"] .recipe-suggestion-meta{
+    max-width:64px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+}
+/* end RUDI v4.03 recipe mobile fixes */

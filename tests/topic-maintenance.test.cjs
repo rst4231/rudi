@@ -196,3 +196,27 @@ test('health payload no longer exposes the removed couple topic', () => {
   const payload = sanitizeHealthPayload({ ok: true, topics: { events: 19, holidays: 44, couple: 237, products: 263 } });
   assert.deepEqual(payload.topics, { events: 19, holidays: 44, products: 263 });
 });
+
+
+test('missing retired couple chat is cached and not retried on every cron run', async () => {
+  const cache=fakeCache();
+  let calls=0;
+  const fetchImpl=async()=>{
+    calls+=1;
+    return new Response(JSON.stringify({ok:false,description:'Bad Request: chat not found'}),{
+      status:400,
+      headers:{'content-type':'application/json'},
+    });
+  };
+
+  const request={
+    method:'POST',
+    body:JSON.stringify({chat_id:-100987,message_thread_id:COUPLE_TOPIC_ID,text:'retired'}),
+  };
+  const url='https://api.telegram.org/bot1:testtoken/sendMessage';
+
+  assert.equal((await handleTelegramTopicRequest(url,request,{cache,fetchImpl})).status,200);
+  assert.equal(await cache.get('topic:237:deleted:-100987'),true);
+  assert.equal((await handleTelegramTopicRequest(url,request,{cache,fetchImpl})).status,200);
+  assert.equal(calls,1);
+});

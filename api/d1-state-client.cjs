@@ -24,41 +24,55 @@ function createD1StateClient(options={}){
   const timeoutMs=Math.max(500,Number(options.timeoutMs||DEFAULT_TIMEOUT_MS));
   if(typeof fetchImpl!=='function')throw new Error('rudi-d1-fetch-unavailable');
 
-  async function request(path,body,{auth=true,allow404=false,method='POST'}={}){
+  async function request(path,body,{auth=true,allow404=false,method='POST',retries=0}={}){
     if(auth&&!secret)throw new Error('rudi-d1-secret-missing');
-    const timeout=createTimeoutSignal(timeoutMs);
-    try{
-      const response=await fetchImpl(baseUrl+path,{
-        method,
-        headers:{
-          accept:'application/json',
-          ...(body!==undefined?{'content-type':'application/json'}:{}),
-          ...(auth?{authorization:'Bearer '+secret}:{})
-        },
-        body:body===undefined?undefined:JSON.stringify(body),
-        signal:timeout.signal,
-        cache:'no-store',
-      });
-      const text=await response.text();
-      let data=null;
-      try{data=text?JSON.parse(text):null}catch{data=null}
-      if(response.status===404&&allow404)return null;
-      if(!response.ok){
-        const error=new Error('rudi-d1-'+path.replace(/^\//,'')+'-failed');
-        error.status=response.status;
-        error.detail=data||text||'';
-        throw error;
-      }
-      return data;
-    }catch(error){
-      if(error?.name==='AbortError')throw new Error('rudi-d1-timeout');
-      throw error;
-    }finally{timeout.done()}
+    const maxRetries=Math.max(0,Math.min(2,Number(retries||0)));
+    let lastError=null;
+    for(let attempt=0;attempt<=maxRetries;attempt+=1){
+      const timeout=createTimeoutSignal(timeoutMs);
+      try{
+        const response=await fetchImpl(baseUrl+path,{
+          method,
+          headers:{
+            accept:'application/json',
+            ...(body!==undefined?{'content-type':'application/json'}:{}),
+            ...(auth?{authorization:'Bearer '+secret}:{})
+          },
+          body:body===undefined?undefined:JSON.stringify(body),
+          signal:timeout.signal,
+          cache:'no-store',
+        });
+        const text=await response.text();
+        let data=null;
+        try{data=text?JSON.parse(text):null}catch{data=null}
+        if(response.status===404&&allow404)return null;
+        if(!response.ok){
+          const error=new Error('rudi-d1-'+path.replace(/^\//,'')+'-failed');
+          error.status=response.status;
+          error.detail=data||text||'';
+          throw error;
+        }
+        return data;
+      }catch(error){
+        const normalized=error?.name==='AbortError'
+          ? Object.assign(new Error('rudi-d1-timeout'),{code:'RUDI_D1_TIMEOUT'})
+          : error;
+        lastError=normalized;
+        const retryable=attempt<maxRetries&&(
+          normalized?.code==='RUDI_D1_TIMEOUT'||
+          normalized?.name==='TypeError'||
+          Number(normalized?.status||0)>=500
+        );
+        if(!retryable)throw normalized;
+        await new Promise(resolve=>setTimeout(resolve,120*(attempt+1)));
+      }finally{timeout.done()}
+    }
+    throw lastError||new Error('rudi-d1-request-failed');
   }
 
-  async function health(){return request('/health',undefined,{auth:false,method:'GET'})}
+  async function health(){return request('/health',undefined,{auth:false,method:'GET',retries:1})}
   async function getRecord(namespace,key){
-    const data=await request('/get',{namespace:String(namespace||''),key:String(key||'')},{allow404:true});
+    const data=await request('/get',{namespace:String(namespace||''),key:String(key||'')},{allow404:true,retries:1});
     if(!data||data.ok===false)return null;
     return{
       namespace:String(namespace||''),
@@ -100,7 +114,7 @@ function createD1StateClient(options={}){
     return true;
   }
   async function list(namespace){
-    const data=await request('/list',{namespace:String(namespace||'')});
+    const data=await request('/list',{namespace:String(namespace||'')},{retries:1});
     return (Array.isArray(data?.items)?data.items:[]).map(item=>({
       namespace:String(namespace||''),
       key:String(item?.key||''),

@@ -4,7 +4,7 @@ const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 const HOME_TOOLS_STALE_MS=10*60*1000;
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadedAt=0,homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
-let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false,habitDateRequestSeq=0,habitDateInputLastValue='';
+let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitYesterdayQuote=null,habitHistory={},habitSelectedDate='',habitArchiveExpanded=false,habitDateRequestSeq=0,habitDateInputLastValue='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -111,6 +111,37 @@ async function loadHabitsForDate(date){
   finally{if(requestId===habitDateRequestSeq&&habitTile)habitTile.classList.remove('is-date-loading')}
 }
 function habitEmoji(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/вод|пить/.test(value))return'💧';if(/заряд|трен|спорт|ходь|шаг/.test(value))return'🏃';if(/чит|книг/.test(value))return'📚';if(/медит|дых/.test(value))return'🧘';if(/сон|спать|ложиться/.test(value))return'🌙';if(/сахар|слад/.test(value))return'🍎';if(/уч|англ|язык/.test(value))return'🧠';return'🌱'}
+function habitSummaryNames(items){
+  const names=(Array.isArray(items)?items:[]).map(item=>String(item?.name||'').trim()).filter(Boolean);
+  if(names.length<=4)return names.join(', ');
+  return names.slice(0,4).join(', ')+' и ещё '+(names.length-4);
+}
+function renderHabitYesterdayQuote(){
+  if(!habitYesterdayQuote)return;
+  const today=habitState.today||habitDateKey(new Date());
+  const base=habitParseDateKey(today);
+  const yesterday=base?habitDateKey(new Date(base.getTime()-86400000)):'';
+  const view=yesterday?habitHistory?.[yesterday]:null;
+  if(!view||typeof view!=='object'){
+    habitYesterdayQuote.textContent='Вчера данных по привычкам пока нет. Сегодня можно начать с одной простой привычки и задать хороший ритм.';
+    habitYesterdayQuote.hidden=false;
+    return;
+  }
+  const habits=Array.isArray(view.habits)?view.habits:[];
+  const statuses=view.statuses&&typeof view.statuses==='object'?view.statuses:{};
+  const done=habits.filter(item=>statuses[item.id]==='done');
+  const notDone=habits.filter(item=>statuses[item.id]==='notdone');
+  const doneText=done.length?habitSummaryNames(done):'ничего';
+  const notDoneText=notDone.length?habitSummaryNames(notDone):'ничего';
+  const total=habits.length;
+  const motivation=total&&done.length===total
+    ? 'Отличный темп, сегодня постарайся сохранить эту серию.'
+    : total&&done.length>=Math.ceil(total/2)
+      ? 'Хороший темп, сегодня попробуй закрыть ещё одну привычку больше.'
+      : 'Не гонись за идеалом, сегодня выбери одну привычку и доведи её до конца.';
+  habitYesterdayQuote.textContent='Вчера выполнено '+done.length+' из '+total+': '+doneText+'; не выполнено: '+notDoneText+'. '+motivation;
+  habitYesterdayQuote.hidden=false;
+}
 function applyHabitView(data){
   if(String(data?.date||data?.today||'')===String(data?.today||'')){
     habitTodayReminder={today:String(data?.today||''),habits:Array.isArray(data?.habits)?data.habits:[],statuses:data?.statuses&&typeof data.statuses==='object'?{...data.statuses}:{}};
@@ -128,12 +159,13 @@ function applyHabitView(data){
     done:Number(data?.done||0),total:Number(data?.total||0),canCompleteToday:Boolean(data?.canCompleteToday)
   };
   if(data?.history&&typeof data.history==='object'){
+    habitHistory={...habitHistory,...data.history};
     for(const [date,view] of Object.entries(data.history)){
       if(date&&view&&typeof view==='object')saveCachedRead(habitReadCache,requestCacheKey('list',{date}),{ok:true,actor,...view});
     }
   }
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
-  renderHabitDates();renderHabits();applyHabitCollapse();updateReminderBadges();
+  renderHabitDates();renderHabits();renderHabitYesterdayQuote();applyHabitCollapse();updateReminderBadges();
 }
 function applyHabitCollapse(){if(!habitTile)return;habitState={...habitState,collapsed:false};habitTile.classList.remove('is-collapsed');updateReminderBadges()}
 
@@ -571,6 +603,7 @@ function build(){
   habitCalendar.append(habitDateStrip,habitCalendarPicker);
 
   const homeToolsHost=document.getElementById('homeTileHost')||document.querySelector('.shell');
+  habitYesterdayQuote=document.getElementById('habitYesterdayQuote');
   habitTile=document.getElementById('habitHomeTile');
   if(!habitTile){habitTile=document.createElement('section');habitTile.id='habitHomeTile';habitTile.className='personal-habits-tile home-tools-tile';habitTile.dataset.appTabSection='habits';habitTile.hidden=true;homeToolsHost?.appendChild(habitTile)}
   const habitHead=document.createElement('div');habitHead.className='personal-habits-head';

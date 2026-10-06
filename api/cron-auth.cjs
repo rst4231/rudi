@@ -17,7 +17,7 @@ function safeEqualText(left, right) {
 
 function isCronRequestAuthorized(req, secret = process.env.CRON_SECRET) {
   const expected = String(secret || '').trim();
-  if (!expected) return true;
+  if (!expected) return false;
   const actual = bearerToken(req);
   return Boolean(actual) && safeEqualText(actual, expected);
 }

@@ -1168,6 +1168,23 @@
 
     card.append(top,meta);
 
+    const savedActions=document.createElement('div');
+    savedActions.className='saved-recipe-actions';
+    const servings=Math.max(1,Math.min(12,Math.round(Number(payload.servings)||2)));
+    const servingsNode=document.createElement('span');
+    servingsNode.className='saved-recipe-servings';
+    servingsNode.textContent=servings+' '+(servings%100>=11&&servings%100<=14?'порций':servings%10===1?'порция':servings%10>=2&&servings%10<=4?'порции':'порций');
+    const cook=document.createElement('button');
+    cook.type='button';
+    cook.className='recipe-cook-start saved-recipe-cook-start';
+    cook.textContent='Готовить';
+    cook.addEventListener('click',()=>{
+      window.RUDI_RECIPE_COOKING?.open?.(payload,servings);
+      try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
+    });
+    savedActions.append(servingsNode,cook);
+    card.appendChild(savedActions);
+
     if(payload.summary){
       const summary=document.createElement('p');
       summary.className='saved-item-description';

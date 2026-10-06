@@ -220,7 +220,10 @@ async function deleteCoupleTopicOnce({ chatId, baseUrl, cache, fetchImpl }) {
   }
   let detail = '';
   try { detail = await response.text(); } catch {}
-  if (response.status === 403 && /bot was kicked from the supergroup chat/i.test(detail)) {
+  if (
+    (response.status === 403 && /bot was kicked from the supergroup chat/i.test(detail)) ||
+    (response.status === 400 && /chat not found/i.test(detail))
+  ) {
     await cache.set(key, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-removed-topics'] });
     return true;
   }
