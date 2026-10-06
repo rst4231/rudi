@@ -12813,3 +12813,65 @@ body.ticktick-task-modal-open .app-tabbar{display:none!important}
 }
 @media(max-width:350px){.ticktick-task-date-time-row{grid-template-columns:minmax(0,1fr) minmax(92px,.72fr)}.ticktick-task-field-row:not(.ticktick-task-date-time-row){grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.ticktick-add-button,.ticktick-today-delete{transition:none!important}}
+
+
+/* RUDI v3.98: smooth primary nav and internal page transitions */
+.app-tabbar{
+  opacity:1;
+  visibility:visible;
+  will-change:transform,opacity;
+  transition:
+    transform 320ms cubic-bezier(.2,.82,.2,1),
+    opacity 220ms ease,
+    visibility 0s linear 0s;
+}
+.app-tabbar.is-hidden{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translate(-50%,calc(100% + 34px)) scale(.985);
+  transition:
+    transform 300ms cubic-bezier(.32,.72,.24,1),
+    opacity 180ms ease,
+    visibility 0s linear 300ms;
+}
+.shell{
+  transition:padding-bottom 300ms cubic-bezier(.2,.82,.2,1);
+}
+body[data-primary-nav="hidden"] .shell{
+  padding-bottom:max(24px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)) !important;
+}
+@keyframes rudiInternalViewEnter{
+  from{opacity:.01;transform:translate3d(0,14px,0) scale(.988)}
+  58%{opacity:.96}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+[data-app-tab-section].rudi-internal-view-enter{
+  animation:rudiInternalViewEnter 380ms cubic-bezier(.2,.82,.2,1) both;
+}
+@keyframes rudiInternalRouteOld{
+  from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  to{opacity:.2;transform:translate3d(0,-5px,0) scale(.994)}
+}
+@keyframes rudiInternalRouteNew{
+  from{opacity:.01;transform:translate3d(0,12px,0) scale(.988)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+html[data-rudi-route-transition="internal"]::view-transition-old(root){
+  animation:rudiInternalRouteOld 150ms ease both;
+}
+html[data-rudi-route-transition="internal"]::view-transition-new(root){
+  animation:rudiInternalRouteNew 360ms cubic-bezier(.2,.82,.2,1) both;
+}
+@media(prefers-reduced-motion:reduce){
+  .app-tabbar,
+  .shell{
+    transition-duration:.01ms!important;
+  }
+  [data-app-tab-section].rudi-internal-view-enter,
+  html[data-rudi-route-transition="internal"]::view-transition-old(root),
+  html[data-rudi-route-transition="internal"]::view-transition-new(root){
+    animation:none!important;
+  }
+}
+/* end RUDI v3.98 smooth navigation */
