@@ -219,3 +219,22 @@ test('internal pages use smooth transitions and animated bottom navigation',()=>
   assert.match(css,/rudi-internal-view-enter/);
   assert.match(css,/data-rudi-route-transition="internal"/);
 });
+
+
+test('route motion animates exits, returns and primary tabs',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(app,/function appTransitionMeta\(from,to\)/);
+  assert.match(app,/return \{kind:'tab',direction:toIndex>=fromIndex\?'forward':'back'\}/);
+  assert.match(app,/return \{kind:'page',direction\}/);
+  assert.match(app,/function runFallbackAppTransition/);
+  assert.match(app,/rudi-route-leave/);
+  assert.match(app,/rudi-route-enter/);
+  assert.match(app,/runAppViewTransition\(update,\{from:previous,to:route\.tab\}\)/);
+  assert.match(css,/@keyframes rudiTabOldForward/);
+  assert.match(css,/@keyframes rudiTabNewBack/);
+  assert.match(css,/@keyframes rudiPageOldForward/);
+  assert.match(css,/@keyframes rudiPageNewBack/);
+  assert.match(css,/data-rudi-fallback-transition="tab"/);
+  assert.match(css,/data-rudi-fallback-transition="page"/);
+});
