@@ -15,37 +15,8 @@ function moscowDateKey(now = new Date()) {
   return values.year + '-' + values.month + '-' + values.day;
 }
 
-function isOneTimeMorningRecovery(req, now = new Date()) {
-  const mode = String(req.query?.mode || 'morning');
-  const recoveryDate = String(req.query?.recoveryDate || '').trim();
-  const recoveryKey = String(req.query?.recoveryKey || '').trim();
-  const force = String(req.query?.force || '') === '1';
-  return mode === 'morning'
-    && !force
-    && recoveryDate === '2026-09-25'
-    && recoveryKey === 'recipient-cache-outage-2026-09-25'
-    && moscowDateKey(now) === recoveryDate;
-}
-
-function isOneTimeForDiRecovery(req, now = new Date()) {
-  const mode = String(req.query?.mode || 'morning');
-  const recoveryDate = String(req.query?.recoveryDate || '').trim();
-  const recoveryKey = String(req.query?.recoveryKey || '').trim();
-  const force = String(req.query?.force || '') === '1';
-  const allowed = (
-    recoveryDate === '2026-09-25' && recoveryKey === 'labor-feed-missed-2026-09-25'
-  ) || (
-    recoveryDate === '2026-09-26' && recoveryKey === 'labor-feed-missed-2026-09-26'
-  );
-  return mode === 'for-di'
-    && !force
-    && allowed
-    && moscowDateKey(now) === recoveryDate;
-}
-
 async function handler(req, res) {
-  const oneTimeRecovery = isOneTimeMorningRecovery(req) || isOneTimeForDiRecovery(req);
-  if (!isCronRequestAuthorized(req) && !oneTimeRecovery) {
+  if (!isCronRequestAuthorized(req)) {
     console.warn('RUDI_FEED_NOTIFY_CRON_UNAUTHORIZED');
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
   }
@@ -53,20 +24,11 @@ async function handler(req, res) {
   const mode = String(req.query?.mode || 'morning');
   try {
     const force = String(req.query?.force || '') === '1';
-    const recoveryDate = String(req.query?.recoveryDate || '').trim();
-    const recoveryKey = String(req.query?.recoveryKey || '').trim();
-    if (recoveryDate) {
-      const today = moscowDateKey(new Date());
-      if (today !== recoveryDate) {
-        return res.status(200).json({ ok: true, mode, skipped: 'recovery-date-mismatch', recoveryDate, today });
-      }
-    }
     let laborCatchup = null;
     let result;
     if (mode === 'for-di') {
       try {
         laborCatchup = await publishDailyLaborArticle({
-          force: isOneTimeForDiRecovery(req),
           queueOnly: true,
           now: new Date(),
         });
@@ -76,15 +38,14 @@ async function handler(req, res) {
       }
       result = await publishForDiToRudi();
     } else {
-      result = await sendDailyMorningSummaries({ force, recoveryKey });
+      result = await sendDailyMorningSummaries({ force });
     }
     const logLabel = mode === 'for-di' ? 'RUDI_FOR_DI_RESULT' : 'RUDI_MORNING_SUMMARY_RESULT';
-    console.log(logLabel, JSON.stringify({ mode, force, recoveryDate, recoveryKey, laborCatchup, ...result }));
+    console.log(logLabel, JSON.stringify({ mode, force, laborCatchup, ...result }));
     return res.status(200).json({
       ok: true,
       mode,
       force,
-      recoveryDate: recoveryDate || null,
       ...(mode === 'for-di' ? { laborCatchup } : {}),
       ...result,
     });
@@ -104,5 +65,3 @@ async function handler(req, res) {
 
 module.exports = handler;
 module.exports.moscowDateKey = moscowDateKey;
-module.exports.isOneTimeMorningRecovery = isOneTimeMorningRecovery;
-module.exports.isOneTimeForDiRecovery = isOneTimeForDiRecovery;
