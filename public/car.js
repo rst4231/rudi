@@ -60,7 +60,7 @@
       requestAnimationFrame(()=>document.getElementById('carWashGuideBack')?.focus());
       try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
     }else{
-      document.querySelector('.car-recommendation-wash-button')?.focus?.({preventScroll:true});
+      document.getElementById('carWashGuideOpen')?.focus?.({preventScroll:true});
     }
   }
 
@@ -1329,41 +1329,12 @@
     return [carWashAdvice(weather)];
   }
 
-  function renderRecommendations(car,weather) {
-    const root=document.getElementById('carRecommendationsList');
-    if(!root) return;
-    root.replaceChildren();
-    for(const item of buildRecommendations(car,weather)) {
-      const row=document.createElement('article');
-      row.className='car-recommendation is-'+item.kind;
-      const dot=document.createElement('span');
-      dot.className='car-recommendation-dot';
-      dot.setAttribute('aria-hidden','true');
-      const copy=document.createElement('div');
-      copy.className='car-recommendation-copy';
-      const title=document.createElement('strong');
-      title.textContent=item.title;
-      const text=document.createElement('p');
-      text.textContent=item.text;
-      copy.append(title,text);
-      if(item.bestDayText){
-        const best=document.createElement('p');
-        best.className='car-recommendation-best-day';
-        best.textContent=item.bestDayText;
-        copy.appendChild(best);
-      }
-      if(item.canWash){
-        const guide=document.createElement('button');
-        guide.type='button';
-        guide.className='car-recommendation-wash-button';
-        guide.textContent='Как мыть машину';
-        guide.setAttribute('aria-controls','carWashGuidePage');
-        guide.addEventListener('click',()=>setWashGuideOpen(true));
-        copy.appendChild(guide);
-      }
-      row.append(dot,copy);
-      root.appendChild(row);
-    }
+  function renderCarWashGuideAction(weather) {
+    const button=document.getElementById('carWashGuideOpen');
+    if(!button)return;
+    const advice=carWashAdvice(weather);
+    button.hidden=!Boolean(advice?.canWash);
+    button.setAttribute('aria-hidden',button.hidden?'true':'false');
   }
 
   function renderWeather(weather) {
@@ -1947,7 +1918,7 @@
     renderService(state.car);
     renderWeather(state.weather);
     renderErrors(state.car);
-    renderRecommendations(state.car,state.weather);
+    renderCarWashGuideAction(state.weather);
     renderTasks(state.car.ticktick);
     renderCarDocuments();
     renderNotes(state.car);
@@ -2065,6 +2036,7 @@
     document.getElementById('carNoteForm')?.addEventListener('submit',saveCarNote);
     document.getElementById('carNoteUndoButton')?.addEventListener('click',undoCarNoteRemoval);
     document.getElementById('carWashGuideBack')?.addEventListener('click',()=>setWashGuideOpen(false));
+    document.getElementById('carWashGuideOpen')?.addEventListener('click',()=>setWashGuideOpen(true));
     let attempts=0;
     const wait=()=>{
       attempts++;
