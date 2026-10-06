@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { fetchLatestPhotos, getLatestPhotos, PREVIEW_MAX_EDGE, VIEWER_MAX_EDGE, FRESH_CACHE_MS } = require('../api/shared-album.cjs');
+const { fetchLatestPhotos, getLatestPhotos, parseCloudKitPhotos, PREVIEW_MAX_EDGE, VIEWER_MAX_EDGE, FRESH_CACHE_MS } = require('../api/shared-album.cjs');
 
 test('shared album reports total photo count while only loading preview window', async () => {
   const photos = Array.from({ length: 300 }, (_, index) => ({
@@ -150,4 +150,42 @@ test('shared album includes video with poster and playable derivative', async ()
     result.photos[0].videoSources.map((row)=>row.url),
     ['https://cdn.example.test/360.mp4','https://cdn.example.test/720.mp4']
   );
+});
+
+
+test('CloudKit parser excludes field-level deleted and expunged records',()=>{
+  const master=(name,extra={})=>({
+    recordName:name,
+    recordType:'CPLMaster',
+    fields:{
+      itemType:{value:'public.jpeg'},
+      filenameEnc:{value:Buffer.from(name+'.jpg').toString('base64')},
+      resJPEGThumbRes:{value:{downloadURL:'https://cdn.example.test/'+name+'-${f}'}},
+      resJPEGThumbWidth:{value:640},
+      resJPEGThumbHeight:{value:480},
+      resJPEGFullRes:{value:{downloadURL:'https://cdn.example.test/'+name+'-full-${f}'}},
+      resJPEGFullWidth:{value:1600},
+      resJPEGFullHeight:{value:1200},
+      ...extra,
+    },
+  });
+  const asset=(name,masterName,extra={})=>({
+    recordName:name,
+    recordType:'CPLAsset',
+    fields:{
+      masterRef:{value:{recordName:masterName}},
+      assetDate:{value:Date.parse('2026-10-03T12:00:00Z')},
+      ...extra,
+    },
+  });
+  const rows=[
+    master('active-master'),
+    asset('active-asset','active-master'),
+    master('deleted-master',{isDeleted:{value:1},isExpunged:{value:1}}),
+    asset('deleted-asset','deleted-master',{isDeleted:{value:1},isExpunged:{value:1}}),
+    master('expunged-asset-master'),
+    asset('expunged-asset','expunged-asset-master',{isExpunged:{value:1}}),
+  ];
+  const photos=parseCloudKitPhotos(rows);
+  assert.deepEqual(photos.map(row=>row.id),['active-master']);
 });
