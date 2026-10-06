@@ -1860,6 +1860,7 @@
         if(viewer.open(photos,index,{
           albumUrl:String(state.documents?.albumUrl||'').trim(),
           preferOriginal:true,
+          hideOriginal:true,
         })) return;
       }catch(_){}
     }
