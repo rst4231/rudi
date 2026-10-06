@@ -13946,3 +13946,11 @@ html[data-theme="light"] .profile-person-card #profileMoodHistoryMenuButton.prof
   display:flex!important;
 }
 /* end RUDI v4.21 */
+
+
+/* RUDI v4.23 — mood history only by long press */
+#moodHistoryButton,
+#profileMoodHistoryMenuButton{
+  display:none!important;
+}
+/* end RUDI v4.23 */
