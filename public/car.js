@@ -120,26 +120,67 @@
     }
   }
 
-  function confirmRemoveError(title) {
-    const message='Убрать запись «'+String(title||'Ошибка')+'» из журнала?';
-    return new Promise(resolve=>{
-      if(typeof tg?.showConfirm==='function'){
-        tg.showConfirm(message,value=>resolve(Boolean(value)));
-        return;
-      }
-      resolve(window.confirm(message));
+  let carConfirmResolve=null;
+
+  function ensureCarConfirmModal(){
+    let modal=document.getElementById('carConfirmModal');
+    if(modal)return modal;
+    modal=document.createElement('div');
+    modal.id='carConfirmModal';
+    modal.className='car-confirm-modal';
+    modal.hidden=true;
+    modal.setAttribute('aria-hidden','true');
+    modal.innerHTML=
+      '<button class="car-confirm-backdrop" type="button" aria-label="Отмена"></button>'+
+      '<section class="car-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="carConfirmTitle" aria-describedby="carConfirmText">'+
+        '<div class="car-confirm-icon" aria-hidden="true">×</div>'+
+        '<strong id="carConfirmTitle">Удалить запись?</strong>'+
+        '<p id="carConfirmText"></p>'+
+        '<div class="car-confirm-actions">'+
+          '<button class="car-confirm-cancel" type="button">Отмена</button>'+
+          '<button class="car-confirm-delete" type="button">Удалить</button>'+
+        '</div>'+
+      '</section>';
+    document.body.appendChild(modal);
+    const settle=value=>{
+      if(modal.hidden)return;
+      modal.hidden=true;
+      modal.setAttribute('aria-hidden','true');
+      document.body.classList.remove('car-confirm-open');
+      const resolve=carConfirmResolve;
+      carConfirmResolve=null;
+      resolve?.(Boolean(value));
+    };
+    modal.querySelector('.car-confirm-backdrop')?.addEventListener('click',()=>settle(false));
+    modal.querySelector('.car-confirm-cancel')?.addEventListener('click',()=>settle(false));
+    modal.querySelector('.car-confirm-delete')?.addEventListener('click',()=>settle(true));
+    modal.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){event.preventDefault();settle(false);}
     });
+    return modal;
+  }
+
+  function carConfirm(message){
+    const modal=ensureCarConfirmModal();
+    if(carConfirmResolve){
+      carConfirmResolve(false);
+      carConfirmResolve=null;
+    }
+    const text=modal.querySelector('#carConfirmText');
+    if(text)text.textContent=String(message||'Удалить запись?');
+    modal.hidden=false;
+    modal.setAttribute('aria-hidden','false');
+    document.body.classList.add('car-confirm-open');
+    requestAnimationFrame(()=>modal.querySelector('.car-confirm-cancel')?.focus?.({preventScroll:true}));
+    return new Promise(resolve=>{carConfirmResolve=resolve});
+  }
+
+  function confirmRemoveError(title) {
+    return carConfirm('Убрать запись «'+String(title||'Ошибка')+'» из журнала?');
   }
 
   function confirmArchiveDelete(message) {
-    const text=String(message||'Удалить запись из истории?');
-    return new Promise(resolve=>{
-      if(typeof tg?.showConfirm==='function'){
-        tg.showConfirm(text,value=>resolve(Boolean(value)));
-        return;
-      }
-      resolve(window.confirm(text));
-    });
+    return carConfirm(String(message||'Удалить запись из истории?'));
   }
 
   function renderErrors(car) {
