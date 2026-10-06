@@ -44,3 +44,26 @@ test('debts belong to actor and can be marked paid', async () => {
   view=viewState(await readFinanceState({financeCache}),'Рустам');
   assert.equal(view.debts[0].paid,true);
 });
+
+
+test('personal finances and debts are private to their author', async () => {
+  resetMutationQueueForTests();
+  const financeCache = memoryCache();
+
+  await savePersonalMonth('Рустам','2026-10',120000,45000,{financeCache,now:Date.UTC(2026,9,6)});
+  await savePersonalMonth('Диана','2026-10',90000,30000,{financeCache,now:Date.UTC(2026,9,6)});
+  await saveDebt('Рустам',{direction:'owe',counterparty:'Иван',amount:5000},{financeCache,id:'rustam-debt',now:Date.UTC(2026,9,6)});
+  await saveDebt('Диана',{direction:'owed',counterparty:'Анна',amount:3000},{financeCache,id:'diana-debt',now:Date.UTC(2026,9,6)});
+
+  const rustamView=viewState(await readFinanceState({financeCache}),'Рустам');
+  const dianaView=viewState(await readFinanceState({financeCache}),'Диана');
+
+  assert.deepEqual(rustamView.personalMonths.map(row=>row.expenses),[45000]);
+  assert.deepEqual(dianaView.personalMonths.map(row=>row.expenses),[30000]);
+
+  assert.deepEqual(rustamView.debts.map(row=>row.id),['rustam-debt']);
+  assert.deepEqual(dianaView.debts.map(row=>row.id),['diana-debt']);
+
+  assert.equal(rustamView.debts.some(row=>row.id==='diana-debt'),false);
+  assert.equal(dianaView.debts.some(row=>row.id==='rustam-debt'),false);
+});
