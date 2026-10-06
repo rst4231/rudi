@@ -9,7 +9,7 @@ const META={
   joy:{emoji:'😄',label:'Радость'},
   love:{emoji:'🥰',label:'Любовь'}
 };
-const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Самочувствие',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
+const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Здоровье',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
 function reasonLabel(sample){const custom=String(sample?.reasonText||'').trim();return sample?.reason==='other'&&custom?custom:(REASONS[sample?.reason]||'')}
 let state=null,visibleWeekEnd='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
 
@@ -163,49 +163,23 @@ function appendInlineMarkdown(node,text){
 function clampAnalysisPercent(value){return Math.max(0,Math.min(100,Math.round(Number(value)||0)))}
 function renderAnalysisVisuals(host,visuals){
   if(!host||!visuals||typeof visuals!=='object')return;
-  const wrap=document.createElement('section');wrap.className='mood-analysis-visuals';wrap.setAttribute('aria-label','Разбор настроения');
-  const head=document.createElement('div');head.className='mood-analysis-visual-head';
-  const title=document.createElement('strong');title.textContent='Картина периода';
-  const subtitle=document.createElement('span');subtitle.textContent=(Number(visuals.days)||0)+' '+plural(Number(visuals.days)||0,'день','дня','дней')+' с отметками';
-  head.append(title,subtitle);wrap.append(head);
-  const kpis=document.createElement('div');kpis.className='mood-analysis-kpis';
-  const addKpi=(label,value,detail,progress=null)=>{
-    const card=document.createElement('div');card.className='mood-analysis-kpi';
-    const name=document.createElement('span');name.textContent=label;
-    const number=document.createElement('strong');number.textContent=value;
-    card.append(name,number);
-    if(detail){const small=document.createElement('small');small.textContent=detail;card.append(small)}
-    if(progress!==null){const track=document.createElement('div');track.className='mood-analysis-kpi-progress';const fill=document.createElement('span');fill.style.width=clampAnalysisPercent(progress)+'%';track.append(fill);card.append(track)}
-    kpis.append(card);
-  };
-  addKpi('Дней с отметками',String(Number(visuals.days)||0),'в выбранном периоде');
-  if(visuals.habits)addKpi('Привычки',clampAnalysisPercent(visuals.habits.percent)+'%',Number(visuals.habits.done||0)+' из '+Number(visuals.habits.total||0)+' выполнено',visuals.habits.percent);
-  if(visuals.fasting)addKpi('Голодание',String(Number(visuals.fasting.avgHours||0)).replace('.',',')+' ч','в среднем · '+Number(visuals.fasting.days||0)+' '+plural(Number(visuals.fasting.days)||0,'день','дня','дней'));
-  if(visuals.supplements)addKpi('БАДы',String(Number(visuals.supplements.days)||0)+' дн.','был отмечен приём');
-  if(kpis.children.length)wrap.append(kpis);
   const moods=Array.isArray(visuals.moods)?visuals.moods.filter(item=>Number(item?.count)>0):[];
-  if(moods.length){
-    const block=document.createElement('div');block.className='mood-analysis-chart';
-    const chartTitle=document.createElement('strong');chartTitle.textContent='Настроение';
-    const bar=document.createElement('div');bar.className='mood-analysis-mood-bar';bar.setAttribute('role','img');bar.setAttribute('aria-label',moods.map(item=>String(item.label||'')+' '+Number(item.percent||0)+'%').join(', '));
-    for(const item of moods){const segment=document.createElement('span');segment.className='mood-analysis-mood-segment';segment.dataset.mood=String(item.key||'neutral');segment.style.flexGrow=String(Math.max(1,Number(item.count)||1));bar.append(segment)}
-    const legend=document.createElement('div');legend.className='mood-analysis-mood-legend';
-    for(const item of moods){const chip=document.createElement('span');chip.dataset.mood=String(item.key||'neutral');const dot=document.createElement('i');dot.setAttribute('aria-hidden','true');const copy=document.createElement('b');copy.textContent=String(item.emoji||'')+' '+String(item.label||'')+' '+Number(item.percent||0)+'%';chip.append(dot,copy);legend.append(chip)}
-    block.append(chartTitle,bar,legend);wrap.append(block);
+  if(!moods.length)return;
+  const wrap=document.createElement('section');
+  wrap.className='mood-analysis-visuals mood-analysis-visuals-compact';
+  wrap.setAttribute('aria-label','Распределение настроения');
+  const bar=document.createElement('div');
+  bar.className='mood-analysis-mood-bar';
+  bar.setAttribute('role','img');
+  bar.setAttribute('aria-label',moods.map(item=>String(item.label||'')+' '+Number(item.percent||0)+'%').join(', '));
+  for(const item of moods){
+    const segment=document.createElement('span');
+    segment.className='mood-analysis-mood-segment';
+    segment.dataset.mood=String(item.key||'neutral');
+    segment.style.flexGrow=String(Math.max(1,Number(item.count)||1));
+    bar.append(segment);
   }
-  const factors=Array.isArray(visuals.factors)?visuals.factors.filter(item=>Number(item?.count)>0):[];
-  if(factors.length){
-    const block=document.createElement('div');block.className='mood-analysis-chart';const chartTitle=document.createElement('strong');chartTitle.textContent='Что чаще совпадало с настроением';block.append(chartTitle);
-    const max=Math.max(1,...factors.map(item=>Number(item.count)||0)),rows=document.createElement('div');rows.className='mood-analysis-factor-bars';
-    for(const item of factors){
-      const row=document.createElement('div');row.className='mood-analysis-factor-bar';
-      const label=document.createElement('div');label.className='mood-analysis-factor-label';const name=document.createElement('span');name.textContent=String(item.label||'');const value=document.createElement('b');value.textContent=Number(item.count||0)+'×'+(item.emoji?' · '+String(item.emoji):'');label.append(name,value);
-      const track=document.createElement('div');track.className='mood-analysis-factor-track';const fill=document.createElement('span');fill.style.width=Math.max(8,Math.round((Number(item.count)||0)/max*100))+'%';track.append(fill);row.append(label,track);rows.append(row);
-    }
-    block.append(rows);wrap.append(block);
-  }
-  if(visuals.fasting&&Number(visuals.fasting.goalTracked)>0){const note=document.createElement('div');note.className='mood-analysis-visual-note';note.textContent='Цель голодания достигнута в '+Number(visuals.fasting.goalsReached||0)+' из '+Number(visuals.fasting.goalTracked||0)+' отмеченных случаев.';wrap.append(note)}
-  if(visuals.supplements&&Array.isArray(visuals.supplements.top)&&visuals.supplements.top.length){const note=document.createElement('div');note.className='mood-analysis-visual-note';note.textContent='Чаще отмечались: '+visuals.supplements.top.map(item=>String(item.name||'')+' · '+Number(item.days||0)+' дн.').join(', ')+'.';wrap.append(note)}
+  wrap.append(bar);
   host.append(wrap);
 }
 function renderAnalysisReport(host,text,visuals){

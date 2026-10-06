@@ -13323,3 +13323,19 @@ body[data-app-tab="finances"]{
   .profile-person-card .score-sticker{top:-13px!important;bottom:auto!important}
 }
 /* end RUDI v4.11 final badge placement */
+
+
+/* RUDI v4.12 — final mood badge offset + compact analyzer */
+.profile .avatar-mood-badge{
+  bottom:-30px!important;
+}
+.mood-analysis-visuals-compact{
+  display:block!important;
+  margin:12px 0 16px!important;
+  padding:0!important;
+  border:0!important;
+}
+.mood-analysis-visuals-compact .mood-analysis-mood-bar{
+  height:12px;
+}
+/* end RUDI v4.12 quick UI fixes */
