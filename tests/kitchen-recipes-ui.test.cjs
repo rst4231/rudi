@@ -126,3 +126,9 @@ test('recipe actions use cooking mode and saved recipes keep servings', () => {
 test('recipe time choices stay inside iPhone width', () => {
   assert.match(css, /@media\(max-width:430px\)\{[\s\S]*?\.recipe-time-row\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
 });
+
+
+test('Kitchen keeps Products tab but names the inner list Basket', () => {
+  assert.match(html, /data-kitchen-view="products"[^>]*>Продукты<\/button>/);
+  assert.match(html, /id="productsListCard"[\s\S]*?<strong>Корзина<\/strong>/);
+});
