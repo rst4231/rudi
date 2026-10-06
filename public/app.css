@@ -13296,3 +13296,30 @@ body[data-app-tab="finances"]{
   .finance-person-avatar{width:30px;height:30px;border-radius:10px}
 }
 /* end RUDI v4.11 */
+
+
+/* RUDI v4.11 — final badge placement */
+.profile .avatar-mood-badge{
+  left:50%!important;
+  right:auto!important;
+  bottom:-6px!important;
+  top:auto!important;
+  transform:translateX(-50%) rotate(-10deg)!important;
+}
+.profile .mood-current-button.avatar-mood-badge:active,
+.profile .partner-avatar-mood-badge:active{
+  transform:translateX(-50%) rotate(-10deg) scale(.93)!important;
+}
+.profile-person-card .score-sticker{
+  left:50%!important;
+  top:-10px!important;
+  bottom:auto!important;
+  transform:translateX(-50%) rotate(-2deg)!important;
+}
+.profile-person-card .score-sticker:active{
+  transform:translateX(-50%) rotate(-2deg) scale(.94)!important;
+}
+@media(max-width:430px){
+  .profile-person-card .score-sticker{top:-9px!important;bottom:auto!important}
+}
+/* end RUDI v4.11 final badge placement */

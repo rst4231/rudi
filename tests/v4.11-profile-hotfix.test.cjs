@@ -22,3 +22,10 @@ test('v4.11 finance split uses profile avatars',()=>{
   assert.match(app,/applyAvatarProfile\(document\.getElementById\('financeRustamAvatar'\),rustamProfile,'Рустам'\)/);
   assert.match(app,/applyAvatarProfile\(document\.getElementById\('financeDianaAvatar'\),dianaProfile,'Диана'\)/);
 });
+
+
+test('v4.11 mood and score badges use requested avatar positions',()=>{
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(css,/\.profile \.avatar-mood-badge\{[\s\S]*left:50%!important;[\s\S]*bottom:-6px!important;[\s\S]*translateX\(-50%\) rotate\(-10deg\)/);
+  assert.match(css,/\.profile-person-card \.score-sticker\{[\s\S]*top:-10px!important;[\s\S]*bottom:auto!important/);
+});
