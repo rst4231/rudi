@@ -4003,10 +4003,6 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'add') {
         const result = await addWish(body.text, body.url, owner, options);
-        await sendWishlistNotificationToPartner(owner, result.item?.text, {
-          ...options,
-          item: result.item?.id,
-        });
         await recordActivity({
           type: 'wishlist',
           actor: owner,

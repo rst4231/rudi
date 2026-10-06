@@ -4224,7 +4224,11 @@
         const previous=currentActivityReadIds();
         const next=mergeActivityReadIds(ids,previous);
         const changed=next.length!==previous.length||next.some((id,index)=>id!==previous[index]);
-        if(changed){storeActivityReadIds(next);markUiPreferencesChanged({activityReadIds:next})}
+        if(changed){
+          storeActivityReadIds(next);
+          markUiPreferencesChanged({activityReadIds:next});
+          flushUiPreferencesToServer().catch(()=>{});
+        }
         if(render) renderActivityJournalItems(homeDashboardState.activity);
         updateActivityNotificationBadge();
         return changed;
@@ -4287,7 +4291,13 @@
         }
         button.setAttribute('aria-expanded',next?'true':'false');
         dashboard?.classList.toggle('activity-notifications-open',next);
-        if(next) renderActivityJournalItems(homeDashboardState.activity);
+        if(next){
+          renderActivityJournalItems(homeDashboardState.activity);
+          syncUiPreferencesFromServer({force:true}).then(()=>{
+            renderActivityJournalItems(homeDashboardState.activity);
+            updateActivityNotificationBadge();
+          }).catch(()=>{});
+        }
       }
 
       function setupActivityNotifications(){
@@ -15010,9 +15020,9 @@
       function syncUiPreferencesAfterForeground(){
         if(!appAccessReady||!currentActor) return;
         const now=Date.now();
-        if(now-lastForegroundUiSyncAt<2*60*1000) return;
+        if(now-lastForegroundUiSyncAt<5000) return;
         lastForegroundUiSyncAt=now;
-        syncUiPreferencesFromServer();
+        syncUiPreferencesFromServer({force:true});
       }
       let hiddenAt=0;
       let blurredAt=0;
