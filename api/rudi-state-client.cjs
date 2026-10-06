@@ -13,6 +13,9 @@ function createRudiStateClient(o={}){
     const env=o.env||process.env;
     if(String(env.RUDI_STORAGE_FORCE_D1||'')==='1')return'd1';
     if(String(env.RUDI_STORAGE_FORCE_VERCEL||'')==='1')return'ready';
+    // D1 is the stable production primary. Only consult legacy Postgres when an
+    // explicit migration/rollback window enables dynamic primary selection.
+    if(String(env.RUDI_STORAGE_DYNAMIC_PRIMARY||'')!=='1')return'd1';
     if(cached.phase&&cached.until>Date.now())return cached.phase;
     let p='d1';
     try{p=phase((await dest().getRecord(STORAGE_META_NAMESPACE,STORAGE_META_KEY))?.value?.phase)}
