@@ -250,7 +250,7 @@ test('habit history uses cached recent days and reliable iOS date events',()=>{
   const css=fs.readFileSync('public/profile-supplements.css','utf8');
   const api=fs.readFileSync('api/habits.js','utf8');
   assert.match(client,/data\?\.history/);
-  assert.match(client,/cachedRead\(habitReadCache,cacheKey\)/);
+  assert.match(client,/cachedRead\(habitReadCache,cacheKey,HABIT_READ_CACHE_TTL_MS\)/);
   assert.match(client,/habitDateInput\.addEventListener\('input',commitHabitCalendarDate\)/);
   assert.match(client,/habitDateInput\.addEventListener\('change',commitHabitCalendarDate\)/);
   assert.match(client,/habitDateInput\.addEventListener\('blur',commitHabitCalendarDate\)/);
@@ -284,7 +284,22 @@ test('iCloud parser removes deleted album records before building photos',()=>{
   const shared=fs.readFileSync('api/shared-album.cjs','utf8');
   const car=fs.readFileSync('api/car-client.cjs','utf8');
   assert.match(shared,/const latestRecords=new Map\(\)/);
-  assert.match(shared,/record\?\.deleted===true\|\|record\?\.isDeleted===true/);
+  assert.match(shared,/function cloudKitRecordRemoved\(record\)/);
+  assert.match(shared,/cloudKitField\(fields,'isDeleted'\)/);
+  assert.match(shared,/cloudKitField\(fields,'isExpunged'\)/);
+  assert.match(shared,/const deleted=cloudKitRecordRemoved\(record\)/);
   assert.match(shared,/latestRecords\.delete\(name\)/);
   assert.match(car,/rudi-car-documents-album-v3/);
+});
+
+
+test('car viewer hides original action without removing shared album action',()=>{
+  const html=fs.readFileSync('public/index.html','utf8');
+  const app=fs.readFileSync('public/app.js','utf8');
+  const car=fs.readFileSync('public/car.js','utf8');
+  assert.match(html,/id="photoViewerOriginal"/);
+  assert.match(app,/const hideOriginal=options\?\.hideOriginal===true/);
+  assert.match(app,/viewerHideOriginal:hideOriginal/);
+  assert.match(app,/original\.hidden=hideOriginal/);
+  assert.match(car,/hideOriginal:true/);
 });
