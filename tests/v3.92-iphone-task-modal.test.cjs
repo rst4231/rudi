@@ -13,6 +13,7 @@ test('v3.92 keeps iPhone task modal inside viewport',()=>{
   assert.match(css,/ticktick-task-date-time-row/);
   assert.match(html,/id="ticktickTaskTimeInput" type="time" value="08:00"/);
   assert.match(js,/if\(timeInput\) timeInput\.value='08:00'/);
-  assert.match(html,/rudi-version" content="v3\.93"/);
-  const version=read('VERSION').trim(); assert.match(version,/^v3\\.\\d+$/);
+  const version=read('VERSION').trim();
+  assert.match(version,/^v3\.\d+$/);
+  assert.ok(html.includes('rudi-version" content="'+version+'"'));
 });
