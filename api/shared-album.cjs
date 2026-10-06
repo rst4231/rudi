@@ -324,6 +324,7 @@ function cloudKitImageResources(fields) {
     cloudKitResource(fields,'resJPEGThumbRes','resJPEGThumbWidth','resJPEGThumbHeight'),
     cloudKitResource(fields,'resJPEGMedRes','resJPEGMedWidth','resJPEGMedHeight'),
     cloudKitResource(fields,'resJPEGLargeRes','resJPEGLargeWidth','resJPEGLargeHeight'),
+    cloudKitResource(fields,'resJPEGFullRes','resJPEGFullWidth','resJPEGFullHeight'),
   ].filter(Boolean);
 }
 
