@@ -1857,7 +1857,10 @@
     const viewer=window.RUDI_PHOTO_VIEWER;
     if(viewer&&typeof viewer.open==='function'){
       try{
-        if(viewer.open(photos,index)) return;
+        if(viewer.open(photos,index,{
+          albumUrl:String(state.documents?.albumUrl||'').trim(),
+          preferOriginal:true,
+        })) return;
       }catch(_){}
     }
     openCarDocumentOriginal(photo);
