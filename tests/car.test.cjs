@@ -22,6 +22,17 @@ test('car documents remove duplicate photos by id or media url',()=>{
   assert.deepEqual(photos.map(photo=>photo.id),['doc-1','doc-3']);
 });
 
+test('car document viewer prefers original quality and opens the photo on iCloud',()=>{
+  const car=fs.readFileSync('public/car.js','utf8');
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.match(car,/viewer\.open\(photos,index,\{[\s\S]*?albumUrl:String\(state\.documents\?\.albumUrl\|\|''\)\.trim\(\)[\s\S]*?preferOriginal:true/);
+  assert.match(app,/viewerDisplayUrl:preferOriginal&&\/\^https:/);
+  assert.match(app,/const iCloudPhotoUrl=albumUrl\?\(id\?albumUrl\+';'+id:albumUrl\):''/);
+  assert.match(app,/viewerOriginalUrl:iCloudPhotoUrl/);
+  assert.match(app,/Загружаем фото в максимальном качестве/);
+  assert.match(app,/viewerFallbackUrl/);
+});
+
 test('UNI-V service schedule uses 5k first service then 10k intervals',()=>{
   assert.deepEqual(serviceScheduleForMileage(0),{number:0,mileage:5000});
   assert.deepEqual(serviceScheduleForMileage(5000),{number:0,mileage:5000});
