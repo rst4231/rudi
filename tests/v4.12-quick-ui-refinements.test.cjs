@@ -14,6 +14,8 @@ test('v4.12 quick UI refinements',()=>{
   assert.match(mood,/copy\.textContent=String\(item\.emoji\|\|''\)\+' '\+String\(item\.label\|\|''\)\+' '\+Number\(item\.percent\|\|0\)\+'%'/);
   assert.doesNotMatch(mood,/chartTitle\.textContent='Настроение'/);
   assert.match(css,/\.profile \.avatar-mood-badge\{\s*bottom:-30px!important;/);
+  assert.match(css,/top:calc\(100% \+ 6px\)!important/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap \.avatar > #moodCurrentButton\.avatar-mood-badge/);
   assert.match(mood,/начни с диалога/);
   assert.match(mood,/skipDialogueBlock/);
 });

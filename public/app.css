@@ -13369,3 +13369,20 @@ body[data-app-tab="finances"]{
   .finance-select,.finance-text-input{min-height:45px;padding:0 10px}
 }
 /* end RUDI v4.12 finance expansion */
+
+
+/* RUDI v4.13 — keep profile mood badge fully outside avatar frame */
+.profile-person-card .score-avatar-wrap .avatar > .avatar-mood-badge,
+.profile-person-card .score-avatar-wrap .avatar > #moodCurrentButton.avatar-mood-badge,
+.profile-person-card .score-avatar-wrap .avatar > #partnerMoodValue.avatar-mood-badge{
+  left:50%!important;
+  right:auto!important;
+  top:calc(100% + 6px)!important;
+  bottom:auto!important;
+  transform:translateX(-50%) rotate(-10deg)!important;
+}
+.profile-person-card .score-avatar-wrap,
+.profile-person-card .score-avatar-wrap > .avatar{
+  overflow:visible!important;
+}
+/* end RUDI v4.13 avatar mood placement */
