@@ -2348,6 +2348,23 @@
         }catch(_){setFinanceAutosaveStatus('financePlanStatus','Не удалось сохранить')}
       }
 
+      function mountFinanceCoinModal(modal,focusTarget=null){
+        if(!modal)return;
+        // Keep fixed sheets outside transformed/scrolled app containers.
+        // iOS Safari/Telegram otherwise positions fixed relative to that container
+        // and the sheet can end up below the visible viewport.
+        if(modal.parentElement!==document.body)document.body.appendChild(modal);
+        modal.hidden=false;modal.setAttribute('aria-hidden','false');
+        document.body.classList.add('finance-coin-modal-open');
+        requestAnimationFrame(()=>{
+          const sheet=modal.querySelector('.finance-coin-modal-sheet');
+          if(sheet)sheet.scrollTop=0;
+        });
+        const isAppleMobile=/iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+        if(focusTarget&&!isAppleMobile){
+          setTimeout(()=>{try{focusTarget.focus({preventScroll:true})}catch(_){focusTarget.focus?.()}},80);
+        }
+      }
       function closeFinanceCoinModal(id){
         const modal=document.getElementById(id);if(!modal)return;
         modal.hidden=true;modal.setAttribute('aria-hidden','true');
@@ -2357,8 +2374,7 @@
         const modal=document.getElementById('financeCategoryComposer');if(!modal)return;
         const name=document.getElementById('financeCategoryName'),status=document.getElementById('financeCategoryStatus');
         if(name)name.value='';if(status)status.textContent='';
-        modal.hidden=false;modal.setAttribute('aria-hidden','false');document.body.classList.add('finance-coin-modal-open');
-        setTimeout(()=>name?.focus(),60);
+        mountFinanceCoinModal(modal,name);
       }
       function financeCategoryById(id){
         return (Array.isArray(financeState.categories)?financeState.categories:[]).find(row=>row.id===id)||null;
@@ -2394,8 +2410,7 @@
         if(amount)amount.value='';if(note)note.value='';if(status)status.textContent='';
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         renderFinanceExpenseComposerHistory(month,category.id);
-        modal.hidden=false;modal.setAttribute('aria-hidden','false');document.body.classList.add('finance-coin-modal-open');
-        setTimeout(()=>amount?.focus(),60);
+        mountFinanceCoinModal(modal,amount);
       }
       function cleanupFinanceIncomeDrag(){
         const drag=financeIncomeDrag;if(!drag)return;

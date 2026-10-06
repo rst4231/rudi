@@ -14294,13 +14294,30 @@ html[data-theme="dark"] .finance-coin-overview{background:color-mix(in srgb,var(
   opacity:.94
 }
 .finance-coin-modal[hidden]{display:none!important}
-.finance-coin-modal{position:fixed;inset:0;z-index:9000;display:grid;align-items:end}
+.finance-coin-modal{
+  position:fixed;
+  inset:0;
+  z-index:9000;
+  width:100vw;
+  height:100vh;
+  height:100dvh;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  box-sizing:border-box;
+  overflow:hidden;
+  padding-top:max(8px,env(safe-area-inset-top))
+}
 .finance-coin-modal-backdrop{position:absolute;inset:0;border:0;background:rgba(11,15,23,.44);backdrop-filter:blur(4px)}
 .finance-coin-modal-sheet{
   position:relative;
   width:min(100%,520px);
-  max-height:min(78vh,680px);
-  overflow:auto;
+  max-height:min(680px,calc(100vh - 12px));
+  max-height:min(680px,calc(100dvh - max(12px,env(safe-area-inset-top))));
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
   box-sizing:border-box;
   margin:0 auto;
   padding:18px 16px calc(18px + env(safe-area-inset-bottom));
@@ -14329,7 +14346,14 @@ html[data-theme="dark"] .finance-coin-overview{background:color-mix(in srgb,var(
   font-weight:800
 }
 .finance-coin-modal .finance-category-expense-list{margin-top:12px}
-body.finance-coin-modal-open{overflow:hidden}
+body.finance-coin-modal-open{overflow:hidden;overscroll-behavior:none}
+@media(max-width:600px){
+  .finance-coin-modal-sheet{
+    width:100%;
+    max-height:calc(100vh - max(8px,env(safe-area-inset-top)));
+    max-height:calc(100dvh - max(8px,env(safe-area-inset-top)));
+  }
+}
 @media(max-width:390px){
   .finance-coin{width:48px;height:48px;font-size:20px}
   .finance-coin-grid{gap:12px 3px!important;padding-left:5px;padding-right:5px}
