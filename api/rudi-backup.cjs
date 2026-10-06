@@ -26,6 +26,7 @@ const {
 const { readSupplements, writeSupplements } = require('./supplements-store.cjs');
 const { readHabits, writeHabits } = require('./habit-tracker-store.cjs');
 const { readFastingState, writeFastingState } = require('./fasting-store.cjs');
+const { readUiPreferences } = require('./ui-preferences-store.cjs');
 
 const BACKUP_VERSION = 2;
 const BACKUP_PREFIX = 'rudi-state-v2';
@@ -209,6 +210,7 @@ async function createStateSnapshot(options = {}) {
     ticktickToken, calendarUrl, albumConfig, cycle, carState, dailyMood, reactions, recipients, activityJournal, scoreState, luluState,
     rustamPin, dianaPin, rustamPasskeys, dianaPasskeys,
     rustamSupplements, dianaSupplements, rustamHabits, dianaHabits, rustamFasting, dianaFasting,
+    rustamUiPreferences, dianaUiPreferences,
   ] = await Promise.all([
     safeRead(() => readPartnerMessage(options)),
     safeRead(() => readWishlist(options), { initialized: false, version: 0, items: [] }),
@@ -237,6 +239,8 @@ async function createStateSnapshot(options = {}) {
     safeRead(() => readHabits('Диана', options), { initialized:false, version:0, actor:'Диана', habits:[] }),
     safeRead(() => readFastingState('Рустам', options), { initialized:false, version:0, active:null, history:[] }),
     safeRead(() => readFastingState('Диана', options), { initialized:false, version:0, active:null, history:[] }),
+    safeRead(() => readUiPreferences('Рустам', options)),
+    safeRead(() => readUiPreferences('Диана', options)),
   ]);
 
   const mergedRecipients = normalizeRecipients({
@@ -279,7 +283,10 @@ async function createStateSnapshot(options = {}) {
       'Рустам': newerVersionState(rustamFasting, previous?.fasting?.['Рустам']),
       'Диана': newerVersionState(dianaFasting, previous?.fasting?.['Диана']),
     },
-    uiPreferences: normalizeUiPreferences(previous?.uiPreferences),
+    uiPreferences: {
+      'Рустам': newerUiPreference(rustamUiPreferences, previous?.uiPreferences?.['Рустам']),
+      'Диана': newerUiPreference(dianaUiPreferences, previous?.uiPreferences?.['Диана']),
+    },
     recipients: mergedRecipients,
     browserAuth: {
       pins: {

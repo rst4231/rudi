@@ -177,8 +177,12 @@ async function saveUiPreferences(actor, value, options = {}) {
       themeMode: has('themeMode') ? incoming.themeMode : current.themeMode,
       autoRefreshEnabled: has('autoRefreshEnabled') ? incoming.autoRefreshEnabled : current.autoRefreshEnabled,
       interfaceTextSize: has('interfaceTextSize') ? incoming.interfaceTextSize : current.interfaceTextSize,
-      contactTelegramUsername: has('contactTelegramUsername') ? incoming.contactTelegramUsername : current.contactTelegramUsername,
-      contactPhone: has('contactPhone') ? incoming.contactPhone : current.contactPhone,
+      contactTelegramUsername: has('contactTelegramUsername')
+        ? (incoming.contactTelegramUsername || current.contactTelegramUsername)
+        : current.contactTelegramUsername,
+      contactPhone: has('contactPhone')
+        ? (incoming.contactPhone || current.contactPhone)
+        : current.contactPhone,
       moodNotifyPartnerEnabled: has('moodNotifyPartnerEnabled') ? incoming.moodNotifyPartnerEnabled : current.moodNotifyPartnerEnabled,
       moodReceivePartnerEnabled: has('moodReceivePartnerEnabled') ? incoming.moodReceivePartnerEnabled : current.moodReceivePartnerEnabled,
       humidityAlertEnabled: has('humidityAlertEnabled') ? incoming.humidityAlertEnabled : current.humidityAlertEnabled,

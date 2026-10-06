@@ -6067,9 +6067,10 @@
           localStorage.setItem(contactTelegramStorageKey(),username);
           localStorage.setItem(contactPhoneStorageKey(),normalizedPhone);
           telegram.value=username;phone.value=normalizedPhone;
-          markUiPreferencesChanged({syncSchemaVersion:8,contactTelegramUsername:username,contactPhone:normalizedPhone});
+          markUiPreferencesChanged({syncSchemaVersion:9,contactTelegramUsername:username,contactPhone:normalizedPhone});
           const saved=await flushUiPreferencesToServer();
           if(!saved)throw new Error('contact-save-failed');
+          await refreshStateBackup().catch(()=>{});
           syncProfileContactButtons();
           if(status){status.textContent='Сохранено';status.dataset.persist='1'}
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
