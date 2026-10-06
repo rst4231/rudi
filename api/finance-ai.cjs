@@ -234,7 +234,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
     'Цель: ' + (compact(context.goalTitle, 80) || 'не задана') + ', накоплено ' + Number(context.goalCurrent || 0) + ' ₽ из ' + Number(context.goalTarget || 0) + ' ₽.',
     categories ? 'Категории расходов:\n' + categories : 'Расходы по категориям пока не добавлены.',
     debts ? 'Активные долги:\n' + debts : 'Активных долгов нет.',
-    context.literacy?.title ? 'Сегодняшняя статья: ' + compact(context.literacy.title, 140) + '. Тема: ' + compact(context.literacy.topic, 120) + '.' : '',
+    context.literacy?.title ? 'Сегодняшняя статья: ' + compact(context.literacy.title, 140) + '. Тема: ' + compact(context.literacy.topic, 120) + '. Ключевой текст: ' + compact(context.literacy.body, 2200) : '',
   ].filter(Boolean).join('\n');
 
   const parsed = await requestJson(prompt, analystSchema(), { ...options, timeoutMs: 14000 });
