@@ -378,12 +378,25 @@ async function resolveCloudKitAlbum(token,options={}) {
   return {zone,accessToken,partition,title};
 }
 
+function cloudKitRecordRemoved(record) {
+  const fields=record?.fields||{};
+  return Boolean(
+    record?.deleted===true
+    || record?.isDeleted===true
+    || record?.recordType==='CPLDeletedRecord'
+    || cloudKitField(fields,'isDeleted')
+    || cloudKitField(fields,'isExpunged')
+    || cloudKitField(fields,'isHidden')
+    || cloudKitField(fields,'trashReason')
+  );
+}
+
 function parseCloudKitPhotos(records) {
   const latestRecords=new Map();
   for(const record of Array.isArray(records)?records:[]){
     const name=String(record?.recordName||'').trim();
     if(!name) continue;
-    const deleted=record?.deleted===true||record?.isDeleted===true||record?.recordType==='CPLDeletedRecord';
+    const deleted=cloudKitRecordRemoved(record);
     if(deleted){latestRecords.delete(name);continue}
     latestRecords.set(name,record);
   }
@@ -559,6 +572,7 @@ module.exports = {
   videoSources,
   fetchLatestPhotos,
   fetchCloudKitPhotos,
+  cloudKitRecordRemoved,
   parseCloudKitPhotos,
   getLatestPhotos,
 };
