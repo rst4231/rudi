@@ -219,7 +219,7 @@ test('primary bottom navigation is limited to the five main tabs',()=>{
 test('internal pages use smooth transitions and animated bottom navigation',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const css=fs.readFileSync('public/app.css','utf8');
-  assert.match(app,/INTERNAL_ANIMATED_TABS=new Set\(\['habits','fasting','supplements','car','wishlist','dates','for-di','smart-saves'\]\)/);
+  assert.match(app,/INTERNAL_ANIMATED_TABS=new Set\(\['habits','fasting','finances','supplements','car','wishlist','dates','for-di','smart-saves'\]\)/);
   assert.match(app,/runAppViewTransition\(update,\{from:previous,to:tab\}\)/);
   assert.match(app,/appTabBar\.classList\.toggle\('is-hidden',!primaryNavVisible\)/);
   assert.doesNotMatch(app,/appTabBar\.hidden=!primaryNavVisible/);

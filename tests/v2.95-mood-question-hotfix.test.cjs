@@ -8,7 +8,7 @@ test('v2.95 mood picker is independently bound and uses partner frame',()=>{
   const html=read('public/index.html');
   const app=read('public/app.js');
   const css=read('public/app.css');
-  assert.match(html,/id="moodCurrentButton" class="mood-current-button partner-mood-value"/);
+  assert.match(html,/id="moodCurrentButton" class="mood-current-button partner-mood-value avatar-mood-badge"/);
   assert.match(app,/function bindMoodPickerControls\(\)/);
   assert.match(app,/DOMContentLoaded',bindMoodPickerControls/);
   assert.match(app,/showMoodMessage\(mood\);[\s\S]*moodRequest\('set',mood\)/);
