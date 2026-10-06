@@ -2481,6 +2481,42 @@
         try{const data=await financeRequest('monthly-insight',{month});host.textContent=String(data?.insight?.text||'').trim()||'Добавь доход и расходы по категориям.'}
         catch(_){host.textContent='Добавь доход и расходы по категориям, чтобы получить короткий ИИ-разбор месяца.'}
       }
+      function renderFinancialAnalyst(report){
+        const host=document.getElementById('financeAnalystResult');if(!host||!report)return;
+        host.replaceChildren();
+        const summary=document.createElement('p');summary.className='finance-analyst-summary';summary.textContent=String(report.summary||'');
+        host.append(summary);
+        const groups=[
+          ['Сильные стороны',Array.isArray(report.strengths)?report.strengths:[],'strengths'],
+          ['Риски',Array.isArray(report.risks)?report.risks:[],'risks'],
+          ['Что делать',Array.isArray(report.actions)?report.actions:[],'actions']
+        ];
+        for(const [title,items,tone] of groups){
+          if(!items.length)continue;
+          const section=document.createElement('section');section.className='finance-analyst-group is-'+tone;
+          const h=document.createElement('h3');h.textContent=title;
+          const list=document.createElement('ol');if(tone!=='actions')list.className='is-bullets';
+          for(const text of items){const li=document.createElement('li');li.textContent=String(text||'');list.append(li)}
+          section.append(h,list);host.append(section);
+        }
+        host.hidden=false;
+      }
+      async function runFinancialAnalyst(){
+        const button=document.getElementById('financeAnalystButton'),status=document.getElementById('financeAnalystStatus');
+        const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        if(button){button.disabled=true;button.textContent='Анализирую…'}
+        if(status)status.textContent='Сопоставляю доходы, расходы, лимиты и долги…';
+        try{
+          const data=await financeRequest('analyst',{month});
+          renderFinancialAnalyst(data.report);
+          if(status)status.textContent='Анализ готов';
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(_){
+          if(status)status.textContent='Не удалось получить анализ. Попробуй ещё раз.';
+        }finally{
+          if(button){button.disabled=false;button.textContent='Получить анализ'}
+        }
+      }
 
       function setFinanceTab(tab){
         const allowed=['shared','personal','debts','literacy'];activeFinanceTab=allowed.includes(tab)?tab:'shared';
@@ -2542,6 +2578,7 @@
           catch(error){if(status)status.textContent=String(error?.message||'').includes('duplicate')?'Такая категория уже есть':'Не удалось создать категорию'}finally{categoryCreate.disabled=false}
         });
         document.getElementById('financeCategoryName')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();categoryCreate?.click()}});
+        document.getElementById('financeAnalystButton')?.addEventListener('click',()=>runFinancialAnalyst());
 
         const debtSave=document.getElementById('financeDebtSaveButton');
         debtSave?.addEventListener('click',async()=>{const status=document.getElementById('financeDebtStatus'),direction=document.getElementById('financeDebtDirection'),counterparty=document.getElementById('financeDebtCounterparty'),amount=document.getElementById('financeDebtAmount'),note=document.getElementById('financeDebtNote');if(!String(counterparty?.value||'').trim()||Number(amount?.value||0)<=0){if(status)status.textContent='Заполни имя и сумму';return}debtSave.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save-debt',{direction:direction?.value||'owe',counterparty:counterparty?.value||'',amount:Number(amount?.value||0),note:note?.value||''});renderFinanceState(data,{personalMonth:personalMonth?.value,preserveIncome:true,preservePlan:true});if(counterparty)counterparty.value='';if(amount)amount.value='';if(note)note.value='';if(status)status.textContent='Долг добавлен';setTimeout(()=>{if(status?.textContent==='Долг добавлен')status.textContent=''},1800)}catch(_){if(status)status.textContent='Не удалось добавить долг'}finally{debtSave.disabled=false}});
