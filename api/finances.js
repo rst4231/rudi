@@ -1,16 +1,28 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
-const { readFinanceState, saveFinanceMonth, savePersonalMonth, saveDebt, toggleDebt, viewState } = require('./finance-store.cjs');
+const {
+  readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
+  saveExpenseCategory, updateExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveDebt, toggleDebt, viewState,
+} = require('./finance-store.cjs');
+const { getDailyLiteracyArticle, getMonthlyFinanceInsight } = require('./finance-ai.cjs');
 
 function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
-  if (['finance-debt-not-found'].includes(code)) return 404;
+  if (['finance-debt-not-found','finance-category-not-found','finance-expense-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
-    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid'
+    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate'
   ].includes(code)) return 400;
   return 500;
+}
+function categorySummary(view, month) {
+  const expenses = (Array.isArray(view.personalExpenses) ? view.personalExpenses : []).filter((row) => row.month === month);
+  return (Array.isArray(view.categories) ? view.categories : []).map((category) => ({
+    ...category,
+    spent: Math.round(expenses.filter((row) => row.categoryId === category.id).reduce((sum, row) => sum + Number(row.amount || 0), 0) * 100) / 100,
+  }));
 }
 async function handler(req, res) {
   res.setHeader?.('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -32,6 +44,47 @@ async function handler(req, res) {
       const state = await savePersonalMonth(actor, body.month, body.income, body.expenses);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
+    if (operation === 'save-personal-income') {
+      const state = await savePersonalIncome(actor, body.month, body.income);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-plan') {
+      const state = await saveFinancePlan(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-category') {
+      const state = await saveExpenseCategory(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'update-category') {
+      const state = await updateExpenseCategory(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-expense') {
+      const state = await savePersonalExpense(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'delete-expense') {
+      const state = await deletePersonalExpense(actor, body.id);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'monthly-insight') {
+      const month = String(body.month || '').trim();
+      const state = await readFinanceState();
+      const view = viewState(state, actor);
+      const row = (view.personalMonths || []).find((item) => item.month === month) || { income: 0, expenses: 0, balance: 0 };
+      const insight = await getMonthlyFinanceInsight({
+        actor, month, version: view.version,
+        income: row.income, expenses: row.expenses, balance: row.balance,
+        reserve: view.plan?.reserve || 0,
+        categories: categorySummary(view, month),
+      });
+      return res.status(200).json({ ok: true, insight });
+    }
+    if (operation === 'literacy') {
+      const article = await getDailyLiteracyArticle();
+      return res.status(200).json({ ok: true, article });
+    }
     if (operation === 'save-debt') {
       const state = await saveDebt(actor, body);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
@@ -51,3 +104,4 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.handler = handler;
 module.exports.statusFor = statusFor;
+module.exports.categorySummary = categorySummary;
