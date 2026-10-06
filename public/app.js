@@ -5736,8 +5736,8 @@
         setupHomeDashboardActions();
         renderHomeDashboard();
         const restoredOwnMood=String(homeDashboardState.moods?.mine?.mood||'');
-        if(restoredOwnMood) selectOwnMood(restoredOwnMood);
-        else refreshDailyMood().catch(()=>{});
+        selectOwnMood(restoredOwnMood);
+        if(!restoredOwnMood) refreshDailyMood().catch(()=>{});
         loadSupplementIntakeOverview({silent:true});
       }
 
