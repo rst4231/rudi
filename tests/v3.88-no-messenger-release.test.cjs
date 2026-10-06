@@ -22,12 +22,15 @@ test('v3.88 removes RUDI messenger and realtime surfaces',()=>{
   const api=read('api/partner-message.js');
   const sw=read('public/sw.js');
   const vercel=JSON.parse(read('vercel.json'));
+  const build=read('build.cjs');
 
   assert.doesNotMatch(index,/messenger/i);
   assert.doesNotMatch(app,/RUDI_MESSENGER|messengerNotificationsEnabled|messengerUnreadCount/i);
   assert.doesNotMatch(api,/messenger-(?:send|list|edit|delete|reaction|typing|presence|read|rekey)|publishMessengerRealtime|queueMessengerRealtime|tab=messenger/i);
   assert.doesNotMatch(sw,/tab=messenger|rudi-messenger|RUDI_QUERY_MESSENGER/i);
   assert.equal(vercel.functions?.['api/realtime.js'],undefined);
+  assert.doesNotMatch(build,/messenger\.(?:js|css)/i);
+  assert.match(sw,/Promise\.allSettled\(PRECACHE\.map/);
 });
 
 test('v3.88 remaps navigation and photoshoot quick access',()=>{
