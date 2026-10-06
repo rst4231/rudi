@@ -5551,9 +5551,9 @@
             avatar.parentNode.insertBefore(avatarWrap,avatar);
             avatarWrap.append(avatar,scoreSticker);
             if(moodBadge){
-              moodBadge.classList.remove('score-avatar-mood-badge','profile-card-mood-badge');
-              moodBadge.classList.add('avatar-mood-sticker');
-              avatarWrap.appendChild(moodBadge);
+              moodBadge.classList.remove('score-avatar-mood-badge','profile-card-mood-badge','avatar-mood-sticker');
+              const nameRow=identity.querySelector('.profile-name-row');
+              if(nameRow) nameRow.appendChild(moodBadge);
             }
           }else{
             identity.appendChild(scoreSticker);
@@ -5649,11 +5649,21 @@
           block.append(head,list);
           return block;
         };
-        rustamCard.details.appendChild(makeSupplementIntakeBlock('Рустам'));
-        dianaCard.details.appendChild(makeSupplementIntakeBlock('Диана'));
+        const rustamSupplementBlock=makeSupplementIntakeBlock('Рустам');
+        const dianaSupplementBlock=makeSupplementIntakeBlock('Диана');
+        rustamCard.details.insertBefore(rustamSupplementBlock,rhythmAdvice);
+        dianaCard.details.insertBefore(dianaSupplementBlock,dianaRhythmAdvice);
 
         dianaCard.details.appendChild(cycleSummary);
         const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
+        const ownRhythmAdvice=selfActor==='Диана'?dianaRhythmAdvice:rhythmAdvice;
+        const moodHistoryMenuButton=document.getElementById('moodHistoryButton');
+        if(moodHistoryMenuButton){
+          moodHistoryMenuButton.classList.add('profile-mood-history-row');
+          moodHistoryMenuButton.textContent='История настроения';
+          moodHistoryMenuButton.hidden=false;
+          ownCard.details.insertBefore(moodHistoryMenuButton,ownRhythmAdvice);
+        }
         if(moodChoices){
           moodChoices.hidden=true;
           moodChoices.classList.remove('is-open');

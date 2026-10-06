@@ -13699,3 +13699,80 @@ body[data-app-tab="finances"]{
   }
 }
 /* end RUDI v4.17 */
+
+
+/* RUDI v4.18 — mood beside names + history inside profile dropdown */
+.profile-person-card .profile-name-row{
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  min-width:0!important;
+}
+.profile-person-card .profile-name-row > .avatar-mood-badge{
+  position:static!important;
+  inset:auto!important;
+  flex:0 0 27px!important;
+  width:27px!important;
+  height:27px!important;
+  min-width:27px!important;
+  min-height:27px!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  outline:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:visible!important;
+  transform:none!important;
+}
+.profile-person-card .profile-name-row > .avatar-mood-badge[hidden]{
+  display:none!important;
+}
+.profile-person-card .profile-name-row > .avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > .avatar-mood-badge .partner-mood-icon .mood-emoji{
+  display:block!important;
+  font-size:21px!important;
+  line-height:1!important;
+  filter:none!important;
+}
+.profile-person-card .profile-name-row > .avatar-mood-badge:active{
+  transform:scale(.94)!important;
+}
+.profile-person-card .mood-history-button.profile-mood-history-row{
+  width:100%!important;
+  height:auto!important;
+  min-height:36px!important;
+  margin:0!important;
+  padding:0 12px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid rgba(137,151,255,.14)!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.035)!important;
+  color:rgba(241,244,252,.78)!important;
+  font:inherit!important;
+  font-size:10.5px!important;
+  line-height:1.2!important;
+  font-weight:780!important;
+  letter-spacing:0!important;
+  cursor:pointer!important;
+  box-shadow:none!important;
+}
+.profile-person-card .mood-history-button.profile-mood-history-row svg{
+  display:none!important;
+}
+.profile-person-card .mood-history-button.profile-mood-history-row:active{
+  transform:scale(.985)!important;
+}
+html[data-theme="light"] .profile-person-card .mood-history-button.profile-mood-history-row{
+  border-color:rgba(70,78,98,.12)!important;
+  background:rgba(255,255,255,.82)!important;
+  color:#3b414f!important;
+}
+/* end RUDI v4.18 */
