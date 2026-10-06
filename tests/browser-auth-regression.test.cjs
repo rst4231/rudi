@@ -50,3 +50,16 @@ test('PIN setup is only offered to an already authenticated Telegram user',()=>{
   assert.match(api,/const telegram = authorizeInitData\(body\.initData, options\)/);
   assert.match(api,/await savePin\(telegram\.actor/);
 });
+
+
+test('change-pin is handled by browser-auth and not by passkey routing',()=>{
+  const api=fs.readFileSync('api/partner-message.js','utf8');
+  const passkeyStart=api.indexOf("if (action === 'passkey')");
+  const browserStart=api.indexOf("if (action === 'browser-auth')");
+  const appAuthStart=api.indexOf("if (action === 'app-auth')");
+  assert.ok(passkeyStart>=0&&browserStart>passkeyStart&&appAuthStart>browserStart);
+  const passkeyBlock=api.slice(passkeyStart,browserStart);
+  const browserBlock=api.slice(browserStart,appAuthStart);
+  assert.doesNotMatch(passkeyBlock,/operation === 'change-pin'/);
+  assert.match(browserBlock,/operation === 'change-pin'/);
+});

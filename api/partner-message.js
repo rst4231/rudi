@@ -2644,25 +2644,6 @@ async function handleRudiAction(req, res, action, options = {}) {
       const session = authorizeRequest(req, body.initData, options);
       await hydrateActorAuth(session.actor, body.backupToken, options);
 
-      if (operation === 'change-pin') {
-        const session = authorizeRequest(req, body.initData, options);
-        const hydrated = await hydrateActorAuth(session.actor, body.backupToken, options);
-        if (!hydrated.durable?.pinRecord) throw new Error('rudi-pin-not-configured');
-        await verifyPin(req, session.actor, body.currentPin, {
-          ...browserAuthStoreOptions(options),
-          pinRecord: hydrated.durable.pinRecord,
-        });
-        const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-        const result = await savePin(session.actor, body.newPin, browserAuthStoreOptions(options));
-        await saveDurablePinRecord(session.actor, result.record, durableAuthOptions(options));
-        setSessionCookie(res, session.actor, botToken, { now: options.now || Date.now() });
-        const backupToken = await createStateBackup({
-          ...options,
-          previousSnapshot: backupSnapshotWithPin(previousSnapshot, session.actor, result.record),
-        });
-        return res.status(200).json({ ok: true, actor: session.actor, configured: true, updatedAt: result.updatedAt, backupToken });
-      }
-
       if (operation === 'status') {
         const status = await passkeyStatus(req, session.actor, storeOptions);
         return res.status(200).json({ ok: true, actor: session.actor, ...status });
@@ -2723,6 +2704,25 @@ async function handleRudiAction(req, res, action, options = {}) {
           previousSnapshot: backupSnapshotWithPin(previousSnapshot, telegram.actor, result.record),
         });
         return res.status(200).json({ ok: true, actor: telegram.actor, configured: true, updatedAt: result.updatedAt, backupToken });
+      }
+
+      if (operation === 'change-pin') {
+        const session = authorizeRequest(req, body.initData, options);
+        const hydrated = await hydrateActorAuth(session.actor, body.backupToken, options);
+        if (!hydrated.durable?.pinRecord) throw new Error('rudi-pin-not-configured');
+        await verifyPin(req, session.actor, body.currentPin, {
+          ...browserAuthStoreOptions(options),
+          pinRecord: hydrated.durable.pinRecord,
+        });
+        const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+        const result = await savePin(session.actor, body.newPin, browserAuthStoreOptions(options));
+        await saveDurablePinRecord(session.actor, result.record, durableAuthOptions(options));
+        setSessionCookie(res, session.actor, botToken, { now: options.now || Date.now() });
+        const backupToken = await createStateBackup({
+          ...options,
+          previousSnapshot: backupSnapshotWithPin(previousSnapshot, session.actor, result.record),
+        });
+        return res.status(200).json({ ok: true, actor: session.actor, configured: true, updatedAt: result.updatedAt, backupToken });
       }
 
       if (operation === 'status') {
