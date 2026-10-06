@@ -2175,9 +2175,15 @@
       }
 
 
-      let financeState={months:[],personalMonths:[],debts:[],version:0};
+      let financeState={months:[],personalMonths:[],debts:[],profile:{reserve:0,goalTitle:'',goalTarget:0,goalCurrent:0},expenseCategories:[],expenseCategoryMonths:[],literacy:null,version:0};
       let financeLoadPromise=null;
+      let financeLiteracyPromise=null;
+      let financeInsightRequestKey='';
       let activeFinanceTab='shared';
+      let financeIncomeSaveTimer=null;
+      let financeExpenseSaveTimer=null;
+      let financeProfileSaveTimer=null;
+      let financeInsightTimer=null;
 
       function financeCurrentMonthKey(){
         const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).formatToParts(new Date());
@@ -2186,7 +2192,7 @@
       }
       function financePreviousMonthKey(value){
         const match=String(value||'').match(/^(\d{4})-(\d{2})$/);
-        if(!match) return '';
+        if(!match)return '';
         const date=new Date(Date.UTC(Number(match[1]),Number(match[2])-2,1));
         return date.getUTCFullYear()+'-'+String(date.getUTCMonth()+1).padStart(2,'0');
       }
@@ -2197,7 +2203,7 @@
       }
       function financeSignedMoney(value){
         const number=Number(value)||0;
-        if(Math.abs(number)<.005) return '0 ₽';
+        if(Math.abs(number)<.005)return '0 ₽';
         return (number>0?'+':'−')+financeMoney(Math.abs(number));
       }
       function financePercent(value){
@@ -2206,9 +2212,9 @@
       }
       function financeMonthTitle(value){
         const month=String(value||'');
-        if(!/^\d{4}-\d{2}$/.test(month)) return '—';
+        if(!/^\d{4}-\d{2}$/.test(month))return '—';
         const date=new Date(month+'-01T12:00:00Z');
-        if(Number.isNaN(date.getTime())) return month;
+        if(Number.isNaN(date.getTime()))return month;
         const text=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(date);
         return text.charAt(0).toUpperCase()+text.slice(1);
       }
@@ -2220,25 +2226,45 @@
       }
       function financeComparisonText(current,previous){
         const now=Number(current)||0,prev=Number(previous)||0,delta=Math.round((now-prev)*100)/100;
-        if(prev<=0) return {text:'Нет данных за прошлый месяц',direction:'none'};
-        if(Math.abs(delta)<.005) return {text:'Без изменений к прошлому месяцу · 0 ₽ · 0%',direction:'same'};
+        if(prev<=0)return {text:'Нет данных за прошлый месяц',direction:'none'};
+        if(Math.abs(delta)<.005)return {text:'Без изменений к прошлому месяцу · 0 ₽ · 0%',direction:'same'};
         const percent=delta/prev*100;
-        return {
-          text:(delta>0?'Увеличилось ':'Уменьшилось ')+financeSignedMoney(delta)+' · '+(percent>0?'+':'−')+financePercent(percent),
-          direction:delta>0?'up':'down'
-        };
+        return {text:(delta>0?'Увеличилось ':'Уменьшилось ')+financeSignedMoney(delta)+' · '+(percent>0?'+':'−')+financePercent(percent),direction:delta>0?'up':'down'};
       }
       async function financeRequest(operation='list',payload={}){
-        const response=await fetch('/api/finances',{
-          method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'
-        });
+        const response=await fetch('/api/finances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){const error=new Error(data.error||'finance-request-failed');error.status=response.status;throw error}
         return data;
       }
       function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
       function financePersonalRowForMonth(month){return (financeState.personalMonths||[]).find(row=>String(row?.month||'')===String(month||''))||null}
+      function financeExpenseRowForMonth(month){return (financeState.expenseCategoryMonths||[]).find(row=>String(row?.month||'')===String(month||''))||null}
+      function financeProfileState(){
+        const source=financeState.profile&&typeof financeState.profile==='object'?financeState.profile:{};
+        return {reserve:Math.max(0,Number(source.reserve)||0),goalTitle:String(source.goalTitle||'').trim(),goalTarget:Math.max(0,Number(source.goalTarget)||0),goalCurrent:Math.max(0,Number(source.goalCurrent)||0)};
+      }
+      function financeAbsorbState(data){
+        const incomingVersion=Math.max(0,Number(data?.version||0));
+        if(incomingVersion&&incomingVersion<Number(financeState.version||0))return false;
+        if(Number.isFinite(incomingVersion))financeState.version=incomingVersion;
+        if(Array.isArray(data?.months))financeState.months=data.months;
+        if(Array.isArray(data?.personalMonths))financeState.personalMonths=data.personalMonths;
+        if(Array.isArray(data?.debts))financeState.debts=data.debts;
+        if(Array.isArray(data?.expenseCategories))financeState.expenseCategories=data.expenseCategories;
+        if(Array.isArray(data?.expenseCategoryMonths))financeState.expenseCategoryMonths=data.expenseCategoryMonths;
+        if(data?.profile&&typeof data.profile==='object')financeState.profile=data.profile;
+        return true;
+      }
+      function financeSetAutosaveStatus(id,text='Сохраняется автоматически',ok=true){
+        const host=document.getElementById(id);if(!host)return;
+        host.textContent=text;
+        host.dataset.error=ok?'0':'1';
+      }
+      function financeScheduleInsight(month){
+        clearTimeout(financeInsightTimer);
+        financeInsightTimer=setTimeout(()=>loadFinanceInsight(month,{force:true}).catch(()=>{}),900);
+      }
 
       function renderFinanceComparison(month,total){
         const host=document.getElementById('financeMonthComparison');if(!host)return;
@@ -2249,12 +2275,10 @@
       }
       function renderFinanceSummary(rent,utilities,month=''){
         const split=financeSplit(rent,utilities);
-        const total=document.getElementById('financeTotalValue');
-        const diana=document.getElementById('financeDianaValue');
-        const rustam=document.getElementById('financeRustamValue');
-        if(total) total.textContent=financeMoney(split.total);
-        if(diana) diana.textContent=financeMoney(split.diana);
-        if(rustam) rustam.textContent=financeMoney(split.rustam);
+        const total=document.getElementById('financeTotalValue'),diana=document.getElementById('financeDianaValue'),rustam=document.getElementById('financeRustamValue');
+        if(total)total.textContent=financeMoney(split.total);
+        if(diana)diana.textContent=financeMoney(split.diana);
+        if(rustam)rustam.textContent=financeMoney(split.rustam);
         renderFinanceComparison(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey(),split.total);
         return split;
       }
@@ -2262,15 +2286,16 @@
         const key=String(month||financeCurrentMonthKey()),row=financeRowForMonth(key);
         const monthInput=document.getElementById('financeMonthInput'),monthLabel=document.getElementById('financeMonthLabel');
         const rentInput=document.getElementById('financeRentInput'),utilitiesInput=document.getElementById('financeUtilitiesInput');
-        if(monthInput&&monthInput.value!==key) monthInput.value=key;
-        if(monthLabel) monthLabel.textContent=financeMonthTitle(key);
+        if(monthInput&&monthInput.value!==key)monthInput.value=key;
+        if(monthLabel)monthLabel.textContent=financeMonthTitle(key);
         if(!preserveInputs){if(rentInput)rentInput.value=row?String(row.rent||0):'';if(utilitiesInput)utilitiesInput.value=row?String(row.utilities||0):''}
         renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0,key);
       }
       function renderFinanceHistory(){
         const list=document.getElementById('financeHistoryList'),empty=document.getElementById('financeHistoryEmpty'),count=document.getElementById('financeHistoryCount');
-        if(!list)return;const rows=Array.isArray(financeState.months)?financeState.months:[];list.replaceChildren();
-        if(count)count.textContent=String(rows.length);if(empty)empty.hidden=rows.length>0;
+        if(!list)return;
+        const rows=Array.isArray(financeState.months)?financeState.months:[];
+        list.replaceChildren();if(count)count.textContent=String(rows.length);if(empty)empty.hidden=rows.length>0;
         for(const row of rows){
           const button=document.createElement('button');button.type='button';button.className='finance-history-row';button.dataset.financeMonth=String(row.month||'');
           const split=financeSplit(row.rent,row.utilities),copy=document.createElement('span');copy.className='finance-history-row-copy';
@@ -2284,36 +2309,272 @@
         }
       }
 
-      function renderFinancePersonalSelectedMonth(month,{preserveInputs=false}={}){
-        const key=String(month||financeCurrentMonthKey()),row=financePersonalRowForMonth(key);
-        const input=document.getElementById('financePersonalMonthInput'),label=document.getElementById('financePersonalMonthLabel');
-        const income=document.getElementById('financePersonalIncomeInput'),expenses=document.getElementById('financePersonalExpensesInput');
-        if(input&&input.value!==key)input.value=key;if(label)label.textContent=financeMonthTitle(key);
-        if(!preserveInputs){if(income)income.value=row?String(row.income||0):'';if(expenses)expenses.value=row?String(row.expenses||0):''}
-        const incomeValue=Math.max(0,Number(income?.value||row?.income||0)),expenseValue=Math.max(0,Number(expenses?.value||row?.expenses||0));
-        const balance=document.getElementById('financePersonalBalanceValue');if(balance)balance.textContent=financeMoney(incomeValue-expenseValue);
-        const previous=financePersonalRowForMonth(financePreviousMonthKey(key)),comparison=document.getElementById('financePersonalComparison');
-        if(comparison){const result=financeComparisonText(expenseValue,previous?.expenses||0);comparison.textContent='Расходы: '+result.text;comparison.dataset.direction=result.direction}
-      }
-      function renderFinancePersonalHistory(){
-        const list=document.getElementById('financePersonalHistoryList'),empty=document.getElementById('financePersonalHistoryEmpty'),count=document.getElementById('financePersonalHistoryCount');
-        if(!list)return;const rows=Array.isArray(financeState.personalMonths)?financeState.personalMonths:[];list.replaceChildren();
-        if(count)count.textContent=String(rows.length);if(empty)empty.hidden=rows.length>0;
-        for(const row of rows){
-          const button=document.createElement('button');button.type='button';button.className='finance-history-row';
-          const copy=document.createElement('span');copy.className='finance-history-row-copy';const title=document.createElement('strong');title.textContent=financeMonthTitle(row.month);
-          const detail=document.createElement('span');detail.textContent='Доходы '+financeMoney(row.income)+' · Расходы '+financeMoney(row.expenses);copy.append(title,detail);
-          const total=document.createElement('span');total.className='finance-history-row-total';const value=document.createElement('strong');value.textContent=financeMoney(row.balance);
-          const label=document.createElement('span');label.textContent='Баланс';total.append(value,label);button.append(copy,total);
-          button.addEventListener('click',()=>{setFinanceTab('personal');renderFinancePersonalSelectedMonth(row.month);document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'})});
-          list.appendChild(button);
+      function financeEntriesFromState(month){
+        const row=financeExpenseRowForMonth(month),raw=row?.entries&&typeof row.entries==='object'?row.entries:{};
+        const result={};
+        for(const category of financeState.expenseCategories||[]){
+          const source=raw[category.id]&&typeof raw[category.id]==='object'?raw[category.id]:{};
+          result[category.id]={amount:Math.max(0,Number(source.amount)||0),limit:Math.max(0,Number(source.limit)||0),note:String(source.note||'')};
         }
+        return result;
+      }
+      function financeEntriesFromDom(){
+        const result={};
+        document.querySelectorAll('#financeExpenseCategoryList [data-finance-category-id]').forEach(card=>{
+          const id=String(card.dataset.financeCategoryId||'');if(!id)return;
+          result[id]={
+            amount:Math.max(0,Number(card.querySelector('[data-finance-expense-amount]')?.value||0)),
+            limit:Math.max(0,Number(card.querySelector('[data-finance-expense-limit]')?.value||0)),
+            note:String(card.querySelector('[data-finance-expense-note]')?.value||'').trim().slice(0,180),
+          };
+        });
+        return result;
+      }
+      function financeExpenseTotal(entries){
+        return Math.round(Object.values(entries||{}).reduce((sum,row)=>sum+Math.max(0,Number(row?.amount)||0),0)*100)/100;
+      }
+      function renderFinanceCategoryProgress(card){
+        if(!card)return;
+        const amount=Math.max(0,Number(card.querySelector('[data-finance-expense-amount]')?.value||0));
+        const limit=Math.max(0,Number(card.querySelector('[data-finance-expense-limit]')?.value||0));
+        const text=card.querySelector('[data-finance-expense-progress-text]'),bar=card.querySelector('[data-finance-expense-progress-bar]');
+        const exceeded=limit>0&&amount>limit;
+        card.classList.toggle('is-over-limit',exceeded);
+        if(text)text.textContent=limit>0?'Потрачено '+financeMoney(amount)+' из '+financeMoney(limit):'Потрачено '+financeMoney(amount)+' · лимит не задан';
+        if(bar){const pct=limit>0?Math.min(100,amount/limit*100):0;bar.style.width=pct+'%'}
+      }
+      function renderFinanceExpenseCategories(month){
+        const host=document.getElementById('financeExpenseCategoryList');if(!host)return;
+        const entries=financeEntriesFromState(month);
+        host.replaceChildren();
+        for(const category of financeState.expenseCategories||[]){
+          const entry=entries[category.id]||{amount:0,limit:0,note:''};
+          const card=document.createElement('article');card.className='finance-expense-category';card.dataset.financeCategoryId=String(category.id||'');
+          const head=document.createElement('div');head.className='finance-expense-category-head';
+          const icon=document.createElement('span');icon.className='finance-expense-category-icon';icon.textContent=String(category.icon||'💸');
+          const copy=document.createElement('div');copy.className='finance-expense-category-copy';
+          const name=document.createElement('strong');name.textContent=String(category.name||'Категория');
+          const progress=document.createElement('span');progress.dataset.financeExpenseProgressText='1';
+          copy.append(name,progress);head.append(icon,copy);
+          const fields=document.createElement('div');fields.className='finance-expense-category-fields';
+          const amountWrap=document.createElement('label');amountWrap.className='finance-category-field';
+          const amountLabel=document.createElement('span');amountLabel.textContent='Потрачено';
+          const amountBox=document.createElement('div');amountBox.className='finance-money-input finance-category-money';
+          const amountInput=document.createElement('input');amountInput.type='number';amountInput.min='0';amountInput.max='100000000';amountInput.step='1';amountInput.inputMode='decimal';amountInput.value=entry.amount?String(entry.amount):'';amountInput.placeholder='0';amountInput.dataset.financeExpenseAmount='1';
+          const amountCurrency=document.createElement('b');amountCurrency.textContent='₽';amountBox.append(amountInput,amountCurrency);amountWrap.append(amountLabel,amountBox);
+          const limitWrap=document.createElement('label');limitWrap.className='finance-category-field';
+          const limitLabel=document.createElement('span');limitLabel.textContent='Лимит в месяц';
+          const limitBox=document.createElement('div');limitBox.className='finance-money-input finance-category-money';
+          const limitInput=document.createElement('input');limitInput.type='number';limitInput.min='0';limitInput.max='100000000';limitInput.step='1';limitInput.inputMode='decimal';limitInput.value=entry.limit?String(entry.limit):'';limitInput.placeholder='0';limitInput.dataset.financeExpenseLimit='1';
+          const limitCurrency=document.createElement('b');limitCurrency.textContent='₽';limitBox.append(limitInput,limitCurrency);limitWrap.append(limitLabel,limitBox);
+          fields.append(amountWrap,limitWrap);
+          const noteWrap=document.createElement('label');noteWrap.className='finance-category-note';
+          const noteLabel=document.createElement('span');noteLabel.textContent='Заметка';
+          const noteInput=document.createElement('input');noteInput.className='finance-text-input';noteInput.maxLength=180;noteInput.placeholder='Например, продукты на неделю';noteInput.value=entry.note||'';noteInput.dataset.financeExpenseNote='1';
+          noteWrap.append(noteLabel,noteInput);
+          const track=document.createElement('div');track.className='finance-category-progress-track';
+          const bar=document.createElement('span');bar.dataset.financeExpenseProgressBar='1';track.append(bar);
+          card.append(head,fields,noteWrap,track);host.appendChild(card);renderFinanceCategoryProgress(card);
+        }
+      }
+      function renderFinanceProfileInputs(){
+        const profile=financeProfileState();
+        const reserve=document.getElementById('financeReserveInput'),title=document.getElementById('financeGoalTitleInput'),target=document.getElementById('financeGoalTargetInput'),current=document.getElementById('financeGoalCurrentInput');
+        if(reserve)reserve.value=profile.reserve?String(profile.reserve):'';
+        if(title)title.value=profile.goalTitle||'';
+        if(target)target.value=profile.goalTarget?String(profile.goalTarget):'';
+        if(current)current.value=profile.goalCurrent?String(profile.goalCurrent):'';
+      }
+      function renderFinancePersonalSummary(month,{useDom=false}={}){
+        const row=financePersonalRowForMonth(month),incomeInput=document.getElementById('financePersonalIncomeInput');
+        const income=Math.max(0,Number(incomeInput?.value||row?.income||0));
+        const entries=useDom?financeEntriesFromDom():financeEntriesFromState(month);
+        const expenses=financeExpenseTotal(entries),balance=Math.round((income-expenses)*100)/100;
+        const expenseHost=document.getElementById('financePersonalExpensesValue'),balanceHost=document.getElementById('financePersonalBalanceValue'),rateHost=document.getElementById('financeSavingsRate'),savedHost=document.getElementById('financeSavingsValue');
+        if(expenseHost)expenseHost.textContent=financeMoney(expenses);
+        if(balanceHost){balanceHost.textContent=financeMoney(balance);balanceHost.dataset.negative=balance<0?'1':'0'}
+        const rate=income>0?balance/income*100:0;
+        if(rateHost)rateHost.textContent=(rate<0?'−':'')+financePercent(rate);
+        if(savedHost)savedHost.textContent=financeMoney(balance);
+        const profile=financeProfileState(),cushion=document.getElementById('financeCushionValue'),cushionHint=document.getElementById('financeCushionHint');
+        if(cushion)cushion.textContent=profile.reserve>0&&expenses>0?new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(profile.reserve/expenses)+' мес.':'—';
+        if(cushionHint)cushionHint.textContent=profile.reserve>0?(expenses>0?'При текущих расходах':financeMoney(profile.reserve)+' в резерве'):'Добавь резерв';
+        const progress=document.getElementById('financeGoalProgress'),goalHint=document.getElementById('financeGoalHint');
+        if(profile.goalTarget>0){
+          const pct=Math.max(0,profile.goalCurrent/profile.goalTarget*100);
+          if(progress)progress.textContent=new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(pct)+'%';
+          if(goalHint)goalHint.textContent=(profile.goalTitle?profile.goalTitle+' · ':'')+financeMoney(profile.goalCurrent)+' из '+financeMoney(profile.goalTarget);
+        }else{
+          if(progress)progress.textContent='—';
+          if(goalHint)goalHint.textContent='Добавь цель';
+        }
+        const insightMonth=document.getElementById('financeAiInsightMonth');if(insightMonth)insightMonth.textContent=financeMonthTitle(month);
+        return {income,expenses,balance};
+      }
+      function renderFinancePersonalSelectedMonth(month,{preserveIncome=false,preserveCategories=false}={}){
+        const key=String(month||financeCurrentMonthKey()),row=financePersonalRowForMonth(key);
+        const input=document.getElementById('financePersonalMonthInput'),label=document.getElementById('financePersonalMonthLabel'),income=document.getElementById('financePersonalIncomeInput');
+        if(input&&input.value!==key)input.value=key;
+        if(label)label.textContent=financeMonthTitle(key);
+        if(!preserveIncome&&income)income.value=row?String(row.income||0):'';
+        if(!preserveCategories)renderFinanceExpenseCategories(key);
+        renderFinancePersonalSummary(key,{useDom:preserveCategories});
+        if(!preserveIncome&&!preserveCategories)loadFinanceInsight(key).catch(()=>{});
+      }
+      async function saveFinanceIncomeAuto(){
+        const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),income=Number(document.getElementById('financePersonalIncomeInput')?.value||0);
+        financeSetAutosaveStatus('financePersonalStatus','Сохраняю…');
+        try{
+          const data=await financeRequest('save-income',{month,income});
+          financeAbsorbState(data);financeSetAutosaveStatus('financePersonalStatus','Сохранено');financeScheduleInsight(month);
+          setTimeout(()=>financeSetAutosaveStatus('financePersonalStatus','Сохраняется автоматически'),1000);
+        }catch(_){financeSetAutosaveStatus('financePersonalStatus','Не удалось сохранить',false)}
+      }
+      function scheduleFinanceIncomeSave(){
+        clearTimeout(financeIncomeSaveTimer);financeSetAutosaveStatus('financePersonalStatus','Сохраняю…');
+        financeIncomeSaveTimer=setTimeout(saveFinanceIncomeAuto,650);
+      }
+      async function saveFinanceExpensesAuto(){
+        const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),entries=financeEntriesFromDom();
+        financeSetAutosaveStatus('financeExpenseCategoryStatus','Сохраняю…');
+        try{
+          const data=await financeRequest('save-expense-category-month',{month,entries});
+          financeAbsorbState(data);financeSetAutosaveStatus('financeExpenseCategoryStatus','Сохранено');financeScheduleInsight(month);
+          setTimeout(()=>financeSetAutosaveStatus('financeExpenseCategoryStatus',''),1000);
+        }catch(_){financeSetAutosaveStatus('financeExpenseCategoryStatus','Не удалось сохранить',false)}
+      }
+      function scheduleFinanceExpenseSave(){
+        clearTimeout(financeExpenseSaveTimer);
+        financeSetAutosaveStatus('financeExpenseCategoryStatus','Сохраняю…');
+        financeExpenseSaveTimer=setTimeout(saveFinanceExpensesAuto,700);
+      }
+      async function saveFinanceProfileAuto(){
+        const payload={
+          reserve:Number(document.getElementById('financeReserveInput')?.value||0),
+          goalTitle:String(document.getElementById('financeGoalTitleInput')?.value||'').trim(),
+          goalTarget:Number(document.getElementById('financeGoalTargetInput')?.value||0),
+          goalCurrent:Number(document.getElementById('financeGoalCurrentInput')?.value||0),
+        };
+        financeSetAutosaveStatus('financeProfileStatus','Сохраняю…');
+        try{
+          const data=await financeRequest('save-profile',payload);
+          financeAbsorbState(data);financeSetAutosaveStatus('financeProfileStatus','Сохранено');
+          renderFinancePersonalSummary(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),{useDom:true});
+          financeScheduleInsight(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
+          setTimeout(()=>financeSetAutosaveStatus('financeProfileStatus','Сохраняется автоматически'),1000);
+        }catch(_){financeSetAutosaveStatus('financeProfileStatus','Не удалось сохранить',false)}
+      }
+      function scheduleFinanceProfileSave(){
+        clearTimeout(financeProfileSaveTimer);financeSetAutosaveStatus('financeProfileStatus','Сохраняю…');
+        financeProfileSaveTimer=setTimeout(saveFinanceProfileAuto,700);
+      }
+      async function createFinanceExpenseCategory(){
+        const nameInput=document.getElementById('financeCategoryNameInput'),iconInput=document.getElementById('financeCategoryIconInput'),button=document.getElementById('financeCategoryCreateButton'),status=document.getElementById('financeExpenseCategoryStatus');
+        const name=String(nameInput?.value||'').trim();if(!name){if(status)status.textContent='Укажи название категории';return}
+        if(button)button.disabled=true;
+        try{
+          const data=await financeRequest('save-expense-category',{name,icon:String(iconInput?.value||'💸')});
+          financeAbsorbState(data);if(nameInput)nameInput.value='';
+          document.getElementById('financeCategoryCreator').hidden=true;
+          renderFinanceExpenseCategories(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
+          if(status)status.textContent='Категория добавлена';setTimeout(()=>{if(status?.textContent==='Категория добавлена')status.textContent=''},1200);
+        }catch(error){if(status)status.textContent=String(error?.message||'').includes('duplicate')?'Такая категория уже есть':'Не удалось добавить категорию'}
+        finally{if(button)button.disabled=false}
+      }
+
+      async function loadFinanceInsight(month,{force=false}={}){
+        const key=String(month||financeCurrentMonthKey()),row=financePersonalRowForMonth(key),host=document.getElementById('financeAiInsight');
+        if(!host)return null;
+        const entries=financeEntriesFromState(key),expenses=financeExpenseTotal(entries);
+        if(!row&&!expenses){host.textContent='Укажи доход и расходы по категориям, чтобы получить короткий разбор.';return null}
+        const signature=key+'|'+String(row?.updatedAt||'')+'|'+JSON.stringify(financeProfileState())+'|'+String(expenses);
+        if(!force&&financeInsightRequestKey===signature)return null;
+        financeInsightRequestKey=signature;host.textContent='Анализирую месяц…';
+        try{
+          const data=await financeRequest('insight',{month:key});
+          if(financeInsightRequestKey!==signature)return null;
+          host.textContent=String(data?.insight?.text||'').trim()||'Данные сохранены. Продолжай следить за расходами и нормой сбережений.';
+          return data;
+        }catch(_){
+          if(financeInsightRequestKey===signature)host.textContent='Не удалось обновить разбор. Основные показатели рассчитаны выше.';
+          return null;
+        }
+      }
+      function renderFinanceLiteracy(article){
+        const title=document.getElementById('financeLiteracyTitle'),body=document.getElementById('financeLiteracyBody'),books=document.getElementById('financeLiteracyBooks'),date=document.getElementById('financeLiteracyDate');
+        if(!title||!body)return;
+        const item=article&&typeof article==='object'?article:{};
+        title.textContent=String(item.title||'Новая статья появится здесь');
+        body.textContent=String(item.article||'Открой раздел позже, чтобы получить статью дня.');
+        const sources=Array.isArray(item.books)?item.books.filter(Boolean):[];
+        if(books){books.replaceChildren();books.hidden=!sources.length;for(const source of sources){const chip=document.createElement('span');chip.textContent=String(source);books.appendChild(chip)}}
+        if(date){const raw=String(item.date||'');date.textContent=/^\d{4}-\d{2}-\d{2}$/.test(raw)?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(raw+'T12:00:00Z')):raw}
+      }
+      async function loadFinanceLiteracy({silent=false}={}){
+        if(financeLiteracyPromise)return financeLiteracyPromise;
+        financeLiteracyPromise=(async()=>{
+          const status=document.getElementById('financeLiteracyStatus');
+          try{
+            if(status&&!silent)status.textContent='Генерирую статью дня…';
+            const data=await financeRequest('literacy');financeState.literacy=data?.article||financeState.literacy||null;renderFinanceLiteracy(financeState.literacy);
+            if(status)status.textContent='';return data;
+          }catch(error){if(status)status.textContent='Не удалось загрузить статью';if(!silent)console.warn('RUDI_FINANCE_LITERACY_WARN',String(error?.message||error));return null}
+          finally{financeLiteracyPromise=null}
+        })();
+        return financeLiteracyPromise;
+      }
+
+      function renderFinanceAnalyst(result){
+        const host=document.getElementById('financeAnalystResult');if(!host)return;
+        const data=result&&typeof result==='object'?result:{};
+        host.replaceChildren();
+        const title=document.createElement('h3');title.textContent=String(data.title||'Финансовый разбор');
+        const overview=document.createElement('p');overview.textContent=String(data.overview||'Данных пока недостаточно для содержательного анализа.');
+        host.append(title,overview);
+        const groups=[
+          ['Главное сейчас',Array.isArray(data.priorities)?data.priorities:[]],
+          ['Что сделать',Array.isArray(data.actions)?data.actions:[]],
+          ['На что обратить внимание',Array.isArray(data.watch)?data.watch:[]],
+        ];
+        for(const [label,items] of groups){
+          if(!items.length)continue;
+          const section=document.createElement('section');section.className='finance-analyst-section';
+          const heading=document.createElement('strong');heading.textContent=label;
+          const list=document.createElement('ul');
+          for(const item of items.slice(0,5)){const li=document.createElement('li');li.textContent=String(item||'');if(li.textContent)list.appendChild(li)}
+          section.append(heading,list);host.appendChild(section);
+        }
+        if(data.articleConnection){
+          const link=document.createElement('div');link.className='finance-analyst-article-link';
+          const strong=document.createElement('strong');strong.textContent='Связь со статьёй дня';
+          const p=document.createElement('p');p.textContent=String(data.articleConnection);
+          link.append(strong,p);host.appendChild(link);
+        }
+        host.hidden=false;
+      }
+      async function loadFinanceAnalyst(){
+        const button=document.getElementById('financeAnalystButton'),status=document.getElementById('financeAnalystStatus'),host=document.getElementById('financeAnalystResult');
+        if(button)button.disabled=true;if(status)status.textContent='Анализирую финансы…';if(host)host.hidden=true;
+        try{
+          const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+          const data=await financeRequest('analyst',{month});
+          renderFinanceAnalyst(data?.analysis);
+          if(status)status.textContent='Анализ обновлён';
+          setTimeout(()=>{if(status?.textContent==='Анализ обновлён')status.textContent=''},1400);
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          return data;
+        }catch(error){
+          if(status)status.textContent='Не удалось получить анализ';
+          console.warn('RUDI_FINANCE_ANALYST_WARN',String(error?.message||error));
+          return null;
+        }finally{if(button)button.disabled=false}
       }
 
       function renderFinanceDebts(){
         const list=document.getElementById('financeDebtList'),empty=document.getElementById('financeDebtEmpty'),count=document.getElementById('financeDebtCount');
         const oweTotal=document.getElementById('financeDebtOweTotal'),owedTotal=document.getElementById('financeDebtOwedTotal');
-        if(!list)return;const rows=Array.isArray(financeState.debts)?financeState.debts:[];
+        if(!list)return;
+        const rows=Array.isArray(financeState.debts)?financeState.debts:[];
         const active=rows.filter(row=>!row.paid),owe=active.filter(row=>row.direction==='owe').reduce((sum,row)=>sum+Number(row.amount||0),0),owed=active.filter(row=>row.direction==='owed').reduce((sum,row)=>sum+Number(row.amount||0),0);
         if(oweTotal)oweTotal.textContent=financeMoney(owe);if(owedTotal)owedTotal.textContent=financeMoney(owed);if(count)count.textContent=String(active.length);
         list.replaceChildren();if(empty)empty.hidden=rows.length>0;
@@ -2321,52 +2582,78 @@
           const card=document.createElement('article');card.className='finance-debt-row'+(row.paid?' is-paid':'');
           const main=document.createElement('div');main.className='finance-debt-row-main';
           const title=document.createElement('strong');title.textContent=(row.direction==='owe'?'Должен: ':'Мне должен: ')+String(row.counterparty||'');
-          const note=document.createElement('span');note.textContent=row.note|| (row.paid?'Погашено':'Активный долг');main.append(title,note);
+          const note=document.createElement('span');note.textContent=row.note||(row.paid?'Погашено':'Активный долг');main.append(title,note);
           const side=document.createElement('div');side.className='finance-debt-row-side';const amount=document.createElement('strong');amount.textContent=financeMoney(row.amount);
           const toggle=document.createElement('button');toggle.type='button';toggle.className='finance-debt-toggle';toggle.textContent=row.paid?'Вернуть':'Погашен';
-          toggle.addEventListener('click',async()=>{toggle.disabled=true;try{const data=await financeRequest('toggle-debt',{id:row.id,paid:!row.paid});renderFinanceState(data)}catch(_){document.getElementById('financeDebtStatus').textContent='Не удалось обновить долг'}finally{toggle.disabled=false}});
+          toggle.addEventListener('click',async()=>{toggle.disabled=true;try{const data=await financeRequest('toggle-debt',{id:row.id,paid:!row.paid});financeAbsorbState(data);renderFinanceDebts()}catch(_){const status=document.getElementById('financeDebtStatus');if(status)status.textContent='Не удалось обновить долг'}finally{toggle.disabled=false}});
           side.append(amount,toggle);card.append(main,side);list.appendChild(card);
         }
       }
-
       function setFinanceTab(tab){
-        const allowed=['shared','personal','debts'];activeFinanceTab=allowed.includes(tab)?tab:'shared';
+        const allowed=['shared','personal','debts','literacy'];activeFinanceTab=allowed.includes(tab)?tab:'shared';
         document.querySelectorAll('[data-finance-tab]').forEach(button=>{const active=button.dataset.financeTab===activeFinanceTab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',active?'true':'false')});
         document.querySelectorAll('[data-finance-panel]').forEach(panel=>panel.hidden=panel.dataset.financePanel!==activeFinanceTab);
-        const subtitle=document.getElementById('financePageSubtitle');if(subtitle)subtitle.textContent=activeFinanceTab==='shared'?'Общие расходы и доли 40/60':activeFinanceTab==='personal'?'Личные доходы и расходы':'Кому должны и кто должен вам';
+        const page=document.getElementById('financePage');if(page)page.dataset.financeTheme=activeFinanceTab;
+        document.body.dataset.financeTheme=activeFinanceTab;
+        if(activeFinanceTab==='literacy')loadFinanceLiteracy({silent:false}).catch(()=>{});
       }
       function applyFinancePermissions(){
         const canEdit=currentActor==='Рустам',rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton'),note=document.getElementById('financeReadOnlyNote');
         if(rent)rent.disabled=!canEdit;if(utilities)utilities.disabled=!canEdit;if(save)save.hidden=!canEdit;if(note)note.hidden=canEdit;
       }
       function renderFinanceState(data,{month=''}={}){
-        financeState={version:Math.max(0,Number(data?.version||0)),months:Array.isArray(data?.months)?data.months:[],personalMonths:Array.isArray(data?.personalMonths)?data.personalMonths:[],debts:Array.isArray(data?.debts)?data.debts:[]};
-        applyFinancePermissions();renderFinanceHistory();renderFinancePersonalHistory();renderFinanceDebts();
+        financeAbsorbState(data);applyFinancePermissions();renderFinanceHistory();renderFinanceDebts();renderFinanceProfileInputs();
         const selected=String(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey());
-        renderFinanceSelectedMonth(selected);renderFinancePersonalSelectedMonth(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
+        renderFinanceSelectedMonth(selected);
+        renderFinancePersonalSelectedMonth(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
+        if(financeState.literacy)renderFinanceLiteracy(financeState.literacy);
       }
       async function loadFinances({silent=false,month=''}={}){
         if(!currentActor)return null;if(financeLoadPromise)return financeLoadPromise;
-        financeLoadPromise=(async()=>{const status=document.getElementById('financeStatus');try{if(status&&!silent)status.textContent='Загружаю…';const data=await financeRequest('list');renderFinanceState(data,{month});if(status)status.textContent='';return data}catch(error){if(status&&!silent)status.textContent='Не удалось загрузить данные';if(!silent)console.warn('RUDI_FINANCE_UI_WARN',String(error?.message||error));return null}finally{financeLoadPromise=null}})();
+        financeLoadPromise=(async()=>{
+          const status=document.getElementById('financeStatus');
+          try{if(status&&!silent)status.textContent='Загружаю…';const data=await financeRequest('list');renderFinanceState(data,{month});if(status)status.textContent='';return data}
+          catch(error){if(status&&!silent)status.textContent='Не удалось загрузить данные';if(!silent)console.warn('RUDI_FINANCE_UI_WARN',String(error?.message||error));return null}
+          finally{financeLoadPromise=null}
+        })();
         return financeLoadPromise;
       }
       function setupFinancePage(){
         const month=document.getElementById('financeMonthInput'),rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton');
         if(!month||month.dataset.bound==='1')return;month.dataset.bound='1';month.value=financeCurrentMonthKey();
-        const personalMonth=document.getElementById('financePersonalMonthInput'),income=document.getElementById('financePersonalIncomeInput'),expenses=document.getElementById('financePersonalExpensesInput'),personalSave=document.getElementById('financePersonalSaveButton');
+        const personalMonth=document.getElementById('financePersonalMonthInput'),income=document.getElementById('financePersonalIncomeInput'),expenseList=document.getElementById('financeExpenseCategoryList');
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();applyFinancePermissions();setFinanceTab('shared');
 
         document.getElementById('financeTabs')?.addEventListener('click',event=>{const button=event.target.closest('[data-finance-tab]');if(!button)return;setFinanceTab(button.dataset.financeTab);try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
         month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
         const recalc=()=>renderFinanceSummary(rent?.value||0,utilities?.value||0,month.value||financeCurrentMonthKey());rent?.addEventListener('input',recalc);utilities?.addEventListener('input',recalc);
-        save?.addEventListener('click',async()=>{if(currentActor!=='Рустам')return;const status=document.getElementById('financeStatus');save.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save',{month:month.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0)});renderFinanceState(data,{month:month.value});if(status)status.textContent='Сохранено';setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800);try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(error){if(status)status.textContent=error.status===403?'Редактировать может только Рустам':'Не удалось сохранить'}finally{save.disabled=false}});
+        save?.addEventListener('click',async()=>{if(currentActor!=='Рустам')return;const status=document.getElementById('financeStatus');save.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save',{month:month.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0)});financeAbsorbState(data);renderFinanceHistory();renderFinanceSelectedMonth(month.value);if(status)status.textContent='Сохранено';setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800);try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(error){if(status)status.textContent=error.status===403?'Редактировать может только Рустам':'Не удалось сохранить'}finally{save.disabled=false}});
 
         personalMonth?.addEventListener('change',()=>renderFinancePersonalSelectedMonth(personalMonth.value||financeCurrentMonthKey()));
-        const recalcPersonal=()=>renderFinancePersonalSelectedMonth(personalMonth?.value||financeCurrentMonthKey(),{preserveInputs:true});income?.addEventListener('input',recalcPersonal);expenses?.addEventListener('input',recalcPersonal);
-        personalSave?.addEventListener('click',async()=>{const status=document.getElementById('financePersonalStatus');personalSave.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save-personal',{month:personalMonth?.value||financeCurrentMonthKey(),income:Number(income?.value||0),expenses:Number(expenses?.value||0)});renderFinanceState(data);if(status)status.textContent='Сохранено';setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800)}catch(_){if(status)status.textContent='Не удалось сохранить'}finally{personalSave.disabled=false}});
+        income?.addEventListener('input',()=>{renderFinancePersonalSummary(personalMonth?.value||financeCurrentMonthKey(),{useDom:true});scheduleFinanceIncomeSave()});
+        expenseList?.addEventListener('input',event=>{
+          const card=event.target.closest('[data-finance-category-id]');if(!card)return;
+          renderFinanceCategoryProgress(card);renderFinancePersonalSummary(personalMonth?.value||financeCurrentMonthKey(),{useDom:true});scheduleFinanceExpenseSave();
+        });
+
+        const addCategory=document.getElementById('financeAddCategoryButton'),creator=document.getElementById('financeCategoryCreator'),categoryName=document.getElementById('financeCategoryNameInput');
+        addCategory?.addEventListener('click',()=>{if(!creator)return;creator.hidden=!creator.hidden;if(!creator.hidden)setTimeout(()=>categoryName?.focus?.(),0)});
+        document.getElementById('financeCategoryCreateButton')?.addEventListener('click',()=>createFinanceExpenseCategory());
+        categoryName?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();createFinanceExpenseCategory()}});
+        document.getElementById('financeAnalystButton')?.addEventListener('click',()=>loadFinanceAnalyst());
+
+        ['financeReserveInput','financeGoalTitleInput','financeGoalTargetInput','financeGoalCurrentInput'].forEach(id=>{
+          document.getElementById(id)?.addEventListener('input',()=>{renderFinancePersonalSummary(personalMonth?.value||financeCurrentMonthKey(),{useDom:true});scheduleFinanceProfileSave()});
+        });
 
         const debtSave=document.getElementById('financeDebtSaveButton');
-        debtSave?.addEventListener('click',async()=>{const status=document.getElementById('financeDebtStatus'),direction=document.getElementById('financeDebtDirection'),counterparty=document.getElementById('financeDebtCounterparty'),amount=document.getElementById('financeDebtAmount'),note=document.getElementById('financeDebtNote');if(!String(counterparty?.value||'').trim()||Number(amount?.value||0)<=0){if(status)status.textContent='Заполни имя и сумму';return}debtSave.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save-debt',{direction:direction?.value||'owe',counterparty:counterparty?.value||'',amount:Number(amount?.value||0),note:note?.value||''});renderFinanceState(data);if(counterparty)counterparty.value='';if(amount)amount.value='';if(note)note.value='';if(status)status.textContent='Долг добавлен';setTimeout(()=>{if(status?.textContent==='Долг добавлен')status.textContent=''},1800)}catch(_){if(status)status.textContent='Не удалось добавить долг'}finally{debtSave.disabled=false}});
+        debtSave?.addEventListener('click',async()=>{
+          const status=document.getElementById('financeDebtStatus'),direction=document.getElementById('financeDebtDirection'),counterparty=document.getElementById('financeDebtCounterparty'),amount=document.getElementById('financeDebtAmount'),note=document.getElementById('financeDebtNote');
+          if(!String(counterparty?.value||'').trim()||Number(amount?.value||0)<=0){if(status)status.textContent='Заполни имя и сумму';return}
+          debtSave.disabled=true;if(status)status.textContent='Сохраняю…';
+          try{const data=await financeRequest('save-debt',{direction:direction?.value||'owe',counterparty:counterparty?.value||'',amount:Number(amount?.value||0),note:note?.value||''});financeAbsorbState(data);renderFinanceDebts();if(counterparty)counterparty.value='';if(amount)amount.value='';if(note)note.value='';if(status)status.textContent='Долг добавлен';setTimeout(()=>{if(status?.textContent==='Долг добавлен')status.textContent=''},1800)}
+          catch(_){if(status)status.textContent='Не удалось добавить долг'}finally{debtSave.disabled=false}
+        });
       }
 
       function runTabSideEffects(tab,{item=''}={}){

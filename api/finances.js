@@ -1,5 +1,9 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
-const { readFinanceState, saveFinanceMonth, savePersonalMonth, saveDebt, toggleDebt, viewState } = require('./finance-store.cjs');
+const {
+  readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinanceProfile,
+  saveExpenseCategory, saveExpenseCategoryMonth, saveDebt, toggleDebt, viewState,
+} = require('./finance-store.cjs');
+const { getFinanceLiteracyArticle, getFinanceMonthlyInsight, getFinanceAnalyst } = require('./finance-ai.cjs');
 
 function statusFor(code, error) {
   const auth = statusForError(error);
@@ -8,7 +12,8 @@ function statusFor(code, error) {
   if (['finance-debt-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
-    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid'
+    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid',
+    'finance-category-limit','finance-category-duplicate'
   ].includes(code)) return 400;
   return 500;
 }
@@ -31,6 +36,54 @@ async function handler(req, res) {
     if (operation === 'save-personal') {
       const state = await savePersonalMonth(actor, body.month, body.income, body.expenses);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-income') {
+      const state = await savePersonalIncome(actor, body.month, body.income);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-profile') {
+      const state = await saveFinanceProfile(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-expense-category') {
+      const state = await saveExpenseCategory(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-expense-category-month') {
+      const state = await saveExpenseCategoryMonth(actor, body.month, body.entries);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'literacy') {
+      const article = await getFinanceLiteracyArticle();
+      return res.status(200).json({ ok: true, actor, article });
+    }
+    if (operation === 'insight') {
+      const state = await readFinanceState();
+      const view = viewState(state, actor);
+      const month = String(body.month || '').trim();
+      const row = view.personalMonths.find((item) => String(item.month || '') === month);
+      if (!row) return res.status(200).json({ ok: true, actor, insight: { text: 'Укажи доход и расходы по категориям, чтобы получить разбор.' } });
+      const insight = await getFinanceMonthlyInsight({ actor, month, row, profile: view.profile });
+      return res.status(200).json({ ok: true, actor, insight });
+    }
+    if (operation === 'analyst') {
+      const state = await readFinanceState();
+      const view = viewState(state, actor);
+      const month = String(body.month || '').trim();
+      const row = view.personalMonths.find((item) => String(item.month || '') === month) || { month, income: 0, expenses: 0, balance: 0 };
+      const categoryMonth = view.expenseCategoryMonths.find((item) => String(item.month || '') === month) || { month, entries: {} };
+      const article = await getFinanceLiteracyArticle();
+      const analysis = await getFinanceAnalyst({
+        actor,
+        month,
+        row,
+        profile: view.profile,
+        categories: view.expenseCategories,
+        categoryMonth,
+        debts: view.debts,
+        article,
+      });
+      return res.status(200).json({ ok: true, actor, analysis });
     }
     if (operation === 'save-debt') {
       const state = await saveDebt(actor, body);

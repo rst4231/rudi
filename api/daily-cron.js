@@ -2,6 +2,7 @@ const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { runDailyOrchestrator } = require('./daily-orchestrator.cjs');
 const { recordDailyCronState } = require('./daily-cron-state.cjs');
 const { finalizeOutstandingForAll } = require('./habit-rules.cjs');
+const { getFinanceLiteracyArticle } = require('./finance-ai.cjs');
 
 const DAILY_CRON_TIMEOUT_MS = 270000;
 function withTimeout(promise, timeoutMs = DAILY_CRON_TIMEOUT_MS) {
@@ -41,6 +42,12 @@ async function handler(req, res) {
         console.log('RUDI_HABIT_DAILY_FINALIZATION', JSON.stringify(habitFinalization));
       } catch (error) {
         console.error('RUDI_HABIT_DAILY_FINALIZATION_ERROR', String(error?.message || error));
+      }
+      try {
+        const financeArticle = await getFinanceLiteracyArticle({ now: startedAt });
+        console.log('RUDI_FINANCE_LITERACY_DAILY', JSON.stringify({ date: financeArticle?.date || '', title: financeArticle?.title || '', provider: financeArticle?.provider || '' }));
+      } catch (error) {
+        console.error('RUDI_FINANCE_LITERACY_DAILY_ERROR', String(error?.message || error));
       }
       return runDailyOrchestrator(req, res);
     })();
