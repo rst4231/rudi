@@ -869,7 +869,8 @@ async function enrichMoodHistoryContext(actor,history,date,windowDays,options={}
   const now=Number(options.now||Date.now());
   return rows.map(row=>{
     const key=String(row?.date||''),eligible=habits?.habits?.filter(h=>habitCreatedByDate(h,key))||[],doneIds=new Set(habits?.completions?.[key]||[]),notDoneIds=new Set(habits?.failures?.[key]||[]);
-    const habitContext={total:eligible.length,done:eligible.filter(h=>doneIds.has(h.id)).length,notDone:eligible.filter(h=>notDoneIds.has(h.id)).length};
+    const doneHabits=eligible.filter(h=>doneIds.has(h.id)),notDoneHabits=eligible.filter(h=>notDoneIds.has(h.id));
+    const habitContext={total:eligible.length,done:doneHabits.length,notDone:notDoneHabits.length,doneNames:doneHabits.map(h=>String(h.name||'').trim()).filter(Boolean),notDoneNames:notDoneHabits.map(h=>String(h.name||'').trim()).filter(Boolean)};
     const sessions=(fasting?.history||[]).filter(item=>{const start=moscowDateKey(Date.parse(item.startedAt)),end=moscowDateKey(Date.parse(item.endedAt));return start&&end&&key>=start&&key<=end});
     let fastingContext={active:false,hours:0,goalReached:null};
     if(sessions.length){
@@ -3225,9 +3226,11 @@ async function handleRudiAction(req, res, action, options = {}) {
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor),selected=moodHistoryForWindow(history,date,windowDays),minAnalysisDays=moodAnalysisMinimumDays(windowDays);
         if(selected.length<minAnalysisDays) throw new Error('mood-analysis-insufficient-data');
         const level=moodAnalysisLevel(selected.length);
-        let analysis=null,cycle=null,reused=false;
-        if(actor==='Диана'){const cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
-        const enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options),contextSummary=moodContextSummary(enriched);
+        let analysis=null,cycle=null,cycleState=null,reused=false;
+        if(actor==='Диана'){cycleState=await readCycleState(options).catch(()=>null);cycle=cycleViewForDate(cycleState,date)}
+        let enriched=await enrichMoodHistoryContext(actor,history,date,windowDays,options);
+        if(actor==='Диана'&&cycleState)enriched=enriched.map(row=>({...row,context:{...(row.context||{}),cycle:cycleViewForDate(cycleState,String(row.date||''))}}));
+        const contextSummary=moodContextSummary(enriched);
         const generated=await generateMoodAnalysis({actor,history:enriched,cycle,windowDays,level,contextSummary},{...options,env:options.env||process.env,fetch:options.fetch||global.fetch});
         analysis=await writeMoodAnalysisCache(actor,date,windowDays,{...generated,windowDays,level,historyCount:selected.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
         const analysisVisuals=moodAnalysisVisuals(enriched);
