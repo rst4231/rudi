@@ -379,8 +379,16 @@ async function resolveCloudKitAlbum(token,options={}) {
 }
 
 function parseCloudKitPhotos(records) {
-  const masters=new Map(),assets=[];
+  const latestRecords=new Map();
   for(const record of Array.isArray(records)?records:[]){
+    const name=String(record?.recordName||'').trim();
+    if(!name) continue;
+    const deleted=record?.deleted===true||record?.isDeleted===true||record?.recordType==='CPLDeletedRecord';
+    if(deleted){latestRecords.delete(name);continue}
+    latestRecords.set(name,record);
+  }
+  const masters=new Map(),assets=[];
+  for(const record of latestRecords.values()){
     if(record?.recordType==='CPLMaster') masters.set(String(record.recordName||''),record.fields||{});
     else if(record?.recordType==='CPLAsset') assets.push(record);
   }
