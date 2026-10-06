@@ -1127,7 +1127,8 @@
     top.className='saved-item-head';
     const title=document.createElement('strong');
     title.textContent=String(item.payload?.title||'Свидание');
-    top.append(title,savedDeleteButton(item.id));
+    top.appendChild(title);
+    if(String(item.savedBy||'')===String(savesActor||'')) top.appendChild(savedDeleteButton(item.id));
 
     const meta=document.createElement('div');
     meta.className='saved-item-meta';

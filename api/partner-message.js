@@ -433,6 +433,8 @@ function luluWalkNotificationText(actor) {
 async function sendLuluWalkNotificationToPartner(actor, walkedAt, options = {}) {
   const recipient = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
   if (!recipient) return { sent:false, reason:'actor-invalid' };
+  const recipientPrefs=await readUiPreferences(recipient,options).catch(()=>null);
+  if(recipientPrefs?.luluWalkNotificationsEnabled===false) return {sent:false,recipient,reason:'disabled'};
   try {
     const action = actor === 'Диана' ? 'погуляла' : 'погулял';
     const sendPush=options.sendPushNotificationImpl||sendPushNotification;
@@ -942,6 +944,8 @@ function taskCompletedNotificationText(actor, title) {
 async function sendTaskCompletedNotificationToPartner(actor,title,options={}) {
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
+  const recipientPrefs=await readUiPreferences(recipient,options).catch(()=>null);
+  if(recipientPrefs?.sharedTaskNotificationsEnabled===false) return {sent:false,recipient,reason:'disabled'};
   try{
     const taskTitle=String(title||'Совместное дело').trim();
     const text=completedTaskPushText(actor,taskTitle);
@@ -968,6 +972,8 @@ function checklistCompletedNotificationText(actor, itemTitle, taskTitle) {
 async function sendChecklistCompletedNotificationToPartner(actor,itemTitle,taskTitle,options={}) {
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
+  const recipientPrefs=await readUiPreferences(recipient,options).catch(()=>null);
+  if(recipientPrefs?.sharedTaskNotificationsEnabled===false) return {sent:false,recipient,reason:'disabled'};
   try{
     const item=String(itemTitle||'Пункт задачи').trim();
     const task=String(taskTitle||'').trim();
@@ -2638,6 +2644,25 @@ async function handleRudiAction(req, res, action, options = {}) {
       const session = authorizeRequest(req, body.initData, options);
       await hydrateActorAuth(session.actor, body.backupToken, options);
 
+      if (operation === 'change-pin') {
+        const session = authorizeRequest(req, body.initData, options);
+        const hydrated = await hydrateActorAuth(session.actor, body.backupToken, options);
+        if (!hydrated.durable?.pinRecord) throw new Error('rudi-pin-not-configured');
+        await verifyPin(req, session.actor, body.currentPin, {
+          ...browserAuthStoreOptions(options),
+          pinRecord: hydrated.durable.pinRecord,
+        });
+        const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
+        const result = await savePin(session.actor, body.newPin, browserAuthStoreOptions(options));
+        await saveDurablePinRecord(session.actor, result.record, durableAuthOptions(options));
+        setSessionCookie(res, session.actor, botToken, { now: options.now || Date.now() });
+        const backupToken = await createStateBackup({
+          ...options,
+          previousSnapshot: backupSnapshotWithPin(previousSnapshot, session.actor, result.record),
+        });
+        return res.status(200).json({ ok: true, actor: session.actor, configured: true, updatedAt: result.updatedAt, backupToken });
+      }
+
       if (operation === 'status') {
         const status = await passkeyStatus(req, session.actor, storeOptions);
         return res.status(200).json({ ok: true, actor: session.actor, ...status });
@@ -3638,8 +3663,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'remove') {
         const before=await readSavedItems(options);
         const target=before.items.find((row)=>row.id===String(body.id||'').trim())||null;
-        if(target?.type==='recipe'&&target.savedBy&&target.savedBy!==actor){
-          return res.status(403).json({ok:false,error:'saved-recipe-owner-required'});
+        if(target?.savedBy&&target.savedBy!==actor){
+          return res.status(403).json({ok:false,error:'saved-item-owner-required'});
         }
         const result = await removeSavedItem(body.id, options);
         const backupToken = await refreshBackupToken(previousSnapshot, options);

@@ -140,6 +140,8 @@ function normalizeUiPreferenceEntry(value) {
     morningSummaryEnabled:Object.prototype.hasOwnProperty.call(source,'morningSummaryEnabled')?Boolean(source.morningSummaryEnabled):true,
     rewardNotificationsEnabled:Object.prototype.hasOwnProperty.call(source,'rewardNotificationsEnabled')?Boolean(source.rewardNotificationsEnabled):true,
     dailyQuestionNotificationEnabled:Object.prototype.hasOwnProperty.call(source,'dailyQuestionNotificationEnabled')?Boolean(source.dailyQuestionNotificationEnabled):true,
+    sharedTaskNotificationsEnabled:Object.prototype.hasOwnProperty.call(source,'sharedTaskNotificationsEnabled')?Boolean(source.sharedTaskNotificationsEnabled):true,
+    luluWalkNotificationsEnabled:Object.prototype.hasOwnProperty.call(source,'luluWalkNotificationsEnabled')?Boolean(source.luluWalkNotificationsEnabled):true,
     syncSchemaVersion:Math.max(1,Number(source.syncSchemaVersion||1)),
     updatedAt:String(source.updatedAt||''),
   };

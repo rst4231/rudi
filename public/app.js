@@ -772,6 +772,16 @@
         return 'rudi:daily-question-notification-enabled:v1:'+actor;
       }
 
+      function sharedTaskNotificationsStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:shared-task-notifications-enabled:v1:'+actor;
+      }
+
+      function luluWalkNotificationsStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:lulu-walk-notifications-enabled:v1:'+actor;
+      }
+
       function interfaceTextSizeStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:interface-text-size:v1:'+actor;
@@ -965,6 +975,22 @@
         }catch(_){return true}
       }
 
+      function sharedTaskNotificationsEnabled(){
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(sharedTaskNotificationsStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
+      }
+
+      function luluWalkNotificationsEnabled(){
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(luluWalkNotificationsStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
+      }
+
       function lastDataSyncAt(){
         try{return String(localStorage.getItem(dataLastSyncStorageKey())||'')}catch(_){return ''}
       }
@@ -1125,6 +1151,8 @@
         let morningSummaryEnabledValue=true;
         let rewardNotificationsEnabledValue=true;
         let dailyQuestionNotificationEnabledValue=true;
+        let sharedTaskNotificationsEnabledValue=true;
+        let luluWalkNotificationsEnabledValue=true;
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
         try{blockStates=JSON.parse(localStorage.getItem(blockStateStorageKey())||'{}')}catch(_){}
@@ -1145,9 +1173,11 @@
         try{morningSummaryEnabledValue=morningSummaryEnabled()}catch(_){}
         try{rewardNotificationsEnabledValue=rewardNotificationsEnabled()}catch(_){}
         try{dailyQuestionNotificationEnabledValue=dailyQuestionNotificationEnabled()}catch(_){}
+        try{sharedTaskNotificationsEnabledValue=sharedTaskNotificationsEnabled()}catch(_){}
+        try{luluWalkNotificationsEnabledValue=luluWalkNotificationsEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:8,
+          syncSchemaVersion:9,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
@@ -1165,6 +1195,8 @@
           morningSummaryEnabled:morningSummaryEnabledValue,
           rewardNotificationsEnabled:rewardNotificationsEnabledValue,
           dailyQuestionNotificationEnabled:dailyQuestionNotificationEnabledValue,
+          sharedTaskNotificationsEnabled:sharedTaskNotificationsEnabledValue,
+          luluWalkNotificationsEnabled:luluWalkNotificationsEnabledValue,
           updatedAt
         };
       }
@@ -1194,8 +1226,10 @@
         const hasRemoteMorningSummary=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'morningSummaryEnabled');
         const hasRemoteRewardNotifications=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'rewardNotificationsEnabled');
         const hasRemoteDailyQuestionNotification=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'dailyQuestionNotificationEnabled');
+        const hasRemoteSharedTaskNotifications=remoteSchema>=9&&Object.prototype.hasOwnProperty.call(remote,'sharedTaskNotificationsEnabled');
+        const hasRemoteLuluWalkNotifications=remoteSchema>=9&&Object.prototype.hasOwnProperty.call(remote,'luluWalkNotificationsEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteTelegram&&!hasRemotePhone&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteTelegram&&!hasRemotePhone&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification&&!hasRemoteSharedTaskNotifications&&!hasRemoteLuluWalkNotifications) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -1206,6 +1240,11 @@
         const hasLocalOrder=Array.isArray(localOrder)&&localOrder.length>0;
         const localNormalized=hasLocalOrder?normalizedHomeOrder(localOrder):[];
         const remoteNormalized=hasRemoteOrder?normalizedHomeOrder(remote.homeOrder):[];
+        let localContactTelegram='',localContactPhone='';
+        try{localContactTelegram=normalizeContactTelegram(localStorage.getItem(contactTelegramStorageKey())||'')}catch(_){}
+        try{localContactPhone=normalizeContactPhone(localStorage.getItem(contactPhoneStorageKey())||'')}catch(_){}
+        const migrateLocalTelegram=Boolean(hasRemoteTelegram&&!normalizeContactTelegram(remote.contactTelegramUsername)&&localContactTelegram);
+        const migrateLocalPhone=Boolean(hasRemotePhone&&!normalizeContactPhone(remote.contactPhone)&&localContactPhone);
         const localTime=Date.parse(localStamp)||0;
         const localLayoutIsNewer=localTime>remoteTime||(localTime===remoteTime&&hasLocalOrder);
         const keepLocalOrder=hasLocalOrder&&hasRemoteOrder
@@ -1244,8 +1283,8 @@
             const size=['small','normal','large'].includes(String(remote.interfaceTextSize||''))?String(remote.interfaceTextSize):'normal';
             localStorage.setItem(interfaceTextSizeStorageKey(),size);
           }
-          if(hasRemoteTelegram)localStorage.setItem(contactTelegramStorageKey(),normalizeContactTelegram(remote.contactTelegramUsername));
-          if(hasRemotePhone)localStorage.setItem(contactPhoneStorageKey(),normalizeContactPhone(remote.contactPhone));
+          if(hasRemoteTelegram&&!migrateLocalTelegram)localStorage.setItem(contactTelegramStorageKey(),normalizeContactTelegram(remote.contactTelegramUsername));
+          if(hasRemotePhone&&!migrateLocalPhone)localStorage.setItem(contactPhoneStorageKey(),normalizeContactPhone(remote.contactPhone));
           if(hasRemoteMoodNotify){
             localStorage.setItem(moodNotifyPartnerStorageKey(),remote.moodNotifyPartnerEnabled===true?'1':'0');
           }
@@ -1264,19 +1303,27 @@
           if(hasRemoteDailyQuestionNotification){
             localStorage.setItem(dailyQuestionNotificationStorageKey(),remote.dailyQuestionNotificationEnabled===false?'0':'1');
           }
+          if(hasRemoteSharedTaskNotifications){
+            localStorage.setItem(sharedTaskNotificationsStorageKey(),remote.sharedTaskNotificationsEnabled===false?'0':'1');
+          }
+          if(hasRemoteLuluWalkNotifications){
+            localStorage.setItem(luluWalkNotificationsStorageKey(),remote.luluWalkNotificationsEnabled===false?'0':'1');
+          }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<8){
+          if(keepLocalOrder||remoteSchema<9||migrateLocalTelegram||migrateLocalPhone){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             const structural=localUiPreferences();
             markUiPreferencesChanged({
-              syncSchemaVersion:8,
+              syncSchemaVersion:9,
               homeOrder:structural.homeOrder,
               blockStates:structural.blockStates,
               viewStates:structural.viewStates,
               activitySeenId:structural.activitySeenId,
               activityReadIds:structural.activityReadIds,
               contactTelegramUsername:structural.contactTelegramUsername,
-              contactPhone:structural.contactPhone
+              contactPhone:structural.contactPhone,
+              sharedTaskNotificationsEnabled:structural.sharedTaskNotificationsEnabled,
+              luluWalkNotificationsEnabled:structural.luluWalkNotificationsEnabled
             });
           }
           if(remoteVersion) uiPreferencesServerVersion=Math.max(uiPreferencesServerVersion,remoteVersion);
@@ -5091,6 +5138,14 @@
               '</div>'+
             '</section>'+
 
+            '<section class="settings-group settings-contact-group">'+
+              '<div class="settings-group-title">Безопасность</div>'+
+              '<label class="settings-contact-field"><span>Текущий PIN</span><div class="settings-contact-input"><input id="settingsCurrentPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="••••••"></div></label>'+
+              '<label class="settings-contact-field"><span>Новый PIN</span><div class="settings-contact-input"><input id="settingsNewPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
+              '<label class="settings-contact-field"><span>Повторите новый PIN</span><div class="settings-contact-input"><input id="settingsNewPinRepeat" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
+              '<div class="settings-contact-footer"><small id="settingsPinStatus" aria-live="polite"></small><button id="settingsPinSave" class="settings-contact-save" type="button">Сменить PIN</button></div>'+
+            '</section>'+
+
             '<section class="settings-group">'+
               '<div class="settings-group-title">Уведомления</div>'+
               '<div class="home-settings-row">'+
@@ -5116,6 +5171,14 @@
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Ответ на вопрос дня</strong><small>Присылать push, когда партнёр ответил</small></div>'+
                 '<button id="settingsDailyQuestionNotificationToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления об ответе партнёра на вопрос дня"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Совместные дела</strong><small>Push, когда партнёр выполнил совместную задачу</small></div>'+
+                '<button id="settingsSharedTaskNotificationsToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о совместных делах"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Гуляние с Лулу</strong><small>Push, когда партнёр отметил прогулку с Лулу</small></div>'+
+                '<button id="settingsLuluWalkNotificationsToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о прогулках с Лулу"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Push-уведомления</strong><small id="settingsAppBadgeStatus">Получать уведомления RUDI на этом устройстве</small></div>'+
@@ -5767,9 +5830,13 @@
         const morning=document.getElementById('settingsMorningSummaryToggle');
         const rewards=document.getElementById('settingsRewardNotificationsToggle');
         const question=document.getElementById('settingsDailyQuestionNotificationToggle');
+        const sharedTasks=document.getElementById('settingsSharedTaskNotificationsToggle');
+        const luluWalk=document.getElementById('settingsLuluWalkNotificationsToggle');
         if(morning) morning.setAttribute('aria-checked',morningSummaryEnabled()?'true':'false');
         if(rewards) rewards.setAttribute('aria-checked',rewardNotificationsEnabled()?'true':'false');
         if(question) question.setAttribute('aria-checked',dailyQuestionNotificationEnabled()?'true':'false');
+        if(sharedTasks) sharedTasks.setAttribute('aria-checked',sharedTaskNotificationsEnabled()?'true':'false');
+        if(luluWalk) luluWalk.setAttribute('aria-checked',luluWalkNotificationsEnabled()?'true':'false');
       }
 
       function setMorningSummaryEnabled(enabled){
@@ -5792,7 +5859,23 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(dailyQuestionNotificationStorageKey(),next?'1':'0')}catch(_){}
         updateGeneralNotificationSettingsUi();
-        if(currentActor){markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:8});flushUiPreferencesToServer().catch(()=>{});}
+        if(currentActor){markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:9});flushUiPreferencesToServer().catch(()=>{});}
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setSharedTaskNotificationsEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(sharedTaskNotificationsStorageKey(),next?'1':'0')}catch(_){}
+        updateGeneralNotificationSettingsUi();
+        if(currentActor){markUiPreferencesChanged({sharedTaskNotificationsEnabled:next,syncSchemaVersion:9});flushUiPreferencesToServer().catch(()=>{});}
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
+      function setLuluWalkNotificationsEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(luluWalkNotificationsStorageKey(),next?'1':'0')}catch(_){}
+        updateGeneralNotificationSettingsUi();
+        if(currentActor){markUiPreferencesChanged({luluWalkNotificationsEnabled:next,syncSchemaVersion:9});flushUiPreferencesToServer().catch(()=>{});}
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5999,6 +6082,42 @@
         }
       }
 
+      async function changePinFromSettings(){
+        const current=document.getElementById('settingsCurrentPin');
+        const next=document.getElementById('settingsNewPin');
+        const repeat=document.getElementById('settingsNewPinRepeat');
+        const button=document.getElementById('settingsPinSave');
+        const status=document.getElementById('settingsPinStatus');
+        if(!current||!next||!repeat||!button)return;
+        const currentPin=String(current.value||'').trim();
+        const newPin=String(next.value||'').trim();
+        const repeated=String(repeat.value||'').trim();
+        if(!/^\d{6}$/.test(currentPin)||!/^\d{6}$/.test(newPin)){
+          if(status)status.textContent='PIN должен состоять из 6 цифр.';
+          return;
+        }
+        if(newPin!==repeated){
+          if(status)status.textContent='Новый PIN не совпадает.';
+          return;
+        }
+        button.disabled=true;
+        button.textContent='Сохраняю…';
+        if(status)status.textContent='';
+        try{
+          await browserAuthRequest('change-pin',{currentPin,newPin});
+          current.value='';next.value='';repeat.value='';
+          if(status)status.textContent='PIN изменён.';
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(error){
+          const code=String(error?.message||'');
+          if(status)status.textContent=code==='rudi-pin-invalid'?'Неверный текущий PIN.':'Не удалось сменить PIN.';
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }finally{
+          button.disabled=false;
+          button.textContent='Сменить PIN';
+        }
+      }
+
       function setupExtendedSettings(){
         document.querySelectorAll('[data-text-size]').forEach(button=>{
           if(button.dataset.bound==='1') return;
@@ -6009,6 +6128,11 @@
         if(contactSave&&contactSave.dataset.bound!=='1'){
           contactSave.dataset.bound='1';
           contactSave.addEventListener('click',saveContactSettings);
+        }
+        const pinSave=document.getElementById('settingsPinSave');
+        if(pinSave&&pinSave.dataset.bound!=='1'){
+          pinSave.dataset.bound='1';
+          pinSave.addEventListener('click',changePinFromSettings);
         }
         const auto=document.getElementById('settingsAutoRefreshToggle');
         if(auto&&auto.dataset.bound!=='1'){
@@ -6044,6 +6168,16 @@
         if(dailyQuestionNotification&&dailyQuestionNotification.dataset.bound!=='1'){
           dailyQuestionNotification.dataset.bound='1';
           dailyQuestionNotification.addEventListener('click',()=>setDailyQuestionNotificationEnabled(!dailyQuestionNotificationEnabled()));
+        }
+        const sharedTaskNotifications=document.getElementById('settingsSharedTaskNotificationsToggle');
+        if(sharedTaskNotifications&&sharedTaskNotifications.dataset.bound!=='1'){
+          sharedTaskNotifications.dataset.bound='1';
+          sharedTaskNotifications.addEventListener('click',()=>setSharedTaskNotificationsEnabled(!sharedTaskNotificationsEnabled()));
+        }
+        const luluWalkNotifications=document.getElementById('settingsLuluWalkNotificationsToggle');
+        if(luluWalkNotifications&&luluWalkNotifications.dataset.bound!=='1'){
+          luluWalkNotifications.dataset.bound='1';
+          luluWalkNotifications.addEventListener('click',()=>setLuluWalkNotificationsEnabled(!luluWalkNotificationsEnabled()));
         }
         const appBadge=document.getElementById('settingsAppBadgeEnable');
         if(appBadge&&appBadge.dataset.bound!=='1'){
@@ -12391,9 +12525,13 @@
         return task;
       }
 
-      function setProductsBadge(hasProducts){
+      function setProductsBadge(count){
         const badge=document.getElementById('productsTabBadge');
-        if(badge) badge.hidden=!hasProducts;
+        if(!badge)return;
+        const total=Math.max(0,Number(count)||0);
+        const show=currentActor==='Рустам'&&total>10;
+        badge.hidden=!show;
+        badge.textContent=show?String(total):'';
       }
 
       function productAddedByLabel(value){
@@ -12541,7 +12679,7 @@
         const historyCount=document.getElementById('productsHistoryCount');
         if(!groups||!empty||!historyList) return;
 
-        setProductsBadge(items.length>0);
+        setProductsBadge(items.length);
         if(clear) clear.disabled=!items.length;
         if(boughtAll){
           boughtAll.textContent=currentActor==='Диана'?'Купила':'Купил';
