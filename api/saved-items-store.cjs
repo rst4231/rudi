@@ -63,6 +63,7 @@ function normalizeRecipePayload(value) {
     title,
     summary: cleanText(source.summary, 1200),
     timeMinutes: Math.max(0, Math.min(720, Number(source.timeMinutes || 0))) || null,
+    servings: Math.max(1, Math.min(12, Math.round(Number(source.servings) || 2))),
     difficulty: cleanText(source.difficulty, 80),
     missing: (Array.isArray(source.missing) ? source.missing : []).map((row) => cleanText(row, 180)).filter(Boolean).slice(0, 40),
     ingredients,
