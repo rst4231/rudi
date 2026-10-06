@@ -2307,30 +2307,13 @@
         const income=Math.max(0,Number(document.getElementById('financePersonalIncomeInput')?.value||row.income||0));
         const expenses=financeExpenseTotal(month);
         const balanceValue=Math.round((income-expenses)*100)/100;
-        const balance=document.getElementById('financePersonalBalanceValue'),savings=document.getElementById('financeSavingsRate'),reserveMonths=document.getElementById('financeReserveMonths'),comparison=document.getElementById('financePersonalComparison');
-        if(balance)balance.textContent=financeMoney(balanceValue);
         const coinBalance=document.getElementById('financeCoinBalanceValue'),coinIncome=document.getElementById('financeCoinIncomeValue');
         if(coinBalance)coinBalance.textContent=financeMoney(balanceValue);
         if(coinIncome)coinIncome.textContent=financeMoney(income);
-        const savingsRate=income>0?balanceValue/income*100:0;
-        if(savings){savings.textContent=(savingsRate<0?'−':'')+financePercent(savingsRate);savings.dataset.tone=savingsRate>=20?'good':savingsRate>=0?'neutral':'bad'}
-        const reserve=Math.max(0,Number(financeState.plan?.reserve)||0),months=expenses>0?reserve/expenses:0;
-        if(reserveMonths)reserveMonths.textContent=months>0?new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(months)+' мес.':'0 мес.';
-        const previous=financePersonalRowForMonth(financePreviousMonthKey(month));
-        if(comparison){
-          const prev=Math.max(0,Number(previous?.expenses||0));
-          if(prev<=0)comparison.textContent='Нет данных за прошлый месяц';
-          else{
-            const delta=expenses-prev,percent=delta/prev*100;
-            comparison.textContent=Math.abs(delta)<.005?'Расходы без изменений':('Расходы '+(delta>0?'выше ':'ниже ')+financeMoney(Math.abs(delta))+' · '+(delta>0?'+':'−')+financePercent(percent));
-            comparison.dataset.direction=delta>0?'up':delta<0?'down':'same';
-          }
-        }
       }
       function renderFinancePlan({preserveInputs=false}={}){
-        const plan=financeState.plan||{},reserve=document.getElementById('financeReserveInput'),title=document.getElementById('financeGoalTitleInput'),current=document.getElementById('financeGoalCurrentInput'),target=document.getElementById('financeGoalTargetInput');
+        const plan=financeState.plan||{},title=document.getElementById('financeGoalTitleInput'),current=document.getElementById('financeGoalCurrentInput'),target=document.getElementById('financeGoalTargetInput');
         if(!preserveInputs){
-          if(reserve)reserve.value=Number(plan.reserve||0)>0?String(plan.reserve):'';
           if(title)title.value=String(plan.goalTitle||'');
           if(current)current.value=Number(plan.goalCurrent||0)>0?String(plan.goalCurrent):'';
           if(target)target.value=Number(plan.goalTarget||0)>0?String(plan.goalTarget):'';
@@ -2355,7 +2338,7 @@
         setFinanceAutosaveStatus('financePlanStatus','Сохраняю…');
         try{
           const data=await financeRequest('save-plan',{
-            reserve:Number(document.getElementById('financeReserveInput')?.value||0),
+            reserve:Number(financeState.plan?.reserve||0),
             goalTitle:String(document.getElementById('financeGoalTitleInput')?.value||''),
             goalCurrent:Number(document.getElementById('financeGoalCurrentInput')?.value||0),
             goalTarget:Number(document.getElementById('financeGoalTargetInput')?.value||0)
@@ -2616,7 +2599,7 @@
 
         personalMonth?.addEventListener('change',()=>{renderFinancePersonalMonth(personalMonth.value||financeCurrentMonthKey());refreshFinanceInsight(true).catch(()=>{})});
         income?.addEventListener('input',()=>{renderFinancePulse(personalMonth?.value||financeCurrentMonthKey());financeDebounce('income',saveFinanceIncomeAuto,700)});
-        ['financeReserveInput','financeGoalTitleInput','financeGoalCurrentInput','financeGoalTargetInput'].forEach(id=>{
+        ['financeGoalTitleInput','financeGoalCurrentInput','financeGoalTargetInput'].forEach(id=>{
           document.getElementById(id)?.addEventListener('input',()=>{renderFinancePlan({preserveInputs:true});renderFinancePulse(personalMonth?.value||financeCurrentMonthKey());financeDebounce('plan',saveFinancePlanAuto,750)});
         });
 
