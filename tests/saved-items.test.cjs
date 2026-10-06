@@ -47,6 +47,7 @@ test('full generated recipe is stored and can be removed independently', async (
     title: 'Паста с курицей',
     summary: 'Быстрый ужин.',
     timeMinutes: 25,
+    servings: 3,
     difficulty: 'Легко',
     missing: ['сливки'],
     ingredients: [
@@ -61,6 +62,7 @@ test('full generated recipe is stored and can be removed independently', async (
   assert.equal(added.state.items.length, 1);
   assert.equal(added.item.payload.ingredients.length, 2);
   assert.equal(added.item.payload.steps.length, 3);
+  assert.equal(added.item.payload.servings, 3);
 
   const removed = await removeSavedItem(added.item.id, { cache });
   assert.equal(removed.item.type, 'recipe');
