@@ -237,6 +237,17 @@
         </div>
       </div>
 
+      <section id="marketTickerTile" class="market-ticker-tile finance-market-ticker" data-app-tab-section="finances" data-tab-available="1" aria-label="Курсы валют и криптовалют">
+        <div class="market-ticker-viewport">
+          <div id="marketTickerTrack" class="market-ticker-track" aria-hidden="true">
+            <div class="market-ticker-group">
+              <span class="market-ticker-loading">Курсы загружаются…</span>
+            </div>
+          </div>
+        </div>
+        <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
+      </section>
+
       <nav id="financeTabs" class="finance-tabs" role="tablist" aria-label="Разделы финансов">
         <button type="button" class="finance-tab is-active" data-finance-tab="shared" role="tab" aria-selected="true">Совместные</button>
         <button type="button" class="finance-tab" data-finance-tab="personal" role="tab" aria-selected="false">Личные</button>
@@ -314,35 +325,78 @@
       </div>
 
       <div id="financePersonalPanel" class="finance-tab-panel" data-finance-panel="personal" hidden>
-        <article class="finance-editor-card finance-income-card">
-          <div class="finance-editor-head">
-            <div class="finance-editor-icon" aria-hidden="true">₽</div>
-            <div class="finance-editor-copy">
-              <span>Доход</span>
+        <article class="finance-coin-board" aria-label="Личные доходы и категории расходов">
+          <div class="finance-coin-overview">
+            <div><span>Расходы</span><strong id="financeExpenseMonthTotal">0 ₽</strong></div>
+            <div><span>Баланс</span><strong id="financeCoinBalanceValue">0 ₽</strong></div>
+            <div><span>Доход</span><strong id="financeCoinIncomeValue">0 ₽</strong></div>
+          </div>
+
+          <div class="finance-coin-period">
+            <div>
+              <span class="section-eyebrow">Личные финансы</span>
               <strong id="financePersonalMonthLabel">—</strong>
             </div>
             <input id="financePersonalMonthInput" class="finance-month-input" type="month" aria-label="Месяц личных финансов">
           </div>
-          <label class="finance-input-field finance-income-field">
-            <span>Доход за месяц</span>
-            <div class="finance-money-input">
-              <input id="financePersonalIncomeInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Доход за месяц">
-              <b>₽</b>
-            </div>
-          </label>
-          <div id="financePersonalStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite">Сохраняется автоматически</div>
-        </article>
 
-        <section class="finance-categories-card" aria-labelledby="financeCategoriesTitle">
-          <div class="finance-history-head">
-            <div>
-              <span class="section-eyebrow">Расходы</span>
-              <h2 id="financeCategoriesTitle">Категории</h2>
+          <div class="finance-income-source">
+            <div class="finance-coin-item finance-income-item">
+              <span class="finance-coin-label">Доход</span>
+              <button id="financeIncomeCoin" class="finance-coin finance-income-coin" type="button" aria-label="Перетащить доход на категорию расхода">
+                <span aria-hidden="true">₽</span>
+              </button>
+              <label class="finance-income-inline">
+                <input id="financePersonalIncomeInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Доход за месяц">
+                <b>₽</b>
+              </label>
             </div>
+            <div class="finance-drag-hint">Перетащи монету дохода на категорию, чтобы добавить расход</div>
+          </div>
+          <div id="financePersonalStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite">Сохраняется автоматически</div>
+
+          <div class="finance-coin-divider"></div>
+          <div class="finance-coin-section-head">
+            <div><span class="section-eyebrow">Расходы</span><h2 id="financeCategoriesTitle">Категории</h2></div>
             <span id="financeCategoryCount" class="finance-history-count">5</span>
           </div>
+          <div id="financeCategoryList" class="finance-category-list finance-coin-grid" aria-labelledby="financeCategoriesTitle"></div>
+          <div id="financeCategoryEmpty" class="finance-history-empty">Категорий пока нет — добавь первую монету</div>
+          <div id="financeCategoryStatus" class="finance-status" role="status" aria-live="polite"></div>
+        </article>
 
-          <div class="finance-category-create">
+        <div id="financeExpenseComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeExpenseComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeExpenseComposerTitle">
+            <div class="finance-coin-modal-head">
+              <div class="finance-expense-category-preview">
+                <span id="financeExpenseComposerIcon" class="finance-coin finance-category-coin-preview" aria-hidden="true">💳</span>
+                <div><small>Расход</small><h3 id="financeExpenseComposerTitle">Категория</h3></div>
+              </div>
+              <button id="financeExpenseComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <label class="finance-input-field">
+              <span>Сумма расхода</span>
+              <div class="finance-money-input"><input id="financeExpenseComposerAmount" type="number" min="0.01" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Сумма расхода"><b>₽</b></div>
+            </label>
+            <label class="finance-input-field">
+              <span>Комментарий</span>
+              <input id="financeExpenseComposerNote" class="finance-text-input" maxlength="120" placeholder="Необязательно" aria-label="Комментарий к расходу">
+            </label>
+            <button id="financeExpenseComposerSave" class="finance-analyst-button finance-expense-composer-save" type="button">Добавить расход</button>
+            <div id="financeExpenseComposerStatus" class="finance-status" role="status" aria-live="polite"></div>
+            <div id="financeExpenseComposerHistory" class="finance-category-expense-list"></div>
+            <button id="financeExpenseComposerDeleteCategory" class="finance-category-delete-wide" type="button">Удалить категорию</button>
+          </section>
+        </div>
+
+        <div id="financeCategoryComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeCategoryComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeCategoryComposerTitle">
+            <div class="finance-coin-modal-head">
+              <div><small>Новая монета</small><h3 id="financeCategoryComposerTitle">Категория расхода</h3></div>
+              <button id="financeCategoryComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
             <label class="finance-input-field">
               <span>Иконка</span>
               <select id="financeCategoryIcon" class="finance-select" aria-label="Иконка категории">
@@ -353,43 +407,19 @@
                 <option value="💻">💻</option><option value="📱">📱</option><option value="🧾">🧾</option><option value="⭐">⭐</option>
               </select>
             </label>
-            <label class="finance-input-field finance-category-name-field">
-              <span>Новая категория</span>
-              <input id="financeCategoryName" class="finance-text-input" maxlength="48" placeholder="Название" aria-label="Название категории">
+            <label class="finance-input-field">
+              <span>Название</span>
+              <input id="financeCategoryName" class="finance-text-input" maxlength="48" placeholder="Например, Продукты" aria-label="Название категории">
             </label>
-            <button id="financeCategoryCreateButton" class="finance-mini-button" type="button">Создать</button>
-          </div>
-          <div id="financeCategoryStatus" class="finance-status" role="status" aria-live="polite"></div>
+            <button id="financeCategoryCreateButton" class="finance-analyst-button" type="button">Создать категорию</button>
+          </section>
+        </div>
 
-          <div class="finance-expense-history-head">
-            <strong>Расходы за месяц</strong>
-            <span id="financeExpenseMonthTotal">0 ₽</span>
-          </div>
-          <div id="financeCategoryList" class="finance-category-list"></div>
-          <div id="financeCategoryEmpty" class="finance-history-empty">Категорий пока нет</div>
-        </section>
-
-        <section class="finance-pulse-card" aria-labelledby="financePulseTitle">
+        <section class="finance-planning-card finance-goal-card-compact" aria-labelledby="financePlanningTitle">
           <div class="finance-history-head">
-            <div><span class="section-eyebrow">Сейчас</span><h2 id="financePulseTitle">Финансовый пульс</h2></div>
-          </div>
-          <div class="finance-pulse-grid">
-            <article><span>Баланс</span><strong id="financePersonalBalanceValue">0 ₽</strong></article>
-            <article><span>Сбережения</span><strong id="financeSavingsRate">0%</strong></article>
-            <article><span>Подушка</span><strong id="financeReserveMonths">0 мес.</strong></article>
-          </div>
-          <div id="financePersonalComparison" class="finance-month-comparison">Нет данных за прошлый месяц</div>
-        </section>
-
-        <section class="finance-planning-card" aria-labelledby="financePlanningTitle">
-          <div class="finance-history-head">
-            <div><span class="section-eyebrow">План</span><h2 id="financePlanningTitle">Подушка и цель</h2></div>
+            <div><span class="section-eyebrow">План</span><h2 id="financePlanningTitle">Цель</h2></div>
           </div>
           <div class="finance-plan-grid">
-            <label class="finance-input-field">
-              <span>Подушка сейчас</span>
-              <div class="finance-money-input"><input id="financeReserveInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Размер финансовой подушки"><b>₽</b></div>
-            </label>
             <label class="finance-input-field">
               <span>Название цели</span>
               <input id="financeGoalTitleInput" class="finance-text-input" maxlength="80" placeholder="Например, квартира" aria-label="Название финансовой цели">
@@ -490,7 +520,7 @@
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
           <div class="finance-literacy-kicker">По вашим данным</div>
           <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
-          <p class="finance-analyst-intro">Анализирует доходы, расходы по категориям, лимиты и долги и даёт практические рекомендации на основе принципов финансовой грамотности.</p>
+          <p class="finance-analyst-intro">Анализирует доходы, расходы по категориям и долги и даёт краткий разбор на основе принципов финансовой грамотности.</p>
           <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
           <div id="financeAnalystStatus" class="finance-status" role="status" aria-live="polite"></div>
           <div id="financeAnalystResult" class="finance-analyst-result" hidden></div>
@@ -1616,16 +1646,6 @@
       </section>
     </section>
 
-    <section id="marketTickerTile" class="market-ticker-tile" data-app-tab-section="home" data-home-tile="markets" data-tab-available="1" aria-label="Курсы валют и криптовалют">
-      <div class="market-ticker-viewport">
-        <div id="marketTickerTrack" class="market-ticker-track" aria-hidden="true">
-          <div class="market-ticker-group">
-            <span class="market-ticker-loading">Курсы загружаются…</span>
-          </div>
-        </div>
-      </div>
-      <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
-    </section>
 
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>

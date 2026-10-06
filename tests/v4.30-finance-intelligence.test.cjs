@@ -74,7 +74,6 @@ test('finance UI contains literacy, analyst and autosaved categories without per
   assert.ok(!html.includes('id="financePersonalHistoryTitle"'));
 
   assert.ok(app.includes("financeRequest('save-personal-income'"));
-  assert.ok(app.includes("financeRequest('update-category'"));
   assert.ok(app.includes("financeRequest('save-expense'"));
   assert.ok(app.includes("financeRequest('analyst'"));
   assert.ok(app.includes("page.dataset.financeTone=activeFinanceTab"));

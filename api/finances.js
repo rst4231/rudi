@@ -1,7 +1,7 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
-  saveExpenseCategory, updateExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveExpenseCategory, updateExpenseCategory, deleteExpenseCategory, savePersonalExpense, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport } = require('./finance-ai.cjs');
@@ -58,6 +58,10 @@ async function handler(req, res) {
     }
     if (operation === 'update-category') {
       const state = await updateExpenseCategory(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'delete-category') {
+      const state = await deleteExpenseCategory(actor, body.id);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'save-expense') {

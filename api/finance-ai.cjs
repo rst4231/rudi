@@ -163,7 +163,7 @@ async function getMonthlyFinanceInsight(context = {}, options = {}) {
   const existing = await cache.get(key);
   if (existing?.text) return existing;
   const categories = (Array.isArray(context.categories) ? context.categories : []).map((row) => {
-    return compact(row.icon, 12) + ' ' + compact(row.name, 48) + ': ' + Number(row.spent || 0) + ' ₽' + (Number(row.monthlyLimit || 0) > 0 ? ' из лимита ' + Number(row.monthlyLimit) + ' ₽' : '');
+    return compact(row.icon, 12) + ' ' + compact(row.name, 48) + ': ' + Number(row.spent || 0) + ' ₽';
   }).join('; ');
   const prompt = [
     'Ты финансовый помощник внутри приложения RUDI.',
@@ -171,7 +171,6 @@ async function getMonthlyFinanceInsight(context = {}, options = {}) {
     'Опирайся только на переданные цифры. Если данных мало, так и скажи и предложи одно простое действие.',
     'Пользователь: ' + actor + '. Месяц: ' + month + '.',
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
-    'Подушка: ' + Number(context.reserve || 0) + ' ₽.',
     categories ? 'Категории: ' + categories : 'Расходы по категориям пока не добавлены.',
   ].join('\n');
   const parsed = await requestJson(prompt, monthlyInsightSchema(), { ...options, timeoutMs: 10000 });
@@ -189,9 +188,8 @@ function analystSchema() {
       summary: { type: 'string' },
       strengths: { type: 'array', items: { type: 'string' }, maxItems: 5 },
       risks: { type: 'array', items: { type: 'string' }, maxItems: 5 },
-      actions: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 7 },
     },
-    required: ['summary', 'strengths', 'risks', 'actions'],
+    required: ['summary', 'strengths', 'risks'],
     additionalProperties: false,
   };
 }
@@ -206,10 +204,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
   if (existing?.summary) return existing;
 
   const categories = (Array.isArray(context.categories) ? context.categories : []).map((row) => {
-    const limit = Number(row.monthlyLimit || 0);
-    return compact(row.icon, 12) + ' ' + compact(row.name, 48) + ': потрачено ' + Number(row.spent || 0) + ' ₽' +
-      (limit > 0 ? ', лимит ' + limit + ' ₽' : ', лимит не задан') +
-      (row.note ? ', заметка: ' + compact(row.note, 120) : '');
+    return compact(row.icon, 12) + ' ' + compact(row.name, 48) + ': потрачено ' + Number(row.spent || 0) + ' ₽';
   }).join('\n');
   const debts = (Array.isArray(context.debts) ? context.debts : []).filter((row) => !row.paid).map((row) => {
     return (row.direction === 'owed' ? 'Мне должны' : 'Я должен') + ': ' + Number(row.amount || 0) + ' ₽' +
@@ -219,7 +214,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
 
   const prompt = [
     'Ты — финансовый аналитик внутри приложения RUDI.',
-    'Сделай персональный разбор финансов пользователя на русском языке на основе его фактических доходов, расходов по категориям, лимитов, подушки, цели и долгов.',
+    'Сделай персональный разбор финансов пользователя на русском языке на основе его фактических доходов, расходов по категориям, цели и долгов.',
     'Используй здравые принципы личных финансов из качественной литературы: The Psychology of Money, The Millionaire Next Door, Your Money or Your Life, The Little Book of Common Sense Investing, A Random Walk Down Wall Street, I Will Teach You to Be Rich и других.',
     'Если есть сегодняшняя статья по финансовой грамотности, используй её идею как дополнительный контекст, но не копируй её текст.',
     'Не давай конкретных рекомендаций купить или продать ценные бумаги, криптовалюту или иной актив. Не обещай доходность.',
@@ -227,10 +222,8 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
     'summary — 3–5 предложений с общей оценкой.',
     'strengths — сильные стороны финансовой картины, только если они реально видны.',
     'risks — конкретные слабые места/риски, только если они видны.',
-    'actions — приоритетные практические действия на ближайший месяц, от самого важного к менее важному.',
     'Пользователь: ' + actor + '. Месяц: ' + month + '.',
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
-    'Подушка: ' + Number(context.reserve || 0) + ' ₽.',
     'Цель: ' + (compact(context.goalTitle, 80) || 'не задана') + ', накоплено ' + Number(context.goalCurrent || 0) + ' ₽ из ' + Number(context.goalTarget || 0) + ' ₽.',
     categories ? 'Категории расходов:\n' + categories : 'Расходы по категориям пока не добавлены.',
     debts ? 'Активные долги:\n' + debts : 'Активных долгов нет.',
@@ -242,12 +235,11 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
     summary: compact(parsed?.summary, 1800),
     strengths: (Array.isArray(parsed?.strengths) ? parsed.strengths : []).map((x) => compact(x, 500)).filter(Boolean).slice(0, 5),
     risks: (Array.isArray(parsed?.risks) ? parsed.risks : []).map((x) => compact(x, 500)).filter(Boolean).slice(0, 5),
-    actions: (Array.isArray(parsed?.actions) ? parsed.actions : []).map((x) => compact(x, 600)).filter(Boolean).slice(0, 7),
     model: MODEL,
     provider: 'groq',
     createdAt: new Date(options.now || Date.now()).toISOString(),
   };
-  if (!report.summary || !report.actions.length) throw new Error('finance-analyst-empty');
+  if (!report.summary) throw new Error('finance-analyst-empty');
   await cache.set(key, report, { ttl: 60 * 60 * 24 * 7, tags: ['rudi-finance-analyst'], name: key });
   return report;
 }

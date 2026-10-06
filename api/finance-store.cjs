@@ -116,7 +116,7 @@ function normalizeState(value) {
   const categories = { 'Рустам': [], 'Диана': [] };
   const rawCategories = source.categories && typeof source.categories === 'object' && !Array.isArray(source.categories) ? source.categories : {};
   for (const actor of Object.keys(categories)) {
-    const rows = Array.isArray(rawCategories[actor]) && rawCategories[actor].length ? rawCategories[actor] : defaultCategories();
+    const rows = Array.isArray(rawCategories[actor]) ? rawCategories[actor] : defaultCategories();
     const seen = new Set();
     for (const raw of rows) {
       try {
@@ -355,6 +355,38 @@ async function updateExpenseCategory(actor, payload = {}, options = {}) {
     return next;
   });
 }
+async function deleteExpenseCategory(actor, id, options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanId = cleanText(id, 100, { required: true });
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.categories[safeActor] || [];
+    if (!rows.some((row) => row.id === cleanId)) throw new Error('finance-category-not-found');
+    const affectedMonths = [...new Set(
+      current.personalExpenses
+        .filter((row) => row.actor === safeActor && row.categoryId === cleanId)
+        .map((row) => row.month)
+    )];
+    const now = new Date(options.now || Date.now()).toISOString();
+    let next = normalizeState({
+      ...current,
+      initialized: true,
+      version: current.version + 1,
+      categories: {
+        ...current.categories,
+        [safeActor]: rows.filter((row) => row.id !== cleanId),
+      },
+      personalExpenses: current.personalExpenses.filter(
+        (row) => !(row.actor === safeActor && row.categoryId === cleanId)
+      ),
+    });
+    for (const month of affectedMonths) {
+      next = normalizeState({ ...next, personal: syncPersonalMonthExpenses(next, safeActor, month, now) });
+    }
+    await writeState(next, options);
+    return next;
+  });
+}
 async function savePersonalExpense(actor, payload = {}, options = {}) {
   const safeActor = cleanActor(actor);
   const month = cleanMonth(payload.month);
@@ -441,6 +473,6 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveExpenseCategory, updateExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveFinancePlan, saveExpenseCategory, updateExpenseCategory, deleteExpenseCategory, savePersonalExpense, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };
