@@ -45,6 +45,16 @@ function personalAmounts(income, expenses) {
   const cleanExpenses = cleanMoney(expenses);
   return { income: cleanIncome, expenses: cleanExpenses, balance: Math.round((cleanIncome - cleanExpenses) * 100) / 100 };
 }
+function cleanPlan(value = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    reserve: cleanMoney(source.reserve || 0),
+    goalTitle: cleanText(source.goalTitle, 80),
+    goalCurrent: cleanMoney(source.goalCurrent || 0),
+    goalTarget: cleanMoney(source.goalTarget || 0),
+    updatedAt: String(source.updatedAt || ''),
+  };
+}
 function normalizeState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const months = {};
@@ -84,6 +94,12 @@ function normalizeState(value) {
     }
   }
 
+  const plans = { 'Рустам': cleanPlan(), 'Диана': cleanPlan() };
+  const rawPlans = source.plans && typeof source.plans === 'object' && !Array.isArray(source.plans) ? source.plans : {};
+  for (const actor of Object.keys(plans)) {
+    try { plans[actor] = cleanPlan(rawPlans[actor] || {}); } catch (_) { plans[actor] = cleanPlan(); }
+  }
+
   const debts = [];
   for (const raw of Array.isArray(source.debts) ? source.debts : []) {
     try {
@@ -105,7 +121,7 @@ function normalizeState(value) {
       });
     } catch (_) {}
   }
-  return { initialized: Boolean(source.initialized), version: Math.max(0, Number(source.version || 0)), months, personal, debts };
+  return { initialized: Boolean(source.initialized), version: Math.max(0, Number(source.version || 0)), months, personal, plans, debts };
 }
 function viewState(state, actor = '') {
   const normalized = normalizeState(state);
@@ -119,7 +135,8 @@ function viewState(state, actor = '') {
   const debts = safeActor
     ? normalized.debts.filter((row) => row.actor === safeActor).sort((a, b) => Number(a.paid) - Number(b.paid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
     : [];
-  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, debts };
+  const plan = safeActor ? normalized.plans[safeActor] : cleanPlan();
+  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, debts, plan };
 }
 function enqueueMutation(task) {
   const run = mutationTail.then(task, task);
@@ -161,6 +178,20 @@ async function savePersonalMonth(actor, month, income, expenses, options = {}) {
         ...current.personal,
         [safeActor]: { ...(current.personal[safeActor] || {}), [clean.month]: { ...clean, updatedAt, updatedBy: safeActor } },
       },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function saveFinancePlan(actor, payload = {}, options = {}) {
+  const safeActor = cleanActor(actor);
+  const plan = cleanPlan(payload);
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const updatedAt = new Date(options.now || Date.now()).toISOString();
+    const next = normalizeState({
+      ...current, initialized: true, version: current.version + 1,
+      plans: { ...current.plans, [safeActor]: { ...plan, updatedAt } },
     });
     await writeState(next, options);
     return next;
@@ -209,6 +240,6 @@ async function toggleDebt(actor, id, paid, options = {}) {
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
-  NAMESPACE, TTL_SECONDS, cleanMonth, cleanMoney, splitAmounts, personalAmounts, normalizeState, viewState,
-  readFinanceState, saveFinanceMonth, savePersonalMonth, saveDebt, toggleDebt, resetMutationQueueForTests,
+  NAMESPACE, TTL_SECONDS, cleanMonth, cleanMoney, cleanPlan, splitAmounts, personalAmounts, normalizeState, viewState,
+  readFinanceState, saveFinanceMonth, savePersonalMonth, saveFinancePlan, saveDebt, toggleDebt, resetMutationQueueForTests,
 };
