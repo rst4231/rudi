@@ -5266,10 +5266,12 @@
             identity.appendChild(scoreSticker);
           }
           head.appendChild(identity);
-          const actions=document.createElement('div');
-          actions.className='profile-person-actions';
-          actions.append(makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
-          head.appendChild(actions);
+          if(actor!==currentActor){
+            const actions=document.createElement('div');
+            actions.className='profile-person-actions';
+            actions.append(makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
+            head.appendChild(actions);
+          }
           tile.appendChild(head);
 
           const details=document.createElement('div');
