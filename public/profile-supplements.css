@@ -712,3 +712,47 @@ html[data-theme="dark"] .personal-habit-row.is-history .personal-habit-status-bu
   -webkit-text-fill-color:rgba(255,255,255,.86)!important;
 }
 /* end RUDI v4.01 past-day text contrast */
+
+
+/* RUDI v4.01 — local 20:00 habit hint */
+.personal-habit-actions{
+  position:relative;
+}
+.personal-habit-action-hint[hidden]{
+  display:none!important;
+}
+.personal-habit-action-hint{
+  position:absolute;
+  z-index:12;
+  top:calc(100% + 7px);
+  width:max-content;
+  max-width:min(230px,calc(100vw - 48px));
+  padding:7px 10px;
+  border-radius:10px;
+  font-size:11px;
+  line-height:1.25;
+  font-weight:760;
+  text-align:center;
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(-4px) scale(.98);
+  transition:opacity 160ms ease,transform 180ms cubic-bezier(.2,.82,.2,1);
+  box-shadow:0 8px 22px rgba(0,0,0,.14);
+  background:rgba(24,27,32,.94);
+  color:#fff;
+}
+.personal-habit-action-hint[data-side="left"]{left:0}
+.personal-habit-action-hint[data-side="right"]{right:0}
+.personal-habit-action-hint.is-visible{
+  opacity:1;
+  transform:translateY(0) scale(1);
+}
+html[data-theme="light"] .personal-habit-action-hint{
+  background:rgba(24,27,32,.94);
+  color:#fff;
+}
+html[data-theme="dark"] .personal-habit-action-hint{
+  background:rgba(245,247,250,.96);
+  color:#15181c;
+}
+/* end RUDI v4.01 local 20:00 habit hint */
