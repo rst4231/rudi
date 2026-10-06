@@ -33,7 +33,7 @@ let configMemo = null;
 let configMemoAt = 0;
 let tasksMemo = null;
 let tasksMemoAt = 0;
-const carDocumentsAlbumCache = createStrictRuntimeCache({ namespace:'rudi-car-documents-album-v2' });
+const carDocumentsAlbumCache = createStrictRuntimeCache({ namespace:'rudi-car-documents-album-v3' });
 
 function authenticate(rawInitData, botToken) {
   const raw = String(rawInitData || '').trim();
