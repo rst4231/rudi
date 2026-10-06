@@ -156,12 +156,14 @@ function syncServiceWorkerPrecache(assetPaths) {
   fs.writeFileSync(webServiceWorkerPath, serviceWorker);
 }
 
-function buildWebAssets() {
-  // Keep core web assets on their stable public paths and use the version query
-  // that syncWebVersion() already writes into index.html. Vercel reliably serves
-  // these files from /public, while build-generated /assets files can be absent
-  // from the final static output and leave the UI without CSS/JS.
-  syncServiceWorkerPrecache([]);
+function buildWebAssets(env = process.env) {
+  // Keep core web assets on stable public paths, but precache the exact release
+  // URLs so iOS/Telegram can never fall back to an older shell after an update.
+  const versionConfig = JSON.parse(fs.readFileSync(versionConfigPath, 'utf8'));
+  const label = resolveVersionLabel(env, versionConfig);
+  const assetVersion = label.replace(/^v/i, '');
+  const versionedAssets = WEB_ASSETS.map((name) => '/' + name + '?v=' + assetVersion);
+  syncServiceWorkerPrecache(versionedAssets);
 }
 
 function buildRuntime() {
