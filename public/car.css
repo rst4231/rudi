@@ -2258,3 +2258,150 @@ html[data-theme="light"] .car-recommendation-best-day{
 .car-document-photo:active{transform:none;filter:brightness(.93)}
 @media(max-width:430px){.car-documents-grid{gap:4px}.car-document-photo{border-radius:9px}}
 
+
+
+/* RUDI v4.03 — car page header mirrors home car card */
+.car-page>.car-head{
+  min-height:150px;
+  grid-template-columns:minmax(0,1fr) minmax(142px,38%);
+  gap:12px;
+  align-items:center;
+  padding:16px;
+  border-radius:22px;
+}
+.car-page .car-head-copy{
+  min-width:0;
+  display:grid;
+  gap:9px;
+}
+.car-page .car-head h2{
+  margin:0 0 3px;
+  font-size:21px;
+  line-height:1.1;
+  letter-spacing:-.035em;
+  color:#fff;
+}
+.car-page .car-model{
+  font-size:10.5px;
+  color:#9ba1ab;
+}
+.car-page .car-collapsed-metrics{
+  display:grid!important;
+  grid-template-columns:.8fr 1.2fr;
+  gap:8px;
+  align-items:end;
+  margin:0;
+  max-width:none;
+}
+.car-page .car-collapsed-metric{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.car-page .car-collapsed-metric-label,
+.car-page .car-collapsed-progress-head span,
+.car-page .car-collapsed-wash-label{
+  color:#858d99;
+  font-size:7.5px;
+  line-height:1;
+  font-weight:820;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.car-page .car-collapsed-metric strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:13px;
+  line-height:1.15;
+  color:#f2f4f7;
+}
+.car-page .car-collapsed-metric.is-mileage strong{color:#67b9ff}
+.car-page .car-collapsed-metric.is-service strong{color:#ff934e}
+.car-page .car-collapsed-metrics-divider{display:none}
+.car-page .car-head-visual{
+  display:grid;
+  align-content:center;
+  gap:4px;
+  min-width:0;
+  transform:none;
+}
+.car-page .car-head-visual img{
+  width:100%;
+  height:92px;
+  object-fit:contain;
+  object-position:right center;
+  filter:contrast(1.04) saturate(.92);
+}
+.car-page .car-head-visual .car-collapsed-wash{
+  display:grid!important;
+  gap:3px;
+  padding-left:6px;
+  text-align:left;
+}
+.car-page .car-collapsed-wash strong{
+  color:#dfe3e9;
+  font-size:8.5px;
+  line-height:1.24;
+  font-weight:700;
+}
+.car-page .car-collapsed-service-progress{
+  display:grid!important;
+  grid-column:1/-1;
+  gap:7px;
+  margin-top:0;
+}
+.car-page .car-collapsed-progress-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:#858d99;
+  font-size:7.5px;
+  line-height:1;
+  font-weight:820;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.car-page .car-collapsed-progress-head strong{
+  color:#d9dde3;
+  font-size:9px;
+  line-height:1;
+  font-weight:850;
+  letter-spacing:0;
+  text-transform:none;
+}
+.car-page .car-collapsed-service-progress .car-service-progress{
+  height:7px;
+  margin:0;
+}
+.car-page-wash-guide-button{
+  width:100%;
+  min-height:43px;
+  padding:0 16px;
+  border:1px solid color-mix(in srgb,#4e8bc5 30%,var(--line));
+  border-radius:14px;
+  background:color-mix(in srgb,#4e8bc5 12%,var(--surface-strong));
+  color:#4b91d0;
+  font:inherit;
+  font-size:12px;
+  font-weight:820;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.car-page-wash-guide-button[hidden]{display:none!important}
+.car-page-wash-guide-button:active{transform:scale(.985)}
+@media(max-width:430px){
+  .car-page>.car-head{
+    min-height:138px;
+    grid-template-columns:minmax(0,1fr) minmax(118px,38%);
+    gap:8px;
+    padding:14px;
+  }
+  .car-page .car-head h2{font-size:20px}
+  .car-page .car-model{font-size:9.5px}
+  .car-page .car-collapsed-metric strong{font-size:11.5px}
+  .car-page .car-head-visual img{height:76px}
+  .car-page .car-collapsed-wash strong{font-size:7.8px}
+}
+/* end RUDI v4.03 car page header */
