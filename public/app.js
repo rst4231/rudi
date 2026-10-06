@@ -2102,26 +2102,86 @@
         }catch(_){return false}
       }
 
-      function runAppViewTransition(update,{from='',to=''}={}){
+      function appTransitionMeta(from,to){
+        const source=String(from||'home');
+        const target=String(to||'home');
+        const sourcePrimary=PRIMARY_NAV_TABS.has(source);
+        const targetPrimary=PRIMARY_NAV_TABS.has(target);
+        if(sourcePrimary&&targetPrimary){
+          const order=['home','feed','schedule','products','photos'];
+          const fromIndex=order.indexOf(source);
+          const toIndex=order.indexOf(target);
+          return {kind:'tab',direction:toIndex>=fromIndex?'forward':'back'};
+        }
+        const sourceInternal=INTERNAL_ANIMATED_TABS.has(source);
+        const targetInternal=INTERNAL_ANIMATED_TABS.has(target);
+        const direction=sourceInternal&&!targetInternal?'back':'forward';
+        return {kind:'page',direction};
+      }
+
+      function clearAppTransitionState(){
+        delete document.documentElement.dataset.rudiRouteTransition;
+        delete document.documentElement.dataset.rudiRouteDirection;
+        delete document.body.dataset.rudiFallbackTransition;
+        delete document.body.dataset.rudiFallbackDirection;
+      }
+
+      function runFallbackAppTransition(update,{kind='page',direction='forward',from=''}={}){
         if(typeof update!=='function') return null;
-        const internalTransition=INTERNAL_ANIMATED_TABS.has(String(from||''))||INTERNAL_ANIMATED_TABS.has(String(to||''));
-        if(!canUseAppViewTransition()||appViewTransitionActive){
+        if(rudiMotionReduced()){
           update();
           return null;
         }
+        const oldSections=[...document.querySelectorAll('[data-app-tab-section="'+String(from||currentAppTab)+'"]:not([hidden])')];
         appViewTransitionActive=true;
-        if(internalTransition) document.documentElement.dataset.rudiRouteTransition='internal';
+        document.body.dataset.rudiFallbackTransition=kind;
+        document.body.dataset.rudiFallbackDirection=direction;
+        oldSections.forEach(section=>{
+          section.classList.remove('rudi-route-enter','rudi-route-leave');
+          section.classList.add('rudi-route-leave');
+        });
+        setTimeout(()=>{
+          oldSections.forEach(section=>section.classList.remove('rudi-route-leave'));
+          update();
+          const newSections=[...document.querySelectorAll('[data-app-tab-section="'+currentAppTab+'"]:not([hidden])')];
+          requestAnimationFrame(()=>newSections.forEach(section=>{
+            section.classList.remove('rudi-route-enter');
+            void section.offsetWidth;
+            section.classList.add('rudi-route-enter');
+          }));
+          setTimeout(()=>{
+            newSections.forEach(section=>section.classList.remove('rudi-route-enter'));
+            appViewTransitionActive=false;
+            clearAppTransitionState();
+          },430);
+        },150);
+        return null;
+      }
+
+      function runAppViewTransition(update,{from='',to=''}={}){
+        if(typeof update!=='function') return null;
+        const meta=appTransitionMeta(from,to);
+        if(appViewTransitionActive){
+          update();
+          return null;
+        }
+        if(!canUseAppViewTransition()){
+          return runFallbackAppTransition(update,{...meta,from});
+        }
+        appViewTransitionActive=true;
+        document.documentElement.dataset.rudiRouteTransition=meta.kind;
+        document.documentElement.dataset.rudiRouteDirection=meta.direction;
         let transition=null;
         const finish=()=>{
           appViewTransitionActive=false;
-          if(internalTransition) delete document.documentElement.dataset.rudiRouteTransition;
+          clearAppTransitionState();
         };
         try{
           transition=document.startViewTransition(()=>update());
           Promise.resolve(transition?.finished).finally(finish);
         }catch(_){
           finish();
-          update();
+          return runFallbackAppTransition(update,{...meta,from});
         }
         return transition;
       }
@@ -2312,7 +2372,7 @@
               runTabSideEffects(currentAppTab,{item:route.item});
               focusDeepLinkedItem(currentAppTab,route.item);
             };
-            if(route.tab!==previous) runAppViewTransition(update);
+            if(route.tab!==previous) runAppViewTransition(update,{from:previous,to:route.tab});
             else update();
           });
         }
