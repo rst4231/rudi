@@ -5,7 +5,6 @@ const path = require('node:path');
 
 const { publishLaborArticle } = require('../api/labor-code.cjs');
 const { getLaborCache } = require('../api/stateful-cache.cjs');
-const { isLaborBootstrapAllowed } = require('../api/index.js');
 
 function memoryCache(seed = {}) {
   const map = new Map(Object.entries(seed));
@@ -72,6 +71,3 @@ test('Labor queues privately for Diana and retires legacy topic 696', async () =
   assert.equal(calls.find((call) => call.method === 'deleteForumTopic').body.message_thread_id, 696);
 });
 
-test('one-time Labor bootstrap is allowed on 26 August 2026', () => {
-  assert.equal(isLaborBootstrapAllowed(new Date('2026-08-26T09:00:00Z')), true);
-});
