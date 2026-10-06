@@ -217,11 +217,7 @@ function viewState(state, actor = '') {
   const safeActor = ['Рустам', 'Диана'].includes(String(actor || '').trim()) ? String(actor).trim() : '';
   const personalMonths = safeActor
     ? Object.values(normalized.personal[safeActor] || {})
-        .map((row) => {
-          const categorized = expenseTotal(normalized, safeActor, row.month);
-          const hasCategorized = normalized.personalExpenses.some((item) => item.actor === safeActor && item.month === row.month);
-          return hasCategorized ? { ...row, ...personalAmounts(row.income, categorized) } : row;
-        })
+        .map((row) => ({ ...row, ...personalAmounts(row.income, expenseTotal(normalized, safeActor, row.month)) }))
         .sort((a, b) => String(b.month).localeCompare(String(a.month)))
     : [];
   const categories = safeActor ? [...(normalized.categories[safeActor] || [])] : [];
@@ -269,10 +265,7 @@ async function savePersonalIncome(actor, month, income, options = {}) {
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     const updatedAt = new Date(options.now || Date.now()).toISOString();
-    const categorized = expenseTotal(current, safeActor, safeMonth);
-    const hasCategorized = current.personalExpenses.some((row) => row.actor === safeActor && row.month === safeMonth);
-    const legacyExpenses = cleanMoney(current.personal[safeActor]?.[safeMonth]?.expenses || 0);
-    const amounts = personalAmounts(safeIncome, hasCategorized ? categorized : legacyExpenses);
+    const amounts = personalAmounts(safeIncome, expenseTotal(current, safeActor, safeMonth));
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
       personal: {
