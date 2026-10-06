@@ -22,15 +22,19 @@ test('car documents remove duplicate photos by id or media url',()=>{
   assert.deepEqual(photos.map(photo=>photo.id),['doc-1','doc-3']);
 });
 
-test('car document viewer prefers original quality and opens the photo on iCloud',()=>{
+test('car document viewer uses maximum quality without original button and supports zoom',()=>{
   const car=fs.readFileSync('public/car.js','utf8');
   const app=fs.readFileSync('public/app.js','utf8');
-  assert.match(car,/viewer\.open\(photos,index,\{[\s\S]*?albumUrl:String\(state\.documents\?\.albumUrl\|\|''\)\.trim\(\)[\s\S]*?preferOriginal:true/);
+  const html=fs.readFileSync('public/index.html','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(car,/viewer\.open\(photos,index,\{[\s\S]*?preferOriginal:true/);
   assert.match(app,/viewerDisplayUrl:preferOriginal&&\/\^https:/);
-  assert.match(app,/const iCloudPhotoUrl=albumUrl\?\(id\?albumUrl\+';'+id:albumUrl\):''/);
-  assert.match(app,/viewerOriginalUrl:iCloudPhotoUrl/);
   assert.match(app,/Загружаем фото в максимальном качестве/);
-  assert.match(app,/viewerFallbackUrl/);
+  assert.match(app,/photoViewerZoomScale/);
+  assert.match(app,/pointerDistance/);
+  assert.match(app,/clampPhotoViewerZoom/);
+  assert.doesNotMatch(html,/id="photoViewerOriginal"/);
+  assert.match(css,/\.photo-viewer-stage\.is-zoomed/);
 });
 
 test('UNI-V service schedule uses 5k first service then 10k intervals',()=>{
@@ -273,4 +277,14 @@ test('habit history is cached and calendar selection works on iOS',()=>{
   assert.match(css,/\.personal-habits-archive\{[\s\S]*?border-top:0!important/);
   assert.match(api,/const shouldFinalize=operation!=='list'\|\|requestedDate===today/);
   assert.match(api,/for\(let offset=1;offset<=6;offset\+=1\)/);
+});
+
+
+test('iCloud parser removes deleted album records before building photos',()=>{
+  const shared=fs.readFileSync('api/shared-album.cjs','utf8');
+  const car=fs.readFileSync('api/car-client.cjs','utf8');
+  assert.match(shared,/const latestRecords=new Map\(\)/);
+  assert.match(shared,/record\?\.deleted===true\|\|record\?\.isDeleted===true/);
+  assert.match(shared,/latestRecords\.delete\(name\)/);
+  assert.match(car,/rudi-car-documents-album-v3/);
 });
