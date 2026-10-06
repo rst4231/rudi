@@ -4,7 +4,7 @@ const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 const HOME_TOOLS_STALE_MS=5*60*1000;
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadedAt=0,homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
-let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false;
+let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitSelectedDate='',habitArchiveExpanded=false,habitDateRequestSeq=0,habitDateInputLastValue='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -88,9 +88,26 @@ function renderHabitDates(){
 }
 async function loadHabitsForDate(date){
   const target=String(date||'').trim();if(!target)return;
-  habitSelectedDate=target;setHabitStatus('');
-  try{applyHabitView(await habitRequest('list',{date:target}))}
-  catch(error){console.error('RUDI_HABIT_DATE_UI_ERROR',error);setHabitStatus('Не удалось загрузить выбранную дату.',true)}
+  if(target===habitState.date&&target===habitSelectedDate){renderHabitDates();return}
+  const requestId=++habitDateRequestSeq;
+  habitSelectedDate=target;setHabitStatus('');renderHabitDates();
+  const cacheKey=requestCacheKey('list',{date:target});
+  const cached=cachedRead(habitReadCache,cacheKey);
+  if(cached){
+    applyHabitView(cached);
+    return;
+  }
+  if(habitTile)habitTile.classList.add('is-date-loading');
+  try{
+    const data=await habitRequest('list',{date:target});
+    if(requestId!==habitDateRequestSeq)return;
+    applyHabitView(data);
+  }
+  catch(error){
+    if(requestId!==habitDateRequestSeq)return;
+    console.error('RUDI_HABIT_DATE_UI_ERROR',error);setHabitStatus('Не удалось загрузить выбранную дату.',true)
+  }
+  finally{if(requestId===habitDateRequestSeq&&habitTile)habitTile.classList.remove('is-date-loading')}
 }
 function habitEmoji(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/вод|пить/.test(value))return'💧';if(/заряд|трен|спорт|ходь|шаг/.test(value))return'🏃';if(/чит|книг/.test(value))return'📚';if(/медит|дых/.test(value))return'🧘';if(/сон|спать|ложиться/.test(value))return'🌙';if(/сахар|слад/.test(value))return'🍎';if(/уч|англ|язык/.test(value))return'🧠';return'🌱'}
 function applyHabitView(data){
@@ -109,6 +126,11 @@ function applyHabitView(data){
     collapsed:habitState.collapsed===true,today:String(data?.today||''),date:String(data?.date||data?.today||''),
     done:Number(data?.done||0),total:Number(data?.total||0),canCompleteToday:Boolean(data?.canCompleteToday)
   };
+  if(data?.history&&typeof data.history==='object'){
+    for(const [date,view] of Object.entries(data.history)){
+      if(date&&view&&typeof view==='object')saveCachedRead(habitReadCache,requestCacheKey('list',{date}),{ok:true,actor,...view});
+    }
+  }
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
   renderHabitDates();renderHabits();applyHabitCollapse();updateReminderBadges();
 }
@@ -220,12 +242,14 @@ function showHabitUndo({id,date,previousStatus,nextStatus}){
 function renderHabits(){
   if(!habitList||!habitProgressText||!habitProgressFill)return;
   const habits=Array.isArray(habitState.habits)?habitState.habits:[],statuses=habitState.statuses||{},done=habits.filter(h=>statuses[h.id]==='done').length,total=habits.length,percent=total?Math.round(done/total*100):0;
-  habitProgressText.textContent=total?done+' из '+total+' выполнено'+(habitSelectedDate&&habitSelectedDate!==habitState.today?' · '+habitDateLabel(habitSelectedDate):''):'Добавь первую привычку';
+  const isHistorical=Boolean(habitSelectedDate&&habitSelectedDate!==habitState.today);
+  habitTile?.classList.toggle('is-history-date',isHistorical);
+  habitProgressText.textContent=total?done+' из '+total+' выполнено'+(isHistorical?' · '+habitDateLabel(habitSelectedDate):''):'Добавь первую привычку';
   habitProgressFill.style.width=percent+'%';if(habitPercentNode)habitPercentNode.textContent=percent+'%';habitList.replaceChildren();
   if(!habits.length){const empty=document.createElement('div');empty.className='personal-habits-empty';empty.textContent='Например: пить воду, читать 20 минут или ложиться спать до 23:00.';habitList.appendChild(empty)}
   for(const habit of habits){
     const id=String(habit.id||''),status=String(statuses[id]||'pending'),isDone=status==='done',isNotDone=status==='notdone';
-    const row=document.createElement('div');row.className='personal-habit-row';row.classList.toggle('is-done',isDone);row.classList.toggle('is-notdone',isNotDone);
+    const row=document.createElement('div');row.className='personal-habit-row';row.classList.toggle('is-done',isDone);row.classList.toggle('is-notdone',isNotDone);row.classList.toggle('is-history',isHistorical);
     const main=document.createElement('div');main.className='personal-habit-main';
     const emoji=document.createElement('span');emoji.className='personal-habit-emoji';emoji.textContent=habit.emoji||habitEmoji(habit.name);
     const copy=document.createElement('div');copy.className='personal-habit-copy';
@@ -233,7 +257,13 @@ function renderHabits(){
     const purpose=document.createElement('div');purpose.className='personal-habit-purpose';purpose.textContent=String(habit.purpose||'').trim();purpose.hidden=!purpose.textContent;
     const habitStats=habitState.stats?.[id]||{},notDoneCount=Math.max(0,Number(habitStats.notDone)||0),lostStars=Math.max(0,Number(habitStats.lostStars)||0);
     const streak=document.createElement('div');streak.className='personal-habit-streak';streak.textContent=habitStreakText(habitState.streaks?.[id])+' · '+notDoneCount+' не выполнено · −'+String(Number(lostStars.toFixed(1))).replace('.0','').replace('.',',')+' ⭐';
-    const meta=document.createElement('div');meta.className='personal-habit-score-meta';meta.textContent=habitScoreMeta(id);copy.append(name,purpose,streak,meta);
+    const meta=document.createElement('div');meta.className='personal-habit-score-meta';meta.textContent=habitScoreMeta(id);
+    copy.append(name,purpose,streak,meta);
+    if(isHistorical){
+      const dayStatus=document.createElement('div');dayStatus.className='personal-habit-day-status '+(isDone?'is-done':isNotDone?'is-notdone':'is-pending');
+      dayStatus.textContent=isDone?'✓ Выполнено в этот день':isNotDone?'✕ Не выполнено в этот день':'— За этот день нет отметки';
+      copy.appendChild(dayStatus);
+    }
     const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Переместить привычку в архив: '+habit.name);main.append(emoji,copy,remove);
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
@@ -579,7 +609,15 @@ function build(){
     const hit=target.closest('button,a,input,select,textarea,label,[role="button"],[role="link"],[contenteditable="true"],[data-action],[onclick],.score-sticker,.profile-score-sticker,[data-score-actor]');
     return Boolean(hit&&root.contains(hit));
   };
-  habitDateInput.addEventListener('change',()=>{const value=habitDateInput.value;if(value)loadHabitsForDate(value)});
+  const commitHabitCalendarDate=()=>{
+    const value=String(habitDateInput.value||'').trim();
+    if(!value||value===habitDateInputLastValue&&value===habitSelectedDate)return;
+    habitDateInputLastValue=value;
+    loadHabitsForDate(value);
+  };
+  habitDateInput.addEventListener('input',commitHabitCalendarDate);
+  habitDateInput.addEventListener('change',commitHabitCalendarDate);
+  habitDateInput.addEventListener('blur',commitHabitCalendarDate);
   habitAddButton.addEventListener('click',()=>{habitAddButton.hidden=true;habitForm.hidden=false;habitInput.value='';habitPurposeInput.value='';requestAnimationFrame(()=>habitInput.focus({preventScroll:true}))});
   habitCancel.addEventListener('click',()=>{habitForm.hidden=true;habitAddButton.hidden=false;habitInput.value='';habitPurposeInput.value='';setHabitStatus('')});
   habitForm.addEventListener('submit',async(event)=>{
