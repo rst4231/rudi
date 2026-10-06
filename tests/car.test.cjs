@@ -338,3 +338,12 @@ test('past habit dates are read-only with theme-aware text',()=>{
   assert.match(css,/html\[data-theme="dark"\] \.personal-habit-status-button\.is-history-locked/);
   assert.match(css,/color:rgba\(255,255,255,.82\)!important/);
 });
+
+
+test('past habit button text stays dark in light theme on iOS',()=>{
+  const css=fs.readFileSync('public/profile-supplements.css','utf8');
+  assert.match(css,/html\[data-theme="light"\] \.personal-habit-row\.is-history \.personal-habit-status-button\.is-history-locked\.is-active/);
+  assert.match(css,/-webkit-text-fill-color:#111418!important/);
+  assert.match(css,/html\[data-theme="dark"\] \.personal-habit-row\.is-history \.personal-habit-status-button\.is-history-locked\.is-active/);
+  assert.match(css,/-webkit-text-fill-color:rgba\(255,255,255,.86\)!important/);
+});
