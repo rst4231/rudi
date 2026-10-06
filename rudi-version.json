@@ -1,12 +1,16 @@
 {
-  "current": "v4.25",
+  "current": "v4.26",
   "versionBranch": "pending-release",
   "releaseCommit": null,
   "deploymentSourceCommit": null,
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-06",
-  "basedOnProduction": "v4.24",
+  "basedOnProduction": "v4.25",
   "notes": [
+    "Исправлен service worker: удалённые messenger.js и messenger.css больше не попадают в precache, а единичный сбой статического ресурса не блокирует установку новой версии.",
+    "Удалены отключённые маршруты init-products и labor-bootstrap.",
+    "Удалена одноразовая recovery-логика за 25–26 сентября 2026.",
+    "Удалены остатки старой админки и устаревший home-hero-v2103.css.",
     "Главные блоки переставлены в цепочку: Лулу → Совместные дела → Умный дом → Ближайшее → Машина.",
     "Добавлена одноразовая миграция сохранённого порядка для Рустама и Дианы, чтобы новый порядок применился и на уже настроенных устройствах.",
     "Исправлен скачущий эмодзи партнёра: старая absolute-позиция .partner-mood-icon полностью отключена внутри строки имени.",
