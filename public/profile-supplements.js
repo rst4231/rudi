@@ -268,11 +268,25 @@ function renderHabits(){
     const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Переместить привычку в архив: '+habit.name);main.append(emoji,copy,remove);
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
-    const doneLocked=isNotDone||(habitSelectedDate===habitState.today&&!habitState.canCompleteToday&&!isDone);
-    yes.disabled=doneLocked;yes.title=isNotDone?'После «Не выполнено» изменить на «Выполнено» нельзя':doneLocked?'Можно отметить после 20:00 МСК':'';
-    const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);actions.append(yes,no);
+    const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);
+    const todayTimeLocked=habitSelectedDate===habitState.today&&!habitState.canCompleteToday;
+    yes.classList.toggle('is-time-locked',todayTimeLocked);
+    no.classList.toggle('is-time-locked',todayTimeLocked);
+    yes.setAttribute('aria-disabled',todayTimeLocked||isNotDone?'true':'false');
+    no.setAttribute('aria-disabled',todayTimeLocked?'true':'false');
+    yes.title=isNotDone?'После «Не выполнено» изменить на «Выполнено» нельзя':todayTimeLocked?'Отметить привычку можно после 20:00':'';
+    no.title=todayTimeLocked?'Отметить привычку можно после 20:00':'';
+    actions.append(yes,no);
     const save=async(next)=>{
-      if((next==='done'&&yes.disabled)||(next==='notdone'&&no.disabled))return;
+      if(todayTimeLocked){
+        setHabitStatus('Отметить привычку можно после 20:00.');
+        try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+        return;
+      }
+      if(next==='done'&&isNotDone){
+        setHabitStatus('После «Не выполнено» изменить на «Выполнено» нельзя.',true);
+        return;
+      }
       const previousStatus=status;
       const actionDate=habitSelectedDate||habitState.today;
       yes.disabled=true;no.disabled=true;remove.disabled=true;setHabitStatus('');
@@ -285,7 +299,12 @@ function renderHabits(){
           showHabitUndo({id,date:actionDate,previousStatus,nextStatus:next});
         }
       }
-      catch(error){console.error('RUDI_HABIT_STATUS_UI_ERROR',error);setHabitStatus(String(error?.message||'')==='habit-done-too-early'?'«Выполнено» можно отметить только после 20:00 МСК.':'Не удалось сохранить статус.',true);yes.disabled=doneLocked;no.disabled=false;remove.disabled=false}
+      catch(error){
+        console.error('RUDI_HABIT_STATUS_UI_ERROR',error);
+        const code=String(error?.message||'');
+        setHabitStatus(code==='habit-status-too-early'||code==='habit-done-too-early'?'Отметить привычку можно после 20:00.':'Не удалось сохранить статус.',true);
+        yes.disabled=false;no.disabled=false;remove.disabled=false;
+      }
     };
     yes.addEventListener('click',()=>save('done'));no.addEventListener('click',()=>save('notdone'));
     remove.addEventListener('click',async()=>{if(remove.disabled)return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('archive',{id,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus('Привычка перемещена в архив. Восстановить её нельзя.')}catch(error){console.error('RUDI_HABIT_ARCHIVE_UI_ERROR',error);setHabitStatus('Не удалось переместить привычку в архив.',true);yes.disabled=no.disabled=remove.disabled=false}});
