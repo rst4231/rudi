@@ -322,3 +322,19 @@ test('habit status buttons stay tappable for the 20:00 hint',()=>{
   assert.match(css,/\.personal-habit-status-button\.is-time-locked\{/);
   assert.match(css,/html\[data-theme="light"\] \.personal-habit-status-button\.is-notdone:not\(\.is-active\)/);
 });
+
+
+test('past habit dates are read-only with theme-aware text',()=>{
+  const client=fs.readFileSync('public/profile-supplements.js','utf8');
+  const css=fs.readFileSync('public/profile-supplements.css','utf8');
+  const api=fs.readFileSync('api/habits.js','utf8');
+  assert.match(client,/const pastDateLocked=Boolean\(habitSelectedDate&&habitSelectedDate<habitState\.today\)/);
+  assert.match(client,/yes\.disabled=pastDateLocked/);
+  assert.match(client,/no\.disabled=pastDateLocked/);
+  assert.match(client,/is-history-locked/);
+  assert.match(api,/if\(date<today\)throw new Error\('habit-date-readonly'\)/);
+  assert.match(css,/html\[data-theme="light"\] \.personal-habit-status-button\.is-history-locked/);
+  assert.match(css,/color:#252a2d!important/);
+  assert.match(css,/html\[data-theme="dark"\] \.personal-habit-status-button\.is-history-locked/);
+  assert.match(css,/color:rgba\(255,255,255,.82\)!important/);
+});
