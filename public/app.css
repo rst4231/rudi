@@ -12970,3 +12970,27 @@ body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="back"] 
   }
 }
 /* end RUDI v3.98 enhanced route transitions */
+
+
+/* RUDI v3.98 photo viewer zoom */
+.photo-viewer-stage{
+  touch-action:none;
+}
+.photo-viewer-stage img{
+  transform-origin:center center;
+  will-change:transform;
+  transition:transform 160ms cubic-bezier(.2,.82,.2,1);
+}
+.photo-viewer-stage.is-zoomed{
+  cursor:grab;
+}
+.photo-viewer-stage.is-zoomed:active{
+  cursor:grabbing;
+}
+.photo-viewer-stage.is-zoomed img{
+  transition:none;
+}
+@media(prefers-reduced-motion:reduce){
+  .photo-viewer-stage img{transition:none!important}
+}
+/* end RUDI v3.98 photo viewer zoom */
