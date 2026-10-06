@@ -13302,7 +13302,7 @@ body[data-app-tab="finances"]{
 .profile .avatar-mood-badge{
   left:50%!important;
   right:auto!important;
-  bottom:-6px!important;
+  bottom:-10px!important;
   top:auto!important;
   transform:translateX(-50%) rotate(-10deg)!important;
 }
@@ -13312,7 +13312,7 @@ body[data-app-tab="finances"]{
 }
 .profile-person-card .score-sticker{
   left:50%!important;
-  top:-10px!important;
+  top:-14px!important;
   bottom:auto!important;
   transform:translateX(-50%) rotate(-2deg)!important;
 }
@@ -13320,6 +13320,6 @@ body[data-app-tab="finances"]{
   transform:translateX(-50%) rotate(-2deg) scale(.94)!important;
 }
 @media(max-width:430px){
-  .profile-person-card .score-sticker{top:-9px!important;bottom:auto!important}
+  .profile-person-card .score-sticker{top:-13px!important;bottom:auto!important}
 }
 /* end RUDI v4.11 final badge placement */
