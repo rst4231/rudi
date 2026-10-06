@@ -1,15 +1,15 @@
 {
-  "current": "v3.93",
-  "versionBranch": "rudi-v3.93-supplements-car-documents",
-  "releaseCommit": "cf82c835bbf556a2a52e67172fe770bd91d472c3",
-  "deploymentSourceCommit": "43926be699c532c307a942790a68b370f5d70360",
-  "deploymentRequestedAt": "2026-10-05T20:58:30.000Z",
-  "createdAt": "2026-10-05",
-  "basedOnProduction": "v3.92",
+  "current": "v3.94",
+  "versionBranch": "rudi-v3.94-car-documents-viewer",
+  "releaseCommit": null,
+  "deploymentSourceCommit": null,
+  "deploymentRequestedAt": null,
+  "createdAt": "2026-10-06",
+  "basedOnProduction": "v3.93",
   "notes": [
-    "Обновлён дизайн раздела БАДов и витаминов по референсу.",
-    "Убран повторный заголовок внутри основной карточки раздела.",
-    "Исправлена загрузка Автодокументов из нового iCloud Shared Album."
+    "Автодокументы теперь показываются компактной сеткой по 5 превью в строке, как в разделе «Наш альбом».",
+    "По нажатию Автодокументы открываются в том же полноэкранном просмотрщике, что и «Наш альбом», со свайпами между фото.",
+    "Для просмотра iCloud CloudKit используется максимально качественная JPEG FullRes-версия, когда она доступна."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
