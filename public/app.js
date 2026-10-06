@@ -1919,14 +1919,16 @@
 
       function animateRudiView(section){
         if(!section||section.hidden||rudiMotionReduced()) return;
-        section.classList.remove('rudi-view-enter');
+        const className=INTERNAL_ANIMATED_TABS.has(currentAppTab)?'rudi-internal-view-enter':'rudi-view-enter';
+        section.classList.remove('rudi-view-enter','rudi-internal-view-enter');
         void section.offsetWidth;
-        section.classList.add('rudi-view-enter');
-        setTimeout(()=>section.classList.remove('rudi-view-enter'),520);
+        section.classList.add(className);
+        setTimeout(()=>section.classList.remove(className),560);
       }
 
       const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','supplements','dates','for-di','score','settings','smart-saves','car'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
+      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','supplements','car','wishlist','dates','for-di','smart-saves']);
 
       function routeFromLocation(){
         try{
@@ -2100,19 +2102,25 @@
         }catch(_){return false}
       }
 
-      function runAppViewTransition(update){
+      function runAppViewTransition(update,{from='',to=''}={}){
         if(typeof update!=='function') return null;
+        const internalTransition=INTERNAL_ANIMATED_TABS.has(String(from||''))||INTERNAL_ANIMATED_TABS.has(String(to||''));
         if(!canUseAppViewTransition()||appViewTransitionActive){
           update();
           return null;
         }
         appViewTransitionActive=true;
+        if(internalTransition) document.documentElement.dataset.rudiRouteTransition='internal';
         let transition=null;
+        const finish=()=>{
+          appViewTransitionActive=false;
+          if(internalTransition) delete document.documentElement.dataset.rudiRouteTransition;
+        };
         try{
           transition=document.startViewTransition(()=>update());
-          Promise.resolve(transition?.finished).finally(()=>{appViewTransitionActive=false});
+          Promise.resolve(transition?.finished).finally(finish);
         }catch(_){
-          appViewTransitionActive=false;
+          finish();
           update();
         }
         return transition;
@@ -2128,7 +2136,7 @@
           updateAppRoute(currentAppTab,{item,replace});
           runTabSideEffects(currentAppTab,{item});
         };
-        if(tab!==previous) runAppViewTransition(update);
+        if(tab!==previous) runAppViewTransition(update,{from:previous,to:tab});
         else update();
       }
 
@@ -2148,8 +2156,9 @@
         document.body.dataset.primaryNav=primaryNavVisible?'visible':'hidden';
         const appTabBar=document.getElementById('appTabBar');
         if(appTabBar){
-          appTabBar.hidden=!primaryNavVisible;
+          appTabBar.classList.toggle('is-hidden',!primaryNavVisible);
           appTabBar.setAttribute('aria-hidden',primaryNavVisible?'false':'true');
+          try{appTabBar.inert=!primaryNavVisible}catch(_){}
         }
         if(changed){
           try{window.dispatchEvent(new CustomEvent('rudi:app-tab-change',{detail:{tab:next}}))}catch(_){}
