@@ -66,4 +66,18 @@ test('finance category UI has delete but no category limit, category note or ana
   assert.ok(!html.includes('расходы по категориям, лимиты и долги'));
   assert.ok(!ai.includes("actions: { type: 'array'"));
   assert.ok(!ai.includes("'actions — приоритетные практические действия"));
+  assert.ok(html.includes('id="financeIncomeCoin"'));
+  assert.ok(html.includes('id="financeExpenseComposer"'));
+  assert.ok(app.includes("openFinanceExpenseComposer(categoryId)"));
+  assert.ok(app.includes("className='finance-coin-item finance-category-coin-item'"));
+  assert.ok(!html.includes('id="financePulseTitle"'));
+  assert.ok(!html.includes('id="financeReserveInput"'));
+  const ticker=html.indexOf('id="marketTickerTile"');
+  const tabs=html.indexOf('id="financeTabs"');
+  assert.ok(ticker>0&&tabs>ticker);
+});
+
+test('finance coin grid keeps five category icons per row',()=>{
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.ok(css.includes('grid-template-columns:repeat(5,minmax(0,1fr))!important'));
 });
