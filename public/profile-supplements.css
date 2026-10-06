@@ -637,3 +637,32 @@ body[data-app-tab="habits"] .personal-habits-title-wrap{
 html[data-theme="light"] .personal-habit-day-status.is-done{color:#2f7549}
 html[data-theme="light"] .personal-habit-day-status.is-notdone{color:#a83e47}
 /* end RUDI v3.98 habit history clarity */
+
+
+/* RUDI v3.99 — habit status time lock and light-theme contrast */
+.personal-habit-status-button.is-time-locked{
+  opacity:.42!important;
+  box-shadow:none!important;
+  cursor:not-allowed;
+  filter:saturate(.55);
+}
+.personal-habit-status-button.is-time-locked.is-done,
+.personal-habit-status-button.is-time-locked.is-notdone{
+  background:transparent!important;
+}
+html[data-theme="light"] .personal-habit-status-button.is-notdone:not(.is-active){
+  color:#a43f48!important;
+  border-color:rgba(176,62,72,.34)!important;
+  background:rgba(190,68,68,.055)!important;
+}
+html[data-theme="light"] .personal-habit-status-button.is-notdone.is-time-locked{
+  color:rgba(140,58,66,.62)!important;
+  border-color:rgba(154,73,81,.24)!important;
+  background:rgba(190,68,68,.035)!important;
+}
+html[data-theme="light"] .personal-habit-status-button.is-done.is-time-locked{
+  color:rgba(55,111,76,.62)!important;
+  border-color:rgba(67,139,91,.22)!important;
+  background:rgba(67,139,91,.035)!important;
+}
+/* end RUDI v3.99 habit status time lock */
