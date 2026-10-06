@@ -4,7 +4,7 @@ const {
   saveExpenseCategory, updateExpenseCategory, savePersonalExpense, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
-const { getDailyLiteracyArticle, getMonthlyFinanceInsight } = require('./finance-ai.cjs');
+const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport } = require('./finance-ai.cjs');
 
 function statusFor(code, error) {
   const auth = statusForError(error);
@@ -84,6 +84,25 @@ async function handler(req, res) {
     if (operation === 'literacy') {
       const article = await getDailyLiteracyArticle();
       return res.status(200).json({ ok: true, article });
+    }
+    if (operation === 'analyst') {
+      const month = String(body.month || '').trim();
+      const state = await readFinanceState();
+      const view = viewState(state, actor);
+      const row = (view.personalMonths || []).find((item) => item.month === month) || { income: 0, expenses: 0, balance: 0 };
+      const literacy = await getDailyLiteracyArticle().catch(() => null);
+      const report = await getFinancialAnalystReport({
+        actor, month, version: view.version,
+        income: row.income, expenses: row.expenses, balance: row.balance,
+        reserve: view.plan?.reserve || 0,
+        goalTitle: view.plan?.goalTitle || '',
+        goalCurrent: view.plan?.goalCurrent || 0,
+        goalTarget: view.plan?.goalTarget || 0,
+        categories: categorySummary(view, month),
+        debts: view.debts || [],
+        literacy,
+      });
+      return res.status(200).json({ ok: true, report });
     }
     if (operation === 'save-debt') {
       const state = await saveDebt(actor, body);
