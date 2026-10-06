@@ -33,7 +33,7 @@ let configMemo = null;
 let configMemoAt = 0;
 let tasksMemo = null;
 let tasksMemoAt = 0;
-const carDocumentsAlbumCache = createStrictRuntimeCache({ namespace:'rudi-car-documents-album-v1' });
+const carDocumentsAlbumCache = createStrictRuntimeCache({ namespace:'rudi-car-documents-album-v2' });
 
 function authenticate(rawInitData, botToken) {
   const raw = String(rawInitData || '').trim();
@@ -373,6 +373,23 @@ async function carTasksSafe() {
   }
 }
 
+function uniqueCarDocumentPhotos(value) {
+  const seenIds=new Set();
+  const seenUrls=new Set();
+  const unique=[];
+  for(const photo of Array.isArray(value)?value:[]){
+    const id=String(photo?.id||'').trim();
+    const urls=[photo?.originalUrl,photo?.fullUrl,photo?.url]
+      .map(url=>String(url||'').trim())
+      .filter(Boolean);
+    if((id&&seenIds.has(id))||urls.some(url=>seenUrls.has(url))) continue;
+    if(id) seenIds.add(id);
+    urls.forEach(url=>seenUrls.add(url));
+    unique.push(photo);
+  }
+  return unique;
+}
+
 async function carDocumentsSafe(config) {
   const albumUrl=String(config?.documentsAlbumUrl||'').trim();
   if(!albumUrl) return { configured:false, photos:[], totalCount:0, albumUrl:'' };
@@ -381,23 +398,25 @@ async function carDocumentsSafe(config) {
       albumConfig:{url:albumUrl},
       albumCache:carDocumentsAlbumCache,
     });
-    const photos=(Array.isArray(result?.photos)?result.photos:[])
-      .filter(photo=>String(photo?.type||'image')!=='video')
-      .map(photo=>({
-        id:String(photo?.id||''),
-        url:String(photo?.url||''),
-        fullUrl:String(photo?.fullUrl||photo?.url||''),
-        originalUrl:String(photo?.originalUrl||photo?.fullUrl||photo?.url||''),
-        width:Number(photo?.width||0)||null,
-        height:Number(photo?.height||0)||null,
-        fullWidth:Number(photo?.fullWidth||0)||null,
-        fullHeight:Number(photo?.fullHeight||0)||null,
-        originalWidth:Number(photo?.originalWidth||photo?.fullWidth||0)||null,
-        originalHeight:Number(photo?.originalHeight||photo?.fullHeight||0)||null,
-        date:String(photo?.date||''),
-        caption:String(photo?.caption||'').trim(),
-      }))
-      .filter(photo=>photo.url&&photo.fullUrl);
+    const photos=uniqueCarDocumentPhotos(
+      (Array.isArray(result?.photos)?result.photos:[])
+        .filter(photo=>String(photo?.type||'image')!=='video')
+        .map(photo=>({
+          id:String(photo?.id||''),
+          url:String(photo?.url||''),
+          fullUrl:String(photo?.fullUrl||photo?.url||''),
+          originalUrl:String(photo?.originalUrl||photo?.fullUrl||photo?.url||''),
+          width:Number(photo?.width||0)||null,
+          height:Number(photo?.height||0)||null,
+          fullWidth:Number(photo?.fullWidth||0)||null,
+          fullHeight:Number(photo?.fullHeight||0)||null,
+          originalWidth:Number(photo?.originalWidth||photo?.fullWidth||0)||null,
+          originalHeight:Number(photo?.originalHeight||photo?.fullHeight||0)||null,
+          date:String(photo?.date||''),
+          caption:String(photo?.caption||'').trim(),
+        }))
+        .filter(photo=>photo.url&&photo.fullUrl)
+    );
     return {
       configured:true,
       photos,
@@ -649,6 +668,7 @@ module.exports = {
   carColumnIds,
   isCarTask,
   selectCurrentCarTasks,
+  uniqueCarDocumentPhotos,
   cleanCarTaskTitle,
   cleanCarTaskDate,
   createCarTask,
