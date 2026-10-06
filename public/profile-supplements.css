@@ -566,3 +566,74 @@ html[data-theme="light"] body[data-app-tab="supplements"] .personal-supplements-
   body[data-app-tab="supplements"] .personal-home-tile-icon.is-supplement{width:64px;height:64px;flex-basis:64px;border-radius:20px;font-size:34px}
   body[data-app-tab="supplements"] .personal-supplements-summary{font-size:16px}
 }
+
+
+/* RUDI v3.98 — habit history clarity and cleanup */
+body[data-app-tab="habits"] .personal-habits-title-wrap h2{
+  display:none!important;
+}
+body[data-app-tab="habits"] .personal-habits-title-wrap{
+  display:flex;
+  align-items:center;
+  min-height:38px;
+}
+.personal-habits-archive{
+  border-top:0!important;
+  padding-top:2px!important;
+}
+.personal-habit-day-status{
+  width:max-content;
+  max-width:100%;
+  margin-top:7px;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:10.5px;
+  line-height:1.25;
+  font-weight:820;
+  letter-spacing:-.01em;
+}
+.personal-habit-day-status.is-done{
+  color:#73d99a;
+  background:rgba(67,139,91,.17);
+  border:1px solid rgba(92,176,119,.22);
+}
+.personal-habit-day-status.is-notdone{
+  color:#f08a91;
+  background:rgba(190,68,68,.16);
+  border:1px solid rgba(214,91,99,.22);
+}
+.personal-habit-day-status.is-pending{
+  color:var(--muted);
+  background:color-mix(in srgb,currentColor 7%,transparent);
+  border:1px solid color-mix(in srgb,currentColor 10%,transparent);
+}
+.personal-habit-row.is-history .personal-habit-status-button{
+  box-shadow:none!important;
+}
+.personal-habit-row.is-history .personal-habit-status-button:not(.is-active){
+  opacity:.34!important;
+  background:transparent!important;
+}
+.personal-habit-row.is-history .personal-habit-status-button.is-done.is-active{
+  opacity:1!important;
+  color:#fff!important;
+  background:#438b5b!important;
+  border-color:#438b5b!important;
+}
+.personal-habit-row.is-history .personal-habit-status-button.is-notdone.is-active{
+  opacity:1!important;
+  color:#fff!important;
+  background:#c64f58!important;
+  border-color:#c64f58!important;
+}
+.personal-habits-tile .personal-habits-body,
+.personal-habits-tile .personal-habits-progress-row{
+  transition:opacity 160ms ease;
+}
+.personal-habits-tile.is-date-loading .personal-habits-body,
+.personal-habits-tile.is-date-loading .personal-habits-progress-row{
+  opacity:.58;
+}
+html[data-theme="light"] .personal-habit-day-status.is-done{color:#2f7549}
+html[data-theme="light"] .personal-habit-day-status.is-notdone{color:#a83e47}
+/* end RUDI v3.98 habit history clarity */
