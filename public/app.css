@@ -14125,4 +14125,31 @@ body[data-app-tab="finances"][data-finance-tone="literacy"]{
   .finance-pulse-grid{grid-template-columns:1fr}
   .finance-plan-grid{grid-template-columns:1fr}
 }
+
+.finance-analyst-card{
+  padding:18px;
+  border:1px solid color-mix(in srgb,#7b68db 14%,var(--line));
+  border-radius:22px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 97%,transparent),color-mix(in srgb,var(--surface) 92%,transparent));
+  box-shadow:0 16px 42px color-mix(in srgb,var(--text) 6%,transparent),inset 0 1px 0 color-mix(in srgb,#fff 40%,transparent)
+}
+.finance-analyst-card h2{margin:5px 0 0;font-size:20px;letter-spacing:-.03em}
+.finance-analyst-intro{margin:8px 0 0;color:var(--muted);font-size:10.5px;line-height:1.5}
+.finance-analyst-button{
+  width:100%;min-height:47px;margin-top:14px;border:0;border-radius:15px;
+  background:linear-gradient(135deg,#8773e7,#604bc1);color:#fff;font:inherit;font-size:11px;font-weight:840;
+  box-shadow:0 10px 24px rgba(96,75,193,.22)
+}
+.finance-analyst-button:disabled{opacity:.6}
+.finance-analyst-result{display:grid;gap:13px;margin-top:14px}
+.finance-analyst-result[hidden]{display:none!important}
+.finance-analyst-summary{margin:0;padding:12px;border-radius:14px;background:color-mix(in srgb,#7b68db 7%,var(--surface));font-size:11.5px;line-height:1.55}
+.finance-analyst-group h3{margin:0 0 7px;font-size:11px}
+.finance-analyst-group ol{margin:0;padding-left:19px;display:grid;gap:6px}
+.finance-analyst-group ol.is-bullets{list-style:disc}
+.finance-analyst-group li{font-size:10.5px;line-height:1.45;color:var(--text)}
+.finance-analyst-group.is-strengths h3{color:#35a875}
+.finance-analyst-group.is-risks h3{color:#d87820}
+.finance-analyst-group.is-actions h3{color:#6b58ce}
+
 /* end RUDI v4.30 */
