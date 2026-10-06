@@ -89,7 +89,8 @@ test('v3.91 task composer fits iPhone and defaults to 08:00',()=>{
 });
 
 test('v3.91 version metadata is aligned',()=>{
-  const version=read('VERSION').trim(); assert.match(version,/^v3\\.\\d+$/);
-  assert.match(read('public/index.html'),/rudi-version" content="v3\.93"/);
+  const version=read('VERSION').trim();
+  assert.match(version,/^v3\.\d+$/);
+  assert.ok(read('public/index.html').includes('rudi-version" content="'+version+'"'));
   assert.equal(JSON.parse(read('rudi-version.json')).current,version);
 });
