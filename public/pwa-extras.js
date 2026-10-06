@@ -368,13 +368,13 @@
         await enqueueOfflineMutation(queued);
         await requestOutboxFlush();
         showMiniToast(message);
-        const error=new TypeError('Действие отправится после подключения');
+        const error=new TypeError('Сохраню, когда появится интернет');
         error.rudiQueued=true;
         throw error;
       };
 
       if(queued&&navigator.onLine===false){
-        return queueAndThrow('Нет сети · действие отправится позже');
+        return queueAndThrow('Нет интернета · сохраню позже');
       }
 
       if(snapshotKey&&navigator.onLine===false){
@@ -414,10 +414,10 @@
     navigator.serviceWorker?.addEventListener?.('message',event=>{
       const data=event.data||{};
       if(data.type==='RUDI_SYNC_COMPLETE'&&Number(data.sent||0)>0){
-        showMiniToast('Изменения синхронизированы');
+        showMiniToast('Всё сохранено');
         window.dispatchEvent(new CustomEvent('rudi-background-sync-complete',{detail:data}));
       }else if(data.type==='RUDI_SYNC_PENDING'){
-        showMiniToast('Жду сеть для синхронизации');
+        showMiniToast('Жду интернет, чтобы сохранить изменения');
       }
     });
   }
@@ -894,10 +894,10 @@
     group.id='rudiHealthSettings';
     group.className='settings-group rudi-health-settings';
     group.innerHTML=
-      '<div class="settings-group-title">Состояние RUDI</div>'+
+      '<div class="settings-group-title">Работа RUDI</div>'+
       '<div class="home-settings-row rudi-health-head">'+
-        '<div class="home-settings-copy"><strong>Системы приложения</strong><small id="rudiHealthUpdated">Проверка запускается вручную</small></div>'+
-        '<span id="rudiHealthSummary" class="rudi-health-summary">Не проверено</span>'+
+        '<div class="home-settings-copy"><strong>Всё ли работает</strong><small id="rudiHealthUpdated">Проверка запускается вручную</small></div>'+
+        '<span id="rudiHealthSummary" class="rudi-health-summary">Ещё не проверялось</span>'+
       '</div>'+
       '<div id="rudiHealthList" class="rudi-health-list" aria-live="polite"></div>'+
       '<button id="rudiHealthRun" class="rudi-health-run" type="button">Проверить</button>';

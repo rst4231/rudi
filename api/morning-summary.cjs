@@ -19,6 +19,7 @@ const { readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { loadCarTasks, serviceScheduleForMileage } = require('./car-client.cjs');
 const { readCarState } = require('./car-store.cjs');
 const { readUiPreferences } = require('./ui-preferences-store.cjs');
+const { fetchHolidayDay } = require('./holiday-calendar.cjs');
 
 const NAMESPACE = 'rudi-morning-summary-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -341,7 +342,13 @@ async function loadEnvironmentSnapshot(options = {}) {
       const mins = (data.daily?.temperature_2m_min || []).map(Number).filter(Number.isFinite);
       const maxs = (data.daily?.temperature_2m_max || []).map(Number).filter(Number.isFinite);
       const means = mins.map((min,index) => (min + Number(maxs[index])) / 2).filter(Number.isFinite);
-      const precipitation = (data.daily?.precipitation_sum || []).map(Number).filter(Number.isFinite);
+      const precipitationRaw = (data.daily?.precipitation_sum || []).map((value) => Number(value));
+      const precipitation = precipitationRaw.filter(Number.isFinite);
+      const dates = Array.isArray(data.daily?.time) ? data.daily.time.map(String) : [];
+      const daily = dates.map((date,index) => ({
+        date,
+        precipitation: Number.isFinite(precipitationRaw[index]) ? precipitationRaw[index] : null,
+      }));
       const temperature = Number(data.current?.temperature_2m);
       return {
         temperature: Number.isFinite(temperature) ? temperature : null,
@@ -350,6 +357,7 @@ async function loadEnvironmentSnapshot(options = {}) {
         maxForecast: maxs.length ? Math.max(...maxs) : null,
         avgMean: means.length ? means.reduce((a,b)=>a+b,0) / means.length : null,
         precipitationSum: precipitation.length ? precipitation.reduce((a,b)=>a+b,0) : 0,
+        daily,
       };
     } catch (error) {
       console.warn('RUDI_MORNING_WEATHER_WARN', String(error?.message || error));
@@ -359,6 +367,26 @@ async function loadEnvironmentSnapshot(options = {}) {
 
   const [home,weather] = await Promise.all([homePromise,weatherPromise]);
   return { home, weather };
+}
+
+async function loadTodayHolidays(options = {}) {
+  try {
+    if (typeof options.loadTodayHolidaysImpl === 'function') {
+      const value = await options.loadTodayHolidaysImpl(options);
+      return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+    }
+    const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+    const date = moscowDateKey(now);
+    const [year,month,day] = date.split('-').map(Number);
+    const result = await fetchHolidayDay(year,month,day,{
+      ...options,
+      fetchImpl: options.holidayFetchImpl || options.fetchImpl || globalThis.fetch,
+    });
+    return Array.isArray(result?.items) ? result.items.map(String).filter(Boolean) : [];
+  } catch (error) {
+    console.warn('RUDI_MORNING_HOLIDAY_WARN', String(error?.message || error));
+    return [];
+  }
 }
 
 async function loadTodayCarTasks(options = {}) {
@@ -445,30 +473,66 @@ function environmentBlock(data = {}) {
   return lines.length ? '🌡 <b>Дом и погода</b>\n' + lines.map(escapeTelegramHtml).join('\n') : '';
 }
 
-function rustamCarBlock(data = {}) {
-  const lines = [];
-  const tyre = tyreAdviceForWeather(data.environment?.weather);
-  if (tyre) lines.push('Шины: ' + tyre);
+function shortTyreAdvice(weather) {
+  if (!weather) return '';
+  const avg = Number(weather.avgMean);
+  const min = Number(weather.minForecast);
+  if ((Number.isFinite(min) && min <= 3) || (Number.isFinite(avg) && avg <= 7)) return 'Лучше на зимних';
+  if (Number.isFinite(avg) && avg >= 10 && Number.isFinite(min) && min > 5) return 'Можно на летних';
+  return 'Лучше на зимних';
+}
 
-  const recommendations = buildCarRecommendations(data.carState, data.environment?.weather);
-  if (recommendations.length) {
-    lines.push('Рекомендации:');
-    for (const item of recommendations) {
-      lines.push('• ' + item.title + ': ' + item.text);
-    }
-  }
+function washDayLabel(weather) {
+  const days = Array.isArray(weather?.daily) ? weather.daily : [];
+  if (!days.length) return Number(weather?.precipitationSum || 0) <= 1 ? 'сегодня' : 'завтра';
+  const candidates = days.map((row,index) => ({
+    index,
+    date:String(row?.date || ''),
+    rain:Number.isFinite(Number(row?.precipitation)) ? Number(row.precipitation) : 999,
+  }));
+  const dry = candidates.filter(row => row.rain <= 0.5);
+  const best = (dry.length ? dry : candidates)
+    .sort((a,b) => a.rain - b.rain || a.index - b.index)[0];
+  if (!best) return 'сегодня';
+  if (best.index === 0) return 'сегодня';
+  if (best.index === 1) return 'завтра';
+  const date = new Date(best.date + 'T12:00:00Z');
+  if (Number.isNaN(date.getTime())) return 'завтра';
+  return 'в ' + new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:'Europe/Moscow'}).format(date).toLowerCase();
+}
+
+function shortCarRecommendations(data = {}) {
+  const items = [];
+  const mileage = Number(data.carState?.mileage);
+  const nextService = serviceScheduleForMileage(mileage);
+  const remaining = Number.isFinite(mileage) && Number.isFinite(Number(nextService?.mileage))
+    ? Math.max(0, Number(nextService.mileage) - mileage)
+    : null;
+
+  if (remaining === 0) items.push('пора на ТО');
+  else if (Number.isFinite(remaining) && remaining <= 2500) items.push('ТО через ' + formatCarKm(remaining));
+
+  const weather = data.environment?.weather;
+  if (Number(weather?.minForecast) <= 3) items.push('проверь незамерзайку');
+  if (Number(weather?.precipitationSum) >= 5) items.push('проверь дворники');
 
   const tasks = Array.isArray(data.carTasksToday) ? data.carTasksToday : [];
-  if (tasks.length) {
-    lines.push('Задачи на сегодня:');
-    for (const task of tasks.slice(0,4)) {
-      lines.push('• ' + String(task?.title || 'Задача по машине').trim());
-    }
+  for (const task of tasks.slice(0,2)) {
+    const title = String(task?.title || '').trim();
+    if (title) items.push(title);
   }
+  return [...new Set(items)].slice(0,3);
+}
 
-  return lines.length
-    ? '🚗 <b>Машина</b>\n' + lines.map(escapeTelegramHtml).join('\n')
-    : '';
+function rustamCarBlock(data = {}) {
+  const weather = data.environment?.weather || null;
+  const lines = [];
+  const tyre = shortTyreAdvice(weather);
+  if (tyre) lines.push('Шины: ' + tyre);
+  lines.push('Мойка: ' + washDayLabel(weather));
+  const recommendations = shortCarRecommendations(data);
+  lines.push('Рекомендации: ' + (recommendations.length ? recommendations.join('; ') : 'срочных действий нет'));
+  return '🚗 <b>Машина</b>\n' + lines.map(escapeTelegramHtml).join('\n');
 }
 
 function buildMorningSummary(actor, data = {}) {
@@ -481,6 +545,29 @@ function buildMorningSummary(actor, data = {}) {
     blocks.push(actor === 'Диана'
       ? workDayBlock(data.workDay)
       : dianaWorkDayBlock(data.workDay));
+  }
+
+  if (data.cycle?.moodWord) {
+    const title = actor === 'Диана' ? 'Твой статус по циклу' : 'Диана по циклу';
+    blocks.push(
+      '🌸 <b>' + title + '</b>\n'
+      + '<b>' + escapeTelegramHtml(data.cycle.moodWord) + '</b>'
+      + (data.cycle.phase ? ' · ' + escapeTelegramHtml(lowerFirst(data.cycle.phase)) : '')
+    );
+  }
+
+  if (actor === 'Рустам' && data.cycle?.phase) {
+    const guidance = cycleGuidanceForRustam(data.cycle.moodWord, data.cycle.phase);
+    if (guidance) {
+      blocks.push('🤍 <b>Как лучше сегодня с Дианой</b>\n' + escapeTelegramHtml(guidance));
+    }
+  }
+
+  if (Array.isArray(data.holidays) && data.holidays.length) {
+    blocks.push(
+      '🎉 <b>Праздники сегодня</b>\n'
+      + data.holidays.slice(0,5).map(item => '• ' + escapeTelegramHtml(item)).join('\n')
+    );
   }
 
   const environment = environmentBlock(data);
@@ -513,45 +600,12 @@ function buildMorningSummary(actor, data = {}) {
     );
   }
 
-  if (data.cycle?.moodWord) {
-    const title = actor === 'Диана' ? 'Твой статус по циклу' : 'Диана по циклу';
-    blocks.push(
-      '🌸 <b>' + title + '</b>\n'
-      + '<b>' + escapeTelegramHtml(data.cycle.moodWord) + '</b>'
-      + (data.cycle.phase ? ' · ' + escapeTelegramHtml(lowerFirst(data.cycle.phase)) : '')
-    );
-  }
-
-  if (actor === 'Рустам' && data.cycle?.phase) {
-    const guidance = cycleGuidanceForRustam(data.cycle.moodWord, data.cycle.phase);
-    if (guidance) {
-      blocks.push(
-        '🤍 <b>Как лучше сегодня с Дианой</b>\n'
-        + escapeTelegramHtml(guidance)
-      );
-    }
-  }
-
-  if (data.newMessage) {
-    blocks.push('💌 <b>Новое послание от ' + partnerGenitive(actor) + '</b>');
-  }
-
   const productCount = Number(data.productCount || 0);
   if (productCount > 0) {
     blocks.push(
       '🛒 <b>Продукты</b>\nВ списке ' + productCount + ' '
       + countWord(productCount, 'позиция', 'позиции', 'позиций')
     );
-  }
-
-  const wishes = Array.isArray(data.newWishlist) ? data.newWishlist : [];
-  if (wishes.length) {
-    const visible = wishes.slice(0, 3);
-    const verb = partner === 'Диана' ? 'добавила' : 'добавил';
-    let body = '🎁 <b>Вишлист</b>\n' + partner + ' ' + verb + ':\n'
-      + visible.map((item) => '• ' + escapeTelegramHtml(item)).join('\n');
-    if (wishes.length > visible.length) body += '\n• ещё ' + (wishes.length - visible.length);
-    blocks.push(body);
   }
 
   if (Array.isArray(data.feedLines) && data.feedLines.length) {
@@ -617,6 +671,7 @@ async function collectMorningData(options = {}) {
     environment,
     carTasksToday,
     carState,
+    holidays,
   ] = await Promise.all([
     loadTodayTasks({ ...options, now }),
     loadDianaWorkDay({ ...options, now }),
@@ -629,12 +684,14 @@ async function collectMorningData(options = {}) {
     loadEnvironmentSnapshot({ ...options, now }).catch(() => ({ home:null, weather:null })),
     loadTodayCarTasks({ ...options, now }).catch(() => []),
     loadMorningCarState({ ...options, now }).catch(() => null),
+    loadTodayHolidays({ ...options, now }).catch(() => []),
   ]);
 
   return {
     now,
     date,
     dateLabel: formatDate(now),
+    holidays: Array.isArray(holidays) ? holidays : [],
     tasks,
     workDay,
     moods: moods?.moods || {},
@@ -693,12 +750,7 @@ async function sendDailyMorningSummaries(options = {}) {
       continue;
     }
 
-    const since = marker?.sentAt || '';
-    const text = buildMorningSummary(actor, {
-      ...common,
-      newMessage: messageIsNewForActor(common.partnerMessage, actor, since),
-      newWishlist: wishlistLines(common.wishlistItems, actor, since),
-    });
+    const text = buildMorningSummary(actor, common);
 
     try {
       let result;
@@ -781,6 +833,10 @@ module.exports = {
   environmentBlock,
   buildCarRecommendations,
   rustamCarBlock,
+  shortTyreAdvice,
+  washDayLabel,
+  shortCarRecommendations,
+  loadTodayHolidays,
   loadEnvironmentSnapshot,
   loadTodayCarTasks,
   loadMorningCarState,

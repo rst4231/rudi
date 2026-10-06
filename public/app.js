@@ -65,6 +65,7 @@
       const currentFeedReactionBindings = new Map();
       let currentPhotoMemoryReactionTarget = null;
       let partnerProfileName = '';
+      let partnerContactPreferences = null;
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
@@ -776,6 +777,72 @@
         return 'rudi:interface-text-size:v1:'+actor;
       }
 
+      const DEFAULT_PROFILE_CONTACTS={
+        'Рустам':{telegram:'rustamflow',phone:'+79385057600'},
+        'Диана':{telegram:'kutepova_di',phone:'+79006513813'}
+      };
+      function contactTelegramStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:contact-telegram:v1:'+actor;
+      }
+      function contactPhoneStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:contact-phone:v1:'+actor;
+      }
+      function normalizeContactTelegram(value){
+        return String(value||'').trim().replace(/^@+/u,'').replace(/[^A-Za-z0-9_]/gu,'').slice(0,32);
+      }
+      function normalizeContactPhone(value){
+        let digits=String(value||'').replace(/\D/gu,'').slice(0,15);
+        if(digits.length===11&&digits.startsWith('8'))digits='7'+digits.slice(1);
+        if(digits.length===10)digits='7'+digits;
+        return digits?'+'+digits:'';
+      }
+      function defaultProfileContact(actor){
+        return DEFAULT_PROFILE_CONTACTS[String(actor||'')]||{telegram:'',phone:''};
+      }
+      function ownProfileContact(){
+        const fallback=defaultProfileContact(currentActor);
+        let telegram='',phone='';
+        try{telegram=normalizeContactTelegram(localStorage.getItem(contactTelegramStorageKey())||'')}catch(_){}
+        try{phone=normalizeContactPhone(localStorage.getItem(contactPhoneStorageKey())||'')}catch(_){}
+        return {telegram:telegram||fallback.telegram,phone:phone||fallback.phone};
+      }
+      function profileContactFor(actor){
+        const who=String(actor||'');
+        if(who===currentActor)return ownProfileContact();
+        const fallback=defaultProfileContact(who);
+        const remote=partnerContactPreferences&&typeof partnerContactPreferences==='object'?partnerContactPreferences:{};
+        return {
+          telegram:normalizeContactTelegram(remote.contactTelegramUsername)||fallback.telegram,
+          phone:normalizeContactPhone(remote.contactPhone)||fallback.phone
+        };
+      }
+      function syncProfileContactButtons(){
+        document.querySelectorAll('.profile-contact-button[data-contact-actor][data-contact-kind]').forEach(button=>{
+          const actor=String(button.dataset.contactActor||'');
+          const kind=String(button.dataset.contactKind||'');
+          const contact=profileContactFor(actor);
+          const value=kind==='telegram'?contact.telegram:contact.phone;
+          button.disabled=!value;
+          button.setAttribute('aria-label',kind==='telegram'?'Открыть Telegram '+actor:'Позвонить '+actor);
+          button.title=kind==='telegram'?(value?'@'+value:'Telegram не указан'):(value||'Телефон не указан');
+        });
+      }
+      function openProfileContact(actor,kind){
+        const contact=profileContactFor(actor);
+        if(kind==='telegram'&&contact.telegram){
+          const url='https://t.me/'+encodeURIComponent(contact.telegram);
+          try{
+            if(typeof tg?.openTelegramLink==='function')tg.openTelegramLink(url);
+            else if(typeof tg?.openLink==='function')tg.openLink(url);
+            else window.location.href=url;
+          }catch(_){window.location.href=url}
+          return;
+        }
+        if(kind==='phone'&&contact.phone)window.location.href='tel:'+contact.phone;
+      }
+
       function uiViewStateStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:view-state:v1:'+actor;
@@ -1050,6 +1117,8 @@
         let themeModeValue='system';
         let autoRefreshEnabledValue=true;
         let interfaceTextSizeValue='normal';
+        let contactTelegramUsernameValue='';
+        let contactPhoneValue='';
         let moodNotifyPartnerEnabledValue=true;
         let moodReceivePartnerEnabledValue=true;
         let humidityAlertEnabledValue=true;
@@ -1069,6 +1138,7 @@
         try{themeModeValue=currentThemeMode()}catch(_){}
         try{autoRefreshEnabledValue=autoRefreshEnabled()}catch(_){}
         try{interfaceTextSizeValue=currentInterfaceTextSize()}catch(_){}
+        try{const contact=ownProfileContact();contactTelegramUsernameValue=contact.telegram;contactPhoneValue=contact.phone}catch(_){}
         try{moodNotifyPartnerEnabledValue=moodNotifyPartnerEnabled()}catch(_){}
         try{moodReceivePartnerEnabledValue=moodReceivePartnerEnabled()}catch(_){}
         try{humidityAlertEnabledValue=humidityAlertEnabled()}catch(_){}
@@ -1077,7 +1147,7 @@
         try{dailyQuestionNotificationEnabledValue=dailyQuestionNotificationEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:7,
+          syncSchemaVersion:8,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
@@ -1087,6 +1157,8 @@
           themeMode:themeModeValue,
           autoRefreshEnabled:autoRefreshEnabledValue,
           interfaceTextSize:interfaceTextSizeValue,
+          contactTelegramUsername:contactTelegramUsernameValue,
+          contactPhone:contactPhoneValue,
           moodNotifyPartnerEnabled:moodNotifyPartnerEnabledValue,
           moodReceivePartnerEnabled:moodReceivePartnerEnabledValue,
           humidityAlertEnabled:humidityAlertEnabledValue,
@@ -1114,6 +1186,8 @@
         const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
         const hasRemoteAutoRefresh=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'autoRefreshEnabled');
         const hasRemoteTextSize=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'interfaceTextSize');
+        const hasRemoteTelegram=remoteSchema>=8&&Object.prototype.hasOwnProperty.call(remote,'contactTelegramUsername');
+        const hasRemotePhone=remoteSchema>=8&&Object.prototype.hasOwnProperty.call(remote,'contactPhone');
         const hasRemoteMoodNotify=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodNotifyPartnerEnabled');
         const hasRemoteMoodReceive=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodReceivePartnerEnabled');
         const hasRemoteHumidityAlert=remoteSchema>=4&&Object.prototype.hasOwnProperty.call(remote,'humidityAlertEnabled');
@@ -1121,7 +1195,7 @@
         const hasRemoteRewardNotifications=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'rewardNotificationsEnabled');
         const hasRemoteDailyQuestionNotification=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'dailyQuestionNotificationEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteTelegram&&!hasRemotePhone&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -1170,6 +1244,8 @@
             const size=['small','normal','large'].includes(String(remote.interfaceTextSize||''))?String(remote.interfaceTextSize):'normal';
             localStorage.setItem(interfaceTextSizeStorageKey(),size);
           }
+          if(hasRemoteTelegram)localStorage.setItem(contactTelegramStorageKey(),normalizeContactTelegram(remote.contactTelegramUsername));
+          if(hasRemotePhone)localStorage.setItem(contactPhoneStorageKey(),normalizeContactPhone(remote.contactPhone));
           if(hasRemoteMoodNotify){
             localStorage.setItem(moodNotifyPartnerStorageKey(),remote.moodNotifyPartnerEnabled===true?'1':'0');
           }
@@ -1189,16 +1265,18 @@
             localStorage.setItem(dailyQuestionNotificationStorageKey(),remote.dailyQuestionNotificationEnabled===false?'0':'1');
           }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<7){
+          if(keepLocalOrder||remoteSchema<8){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             const structural=localUiPreferences();
             markUiPreferencesChanged({
-              syncSchemaVersion:7,
+              syncSchemaVersion:8,
               homeOrder:structural.homeOrder,
               blockStates:structural.blockStates,
               viewStates:structural.viewStates,
               activitySeenId:structural.activitySeenId,
-              activityReadIds:structural.activityReadIds
+              activityReadIds:structural.activityReadIds,
+              contactTelegramUsername:structural.contactTelegramUsername,
+              contactPhone:structural.contactPhone
             });
           }
           if(remoteVersion) uiPreferencesServerVersion=Math.max(uiPreferencesServerVersion,remoteVersion);
@@ -1241,10 +1319,13 @@
         applyMarketTickerVisibility();
         applyTheme();
         updateThemeSettingControls();
+        updateContactSettingsUi();
         updateAutoRefreshUi();
         updateMoodNotificationSettingsUi();
         updateHumidityAlertSettingsUi();
         updateGeneralNotificationSettingsUi();
+        updateContactSettingsUi();
+        syncProfileContactButtons();
         applyInterfacePreferences();
         if(document.querySelector('.products-history')) setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
         if(document.querySelector('.fasting-history-card')) setFastingHistoryCollapsed(readFastingHistoryCollapsed(),{persist:false});
@@ -3636,7 +3717,7 @@
         const node=document.getElementById('luluToiletStatus');if(!node)return;
         const state=homeDashboardState.lulu||{},fallback=state?.lastWalk?.walkedAt;
         const peeStamp=new Date(String(state.lastPeeAt||fallback||''));
-        if(Number.isNaN(peeStamp.getTime())){setLuluAvatar(false);node.textContent='Следующая прогулка — пока не рассчитана';node.dataset.level='unknown';return}
+        if(Number.isNaN(peeStamp.getTime())){setLuluAvatar(false);node.textContent='Пока не знаю, когда следующая прогулка';node.dataset.level='unknown';return}
         const dueAt=peeStamp.getTime()+8*60*60*1000,now=Date.now(),needsWalk=now>=dueAt;setLuluAvatar(needsWalk);
         if(needsWalk){node.textContent='Пора гулять (терпит '+luluPatienceLabel(now-dueAt)+')';node.dataset.level='high'}
         else{const time=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(dueAt));node.textContent='Следующая прогулка — '+time;const left=dueAt-now;node.dataset.level=left<=3600000?'high':left<=10800000?'medium':'low'}
@@ -3664,7 +3745,7 @@
         if(!history.length){
           const empty=document.createElement('div');
           empty.className='lulu-walk-history-empty';
-          empty.textContent='Сегодня прогулок не отмечено';
+          empty.textContent='Сегодня прогулок пока нет';
           panel.appendChild(empty);
         }else{
           for(const row of history){
@@ -4236,7 +4317,7 @@
         const result=[];
         for(const item of source){
           const type=String(item?.type||'');
-          const actor=String(item?.actor||'').trim()||(type==='mood'?'Настроение':'Сохранения');
+          const actor=String(item?.actor||'').trim()||(type==='mood'?'Настроение':'Сохранённое');
           const createdAt=String(item?.createdAt||'');
           const createdMs=Date.parse(createdAt)||0;
           const dateKey=sharedAlbumDateKey(new Date(createdAt));
@@ -4535,7 +4616,7 @@
           const groups=new Map();pageRows.forEach(item=>{const key=String(item?.category||'Другое');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item)});
           groups.forEach((items,category)=>{const section=document.createElement('section');section.className='smart-saves-category-block';const head=document.createElement('div');head.className='smart-saves-category-head';const strong=document.createElement('strong'),count=document.createElement('span');strong.textContent=category;count.textContent=String(items.length);head.append(strong,count);section.appendChild(head);const list=document.createElement('div');list.className='smart-saves-category-list';items.forEach(item=>list.appendChild(smartSaveCard(item)));section.appendChild(list);page.appendChild(section)});
           document.querySelectorAll('[data-smart-saves-filter]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.smartSavesFilter===smartSavesFilter?'true':'false'));
-          if(pageEmpty){pageEmpty.hidden=pageRows.length>0;pageEmpty.textContent=smartSavesFilter==='all'?'Сохранений пока нет.':'У '+smartSavesFilter+(smartSavesFilter==='Диана'?'ы':'а')+' сохранений пока нет.'}
+          if(pageEmpty){pageEmpty.hidden=pageRows.length>0;pageEmpty.textContent=smartSavesFilter==='all'?'Здесь пока пусто.':'У '+smartSavesFilter+(smartSavesFilter==='Диана'?'ы':'а')+' сохранений пока нет.'}
         }
       }
       async function loadSmartSaves({silent=false}={}){
@@ -4994,6 +5075,22 @@
               '</div>'+
             '</section>'+
 
+            '<section class="settings-group settings-contact-group">'+
+              '<div class="settings-group-title">Контакты</div>'+
+              '<label class="settings-contact-field" for="settingsTelegramUsername">'+
+                '<span>Telegram</span>'+
+                '<div class="settings-contact-input"><b>@</b><input id="settingsTelegramUsername" type="text" maxlength="32" autocomplete="off" inputmode="text" placeholder="username"></div>'+
+              '</label>'+
+              '<label class="settings-contact-field" for="settingsContactPhone">'+
+                '<span>Телефон</span>'+
+                '<div class="settings-contact-input"><input id="settingsContactPhone" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00"></div>'+
+              '</label>'+
+              '<div class="settings-contact-footer">'+
+                '<small id="settingsContactStatus" aria-live="polite"></small>'+
+                '<button id="settingsContactSave" class="settings-contact-save" type="button">Сохранить</button>'+
+              '</div>'+
+            '</section>'+
+
             '<section class="settings-group">'+
               '<div class="settings-group-title">Уведомления</div>'+
               '<div class="home-settings-row">'+
@@ -5121,6 +5218,23 @@
         cycleOpen.textContent='Показать полностью';
         cycleSummary.append(cycleStatus,cycleAdvice,cycleBrain,cycleAppetite,cycleOpen);
 
+        const makeProfileContactButton=(kind,actor)=>{
+          const button=document.createElement('button');
+          button.type='button';
+          button.className='profile-contact-button is-'+kind;
+          button.dataset.contactKind=kind;
+          button.dataset.contactActor=actor;
+          button.innerHTML=kind==='telegram'
+            ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 4.1 18.6 19c-.2 1.1-.8 1.4-1.7.9l-4.3-3.2-2.1 2c-.2.2-.4.4-.9.4l.3-4.4 8-7.2c.3-.3-.1-.5-.5-.2l-9.9 6.2-4.3-1.3c-.9-.3-.9-.9.2-1.3L20.2 4c.8-.3 1.4.2 1.2 1.1Z" fill="currentColor"/></svg>'
+            : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 3.5 4.5 5.2c-.8.5-1.1 1.5-.8 2.4 1.9 5.7 6.2 10 11.9 11.9.9.3 1.9 0 2.4-.8l1.7-2.7c.4-.7.2-1.6-.5-2l-3.1-1.8c-.7-.4-1.5-.2-2 .4l-1 1.3a13.3 13.3 0 0 1-4.9-4.9l1.3-1c.6-.5.8-1.3.4-2L8.2 3.9c-.2-.4-.6-.6-1-.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          button.addEventListener('click',event=>{
+            event.preventDefault();event.stopPropagation();
+            openProfileContact(actor,kind);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+          return button;
+        };
+
         const makePersonTile=(actor,identity)=>{
           const tile=document.createElement('section');
           const slug=actor==='Диана'?'diana':'rustam';
@@ -5152,6 +5266,10 @@
             identity.appendChild(scoreSticker);
           }
           head.appendChild(identity);
+          const actions=document.createElement('div');
+          actions.className='profile-person-actions';
+          actions.append(makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
+          head.appendChild(actions);
           tile.appendChild(head);
 
           const details=document.createElement('div');
@@ -5289,6 +5407,7 @@
           '<div id="homeNearestRows" class="home-nearest-rows"></div>';
 
         profile.after(selfCard.tile,partnerCard.tile,luluTile,nearest);
+        syncProfileContactButtons();
 
         document.body.dataset.profileSplitReady='1';
         try{window.dispatchEvent(new CustomEvent('rudi:profile-ready'))}catch(_){}
@@ -5342,6 +5461,16 @@
       }
 
       function addHeaderCollapseButton(section,host,button){
+        if(host.classList.contains('profile-person-head')){
+          let actions=host.querySelector(':scope > .profile-person-actions');
+          if(!actions){
+            actions=document.createElement('div');
+            actions.className='profile-person-actions';
+            host.appendChild(actions);
+          }
+          actions.appendChild(button);
+          return;
+        }
         if(host.classList.contains('car-head')){
           const copy=host.querySelector('.car-head-copy');
           const title=copy?.querySelector('h2');
@@ -5661,7 +5790,7 @@
         const next=Boolean(enabled);
         try{localStorage.setItem(dailyQuestionNotificationStorageKey(),next?'1':'0')}catch(_){}
         updateGeneralNotificationSettingsUi();
-        if(currentActor){markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:7});flushUiPreferencesToServer().catch(()=>{});}
+        if(currentActor){markUiPreferencesChanged({dailyQuestionNotificationEnabled:next,syncSchemaVersion:8});flushUiPreferencesToServer().catch(()=>{});}
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
@@ -5821,12 +5950,64 @@
         }
       }
 
+      function updateContactSettingsUi(){
+        const telegram=document.getElementById('settingsTelegramUsername');
+        const phone=document.getElementById('settingsContactPhone');
+        const status=document.getElementById('settingsContactStatus');
+        if(!telegram&&!phone)return;
+        const contact=ownProfileContact();
+        if(telegram&&document.activeElement!==telegram)telegram.value=contact.telegram||'';
+        if(phone&&document.activeElement!==phone)phone.value=contact.phone||'';
+        if(status&&!status.dataset.persist)status.textContent='';
+      }
+
+      async function saveContactSettings(){
+        const telegram=document.getElementById('settingsTelegramUsername');
+        const phone=document.getElementById('settingsContactPhone');
+        const button=document.getElementById('settingsContactSave');
+        const status=document.getElementById('settingsContactStatus');
+        if(!telegram||!phone||!currentActor)return;
+        const username=normalizeContactTelegram(telegram.value);
+        const normalizedPhone=normalizeContactPhone(phone.value);
+        if(!username){
+          if(status){status.textContent='Укажи Telegram-ник.';status.dataset.persist='1'}
+          telegram.focus({preventScroll:true});return;
+        }
+        if(!/^\+\d{10,15}$/u.test(normalizedPhone)){
+          if(status){status.textContent='Проверь номер телефона.';status.dataset.persist='1'}
+          phone.focus({preventScroll:true});return;
+        }
+        if(button){button.disabled=true;button.textContent='Сохраняю…'}
+        try{
+          localStorage.setItem(contactTelegramStorageKey(),username);
+          localStorage.setItem(contactPhoneStorageKey(),normalizedPhone);
+          telegram.value=username;phone.value=normalizedPhone;
+          markUiPreferencesChanged({syncSchemaVersion:8,contactTelegramUsername:username,contactPhone:normalizedPhone});
+          const saved=await flushUiPreferencesToServer();
+          if(!saved)throw new Error('contact-save-failed');
+          syncProfileContactButtons();
+          if(status){status.textContent='Сохранено';status.dataset.persist='1'}
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(_){
+          if(status){status.textContent='Не удалось сохранить.';status.dataset.persist='1'}
+          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        }finally{
+          if(button){button.disabled=false;button.textContent='Сохранить'}
+          setTimeout(()=>{if(status){status.textContent='';delete status.dataset.persist}},1800);
+        }
+      }
+
       function setupExtendedSettings(){
         document.querySelectorAll('[data-text-size]').forEach(button=>{
           if(button.dataset.bound==='1') return;
           button.dataset.bound='1';
           button.addEventListener('click',()=>setInterfaceTextSize(button.dataset.textSize));
         });
+        const contactSave=document.getElementById('settingsContactSave');
+        if(contactSave&&contactSave.dataset.bound!=='1'){
+          contactSave.dataset.bound='1';
+          contactSave.addEventListener('click',saveContactSettings);
+        }
         const auto=document.getElementById('settingsAutoRefreshToggle');
         if(auto&&auto.dataset.bound!=='1'){
           auto.dataset.bound='1';
@@ -6920,6 +7101,8 @@
           if(!response.ok||!payload.ok) throw new Error(payload.error||'bootstrap');
           if(payload.actor&&String(payload.actor)!==currentActor) return null;
           appBootstrapPayload=payload;
+          partnerContactPreferences=payload.partnerUiPreferences&&typeof payload.partnerUiPreferences==='object'?payload.partnerUiPreferences:null;
+          syncProfileContactButtons();
           if(payload.home) applyHomeBootstrap(payload.home);
           if(payload.selfProfile||payload.partnerProfile){
             const selfProfile=payload.selfProfile||cachedProfiles?.selfProfile||null;
@@ -8058,19 +8241,18 @@
       }
 
       function tickTickAssigneeLabel(task){
-        if(task?.assigned===false) return 'Ответственные Рустам и Диана';
+        if(task?.assigned===false)return 'Вместе';
         const value=String(task?.assignee||'').trim().toLocaleLowerCase('ru-RU');
-        if(value==='ди'||value==='диана') return 'Ответственная Диана';
-        if(value==='rst'||value==='рустам') return 'Ответственный Рустам';
-        return 'Ответственный назначен';
+        if(value==='ди'||value==='диана')return 'Диана';
+        if(value==='rst'||value==='рустам')return 'Рустам';
+        return String(task?.assignee||'').trim()||'Вместе';
       }
 
       function tickTickTodayTaskMeta(task){
         const start=String(task?.startTime||'').trim();
         const end=String(task?.endTime||'').trim();
-        const time=task?.allDay?'Весь день':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
-        const assignee=tickTickAssigneeLabel(task);
-        return [time,assignee].filter(Boolean).join(' · ');
+        const time=task?.allDay?'':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
+        return [time,tickTickAssigneeLabel(task)].filter(Boolean).join(' · ');
       }
 
       const recentlyCompletedTickTickTaskIds=new Map();
@@ -9124,8 +9306,10 @@
                 taskCopy.className='calendar-task-copy';
                 const start=String(event.startTime||'').trim();
                 const end=String(event.endTime||'').trim();
-                const range=event.allDay?'Весь день':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
-                const assignee=event.assigned&&event.assignee&&event.assignee!=='Не назначен'?' · '+event.assignee:'';
+                const range=event.allDay?'':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
+                const rawAssignee=String(event.assignee||'').trim().toLocaleLowerCase('ru-RU');
+                const assigneeName=rawAssignee==='ди'?'Диана':rawAssignee==='rst'?'Рустам':String(event.assignee||'').trim();
+                const assignee=event.assigned&&assigneeName&&assigneeName!=='Не назначен'?' · '+assigneeName:'';
 
                 if(range){
                   const time=document.createElement('span');
@@ -9407,8 +9591,10 @@
 
             if(hasEvents){
               info.textContent=events.map(event=>{
-                const range=event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–'));
-                const assignee=event.assigned&&event.assignee&&event.assignee!=='Не назначен'?' · '+event.assignee:'';
+                const range=event.allDay?'':([event.startTime,event.endTime].filter(Boolean).join('–'));
+                const rawAssignee=String(event.assignee||'').trim().toLocaleLowerCase('ru-RU');
+                const assigneeName=rawAssignee==='ди'?'Диана':rawAssignee==='rst'?'Рустам':String(event.assignee||'').trim();
+                const assignee=event.assigned&&assigneeName&&assigneeName!=='Не назначен'?' · '+assigneeName:'';
                 return (range?range+' · ':'')+event.title+assignee;
               }).join('  •  ');
             }else{

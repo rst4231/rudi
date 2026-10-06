@@ -333,11 +333,7 @@ function renderHabits(){
     };
     const save=async(next,button)=>{
       if(pastDateLocked)return;
-      if(todayTimeLocked){
-        showActionHint(button);
-        try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
-        return;
-      }
+      if(todayTimeLocked)return;
       if(next==='done'&&isNotDone){
         setHabitStatus('После «Не выполнено» изменить на «Выполнено» нельзя.',true);
         return;
@@ -357,8 +353,7 @@ function renderHabits(){
       catch(error){
         console.error('RUDI_HABIT_STATUS_UI_ERROR',error);
         const code=String(error?.message||'');
-        if(code==='habit-status-too-early'||code==='habit-done-too-early')showActionHint(button);
-        else setHabitStatus('Не удалось сохранить статус.',true);
+        if(code!=='habit-status-too-early'&&code!=='habit-done-too-early')setHabitStatus('Не удалось сохранить статус.',true);
         yes.disabled=pastDateLocked;no.disabled=pastDateLocked;remove.disabled=false;
       }
     };
@@ -380,7 +375,29 @@ function renderHabits(){
         const row=document.createElement('div');row.className='personal-habit-archive-row';
         const emoji=document.createElement('span');emoji.textContent=habit.emoji||habitEmoji(habit.name);
         const name=document.createElement('span');name.textContent=habit.name;
-        row.append(emoji,name);section.appendChild(row);
+        const remove=document.createElement('button');
+        remove.type='button';
+        remove.className='personal-habit-archive-delete';
+        remove.textContent='×';
+        remove.setAttribute('aria-label','Удалить из архива: '+habit.name);
+        remove.addEventListener('click',async(event)=>{
+          event.preventDefault();
+          event.stopPropagation();
+          if(remove.disabled)return;
+          remove.disabled=true;
+          setHabitStatus('');
+          try{
+            applyHabitView(await habitRequest('remove',{id:String(habit.id||''),date:habitSelectedDate||habitState.today}));
+            setHabitStatus('Удалено из архива.');
+            try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            console.error('RUDI_HABIT_ARCHIVE_DELETE_UI_ERROR',error);
+            remove.disabled=false;
+            setHabitStatus('Не удалось удалить из архива.',true);
+          }
+        });
+        row.append(emoji,name,remove);
+        section.appendChild(row);
       }
     }
     habitList.appendChild(section);

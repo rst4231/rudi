@@ -132,6 +132,8 @@ function normalizeUiPreferenceEntry(value) {
     themeMode:['system','light','dark'].includes(String(source.themeMode||'').trim())?String(source.themeMode).trim():'system',
     autoRefreshEnabled:Object.prototype.hasOwnProperty.call(source,'autoRefreshEnabled')?Boolean(source.autoRefreshEnabled):true,
     interfaceTextSize:['small','normal','large'].includes(String(source.interfaceTextSize||'').trim())?String(source.interfaceTextSize).trim():'normal',
+    contactTelegramUsername:String(source.contactTelegramUsername||'').trim().replace(/^@+/u,'').replace(/[^A-Za-z0-9_]/gu,'').slice(0,32),
+    contactPhone:(()=>{let digits=String(source.contactPhone||'').replace(/\D/gu,'').slice(0,15);if(digits.length===11&&digits.startsWith('8'))digits='7'+digits.slice(1);if(digits.length===10)digits='7'+digits;return digits?'+'+digits:''})(),
     moodNotifyPartnerEnabled:Object.prototype.hasOwnProperty.call(source,'moodNotifyPartnerEnabled')?Boolean(source.moodNotifyPartnerEnabled):false,
     moodReceivePartnerEnabled:Object.prototype.hasOwnProperty.call(source,'moodReceivePartnerEnabled')?Boolean(source.moodReceivePartnerEnabled):false,
     humidityAlertEnabled:Object.prototype.hasOwnProperty.call(source,'humidityAlertEnabled')?Boolean(source.humidityAlertEnabled):true,

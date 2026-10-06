@@ -13020,3 +13020,104 @@ body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="back"] 
   }
 }
 /* end RUDI v4.03 recipe mobile fixes */
+
+
+/* RUDI v4.04 — profile contacts + contact settings */
+.profile-person-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  flex:none;
+}
+.profile-contact-button,
+.profile-person-card .block-collapse-button{
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  border:1px solid rgba(255,255,255,.09)!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.045)!important;
+  color:#f5f6fa!important;
+  box-shadow:none!important;
+}
+.profile-contact-button svg,
+.profile-person-card .block-collapse-button svg{
+  width:15px!important;
+  height:15px!important;
+}
+.profile-contact-button:disabled{opacity:.35;pointer-events:none}
+.profile-contact-button:active{transform:scale(.96)}
+.settings-contact-group{display:grid;gap:8px}
+.settings-contact-field{display:grid;gap:6px;padding:7px 2px}
+.settings-contact-field>span{
+  font-size:11px;
+  font-weight:800;
+  color:var(--text);
+}
+.settings-contact-input{
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  padding:0 11px;
+  border:1px solid color-mix(in srgb,var(--line) 90%,transparent);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--soft) 72%,transparent);
+}
+.settings-contact-input b{
+  font-size:14px;
+  color:var(--muted);
+  font-weight:800;
+}
+.settings-contact-input input{
+  width:100%;
+  min-width:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--text);
+  font:inherit;
+  font-size:13px;
+  font-weight:700;
+}
+.settings-contact-input input::placeholder{color:var(--muted);opacity:.7}
+.settings-contact-footer{
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:2px;
+}
+.settings-contact-footer small{
+  min-width:0;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:700;
+}
+.settings-contact-save{
+  min-height:36px;
+  padding:0 14px;
+  border:0;
+  border-radius:11px;
+  background:var(--accent);
+  color:#fff;
+  font:inherit;
+  font-size:11px;
+  font-weight:850;
+}
+.settings-contact-save:disabled{opacity:.58}
+@media(max-width:430px){
+  .profile-person-actions{gap:5px}
+  .profile-contact-button,
+  .profile-person-card .block-collapse-button{
+    width:30px!important;
+    height:30px!important;
+  }
+}
+/* end RUDI v4.04 */

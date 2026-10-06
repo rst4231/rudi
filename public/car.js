@@ -176,7 +176,7 @@
   }
 
   function confirmRemoveError(title) {
-    return carConfirm('Убрать запись «'+String(title||'Ошибка')+'» из журнала?');
+    return carConfirm('Убрать запись «'+String(title||'Ошибка на приборке')+'» из журнала?');
   }
 
   function confirmArchiveDelete(message) {
@@ -211,7 +211,7 @@
       copy.className='car-error-copy';
 
       const title=document.createElement('strong');
-      title.textContent=error.title||'Ошибка';
+      title.textContent=error.title||'Ошибка на приборке';
 
       const date=document.createElement('span');
       date.className='car-error-date';
@@ -221,7 +221,7 @@
 
       if(error.comment){
         const comment=document.createElement('p');
-        comment.textContent='После чего началось: '+error.comment;
+        comment.textContent='Когда заметил: '+error.comment;
         copy.appendChild(comment);
       }
 
@@ -278,10 +278,10 @@
         const archivedRemove=document.createElement('button');
         archivedRemove.type='button';
         archivedRemove.className='car-archive-remove';
-        archivedRemove.setAttribute('aria-label','Удалить запись из архива ремонта');
+        archivedRemove.setAttribute('aria-label','Удалить запись из истории ремонтов');
         archivedRemove.textContent='×';
         archivedRemove.addEventListener('click',async()=>{
-          if(!(await confirmArchiveDelete('Удалить «'+String(item.title||'Ремонт')+'» из архива ремонта?'))) return;
+          if(!(await confirmArchiveDelete('Удалить «'+String(item.title||'Ремонт')+'» из истории ремонтов?'))) return;
           await removeRepairArchiveItem(item,archivedRemove);
         });
         archivedRow.appendChild(archivedRemove);
@@ -299,11 +299,11 @@
       const data=await api('remove-repair-archive',{errorId:item.id});
       state.car={...state.car,...data};
       renderErrors(state.car);
-      setStatus('Удалено из архива ремонта','success');
+      setStatus('Удалено из истории ремонтов','success');
       try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
     }catch(_){
       button.disabled=false;
-      setStatus('Не удалось удалить из архива ремонта','error');
+      setStatus('Не удалось удалить из истории ремонтов','error');
       try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
     }
   }
@@ -416,7 +416,7 @@
         renderErrors(state.car);
         applyCarSmartOrder({animate:true});
         setStatus(repairCost==null
-          ?'Перенесено в архив ремонта'
+          ?'Перенесено в историю ремонтов'
           :'Ремонт сохранён · '+new Intl.NumberFormat('ru-RU').format(repairCost)+' ₽','success');
         try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
       }catch(_){
@@ -777,8 +777,8 @@
 
     const cards=[
       buildCarSmartCard('mileage','Пробег и ТО',mileageService),
-      buildCarSmartCard('errors','Требует ремонт',errors),
-      buildCarSmartCard('tasks','Задачи по машине',tasks),
+      buildCarSmartCard('errors','Нужно починить',errors),
+      buildCarSmartCard('tasks','Что сделать по машине',tasks),
       buildCarSmartCard('documents','Автодокументы',documents),
       buildCarSmartCard('notes','Заметки',notes)
     ].filter(Boolean);
@@ -793,12 +793,12 @@
 
     const taskCard=cards.find(card=>card.dataset.carCard==='tasks');
     const taskMeta=tasks?.querySelector('#carTasksMeta');
-    if(taskMeta&&taskCard) taskCard.querySelector('.car-smart-card-title')?.appendChild(taskMeta);
+    if(taskMeta&&taskCard) taskCard.querySelector('.car-smart-card-actions')?.prepend(taskMeta);
     tasks?.querySelector('.car-section-head')?.remove();
 
     const documentsCard=cards.find(card=>card.dataset.carCard==='documents');
     const documentsMeta=documents?.querySelector('#carDocumentsMeta');
-    if(documentsMeta&&documentsCard) documentsCard.querySelector('.car-smart-card-title')?.appendChild(documentsMeta);
+    if(documentsMeta&&documentsCard) documentsCard.querySelector('.car-smart-card-actions')?.prepend(documentsMeta);
     documents?.querySelector('.car-section-head')?.remove();
 
     const noteCard=cards.find(card=>card.dataset.carCard==='notes');
@@ -1824,7 +1824,7 @@
     if(!tasks.length){
       const empty=document.createElement('div');
       empty.className='car-tasks-empty';
-      empty.textContent='Актуальных задач по машине нет';
+      empty.textContent='Дел по машине пока нет';
       root.appendChild(empty);
       return;
     }

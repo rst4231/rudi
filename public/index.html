@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.03">
+  <meta name="rudi-version" content="v4.04">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-v176.png?v=1.7.9">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-v176.jpg?v=1.7.9">
-  <link rel="manifest" href="/manifest.webmanifest?v=4.03">
+  <link rel="manifest" href="/manifest.webmanifest?v=4.04">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
@@ -27,16 +27,16 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.03">
+  <link rel="stylesheet" href="/app.css?v=4.04">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
-  <link rel="stylesheet" href="/pwa-extras.css?v=4.03">
-  <link rel="stylesheet" href="/calendar.css?v=4.03">
-  <link rel="stylesheet" href="/smart-home.css?v=4.03">
-  <link rel="stylesheet" href="/car.css?v=4.03">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.03">
-  <link rel="stylesheet" href="/supplement-advanced.css?v=4.03">
+  <link rel="stylesheet" href="/pwa-extras.css?v=4.04">
+  <link rel="stylesheet" href="/calendar.css?v=4.04">
+  <link rel="stylesheet" href="/smart-home.css?v=4.04">
+  <link rel="stylesheet" href="/car.css?v=4.04">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.04">
+  <link rel="stylesheet" href="/supplement-advanced.css?v=4.04">
   <script>
     (() => {
       const launchContext=String(location.search||'')+String(location.hash||'');
@@ -64,15 +64,15 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.03"></script>
-  <script defer src="/pwa-extras.js?v=4.03"></script>
-  <script defer src="/weather.js?v=4.03"></script>
-  <script defer src="/smart-home.js?v=4.03"></script>
-  <script defer src="/car.js?v=4.03"></script>
-  <script defer src="/profile-supplements.js?v=4.03"></script>
-  <script defer src="/mood-history.js?v=4.03"></script>
-  <script defer src="/supplement-editor.js?v=4.03"></script>
-  <script defer src="/supplement-advanced.js?v=4.03"></script>
+  <script defer src="/app.js?v=4.04"></script>
+  <script defer src="/pwa-extras.js?v=4.04"></script>
+  <script defer src="/weather.js?v=4.04"></script>
+  <script defer src="/smart-home.js?v=4.04"></script>
+  <script defer src="/car.js?v=4.04"></script>
+  <script defer src="/profile-supplements.js?v=4.04"></script>
+  <script defer src="/mood-history.js?v=4.04"></script>
+  <script defer src="/supplement-editor.js?v=4.04"></script>
+  <script defer src="/supplement-advanced.js?v=4.04"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -171,7 +171,7 @@
         <div class="priority-title-row">
           <h2 id="priorityTitle">Совместные дела</h2>
           <span id="priorityAttentionBadge" class="priority-attention-badge" hidden aria-label=""></span>
-          <button id="ticktickAddButton" class="ticktick-add-button" type="button" aria-label="Добавить задачу" title="Добавить задачу">+</button>
+          <button id="ticktickAddButton" class="ticktick-add-button" type="button" aria-label="Добавить дело" title="Добавить дело">+</button>
         </div>
       </div>
       <div class="priority-grid">
@@ -301,14 +301,14 @@
     <section id="smartSavesHomeTile" class="panel smart-saves-home" data-app-tab-section="home" data-home-tile="smart-saves" aria-labelledby="smartSavesHomeTitle">
       <div class="smart-saves-home-head">
         <div class="smart-saves-home-copy">
-          <h2 id="smartSavesHomeTitle">Сохранения</h2>
-          <small>Последние добавленные</small>
+          <h2 id="smartSavesHomeTitle">Сохранённое</h2>
+          <small>Недавнее</small>
         </div>
       </div>
       <div id="smartSavesHomeList" class="smart-saves-home-list"></div>
       <div id="smartSavesHomeEmpty" class="smart-saves-empty">Отправь текст или ссылку в Telegram-бот RUDI — сохранение появится здесь.</div>
       <button id="smartSavesHomeMore" class="smart-saves-home-more" type="button">
-        <span>Все сохранения</span>
+        <span>Всё сохранённое</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
       </button>
     </section>
@@ -462,10 +462,10 @@
           </div>
         </div>
         <div class="car-home-visual">
-          <img src="/changan-uni-v-header.webp?v=4.03" alt="" aria-hidden="true">
+          <img src="/changan-uni-v-header.webp?v=4.04" alt="" aria-hidden="true">
           <span id="carHomeTyreSticker" class="car-tyre-sticker" aria-label="Установленный комплект шин" hidden>Летние</span>
           <div class="car-home-wash">
-            <span>Стоит ли мыть</span>
+            <span>Когда мыть</span>
             <strong id="carHomeWashValue">Проверяю погоду…</strong>
           </div>
         </div>
@@ -498,10 +498,10 @@
           </div>
         </div>
         <div class="car-head-visual">
-          <img src="/changan-uni-v-header.webp?v=4.03" alt="" aria-hidden="true">
+          <img src="/changan-uni-v-header.webp?v=4.04" alt="" aria-hidden="true">
           <span id="carPageTyreSticker" class="car-tyre-sticker" aria-label="Установленный комплект шин" hidden>Летние</span>
           <div class="car-collapsed-wash">
-            <span class="car-collapsed-wash-label">Стоит ли мыть машину</span>
+            <span class="car-collapsed-wash-label">Когда мыть машину</span>
             <strong id="carCollapsedWashValue">Проверяю погоду…</strong>
           </div>
         </div>
@@ -564,7 +564,7 @@
           <div class="car-section-head">
             <div class="car-section-title">
               <span class="car-section-icon is-error" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 21 20H3L12 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1" fill="currentColor"/></svg></span>
-              <strong id="carErrorsTitle">Требует ремонт</strong>
+              <strong id="carErrorsTitle">Неисправности</strong>
             </div>
             <div class="car-errors-head-actions">
               <span id="carErrorsMeta" class="car-errors-meta"></span>
@@ -575,7 +575,7 @@
           <form id="carErrorForm" class="car-error-form" hidden>
             <div class="car-error-fields">
               <label class="car-error-field">
-                <span>Ошибка</span>
+                <span>Ошибка на приборке</span>
                 <input id="carErrorTitle" maxlength="80" autocomplete="off" placeholder="Например Check Engine" required>
               </label>
               <label class="car-error-field">
@@ -584,7 +584,7 @@
               </label>
             </div>
             <label class="car-error-field">
-              <span>После чего началось</span>
+              <span>Когда заметил</span>
               <textarea id="carErrorComment" maxlength="500" rows="3" placeholder="Например после перехода Eco → Normal и нажатия газа"></textarea>
             </label>
             <div class="car-error-form-actions">
@@ -600,7 +600,7 @@
           <div class="car-section-head">
             <div class="car-section-title">
               <span class="car-section-icon is-task" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="m8 12 2.2 2.2L16 8.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              <strong id="carTasksTitle">Задачи по машине</strong>
+              <strong id="carTasksTitle">Что сделать по машине</strong>
             </div>
             <span id="carTasksMeta" class="car-tasks-meta"></span>
           </div>
@@ -725,7 +725,7 @@
     </section>
 
     <section id="feedSection" class="feed-page" data-app-tab-section="feed" aria-label="Лента">
-      <section class="feed-daily-top" aria-label="Рекомендации на сегодня">
+      <section class="feed-daily-top" aria-label="Что важно сегодня">
         <div class="feed-daily-meta">
           <p id="feedUpdated" class="feed-updated">Обновляю свежую подборку…</p>
           <span id="feedFreshBadge" class="feed-fresh-badge" hidden>Новое</span>
@@ -949,7 +949,7 @@
     <section class="smart-saves-page" data-app-tab-section="smart-saves" aria-labelledby="smartSavesPageTitle">
       <div class="smart-saves-page-head">
         <button id="smartSavesBackButton" class="smart-saves-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-        <h1 id="smartSavesPageTitle">Сохранения</h1><span></span>
+        <h1 id="smartSavesPageTitle">Сохранённое</h1><span></span>
       </div>
       <div id="smartSavesFilters" class="smart-saves-filters" role="group" aria-label="Фильтр сохранений по автору">
         <button type="button" data-smart-saves-filter="Рустам" aria-pressed="false">Рустам</button>
@@ -957,7 +957,7 @@
         <button type="button" data-smart-saves-filter="all" aria-pressed="true">Все</button>
       </div>
       <div id="smartSavesPageList" class="smart-saves-page-list"></div>
-      <div id="smartSavesPageEmpty" class="smart-saves-empty">Сохранений пока нет.</div>
+      <div id="smartSavesPageEmpty" class="smart-saves-empty">Здесь пока пусто.</div>
     </section>
 
     <section class="wishlist-page wishlist-section" data-app-tab-section="wishlist" aria-label="Вишлист">
@@ -1003,7 +1003,7 @@
       <div id="kitchenSwitcher" class="kitchen-switcher" role="group" aria-label="Разделы кухни">
         <button type="button" data-kitchen-view="products" aria-pressed="true">Продукты</button>
         <button type="button" data-kitchen-view="recipes" aria-pressed="false">Рецепты</button>
-        <button type="button" data-kitchen-view="saves" aria-pressed="false">Сохранения</button>
+        <button type="button" data-kitchen-view="saves" aria-pressed="false">Сохранённое</button>
       </div>
 
       <article id="productsListCard" class="panel products-card kitchen-block" data-kitchen-panel="products">
@@ -1067,7 +1067,7 @@
         </div>
         <div id="recipeGeneratorBody" class="kitchen-recipe-body">
           <label class="recipe-field">
-            <span>Какие продукты есть</span>
+            <span>Из чего готовим</span>
             <textarea id="recipeIngredients" maxlength="1200" rows="4" placeholder="Например: курица, рис, помидоры, сыр…" aria-label="Продукты для рецепта"></textarea>
           </label>
 
@@ -1081,7 +1081,7 @@
           </fieldset>
 
           <fieldset class="recipe-choice-group">
-            <legend>Приём пищи</legend>
+            <legend>Когда едим</legend>
             <div class="recipe-choice-row recipe-meal-row" data-recipe-choice="meal">
               <button type="button" data-recipe-meal="breakfast" aria-pressed="false">🌅 Завтрак</button>
               <button type="button" data-recipe-meal="lunch" aria-pressed="true">🍽️ Обед</button>
@@ -1091,7 +1091,7 @@
           </fieldset>
 
           <fieldset id="recipeTypeGroup" class="recipe-choice-group">
-            <legend>Тип блюда</legend>
+            <legend>Что приготовить</legend>
             <div id="recipeTypeChoices" class="recipe-choice-row recipe-type-row" data-recipe-choice="type">
               <button type="button" data-recipe-type="soup" aria-pressed="true">🍲 Суп</button>
               <button type="button" data-recipe-type="main" aria-pressed="false">🍽️ Второе</button>
@@ -1115,7 +1115,7 @@
           </fieldset>
 
           <fieldset class="recipe-choice-group">
-            <legend>Сколько готовить</legend>
+            <legend>Сколько времени</legend>
             <div class="recipe-choice-row recipe-time-row" data-recipe-choice="time">
               <button type="button" data-recipe-time="5" aria-pressed="false">⏱️ 5 мин</button>
               <button type="button" data-recipe-time="10" aria-pressed="false">⏱️ 10 мин</button>
@@ -1125,7 +1125,7 @@
             </div>
           </fieldset>
 
-          <button id="recipeGenerate" class="recipe-generate" type="button">Сгенерировать</button>
+          <button id="recipeGenerate" class="recipe-generate" type="button">Подобрать рецепт</button>
           <div id="recipeStatus" class="recipe-status" aria-live="polite"></div>
           <div id="recipeSuggestions" class="recipe-suggestions" hidden></div>
           <article id="recipeDetails" class="recipe-details" hidden></article>
@@ -1135,11 +1135,11 @@
       <section class="saved-category kitchen-saved-recipes" data-saves-category="recipe" data-kitchen-panel="saves" hidden>
         <div class="saved-category-head">
           <span class="saved-category-icon is-recipe" aria-hidden="true">⌁</span>
-          <span class="saved-category-copy"><strong>Сохраненные рецепты</strong><small id="savedRecipesCount">0</small></span>
+          <span class="saved-category-copy"><strong>Сохранённые рецепты</strong><small id="savedRecipesCount">0</small></span>
         </div>
         <div id="savedRecipesBody" class="saved-category-body">
           <div id="savedRecipesList" class="saved-items-list"></div>
-          <div id="savedRecipesEmpty" class="saved-empty">Пока ничего не сохранено</div>
+          <div id="savedRecipesEmpty" class="saved-empty">Рецептов пока нет</div>
         </div>
       </section>
 
@@ -1277,7 +1277,7 @@
 
       <section class="dates-saves" aria-labelledby="datesSavedTitle">
         <div class="dates-saves-head">
-          <div><h2 id="datesSavedTitle">Сохранения</h2></div>
+          <div><h2 id="datesSavedTitle">Сохранённое</h2></div>
           <span id="savesTotalCount" class="saves-total-count"></span>
         </div>
         <div id="savesStatus" class="saves-status" role="status" aria-live="polite"></div>
@@ -1289,7 +1289,7 @@
           </button>
           <div id="savedDatesBody" class="saved-category-body">
             <div id="savedDatesList" class="saved-items-list"></div>
-            <div id="savedDatesEmpty" class="saved-empty">Пока ничего не сохранено</div>
+            <div id="savedDatesEmpty" class="saved-empty">Рецептов пока нет</div>
           </div>
         </section>
       </section>
@@ -1327,7 +1327,7 @@
         </button>
         <div id="forDiSavedBody" class="for-di-category-body" hidden>
           <div id="forDiSavedList" class="for-di-list"></div>
-          <div id="forDiSavedEmpty" class="for-di-empty">Пока ничего не сохранено</div>
+          <div id="forDiSavedEmpty" class="for-di-empty">Рецептов пока нет</div>
         </div>
       </section>
 
@@ -1371,13 +1371,13 @@
       <div class="ticktick-task-modal-head">
         <div>
           <small>Совместные дела</small>
-          <h3 id="ticktickTaskModalTitle">Новая задача</h3>
+          <h3 id="ticktickTaskModalTitle">Новое дело</h3>
         </div>
         <button id="ticktickTaskModalClose" class="ticktick-task-modal-close" type="button" aria-label="Закрыть">×</button>
       </div>
       <form id="ticktickTaskForm" class="ticktick-task-form">
         <label class="ticktick-task-field">
-          <span>Задача</span>
+          <span>Что сделать</span>
           <input id="ticktickTaskTitleInput" type="text" maxlength="500" autocomplete="off" placeholder="Например: купить продукты" required>
         </label>
         <div class="ticktick-task-field-row ticktick-task-date-time-row">
@@ -1391,9 +1391,9 @@
           </label>
         </div>
         <label class="ticktick-task-field">
-          <span>Ответственный</span>
+          <span>Кто делает</span>
           <select id="ticktickTaskResponsibleInput">
-            <option value="">Общая</option>
+            <option value="">Вместе</option>
             <option value="Рустам">Рустам</option>
             <option value="Диана">Диана</option>
           </select>
@@ -1404,7 +1404,7 @@
         </label>
         <div class="ticktick-task-field-row">
           <label class="ticktick-task-field">
-            <span>Повтор</span>
+            <span>Как часто</span>
             <select id="ticktickTaskRepeatInput">
               <option value="none">Не повторять</option>
               <option value="daily">Каждый день</option>
@@ -1415,7 +1415,7 @@
             </select>
           </label>
           <label id="ticktickTaskRepeatCountField" class="ticktick-task-field" hidden>
-            <span>Сколько раз</span>
+            <span>Повторить раз</span>
             <input id="ticktickTaskRepeatCountInput" type="number" min="2" max="365" value="2" inputmode="numeric">
           </label>
         </div>

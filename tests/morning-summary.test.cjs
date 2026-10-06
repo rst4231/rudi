@@ -44,6 +44,7 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
     },
     cycle:{moodWord:'Чувствительная',phase:'Лютеиновая фаза'},
     productCount:7,
+    holidays:['Всемирный день улыбки'],
     feedLines:['• 2 Stand Up'],
     environment:{
       home:{temperature:23.2,humidity:56},
@@ -67,13 +68,16 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.match(rustam, /лютеиновая фаза/);
   assert.match(rustam, /Как лучше сегодня с Дианой/);
   assert.match(rustam, /говори мягче/i);
+  assert.match(rustam, /Праздники сегодня/);
+  assert.match(rustam, /Всемирный день улыбки/);
   assert.match(rustam, /Дом и погода/);
   assert.match(rustam, /Дома: 23\.2°C · влажность 56%/);
   assert.match(rustam, /На улице: 16°C · облачно/);
   assert.match(rustam, /Машина/);
-  assert.match(rustam, /Шины:/);
+  assert.match(rustam, /Шины: Можно на летних/);
+  assert.match(rustam, /Мойка: сегодня/);
   assert.match(rustam, /Рекомендации:/);
-  assert.match(rustam, /ТО скоро:/);
+  assert.match(rustam, /ТО через/);
   assert.match(rustam, /Проверить давление в шинах/);
 
   const diana = buildMorningSummary('Диана', common);
@@ -159,6 +163,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
       {id:'2',text:'Подарок Рустама',owner:'Рустам',done:false,createdAt:'2026-09-20T13:00:00Z'},
     ]}),
     readProductsImpl:async()=>({items:[{id:'1'},{id:'2'}]}),
+    loadTodayHolidaysImpl:async()=>['День осенней прогулки'],
     loadEnvironmentImpl:async()=>({
       home:{temperature:22.8,humidity:54},
       weather:{temperature:11,code:3,minForecast:4,maxForecast:12,avgMean:7,precipitationSum:0},
@@ -195,19 +200,21 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(rustam.text,/Диана сегодня не работает/);
   assert.match(rustam.text,/Задача Рустама/);
   assert.doesNotMatch(rustam.text,/Задача Дианы/);
-  assert.match(rustam.text,/Новое послание от Дианы/);
-  assert.match(rustam.text,/Подарок Дианы/);
-  assert.doesNotMatch(rustam.text,/Подарок Рустама/);
+  assert.doesNotMatch(rustam.text,/Новое послание/);
+  assert.doesNotMatch(rustam.text,/Подарок Дианы|Подарок Рустама|Вишлист/);
   assert.match(rustam.text,/Вдумчивая/);
   assert.match(rustam.text,/Как лучше сегодня с Дианой/);
   assert.match(rustam.text,/не торопи с разговорами и решениями/i);
   assert.match(rustam.text,/2 Stand Up/);
   assert.match(rustam.text,/Дома: 22\.8°C · влажность 54%/);
   assert.match(rustam.text,/На улице: 11°C · пасмурно/);
-  assert.match(rustam.text,/Шины:/);
+  assert.match(rustam.text,/Шины: Лучше на зимних/);
+  assert.match(rustam.text,/Мойка: сегодня/);
   assert.match(rustam.text,/Рекомендации:/);
-  assert.match(rustam.text,/ТО скоро:/);
+  assert.match(rustam.text,/ТО через/);
   assert.match(rustam.text,/Чек-ап машины/);
+  assert.match(rustam.text,/Праздники сегодня/);
+  assert.match(rustam.text,/День осенней прогулки/);
   assert.doesNotMatch(rustam.text,/Обновить Яндекс Карты/);
   assert.doesNotMatch(rustam.text,/я обновил Ленту/);
 
@@ -215,8 +222,10 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(diana.text,/Задача Дианы/);
   assert.doesNotMatch(diana.text,/Задача Рустама/);
   assert.match(diana.text,/Сегодня выходной/);
-  assert.doesNotMatch(diana.text,/Новое послание от Дианы/);
-  assert.match(diana.text,/Подарок Рустама/);
+  assert.doesNotMatch(diana.text,/Новое послание/);
+  assert.doesNotMatch(diana.text,/Подарок Дианы|Подарок Рустама|Вишлист/);
+  assert.match(diana.text,/Праздники сегодня/);
+  assert.match(diana.text,/День осенней прогулки/);
   assert.match(diana.text,/Вдумчивая/);
   assert.match(diana.text,/Дома: 22\.8°C · влажность 54%/);
   assert.match(diana.text,/На улице: 11°C · пасмурно/);
@@ -255,6 +264,7 @@ test('forced morning summary recovery resends even after today marker', async ()
     readPartnerMessageImpl:async()=>null,
     readWishlistImpl:async()=>({items:[]}),
     readProductsImpl:async()=>({items:[]}),
+    loadTodayHolidaysImpl:async()=>[],
     readFeedImpl:async()=>({sections:{}}),
     loadEnvironmentImpl:async()=>({home:null,weather:null}),
     readCarStateImpl:async()=>null,
@@ -311,6 +321,7 @@ test('morning summary reports missing recipients as failure instead of false suc
     readPartnerMessageImpl:async()=>null,
     readWishlistImpl:async()=>({items:[]}),
     readProductsImpl:async()=>({items:[]}),
+    loadTodayHolidaysImpl:async()=>[],
     readFeedImpl:async()=>({sections:{}}),
     loadEnvironmentImpl:async()=>({home:null,weather:null}),
     readCarStateImpl:async()=>null,
@@ -353,6 +364,7 @@ test('morning summary retries Telegram 400 as plain text and never adds a Web Ap
     readPartnerMessageImpl:async()=>null,
     readWishlistImpl:async()=>({items:[]}),
     readProductsImpl:async()=>({items:[]}),
+    loadTodayHolidaysImpl:async()=>[],
     readFeedImpl:async()=>({sections:{}}),
     loadEnvironmentImpl:async()=>({home:null,weather:null}),
     loadCarTasksImpl:async()=>[],

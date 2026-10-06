@@ -786,3 +786,32 @@ body[data-app-tab="habits"] .personal-tool-page-head .fasting-page-title{
   .personal-habits-yesterday-quote{font-size:10.5px;line-height:1.38}
 }
 /* end RUDI v4.03 yesterday habit quote */
+
+
+/* RUDI v4.04 — habit archive delete */
+.personal-habit-archive-row{
+  grid-template-columns:28px minmax(0,1fr) 30px!important;
+  opacity:.58;
+}
+.personal-habit-archive-delete{
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:10px;
+  background:color-mix(in srgb,#d94b55 10%,transparent);
+  color:#d95b64;
+  font:inherit;
+  font-size:19px;
+  line-height:1;
+  font-weight:650;
+  cursor:pointer;
+}
+.personal-habit-archive-delete:disabled{opacity:.4}
+html[data-theme="dark"] .personal-habit-archive-delete{
+  color:#ef8a91;
+  background:rgba(224,80,91,.09);
+}
+/* end RUDI v4.04 */

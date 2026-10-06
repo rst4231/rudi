@@ -2477,3 +2477,77 @@ html[data-theme="light"] .car-confirm-dialog{background:#fff;color:#111418}
   .car-confirm-dialog{width:min(100%,330px);padding:18px;border-radius:20px}
 }
 /* end RUDI v4.03 car delete confirmation */
+
+
+/* RUDI v4.04 — unified car card headers */
+.car-smart-card-head{
+  min-height:54px!important;
+  padding:10px 12px!important;
+  gap:10px!important;
+}
+.car-smart-card-title{
+  min-width:0!important;
+  gap:9px!important;
+}
+.car-smart-card-title>strong{
+  font-size:14px!important;
+  line-height:1.2!important;
+  font-weight:820!important;
+  letter-spacing:-.015em!important;
+}
+.car-smart-card-actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:6px!important;
+  flex:none!important;
+}
+.car-smart-card-actions .car-tasks-meta,
+.car-smart-card-actions .car-documents-meta,
+.car-smart-card-actions .car-errors-meta,
+.car-smart-card-actions .car-notes-meta{
+  min-width:18px!important;
+  margin:0!important;
+  color:var(--muted)!important;
+  font-size:10px!important;
+  line-height:30px!important;
+  font-weight:800!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+}
+.car-card-drag-handle,
+.car-card-collapse{
+  width:32px!important;
+  height:32px!important;
+  border-radius:10px!important;
+}
+.car-smart-card-actions .car-error-add,
+.car-smart-card-actions .car-task-add,
+.car-smart-card-actions #carNoteAdd{
+  min-height:32px!important;
+  height:32px!important;
+  padding:0 10px!important;
+  border-radius:10px!important;
+  font-size:9.5px!important;
+  line-height:1!important;
+  font-weight:800!important;
+}
+@media(max-width:430px){
+  .car-smart-card-head{
+    min-height:52px!important;
+    padding:10px 11px!important;
+  }
+  .car-smart-card-title>strong{font-size:13.5px!important}
+  .car-card-drag-handle,
+  .car-card-collapse{
+    width:30px!important;
+    height:30px!important;
+  }
+  .car-smart-card-actions .car-tasks-meta,
+  .car-smart-card-actions .car-documents-meta,
+  .car-smart-card-actions .car-errors-meta,
+  .car-smart-card-actions .car-notes-meta{
+    line-height:30px!important;
+  }
+}
+/* end RUDI v4.04 */

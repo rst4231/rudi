@@ -68,6 +68,15 @@ function normalizeUiPreferencesState(value) {
   const interfaceTextSize = ['small', 'normal', 'large'].includes(String(source.interfaceTextSize || '').trim())
     ? String(source.interfaceTextSize).trim()
     : 'normal';
+  const contactTelegramUsername = String(source.contactTelegramUsername || '')
+    .trim()
+    .replace(/^@+/u, '')
+    .replace(/[^A-Za-z0-9_]/gu, '')
+    .slice(0, 32);
+  let contactDigits = String(source.contactPhone || '').replace(/\D/gu, '').slice(0, 15);
+  if (contactDigits.length === 11 && contactDigits.startsWith('8')) contactDigits = '7' + contactDigits.slice(1);
+  if (contactDigits.length === 10) contactDigits = '7' + contactDigits;
+  const contactPhone = contactDigits ? '+' + contactDigits : '';
   const moodNotifyPartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodNotifyPartnerEnabled')
     ? Boolean(source.moodNotifyPartnerEnabled)
     : true;
@@ -101,6 +110,8 @@ function normalizeUiPreferencesState(value) {
     themeMode,
     autoRefreshEnabled,
     interfaceTextSize,
+    contactTelegramUsername,
+    contactPhone,
     moodNotifyPartnerEnabled,
     moodReceivePartnerEnabled,
     humidityAlertEnabled,
@@ -142,7 +153,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 7,
+      syncSchemaVersion: 8,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
         ? { ...current.blockStates, ...incoming.blockStates }
@@ -158,6 +169,8 @@ async function saveUiPreferences(actor, value, options = {}) {
       themeMode: has('themeMode') ? incoming.themeMode : current.themeMode,
       autoRefreshEnabled: has('autoRefreshEnabled') ? incoming.autoRefreshEnabled : current.autoRefreshEnabled,
       interfaceTextSize: has('interfaceTextSize') ? incoming.interfaceTextSize : current.interfaceTextSize,
+      contactTelegramUsername: has('contactTelegramUsername') ? incoming.contactTelegramUsername : current.contactTelegramUsername,
+      contactPhone: has('contactPhone') ? incoming.contactPhone : current.contactPhone,
       moodNotifyPartnerEnabled: has('moodNotifyPartnerEnabled') ? incoming.moodNotifyPartnerEnabled : current.moodNotifyPartnerEnabled,
       moodReceivePartnerEnabled: has('moodReceivePartnerEnabled') ? incoming.moodReceivePartnerEnabled : current.moodReceivePartnerEnabled,
       humidityAlertEnabled: has('humidityAlertEnabled') ? incoming.humidityAlertEnabled : current.humidityAlertEnabled,
@@ -185,6 +198,8 @@ async function seedUiPreferences(actor, value, options = {}) {
       || has('themeMode')
       || has('autoRefreshEnabled')
       || has('interfaceTextSize')
+      || has('contactTelegramUsername')
+      || has('contactPhone')
       || has('moodNotifyPartnerEnabled')
       || has('moodReceivePartnerEnabled')
       || has('humidityAlertEnabled')
@@ -195,7 +210,7 @@ async function seedUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
-      syncSchemaVersion: 7,
+      syncSchemaVersion: 8,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
       viewStates: incoming.viewStates,
@@ -205,6 +220,8 @@ async function seedUiPreferences(actor, value, options = {}) {
       themeMode: incoming.themeMode,
       autoRefreshEnabled: incoming.autoRefreshEnabled,
       interfaceTextSize: incoming.interfaceTextSize,
+      contactTelegramUsername: incoming.contactTelegramUsername,
+      contactPhone: incoming.contactPhone,
       moodNotifyPartnerEnabled: incoming.moodNotifyPartnerEnabled,
       moodReceivePartnerEnabled: incoming.moodReceivePartnerEnabled,
       humidityAlertEnabled: incoming.humidityAlertEnabled,

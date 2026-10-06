@@ -2771,15 +2771,17 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
+      const partnerUiPreferencesPromise = readUiPreferences(partnerActor, options).catch(() => null);
       const selfId = Number(user?.id) || Number(recipients?.[actor]) || 0;
       const partnerId = recipientFor(actor, recipients);
       const includeProfiles = body.includeProfiles !== false;
       const includeHome = body.includeHome === true;
       const shouldRefreshBackup = !backupSnapshot || Boolean(handoffSnapshot) || recipientsChanged;
-      const [holidays, selfProfile, partnerProfile, backupToken, home] = await Promise.all([
+      const [holidays, selfProfile, partnerProfile, partnerUiPreferences, backupToken, home] = await Promise.all([
         holidaysPromise,
         includeProfiles ? readTelegramProfile(selfId, actor, options) : Promise.resolve(null),
         includeProfiles ? readTelegramProfile(partnerId, partnerActor, options) : Promise.resolve(null),
+        partnerUiPreferencesPromise,
         shouldRefreshBackup
           ? createStateBackup({ ...options, previousSnapshot: correctedSnapshot }).catch((error) => {
               console.warn('RUDI_STATE_BACKUP_CREATE_WARN', String(error?.message || error));
@@ -2795,6 +2797,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         ...(partnerProfile ? { partnerProfile } : {}),
         holidayHighlights: holidays?.items || [],
         uiPreferences: effectiveUiPreferences || null,
+        partnerUiPreferences: partnerUiPreferences?.initialized ? partnerUiPreferences : null,
         ...(backupToken ? { backupToken } : {}),
         ...(includeHome && home ? { home } : {}),
       });

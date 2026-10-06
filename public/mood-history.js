@@ -163,7 +163,7 @@ function appendInlineMarkdown(node,text){
 function clampAnalysisPercent(value){return Math.max(0,Math.min(100,Math.round(Number(value)||0)))}
 function renderAnalysisVisuals(host,visuals){
   if(!host||!visuals||typeof visuals!=='object')return;
-  const wrap=document.createElement('section');wrap.className='mood-analysis-visuals';wrap.setAttribute('aria-label','Инфографика анализа');
+  const wrap=document.createElement('section');wrap.className='mood-analysis-visuals';wrap.setAttribute('aria-label','Разбор настроения');
   const head=document.createElement('div');head.className='mood-analysis-visual-head';
   const title=document.createElement('strong');title.textContent='Картина периода';
   const subtitle=document.createElement('span');subtitle.textContent=(Number(visuals.days)||0)+' '+plural(Number(visuals.days)||0,'день','дня','дней')+' с отметками';
@@ -178,7 +178,7 @@ function renderAnalysisVisuals(host,visuals){
     if(progress!==null){const track=document.createElement('div');track.className='mood-analysis-kpi-progress';const fill=document.createElement('span');fill.style.width=clampAnalysisPercent(progress)+'%';track.append(fill);card.append(track)}
     kpis.append(card);
   };
-  addKpi('Дней с данными',String(Number(visuals.days)||0),'в выбранном периоде');
+  addKpi('Дней с отметками',String(Number(visuals.days)||0),'в выбранном периоде');
   if(visuals.habits)addKpi('Привычки',clampAnalysisPercent(visuals.habits.percent)+'%',Number(visuals.habits.done||0)+' из '+Number(visuals.habits.total||0)+' выполнено',visuals.habits.percent);
   if(visuals.fasting)addKpi('Голодание',String(Number(visuals.fasting.avgHours||0)).replace('.',',')+' ч','в среднем · '+Number(visuals.fasting.days||0)+' '+plural(Number(visuals.fasting.days)||0,'день','дня','дней'));
   if(visuals.supplements)addKpi('БАДы',String(Number(visuals.supplements.days)||0)+' дн.','был отмечен приём');
@@ -195,7 +195,7 @@ function renderAnalysisVisuals(host,visuals){
   }
   const factors=Array.isArray(visuals.factors)?visuals.factors.filter(item=>Number(item?.count)>0):[];
   if(factors.length){
-    const block=document.createElement('div');block.className='mood-analysis-chart';const chartTitle=document.createElement('strong');chartTitle.textContent='Что чаще отмечалось рядом с настроением';block.append(chartTitle);
+    const block=document.createElement('div');block.className='mood-analysis-chart';const chartTitle=document.createElement('strong');chartTitle.textContent='Что чаще совпадало с настроением';block.append(chartTitle);
     const max=Math.max(1,...factors.map(item=>Number(item.count)||0)),rows=document.createElement('div');rows.className='mood-analysis-factor-bars';
     for(const item of factors){
       const row=document.createElement('div');row.className='mood-analysis-factor-bar';
@@ -319,9 +319,9 @@ function renderDayDetail(row){
 }
 
 function analysisCooldown(analysis){
-  if(!analysis?.createdAt)return{locked:false,left:0,text:'Можно сделать новый анализ'};
+  if(!analysis?.createdAt)return{locked:false,left:0,text:'Можно обновить разбор'};
   const left=Math.max(0,24*360000-(Date.now()-(Date.parse(analysis.createdAt)||0)));
-  if(left<=0)return{locked:false,left:0,text:'Можно сделать новый анализ'};
+  if(left<=0)return{locked:false,left:0,text:'Можно обновить разбор'};
   const h=Math.floor(left/3600000),m=Math.max(0,Math.ceil((left%3600000)/60000));
   return{locked:true,left,text:'Новый анализ через '+(h?h+' ч ':'')+m+' мин'};
 }
@@ -417,7 +417,7 @@ async function open(){
 async function runAnalysis(){
   const page=ensure(),button=page.querySelector('#moodAnalyzeButton'),status=page.querySelector('#moodAnalysisStatus');
   if(button.disabled)return;
-  button.disabled=true;button.textContent='Анализирую…';status.textContent='Сопоставляю настроение, причины, привычки, голодание и БАДы…';
+  button.disabled=true;button.textContent='Смотрю связи…';status.textContent='Смотрю, что могло влиять на настроение…';
   try{
     render(await api('analyze'));
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success');
