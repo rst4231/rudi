@@ -332,9 +332,9 @@
               </div>
             </label>
             <label class="finance-input-field">
-              <span>Расходы</span>
-              <div class="finance-money-input">
-                <input id="financePersonalExpensesInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Личные расходы">
+              <span>Расходы по категориям</span>
+              <div class="finance-money-input is-readonly">
+                <input id="financePersonalExpensesInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Личные расходы" readonly>
                 <b>₽</b>
               </div>
             </label>
@@ -342,6 +342,79 @@
           <button id="financePersonalSaveButton" class="finance-save-button" type="button">Сохранить месяц</button>
           <div id="financePersonalStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
+
+        <section class="finance-categories-card" aria-labelledby="financeCategoriesTitle">
+          <div class="finance-history-head">
+            <div>
+              <span class="section-eyebrow">Расходы</span>
+              <h2 id="financeCategoriesTitle">Категории</h2>
+            </div>
+            <span id="financeCategoryCount" class="finance-history-count">0</span>
+          </div>
+
+          <div class="finance-category-create">
+            <label class="finance-input-field">
+              <span>Иконка</span>
+              <select id="financeCategoryIcon" class="finance-select" aria-label="Иконка категории">
+                <option value="🛒">🛒</option>
+                <option value="🍽️">🍽️</option>
+                <option value="☕">☕</option>
+                <option value="🏠">🏠</option>
+                <option value="🚗">🚗</option>
+                <option value="🚕">🚕</option>
+                <option value="💊">💊</option>
+                <option value="🐶">🐶</option>
+                <option value="👕">👕</option>
+                <option value="🎁">🎁</option>
+                <option value="🎬">🎬</option>
+                <option value="✈️">✈️</option>
+                <option value="💻">💻</option>
+                <option value="📱">📱</option>
+                <option value="🧾">🧾</option>
+                <option value="⭐">⭐</option>
+              </select>
+            </label>
+            <label class="finance-input-field finance-category-name-field">
+              <span>Название</span>
+              <input id="financeCategoryName" class="finance-text-input" maxlength="48" placeholder="Например, Продукты" aria-label="Название категории">
+            </label>
+            <button id="financeCategoryCreateButton" class="finance-mini-button" type="button">Создать</button>
+          </div>
+          <div id="financeCategoryStatus" class="finance-status" role="status" aria-live="polite"></div>
+
+          <div id="financeCategoryList" class="finance-category-list"></div>
+          <div id="financeCategoryEmpty" class="finance-history-empty">Создай первую категорию расходов</div>
+
+          <div class="finance-expense-entry">
+            <div class="finance-expense-entry-title">Добавить расход</div>
+            <div class="finance-expense-entry-grid">
+              <label class="finance-input-field">
+                <span>Категория</span>
+                <select id="financeExpenseCategory" class="finance-select" aria-label="Категория расхода"></select>
+              </label>
+              <label class="finance-input-field">
+                <span>Сумма</span>
+                <div class="finance-money-input">
+                  <input id="financeExpenseAmount" type="number" min="0.01" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Сумма расхода">
+                  <b>₽</b>
+                </div>
+              </label>
+              <label class="finance-input-field finance-expense-note-field">
+                <span>Комментарий</span>
+                <input id="financeExpenseNote" class="finance-text-input" maxlength="120" placeholder="Необязательно" aria-label="Комментарий к расходу">
+              </label>
+            </div>
+            <button id="financeExpenseAddButton" class="finance-save-button" type="button">Добавить расход</button>
+            <div id="financeExpenseStatus" class="finance-status" role="status" aria-live="polite"></div>
+          </div>
+
+          <div class="finance-expense-history-head">
+            <strong>Расходы за месяц</strong>
+            <span id="financeExpenseMonthTotal">0 ₽</span>
+          </div>
+          <div id="financeExpenseList" class="finance-expense-list"></div>
+          <div id="financeExpenseEmpty" class="finance-history-empty">Расходов по категориям пока нет</div>
+        </section>
 
         <section class="finance-pulse-card" aria-labelledby="financePulseTitle">
           <div class="finance-history-head">
