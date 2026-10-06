@@ -58,6 +58,7 @@
       let homeBootstrapPromise = null;
       let homeBootstrapPayload = null;
       let homeBootstrapLoadedAt = 0;
+      const HOME_BOOTSTRAP_CACHE_MS = 5*60*1000;
       let partnerMessageBootstrapHandler = null;
       const reactionRequestEpoch = new Map();
       let currentFeedReactionTargets = [];
@@ -1207,7 +1208,7 @@
       }
 
       const UI_PREFERENCES_LOCAL_SETTLE_MS=4000;
-      const UI_PREFERENCES_SYNC_DEDUPE_MS=5*60*1000;
+      const UI_PREFERENCES_SYNC_DEDUPE_MS=15*60*1000;
       let uiPreferencesBackupTimer=null;
       let uiPreferencesDirty=false;
       let uiPreferencesSyncPromise=null;
@@ -1851,7 +1852,7 @@
             const payload=await managedJsonRequest('market-ticker-v2','/api/partner-message?rudiAction=market-ticker',{
               method:'POST',
               body:{initData:telegramInitData()},
-              ttlMs:4*60*1000,
+              ttlMs:10*60*1000,
               timeoutMs:7000
             });
             if(!payload?.ok) throw new Error(payload?.error||'market-ticker');
@@ -4839,7 +4840,7 @@
           try{
             const data=await managedJsonRequest('supplement-overview','/api/supplements',{
               body:{operation:'overview',initData:String(tg?.initData||'')},
-              ttlMs:5*60*1000,
+              ttlMs:10*60*1000,
               timeoutMs:7000
             });
             if(!data?.ok) throw new Error(String(data?.error||'supplement-overview-failed'));
@@ -6853,7 +6854,7 @@
 
       async function loadHomeBootstrap({force=false}={}){
         if(!currentActor) return null;
-        if(!force&&homeBootstrapPayload&&Date.now()-homeBootstrapLoadedAt<2*60*1000){
+        if(!force&&homeBootstrapPayload&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
           applyHomeBootstrap(homeBootstrapPayload);
           return homeBootstrapPayload;
         }
@@ -6878,7 +6879,7 @@
       }
 
       async function ensureHomeBootstrap({force=false}={}){
-        if(!force&&appBootstrapPayload?.home&&Date.now()-homeBootstrapLoadedAt<2*60*1000){
+        if(!force&&appBootstrapPayload?.home&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
           applyHomeBootstrap(appBootstrapPayload.home);
           return appBootstrapPayload.home;
         }
@@ -8593,7 +8594,7 @@
         try{
           const payload=await managedJsonRequest('ticktick-today','/api/ticktick/today',{
             body:{initData:telegramInitData(),backupToken:currentStateBackupToken},
-            ttlMs:60*1000,
+            ttlMs:2*60*1000,
             timeoutMs:7000
           });
           renderTickTickTodayState(payload,{preserveExpanded});
@@ -14513,45 +14514,45 @@
           run:()=>{resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}
         },
         {
-          key:'ticktick',everyMs:5*60*1000,offsetMs:15*1000,
+          key:'ticktick',everyMs:10*60*1000,offsetMs:15*1000,
           shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'),
           run:()=>loadTickTickNext()
         },
         {
-          key:'ui-preferences',everyMs:5*60*1000,offsetMs:30*1000,
+          key:'ui-preferences',everyMs:15*60*1000,offsetMs:30*1000,
           shouldRun:()=>Boolean(currentActor&&appAccessReady&&appVisibleForRefresh()),
           run:()=>syncUiPreferencesFromServer()
         },
         {
-          key:'market-ticker',everyMs:5*60*1000,offsetMs:45*1000,
+          key:'market-ticker',everyMs:15*60*1000,offsetMs:45*1000,
           shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'&&marketTickerEnabled()),
           run:()=>loadMarketTicker({silent:true})
         },
         {
-          key:'activity',everyMs:10*60*1000,offsetMs:60*1000,
+          key:'activity',everyMs:30*60*1000,offsetMs:60*1000,
           shouldRun:()=>Boolean(
             currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'
-            &&Date.now()-homeBootstrapLoadedAt>2*60*1000
+            &&Date.now()-homeBootstrapLoadedAt>HOME_BOOTSTRAP_CACHE_MS
           ),
           run:()=>loadActivityJournal({silent:true})
         },
         {
-          key:'work-calendar',everyMs:15*60*1000,offsetMs:75*1000,
+          key:'work-calendar',everyMs:30*60*1000,offsetMs:75*1000,
           shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='schedule'),
           run:()=>loadWorkCalendar(currentWorkCalendarView,{silent:true})
         },
         {
-          key:'shared-album',everyMs:15*60*1000,offsetMs:90*1000,
+          key:'shared-album',everyMs:30*60*1000,offsetMs:90*1000,
           shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='photos'),
           run:()=>loadSharedAlbum()
         },
         {
-          key:'feed',everyMs:15*60*1000,offsetMs:105*1000,
+          key:'feed',everyMs:30*60*1000,offsetMs:105*1000,
           shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='feed'),
           run:()=>loadFeed({silent:true})
         },
         {
-          key:'home-bootstrap',everyMs:30*60*1000,offsetMs:0,
+          key:'home-bootstrap',everyMs:60*60*1000,offsetMs:0,
           shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='home'),
           run:()=>loadHomeBootstrap({force:true}).catch(()=>{})
         },
@@ -14592,9 +14593,9 @@
       let resumeRefreshPromise=null;
       let manualRefreshRequested=false;
       let lastResumeRefreshAt=0;
-      const AUTO_RESUME_MIN_BACKGROUND_MS=15*1000;
-      const AUTO_RESUME_DEEP_REFRESH_MS=60*1000;
-      const AUTO_RESUME_HEAVY_REFRESH_MS=5*60*1000;
+      const AUTO_RESUME_MIN_BACKGROUND_MS=60*1000;
+      const AUTO_RESUME_DEEP_REFRESH_MS=5*60*1000;
+      const AUTO_RESUME_HEAVY_REFRESH_MS=15*60*1000;
       async function refreshAfterResume({backgroundMs=0}={}){
         ensureAppSurface();
         if(!currentActor||!appAccessReady) return;
@@ -14613,7 +14614,10 @@
           resetMoodForNewDay();
           const tabTasks=[];
           if(currentAppTab==='home'){
-            tabTasks.push(loadHomeBootstrap({force:true}));
+            tabTasks.push(force
+              ?loadHomeBootstrap({force:true})
+              :ensureHomeBootstrap({force:awayMs>=AUTO_RESUME_HEAVY_REFRESH_MS})
+            );
             if(force){
               tabTasks.push(
                 loadTickTickNext({force:true}),
@@ -14633,8 +14637,8 @@
               );
               if(awayMs>=AUTO_RESUME_DEEP_REFRESH_MS){
                 tabTasks.push(
-                  loadSupplementIntakeOverview({silent:true,force:true}),
-                  window.RudiSupplementApp?.loadHomeTools?.({force:true}),
+                  loadSupplementIntakeOverview({silent:true,force:false}),
+                  window.RudiSupplementApp?.loadHomeTools?.({force:false}),
                   loadFastingOverview()
                 );
               }
