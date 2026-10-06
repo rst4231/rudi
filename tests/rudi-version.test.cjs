@@ -38,5 +38,5 @@ test('service worker cache follows resolved RUDI version',()=>{
 
 test('current checked-in release matches VERSION',()=>{
   const config=JSON.parse(fs.readFileSync('rudi-version.json','utf8'));
-  assert.equal(config.current,'v4.03');
+  assert.equal(config.current,fs.readFileSync('VERSION','utf8').trim());
 });
