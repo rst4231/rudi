@@ -306,3 +306,19 @@ test('car viewer hides original action without removing shared album action',()=
   assert.match(app,/original\.hidden=hideOriginal/);
   assert.match(car,/hideOriginal:true/);
 });
+
+
+test('habit status buttons stay tappable for the 20:00 hint',()=>{
+  const client=fs.readFileSync('public/profile-supplements.js','utf8');
+  const css=fs.readFileSync('public/profile-supplements.css','utf8');
+  const api=fs.readFileSync('api/habits.js','utf8');
+  assert.match(client,/const todayTimeLocked=habitSelectedDate===habitState\.today&&!habitState\.canCompleteToday/);
+  assert.match(client,/yes\.classList\.toggle\('is-time-locked',todayTimeLocked\)/);
+  assert.match(client,/no\.classList\.toggle\('is-time-locked',todayTimeLocked\)/);
+  assert.match(client,/setHabitStatus\('Отметить привычку можно после 20:00\.'\)/);
+  assert.doesNotMatch(client,/yes\.disabled=doneLocked/);
+  assert.match(api,/\['done','notdone'\]\.includes\(String\(body\.status\|\|''\)\)&&moscowHour\(now\)<20/);
+  assert.match(api,/habit-status-too-early/);
+  assert.match(css,/\.personal-habit-status-button\.is-time-locked\{/);
+  assert.match(css,/html\[data-theme="light"\] \.personal-habit-status-button\.is-notdone:not\(\.is-active\)/);
+});
