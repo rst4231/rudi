@@ -666,3 +666,33 @@ html[data-theme="light"] .personal-habit-status-button.is-done.is-time-locked{
   background:rgba(67,139,91,.035)!important;
 }
 /* end RUDI v3.99 habit status time lock */
+
+
+/* RUDI v4.00 — past habit dates are read-only */
+.personal-habit-status-button.is-history-locked,
+.personal-habit-status-button.is-history-locked.is-active,
+.personal-habit-row.is-history .personal-habit-status-button.is-history-locked,
+.personal-habit-row.is-history .personal-habit-status-button.is-history-locked.is-active{
+  opacity:1!important;
+  box-shadow:none!important;
+  filter:none!important;
+  cursor:default!important;
+  background:transparent!important;
+}
+html[data-theme="light"] .personal-habit-status-button.is-history-locked,
+html[data-theme="light"] .personal-habit-status-button.is-history-locked.is-active{
+  color:#252a2d!important;
+  border-color:rgba(37,42,45,.18)!important;
+  background:rgba(37,42,45,.035)!important;
+}
+html[data-theme="dark"] .personal-habit-status-button.is-history-locked,
+html[data-theme="dark"] .personal-habit-status-button.is-history-locked.is-active{
+  color:rgba(255,255,255,.82)!important;
+  border-color:rgba(255,255,255,.16)!important;
+  background:rgba(255,255,255,.045)!important;
+}
+.personal-habit-status-button.is-history-locked:disabled{
+  opacity:1!important;
+  -webkit-text-fill-color:currentColor;
+}
+/* end RUDI v4.00 past habit dates */
