@@ -4801,6 +4801,7 @@
       function smartSaveConfirm(text){return new Promise(resolve=>{if(tg?.showConfirm){try{tg.showConfirm(text,value=>resolve(Boolean(value)));return}catch(_){}}resolve(window.confirm(text))})}
       function smartSaveCard(item,{compact=false}={}){
         const card=document.createElement('article');card.className='smart-save-card'+(compact?' is-compact':'');card.dataset.rudiItemId=String(item?.id||'');
+        if(/^coffee\s*3$/iu.test(String(item?.title||'').trim())) card.classList.add('is-coffee3');
         if(item?.imageUrl){const img=document.createElement('img');img.className='smart-save-image';img.src=String(item.imageUrl);img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';img.addEventListener('error',()=>img.remove());card.appendChild(img)}
         const body=document.createElement('div');body.className='smart-save-body',meta=document.createElement('div');meta.className='smart-save-meta';
         const category=document.createElement('span');category.className='smart-save-category';category.textContent=String(item?.category||'Другое');

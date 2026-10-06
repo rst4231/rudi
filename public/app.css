@@ -13543,3 +13543,10 @@ body[data-app-tab="finances"]{
   transform:translateX(-50%) rotate(-10deg) scale(.93)!important;
 }
 /* end RUDI v4.15 */
+
+
+/* RUDI v4.15 — Coffee 3 without outer frame */
+.smart-save-card.is-coffee3{
+  border:0!important;
+}
+/* end RUDI v4.15 Coffee 3 frame */
