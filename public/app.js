@@ -2180,6 +2180,8 @@
       let financeLiteracyPromise=null;
       let financeInsightKey='';
       let activeFinanceTab='shared';
+      let financeExpenseCategoryId='';
+      let financeIncomeDrag=null;
       const financeSaveTimers=new Map();
 
       function financeCurrentMonthKey(){
@@ -2307,6 +2309,9 @@
         const balanceValue=Math.round((income-expenses)*100)/100;
         const balance=document.getElementById('financePersonalBalanceValue'),savings=document.getElementById('financeSavingsRate'),reserveMonths=document.getElementById('financeReserveMonths'),comparison=document.getElementById('financePersonalComparison');
         if(balance)balance.textContent=financeMoney(balanceValue);
+        const coinBalance=document.getElementById('financeCoinBalanceValue'),coinIncome=document.getElementById('financeCoinIncomeValue');
+        if(coinBalance)coinBalance.textContent=financeMoney(balanceValue);
+        if(coinIncome)coinIncome.textContent=financeMoney(income);
         const savingsRate=income>0?balanceValue/income*100:0;
         if(savings){savings.textContent=(savingsRate<0?'−':'')+financePercent(savingsRate);savings.dataset.tone=savingsRate>=20?'good':savingsRate>=0?'neutral':'bad'}
         const reserve=Math.max(0,Number(financeState.plan?.reserve)||0),months=expenses>0?reserve/expenses:0;
@@ -2360,6 +2365,100 @@
         }catch(_){setFinanceAutosaveStatus('financePlanStatus','Не удалось сохранить')}
       }
 
+      function closeFinanceCoinModal(id){
+        const modal=document.getElementById(id);if(!modal)return;
+        modal.hidden=true;modal.setAttribute('aria-hidden','true');
+        document.body.classList.remove('finance-coin-modal-open');
+      }
+      function openFinanceCategoryComposer(){
+        const modal=document.getElementById('financeCategoryComposer');if(!modal)return;
+        const name=document.getElementById('financeCategoryName'),status=document.getElementById('financeCategoryStatus');
+        if(name)name.value='';if(status)status.textContent='';
+        modal.hidden=false;modal.setAttribute('aria-hidden','false');document.body.classList.add('finance-coin-modal-open');
+        setTimeout(()=>name?.focus(),60);
+      }
+      function financeCategoryById(id){
+        return (Array.isArray(financeState.categories)?financeState.categories:[]).find(row=>row.id===id)||null;
+      }
+      function renderFinanceExpenseComposerHistory(month,categoryId){
+        const host=document.getElementById('financeExpenseComposerHistory');if(!host)return;
+        host.replaceChildren();
+        const rows=financeExpensesForMonth(month).filter(row=>row.categoryId===categoryId).slice(0,10);
+        for(const row of rows){
+          const item=document.createElement('div');item.className='finance-category-expense-row';
+          const copy=document.createElement('span');copy.textContent=row.note||'Расход';
+          const value=document.createElement('strong');value.textContent=financeMoney(row.amount);
+          const del=document.createElement('button');del.type='button';del.className='finance-expense-delete';del.textContent='×';del.setAttribute('aria-label','Удалить расход');
+          del.addEventListener('click',async()=>{
+            del.disabled=true;
+            try{
+              const data=await financeRequest('delete-expense',{id:row.id});
+              renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
+              renderFinanceExpenseComposerHistory(month,categoryId);
+              refreshFinanceInsight(true).catch(()=>{});
+            }catch(_){del.disabled=false}
+          });
+          item.append(copy,value,del);host.append(item);
+        }
+      }
+      function openFinanceExpenseComposer(categoryId){
+        const category=financeCategoryById(categoryId),modal=document.getElementById('financeExpenseComposer');
+        if(!category||!modal)return;
+        financeExpenseCategoryId=category.id;
+        const title=document.getElementById('financeExpenseComposerTitle'),icon=document.getElementById('financeExpenseComposerIcon'),amount=document.getElementById('financeExpenseComposerAmount'),note=document.getElementById('financeExpenseComposerNote'),status=document.getElementById('financeExpenseComposerStatus');
+        if(title)title.textContent=String(category.name||'Категория');
+        if(icon)icon.textContent=category.icon||'💳';
+        if(amount)amount.value='';if(note)note.value='';if(status)status.textContent='';
+        const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        renderFinanceExpenseComposerHistory(month,category.id);
+        modal.hidden=false;modal.setAttribute('aria-hidden','false');document.body.classList.add('finance-coin-modal-open');
+        setTimeout(()=>amount?.focus(),60);
+      }
+      function cleanupFinanceIncomeDrag(){
+        const drag=financeIncomeDrag;if(!drag)return;
+        drag.target?.classList.remove('is-drop-target');
+        drag.ghost?.remove();
+        document.body.classList.remove('finance-income-dragging');
+        financeIncomeDrag=null;
+      }
+      function bindFinanceIncomeDrag(){
+        const coin=document.getElementById('financeIncomeCoin');
+        if(!coin||coin.dataset.dragBound==='1')return;
+        coin.dataset.dragBound='1';
+        coin.addEventListener('pointerdown',event=>{
+          if(event.button!==undefined&&event.button!==0)return;
+          const rect=coin.getBoundingClientRect();
+          const ghost=document.createElement('div');ghost.className='finance-income-drag-ghost';ghost.textContent='₽';
+          ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';
+          document.body.append(ghost);
+          financeIncomeDrag={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,ghost,target:null,moved:false};
+          coin.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        });
+        coin.addEventListener('pointermove',event=>{
+          const drag=financeIncomeDrag;if(!drag||drag.pointerId!==event.pointerId)return;
+          if(!drag.moved&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<7)return;
+          drag.moved=true;document.body.classList.add('finance-income-dragging');
+          drag.ghost.style.left=event.clientX+'px';drag.ghost.style.top=event.clientY+'px';
+          const target=document.elementFromPoint(event.clientX,event.clientY)?.closest?.('.finance-category-coin-item')||null;
+          if(target!==drag.target){
+            drag.target?.classList.remove('is-drop-target');drag.target=target;target?.classList.add('is-drop-target');
+            if(target)try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          }
+        });
+        const finish=event=>{
+          const drag=financeIncomeDrag;if(!drag||drag.pointerId!==event.pointerId)return;
+          const target=drag.target,categoryId=target?.dataset?.categoryId||'';
+          const moved=drag.moved;cleanupFinanceIncomeDrag();
+          try{coin.releasePointerCapture?.(event.pointerId)}catch(_){}
+          if(moved&&categoryId){
+            openFinanceExpenseComposer(categoryId);
+            try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
+          }
+        };
+        coin.addEventListener('pointerup',finish);coin.addEventListener('pointercancel',()=>cleanupFinanceIncomeDrag());
+      }
+
       function renderFinanceCategories(month){
         const list=document.getElementById('financeCategoryList'),empty=document.getElementById('financeCategoryEmpty'),count=document.getElementById('financeCategoryCount'),totalHost=document.getElementById('financeExpenseMonthTotal');
         if(!list)return;
@@ -2369,70 +2468,27 @@
         if(empty)empty.hidden=categories.length>0;
         if(totalHost)totalHost.textContent=financeMoney(financeExpenseTotal(month));
         list.replaceChildren();
-        for(const category of categories){
+
+        const palette=['#34c99a','#ffb52b','#6b9cff','#f27372','#9b7cff','#2fc7c9','#f28f44','#8dbf45','#d96daf','#5ba8d8'];
+        categories.forEach((category,index)=>{
           const spent=Math.round(expenses.filter(row=>row.categoryId===category.id).reduce((sum,row)=>sum+Number(row.amount||0),0)*100)/100;
-          const card=document.createElement('article');card.className='finance-category-card';card.dataset.categoryId=category.id;
+          const item=document.createElement('button');item.type='button';item.className='finance-coin-item finance-category-coin-item';item.dataset.categoryId=category.id;item.style.setProperty('--finance-coin-color',palette[index%palette.length]);
+          const label=document.createElement('span');label.className='finance-coin-label';label.textContent=category.name||'Категория';
+          const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.textContent=category.icon||'💳';
+          const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeMoney(spent);
+          item.append(label,coin,amount);
+          item.addEventListener('click',()=>openFinanceExpenseComposer(category.id));
+          list.append(item);
+        });
 
-          const head=document.createElement('div');head.className='finance-category-card-head';
-          const name=document.createElement('div');name.className='finance-category-card-name';
-          const icon=document.createElement('span');icon.className='finance-category-card-icon';icon.textContent=category.icon||'💳';
-          const title=document.createElement('strong');title.textContent=category.name||'Категория';name.append(icon,title);
-
-          const side=document.createElement('div');side.className='finance-category-card-side';
-          const stats=document.createElement('div');stats.className='finance-category-card-stats';
-          const spentText=document.createElement('strong');spentText.textContent=financeMoney(spent);
-          const statsLabel=document.createElement('span');statsLabel.textContent='потрачено';stats.append(spentText,statsLabel);
-          const remove=document.createElement('button');remove.type='button';remove.className='finance-category-delete';remove.textContent='Удалить';remove.setAttribute('aria-label','Удалить категорию '+String(category.name||''));
-          side.append(stats,remove);head.append(name,side);
-
-          const expense=document.createElement('div');expense.className='finance-category-expense-add';
-          const amountWrap=document.createElement('div');amountWrap.className='finance-money-input';
-          const amount=document.createElement('input');amount.type='number';amount.min='0.01';amount.max='100000000';amount.step='1';amount.inputMode='decimal';amount.placeholder='Сумма';
-          const amountRub=document.createElement('b');amountRub.textContent='₽';amountWrap.append(amount,amountRub);
-          const expenseNote=document.createElement('input');expenseNote.className='finance-text-input';expenseNote.maxLength=120;expenseNote.placeholder='Заметка к расходу';
-          const add=document.createElement('button');add.type='button';add.className='finance-mini-button';add.textContent='Добавить';
-          expense.append(amountWrap,expenseNote,add);
-
-          const recent=document.createElement('div');recent.className='finance-category-expense-list';
-          const rows=expenses.filter(row=>row.categoryId===category.id).slice(0,6);
-          for(const row of rows){
-            const item=document.createElement('div');item.className='finance-category-expense-row';
-            const copy=document.createElement('span');copy.textContent=row.note||'Расход';
-            const value=document.createElement('strong');value.textContent=financeMoney(row.amount);
-            const del=document.createElement('button');del.type='button';del.className='finance-expense-delete';del.textContent='×';del.setAttribute('aria-label','Удалить расход');
-            del.addEventListener('click',async()=>{del.disabled=true;try{const data=await financeRequest('delete-expense',{id:row.id});renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});refreshFinanceInsight(true).catch(()=>{})}catch(_){del.disabled=false}});
-            item.append(copy,value,del);recent.append(item);
-          }
-
-          remove.addEventListener('click',async()=>{
-            const label=String(category.name||'Категория');
-            if(!window.confirm('Удалить категорию «'+label+'»? Все расходы внутри неё тоже будут удалены.'))return;
-            remove.disabled=true;remove.textContent='…';
-            try{
-              const data=await financeRequest('delete-category',{id:category.id});
-              renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
-              refreshFinanceInsight(true).catch(()=>{});
-              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-            }catch(_){
-              remove.disabled=false;remove.textContent='Удалить';
-              const status=document.getElementById('financeCategoryStatus');if(status)status.textContent='Не удалось удалить категорию';
-            }
-          });
-          add.addEventListener('click',async()=>{
-            const value=Number(amount.value||0);if(value<=0){amount.focus();return}
-            add.disabled=true;add.textContent='…';
-            try{
-              const data=await financeRequest('save-expense',{month,categoryId:category.id,amount:value,note:expenseNote.value||''});
-              amount.value='';expenseNote.value='';renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});refreshFinanceInsight(true).catch(()=>{});
-              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-            }catch(_){add.textContent='Ошибка';setTimeout(()=>{add.textContent='Добавить';add.disabled=false},1200);return}
-            add.textContent='Добавить';add.disabled=false;
-          });
-          amount.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();add.click()}});
-
-          card.append(head,expense,recent);list.append(card);
-        }
+        const add=document.createElement('button');add.type='button';add.className='finance-coin-item finance-add-category-item';
+        const addLabel=document.createElement('span');addLabel.className='finance-coin-label';addLabel.textContent='Категория';
+        const addCoin=document.createElement('span');addCoin.className='finance-coin finance-add-category-coin';addCoin.textContent='+';
+        const addText=document.createElement('span');addText.className='finance-coin-amount';addText.textContent='Добавить';
+        add.append(addLabel,addCoin,addText);add.addEventListener('click',openFinanceCategoryComposer);list.append(add);
+        bindFinanceIncomeDrag();
       }
+
       function renderFinanceDebts(){
         const list=document.getElementById('financeDebtList'),empty=document.getElementById('financeDebtEmpty'),count=document.getElementById('financeDebtCount');
         const oweTotal=document.getElementById('financeDebtOweTotal'),owedTotal=document.getElementById('financeDebtOwedTotal');
@@ -2564,12 +2620,41 @@
           document.getElementById(id)?.addEventListener('input',()=>{renderFinancePlan({preserveInputs:true});renderFinancePulse(personalMonth?.value||financeCurrentMonthKey());financeDebounce('plan',saveFinancePlanAuto,750)});
         });
 
+        bindFinanceIncomeDrag();
+        const expenseModal=document.getElementById('financeExpenseComposer');
+        document.getElementById('financeExpenseComposerBackdrop')?.addEventListener('click',()=>closeFinanceCoinModal('financeExpenseComposer'));
+        document.getElementById('financeExpenseComposerClose')?.addEventListener('click',()=>closeFinanceCoinModal('financeExpenseComposer'));
+        document.getElementById('financeCategoryComposerBackdrop')?.addEventListener('click',()=>closeFinanceCoinModal('financeCategoryComposer'));
+        document.getElementById('financeCategoryComposerClose')?.addEventListener('click',()=>closeFinanceCoinModal('financeCategoryComposer'));
+        document.getElementById('financeExpenseComposerSave')?.addEventListener('click',async()=>{
+          const month=personalMonth?.value||financeCurrentMonthKey(),amount=document.getElementById('financeExpenseComposerAmount'),note=document.getElementById('financeExpenseComposerNote'),button=document.getElementById('financeExpenseComposerSave'),status=document.getElementById('financeExpenseComposerStatus');
+          const value=Number(amount?.value||0);if(!financeExpenseCategoryId||value<=0){amount?.focus();return}
+          button.disabled=true;if(status)status.textContent='Сохраняю…';
+          try{
+            const data=await financeRequest('save-expense',{month,categoryId:financeExpenseCategoryId,amount:value,note:note?.value||''});
+            renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
+            closeFinanceCoinModal('financeExpenseComposer');refreshFinanceInsight(true).catch(()=>{});
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){if(status)status.textContent='Не удалось добавить расход'}finally{button.disabled=false}
+        });
+        document.getElementById('financeExpenseComposerAmount')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();document.getElementById('financeExpenseComposerSave')?.click()}});
+        document.getElementById('financeExpenseComposerDeleteCategory')?.addEventListener('click',async()=>{
+          const category=financeCategoryById(financeExpenseCategoryId);if(!category)return;
+          if(!window.confirm('Удалить категорию «'+String(category.name||'Категория')+'»? Все расходы внутри неё тоже будут удалены.'))return;
+          const month=personalMonth?.value||financeCurrentMonthKey(),button=document.getElementById('financeExpenseComposerDeleteCategory');
+          button.disabled=true;
+          try{
+            const data=await financeRequest('delete-category',{id:category.id});
+            closeFinanceCoinModal('financeExpenseComposer');renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});refreshFinanceInsight(true).catch(()=>{});
+          }catch(_){const status=document.getElementById('financeExpenseComposerStatus');if(status)status.textContent='Не удалось удалить категорию'}finally{button.disabled=false}
+        });
+
         const categoryCreate=document.getElementById('financeCategoryCreateButton');
         categoryCreate?.addEventListener('click',async()=>{
           const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon'),status=document.getElementById('financeCategoryStatus');
           const value=String(name?.value||'').trim();if(!value){name?.focus();return}
           categoryCreate.disabled=true;if(status)status.textContent='Создаю…';
-          try{const data=await financeRequest('save-category',{name:value,icon:icon?.value||'💳'});if(name)name.value='';renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});if(status)status.textContent='Категория создана';setTimeout(()=>{if(status?.textContent==='Категория создана')status.textContent=''},1400)}
+          try{const data=await financeRequest('save-category',{name:value,icon:icon?.value||'💳'});if(name)name.value='';closeFinanceCoinModal('financeCategoryComposer');renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});if(status)status.textContent=''}
           catch(error){if(status)status.textContent=String(error?.message||'').includes('duplicate')?'Такая категория уже есть':'Не удалось создать категорию'}finally{categoryCreate.disabled=false}
         });
         document.getElementById('financeCategoryName')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();categoryCreate?.click()}});
