@@ -55,3 +55,34 @@ test('D1 TTL conversion keeps the same cache expiry semantics',()=>{
   );
   assert.equal(expiresAtFromOptions({},0),null);
 });
+
+
+test('D1 client retries transient reads once but does not retry writes',async()=>{
+  let getCalls=0;
+  const client=createD1StateClient({
+    baseUrl:'https://worker.example',
+    secret:'test-secret',
+    fetchImpl:async(url)=>{
+      if(url.endsWith('/get')){
+        getCalls+=1;
+        if(getCalls===1) throw new TypeError('network failed');
+        return response(200,{ok:true,value:{ok:true},tags:[],expiresAt:null,updatedAt:'2026-10-06T06:00:00.000Z'});
+      }
+      throw new Error('unexpected-url');
+    }
+  });
+  assert.deepEqual((await client.getRecord('rudi-test-v1','retry')).value,{ok:true});
+  assert.equal(getCalls,2);
+
+  let setCalls=0;
+  const writeClient=createD1StateClient({
+    baseUrl:'https://worker.example',
+    secret:'test-secret',
+    fetchImpl:async(url)=>{
+      if(url.endsWith('/set')){setCalls+=1;throw new TypeError('network failed')}
+      throw new Error('unexpected-url');
+    }
+  });
+  await assert.rejects(()=>writeClient.set('rudi-test-v1','write',{x:1}),/network failed/);
+  assert.equal(setCalls,1);
+});
