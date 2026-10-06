@@ -257,3 +257,20 @@ test('habit history uses cached recent days and reliable iOS date events',()=>{
   assert.match(api,/const shouldFinalize=operation!=='list'\|\|requestedDate===today/);
   assert.match(api,/for\(let offset=1;offset<=6;offset\+=1\)/);
 });
+
+
+test('habit history is cached and calendar selection works on iOS',()=>{
+  const client=fs.readFileSync('public/profile-supplements.js','utf8');
+  const css=fs.readFileSync('public/profile-supplements.css','utf8');
+  const api=fs.readFileSync('api/habits.js','utf8');
+  assert.match(client,/HABIT_READ_CACHE_TTL_MS=5\*60\*1000/);
+  assert.match(client,/data\?\.history&&typeof data\.history==='object'/);
+  assert.match(client,/habitDateInput\.addEventListener\('input',commitHabitCalendarDate\)/);
+  assert.match(client,/habitDateInput\.addEventListener\('change',commitHabitCalendarDate\)/);
+  assert.match(client,/habitDateInput\.addEventListener\('blur',commitHabitCalendarDate\)/);
+  assert.match(client,/personal-habit-day-status/);
+  assert.match(css,/body\[data-app-tab="habits"\] \.personal-habits-title-wrap h2/);
+  assert.match(css,/\.personal-habits-archive\{[\s\S]*?border-top:0!important/);
+  assert.match(api,/const shouldFinalize=operation!=='list'\|\|requestedDate===today/);
+  assert.match(api,/for\(let offset=1;offset<=6;offset\+=1\)/);
+});
