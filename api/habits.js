@@ -1,6 +1,6 @@
 const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {
-  moscowDateKey,moscowHour,readHabits,viewHabits,ensureHabitDay,addHabit,removeHabit,archiveHabit,setHabitStatus,setHabitsCollapsed
+  moscowDateKey,moscowHour,shiftDateKey,readHabits,viewHabits,ensureHabitDay,addHabit,removeHabit,archiveHabit,setHabitStatus,setHabitsCollapsed
 }=require('./habit-tracker-store.cjs');
 const {reconcileHabitScore,reconcileHabitStreakBonus,clearHabitScore,reconcileTodayHabitScores,finalizeOutstandingHabitDays}=require('./habit-rules.cjs');
 
@@ -19,7 +19,10 @@ async function handler(req,res){
     const {actor}=authorizeRequest(req,body.initData);
     const operation=String(body.operation||'list').trim(),now=Date.now(),today=moscowDateKey(now);
     const requestedDate=String(body.date||'').trim()||today;
-    try{await finalizeOutstandingHabitDays(actor,{now})}catch(error){console.error('RUDI_HABIT_SELF_HEAL_FINALIZE_ERROR',actor,String(error?.message||error))}
+    const shouldFinalize=operation!=='list'||requestedDate===today;
+    if(shouldFinalize){
+      try{await finalizeOutstandingHabitDays(actor,{now})}catch(error){console.error('RUDI_HABIT_SELF_HEAL_FINALIZE_ERROR',actor,String(error?.message||error))}
+    }
     let state,score=null,scoreDelta=0;
 
     if(operation==='list'){
@@ -55,7 +58,16 @@ async function handler(req,res){
     }else if(operation==='collapse')state=await setHabitsCollapsed(actor,body.collapsed,{now});
     else throw new Error('habit-operation-invalid');
 
-    return res.status(200).json({ok:true,actor,...viewHabits(state,{date:requestedDate,now}),score,scoreDelta});
+    const view=viewHabits(state,{date:requestedDate,now});
+    let history=null;
+    if(operation==='list'&&requestedDate===today){
+      history={};
+      for(let offset=1;offset<=6;offset+=1){
+        const date=shiftDateKey(today,-offset);
+        history[date]=viewHabits(state,{date,now});
+      }
+    }
+    return res.status(200).json({ok:true,actor,...view,history,score,scoreDelta});
   }catch(error){
     const code=String(error?.message||error),status=statusFor(code,error);
     if(status===500)console.error('RUDI_HABITS_ERROR',code,error?.stack||'');
