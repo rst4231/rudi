@@ -33,7 +33,10 @@ test('car document viewer uses maximum quality without original button and suppo
   assert.match(app,/photoViewerZoomScale/);
   assert.match(app,/pointerDistance/);
   assert.match(app,/clampPhotoViewerZoom/);
-  assert.doesNotMatch(html,/id="photoViewerOriginal"/);
+  assert.match(html,/id="photoViewerOriginal"/);
+  assert.match(car,/hideOriginal:true/);
+  assert.match(app,/viewerHideOriginal:hideOriginal/);
+  assert.match(app,/original\.hidden=hideOriginal/);
   assert.match(css,/\.photo-viewer-stage\.is-zoomed/);
 });
 
