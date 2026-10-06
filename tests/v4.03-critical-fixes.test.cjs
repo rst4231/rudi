@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const {createRudiStateClient}=require('../api/rudi-state-client.cjs');
+const posterProxy=require('../api/poster-proxy.js');
+const {handleTelegramTopicRequest,COUPLE_TOPIC_ID}=require('../api/topic-maintenance.cjs');
 
 test('stable runtime uses D1 directly without probing legacy Postgres',async()=>{
   let d1Reads=0;
@@ -84,4 +86,58 @@ test('release build precaches the current stable asset URLs',()=>{
   const build=fs.readFileSync('build.cjs','utf8');
   assert.match(build,/const versionedAssets = WEB_ASSETS\.map/);
   assert.match(build,/syncServiceWorkerPrecache\(versionedAssets\)/);
+});
+
+
+function jsonResponseRecorder(){
+  const out={statusCode:0,payload:null,headers:{}};
+  return {
+    out,
+    setHeader(name,value){out.headers[String(name).toLowerCase()]=value;},
+    status(code){out.statusCode=code;return this;},
+    json(payload){out.payload=payload;return out;},
+    send(payload){out.payload=payload;return out;},
+  };
+}
+
+test('poster proxy retries once and returns gateway statuses for upstream failures',async()=>{
+  const originalFetch=global.fetch;
+  try{
+    let calls=0;
+    global.fetch=async()=>{calls+=1;return{ok:false,status:503,headers:new Headers(),text:async()=>''}};
+    const res502=jsonResponseRecorder();
+    await posterProxy({method:'GET',query:{url:'https://cdn.mirage.ru/poster.jpg'}},res502);
+    assert.equal(calls,2);
+    assert.equal(res502.out.statusCode,502);
+
+    calls=0;
+    global.fetch=async()=>{calls+=1;const error=new Error('aborted');error.name='AbortError';throw error};
+    const res504=jsonResponseRecorder();
+    await posterProxy({method:'GET',query:{url:'https://cdn.mirage.ru/poster.jpg'}},res504);
+    assert.equal(calls,2);
+    assert.equal(res504.out.statusCode,504);
+  }finally{
+    global.fetch=originalFetch;
+  }
+});
+
+test('retired Telegram chat is cached after chat not found and not retried',async()=>{
+  const map=new Map();
+  const cache={
+    async get(key){return map.get(key)},
+    async set(key,value){map.set(key,value);return true},
+    async delete(key){map.delete(key);return true},
+  };
+  let calls=0;
+  const fetchImpl=async()=>{
+    calls+=1;
+    return new Response(JSON.stringify({ok:false,description:'Bad Request: chat not found'}),{
+      status:400,headers:{'content-type':'application/json'}
+    });
+  };
+  const request={method:'POST',body:JSON.stringify({chat_id:-100987,message_thread_id:COUPLE_TOPIC_ID,text:'retired'})};
+  const url='https://api.telegram.org/bot1:testtoken/sendMessage';
+  assert.equal((await handleTelegramTopicRequest(url,request,{cache,fetchImpl})).status,200);
+  assert.equal((await handleTelegramTopicRequest(url,request,{cache,fetchImpl})).status,200);
+  assert.equal(calls,1);
 });
