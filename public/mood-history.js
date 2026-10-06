@@ -11,7 +11,7 @@ const META={
 };
 const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Здоровье',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
 function reasonLabel(sample){const custom=String(sample?.reasonText||'').trim();return sample?.reason==='other'&&custom?custom:(REASONS[sample?.reason]||'')}
-let state=null,visibleWeekEnd='',windowDays=30,selectedDate='',restoreAnalysisWindow=true,analysisRefreshTimer=0;
+let state=null,visibleWeekEnd='',windowDays=30,selectedDate='',restoreAnalysisWindow=true;
 
 function initData(){
   const direct=String(window.Telegram?.WebApp?.initData||'').trim();
@@ -312,20 +312,6 @@ function renderDayDetail(row){
   }
 }
 
-function analysisCooldown(analysis){
-  if(!analysis?.createdAt)return{locked:false,left:0,text:'Можно обновить разбор'};
-  const left=Math.max(0,24*360000-(Date.now()-(Date.parse(analysis.createdAt)||0)));
-  if(left<=0)return{locked:false,left:0,text:'Можно обновить разбор'};
-  const h=Math.floor(left/3600000),m=Math.max(0,Math.ceil((left%3600000)/60000));
-  return{locked:true,left,text:'Новый анализ через '+(h?h+' ч ':'')+m+' мин'};
-}
-function scheduleAnalysisRefresh(analysis){
-  clearTimeout(analysisRefreshTimer);
-  const cooldown=analysisCooldown(analysis);
-  if(!cooldown.locked)return;
-  analysisRefreshTimer=setTimeout(()=>{if(state)render(state)},Math.min(60000,cooldown.left+100));
-}
-
 function render(data){
   if(!data)return;
   state=data;
@@ -374,15 +360,12 @@ function render(data){
   const analysis=data.analysis||null,button=page.querySelector('#moodAnalyzeButton'),status=page.querySelector('#moodAnalysisStatus'),result=page.querySelector('#moodAnalysisResult');
   const moodDays=rowsForWindow(history,today,windowDays).length;
   const minimumDays=minimumAnalysisDays(windowDays);
-  const cooldown=analysisCooldown(analysis);
   if(analysis?.text){
     result.hidden=false;renderAnalysisReport(result,analysis.text,data.analysisVisuals);
-    button.disabled=cooldown.locked||moodDays<minimumDays;button.textContent=cooldown.locked?'Готово':'Анализ';
+    button.disabled=moodDays<minimumDays;button.textContent='Анализ';
     const savedPeriod=analysisPeriodLabel(Number(analysis.windowDays)||30);
-    status.textContent=(analysis.level==='preliminary'?'Предварительный разбор · ':'')+'Сохранённый анализ за '+savedPeriod+' · '+cooldown.text+(analysis?.cycle?.phase?' · цикл Дианы учтён':'');
-    scheduleAnalysisRefresh(analysis);
+    status.textContent=(analysis.level==='preliminary'?'Предварительный разбор · ':'')+'Сохранённый анализ за '+savedPeriod+' · Можно обновлять без ограничений'+(analysis?.cycle?.phase?' · цикл Дианы учтён':'');
   }else{
-    clearTimeout(analysisRefreshTimer);
     result.hidden=true;result.replaceChildren();
     button.disabled=moodDays<minimumDays;button.textContent='Анализ';
     status.textContent=moodDays<minimumDays

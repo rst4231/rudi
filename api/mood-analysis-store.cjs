@@ -3,7 +3,6 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const NAMESPACE='rudi-mood-analysis-v4';
 const FEEDBACK_NAMESPACE='rudi-mood-feedback-v1';
 const TTL_SECONDS=60*60*24*3650;
-const COOLDOWN_MS=24*60*60*1000;
 const FEEDBACK_TTL_SECONDS=60*60*24*3650;
 const WINDOWS=[7,30,90];
 
@@ -42,8 +41,6 @@ async function readMoodAnalysisCache(actor,date,windowDays=30,options={}){
   return normalize(await cacheOf(args.options).get(keyFor(actor,args.windowDays)),actor,date,args.windowDays);
 }
 function analysisCreatedMs(value){const ms=Date.parse(String(value?.createdAt||''));return Number.isFinite(ms)?ms:0}
-function analysisCooldownRemainingMs(value,now=Date.now()){const created=analysisCreatedMs(value);if(!created)return 0;return Math.max(0,COOLDOWN_MS-(Number(now||Date.now())-created))}
-function analysisWithinCooldown(value,now=Date.now()){return analysisCooldownRemainingMs(value,now)>0}
 async function readLatestMoodAnalysisCache(actor,date,options={}){
   const rows=(await Promise.all(WINDOWS.map(days=>readMoodAnalysisCache(actor,date,days,options).catch(()=>null))))
     .filter(row=>row?.text&&analysisCreatedMs(row)>0)
@@ -90,7 +87,7 @@ async function saveMoodFeedback(actor,payload={},options={}){
   return row;
 }
 module.exports={
-  NAMESPACE,FEEDBACK_NAMESPACE,TTL_SECONDS,FEEDBACK_TTL_SECONDS,COOLDOWN_MS,WINDOWS,normalizeWindowDays,
-  readMoodAnalysisCache,readLatestMoodAnalysisCache,analysisCooldownRemainingMs,analysisWithinCooldown,
+  NAMESPACE,FEEDBACK_NAMESPACE,TTL_SECONDS,FEEDBACK_TTL_SECONDS,WINDOWS,normalizeWindowDays,
+  readMoodAnalysisCache,readLatestMoodAnalysisCache,
   writeMoodAnalysisCache,clearMoodAnalysisCache,readMoodFeedback,saveMoodFeedback,
 };

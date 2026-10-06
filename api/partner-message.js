@@ -46,7 +46,7 @@ const {
   getLatestPhotos,
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, setDailyMoodReason, moodView, restoreDailyMoodState, readDailyMoodState, readMoodHistory, readMoodAnalysis, clearMoodAnalyses } = require('./daily-mood-store.cjs');
-const { readLatestMoodAnalysisCache, writeMoodAnalysisCache, analysisWithinCooldown, normalizeWindowDays, readMoodFeedback, saveMoodFeedback } = require('./mood-analysis-store.cjs');
+const { readLatestMoodAnalysisCache, writeMoodAnalysisCache, normalizeWindowDays, readMoodFeedback, saveMoodFeedback } = require('./mood-analysis-store.cjs');
 const { readHabits, habitCreatedByDate } = require('./habit-tracker-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
@@ -3220,7 +3220,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
         const analysisVisuals=analysis?.text?moodAnalysisVisuals(await enrichMoodHistoryContext(actor,history,date,Number(analysis.windowDays)||windowDays,options)):null;
         const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
-        return res.status(200).json({ok:true,actor,date,history,analysis,analysisVisuals,feedback,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:selected.length>=minAnalysisDays,retentionDays:180,analysisCacheHours:24});
+        return res.status(200).json({ok:true,actor,date,history,analysis,analysisVisuals,feedback,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:selected.length>=minAnalysisDays,retentionDays:180});
       } else if (operation === 'analyze') {
         const [storedHistory,journal]=await Promise.all([readMoodHistory(actor,options),readActivityJournal(options).catch(()=>({items:[]}))]);
         const history=mergeMoodHistoryActivity(storedHistory,journal,actor),selected=moodHistoryForWindow(history,date,windowDays),minAnalysisDays=moodAnalysisMinimumDays(windowDays);
@@ -3235,7 +3235,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         analysis=await writeMoodAnalysisCache(actor,date,windowDays,{...generated,windowDays,level,historyCount:selected.length,cycle,createdAt:new Date(options.now||Date.now()).toISOString()},options);
         const analysisVisuals=moodAnalysisVisuals(enriched);
         const feedback=analysis?.createdAt?await readMoodFeedback(actor,analysis.createdAt,windowDays,options).catch(()=>null):null;
-        return res.status(200).json({ok:true,actor,date,history,analysis,analysisVisuals,feedback,cycle:analysis?.cycle||cycle,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:true,reused,retentionDays:180,analysisCacheHours:24});
+        return res.status(200).json({ok:true,actor,date,history,analysis,analysisVisuals,feedback,cycle:analysis?.cycle||cycle,windowDays,selectedDays:selected.length,minAnalysisDays,analysisLevel:level,canAnalyze:true,reused,retentionDays:180});
       } else if (operation === 'feedback') {
         const analysis=await externalMoodAnalysis(actor,date,windowDays,options);
         if(!analysis?.createdAt)throw new Error('mood-feedback-no-analysis');
