@@ -2,8 +2,8 @@
   "current": "v4.26",
   "versionBranch": "pending-release",
   "releaseCommit": null,
-  "deploymentSourceCommit": null,
-  "deploymentRequestedAt": null,
+  "deploymentSourceCommit": "8ff7fca1946210ed5292aee48513c57936cf72b6",
+  "deploymentRequestedAt": "2026-10-06",
   "createdAt": "2026-10-06",
   "basedOnProduction": "v4.25",
   "notes": [
