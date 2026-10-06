@@ -122,11 +122,29 @@
         lulu:null,
         nearestStatic:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','quick-access','nearest','priority','habits','supplements','new','smart-home','car','partner','daily-question','smart-saves','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','quick-access','nearest','priority','habits','supplements','new','smart-home','car','partner','daily-question','smart-saves','markets'];
+        return ['dashboard',...people,'lulu','priority','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       }
+      function homePrimaryBlocksMigrationKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi-home-primary-blocks-v1-'+actor;
+      }
+
+      function migrateHomePrimaryBlocksOnce(order){
+        const source=Array.isArray(order)?order.map(String):[];
+        if(!source.length) return source;
+        try{if(localStorage.getItem(homePrimaryBlocksMigrationKey())==='1') return source}catch(_){}
+        const moving=['priority','smart-home','nearest','car'];
+        const next=source.filter(id=>!moving.includes(id));
+        const luluIndex=next.indexOf('lulu');
+        const insertAt=luluIndex>=0?luluIndex+1:next.length;
+        next.splice(insertAt,0,...moving);
+        try{localStorage.setItem(homePrimaryBlocksMigrationKey(),'1')}catch(_){}
+        return next;
+      }
+
       function homeLayoutV254MigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi-home-layout-v254-'+actor;
@@ -1561,7 +1579,7 @@
       }
 
       function normalizedHomeOrder(order){
-        const source=migrateQuickAccessAfterLuluOnce(migrateHomeSavesAfterQuestionOnce(migrateHomeOrderV254(Array.isArray(order)?order.map(String):[])));
+        const source=migrateHomePrimaryBlocksOnce(migrateQuickAccessAfterLuluOnce(migrateHomeSavesAfterQuestionOnce(migrateHomeOrderV254(Array.isArray(order)?order.map(String):[]))));
         const requested=source.flatMap(id=>{
           if(['profile','profile-common','profile-self','profile-partner'].includes(id)) return ['dashboard'];
           return [id];
