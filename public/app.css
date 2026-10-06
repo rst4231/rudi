@@ -13600,3 +13600,102 @@ body[data-app-tab="finances"]{
   transform:translateX(-50%) rotate(-8deg) scale(.92)!important;
 }
 /* end RUDI v4.16 mood sticker */
+
+
+/* RUDI v4.17 — exact avatar sticker geometry, original card sizing */
+.profile-person-card{
+  width:100%!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+}
+.profile-person-card .score-avatar-wrap{
+  position:relative!important;
+  width:46px!important;
+  min-width:46px!important;
+  height:46px!important;
+  flex:0 0 46px!important;
+  overflow:visible!important;
+  align-self:center!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar{
+  position:relative!important;
+  left:auto!important;
+  top:auto!important;
+  width:46px!important;
+  height:46px!important;
+  overflow:hidden!important;
+  border-radius:14px!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar > img{
+  width:100%!important;
+  height:100%!important;
+  display:block!important;
+  object-fit:cover!important;
+  border-radius:inherit!important;
+}
+.profile-person-card .score-avatar-wrap > .score-sticker{
+  left:50%!important;
+  top:-14px!important;
+  bottom:auto!important;
+  transform:translateX(-50%) rotate(-2deg)!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar-mood-sticker{
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:36px!important;
+  bottom:auto!important;
+  z-index:20!important;
+  width:28px!important;
+  height:28px!important;
+  min-width:28px!important;
+  min-height:28px!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  outline:0!important;
+  border-radius:0!important;
+  background:none!important;
+  background-color:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:visible!important;
+  transform:translateX(-50%) rotate(-8deg)!important;
+  transform-origin:center!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar-mood-sticker[hidden]{
+  display:none!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar-mood-sticker .mood-emoji,
+.profile-person-card .score-avatar-wrap > .avatar-mood-sticker .partner-mood-icon .mood-emoji{
+  display:block!important;
+  font-size:26px!important;
+  line-height:1!important;
+  filter:none!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar-mood-sticker:active{
+  transform:translateX(-50%) rotate(-8deg) scale(.92)!important;
+}
+@media(max-width:430px){
+  .profile-person-card .score-avatar-wrap{
+    width:43px!important;
+    min-width:43px!important;
+    height:43px!important;
+    flex-basis:43px!important;
+  }
+  .profile-person-card .score-avatar-wrap > .avatar{
+    width:43px!important;
+    height:43px!important;
+    border-radius:13px!important;
+  }
+  .profile-person-card .score-avatar-wrap > .score-sticker{
+    top:-13px!important;
+  }
+  .profile-person-card .score-avatar-wrap > .avatar-mood-sticker{
+    top:34px!important;
+  }
+}
+/* end RUDI v4.17 */
