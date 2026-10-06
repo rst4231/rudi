@@ -421,6 +421,7 @@ async function runAnalysis(){
     button.disabled=false;button.textContent='Анализ';
   }
 }
+window.RUDI_MOOD_HISTORY={open,close,reload};
 function bind(){const button=document.getElementById('moodHistoryButton');if(button&&!button.dataset.bound){button.dataset.bound='1';button.addEventListener('click',open)}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
 })();

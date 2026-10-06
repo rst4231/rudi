@@ -13875,3 +13875,74 @@ html[data-theme="light"] .profile-person-card #profileMoodHistoryMenuButton.prof
   color:#2f3542!important;
 }
 /* end RUDI v4.20 */
+
+
+/* RUDI v4.21 — exact shared mood geometry for self and partner */
+.profile-person-card .profile-name-row{
+  display:inline-flex!important;
+  width:auto!important;
+  max-width:100%!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  justify-self:start!important;
+  gap:7px!important;
+}
+.profile-person-card .profile-name-row > #moodCurrentButton.avatar-mood-badge,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge{
+  position:static!important;
+  inset:auto!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:auto!important;
+  flex:0 0 25px!important;
+  width:25px!important;
+  height:25px!important;
+  min-width:25px!important;
+  min-height:25px!important;
+  max-width:25px!important;
+  max-height:25px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  background:transparent!important;
+  background-color:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  display:grid!important;
+  place-items:center!important;
+  align-self:center!important;
+  justify-self:start!important;
+  overflow:visible!important;
+  transform:none!important;
+}
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge[hidden]{
+  display:none!important;
+}
+.profile-person-card .profile-name-row > #moodCurrentButton.avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge .partner-mood-icon .mood-emoji{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  margin:0!important;
+  font-size:22px!important;
+  line-height:1!important;
+  transform:none!important;
+  filter:none!important;
+}
+.profile-person-card .profile-name-row > #moodCurrentButton.avatar-mood-badge.is-empty .mood-emoji{
+  opacity:.52!important;
+  filter:saturate(.55)!important;
+}
+.profile-person-card .profile-name-row > #moodCurrentButton.avatar-mood-badge:active,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge:active{
+  transform:scale(.94)!important;
+}
+.profile-person-card #profileMoodHistoryMenuButton.profile-mood-history-row{
+  display:flex!important;
+}
+/* end RUDI v4.21 */

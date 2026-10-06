@@ -5662,25 +5662,24 @@
         const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
         const ownSupplementBlock=selfActor==='Диана'?dianaSupplementBlock:rustamSupplementBlock;
         const moodHistoryTrigger=document.getElementById('moodHistoryButton');
-        if(moodHistoryTrigger){
-          moodHistoryTrigger.hidden=true;
-          let moodHistoryMenuButton=document.getElementById('profileMoodHistoryMenuButton');
-          if(!moodHistoryMenuButton){
-            moodHistoryMenuButton=document.createElement('button');
-            moodHistoryMenuButton.id='profileMoodHistoryMenuButton';
-            moodHistoryMenuButton.className='profile-mood-history-row';
-            moodHistoryMenuButton.type='button';
-            moodHistoryMenuButton.textContent='История настроения';
-            moodHistoryMenuButton.setAttribute('aria-label','Открыть историю настроения');
-            moodHistoryMenuButton.addEventListener('click',event=>{
-              event.preventDefault();
-              event.stopPropagation();
-              moodHistoryTrigger.click();
-            });
-          }
-          moodHistoryMenuButton.hidden=false;
-          ownCard.details.insertBefore(moodHistoryMenuButton,ownSupplementBlock);
+        if(moodHistoryTrigger) moodHistoryTrigger.hidden=true;
+        let moodHistoryMenuButton=document.getElementById('profileMoodHistoryMenuButton');
+        if(!moodHistoryMenuButton){
+          moodHistoryMenuButton=document.createElement('button');
+          moodHistoryMenuButton.id='profileMoodHistoryMenuButton';
+          moodHistoryMenuButton.className='profile-mood-history-row';
+          moodHistoryMenuButton.type='button';
+          moodHistoryMenuButton.textContent='История настроения';
+          moodHistoryMenuButton.setAttribute('aria-label','Открыть историю настроения');
+          moodHistoryMenuButton.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            if(window.RUDI_MOOD_HISTORY?.open) window.RUDI_MOOD_HISTORY.open();
+            else moodHistoryTrigger?.click();
+          });
         }
+        moodHistoryMenuButton.hidden=false;
+        ownCard.details.insertBefore(moodHistoryMenuButton,ownSupplementBlock);
         if(moodChoices){
           moodChoices.hidden=true;
           moodChoices.classList.remove('is-open');
@@ -11706,7 +11705,8 @@
             moodLongPressTimer=setTimeout(()=>{
               moodLongPressActivated=true;
               setMoodChoicesOpen(false);
-              document.getElementById('moodHistoryButton')?.click();
+              if(window.RUDI_MOOD_HISTORY?.open) window.RUDI_MOOD_HISTORY.open();
+              else document.getElementById('moodHistoryButton')?.click();
               try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
             },600);
           });
@@ -11774,10 +11774,11 @@
         const meta=MOOD_META[mood]||null;
         const trigger=document.getElementById('moodCurrentButton');
         const emoji=document.getElementById('moodCurrentEmoji');
-        if(emoji)emoji.textContent=meta?.emoji||'';
+        if(emoji)emoji.textContent=meta?.emoji||'🙂';
         if(trigger){
           trigger.dataset.mood=mood;
-          trigger.hidden=!meta;
+          trigger.hidden=false;
+          trigger.classList.toggle('is-empty',!meta);
           trigger.setAttribute('aria-label',meta?'Текущее настроение: '+meta.label+'. Изменить':'Выбрать настроение');
           trigger.title=meta?.label||'Выбрать настроение';
         }
