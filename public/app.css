@@ -13142,7 +13142,7 @@ body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="back"] 
 
 /* RUDI v4.10 — avatar mood badges + shared finances */
 .profile .avatar{overflow:visible!important}
-.profile .avatar>img{border-radius:18px}
+.profile .avatar>img{border-radius:inherit}
 .profile .avatar-mood-badge{
   position:absolute!important;left:-7px!important;bottom:-6px!important;z-index:12!important;
   width:27px!important;height:27px!important;min-width:27px!important;min-height:27px!important;
