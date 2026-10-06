@@ -8,7 +8,7 @@ function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
   if(code==='habit-not-found')return 404;
   if(code==='habit-duplicate')return 409;
-  if(['habit-name-required','habit-purpose-required','habit-id-required','habit-limit','habit-operation-invalid','habit-status-invalid','habit-done-too-early','habit-status-too-early','habits-actor-invalid','habit-date-future'].includes(code))return 400;
+  if(['habit-name-required','habit-purpose-required','habit-id-required','habit-limit','habit-operation-invalid','habit-status-invalid','habit-done-too-early','habit-status-too-early','habit-date-readonly','habits-actor-invalid','habit-date-future'].includes(code))return 400;
   if(code==='rudi-auth-db-unavailable')return 503;
   return 500;
 }
@@ -43,6 +43,7 @@ async function handler(req,res){
       state=await readHabits(actor,{now});
     }else if(operation==='status'){
       const date=String(body.date||'').trim()||today;
+      if(date<today)throw new Error('habit-date-readonly');
       if(date===today&&['done','notdone'].includes(String(body.status||''))&&moscowHour(now)<20)throw new Error('habit-status-too-early');
       state=date===today?await ensureHabitDay(actor,today,{now}):await readHabits(actor,{now});
       const habit=state.habits.find(row=>row.id===String(body.id||''));if(!habit)throw new Error('habit-not-found');
