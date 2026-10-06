@@ -26,8 +26,8 @@ test('v3.62 pull refresh works in Telegram and forces fresh home tools',()=>{
   assert.match(app,/loadSupplementIntakeOverview\(\{silent:true,force:true\}\)/);
 });
 
-test('v3.62 habit and supplement force refresh bypasses 30 second read cache',()=>{
-  assert.match(tools,/READ_CACHE_TTL_MS=30\*1000/);
+test('habit and supplement force refresh bypasses the five minute read cache',()=>{
+  assert.match(tools,/READ_CACHE_TTL_MS=5\*60\*1000/);
   assert.match(tools,/if\(readOnly&&!options\.force\)/);
   assert.match(tools,/request\('list',\{\}, \{force\}\)/);
   assert.match(tools,/habitRequest\('list',\{\}, \{force\}\)/);

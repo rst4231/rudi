@@ -75,16 +75,17 @@ test('cycle read falls back sooner on an unstable connection', () => {
 });
 
 
-test('home uses the consolidated bootstrap instead of rebuilding dashboard data client-side',()=>{
+test('home uses the consolidated bootstrap with a five minute read window',()=>{
   assert.match(source,/rudiAction=home-bootstrap/);
-  assert.match(source,/Date\.now\(\)-homeBootstrapLoadedAt<2\*60\*1000/);
+  assert.match(source,/const HOME_BOOTSTRAP_CACHE_MS = 5\*60\*1000/);
+  assert.match(source,/Date\.now\(\)-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS/);
   assert.match(source,/rudiAction=app-bootstrap/);
   assert.match(source,/includeHome/);
 });
 
-test('private habit and supplement reads use a short 30 second client cache',()=>{
+test('private habit and supplement reads use a bounded five minute client cache',()=>{
   const profile=fs.readFileSync('public/profile-supplements.js','utf8');
-  assert.match(profile,/READ_CACHE_TTL_MS=30\*1000/);
+  assert.match(profile,/READ_CACHE_TTL_MS=5\*60\*1000/);
   assert.match(profile,/operation==='list'\|\|operation==='overview'/);
   assert.match(profile,/clearReadCache\(supplementReadCache\)/);
   assert.match(profile,/clearReadCache\(habitReadCache\)/);
