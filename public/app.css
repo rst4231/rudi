@@ -14336,3 +14336,29 @@ body.finance-coin-modal-open{overflow:hidden}
   .finance-coin-label{font-size:8px}
   .finance-coin-amount{font-size:8px}
 }
+
+
+/* v4.31 compact personal finance layout */
+.finance-page[data-finance-tone="personal"]{gap:9px}
+.finance-page[data-finance-tone="personal"] .finance-tab-panel{gap:9px}
+.finance-goal-card-compact{padding:12px 13px!important}
+.finance-goal-card-compact .finance-history-head{margin-bottom:8px}
+.finance-goal-card-compact .finance-plan-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px
+}
+.finance-goal-card-compact .finance-plan-grid .finance-input-field:first-child{grid-column:1/-1}
+.finance-goal-card-compact .finance-select,
+.finance-goal-card-compact .finance-text-input,
+.finance-goal-card-compact .finance-money-input{min-height:42px}
+.finance-goal-card-compact .finance-goal-progress{margin:10px 1px 5px}
+.finance-goal-card-compact .finance-goal-progress-text{min-height:15px;font-size:9px}
+.finance-goal-card-compact .finance-status{min-height:14px;margin-top:3px}
+.finance-page[data-finance-tone="personal"] .finance-ai-insight{padding:11px 13px}
+.finance-page[data-finance-tone="personal"] .finance-ai-insight p{font-size:11px;line-height:1.42}
+.finance-page[data-finance-tone="personal"] .finance-coin-board{border-radius:18px}
+.finance-page[data-finance-tone="personal"] .finance-coin-overview{padding-top:11px;padding-bottom:10px}
+.finance-page[data-finance-tone="personal"] .finance-coin-period{padding-top:9px}
+.finance-page[data-finance-tone="personal"] .finance-income-source{padding-top:6px;padding-bottom:9px}
+.finance-page[data-finance-tone="personal"] #financePersonalStatus{min-height:12px;margin:-5px 14px 5px}
+.finance-page[data-finance-tone="personal"] .finance-coin-section-head{padding-top:10px}
