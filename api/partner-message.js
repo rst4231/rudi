@@ -898,9 +898,45 @@ function moodActivityText(actor, previousMood, nextMood) {
     + previous.emoji + ' ' + previous.label + ' → ' + next.emoji + ' ' + next.label;
 }
 
+function normalizeCompletedTaskTitle(title) {
+  return String(title || '')
+    .replace(/^[^\p{L}\p{N}]+/u, '')
+    .trim()
+    .replace(/[.!?]+$/u, '')
+    .toLocaleLowerCase('ru-RU');
+}
+
+const COMPLETED_TASK_PHRASES = new Map([
+  ['регистрация брака', { male:'зарегистрировал брак', female:'зарегистрировала брак' }],
+  ['посмотреть марвел мстители doomsday', { male:'посмотрел Марвел «Мстители: Doomsday»', female:'посмотрела Марвел «Мстители: Doomsday»' }],
+  ['поменять фильтры в ванной', { male:'поменял фильтры в ванной', female:'поменяла фильтры в ванной' }],
+  ['выбрать, куда сходить вместе', { male:'выбрал, куда сходить вместе', female:'выбрала, куда сходить вместе' }],
+  ['оплатить квартиру и коммунальные услуги', { male:'оплатил квартиру и коммунальные услуги', female:'оплатила квартиру и коммунальные услуги' }],
+  ['генеральная уборка', { male:'сделал генеральную уборку', female:'сделала генеральную уборку' }],
+  ['оплатить интернет', { male:'оплатил интернет', female:'оплатила интернет' }],
+  ['передать показания счётчиков', { male:'передал показания счётчиков', female:'передала показания счётчиков' }],
+  ['почистить пылесос', { male:'почистил пылесос', female:'почистила пылесос' }],
+  ['уход за машиной • чистый салон', { male:'привёл салон машины в порядок', female:'привела салон машины в порядок' }],
+  ['купить продукты', { male:'купил продукты', female:'купила продукты' }],
+  ['выйти куда-нибудь вечером', { male:'сходил куда-нибудь вечером', female:'сходила куда-нибудь вечером' }],
+  ['поменять постельное бельё', { male:'поменял постельное бельё', female:'поменяла постельное бельё' }],
+  ['стрижка когтей лулу', { male:'подстриг Лулу когти', female:'подстригла Лулу когти' }],
+  ['составить список продуктов на неделю', { male:'составил список продуктов на неделю', female:'составила список продуктов на неделю' }],
+  ['вынести мусор', { male:'вынес мусор', female:'вынесла мусор' }],
+  ['приготовить кушать', { male:'приготовил еду', female:'приготовила еду' }],
+  ['помыть посуду', { male:'помыл посуду', female:'помыла посуду' }],
+]);
+
+function completedTaskPushText(actor, title) {
+  const taskTitle=String(title || 'Совместное дело').trim();
+  const phrase=COMPLETED_TASK_PHRASES.get(normalizeCompletedTaskTitle(taskTitle));
+  const gender=actor==='Диана'?'female':'male';
+  if (phrase?.[gender]) return '✅ ' + actor + ' ' + phrase[gender];
+  return '✅ ' + actor + ' ' + (actor==='Диана'?'сделала':'сделал') + ': ' + taskTitle;
+}
+
 function taskCompletedNotificationText(actor, title) {
-  const action = actor === 'Диана' ? 'выполнила задачу' : 'выполнил задачу';
-  return `✅ <b>${actor} ${action}</b>\n<i>${escapeTelegramHtml(String(title || 'Совместное дело').trim())}</i>`;
+  return '<b>' + escapeTelegramHtml(completedTaskPushText(actor,title)) + '</b>';
 }
 
 async function sendTaskCompletedNotificationToPartner(actor,title,options={}) {
@@ -908,11 +944,11 @@ async function sendTaskCompletedNotificationToPartner(actor,title,options={}) {
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   try{
     const taskTitle=String(title||'Совместное дело').trim();
-    const action=actor==='Диана'?'выполнила':'выполнил';
+    const text=completedTaskPushText(actor,taskTitle);
     const sendPush=options.sendPushNotificationImpl||sendPushNotification;
     const result=await sendPush(recipient,{
-      title:'✅ Партнёр выполнил совместную задачу',
-      body:actor+' '+action+': '+taskTitle,
+      title:text,
+      body:'',
       tag:'shared-task-complete',
       url:'/?tab=home&item=priority',
     },options);

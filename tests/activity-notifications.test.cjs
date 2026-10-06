@@ -46,8 +46,9 @@ test('activity notification copy is rich, gender-aware and escapes user content'
   assert.match(moodNotificationText('Диана', 'Рустам', 'neutral'), /😐 <b>Диана, Рустам сейчас без ярких эмоций<\/b>/);
   assert.match(moodNotificationText('Рустам', 'Диана', 'fatigue'), /😩 <b>Рустам, Диана сейчас устала<\/b>/);
   assert.doesNotMatch(moodNotificationText('Диана', 'Рустам', 'joy'), /Настроение обновлено в RUDI|\n/);
-  assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /✅ <b>Рустам выполнил задачу<\/b>/);
-  assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /&lt;уголь&gt;/);
+  assert.match(taskCompletedNotificationText('Рустам', 'Купить продукты'), /✅ Рустам купил продукты/);
+  assert.match(taskCompletedNotificationText('Диана', 'Помыть посуду'), /✅ Диана помыла посуду/);
+  assert.match(taskCompletedNotificationText('Рустам', 'Купить <уголь>'), /✅ Рустам сделал: Купить &lt;уголь&gt;/);
   assert.match(checklistCompletedNotificationText('Диана', 'Купить мясо', 'Шашлыки'), /☑️ <b>Диана выполнила пункт<\/b>/);
 });
 
@@ -193,16 +194,25 @@ test('completed shared task push goes only to the other partner in both directio
   assert.equal(fromRustam.recipient,'Диана');
   assert.equal(calls.length,1);
   assert.equal(calls[0].actor,'Диана');
-  assert.equal(calls[0].payload.title,'✅ Партнёр выполнил совместную задачу');
-  assert.equal(calls[0].payload.url,'/?item=priority');
-  assert.match(calls[0].payload.body,/Рустам выполнил/);
+  assert.equal(calls[0].payload.title,'✅ Рустам купил продукты');
+  assert.equal(calls[0].payload.url,'/?tab=home&item=priority');
+  assert.equal(calls[0].payload.body,'');
 
   calls.length=0;
-  const fromDiana=await sendTaskCompletedNotificationToPartner('Диана','Убраться дома',{sendPushNotificationImpl});
+  const fromDiana=await sendTaskCompletedNotificationToPartner('Диана','Помыть посуду',{sendPushNotificationImpl});
   assert.equal(fromDiana.sent,true);
   assert.equal(fromDiana.recipient,'Рустам');
   assert.equal(calls[0].actor,'Рустам');
-  assert.match(calls[0].payload.body,/Диана выполнила/);
+  assert.equal(calls[0].payload.title,'✅ Диана помыла посуду');
+  assert.equal(calls[0].payload.body,'');
+
+  calls.length=0;
+  await sendTaskCompletedNotificationToPartner('Диана','Полить цветы',{sendPushNotificationImpl});
+  assert.equal(calls[0].payload.title,'✅ Диана сделала: Полить цветы');
+
+  calls.length=0;
+  await sendTaskCompletedNotificationToPartner('Рустам','Полить цветы',{sendPushNotificationImpl});
+  assert.equal(calls[0].payload.title,'✅ Рустам сделал: Полить цветы');
 });
 
 test('completed checklist item uses partner-only app push',async()=>{
