@@ -77,6 +77,9 @@
       let sharedAlbumPhotos = [];
       let currentSharedAlbumPhotoIndex = -1;
       let photoViewerRestoreState = null;
+      let photoViewerZoomScale = 1;
+      let photoViewerZoomX = 0;
+      let photoViewerZoomY = 0;
       const sharedAlbumHdLoads = new Map();
       let currentAppTab = 'home';
       let appViewTransitionActive = false;
@@ -7019,12 +7022,15 @@
         return true;
       }
 
-      const preventGestureZoom=event=>event.preventDefault();
+      const preventGestureZoom=event=>{
+        if(event.target?.closest?.('.photo-viewer-stage')) return;
+        event.preventDefault();
+      };
       document.addEventListener('gesturestart',preventGestureZoom,{passive:false});
       document.addEventListener('gesturechange',preventGestureZoom,{passive:false});
       document.addEventListener('gestureend',preventGestureZoom,{passive:false});
       document.addEventListener('touchmove',event=>{
-        if(event.touches&&event.touches.length>1) event.preventDefault();
+        if(event.touches&&event.touches.length>1&&!event.target?.closest?.('.photo-viewer-stage')) event.preventDefault();
       },{passive:false});
 
       applyTheme();
@@ -9547,13 +9553,47 @@
         });
       }
 
+      function clampPhotoViewerZoom(value,min,max){
+        return Math.min(max,Math.max(min,Number(value)||0));
+      }
+
+      function applyPhotoViewerZoom(){
+        const image=document.getElementById('photoViewerImage');
+        const stage=document.querySelector('.photo-viewer-stage');
+        if(!image||!stage) return;
+        const scale=clampPhotoViewerZoom(photoViewerZoomScale,1,4);
+        if(scale<=1.001){
+          photoViewerZoomScale=1;
+          photoViewerZoomX=0;
+          photoViewerZoomY=0;
+        }else{
+          photoViewerZoomScale=scale;
+          const rect=stage.getBoundingClientRect();
+          const maxX=Math.max(0,(rect.width*(scale-1))/2);
+          const maxY=Math.max(0,(rect.height*(scale-1))/2);
+          photoViewerZoomX=clampPhotoViewerZoom(photoViewerZoomX,-maxX,maxX);
+          photoViewerZoomY=clampPhotoViewerZoom(photoViewerZoomY,-maxY,maxY);
+        }
+        image.style.transform='translate3d('+photoViewerZoomX+'px,'+photoViewerZoomY+'px,0) scale('+photoViewerZoomScale+')';
+        stage.classList.toggle('is-zoomed',photoViewerZoomScale>1.001);
+      }
+
+      function resetPhotoViewerZoom(){
+        photoViewerZoomScale=1;
+        photoViewerZoomX=0;
+        photoViewerZoomY=0;
+        const image=document.getElementById('photoViewerImage');
+        const stage=document.querySelector('.photo-viewer-stage');
+        if(image) image.style.transform='';
+        stage?.classList.remove('is-zoomed');
+      }
+
       function renderSharedAlbumPhotoViewer(){
         const viewer=document.getElementById('photoViewer');
         const image=document.getElementById('photoViewerImage');
         const video=document.getElementById('photoViewerVideo');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
-        const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
         const previewUrl=String(photo?.url||photo?.fullUrl||photo?.viewerDisplayUrl||'').trim();
         const fullUrl=String(photo?.fullUrl||previewUrl).trim();
@@ -9561,8 +9601,9 @@
         const viewerFallbackUrl=String(photo?.viewerFallbackUrl||fullUrl||previewUrl).trim();
         const isVideo=photo?.type==='video';
         const photoIndex=currentSharedAlbumPhotoIndex;
-        if(!viewer||!image||!video||!caption||!date||!original||!previewUrl) return false;
+        if(!viewer||!image||!video||!caption||!date||!previewUrl) return false;
 
+        resetPhotoViewerZoom();
         image.onerror=null;
         video.onerror=null;
         video.onloadeddata=null;
@@ -9600,7 +9641,7 @@
             if(!source){
               video.classList.add('is-loading');
               image.hidden=false;
-              setPhotoViewerLoading('error','Видео не открылось. Можно открыть оригинал.');
+              setPhotoViewerLoading('error','Видео не открылось.');
               return;
             }
             video.pause();
@@ -9646,7 +9687,7 @@
             })().then(bestUrl=>{
               if(currentSharedAlbumPhotoIndex!==photoIndex) return;
               if(!bestUrl){
-                setPhotoViewerLoading('error','Не удалось загрузить оригинал. Показано превью.');
+                setPhotoViewerLoading('error','Не удалось загрузить фото в максимальном качестве. Показано превью.');
                 return;
               }
               let fallbackIndex=qualityUrls.indexOf(bestUrl)+1;
@@ -9655,7 +9696,7 @@
                 if(!fallback||currentSharedAlbumPhotoIndex!==photoIndex) return;
                 if(fallback===previewUrl){
                   image.onerror=null;
-                  setPhotoViewerLoading('error','Не удалось открыть оригинал. Показано превью.');
+                  setPhotoViewerLoading('error','Не удалось открыть фото в максимальном качестве. Показано превью.');
                 }
                 image.src=fallback;
               };
@@ -9675,7 +9716,6 @@
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
         caption.hidden=!captionText;
-        original.disabled=!sharedAlbumOriginalUrl(photo);
         return true;
       }
       function changeSharedAlbumPhoto(step){
@@ -9708,6 +9748,7 @@
         caption.hidden=true;
         if(date){date.textContent='';date.hidden=true}
         setPhotoViewerLoading('', '');
+        resetPhotoViewerZoom();
         currentSharedAlbumPhotoIndex=-1;
         if(photoViewerRestoreState){
           sharedAlbumPhotos=photoViewerRestoreState.photos;
@@ -10086,40 +10127,103 @@
         document.getElementById('sharedAlbumOpen')?.addEventListener('click',openSharedAlbum);
         document.getElementById('photoViewerClose')?.addEventListener('click',closeSharedAlbumPhoto);
         document.getElementById('photoViewerBackdrop')?.addEventListener('click',closeSharedAlbumPhoto);
-        document.getElementById('photoViewerOriginal')?.addEventListener('click',openSharedAlbumOriginal);
 
         const viewerStage=document.querySelector('.photo-viewer-stage');
         if(viewerStage&&viewerStage.dataset.gesturesBound!=='1'){
           viewerStage.dataset.gesturesBound='1';
+          const pointers=new Map();
           let startX=0;
           let startY=0;
-          let pointerId=null;
+          let pinchStartDistance=0;
+          let pinchStartScale=1;
+          let pinchActive=false;
+          let panLastX=0;
+          let panLastY=0;
+
+          const pointerDistance=()=>{
+            const values=[...pointers.values()];
+            if(values.length<2)return 0;
+            return Math.hypot(values[0].x-values[1].x,values[0].y-values[1].y);
+          };
+
           viewerStage.addEventListener('pointerdown',event=>{
             if(event.target?.closest?.('#photoViewerVideo')) return;
             if(event.button!==undefined&&event.button!==0) return;
-            pointerId=event.pointerId;
-            startX=event.clientX;
-            startY=event.clientY;
+            pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+            if(pointers.size===1){
+              startX=event.clientX;
+              startY=event.clientY;
+              panLastX=event.clientX;
+              panLastY=event.clientY;
+            }else if(pointers.size===2){
+              pinchActive=true;
+              pinchStartDistance=pointerDistance();
+              pinchStartScale=photoViewerZoomScale;
+            }
             try{viewerStage.setPointerCapture?.(event.pointerId)}catch(_){}
           });
-          viewerStage.addEventListener('pointerup',event=>{
-            if(event.target?.closest?.('#photoViewerVideo')){pointerId=null;return}
-            if(pointerId!==null&&event.pointerId!==pointerId) return;
-            const dx=event.clientX-startX;
-            const dy=event.clientY-startY;
-            pointerId=null;
+
+          viewerStage.addEventListener('pointermove',event=>{
+            if(!pointers.has(event.pointerId))return;
+            pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+            if(pointers.size>=2){
+              const distance=pointerDistance();
+              if(pinchStartDistance>0){
+                photoViewerZoomScale=clampPhotoViewerZoom(pinchStartScale*(distance/pinchStartDistance),1,4);
+                if(photoViewerZoomScale<=1.001){photoViewerZoomX=0;photoViewerZoomY=0}
+                applyPhotoViewerZoom();
+              }
+              event.preventDefault();
+              return;
+            }
+            if(photoViewerZoomScale>1.001){
+              photoViewerZoomX+=event.clientX-panLastX;
+              photoViewerZoomY+=event.clientY-panLastY;
+              panLastX=event.clientX;
+              panLastY=event.clientY;
+              applyPhotoViewerZoom();
+              event.preventDefault();
+            }
+          });
+
+          const finishPointer=event=>{
+            if(!pointers.has(event.pointerId))return;
+            const point=pointers.get(event.pointerId);
+            pointers.delete(event.pointerId);
+            if(pointers.size===1){
+              const remaining=[...pointers.values()][0];
+              panLastX=remaining.x;
+              panLastY=remaining.y;
+              pinchStartDistance=0;
+              pinchStartScale=photoViewerZoomScale;
+              return;
+            }
+            if(pointers.size>0)return;
+            if(pinchActive){
+              pinchActive=false;
+              pinchStartDistance=0;
+              applyPhotoViewerZoom();
+              return;
+            }
+            if(photoViewerZoomScale>1.001)return;
+            const dx=(point?.x??event.clientX)-startX;
+            const dy=(point?.y??event.clientY)-startY;
             const horizontal=Math.abs(dx)>=42&&Math.abs(dx)>Math.abs(dy)*1.15;
             if(horizontal){
               changeSharedAlbumPhoto(dx<0?1:-1);
               return;
             }
-            if(Math.abs(dx)>10||Math.abs(dy)>10) return;
+            if(Math.abs(dx)>10||Math.abs(dy)>10)return;
             const rect=viewerStage.getBoundingClientRect();
-            if(!rect.width) return;
+            if(!rect.width)return;
             const localX=event.clientX-rect.left;
             changeSharedAlbumPhoto(localX<rect.width/2?-1:1);
+          };
+          viewerStage.addEventListener('pointerup',finishPointer);
+          viewerStage.addEventListener('pointercancel',event=>{
+            pointers.delete(event.pointerId);
+            if(!pointers.size){pinchActive=false;pinchStartDistance=0}
           });
-          viewerStage.addEventListener('pointercancel',()=>{pointerId=null});
         }
 
         document.addEventListener('keydown',event=>{
