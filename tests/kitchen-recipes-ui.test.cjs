@@ -7,6 +7,7 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'),
 const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.css'), 'utf8');
 const pwa = fs.readFileSync(path.join(__dirname, '..', 'public', 'pwa-extras.js'), 'utf8');
+const pwaCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'pwa-extras.css'), 'utf8');
 
 test('Kitchen tab exposes separate Products and recipe blocks', () => {
   assert.match(html, /id="kitchenTitle">Кухня</);
@@ -108,4 +109,20 @@ test('fasting tracker button is removed from Kitchen without removing the tracke
 test('recipe UI has no fake daily AI limit message', () => {
   assert.doesNotMatch(js, /Бесплатный лимит ИИ на сегодня закончился/);
   assert.match(js, /ИИ временно занят\. Попробуй ещё раз через несколько секунд/);
+});
+
+
+test('recipe actions use cooking mode and saved recipes keep servings', () => {
+  const details = js.slice(js.indexOf('function renderRecipeDetails'), js.indexOf('function recipeErrorText'));
+  assert.doesNotMatch(details, /В покупки/);
+  assert.match(details, /recipe-cook-start/);
+  assert.match(js, /window\.RUDI_RECIPE_COOKING=\{/);
+  assert.match(pwa, /saved-recipe-servings/);
+  assert.match(pwa, /saved-recipe-cook-start/);
+  assert.match(pwa, /RUDI_RECIPE_COOKING\?\.open/);
+  assert.match(pwaCss, /\.saved-recipe-actions/);
+});
+
+test('recipe time choices stay inside iPhone width', () => {
+  assert.match(css, /@media\(max-width:430px\)\{[\s\S]*?\.recipe-time-row\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
 });
