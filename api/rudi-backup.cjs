@@ -512,7 +512,7 @@ async function restoreStateBackup(token, options = {}) {
         const currentPin = await readPinRecord(actor, options);
         const currentTime = Date.parse(String(currentPin?.updatedAt || '')) || 0;
         const savedTime = Date.parse(String(savedPin.updatedAt || '')) || 0;
-        if (!currentPin || savedTime >= currentTime) {
+        if (!currentPin || savedTime > currentTime) {
           await restorePinRecord(actor, savedPin, options);
           restored.push('browser-pin:' + actor);
         }
@@ -524,8 +524,12 @@ async function restoreStateBackup(token, options = {}) {
       : [];
     if (savedPasskeys.length) {
       try {
-        await restorePasskeys(actor, savedPasskeys, options);
-        restored.push('passkeys:' + actor);
+        const currentPasskeys = await readPasskeys(actor, options).catch(() => []);
+        const mergedPasskeys = mergePasskeyRows(currentPasskeys, savedPasskeys);
+        if (JSON.stringify(mergedPasskeys) !== JSON.stringify(currentPasskeys)) {
+          await restorePasskeys(actor, savedPasskeys, options);
+          restored.push('passkeys:' + actor);
+        }
       } catch {}
     }
   }
