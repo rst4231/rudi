@@ -57,3 +57,31 @@ test('car page removes the wash decision card and keeps a conditional guide acti
   assert.match(js,/button\.hidden=!Boolean\(advice\?\.canWash\)/);
   assert.match(js,/renderCarWashGuideAction\(state\.weather\)/);
 });
+
+
+test('recipes keep cooking actions, servings and iPhone-safe time choices',()=>{
+  const html=fs.readFileSync('public/index.html','utf8');
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  const pwaCss=fs.readFileSync('public/pwa-extras.css','utf8');
+  const store=fs.readFileSync('api/saved-items-store.cjs','utf8');
+
+  const detail=app.slice(app.indexOf('function renderRecipeDetails'),app.indexOf('function recipeErrorText'));
+  assert.doesNotMatch(detail,/В покупки/);
+  assert.match(detail,/recipe-cook-start/);
+  assert.match(app,/window\.RUDI_RECIPE_COOKING=\{/);
+  assert.match(pwa,/saved-recipe-servings/);
+  assert.match(pwa,/saved-recipe-cook-start/);
+  assert.match(store,/servings: Math\.max\(1, Math\.min\(12/);
+  assert.match(css,/body\[data-app-tab="products"\] \.recipe-time-row\{[\s\S]*?grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
+  assert.match(pwaCss,/\.saved-recipe-actions/);
+  assert.match(html,/data-kitchen-view="products"[^>]*>Продукты<\/button>/);
+  assert.match(html,/id="productsListCard"[\s\S]*?<strong>Корзина<\/strong>/);
+});
+
+test('release build precaches the current stable asset URLs',()=>{
+  const build=fs.readFileSync('build.cjs','utf8');
+  assert.match(build,/const versionedAssets = WEB_ASSETS\.map/);
+  assert.match(build,/syncServiceWorkerPrecache\(versionedAssets\)/);
+});
