@@ -32,3 +32,13 @@ test('v4.15 fully contains avatar layers inside profile card',()=>{
   assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.score-avatar-mood-badge\[hidden\]\{[\s\S]*display:none!important/);
   assert.match(css,/@media\(max-width:430px\)[\s\S]*height:90px!important[\s\S]*top:62px!important/);
 });
+
+test('v4.15 restores avatar mood overlay and strips Coffee 3 Vostaniya address',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.doesNotMatch(app,/moodBadge\.classList\.add\('score-avatar-mood-badge'\)/);
+  assert.match(app,/avatarWrap\.append\(avatar,scoreSticker\)/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.avatar > \.avatar-mood-badge\{[\s\S]*bottom:-6px!important;/);
+  assert.match(app,/\^coffee\\s\*3\$/);
+  assert.match(app,/восстан/iu);
+});

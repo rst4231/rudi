@@ -4809,9 +4809,15 @@
         if(item?.url){title.href=String(item.url);title.target='_blank';title.rel='noopener noreferrer'}
         body.append(meta,title);
         if(!compact&&item?.description){
-          const description=String(item.description).trim();
-          const hideCoffee3Address=/^coffee\s*3$/iu.test(String(item?.title||'').trim())&&/восстан/iu.test(description);
-          if(description&&!hideCoffee3Address){
+          let description=String(item.description).trim();
+          if(/^coffee\s*3$/iu.test(String(item?.title||'').trim())){
+            description=description
+              .split(/\r?\n/u)
+              .filter(line=>!/адрес[^\n]*восстан|восстан[^\n]*адрес|площад(?:ь|и)\s+восстания|(?:^|\s)восстания(?:\s|$)/iu.test(String(line||'').trim()))
+              .join('\n')
+              .trim();
+          }
+          if(description){
             const desc=document.createElement('p');
             desc.textContent=description;
             body.appendChild(desc);
@@ -5540,14 +5546,8 @@
           if(avatar){
             const avatarWrap=document.createElement('div');
             avatarWrap.className='score-avatar-wrap';
-            const moodBadge=avatar.querySelector('.avatar-mood-badge');
             avatar.parentNode.insertBefore(avatarWrap,avatar);
-            avatarWrap.appendChild(avatar);
-            if(moodBadge){
-              moodBadge.classList.add('score-avatar-mood-badge');
-              avatarWrap.appendChild(moodBadge);
-            }
-            avatarWrap.appendChild(scoreSticker);
+            avatarWrap.append(avatar,scoreSticker);
           }else{
             identity.appendChild(scoreSticker);
           }

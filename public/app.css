@@ -13516,3 +13516,30 @@ body[data-app-tab="finances"]{
   }
 }
 /* end RUDI v4.15 final avatar/mood geometry */
+
+
+/* RUDI v4.15 — restore mood emoji overlay exactly inside avatar */
+.profile-person-card .score-avatar-wrap > .avatar{
+  position:relative!important;
+  overflow:visible!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar > img{
+  width:100%!important;
+  height:100%!important;
+  display:block!important;
+  object-fit:cover!important;
+  border-radius:inherit!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar > .avatar-mood-badge{
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:-6px!important;
+  z-index:12!important;
+  transform:translateX(-50%) rotate(-10deg)!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar > .avatar-mood-badge:active{
+  transform:translateX(-50%) rotate(-10deg) scale(.93)!important;
+}
+/* end RUDI v4.15 */
