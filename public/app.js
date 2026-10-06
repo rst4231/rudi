@@ -1926,6 +1926,7 @@
       }
 
       const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','supplements','dates','for-di','score','settings','smart-saves','car'];
+      const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
 
       function routeFromLocation(){
         try{
@@ -2143,6 +2144,13 @@
         const changed=next!==currentAppTab;
         currentAppTab=next;
         document.body.dataset.appTab=next;
+        const primaryNavVisible=PRIMARY_NAV_TABS.has(next);
+        document.body.dataset.primaryNav=primaryNavVisible?'visible':'hidden';
+        const appTabBar=document.getElementById('appTabBar');
+        if(appTabBar){
+          appTabBar.hidden=!primaryNavVisible;
+          appTabBar.setAttribute('aria-hidden',primaryNavVisible?'false':'true');
+        }
         if(changed){
           try{window.dispatchEvent(new CustomEvent('rudi:app-tab-change',{detail:{tab:next}}))}catch(_){}
         }
