@@ -3,6 +3,7 @@ const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const ACTORS = new Set(['Рустам', 'Диана']);
 const APP_STATE_FIELD = '__rudi_app_state';
 const AUTH_NAMESPACE = 'rudi-browser-auth-v1';
+const APP_STATE_NAMESPACE = 'rudi-app-state-v1';
 
 function normalizeActor(value) {
   const actor = String(value || '').trim();
@@ -135,12 +136,28 @@ async function writeAuthRecord(actor, value = {}, options = {}) {
   return row;
 }
 
-async function readAppState(actor, key, options = {}) {
+function appStateRecordKey(actor, key) {
+  const safeActor = normalizeActor(actor);
   const safeKey = String(key || '').trim();
+  if (!safeActor) throw new Error('rudi-access-denied');
   if (!safeKey || safeKey.length > 120) throw new Error('rudi-app-state-key-invalid');
-  const row = await readRawRecord(actor, options);
-  const appState = normalizeAppStateMap(rawPinRecord(row?.pin_record)[APP_STATE_FIELD]);
-  return Object.prototype.hasOwnProperty.call(appState, safeKey) ? appState[safeKey] : null;
+  return actorSlug(safeActor) + ':' + safeKey;
+}
+
+async function readAppState(actor, key, options = {}) {
+  const safeActor = normalizeActor(actor);
+  const safeKey = String(key || '').trim();
+  if (!safeActor) throw new Error('rudi-access-denied');
+  if (!safeKey || safeKey.length > 120) throw new Error('rudi-app-state-key-invalid');
+
+  const client = authStateClient(options);
+  const dedicated = await client.getRecord(APP_STATE_NAMESPACE, appStateRecordKey(safeActor, safeKey));
+  if (dedicated) return dedicated.value ?? null;
+
+  // Backward compatibility: older releases kept all app state inside pin_record.
+  const row = await readRawRecord(safeActor, options);
+  const legacy = normalizeAppStateMap(rawPinRecord(row?.pin_record)[APP_STATE_FIELD]);
+  return Object.prototype.hasOwnProperty.call(legacy, safeKey) ? legacy[safeKey] : null;
 }
 
 async function writeAppState(actor, key, value, options = {}) {
@@ -149,20 +166,16 @@ async function writeAppState(actor, key, value, options = {}) {
   if (!safeActor) throw new Error('rudi-access-denied');
   if (!safeKey || safeKey.length > 120) throw new Error('rudi-app-state-key-invalid');
 
-  const currentRaw = await readRawRecord(safeActor, options);
-  const currentPin = rawPinRecord(currentRaw?.pin_record);
-  const appState = normalizeAppStateMap(currentPin[APP_STATE_FIELD]);
-  appState[safeKey] = value;
   const updatedAt = new Date(options.now || Date.now()).toISOString();
-
-  await writeRawRecord(safeActor, {
-    actor: safeActor,
-    pin_record: { ...currentPin, [APP_STATE_FIELD]: appState },
-    passkeys: normalizePasskeys(currentRaw?.passkeys),
+  await authStateClient(options).setRecord({
+    namespace: APP_STATE_NAMESPACE,
+    key: appStateRecordKey(safeActor, safeKey),
+    value,
+    tags: ['rudi-app-state', 'actor:' + actorSlug(safeActor)],
+    expires_at: null,
     updated_at: updatedAt,
-  }, options);
-
-  return appState[safeKey];
+  });
+  return value;
 }
 
 async function savePinRecord(actor, pinRecord, options = {}) {
@@ -177,6 +190,7 @@ async function savePasskeys(actor, passkeys, options = {}) {
 
 module.exports = {
   AUTH_NAMESPACE,
+  APP_STATE_NAMESPACE,
   normalizeActor,
   normalizePinRecord,
   normalizePasskeys,
@@ -189,5 +203,6 @@ module.exports = {
   writeRawRecord,
   readAppState,
   writeAppState,
+  appStateRecordKey,
   savePasskeys,
 };
