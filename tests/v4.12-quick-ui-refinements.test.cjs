@@ -54,16 +54,11 @@ test('v4.16 mood emoji is a pure sticker on avatar bottom edge',()=>{
   assert.match(css,/font-size:25px!important/);
 });
 
-test('v4.17 restores profile width and exact mood sticker geometry',()=>{
+test('current profile mood emoji sits beside the name',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const css=fs.readFileSync('public/app.css','utf8');
-  assert.match(app,/moodBadge\.classList\.add\('avatar-mood-sticker'\)/);
-  assert.match(app,/avatarWrap\.appendChild\(moodBadge\)/);
-  assert.match(css,/\.profile-person-card\{[\s\S]*width:100%!important[\s\S]*max-width:none!important/);
-  assert.match(css,/\.profile-person-card \.score-avatar-wrap\{[\s\S]*height:46px!important/);
-  assert.match(css,/\.avatar-mood-sticker\{[\s\S]*top:36px!important/);
-  assert.match(css,/border:0!important/);
-  assert.match(css,/background:none!important/);
-  assert.match(css,/box-shadow:none!important/);
-  assert.match(css,/font-size:26px!important/);
+  assert.match(app,/moodBadge\.classList\.remove\('score-avatar-mood-badge','profile-card-mood-badge','avatar-mood-sticker'\)/);
+  assert.match(app,/nameElement\.insertAdjacentElement\('afterend',moodBadge\)/);
+  assert.match(css,/\.profile-person-card \.profile-name-row > \.avatar-mood-badge\{[\s\S]*position:static!important/);
+  assert.match(css,/\.profile-person-card \.profile-name-row > \.avatar-mood-badge \.mood-emoji,[\s\S]*font-size:21px!important/);
 });
