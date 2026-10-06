@@ -2157,21 +2157,35 @@
       }
 
 
-      let financeState={months:[],version:0};
+      let financeState={months:[],personalMonths:[],debts:[],version:0};
       let financeLoadPromise=null;
+      let activeFinanceTab='shared';
 
       function financeCurrentMonthKey(){
         const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).formatToParts(new Date());
         const map=Object.fromEntries(parts.map(part=>[part.type,part.value]));
         return map.year+'-'+map.month;
       }
-
+      function financePreviousMonthKey(value){
+        const match=String(value||'').match(/^(\d{4})-(\d{2})$/);
+        if(!match) return '';
+        const date=new Date(Date.UTC(Number(match[1]),Number(match[2])-2,1));
+        return date.getUTCFullYear()+'-'+String(date.getUTCMonth()+1).padStart(2,'0');
+      }
       function financeMoney(value){
-        const number=Math.max(0,Number(value)||0);
+        const number=Number(value)||0;
         const digits=Math.abs(number-Math.round(number))<.001?0:2;
         return new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:digits,maximumFractionDigits:2}).format(number);
       }
-
+      function financeSignedMoney(value){
+        const number=Number(value)||0;
+        if(Math.abs(number)<.005) return '0 ₽';
+        return (number>0?'+':'−')+financeMoney(Math.abs(number));
+      }
+      function financePercent(value){
+        const number=Math.abs(Number(value)||0);
+        return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1,minimumFractionDigits:number<10&&Math.abs(number-Math.round(number))>.01?1:0}).format(number)+'%';
+      }
       function financeMonthTitle(value){
         const month=String(value||'');
         if(!/^\d{4}-\d{2}$/.test(month)) return '—';
@@ -2180,35 +2194,42 @@
         const text=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(date);
         return text.charAt(0).toUpperCase()+text.slice(1);
       }
-
       function financeSplit(rent,utilities){
         const total=Math.round((Math.max(0,Number(rent)||0)+Math.max(0,Number(utilities)||0))*100)/100;
         const diana=Math.round(total*40)/100;
         const rustam=Math.round((total-diana)*100)/100;
         return {total,diana,rustam};
       }
-
+      function financeComparisonText(current,previous){
+        const now=Number(current)||0,prev=Number(previous)||0,delta=Math.round((now-prev)*100)/100;
+        if(prev<=0) return {text:'Нет данных за прошлый месяц',direction:'none'};
+        if(Math.abs(delta)<.005) return {text:'Без изменений к прошлому месяцу · 0 ₽ · 0%',direction:'same'};
+        const percent=delta/prev*100;
+        return {
+          text:(delta>0?'Увеличилось ':'Уменьшилось ')+financeSignedMoney(delta)+' · '+(percent>0?'+':'−')+financePercent(percent),
+          direction:delta>0?'up':'down'
+        };
+      }
       async function financeRequest(operation='list',payload={}){
         const response=await fetch('/api/finances',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
-          cache:'no-store'
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
-        if(!response.ok||!data.ok){
-          const error=new Error(data.error||'finance-request-failed');
-          error.status=response.status;
-          throw error;
-        }
+        if(!response.ok||!data.ok){const error=new Error(data.error||'finance-request-failed');error.status=response.status;throw error}
         return data;
       }
+      function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
+      function financePersonalRowForMonth(month){return (financeState.personalMonths||[]).find(row=>String(row?.month||'')===String(month||''))||null}
 
-      function financeRowForMonth(month){
-        return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null;
+      function renderFinanceComparison(month,total){
+        const host=document.getElementById('financeMonthComparison');if(!host)return;
+        const previous=financeRowForMonth(financePreviousMonthKey(month));
+        const previousTotal=previous?financeSplit(previous.rent,previous.utilities).total:0;
+        const result=financeComparisonText(total,previousTotal);
+        host.textContent=result.text;host.dataset.direction=result.direction;
       }
-
-      function renderFinanceSummary(rent,utilities){
+      function renderFinanceSummary(rent,utilities,month=''){
         const split=financeSplit(rent,utilities);
         const total=document.getElementById('financeTotalValue');
         const diana=document.getElementById('financeDianaValue');
@@ -2216,143 +2237,118 @@
         if(total) total.textContent=financeMoney(split.total);
         if(diana) diana.textContent=financeMoney(split.diana);
         if(rustam) rustam.textContent=financeMoney(split.rustam);
+        renderFinanceComparison(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey(),split.total);
         return split;
       }
-
       function renderFinanceSelectedMonth(month,{preserveInputs=false}={}){
-        const key=String(month||financeCurrentMonthKey());
-        const row=financeRowForMonth(key);
-        const monthInput=document.getElementById('financeMonthInput');
-        const monthLabel=document.getElementById('financeMonthLabel');
-        const rentInput=document.getElementById('financeRentInput');
-        const utilitiesInput=document.getElementById('financeUtilitiesInput');
+        const key=String(month||financeCurrentMonthKey()),row=financeRowForMonth(key);
+        const monthInput=document.getElementById('financeMonthInput'),monthLabel=document.getElementById('financeMonthLabel');
+        const rentInput=document.getElementById('financeRentInput'),utilitiesInput=document.getElementById('financeUtilitiesInput');
         if(monthInput&&monthInput.value!==key) monthInput.value=key;
         if(monthLabel) monthLabel.textContent=financeMonthTitle(key);
-        if(!preserveInputs){
-          if(rentInput) rentInput.value=row?String(row.rent||0):'';
-          if(utilitiesInput) utilitiesInput.value=row?String(row.utilities||0):'';
-        }
-        renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0);
+        if(!preserveInputs){if(rentInput)rentInput.value=row?String(row.rent||0):'';if(utilitiesInput)utilitiesInput.value=row?String(row.utilities||0):''}
+        renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0,key);
       }
-
       function renderFinanceHistory(){
-        const list=document.getElementById('financeHistoryList');
-        const empty=document.getElementById('financeHistoryEmpty');
-        const count=document.getElementById('financeHistoryCount');
-        if(!list) return;
-        const rows=Array.isArray(financeState.months)?financeState.months:[];
-        list.replaceChildren();
-        if(count) count.textContent=String(rows.length);
-        if(empty) empty.hidden=rows.length>0;
+        const list=document.getElementById('financeHistoryList'),empty=document.getElementById('financeHistoryEmpty'),count=document.getElementById('financeHistoryCount');
+        if(!list)return;const rows=Array.isArray(financeState.months)?financeState.months:[];list.replaceChildren();
+        if(count)count.textContent=String(rows.length);if(empty)empty.hidden=rows.length>0;
         for(const row of rows){
-          const button=document.createElement('button');
-          button.type='button';
-          button.className='finance-history-row';
-          button.dataset.financeMonth=String(row.month||'');
-          const split=financeSplit(row.rent,row.utilities);
-          const copy=document.createElement('span');
-          copy.className='finance-history-row-copy';
-          const title=document.createElement('strong');
-          title.textContent=financeMonthTitle(row.month);
-          const detail=document.createElement('span');
-          detail.textContent='Квартира '+financeMoney(row.rent)+' · ЖКУ '+financeMoney(row.utilities);
-          copy.append(title,detail);
-          const total=document.createElement('span');
-          total.className='finance-history-row-total';
-          const totalValue=document.createElement('strong');
-          totalValue.textContent=financeMoney(split.total);
-          const shares=document.createElement('span');
-          shares.textContent='40% '+financeMoney(split.diana)+' · 60% '+financeMoney(split.rustam);
-          total.append(totalValue,shares);
-          button.append(copy,total);
-          button.addEventListener('click',()=>{
-            renderFinanceSelectedMonth(row.month);
-            document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'});
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          });
+          const button=document.createElement('button');button.type='button';button.className='finance-history-row';button.dataset.financeMonth=String(row.month||'');
+          const split=financeSplit(row.rent,row.utilities),copy=document.createElement('span');copy.className='finance-history-row-copy';
+          const title=document.createElement('strong');title.textContent=financeMonthTitle(row.month);
+          const detail=document.createElement('span');detail.textContent='Квартира '+financeMoney(row.rent)+' · ЖКУ '+financeMoney(row.utilities);copy.append(title,detail);
+          const total=document.createElement('span');total.className='finance-history-row-total';
+          const totalValue=document.createElement('strong');totalValue.textContent=financeMoney(split.total);
+          const shares=document.createElement('span');shares.textContent='40% '+financeMoney(split.diana)+' · 60% '+financeMoney(split.rustam);total.append(totalValue,shares);
+          button.append(copy,total);button.addEventListener('click',()=>{setFinanceTab('shared');renderFinanceSelectedMonth(row.month);document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'});try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
           list.appendChild(button);
         }
       }
 
+      function renderFinancePersonalSelectedMonth(month,{preserveInputs=false}={}){
+        const key=String(month||financeCurrentMonthKey()),row=financePersonalRowForMonth(key);
+        const input=document.getElementById('financePersonalMonthInput'),label=document.getElementById('financePersonalMonthLabel');
+        const income=document.getElementById('financePersonalIncomeInput'),expenses=document.getElementById('financePersonalExpensesInput');
+        if(input&&input.value!==key)input.value=key;if(label)label.textContent=financeMonthTitle(key);
+        if(!preserveInputs){if(income)income.value=row?String(row.income||0):'';if(expenses)expenses.value=row?String(row.expenses||0):''}
+        const incomeValue=Math.max(0,Number(income?.value||row?.income||0)),expenseValue=Math.max(0,Number(expenses?.value||row?.expenses||0));
+        const balance=document.getElementById('financePersonalBalanceValue');if(balance)balance.textContent=financeMoney(incomeValue-expenseValue);
+        const previous=financePersonalRowForMonth(financePreviousMonthKey(key)),comparison=document.getElementById('financePersonalComparison');
+        if(comparison){const result=financeComparisonText(expenseValue,previous?.expenses||0);comparison.textContent='Расходы: '+result.text;comparison.dataset.direction=result.direction}
+      }
+      function renderFinancePersonalHistory(){
+        const list=document.getElementById('financePersonalHistoryList'),empty=document.getElementById('financePersonalHistoryEmpty'),count=document.getElementById('financePersonalHistoryCount');
+        if(!list)return;const rows=Array.isArray(financeState.personalMonths)?financeState.personalMonths:[];list.replaceChildren();
+        if(count)count.textContent=String(rows.length);if(empty)empty.hidden=rows.length>0;
+        for(const row of rows){
+          const button=document.createElement('button');button.type='button';button.className='finance-history-row';
+          const copy=document.createElement('span');copy.className='finance-history-row-copy';const title=document.createElement('strong');title.textContent=financeMonthTitle(row.month);
+          const detail=document.createElement('span');detail.textContent='Доходы '+financeMoney(row.income)+' · Расходы '+financeMoney(row.expenses);copy.append(title,detail);
+          const total=document.createElement('span');total.className='finance-history-row-total';const value=document.createElement('strong');value.textContent=financeMoney(row.balance);
+          const label=document.createElement('span');label.textContent='Баланс';total.append(value,label);button.append(copy,total);
+          button.addEventListener('click',()=>{setFinanceTab('personal');renderFinancePersonalSelectedMonth(row.month);document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'})});
+          list.appendChild(button);
+        }
+      }
+
+      function renderFinanceDebts(){
+        const list=document.getElementById('financeDebtList'),empty=document.getElementById('financeDebtEmpty'),count=document.getElementById('financeDebtCount');
+        const oweTotal=document.getElementById('financeDebtOweTotal'),owedTotal=document.getElementById('financeDebtOwedTotal');
+        if(!list)return;const rows=Array.isArray(financeState.debts)?financeState.debts:[];
+        const active=rows.filter(row=>!row.paid),owe=active.filter(row=>row.direction==='owe').reduce((sum,row)=>sum+Number(row.amount||0),0),owed=active.filter(row=>row.direction==='owed').reduce((sum,row)=>sum+Number(row.amount||0),0);
+        if(oweTotal)oweTotal.textContent=financeMoney(owe);if(owedTotal)owedTotal.textContent=financeMoney(owed);if(count)count.textContent=String(active.length);
+        list.replaceChildren();if(empty)empty.hidden=rows.length>0;
+        for(const row of rows){
+          const card=document.createElement('article');card.className='finance-debt-row'+(row.paid?' is-paid':'');
+          const main=document.createElement('div');main.className='finance-debt-row-main';
+          const title=document.createElement('strong');title.textContent=(row.direction==='owe'?'Должен: ':'Мне должен: ')+String(row.counterparty||'');
+          const note=document.createElement('span');note.textContent=row.note|| (row.paid?'Погашено':'Активный долг');main.append(title,note);
+          const side=document.createElement('div');side.className='finance-debt-row-side';const amount=document.createElement('strong');amount.textContent=financeMoney(row.amount);
+          const toggle=document.createElement('button');toggle.type='button';toggle.className='finance-debt-toggle';toggle.textContent=row.paid?'Вернуть':'Погашен';
+          toggle.addEventListener('click',async()=>{toggle.disabled=true;try{const data=await financeRequest('toggle-debt',{id:row.id,paid:!row.paid});renderFinanceState(data)}catch(_){document.getElementById('financeDebtStatus').textContent='Не удалось обновить долг'}finally{toggle.disabled=false}});
+          side.append(amount,toggle);card.append(main,side);list.appendChild(card);
+        }
+      }
+
+      function setFinanceTab(tab){
+        const allowed=['shared','personal','debts'];activeFinanceTab=allowed.includes(tab)?tab:'shared';
+        document.querySelectorAll('[data-finance-tab]').forEach(button=>{const active=button.dataset.financeTab===activeFinanceTab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',active?'true':'false')});
+        document.querySelectorAll('[data-finance-panel]').forEach(panel=>panel.hidden=panel.dataset.financePanel!==activeFinanceTab);
+        const subtitle=document.getElementById('financePageSubtitle');if(subtitle)subtitle.textContent=activeFinanceTab==='shared'?'Общие расходы и доли 40/60':activeFinanceTab==='personal'?'Личные доходы и расходы':'Кому должны и кто должен вам';
+      }
       function applyFinancePermissions(){
-        const canEdit=currentActor==='Рустам';
-        const rent=document.getElementById('financeRentInput');
-        const utilities=document.getElementById('financeUtilitiesInput');
-        const save=document.getElementById('financeSaveButton');
-        const note=document.getElementById('financeReadOnlyNote');
-        if(rent) rent.disabled=!canEdit;
-        if(utilities) utilities.disabled=!canEdit;
-        if(save) save.hidden=!canEdit;
-        if(note) note.hidden=canEdit;
+        const canEdit=currentActor==='Рустам',rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton'),note=document.getElementById('financeReadOnlyNote');
+        if(rent)rent.disabled=!canEdit;if(utilities)utilities.disabled=!canEdit;if(save)save.hidden=!canEdit;if(note)note.hidden=canEdit;
       }
-
       function renderFinanceState(data,{month=''}={}){
-        financeState={version:Math.max(0,Number(data?.version||0)),months:Array.isArray(data?.months)?data.months:[]};
-        applyFinancePermissions();
-        renderFinanceHistory();
+        financeState={version:Math.max(0,Number(data?.version||0)),months:Array.isArray(data?.months)?data.months:[],personalMonths:Array.isArray(data?.personalMonths)?data.personalMonths:[],debts:Array.isArray(data?.debts)?data.debts:[]};
+        applyFinancePermissions();renderFinanceHistory();renderFinancePersonalHistory();renderFinanceDebts();
         const selected=String(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey());
-        renderFinanceSelectedMonth(selected);
+        renderFinanceSelectedMonth(selected);renderFinancePersonalSelectedMonth(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
       }
-
       async function loadFinances({silent=false,month=''}={}){
-        if(!currentActor) return null;
-        if(financeLoadPromise) return financeLoadPromise;
-        financeLoadPromise=(async()=>{
-          const status=document.getElementById('financeStatus');
-          try{
-            if(status&&!silent) status.textContent='Загружаю…';
-            const data=await financeRequest('list');
-            renderFinanceState(data,{month});
-            if(status) status.textContent='';
-            return data;
-          }catch(error){
-            if(status&&!silent) status.textContent='Не удалось загрузить данные';
-            if(!silent) console.warn('RUDI_FINANCE_UI_WARN',String(error?.message||error));
-            return null;
-          }finally{
-            financeLoadPromise=null;
-          }
-        })();
+        if(!currentActor)return null;if(financeLoadPromise)return financeLoadPromise;
+        financeLoadPromise=(async()=>{const status=document.getElementById('financeStatus');try{if(status&&!silent)status.textContent='Загружаю…';const data=await financeRequest('list');renderFinanceState(data,{month});if(status)status.textContent='';return data}catch(error){if(status&&!silent)status.textContent='Не удалось загрузить данные';if(!silent)console.warn('RUDI_FINANCE_UI_WARN',String(error?.message||error));return null}finally{financeLoadPromise=null}})();
         return financeLoadPromise;
       }
-
       function setupFinancePage(){
-        const month=document.getElementById('financeMonthInput');
-        const rent=document.getElementById('financeRentInput');
-        const utilities=document.getElementById('financeUtilitiesInput');
-        const save=document.getElementById('financeSaveButton');
-        if(!month||month.dataset.bound==='1') return;
-        month.dataset.bound='1';
-        month.value=financeCurrentMonthKey();
-        applyFinancePermissions();
+        const month=document.getElementById('financeMonthInput'),rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton');
+        if(!month||month.dataset.bound==='1')return;month.dataset.bound='1';month.value=financeCurrentMonthKey();
+        const personalMonth=document.getElementById('financePersonalMonthInput'),income=document.getElementById('financePersonalIncomeInput'),expenses=document.getElementById('financePersonalExpensesInput'),personalSave=document.getElementById('financePersonalSaveButton');
+        if(personalMonth)personalMonth.value=financeCurrentMonthKey();applyFinancePermissions();setFinanceTab('shared');
 
+        document.getElementById('financeTabs')?.addEventListener('click',event=>{const button=event.target.closest('[data-finance-tab]');if(!button)return;setFinanceTab(button.dataset.financeTab);try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
         month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
-        const recalc=()=>renderFinanceSummary(rent?.value||0,utilities?.value||0);
-        rent?.addEventListener('input',recalc);
-        utilities?.addEventListener('input',recalc);
+        const recalc=()=>renderFinanceSummary(rent?.value||0,utilities?.value||0,month.value||financeCurrentMonthKey());rent?.addEventListener('input',recalc);utilities?.addEventListener('input',recalc);
+        save?.addEventListener('click',async()=>{if(currentActor!=='Рустам')return;const status=document.getElementById('financeStatus');save.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save',{month:month.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0)});renderFinanceState(data,{month:month.value});if(status)status.textContent='Сохранено';setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800);try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}}catch(error){if(status)status.textContent=error.status===403?'Редактировать может только Рустам':'Не удалось сохранить'}finally{save.disabled=false}});
 
-        save?.addEventListener('click',async()=>{
-          if(currentActor!=='Рустам') return;
-          const status=document.getElementById('financeStatus');
-          save.disabled=true;
-          if(status) status.textContent='Сохраняю…';
-          try{
-            const data=await financeRequest('save',{
-              month:month.value||financeCurrentMonthKey(),
-              rent:Number(rent?.value||0),
-              utilities:Number(utilities?.value||0)
-            });
-            renderFinanceState(data,{month:month.value});
-            if(status) status.textContent='Сохранено';
-            setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800);
-            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-          }catch(error){
-            if(status) status.textContent=error.status===403?'Редактировать может только Рустам':'Не удалось сохранить';
-            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }finally{
-            save.disabled=false;
-          }
-        });
+        personalMonth?.addEventListener('change',()=>renderFinancePersonalSelectedMonth(personalMonth.value||financeCurrentMonthKey()));
+        const recalcPersonal=()=>renderFinancePersonalSelectedMonth(personalMonth?.value||financeCurrentMonthKey(),{preserveInputs:true});income?.addEventListener('input',recalcPersonal);expenses?.addEventListener('input',recalcPersonal);
+        personalSave?.addEventListener('click',async()=>{const status=document.getElementById('financePersonalStatus');personalSave.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save-personal',{month:personalMonth?.value||financeCurrentMonthKey(),income:Number(income?.value||0),expenses:Number(expenses?.value||0)});renderFinanceState(data);if(status)status.textContent='Сохранено';setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800)}catch(_){if(status)status.textContent='Не удалось сохранить'}finally{personalSave.disabled=false}});
+
+        const debtSave=document.getElementById('financeDebtSaveButton');
+        debtSave?.addEventListener('click',async()=>{const status=document.getElementById('financeDebtStatus'),direction=document.getElementById('financeDebtDirection'),counterparty=document.getElementById('financeDebtCounterparty'),amount=document.getElementById('financeDebtAmount'),note=document.getElementById('financeDebtNote');if(!String(counterparty?.value||'').trim()||Number(amount?.value||0)<=0){if(status)status.textContent='Заполни имя и сумму';return}debtSave.disabled=true;if(status)status.textContent='Сохраняю…';try{const data=await financeRequest('save-debt',{direction:direction?.value||'owe',counterparty:counterparty?.value||'',amount:Number(amount?.value||0),note:note?.value||''});renderFinanceState(data);if(counterparty)counterparty.value='';if(amount)amount.value='';if(note)note.value='';if(status)status.textContent='Долг добавлен';setTimeout(()=>{if(status?.textContent==='Долг добавлен')status.textContent=''},1800)}catch(_){if(status)status.textContent='Не удалось добавить долг'}finally{debtSave.disabled=false}});
       }
 
       function runTabSideEffects(tab,{item=''}={}){

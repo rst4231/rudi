@@ -13339,3 +13339,33 @@ body[data-app-tab="finances"]{
   height:12px;
 }
 /* end RUDI v4.12 quick UI fixes */
+
+
+/* RUDI v4.12 — finance tabs, personal finances and debts */
+.finance-tabs{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:5px;
+  border:1px solid color-mix(in srgb,var(--finance-green) 12%,var(--line));border-radius:16px;
+  background:color-mix(in srgb,var(--surface) 88%,transparent);box-shadow:0 8px 24px color-mix(in srgb,var(--text) 4%,transparent)
+}
+.finance-tab{min-height:38px;border:0;border-radius:12px;background:transparent;color:var(--muted);font:inherit;font-size:10px;font-weight:780}
+.finance-tab.is-active{background:linear-gradient(135deg,#26ad76,#188a5e);color:#fff;box-shadow:0 7px 18px rgba(34,166,111,.20)}
+.finance-tab-panel{display:grid;gap:13px}.finance-tab-panel[hidden]{display:none!important}
+.finance-month-comparison{position:relative;z-index:1;margin-top:7px;font-size:9px;font-weight:760;opacity:.88}
+.finance-month-comparison[data-direction="up"]{color:#fff0e9}.finance-month-comparison[data-direction="down"]{color:#e7fff3}
+.finance-personal-total-card{background:radial-gradient(circle at 90% 15%,rgba(255,255,255,.18),transparent 30%),linear-gradient(135deg,#3a6cc4,#507fe0 58%,#6b91e3)}
+.finance-debt-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.finance-debt-summary-card{display:grid;gap:5px;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:0 10px 26px color-mix(in srgb,var(--text) 5%,transparent)}
+.finance-debt-summary-card span{font-size:9px;color:var(--muted);font-weight:720}.finance-debt-summary-card strong{font-size:19px;letter-spacing:-.03em}
+.finance-debt-summary-card.is-positive strong{color:var(--finance-green)}
+.finance-debt-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
+.finance-select,.finance-text-input{width:100%;min-height:48px;box-sizing:border-box;border:1px solid var(--line);border-radius:15px;background:color-mix(in srgb,var(--surface) 96%,transparent);color:var(--text);padding:0 12px;font:inherit;font-size:11px;font-weight:680;outline:0}
+.finance-select:focus,.finance-text-input:focus{border-color:color-mix(in srgb,var(--finance-green) 48%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--finance-green) 9%,transparent)}
+.finance-debt-list{display:grid;gap:7px;margin-top:12px}
+.finance-debt-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:15px;background:var(--surface)}
+.finance-debt-row.is-paid{opacity:.55}.finance-debt-row-main,.finance-debt-row-side{display:grid;gap:4px;min-width:0}.finance-debt-row-main strong{font-size:11.5px}.finance-debt-row-main span{font-size:8.8px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.finance-debt-row-side{text-align:right;justify-items:end}.finance-debt-row-side strong{font-size:12px}.finance-debt-toggle{min-height:27px;border:1px solid var(--line);border-radius:9px;background:var(--soft);color:var(--text);padding:0 9px;font:inherit;font-size:8.5px;font-weight:750}
+@media(max-width:430px){
+  .finance-tab-panel{gap:11px}.finance-tab{min-height:36px;font-size:9.5px}.finance-debt-form{grid-template-columns:1fr 1fr;gap:7px}
+  .finance-select,.finance-text-input{min-height:45px;padding:0 10px}
+}
+/* end RUDI v4.12 finance expansion */
