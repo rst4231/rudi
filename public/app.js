@@ -9594,6 +9594,7 @@
         const video=document.getElementById('photoViewerVideo');
         const caption=document.getElementById('photoViewerCaption');
         const date=document.getElementById('photoViewerDate');
+        const original=document.getElementById('photoViewerOriginal');
         const photo=sharedAlbumPhotos[currentSharedAlbumPhotoIndex];
         const previewUrl=String(photo?.url||photo?.fullUrl||photo?.viewerDisplayUrl||'').trim();
         const fullUrl=String(photo?.fullUrl||previewUrl).trim();
@@ -9601,7 +9602,7 @@
         const viewerFallbackUrl=String(photo?.viewerFallbackUrl||fullUrl||previewUrl).trim();
         const isVideo=photo?.type==='video';
         const photoIndex=currentSharedAlbumPhotoIndex;
-        if(!viewer||!image||!video||!caption||!date||!previewUrl) return false;
+        if(!viewer||!image||!video||!caption||!date||!original||!previewUrl) return false;
 
         resetPhotoViewerZoom();
         image.onerror=null;
@@ -9716,6 +9717,9 @@
         const captionText=String(photo?.caption||'').trim();
         caption.textContent=captionText;
         caption.hidden=!captionText;
+        const hideOriginal=photo?.viewerHideOriginal===true;
+        original.hidden=hideOriginal;
+        original.disabled=hideOriginal||!sharedAlbumOriginalUrl(photo);
         return true;
       }
       function changeSharedAlbumPhoto(step){
@@ -9780,6 +9784,7 @@
       function openExternalPhotoViewer(photos,index=0,options={}){
         const albumUrl=String(options?.albumUrl||'').trim();
         const preferOriginal=options?.preferOriginal===true;
+        const hideOriginal=options?.hideOriginal===true;
         const items=(Array.isArray(photos)?photos:[])
           .map((photo,photoIndex)=>{
             const id=String(photo?.id||('external-'+photoIndex));
@@ -9797,6 +9802,7 @@
               viewerDisplayUrl:preferOriginal&&/^https:\/\//i.test(original)?original:full,
               viewerFallbackUrl:/^https:\/\//i.test(full)?full:preview,
               viewerOriginalUrl:iCloudPhotoUrl||(/^https:\/\//i.test(original)?original:''),
+              viewerHideOriginal:hideOriginal,
             };
           })
           .filter(Boolean);
@@ -10127,6 +10133,7 @@
         document.getElementById('sharedAlbumOpen')?.addEventListener('click',openSharedAlbum);
         document.getElementById('photoViewerClose')?.addEventListener('click',closeSharedAlbumPhoto);
         document.getElementById('photoViewerBackdrop')?.addEventListener('click',closeSharedAlbumPhoto);
+        document.getElementById('photoViewerOriginal')?.addEventListener('click',openSharedAlbumOriginal);
 
         const viewerStage=document.querySelector('.photo-viewer-stage');
         if(viewerStage&&viewerStage.dataset.gesturesBound!=='1'){
