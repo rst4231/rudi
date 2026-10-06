@@ -1,12 +1,13 @@
 {
-  "current": "v4.08",
-  "versionBranch": "rudi-v4.08-pin-change-fix",
+  "current": "v4.09",
+  "versionBranch": "rudi-v4.09-partner-mood",
   "releaseCommit": null,
   "deploymentSourceCommit": null,
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-06",
-  "basedOnProduction": "v4.07",
+  "basedOnProduction": "v4.08",
   "notes": [
+    "Исправлено настроение партнёра: блок больше не исчезает, а при открытии главной всегда подтягивается свежий partnerMood.",
     "Прочитанные уведомления синхронизируются через D1 между устройствами и принудительно обновляются при возврате в приложение и открытии панели уведомлений.",
     "Отключены push-уведомления при добавлении нового желания в вишлист.",
     "Исправлена смена PIN: операция change-pin перенесена из passkey-маршрута в browser-auth.",

@@ -11564,12 +11564,12 @@
         if(label) label.textContent='';
         holder.dataset.mood=normalizedMood;
         holder.dataset.moodReasonText=partnerMoodReasonText(entry);
-        holder.hidden=!hasMood;
+        holder.hidden=false;
         if(!hasMood) hidePartnerMoodReason();
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==normalizedMood;
         });
-        empty.hidden=true;
+        empty.hidden=hasMood;
         holder.setAttribute('role','button');
         holder.tabIndex=hasMood?0:-1;
         holder.setAttribute(
@@ -11677,9 +11677,9 @@
         bindMoodPickerControls();
 
         if(currentAppTab==='home'){
-          ensureHomeBootstrap().then(home=>{
-            if(!home?.mood) refreshDailyMood();
-          }).catch(()=>refreshDailyMood());
+          ensureHomeBootstrap()
+            .then(()=>refreshDailyMood())
+            .catch(()=>refreshDailyMood());
         }
       }
 
