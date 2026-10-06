@@ -2412,7 +2412,7 @@
           if(event.button!==undefined&&event.button!==0)return;
           const rect=coin.getBoundingClientRect();
           const ghost=document.createElement('div');ghost.className='finance-income-drag-ghost';ghost.textContent='₽';
-          ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';
+          ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';ghost.style.left=event.clientX+'px';ghost.style.top=event.clientY+'px';
           document.body.append(ghost);
           financeIncomeDrag={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,ghost,target:null,moved:false};
           coin.setPointerCapture?.(event.pointerId);
