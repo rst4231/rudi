@@ -28,5 +28,12 @@ test('v4.14 profile card separates avatar crop from mood badge',()=>{
   assert.match(app,/avatarWrap\.appendChild\(moodBadge\)/);
   assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.avatar\{[\s\S]*overflow:hidden!important/);
   assert.match(css,/\.profile-person-card \.score-avatar-wrap > \.profile-card-mood-badge\{[\s\S]*top:66px!important/);
-  assert.match(css,/\.profile-person-card \.score-avatar-wrap\{[\s\S]*height:82px!important/);
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap\{[\s\S]*height:94px!important/);
+});
+
+test('v4.14 avatar wrapper fully contains mood badge on desktop and mobile',()=>{
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(css,/\.profile-person-card \.score-avatar-wrap\{[\s\S]*height:94px!important/);
+  assert.match(css,/@media\(max-width:430px\)\{[\s\S]*\.profile-person-card \.score-avatar-wrap\{[\s\S]*height:90px!important/);
+  assert.match(css,/#moodCurrentButton\.profile-card-mood-badge[\s\S]*width:27px!important/);
 });
