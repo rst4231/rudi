@@ -549,6 +549,20 @@ function compactFeedForHome(feed) {
   };
 }
 
+function scheduleStateBackupRestore(token, options = {}) {
+  const cleanToken = String(token || '').trim();
+  if (!cleanToken) return;
+  const task = restoreStateBackup(cleanToken, {
+    ...options,
+    cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
+  }).then((recovery) => {
+    if (recovery?.restored?.length) console.info('RUDI_STATE_RESTORED', recovery.restored.join(','));
+  }).catch((error) => {
+    console.warn('RUDI_STATE_BACKUP_RESTORE_WARN', String(error?.message || error));
+  });
+  try { waitUntil(task); }
+  catch (_) { task.catch(() => {}); }
+}
 async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
   const now = options.now || Date.now();
   const date = moscowDateKey(now);
@@ -2775,17 +2789,6 @@ async function handleRudiAction(req, res, action, options = {}) {
       const handoffSnapshot = backupSnapshotFromToken(body.ticktickHandoff, options);
       const previousSnapshot = mergeBackupSnapshots(backupSnapshot, handoffSnapshot);
 
-      if (body.backupToken) {
-        try {
-          const recovery = await restoreStateBackup(body.backupToken, {
-            ...options,
-            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
-          });
-          if (recovery.restored?.length) console.info('RUDI_STATE_RESTORED', recovery.restored.join(','));
-        } catch (error) {
-          console.warn('RUDI_STATE_BACKUP_RESTORE_WARN', String(error?.message || error));
-        }
-      }
 
       const date = moscowDateKey(options.now || Date.now());
       const holidaysPromise = readHolidayHighlights(date, options).catch(() => null);
@@ -2852,7 +2855,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           : Promise.resolve(''),
         includeHome ? buildHomeBootstrap(actor, correctedSnapshot, options) : Promise.resolve(null),
       ]);
-      return res.status(200).json({
+      const response = res.status(200).json({
         ok: true,
         actor,
         ...(selfProfile ? { selfProfile } : {}),
@@ -2863,6 +2866,8 @@ async function handleRudiAction(req, res, action, options = {}) {
         ...(backupToken ? { backupToken } : {}),
         ...(includeHome && home ? { home } : {}),
       });
+      scheduleStateBackupRestore(body.backupToken, options);
+      return response;
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
