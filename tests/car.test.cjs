@@ -8,8 +8,19 @@ const {
   carColumnIds,
   isCarTask,
   selectCurrentCarTasks,
+  uniqueCarDocumentPhotos,
 }=require('../api/car-client.cjs');
 const {readCarState,writeMileage,restoreCarState}=require('../api/car-store.cjs');
+
+test('car documents remove duplicate photos by id or media url',()=>{
+  const photos=uniqueCarDocumentPhotos([
+    {id:'doc-1',url:'https://cdn.example.test/doc-1-thumb.jpg',fullUrl:'https://cdn.example.test/doc-1.jpg',originalUrl:'https://cdn.example.test/doc-1-original.jpg'},
+    {id:'doc-1',url:'https://cdn.example.test/doc-1-copy-thumb.jpg',fullUrl:'https://cdn.example.test/doc-1-copy.jpg',originalUrl:'https://cdn.example.test/doc-1-copy-original.jpg'},
+    {id:'doc-2',url:'https://cdn.example.test/doc-2-thumb.jpg',fullUrl:'https://cdn.example.test/doc-2.jpg',originalUrl:'https://cdn.example.test/doc-1-original.jpg'},
+    {id:'doc-3',url:'https://cdn.example.test/doc-3-thumb.jpg',fullUrl:'https://cdn.example.test/doc-3.jpg',originalUrl:'https://cdn.example.test/doc-3-original.jpg'},
+  ]);
+  assert.deepEqual(photos.map(photo=>photo.id),['doc-1','doc-3']);
+});
 
 test('UNI-V service schedule uses 5k first service then 10k intervals',()=>{
   assert.deepEqual(serviceScheduleForMileage(0),{number:0,mileage:5000});
