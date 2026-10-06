@@ -179,7 +179,19 @@ function renderAnalysisVisuals(host,visuals){
     segment.style.flexGrow=String(Math.max(1,Number(item.count)||1));
     bar.append(segment);
   }
-  wrap.append(bar);
+  const legend=document.createElement('div');
+  legend.className='mood-analysis-mood-legend';
+  for(const item of moods){
+    const chip=document.createElement('span');
+    chip.dataset.mood=String(item.key||'neutral');
+    const dot=document.createElement('i');
+    dot.setAttribute('aria-hidden','true');
+    const copy=document.createElement('b');
+    copy.textContent=String(item.emoji||'')+' '+String(item.label||'')+' '+Number(item.percent||0)+'%';
+    chip.append(dot,copy);
+    legend.append(chip);
+  }
+  wrap.append(bar,legend);
   host.append(wrap);
 }
 function renderAnalysisReport(host,text,visuals){

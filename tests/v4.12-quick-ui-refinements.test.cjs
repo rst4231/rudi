@@ -10,6 +10,8 @@ test('v4.12 quick UI refinements',()=>{
   assert.match(app,/health:\['🫶','Здоровье'\]/);
   assert.match(mood,/health:'Здоровье'/);
   assert.match(mood,/mood-analysis-visuals-compact/);
+  assert.match(mood,/mood-analysis-mood-legend/);
+  assert.match(mood,/copy\.textContent=String\(item\.emoji\|\|''\)\+' '\+String\(item\.label\|\|''\)\+' '\+Number\(item\.percent\|\|0\)\+'%'/);
   assert.doesNotMatch(mood,/chartTitle\.textContent='Настроение'/);
   assert.match(css,/\.profile \.avatar-mood-badge\{\s*bottom:-30px!important;/);
   assert.match(mood,/начни с диалога/);
