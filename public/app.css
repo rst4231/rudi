@@ -12875,3 +12875,98 @@ html[data-rudi-route-transition="internal"]::view-transition-new(root){
   }
 }
 /* end RUDI v3.98 smooth navigation */
+
+
+/* RUDI v3.98 enhanced route transitions */
+@keyframes rudiTabOldForward{
+  from{opacity:1;transform:translate3d(0,0,0)}
+  to{opacity:.26;transform:translate3d(-14px,0,0)}
+}
+@keyframes rudiTabNewForward{
+  from{opacity:.02;transform:translate3d(16px,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes rudiTabOldBack{
+  from{opacity:1;transform:translate3d(0,0,0)}
+  to{opacity:.26;transform:translate3d(14px,0,0)}
+}
+@keyframes rudiTabNewBack{
+  from{opacity:.02;transform:translate3d(-16px,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes rudiPageOldForward{
+  from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  to{opacity:.18;transform:translate3d(0,-7px,0) scale(.992)}
+}
+@keyframes rudiPageNewForward{
+  from{opacity:.01;transform:translate3d(0,16px,0) scale(.988)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes rudiPageOldBack{
+  from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  to{opacity:.18;transform:translate3d(0,12px,0) scale(.992)}
+}
+@keyframes rudiPageNewBack{
+  from{opacity:.01;transform:translate3d(0,-8px,0) scale(.992)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+
+html[data-rudi-route-transition="tab"][data-rudi-route-direction="forward"]::view-transition-old(root){
+  animation:rudiTabOldForward 170ms ease both;
+}
+html[data-rudi-route-transition="tab"][data-rudi-route-direction="forward"]::view-transition-new(root){
+  animation:rudiTabNewForward 320ms cubic-bezier(.2,.82,.2,1) both;
+}
+html[data-rudi-route-transition="tab"][data-rudi-route-direction="back"]::view-transition-old(root){
+  animation:rudiTabOldBack 170ms ease both;
+}
+html[data-rudi-route-transition="tab"][data-rudi-route-direction="back"]::view-transition-new(root){
+  animation:rudiTabNewBack 320ms cubic-bezier(.2,.82,.2,1) both;
+}
+html[data-rudi-route-transition="page"][data-rudi-route-direction="forward"]::view-transition-old(root){
+  animation:rudiPageOldForward 160ms ease both;
+}
+html[data-rudi-route-transition="page"][data-rudi-route-direction="forward"]::view-transition-new(root){
+  animation:rudiPageNewForward 360ms cubic-bezier(.2,.82,.2,1) both;
+}
+html[data-rudi-route-transition="page"][data-rudi-route-direction="back"]::view-transition-old(root){
+  animation:rudiPageOldBack 160ms ease both;
+}
+html[data-rudi-route-transition="page"][data-rudi-route-direction="back"]::view-transition-new(root){
+  animation:rudiPageNewBack 340ms cubic-bezier(.2,.82,.2,1) both;
+}
+
+body[data-rudi-fallback-transition="tab"][data-rudi-fallback-direction="forward"] [data-app-tab-section].rudi-route-leave{
+  animation:rudiTabOldForward 150ms ease both;
+}
+body[data-rudi-fallback-transition="tab"][data-rudi-fallback-direction="forward"] [data-app-tab-section].rudi-route-enter{
+  animation:rudiTabNewForward 300ms cubic-bezier(.2,.82,.2,1) both;
+}
+body[data-rudi-fallback-transition="tab"][data-rudi-fallback-direction="back"] [data-app-tab-section].rudi-route-leave{
+  animation:rudiTabOldBack 150ms ease both;
+}
+body[data-rudi-fallback-transition="tab"][data-rudi-fallback-direction="back"] [data-app-tab-section].rudi-route-enter{
+  animation:rudiTabNewBack 300ms cubic-bezier(.2,.82,.2,1) both;
+}
+body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="forward"] [data-app-tab-section].rudi-route-leave{
+  animation:rudiPageOldForward 150ms ease both;
+}
+body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="forward"] [data-app-tab-section].rudi-route-enter{
+  animation:rudiPageNewForward 350ms cubic-bezier(.2,.82,.2,1) both;
+}
+body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="back"] [data-app-tab-section].rudi-route-leave{
+  animation:rudiPageOldBack 150ms ease both;
+}
+body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="back"] [data-app-tab-section].rudi-route-enter{
+  animation:rudiPageNewBack 330ms cubic-bezier(.2,.82,.2,1) both;
+}
+
+@media(prefers-reduced-motion:reduce){
+  [data-app-tab-section].rudi-route-leave,
+  [data-app-tab-section].rudi-route-enter,
+  html[data-rudi-route-transition]::view-transition-old(root),
+  html[data-rudi-route-transition]::view-transition-new(root){
+    animation:none!important;
+  }
+}
+/* end RUDI v3.98 enhanced route transitions */
