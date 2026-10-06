@@ -211,7 +211,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,settings:0,habits:0,supplements:0,score:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,settings:0,habits:0,finances:0,supplements:0,score:0};
       const APP_TAB_SCROLL_SESSION_KEY='rudi:tab-scroll:v1';
       try{
         const saved=JSON.parse(sessionStorage.getItem(APP_TAB_SCROLL_SESSION_KEY)||'{}');
@@ -2058,9 +2058,9 @@
         setTimeout(()=>section.classList.remove(className),560);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','supplements','dates','for-di','score','settings','smart-saves','car'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','dates','for-di','score','settings','smart-saves','car'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
-      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','supplements','car','wishlist','dates','for-di','smart-saves']);
+      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','wishlist','dates','for-di','smart-saves']);
 
       function routeFromLocation(){
         try{
@@ -2156,6 +2156,205 @@
         requestAnimationFrame(()=>requestAnimationFrame(()=>tryFocus(0)));
       }
 
+
+      let financeState={months:[],version:0};
+      let financeLoadPromise=null;
+
+      function financeCurrentMonthKey(){
+        const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+        const map=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+        return map.year+'-'+map.month;
+      }
+
+      function financeMoney(value){
+        const number=Math.max(0,Number(value)||0);
+        const digits=Math.abs(number-Math.round(number))<.001?0:2;
+        return new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:digits,maximumFractionDigits:2}).format(number);
+      }
+
+      function financeMonthTitle(value){
+        const month=String(value||'');
+        if(!/^\d{4}-\d{2}$/.test(month)) return '—';
+        const date=new Date(month+'-01T12:00:00Z');
+        if(Number.isNaN(date.getTime())) return month;
+        const text=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(date);
+        return text.charAt(0).toUpperCase()+text.slice(1);
+      }
+
+      function financeSplit(rent,utilities){
+        const total=Math.round((Math.max(0,Number(rent)||0)+Math.max(0,Number(utilities)||0))*100)/100;
+        const diana=Math.round(total*40)/100;
+        const rustam=Math.round((total-diana)*100)/100;
+        return {total,diana,rustam};
+      }
+
+      async function financeRequest(operation='list',payload={}){
+        const response=await fetch('/api/finances',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+          cache:'no-store'
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok){
+          const error=new Error(data.error||'finance-request-failed');
+          error.status=response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function financeRowForMonth(month){
+        return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null;
+      }
+
+      function renderFinanceSummary(rent,utilities){
+        const split=financeSplit(rent,utilities);
+        const total=document.getElementById('financeTotalValue');
+        const diana=document.getElementById('financeDianaValue');
+        const rustam=document.getElementById('financeRustamValue');
+        if(total) total.textContent=financeMoney(split.total);
+        if(diana) diana.textContent=financeMoney(split.diana);
+        if(rustam) rustam.textContent=financeMoney(split.rustam);
+        return split;
+      }
+
+      function renderFinanceSelectedMonth(month,{preserveInputs=false}={}){
+        const key=String(month||financeCurrentMonthKey());
+        const row=financeRowForMonth(key);
+        const monthInput=document.getElementById('financeMonthInput');
+        const monthLabel=document.getElementById('financeMonthLabel');
+        const rentInput=document.getElementById('financeRentInput');
+        const utilitiesInput=document.getElementById('financeUtilitiesInput');
+        if(monthInput&&monthInput.value!==key) monthInput.value=key;
+        if(monthLabel) monthLabel.textContent=financeMonthTitle(key);
+        if(!preserveInputs){
+          if(rentInput) rentInput.value=row?String(row.rent||0):'';
+          if(utilitiesInput) utilitiesInput.value=row?String(row.utilities||0):'';
+        }
+        renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0);
+      }
+
+      function renderFinanceHistory(){
+        const list=document.getElementById('financeHistoryList');
+        const empty=document.getElementById('financeHistoryEmpty');
+        const count=document.getElementById('financeHistoryCount');
+        if(!list) return;
+        const rows=Array.isArray(financeState.months)?financeState.months:[];
+        list.replaceChildren();
+        if(count) count.textContent=String(rows.length);
+        if(empty) empty.hidden=rows.length>0;
+        for(const row of rows){
+          const button=document.createElement('button');
+          button.type='button';
+          button.className='finance-history-row';
+          button.dataset.financeMonth=String(row.month||'');
+          const split=financeSplit(row.rent,row.utilities);
+          const copy=document.createElement('span');
+          copy.className='finance-history-row-copy';
+          const title=document.createElement('strong');
+          title.textContent=financeMonthTitle(row.month);
+          const detail=document.createElement('span');
+          detail.textContent='Квартира '+financeMoney(row.rent)+' · ЖКУ '+financeMoney(row.utilities);
+          copy.append(title,detail);
+          const total=document.createElement('span');
+          total.className='finance-history-row-total';
+          const totalValue=document.createElement('strong');
+          totalValue.textContent=financeMoney(split.total);
+          const shares=document.createElement('span');
+          shares.textContent='40% '+financeMoney(split.diana)+' · 60% '+financeMoney(split.rustam);
+          total.append(totalValue,shares);
+          button.append(copy,total);
+          button.addEventListener('click',()=>{
+            renderFinanceSelectedMonth(row.month);
+            document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+          list.appendChild(button);
+        }
+      }
+
+      function applyFinancePermissions(){
+        const canEdit=currentActor==='Рустам';
+        const rent=document.getElementById('financeRentInput');
+        const utilities=document.getElementById('financeUtilitiesInput');
+        const save=document.getElementById('financeSaveButton');
+        const note=document.getElementById('financeReadOnlyNote');
+        if(rent) rent.disabled=!canEdit;
+        if(utilities) utilities.disabled=!canEdit;
+        if(save) save.hidden=!canEdit;
+        if(note) note.hidden=canEdit;
+      }
+
+      function renderFinanceState(data,{month=''}={}){
+        financeState={version:Math.max(0,Number(data?.version||0)),months:Array.isArray(data?.months)?data.months:[]};
+        applyFinancePermissions();
+        renderFinanceHistory();
+        const selected=String(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey());
+        renderFinanceSelectedMonth(selected);
+      }
+
+      async function loadFinances({silent=false,month=''}={}){
+        if(!currentActor) return null;
+        if(financeLoadPromise) return financeLoadPromise;
+        financeLoadPromise=(async()=>{
+          const status=document.getElementById('financeStatus');
+          try{
+            if(status&&!silent) status.textContent='Загружаю…';
+            const data=await financeRequest('list');
+            renderFinanceState(data,{month});
+            if(status) status.textContent='';
+            return data;
+          }catch(error){
+            if(status&&!silent) status.textContent='Не удалось загрузить данные';
+            if(!silent) console.warn('RUDI_FINANCE_UI_WARN',String(error?.message||error));
+            return null;
+          }finally{
+            financeLoadPromise=null;
+          }
+        })();
+        return financeLoadPromise;
+      }
+
+      function setupFinancePage(){
+        const month=document.getElementById('financeMonthInput');
+        const rent=document.getElementById('financeRentInput');
+        const utilities=document.getElementById('financeUtilitiesInput');
+        const save=document.getElementById('financeSaveButton');
+        if(!month||month.dataset.bound==='1') return;
+        month.dataset.bound='1';
+        month.value=financeCurrentMonthKey();
+        applyFinancePermissions();
+
+        month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
+        const recalc=()=>renderFinanceSummary(rent?.value||0,utilities?.value||0);
+        rent?.addEventListener('input',recalc);
+        utilities?.addEventListener('input',recalc);
+
+        save?.addEventListener('click',async()=>{
+          if(currentActor!=='Рустам') return;
+          const status=document.getElementById('financeStatus');
+          save.disabled=true;
+          if(status) status.textContent='Сохраняю…';
+          try{
+            const data=await financeRequest('save',{
+              month:month.value||financeCurrentMonthKey(),
+              rent:Number(rent?.value||0),
+              utilities:Number(utilities?.value||0)
+            });
+            renderFinanceState(data,{month:month.value});
+            if(status) status.textContent='Сохранено';
+            setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800);
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            if(status) status.textContent=error.status===403?'Редактировать может только Рустам':'Не удалось сохранить';
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            save.disabled=false;
+          }
+        });
+      }
+
       function runTabSideEffects(tab,{item=''}={}){
         if(tab==='home'){
           loadSmartSaves({silent:true}).catch(()=>{});
@@ -2189,6 +2388,7 @@
         if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='settings') refreshSettingsPageUi();
+        if(tab==='finances') loadFinances({silent:true}).catch(()=>{});
         if(tab==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
         if(tab==='car') Promise.resolve(window.RUDI_CAR?.refresh?.()).catch(()=>{});
         if(tab==='fasting') loadFastingTracker({silent:true});
@@ -2220,6 +2420,7 @@
         else if(next==='products') loadProducts({silent:true}).catch(()=>{});
         else if(next==='photos') Promise.resolve(loadSharedAlbum()).catch(()=>{});
         else if(next==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
+        else if(next==='finances') loadFinances({silent:true}).catch(()=>{});
         else if(next==='fasting') Promise.resolve(loadFastingTracker({silent:true})).catch(()=>{});
         else if(next==='habits'||next==='supplements') Promise.resolve(window.RudiSupplementApp?.loadHomeTools?.({force:false})).catch(()=>{});
       }
@@ -2439,18 +2640,20 @@
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
-        [['habitProfileButton','habits'],['supplementProfileButton','supplements']].forEach(([buttonId,tab])=>{
+        [['habitProfileButton','habits'],['financeProfileButton','finances'],['supplementProfileButton','supplements']].forEach(([buttonId,tab])=>{
           const button=document.getElementById(buttonId);
           if(!button||button.dataset.bound==='1') return;
           button.dataset.bound='1';
           button.addEventListener('click',()=>{navigateToAppTab(tab,{scroll:true});try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
         });
-        [['habitBackButton','habits'],['supplementBackButton','supplements']].forEach(([buttonId,tab])=>{
+        [['habitBackButton','habits'],['financeBackButton','finances'],['supplementBackButton','supplements']].forEach(([buttonId,tab])=>{
           const button=document.getElementById(buttonId);
           if(!button||button.dataset.bound==='1') return;
           button.dataset.bound='1';
           button.addEventListener('click',()=>{appTabScroll[tab]=0;navigateToAppTab('home',{scroll:true});try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
         });
+
+        setupFinancePage();
 
         const initial=routeFromLocation();
         const initialTab=requestedAppTab||initial.tab||'home';
@@ -11450,6 +11653,20 @@
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
+        const prompt=document.getElementById('moodPrompt');
+        if(prompt&&prompt.dataset.moodPickerBound!=='1'){
+          prompt.dataset.moodPickerBound='1';
+          prompt.setAttribute('role','button');
+          prompt.tabIndex=0;
+          const openPicker=(event)=>{
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
+            setMoodChoicesOpen(true);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          };
+          prompt.addEventListener('click',openPicker);
+          prompt.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')openPicker(event)});
+        }
 
         moodButtons().forEach(button=>{
           if(button.dataset.moodPickerBound==='1')return;
@@ -11487,9 +11704,10 @@
         const meta=MOOD_META[mood]||null;
         const trigger=document.getElementById('moodCurrentButton');
         const emoji=document.getElementById('moodCurrentEmoji');
-        if(emoji)emoji.textContent=meta?.emoji||'🙂';
+        if(emoji)emoji.textContent=meta?.emoji||'';
         if(trigger){
           trigger.dataset.mood=mood;
+          trigger.hidden=!meta;
           trigger.setAttribute('aria-label',meta?'Текущее настроение: '+meta.label+'. Изменить':'Выбрать настроение');
           trigger.title=meta?.label||'Выбрать настроение';
         }
@@ -11564,12 +11782,12 @@
         if(label) label.textContent='';
         holder.dataset.mood=normalizedMood;
         holder.dataset.moodReasonText=partnerMoodReasonText(entry);
-        holder.hidden=false;
+        holder.hidden=!hasMood;
         if(!hasMood) hidePartnerMoodReason();
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
           icon.hidden=icon.dataset.partnerMood!==normalizedMood;
         });
-        empty.hidden=hasMood;
+        if(empty) empty.hidden=true;
         holder.setAttribute('role','button');
         holder.tabIndex=hasMood?0:-1;
         holder.setAttribute(

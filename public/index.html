@@ -89,17 +89,17 @@
     <section class="profile" data-app-tab-section="home" data-home-tile="profile" aria-label="Профиль">
       <div class="profile-people">
         <div class="identity identity-self">
-          <div id="avatar" class="avatar" aria-hidden="true">
+          <div id="avatar" class="avatar">
             <span id="initials">R</span>
             <img id="avatarImage" alt="">
+            <button id="moodCurrentButton" class="mood-current-button partner-mood-value avatar-mood-badge" type="button" aria-label="Выбрать настроение" aria-expanded="false" aria-controls="moodChoices" hidden>
+              <span id="moodCurrentEmoji" class="mood-emoji" aria-hidden="true"></span>
+            </button>
           </div>
           <div class="person">
             <div id="selfFastingStatus" class="profile-fasting-status" hidden></div>
             <div class="profile-name-row">
               <div id="displayName" class="name">RUDI</div>
-              <button id="moodCurrentButton" class="mood-current-button partner-mood-value" type="button" aria-label="Выбрать настроение" aria-expanded="false" aria-controls="moodChoices">
-                <span id="moodCurrentEmoji" class="mood-emoji" aria-hidden="true">🙂</span>
-              </button>
             </div>
             <div id="profileMeta" class="profile-meta"></div>
           </div>
@@ -110,21 +110,21 @@
             <div id="partnerFastingStatus" class="profile-fasting-status partner-profile-fasting-status" hidden></div>
             <div class="profile-name-row profile-name-row-partner">
               <div id="partnerHeaderName" class="name partner-header-name">Диана</div>
-              <div id="partnerMoodValue" class="partner-mood-value" aria-live="polite" aria-label="Настроение партнёра">
-                <span id="partnerMoodEmpty" class="partner-mood-empty">—</span>
-                <span class="partner-mood-icon" data-partner-mood="sadness" hidden><span class="mood-emoji" aria-hidden="true">😢</span></span>
-                <span class="partner-mood-icon" data-partner-mood="boredom" hidden><span class="mood-emoji" aria-hidden="true">🥱</span></span>
-                <span class="partner-mood-icon" data-partner-mood="neutral" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
-                <span class="partner-mood-icon" data-partner-mood="fatigue" hidden><span class="mood-emoji" aria-hidden="true">😩</span></span>
-                <span class="partner-mood-icon" data-partner-mood="anger" hidden><span class="mood-emoji" aria-hidden="true">😡</span></span>
-                <span class="partner-mood-icon" data-partner-mood="joy" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
-                <span class="partner-mood-icon" data-partner-mood="love" hidden><span class="mood-emoji" aria-hidden="true">🥰</span></span>
-              </div>
             </div>
           </div>
-          <div id="partnerProfileAvatar" class="avatar partner-header-avatar" aria-hidden="true">
+          <div id="partnerProfileAvatar" class="avatar partner-header-avatar">
             <span id="partnerProfileInitial">Д</span>
             <img id="partnerProfileImage" alt="">
+            <button id="partnerMoodValue" class="partner-mood-value avatar-mood-badge partner-avatar-mood-badge" type="button" aria-live="polite" aria-label="Настроение партнёра" hidden>
+              <span id="partnerMoodEmpty" class="partner-mood-empty" hidden></span>
+              <span class="partner-mood-icon" data-partner-mood="sadness" hidden><span class="mood-emoji" aria-hidden="true">😢</span></span>
+              <span class="partner-mood-icon" data-partner-mood="boredom" hidden><span class="mood-emoji" aria-hidden="true">🥱</span></span>
+              <span class="partner-mood-icon" data-partner-mood="neutral" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
+              <span class="partner-mood-icon" data-partner-mood="fatigue" hidden><span class="mood-emoji" aria-hidden="true">😩</span></span>
+              <span class="partner-mood-icon" data-partner-mood="anger" hidden><span class="mood-emoji" aria-hidden="true">😡</span></span>
+              <span class="partner-mood-icon" data-partner-mood="joy" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
+              <span class="partner-mood-icon" data-partner-mood="love" hidden><span class="mood-emoji" aria-hidden="true">🥰</span></span>
+            </button>
           </div>
         </div>
       </div>
@@ -142,6 +142,9 @@
               <button id="habitProfileButton" class="profile-tool-button partner-mood-value" type="button" aria-label="Открыть трекер привычек" title="Трекер привычек">
                 <span class="mood-emoji" aria-hidden="true">🌱</span>
                 <span id="habitProfileBadge" class="profile-tool-reminder-badge" hidden></span>
+              </button>
+              <button id="financeProfileButton" class="profile-tool-button partner-mood-value" type="button" aria-label="Открыть финансы" title="Финансы">
+                <span class="mood-emoji" aria-hidden="true">💰</span>
               </button>
               <button id="supplementProfileButton" class="profile-tool-button partner-mood-value" type="button" aria-label="Открыть БАДы и витамины" title="БАДы и витамины">
                 <span class="mood-emoji" aria-hidden="true">💊</span>
@@ -224,6 +227,85 @@
       <div class="fasting-page-title"><div class="section-eyebrow">Личное</div><h1 id="supplementPageTitle">БАДы и витамины</h1></div>
     </section>
     <section id="supplementsHomeTile" class="personal-supplements-tile home-tools-tile" data-app-tab-section="supplements" aria-label="БАДы и витамины" hidden></section>
+
+    <section id="financePage" class="finance-page" data-app-tab-section="finances" data-tab-available="1" aria-labelledby="financePageTitle" hidden>
+      <div class="finance-page-head">
+        <button id="financeBackButton" class="fasting-back-button finance-back-button" type="button" aria-label="Назад">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div class="finance-page-title">
+          <div class="section-eyebrow">Общие расходы</div>
+          <h1 id="financePageTitle">Финансы</h1>
+          <small>Квартира и коммунальные</small>
+        </div>
+      </div>
+
+      <article class="finance-editor-card">
+        <div class="finance-editor-head">
+          <div class="finance-editor-icon" aria-hidden="true">₽</div>
+          <div class="finance-editor-copy">
+            <span>Расходы за месяц</span>
+            <strong id="financeMonthLabel">—</strong>
+          </div>
+          <input id="financeMonthInput" class="finance-month-input" type="month" aria-label="Месяц расходов">
+        </div>
+        <div id="financeReadOnlyNote" class="finance-readonly-note" hidden>Суммы редактирует Рустам</div>
+        <div class="finance-input-grid">
+          <label class="finance-input-field">
+            <span>Квартира</span>
+            <div class="finance-money-input">
+              <input id="financeRentInput" type="number" min="0" max="10000000" step="1" inputmode="decimal" placeholder="0" aria-label="Сумма за квартиру">
+              <b>₽</b>
+            </div>
+          </label>
+          <label class="finance-input-field">
+            <span>Коммунальные</span>
+            <div class="finance-money-input">
+              <input id="financeUtilitiesInput" type="number" min="0" max="10000000" step="1" inputmode="decimal" placeholder="0" aria-label="Сумма за коммунальные">
+              <b>₽</b>
+            </div>
+          </label>
+        </div>
+        <button id="financeSaveButton" class="finance-save-button" type="button">Сохранить месяц</button>
+        <div id="financeStatus" class="finance-status" role="status" aria-live="polite"></div>
+      </article>
+
+      <section class="finance-summary" aria-label="Расчёт платежей">
+        <article class="finance-total-card">
+          <div class="finance-total-label">Итого за месяц</div>
+          <strong id="financeTotalValue">0 ₽</strong>
+          <span id="financeTotalHint">Квартира + коммунальные</span>
+        </article>
+        <div class="finance-split-grid">
+          <article class="finance-split-card is-diana">
+            <div class="finance-person-mark">Д</div>
+            <div>
+              <span>Диана · 40%</span>
+              <strong id="financeDianaValue">0 ₽</strong>
+            </div>
+          </article>
+          <article class="finance-split-card is-rustam">
+            <div class="finance-person-mark">Р</div>
+            <div>
+              <span>Рустам · 60%</span>
+              <strong id="financeRustamValue">0 ₽</strong>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="finance-history-card" aria-labelledby="financeHistoryTitle">
+        <div class="finance-history-head">
+          <div>
+            <span class="section-eyebrow">Архив</span>
+            <h2 id="financeHistoryTitle">История по месяцам</h2>
+          </div>
+          <span id="financeHistoryCount" class="finance-history-count">0</span>
+        </div>
+        <div id="financeHistoryList" class="finance-history-list"></div>
+        <div id="financeHistoryEmpty" class="finance-history-empty">Сохранённых месяцев пока нет</div>
+      </section>
+    </section>
 
     <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
       <div class="love-hearts" aria-hidden="true">

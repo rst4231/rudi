@@ -13138,3 +13138,108 @@ body[data-rudi-fallback-transition="page"][data-rudi-fallback-direction="back"] 
   box-sizing:border-box!important;
 }
 .products-tab-icon #productsTabBadge[hidden]{display:none!important}
+
+
+/* RUDI v4.10 — avatar mood badges + shared finances */
+.profile .avatar{overflow:visible!important}
+.profile .avatar>img{border-radius:18px}
+.profile .avatar-mood-badge{
+  position:absolute!important;left:-7px!important;bottom:-6px!important;z-index:12!important;
+  width:27px!important;height:27px!important;min-width:27px!important;min-height:27px!important;
+  display:grid!important;place-items:center!important;padding:0!important;margin:0!important;
+  border:1px solid color-mix(in srgb,#fff 54%,var(--line))!important;border-radius:10px!important;
+  background:color-mix(in srgb,var(--surface-strong) 92%,transparent)!important;
+  box-shadow:0 7px 16px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.20)!important;
+  transform:rotate(-10deg);transform-origin:center;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)
+}
+.profile .avatar-mood-badge[hidden]{display:none!important}
+.profile .avatar-mood-badge .mood-emoji,.profile .avatar-mood-badge .partner-mood-icon .mood-emoji{font-size:16px!important;line-height:1!important}
+.profile .mood-current-button.avatar-mood-badge:active{transform:rotate(-10deg) scale(.92)!important}
+.profile .partner-avatar-mood-badge{cursor:pointer}
+.profile .partner-avatar-mood-badge:active{transform:rotate(-10deg) scale(.94)}
+.profile #moodPrompt{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.profile #moodPrompt:active{opacity:.68}
+
+body[data-app-tab="finances"]{
+  background:
+    radial-gradient(circle at 5% 7%,color-mix(in srgb,#2fbd82 13%,transparent),transparent 28%),
+    radial-gradient(circle at 95% 16%,color-mix(in srgb,#f2b94b 10%,transparent),transparent 28%),
+    var(--bg)
+}
+.finance-page{--finance-green:#22a66f;--finance-gold:#c9952d;display:grid;gap:13px;align-content:start;padding:4px 1px max(22px,env(safe-area-inset-bottom))}
+.finance-page-head{min-height:74px;display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:12px;padding:4px 3px 1px}
+.finance-page-title{min-width:0}
+.finance-page-title .section-eyebrow{color:color-mix(in srgb,var(--finance-green) 76%,var(--muted));letter-spacing:.13em}
+.finance-page-title h1{margin:2px 0 0;font-size:25px;line-height:1.05;letter-spacing:-.035em}
+.finance-page-title small{display:block;margin-top:4px;color:var(--muted);font-size:10.5px}
+.finance-back-button{width:48px!important;height:48px!important;border-radius:16px!important;border-color:color-mix(in srgb,var(--finance-green) 16%,var(--line))!important;background:color-mix(in srgb,var(--surface) 94%,transparent)!important;box-shadow:0 10px 24px color-mix(in srgb,var(--text) 7%,transparent)!important}
+.finance-editor-card,.finance-history-card{border:1px solid color-mix(in srgb,var(--finance-green) 10%,var(--line));border-radius:22px;background:linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 97%,transparent),color-mix(in srgb,var(--surface) 93%,transparent));box-shadow:0 16px 42px color-mix(in srgb,var(--text) 6%,transparent),inset 0 1px 0 color-mix(in srgb,#fff 40%,transparent)}
+.finance-editor-card{padding:15px}
+.finance-editor-head{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:10px}
+.finance-editor-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;color:#fff;font-size:20px;font-weight:900;background:linear-gradient(145deg,#36bd86,#14865b);box-shadow:0 9px 22px rgba(34,166,111,.22)}
+.finance-editor-copy{display:grid;gap:2px;min-width:0}
+.finance-editor-copy span{color:var(--muted);font-size:9px;font-weight:720}
+.finance-editor-copy strong{font-size:14px;line-height:1.2}
+.finance-month-input{width:126px;min-height:38px;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);padding:0 9px;font:inherit;font-size:10.5px;font-weight:720}
+.finance-readonly-note{margin-top:11px;padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--finance-gold) 10%,var(--surface));color:color-mix(in srgb,var(--finance-gold) 72%,var(--text));font-size:9.5px;font-weight:680}
+.finance-input-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
+.finance-input-field{display:grid;gap:6px;min-width:0}
+.finance-input-field>span{color:var(--muted);font-size:9.5px;font-weight:720}
+.finance-money-input{min-height:48px;display:flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:15px;background:color-mix(in srgb,var(--surface) 96%,transparent);transition:border-color .16s ease,box-shadow .16s ease}
+.finance-money-input:focus-within{border-color:color-mix(in srgb,var(--finance-green) 48%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--finance-green) 9%,transparent)}
+.finance-money-input input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:17px;font-weight:800;letter-spacing:-.02em}
+.finance-money-input input:disabled{opacity:.72}
+.finance-money-input b{color:var(--muted);font-size:13px}
+.finance-save-button{width:100%;min-height:46px;margin-top:12px;border:0;border-radius:15px;background:linear-gradient(135deg,#27ad76,#188a5e);color:#fff;font:inherit;font-size:11px;font-weight:820;box-shadow:0 10px 24px rgba(34,166,111,.20)}
+.finance-save-button:active{transform:scale(.985)}
+.finance-save-button:disabled{opacity:.55}
+.finance-status{min-height:14px;margin-top:7px;color:var(--muted);font-size:9.5px;text-align:center}
+.finance-summary{display:grid;gap:9px}
+.finance-total-card{position:relative;overflow:hidden;padding:18px;border-radius:23px;background:radial-gradient(circle at 90% 15%,rgba(255,255,255,.18),transparent 30%),linear-gradient(135deg,#1b8f65,#27b079 58%,#4ab98e);color:#fff;box-shadow:0 18px 38px rgba(25,129,91,.22)}
+.finance-total-card::after{content:"₽";position:absolute;right:15px;top:3px;font-size:68px;line-height:1;font-weight:900;color:rgba(255,255,255,.08)}
+.finance-total-label{position:relative;z-index:1;font-size:10px;font-weight:720;opacity:.76}
+.finance-total-card strong{position:relative;z-index:1;display:block;margin-top:4px;font-size:31px;line-height:1.05;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.finance-total-card span{position:relative;z-index:1;display:block;margin-top:8px;font-size:9.5px;opacity:.74}
+.finance-split-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.finance-split-card{min-height:78px;display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:0 10px 26px color-mix(in srgb,var(--text) 5%,transparent)}
+.finance-person-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:12px;font-size:12px;font-weight:900}
+.finance-split-card.is-diana .finance-person-mark{background:color-mix(in srgb,#d8589a 13%,var(--surface));color:#c54888}
+.finance-split-card.is-rustam .finance-person-mark{background:color-mix(in srgb,#4a78df 13%,var(--surface));color:#3d69ca}
+.finance-split-card>div:last-child{min-width:0;display:grid;gap:4px}
+.finance-split-card span{color:var(--muted);font-size:9px;font-weight:720}
+.finance-split-card strong{font-size:16px;line-height:1.1;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.finance-history-card{padding:15px}
+.finance-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.finance-history-head h2{margin:2px 0 0;font-size:16px}
+.finance-history-count{min-width:27px;height:27px;display:grid;place-items:center;padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--finance-green) 11%,var(--surface));color:var(--finance-green);font-size:9px;font-weight:850}
+.finance-history-list{display:grid;gap:7px;margin-top:12px}
+.finance-history-row{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:15px;background:var(--surface);color:var(--text);text-align:left;font:inherit}
+.finance-history-row:active{transform:scale(.987)}
+.finance-history-row-copy{min-width:0;display:grid;gap:3px}
+.finance-history-row-copy strong{font-size:11.5px}
+.finance-history-row-copy span{color:var(--muted);font-size:8.8px}
+.finance-history-row-total{text-align:right;display:grid;gap:3px}
+.finance-history-row-total strong{font-size:12px}
+.finance-history-row-total span{color:var(--muted);font-size:8px}
+.finance-history-empty{padding:18px 4px 5px;color:var(--muted);font-size:10px;text-align:center}
+.finance-history-empty[hidden]{display:none!important}
+@media(max-width:430px){
+  .finance-page{gap:11px}
+  .finance-page-head{min-height:66px;grid-template-columns:44px minmax(0,1fr)}
+  .finance-back-button{width:44px!important;height:44px!important}
+  .finance-page-title h1{font-size:23px}
+  .finance-editor-card,.finance-history-card{border-radius:20px}
+  .finance-editor-head{grid-template-columns:38px minmax(0,1fr) 116px}
+  .finance-editor-icon{width:38px;height:38px;border-radius:13px;font-size:18px}
+  .finance-month-input{width:116px}
+  .finance-input-grid{gap:7px}
+  .finance-money-input{min-height:45px;padding:0 10px}
+  .finance-money-input input{font-size:15px}
+  .finance-total-card{padding:16px}
+  .finance-total-card strong{font-size:28px}
+  .finance-split-card{grid-template-columns:30px minmax(0,1fr);gap:8px;padding:10px}
+  .finance-person-mark{width:30px;height:30px;border-radius:10px}
+  .finance-split-card strong{font-size:14px}
+}
+@media(prefers-reduced-motion:reduce){.finance-save-button,.finance-history-row,.profile .avatar-mood-badge{transition:none!important}}
+/* end RUDI v4.10 */
