@@ -315,12 +315,17 @@ test('habit status buttons stay tappable for the 20:00 hint',()=>{
   assert.match(client,/const todayTimeLocked=habitSelectedDate===habitState\.today&&!habitState\.canCompleteToday/);
   assert.match(client,/yes\.classList\.toggle\('is-time-locked',todayTimeLocked\)/);
   assert.match(client,/no\.classList\.toggle\('is-time-locked',todayTimeLocked\)/);
-  assert.match(client,/setHabitStatus\('Отметить привычку можно после 20:00\.'\)/);
+  assert.match(client,/actionHint\.className='personal-habit-action-hint'/);
+  assert.match(client,/showActionHint\(button\)/);
+  assert.match(client,/save\('done',yes\)/);
+  assert.match(client,/save\('notdone',no\)/);
   assert.doesNotMatch(client,/yes\.disabled=doneLocked/);
   assert.match(api,/\['done','notdone'\]\.includes\(String\(body\.status\|\|''\)\)&&moscowHour\(now\)<20/);
   assert.match(api,/habit-status-too-early/);
   assert.match(css,/\.personal-habit-status-button\.is-time-locked\{/);
-  assert.match(css,/html\[data-theme="light"\] \.personal-habit-status-button\.is-notdone:not\(\.is-active\)/);
+  assert.match(css,/\.personal-habit-action-hint\{/);
+  assert.match(css,/\.personal-habit-action-hint\[data-side="left"\]/);
+  assert.match(css,/\.personal-habit-action-hint\[data-side="right"\]/);
 });
 
 
