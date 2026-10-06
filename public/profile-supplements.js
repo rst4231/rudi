@@ -269,15 +269,21 @@ function renderHabits(){
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
     const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);
+    const pastDateLocked=Boolean(habitSelectedDate&&habitSelectedDate<habitState.today);
     const todayTimeLocked=habitSelectedDate===habitState.today&&!habitState.canCompleteToday;
+    yes.classList.toggle('is-history-locked',pastDateLocked);
+    no.classList.toggle('is-history-locked',pastDateLocked);
     yes.classList.toggle('is-time-locked',todayTimeLocked);
     no.classList.toggle('is-time-locked',todayTimeLocked);
-    yes.setAttribute('aria-disabled',todayTimeLocked||isNotDone?'true':'false');
-    no.setAttribute('aria-disabled',todayTimeLocked?'true':'false');
-    yes.title=isNotDone?'После «Не выполнено» изменить на «Выполнено» нельзя':todayTimeLocked?'Отметить привычку можно после 20:00':'';
-    no.title=todayTimeLocked?'Отметить привычку можно после 20:00':'';
+    yes.disabled=pastDateLocked;
+    no.disabled=pastDateLocked;
+    yes.setAttribute('aria-disabled',pastDateLocked||todayTimeLocked||isNotDone?'true':'false');
+    no.setAttribute('aria-disabled',pastDateLocked||todayTimeLocked?'true':'false');
+    yes.title=pastDateLocked?'Прошлые дни доступны только для просмотра':isNotDone?'После «Не выполнено» изменить на «Выполнено» нельзя':todayTimeLocked?'Отметить привычку можно после 20:00':'';
+    no.title=pastDateLocked?'Прошлые дни доступны только для просмотра':todayTimeLocked?'Отметить привычку можно после 20:00':'';
     actions.append(yes,no);
     const save=async(next)=>{
+      if(pastDateLocked)return;
       if(todayTimeLocked){
         setHabitStatus('Отметить привычку можно после 20:00.');
         try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
@@ -303,7 +309,7 @@ function renderHabits(){
         console.error('RUDI_HABIT_STATUS_UI_ERROR',error);
         const code=String(error?.message||'');
         setHabitStatus(code==='habit-status-too-early'||code==='habit-done-too-early'?'Отметить привычку можно после 20:00.':'Не удалось сохранить статус.',true);
-        yes.disabled=false;no.disabled=false;remove.disabled=false;
+        yes.disabled=pastDateLocked;no.disabled=pastDateLocked;remove.disabled=false;
       }
     };
     yes.addEventListener('click',()=>save('done'));no.addEventListener('click',()=>save('notdone'));
