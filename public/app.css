@@ -13550,3 +13550,53 @@ body[data-app-tab="finances"]{
   border:0!important;
 }
 /* end RUDI v4.15 Coffee 3 frame */
+
+
+/* RUDI v4.16 — mood is a pure sticker, no frame */
+.profile-person-card .score-avatar-wrap > .avatar > #moodCurrentButton.avatar-mood-badge,
+.profile-person-card .score-avatar-wrap > .avatar > #partnerMoodValue.avatar-mood-badge,
+.profile-person-card .score-avatar-wrap > .avatar > .avatar-mood-badge{
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:-4px!important;
+  z-index:20!important;
+  width:32px!important;
+  height:32px!important;
+  min-width:32px!important;
+  min-height:32px!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  outline:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  background-color:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:visible!important;
+  transform:translateX(-50%) rotate(-8deg)!important;
+  transform-origin:center!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar > #moodCurrentButton.avatar-mood-badge[hidden],
+.profile-person-card .score-avatar-wrap > .avatar > #partnerMoodValue.avatar-mood-badge[hidden],
+.profile-person-card .score-avatar-wrap > .avatar > .avatar-mood-badge[hidden]{
+  display:none!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar > #moodCurrentButton.avatar-mood-badge .mood-emoji,
+.profile-person-card .score-avatar-wrap > .avatar > #partnerMoodValue.avatar-mood-badge .mood-emoji,
+.profile-person-card .score-avatar-wrap > .avatar > .avatar-mood-badge .mood-emoji{
+  display:block!important;
+  font-size:25px!important;
+  line-height:1!important;
+  filter:drop-shadow(0 3px 5px rgba(0,0,0,.22));
+}
+.profile-person-card .score-avatar-wrap > .avatar > #moodCurrentButton.avatar-mood-badge:active,
+.profile-person-card .score-avatar-wrap > .avatar > #partnerMoodValue.avatar-mood-badge:active{
+  transform:translateX(-50%) rotate(-8deg) scale(.92)!important;
+}
+/* end RUDI v4.16 mood sticker */
