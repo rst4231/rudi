@@ -2303,8 +2303,7 @@
       function renderFinancePulse(month){
         const row=financePersonalRowForMonth(month)||{};
         const income=Math.max(0,Number(document.getElementById('financePersonalIncomeInput')?.value||row.income||0));
-        const categorized=financeExpenseTotal(month);
-        const expenses=categorized>0||financeExpensesForMonth(month).length?categorized:Math.max(0,Number(row.expenses||0));
+        const expenses=financeExpenseTotal(month);
         const balanceValue=Math.round((income-expenses)*100)/100;
         const balance=document.getElementById('financePersonalBalanceValue'),savings=document.getElementById('financeSavingsRate'),reserveMonths=document.getElementById('financeReserveMonths'),comparison=document.getElementById('financePersonalComparison');
         if(balance)balance.textContent=financeMoney(balanceValue);
@@ -2486,6 +2485,7 @@
       function setFinanceTab(tab){
         const allowed=['shared','personal','debts','literacy'];activeFinanceTab=allowed.includes(tab)?tab:'shared';
         const page=document.getElementById('financePage');if(page)page.dataset.financeTone=activeFinanceTab;
+        document.body.dataset.financeTone=activeFinanceTab;
         document.querySelectorAll('[data-finance-tab]').forEach(button=>{const active=button.dataset.financeTab===activeFinanceTab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',active?'true':'false')});
         document.querySelectorAll('[data-finance-panel]').forEach(panel=>panel.hidden=panel.dataset.financePanel!==activeFinanceTab);
         if(activeFinanceTab==='literacy')loadFinanceLiteracy().catch(()=>{});
