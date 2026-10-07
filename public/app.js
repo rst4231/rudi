@@ -2954,12 +2954,12 @@
           if(!paid)pending+=Number(row.amount||0);
           const item=document.createElement('div');item.className='finance-obligation-row'+(paid?' is-paid':'');
           const toggle=document.createElement('button');toggle.type='button';toggle.className='finance-obligation-toggle';toggle.textContent=paid?'✓':'○';toggle.title=paid?'Отметить как неоплаченный':'Отметить оплаченным';
-          const copy=document.createElement('button');copy.type='button';copy.className='finance-obligation-copy';copy.innerHTML='<strong></strong><small></small>';copy.querySelector('strong').textContent=row.title;copy.querySelector('small').textContent=financeMoney(row.amount)+' · '+row.day+' числа';
+          const copy=document.createElement('button');copy.type='button';copy.className='finance-obligation-copy';copy.innerHTML='<strong></strong><small></small>';copy.querySelector('strong').textContent=row.title;copy.querySelector('small').textContent=financeOverviewMoney(row.amount)+' · '+row.day+' числа';
           const del=document.createElement('button');del.type='button';del.className='finance-obligation-delete';del.textContent='×';
           toggle.addEventListener('click',()=>toggleFinanceObligationPaid(row.id,!paid));copy.addEventListener('click',()=>openFinanceObligationComposer(row.id));del.addEventListener('click',()=>deleteFinanceObligation(row.id));
           item.append(toggle,copy,del);list.append(item);
         }
-        forecast.textContent=obligations.length?'До конца '+financeMonthTitle(month)+': '+financeMoney(pending):'Запланированных обязательных расходов нет';
+        forecast.textContent=obligations.length?'До конца '+financeMonthTitle(month)+': '+financeOverviewMoney(pending):'Запланированных обязательных расходов нет';
       }
       async function saveFinancePlanWithObligations(obligations){
         const data=await financeRequest('save-plan',{
