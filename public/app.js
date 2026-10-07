@@ -1892,8 +1892,9 @@
         const previous=cached&&Array.isArray(cached.items)?cached.items:[];
         const map=new Map(previous.map(item=>[String(item.id||''),item]));
         current.forEach(item=>map.set(String(item.id||''),item));
-        const items=['usd-rub','btcusdt','ethusdt'].map(id=>map.get(id)).filter(Boolean);
-        return {...(cached||{}),...(fresh||{}),items,partial:items.length<3};
+        const ids=['usd-rub','eur-rub','btcusdt','ethusdt','usdtusd'];
+        const items=ids.map(id=>map.get(id)).filter(Boolean);
+        return {...(cached||{}),...(fresh||{}),items,partial:items.length<ids.length};
       }
 
       function createMarketTickerGroup(items){
@@ -1907,7 +1908,7 @@
           label.textContent=String(item.label||'');
           const value=document.createElement('strong');
           value.className='market-ticker-value';
-          value.textContent=marketTickerNumber(item.value,{crypto:item.id!=='usd-rub'});
+          value.textContent=marketTickerNumber(item.value,{crypto:!['usd-rub','eur-rub'].includes(item.id)});
           row.append(label,value);
           const change=marketTickerChange(item.change24h);
           if(change){
@@ -1932,8 +1933,10 @@
         const byId=new Map(actual.map(item=>[String(item.id||''),item]));
         const items=[
           byId.get('usd-rub')||{id:'usd-rub',label:'USD/RUB',value:null,change24h:null,unavailable:true},
+          byId.get('eur-rub')||{id:'eur-rub',label:'EUR/RUB',value:null,change24h:null,unavailable:true},
           byId.get('btcusdt')||{id:'btcusdt',label:'BTC',value:null,change24h:null,unavailable:true},
-          byId.get('ethusdt')||{id:'ethusdt',label:'ETH',value:null,change24h:null,unavailable:true}
+          byId.get('ethusdt')||{id:'ethusdt',label:'ETH',value:null,change24h:null,unavailable:true},
+          byId.get('usdtusd')||{id:'usdtusd',label:'USDT',value:null,change24h:null,unavailable:true}
         ];
         if(!actual.length){
           track.classList.remove('is-ready');
@@ -1958,25 +1961,19 @@
           a11y.textContent=items.map(item=>{
             if(item.unavailable) return String(item.label||'')+' нет данных';
             const change=marketTickerChange(item.change24h);
-            return String(item.label||'')+' '+marketTickerNumber(item.value,{crypto:item.id!=='usd-rub'})+(change?' '+change.text:'');
+            return String(item.label||'')+' '+marketTickerNumber(item.value,{crypto:!['usd-rub','eur-rub'].includes(item.id)})+(change?' '+change.text:'');
           }).join(', ');
         }
         restartRudiMotion(tile);
       }
 
       function applyMarketTickerVisibility(){
-        const enabled=marketTickerEnabled();
         const tile=document.getElementById('marketTickerTile');
-        const toggle=document.getElementById('marketTickerToggle');
-        if(toggle){
-          toggle.setAttribute('aria-checked',enabled?'true':'false');
-          toggle.classList.toggle('is-on',enabled);
-        }
         if(tile){
-          tile.dataset.tabAvailable=enabled?'1':'0';
-          tile.hidden=!enabled||currentAppTab!=='home';
+          tile.dataset.tabAvailable='1';
+          tile.hidden=currentAppTab!=='finances';
         }
-        return enabled;
+        return true;
       }
 
       function setMarketTickerEnabled(enabled,{persist=true}={}){
@@ -1989,7 +1986,7 @@
       }
 
       async function loadMarketTicker({silent=false}={}){
-        if(!currentActor||!marketTickerEnabled()) return null;
+        if(!currentActor) return null;
         const cached=readMarketTickerLocalCache();
         if(cached&&!silent) renderMarketTicker(cached);
         if(marketTickerLoadPromise) return marketTickerLoadPromise;
@@ -2023,16 +2020,11 @@
       }
 
       function setupMarketTicker(){
-        const toggle=document.getElementById('marketTickerToggle');
-        if(toggle&&toggle.dataset.bound!=='1'){
-          toggle.dataset.bound='1';
-          toggle.addEventListener('click',()=>setMarketTickerEnabled(!marketTickerEnabled()));
-        }
         const enabled=applyMarketTickerVisibility();
-        const onHome=initialBootstrapTab()==='home';
+        const onFinances=initialBootstrapTab()==='finances';
         const cached=readMarketTickerLocalCache();
-        if(enabled&&onHome&&cached) renderMarketTicker(cached);
-        if(enabled&&onHome) loadMarketTicker({silent:Boolean(cached)});
+        if(enabled&&onFinances&&cached) renderMarketTicker(cached);
+        if(enabled&&onFinances) loadMarketTicker({silent:Boolean(cached)});
       }
 
       function rudiMotionReduced(){
@@ -3239,7 +3231,11 @@
         if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='settings') refreshSettingsPageUi();
-        if(tab==='finances') loadFinances({silent:true}).catch(()=>{});
+        if(tab==='finances'){
+          loadFinances({silent:true}).catch(()=>{});
+          applyMarketTickerVisibility();
+          loadMarketTicker({silent:true}).catch(()=>{});
+        }
         if(tab==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
         if(tab==='car') Promise.resolve(window.RUDI_CAR?.refresh?.()).catch(()=>{});
         if(tab==='fasting') loadFastingTracker({silent:true});
@@ -3271,7 +3267,10 @@
         else if(next==='products') loadProducts({silent:true}).catch(()=>{});
         else if(next==='photos') Promise.resolve(loadSharedAlbum()).catch(()=>{});
         else if(next==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
-        else if(next==='finances') loadFinances({silent:true}).catch(()=>{});
+        else if(next==='finances'){
+          loadFinances({silent:true}).catch(()=>{});
+          loadMarketTicker({silent:true}).catch(()=>{});
+        }
         else if(next==='fasting') Promise.resolve(loadFastingTracker({silent:true})).catch(()=>{});
         else if(next==='habits'||next==='supplements') Promise.resolve(window.RudiSupplementApp?.loadHomeTools?.({force:false})).catch(()=>{});
       }
@@ -16193,4 +16192,3 @@
       });
     })();
 
-// RUDI deploy trigger v2.115: supplement card info release
