@@ -1,7 +1,7 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
-  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
+  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
@@ -16,7 +16,7 @@ function statusFor(code, error) {
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
     'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
-    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch'
+    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid'
   ].includes(code)) return 400;
   return 500;
 }
@@ -124,6 +124,10 @@ async function handler(req, res) {
     }
     if (operation === 'update-category') {
       const state = await updateExpenseCategory(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'add-category-label') {
+      const state = await addExpenseCategoryLabel(actor, body.id, body.label);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'archive-category') {
