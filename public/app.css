@@ -14254,9 +14254,9 @@ html[data-theme="dark"] .finance-coin-overview{background:color-mix(in srgb,var(
 .finance-income-coin:active{cursor:grabbing}
 .finance-category-coin{
   color:#fff;
-  background:linear-gradient(145deg,color-mix(in srgb,var(--finance-coin-color,#32c995) 82%,#fff),var(--finance-coin-color,#32c995));
+  background:linear-gradient(145deg,#858d99,#68717d);
   border:1px solid rgba(255,255,255,.34);
-  box-shadow:0 7px 15px color-mix(in srgb,var(--finance-coin-color,#32c995) 24%,transparent),inset 0 1px 1px rgba(255,255,255,.5)
+  box-shadow:0 7px 15px rgba(83,91,103,.24),inset 0 1px 1px rgba(255,255,255,.5)
 }
 .finance-coin-amount{
   max-width:100%;
