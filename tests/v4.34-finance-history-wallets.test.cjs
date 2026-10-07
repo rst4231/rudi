@@ -7,6 +7,7 @@ const {
   saveWallet, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
   archiveExpenseCategory, reorderExpenseCategories, importPersonalExpenses,
 } = require('../api/finance-store.cjs');
+const { directFinanceAddress } = require('../api/finance-ai.cjs');
 
 function memoryCache() {
   let value = null;
@@ -145,4 +146,12 @@ test('cross currency metadata and refund stay reversible', async () => {
   view=viewState(await readFinanceState({financeCache}),'Рустам');
   assert.equal(view.wallets[0].balance,50);
   assert.equal(view.personalExpenses.some(row=>row.id==='expense-fx'),false);
+});
+
+test('finance analyst addresses user directly and fixes Russian month case', () => {
+  const text=directFinanceAddress('У Рустама в октября расходы выше плана. Для Дианы это тоже заметно.');
+  assert.match(text,/у вас в октябре/i);
+  assert.match(text,/для вас/i);
+  assert.doesNotMatch(text,/Рустам|Диан/i);
+  assert.doesNotMatch(text,/в октября/i);
 });
