@@ -14884,3 +14884,6 @@ html[data-theme="dark"] .finance-literacy-card{
   line-height:1.25;
   font-weight:720;
 }
+
+/* v4.38 category reorder gesture capture */
+.finance-category-coin{touch-action:none}
