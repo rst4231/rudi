@@ -16,6 +16,12 @@ function clean(value, max = 5000) {
 function compact(value, max = 600) {
   return clean(value, max).replace(/\s+/g, ' ').trim();
 }
+function financeMonthPhrase(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})$/);
+  if (!match) return 'в выбранном месяце';
+  const months = ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре'];
+  return 'в ' + months[Math.max(0, Math.min(11, Number(match[2]) - 1))] + ' ' + match[1] + ' года';
+}
 function moscowDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -169,7 +175,7 @@ async function getMonthlyFinanceInsight(context = {}, options = {}) {
     'Ты финансовый помощник внутри приложения RUDI.',
     'Дай один короткий полезный вывод по месяцу на русском языке, 2–4 предложения, без морализаторства и без инвестиционных советов.',
     'Опирайся только на переданные цифры. Если данных мало, так и скажи и предложи одно простое действие.',
-    'Пользователь: ' + actor + '. Месяц: ' + month + '.',
+    'Имя пользователя передано только для внутреннего контекста и не должно появляться в ответе: ' + actor + '. Период: ' + financeMonthPhrase(month) + '.',
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
     categories ? 'Категории: ' + categories : 'Расходы по категориям пока не добавлены.',
   ].join('\n');
@@ -215,6 +221,8 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
   const prompt = [
     'Ты — финансовый аналитик внутри приложения RUDI.',
     'Сделай персональный разбор финансов пользователя на русском языке на основе его фактических доходов, расходов по категориям, цели и долгов.',
+    'Всегда обращайся к пользователю на «вы»: «у вас», «ваши расходы», «вам стоит». Никогда не упоминай имя пользователя в готовом ответе и не пиши «у Рустама» или «у Дианы».',
+    'Месяц в тексте склоняй естественно: например, «у вас в октябре», а не «в октября».',
     'Используй здравые принципы личных финансов из качественной литературы: The Psychology of Money, The Millionaire Next Door, Your Money or Your Life, The Little Book of Common Sense Investing, A Random Walk Down Wall Street, I Will Teach You to Be Rich и других.',
     'Если есть сегодняшняя статья по финансовой грамотности, используй её идею как дополнительный контекст, но не копируй её текст.',
     'Не давай конкретных рекомендаций купить или продать ценные бумаги, криптовалюту или иной актив. Не обещай доходность.',
