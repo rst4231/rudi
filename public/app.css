@@ -14787,3 +14787,17 @@ html[data-theme="dark"] .finance-literacy-card{
   min-height:24px;
   align-self:center
 }
+
+
+/* v4.37 expense source hint */
+.finance-expense-source{
+  margin:-3px 1px 10px;
+  padding:8px 10px;
+  border:1px solid color-mix(in srgb,var(--finance-accent) 12%,var(--line));
+  border-radius:11px;
+  background:color-mix(in srgb,var(--finance-accent) 5%,var(--soft));
+  color:var(--text);
+  font-size:9px;
+  font-weight:760;
+  line-height:1.35
+}
