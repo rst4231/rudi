@@ -15553,3 +15553,11 @@ html[data-theme="dark"] .finance-literacy-card{
     height:32px!important
   }
 }
+
+/* RUDI v4.45 — credit accounts, inline history and iPhone date/time */
+.finance-expense-datetime-grid{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.finance-expense-datetime-grid>.finance-input-field{width:100%!important;max-width:100%!important;min-width:0!important;overflow:hidden!important;box-sizing:border-box!important}
+.finance-expense-datetime-grid input[type="date"],.finance-expense-datetime-grid input[type="time"]{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;inline-size:100%!important;min-inline-size:0!important;max-inline-size:100%!important;box-sizing:border-box!important;overflow:hidden!important;-webkit-appearance:none!important;appearance:none!important}
+.finance-expense-datetime-grid input[type="date"]::-webkit-date-and-time-value,.finance-expense-datetime-grid input[type="time"]::-webkit-date-and-time-value{width:100%!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-align:center!important}
+.finance-credit-fields{display:grid;gap:10px;min-width:0}.finance-credit-fields[hidden]{display:none!important}.finance-credit-estimate{color:var(--muted);font-size:9.5px;line-height:1.35}.finance-wallet-credit-meta{display:block;max-width:100%;margin-top:2px;color:var(--muted);font-size:7.5px;line-height:1.2;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#financeOperationsCard{margin-top:12px}
+@media(max-width:430px){.finance-expense-datetime-grid{gap:7px!important}.finance-expense-datetime-grid input[type="date"],.finance-expense-datetime-grid input[type="time"]{padding-left:8px!important;padding-right:8px!important;font-size:13px!important;line-height:1.15!important}}@media(max-width:340px){.finance-expense-datetime-grid{grid-template-columns:1fr!important}}

@@ -1,7 +1,8 @@
 (() => {
   const tg = window.Telegram?.WebApp;
   const API = '/api/index?route=car';
-  const state = { car:null, weather:null, loading:false, documents:null, documentsLoading:false };
+  const FINANCE_API = '/api/finances';
+  const state = { car:null, weather:null, loading:false, documents:null, documentsLoading:false, finance:null, financeLoading:false };
   let pendingNoteUndo=null;
   let pendingNoteUndoTimer=null;
 
@@ -45,6 +46,46 @@
       await backup.storeToken(data.backupToken).catch(()=>false);
     }
     return data;
+  }
+
+  async function financeApi(operation='list',payload={}){
+    const response=await fetch(FINANCE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
+    const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||'finance-request-failed');return data;
+  }
+  const CAR_EXPENSE_LABELS=['Бензин','Паркинг','Ремонт','Страховка','ТО'];
+  function normalizeFinanceText(value){return String(value||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ')}
+  function carExpenseMoney(value){const n=Number(value||0);return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:Number.isInteger(n)?0:2}).format(n)+' ₽'}
+  function carExpenseMonthLabel(month){const m=String(month||'').match(/^(\d{4})-(\d{2})$/);if(!m)return String(month||'');const t=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'Europe/Moscow'}).format(new Date(Date.UTC(Number(m[1]),Number(m[2])-1,1)));return t.charAt(0).toLocaleUpperCase('ru-RU')+t.slice(1)}
+  function carExpenseGroups(finance){
+    const categories=[...(Array.isArray(finance?.categories)?finance.categories:[]),...(Array.isArray(finance?.archivedCategories)?finance.archivedCategories:[])];
+    const transportIds=new Set(categories.filter(row=>normalizeFinanceText(row?.name)==='транспорт').map(row=>String(row.id||'')));
+    const allowed=new Map(CAR_EXPENSE_LABELS.map(label=>[normalizeFinanceText(label),label])),groups=new Map();
+    for(const row of Array.isArray(finance?.personalExpenses)?finance.personalExpenses:[]){
+      if(!transportIds.has(String(row?.categoryId||'')))continue;const label=allowed.get(normalizeFinanceText(row?.label));if(!label)continue;
+      const month=/^\d{4}-\d{2}$/.test(String(row?.month||''))?String(row.month):String(row?.occurredAt||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(month))continue;
+      const amount=Number(row?.rubAmount??row?.amount??0);if(!Number.isFinite(amount)||amount<=0)continue;
+      if(!groups.has(month))groups.set(month,{month,total:0,labels:new Map()});const g=groups.get(month);g.total+=amount;
+      const item=g.labels.get(label)||{label,total:0,count:0};item.total+=amount;item.count+=1;g.labels.set(label,item);
+    }
+    const rank=new Map(CAR_EXPENSE_LABELS.map((label,index)=>[label,index]));
+    return [...groups.values()].sort((a,b)=>b.month.localeCompare(a.month)).map(g=>({month:g.month,total:Math.round(g.total*100)/100,labels:[...g.labels.values()].sort((a,b)=>(rank.get(a.label)??99)-(rank.get(b.label)??99)).map(row=>({...row,total:Math.round(row.total*100)/100}))}));
+  }
+  function renderCarExpenses(){
+    const list=document.getElementById('carExpensesList'),status=document.getElementById('carExpensesStatus'),meta=document.getElementById('carExpensesMeta');if(!list)return;list.replaceChildren();
+    if(state.financeLoading&&!state.finance){if(status){status.hidden=false;status.textContent='Загружаю расходы…'}if(meta)meta.textContent='';return}
+    const groups=carExpenseGroups(state.finance||{});if(meta)meta.textContent=groups.length?groups.length+' мес.':'';
+    if(!groups.length){if(status){status.hidden=false;status.textContent='Расходов по меткам Бензин, Паркинг, Ремонт, Страховка и ТО пока нет'}return}if(status)status.hidden=true;
+    for(const group of groups){
+      const section=document.createElement('section');section.className='car-expense-month';const head=document.createElement('div');head.className='car-expense-month-head';
+      const title=document.createElement('strong');title.textContent=carExpenseMonthLabel(group.month);const total=document.createElement('b');total.textContent=carExpenseMoney(group.total);head.append(title,total);
+      const rows=document.createElement('div');rows.className='car-expense-labels';
+      for(const entry of group.labels){const row=document.createElement('div');row.className='car-expense-label-row';const copy=document.createElement('div'),name=document.createElement('strong'),count=document.createElement('small'),amount=document.createElement('b');name.textContent=entry.label;count.textContent=entry.count+' '+(entry.count===1?'операция':entry.count<5?'операции':'операций');amount.textContent=carExpenseMoney(entry.total);copy.append(name,count);row.append(copy,amount);rows.append(row)}
+      section.append(head,rows);list.append(section);
+    }
+  }
+  async function loadCarExpenses({force=false}={}){
+    if(!document.body.classList.contains('auth-ok'))return null;if(state.financeLoading)return state.finance;if(state.finance&&!force){renderCarExpenses();return state.finance}
+    state.financeLoading=true;renderCarExpenses();try{state.finance=await financeApi('list');renderCarExpenses();return state.finance}catch(_){state.finance=null;const status=document.getElementById('carExpensesStatus');if(status){status.hidden=false;status.textContent='Не удалось загрузить расходы'}return null}finally{state.financeLoading=false;renderCarExpenses()}
   }
 
   function setWashGuideOpen(open) {
@@ -466,9 +507,9 @@
     return Math.max(0,next-mileage);
   }
 
-  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks','documents','notes'];
+  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks','expenses','documents','notes'];
   const CAR_SMART_FALLBACK_PRIORITY={
-    base:{mileage:60,errors:50,tasks:40},
+    base:{mileage:60,errors:50,tasks:40,expenses:35},
     tasks:{overdue:1000,today:900,tomorrow:650,week:500,any:250},
     service:{due:980,within500:860,within1000:780,within2500:560,within5000:320},
     mileage:{missing:700},
@@ -764,6 +805,7 @@
     const mileage=body.querySelector('.car-mileage-panel');
     const errors=body.querySelector('.car-errors');
     const tasks=body.querySelector('.car-tasks');
+    const expenses=body.querySelector('.car-expenses');
     const documents=body.querySelector('.car-documents');
     const notes=body.querySelector('.car-notes');
     const progress=body.querySelector(':scope > .car-service-progress');
@@ -779,6 +821,7 @@
       buildCarSmartCard('mileage','Пробег и ТО',mileageService),
       buildCarSmartCard('errors','Нужно починить',errors),
       buildCarSmartCard('tasks','Что сделать по машине',tasks),
+      buildCarSmartCard('expenses','Расходы',expenses),
       buildCarSmartCard('documents','Автодокументы',documents),
       buildCarSmartCard('notes','Заметки',notes)
     ].filter(Boolean);
@@ -795,6 +838,9 @@
     const taskMeta=tasks?.querySelector('#carTasksMeta');
     if(taskMeta&&taskCard) taskCard.querySelector('.car-smart-card-actions')?.prepend(taskMeta);
     tasks?.querySelector('.car-section-head')?.remove();
+
+    const expensesCard=cards.find(card=>card.dataset.carCard==='expenses');
+    const expensesMeta=expenses?.querySelector('#carExpensesMeta');if(expensesMeta&&expensesCard) expensesCard.querySelector('.car-smart-card-actions')?.prepend(expensesMeta);expenses?.querySelector('.car-section-head')?.remove();
 
     const documentsCard=cards.find(card=>card.dataset.carCard==='documents');
     const documentsMeta=documents?.querySelector('#carDocumentsMeta');
@@ -839,9 +885,10 @@
     const cards=[...host.querySelectorAll(':scope > .car-smart-card')];
     if(cards.length<2) return;
     const before=animate?carCardRects(host):null;
+    const expensesCard=cards.find(card=>card.dataset.carCard==='expenses')||null;
     const documentsCard=cards.find(card=>card.dataset.carCard==='documents')||null;
     const notesCard=cards.find(card=>card.dataset.carCard==='notes')||null;
-    const ranked=cards.filter(card=>card!==notesCard&&card!==documentsCard).map(card=>{
+    const ranked=cards.filter(card=>card!==notesCard&&card!==documentsCard&&card!==expensesCard).map(card=>{
       const priority=carCardPriority(card.dataset.carCard);
       card.dataset.priorityScore=String(priority.score);
       card.dataset.priorityReason=priority.reason;
@@ -850,11 +897,9 @@
 
     ranked.forEach(({card})=>host.insertBefore(card,document.getElementById('carStatus')||null));
     const taskCard=host.querySelector(':scope > .car-smart-card[data-car-card="tasks"]');
-    if(documentsCard&&taskCard) host.insertBefore(documentsCard,taskCard.nextSibling);
-    else if(documentsCard) host.insertBefore(documentsCard,document.getElementById('carStatus')||null);
-    if(notesCard&&documentsCard) host.insertBefore(notesCard,documentsCard.nextSibling);
-    else if(notesCard&&taskCard) host.insertBefore(notesCard,taskCard.nextSibling);
-    else if(notesCard) host.insertBefore(notesCard,document.getElementById('carStatus')||null);
+    if(expensesCard&&taskCard) host.insertBefore(expensesCard,taskCard.nextSibling); else if(expensesCard) host.insertBefore(expensesCard,document.getElementById('carStatus')||null);
+    if(documentsCard&&expensesCard) host.insertBefore(documentsCard,expensesCard.nextSibling); else if(documentsCard&&taskCard) host.insertBefore(documentsCard,taskCard.nextSibling); else if(documentsCard) host.insertBefore(documentsCard,document.getElementById('carStatus')||null);
+    if(notesCard&&documentsCard) host.insertBefore(notesCard,documentsCard.nextSibling); else if(notesCard&&expensesCard) host.insertBefore(notesCard,expensesCard.nextSibling); else if(notesCard&&taskCard) host.insertBefore(notesCard,taskCard.nextSibling); else if(notesCard) host.insertBefore(notesCard,document.getElementById('carStatus')||null);
     if(animate) animateCarCardOrder(host,before);
   }
 
@@ -866,6 +911,7 @@
       if(next==='car'&&previous!=='car'){
         requestAnimationFrame(()=>applyCarSmartOrder({animate:false}));
         loadCarDocuments().catch(()=>{});
+        loadCarExpenses().catch(()=>{});
       }
       previous=next;
     });
@@ -1961,6 +2007,7 @@
     renderErrors(state.car);
     renderCarWashGuideAction(state.weather);
     renderTasks(state.car.ticktick);
+    renderCarExpenses();
     renderCarDocuments();
     renderNotes(state.car);
     renderCarAttention(state.car,state.weather);
@@ -2020,6 +2067,7 @@
       render();
       applyCarSmartOrder({animate:false});
       if(document.body.dataset.appTab==='car') loadCarDocuments().catch(()=>{});
+      loadCarExpenses({force:true}).catch(()=>{});
       loadWeather();
     } catch(_) {
       const tile=document.getElementById('carTile');

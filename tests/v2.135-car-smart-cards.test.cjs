@@ -9,7 +9,7 @@ const app=fs.readFileSync('public/app.js','utf8');
 const config=JSON.parse(fs.readFileSync('rudi-config.json','utf8'));
 
 test('car page uses smart collapsible cards without manual dragging',()=>{
-  assert.match(js,/CAR_SMART_DEFAULT_ORDER=\['mileage','errors','tasks'\]/);
+  assert.match(js,/CAR_SMART_DEFAULT_ORDER=\['mileage','errors','tasks','expenses','documents','notes'\]/);
   assert.match(js,/function setupCarSmartCards\(\)/);
   assert.match(js,/function applyCarSmartOrder\(/);
   assert.match(js,/setCarCardCollapsed/);

@@ -213,6 +213,10 @@ function normalizeState(value) {
           icon: cleanIcon(raw?.icon || '💳'),
           currency: cleanCurrency(raw?.currency || 'RUB'),
           balance: cleanWalletBalance(raw?.balance || 0),
+          type: raw?.type === 'credit' ? 'credit' : 'regular',
+          creditLimit: cleanAssetAmount(raw?.creditLimit || 0),
+          annualRate: Math.max(0, Math.min(1000, Number(raw?.annualRate || 0))),
+          minimumPayment: cleanAssetAmount(raw?.minimumPayment || 0),
           archived: Boolean(raw?.archived),
           importSource: cleanText(raw?.importSource, 24),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
@@ -524,6 +528,12 @@ async function saveWallet(actor, payload = {}, options = {}) {
   const icon = cleanIcon(payload.icon || '💳');
   const currency = cleanCurrency(payload.currency || 'RUB');
   const balance = cleanWalletBalance(payload.balance || 0);
+  const type = payload.type === 'credit' ? 'credit' : 'regular';
+  const creditLimit = type === 'credit' ? cleanAssetAmount(payload.creditLimit || 0) : 0;
+  const annualRateRaw = Number(payload.annualRate || 0); if (!Number.isFinite(annualRateRaw) || annualRateRaw < 0 || annualRateRaw > 1000) throw new Error('finance-rate-invalid');
+  const annualRate = type === 'credit' ? Math.round(annualRateRaw * 100) / 100 : 0;
+  const minimumPayment = type === 'credit' ? cleanAssetAmount(payload.minimumPayment || 0) : 0;
+  if (type === 'credit' && creditLimit <= 0) throw new Error('finance-credit-limit-invalid'); if (type === 'credit' && balance < -creditLimit) throw new Error('finance-wallet-insufficient');
   const requestedId = cleanText(payload.id, 100);
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
@@ -532,7 +542,7 @@ async function saveWallet(actor, payload = {}, options = {}) {
     const existing = rows.find((row) => row.id === id);
     const now = new Date(options.now || Date.now()).toISOString();
     const row = {
-      id, name, icon, currency, balance, archived: false,
+      id, name, icon, currency, balance, type, creditLimit, annualRate, minimumPayment, archived: false,
       importSource: cleanText(existing?.importSource || payload.importSource, 24),
       createdAt: existing?.createdAt || now,
     };
@@ -674,13 +684,15 @@ async function saveWalletTransfer(actor, payload = {}, options = {}) {
     const sourceWallet = rows.find((row) => row.id === fromWalletId && !row.archived);
     const targetWallet = rows.find((row) => row.id === toWalletId && !row.archived);
     if (!sourceWallet || !targetWallet) throw new Error('finance-wallet-not-found');
-    if (Number(sourceWallet.balance || 0) + 1e-12 < sourceAmount) throw new Error('finance-wallet-insufficient');
+    const sourceNextBalance = Number(sourceWallet.balance || 0) - sourceAmount;
+    if (sourceWallet.type === 'credit') { if (Number(sourceWallet.creditLimit || 0) <= 0 || sourceNextBalance < -Number(sourceWallet.creditLimit || 0) - 1e-12) throw new Error('finance-wallet-insufficient'); }
+    else if (Number(sourceWallet.balance || 0) + 1e-12 < sourceAmount) throw new Error('finance-wallet-insufficient');
     const sourceCurrency = cleanCurrency(payload.sourceCurrency || sourceWallet.currency);
     const targetCurrency = cleanCurrency(payload.targetCurrency || targetWallet.currency);
     if (sourceCurrency !== sourceWallet.currency || targetCurrency !== targetWallet.currency) throw new Error('finance-wallet-currency-mismatch');
     const now = new Date(options.now || Date.now()).toISOString();
     const nextWallets = rows.map((row) => {
-      if (row.id === fromWalletId) return { ...row, balance: cleanWalletBalance(Number(row.balance || 0) - sourceAmount) };
+      if (row.id === fromWalletId) return { ...row, balance: cleanWalletBalance(sourceNextBalance) };
       if (row.id === toWalletId) return { ...row, balance: cleanWalletBalance(Number(row.balance || 0) + targetAmount) };
       return row;
     });
@@ -968,8 +980,10 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
       if (!wallet) throw new Error('finance-wallet-not-found');
       if (wallet.currency !== sourceCurrency) throw new Error('finance-wallet-currency-mismatch');
       if (sourceAmount <= 0) throw new Error('finance-amount-invalid');
-      if (Number(wallet.balance || 0) + 1e-9 < sourceAmount) throw new Error('finance-wallet-insufficient');
-      const nextBalance = cleanAssetAmount(Number(wallet.balance || 0) - sourceAmount);
+      const nextBalanceRaw = Number(wallet.balance || 0) - sourceAmount;
+      if (wallet.type === 'credit') { if (Number(wallet.creditLimit || 0) <= 0 || nextBalanceRaw < -Number(wallet.creditLimit || 0) - 1e-9) throw new Error('finance-wallet-insufficient'); }
+      else if (Number(wallet.balance || 0) + 1e-9 < sourceAmount) throw new Error('finance-wallet-insufficient');
+      const nextBalance = cleanWalletBalance(nextBalanceRaw);
       wallets = {
         ...current.wallets,
         [safeActor]: rows.map((row) => row.id === walletId ? { ...row, balance: nextBalance } : row),

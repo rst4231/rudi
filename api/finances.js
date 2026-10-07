@@ -16,7 +16,7 @@ function statusFor(code, error) {
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
     'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
-    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid','finance-transfer-same-wallet'
+    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid','finance-transfer-same-wallet','finance-credit-limit-invalid'
   ].includes(code)) return 400;
   return 500;
 }

@@ -2880,17 +2880,29 @@
       }
 
 
+      function updateFinanceWalletCreditFields(){
+        const type=document.getElementById('financeWalletType'),currency=document.getElementById('financeWalletCurrency'),balance=document.getElementById('financeWalletBalance'),annualRate=document.getElementById('financeWalletAnnualRate'),fields=document.getElementById('financeWalletCreditFields');
+        const isCredit=type?.value==='credit';if(fields)fields.hidden=!isCredit;
+        const label=document.getElementById('financeWalletBalanceLabel');if(label)label.textContent=isCredit?'Баланс · долг со знаком −':'Баланс';
+        const symbol=financeCurrencySymbol(currency?.value||'RUB');const ls=document.getElementById('financeWalletCreditLimitCurrency'),ps=document.getElementById('financeWalletMinimumPaymentCurrency');if(ls)ls.textContent=symbol;if(ps)ps.textContent=symbol;
+        const estimate=document.getElementById('financeWalletCreditEstimate');if(estimate){const debt=Math.max(0,-Number(balance?.value||0)),rate=Math.max(0,Number(annualRate?.value||0));estimate.textContent=isCredit&&debt>0&&rate>0?'Ориентир процентов за месяц: '+financeMoney(debt*rate/1200,currency?.value||'RUB'):''}
+      }
+
       function openFinanceWalletComposer(walletId=''){
         financeWalletEditingId=String(walletId||'');
         const wallet=financeWalletEditingId?financeWalletById(financeWalletEditingId):null;
         const modal=document.getElementById('financeWalletComposer');if(!modal)return;
         const title=document.getElementById('financeWalletComposerTitle'),name=document.getElementById('financeWalletName');
-        const currency=document.getElementById('financeWalletCurrency');
+        const currency=document.getElementById('financeWalletCurrency'),type=document.getElementById('financeWalletType');
         const balance=document.getElementById('financeWalletBalance'),remove=document.getElementById('financeWalletDeleteButton'),status=document.getElementById('financeWalletStatus');
+        const creditLimit=document.getElementById('financeWalletCreditLimit'),annualRate=document.getElementById('financeWalletAnnualRate'),minimumPayment=document.getElementById('financeWalletMinimumPayment');
         if(title)title.textContent=wallet?'Редактировать кошелёк':'Новый кошелёк';
         if(name)name.value=wallet?.name||'';
-        if(currency)currency.value=wallet?.currency||'RUB';
+        if(currency)currency.value=wallet?.currency||'RUB';if(type)type.value=wallet?.type==='credit'?'credit':'regular';
         if(balance)balance.value=wallet&&Number.isFinite(Number(wallet.balance))&&Number(wallet.balance)!==0?String(wallet.balance):'';
+        if(creditLimit)creditLimit.value=wallet?.type==='credit'&&Number(wallet.creditLimit||0)>0?String(wallet.creditLimit):'';
+        if(annualRate)annualRate.value=wallet?.type==='credit'&&Number(wallet.annualRate||0)>0?String(wallet.annualRate):'';
+        if(minimumPayment)minimumPayment.value=wallet?.type==='credit'&&Number(wallet.minimumPayment||0)>0?String(wallet.minimumPayment):'';updateFinanceWalletCreditFields();
         if(remove)remove.hidden=!wallet;
         if(status)status.textContent='';
         renderFinanceWalletHistory(wallet?.id||'');
@@ -3153,7 +3165,7 @@
         }
         if(complete){
           const text=financeMoney(Math.round(total*100)/100);
-          if(host){host.textContent=financeBalanceHidden?'••••••':text;host.title='Общая стоимость активных кошельков в рублях'}
+          if(host){host.textContent=financeBalanceHidden?'••••••':text;host.title='Чистый баланс кошельков с учётом кредитных счетов'}
           if(walletTotal)walletTotal.textContent='Всего: '+text;
         }else{
           if(host){host.textContent=financeBalanceHidden?'••••••':'—';host.title='Жду актуальные курсы для пересчёта кошельков'}
@@ -3175,9 +3187,11 @@
           const coin=document.createElement('span');coin.className='finance-coin finance-wallet-coin';coin.textContent=financeCurrencySymbol(wallet.currency);
           coin.dataset.currency=String(wallet.currency||'RUB').toUpperCase();
           const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeMoney(wallet.balance,wallet.currency);
+          const creditMeta=document.createElement('small');creditMeta.className='finance-wallet-credit-meta';
+          if(wallet.type==='credit'){item.classList.add('is-credit');const debt=Math.max(0,-Number(wallet.balance||0)),available=Math.max(0,Number(wallet.creditLimit||0)-debt),interest=debt*Math.max(0,Number(wallet.annualRate||0))/1200;creditMeta.textContent='Кредит · доступно '+financeMoney(available,wallet.currency)+(interest>0?' · ≈ '+financeMoney(interest,wallet.currency)+'/мес':'')}else creditMeta.hidden=true;
           const del=document.createElement('button');del.type='button';del.className='finance-wallet-delete-badge';del.textContent='×';del.setAttribute('aria-label','Удалить кошелёк');
           del.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();deleteFinanceWalletFromEdit(wallet.id)});
-          item.append(label,coin,amount,del);
+          item.append(label,coin,amount,creditMeta,del);
           item.addEventListener('keydown',event=>{
             if(event.key==='Enter'||event.key===' '){event.preventDefault();openFinanceWalletComposer(wallet.id)}
           });
@@ -3827,20 +3841,7 @@
         });
       }
 
-      function setFinancePersonalHistoryOpen(open){
-        const page=document.getElementById('financePage');
-        const history=document.getElementById('financePersonalHistoryPage');
-        const enabled=Boolean(open);
-        if(page)page.classList.toggle('is-personal-history',enabled);
-        if(history)history.hidden=!enabled;
-        if(enabled){
-          renderFinanceOperations();
-          requestAnimationFrame(()=>{try{page?.scrollIntoView?.({block:'start',behavior:'auto'})}catch(_){}});
-        }
-      }
-
       function setFinanceTab(tab){
-        setFinancePersonalHistoryOpen(false);
         const allowed=['shared','personal','debts','literacy'];activeFinanceTab=allowed.includes(tab)?tab:'personal';
         const page=document.getElementById('financePage');if(page)page.dataset.financeTone=activeFinanceTab;
         document.body.dataset.financeTone=activeFinanceTab;
@@ -3891,14 +3892,6 @@
         document.getElementById('financeTabs')?.addEventListener('click',event=>{
           const button=event.target.closest('[data-finance-tab]');if(!button)return;
           setFinanceTab(button.dataset.financeTab);try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        document.getElementById('financePersonalHistoryButton')?.addEventListener('click',()=>{
-          setFinancePersonalHistoryOpen(true);
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        document.getElementById('financePersonalHistoryBack')?.addEventListener('click',()=>{
-          setFinancePersonalHistoryOpen(false);
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
         month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
         const recalc=()=>renderFinanceSummary(rent?.value||0,utilities?.value||0,month.value||financeCurrentMonthKey());
@@ -4092,22 +4085,24 @@
           if(event.key==='Enter'){event.preventDefault();document.getElementById('financeIncomeSaveButton')?.click()}
         });
 
+        ['financeWalletType','financeWalletCurrency','financeWalletBalance','financeWalletAnnualRate'].forEach(id=>{document.getElementById(id)?.addEventListener('input',updateFinanceWalletCreditFields);document.getElementById(id)?.addEventListener('change',updateFinanceWalletCreditFields);});
         document.getElementById('financeWalletCreateButton')?.addEventListener('click',()=>openFinanceWalletComposer(''));
         const walletSave=document.getElementById('financeWalletSaveButton');
         walletSave?.addEventListener('click',async()=>{
           const name=document.getElementById('financeWalletName');
-          const currency=document.getElementById('financeWalletCurrency'),balance=document.getElementById('financeWalletBalance');
+          const currency=document.getElementById('financeWalletCurrency'),balance=document.getElementById('financeWalletBalance'),type=document.getElementById('financeWalletType');
+          const creditLimit=document.getElementById('financeWalletCreditLimit'),annualRate=document.getElementById('financeWalletAnnualRate'),minimumPayment=document.getElementById('financeWalletMinimumPayment');
           const status=document.getElementById('financeWalletStatus'),value=String(name?.value||'').trim();
           if(!value){name?.focus();return}
           walletSave.disabled=true;if(status)status.textContent='Сохраняю…';
           try{
             const data=await financeRequest('save-wallet',{
               id:financeWalletEditingId||undefined,
-              name:value,icon:financeCurrencySymbol(currency?.value||'RUB'),currency:currency?.value||'RUB',balance:Number(balance?.value||0)
+              name:value,icon:financeCurrencySymbol(currency?.value||'RUB'),currency:currency?.value||'RUB',balance:Number(balance?.value||0),type:type?.value==='credit'?'credit':'regular',creditLimit:Number(creditLimit?.value||0),annualRate:Number(annualRate?.value||0),minimumPayment:Number(minimumPayment?.value||0)
             });
             closeFinanceCoinModal('financeWalletComposer');
             renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
-          }catch(_){if(status)status.textContent='Не удалось сохранить кошелёк'}
+          }catch(error){if(status){const code=String(error?.message||'');status.textContent=code.includes('credit-limit')?'Укажи кредитный лимит':code.includes('insufficient')?'Долг превышает кредитный лимит':'Не удалось сохранить кошелёк'}}
           finally{walletSave.disabled=false}
         });
         document.getElementById('financeWalletDeleteButton')?.addEventListener('click',async()=>{

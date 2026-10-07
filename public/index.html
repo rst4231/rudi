@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.34">
+  <meta name="rudi-version" content="v4.45">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,14 +27,14 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.39">
+  <link rel="stylesheet" href="/app.css?v=4.45">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
   <link rel="stylesheet" href="/pwa-extras.css?v=4.12">
   <link rel="stylesheet" href="/calendar.css?v=4.12">
   <link rel="stylesheet" href="/smart-home.css?v=4.12">
-  <link rel="stylesheet" href="/car.css?v=4.12">
+  <link rel="stylesheet" href="/car.css?v=4.45">
   <link rel="stylesheet" href="/profile-supplements.css?v=4.12">
   <link rel="stylesheet" href="/supplement-advanced.css?v=4.12">
   <script>
@@ -64,11 +64,11 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.39"></script>
+  <script defer src="/app.js?v=4.45"></script>
   <script defer src="/pwa-extras.js?v=4.12"></script>
   <script defer src="/weather.js?v=4.12"></script>
   <script defer src="/smart-home.js?v=4.12"></script>
-  <script defer src="/car.js?v=4.12"></script>
+  <script defer src="/car.js?v=4.45"></script>
   <script defer src="/profile-supplements.js?v=4.12"></script>
   <script defer src="/mood-history.js?v=4.24"></script>
   <script defer src="/supplement-editor.js?v=4.12"></script>
@@ -348,7 +348,6 @@
             <div class="finance-coin-period">
               <input id="financePersonalMonthInput" class="finance-month-input" type="month" aria-label="Месяц личных финансов">
             </div>
-            <button id="financePersonalHistoryButton" class="finance-personal-history-button" type="button">История</button>
           </div>
 
           <div class="finance-wallet-section">
@@ -485,9 +484,16 @@
               </select>
             </label>
             <label class="finance-input-field">
-              <span>Баланс</span>
-              <input id="financeWalletBalance" class="finance-text-input" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Баланс кошелька">
+              <span>Тип счёта</span>
+              <select id="financeWalletType" class="finance-select" aria-label="Тип счёта"><option value="regular">Обычный</option><option value="credit">Кредитный</option></select>
             </label>
+            <div id="financeWalletCreditFields" class="finance-credit-fields" hidden>
+              <label class="finance-input-field"><span>Кредитный лимит</span><div class="finance-money-input"><input id="financeWalletCreditLimit" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" placeholder="0"><b id="financeWalletCreditLimitCurrency">₽</b></div></label>
+              <label class="finance-input-field"><span>Ставка годовых</span><div class="finance-money-input"><input id="financeWalletAnnualRate" type="number" min="0" max="1000" step="0.01" inputmode="decimal" placeholder="0"><b>%</b></div></label>
+              <label class="finance-input-field"><span>Минимальный платёж</span><div class="finance-money-input"><input id="financeWalletMinimumPayment" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" placeholder="0"><b id="financeWalletMinimumPaymentCurrency">₽</b></div></label>
+              <div id="financeWalletCreditEstimate" class="finance-credit-estimate"></div>
+            </div>
+            <label class="finance-input-field"><span id="financeWalletBalanceLabel">Баланс</span><input id="financeWalletBalance" class="finance-text-input" type="number" min="-1000000000000" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Баланс кошелька"></label>
             <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
             <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>
@@ -599,6 +605,31 @@
           <div id="financePlanStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite"></div>
         </section>
 
+        <section id="financeOperationsCard" class="finance-history-card finance-operations-card finance-collapsible is-collapsed" aria-labelledby="financeOperationsTitle">
+                  <div class="finance-history-head">
+                    <div><span class="section-eyebrow">Операции</span><h2 id="financeOperationsTitle">История</h2></div>
+                    <div class="finance-collapse-actions">
+                      <span id="financeOperationCount" class="finance-history-count">0</span>
+                      <button id="financeOperationsToggle" class="finance-collapse-toggle" type="button" aria-expanded="false" aria-controls="financeOperationsCard" aria-label="Развернуть операции">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="finance-operation-filters">
+                    <input id="financeOperationSearch" class="finance-text-input" type="search" placeholder="Поиск по операциям" aria-label="Поиск по операциям">
+                    <select id="financeOperationType" class="finance-select" aria-label="Тип операции">
+                      <option value="all">Все типы</option><option value="expense">Расходы</option><option value="income">Доходы</option><option value="transfer">Переводы</option>
+                    </select>
+                    <select id="financeOperationWallet" class="finance-select" aria-label="Кошелёк"><option value="">Все кошельки</option></select>
+                    <select id="financeOperationCategory" class="finance-select" aria-label="Категория"><option value="">Все категории</option></select>
+                    <input id="financeOperationFrom" class="finance-text-input" type="date" aria-label="Операции с даты">
+                    <input id="financeOperationTo" class="finance-text-input" type="date" aria-label="Операции по дату">
+                  </div>
+                  <div id="financeOperationSummary" class="finance-operation-summary">Все операции</div>
+                  <div id="financeOperationList" class="finance-operation-list"></div>
+                  <div id="financeOperationEmpty" class="finance-history-empty">По выбранным фильтрам операций нет</div>
+                </section>
+
         <section class="finance-obligations-card" aria-labelledby="financeObligationsTitle">
           <div class="finance-history-head finance-obligations-card-head">
             <div>
@@ -652,43 +683,6 @@
         </article>
 
       </div>
-
-      <section id="financePersonalHistoryPage" class="finance-personal-history-page" aria-labelledby="financePersonalHistoryTitle" hidden>
-        <div class="finance-page-head finance-subpage-head">
-          <button id="financePersonalHistoryBack" class="fasting-back-button finance-back-button" type="button" aria-label="Назад">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-          </button>
-          <div class="finance-page-title">
-            <div class="section-eyebrow">Личные финансы</div>
-            <h1 id="financePersonalHistoryTitle">История</h1>
-          </div>
-        </div>
-
-        <section id="financeOperationsCard" class="finance-history-card finance-operations-card finance-collapsible is-collapsed" aria-labelledby="financeOperationsTitle">
-          <div class="finance-history-head">
-            <div><span class="section-eyebrow">История</span><h2 id="financeOperationsTitle">Операции</h2></div>
-            <div class="finance-collapse-actions">
-              <span id="financeOperationCount" class="finance-history-count">0</span>
-              <button id="financeOperationsToggle" class="finance-collapse-toggle" type="button" aria-expanded="false" aria-controls="financeOperationsCard" aria-label="Развернуть операции">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-              </button>
-            </div>
-          </div>
-          <div class="finance-operation-filters">
-            <input id="financeOperationSearch" class="finance-text-input" type="search" placeholder="Поиск по операциям" aria-label="Поиск по операциям">
-            <select id="financeOperationType" class="finance-select" aria-label="Тип операции">
-              <option value="all">Все типы</option><option value="expense">Расходы</option><option value="income">Доходы</option><option value="transfer">Переводы</option>
-            </select>
-            <select id="financeOperationWallet" class="finance-select" aria-label="Кошелёк"><option value="">Все кошельки</option></select>
-            <select id="financeOperationCategory" class="finance-select" aria-label="Категория"><option value="">Все категории</option></select>
-            <input id="financeOperationFrom" class="finance-text-input" type="date" aria-label="Операции с даты">
-            <input id="financeOperationTo" class="finance-text-input" type="date" aria-label="Операции по дату">
-          </div>
-          <div id="financeOperationSummary" class="finance-operation-summary">Все операции</div>
-          <div id="financeOperationList" class="finance-operation-list"></div>
-          <div id="financeOperationEmpty" class="finance-history-empty">По выбранным фильтрам операций нет</div>
-        </section>
-      </section>
 
       <div id="financeDebtsPanel" class="finance-tab-panel" data-finance-panel="debts" hidden>
         <section class="finance-debt-summary-grid" aria-label="Сводка по долгам">
@@ -1145,6 +1139,11 @@
             <span id="carTasksMeta" class="car-tasks-meta"></span>
           </div>
           <div id="carTasksList" class="car-tasks-list"></div>
+        </section>
+
+        <section class="car-expenses" aria-labelledby="carExpensesTitle">
+          <div class="car-section-head"><div class="car-section-title"><span class="car-section-icon is-expense" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7.5h14v10H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10.5h8M8 14h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 4.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><strong id="carExpensesTitle">Расходы</strong></div><span id="carExpensesMeta" class="car-expenses-meta"></span></div>
+          <div id="carExpensesStatus" class="car-expenses-status">Загружаю расходы…</div><div id="carExpensesList" class="car-expenses-list"></div>
         </section>
 
         <section class="car-documents" aria-labelledby="carDocumentsTitle">
