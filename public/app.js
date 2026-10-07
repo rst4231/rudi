@@ -3749,6 +3749,34 @@
         }catch(_){}
       }
 
+      function financeWalletRestorePayload(wallet={}){
+        return {
+          id:wallet.id,
+          name:wallet.name||'Кошелёк',
+          icon:wallet.icon||financeCurrencySymbol(wallet.currency||'RUB'),
+          currency:wallet.currency||'RUB',
+          balance:Number(wallet.balance||0),
+          type:wallet.type==='credit'?'credit':'regular',
+          creditLimit:Number(wallet.creditLimit||0),
+          annualRate:Number(wallet.annualRate||0),
+          minimumPayment:Number(wallet.minimumPayment||0),
+          importSource:wallet.importSource||'',
+          bankSyncFrom:wallet.bankSyncFrom||'',
+          bankLastSyncAt:wallet.bankLastSyncAt||''
+        };
+      }
+
+      function showFinanceWalletUndo(wallet,{month='',editMode=false}={}){
+        if(!wallet?.id)return;
+        const personalMonth=month||document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        showUndoSnackbar('Кошелёк удалён',async()=>{
+          const data=await financeRequest('save-wallet',financeWalletRestorePayload(wallet));
+          renderFinanceState(data,{personalMonth,preserveIncome:true,preservePlan:true});
+          if(editMode)setFinanceWalletEditMode(true);
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        },8000);
+      }
+
       async function deleteFinanceWalletFromEdit(walletId){
         const wallet=financeWalletById(walletId);if(!wallet)return;
         if(!window.confirm('Удалить кошелёк «'+String(wallet.name||'Кошелёк')+'»?'))return;
@@ -3758,6 +3786,7 @@
           renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
           if((data.wallets||[]).length)setFinanceWalletEditMode(true);
           else setFinanceWalletEditMode(false);
+          showFinanceWalletUndo(wallet,{month,editMode:true});
         }catch(_){}
       }
 
@@ -5257,12 +5286,15 @@
         document.getElementById('financeWalletDeleteButton')?.addEventListener('click',async()=>{
           if(!financeWalletEditingId)return;
           const button=document.getElementById('financeWalletDeleteButton'),status=document.getElementById('financeWalletStatus');
+          const wallet=financeWalletById(financeWalletEditingId);
+          const month=personalMonth?.value||financeCurrentMonthKey();
           button.disabled=true;
           try{
             const data=await financeRequest('delete-wallet',{id:financeWalletEditingId});
             financeWalletEditingId='';
             closeFinanceCoinModal('financeWalletComposer');
-            renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
+            renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
+            showFinanceWalletUndo(wallet,{month});
           }catch(_){if(status)status.textContent='Не удалось удалить кошелёк'}
           finally{button.disabled=false}
         });
