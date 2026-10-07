@@ -17347,3 +17347,47 @@ body.finance-month-dialog-open{overflow:hidden!important}
     margin-top:0!important
   }
 }
+
+
+/* RUDI v4.75 — compact finance headers after helper-copy cleanup */
+.finance-page[data-finance-tone="personal"] .finance-wallet-section>.finance-coin-section-head{
+  padding-top:3px!important;
+  padding-bottom:5px!important
+}
+.finance-page[data-finance-tone="personal"] .finance-coin-section-head h2,
+.finance-goal-card-compact .finance-history-head h2,
+.finance-obligations-card .finance-history-head h2,
+.finance-operations-card .finance-history-head h2,
+.finance-debts-card .finance-history-head h2,
+.finance-capital-head h2{
+  margin-top:0!important
+}
+.finance-goal-card-compact .finance-history-head,
+.finance-obligations-card .finance-history-head{
+  margin-bottom:6px!important
+}
+.finance-capital-summary[hidden]{
+  display:none!important
+}
+.finance-capital-summary[hidden]+.finance-capital-chart-wrap{
+  margin-top:6px!important
+}
+.finance-ledger-total-compact{
+  justify-content:flex-end!important;
+  padding-top:10px!important;
+  padding-bottom:10px!important
+}
+.finance-analyst-card h2,
+.finance-literacy-card h2{
+  margin-top:0!important
+}
+.finance-analyst-limit{
+  margin-top:4px!important
+}
+.finance-literacy-body{
+  margin-top:10px!important
+}
+#financeTransferComposer .finance-coin-modal-head,
+#financeCategoryComposer .finance-coin-modal-head{
+  margin-bottom:8px!important
+}
