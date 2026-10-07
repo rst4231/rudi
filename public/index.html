@@ -370,7 +370,7 @@
 
           <div class="finance-wallet-section">
             <div class="finance-coin-section-head">
-              <div><span class="section-eyebrow">Источники</span><h2 id="financeWalletsTitle">Кошельки</h2></div>
+              <div><h2 id="financeWalletsTitle">Кошельки</h2></div>
               <div class="finance-wallet-head-actions">
                 <button id="financeIncomeAddButton" class="finance-wallet-add finance-income-add" type="button">+ Доход</button>
                 <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
@@ -399,7 +399,7 @@
               </button>
               <div class="finance-category-history-title">
                 <span id="financeCategoryHistoryIcon" class="finance-coin" aria-hidden="true">💳</span>
-                <div><small id="financeCategoryHistoryMonth">Текущий месяц</small><h2 id="financeCategoryHistoryName">Категория</h2></div>
+                <div><h2 id="financeCategoryHistoryName">Категория</h2></div>
               </div>
             </div>
             <div class="finance-category-history-controls">
@@ -508,7 +508,7 @@
           <button id="financeCategoryComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
           <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeCategoryComposerTitle">
             <div class="finance-coin-modal-head">
-              <div><small id="financeCategoryComposerEyebrow">Новая монета</small><h3 id="financeCategoryComposerTitle">Категория расхода</h3></div>
+              <div><h3 id="financeCategoryComposerTitle">Категория расхода</h3></div>
               <button id="financeCategoryComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
             </div>
             <label class="finance-input-field">
@@ -636,7 +636,7 @@
           <button id="financeTransferComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
           <section class="finance-coin-modal-sheet finance-transfer-sheet" role="dialog" aria-modal="true" aria-labelledby="financeTransferComposerTitle">
             <div class="finance-coin-modal-head">
-              <div><small>Между своими счетами</small><h3 id="financeTransferComposerTitle">Перевод</h3></div>
+              <div><h3 id="financeTransferComposerTitle">Перевод</h3></div>
               <button id="financeTransferComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
             </div>
             <label class="finance-input-field"><span>Откуда</span><select id="financeTransferFrom" class="finance-select" aria-label="Кошелёк списания"></select></label>
@@ -675,7 +675,7 @@
 
         <section id="financeGoalCard" class="finance-planning-card finance-goal-card-compact finance-collapsible is-collapsed" aria-labelledby="financePlanningTitle">
           <div class="finance-history-head">
-            <div><span class="section-eyebrow">План</span><h2 id="financePlanningTitle">Цель</h2></div>
+            <div><h2 id="financePlanningTitle">Цель</h2></div>
             <button id="financeGoalToggle" class="finance-collapse-toggle" type="button" aria-expanded="false" aria-controls="financeGoalCard" aria-label="Развернуть цель">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
@@ -702,7 +702,6 @@
         <section class="finance-obligations-card" aria-labelledby="financeObligationsTitle">
           <div class="finance-history-head finance-obligations-card-head">
             <div>
-              <span class="section-eyebrow">Планирование</span>
               <h2 id="financeObligationsTitle">Обязательные расходы</h2>
             </div>
             <button id="financeObligationAddButton" class="finance-obligation-add-button" type="button">+ Добавить</button>
@@ -717,11 +716,11 @@
               <button id="financeCapitalHistoryBack" class="finance-ledger-back" type="button" aria-label="Назад">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
               </button>
-              <div><small>Динамика капитала</small><h2>История капитала</h2></div>
+              <div><h2>История капитала</h2></div>
             </div>
           <section class="finance-capital-card" aria-labelledby="financeCapitalTitle">
             <div class="finance-capital-head">
-              <div><span class="section-eyebrow">Динамика</span><h2 id="financeCapitalTitle">История капитала</h2></div>
+              <div><h2 id="financeCapitalTitle">Динамика</h2></div>
               <select id="financeCapitalPeriod" class="finance-select finance-capital-period" aria-label="Период истории капитала">
                 <option value="30">30 дней</option>
                 <option value="90">90 дней</option>
@@ -730,7 +729,7 @@
               </select>
             </div>
             <div class="finance-capital-summary">
-              <strong id="financeCapitalChange">История начнётся сегодня</strong>
+              <strong id="financeCapitalChange"></strong>
               <span id="financeCapitalRange"></span>
             </div>
             <div class="finance-capital-chart-wrap">
@@ -754,10 +753,10 @@
               </button>
               <div><small id="financeExpenseHistoryMonth">Текущий месяц</small><h2>Расходы</h2></div>
             </div>
-            <div class="finance-ledger-total"><span>Фактические расходы</span><strong id="financeExpenseHistoryTotal">0 ₽</strong></div>
+            <div class="finance-ledger-total finance-ledger-total-compact"><strong id="financeExpenseHistoryTotal">0 ₽</strong></div>
             <section id="financeOperationsCard" class="finance-history-card finance-operations-card" aria-labelledby="financeOperationsTitle">
               <div class="finance-history-head">
-                <div><span class="section-eyebrow">Операции</span><h2 id="financeOperationsTitle">История расходов</h2></div>
+                <div><h2 id="financeOperationsTitle">История расходов</h2></div>
                 <span id="financeOperationCount" class="finance-history-count">0</span>
               </div>
               <div class="finance-operation-filters">
@@ -790,7 +789,6 @@
         </section>
 
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
-          <div class="finance-literacy-kicker">По вашим данным</div>
           <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
           <div class="finance-analyst-limit">Лимит: 1 анализ в сутки</div>
           <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
@@ -869,10 +867,8 @@
         <section class="finance-history-card finance-debts-card" aria-labelledby="financeDebtListTitle">
           <div class="finance-history-head">
             <div>
-              <span class="section-eyebrow">Долги</span>
               <h2 id="financeDebtListTitle">Мои долги</h2>
             </div>
-            <span id="financeDebtCount" class="finance-debt-count-label">0 долгов</span>
           </div>
           <div class="finance-debt-filters" role="tablist" aria-label="Фильтр долгов">
             <button class="finance-debt-filter is-active" type="button" data-debt-filter="all">Все <span id="financeDebtFilterAllCount">0</span></button>
@@ -918,9 +914,7 @@
 
       <div id="financeLiteracyPanel" class="finance-tab-panel finance-literacy-panel" data-finance-panel="literacy" hidden>
         <article class="finance-literacy-card" aria-labelledby="financeLiteracyTitle">
-          <div class="finance-literacy-kicker">Статья дня</div>
           <h2 id="financeLiteracyTitle">Финансовая грамотность</h2>
-          <div id="financeLiteracyMeta" class="finance-literacy-meta">Новая статья каждый день</div>
           <div id="financeLiteracyBody" class="finance-literacy-body">
             <p>Готовлю сегодняшнюю статью…</p>
           </div>
