@@ -16,9 +16,9 @@
   ],
   "icons": [
     {
-      "src": "/icon-192-v176.jpg",
+      "src": "/icon-192-rudi-v459.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     },
     {
@@ -42,9 +42,9 @@
       "url": "/?tab=products",
       "icons": [
         {
-          "src": "/icon-192-v176.jpg",
+          "src": "/icon-192-rudi-v459.png",
           "sizes": "192x192",
-          "type": "image/jpeg"
+          "type": "image/png"
         }
       ]
     },
@@ -55,9 +55,9 @@
       "url": "/?tab=schedule",
       "icons": [
         {
-          "src": "/icon-192-v176.jpg",
+          "src": "/icon-192-rudi-v459.png",
           "sizes": "192x192",
-          "type": "image/jpeg"
+          "type": "image/png"
         }
       ]
     },
@@ -68,9 +68,9 @@
       "url": "/?tab=wishlist",
       "icons": [
         {
-          "src": "/icon-192-v176.jpg",
+          "src": "/icon-192-rudi-v459.png",
           "sizes": "192x192",
-          "type": "image/jpeg"
+          "type": "image/png"
         }
       ]
     },
@@ -81,9 +81,9 @@
       "url": "/?tab=dates",
       "icons": [
         {
-          "src": "/icon-192-v176.jpg",
+          "src": "/icon-192-rudi-v459.png",
           "sizes": "192x192",
-          "type": "image/jpeg"
+          "type": "image/png"
         }
       ]
     }
