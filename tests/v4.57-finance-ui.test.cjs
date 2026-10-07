@@ -141,3 +141,14 @@ test('v4.72 category amount color follows budget scale',()=>{
   assert.ok(css.includes('.finance-coin-amount.is-budget-mid'));
   assert.ok(css.includes('.finance-coin-amount.is-budget-full'));
 });
+
+
+test('v4.72 category budget uses icon progress halo',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes("coin.classList.add('has-budget')"));
+  assert.ok(app.includes("coin.style.setProperty('--finance-budget-progress',usagePercent+'%')"));
+  assert.ok(!app.includes("item.append(limit,progress)"));
+  assert.ok(css.includes('.finance-category-coin.has-budget::before'));
+  assert.ok(css.includes('background:conic-gradient('));
+});
