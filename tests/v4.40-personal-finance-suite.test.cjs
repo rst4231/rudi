@@ -15,7 +15,7 @@ function memoryCache(){
   };
 }
 
-test('v4.42 wallet transfers move money without creating income or expense',async()=>{
+test('v4.44 wallet transfers move money without creating income or expense',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache();
   await saveWallet('Рустам',{name:'A',currency:'RUB',balance:10000},{financeCache,id:'wa'});
@@ -37,7 +37,7 @@ test('v4.42 wallet transfers move money without creating income or expense',asyn
   assert.equal(view.walletTransfers.length,0);
 });
 
-test('v4.42 wallet reorder persists exact visible order',async()=>{
+test('v4.44 wallet reorder persists exact visible order',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache();
   await saveWallet('Рустам',{name:'A',currency:'RUB',balance:1},{financeCache,id:'wa'});
@@ -48,7 +48,7 @@ test('v4.42 wallet reorder persists exact visible order',async()=>{
   assert.deepEqual(view.wallets.map(row=>row.id),['wc','wa','wb']);
 });
 
-test('v4.42 ordinary plan save preserves obligations',async()=>{
+test('v4.44 ordinary plan save preserves obligations',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache();
   await saveFinancePlan('Рустам',{goalTitle:'Квартира',obligations:[{id:'rent',title:'Аренда',amount:35000,day:3}]},{financeCache});
@@ -58,7 +58,7 @@ test('v4.42 ordinary plan save preserves obligations',async()=>{
   assert.equal(view.plan.obligations[0].amount,35000);
 });
 
-test('v4.42 finance UI has final requested layout and mobile safeguards',()=>{
+test('v4.44 finance UI has final requested layout and mobile safeguards',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
@@ -88,6 +88,30 @@ test('v4.42 finance UI has final requested layout and mobile safeguards',()=>{
   assert.ok(!html.includes('financeWalletOrderControl'));
   assert.ok(!html.includes('financeTransferAddButton'));
   assert.ok(!html.includes('financeWalletTotalRub'));
+  assert.ok(css.includes('RUDI v4.44 — compact mobile balance + wallet actions'));
+  assert.ok(css.includes('.finance-wallet-head-actions #financeWalletCreateButton'));
+  assert.ok(css.includes('min-height:33px!important'));
+  assert.ok(html.includes('finance-transfer-sheet'));
+  assert.ok(css.includes('#financeTransferComposer .finance-transfer-sheet'));
+  assert.ok(css.includes('#financeTransferComposer input[type="date"]'));
+  assert.ok(html.includes('financePersonalHistoryButton'));
+  assert.ok(html.includes('financePersonalHistoryBack'));
+  assert.ok(html.includes('financePersonalHistoryPage'));
+  assert.ok(html.includes('id="financeOperationsCard"'));
+  assert.ok(html.includes('id="financeGoalCard"'));
+  assert.ok(html.includes('id="financeOperationsToggle"'));
+  assert.ok(html.includes('id="financeGoalToggle"'));
+  assert.ok(html.includes('finance-collapsible is-collapsed'));
+  assert.ok(!html.includes('financeAiInsightText'));
+  assert.ok(app.includes('function setFinancePersonalHistoryOpen(open)'));
+  assert.ok(app.includes('function bindFinanceCardCollapse(cardId,buttonId)'));
+  assert.ok(css.includes('.finance-personal-toolbar'));
+  assert.ok(css.includes('.finance-collapsible.is-collapsed > :not(.finance-history-head)'));
+  assert.ok(css.includes('.finance-page.is-personal-history > .finance-tab-panel'));
+  const personalStart=html.indexOf('id="financePersonalPanel"');
+  const historyPage=html.indexOf('id="financePersonalHistoryPage"');
+  const operations=html.indexOf('id="financeOperationsTitle"');
+  assert.ok(personalStart>=0&&historyPage>personalStart&&operations>historyPage);
   assert.ok(app.includes("openFinanceTransferComposer({fromWalletId:wallet.id,toWalletId:targetWalletId,focusAmount:true})"));
   assert.ok(app.includes("targetKind==='wallet'"));
   assert.ok(app.includes("· по текущему курсу"));

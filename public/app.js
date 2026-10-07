@@ -3808,7 +3808,39 @@
         }
       }
 
+      function setFinanceCardCollapsed(cardId,buttonId,collapsed){
+        const card=document.getElementById(cardId),button=document.getElementById(buttonId);
+        if(!card||!button)return;
+        const next=Boolean(collapsed);
+        card.classList.toggle('is-collapsed',next);
+        button.setAttribute('aria-expanded',next?'false':'true');
+        button.setAttribute('aria-label',next?'Развернуть блок':'Свернуть блок');
+      }
+      function bindFinanceCardCollapse(cardId,buttonId){
+        const card=document.getElementById(cardId),button=document.getElementById(buttonId);
+        if(!card||!button||button.dataset.bound==='1')return;
+        button.dataset.bound='1';
+        setFinanceCardCollapsed(cardId,buttonId,card.classList.contains('is-collapsed'));
+        button.addEventListener('click',()=>{
+          setFinanceCardCollapsed(cardId,buttonId,!card.classList.contains('is-collapsed'));
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+      }
+
+      function setFinancePersonalHistoryOpen(open){
+        const page=document.getElementById('financePage');
+        const history=document.getElementById('financePersonalHistoryPage');
+        const enabled=Boolean(open);
+        if(page)page.classList.toggle('is-personal-history',enabled);
+        if(history)history.hidden=!enabled;
+        if(enabled){
+          renderFinanceOperations();
+          requestAnimationFrame(()=>{try{page?.scrollIntoView?.({block:'start',behavior:'auto'})}catch(_){}});
+        }
+      }
+
       function setFinanceTab(tab){
+        setFinancePersonalHistoryOpen(false);
         const allowed=['shared','personal','debts','literacy'];activeFinanceTab=allowed.includes(tab)?tab:'personal';
         const page=document.getElementById('financePage');if(page)page.dataset.financeTone=activeFinanceTab;
         document.body.dataset.financeTone=activeFinanceTab;
@@ -3853,10 +3885,20 @@
         const personalMonth=document.getElementById('financePersonalMonthInput');
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();
         applyFinancePermissions();setFinanceTab('personal');
+        bindFinanceCardCollapse('financeOperationsCard','financeOperationsToggle');
+        bindFinanceCardCollapse('financeGoalCard','financeGoalToggle');
 
         document.getElementById('financeTabs')?.addEventListener('click',event=>{
           const button=event.target.closest('[data-finance-tab]');if(!button)return;
           setFinanceTab(button.dataset.financeTab);try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        document.getElementById('financePersonalHistoryButton')?.addEventListener('click',()=>{
+          setFinancePersonalHistoryOpen(true);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+        document.getElementById('financePersonalHistoryBack')?.addEventListener('click',()=>{
+          setFinancePersonalHistoryOpen(false);
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
         month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
         const recalc=()=>renderFinanceSummary(rent?.value||0,utilities?.value||0,month.value||financeCurrentMonthKey());
