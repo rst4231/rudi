@@ -2251,7 +2251,7 @@ const open=async expense=>{
  if(!m)return;
  const inputCurrency=String(expense.sourceCurrency||wallet?.currency||expense.currency||'RUB').toUpperCase();
  active.sourceCurrency=inputCurrency;
- const currencySymbol={RUB:'₽',USD:String.fromCharCode(36),EUR:'€',BTC:'₿',ETH:'Ξ',USDT:'₮'}[inputCurrency]||inputCurrency;
+ const currencySymbol={RUB:'₽',USD:'$',EUR:'€',BTC:'₿',ETH:'Ξ',USDT:'₮'}[inputCurrency]||inputCurrency;
  if(title)title.textContent='Редактировать · '+(cat?.name||'Расход');
  if(icon)icon.textContent=cat?.icon||'💳';
  if(amount)amount.value=String(Number(expense.sourceAmount||expense.amount||0)).replace('.',',');
