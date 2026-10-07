@@ -2366,7 +2366,7 @@
       }
       function setFinanceAutosaveStatus(id,text='Сохранено'){
         const host=document.getElementById(id);if(!host)return;host.textContent=text;
-        if(text==='Сохранено')setTimeout(()=>{if(host.textContent==='Сохранено')host.textContent='Сохраняется автоматически'},1400);
+        if(text==='Сохранено')setTimeout(()=>{if(host.textContent==='Сохранено')host.textContent=''},1400);
       }
       async function saveFinanceIncomeAuto(){
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),income=Number(document.getElementById('financePersonalIncomeInput')?.value||0);
@@ -16344,7 +16344,7 @@
       }
       function setFinanceAutosaveStatus(id,text='Сохранено'){
         const host=document.getElementById(id);if(!host)return;host.textContent=text;
-        if(text==='Сохранено')setTimeout(()=>{if(host.textContent==='Сохранено')host.textContent='Сохраняется автоматически'},1400);
+        if(text==='Сохранено')setTimeout(()=>{if(host.textContent==='Сохранено')host.textContent=''},1400);
       }
       async function saveFinanceIncomeAuto(){
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),income=Number(document.getElementById('financePersonalIncomeInput')?.value||0);
