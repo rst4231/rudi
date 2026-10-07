@@ -20,6 +20,7 @@ const { loadCarTasks, serviceScheduleForMileage } = require('./car-client.cjs');
 const { readCarState } = require('./car-store.cjs');
 const { readUiPreferences } = require('./ui-preferences-store.cjs');
 const { fetchHolidayDay } = require('./holiday-calendar.cjs');
+const { loadDueObligationsByActor, morningObligationBlock } = require('./finance-obligation-reminders.cjs');
 
 const NAMESPACE = 'rudi-morning-summary-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -592,6 +593,9 @@ function buildMorningSummary(actor, data = {}) {
     }
   }
 
+  const obligationBlock = morningObligationBlock(data.obligationsByActor?.[actor]);
+  if (obligationBlock) blocks.push(obligationBlock);
+
   const partnerMood = moodLabel(data.moods?.[partner]?.mood);
   if (partnerMood) {
     blocks.push(
@@ -672,6 +676,7 @@ async function collectMorningData(options = {}) {
     carTasksToday,
     carState,
     holidays,
+    obligationsByActor,
   ] = await Promise.all([
     loadTodayTasks({ ...options, now }),
     loadDianaWorkDay({ ...options, now }),
@@ -685,6 +690,7 @@ async function collectMorningData(options = {}) {
     loadTodayCarTasks({ ...options, now }).catch(() => []),
     loadMorningCarState({ ...options, now }).catch(() => null),
     loadTodayHolidays({ ...options, now }).catch(() => []),
+    loadDueObligationsByActor({ ...options, now }).catch(() => ({ 'Рустам':[], 'Диана':[] })),
   ]);
 
   return {
@@ -703,6 +709,7 @@ async function collectMorningData(options = {}) {
     environment: environment || {home:null,weather:null},
     carTasksToday: Array.isArray(carTasksToday) ? carTasksToday : [],
     carState: carState && typeof carState === 'object' ? carState : null,
+    obligationsByActor: obligationsByActor && typeof obligationsByActor === 'object' ? obligationsByActor : { 'Рустам':[], 'Диана':[] },
   };
 }
 

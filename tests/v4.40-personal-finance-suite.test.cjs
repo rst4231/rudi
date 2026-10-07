@@ -144,3 +144,14 @@ test('v4.49 category trend and compact expense keypad are wired',()=>{
   assert.ok(css.includes('@media(max-height:590px)'));
   assert.ok(html.includes('content="v4.49"'));
 });
+
+
+test('v4.49 due obligations are wired into morning and 21:00 evening summaries',()=>{
+  const morning=fs.readFileSync(path.join(__dirname,'..','api','morning-summary.cjs'),'utf8');
+  const evening=fs.readFileSync(path.join(__dirname,'..','api','habit-reminder.cjs'),'utf8');
+  assert.ok(morning.includes("loadDueObligationsByActor"));
+  assert.ok(morning.includes("morningObligationBlock(data.obligationsByActor?.[actor])"));
+  assert.ok(evening.includes("const unpaidObligations=obligationRows.filter(row=>!row.paid)"));
+  assert.ok(evening.includes("if(obligationPart) parts.push(obligationPart)"));
+  assert.ok(evening.includes("url:unpaidObligations.length?'/?tab=finances'"));
+});

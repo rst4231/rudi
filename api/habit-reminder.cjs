@@ -2,6 +2,7 @@ const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { readHabits, viewHabits, moscowDateKey } = require('./habit-tracker-store.cjs');
 const { sendPushNotification, readPendingPushNotifications } = require('./web-push.cjs');
 const { loadTodayTasks, filterTasksForActor } = require('./morning-summary.cjs');
+const { loadDueObligationsByActor, eveningObligationPart } = require('./finance-obligation-reminders.cjs');
 
 const ACTORS = ['Рустам','Диана'];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -24,15 +25,18 @@ function pendingTaskCounts(tasks,actor){
 async function sendHabitReminder(actor, options = {}) {
   const now = Number(options.now || Date.now());
   const date = moscowDateKey(now);
-  const [state,tasks] = await Promise.all([
+  const [state,tasks,obligationsByActor] = await Promise.all([
     readHabits(actor, { ...options, now }),
     loadTodayTasks({ ...options, now }).catch(() => null),
+    loadDueObligationsByActor({ ...options, now }).catch(() => ({ [actor]:[] })),
   ]);
   const view = viewHabits(state, { ...options, now, date });
   const pending = Math.max(0, Number(view?.pending || 0));
   const taskCounts=pendingTaskCounts(tasks,actor);
-  if (!pending && !taskCounts.total) {
-    return { actor, sent:false, reason:'all-done', pending:0, personalTasks:0, sharedTasks:0 };
+  const obligationRows=Array.isArray(obligationsByActor?.[actor])?obligationsByActor[actor]:[];
+  const unpaidObligations=obligationRows.filter(row=>!row.paid);
+  if (!pending && !taskCounts.total && !unpaidObligations.length) {
+    return { actor, sent:false, reason:'all-done', pending:0, personalTasks:0, sharedTasks:0, unpaidObligations:0 };
   }
 
   const id = reminderId(actor,date);
@@ -45,12 +49,14 @@ async function sendHabitReminder(actor, options = {}) {
   if(pending) parts.push('Привычки: '+pending);
   if(taskCounts.personal) parts.push('Личные дела: '+taskCounts.personal);
   if(taskCounts.shared) parts.push('Совместные дела: '+taskCounts.shared);
+  const obligationPart=eveningObligationPart(obligationRows);
+  if(obligationPart) parts.push(obligationPart);
   const result = await sendPushNotification(actor, {
     id,
     title:'Что осталось на сегодня',
     body:parts.join(' · ')+'. Загляни и закрой оставшееся.',
     tag:'evening-reminder',
-    url:taskCounts.total?'/?tab=home&item=priority':'/?tab=habits&fresh=1',
+    url:unpaidObligations.length?'/?tab=finances':taskCounts.total?'/?tab=home&item=priority':'/?tab=habits&fresh=1',
   }, { ...options, now, urgency:'normal', ttlSeconds:60 * 60 * 3 });
 
   return {
@@ -58,6 +64,7 @@ async function sendHabitReminder(actor, options = {}) {
     pending,
     personalTasks:taskCounts.personal,
     sharedTasks:taskCounts.shared,
+    unpaidObligations:unpaidObligations.length,
     ...result,
   };
 }
