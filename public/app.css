@@ -14779,16 +14779,6 @@ html[data-theme="dark"] .finance-literacy-card{
 }
 
 
-/* v4.36 wallet total in RUB */
-.finance-wallet-total-rub{
-  display:block;
-  margin-top:3px;
-  color:var(--muted);
-  font-size:8.6px;
-  line-height:1.25;
-  font-weight:720;
-  letter-spacing:0
-}
 
 .finance-wallet-history-delete{
   width:24px;
