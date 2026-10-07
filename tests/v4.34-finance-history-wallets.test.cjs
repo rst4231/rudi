@@ -118,6 +118,7 @@ test('v4.34 finance UI includes date grouping, CoinKeeper import, wallets and ed
   assert.ok(html.includes('Доходы и кошельки'));
   assert.equal(html.includes('id="financePersonalMonthLabel"'),false);
   assert.ok(html.includes('id="moodHistoryButton"'));
+  assert.ok(html.indexOf('financeImportButton')>html.indexOf('financeAiInsightText'));
   assert.ok(app.includes('moodChoices.prepend(moodHistoryTrigger)'));
   assert.ok(app.includes('/income|доход|transfer|перевод/'));
 });
