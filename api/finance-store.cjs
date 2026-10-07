@@ -280,6 +280,8 @@ function normalizeState(value) {
           minimumPayment: cleanAssetAmount(raw?.minimumPayment || 0),
           archived: Boolean(raw?.archived),
           importSource: cleanText(raw?.importSource, 24),
+          bankSyncFrom: /^\d{4}-\d{2}-\d{2}$/.test(String(raw?.bankSyncFrom || '')) ? String(raw.bankSyncFrom) : '',
+          bankLastSyncAt: (() => { const d = raw?.bankLastSyncAt ? new Date(raw.bankLastSyncAt) : null; return d && !Number.isNaN(d.getTime()) ? d.toISOString() : ''; })(),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
         });
         seen.add(id);
@@ -635,9 +637,15 @@ async function saveWallet(actor, payload = {}, options = {}) {
     const id = requestedId || cleanText(options.id || randomUUID(), 100, { required: true });
     const existing = rows.find((row) => row.id === id);
     const now = new Date(options.now || Date.now()).toISOString();
+    const bankSyncFromRaw = payload.bankSyncFrom === undefined ? existing?.bankSyncFrom : payload.bankSyncFrom;
+    const bankSyncFrom = /^\d{4}-\d{2}-\d{2}$/.test(String(bankSyncFromRaw || '')) ? String(bankSyncFromRaw) : '';
+    const bankLastSyncRaw = payload.bankLastSyncAt === undefined ? existing?.bankLastSyncAt : payload.bankLastSyncAt;
+    const bankLastSyncDate = bankLastSyncRaw ? new Date(bankLastSyncRaw) : null;
     const row = {
       id, name, icon, currency, balance, type, creditLimit, annualRate, minimumPayment, archived: false,
-      importSource: cleanText(existing?.importSource || payload.importSource, 24),
+      importSource: cleanText(payload.importSource === undefined ? existing?.importSource : payload.importSource, 24),
+      bankSyncFrom,
+      bankLastSyncAt: bankLastSyncDate && !Number.isNaN(bankLastSyncDate.getTime()) ? bankLastSyncDate.toISOString() : '',
       createdAt: existing?.createdAt || now,
     };
     const wallets = existing ? rows.map((item) => item.id === id ? row : item) : rows.concat(row);
@@ -1128,6 +1136,8 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
   const hasCurrentWallets = Array.isArray(payload.currentWallets);
   const currentCategoryNames = hasCurrentCategories ? payload.currentCategories.slice(0, 300) : [];
   const currentWalletRows = hasCurrentWallets ? payload.currentWallets.slice(0, 100) : [];
+  const importSource = cleanText(payload.importSource || 'coinkeeper', 24) || 'coinkeeper';
+  const requestedWalletId = cleanText(payload.walletId, 100);
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     const now = new Date(options.now || Date.now()).toISOString();
@@ -1146,13 +1156,13 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
     if (hasCurrentCategories) {
       for (let index = 0; index < categories.length; index++) {
         const row = categories[index];
-        const managedByImport = row.importSource === 'coinkeeper' || String(row.id || '').startsWith('default-');
+        const managedByImport = row.importSource === importSource || (importSource === 'coinkeeper' && String(row.id || '').startsWith('default-'));
         if (!managedByImport) continue;
         const key = financeCategoryKey(row.name);
         const archived = !currentCategoryKeys.has(key);
-        const importSource = currentCategoryKeys.has(key) ? 'coinkeeper' : row.importSource;
-        if (row.archived !== archived || row.importSource !== importSource) {
-          categories[index] = { ...row, archived, importSource };
+        const nextImportSource = currentCategoryKeys.has(key) ? importSource : row.importSource;
+        if (row.archived !== archived || row.importSource !== nextImportSource) {
+          categories[index] = { ...row, archived, importSource: nextImportSource };
           categoryMap.set(key, categories[index]);
           entityChanges++;
         }
@@ -1163,10 +1173,10 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
         const key = financeCategoryKey(name);
         let category = categoryMap.get(key);
         if (!category) {
-          category = { id: randomUUID(), name, icon: '💳', note: '', monthlyLimit: 0, currency: 'RUB', archived: false, importSource: 'coinkeeper', createdAt: now };
+          category = { id: randomUUID(), name, icon: '💳', note: '', monthlyLimit: 0, currency: 'RUB', archived: false, importSource, createdAt: now };
           categories.push(category); categoryMap.set(key, category); createdCategories.push(name); entityChanges++;
-        } else if (category.archived || category.importSource !== 'coinkeeper') {
-          const updated = { ...category, archived: false, importSource: category.importSource || 'coinkeeper' };
+        } else if (category.archived || category.importSource !== importSource) {
+          const updated = { ...category, archived: false, importSource: category.importSource || importSource };
           categories[categories.findIndex((row) => row.id === category.id)] = updated;
           categoryMap.set(key, updated); entityChanges++;
         }
@@ -1188,7 +1198,7 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
         } catch (_) {}
       }
       wallets = wallets.map((wallet) => {
-        if (wallet.importSource !== 'coinkeeper') return wallet;
+        if (wallet.importSource !== importSource) return wallet;
         const key = financeCategoryKey(wallet.name) + '|' + wallet.currency;
         const archived = !currentWalletKeys.has(key);
         if (wallet.archived !== archived) { entityChanges++; return { ...wallet, archived }; }
@@ -1198,15 +1208,18 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
         const existingIndex = wallets.findIndex((wallet) => financeCategoryKey(wallet.name) + '|' + wallet.currency === raw.key);
         if (existingIndex >= 0) {
           const existing = wallets[existingIndex];
-          const nextWallet = { ...existing, name: raw.name, currency: raw.currency, balance: raw.balance, archived: false, importSource: existing.importSource || 'coinkeeper' };
+          const nextWallet = { ...existing, name: raw.name, currency: raw.currency, balance: raw.balance, archived: false, importSource: existing.importSource || importSource };
           if (JSON.stringify(existing) !== JSON.stringify(nextWallet)) entityChanges++;
           wallets[existingIndex] = nextWallet;
         } else {
-          wallets.push({ id: randomUUID(), name: raw.name, icon: '💳', currency: raw.currency, balance: raw.balance, archived: false, importSource: 'coinkeeper', createdAt: now });
+          wallets.push({ id: randomUUID(), name: raw.name, icon: '💳', currency: raw.currency, balance: raw.balance, archived: false, importSource, bankSyncFrom: '', bankLastSyncAt: '', createdAt: now });
           createdWallets.push(raw.name); entityChanges++;
         }
       }
     }
+
+    const linkedWallet = requestedWalletId ? wallets.find((wallet) => wallet.id === requestedWalletId && !wallet.archived) : null;
+    const linkedWalletId = linkedWallet?.id || '';
 
     for (const raw of rows) {
       try {
@@ -1224,12 +1237,12 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
           const archived = hasCurrentCategories && !currentCategoryKeys.has(categoryKey);
           category = {
             id: randomUUID(), name: categoryName, icon: cleanIcon(raw?.icon || '💳'), note: '',
-            monthlyLimit: 0, currency: 'RUB', archived, importSource: 'coinkeeper', createdAt: now,
+            monthlyLimit: 0, currency: 'RUB', archived, importSource, createdAt: now,
           };
           categories.push(category); categoryMap.set(categoryKey, category);
           if (!archived) createdCategories.push(categoryName);
           entityChanges++;
-        } else if (category.importSource === 'coinkeeper' && hasCurrentCategories) {
+        } else if (category.importSource === importSource && hasCurrentCategories) {
           const archived = !currentCategoryKeys.has(categoryKey);
           if (category.archived !== archived) {
             const updated = { ...category, archived };
@@ -1238,11 +1251,15 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
           }
         }
 
+        const rawWalletId = cleanText(raw?.walletId, 100);
+        const expenseWallet = rawWalletId
+          ? wallets.find((wallet) => wallet.id === rawWalletId && !wallet.archived)
+          : linkedWallet;
         added.push({
           id: randomUUID(), actor: safeActor, month, categoryId: category.id, amount,
-          note: cleanText(raw?.note, 120), walletId: '',
+          note: cleanText(raw?.note, 120), walletId: expenseWallet?.id || linkedWalletId,
           sourceAmount: cleanAssetAmount(raw?.sourceAmount || amount),
-          sourceCurrency: cleanCurrency(raw?.sourceCurrency || 'RUB'),
+          sourceCurrency: cleanCurrency(raw?.sourceCurrency || expenseWallet?.currency || linkedWallet?.currency || 'RUB'),
           targetCurrency: 'RUB', exchangeRate: Math.max(0, Number(raw?.exchangeRate || 1)) || 1,
           rubAmount: amount, importKey, occurredAt, createdAt: now, updatedAt: now,
         });
