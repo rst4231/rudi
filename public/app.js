@@ -2639,7 +2639,7 @@
         if(title)title.textContent=wallet?'Редактировать кошелёк':'Новый кошелёк';
         if(name)name.value=wallet?.name||'';
         if(currency)currency.value=wallet?.currency||'RUB';
-        if(balance)balance.value=wallet&&Number(wallet.balance||0)>0?String(wallet.balance):'';
+        if(balance)balance.value=wallet&&Number.isFinite(Number(wallet.balance))&&Number(wallet.balance)!==0?String(wallet.balance):'';
         if(remove)remove.hidden=!wallet;
         if(status)status.textContent='';
         renderFinanceWalletHistory(wallet?.id||'');
