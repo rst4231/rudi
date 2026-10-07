@@ -2724,7 +2724,9 @@
         const list=document.getElementById('financeObligationList'),forecast=document.getElementById('financeObligationForecast');if(!list||!forecast)return;
         list.replaceChildren();
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
-        const obligations=Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[];
+        const obligations=(Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[])
+          .slice()
+          .sort((a,b)=>Number(a?.day||0)-Number(b?.day||0)||String(a?.title||'').localeCompare(String(b?.title||''),'ru'));
         let pending=0;
         for(const row of obligations){
           if(row.active===false)continue;
