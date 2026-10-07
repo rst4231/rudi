@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.56">
+  <meta name="rudi-version" content="v4.57">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.56">
+  <link rel="stylesheet" href="/app.css?v=4.57">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -64,7 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.56"></script>
+  <script defer src="/app.js?v=4.57"></script>
   <script defer src="/pwa-extras.js?v=4.12"></script>
   <script defer src="/weather.js?v=4.12"></script>
   <script defer src="/smart-home.js?v=4.12"></script>
@@ -357,6 +357,10 @@
               <div><span>В планах</span><strong id="financePlannedMonthTotal">0 ₽</strong></div>
               <div><span>Доход</span><strong id="financeCoinIncomeValue">0 ₽</strong></div>
             </div>
+            <div class="finance-balance-progress" aria-label="Прогресс расходов за месяц">
+              <div class="finance-balance-progress-track"><i id="financeBalanceProgressBar"></i></div>
+              <strong id="financeBalanceProgressPercent">0%</strong>
+            </div>
           </div>
 
           <div class="finance-wallet-section">
@@ -575,7 +579,7 @@
             <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
             <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>
-            <div class="finance-wallet-history-wrap">
+            <div id="financeWalletHistoryWrap" class="finance-wallet-history-wrap" hidden>
               <div class="finance-wallet-history-title">История кошелька</div>
               <div id="financeWalletHistory" class="finance-wallet-history"></div>
             </div>
@@ -735,6 +739,7 @@
           <div class="finance-literacy-kicker">По вашим данным</div>
           <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
           <p class="finance-analyst-intro">Анализирует доходы, расходы, бюджеты, обязательные платежи и долги и даёт краткий разбор.</p>
+          <div class="finance-analyst-limit">Лимит: 1 анализ в сутки</div>
           <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
           <div id="financeAnalystStatus" class="finance-status" role="status" aria-live="polite"></div>
           <div id="financeAnalystResult" class="finance-analyst-result" hidden></div>
@@ -808,17 +813,54 @@
           <div id="financeDebtStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
 
-        <section class="finance-history-card" aria-labelledby="financeDebtListTitle">
+        <section class="finance-history-card finance-debts-card" aria-labelledby="financeDebtListTitle">
           <div class="finance-history-head">
             <div>
               <span class="section-eyebrow">Долги</span>
-              <h2 id="financeDebtListTitle">Список</h2>
+              <h2 id="financeDebtListTitle">Мои долги</h2>
             </div>
-            <span id="financeDebtCount" class="finance-history-count">0</span>
+            <span id="financeDebtCount" class="finance-debt-count-label">0 долгов</span>
+          </div>
+          <div class="finance-debt-filters" role="tablist" aria-label="Фильтр долгов">
+            <button class="finance-debt-filter is-active" type="button" data-debt-filter="all">Все <span id="financeDebtFilterAllCount">0</span></button>
+            <button class="finance-debt-filter" type="button" data-debt-filter="owe">Я должен <span id="financeDebtFilterOweCount">0</span></button>
+            <button class="finance-debt-filter" type="button" data-debt-filter="owed">Мне должны <span id="financeDebtFilterOwedCount">0</span></button>
           </div>
           <div id="financeDebtList" class="finance-debt-list"></div>
           <div id="financeDebtEmpty" class="finance-history-empty">Активных долгов пока нет</div>
+          <button id="financeDebtHistoryToggle" class="finance-debt-history-toggle" type="button" hidden>История</button>
+          <div id="financeDebtHistory" class="finance-debt-history" hidden></div>
         </section>
+
+        <div id="financeDebtDetailComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeDebtDetailBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet finance-debt-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="financeDebtDetailTitle">
+            <div class="finance-coin-modal-head">
+              <div><small id="financeDebtDetailDirection">Долг</small><h3 id="financeDebtDetailTitle">Детали долга</h3></div>
+              <button id="financeDebtDetailClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <label class="finance-input-field"><span>Имя</span><input id="financeDebtDetailCounterparty" class="finance-text-input" maxlength="80"></label>
+            <label class="finance-input-field"><span>Тип</span><select id="financeDebtDetailType" class="finance-select"><option value="owe">Я должен</option><option value="owed">Мне должны</option></select></label>
+            <label class="finance-input-field"><span>Сумма долга</span><div class="finance-money-input"><input id="financeDebtDetailAmount" type="number" min="0.01" max="100000000" step="1" inputmode="decimal"><b>₽</b></div></label>
+            <label class="finance-input-field"><span>Комментарий</span><input id="financeDebtDetailNote" class="finance-text-input" maxlength="140"></label>
+            <div class="finance-debt-detail-summary">
+              <div><span>Погашено</span><strong id="financeDebtDetailPaid">0 ₽</strong></div>
+              <div><span>Осталось</span><strong id="financeDebtDetailRemaining">0 ₽</strong></div>
+              <div><span>Добавлено</span><strong id="financeDebtDetailDate">—</strong></div>
+            </div>
+            <button id="financeDebtDetailSave" class="finance-analyst-button" type="button">Сохранить изменения</button>
+            <div id="financeDebtPaymentBlock" class="finance-debt-payment-block">
+              <div class="finance-debt-payment-row">
+                <div class="finance-money-input"><input id="financeDebtPaymentAmount" type="number" min="0.01" max="100000000" step="1" inputmode="decimal" placeholder="Сумма платежа"><b>₽</b></div>
+                <button id="financeDebtPaymentAdd" class="finance-debt-pay-button" type="button">Внести</button>
+              </div>
+              <button id="financeDebtPayFull" class="finance-debt-pay-full" type="button">Погасить полностью</button>
+            </div>
+            <div id="financeDebtPaymentHistory" class="finance-debt-payment-history"></div>
+            <button id="financeDebtDelete" class="finance-category-delete-wide" type="button">Удалить долг</button>
+            <div id="financeDebtDetailStatus" class="finance-status" role="status" aria-live="polite"></div>
+          </section>
+        </div>
       </div>
 
       <div id="financeLiteracyPanel" class="finance-tab-panel finance-literacy-panel" data-finance-panel="literacy" hidden>
@@ -1760,7 +1802,7 @@
 
     </section>
 
-    <section id="fastingPage" class="fasting-page" data-app-tab-section="fasting" aria-labelledby="fastingPageTitle" hidden>
+    <section id="fastingPage" class="fasting-page" data-app-tab-section="fasting" data-no-pull-refresh="true" aria-labelledby="fastingPageTitle" hidden>
       <div class="fasting-page-head">
         <button id="fastingBackButton" class="fasting-back-button" type="button" aria-label="Назад в Кухню">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>

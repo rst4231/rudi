@@ -2184,6 +2184,9 @@
       let financeExpenseCalcOperator='';
       let financeExpenseCalcReplace=false;
       let financeWalletEditingId='';
+      let financeDebtFilter='all';
+      let financeDebtSelectedId='';
+      let financeDebtHistoryOpen=false;
       let financeIncomeDrag=null;
       let financeWalletEditMode=false;
       let financeWalletLongPress=null;
@@ -2291,6 +2294,25 @@
           input.addEventListener('change',sync);
           input.addEventListener('blur',sync);
           sync();
+        });
+      }
+      function bindFinanceMonthPicker(container,input){
+        if(!container||!input||container.dataset.monthPickerBound==='1')return;
+        container.dataset.monthPickerBound='1';
+        container.setAttribute('tabindex','0');
+        const open=event=>{
+          if(event?.target===input)return;
+          if(typeof input.showPicker==='function'){
+            event?.preventDefault?.();
+            try{input.showPicker();return}catch(_){}
+          }
+          try{input.focus({preventScroll:true})}catch(_){input.focus?.()}
+          input.click?.();
+        };
+        container.addEventListener('click',open);
+        container.addEventListener('keydown',event=>{
+          if(event.key!=='Enter'&&event.key!==' ')return;
+          event.preventDefault();open(event);
         });
       }
 
@@ -2753,6 +2775,12 @@
           plannedTotal.classList.toggle('is-over-limit',plannedRemaining<0);
           plannedTotal.title='Сумма всех лимитов категорий минус расходы за '+financeMonthTitle(month);
         }
+        const progressBar=document.getElementById('financeBalanceProgressBar');
+        const progressPercent=document.getElementById('financeBalanceProgressPercent');
+        const spentPercent=plannedLimit>0?Math.max(0,actualSpent/plannedLimit*100):(actualSpent>0?100:0);
+        if(progressBar)progressBar.style.width=Math.min(100,spentPercent)+'%';
+        if(progressPercent)progressPercent.textContent=financePercent(spentPercent);
+        document.querySelector('.finance-balance-progress')?.classList.toggle('is-over',spentPercent>100);
         if(yesterdayTotal){
           const now=financeMoscowParts();
           const todayKey=now.year+'-'+now.month+'-'+now.day;
@@ -3393,7 +3421,10 @@
         if(minimumPayment)minimumPayment.value=wallet?.type==='credit'&&Number(wallet.minimumPayment||0)>0?String(wallet.minimumPayment):'';updateFinanceWalletCreditFields();
         if(remove)remove.hidden=!wallet;
         if(status)status.textContent='';
-        renderFinanceWalletHistory(wallet?.id||'');
+        const historyWrap=document.getElementById('financeWalletHistoryWrap');
+        if(historyWrap)historyWrap.hidden=!wallet;
+        if(wallet)renderFinanceWalletHistory(wallet.id);
+        else document.getElementById('financeWalletHistory')?.replaceChildren();
         mountFinanceCoinModal(modal,name);
       }
 
@@ -4244,22 +4275,126 @@
         refreshFinanceInsight(true).catch(()=>{});
       }
 
+      function financeDebtDate(value){
+        const date=new Date(value||Date.now());
+        if(Number.isNaN(date.getTime()))return '—';
+        return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Moscow'}).format(date);
+      }
+      function financeDebtWord(count){
+        const n=Math.abs(Number(count)||0)%100,tail=n%10;
+        if(n>=11&&n<=19)return 'долгов';
+        if(tail===1)return 'долг';
+        if(tail>=2&&tail<=4)return 'долга';
+        return 'долгов';
+      }
+      function financeDebtRemaining(row){
+        return Math.max(0,Number(row?.amount||0)-Number(row?.paidAmount||0));
+      }
+      function openFinanceDebtDetail(id){
+        const row=(financeState.debts||[]).find(item=>item.id===id);if(!row)return;
+        financeDebtSelectedId=row.id;
+        const counterparty=document.getElementById('financeDebtDetailCounterparty');
+        const type=document.getElementById('financeDebtDetailType');
+        const amount=document.getElementById('financeDebtDetailAmount');
+        const note=document.getElementById('financeDebtDetailNote');
+        const paid=document.getElementById('financeDebtDetailPaid');
+        const remaining=document.getElementById('financeDebtDetailRemaining');
+        const date=document.getElementById('financeDebtDetailDate');
+        const direction=document.getElementById('financeDebtDetailDirection');
+        const paymentBlock=document.getElementById('financeDebtPaymentBlock');
+        const paymentHistory=document.getElementById('financeDebtPaymentHistory');
+        const paymentAmount=document.getElementById('financeDebtPaymentAmount');
+        const status=document.getElementById('financeDebtDetailStatus');
+        if(counterparty)counterparty.value=row.counterparty||'';
+        if(type)type.value=row.direction||'owe';
+        if(amount)amount.value=Number(row.amount||0)||'';
+        if(note)note.value=row.note||'';
+        if(paid)paid.textContent=financeMoney(row.paidAmount||0);
+        if(remaining)remaining.textContent=financeMoney(financeDebtRemaining(row));
+        if(date)date.textContent=financeDebtDate(row.createdAt);
+        if(direction)direction.textContent=row.direction==='owed'?'Мне должны':'Я должен';
+        if(paymentBlock)paymentBlock.hidden=Boolean(row.paid);
+        if(paymentAmount)paymentAmount.value='';
+        if(status)status.textContent='';
+        if(paymentHistory){
+          paymentHistory.replaceChildren();
+          const payments=[...(Array.isArray(row.payments)?row.payments:[])].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+          if(payments.length){
+            const title=document.createElement('div');title.className='finance-debt-payment-history-title';title.textContent='История платежей';paymentHistory.append(title);
+            for(const item of payments){
+              const line=document.createElement('div');line.className='finance-debt-payment-history-row';
+              const when=document.createElement('span');when.textContent=financeDebtDate(item.createdAt);
+              const value=document.createElement('strong');value.textContent=financeMoney(item.amount);
+              line.append(when,value);paymentHistory.append(line);
+            }
+          }
+        }
+        mountFinanceCoinModal(document.getElementById('financeDebtDetailComposer'),counterparty);
+      }
+      async function financeDebtRefreshAfter(operation,payload={}){
+        const data=await financeRequest(operation,payload);
+        renderFinanceState(data,{personalMonth:document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
+        return data;
+      }
       function renderFinanceDebts(){
         const list=document.getElementById('financeDebtList'),empty=document.getElementById('financeDebtEmpty'),count=document.getElementById('financeDebtCount');
+        const history=document.getElementById('financeDebtHistory'),historyToggle=document.getElementById('financeDebtHistoryToggle');
         const oweTotal=document.getElementById('financeDebtOweTotal'),owedTotal=document.getElementById('financeDebtOwedTotal');
-        if(!list)return;const rows=Array.isArray(financeState.debts)?financeState.debts:[];
-        const active=rows.filter(row=>!row.paid),owe=active.filter(row=>row.direction==='owe').reduce((sum,row)=>sum+Number(row.amount||0),0),owed=active.filter(row=>row.direction==='owed').reduce((sum,row)=>sum+Number(row.amount||0),0);
-        if(oweTotal)oweTotal.textContent=financeMoney(owe);if(owedTotal)owedTotal.textContent=financeMoney(owed);if(count)count.textContent=String(active.length);
-        list.replaceChildren();if(empty)empty.hidden=rows.length>0;
-        for(const row of rows){
-          const card=document.createElement('article');card.className='finance-debt-row'+(row.paid?' is-paid':'');
+        if(!list)return;
+        const rows=Array.isArray(financeState.debts)?financeState.debts:[];
+        const active=rows.filter(row=>!row.paid),paidRows=rows.filter(row=>row.paid);
+        const oweRows=active.filter(row=>row.direction==='owe'),owedRows=active.filter(row=>row.direction==='owed');
+        const owe=oweRows.reduce((sum,row)=>sum+financeDebtRemaining(row),0),owed=owedRows.reduce((sum,row)=>sum+financeDebtRemaining(row),0);
+        if(oweTotal)oweTotal.textContent=financeMoney(owe);if(owedTotal)owedTotal.textContent=financeMoney(owed);
+        if(count)count.textContent=active.length+' '+financeDebtWord(active.length);
+        const counts={all:active.length,owe:oweRows.length,owed:owedRows.length};
+        for(const [key,value] of Object.entries(counts)){
+          const host=document.getElementById(key==='all'?'financeDebtFilterAllCount':key==='owe'?'financeDebtFilterOweCount':'financeDebtFilterOwedCount');
+          if(host)host.textContent=String(value);
+        }
+        document.querySelectorAll('[data-debt-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.debtFilter===financeDebtFilter));
+        const visible=active.filter(row=>financeDebtFilter==='all'||row.direction===financeDebtFilter);
+        list.replaceChildren();if(empty)empty.hidden=visible.length>0;
+        for(const row of visible){
+          const card=document.createElement('article');card.className='finance-debt-row';card.tabIndex=0;card.setAttribute('role','button');
           const main=document.createElement('div');main.className='finance-debt-row-main';
-          const title=document.createElement('strong');title.textContent=(row.direction==='owe'?'Должен: ':'Мне должен: ')+String(row.counterparty||'');
-          const note=document.createElement('span');note.textContent=row.note||(row.paid?'Погашено':'Активный долг');main.append(title,note);
-          const side=document.createElement('div');side.className='finance-debt-row-side';const amount=document.createElement('strong');amount.textContent=financeMoney(row.amount);
-          const toggle=document.createElement('button');toggle.type='button';toggle.className='finance-debt-toggle';toggle.textContent=row.paid?'Вернуть':'Погашен';
-          toggle.addEventListener('click',async()=>{toggle.disabled=true;try{const data=await financeRequest('toggle-debt',{id:row.id,paid:!row.paid});renderFinanceState(data)}catch(_){document.getElementById('financeDebtStatus').textContent='Не удалось обновить долг'}finally{toggle.disabled=false}});
-          side.append(amount,toggle);card.append(main,side);list.appendChild(card);
+          const title=document.createElement('strong');title.textContent=String(row.counterparty||'');
+          const note=document.createElement('span');note.textContent=row.note||'Без комментария';
+          const meta=document.createElement('div');meta.className='finance-debt-row-meta';
+          const badge=document.createElement('span');badge.className='finance-debt-badge '+(row.direction==='owed'?'is-owed':'is-owe');badge.textContent=row.direction==='owed'?'Мне должны':'Я должен';
+          const date=document.createElement('span');date.textContent=financeDebtDate(row.createdAt);
+          meta.append(badge,date);main.append(title,note,meta);
+          const side=document.createElement('div');side.className='finance-debt-row-side';
+          const amount=document.createElement('strong');amount.textContent=financeMoney(financeDebtRemaining(row));
+          const paidAmount=Number(row.paidAmount||0);
+          const paidMeta=document.createElement('span');paidMeta.className='finance-debt-progress-copy';
+          paidMeta.textContent=paidAmount>0?'Погашено '+financeMoney(paidAmount)+' из '+financeMoney(row.amount):'Осталось';
+          const pay=document.createElement('button');pay.type='button';pay.className='finance-debt-toggle';pay.textContent='Погасить';
+          pay.addEventListener('click',event=>{event.stopPropagation();openFinanceDebtDetail(row.id)});
+          side.append(amount,paidMeta,pay);
+          card.append(main,side);
+          card.addEventListener('click',()=>openFinanceDebtDetail(row.id));
+          card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openFinanceDebtDetail(row.id)}});
+          list.appendChild(card);
+        }
+        if(historyToggle){
+          historyToggle.hidden=!paidRows.length;
+          historyToggle.textContent='История · '+paidRows.length;
+          historyToggle.classList.toggle('is-open',financeDebtHistoryOpen);
+        }
+        if(history){
+          history.hidden=!financeDebtHistoryOpen||!paidRows.length;
+          history.replaceChildren();
+          if(financeDebtHistoryOpen){
+            for(const row of paidRows){
+              const item=document.createElement('button');item.type='button';item.className='finance-debt-history-row';
+              const copy=document.createElement('span');copy.innerHTML='<strong></strong><small></small>';
+              copy.querySelector('strong').textContent=row.counterparty||'Долг';
+              copy.querySelector('small').textContent=(row.direction==='owed'?'Мне должны':'Я должен')+' · '+financeDebtDate(row.updatedAt||row.createdAt);
+              const value=document.createElement('strong');value.textContent=financeMoney(row.amount);
+              item.append(copy,value);item.addEventListener('click',()=>openFinanceDebtDetail(row.id));history.append(item);
+            }
+          }
         }
       }
 
@@ -4327,19 +4462,35 @@
         }
         host.hidden=false;
       }
+      function financeTodayKey(){
+        const p=financeMoscowParts();return p.year+'-'+p.month+'-'+p.day;
+      }
+      function syncFinanceAnalystDailyState(){
+        const button=document.getElementById('financeAnalystButton'),status=document.getElementById('financeAnalystStatus');
+        const used=financeState.plan?.analystLastDate===financeTodayKey()&&Boolean(financeState.plan?.analystLastReport?.summary);
+        if(used){
+          if(button){button.disabled=true;button.textContent='Анализ за сегодня готов'}
+          renderFinancialAnalyst(financeState.plan.analystLastReport);
+          if(status)status.textContent='Следующий анализ будет доступен завтра';
+        }else{
+          if(button){button.disabled=false;button.textContent='Получить анализ'}
+          if(status?.textContent==='Следующий анализ будет доступен завтра')status.textContent='';
+        }
+      }
       async function runFinancialAnalyst(){
         const button=document.getElementById('financeAnalystButton'),status=document.getElementById('financeAnalystStatus');
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        if(financeState.plan?.analystLastDate===financeTodayKey()&&financeState.plan?.analystLastReport?.summary){syncFinanceAnalystDailyState();return}
         if(button){button.disabled=true;button.textContent='Анализирую…'}
         if(status)status.textContent='Сопоставляю доходы, расходы и долги…';
         try{
           const data=await financeRequest('analyst',{month});
+          financeState.plan={...(financeState.plan||{}),analystLastDate:data.analystDate||financeTodayKey(),analystLastReport:data.report};
           renderFinancialAnalyst(data.report);
-          if(status)status.textContent='Анализ готов';
+          syncFinanceAnalystDailyState();
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(_){
           if(status)status.textContent='Не удалось получить анализ. Попробуй ещё раз.';
-        }finally{
           if(button){button.disabled=false;button.textContent='Получить анализ'}
         }
       }
@@ -4394,7 +4545,7 @@
         const selected=String(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey());
         const selectedPersonal=String(personalMonth||document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
         renderFinanceSelectedMonth(selected);renderFinancePersonalMonth(selectedPersonal);
-        renderFinanceWallets();renderFinancePlan({preserveInputs:preservePlan});renderFinanceOperations();renderFinanceAnalytics();renderFinanceObligations();
+        renderFinanceWallets();renderFinancePlan({preserveInputs:preservePlan});renderFinanceOperations();renderFinanceAnalytics();renderFinanceObligations();syncFinanceAnalystDailyState();
         if(financeCategoryHistoryId)renderFinanceCategoryHistory();
       }
       async function loadFinances({silent=false,month=''}={}){
@@ -4410,6 +4561,8 @@
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();
         applyFinancePermissions();setFinanceTab('personal');
         bindFinanceTemporalControls();
+        bindFinanceMonthPicker(document.querySelector('.finance-month-picker'),month);
+        bindFinanceMonthPicker(document.querySelector('.finance-balance-month'),personalMonth);
         bindFinanceCardCollapse('financeOperationsCard','financeOperationsToggle');
         bindFinanceCardCollapse('financeGoalCard','financeGoalToggle');
 
@@ -4736,6 +4889,36 @@
         document.getElementById('financeExportButton')?.addEventListener('click',exportFinanceCsv);
 
         document.getElementById('financeAnalystButton')?.addEventListener('click',()=>runFinancialAnalyst());
+
+        document.querySelector('.finance-debt-filters')?.addEventListener('click',event=>{
+          const button=event.target.closest('[data-debt-filter]');if(!button)return;
+          financeDebtFilter=button.dataset.debtFilter||'all';renderFinanceDebts();
+        });
+        document.getElementById('financeDebtHistoryToggle')?.addEventListener('click',()=>{financeDebtHistoryOpen=!financeDebtHistoryOpen;renderFinanceDebts()});
+        document.getElementById('financeDebtDetailBackdrop')?.addEventListener('click',()=>closeFinanceCoinModal('financeDebtDetailComposer'));
+        document.getElementById('financeDebtDetailClose')?.addEventListener('click',()=>closeFinanceCoinModal('financeDebtDetailComposer'));
+        document.getElementById('financeDebtDetailSave')?.addEventListener('click',async()=>{
+          const row=(financeState.debts||[]).find(item=>item.id===financeDebtSelectedId);if(!row)return;
+          const status=document.getElementById('financeDebtDetailStatus');
+          const payload={id:row.id,direction:document.getElementById('financeDebtDetailType')?.value||row.direction,counterparty:String(document.getElementById('financeDebtDetailCounterparty')?.value||'').trim(),amount:Number(document.getElementById('financeDebtDetailAmount')?.value||0),note:document.getElementById('financeDebtDetailNote')?.value||''};
+          if(!payload.counterparty||payload.amount<=0){if(status)status.textContent='Проверь имя и сумму';return}
+          try{await financeDebtRefreshAfter('save-debt',payload);closeFinanceCoinModal('financeDebtDetailComposer')}catch(_){if(status)status.textContent='Не удалось сохранить изменения'}
+        });
+        document.getElementById('financeDebtPaymentAdd')?.addEventListener('click',async()=>{
+          const amount=Number(document.getElementById('financeDebtPaymentAmount')?.value||0),status=document.getElementById('financeDebtDetailStatus');
+          if(!financeDebtSelectedId||amount<=0){if(status)status.textContent='Укажи сумму платежа';return}
+          try{await financeDebtRefreshAfter('pay-debt',{id:financeDebtSelectedId,amount});openFinanceDebtDetail(financeDebtSelectedId)}catch(_){if(status)status.textContent='Не удалось добавить платёж'}
+        });
+        document.getElementById('financeDebtPayFull')?.addEventListener('click',async()=>{
+          const row=(financeState.debts||[]).find(item=>item.id===financeDebtSelectedId);if(!row)return;
+          const remaining=financeDebtRemaining(row);if(remaining<=0)return;
+          try{await financeDebtRefreshAfter('pay-debt',{id:row.id,amount:remaining});closeFinanceCoinModal('financeDebtDetailComposer')}catch(_){const status=document.getElementById('financeDebtDetailStatus');if(status)status.textContent='Не удалось погасить долг'}
+        });
+        document.getElementById('financeDebtDelete')?.addEventListener('click',async()=>{
+          const row=(financeState.debts||[]).find(item=>item.id===financeDebtSelectedId);if(!row)return;
+          if(!window.confirm('Удалить долг «'+String(row.counterparty||'')+'»?'))return;
+          try{await financeDebtRefreshAfter('delete-debt',{id:row.id});closeFinanceCoinModal('financeDebtDetailComposer')}catch(_){const status=document.getElementById('financeDebtDetailStatus');if(status)status.textContent='Не удалось удалить долг'}
+        });
 
         const debtSave=document.getElementById('financeDebtSaveButton');
         debtSave?.addEventListener('click',async()=>{

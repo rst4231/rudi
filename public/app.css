@@ -16710,3 +16710,61 @@ body.finance-category-history-open{
 }
 @media(max-width:360px){.finance-total-split{gap:6px}.finance-total-person{padding:7px}.finance-total-person-copy b{font-size:12px}}
 /* end RUDI v4.56 */
+
+
+/* RUDI v4.57 — finance polish: debt UX, progress, web month picker */
+.finance-balance-progress{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;margin-top:10px}
+.finance-balance-progress-track{height:6px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.18);box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+.finance-balance-progress-track i{display:block;width:0;height:100%;border-radius:inherit;background:#fff;transition:width .24s ease}
+.finance-balance-progress>strong{min-width:34px;color:#fff;font-size:10px;line-height:1;font-weight:850;text-align:right;font-variant-numeric:tabular-nums}
+.finance-balance-progress.is-over .finance-balance-progress-track i{background:#ffe2e4}
+.finance-analyst-limit{margin:-2px 0 10px;color:var(--muted);font-size:9px;font-weight:720}
+.finance-analyst-button:disabled{opacity:.58;cursor:default}
+.finance-debt-count-label{color:var(--muted);font-size:9.5px;font-weight:760}
+.finance-debt-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:11px;padding:4px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
+.finance-debt-filter{min-width:0;min-height:34px;padding:5px 7px;border:0;border-radius:9px;background:transparent;color:var(--muted);font:inherit;font-size:8.8px;font-weight:760;white-space:nowrap}
+.finance-debt-filter span{opacity:.72}
+.finance-debt-filter.is-active{background:var(--surface);color:var(--text);box-shadow:0 2px 8px color-mix(in srgb,var(--text) 8%,transparent)}
+.finance-debt-list{gap:7px;margin-top:10px}
+.finance-debt-row{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:10px 11px;cursor:pointer;transition:transform .14s ease,background-color .14s ease}
+.finance-debt-row:active{transform:scale(.992)}
+.finance-debt-row-main{gap:3px}
+.finance-debt-row-main>strong{font-size:12px}
+.finance-debt-row-main>span{font-size:8.7px}
+.finance-debt-row-meta{display:flex;align-items:center;gap:6px;margin-top:2px;color:var(--muted);font-size:7.7px;font-weight:680}
+.finance-debt-badge{display:inline-flex;align-items:center;min-height:18px;padding:0 6px;border-radius:999px;font-size:7.5px;font-weight:820}
+.finance-debt-badge.is-owe{background:color-mix(in srgb,#e58a42 12%,var(--surface));color:#c96f2d}
+.finance-debt-badge.is-owed{background:color-mix(in srgb,var(--finance-green) 12%,var(--surface));color:var(--finance-green)}
+.finance-debt-row-side{gap:4px}
+.finance-debt-row-side>strong{font-size:13.5px;letter-spacing:-.025em}
+.finance-debt-progress-copy{max-width:132px;color:var(--muted);font-size:7.5px!important;text-align:right;white-space:normal!important}
+.finance-debt-toggle{min-height:28px;border-color:color-mix(in srgb,var(--finance-green) 22%,var(--line));background:color-mix(in srgb,var(--finance-green) 8%,var(--surface));color:var(--finance-green)}
+.finance-debt-history-toggle{width:100%;min-height:36px;margin-top:10px;border:1px solid var(--line);border-radius:11px;background:var(--soft);color:var(--muted);font:inherit;font-size:9px;font-weight:760}
+.finance-debt-history{display:grid;gap:6px;margin-top:8px}
+.finance-debt-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);font:inherit;text-align:left}
+.finance-debt-history-row>span{display:grid;gap:2px;min-width:0}
+.finance-debt-history-row>span strong{font-size:10.5px}
+.finance-debt-history-row>span small{color:var(--muted);font-size:7.8px}
+.finance-debt-history-row>strong{font-size:10px}
+.finance-debt-detail-sheet{gap:10px}
+.finance-debt-detail-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.finance-debt-detail-summary>div{min-width:0;padding:9px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.finance-debt-detail-summary span{display:block;color:var(--muted);font-size:7.8px;font-weight:720}
+.finance-debt-detail-summary strong{display:block;margin-top:3px;overflow:hidden;font-size:10.5px;text-overflow:ellipsis;white-space:nowrap}
+.finance-debt-payment-block{display:grid;gap:7px;padding-top:2px}
+.finance-debt-payment-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+.finance-debt-pay-button,.finance-debt-pay-full{min-height:42px;border:1px solid color-mix(in srgb,var(--finance-green) 24%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--finance-green) 9%,var(--surface));color:var(--finance-green);font:inherit;font-size:9.5px;font-weight:800}
+.finance-debt-pay-button{padding:0 14px}
+.finance-debt-pay-full{width:100%}
+.finance-debt-payment-history{display:grid;gap:5px}
+.finance-debt-payment-history-title{margin-top:3px;color:var(--muted);font-size:8px;font-weight:760}
+.finance-debt-payment-history-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 9px;border-radius:10px;background:var(--soft)}
+.finance-debt-payment-history-row span{color:var(--muted);font-size:8px}
+.finance-debt-payment-history-row strong{font-size:9px}
+.finance-month-picker,.finance-balance-month{touch-action:manipulation}
+.finance-month-picker .finance-month-input,.finance-balance-month-input{z-index:2}
+@media(max-width:430px){
+  .finance-debt-filter{font-size:8.1px;padding-inline:5px}
+  .finance-debt-detail-summary{grid-template-columns:1fr 1fr}
+  .finance-debt-detail-summary>div:last-child{grid-column:1/-1}
+}

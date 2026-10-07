@@ -140,14 +140,31 @@ function cleanObligations(value = []) {
   }
   return out;
 }
+function cleanAnalystReport(value = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const list = (items) => (Array.isArray(items) ? items : []).map((item) => cleanText(item, 500)).filter(Boolean).slice(0, 5);
+  const createdAtRaw = String(source.createdAt || '').trim();
+  const createdAtDate = createdAtRaw ? new Date(createdAtRaw) : null;
+  return {
+    summary: cleanText(source.summary, 1800),
+    strengths: list(source.strengths),
+    risks: list(source.risks),
+    model: cleanText(source.model, 80),
+    provider: cleanText(source.provider, 40),
+    createdAt: createdAtDate && !Number.isNaN(createdAtDate.getTime()) ? createdAtDate.toISOString() : '',
+  };
+}
 function cleanPlan(value = {}) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const analystLastDate = /^\d{4}-\d{2}-\d{2}$/.test(String(source.analystLastDate || '')) ? String(source.analystLastDate) : '';
   return {
     reserve: cleanMoney(source.reserve || 0),
     goalTitle: cleanText(source.goalTitle, 80),
     goalCurrent: cleanMoney(source.goalCurrent || 0),
     goalTarget: cleanMoney(source.goalTarget || 0),
     obligations: cleanObligations(source.obligations),
+    analystLastDate,
+    analystLastReport: cleanAnalystReport(source.analystLastReport),
     updatedAt: String(source.updatedAt || ''),
   };
 }
@@ -358,10 +375,31 @@ function normalizeState(value) {
       const id = cleanText(raw?.id || '', 100) || randomUUID();
       const createdAt = new Date(raw?.createdAt || Date.now());
       const updatedAt = new Date(raw?.updatedAt || raw?.createdAt || Date.now());
+      const payments = [];
+      for (const payment of (Array.isArray(raw?.payments) ? raw.payments : []).slice(-120)) {
+        try {
+          const paymentAmount = cleanMoney(payment?.amount);
+          if (paymentAmount <= 0) continue;
+          const paymentDate = new Date(payment?.createdAt || Date.now());
+          payments.push({
+            id: cleanText(payment?.id || '', 100) || randomUUID(),
+            amount: paymentAmount,
+            createdAt: Number.isNaN(paymentDate.getTime()) ? new Date().toISOString() : paymentDate.toISOString(),
+          });
+        } catch (_) {}
+      }
+      const paidAmount = Math.min(
+        amount,
+        raw?.paidAmount === undefined
+          ? (Boolean(raw?.paid) ? amount : payments.reduce((sum, item) => sum + Number(item.amount || 0), 0))
+          : cleanMoney(raw.paidAmount || 0)
+      );
       debts.push({
         id, actor, direction, counterparty, amount,
         note: cleanText(raw?.note, 140),
-        paid: Boolean(raw?.paid),
+        paidAmount,
+        payments,
+        paid: paidAmount >= amount - 0.005,
         createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
         updatedAt: Number.isNaN(updatedAt.getTime()) ? new Date().toISOString() : updatedAt.toISOString(),
       });
@@ -1195,14 +1233,56 @@ async function saveDebt(actor, payload = {}, options = {}) {
     const id = cleanText(payload.id, 100) || (options.id || randomUUID());
     const existing = current.debts.find((row) => row.id === id);
     if (existing && existing.actor !== safeActor) throw new Error('finance-debt-owner-invalid');
+    const paidAmount = Math.min(amount, Number(existing?.paidAmount || 0));
     const row = {
       id, actor: safeActor, direction, counterparty, amount, note,
-      paid: existing ? existing.paid : false,
+      paidAmount,
+      payments: Array.isArray(existing?.payments) ? existing.payments : [],
+      paid: paidAmount >= amount - 0.005,
       createdAt: existing ? existing.createdAt : now,
       updatedAt: now,
     };
     const debts = current.debts.filter((item) => item.id !== id).concat(row);
     const next = normalizeState({ ...current, initialized: true, version: current.version + 1, debts });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function payDebt(actor, id, amount, options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanId = cleanText(id, 100, { required: true });
+  const requestedAmount = cleanMoney(amount);
+  if (requestedAmount <= 0) throw new Error('finance-amount-invalid');
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const found = current.debts.find((row) => row.id === cleanId);
+    if (!found || found.actor !== safeActor) throw new Error('finance-debt-not-found');
+    const remaining = Math.max(0, Number(found.amount || 0) - Number(found.paidAmount || 0));
+    if (remaining <= 0) return current;
+    const applied = Math.min(remaining, requestedAmount);
+    const now = new Date(options.now || Date.now()).toISOString();
+    const payment = { id: cleanText(options.id || randomUUID(), 100, { required: true }), amount: applied, createdAt: now };
+    const paidAmount = Math.min(Number(found.amount || 0), Number(found.paidAmount || 0) + applied);
+    const debts = current.debts.map((row) => row.id === cleanId ? {
+      ...row,
+      paidAmount,
+      payments: [...(Array.isArray(row.payments) ? row.payments : []), payment].slice(-120),
+      paid: paidAmount >= Number(row.amount || 0) - 0.005,
+      updatedAt: now,
+    } : row);
+    const next = normalizeState({ ...current, version: current.version + 1, debts });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function deleteDebt(actor, id, options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanId = cleanText(id, 100, { required: true });
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const found = current.debts.find((row) => row.id === cleanId);
+    if (!found || found.actor !== safeActor) throw new Error('finance-debt-not-found');
+    const next = normalizeState({ ...current, version: current.version + 1, debts: current.debts.filter((row) => row.id !== cleanId) });
     await writeState(next, options);
     return next;
   });
@@ -1215,7 +1295,14 @@ async function toggleDebt(actor, id, paid, options = {}) {
     const found = current.debts.find((row) => row.id === cleanId);
     if (!found || found.actor !== safeActor) throw new Error('finance-debt-not-found');
     const now = new Date(options.now || Date.now()).toISOString();
-    const debts = current.debts.map((row) => row.id === cleanId ? { ...row, paid: Boolean(paid), updatedAt: now } : row);
+    const markPaid = Boolean(paid);
+    const debts = current.debts.map((row) => row.id === cleanId ? {
+      ...row,
+      paidAmount: markPaid ? Number(row.amount || 0) : 0,
+      payments: markPaid ? [{ id: randomUUID(), amount: Number(row.amount || 0), createdAt: now }] : [],
+      paid: markPaid,
+      updatedAt: now,
+    } : row);
     const next = normalizeState({ ...current, version: current.version + 1, debts });
     await writeState(next, options);
     return next;
@@ -1227,5 +1314,5 @@ module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
   saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
-  saveDebt, toggleDebt, resetMutationQueueForTests,
+  saveDebt, payDebt, deleteDebt, toggleDebt, resetMutationQueueForTests,
 };
