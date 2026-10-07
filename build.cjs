@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['app.css', 'pwa-extras.css', 'calendar.css', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js'];
+const WEB_ASSETS = ['app.css', 'finance-bank.css', 'pwa-extras.css', 'calendar.css', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'finance-bank.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -107,11 +107,13 @@ function syncWebVersion(env = process.env) {
     html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
   }
   html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
+  html = html.replace(/\/finance-bank\.css\?v=[^"]+/g, '/finance-bank.css?v=' + assetVersion);
   html = html.replace(/\/pwa-extras\.css\?v=[^"]+/g, '/pwa-extras.css?v=' + assetVersion);
   html = html.replace(/\/calendar\.css\?v=[^"]+/g, '/calendar.css?v=' + assetVersion);
   html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
   html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
+  html = html.replace(/\/finance-bank\.js\?v=[^"]+/g, '/finance-bank.js?v=' + assetVersion);
   html = html.replace(/\/pwa-extras\.js\?v=[^"]+/g, '/pwa-extras.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
   html = html.replace(/\/weather\.js\?v=[^"]+/g, '/weather.js?v=' + assetVersion);
