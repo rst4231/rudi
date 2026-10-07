@@ -26,7 +26,6 @@ const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require(
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const { migrateD1ToVercel, storageMigrationStatus, rollbackStorageToD1, isMigrationAuthorized } = require('./d1-to-vercel-migration.cjs');
-const { runStylistLeadScan } = require('./stylist-web-search.cjs');
 const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const { handleSmartHomeRequest, readSmartHomeSnapshot } = require('./smart-home-client.cjs');
@@ -140,14 +139,6 @@ async function publishDailyLaborArticle(options = {}) {
 
 async function handler(req, res) {
   try {
-    if (req.query?.route === 'stylist-leads-cron') {
-      if (!isCronRequestAuthorized(req)) return res.status(401).json({ ok:false, error:'unauthorized-cron' });
-      try { return res.status(200).json(await runStylistLeadScan()); }
-      catch (error) {
-        console.error('RUDI_STYLIST_LEADS_CRON_ERROR',String(error?.message||error));
-        return res.status(500).json({ok:false,error:'stylist-leads-failed'});
-      }
-    }
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
     if (req.query?.route === 'smart-home-humidity-cron') {
       const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {
