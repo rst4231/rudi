@@ -54,6 +54,11 @@ function cleanAssetAmount(value) {
   if (!Number.isFinite(number) || number < 0 || number > 1000000000000) throw new Error('finance-amount-invalid');
   return Math.round(number * 100000000) / 100000000;
 }
+function cleanWalletBalance(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < -1000000000000 || number > 1000000000000) throw new Error('finance-amount-invalid');
+  return Math.round(number * 100000000) / 100000000;
+}
 function cleanOccurredAt(value, fallback = Date.now()) {
   const date = new Date(value || fallback);
   if (Number.isNaN(date.getTime())) throw new Error('finance-date-invalid');
@@ -147,7 +152,7 @@ function normalizeState(value) {
           name: cleanText(raw?.name, 48, { required: true }),
           icon: cleanIcon(raw?.icon || '💳'),
           currency: cleanCurrency(raw?.currency || 'RUB'),
-          balance: cleanAssetAmount(raw?.balance || 0),
+          balance: cleanWalletBalance(raw?.balance || 0),
           archived: Boolean(raw?.archived),
           importSource: cleanText(raw?.importSource, 24),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
@@ -413,7 +418,7 @@ async function saveWallet(actor, payload = {}, options = {}) {
   const name = cleanText(payload.name, 48, { required: true });
   const icon = cleanIcon(payload.icon || '💳');
   const currency = cleanCurrency(payload.currency || 'RUB');
-  const balance = cleanAssetAmount(payload.balance || 0);
+  const balance = cleanWalletBalance(payload.balance || 0);
   const requestedId = cleanText(payload.id, 100);
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
@@ -500,7 +505,7 @@ async function saveWalletIncome(actor, payload = {}, options = {}) {
     const currency = cleanCurrency(payload.currency || wallet.currency);
     if (currency !== wallet.currency) throw new Error('finance-wallet-currency-mismatch');
     const now = new Date(options.now || Date.now()).toISOString();
-    const nextWallets = rows.map((row) => row.id === walletId ? { ...row, balance: cleanAssetAmount(Number(row.balance || 0) + amount) } : row);
+    const nextWallets = rows.map((row) => row.id === walletId ? { ...row, balance: cleanWalletBalance(Number(row.balance || 0) + amount) } : row);
     const incomeRow = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
       actor: safeActor, month, walletId, amount, currency, rubAmount, exchangeRate,
@@ -514,6 +519,30 @@ async function saveWalletIncome(actor, payload = {}, options = {}) {
       walletIncomes: current.walletIncomes.concat(incomeRow),
     });
     const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, month, now) });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function deleteWalletIncome(actor, id, options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanId = cleanText(id, 100, { required: true });
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const found = current.walletIncomes.find((row) => row.id === cleanId && row.actor === safeActor);
+    if (!found) throw new Error('finance-wallet-income-not-found');
+    const rows = current.wallets[safeActor] || [];
+    if (!rows.some((row) => row.id === found.walletId)) throw new Error('finance-wallet-not-found');
+    const now = new Date(options.now || Date.now()).toISOString();
+    const nextWallets = rows.map((row) => row.id === found.walletId
+      ? { ...row, balance: cleanWalletBalance(Number(row.balance || 0) - Number(found.amount || 0)) }
+      : row);
+    const base = normalizeState({
+      ...current,
+      version: current.version + 1,
+      wallets: { ...current.wallets, [safeActor]: nextWallets },
+      walletIncomes: current.walletIncomes.filter((row) => row.id !== cleanId),
+    });
+    const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, found.month, now) });
     await writeState(next, options);
     return next;
   });
@@ -645,7 +674,7 @@ async function deleteExpenseCategory(actor, id, options = {}) {
     const wallets = {
       ...current.wallets,
       [safeActor]: (current.wallets[safeActor] || []).map((wallet) => refundByWallet.has(wallet.id)
-        ? { ...wallet, balance: cleanAssetAmount(Number(wallet.balance || 0) + Number(refundByWallet.get(wallet.id) || 0)) }
+        ? { ...wallet, balance: cleanWalletBalance(Number(wallet.balance || 0) + Number(refundByWallet.get(wallet.id) || 0)) }
         : wallet),
     };
 
@@ -882,7 +911,7 @@ async function deletePersonalExpense(actor, id, options = {}) {
         wallets = {
           ...current.wallets,
           [safeActor]: rows.map((row) => row.id === found.walletId
-            ? { ...row, balance: cleanAssetAmount(Number(row.balance || 0) + Number(found.sourceAmount || 0)) }
+            ? { ...row, balance: cleanWalletBalance(Number(row.balance || 0) + Number(found.sourceAmount || 0)) }
             : row),
         };
       }
@@ -939,8 +968,8 @@ async function toggleDebt(actor, id, paid, options = {}) {
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
-  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanAssetAmount, cleanCurrency, cleanPlan, splitAmounts, personalAmounts,
+  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };

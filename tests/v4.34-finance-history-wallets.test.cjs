@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   readFinanceState, viewState, resetMutationQueueForTests,
-  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
   archiveExpenseCategory, reorderExpenseCategories, importPersonalExpenses,
 } = require('../api/finance-store.cjs');
 const { directFinanceAddress } = require('../api/finance-ai.cjs');
@@ -266,4 +266,82 @@ test('literacy article renderer has structural formatting styles', () => {
   assert.ok(css.includes('.finance-literacy-body h3'));
   assert.ok(css.includes('.finance-literacy-body li::marker'));
   assert.ok(css.includes('.finance-literacy-lead'));
+});
+
+
+test('wallet heading shows total value in RUB using existing market rates', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.equal(html.includes('financeWalletTotalRub'),false);
+  assert.ok(html.includes('id="financeCoinBalanceValue"'));
+  assert.ok(app.includes('function financeWalletRubRates'));
+  assert.ok(app.includes("byId.get('usd-rub')"));
+  assert.ok(app.includes("byId.get('eur-rub')"));
+  assert.ok(app.includes("byId.get('btcusdt')"));
+  assert.ok(app.includes("byId.get('ethusdt')"));
+  assert.ok(app.includes("byId.get('usdtusd')"));
+  assert.ok(app.includes("renderFinanceWalletTotal(payload)"));
+  assert.equal(css.includes('.finance-wallet-total-rub'),false);
+});
+
+
+test('wallet reorder gesture uses pointer position instead of element hit-testing', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.ok(app.includes('function financeWalletMoveByPointer'));
+  assert.ok(app.includes('financeWalletMoveByPointer(list,item,event.clientX)'));
+  assert.ok(app.includes('startedByLongPress:true'));
+  assert.ok(app.includes("financeRequest('reorder-wallets',{ids})"));
+});
+
+
+test('deleting wallet income reverses its exact amount and wallet history has delete controls', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'История',currency:'RUB',balance:1000},{financeCache,id:'wallet-history-delete'});
+  await saveWalletIncome('Рустам',{
+    walletId:'wallet-history-delete',amount:500,currency:'RUB',rubAmount:500,exchangeRate:1,
+    month:'2026-10',occurredAt:'2026-10-07T09:00:00.000Z'
+  },{financeCache,id:'income-history-delete'});
+  await deleteWalletIncome('Рустам','income-history-delete',{financeCache});
+  const view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='wallet-history-delete').balance,1000);
+  assert.equal(view.walletIncomes.some(row=>row.id==='income-history-delete'),false);
+
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
+  assert.ok(app.includes('finance-wallet-history-delete'));
+});
+
+
+test('deleting wallet income subtracts exact source amount and may leave negative balance', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'USD',currency:'USD',balance:5},{financeCache,id:'income-delete-wallet'});
+  await saveWalletIncome('Рустам',{
+    walletId:'income-delete-wallet',amount:10,currency:'USD',rubAmount:800,exchangeRate:80,
+    month:'2026-10',occurredAt:'2026-10-07T08:30:00.000Z'
+  },{financeCache,id:'income-delete-row'});
+  let view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='income-delete-wallet').balance,15);
+  await deleteWalletIncome('Рустам','income-delete-row',{financeCache});
+  view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='income-delete-wallet').balance,5);
+  assert.equal(view.walletIncomes.length,0);
+  assert.equal(view.personalMonths.find(row=>row.month==='2026-10').income,0);
+
+  await saveWalletIncome('Рустам',{
+    walletId:'income-delete-wallet',amount:10,currency:'USD',rubAmount:800,exchangeRate:80,
+    month:'2026-10',occurredAt:'2026-10-07T09:30:00.000Z'
+  },{financeCache,id:'income-delete-negative'});
+  await saveWallet('Рустам',{id:'income-delete-wallet',name:'USD',currency:'USD',balance:2},{financeCache});
+  await deleteWalletIncome('Рустам','income-delete-negative',{financeCache});
+  view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='income-delete-wallet').balance,-8);
+});
+
+test('wallet history rows expose delete control for income and expense', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
+  assert.ok(app.includes('finance-wallet-history-delete'));
 });
