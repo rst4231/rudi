@@ -1041,6 +1041,7 @@ async function deleteExpenseCategory(actor, id, options = {}) {
 }
 async function savePersonalExpense(actor, payload = {}, options = {}) {
   const safeActor = cleanActor(actor);
+  const editId = cleanText(payload.id, 100);
   const month = cleanMonth(payload.month);
   const categoryId = cleanText(payload.categoryId, 100, { required: true });
   const amount = cleanMoney(payload.amount);
@@ -1057,6 +1058,11 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
 
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
+    const existing = editId
+      ? current.personalExpenses.find((row) => row.actor === safeActor && row.id === editId && !row.manualAdjustment)
+      : null;
+    if (editId && !existing) throw new Error('finance-expense-not-found');
+
     const category = (current.categories[safeActor] || []).find((row) => row.id === categoryId && !row.archived);
     if (!category) throw new Error('finance-category-not-found');
     const targetCurrency = cleanCurrency(payload.targetCurrency || category.currency || 'RUB');
@@ -1065,36 +1071,51 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
       payload.rubAmount ?? (targetCurrency === 'RUB' ? amount : sourceCurrency === 'RUB' ? sourceAmount : 0)
     );
     if (rubAmount <= 0) throw new Error('finance-rate-invalid');
-    const now = new Date(options.now || Date.now()).toISOString();
-    let wallets = current.wallets;
 
-    if (walletId) {
-      const rows = current.wallets[safeActor] || [];
-      const wallet = rows.find((row) => row.id === walletId);
-      if (!wallet) throw new Error('finance-wallet-not-found');
-      if (wallet.currency !== sourceCurrency) throw new Error('finance-wallet-currency-mismatch');
-      if (sourceAmount <= 0) throw new Error('finance-amount-invalid');
-      const nextBalanceRaw = Number(wallet.balance || 0) - sourceAmount;
-      if (wallet.type === 'credit' && (Number(wallet.creditLimit || 0) <= 0 || nextBalanceRaw < -Number(wallet.creditLimit || 0) - 1e-9)) throw new Error('finance-wallet-insufficient');
-      const nextBalance = cleanWalletBalance(nextBalanceRaw);
-      wallets = {
-        ...current.wallets,
-        [safeActor]: rows.map((row) => row.id === walletId ? { ...row, balance: nextBalance } : row),
-      };
+    const now = new Date(options.now || Date.now()).toISOString();
+    let walletRows = [...(current.wallets[safeActor] || [])];
+
+    if (existing?.walletId && Number(existing.sourceAmount || 0) > 0) {
+      const oldWallet = walletRows.find((row) => row.id === existing.walletId);
+      if (oldWallet) {
+        const refunded = cleanWalletBalance(Number(oldWallet.balance || 0) + Number(existing.sourceAmount || 0));
+        walletRows = walletRows.map((row) => row.id === oldWallet.id ? { ...row, balance: refunded } : row);
+      }
     }
 
+    if (walletId) {
+      const wallet = walletRows.find((row) => row.id === walletId);
+      if (!wallet) throw new Error('finance-wallet-not-found');
+      if (wallet.currency !== sourceCurrency) throw new Error('finance-wallet-currency-mismatch');
+      const nextBalanceRaw = Number(wallet.balance || 0) - sourceAmount;
+      if (wallet.type === 'credit' && (Number(wallet.creditLimit || 0) <= 0 || nextBalanceRaw < -Number(wallet.creditLimit || 0) - 1e-9)) {
+        throw new Error('finance-wallet-insufficient');
+      }
+      const nextBalance = cleanWalletBalance(nextBalanceRaw);
+      walletRows = walletRows.map((row) => row.id === walletId ? { ...row, balance: nextBalance } : row);
+    }
+
+    const wallets = { ...current.wallets, [safeActor]: walletRows };
     const row = {
-      id: cleanText(options.id || randomUUID(), 100, { required: true }),
+      ...(existing || {}),
+      id: existing?.id || cleanText(options.id || randomUUID(), 100, { required: true }),
       actor: safeActor, month, categoryId, amount, note, label,
       walletId, sourceAmount, sourceCurrency, targetCurrency, exchangeRate,
-      rubAmount, importKey: '', occurredAt, createdAt: now, updatedAt: now,
+      rubAmount, importKey: existing?.importKey || '',
+      occurredAt, createdAt: existing?.createdAt || now, updatedAt: now,
     };
-    const base = normalizeState({
+    const personalExpenses = existing
+      ? current.personalExpenses.map((item) => item.actor === safeActor && item.id === existing.id ? row : item)
+      : current.personalExpenses.concat(row);
+
+    let next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
-      wallets,
-      personalExpenses: current.personalExpenses.concat(row),
+      wallets, personalExpenses,
     });
-    const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, month, now) });
+    const affectedMonths = new Set([month, existing?.month].filter(Boolean));
+    for (const affectedMonth of affectedMonths) {
+      next = normalizeState({ ...next, personal: syncPersonalMonthExpenses(next, safeActor, affectedMonth, now) });
+    }
     await writeState(next, options);
     return next;
   });
