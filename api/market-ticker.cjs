@@ -23,20 +23,24 @@ async function fetchWithTimeout(fetchImpl, url, options = {}, timeoutMs = 4000) 
   }
 }
 
-function parseCbrUsd(xml) {
+function parseCbrCurrency(xml, code) {
+  const currency = String(code || '').trim().toUpperCase();
   const text = String(xml || '');
   const blocks = text.match(/<Valute\b[\s\S]*?<\/Valute>/gi) || [];
-  const block = blocks.find((row) => /<CharCode>\s*USD\s*<\/CharCode>/i.test(row));
-  if (!block) throw new Error('market-cbr-usd-missing');
+  const block = blocks.find((row) => new RegExp('<CharCode>\\s*' + currency + '\\s*<\\/CharCode>', 'i').test(row));
+  if (!block) throw new Error('market-cbr-' + currency.toLowerCase() + '-missing');
   const nominalMatch = block.match(/<Nominal>\s*([\d.,]+)\s*<\/Nominal>/i);
   const valueMatch = block.match(/<Value>\s*([\d.,]+)\s*<\/Value>/i);
   const nominal = finiteNumber(String(nominalMatch?.[1] || '1').replace(',', '.')) || 1;
   const value = finiteNumber(String(valueMatch?.[1] || '').replace(',', '.'));
-  if (!value || nominal <= 0) throw new Error('market-cbr-usd-invalid');
+  if (!value || nominal <= 0) throw new Error('market-cbr-' + currency.toLowerCase() + '-invalid');
   return value / nominal;
 }
+function parseCbrUsd(xml) {
+  return parseCbrCurrency(xml, 'USD');
+}
 
-async function fetchUsdRub(options = {}) {
+async function fetchFiatRub(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') throw new Error('market-fetch-unavailable');
   const response = await fetchWithTimeout(fetchImpl, CBR_URL, {
@@ -47,14 +51,14 @@ async function fetchUsdRub(options = {}) {
     cache: 'no-store',
   }, options.timeoutMs);
   if (!response.ok) throw new Error('market-cbr-http-' + response.status);
-  const value = parseCbrUsd(await response.text());
-  return {
-    id: 'usd-rub',
-    label: 'USD/RUB',
-    value,
-    change24h: null,
-    source: 'ЦБ РФ',
-  };
+  const xml = await response.text();
+  return [
+    { id:'usd-rub', label:'USD/RUB', value:parseCbrCurrency(xml,'USD'), change24h:null, source:'ЦБ РФ' },
+    { id:'eur-rub', label:'EUR/RUB', value:parseCbrCurrency(xml,'EUR'), change24h:null, source:'ЦБ РФ' },
+  ];
+}
+async function fetchUsdRub(options = {}) {
+  return (await fetchFiatRub(options))[0];
 }
 
 function krakenRow(result, token) {
@@ -104,7 +108,7 @@ async function fetchKrakenCrypto(options = {}) {
 
 function completeItems(items) {
   const ids = new Set((Array.isArray(items) ? items : []).map((item) => String(item?.id || '')));
-  return ['usd-rub','btcusdt','ethusdt'].every((id) => ids.has(id));
+  return ['usd-rub','eur-rub','btcusdt','ethusdt'].every((id) => ids.has(id));
 }
 
 function cacheOf(options = {}) {
@@ -157,14 +161,14 @@ async function refreshMarketTicker(cache, options = {}) {
   const skipKraken = Boolean(backoff && Number(backoff.until || 0) > Number(options.now || Date.now()));
 
   const primary = await Promise.allSettled([
-    fetchUsdRub(options),
+    fetchFiatRub(options),
     skipKraken
       ? Promise.reject(new Error('market-kraken-backoff'))
       : fetchKrakenCrypto(options),
   ]);
 
   const byId = new Map();
-  if (primary[0].status === 'fulfilled') byId.set(primary[0].value.id, primary[0].value);
+  if (primary[0].status === 'fulfilled') primary[0].value.forEach((item) => byId.set(item.id, item));
 
   let cryptoFresh = false;
   if (primary[1].status === 'fulfilled') {
@@ -193,12 +197,15 @@ async function refreshMarketTicker(cache, options = {}) {
     }
   }
 
-  if (!byId.has('usd-rub') && validCached(stale, { requireComplete: true })) {
-    const usd = stale.items.find((item) => item?.id === 'usd-rub');
-    if (usd) byId.set('usd-rub', { ...usd, stale: true });
+  if (validCached(stale, { requireComplete: true })) {
+    for (const id of ['usd-rub','eur-rub']) {
+      if (byId.has(id)) continue;
+      const item = stale.items.find((row) => row?.id === id);
+      if (item) byId.set(id, { ...item, stale: true });
+    }
   }
 
-  const items = ['usd-rub','btcusdt','ethusdt'].map((id) => byId.get(id)).filter(Boolean);
+  const items = ['usd-rub','eur-rub','btcusdt','ethusdt'].map((id) => byId.get(id)).filter(Boolean);
   if (!items.length) {
     const reasons = primary
       .filter((row) => row.status === 'rejected')
@@ -244,8 +251,10 @@ module.exports = {
   PROVIDER_BACKOFF_SECONDS,
   CBR_URL,
   KRAKEN_URL,
+  parseCbrCurrency,
   parseCbrUsd,
   parseKrakenCrypto,
+  fetchFiatRub,
   fetchUsdRub,
   fetchKrakenCrypto,
   readMarketTicker,
