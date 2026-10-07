@@ -374,6 +374,27 @@
           <div id="financeCategoryStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
 
+        <section id="financeCategoryHistoryPage" class="finance-category-history-page" hidden aria-hidden="true">
+          <div class="finance-category-history-shell">
+            <div class="finance-category-history-head">
+              <button id="financeCategoryHistoryBack" class="finance-category-history-back" type="button" aria-label="Назад">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <div class="finance-category-history-title">
+                <span id="financeCategoryHistoryIcon" class="finance-coin" aria-hidden="true">💳</span>
+                <div><small id="financeCategoryHistoryMonth">Текущий месяц</small><h2 id="financeCategoryHistoryName">Категория</h2></div>
+              </div>
+              <button id="financeCategoryHistoryAdd" class="finance-category-history-add" type="button">+ Расход</button>
+            </div>
+            <div class="finance-category-history-total">
+              <span>За месяц</span>
+              <strong id="financeCategoryHistoryTotal">0 ₽</strong>
+            </div>
+            <div id="financeCategoryHistoryList" class="finance-category-history-list"></div>
+            <div id="financeCategoryHistoryEmpty" class="finance-history-empty">В этом месяце расходов пока нет</div>
+          </div>
+        </section>
+
         <div id="financeExpenseComposer" class="finance-coin-modal" hidden aria-hidden="true">
           <button id="financeExpenseComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
           <section class="finance-coin-modal-sheet finance-expense-entry-sheet" role="dialog" aria-modal="true" aria-labelledby="financeExpenseComposerTitle">
