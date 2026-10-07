@@ -1,8 +1,8 @@
 {
   "current": "v4.59",
   "versionBranch": "main",
-  "releaseCommit": null,
-  "deploymentSourceCommit": null,
+  "releaseCommit": "pending-production-v4.59",
+  "deploymentSourceCommit": "542bdc57c0798a964e2e9329c7c1d8f3f95f0105",
   "deploymentRequestedAt": "2026-10-07",
   "createdAt": "2026-10-07",
   "basedOnProduction": "v4.58",
@@ -10,7 +10,8 @@
     "Заменены favicon и apple-touch-icon RUDI на новую семейную иконку.",
     "На кнопке «Финансы» показывается бейдж с количеством обязательных расходов на сегодня.",
     "Обязательные расходы на сегодня учитываются в системном badge установленной PWA.",
-    "Анализатор настроения ограничен тремя успешными анализами в сутки на человека по московскому календарному дню."
+    "Анализатор настроения ограничен тремя успешными анализами в сутки на человека по московскому календарному дню.",
+    "Release marker: production build includes the complete v4.59 package."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
