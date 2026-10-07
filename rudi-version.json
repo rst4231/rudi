@@ -1,9 +1,9 @@
 {
   "current": "v4.38",
-  "versionBranch": "finance-overview-v4-38",
+  "versionBranch": "main",
   "releaseCommit": null,
   "deploymentSourceCommit": null,
-  "deploymentRequestedAt": null,
+  "deploymentRequestedAt": "2026-10-07",
   "createdAt": "2026-10-07",
   "basedOnProduction": "v4.37",
   "notes": [
