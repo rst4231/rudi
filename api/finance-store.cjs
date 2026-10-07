@@ -1083,7 +1083,8 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
     const now = new Date(options.now || Date.now()).toISOString();
     let walletRows = [...(current.wallets[safeActor] || [])];
 
-    if (existing?.walletId && Number(existing.sourceAmount || 0) > 0) {
+    const externalBalanceExpense = Boolean(existing?.importKey && String(existing.importKey).startsWith('ozon:'));
+    if (!externalBalanceExpense && existing?.walletId && Number(existing.sourceAmount || 0) > 0) {
       const oldWallet = walletRows.find((row) => row.id === existing.walletId);
       if (oldWallet) {
         const refunded = cleanWalletBalance(Number(oldWallet.balance || 0) + Number(existing.sourceAmount || 0));
@@ -1091,7 +1092,7 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
       }
     }
 
-    if (walletId) {
+    if (walletId && !externalBalanceExpense) {
       const wallet = walletRows.find((row) => row.id === walletId);
       if (!wallet) throw new Error('finance-wallet-not-found');
       if (wallet.currency !== sourceCurrency) throw new Error('finance-wallet-currency-mismatch');
@@ -1288,7 +1289,8 @@ async function deletePersonalExpense(actor, id, options = {}) {
     if (!found) throw new Error('finance-expense-not-found');
     const now = new Date(options.now || Date.now()).toISOString();
     let wallets = current.wallets;
-    if (found.walletId && Number(found.sourceAmount || 0) > 0) {
+    const externalBalanceExpense = Boolean(found.importKey && String(found.importKey).startsWith('ozon:'));
+    if (!externalBalanceExpense && found.walletId && Number(found.sourceAmount || 0) > 0) {
       const rows = current.wallets[safeActor] || [];
       if (rows.some((row) => row.id === found.walletId)) {
         wallets = {
