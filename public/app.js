@@ -2173,6 +2173,9 @@
       let financeExpenseSourceCurrency='RUB';
       let financeWalletEditingId='';
       let financeIncomeDrag=null;
+      let financeWalletEditMode=false;
+      let financeWalletLongPress=null;
+      let financeWalletReorder=null;
       let financeCategoryEditMode=false;
       let financeCategoryLongPress=null;
       let financeCategoryReorder=null;
@@ -2377,7 +2380,7 @@
         }catch(_){setFinanceAutosaveStatus('financePlanStatus','Не удалось сохранить')}
       }
 
-      function mountFinanceCoinModal(modal,focusTarget=null){
+      function mountFinanceCoinModal(modal,focusTarget=null,{forceFocus=false}={}){
         if(!modal)return;
         // Keep fixed sheets outside transformed/scrolled app containers.
         // iOS Safari/Telegram otherwise positions fixed relative to that container
@@ -2390,7 +2393,10 @@
           if(sheet)sheet.scrollTop=0;
         });
         const isAppleMobile=/iPhone|iPad|iPod/i.test(navigator.userAgent||'');
-        if(focusTarget&&!isAppleMobile){
+        if(focusTarget&&forceFocus){
+          try{focusTarget.focus({preventScroll:true})}catch(_){focusTarget.focus?.()}
+          requestAnimationFrame(()=>{try{focusTarget.focus({preventScroll:true})}catch(_){focusTarget.focus?.()}});
+        }else if(focusTarget&&!isAppleMobile){
           setTimeout(()=>{try{focusTarget.focus({preventScroll:true})}catch(_){focusTarget.focus?.()}},80);
         }
       }
@@ -2468,7 +2474,7 @@
         }
       }
 
-      function openFinanceExpenseComposer(categoryId,{walletId='',sourceCurrency=''}={}){
+      function openFinanceExpenseComposer(categoryId,{walletId='',sourceCurrency='',focusAmount=false}={}){
         const category=financeCategoryById(categoryId),modal=document.getElementById('financeExpenseComposer');
         if(!category||!modal)return;
         financeExpenseCategoryId=category.id;
@@ -2502,7 +2508,7 @@
 
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         renderFinanceExpenseComposerHistory(month,category.id);
-        mountFinanceCoinModal(modal,amount);
+        mountFinanceCoinModal(modal,amount,{forceFocus:focusAmount});
       }
 
       function cleanupFinanceIncomeDrag(){
@@ -2544,7 +2550,7 @@
           const moved=drag.moved;cleanupFinanceIncomeDrag();
           try{coin.releasePointerCapture?.(event.pointerId)}catch(_){}
           if(moved&&categoryId){
-            openFinanceExpenseComposer(categoryId,{sourceCurrency:'RUB'});
+            openFinanceExpenseComposer(categoryId,{sourceCurrency:'RUB',focusAmount:true});
             try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
           }
         };
@@ -2607,7 +2613,7 @@
           try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
           drag=null;
           if(moved&&categoryId){
-            openFinanceExpenseComposer(categoryId,{walletId:wallet.id});
+            openFinanceExpenseComposer(categoryId,{walletId:wallet.id,focusAmount:true});
             try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
           }else if(!moved){
             openFinanceWalletComposer(wallet.id);
