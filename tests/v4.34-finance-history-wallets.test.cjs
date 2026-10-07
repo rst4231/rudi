@@ -62,9 +62,11 @@ test('category order is persisted', async () => {
   const financeCache=memoryCache();
   await saveExpenseCategory('Рустам',{name:'A',icon:'A'},{financeCache,id:'cat-a'});
   await saveExpenseCategory('Рустам',{name:'B',icon:'B'},{financeCache,id:'cat-b'});
-  await reorderExpenseCategories('Рустам',['cat-b','cat-a'],{financeCache});
+  const before=viewState(await readFinanceState({financeCache}),'Рустам').categories.map(row=>row.id);
+  const order=['cat-b','cat-a',...before.filter(id=>id!=='cat-a'&&id!=='cat-b')];
+  await reorderExpenseCategories('Рустам',order,{financeCache});
   const ids=viewState(await readFinanceState({financeCache}),'Рустам').categories.map(row=>row.id);
-  assert.deepEqual(ids.slice(-2),['cat-b','cat-a']);
+  assert.deepEqual(ids,order);
 });
 
 test('CoinKeeper-style bulk import auto-creates categories and ignores duplicate import keys', async () => {
