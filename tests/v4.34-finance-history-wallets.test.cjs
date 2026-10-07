@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   readFinanceState, viewState, resetMutationQueueForTests,
-  saveWallet, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveWallet, deleteWallet, reorderWallets, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
   archiveExpenseCategory, reorderExpenseCategories, importPersonalExpenses,
 } = require('../api/finance-store.cjs');
 const { directFinanceAddress } = require('../api/finance-ai.cjs');
@@ -154,4 +154,66 @@ test('finance analyst addresses user directly and fixes Russian month case', () 
   assert.match(text,/для вас/i);
   assert.doesNotMatch(text,/Рустам|Диан/i);
   assert.doesNotMatch(text,/в октября/i);
+});
+
+
+test('CoinKeeper full import keeps only current wallets and categories visible', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  const payload={
+    currentWallets:[
+      {name:'Основная карта',currency:'RUB',balance:12500},
+      {name:'USD карта',currency:'USD',balance:42.5},
+    ],
+    currentCategories:['Еда','Транспорт'],
+    rows:[
+      {categoryName:'Еда',amount:350,month:'2026-10',occurredAt:'2026-10-06T07:30:00.000Z',note:'Кофе',importKey:'coinkeeper:current-food'},
+      {categoryName:'Старая категория',amount:700,month:'2025-02',occurredAt:'2025-02-01T10:00:00.000Z',note:'История',importKey:'coinkeeper:old-category'},
+    ],
+  };
+  const result=await importPersonalExpenses('Рустам',payload,{financeCache,now:Date.UTC(2026,9,7)});
+  assert.equal(result.result.imported,2);
+  const view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.deepEqual(view.wallets.map(row=>[row.name,row.currency,row.balance]),[
+    ['Основная карта','RUB',12500],
+    ['USD карта','USD',42.5],
+  ]);
+  assert.ok(view.categories.some(row=>row.name==='Еда'));
+  assert.equal(view.categories.some(row=>row.name==='Старая категория'),false);
+  assert.ok(view.archivedCategories.some(row=>row.name==='Старая категория'));
+  assert.ok(view.personalExpenses.some(row=>row.note==='История'));
+});
+
+test('wallet edit order persists and deleting referenced wallet hides it without breaking refund', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'A',currency:'RUB',balance:1000},{financeCache,id:'wallet-a'});
+  await saveWallet('Рустам',{name:'B',currency:'RUB',balance:2000},{financeCache,id:'wallet-b'});
+  await reorderWallets('Рустам',['wallet-b','wallet-a'],{financeCache});
+  let view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.deepEqual(view.wallets.map(row=>row.id),['wallet-b','wallet-a']);
+
+  await saveExpenseCategory('Рустам',{name:'Тест',icon:'🧪'},{financeCache,id:'cat-wallet-delete'});
+  await savePersonalExpense('Рустам',{
+    month:'2026-10',categoryId:'cat-wallet-delete',amount:100,
+    walletId:'wallet-a',sourceAmount:100,sourceCurrency:'RUB',targetCurrency:'RUB',exchangeRate:1,rubAmount:100,
+  },{financeCache,id:'expense-wallet-delete'});
+  await deleteWallet('Рустам','wallet-a',{financeCache});
+  view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.some(row=>row.id==='wallet-a'),false);
+  await deletePersonalExpense('Рустам','expense-wallet-delete',{financeCache});
+  const state=await readFinanceState({financeCache});
+  const hidden=state.wallets['Рустам'].find(row=>row.id==='wallet-a');
+  assert.equal(hidden.balance,1000);
+});
+
+test('wallet UI has long-press editing and drag-to-expense requests immediate amount focus', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes('setFinanceWalletEditMode(true)'));
+  assert.ok(app.includes("financeRequest('reorder-wallets'"));
+  assert.ok(app.includes('finance-wallet-delete-badge'));
+  assert.ok(app.includes('focusAmount:true'));
+  assert.ok(app.includes('forceFocus:focusAmount'));
+  assert.ok(css.includes('.finance-wallet-list.is-editing .finance-wallet-delete-badge'));
 });
