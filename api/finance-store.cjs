@@ -215,6 +215,32 @@ function normalizeState(value) {
     } catch (_) {}
   }
 
+  const walletIncomes = [];
+  for (const raw of Array.isArray(source.walletIncomes) ? source.walletIncomes : []) {
+    try {
+      const actor = cleanActor(raw?.actor);
+      const id = cleanText(raw?.id, 100, { required: true });
+      const month = cleanMonth(raw?.month);
+      const walletId = cleanText(raw?.walletId, 100, { required: true });
+      const amount = cleanAssetAmount(raw?.amount);
+      if (amount <= 0 || !wallets[actor].some((row) => row.id === walletId)) continue;
+      const currency = cleanCurrency(raw?.currency || wallets[actor].find((row) => row.id === walletId)?.currency || 'RUB');
+      const rubAmount = cleanMoney(raw?.rubAmount || (currency === 'RUB' ? amount : 0));
+      if (rubAmount <= 0) continue;
+      const createdAt = new Date(raw?.createdAt || Date.now());
+      const occurredAt = cleanOccurredAt(raw?.occurredAt || raw?.createdAt || Date.now());
+      walletIncomes.push({
+        id, actor, month, walletId, amount, currency,
+        rubAmount,
+        exchangeRate: Math.max(0, Number(raw?.exchangeRate || (currency === 'RUB' ? 1 : 0))) || 1,
+        note: cleanText(raw?.note, 120),
+        importKey: cleanText(raw?.importKey, 220),
+        occurredAt,
+        createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
+      });
+    } catch (_) {}
+  }
+
   const debts = [];
   for (const raw of Array.isArray(source.debts) ? source.debts : []) {
     try {
@@ -240,7 +266,7 @@ function normalizeState(value) {
   return {
     initialized: Boolean(source.initialized),
     version: Math.max(0, Number(source.version || 0)),
-    months, personal, plans, wallets, categories, personalExpenses, debts,
+    months, personal, plans, wallets, categories, personalExpenses, walletIncomes, debts,
   };
 }
 function expenseTotal(state, actor, month) {
@@ -252,11 +278,19 @@ function expenseTotal(state, actor, month) {
       .reduce((sum, row) => sum + Number(row.rubAmount || row.amount || 0), 0) * 100
   ) / 100;
 }
+function incomeTotal(state, actor, month) {
+  const safeActor = cleanActor(actor);
+  const safeMonth = cleanMonth(month);
+  return Math.round(
+    (Array.isArray(state?.walletIncomes) ? state.walletIncomes : [])
+      .filter((row) => row.actor === safeActor && row.month === safeMonth)
+      .reduce((sum, row) => sum + Number(row.rubAmount || 0), 0) * 100
+  ) / 100;
+}
 function syncPersonalMonthExpenses(current, actor, month, updatedAt = new Date().toISOString()) {
   const safeActor = cleanActor(actor);
   const safeMonth = cleanMonth(month);
-  const existing = current.personal[safeActor]?.[safeMonth] || {};
-  const income = cleanMoney(existing.income || 0);
+  const income = incomeTotal(current, safeActor, safeMonth);
   const expenses = expenseTotal(current, safeActor, safeMonth);
   return {
     ...current.personal,
@@ -274,7 +308,7 @@ function viewState(state, actor = '') {
   const safeActor = ['Рустам', 'Диана'].includes(String(actor || '').trim()) ? String(actor).trim() : '';
   const personalMonths = safeActor
     ? Object.values(normalized.personal[safeActor] || {})
-        .map((row) => ({ ...row, ...personalAmounts(row.income, expenseTotal(normalized, safeActor, row.month)) }))
+        .map((row) => ({ ...row, ...personalAmounts(incomeTotal(normalized, safeActor, row.month), expenseTotal(normalized, safeActor, row.month)) }))
         .sort((a, b) => String(b.month).localeCompare(String(a.month)))
     : [];
   const wallets = safeActor ? [...(normalized.wallets[safeActor] || [])].filter((row) => !row.archived) : [];
@@ -284,11 +318,14 @@ function viewState(state, actor = '') {
   const personalExpenses = safeActor
     ? normalized.personalExpenses.filter((row) => row.actor === safeActor).sort((a, b) => String(b.occurredAt || b.createdAt).localeCompare(String(a.occurredAt || a.createdAt)))
     : [];
+  const walletIncomes = safeActor
+    ? normalized.walletIncomes.filter((row) => row.actor === safeActor).sort((a, b) => String(b.occurredAt || b.createdAt).localeCompare(String(a.occurredAt || a.createdAt)))
+    : [];
   const debts = safeActor
     ? normalized.debts.filter((row) => row.actor === safeActor).sort((a, b) => Number(a.paid) - Number(b.paid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
     : [];
   const plan = safeActor ? normalized.plans[safeActor] : cleanPlan();
-  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, wallets, categories, archivedCategories, personalExpenses, debts, plan };
+  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, wallets, categories, archivedCategories, personalExpenses, walletIncomes, debts, plan };
 }
 function enqueueMutation(task) {
   const run = mutationTail.then(task, task);
@@ -405,7 +442,8 @@ async function deleteWallet(actor, id, options = {}) {
     const current = await readFinanceState(options);
     const rows = current.wallets[safeActor] || [];
     if (!rows.some((row) => row.id === cleanId && !row.archived)) throw new Error('finance-wallet-not-found');
-    const referenced = current.personalExpenses.some((row) => row.actor === safeActor && row.walletId === cleanId);
+    const referenced = current.personalExpenses.some((row) => row.actor === safeActor && row.walletId === cleanId)
+      || current.walletIncomes.some((row) => row.actor === safeActor && row.walletId === cleanId);
     const wallets = referenced
       ? rows.map((row) => row.id === cleanId ? { ...row, archived: true } : row)
       : rows.filter((row) => row.id !== cleanId);
@@ -438,6 +476,44 @@ async function reorderWallets(actor, ids = [], options = {}) {
       ...current, initialized: true, version: current.version + 1,
       wallets: { ...current.wallets, [safeActor]: ordered.concat(archived) },
     });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function saveWalletIncome(actor, payload = {}, options = {}) {
+  const safeActor = cleanActor(actor);
+  const walletId = cleanText(payload.walletId, 100, { required: true });
+  const amount = cleanAssetAmount(payload.amount);
+  if (amount <= 0) throw new Error('finance-amount-invalid');
+  const rubAmount = cleanMoney(payload.rubAmount);
+  if (rubAmount <= 0) throw new Error('finance-rate-invalid');
+  const occurredAt = cleanOccurredAt(payload.occurredAt);
+  const month = cleanMonth(payload.month);
+  const exchangeRate = Math.max(0, Number(payload.exchangeRate || 0));
+  if (!exchangeRate) throw new Error('finance-rate-invalid');
+  const note = cleanText(payload.note, 120);
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.wallets[safeActor] || [];
+    const wallet = rows.find((row) => row.id === walletId && !row.archived);
+    if (!wallet) throw new Error('finance-wallet-not-found');
+    const currency = cleanCurrency(payload.currency || wallet.currency);
+    if (currency !== wallet.currency) throw new Error('finance-wallet-currency-mismatch');
+    const now = new Date(options.now || Date.now()).toISOString();
+    const nextWallets = rows.map((row) => row.id === walletId ? { ...row, balance: cleanAssetAmount(Number(row.balance || 0) + amount) } : row);
+    const incomeRow = {
+      id: cleanText(options.id || randomUUID(), 100, { required: true }),
+      actor: safeActor, month, walletId, amount, currency, rubAmount, exchangeRate,
+      note, importKey: cleanText(payload.importKey, 220), occurredAt, createdAt: now,
+    };
+    const base = normalizeState({
+      ...current,
+      initialized: true,
+      version: current.version + 1,
+      wallets: { ...current.wallets, [safeActor]: nextWallets },
+      walletIncomes: current.walletIncomes.concat(incomeRow),
+    });
+    const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, month, now) });
     await writeState(next, options);
     return next;
   });
@@ -864,7 +940,7 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanAssetAmount, cleanCurrency, cleanPlan, splitAmounts, personalAmounts,
-  normalizeState, viewState, expenseTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
+  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };
