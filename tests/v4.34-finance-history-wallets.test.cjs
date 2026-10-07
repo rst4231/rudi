@@ -102,6 +102,9 @@ test('v4.34 finance UI includes date grouping, CoinKeeper import, wallets and ed
   }
   assert.ok(ai.includes('Никогда не упоминай имя пользователя'));
   assert.ok(ai.includes('у вас в октябре'));
+  assert.ok(ai.includes("['insight-v2', actor, month, version]"));
+  assert.ok(ai.includes("['analyst-v4', actor, month, version"));
+  assert.ok(ai.includes('directFinanceAddress(parsed?.text, 800)'));
   assert.equal(app.includes('<strong>Курсы</strong><small>Показывать на главной</small>'),false);
   assert.equal(app.includes('Сохраняется автоматически'),false);
   assert.equal(html.includes('Сохраняется автоматически'),false);
@@ -113,4 +116,31 @@ test('v4.34 finance UI includes date grouping, CoinKeeper import, wallets and ed
   assert.equal(html.includes('id="financePersonalMonthLabel"'),false);
   assert.ok(html.includes('id="moodHistoryButton"'));
   assert.ok(app.includes('moodChoices.prepend(moodHistoryTrigger)'));
+  assert.ok(app.includes('/income|доход|transfer|перевод/'));
+});
+
+test('cross currency metadata and refund stay reversible', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'USD',icon:'$',currency:'USD',balance:50},{financeCache,id:'wallet-usd-x'});
+  await saveExpenseCategory('Рустам',{name:'EUR category',icon:'E',currency:'EUR'},{financeCache,id:'cat-eur'});
+  await savePersonalExpense('Рустам',{
+    month:'2026-10',categoryId:'cat-eur',amount:9,note:'ticket',
+    occurredAt:'2026-10-07T10:00:00.000Z',walletId:'wallet-usd-x',
+    sourceAmount:10,sourceCurrency:'USD',targetCurrency:'EUR',exchangeRate:0.9,rubAmount:800
+  },{financeCache,id:'expense-fx'});
+  let view=viewState(await readFinanceState({financeCache}),'Рустам');
+  const expense=view.personalExpenses.find(row=>row.id==='expense-fx');
+  assert.equal(view.wallets[0].balance,40);
+  assert.equal(expense.sourceAmount,10);
+  assert.equal(expense.sourceCurrency,'USD');
+  assert.equal(expense.amount,9);
+  assert.equal(expense.targetCurrency,'EUR');
+  assert.equal(expense.exchangeRate,0.9);
+  assert.equal(expense.rubAmount,800);
+  assert.equal(view.personalMonths.find(row=>row.month==='2026-10').expenses,800);
+  await deletePersonalExpense('Рустам','expense-fx',{financeCache});
+  view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets[0].balance,50);
+  assert.equal(view.personalExpenses.some(row=>row.id==='expense-fx'),false);
 });
