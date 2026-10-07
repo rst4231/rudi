@@ -14517,3 +14517,25 @@ body.finance-coin-modal-open{overflow:hidden;overscroll-behavior:none}
   .finance-category-delete-badge{top:12px;margin-left:13px}
   .finance-transfer-actions{grid-template-columns:1fr}
 }
+
+/* v4.34 finance category limits */
+.finance-coin-amount.is-over-limit{color:#d94b55!important}
+.finance-coin-limit{
+  max-width:100%;
+  margin-top:-3px;
+  color:var(--muted);
+  font-size:7.4px;
+  font-weight:700;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+
+/* v4.34 finance dark-theme back contrast */
+html[data-theme="dark"] .finance-back-button{
+  color:#f4f7fb!important;
+  border-color:rgba(255,255,255,.16)!important;
+  background:rgba(255,255,255,.08)!important
+}
+html[data-theme="dark"] .finance-back-button svg{stroke:#f4f7fb!important}
