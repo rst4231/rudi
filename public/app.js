@@ -2181,6 +2181,7 @@
       let financeInsightKey='';
       let activeFinanceTab='shared';
       let financeExpenseCategoryId='';
+      let financeCategoryEditingId='';
       let financeExpenseWalletId='';
       let financeExpenseSourceCurrency='RUB';
       let financeWalletEditingId='';
@@ -2409,10 +2410,20 @@
         modal.hidden=true;modal.setAttribute('aria-hidden','true');
         document.body.classList.remove('finance-coin-modal-open');
       }
-      function openFinanceCategoryComposer(){
+      function openFinanceCategoryComposer(categoryId=''){
         const modal=document.getElementById('financeCategoryComposer');if(!modal)return;
-        const name=document.getElementById('financeCategoryName'),status=document.getElementById('financeCategoryStatus');
-        if(name)name.value='';if(status)status.textContent='';
+        financeCategoryEditingId=String(categoryId||'');
+        const category=financeCategoryEditingId?financeCategoryById(financeCategoryEditingId):null;
+        const title=document.getElementById('financeCategoryComposerTitle');
+        const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon');
+        const limit=document.getElementById('financeCategoryLimit'),button=document.getElementById('financeCategoryCreateButton');
+        const status=document.getElementById('financeCategoryStatus');
+        if(title)title.textContent=category?'Редактировать категорию':'Категория расхода';
+        if(name)name.value=category?.name||'';
+        if(icon&&category?.icon)icon.value=category.icon;
+        if(limit)limit.value=Number(category?.monthlyLimit||0)>0?String(category.monthlyLimit):'';
+        if(button)button.textContent=category?'Сохранить':'Создать категорию';
+        if(status)status.textContent='';
         mountFinanceCoinModal(modal,name);
       }
 
@@ -2698,13 +2709,13 @@
           if(drag&&drag.item===item&&drag.pointerId===event.pointerId){
             const moved=drag.moved;financeCategoryReorder=null;item.classList.remove('is-reordering');
             try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
-            if(moved)saveFinanceCategoryOrder();
+            if(moved){item.dataset.suppressClick='1';saveFinanceCategoryOrder();}
           }
         };
         item.addEventListener('pointerup',finish);item.addEventListener('pointercancel',finish);
         item.addEventListener('click',event=>{
           if(item.dataset.suppressClick==='1'){delete item.dataset.suppressClick;event.preventDefault();return}
-          if(financeCategoryEditMode){event.preventDefault();return}
+          if(financeCategoryEditMode){event.preventDefault();openFinanceCategoryComposer(category.id);return}
           openFinanceExpenseComposer(category.id);
         });
         item.addEventListener('keydown',event=>{
@@ -2732,8 +2743,13 @@
           remove.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openFinanceCategoryDeleteChooser(category.id)});
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=category.name||'Категория';
           const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.textContent=category.icon||'💳';
+          const limitValue=Math.max(0,Number(category.monthlyLimit||0));
           const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeMoney(spent,'RUB');
+          if(limitValue>0&&spent>limitValue)amount.classList.add('is-over-limit');
+          const limit=document.createElement('span');limit.className='finance-coin-limit';
+          limit.textContent=limitValue>0?'из '+financeMoney(limitValue,'RUB'):'';
           item.append(remove,label,coin,amount);
+          if(limitValue>0)item.append(limit);
           bindFinanceCategoryInteractions(item,list,category);
           list.append(item);
         });
@@ -3074,17 +3090,23 @@
 
         const categoryCreate=document.getElementById('financeCategoryCreateButton');
         categoryCreate?.addEventListener('click',async()=>{
-          const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon'),status=document.getElementById('financeCategoryStatus');
+          const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon');
+          const limit=document.getElementById('financeCategoryLimit'),status=document.getElementById('financeCategoryStatus');
           const value=String(name?.value||'').trim();if(!value){name?.focus();return}
-          categoryCreate.disabled=true;if(status)status.textContent='Создаю…';
+          const editing=Boolean(financeCategoryEditingId);
+          categoryCreate.disabled=true;if(status)status.textContent=editing?'Сохраняю…':'Создаю…';
           try{
-            const data=await financeRequest('save-category',{name:value,icon:icon?.value||'💳'});
-            if(name)name.value='';
+            const data=await financeRequest(editing?'update-category':'save-category',{
+              ...(editing?{id:financeCategoryEditingId}:{}),
+              name:value,icon:icon?.value||'💳',monthlyLimit:Number(limit?.value||0)
+            });
+            financeCategoryEditingId='';
+            if(name)name.value='';if(limit)limit.value='';
             closeFinanceCoinModal('financeCategoryComposer');
             renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
             if(status)status.textContent='';
           }catch(error){
-            if(status)status.textContent=String(error?.message||'').includes('duplicate')?'Такая категория уже есть':'Не удалось создать категорию';
+            if(status)status.textContent=String(error?.message||'').includes('duplicate')?'Такая категория уже есть':'Не удалось сохранить категорию';
           }finally{categoryCreate.disabled=false}
         });
         document.getElementById('financeCategoryName')?.addEventListener('keydown',event=>{
@@ -6171,10 +6193,7 @@
                   '<button type="button" data-text-size="large" aria-pressed="false">A+</button>'+
                 '</div>'+
               '</div>'+
-              '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Курсы</strong><small>Показывать на главной</small></div>'+
-                '<button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать курсы"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
+
             '</section>'+
 
             '<section class="settings-group settings-contact-group">'+
@@ -16369,10 +16388,20 @@
         modal.hidden=true;modal.setAttribute('aria-hidden','true');
         document.body.classList.remove('finance-coin-modal-open');
       }
-      function openFinanceCategoryComposer(){
+      function openFinanceCategoryComposer(categoryId=''){
         const modal=document.getElementById('financeCategoryComposer');if(!modal)return;
-        const name=document.getElementById('financeCategoryName'),status=document.getElementById('financeCategoryStatus');
-        if(name)name.value='';if(status)status.textContent='';
+        financeCategoryEditingId=String(categoryId||'');
+        const category=financeCategoryEditingId?financeCategoryById(financeCategoryEditingId):null;
+        const title=document.getElementById('financeCategoryComposerTitle');
+        const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon');
+        const limit=document.getElementById('financeCategoryLimit'),button=document.getElementById('financeCategoryCreateButton');
+        const status=document.getElementById('financeCategoryStatus');
+        if(title)title.textContent=category?'Редактировать категорию':'Категория расхода';
+        if(name)name.value=category?.name||'';
+        if(icon&&category?.icon)icon.value=category.icon;
+        if(limit)limit.value=Number(category?.monthlyLimit||0)>0?String(category.monthlyLimit):'';
+        if(button)button.textContent=category?'Сохранить':'Создать категорию';
+        if(status)status.textContent='';
         mountFinanceCoinModal(modal,name);
       }
 
@@ -16658,13 +16687,13 @@
           if(drag&&drag.item===item&&drag.pointerId===event.pointerId){
             const moved=drag.moved;financeCategoryReorder=null;item.classList.remove('is-reordering');
             try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
-            if(moved)saveFinanceCategoryOrder();
+            if(moved){item.dataset.suppressClick='1';saveFinanceCategoryOrder();}
           }
         };
         item.addEventListener('pointerup',finish);item.addEventListener('pointercancel',finish);
         item.addEventListener('click',event=>{
           if(item.dataset.suppressClick==='1'){delete item.dataset.suppressClick;event.preventDefault();return}
-          if(financeCategoryEditMode){event.preventDefault();return}
+          if(financeCategoryEditMode){event.preventDefault();openFinanceCategoryComposer(category.id);return}
           openFinanceExpenseComposer(category.id);
         });
         item.addEventListener('keydown',event=>{
@@ -16692,8 +16721,13 @@
           remove.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openFinanceCategoryDeleteChooser(category.id)});
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=category.name||'Категория';
           const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.textContent=category.icon||'💳';
+          const limitValue=Math.max(0,Number(category.monthlyLimit||0));
           const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeMoney(spent,'RUB');
+          if(limitValue>0&&spent>limitValue)amount.classList.add('is-over-limit');
+          const limit=document.createElement('span');limit.className='finance-coin-limit';
+          limit.textContent=limitValue>0?'из '+financeMoney(limitValue,'RUB'):'';
           item.append(remove,label,coin,amount);
+          if(limitValue>0)item.append(limit);
           bindFinanceCategoryInteractions(item,list,category);
           list.append(item);
         });
@@ -17034,17 +17068,23 @@
 
         const categoryCreate=document.getElementById('financeCategoryCreateButton');
         categoryCreate?.addEventListener('click',async()=>{
-          const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon'),status=document.getElementById('financeCategoryStatus');
+          const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon');
+          const limit=document.getElementById('financeCategoryLimit'),status=document.getElementById('financeCategoryStatus');
           const value=String(name?.value||'').trim();if(!value){name?.focus();return}
-          categoryCreate.disabled=true;if(status)status.textContent='Создаю…';
+          const editing=Boolean(financeCategoryEditingId);
+          categoryCreate.disabled=true;if(status)status.textContent=editing?'Сохраняю…':'Создаю…';
           try{
-            const data=await financeRequest('save-category',{name:value,icon:icon?.value||'💳'});
-            if(name)name.value='';
+            const data=await financeRequest(editing?'update-category':'save-category',{
+              ...(editing?{id:financeCategoryEditingId}:{}),
+              name:value,icon:icon?.value||'💳',monthlyLimit:Number(limit?.value||0)
+            });
+            financeCategoryEditingId='';
+            if(name)name.value='';if(limit)limit.value='';
             closeFinanceCoinModal('financeCategoryComposer');
             renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
             if(status)status.textContent='';
           }catch(error){
-            if(status)status.textContent=String(error?.message||'').includes('duplicate')?'Такая категория уже есть':'Не удалось создать категорию';
+            if(status)status.textContent=String(error?.message||'').includes('duplicate')?'Такая категория уже есть':'Не удалось сохранить категорию';
           }finally{categoryCreate.disabled=false}
         });
         document.getElementById('financeCategoryName')?.addEventListener('keydown',event=>{
@@ -20131,10 +20171,7 @@
                   '<button type="button" data-text-size="large" aria-pressed="false">A+</button>'+
                 '</div>'+
               '</div>'+
-              '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Курсы</strong><small>Показывать на главной</small></div>'+
-                '<button id="marketTickerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Показывать курсы"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
+
             '</section>'+
 
             '<section class="settings-group settings-contact-group">'+
