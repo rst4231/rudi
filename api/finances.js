@@ -6,7 +6,7 @@ const {
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport } = require('./finance-ai.cjs');
-const { fetchFiatRub } = require('./market-ticker.cjs');
+const { readMarketTicker } = require('./market-ticker.cjs');
 
 function statusFor(code, error) {
   const auth = statusForError(error);
@@ -16,7 +16,7 @@ function statusFor(code, error) {
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
     'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
-    'finance-currency-invalid','finance-wallet-insufficient'
+    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch'
   ].includes(code)) return 400;
   return 500;
 }
@@ -98,15 +98,28 @@ async function handler(req, res) {
 
       let rubRates = { RUB: 1 };
       if (sourceCurrency !== 'RUB' || targetCurrency !== 'RUB') {
-        const fiat = await fetchFiatRub();
-        rubRates = { RUB: 1, ...Object.fromEntries(fiat.map((item) => [String(item.id || '').split('-')[0].toUpperCase(), Number(item.value)])) };
+        const ticker = await readMarketTicker();
+        const byId = new Map((ticker.items || []).map((item) => [String(item.id || ''), Number(item.value)]));
+        const usdRub = Number(byId.get('usd-rub'));
+        const eurRub = Number(byId.get('eur-rub'));
+        const btcUsd = Number(byId.get('btcusdt'));
+        const ethUsd = Number(byId.get('ethusdt'));
+        const usdtUsd = Number(byId.get('usdtusd')) || 1;
+        rubRates = {
+          RUB: 1,
+          USD: usdRub,
+          EUR: eurRub,
+          USDT: usdRub && usdtUsd ? usdRub * usdtUsd : 0,
+          BTC: usdRub && btcUsd ? usdRub * btcUsd : 0,
+          ETH: usdRub && ethUsd ? usdRub * ethUsd : 0,
+        };
       }
       const sourceRub = Number(rubRates[sourceCurrency]);
       const targetRub = Number(rubRates[targetCurrency]);
-      if (!sourceRub || !targetRub) throw new Error('finance-currency-invalid');
+      if (!sourceRub || !targetRub) throw new Error('finance-rate-invalid');
       const rubAmount = Math.round(sourceAmount * sourceRub * 100) / 100;
       const amount = Math.round((rubAmount / targetRub) * 100) / 100;
-      const exchangeRate = Math.round((amount / sourceAmount) * 1000000) / 1000000;
+      const exchangeRate = Math.round((amount / sourceAmount) * 100000000) / 100000000;
 
       const state = await savePersonalExpense(actor, {
         ...body,
