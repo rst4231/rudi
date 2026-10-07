@@ -17315,3 +17315,35 @@ body.finance-month-dialog-open{overflow:hidden!important}
 .finance-analyst-card .finance-analyst-limit{
   margin-top:4px;
 }
+
+
+/* RUDI v4.75 — finance cleanup after removing redundant helper labels */
+.finance-wallet-section>.finance-coin-section-head h2,
+.finance-goal-card-compact .finance-history-head h2,
+.finance-obligations-card-head h2,
+.finance-operations-card .finance-history-head h2,
+.finance-debts-card .finance-history-head h2,
+.finance-capital-head h2,
+.finance-analyst-card h2,
+.finance-literacy-card h2,
+.finance-category-history-title h2,
+#financeCategoryComposer .finance-coin-modal-head h3,
+#financeTransferComposer .finance-coin-modal-head h3{
+  margin-top:0!important
+}
+.finance-literacy-body{
+  margin-top:10px!important
+}
+.finance-analyst-limit{
+  margin:4px 0 10px!important
+}
+.finance-ledger-total-compact{
+  justify-content:flex-end!important
+}
+@media(max-width:430px){
+  .finance-operations-card .finance-history-head h2,
+  .finance-goal-card-compact .finance-history-head h2,
+  .finance-obligations-card .finance-history-head h2{
+    margin-top:0!important
+  }
+}
