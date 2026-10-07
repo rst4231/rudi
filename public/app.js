@@ -4045,7 +4045,7 @@
           line.setAttribute('d','');area.setAttribute('d','');dot.setAttribute('cx','0');dot.setAttribute('cy','0');
           if(empty){empty.hidden=false;empty.textContent='Первый снимок появится автоматически'}
           if(change)change.textContent='История начнётся сегодня';
-          if(range)range.textContent='Сохраняем дневные снимки общего баланса';
+          if(range)range.textContent='';
           if(start)start.textContent='—';if(end)end.textContent='—';
           return;
         }
