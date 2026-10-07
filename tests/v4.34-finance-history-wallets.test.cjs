@@ -374,3 +374,28 @@ test('expense labels persist per category and on expense rows', () => {
   assert.ok(html.includes('id="financeExpenseLabelList"'));
   assert.ok(html.includes('id="financeExpenseLabelAddButton"'));
 });
+
+
+test('finance overview shows planned limits and wallet total subtitle', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(html.includes('id="financePlannedMonthTotal"'));
+  assert.ok(html.includes('id="financeWalletTotalRub"'));
+  assert.ok(html.includes('<span>В планах</span>'));
+  assert.ok(app.includes("category?.monthlyLimit||0"));
+  assert.ok(app.includes("walletTotal.textContent='Всего: '+text"));
+  assert.ok(css.includes('grid-template-columns:repeat(4,minmax(0,1fr))'));
+  assert.ok(css.includes('.finance-wallet-total-rub'));
+});
+
+
+test('income composer does not autofocus amount and category reorder tracks pointer globally', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes('mountFinanceCoinModal(modal);'));
+  assert.ok(!app.includes('mountFinanceCoinModal(modal,amount,{forceFocus:true});'));
+  assert.ok(app.includes("document.addEventListener('pointermove',onMove,{capture:true,passive:false})"));
+  assert.ok(app.includes('financeCategoryMoveByPointer(list,item,moveEvent.clientX,moveEvent.clientY)'));
+  assert.ok(css.includes('.finance-category-coin{touch-action:none}'));
+});
