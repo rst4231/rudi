@@ -2165,6 +2165,7 @@
 
       let financeState={months:[],personalMonths:[],wallets:[],categories:[],archivedCategories:[],personalExpenses:[],walletIncomes:[],walletTransfers:[],debts:[],plan:{},version:0};
       let financeBalanceHidden=false;
+      let financeOverviewDisplayCurrency='RUB';
       let financeObligationEditingId='';
       let financeLoadPromise=null;
       let financeLiteracyPromise=null;
@@ -2218,6 +2219,42 @@
       function financeCurrencySymbol(currency='RUB'){
         const code=String(currency||'RUB').toUpperCase();
         return code==='USD'?'$':code==='EUR'?'€':code==='BTC'?'₿':code==='ETH'?'Ξ':code==='USDT'?'₮':'₽';
+      }
+      function financeOverviewUsdRate(payload=readMarketTickerLocalCache()){
+        return Number(financeWalletRubRates(payload).USD||0);
+      }
+      function financeOverviewMoney(rubAmount,payload=readMarketTickerLocalCache()){
+        const rub=Number(rubAmount||0);
+        if(financeOverviewDisplayCurrency==='USD'){
+          const rate=financeOverviewUsdRate(payload);
+          return rate>0?financeMoney(rub/rate,'USD'):'—';
+        }
+        return financeMoney(rub,'RUB');
+      }
+      function syncFinanceOverviewCurrencyButton(){
+        const button=document.getElementById('financeBalanceCurrencyButton');
+        const symbol=document.getElementById('financeBalanceCurrencySymbol');
+        if(symbol)symbol.textContent=financeOverviewDisplayCurrency==='USD'?'$':'₽';
+        if(button){
+          const next=financeOverviewDisplayCurrency==='USD'?'рубли':'доллары';
+          button.setAttribute('aria-label','Показать баланс в '+next);
+          button.title='Сейчас '+financeOverviewDisplayCurrency+' · переключить валюту';
+          button.classList.toggle('is-usd',financeOverviewDisplayCurrency==='USD');
+        }
+      }
+      async function toggleFinanceOverviewCurrency(){
+        const next=financeOverviewDisplayCurrency==='USD'?'RUB':'USD';
+        if(next==='USD'&&financeOverviewUsdRate()<=0){
+          await loadMarketTicker({silent:true});
+          if(financeOverviewUsdRate()<=0)return;
+        }
+        financeOverviewDisplayCurrency=next;
+        syncFinanceOverviewCurrencyButton();
+        const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        renderFinanceWallets();
+        renderFinanceCategories(month);
+        renderFinancePulse(month);
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
       function financeMoscowParts(date=new Date()){
         const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
@@ -2688,9 +2725,9 @@
         const coinIncome=document.getElementById('financeCoinIncomeValue');
         const plannedTotal=document.getElementById('financePlannedMonthTotal');
         const yesterdayTotal=document.getElementById('financeYesterdayExpenseTotal');
-        if(coinIncome)coinIncome.textContent=financeBalanceHidden?'••••':financeMoney(income);
+        if(coinIncome)coinIncome.textContent=financeBalanceHidden?'••••':financeOverviewMoney(income);
         if(plannedTotal){
-          plannedTotal.textContent=financeBalanceHidden?'••••':financeMoney(plannedRemaining);
+          plannedTotal.textContent=financeBalanceHidden?'••••':financeOverviewMoney(plannedRemaining);
           plannedTotal.classList.toggle('is-over-limit',plannedRemaining<0);
           plannedTotal.title='Сумма всех лимитов категорий минус расходы за '+financeMonthTitle(month);
         }
@@ -2703,6 +2740,7 @@
             .reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0)*100)/100;
           yesterdayTotal.textContent=financeBalanceHidden?'••••':financeMoney(yesterdaySpent);
         }
+        syncFinanceOverviewCurrencyButton();
         renderFinanceObligations();
       }
       function renderFinancePlan({preserveInputs=false}={}){
@@ -3577,7 +3615,7 @@
         if(!host&&!walletTotal)return;
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         if(!wallets.length){
-          if(host){host.textContent=financeBalanceHidden?'••••••':financeMoney(0);host.removeAttribute('title')}
+          if(host){host.textContent=financeBalanceHidden?'••••••':financeOverviewMoney(0,payload);host.removeAttribute('title')}
           if(walletTotal)walletTotal.textContent=financeBalanceHidden?'Всего: ••••••':'Всего: '+financeMoney(0);
           return;
         }
@@ -3592,9 +3630,10 @@
           total+=balance*rate;
         }
         if(complete){
-          const text=financeMoney(Math.round(total*100)/100);
-          if(host){host.textContent=financeBalanceHidden?'••••••':text;host.title='Чистый баланс кошельков с учётом кредитных счетов'}
-          if(walletTotal)walletTotal.textContent=financeBalanceHidden?'Всего: ••••••':'Всего: '+text;
+          const rubText=financeMoney(Math.round(total*100)/100);
+          const overviewText=financeOverviewMoney(Math.round(total*100)/100,payload);
+          if(host){host.textContent=financeBalanceHidden?'••••••':overviewText;host.title='Чистый баланс кошельков с учётом кредитных счетов'}
+          if(walletTotal)walletTotal.textContent=financeBalanceHidden?'Всего: ••••••':'Всего: '+rubText;
         }else{
           if(host){host.textContent=financeBalanceHidden?'••••••':'—';host.title='Жду актуальные курсы для пересчёта кошельков'}
           if(walletTotal)walletTotal.textContent=financeBalanceHidden?'Всего: ••••••':'Всего: —';
@@ -3903,7 +3942,7 @@
         const expenses=financeExpensesForMonth(month);
         if(count)count.textContent=String(categories.length);
         if(empty)empty.hidden=categories.length>0;
-        if(totalHost)totalHost.textContent=financeBalanceHidden?'••••':financeMoney(financeExpenseTotal(month));
+        if(totalHost)totalHost.textContent=financeBalanceHidden?'••••':financeOverviewMoney(financeExpenseTotal(month));
         list.replaceChildren();
 
         const palette=['#34c99a','#ffb52b','#6b9cff','#f27372','#9b7cff','#2fc7c9','#f28f44','#8dbf45','#d96daf','#5ba8d8'];
@@ -4386,9 +4425,6 @@
 
 
         document.getElementById('financeCategoryHistoryBack')?.addEventListener('click',closeFinanceCategoryHistory);
-        document.getElementById('financeCategoryHistoryAdd')?.addEventListener('click',()=>{
-          if(financeCategoryHistoryId)openFinanceExpenseComposer(financeCategoryHistoryId);
-        });
         document.getElementById('financeCategoryHistoryMonthInput')?.addEventListener('change',()=>{
           financeCategoryHistorySearch='';
           const searchInput=document.getElementById('financeCategoryHistorySearchInput');if(searchInput)searchInput.value='';
@@ -4543,6 +4579,9 @@
           if(event.key==='Enter'){event.preventDefault();categoryCreate?.click()}
         });
 
+        document.getElementById('financeBalanceCurrencyButton')?.addEventListener('click',()=>{
+          toggleFinanceOverviewCurrency().catch(()=>{});
+        });
         document.getElementById('financeBalanceEyeButton')?.addEventListener('click',()=>{
           financeBalanceHidden=!financeBalanceHidden;const button=document.getElementById('financeBalanceEyeButton');if(button)button.setAttribute('aria-pressed',financeBalanceHidden?'true':'false');
           const month=personalMonth?.value||financeCurrentMonthKey();
