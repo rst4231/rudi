@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.48">
+  <meta name="rudi-version" content="v4.49">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.48">
+  <link rel="stylesheet" href="/app.css?v=4.49">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -64,7 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.48"></script>
+  <script defer src="/app.js?v=4.49"></script>
   <script defer src="/pwa-extras.js?v=4.12"></script>
   <script defer src="/weather.js?v=4.12"></script>
   <script defer src="/smart-home.js?v=4.12"></script>
@@ -373,21 +373,26 @@
 
         <div id="financeExpenseComposer" class="finance-coin-modal" hidden aria-hidden="true">
           <button id="financeExpenseComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
-          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeExpenseComposerTitle">
-            <div class="finance-coin-modal-head">
+          <section class="finance-coin-modal-sheet finance-expense-entry-sheet" role="dialog" aria-modal="true" aria-labelledby="financeExpenseComposerTitle">
+            <div class="finance-expense-entry-head">
               <div class="finance-expense-category-preview">
                 <span id="financeExpenseComposerIcon" class="finance-coin finance-category-coin-preview" aria-hidden="true">💳</span>
                 <div><small>Расход</small><h3 id="financeExpenseComposerTitle">Категория</h3></div>
               </div>
               <button id="financeExpenseComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
             </div>
-            <div id="financeExpenseComposerSource" class="finance-expense-source" hidden></div>
-            <label class="finance-input-field">
-              <span>Сумма расхода</span>
-              <div class="finance-money-input"><input id="financeExpenseComposerAmount" type="number" min="0.01" max="100000000" step="0.01" inputmode="decimal" placeholder="0" aria-label="Сумма расхода"><b id="financeExpenseComposerCurrency">₽</b></div>
-            </label>
-            <div id="financeExpenseComposerConversion" class="finance-expense-conversion" hidden></div>
-            <div class="finance-expense-label-block">
+
+            <div class="finance-expense-entry-amount">
+              <div id="financeExpenseComposerSource" class="finance-expense-source" hidden></div>
+              <div class="finance-expense-amount-line">
+                <input id="financeExpenseComposerAmount" type="text" inputmode="none" readonly autocomplete="off" placeholder="0" aria-label="Сумма расхода" aria-live="polite">
+                <b id="financeExpenseComposerCurrency">₽</b>
+              </div>
+              <div id="financeExpenseComposerConversion" class="finance-expense-conversion" hidden></div>
+              <input id="financeExpenseComposerNote" class="finance-expense-note-input" maxlength="120" placeholder="Добавить комментарий" aria-label="Комментарий к расходу">
+            </div>
+
+            <div class="finance-expense-label-block finance-expense-label-block-compact">
               <div class="finance-expense-label-head">
                 <span>Метка</span>
                 <button id="financeExpenseLabelAddButton" class="finance-expense-label-add" type="button">+ Метка</button>
@@ -398,8 +403,28 @@
                 <button id="financeExpenseLabelSave" type="button">Добавить</button>
               </div>
             </div>
-            <div class="finance-expense-datetime-grid">
-              <label class="finance-input-field">
+
+            <div id="financeExpenseKeypad" class="finance-expense-keypad" role="group" aria-label="Клавиатура суммы">
+              <button type="button" data-finance-expense-key="1">1</button>
+              <button type="button" data-finance-expense-key="2">2</button>
+              <button type="button" data-finance-expense-key="3">3</button>
+              <button type="button" class="is-operator" data-finance-expense-key="+">+</button>
+              <button type="button" data-finance-expense-key="4">4</button>
+              <button type="button" data-finance-expense-key="5">5</button>
+              <button type="button" data-finance-expense-key="6">6</button>
+              <button type="button" class="is-operator" data-finance-expense-key="-">−</button>
+              <button type="button" data-finance-expense-key="7">7</button>
+              <button type="button" data-finance-expense-key="8">8</button>
+              <button type="button" data-finance-expense-key="9">9</button>
+              <button type="button" class="is-operator" data-finance-expense-key="×">×</button>
+              <button type="button" data-finance-expense-key=",">,</button>
+              <button type="button" data-finance-expense-key="0">0</button>
+              <button type="button" class="is-backspace" data-finance-expense-key="backspace" aria-label="Удалить цифру">⌫</button>
+              <button id="financeExpenseComposerSave" class="finance-expense-keypad-save" type="button" aria-label="Добавить расход">✓</button>
+            </div>
+
+            <div class="finance-expense-entry-footer">
+              <label class="finance-expense-temporal-field">
                 <span>Дата</span>
                 <div class="finance-temporal-control">
                   <span id="financeExpenseComposerDateDisplay" class="finance-temporal-value">—</span>
@@ -407,7 +432,7 @@
                   <input id="financeExpenseComposerDate" class="finance-temporal-native" type="date" aria-label="Дата расхода">
                 </div>
               </label>
-              <label class="finance-input-field">
+              <label class="finance-expense-temporal-field">
                 <span>Время</span>
                 <div class="finance-temporal-control">
                   <span id="financeExpenseComposerTimeDisplay" class="finance-temporal-value">—</span>
@@ -416,13 +441,8 @@
                 </div>
               </label>
             </div>
-            <label class="finance-input-field">
-              <span>Комментарий</span>
-              <input id="financeExpenseComposerNote" class="finance-text-input" maxlength="120" placeholder="Необязательно" aria-label="Комментарий к расходу">
-            </label>
-            <button id="financeExpenseComposerSave" class="finance-analyst-button finance-expense-composer-save" type="button">Добавить расход</button>
-            <div id="financeExpenseComposerStatus" class="finance-status" role="status" aria-live="polite"></div>
-            <div id="financeExpenseComposerHistory" class="finance-category-expense-list"></div>
+            <div id="financeExpenseComposerStatus" class="finance-status finance-expense-entry-status" role="status" aria-live="polite"></div>
+            <div id="financeExpenseComposerHistory" class="finance-category-expense-list finance-expense-entry-history" aria-hidden="true"></div>
           </section>
         </div>
 

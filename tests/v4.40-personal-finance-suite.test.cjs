@@ -125,3 +125,22 @@ test('v4.44 finance UI has final requested layout and mobile safeguards',()=>{
   assert.ok(planEnd>=0&&obligations>planEnd&&analyst>obligations&&literacy>analyst);
   assert.equal((html.match(/id="financeAnalystTitle"/g)||[]).length,1);
 });
+
+
+test('v4.49 category trend and compact expense keypad are wired',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes('function financeCategoryMonthTrend(categoryId,month)'));
+  assert.ok(app.includes("text:(delta>0?'↑ ':'↓ ')+financePercent(delta)"));
+  assert.ok(app.includes("text:'↑ новое'"));
+  assert.ok(app.includes('function financeExpenseFinalizeCalculator()'));
+  assert.ok(app.includes("document.getElementById('financeExpenseKeypad')?.addEventListener('click'"));
+  assert.ok(html.includes('id="financeExpenseKeypad"'));
+  assert.ok(html.includes('class="finance-expense-keypad-save"'));
+  assert.ok(html.includes('inputmode="none" readonly'));
+  assert.ok(css.includes('RUDI v4.49 — category month trend + CoinKeeper-style expense entry'));
+  assert.ok(css.includes('#financeExpenseComposer .finance-expense-entry-history{display:none!important}'));
+  assert.ok(css.includes('@media(max-height:590px)'));
+  assert.ok(html.includes('content="v4.49"'));
+});

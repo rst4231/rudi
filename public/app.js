@@ -2175,6 +2175,9 @@
       let financeCategoryEditingId='';
       let financeExpenseWalletId='';
       let financeExpenseSourceCurrency='RUB';
+      let financeExpenseCalcLeft=null;
+      let financeExpenseCalcOperator='';
+      let financeExpenseCalcReplace=false;
       let financeWalletEditingId='';
       let financeIncomeDrag=null;
       let financeWalletEditMode=false;
@@ -2361,6 +2364,19 @@
       }
       function financeCategorySpent(categoryId,month){
         return Math.round(financeExpensesForMonth(month).filter(row=>row.categoryId===categoryId).reduce((sum,row)=>sum+Number(row.rubAmount??row.amount??0),0)*100)/100;
+      }
+      function financeCategoryMonthTrend(categoryId,month){
+        const previousMonth=financePreviousMonthKey(month);
+        const current=financeCategorySpent(categoryId,month);
+        const previous=previousMonth?financeCategorySpent(categoryId,previousMonth):0;
+        if(!previousMonth)return {direction:'flat',text:'—',previousMonth:''};
+        if(previous<=0){
+          if(current<=0)return {direction:'flat',text:'0%',previousMonth};
+          return {direction:'up',text:'↑ новое',previousMonth};
+        }
+        const delta=(current-previous)/previous*100;
+        if(Math.abs(delta)<.5)return {direction:'flat',text:'0%',previousMonth};
+        return {direction:delta>0?'up':'down',text:(delta>0?'↑ ':'↓ ')+financePercent(delta),previousMonth};
       }
       function financeCategoryById(id){return (financeState.categories||[]).find(row=>row.id===id)||null}
       function financeAllCategoryById(id){return [...(financeState.categories||[]),...(financeState.archivedCategories||[])].find(row=>row.id===id)||null}
@@ -2755,6 +2771,77 @@
         return parts.year+'-'+parts.month;
       }
 
+      function financeExpenseResetCalculator(){
+        financeExpenseCalcLeft=null;
+        financeExpenseCalcOperator='';
+        financeExpenseCalcReplace=false;
+        document.querySelectorAll('#financeExpenseKeypad .is-operator').forEach(button=>button.classList.remove('is-active'));
+      }
+      function financeExpenseAmountValue(){
+        const raw=String(document.getElementById('financeExpenseComposerAmount')?.value||'').replace(',','.');
+        const value=Number(raw);
+        return Number.isFinite(value)?value:0;
+      }
+      function financeExpenseSetAmount(value){
+        const input=document.getElementById('financeExpenseComposerAmount');if(!input)return;
+        if(typeof value==='number'){
+          const safe=Math.max(0,Math.round(value*100000000)/100000000);
+          input.value=safe?String(safe):'';
+          return;
+        }
+        input.value=String(value||'').replace('.',',');
+      }
+      function financeExpenseApplyCalculation(left,right,operator){
+        if(operator==='+')return left+right;
+        if(operator==='-')return Math.max(0,left-right);
+        if(operator==='×')return left*right;
+        return right;
+      }
+      function financeExpenseSelectOperator(operator){
+        const current=financeExpenseAmountValue();
+        if(financeExpenseCalcLeft!==null&&financeExpenseCalcOperator&&!financeExpenseCalcReplace){
+          const result=financeExpenseApplyCalculation(financeExpenseCalcLeft,current,financeExpenseCalcOperator);
+          financeExpenseSetAmount(result);
+          financeExpenseCalcLeft=result;
+        }else{
+          financeExpenseCalcLeft=current;
+        }
+        financeExpenseCalcOperator=operator;
+        financeExpenseCalcReplace=true;
+        document.querySelectorAll('#financeExpenseKeypad .is-operator').forEach(button=>button.classList.toggle('is-active',button.dataset.financeExpenseKey===operator));
+      }
+      function financeExpenseFinalizeCalculator(){
+        const current=financeExpenseAmountValue();
+        if(financeExpenseCalcLeft!==null&&financeExpenseCalcOperator&&!financeExpenseCalcReplace){
+          const result=financeExpenseApplyCalculation(financeExpenseCalcLeft,current,financeExpenseCalcOperator);
+          financeExpenseSetAmount(result);
+          financeExpenseResetCalculator();
+          return result;
+        }
+        financeExpenseResetCalculator();
+        return current;
+      }
+      function financeExpenseAppendKey(key){
+        const input=document.getElementById('financeExpenseComposerAmount');if(!input)return;
+        if(key==='backspace'){
+          if(financeExpenseCalcReplace){financeExpenseSetAmount('');financeExpenseCalcReplace=false}
+          else input.value=String(input.value||'').slice(0,-1);
+          return;
+        }
+        if(['+','-','×'].includes(key)){financeExpenseSelectOperator(key);return}
+        let current=String(input.value||'');
+        if(financeExpenseCalcReplace){current='';financeExpenseCalcReplace=false}
+        if(key===','){
+          if(!current)current='0';
+          if(current.includes(',')||current.includes('.'))return;
+          input.value=current+',';
+          return;
+        }
+        if(!/^\d$/.test(key))return;
+        if(current.replace(/\D/g,'').length>=12)return;
+        input.value=current==='0'?key:current+key;
+      }
+
       function renderFinanceExpenseLabels(category){
         const list=document.getElementById('financeExpenseLabelList');
         if(!list)return;
@@ -2841,6 +2928,7 @@
         if(title)title.textContent=String(category.name||'Категория');
         if(icon)icon.textContent=category.icon||'💳';
         if(amount)amount.value='';
+        financeExpenseResetCalculator();
         if(currency)currency.textContent=financeCurrencySymbol(financeExpenseSourceCurrency);
         if(note)note.value='';
         financeExpenseLabel='';
@@ -2869,7 +2957,7 @@
 
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         renderFinanceExpenseComposerHistory(month,category.id);
-        mountFinanceCoinModal(modal,amount,{forceFocus:focusAmount});
+        mountFinanceCoinModal(modal,null);
       }
 
       function cleanupFinanceIncomeDrag(){
@@ -3594,8 +3682,12 @@
             progress.classList.toggle('is-mid',usage>=.5&&usage<1);
             progress.classList.toggle('is-full',usage>=1);
           }
+          const monthTrend=financeCategoryMonthTrend(category.id,month);
+          const trend=document.createElement('span');trend.className='finance-category-trend is-'+monthTrend.direction;trend.textContent=monthTrend.text;
+          if(monthTrend.previousMonth)trend.title='К '+financeMonthTitle(monthTrend.previousMonth);
           item.append(remove,label,coin,amount);
           if(limitValue>0)item.append(limit,progress);
+          item.append(trend);
           bindFinanceCategoryInteractions(item,list,category);
           list.append(item);
         });
@@ -4099,10 +4191,16 @@
           if(event.key==='Enter'){event.preventDefault();saveExpenseLabel()}
         });
 
+        document.getElementById('financeExpenseKeypad')?.addEventListener('click',event=>{
+          const button=event.target?.closest?.('[data-finance-expense-key]');if(!button)return;
+          financeExpenseAppendKey(String(button.dataset.financeExpenseKey||''));
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
+
         document.getElementById('financeExpenseComposerSave')?.addEventListener('click',async()=>{
           const amount=document.getElementById('financeExpenseComposerAmount'),note=document.getElementById('financeExpenseComposerNote');
           const button=document.getElementById('financeExpenseComposerSave'),status=document.getElementById('financeExpenseComposerStatus');
-          const value=Number(amount?.value||0);
+          const value=financeExpenseFinalizeCalculator();
           if(!financeExpenseCategoryId||value<=0){amount?.focus();return}
           const occurredAt=financeOccurredAtFromInputs(),expenseMonth=financeMonthFromOccurredAt(occurredAt);
           button.disabled=true;if(status)status.textContent='Сохраняю…';
