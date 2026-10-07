@@ -563,15 +563,22 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
   const note = cleanText(payload.note, 120);
   const occurredAt = cleanOccurredAt(payload.occurredAt, options.now || Date.now());
   const walletId = cleanText(payload.walletId, 100);
-  const sourceAmount = walletId ? cleanAssetAmount(payload.sourceAmount) : amount;
-  const sourceCurrency = walletId ? cleanCurrency(payload.sourceCurrency || 'RUB') : 'RUB';
-  const exchangeRate = walletId ? Number(payload.exchangeRate || 0) : 1;
-  if (walletId && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) throw new Error('finance-rate-invalid');
+  const sourceAmount = cleanAssetAmount(payload.sourceAmount ?? amount);
+  const sourceCurrency = cleanCurrency(payload.sourceCurrency || 'RUB');
+  const exchangeRate = Number(payload.exchangeRate ?? 1);
+  if (sourceAmount <= 0) throw new Error('finance-amount-invalid');
+  if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) throw new Error('finance-rate-invalid');
 
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     const category = (current.categories[safeActor] || []).find((row) => row.id === categoryId && !row.archived);
     if (!category) throw new Error('finance-category-not-found');
+    const targetCurrency = cleanCurrency(payload.targetCurrency || category.currency || 'RUB');
+    if (targetCurrency !== cleanCurrency(category.currency || 'RUB')) throw new Error('finance-wallet-currency-mismatch');
+    const rubAmount = cleanMoney(
+      payload.rubAmount ?? (targetCurrency === 'RUB' ? amount : sourceCurrency === 'RUB' ? sourceAmount : 0)
+    );
+    if (rubAmount <= 0) throw new Error('finance-rate-invalid');
     const now = new Date(options.now || Date.now()).toISOString();
     let wallets = current.wallets;
 
@@ -592,8 +599,8 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
       actor: safeActor, month, categoryId, amount, note,
-      walletId, sourceAmount, sourceCurrency, targetCurrency: 'RUB', exchangeRate,
-      rubAmount: amount, importKey: '', occurredAt, createdAt: now, updatedAt: now,
+      walletId, sourceAmount, sourceCurrency, targetCurrency, exchangeRate,
+      rubAmount, importKey: '', occurredAt, createdAt: now, updatedAt: now,
     };
     const base = normalizeState({
       ...current, initialized: true, version: current.version + 1,
