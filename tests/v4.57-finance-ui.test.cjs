@@ -222,3 +222,32 @@ test('v4.75 finance cleanup removes decorative labels and empty spacing',()=>{
   assert.ok(css.includes('RUDI v4.75 — finance cleanup after removing redundant helper labels'));
   assert.ok(css.includes('.finance-ledger-total-compact'));
 });
+
+
+test('v4.75 removes remaining decorative finance labels and gaps',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+
+  [
+    '<span class="section-eyebrow">Источники</span>',
+    '<span class="section-eyebrow">План</span>',
+    '<span class="section-eyebrow">Планирование</span>',
+    '<span class="section-eyebrow">Операции</span>',
+    '<span class="section-eyebrow">Долги</span>',
+    '<div class="finance-literacy-kicker">По вашим данным</div>',
+    '<div class="finance-literacy-kicker">Статья дня</div>',
+    'Новая статья каждый день',
+    'Между своими счетами',
+    'Новая монета',
+    'История начнётся сегодня'
+  ].forEach(text=>assert.ok(!html.includes(text)));
+
+  assert.ok(!app.includes("История начнётся сегодня"));
+  assert.ok(app.includes("if(summary)summary.hidden=true"));
+  assert.ok(app.includes("if(summary)summary.hidden=false"));
+  assert.ok(css.includes("RUDI v4.75 — compact finance headers after helper-copy cleanup"));
+  assert.ok(css.includes(".finance-capital-summary[hidden]"));
+  assert.ok(html.includes('Лимит: 1 анализ в сутки'));
+  assert.ok(html.includes('Добавь цель, чтобы видеть прогресс'));
+});
