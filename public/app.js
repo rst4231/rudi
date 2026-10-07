@@ -2832,24 +2832,42 @@
         const find=(aliases)=>headers.findIndex(h=>aliases.some(alias=>h===alias||h.includes(alias)));
         const dateI=find(['data','date','дата']),typeI=find(['type','тип']),fromI=find(['from','откуда','счет']),toI=find(['to','куда','категор']),tagsI=find(['tags','теги']);
         const amountI=find(['amount','сумма']),noteI=find(['note','comment','комментар','замет']),currencyI=find(['currency','валюта']);
+        const convertedAmountI=find(['amount converted','converted amount','сумма конверт']),conversionCurrencyI=find(['currency of conversion','conversion currency','валюта конверт']);
         if(dateI<0||amountI<0)throw new Error('csv-columns');
+        const parseCurrency=(value,amountCell='')=>{
+          const raw=(String(value||'')+' '+String(amountCell||'')).toUpperCase();
+          if(raw.includes('USDT'))return 'USDT';
+          if(raw.includes('BTC')||raw.includes('₿'))return 'BTC';
+          if(raw.includes('ETH')||raw.includes('Ξ'))return 'ETH';
+          if(raw.includes('USD')||raw.includes('$'))return 'USD';
+          if(raw.includes('EUR')||raw.includes('€'))return 'EUR';
+          if(raw.includes('RUB')||raw.includes('RUR')||raw.includes('₽')||raw.includes('РУБ'))return 'RUB';
+          return 'RUB';
+        };
         const result=[];let skipped=0;
         for(let index=1;index<table.length;index++){
           const row=table[index],type=String(row[typeI]||'').trim(),lower=type.toLocaleLowerCase('ru-RU');
           if(/income|доход|transfer|перевод/.test(lower)){skipped++;continue}
-          const amount=financeParseNumber(row[amountI]);if(!(amount>0)){skipped++;continue}
+          const sourceAmount=financeParseNumber(row[amountI]);if(!(sourceAmount>0)){skipped++;continue}
           const date=financeParseImportedDate(row[dateI]);if(!date){skipped++;continue}
           let category=String(row[toI]||'').trim();
           if(!category)category=String(row[tagsI]||'').split(/[,;]/)[0].trim();
           if(!category)category='Без категории';
           const note=String(row[noteI]||'').trim().slice(0,120);
-          const currencyRaw=String(row[currencyI]||'').toUpperCase();
-          const sourceCurrency=currencyRaw.includes('USD')||String(row[amountI]).includes('$')?'USD':currencyRaw.includes('EUR')||String(row[amountI]).includes('€')?'EUR':'RUB';
+          const sourceCurrency=parseCurrency(row[currencyI],row[amountI]);
+          const convertedAmount=convertedAmountI>=0?financeParseNumber(row[convertedAmountI]):0;
+          const convertedCurrency=conversionCurrencyI>=0?parseCurrency(row[conversionCurrencyI],row[convertedAmountI]):'';
+          let amount=sourceAmount;
+          if(sourceCurrency!=='RUB'){
+            if(convertedCurrency==='RUB'&&convertedAmount>0)amount=convertedAmount;
+            else{skipped++;continue}
+          }
+          const exchangeRate=sourceAmount>0?Math.round((amount/sourceAmount)*100000000)/100000000:1;
           const meta=financeMoscowParts(date),month=meta.year+'-'+meta.month;
-          const canonical=[row[dateI],type,row[fromI]||'',row[toI]||'',row[tagsI]||'',row[amountI],row[currencyI]||'',row[noteI]||''].join('|');
+          const canonical=[row[dateI],type,row[fromI]||'',row[toI]||'',row[tagsI]||'',row[amountI],row[currencyI]||'',row[convertedAmountI]||'',row[conversionCurrencyI]||'',row[noteI]||''].join('|');
           result.push({
-            categoryName:category.slice(0,48),amount,sourceAmount:amount,sourceCurrency,currency:sourceCurrency,
-            exchangeRate:1,month,occurredAt:date.toISOString(),note,
+            categoryName:category.slice(0,48),amount,sourceAmount,sourceCurrency,currency:'RUB',
+            exchangeRate,month,occurredAt:date.toISOString(),note,
             importKey:'coinkeeper:'+financeCsvHash(canonical)
           });
         }
