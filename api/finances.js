@@ -1,7 +1,7 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
-  saveWallet, deleteWallet, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
+  saveWallet, deleteWallet, reorderWallets, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
@@ -61,6 +61,10 @@ async function handler(req, res) {
     }
     if (operation === 'delete-wallet') {
       const state = await deleteWallet(actor, body.id);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'reorder-wallets') {
+      const state = await reorderWallets(actor, body.ids);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'save-category') {
@@ -133,7 +137,11 @@ async function handler(req, res) {
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion: { sourceAmount, sourceCurrency, amount, targetCurrency, rubAmount, exchangeRate }, ...viewState(state, actor) });
     }
     if (operation === 'import-expenses') {
-      const imported = await importPersonalExpenses(actor, body.rows);
+      const imported = await importPersonalExpenses(actor, {
+        rows: body.rows,
+        currentCategories: body.currentCategories,
+        currentWallets: body.currentWallets,
+      });
       return res.status(200).json({
         ok: true,
         actor,
