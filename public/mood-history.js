@@ -360,17 +360,21 @@ function render(data){
   const analysis=data.analysis||null,button=page.querySelector('#moodAnalyzeButton'),status=page.querySelector('#moodAnalysisStatus'),result=page.querySelector('#moodAnalysisResult');
   const moodDays=rowsForWindow(history,today,windowDays).length;
   const minimumDays=minimumAnalysisDays(windowDays);
+  const analysisQuota=data.analysisQuota&&typeof data.analysisQuota==='object'?data.analysisQuota:{max:3,used:0,available:3};
+  const analysesLeft=Math.max(0,Number(analysisQuota.available??3));
+  const analysisLimitReached=analysesLeft<=0;
   if(analysis?.text){
     result.hidden=false;renderAnalysisReport(result,analysis.text,data.analysisVisuals);
-    button.disabled=moodDays<minimumDays;button.textContent='Анализ';
+    button.disabled=analysisLimitReached||moodDays<minimumDays;button.textContent='Анализ';
     const savedPeriod=analysisPeriodLabel(Number(analysis.windowDays)||30);
-    status.textContent=(analysis.level==='preliminary'?'Предварительный разбор · ':'')+'Сохранённый анализ за '+savedPeriod+' · Можно обновлять без ограничений'+(analysis?.cycle?.phase?' · цикл Дианы учтён':'');
+    status.textContent=(analysis.level==='preliminary'?'Предварительный разбор · ':'')+'Сохранённый анализ за '+savedPeriod+' · '+(analysisLimitReached?'Лимит на сегодня исчерпан · снова доступно завтра':'Осталось анализов сегодня: '+analysesLeft+' из '+Number(analysisQuota.max||3))+(analysis?.cycle?.phase?' · цикл Дианы учтён':'');
   }else{
     result.hidden=true;result.replaceChildren();
-    button.disabled=moodDays<minimumDays;button.textContent='Анализ';
+    button.disabled=analysisLimitReached||moodDays<minimumDays;button.textContent='Анализ';
     status.textContent=moodDays<minimumDays
       ?'Для анализа за '+analysisPeriodLabel(windowDays)+' данных мало: '+moodDays+' из '+minimumDays+' нужных дней с отметками.'
-      :moodDays<10?'Данных немного: получится предварительный разбор':'Можно анализировать '+analysisPeriodLabel(windowDays);
+      :analysisLimitReached?'Лимит на сегодня исчерпан · снова доступно завтра'
+      :moodDays<10?'Данных немного: получится предварительный разбор · осталось '+analysesLeft+' из '+Number(analysisQuota.max||3):'Можно анализировать '+analysisPeriodLabel(windowDays)+' · осталось '+analysesLeft+' из '+Number(analysisQuota.max||3);
   }
 }
 
@@ -400,8 +404,8 @@ async function runAnalysis(){
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success');
   }catch(error){
     const code=String(error?.message||'');
-    status.textContent=code==='mood-analysis-insufficient-data'?'Недостаточно данных для выбранного периода.':code==='mood-analysis-quota'?'Сервис временно занят. Попробуйте позже.':'Не удалось сделать анализ. Попробуйте ещё раз.';
-    button.disabled=false;button.textContent='Анализ';
+    status.textContent=code==='mood-analysis-insufficient-data'?'Недостаточно данных для выбранного периода.':code==='mood-analysis-daily-limit'?'Лимит на сегодня исчерпан · снова доступно завтра':code==='mood-analysis-quota'?'Сервис временно занят. Попробуйте позже.':'Не удалось сделать анализ. Попробуйте ещё раз.';
+    button.disabled=code==='mood-analysis-daily-limit';button.textContent='Анализ';
   }
 }
 window.RUDI_MOOD_HISTORY={open,close,reload};
