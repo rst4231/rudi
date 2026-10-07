@@ -3268,10 +3268,14 @@
         document.getElementById('financeCategoryDeleteAllButton')?.addEventListener('click',()=>deleteCategory(true));
 
         document.addEventListener('pointerdown',event=>{
-          if(!financeCategoryEditMode)return;
-          if(event.target.closest?.('#financeCategoryList .finance-category-coin-item'))return;
-          if(event.target.closest?.('#financeCategoryDeleteChooser'))return;
-          setFinanceCategoryEditMode(false);
+          if(financeWalletEditMode){
+            if(!event.target.closest?.('#financeWalletList .finance-wallet-item')&&!event.target.closest?.('#financeWalletComposer'))setFinanceWalletEditMode(false);
+          }
+          if(financeCategoryEditMode){
+            if(event.target.closest?.('#financeCategoryList .finance-category-coin-item'))return;
+            if(event.target.closest?.('#financeCategoryDeleteChooser'))return;
+            setFinanceCategoryEditMode(false);
+          }
         },true);
 
         const importFile=document.getElementById('financeImportFile');
