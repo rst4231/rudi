@@ -58,7 +58,10 @@
       let homeBootstrapPromise = null;
       let homeBootstrapPayload = null;
       let homeBootstrapLoadedAt = 0;
+      let homePartnerExpensePromise = null;
+      let homePartnerExpenseLoadedAt = 0;
       const HOME_BOOTSTRAP_CACHE_MS = 5*60*1000;
+      const HOME_PARTNER_EXPENSE_CACHE_MS = 60*1000;
       let partnerMessageBootstrapHandler = null;
       const reactionRequestEpoch = new Map();
       let currentFeedReactionTargets = [];
@@ -10092,6 +10095,30 @@
         node.hidden=false;
       }
 
+      async function loadHomePartnerLastExpense({force=false}={}){
+        if(!currentActor)return null;
+        if(!force&&homePartnerExpenseLoadedAt&&Date.now()-homePartnerExpenseLoadedAt<HOME_PARTNER_EXPENSE_CACHE_MS){
+          renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
+          return homeDashboardState.partnerLastExpense;
+        }
+        if(homePartnerExpensePromise)return homePartnerExpensePromise;
+        homePartnerExpensePromise=(async()=>{
+          try{
+            const data=await financeRequest('partner-last-expense');
+            homeDashboardState.partnerLastExpense=data?.expense||null;
+            homePartnerExpenseLoadedAt=Date.now();
+            renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
+            return homeDashboardState.partnerLastExpense;
+          }catch(error){
+            console.warn('RUDI_PARTNER_EXPENSE_WARN',String(error?.message||error));
+            return null;
+          }finally{
+            homePartnerExpensePromise=null;
+          }
+        })();
+        return homePartnerExpensePromise;
+      }
+
       function applyHomeBootstrap(home){
         if(!home||typeof home!=='object') return false;
         homeBootstrapPayload=home;
@@ -10102,10 +10129,6 @@
           renderDailyMood(home.mood);
         }
         if(home.dailyQuestion) renderDailyQuestion(home.dailyQuestion);
-        if(Object.prototype.hasOwnProperty.call(home,'partnerLastExpense')){
-          homeDashboardState.partnerLastExpense=home.partnerLastExpense||null;
-          renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
-        }
         if(home.cycle&&typeof home.cycle==='object'){
           renderDianaCycle(home.cycle.configured?home.cycle.cycle:null);
         }
@@ -10128,6 +10151,7 @@
         if(Number.isFinite(Number(counts.photos))) homeDashboardState.photoCount=Math.max(0,Number(counts.photos));
         if(Number.isFinite(Number(counts.products))) homeDashboardState.productCount=Math.max(0,Number(counts.products));
         renderHomeNew();
+        loadHomePartnerLastExpense().catch(()=>{});
         return true;
       }
 

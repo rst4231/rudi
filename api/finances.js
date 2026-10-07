@@ -84,6 +84,27 @@ async function handler(req, res) {
       const state = await readFinanceState();
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
+    if (operation === 'partner-last-expense') {
+      const state = await readFinanceState();
+      const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
+      const expense = (Array.isArray(state.personalExpenses) ? state.personalExpenses : [])
+        .filter((row) => row?.actor === partnerActor && !row?.manualAdjustment)
+        .sort((a,b) => String(b?.occurredAt || b?.createdAt || '').localeCompare(String(a?.occurredAt || a?.createdAt || '')))[0] || null;
+      const category = expense
+        ? (Array.isArray(state.categories?.[partnerActor]) ? state.categories[partnerActor] : [])
+            .find((row) => row?.id === expense.categoryId)
+        : null;
+      return res.status(200).json({
+        ok: true,
+        actor,
+        expense: expense ? {
+          amount: Number(expense.sourceAmount || expense.amount || expense.rubAmount || 0),
+          currency: String(expense.sourceCurrency || expense.targetCurrency || 'RUB'),
+          category: String(category?.name || 'Расход'),
+          occurredAt: String(expense.occurredAt || expense.createdAt || ''),
+        } : null,
+      });
+    }
     if (operation === 'save') {
       const state = await saveFinanceMonth(actor, body.month, body.rent, body.utilities, body.items);
       return res.status(200).json({ ok: true, actor, canEdit: true, ...viewState(state, actor) });

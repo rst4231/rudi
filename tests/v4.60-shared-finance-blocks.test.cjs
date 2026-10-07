@@ -38,11 +38,14 @@ test('v4.60 UI hides shared add control by default and fixes desktop month picke
   assert.ok(css.includes('pointer-events:none!important'));
 });
 
-test('v4.60 partner card shows latest partner expense with category and time',()=>{
+test('v4.60 partner card loads latest expense outside home bootstrap',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
-  const server=fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  const homeServer=fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  const financeApi=fs.readFileSync(path.join(__dirname,'..','api','finances.js'),'utf8');
   assert.ok(app.includes("id='homePartnerLastExpense'"));
   assert.ok(app.includes("Последний расход: "));
-  assert.ok(server.includes("partnerLastExpense: latestPartnerExpense"));
-  assert.ok(server.includes("latestPartnerExpenseCategory"));
+  assert.ok(app.includes("financeRequest('partner-last-expense')"));
+  assert.ok(financeApi.includes("operation === 'partner-last-expense'"));
+  assert.equal(homeServer.includes("require('./finance-store.cjs')"),false);
+  assert.equal(homeServer.includes("partnerLastExpense: latestPartnerExpense"),false);
 });
