@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.69">
+  <meta name="rudi-version" content="v4.70">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -2247,11 +2247,47 @@ document.getElementById('financeExpenseComposerBackdrop')?.addEventListener('cli
 const open=async expense=>{
  ensureTopLayer();
  const data=await getState();active={...expense};const cat=(data.categories||[]).find(x=>x.id===expense.categoryId),wallet=(data.wallets||[]).find(x=>x.id===expense.walletId),st=stamp(expense.occurredAt||expense.createdAt);
- const m=modal(),amount=document.getElementById('financeExpenseComposerAmount'),note=document.getElementById('financeExpenseComposerNote'),date=document.getElementById('financeExpenseComposerDate'),time=document.getElementById('financeExpenseComposerTime'),title=document.getElementById('financeExpenseComposerTitle'),icon=document.getElementById('financeExpenseComposerIcon'),source=document.getElementById('financeExpenseComposerSource');
+ const m=modal(),amount=document.getElementById('financeExpenseComposerAmount'),currency=document.getElementById('financeExpenseComposerCurrency'),switcher=document.getElementById('financeExpenseCurrencySwitch'),conversion=document.getElementById('financeExpenseComposerConversion'),note=document.getElementById('financeExpenseComposerNote'),date=document.getElementById('financeExpenseComposerDate'),time=document.getElementById('financeExpenseComposerTime'),title=document.getElementById('financeExpenseComposerTitle'),icon=document.getElementById('financeExpenseComposerIcon'),source=document.getElementById('financeExpenseComposerSource');
  if(!m)return;
+ const inputCurrency=String(expense.sourceCurrency||wallet?.currency||expense.currency||'RUB').toUpperCase();
+ active.sourceCurrency=inputCurrency;
+ const currencySymbol={RUB:'₽',USD:'
+ if(date){date.value=st.date;sync(date)}
+ if(time){time.value=st.time;sync(time)}
+ if(source){source.hidden=!wallet;source.textContent=wallet?'Источник: '+wallet.name:''}
+ const labels=document.getElementById('financeExpenseLabelList');
+ if(labels){[...labels.children].forEach(b=>{const value=String(b.textContent||'').trim();b.classList.toggle('is-active',value===String(expense.label||''));b.setAttribute('aria-selected',value===String(expense.label||'')?'true':'false')})}
+ m.hidden=false;m.setAttribute('aria-hidden','false');document.body.classList.add('finance-coin-modal-open')
+};
+document.addEventListener('click',async e=>{
+ const chip=e.target.closest('#financeExpenseLabelList button');if(active&&chip){active.label=String(chip.textContent||'').trim();return}
+ if(e.target.closest('button,select,input,a'))return;
+ const row=e.target.closest('#financeOperationList .finance-operation-row.is-expense');if(!row)return;
+ const all=[...document.querySelectorAll('#financeOperationList .finance-operation-row.is-expense')],idx=all.indexOf(row);if(idx<0)return;
+ const data=await getState(true),expense=rows(data)[idx];if(expense)await open(expense)
+},true);
+document.getElementById('financeExpenseComposerSave')?.addEventListener('click',async e=>{
+ if(!active)return;
+ e.preventDefault();e.stopImmediatePropagation();
+ const button=e.currentTarget,amountEl=document.getElementById('financeExpenseComposerAmount'),date=document.getElementById('financeExpenseComposerDate')?.value,time=document.getElementById('financeExpenseComposerTime')?.value,note=document.getElementById('financeExpenseComposerNote')?.value||'';
+ const amount=Number(String(amountEl?.value||'').replace(/\s/g,'').replace(',','.'));if(!amount||!date||!time)return;
+ button.disabled=true;
+ try{await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:new Date(date+'T'+time+':00+03:00').toISOString(),label:active.label||'',note});active=null;cache=null;location.reload()}catch(_){button.disabled=false;const s=document.getElementById('financeExpenseComposerStatus');if(s)s.textContent='Не удалось сохранить изменения'}
+},true);
+const back=document.getElementById('financeExpenseHistoryBack');
+back?.addEventListener('click',e=>{const m=modal();if(active&&m&&!m.hidden){e.preventDefault();e.stopImmediatePropagation();m.hidden=true;m.setAttribute('aria-hidden','true');document.body.classList.remove('finance-coin-modal-open');active=null}},true);
+const cleanTrend=async()=>{try{const data=await getState(),month=String(document.getElementById('financePersonalMonthInput')?.value||'');if(!/^\d{4}-\d{2}$/.test(month))return;const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m-2,1)),prev=d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');document.querySelectorAll('#financeCategoryList [data-category-id]').forEach(item=>{const id=item.dataset.categoryId,hasNow=(data.personalExpenses||[]).some(x=>!x.manualAdjustment&&x.categoryId===id&&x.month===month),hasPrev=(data.personalExpenses||[]).some(x=>!x.manualAdjustment&&x.categoryId===id&&x.month===prev);if(!hasNow||!hasPrev)item.querySelector('.finance-category-trend')?.remove()})}catch(_){}};
+new MutationObserver(()=>cleanTrend()).observe(document.getElementById('financeCategoryList')||document.body,{childList:true,subtree:true});setTimeout(cleanTrend,0)
+})();
+</script>
+</body>
+</html>,EUR:'€',BTC:'₿',ETH:'Ξ',USDT:'₮'}[inputCurrency]||inputCurrency;
  if(title)title.textContent='Редактировать · '+(cat?.name||'Расход');
  if(icon)icon.textContent=cat?.icon||'💳';
  if(amount)amount.value=String(Number(expense.sourceAmount||expense.amount||0)).replace('.',',');
+ if(currency)currency.textContent=currencySymbol;
+ if(switcher)switcher.hidden=true;
+ if(conversion)conversion.hidden=true;
  if(note)note.value=expense.note||'';
  if(date){date.value=st.date;sync(date)}
  if(time){time.value=st.time;sync(time)}
