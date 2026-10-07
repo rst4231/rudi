@@ -152,3 +152,23 @@ test('v4.72 category budget uses icon progress halo',()=>{
   assert.ok(css.includes('.finance-category-coin.has-budget::before'));
   assert.ok(css.includes('background:conic-gradient('));
 });
+
+
+test('v4.74 removes redundant finance helper copy',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  [
+    'Создай кошелёк и укажи валюту',
+    'Категорий пока нет — добавь первую монету',
+    'Можно вручную скорректировать итог выбранного месяца.',
+    'Расходы в категориях учитываются в рублях.',
+    'Сохраняем дневные снимки общего баланса',
+    'Анализирует доходы, расходы, бюджеты, обязательные платежи и долги и даёт краткий разбор.'
+  ].forEach(text=>assert.ok(!html.includes(text)));
+  assert.ok(!app.includes("Сохраняем дневные снимки общего баланса"));
+  assert.ok(html.includes('Лимит: 1 анализ в сутки'));
+  assert.ok(html.includes('Запланированных обязательных расходов нет'));
+  assert.ok(html.includes('Расходов за выбранный месяц нет'));
+  assert.ok(html.includes('Доходов за выбранный месяц нет'));
+  assert.ok(html.includes('Активных долгов пока нет'));
+});
