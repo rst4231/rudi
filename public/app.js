@@ -2169,6 +2169,7 @@
       let financeInsightKey='';
       let activeFinanceTab='personal';
       let financeExpenseCategoryId='';
+      let financeExpenseLabel='';
       let financeCategoryEditingId='';
       let financeExpenseWalletId='';
       let financeExpenseSourceCurrency='RUB';
@@ -2421,6 +2422,27 @@
         return parts.year+'-'+parts.month;
       }
 
+      function renderFinanceExpenseLabels(category){
+        const list=document.getElementById('financeExpenseLabelList');
+        if(!list)return;
+        const labels=Array.isArray(category?.labels)?category.labels:[];
+        list.replaceChildren();
+        for(const label of labels){
+          const button=document.createElement('button');
+          button.type='button';
+          button.className='finance-expense-label-chip'+(financeExpenseLabel===label?' is-active':'');
+          button.textContent=label;
+          button.setAttribute('role','option');
+          button.setAttribute('aria-selected',financeExpenseLabel===label?'true':'false');
+          button.addEventListener('click',()=>{
+            financeExpenseLabel=financeExpenseLabel===label?'':label;
+            renderFinanceExpenseLabels(category);
+          });
+          list.append(button);
+        }
+        list.hidden=!labels.length;
+      }
+
       function renderFinanceExpenseComposerHistory(month,categoryId){
         const host=document.getElementById('financeExpenseComposerHistory');if(!host)return;
         host.replaceChildren();
@@ -2442,7 +2464,7 @@
           for(const {row,meta} of group.rows){
             const item=document.createElement('div');item.className='finance-category-expense-row';
             const copy=document.createElement('div');copy.className='finance-expense-row-copy';
-            const title=document.createElement('span');title.textContent=row.note||'Расход';
+            const title=document.createElement('span');title.textContent=row.label?(row.label+(row.note?' · '+row.note:'')):(row.note||'Расход');
             const detail=document.createElement('small');
             const targetCurrency=String(row.targetCurrency||category?.currency||'RUB').toUpperCase();
             const sourceDiff=row.sourceCurrency&&row.sourceCurrency!==targetCurrency&&Number(row.sourceAmount||0)>0
@@ -2488,6 +2510,11 @@
         if(amount)amount.value='';
         if(currency)currency.textContent=financeCurrencySymbol(financeExpenseSourceCurrency);
         if(note)note.value='';
+        financeExpenseLabel='';
+        const labelCreate=document.getElementById('financeExpenseLabelCreate'),labelInput=document.getElementById('financeExpenseLabelInput');
+        if(labelCreate)labelCreate.hidden=true;
+        if(labelInput)labelInput.value='';
+        renderFinanceExpenseLabels(category);
         if(dateInput)dateInput.value=now.date;
         if(timeInput)timeInput.value=now.time;
         if(status)status.textContent='';
@@ -2580,7 +2607,7 @@
           if(entry.kind==='income')title.textContent='Доход'+(row.note?' · '+row.note:'');
           else{
             const category=financeAllCategoryById(row.categoryId);
-            title.textContent=category?.name||row.note||'Расход';
+            title.textContent=(category?.name||'Расход')+(row.label?' · '+row.label:'')+(row.note?' · '+row.note:'');
           }
           const detail=document.createElement('small');detail.textContent=meta.day+' · '+meta.time;
           copy.append(title,detail);
@@ -3515,6 +3542,42 @@
         document.getElementById('financeCategoryDeleteClose')?.addEventListener('click',()=>closeFinanceCoinModal('financeCategoryDeleteChooser'));
         document.getElementById('financeCategoryDeleteCancel')?.addEventListener('click',()=>closeFinanceCoinModal('financeCategoryDeleteChooser'));
 
+        document.getElementById('financeExpenseLabelAddButton')?.addEventListener('click',()=>{
+          const row=document.getElementById('financeExpenseLabelCreate');
+          const input=document.getElementById('financeExpenseLabelInput');
+          if(!row)return;
+          row.hidden=!row.hidden;
+          if(!row.hidden)requestAnimationFrame(()=>input?.focus?.());
+        });
+        const saveExpenseLabel=async()=>{
+          const input=document.getElementById('financeExpenseLabelInput');
+          const button=document.getElementById('financeExpenseLabelSave');
+          const value=String(input?.value||'').trim();
+          if(!financeExpenseCategoryId||!value){input?.focus();return}
+          if(button)button.disabled=true;
+          try{
+            const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+            const data=await financeRequest('add-category-label',{id:financeExpenseCategoryId,label:value});
+            renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
+            const category=financeCategoryById(financeExpenseCategoryId);
+            const saved=(category?.labels||[]).find(label=>String(label).toLocaleLowerCase('ru-RU')===value.toLocaleLowerCase('ru-RU'))||value;
+            financeExpenseLabel=saved;
+            renderFinanceExpenseLabels(category);
+            if(input)input.value='';
+            const row=document.getElementById('financeExpenseLabelCreate');
+            if(row)row.hidden=true;
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(_){
+            input?.focus();
+          }finally{
+            if(button)button.disabled=false;
+          }
+        };
+        document.getElementById('financeExpenseLabelSave')?.addEventListener('click',saveExpenseLabel);
+        document.getElementById('financeExpenseLabelInput')?.addEventListener('keydown',event=>{
+          if(event.key==='Enter'){event.preventDefault();saveExpenseLabel()}
+        });
+
         document.getElementById('financeExpenseComposerSave')?.addEventListener('click',async()=>{
           const amount=document.getElementById('financeExpenseComposerAmount'),note=document.getElementById('financeExpenseComposerNote');
           const button=document.getElementById('financeExpenseComposerSave'),status=document.getElementById('financeExpenseComposerStatus');
@@ -3531,6 +3594,7 @@
               walletId:financeExpenseWalletId,
               sourceCurrency:financeExpenseSourceCurrency,
               occurredAt,
+              label:financeExpenseLabel,
               note:note?.value||''
             });
             renderFinanceState(data,{personalMonth:expenseMonth,preserveIncome:true,preservePlan:true});
