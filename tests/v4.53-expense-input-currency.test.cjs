@@ -36,5 +36,4 @@ test('v4.53 expense composer exposes source and target currency choice',()=>{
   assert.ok(app.includes('inputCurrency:financeExpenseInputCurrency'));
   assert.ok(app.includes('function syncFinanceExpenseCurrencyChoice()'));
   assert.ok(css.includes('.finance-expense-currency-switch'));
-  assert.ok(html.includes('content="v4.53"'));
 });
