@@ -18,7 +18,7 @@ function memoryCache(){
 test('v4.39 category spent correction can lower and raise current total',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache();
-  await saveExpenseCategory('Рустам',{name:'Еда',icon:'🍽️',monthlyLimit:10000},{financeCache,id:'cat-food'});
+  await saveExpenseCategory('Рустам',{name:'Тест v439',icon:'🍽️',monthlyLimit:10000},{financeCache,id:'cat-food'});
   await savePersonalExpense('Рустам',{
     month:'2026-10',categoryId:'cat-food',amount:3000,rubAmount:3000,occurredAt:'2026-10-07T10:00:00.000Z'
   },{financeCache,id:'expense-food'});
