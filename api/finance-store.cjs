@@ -189,6 +189,7 @@ function normalizeState(value) {
       const createdAt = new Date(raw?.createdAt || Date.now());
       const updatedAt = new Date(raw?.updatedAt || raw?.createdAt || Date.now());
       const occurredAt = cleanOccurredAt(raw?.occurredAt || raw?.createdAt || Date.now());
+      const rubAmount = cleanMoney(raw?.rubAmount || raw?.amount);
       personalExpenses.push({
         id, actor, month, categoryId, amount,
         note: cleanText(raw?.note, 120),
@@ -197,6 +198,7 @@ function normalizeState(value) {
         sourceCurrency: cleanCurrency(raw?.sourceCurrency || 'RUB'),
         targetCurrency: cleanCurrency(raw?.targetCurrency || raw?.currency || 'RUB'),
         exchangeRate: Math.max(0, Number(raw?.exchangeRate || 1)) || 1,
+        rubAmount,
         importKey: cleanText(raw?.importKey, 220),
         occurredAt,
         createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
@@ -239,7 +241,7 @@ function expenseTotal(state, actor, month) {
   return Math.round(
     (Array.isArray(state?.personalExpenses) ? state.personalExpenses : [])
       .filter((row) => row.actor === safeActor && row.month === safeMonth)
-      .reduce((sum, row) => sum + Number(row.amount || 0), 0) * 100
+      .reduce((sum, row) => sum + Number(row.rubAmount || row.amount || 0), 0) * 100
   ) / 100;
 }
 function syncPersonalMonthExpenses(current, actor, month, updatedAt = new Date().toISOString()) {
@@ -356,6 +358,43 @@ async function saveFinancePlan(actor, payload = {}, options = {}) {
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
       plans: { ...current.plans, [safeActor]: { ...plan, updatedAt } },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function saveWallet(actor, payload = {}, options = {}) {
+  const safeActor = cleanActor(actor);
+  const name = cleanText(payload.name, 48, { required: true });
+  const icon = cleanIcon(payload.icon || '💳');
+  const currency = cleanCurrency(payload.currency || 'RUB');
+  const balance = cleanMoney(payload.balance || 0);
+  const requestedId = cleanText(payload.id, 100);
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.wallets[safeActor] || [];
+    const id = requestedId || cleanText(options.id || randomUUID(), 100, { required: true });
+    const existing = rows.find((row) => row.id === id);
+    const now = new Date(options.now || Date.now()).toISOString();
+    const row = { id, name, icon, currency, balance, createdAt: existing?.createdAt || now };
+    const wallets = rows.filter((item) => item.id !== id).concat(row);
+    const next = normalizeState({
+      ...current, initialized: true, version: current.version + 1,
+      wallets: { ...current.wallets, [safeActor]: wallets },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function deleteWallet(actor, id, options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanId = cleanText(id, 100, { required: true });
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    if (!(current.wallets[safeActor] || []).some((row) => row.id === cleanId)) throw new Error('finance-wallet-not-found');
+    const next = normalizeState({
+      ...current, initialized: true, version: current.version + 1,
+      wallets: { ...current.wallets, [safeActor]: (current.wallets[safeActor] || []).filter((row) => row.id !== cleanId) },
     });
     await writeState(next, options);
     return next;
@@ -500,16 +539,35 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
   if (amount <= 0) throw new Error('finance-amount-invalid');
   const note = cleanText(payload.note, 120);
   const occurredAt = cleanOccurredAt(payload.occurredAt, options.now || Date.now());
+  const walletId = cleanText(payload.walletId, 100);
+  const sourceAmount = cleanMoney(payload.sourceAmount || amount);
+  const sourceCurrency = cleanCurrency(payload.sourceCurrency || 'RUB');
+  const targetCurrency = cleanCurrency(payload.targetCurrency || 'RUB');
+  const exchangeRate = Math.max(0, Number(payload.exchangeRate || 1)) || 1;
+  const rubAmount = cleanMoney(payload.rubAmount || amount);
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
-    if (!(current.categories[safeActor] || []).some((row) => row.id === categoryId)) throw new Error('finance-category-not-found');
+    const category = (current.categories[safeActor] || []).find((row) => row.id === categoryId && !row.archived);
+    if (!category) throw new Error('finance-category-not-found');
+    if (category.currency !== targetCurrency) throw new Error('finance-currency-invalid');
+    let wallets = current.wallets[safeActor] || [];
+    if (walletId) {
+      const wallet = wallets.find((row) => row.id === walletId);
+      if (!wallet) throw new Error('finance-wallet-not-found');
+      if (wallet.currency !== sourceCurrency) throw new Error('finance-currency-invalid');
+      if (Number(wallet.balance || 0) + 0.000001 < sourceAmount) throw new Error('finance-wallet-insufficient');
+      wallets = wallets.map((row) => row.id === walletId ? { ...row, balance: Math.round((Number(row.balance || 0) - sourceAmount) * 100) / 100 } : row);
+    }
     const now = new Date(options.now || Date.now()).toISOString();
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      actor: safeActor, month, categoryId, amount, note, importKey: '', occurredAt, createdAt: now, updatedAt: now,
+      actor: safeActor, month, categoryId, amount, note,
+      walletId, sourceAmount, sourceCurrency, targetCurrency, exchangeRate, rubAmount,
+      importKey: '', occurredAt, createdAt: now, updatedAt: now,
     };
     const base = normalizeState({
       ...current, initialized: true, version: current.version + 1,
+      wallets: { ...current.wallets, [safeActor]: wallets },
       personalExpenses: current.personalExpenses.concat(row),
     });
     const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, month, now) });
@@ -574,6 +632,12 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
           categoryId: category.id,
           amount,
           note: cleanText(raw?.note, 120),
+          walletId: '',
+          sourceAmount: amount,
+          sourceCurrency: cleanCurrency(raw?.currency || 'RUB'),
+          targetCurrency: cleanCurrency(raw?.currency || 'RUB'),
+          exchangeRate: 1,
+          rubAmount: cleanMoney(raw?.rubAmount || amount),
           importKey,
           occurredAt,
           createdAt: now,
@@ -670,6 +734,6 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  saveFinancePlan, saveWallet, deleteWallet, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };
