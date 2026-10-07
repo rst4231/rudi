@@ -2246,6 +2246,19 @@
         }
         return financeMoney(rub,'RUB');
       }
+      function financeAmountToRub(value,currency='RUB',payload=readMarketTickerLocalCache()){
+        const amount=Number(value||0);
+        const code=String(currency||'RUB').toUpperCase();
+        if(code==='RUB')return amount;
+        const rate=Number(financeWalletRubRates(payload)[code]||0);
+        return rate>0?amount*rate:NaN;
+      }
+      function financeDisplayMoney(value,currency='RUB',payload=readMarketTickerLocalCache()){
+        const code=String(currency||'RUB').toUpperCase();
+        if(financeOverviewDisplayCurrency===code)return financeMoney(value,code);
+        const rub=financeAmountToRub(value,code,payload);
+        return Number.isFinite(rub)?financeOverviewMoney(rub,payload):'—';
+      }
       function syncFinanceOverviewCurrencyButton(){
         const button=document.getElementById('financeBalanceCurrencyButton');
         const symbol=document.getElementById('financeBalanceCurrencySymbol');
@@ -2270,6 +2283,7 @@
         renderFinanceWallets();
         renderFinanceCategories(month);
         renderFinancePulse(month);
+        if(financeCategoryHistoryId)renderFinanceCategoryHistory();
         renderFinanceCapitalHistory();
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
@@ -3382,7 +3396,7 @@
         rows.sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
 
         const visibleTotal=rows.reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);
-        if(total)total.textContent=financeMoney(visibleTotal,'RUB');
+        if(total)total.textContent=financeOverviewMoney(visibleTotal);
         if(empty){
           empty.hidden=rows.length>0;
           empty.textContent=searching?'По всей истории этой категории ничего не найдено':'В этом месяце расходов пока нет';
@@ -3404,7 +3418,7 @@
           const head=document.createElement('div');head.className='finance-category-history-day-head';
           const title=document.createElement('strong');title.textContent=financeOperationDayTitle(dateKey,todayKey,yesterdayKey,month);
           const dayTotal=document.createElement('b');
-          dayTotal.textContent='−'+financeMoney(entries.reduce((sum,{row})=>sum+Number(row.rubAmount||row.amount||0),0),'RUB');
+          dayTotal.textContent='−'+financeOverviewMoney(entries.reduce((sum,{row})=>sum+Number(row.rubAmount||row.amount||0),0));
           head.append(title,dayTotal);section.append(head);
           const host=document.createElement('div');host.className='finance-category-history-day-list';
           for(const {row,meta} of entries){
@@ -3421,7 +3435,7 @@
               :'';
             detail.textContent=[wallet?.name,sourcePart?sourcePart+financeMoney(row.amount,targetCurrency):'',meta.time].filter(Boolean).join(' · ');
             copy.append(rowTitle,detail);
-            const value=document.createElement('b');value.textContent='−'+financeMoney(row.rubAmount||row.amount,'RUB');
+            const value=document.createElement('b');value.textContent='−'+financeOverviewMoney(row.rubAmount||row.amount);
             const del=document.createElement('button');del.type='button';del.className='finance-category-history-delete';del.textContent='×';del.setAttribute('aria-label','Удалить расход');
             del.addEventListener('click',async()=>{
               del.disabled=true;
@@ -4435,13 +4449,14 @@
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=category.name||'Категория';
           const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.textContent=category.icon||'💳';
           const limitValue=Math.max(0,Number(category.monthlyLimit||0));
-          const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeBalanceHidden?'••••':financeMoney(spent,category.currency||'RUB');
-          if(limitValue>0&&spent>limitValue)amount.classList.add('is-over-limit');
+          const limitRub=financeAmountToRub(limitValue,category.currency||'RUB');
+          const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeBalanceHidden?'••••':financeOverviewMoney(spent);
+          if(limitValue>0&&Number.isFinite(limitRub)&&spent>limitRub)amount.classList.add('is-over-limit');
           const limit=document.createElement('span');limit.className='finance-coin-limit';
-          limit.textContent=limitValue>0?(financeBalanceHidden?'••••':financeMoney(limitValue,category.currency||'RUB')):'';
+          limit.textContent=limitValue>0?(financeBalanceHidden?'••••':financeDisplayMoney(limitValue,category.currency||'RUB')):'';
           const progress=document.createElement('span');progress.className='finance-budget-progress';const fill=document.createElement('i');progress.append(fill);
           if(limitValue>0){
-            const usage=Math.max(0,spent/limitValue);
+            const usage=Number.isFinite(limitRub)&&limitRub>0?Math.max(0,spent/limitRub):0;
             fill.style.width=Math.min(100,usage*100)+'%';
             progress.classList.toggle('is-mid',usage>=.5&&usage<1);
             progress.classList.toggle('is-full',usage>=1);
