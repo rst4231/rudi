@@ -37,3 +37,12 @@ test('v4.60 UI hides shared add control by default and fixes desktop month picke
   assert.ok(css.includes('RUDI v4.60 — shared finance custom blocks and desktop month picker'));
   assert.ok(css.includes('pointer-events:none!important'));
 });
+
+test('v4.60 partner card shows latest partner expense with category and time',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const server=fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
+  assert.ok(app.includes("id='homePartnerLastExpense'"));
+  assert.ok(app.includes("Последний расход: "));
+  assert.ok(server.includes("partnerLastExpense: latestPartnerExpense"));
+  assert.ok(server.includes("latestPartnerExpenseCategory"));
+});

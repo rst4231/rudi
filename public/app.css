@@ -16838,3 +16838,14 @@ body.finance-category-history-open{
   white-space:normal;
   overflow-wrap:anywhere
 }
+
+.home-partner-last-expense{
+  padding:8px 10px;
+  border:1px solid rgba(137,151,255,.10);
+  border-radius:12px;
+  background:rgba(255,255,255,.025);
+  color:rgba(241,244,252,.82);
+  font-size:9.5px;
+  line-height:1.35;
+  font-weight:700;
+}

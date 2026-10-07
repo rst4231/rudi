@@ -72,6 +72,7 @@ const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./u
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
 const { readSupplements } = require('./supplements-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
+const { readFinanceState } = require('./finance-store.cjs');
 const {
   getCredentials,
   credentialsConfigured,
@@ -566,6 +567,7 @@ function scheduleStateBackupRestore(token, options = {}) {
 async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
   const now = options.now || Date.now();
   const date = moscowDateKey(now);
+  const partnerActor = actor === 'Рустам' ? 'Диана' : 'Рустам';
   const questionOptions = {
     ...options,
     env: options.env || process.env,
@@ -584,6 +586,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     feedLive,
     workWeek,
     album,
+    financeLive,
   ] = await Promise.all([
     readPartnerMessageForHome(options),
     readActivityJournal(options).catch(() => null),
@@ -597,6 +600,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     readFeedSnapshot(options).then((current) => refreshFeedFromPreviewIfNeeded(current, options)).catch(() => null),
     getWorkWeek({ ...options, view:'week' }).catch(() => null),
     getLatestPhotos(options).catch(() => null),
+    readFinanceState(options).catch(() => null),
   ]);
 
   const journal = journalLive?.initialized ? journalLive : (backupSnapshot?.activityJournal || journalLive);
@@ -609,6 +613,13 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     ? workWeek.days.find((day) => String(day?.date || '') === date) || null
     : undefined;
   const compactFeed = compactFeedForHome(feedLive);
+  const latestPartnerExpense = (Array.isArray(financeLive?.personalExpenses) ? financeLive.personalExpenses : [])
+    .filter((row) => row?.actor === partnerActor && !row?.manualAdjustment)
+    .sort((a,b) => String(b?.occurredAt || b?.createdAt || '').localeCompare(String(a?.occurredAt || a?.createdAt || '')))[0] || null;
+  const latestPartnerExpenseCategory = latestPartnerExpense
+    ? (Array.isArray(financeLive?.categories?.[partnerActor]) ? financeLive.categories[partnerActor] : [])
+        .find((row) => row?.id === latestPartnerExpense.categoryId)
+    : null;
 
   const score = scoreState ? scoreView(scoreState, { now }) : null;
   const activity = journal ? {
@@ -632,6 +643,12 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     cycle: { configured: Boolean(cycle), cycle: cycle || null },
     ...(workDay !== undefined ? { workDay } : {}),
     ...(compactFeed ? { feed: compactFeed } : {}),
+    partnerLastExpense: latestPartnerExpense ? {
+      amount: Number(latestPartnerExpense.sourceAmount || latestPartnerExpense.amount || latestPartnerExpense.rubAmount || 0),
+      currency: String(latestPartnerExpense.sourceCurrency || latestPartnerExpense.targetCurrency || 'RUB'),
+      category: String(latestPartnerExpenseCategory?.name || 'Расход'),
+      occurredAt: String(latestPartnerExpense.occurredAt || latestPartnerExpense.createdAt || ''),
+    } : null,
     counts: {
       ...(wishlist ? { wishlist: (wishlist.items || []).filter((item) => !item?.done).length } : {}),
       ...(products ? { products: (products.items || []).filter((item) => !item?.bought).length } : {}),

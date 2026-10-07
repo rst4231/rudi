@@ -120,7 +120,8 @@
         activity:[],
         activityVersion:0,
         lulu:null,
-        nearestStatic:null
+        nearestStatic:null,
+        partnerLastExpense:null
       };
       const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
@@ -8315,6 +8316,14 @@
         dianaRhythmAdvice.hidden=!dianaRecommendation;
         dianaCard.details.appendChild(dianaRhythmAdvice);
 
+        const partnerLastExpense=document.createElement('div');
+        partnerLastExpense.id='homePartnerLastExpense';
+        partnerLastExpense.className='home-partner-last-expense';
+        partnerLastExpense.hidden=true;
+        const partnerCard=currentActor==='Диана'?rustamCard:dianaCard;
+        partnerCard.details.appendChild(partnerLastExpense);
+        renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
+
         const makeSupplementIntakeBlock=(actor)=>{
           const block=document.createElement('article');
           block.className='profile-supplement-intakes';
@@ -10073,6 +10082,16 @@
         return requestedAppTab||initial.tab||'home';
       }
 
+      function renderHomePartnerLastExpense(value){
+        const node=document.getElementById('homePartnerLastExpense');if(!node)return;
+        const row=value&&typeof value==='object'?value:null;
+        const amount=Number(row?.amount||0),category=String(row?.category||'').trim(),occurredAt=String(row?.occurredAt||'');
+        if(!row||amount<=0||!occurredAt){node.hidden=true;node.textContent='';return}
+        const meta=financeDateTimeLabel(occurredAt);
+        node.textContent='Последний расход: '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+meta.time;
+        node.hidden=false;
+      }
+
       function applyHomeBootstrap(home){
         if(!home||typeof home!=='object') return false;
         homeBootstrapPayload=home;
@@ -10083,6 +10102,10 @@
           renderDailyMood(home.mood);
         }
         if(home.dailyQuestion) renderDailyQuestion(home.dailyQuestion);
+        if(Object.prototype.hasOwnProperty.call(home,'partnerLastExpense')){
+          homeDashboardState.partnerLastExpense=home.partnerLastExpense||null;
+          renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
+        }
         if(home.cycle&&typeof home.cycle==='object'){
           renderDianaCycle(home.cycle.configured?home.cycle.cycle:null);
         }
