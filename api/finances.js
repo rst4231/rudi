@@ -3,9 +3,9 @@ const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
   saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
-  saveDebt, toggleDebt, viewState,
+  saveDebt, payDebt, deleteDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
-const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport } = require('./finance-ai.cjs');
+const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 
 function statusFor(code, error) {
@@ -289,6 +289,10 @@ async function handler(req, res) {
       const month = String(body.month || '').trim();
       const state = await readFinanceState();
       const view = viewState(state, actor);
+      const today = moscowDateKey();
+      if (view.plan?.analystLastDate === today && view.plan?.analystLastReport?.summary) {
+        return res.status(200).json({ ok: true, report: view.plan.analystLastReport, analystDate: today, cached: true, limitReached: true });
+      }
       const row = (view.personalMonths || []).find((item) => item.month === month) || { income: 0, expenses: 0, balance: 0 };
       const literacy = await getDailyLiteracyArticle().catch(() => null);
       const report = await getFinancialAnalystReport({
@@ -302,10 +306,19 @@ async function handler(req, res) {
         debts: view.debts || [],
         literacy,
       });
-      return res.status(200).json({ ok: true, report });
+      await saveFinancePlan(actor, { analystLastDate: today, analystLastReport: report });
+      return res.status(200).json({ ok: true, report, analystDate: today, cached: false, limitReached: true });
     }
     if (operation === 'save-debt') {
       const state = await saveDebt(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'pay-debt') {
+      const state = await payDebt(actor, body.id, body.amount);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'delete-debt') {
+      const state = await deleteDebt(actor, body.id);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'toggle-debt') {
