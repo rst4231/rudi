@@ -14801,3 +14801,75 @@ html[data-theme="dark"] .finance-literacy-card{
   font-weight:760;
   line-height:1.35
 }
+
+
+/* v4.36 expense labels */
+.finance-expense-label-block{
+  display:grid;
+  gap:7px;
+  margin-top:10px
+}
+.finance-expense-label-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px
+}
+.finance-expense-label-head>span{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:760
+}
+.finance-expense-label-add{
+  min-height:26px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:0 9px;
+  background:var(--soft);
+  color:var(--text);
+  font:inherit;
+  font-size:8.5px;
+  font-weight:800
+}
+.finance-expense-label-list{
+  display:flex;
+  gap:6px;
+  overflow-x:auto;
+  padding:1px 0 3px;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none
+}
+.finance-expense-label-list::-webkit-scrollbar{display:none}
+.finance-expense-label-chip{
+  flex:0 0 auto;
+  min-height:29px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:0 10px;
+  background:var(--soft);
+  color:var(--text);
+  font:inherit;
+  font-size:8.8px;
+  font-weight:760
+}
+.finance-expense-label-chip.is-active{
+  border-color:color-mix(in srgb,var(--finance-accent) 55%,var(--line));
+  background:color-mix(in srgb,var(--finance-accent) 13%,var(--soft));
+  color:var(--finance-accent)
+}
+.finance-expense-label-create{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:7px
+}
+.finance-expense-label-create[hidden]{display:none!important}
+.finance-expense-label-create button{
+  min-width:78px;
+  border:0;
+  border-radius:11px;
+  background:var(--finance-accent);
+  color:#fff;
+  font:inherit;
+  font-size:9px;
+  font-weight:820
+}
