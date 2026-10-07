@@ -2483,8 +2483,14 @@
           const group=document.createElement('section');group.className='finance-operation-day';group.dataset.financeOperationDay=dateKey;
           const head=document.createElement('div');head.className='finance-operation-day-head';
           const title=document.createElement('strong');title.textContent=financeOperationDayTitle(dateKey,todayKey,yesterdayKey,currentMonth);
+          const dayExpense=entries.reduce((sum,{entry})=>entry.kind==='expense'?sum+Number(entry.row?.rubAmount||entry.row?.amount||0):sum,0);
+          const dayIncome=entries.reduce((sum,{entry})=>entry.kind==='income'?sum+Number(entry.row?.rubAmount||0):sum,0);
+          const daySummary=document.createElement('div');daySummary.className='finance-operation-day-summary';
+          const dayTotal=document.createElement('b');dayTotal.className='finance-operation-day-total';
+          dayTotal.textContent=dayExpense>0?'−'+financeMoney(dayExpense):dayIncome>0?'+'+financeMoney(dayIncome):financeMoney(0);
           const dayCount=document.createElement('span');dayCount.textContent=String(entries.length);
-          head.append(title,dayCount);group.append(head);
+          daySummary.append(dayTotal,dayCount);
+          head.append(title,daySummary);group.append(head);
           const rowsHost=document.createElement('div');rowsHost.className='finance-operation-day-list';
           for(const {entry,meta} of entries){
             const row=entry.row||{};

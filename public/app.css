@@ -16090,3 +16090,18 @@ html[data-theme="dark"] .finance-literacy-card{
 .finance-transfer-currency-select{height:48px;min-width:0;padding:0 8px;border-radius:15px;font-size:11px;font-weight:800;text-align:center}
 .finance-transfer-currency-select:disabled{opacity:.6}
 @media(max-width:360px){.finance-transfer-amount-row{grid-template-columns:minmax(0,1fr) 72px}}
+
+
+.finance-operation-day-summary{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+.finance-operation-day-head .finance-operation-day-total{
+  color:var(--text);
+  font-size:10px;
+  line-height:1.1;
+  font-weight:850;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap
+}
+.finance-operation-day-summary>span{
+  min-width:22px;height:22px;display:grid;place-items:center;padding:0 6px;border-radius:8px;
+  background:var(--soft);color:var(--muted);font-size:8.5px;font-weight:800
+}
