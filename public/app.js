@@ -2478,6 +2478,7 @@
         const title=document.getElementById('financeExpenseComposerTitle'),icon=document.getElementById('financeExpenseComposerIcon');
         const amount=document.getElementById('financeExpenseComposerAmount'),currency=document.getElementById('financeExpenseComposerCurrency');
         const note=document.getElementById('financeExpenseComposerNote'),status=document.getElementById('financeExpenseComposerStatus');
+        const source=document.getElementById('financeExpenseComposerSource');
         const conversion=document.getElementById('financeExpenseComposerConversion');
         const dateInput=document.getElementById('financeExpenseComposerDate'),timeInput=document.getElementById('financeExpenseComposerTime');
         const now=financeNowDateTimeInputs();
@@ -2490,6 +2491,12 @@
         if(dateInput)dateInput.value=now.date;
         if(timeInput)timeInput.value=now.time;
         if(status)status.textContent='';
+        if(source){
+          source.hidden=!wallet;
+          source.textContent=wallet
+            ? 'Источник: '+String(wallet.name||'Кошелёк')+' · '+financeMoney(wallet.balance,wallet.currency)
+            : '';
+        }
         if(conversion){
           const targetCurrency=String(category.currency||'RUB').toUpperCase();
           const convert=financeExpenseSourceCurrency!==targetCurrency;
