@@ -14539,3 +14539,23 @@ html[data-theme="dark"] .finance-back-button{
   background:rgba(255,255,255,.08)!important
 }
 html[data-theme="dark"] .finance-back-button svg{stroke:#f4f7fb!important}
+
+
+/* v4.34 compact mood history control */
+.profile #moodHistoryButton{
+  flex:0 0 30px!important;
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  margin:0!important;
+  padding:0!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.055)!important;
+  color:rgba(229,233,246,.72)!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.profile #moodHistoryButton .mood-emoji{font-size:16px!important;line-height:1!important}
+.profile #moodHistoryButton:active{transform:scale(.94)}
