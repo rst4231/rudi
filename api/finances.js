@@ -1,7 +1,8 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
-  saveExpenseCategory, updateExpenseCategory, deleteExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
+  savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport } = require('./finance-ai.cjs');
@@ -13,7 +14,7 @@ function statusFor(code, error) {
   if (['finance-debt-not-found','finance-category-not-found','finance-expense-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
-    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate'
+    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid'
   ].includes(code)) return 400;
   return 500;
 }
@@ -60,6 +61,14 @@ async function handler(req, res) {
       const state = await updateExpenseCategory(actor, body);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
+    if (operation === 'archive-category') {
+      const state = await archiveExpenseCategory(actor, body.id);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'reorder-categories') {
+      const state = await reorderExpenseCategories(actor, body.ids);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
     if (operation === 'delete-category') {
       const state = await deleteExpenseCategory(actor, body.id);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
@@ -67,6 +76,16 @@ async function handler(req, res) {
     if (operation === 'save-expense') {
       const state = await savePersonalExpense(actor, body);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'import-expenses') {
+      const imported = await importPersonalExpenses(actor, body.rows);
+      return res.status(200).json({
+        ok: true,
+        actor,
+        canEdit: actor === 'Рустам',
+        importResult: imported.result,
+        ...viewState(imported.state, actor),
+      });
     }
     if (operation === 'delete-expense') {
       const state = await deletePersonalExpense(actor, body.id);
