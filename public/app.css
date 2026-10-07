@@ -14170,7 +14170,7 @@ body[data-app-tab="finances"][data-finance-tone="literacy"]{
 }
 .finance-coin-overview{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   padding:15px 10px 13px;
   background:color-mix(in srgb,#fff 96%,var(--surface));
   border-bottom:1px solid color-mix(in srgb,var(--line) 78%,transparent);
@@ -14872,4 +14872,15 @@ html[data-theme="dark"] .finance-literacy-card{
   font:inherit;
   font-size:9px;
   font-weight:820
+}
+
+
+/* v4.38 wallet total subtitle */
+.finance-wallet-total-rub{
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+  font-size:8.6px;
+  line-height:1.25;
+  font-weight:720;
 }
