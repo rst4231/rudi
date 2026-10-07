@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const {spawnSync}=require('node:child_process');
 const {readFinanceState,viewState,resetMutationQueueForTests,saveFinanceMonth}=require('../api/finance-store.cjs');
 
 function memoryCache(){
@@ -48,4 +49,17 @@ test('v4.60 partner card loads latest expense outside home bootstrap',()=>{
   assert.ok(financeApi.includes("operation === 'partner-last-expense'"));
   assert.equal(homeServer.includes("require('./finance-store.cjs')"),false);
   assert.equal(homeServer.includes("partnerLastExpense: latestPartnerExpense"),false);
+});
+
+test('v4.60 public app.js has valid JavaScript syntax',()=>{
+  const file=path.join(__dirname,'..','public','app.js');
+  const result=spawnSync(process.execPath,['--check',file],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr||result.stdout||'app.js syntax check failed');
+});
+
+test('v4.60 partner card reuses existing partnerCard binding',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const declarations=app.match(/const partnerCard=/g)||[];
+  assert.equal(declarations.length,1);
+  assert.ok(app.includes("partnerCard.details.appendChild(partnerLastExpense)"));
 });

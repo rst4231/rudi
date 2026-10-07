@@ -8323,7 +8323,6 @@
         partnerLastExpense.id='homePartnerLastExpense';
         partnerLastExpense.className='home-partner-last-expense';
         partnerLastExpense.hidden=true;
-        const partnerCard=currentActor==='Диана'?rustamCard:dianaCard;
         partnerCard.details.appendChild(partnerLastExpense);
         renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
 
