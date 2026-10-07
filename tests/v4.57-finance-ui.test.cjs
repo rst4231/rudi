@@ -129,3 +129,15 @@ test('v4.71 category amounts follow selected overview currency',()=>{
   assert.ok(app.includes("financeOverviewMoney(dailySpent(yesterdayKey))"));
   assert.ok(app.includes("financeOverviewMoney(dailySpent(todayKey,{excludeAdjustments:true}))"));
 });
+
+
+test('v4.72 category amount color follows budget scale',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes("amount.classList.toggle('is-budget-low',usage<.5)"));
+  assert.ok(app.includes("amount.classList.toggle('is-budget-mid',usage>=.5&&usage<1)"));
+  assert.ok(app.includes("amount.classList.toggle('is-budget-full',usage>=1)"));
+  assert.ok(css.includes('.finance-coin-amount.is-budget-low'));
+  assert.ok(css.includes('.finance-coin-amount.is-budget-mid'));
+  assert.ok(css.includes('.finance-coin-amount.is-budget-full'));
+});
