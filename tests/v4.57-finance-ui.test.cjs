@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {readFinanceState,viewState,resetMutationQueueForTests,saveDebt,payDebt,deleteDebt,saveFinancePlan}=require('../api/finance-store.cjs');
+const {readFinanceState,viewState,resetMutationQueueForTests,saveDebt,payDebt,deleteDebt,saveFinancePlan,saveWallet,saveWalletIncome,saveWalletTransfer,recordCapitalSnapshot}=require('../api/finance-store.cjs');
 
 function memoryCache(){
   let value=null;
@@ -56,4 +56,44 @@ test('v4.57 requested finance UI changes are wired',()=>{
   assert.ok(app.includes("financeDebtRefreshAfter('pay-debt'"));
   assert.ok(html.includes('id="fastingPage" class="fasting-page" data-app-tab-section="fasting" data-no-pull-refresh="true"'));
   assert.ok(css.includes('RUDI v4.57 — finance polish'));
+});
+
+
+test('v4.65 wallet transfers stay neutral for income and expenses',async()=>{
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{id:'rub-wallet',name:'RUB',currency:'RUB',balance:0},{financeCache,now:'2026-10-07T10:00:00.000Z'});
+  await saveWallet('Рустам',{id:'usd-wallet',name:'USD',currency:'USD',balance:0},{financeCache,now:'2026-10-07T10:01:00.000Z'});
+  await saveWalletIncome('Рустам',{walletId:'rub-wallet',amount:1000,currency:'RUB',rubAmount:1000,exchangeRate:1,occurredAt:'2026-10-07T10:02:00.000Z',month:'2026-10'},{financeCache,id:'income-1',now:'2026-10-07T10:02:00.000Z'});
+  await saveWalletTransfer('Рустам',{fromWalletId:'rub-wallet',toWalletId:'usd-wallet',sourceAmount:400,sourceCurrency:'RUB',targetAmount:4,targetCurrency:'USD',sourceRate:1,targetRate:100,rubAmount:400,occurredAt:'2026-10-07T10:03:00.000Z',month:'2026-10'},{financeCache,id:'transfer-1',now:'2026-10-07T10:03:00.000Z'});
+  const view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.personalMonths[0].income,1000);
+  assert.equal(view.personalMonths[0].expenses,0);
+  assert.equal(view.walletTransfers.length,1);
+  assert.equal(view.wallets.find(row=>row.id==='rub-wallet').balance,600);
+  assert.equal(view.wallets.find(row=>row.id==='usd-wallet').balance,4);
+});
+
+test('v4.65 capital history keeps one snapshot per day',async()=>{
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await recordCapitalSnapshot('Рустам',{date:'2026-10-07',totalRub:100000,totalUsd:1250,force:true},{financeCache,now:'2026-10-07T10:00:00.000Z'});
+  await recordCapitalSnapshot('Рустам',{date:'2026-10-07',totalRub:101000,totalUsd:1262.5,force:true},{financeCache,now:'2026-10-07T12:00:00.000Z'});
+  const view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.capitalHistory.length,1);
+  assert.equal(view.capitalHistory[0].totalRub,101000);
+  assert.equal(view.capitalHistory[0].totalUsd,1262.5);
+});
+
+test('v4.65 finance history subpages and filters are wired',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  assert.ok(html.includes('id="financeCapitalChart"'));
+  assert.ok(html.includes('id="financeExpenseHistoryPage"'));
+  assert.ok(html.includes('id="financeIncomeHistoryPage"'));
+  assert.ok(html.includes('id="financeOperationLabel"'));
+  assert.ok(app.includes("financeRequest('record-capital-snapshot'"));
+  assert.ok(app.includes("function renderFinanceIncomeHistory()"));
+  assert.ok(app.includes("if(row?.manualAdjustment)return false"));
+  assert.equal(html.includes('id="financeOperationsToggle"'),false);
 });

@@ -16987,3 +16987,223 @@ body.finance-month-dialog-open{overflow:hidden!important}
 @media(prefers-reduced-motion:reduce){
   .finance-month-dialog *{scroll-behavior:auto!important}
 }
+
+
+/* RUDI v4.65 — capital history */
+.finance-capital-card{
+  margin:10px 8px 12px;
+  padding:14px;
+  border:1px solid color-mix(in srgb,var(--finance-green) 12%,var(--line));
+  border-radius:20px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 98%,transparent),color-mix(in srgb,var(--surface) 94%,transparent));
+  box-shadow:0 14px 34px color-mix(in srgb,var(--text) 5%,transparent);
+}
+.finance-capital-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.finance-capital-head h2{margin:2px 0 0;font-size:16px;letter-spacing:-.02em}
+.finance-capital-period{width:auto;min-width:92px;min-height:34px;padding:6px 28px 6px 10px;font-size:9px}
+.finance-capital-summary{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:12px}
+.finance-capital-summary strong{font-size:15px;line-height:1.15;letter-spacing:-.025em}
+.finance-capital-summary span{max-width:48%;color:var(--muted);font-size:8.5px;line-height:1.25;text-align:right}
+.finance-capital-chart-wrap{position:relative;height:104px;margin-top:10px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--finance-accent) 5%,var(--soft)),var(--soft))}
+.finance-capital-chart{display:block;width:100%;height:100%}
+.finance-capital-area{fill:color-mix(in srgb,var(--finance-accent) 13%,transparent)}
+.finance-capital-line{fill:none;stroke:var(--finance-accent);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.finance-capital-dot{fill:var(--surface-strong);stroke:var(--finance-accent);stroke-width:2;vector-effect:non-scaling-stroke}
+.finance-capital-empty{position:absolute;inset:0;display:grid;place-items:center;padding:12px;color:var(--muted);font-size:9px;text-align:center}
+.finance-capital-empty[hidden]{display:none!important}
+.finance-capital-axis{display:flex;align-items:center;justify-content:space-between;margin-top:5px;color:var(--muted);font-size:8px;font-weight:700}
+@media(max-width:520px){
+  .finance-capital-card{margin:8px 8px 10px;padding:12px}
+  .finance-capital-head h2{font-size:15px}
+  .finance-capital-period{min-width:86px}
+  .finance-capital-summary{align-items:flex-start;flex-direction:column;gap:4px}
+  .finance-capital-summary span{max-width:none;text-align:left}
+  .finance-capital-chart-wrap{height:92px}
+}
+
+
+/* RUDI v4.65 — finance ledger subpages */
+.finance-balance-metric-action{
+  cursor:pointer;
+  border-radius:12px;
+  transition:background .16s ease,transform .16s ease
+}
+.finance-balance-metric-action:active{transform:scale(.97)}
+.finance-balance-metric-action:focus-visible{
+  outline:2px solid rgba(255,255,255,.72);
+  outline-offset:-2px
+}
+.finance-ledger-page[hidden]{display:none!important}
+.finance-page.is-expense-history,
+.finance-page.is-income-history{gap:0!important}
+.finance-page.is-expense-history > .finance-page-head,
+.finance-page.is-expense-history > #marketTickerTile,
+.finance-page.is-expense-history > #financeTabs,
+.finance-page.is-expense-history > .finance-tab-panel:not(#financePersonalPanel),
+.finance-page.is-income-history > .finance-page-head,
+.finance-page.is-income-history > #marketTickerTile,
+.finance-page.is-income-history > #financeTabs,
+.finance-page.is-income-history > .finance-tab-panel:not(#financePersonalPanel){
+  display:none!important
+}
+.finance-page.is-expense-history > #financePersonalPanel,
+.finance-page.is-income-history > #financePersonalPanel{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important
+}
+.finance-page.is-expense-history > #financePersonalPanel > :not(#financeExpenseHistoryPage),
+.finance-page.is-income-history > #financePersonalPanel > :not(#financeIncomeHistoryPage){
+  display:none!important
+}
+.finance-page.is-expense-history #financeExpenseHistoryPage,
+.finance-page.is-income-history #financeIncomeHistoryPage{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important
+}
+.finance-ledger-shell{
+  width:100%;
+  min-height:0;
+  margin:0;
+  padding:0 0 max(24px,env(safe-area-inset-bottom));
+  display:grid;
+  align-content:start;
+  gap:12px;
+  box-sizing:border-box
+}
+.finance-ledger-head{
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+  min-width:0;
+  padding:8px 0 6px;
+  background:transparent
+}
+.finance-ledger-back{
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--surface);
+  color:var(--text);
+  padding:0;
+  box-sizing:border-box
+}
+.finance-ledger-back svg{
+  width:22px;
+  height:22px;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round
+}
+.finance-ledger-head>div{min-width:0}
+.finance-ledger-head small{
+  display:block;
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.2;
+  font-weight:760
+}
+.finance-ledger-head h2{
+  margin:2px 0 0;
+  font-size:20px;
+  line-height:1.08;
+  letter-spacing:-.025em
+}
+.finance-ledger-total{
+  padding:13px 14px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--surface);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px
+}
+.finance-ledger-total span{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:760
+}
+.finance-ledger-total strong{
+  font-size:18px;
+  letter-spacing:-.025em
+}
+.finance-ledger-page .finance-operations-card{
+  margin:0!important;
+  padding:14px!important
+}
+.finance-ledger-page .finance-operation-list{
+  max-height:none!important;
+  overflow:visible!important
+}
+.finance-ledger-page .finance-operation-filters{
+  grid-template-columns:repeat(2,minmax(0,1fr))
+}
+.finance-ledger-page .finance-operation-filters #financeOperationSearch{
+  grid-column:1/-1
+}
+.finance-ledger-page .finance-operation-filters #financeOperationCategory,
+.finance-ledger-page .finance-operation-filters #financeOperationLabel{
+  grid-column:auto
+}
+.finance-ledger-income-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--surface)
+}
+.finance-ledger-income-row>b{
+  color:#2fa66d;
+  font-size:10.5px;
+  font-weight:830;
+  white-space:nowrap
+}
+@media(max-width:430px){
+  .finance-ledger-shell{gap:10px}
+  .finance-ledger-head{
+    grid-template-columns:44px minmax(0,1fr);
+    gap:12px;
+    padding:8px 0 6px
+  }
+  .finance-ledger-back{
+    width:44px;
+    height:44px;
+    min-width:44px;
+    min-height:44px
+  }
+  .finance-ledger-head h2{font-size:18px}
+  .finance-ledger-page .finance-operation-filters{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:8px!important
+  }
+  .finance-ledger-page .finance-operation-filters #financeOperationSearch{
+    grid-column:1/-1!important
+  }
+  .finance-ledger-page .finance-operation-filters #financeOperationCategory,
+  .finance-ledger-page .finance-operation-filters #financeOperationLabel{
+    grid-column:auto!important
+  }
+}
+@media(max-width:360px){
+  .finance-ledger-page .finance-operation-filters{
+    grid-template-columns:1fr!important
+  }
+  .finance-ledger-page .finance-operation-filters>*{
+    grid-column:1!important
+  }
+}

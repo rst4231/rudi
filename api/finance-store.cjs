@@ -185,6 +185,29 @@ function cleanPlan(value = {}) {
     updatedAt: String(source.updatedAt || ''),
   };
 }
+function cleanCapitalValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < -1000000000000 || number > 1000000000000) throw new Error('finance-amount-invalid');
+  return Math.round(number * 100) / 100;
+}
+function cleanCapitalHistory(value = []) {
+  const byDate = new Map();
+  for (const raw of Array.isArray(value) ? value : []) {
+    try {
+      const date = String(raw?.date || '').trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      const updatedAtRaw = String(raw?.updatedAt || '').trim();
+      const updatedAtDate = updatedAtRaw ? new Date(updatedAtRaw) : null;
+      byDate.set(date, {
+        date,
+        totalRub: cleanCapitalValue(raw?.totalRub || 0),
+        totalUsd: cleanCapitalValue(raw?.totalUsd || 0),
+        updatedAt: updatedAtDate && !Number.isNaN(updatedAtDate.getTime()) ? updatedAtDate.toISOString() : '',
+      });
+    } catch (_) {}
+  }
+  return [...byDate.values()].sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(-730);
+}
 function normalizeState(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const months = {};
@@ -262,6 +285,12 @@ function normalizeState(value) {
         seen.add(id);
       } catch (_) {}
     }
+  }
+
+  const capitalHistory = { 'Рустам': [], 'Диана': [] };
+  const rawCapitalHistory = source.capitalHistory && typeof source.capitalHistory === 'object' && !Array.isArray(source.capitalHistory) ? source.capitalHistory : {};
+  for (const actor of Object.keys(capitalHistory)) {
+    capitalHistory[actor] = cleanCapitalHistory(rawCapitalHistory[actor]);
   }
 
   const categories = { 'Рустам': [], 'Диана': [] };
@@ -430,7 +459,7 @@ function normalizeState(value) {
   return {
     initialized: Boolean(source.initialized),
     version: Math.max(0, Number(source.version || 0)),
-    months, personal, plans, wallets, categories, personalExpenses, walletIncomes, walletTransfers, debts,
+    months, personal, plans, wallets, categories, personalExpenses, walletIncomes, walletTransfers, debts, capitalHistory,
   };
 }
 function expenseTotal(state, actor, month) {
@@ -492,7 +521,8 @@ function viewState(state, actor = '') {
     ? normalized.debts.filter((row) => row.actor === safeActor).sort((a, b) => Number(a.paid) - Number(b.paid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
     : [];
   const plan = safeActor ? normalized.plans[safeActor] : cleanPlan();
-  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, wallets, categories, archivedCategories, personalExpenses, walletIncomes, walletTransfers, debts, plan };
+  const capitalHistory = safeActor ? [...(normalized.capitalHistory[safeActor] || [])] : [];
+  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, wallets, categories, archivedCategories, personalExpenses, walletIncomes, walletTransfers, debts, capitalHistory, plan };
 }
 function enqueueMutation(task) {
   const run = mutationTail.then(task, task);
@@ -1334,11 +1364,41 @@ async function toggleDebt(actor, id, paid, options = {}) {
     return next;
   });
 }
+async function recordCapitalSnapshot(actor, payload = {}, options = {}) {
+  const safeActor = cleanActor(actor);
+  const date = String(payload.date || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('finance-date-invalid');
+  const totalRub = cleanCapitalValue(payload.totalRub);
+  const totalUsd = cleanCapitalValue(payload.totalUsd);
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.capitalHistory[safeActor] || [];
+    const existing = rows.find((row) => row.date === date);
+    const now = new Date(options.now || Date.now()).toISOString();
+    const previousUpdatedAt = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+    const ageMs = previousUpdatedAt > 0 ? Date.now() - previousUpdatedAt : Infinity;
+    const sameValue = existing
+      && Math.abs(Number(existing.totalRub || 0) - totalRub) < 0.01
+      && Math.abs(Number(existing.totalUsd || 0) - totalUsd) < 0.01;
+    if (sameValue || (existing && ageMs >= 0 && ageMs < 60 * 60 * 1000 && payload.force !== true)) return current;
+    const snapshot = { date, totalRub, totalUsd, updatedAt: now };
+    const history = cleanCapitalHistory(rows.filter((row) => row.date !== date).concat(snapshot));
+    const next = normalizeState({
+      ...current,
+      initialized: true,
+      version: current.version + 1,
+      capitalHistory: { ...current.capitalHistory, [safeActor]: history },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
-  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, cleanSharedItems, splitAmounts, personalAmounts,
+  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, cleanCapitalHistory, cleanSharedItems, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
   saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
-  saveDebt, payDebt, deleteDebt, toggleDebt, resetMutationQueueForTests,
+  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, resetMutationQueueForTests,
 };

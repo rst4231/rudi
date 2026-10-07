@@ -356,15 +356,40 @@
               <span class="finance-balance-spark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
             </div>
             <div class="finance-balance-metrics">
-              <div><span>Расходы</span><strong id="financeExpenseMonthTotal">0 ₽</strong></div>
+              <div id="financeExpenseMetricButton" class="finance-balance-metric-action" role="button" tabindex="0" aria-label="Открыть историю расходов"><span>Расходы</span><strong id="financeExpenseMonthTotal">0 ₽</strong></div>
               <div><span>В планах</span><strong id="financePlannedMonthTotal">0 ₽</strong></div>
-              <div><span>Доход</span><strong id="financeCoinIncomeValue">0 ₽</strong></div>
+              <div id="financeIncomeMetricButton" class="finance-balance-metric-action" role="button" tabindex="0" aria-label="Открыть историю доходов"><span>Доход</span><strong id="financeCoinIncomeValue">0 ₽</strong></div>
             </div>
             <div class="finance-balance-progress" aria-label="Прогресс расходов за месяц">
               <div class="finance-balance-progress-track"><i id="financeBalanceProgressBar"></i></div>
               <strong id="financeBalanceProgressPercent">0%</strong>
             </div>
           </div>
+
+          <section class="finance-capital-card" aria-labelledby="financeCapitalTitle">
+            <div class="finance-capital-head">
+              <div><span class="section-eyebrow">Динамика</span><h2 id="financeCapitalTitle">История капитала</h2></div>
+              <select id="financeCapitalPeriod" class="finance-select finance-capital-period" aria-label="Период истории капитала">
+                <option value="30">30 дней</option>
+                <option value="90">90 дней</option>
+                <option value="365">Год</option>
+                <option value="all">Всё время</option>
+              </select>
+            </div>
+            <div class="finance-capital-summary">
+              <strong id="financeCapitalChange">История начнётся сегодня</strong>
+              <span id="financeCapitalRange">Сохраняем дневные снимки общего баланса</span>
+            </div>
+            <div class="finance-capital-chart-wrap">
+              <svg id="financeCapitalChart" class="finance-capital-chart" viewBox="0 0 320 96" preserveAspectRatio="none" role="img" aria-label="График изменения капитала">
+                <path id="financeCapitalArea" class="finance-capital-area" d=""></path>
+                <path id="financeCapitalLine" class="finance-capital-line" d=""></path>
+                <circle id="financeCapitalDot" class="finance-capital-dot" cx="0" cy="0" r="3.2"></circle>
+              </svg>
+              <div id="financeCapitalEmpty" class="finance-capital-empty">Первый снимок появится автоматически</div>
+            </div>
+            <div class="finance-capital-axis"><span id="financeCapitalStart">—</span><span id="financeCapitalEnd">—</span></div>
+          </section>
 
           <div class="finance-wallet-section">
             <div class="finance-coin-section-head">
@@ -713,30 +738,48 @@
           <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных обязательных расходов нет</div>
         </section>
 
-        <section id="financeOperationsCard" class="finance-history-card finance-operations-card finance-collapsible is-collapsed" aria-labelledby="financeOperationsTitle">
-                  <div class="finance-history-head">
-                    <div><span class="section-eyebrow">Операции</span><h2 id="financeOperationsTitle">История</h2></div>
-                    <div class="finance-collapse-actions">
-                      <span id="financeOperationCount" class="finance-history-count">0</span>
-                      <button id="financeOperationsToggle" class="finance-collapse-toggle" type="button" aria-expanded="false" aria-controls="financeOperationsCard" aria-label="Развернуть операции">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                      </button>
-                    </div>
-                  </div>
-                  <div class="finance-operation-filters">
-                    <input id="financeOperationSearch" class="finance-text-input" type="search" placeholder="Поиск по операциям" aria-label="Поиск по операциям">
-                    <select id="financeOperationType" class="finance-select" aria-label="Тип операции">
-                      <option value="all">Все типы</option><option value="expense">Расходы</option><option value="income">Доходы</option><option value="transfer">Переводы</option>
-                    </select>
-                    <select id="financeOperationWallet" class="finance-select" aria-label="Кошелёк"><option value="">Все кошельки</option></select>
-                    <select id="financeOperationCategory" class="finance-select" aria-label="Категория"><option value="">Все категории</option></select>
-                    <input id="financeOperationFrom" class="finance-text-input" type="date" aria-label="Операции с даты">
-                    <input id="financeOperationTo" class="finance-text-input" type="date" aria-label="Операции по дату">
-                  </div>
-                  <div id="financeOperationSummary" class="finance-operation-summary">Все операции</div>
-                  <div id="financeOperationList" class="finance-operation-list"></div>
-                  <div id="financeOperationEmpty" class="finance-history-empty">По выбранным фильтрам операций нет</div>
-                </section>
+        <section id="financeExpenseHistoryPage" class="finance-ledger-page" hidden aria-hidden="true">
+          <div class="finance-ledger-shell">
+            <div class="finance-ledger-head">
+              <button id="financeExpenseHistoryBack" class="finance-ledger-back" type="button" aria-label="Назад">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <div><small id="financeExpenseHistoryMonth">Текущий месяц</small><h2>Расходы</h2></div>
+            </div>
+            <div class="finance-ledger-total"><span>Фактические расходы</span><strong id="financeExpenseHistoryTotal">0 ₽</strong></div>
+            <section id="financeOperationsCard" class="finance-history-card finance-operations-card" aria-labelledby="financeOperationsTitle">
+              <div class="finance-history-head">
+                <div><span class="section-eyebrow">Операции</span><h2 id="financeOperationsTitle">История расходов</h2></div>
+                <span id="financeOperationCount" class="finance-history-count">0</span>
+              </div>
+              <div class="finance-operation-filters">
+                <input id="financeOperationSearch" class="finance-text-input" type="search" placeholder="Поиск по расходам" aria-label="Поиск по расходам">
+                <select id="financeOperationWallet" class="finance-select" aria-label="Кошелёк"><option value="">Все кошельки</option></select>
+                <select id="financeOperationCategory" class="finance-select" aria-label="Категория"><option value="">Все категории</option></select>
+                <select id="financeOperationLabel" class="finance-select" aria-label="Метка"><option value="">Все метки</option></select>
+                <input id="financeOperationFrom" class="finance-text-input" type="date" aria-label="Расходы с даты">
+                <input id="financeOperationTo" class="finance-text-input" type="date" aria-label="Расходы по дату">
+              </div>
+              <div id="financeOperationSummary" class="finance-operation-summary">Расходы за выбранный месяц</div>
+              <div id="financeOperationList" class="finance-operation-list"></div>
+              <div id="financeOperationEmpty" class="finance-history-empty">Расходов за выбранный месяц нет</div>
+            </section>
+          </div>
+        </section>
+
+        <section id="financeIncomeHistoryPage" class="finance-ledger-page" hidden aria-hidden="true">
+          <div class="finance-ledger-shell">
+            <div class="finance-ledger-head">
+              <button id="financeIncomeHistoryBack" class="finance-ledger-back" type="button" aria-label="Назад">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <div><small id="financeIncomeHistoryMonth">Текущий месяц</small><h2>Доход</h2></div>
+            </div>
+            <div class="finance-ledger-total"><span>Доход за месяц</span><strong id="financeIncomeHistoryTotal">0 ₽</strong></div>
+            <div id="financeIncomeHistoryList" class="finance-category-history-list"></div>
+            <div id="financeIncomeHistoryEmpty" class="finance-history-empty">Доходов за выбранный месяц нет</div>
+          </div>
+        </section>
 
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
           <div class="finance-literacy-kicker">По вашим данным</div>

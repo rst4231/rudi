@@ -1923,6 +1923,8 @@
 
       function renderMarketTicker(payload){
         renderFinanceWalletTotal(payload);
+        renderFinanceCapitalHistory();
+        if(currentAppTab==='finances'&&activeFinanceTab==='personal')recordFinanceCapitalSnapshot().catch(()=>{});
         const track=document.getElementById('marketTickerTrack');
         const a11y=document.getElementById('marketTickerA11y');
         const tile=document.getElementById('marketTickerTile');
@@ -2167,7 +2169,7 @@
       }
 
 
-      let financeState={months:[],personalMonths:[],wallets:[],categories:[],archivedCategories:[],personalExpenses:[],walletIncomes:[],walletTransfers:[],debts:[],plan:{},version:0};
+      let financeState={months:[],personalMonths:[],wallets:[],categories:[],archivedCategories:[],personalExpenses:[],walletIncomes:[],walletTransfers:[],debts:[],capitalHistory:[],plan:{},version:0};
       let financeBalanceHidden=false;
       const FINANCE_OVERVIEW_CURRENCY_STORAGE_KEY='rudi:finance-overview-currency:v1';
       let financeOverviewDisplayCurrency=(()=>{
@@ -2182,6 +2184,7 @@
       let financeCategoryHistoryId='';
       let financeCategoryHistorySearch='';
       let financeCategoryHistoryReturnScrollY=0;
+      let financeLedgerReturnScrollY=0;
       let financeExpenseLabel='';
       let financeCategoryEditingId='';
       let financeExpenseWalletId='';
@@ -2203,6 +2206,8 @@
       let financeCategoryReorder=null;
       let financeCategoryDeleteId='';
       const financeSaveTimers=new Map();
+      let financeCapitalSnapshotPromise=null;
+      let financeCapitalSnapshotLastAttempt=0;
 
       function financeCurrentMonthKey(){
         const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).formatToParts(new Date());
@@ -2265,6 +2270,7 @@
         renderFinanceWallets();
         renderFinanceCategories(month);
         renderFinancePulse(month);
+        renderFinanceCapitalHistory();
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
       function financeMoscowParts(date=new Date()){
@@ -2646,7 +2652,9 @@
         return ['перевод',from?.name,to?.name,row.note,row.sourceCurrency,row.targetCurrency].filter(Boolean).join(' ').toLocaleLowerCase('ru-RU');
       }
       function renderFinanceOperationFilters(){
-        const walletSelect=document.getElementById('financeOperationWallet'),categorySelect=document.getElementById('financeOperationCategory');
+        const walletSelect=document.getElementById('financeOperationWallet');
+        const categorySelect=document.getElementById('financeOperationCategory');
+        const labelSelect=document.getElementById('financeOperationLabel');
         if(walletSelect){
           const value=walletSelect.value;
           walletSelect.innerHTML='<option value="">Все кошельки</option>';
@@ -2658,6 +2666,16 @@
           categorySelect.innerHTML='<option value="">Все категории</option>';
           for(const category of [...(financeState.categories||[]),...(financeState.archivedCategories||[])]){const o=document.createElement('option');o.value=category.id;o.textContent=category.name;categorySelect.append(o)}
           if([...categorySelect.options].some(o=>o.value===value))categorySelect.value=value;
+        }
+        if(labelSelect){
+          const value=labelSelect.value;
+          labelSelect.innerHTML='<option value="">Все метки</option>';
+          const labels=[...new Set((financeState.personalExpenses||[])
+            .filter(row=>!row?.manualAdjustment&&String(row?.label||'').trim())
+            .map(row=>String(row.label).trim()))]
+            .sort((a,b)=>a.localeCompare(b,'ru'));
+          for(const label of labels){const o=document.createElement('option');o.value=label;o.textContent=label;labelSelect.append(o)}
+          if([...labelSelect.options].some(o=>o.value===value))labelSelect.value=value;
         }
       }
       function financeOperationDayTitle(dateKey,todayKey,yesterdayKey,currentMonth){
@@ -2673,95 +2691,155 @@
         const value=new Intl.DateTimeFormat('ru-RU',options).format(date);
         return value.charAt(0).toUpperCase()+value.slice(1);
       }
-      function financeOperationDefaultDateVisible(dateKey,todayKey,yesterdayKey,currentMonth){
-        return dateKey===todayKey||dateKey===yesterdayKey||dateKey.startsWith(currentMonth+'-');
+      function financeSelectedPersonalMonth(){
+        return String(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
       }
       function renderFinanceOperations(){
-        const list=document.getElementById('financeOperationList'),empty=document.getElementById('financeOperationEmpty'),count=document.getElementById('financeOperationCount'),summary=document.getElementById('financeOperationSummary');
+        const list=document.getElementById('financeOperationList');
+        const empty=document.getElementById('financeOperationEmpty');
+        const count=document.getElementById('financeOperationCount');
+        const summary=document.getElementById('financeOperationSummary');
         if(!list)return;
         renderFinanceOperationFilters();
+        const selectedMonth=financeSelectedPersonalMonth();
         const q=String(document.getElementById('financeOperationSearch')?.value||'').trim().toLocaleLowerCase('ru-RU');
-        const type=String(document.getElementById('financeOperationType')?.value||'all');
         const walletId=String(document.getElementById('financeOperationWallet')?.value||'');
         const categoryId=String(document.getElementById('financeOperationCategory')?.value||'');
+        const label=String(document.getElementById('financeOperationLabel')?.value||'');
         const from=String(document.getElementById('financeOperationFrom')?.value||'');
         const to=String(document.getElementById('financeOperationTo')?.value||'');
-        const now=financeMoscowParts();
-        const todayKey=now.year+'-'+now.month+'-'+now.day;
-        const todayDate=new Date(todayKey+'T12:00:00+03:00');
-        const yesterdayDate=new Date(todayDate.getTime()-86400000);
-        const yesterdayKey=financeDateTimeLabel(yesterdayDate).key;
-        const currentMonth=todayKey.slice(0,7);
-        const searchWholeHistory=Boolean(q);
         const explicitDateRange=Boolean(from||to);
-        const filtered=financeAllOperations().filter(entry=>{
-          const row=entry.row||{},date=financeDateTimeLabel(entry.occurredAt).key;
-          if(!searchWholeHistory&&!explicitDateRange&&!financeOperationDefaultDateVisible(date,todayKey,yesterdayKey,currentMonth))return false;
-          if(type!=='all'&&entry.kind!==type)return false;
-          if(q&&!financeOperationSearchText(entry).includes(q))return false;
-          if(from&&date<from)return false;if(to&&date>to)return false;
-          if(categoryId&&(entry.kind!=='expense'||row.categoryId!==categoryId))return false;
-          if(walletId){
-            if(entry.kind==='expense'&&row.walletId!==walletId)return false;
-            if(entry.kind==='income'&&row.walletId!==walletId)return false;
-            if(entry.kind==='transfer'&&row.fromWalletId!==walletId&&row.toWalletId!==walletId)return false;
-          }
-          return true;
-        });
-        const rows=q?filtered:filtered.slice(0,250);
+        const rows=(financeState.personalExpenses||[])
+          .filter(row=>{
+            if(row?.manualAdjustment)return false;
+            const date=financeDateTimeLabel(row.occurredAt||row.createdAt).key;
+            if(!explicitDateRange&&String(row.month||'')!==selectedMonth)return false;
+            if(from&&date<from)return false;
+            if(to&&date>to)return false;
+            if(walletId&&String(row.walletId||'')!==walletId)return false;
+            if(categoryId&&String(row.categoryId||'')!==categoryId)return false;
+            if(label&&String(row.label||'')!==label)return false;
+            if(q&&!financeOperationSearchText({kind:'expense',row}).includes(q))return false;
+            return true;
+          })
+          .sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')))
+          .slice(0,500);
         list.replaceChildren();
+        const total=rows.reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);
         if(count)count.textContent=String(rows.length);
+        if(summary)summary.textContent='Фактические расходы '+financeMoney(total)+' · '+rows.length+' операций';
+        const totalHost=document.getElementById('financeExpenseHistoryTotal');
+        if(totalHost)totalHost.textContent=financeMoney(total);
+        const monthHost=document.getElementById('financeExpenseHistoryMonth');
+        if(monthHost)monthHost.textContent=explicitDateRange?'Выбранный период':financeMonthTitle(selectedMonth);
         if(empty){
           empty.hidden=rows.length>0;
-          empty.textContent=q?'По всей истории ничего не найдено':'В текущем месяце операций нет';
+          empty.textContent='Расходов по выбранным фильтрам нет';
         }
-        let expense=0,income=0;
+        const now=financeMoscowParts();
+        const todayKey=now.year+'-'+now.month+'-'+now.day;
+        const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
         const groups=new Map();
-        for(const entry of rows){
-          const meta=financeDateTimeLabel(entry.occurredAt),key=meta.key||'unknown';
+        for(const row of rows){
+          const meta=financeDateTimeLabel(row.occurredAt||row.createdAt),key=meta.key||'unknown';
           if(!groups.has(key))groups.set(key,[]);
-          groups.get(key).push({entry,meta});
+          groups.get(key).push({row,meta});
         }
         for(const [dateKey,entries] of groups){
-          const group=document.createElement('section');group.className='finance-operation-day';group.dataset.financeOperationDay=dateKey;
+          const group=document.createElement('section');group.className='finance-operation-day';
           const head=document.createElement('div');head.className='finance-operation-day-head';
-          const title=document.createElement('strong');title.textContent=financeOperationDayTitle(dateKey,todayKey,yesterdayKey,currentMonth);
-          const dayExpense=entries.reduce((sum,{entry})=>entry.kind==='expense'?sum+Number(entry.row?.rubAmount||entry.row?.amount||0):sum,0);
-          const dayIncome=entries.reduce((sum,{entry})=>entry.kind==='income'?sum+Number(entry.row?.rubAmount||0):sum,0);
-          const daySummary=document.createElement('div');daySummary.className='finance-operation-day-summary';
+          const title=document.createElement('strong');title.textContent=financeOperationDayTitle(dateKey,todayKey,yesterdayKey,selectedMonth);
           const dayTotal=document.createElement('b');dayTotal.className='finance-operation-day-total';
-          dayTotal.textContent=dayExpense>0?'−'+financeMoney(dayExpense):dayIncome>0?'+'+financeMoney(dayIncome):financeMoney(0);
+          dayTotal.textContent='−'+financeMoney(entries.reduce((sum,{row})=>sum+Number(row.rubAmount||row.amount||0),0));
+          const daySummary=document.createElement('div');daySummary.className='finance-operation-day-summary';
           const dayCount=document.createElement('span');dayCount.textContent=String(entries.length);
-          daySummary.append(dayTotal,dayCount);
-          head.append(title,daySummary);group.append(head);
+          daySummary.append(dayTotal,dayCount);head.append(title,daySummary);group.append(head);
           const rowsHost=document.createElement('div');rowsHost.className='finance-operation-day-list';
-          for(const {entry,meta} of entries){
-            const row=entry.row||{};
-            const item=document.createElement('div');item.className='finance-operation-row is-'+entry.kind;
-            const icon=document.createElement('span');icon.className='finance-operation-icon';icon.textContent=entry.kind==='expense'?'−':entry.kind==='income'?'+':'↔';
+          for(const {row,meta} of entries){
+            const item=document.createElement('div');item.className='finance-operation-row is-expense';
+            const icon=document.createElement('span');icon.className='finance-operation-icon';icon.textContent='−';
             const copy=document.createElement('div');copy.className='finance-operation-copy';
             const rowTitle=document.createElement('strong'),detail=document.createElement('small'),value=document.createElement('b');
-            if(entry.kind==='expense'){
-              const category=financeAllCategoryById(row.categoryId),wallet=financeWalletById(row.walletId);
-              rowTitle.textContent=(category?.name||'Расход')+(row.label?' · '+row.label:'');
-              detail.textContent=[wallet?.name,row.note,meta.time].filter(Boolean).join(' · ');
-              value.textContent='−'+financeMoney(row.rubAmount||row.amount);expense+=Number(row.rubAmount||row.amount||0);
-            }else if(entry.kind==='income'){
-              const wallet=financeWalletById(row.walletId);
-              rowTitle.textContent='Доход'+(wallet?' · '+wallet.name:'');
-              detail.textContent=[row.note,meta.time].filter(Boolean).join(' · ');
-              value.textContent='+'+financeMoney(row.rubAmount||0);income+=Number(row.rubAmount||0);
-            }else{
-              const fromWallet=financeWalletById(row.fromWalletId),toWallet=financeWalletById(row.toWalletId);
-              rowTitle.textContent='Перевод · '+(fromWallet?.name||'Счёт')+' → '+(toWallet?.name||'Счёт');
-              detail.textContent=[row.note,meta.time].filter(Boolean).join(' · ');
-              value.textContent=financeMoney(row.rubAmount||0);
-            }
+            const category=financeAllCategoryById(row.categoryId),wallet=financeWalletById(row.walletId);
+            rowTitle.textContent=(category?.name||'Расход')+(row.label?' · '+row.label:'');
+            detail.textContent=[wallet?.name,row.note,meta.time].filter(Boolean).join(' · ');
+            value.textContent='−'+financeMoney(row.rubAmount||row.amount);
             copy.append(rowTitle,detail);item.append(icon,copy,value);rowsHost.append(item);
           }
           group.append(rowsHost);list.append(group);
         }
-        if(summary)summary.textContent='Расходы '+financeMoney(expense)+' · Доходы '+financeMoney(income)+' · Баланс '+financeMoney(income-expense);
+      }
+      function renderFinanceIncomeHistory(){
+        const list=document.getElementById('financeIncomeHistoryList');
+        const empty=document.getElementById('financeIncomeHistoryEmpty');
+        const totalHost=document.getElementById('financeIncomeHistoryTotal');
+        const monthHost=document.getElementById('financeIncomeHistoryMonth');
+        if(!list)return;
+        const selectedMonth=financeSelectedPersonalMonth();
+        const rows=(financeState.walletIncomes||[])
+          .filter(row=>String(row.month||'')===selectedMonth)
+          .sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
+        const total=rows.reduce((sum,row)=>sum+Number(row.rubAmount||0),0);
+        if(totalHost)totalHost.textContent=financeMoney(total);
+        if(monthHost)monthHost.textContent=financeMonthTitle(selectedMonth);
+        list.replaceChildren();
+        if(empty){empty.hidden=rows.length>0;empty.textContent='Доходов за '+financeMonthTitle(selectedMonth).toLocaleLowerCase('ru-RU')+' нет'}
+        const now=financeMoscowParts();
+        const todayKey=now.year+'-'+now.month+'-'+now.day;
+        const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
+        const groups=new Map();
+        for(const row of rows){
+          const meta=financeDateTimeLabel(row.occurredAt||row.createdAt),key=meta.key||'unknown';
+          if(!groups.has(key))groups.set(key,[]);
+          groups.get(key).push({row,meta});
+        }
+        for(const [dateKey,entries] of groups){
+          const section=document.createElement('section');section.className='finance-category-history-day';
+          const head=document.createElement('div');head.className='finance-category-history-day-head';
+          const title=document.createElement('strong');title.textContent=financeOperationDayTitle(dateKey,todayKey,yesterdayKey,selectedMonth);
+          const dayTotal=document.createElement('b');dayTotal.textContent='+'+financeMoney(entries.reduce((sum,{row})=>sum+Number(row.rubAmount||0),0));
+          head.append(title,dayTotal);section.append(head);
+          const host=document.createElement('div');host.className='finance-category-history-day-list';
+          for(const {row,meta} of entries){
+            const item=document.createElement('div');item.className='finance-ledger-income-row';
+            const copy=document.createElement('div');copy.className='finance-category-history-copy';
+            const title=document.createElement('strong');
+            const wallet=financeWalletById(row.walletId);
+            title.textContent='Доход'+(wallet?' · '+wallet.name:'');
+            const detail=document.createElement('small');
+            const source=String(row.currency||'RUB').toUpperCase()!=='RUB'&&Number(row.amount||0)>0
+              ?financeMoney(row.amount,row.currency)+' → '+financeMoney(row.rubAmount||0)
+              :'';
+            detail.textContent=[source,row.note,meta.time].filter(Boolean).join(' · ');
+            const value=document.createElement('b');value.textContent='+'+financeMoney(row.rubAmount||0);
+            copy.append(title,detail);item.append(copy,value);host.append(item);
+          }
+          section.append(host);list.append(section);
+        }
+      }
+      function closeFinanceLedgerPage(){
+        const page=document.getElementById('financePage');
+        page?.classList.remove('is-expense-history','is-income-history');
+        const expense=document.getElementById('financeExpenseHistoryPage');
+        const income=document.getElementById('financeIncomeHistoryPage');
+        if(expense){expense.hidden=true;expense.setAttribute('aria-hidden','true')}
+        if(income){income.hidden=true;income.setAttribute('aria-hidden','true')}
+        const restoreY=Math.max(0,Number(financeLedgerReturnScrollY||0));
+        requestAnimationFrame(()=>window.scrollTo({top:restoreY,behavior:'auto'}));
+      }
+      function openFinanceLedgerPage(kind){
+        const page=document.getElementById('financePage');
+        if(!page)return;
+        financeLedgerReturnScrollY=Math.max(0,Number(window.scrollY||document.scrollingElement?.scrollTop||0));
+        const expense=document.getElementById('financeExpenseHistoryPage');
+        const income=document.getElementById('financeIncomeHistoryPage');
+        const isExpense=kind==='expense';
+        page.classList.toggle('is-expense-history',isExpense);
+        page.classList.toggle('is-income-history',!isExpense);
+        if(expense){expense.hidden=!isExpense;expense.setAttribute('aria-hidden',isExpense?'false':'true')}
+        if(income){income.hidden=isExpense;income.setAttribute('aria-hidden',isExpense?'true':'false')}
+        if(isExpense)renderFinanceOperations();else renderFinanceIncomeHistory();
+        requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'auto'}));
       }
 
       function financeAnalyticsRange(period){
@@ -2788,13 +2866,14 @@
         const custom=document.getElementById('financeAnalyticsCustom');if(custom)custom.hidden=period!=='custom';
         const range=financeAnalyticsRange(period);
         const rows=financeAllOperations().filter(entry=>{const d=financeDateTimeLabel(entry.occurredAt).key;return d>=range.from&&d<=range.to});
+        const cashflowRows=rows.filter(entry=>entry.kind==='expense'||entry.kind==='income');
         let expenses=0,income=0;const byCategory=new Map();
         for(const entry of rows){
           if(entry.kind==='expense'){const amount=Number(entry.row.rubAmount||entry.row.amount||0);expenses+=amount;byCategory.set(entry.row.categoryId,(byCategory.get(entry.row.categoryId)||0)+amount)}
           if(entry.kind==='income')income+=Number(entry.row.rubAmount||0);
         }
         const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
-        set('financeAnalyticsExpenses',financeMoney(expenses));set('financeAnalyticsIncome',financeMoney(income));set('financeAnalyticsNet',financeMoney(income-expenses));set('financeAnalyticsCount',String(rows.length));
+        set('financeAnalyticsExpenses',financeMoney(expenses));set('financeAnalyticsIncome',financeMoney(income));set('financeAnalyticsNet',financeMoney(income-expenses));set('financeAnalyticsCount',String(cashflowRows.length));
         const compare=document.getElementById('financeAnalyticsCompare');
         if(compare){
           if(range.previousFrom&&range.previousTo){
@@ -3872,6 +3951,106 @@
         };
       }
 
+      function financeCapitalHistoryRows(){
+        const source=Array.isArray(financeState.capitalHistory)?financeState.capitalHistory:[];
+        const period=String(document.getElementById('financeCapitalPeriod')?.value||'30');
+        const sorted=source
+          .filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(String(row?.date||'')))
+          .sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        if(period==='all')return sorted;
+        const days=Math.max(1,Number(period)||30);
+        const now=financeMoscowParts();
+        const today=now.year+'-'+now.month+'-'+now.day;
+        const thresholdDate=new Date(today+'T12:00:00+03:00');
+        thresholdDate.setDate(thresholdDate.getDate()-(days-1));
+        const threshold=financeDateTimeLabel(thresholdDate).key;
+        return sorted.filter(row=>String(row.date)>=threshold);
+      }
+      function financeCapitalDateLabel(value){
+        const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if(!match)return '—';
+        const date=new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]),12));
+        return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(date).replace('.','');
+      }
+      function renderFinanceCapitalHistory(){
+        const svg=document.getElementById('financeCapitalChart');
+        const line=document.getElementById('financeCapitalLine');
+        const area=document.getElementById('financeCapitalArea');
+        const dot=document.getElementById('financeCapitalDot');
+        const empty=document.getElementById('financeCapitalEmpty');
+        const change=document.getElementById('financeCapitalChange');
+        const range=document.getElementById('financeCapitalRange');
+        const start=document.getElementById('financeCapitalStart');
+        const end=document.getElementById('financeCapitalEnd');
+        if(!svg||!line||!area||!dot)return;
+        const rows=financeCapitalHistoryRows();
+        const key=financeOverviewDisplayCurrency==='USD'?'totalUsd':'totalRub';
+        const currency=financeOverviewDisplayCurrency==='USD'?'USD':'RUB';
+        const points=rows
+          .map(row=>({date:String(row.date||''),value:Number(row?.[key])}))
+          .filter(row=>Number.isFinite(row.value));
+        if(!points.length){
+          line.setAttribute('d','');area.setAttribute('d','');dot.setAttribute('cx','0');dot.setAttribute('cy','0');
+          if(empty){empty.hidden=false;empty.textContent='Первый снимок появится автоматически'}
+          if(change)change.textContent='История начнётся сегодня';
+          if(range)range.textContent='Сохраняем дневные снимки общего баланса';
+          if(start)start.textContent='—';if(end)end.textContent='—';
+          return;
+        }
+        if(empty)empty.hidden=true;
+        const width=320,height=96,padX=8,padY=10;
+        const values=points.map(row=>row.value);
+        let min=Math.min(...values),max=Math.max(...values);
+        if(Math.abs(max-min)<0.01){const bump=Math.max(1,Math.abs(max)*.015);min-=bump;max+=bump}
+        const span=Math.max(.01,max-min);
+        const coords=points.map((row,index)=>{
+          const x=points.length===1?width/2:padX+(width-padX*2)*(index/(points.length-1));
+          const y=padY+(height-padY*2)*(1-(row.value-min)/span);
+          return {...row,x,y};
+        });
+        const path=coords.map((point,index)=>(index?'L':'M')+point.x.toFixed(1)+' '+point.y.toFixed(1)).join(' ');
+        const areaPath=coords.length?path+' L '+coords[coords.length-1].x.toFixed(1)+' '+(height-padY)+' L '+coords[0].x.toFixed(1)+' '+(height-padY)+' Z':'';
+        line.setAttribute('d',path);area.setAttribute('d',areaPath);
+        const last=coords[coords.length-1];dot.setAttribute('cx',last.x.toFixed(1));dot.setAttribute('cy',last.y.toFixed(1));
+        const first=coords[0];
+        const delta=last.value-first.value;
+        const pct=Math.abs(first.value)>0.01?delta/Math.abs(first.value)*100:0;
+        const signed=(delta>0?'+':'')+financeMoney(delta,currency);
+        if(change)change.textContent=coords.length>1?signed+' · '+(pct>0?'+':'')+financePercent(pct):financeMoney(last.value,currency);
+        if(range)range.textContent=coords.length>1?('За период · '+coords.length+' дн.'):'Первый снимок капитала';
+        if(start)start.textContent=financeCapitalDateLabel(first.date);
+        if(end)end.textContent=financeCapitalDateLabel(last.date);
+      }
+      async function recordFinanceCapitalSnapshot({force=false}={}){
+        if(!currentActor||activeFinanceTab!=='personal')return null;
+        const now=Date.now();
+        if(!force&&financeCapitalSnapshotLastAttempt&&now-financeCapitalSnapshotLastAttempt<10*60*1000)return null;
+        if(financeCapitalSnapshotPromise)return financeCapitalSnapshotPromise;
+        const rates=financeWalletRubRates();
+        const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
+        if(!wallets.length||Number(rates.USD||0)<=0)return null;
+        for(const wallet of wallets){
+          const balance=Number(wallet?.balance||0);
+          if(Math.abs(balance)<1e-12)continue;
+          if(Number(rates[String(wallet?.currency||'RUB').toUpperCase()]||0)<=0)return null;
+        }
+        financeCapitalSnapshotLastAttempt=now;
+        financeCapitalSnapshotPromise=(async()=>{
+          try{
+            const data=await financeRequest('record-capital-snapshot',{force:Boolean(force)});
+            if(Array.isArray(data?.capitalHistory))financeState.capitalHistory=data.capitalHistory;
+            renderFinanceCapitalHistory();
+            return data;
+          }catch(error){
+            console.warn('RUDI_FINANCE_CAPITAL_SNAPSHOT_WARN',String(error?.message||error));
+            return null;
+          }finally{
+            financeCapitalSnapshotPromise=null;
+          }
+        })();
+        return financeCapitalSnapshotPromise;
+      }
+
       function renderFinanceWalletTotal(payload=readMarketTickerLocalCache()){
         const host=document.getElementById('financeCoinBalanceValue');
         const walletTotal=document.getElementById('financeWalletTotalRub');
@@ -4749,13 +4928,15 @@
           walletIncomes:Array.isArray(data?.walletIncomes)?data.walletIncomes:[],
           walletTransfers:Array.isArray(data?.walletTransfers)?data.walletTransfers:[],
           debts:Array.isArray(data?.debts)?data.debts:[],
+          capitalHistory:Array.isArray(data?.capitalHistory)?data.capitalHistory:[],
           plan:data?.plan&&typeof data.plan==='object'?data.plan:{}
         };
         applyFinancePermissions();renderFinanceHistory();renderFinanceDebts();
         const selected=String(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey());
         const selectedPersonal=String(personalMonth||document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
         renderFinanceSelectedMonth(selected);renderFinancePersonalMonth(selectedPersonal);
-        renderFinanceWallets();renderFinancePlan({preserveInputs:preservePlan});renderFinanceOperations();renderFinanceAnalytics();renderFinanceObligations();syncFinanceAnalystDailyState();
+        renderFinanceWallets();renderFinanceCapitalHistory();renderFinancePlan({preserveInputs:preservePlan});renderFinanceOperations();renderFinanceIncomeHistory();renderFinanceAnalytics();renderFinanceObligations();syncFinanceAnalystDailyState();
+        if(activeFinanceTab==='personal')recordFinanceCapitalSnapshot().catch(()=>{});
         if(financeCategoryHistoryId)renderFinanceCategoryHistory();
       }
       async function loadFinances({silent=false,month=''}={}){
@@ -4773,8 +4954,8 @@
         bindFinanceTemporalControls();
         bindFinanceMonthPicker(document.querySelector('.finance-month-picker'),month);
         bindFinanceMonthPicker(document.querySelector('.finance-balance-month'),personalMonth);
-        bindFinanceCardCollapse('financeOperationsCard','financeOperationsToggle');
         bindFinanceCardCollapse('financeGoalCard','financeGoalToggle');
+        document.getElementById('financeCapitalPeriod')?.addEventListener('change',renderFinanceCapitalHistory);
 
         document.getElementById('financeTabs')?.addEventListener('click',event=>{
           const button=event.target.closest('[data-finance-tab]');if(!button)return;
@@ -4807,8 +4988,21 @@
 
         personalMonth?.addEventListener('change',()=>{
           renderFinancePersonalMonth(personalMonth.value||financeCurrentMonthKey());
+          renderFinanceOperations();
+          renderFinanceIncomeHistory();
           refreshFinanceInsight(true).catch(()=>{});
         });
+        const bindFinanceMetricAction=(id,kind)=>{
+          const node=document.getElementById(id);if(!node)return;
+          const open=()=>openFinanceLedgerPage(kind);
+          node.addEventListener('click',open);
+          node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open()}});
+        };
+        bindFinanceMetricAction('financeExpenseMetricButton','expense');
+        bindFinanceMetricAction('financeIncomeMetricButton','income');
+        document.getElementById('financeExpenseHistoryBack')?.addEventListener('click',closeFinanceLedgerPage);
+        document.getElementById('financeIncomeHistoryBack')?.addEventListener('click',closeFinanceLedgerPage);
+
         ['financeGoalTitleInput','financeGoalCurrentInput','financeGoalTargetInput'].forEach(id=>{
           document.getElementById(id)?.addEventListener('input',()=>{
             renderFinancePlan({preserveInputs:true});
@@ -4981,7 +5175,7 @@
           const month=personalMonth?.value||financeCurrentMonthKey();
           renderFinanceWallets();renderFinanceCategories(month);renderFinancePulse(month);
         });
-        ['financeOperationSearch','financeOperationType','financeOperationWallet','financeOperationCategory','financeOperationFrom','financeOperationTo'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderFinanceOperations));
+        ['financeOperationSearch','financeOperationWallet','financeOperationCategory','financeOperationLabel','financeOperationFrom','financeOperationTo'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderFinanceOperations));
         ['financeAnalyticsPeriod','financeAnalyticsFrom','financeAnalyticsTo'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderFinanceAnalytics));
         document.getElementById('financeObligationAddButton')?.addEventListener('click',()=>openFinanceObligationComposer(''));
         document.getElementById('financeObligationSaveButton')?.addEventListener('click',async()=>{

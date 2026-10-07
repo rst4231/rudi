@@ -3,7 +3,7 @@ const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
   saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
-  saveDebt, payDebt, deleteDebt, toggleDebt, viewState,
+  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, viewState,
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
@@ -37,6 +37,22 @@ async function financeRubRates() {
     ETH: usdRub && ethUsd ? usdRub * ethUsd : 0,
   };
 }
+function financeCapitalSnapshot(wallets = [], rates = {}) {
+  let totalRub = 0;
+  for (const wallet of Array.isArray(wallets) ? wallets : []) {
+    const balance = Number(wallet?.balance || 0);
+    if (!Number.isFinite(balance) || Math.abs(balance) < 1e-12) continue;
+    const currency = String(wallet?.currency || 'RUB').toUpperCase();
+    const rate = Number(rates[currency] || 0);
+    if (rate <= 0) throw new Error('finance-rate-invalid');
+    totalRub += balance * rate;
+  }
+  const usdRub = Number(rates.USD || 0);
+  if (usdRub <= 0) throw new Error('finance-rate-invalid');
+  totalRub = Math.round(totalRub * 100) / 100;
+  return { totalRub, totalUsd: Math.round((totalRub / usdRub) * 100) / 100 };
+}
+
 function resolveExpenseConversion({ inputAmount, inputCurrency, sourceCurrency, targetCurrency, rates = {} } = {}) {
   const input = Number(inputAmount);
   if (!Number.isFinite(input) || input <= 0) throw new Error('finance-amount-invalid');
@@ -83,6 +99,19 @@ async function handler(req, res) {
     if (operation === 'list') {
       const state = await readFinanceState();
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'record-capital-snapshot') {
+      const state = await readFinanceState();
+      const view = viewState(state, actor);
+      const rates = await financeRubRates();
+      const snapshot = financeCapitalSnapshot(view.wallets, rates);
+      const next = await recordCapitalSnapshot(actor, {
+        date: moscowDateKey(),
+        totalRub: snapshot.totalRub,
+        totalUsd: snapshot.totalUsd,
+        force: body.force === true,
+      });
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(next, actor) });
     }
     if (operation === 'partner-last-expense') {
       const state = await readFinanceState();
