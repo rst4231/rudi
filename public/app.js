@@ -3375,14 +3375,12 @@
         const searching=Boolean(query);
         const name=document.getElementById('financeCategoryHistoryName');
         const icon=document.getElementById('financeCategoryHistoryIcon');
-        const monthLabel=document.getElementById('financeCategoryHistoryMonth');
         const totalLabel=document.getElementById('financeCategoryHistoryTotalLabel');
         const total=document.getElementById('financeCategoryHistoryTotal');
         const list=document.getElementById('financeCategoryHistoryList');
         const empty=document.getElementById('financeCategoryHistoryEmpty');
         if(name)name.textContent=category.name||'Категория';
         if(icon)icon.textContent=category.icon||'💳';
-        if(monthLabel)monthLabel.textContent=searching?'Поиск по всей истории':financeMonthTitle(month);
         if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':'За месяц';
 
         let rows=(financeState.personalExpenses||[])
@@ -4786,7 +4784,7 @@
         return data;
       }
       function renderFinanceDebts(){
-        const list=document.getElementById('financeDebtList'),empty=document.getElementById('financeDebtEmpty'),count=document.getElementById('financeDebtCount');
+        const list=document.getElementById('financeDebtList'),empty=document.getElementById('financeDebtEmpty');
         const history=document.getElementById('financeDebtHistory'),historyToggle=document.getElementById('financeDebtHistoryToggle');
         const oweTotal=document.getElementById('financeDebtOweTotal'),owedTotal=document.getElementById('financeDebtOwedTotal');
         if(!list)return;
@@ -4795,7 +4793,6 @@
         const oweRows=active.filter(row=>row.direction==='owe'),owedRows=active.filter(row=>row.direction==='owed');
         const owe=oweRows.reduce((sum,row)=>sum+financeDebtRemaining(row),0),owed=owedRows.reduce((sum,row)=>sum+financeDebtRemaining(row),0);
         if(oweTotal)oweTotal.textContent=financeMoney(owe);if(owedTotal)owedTotal.textContent=financeMoney(owed);
-        if(count)count.textContent=active.length+' '+financeDebtWord(active.length);
         const counts={all:active.length,owe:oweRows.length,owed:owedRows.length};
         for(const [key,value] of Object.entries(counts)){
           const host=document.getElementById(key==='all'?'financeDebtFilterAllCount':key==='owe'?'financeDebtFilterOweCount':'financeDebtFilterOwedCount');
