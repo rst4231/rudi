@@ -2359,12 +2359,6 @@
         const host=document.getElementById(id);if(!host)return;host.textContent=text;
         if(text==='Сохранено')setTimeout(()=>{if(host.textContent==='Сохранено')host.textContent=''},1400);
       }
-      async function saveFinanceIncomeAuto(){
-        const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),income=Number(document.getElementById('financePersonalIncomeInput')?.value||0);
-        setFinanceAutosaveStatus('financePersonalStatus','Сохраняю…');
-        try{const data=await financeRequest('save-personal-income',{month,income});renderFinanceState(data,{personalMonth:month,preserveIncome:true});setFinanceAutosaveStatus('financePersonalStatus')}
-        catch(_){setFinanceAutosaveStatus('financePersonalStatus','Не удалось сохранить')}
-      }
       async function saveFinancePlanAuto(){
         setFinanceAutosaveStatus('financePlanStatus','Сохраняю…');
         try{
