@@ -15060,3 +15060,144 @@ html[data-theme="dark"] .finance-literacy-card{
   .finance-wallet-head-actions #financeWalletCreateButton{grid-column:1/-1}
   .finance-operation-filters{grid-template-columns:1fr 1fr}
 }
+
+
+/* RUDI v4.41 — finance polish */
+.finance-balance-card{
+  width:min(520px,calc(50% - 20px))!important;
+  box-sizing:border-box!important;
+  margin:10px auto 12px!important;
+  padding:18px 18px 15px!important;
+  border-radius:20px!important
+}
+.finance-balance-head{min-height:28px!important;font-size:13px!important;line-height:1.2!important;font-weight:760!important}
+.finance-balance-main{min-height:58px!important;align-items:center!important;gap:18px!important}
+.finance-balance-main>strong{font-size:34px!important;line-height:1!important;font-weight:780!important;letter-spacing:-.035em!important;font-variant-numeric:tabular-nums}
+.finance-balance-spark{height:36px!important;margin-left:2px}
+.finance-balance-metrics{margin-top:10px!important;padding:12px 0 10px!important;align-items:stretch!important;border-radius:16px!important}
+.finance-balance-metrics>div{display:flex!important;min-height:52px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;padding:0 12px!important}
+.finance-balance-metrics span{margin:0 0 5px!important;font-size:12px!important;line-height:1.15!important;font-weight:700!important;opacity:.82!important}
+.finance-balance-metrics strong{margin:0!important;font-size:16px!important;line-height:1.15!important;font-weight:780!important;font-variant-numeric:tabular-nums;overflow:visible!important;text-overflow:clip!important}
+.finance-balance-metrics>div+div{border-left:1px solid rgba(255,255,255,.26)!important}
+.finance-category-coin-item .finance-coin-limit{font-size:8px!important;font-weight:720!important}
+
+.finance-wallet-list.is-editing{scroll-snap-type:none!important;-webkit-overflow-scrolling:auto!important;touch-action:none!important}
+.finance-wallet-list.is-editing .finance-wallet-item,
+.finance-wallet-list.is-editing .finance-wallet-item *{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important}
+.finance-wallet-list.is-editing .finance-wallet-item.is-reordering{cursor:grabbing!important;opacity:.82!important;z-index:20!important}
+
+.finance-operations-card,
+.finance-goal-card-compact,
+.finance-obligations-card{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important
+}
+.finance-operation-filters>*,
+.finance-goal-card-compact .finance-plan-grid>*,
+.finance-goal-card-compact .finance-input-field,
+.finance-goal-card-compact .finance-text-input,
+.finance-goal-card-compact .finance-money-input{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important
+}
+.finance-goal-card-compact .finance-money-input input{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+
+.finance-obligations-card{
+  padding:14px 15px;
+  border:1px solid color-mix(in srgb,var(--finance-accent) 10%,var(--line));
+  border-radius:20px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--surface-strong) 97%,transparent),color-mix(in srgb,var(--surface) 93%,transparent));
+  box-shadow:0 14px 36px color-mix(in srgb,var(--text) 5%,transparent),inset 0 1px 0 color-mix(in srgb,#fff 38%,transparent)
+}
+.finance-obligations-card .finance-history-head{margin-bottom:10px}
+.finance-obligations-card-head{display:flex;align-items:end;justify-content:space-between;gap:12px}
+.finance-obligations-card-head h2{margin:3px 0 0;font-size:16px;letter-spacing:-.02em}
+.finance-obligation-add-button{min-height:34px;border:1px solid var(--line);border-radius:11px;padding:0 11px;background:var(--soft);color:var(--text);font:inherit;font-size:9px;font-weight:820}
+.finance-obligations-card .finance-obligation-list{margin-top:0}
+.finance-obligations-card .finance-obligation-forecast{margin-top:9px}
+
+@media(max-width:700px){
+  .finance-balance-card{width:calc(100% - 16px)!important;margin:8px auto 10px!important;padding:16px 14px 13px!important}
+  .finance-balance-head{font-size:12px!important}
+  .finance-balance-main>strong{font-size:29px!important}
+  .finance-balance-metrics span{font-size:10px!important}
+  .finance-balance-metrics strong{font-size:14px!important}
+}
+
+@media(max-width:430px){
+  .finance-operations-card,
+  .finance-goal-card-compact,
+  .finance-obligations-card{padding:13px!important;border-radius:18px!important}
+
+  .finance-operations-card .finance-history-head,
+  .finance-goal-card-compact .finance-history-head,
+  .finance-obligations-card .finance-history-head{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:end!important;
+    gap:10px!important;
+    margin-bottom:11px!important
+  }
+  .finance-operations-card .finance-history-head h2,
+  .finance-goal-card-compact .finance-history-head h2,
+  .finance-obligations-card .finance-history-head h2{
+    margin-top:3px!important;
+    font-size:18px!important;
+    line-height:1.05!important
+  }
+  .finance-operations-card .section-eyebrow,
+  .finance-goal-card-compact .section-eyebrow,
+  .finance-obligations-card .section-eyebrow{font-size:9.5px!important}
+
+  .finance-operation-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important}
+  .finance-operation-filters #financeOperationSearch,
+  .finance-operation-filters #financeOperationCategory{grid-column:1/-1!important}
+  .finance-operation-filters .finance-select,
+  .finance-operation-filters .finance-text-input{
+    min-height:43px!important;
+    padding-left:10px!important;
+    padding-right:10px!important;
+    border-radius:12px!important;
+    font-size:12px!important;
+    line-height:1.2!important
+  }
+  .finance-operation-filters input[type="date"]{-webkit-appearance:none!important;appearance:none!important;font-size:11px!important}
+  .finance-operation-summary{margin:11px 1px 9px!important;font-size:10px!important;line-height:1.35!important}
+  .finance-operation-row{grid-template-columns:31px minmax(0,1fr) auto!important;gap:8px!important;padding:10px!important}
+  .finance-operation-copy strong{font-size:11px!important}
+  .finance-operation-copy small{font-size:9px!important}
+  .finance-operation-row>b{font-size:10.5px!important}
+
+  .finance-goal-card-compact .finance-plan-grid{grid-template-columns:1fr!important;gap:9px!important;margin-top:10px!important}
+  .finance-goal-card-compact .finance-plan-grid .finance-input-field:first-child{grid-column:1!important}
+  .finance-goal-card-compact .finance-input-field{display:grid!important;gap:5px!important}
+  .finance-goal-card-compact .finance-input-field>span{font-size:10px!important;line-height:1.2!important;font-weight:720!important}
+  .finance-goal-card-compact .finance-text-input,
+  .finance-goal-card-compact .finance-money-input{min-height:44px!important;border-radius:12px!important;font-size:12px!important}
+  .finance-goal-card-compact .finance-text-input{padding:0 11px!important}
+  .finance-goal-card-compact .finance-money-input{padding:0 10px!important}
+  .finance-goal-card-compact .finance-money-input input{font-size:12px!important}
+  .finance-goal-card-compact .finance-goal-progress{margin:12px 1px 7px!important}
+  .finance-goal-card-compact .finance-goal-progress-text{min-height:18px!important;font-size:10px!important;line-height:1.3!important}
+
+  .finance-obligations-card-head{grid-template-columns:minmax(0,1fr) auto!important}
+  .finance-obligation-add-button{min-height:34px!important;padding:0 10px!important;font-size:9.5px!important}
+  .finance-obligations-card .finance-obligation-row{grid-template-columns:28px minmax(0,1fr) 26px!important;gap:7px!important;padding:9px!important}
+  .finance-obligations-card .finance-obligation-copy strong{font-size:10.5px!important}
+  .finance-obligations-card .finance-obligation-copy small{font-size:9px!important}
+  .finance-obligations-card .finance-obligation-forecast{margin-top:9px!important;padding:10px!important;font-size:10px!important;line-height:1.35!important}
+}
+
+@media(max-width:360px){
+  .finance-operation-filters{grid-template-columns:1fr!important}
+  .finance-operation-filters>*,
+  .finance-operation-filters #financeOperationSearch,
+  .finance-operation-filters #financeOperationCategory{grid-column:1!important}
+  .finance-obligations-card .finance-history-head{grid-template-columns:1fr!important;align-items:start!important}
+  .finance-obligation-add-button{width:100%!important}
+}

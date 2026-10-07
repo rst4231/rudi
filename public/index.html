@@ -391,27 +391,6 @@
           <div id="financeOperationEmpty" class="finance-history-empty">По выбранным фильтрам операций нет</div>
         </section>
 
-        <section class="finance-history-card finance-analytics-card" aria-labelledby="financeAnalyticsTitle">
-          <div class="finance-history-head">
-            <div><span class="section-eyebrow">Статистика</span><h2 id="financeAnalyticsTitle">Аналитика</h2></div>
-            <select id="financeAnalyticsPeriod" class="finance-select finance-analytics-period" aria-label="Период аналитики">
-              <option value="day">День</option><option value="week">Неделя</option><option value="month" selected>Месяц</option><option value="year">Год</option><option value="custom">Свой период</option>
-            </select>
-          </div>
-          <div id="financeAnalyticsCustom" class="finance-analytics-custom" hidden>
-            <input id="financeAnalyticsFrom" class="finance-text-input" type="date" aria-label="Начало периода аналитики">
-            <input id="financeAnalyticsTo" class="finance-text-input" type="date" aria-label="Конец периода аналитики">
-          </div>
-          <div class="finance-analytics-grid">
-            <div><span>Расходы</span><strong id="financeAnalyticsExpenses">0 ₽</strong></div>
-            <div><span>Доходы</span><strong id="financeAnalyticsIncome">0 ₽</strong></div>
-            <div><span>Итог</span><strong id="financeAnalyticsNet">0 ₽</strong></div>
-            <div><span>Операций</span><strong id="financeAnalyticsCount">0</strong></div>
-          </div>
-          <div id="financeAnalyticsCompare" class="finance-analytics-compare">Нет данных для сравнения</div>
-          <div id="financeAnalyticsCategories" class="finance-analytics-categories"></div>
-        </section>
-
         <div id="financeExpenseComposer" class="finance-coin-modal" hidden aria-hidden="true">
           <button id="financeExpenseComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
           <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeExpenseComposerTitle">
@@ -639,12 +618,19 @@
           </div>
           <div class="finance-goal-progress" aria-label="Прогресс финансовой цели"><span id="financeGoalProgressBar"></span></div>
           <div id="financeGoalProgressText" class="finance-goal-progress-text">Добавь цель, чтобы видеть прогресс</div>
-          <div class="finance-obligations">
-            <div class="finance-obligation-head"><strong>Обязательные расходы</strong><button id="financeObligationAddButton" type="button">+ Добавить</button></div>
-            <div id="financeObligationList" class="finance-obligation-list"></div>
-            <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных обязательных расходов нет</div>
-          </div>
           <div id="financePlanStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="finance-obligations-card" aria-labelledby="financeObligationsTitle">
+          <div class="finance-history-head finance-obligations-card-head">
+            <div>
+              <span class="section-eyebrow">Планирование</span>
+              <h2 id="financeObligationsTitle">Обязательные расходы</h2>
+            </div>
+            <button id="financeObligationAddButton" class="finance-obligation-add-button" type="button">+ Добавить</button>
+          </div>
+          <div id="financeObligationList" class="finance-obligation-list"></div>
+          <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных обязательных расходов нет</div>
         </section>
 
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">

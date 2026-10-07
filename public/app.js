@@ -2220,9 +2220,18 @@
         const p=financeMoscowParts();
         return {date:p.year+'-'+p.month+'-'+p.day,time:p.hour+':'+p.minute};
       }
+      function ensureCurrentDateTimeInputs(dateId,timeId){
+        const now=financeNowDateTimeInputs();
+        const dateInput=document.getElementById(dateId),timeInput=document.getElementById(timeId);
+        if(dateInput&&!String(dateInput.value||'').trim())dateInput.value=now.date;
+        if(timeInput&&!String(timeInput.value||'').trim())timeInput.value=now.time;
+        return {
+          date:String(dateInput?.value||now.date).trim()||now.date,
+          time:String(timeInput?.value||now.time).trim()||now.time
+        };
+      }
       function financeOccurredAtFromInputs(){
-        const date=document.getElementById('financeExpenseComposerDate')?.value||financeNowDateTimeInputs().date;
-        const time=document.getElementById('financeExpenseComposerTime')?.value||financeNowDateTimeInputs().time;
+        const {date,time}=ensureCurrentDateTimeInputs('financeExpenseComposerDate','financeExpenseComposerTime');
         const value=new Date(date+'T'+time+':00+03:00');
         return Number.isNaN(value.getTime())?new Date().toISOString():value.toISOString();
       }
@@ -2844,9 +2853,7 @@
       }
 
       function financeIncomeOccurredAt(){
-        const now=financeNowDateTimeInputs();
-        const date=document.getElementById('financeIncomeDate')?.value||now.date;
-        const time=document.getElementById('financeIncomeTime')?.value||now.time;
+        const {date,time}=ensureCurrentDateTimeInputs('financeIncomeDate','financeIncomeTime');
         const value=new Date(date+'T'+time+':00+03:00');
         return Number.isNaN(value.getTime())?new Date().toISOString():value.toISOString();
       }
@@ -2960,30 +2967,86 @@
       function financeWalletMoveByPointer(list,item,clientX){
         const siblings=[...list.querySelectorAll('.finance-wallet-item')].filter(node=>node!==item);
         if(!siblings.length)return;
-        const hit=document.elementFromPoint(clientX,Math.max(1,Math.min(window.innerHeight-1,item.getBoundingClientRect().top+item.getBoundingClientRect().height/2)))?.closest?.('.finance-wallet-item');
-        if(hit&&hit!==item&&hit.parentElement===list){
-          const rect=hit.getBoundingClientRect();
-          if(clientX<rect.left+rect.width/2)list.insertBefore(item,hit);else list.insertBefore(item,hit.nextSibling);
-          return;
-        }
-        const before=siblings.find(node=>{const rect=node.getBoundingClientRect();return clientX<rect.left+rect.width/2});
-        if(before)list.insertBefore(item,before);else list.appendChild(item);
+        const measured=siblings
+          .map(node=>{const rect=node.getBoundingClientRect();return {node,center:rect.left+rect.width/2}})
+          .sort((a,b)=>a.center-b.center);
+        const before=measured.find(info=>clientX<info.center);
+        if(before)list.insertBefore(item,before.node);
+        else list.appendChild(item);
       }
 
       function bindFinanceWalletDrag(item,list,wallet){
         let drag=null;
+        let reorderGesture=null;
+
+        const cleanupReorder=()=>{
+          if(!reorderGesture)return;
+          document.removeEventListener('pointermove',reorderGesture.onMove,true);
+          document.removeEventListener('pointerup',reorderGesture.onEnd,true);
+          document.removeEventListener('pointercancel',reorderGesture.onCancel,true);
+          reorderGesture=null;
+        };
+
+        const beginReorder=(pointerId,startX,startY)=>{
+          cleanupReorder();
+          const state={
+            pointerId,item,startX,startY,moved:false,
+            order:[...list.querySelectorAll('.finance-wallet-item')].map(node=>node.dataset.walletId).join('|')
+          };
+
+          const onMove=event=>{
+            if(event.pointerId!==state.pointerId)return;
+            const distance=Math.hypot(event.clientX-state.startX,event.clientY-state.startY);
+            if(!state.moved&&distance<3)return;
+            state.moved=true;
+            item.classList.add('is-reordering');
+            if(event.cancelable)event.preventDefault();
+            financeWalletMoveByPointer(list,item,event.clientX);
+            const order=[...list.querySelectorAll('.finance-wallet-item')].map(node=>node.dataset.walletId).join('|');
+            if(order!==state.order){
+              state.order=order;
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            }
+          };
+
+          const onEnd=event=>{
+            if(event.pointerId!==state.pointerId)return;
+            const moved=state.moved;
+            item.classList.remove('is-reordering');
+            try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
+            cleanupReorder();
+            financeWalletReorder=null;
+            item.dataset.suppressClick='1';
+            if(moved)saveFinanceWalletOrder();
+          };
+
+          const onCancel=event=>{
+            if(event.pointerId!==state.pointerId)return;
+            item.classList.remove('is-reordering');
+            try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
+            cleanupReorder();
+            financeWalletReorder=null;
+            renderFinanceWallets();
+            setFinanceWalletEditMode(true);
+          };
+
+          state.onMove=onMove;state.onEnd=onEnd;state.onCancel=onCancel;
+          reorderGesture=state;
+          financeWalletReorder=state;
+          document.addEventListener('pointermove',onMove,{capture:true,passive:false});
+          document.addEventListener('pointerup',onEnd,true);
+          document.addEventListener('pointercancel',onCancel,true);
+          try{item.setPointerCapture?.(pointerId)}catch(_){}
+        };
+
         item.addEventListener('pointerdown',event=>{
           if(event.button!==undefined&&event.button!==0)return;
           if(event.target.closest?.('.finance-wallet-delete-badge'))return;
 
           if(financeWalletEditMode){
-            financeWalletReorder={
-              pointerId:event.pointerId,item,startX:event.clientX,startY:event.clientY,
-              moved:false,startedByLongPress:false
-            };
-            item.classList.add('is-reordering');
-            try{item.setPointerCapture?.(event.pointerId)}catch(_){}
-            event.preventDefault();event.stopPropagation();
+            beginReorder(event.pointerId,event.clientX,event.clientY);
+            if(event.cancelable)event.preventDefault();
+            event.stopPropagation();
             return;
           }
 
@@ -2997,87 +3060,55 @@
             drag=null;
             financeWalletLongPress=null;
             setFinanceWalletEditMode(true);
-            financeWalletReorder={
-              pointerId:held.pointerId,item,startX:held.startX,startY:held.startY,
-              moved:false,startedByLongPress:true
-            };
-            try{item.setPointerCapture?.(held.pointerId)}catch(_){}
+            beginReorder(held.pointerId,held.startX,held.startY);
             try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
           },560);
           financeWalletLongPress=drag;
         });
 
         item.addEventListener('pointermove',event=>{
-          if(drag&&drag.pointerId===event.pointerId){
-            const dx=event.clientX-drag.startX,dy=event.clientY-drag.startY,distance=Math.hypot(dx,dy);
-            if(distance>10&&drag.timer){clearTimeout(drag.timer);drag.timer=0;financeWalletLongPress=null}
-            if(!drag.moved&&distance<8)return;
-            if(!drag.moved&&Math.abs(dx)>Math.abs(dy)*1.15){
-              drag.cancelled=true;
-              return;
-            }
-            if(drag.cancelled)return;
-            if(!drag.moved){
-              drag.moved=true;
-              try{item.setPointerCapture?.(event.pointerId)}catch(_){}
-              const rect=item.querySelector('.finance-coin')?.getBoundingClientRect()||item.getBoundingClientRect();
-              const ghost=document.createElement('div');ghost.className='finance-income-drag-ghost';
-              ghost.textContent=financeCurrencySymbol(wallet.currency);
-              ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';
-              document.body.append(ghost);drag.ghost=ghost;
-              document.body.classList.add('finance-income-dragging');
-            }
-            event.preventDefault();
-            drag.ghost.style.left=event.clientX+'px';drag.ghost.style.top=event.clientY+'px';
-            const target=document.elementFromPoint(event.clientX,event.clientY)?.closest?.('.finance-category-coin-item')||null;
-            if(target!==drag.target){
-              drag.target?.classList.remove('is-drop-target');drag.target=target;target?.classList.add('is-drop-target');
-              if(target)try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-            }
-            return;
+          if(!drag||drag.pointerId!==event.pointerId)return;
+          const dx=event.clientX-drag.startX,dy=event.clientY-drag.startY,distance=Math.hypot(dx,dy);
+          if(distance>10&&drag.timer){clearTimeout(drag.timer);drag.timer=0;financeWalletLongPress=null}
+          if(!drag.moved&&distance<8)return;
+          if(!drag.moved&&Math.abs(dx)>Math.abs(dy)*1.15){drag.cancelled=true;return}
+          if(drag.cancelled)return;
+          if(!drag.moved){
+            drag.moved=true;
+            try{item.setPointerCapture?.(event.pointerId)}catch(_){}
+            const rect=item.querySelector('.finance-coin')?.getBoundingClientRect()||item.getBoundingClientRect();
+            const ghost=document.createElement('div');ghost.className='finance-income-drag-ghost';
+            ghost.textContent=financeCurrencySymbol(wallet.currency);
+            ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';
+            document.body.append(ghost);drag.ghost=ghost;
+            document.body.classList.add('finance-income-dragging');
           }
-
-          const reorder=financeWalletReorder;
-          if(!reorder||reorder.item!==item||reorder.pointerId!==event.pointerId)return;
-          if(!reorder.moved&&Math.hypot(event.clientX-reorder.startX,event.clientY-reorder.startY)<6)return;
-          reorder.moved=true;
-          item.classList.add('is-reordering');
-          event.preventDefault();
-          const before=[...list.querySelectorAll('.finance-wallet-item')].map(node=>node.dataset.walletId).join('|');
-          financeWalletMoveByPointer(list,item,event.clientX);
-          const after=[...list.querySelectorAll('.finance-wallet-item')].map(node=>node.dataset.walletId).join('|');
-          if(before!==after)try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          if(event.cancelable)event.preventDefault();
+          drag.ghost.style.left=event.clientX+'px';drag.ghost.style.top=event.clientY+'px';
+          const target=document.elementFromPoint(event.clientX,event.clientY)?.closest?.('.finance-category-coin-item')||null;
+          if(target!==drag.target){
+            drag.target?.classList.remove('is-drop-target');drag.target=target;target?.classList.add('is-drop-target');
+            if(target)try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          }
         });
 
-        const finish=event=>{
-          if(drag&&drag.pointerId===event.pointerId){
-            if(drag.timer)clearTimeout(drag.timer);
-            financeWalletLongPress=null;
-            const moved=drag.moved,cancelled=drag.cancelled,target=drag.target,categoryId=target?.dataset?.categoryId||'';
-            target?.classList.remove('is-drop-target');drag.ghost?.remove();document.body.classList.remove('finance-income-dragging');
-            try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
-            drag=null;
-            if(moved&&categoryId){
-              openFinanceExpenseComposer(categoryId,{walletId:wallet.id,focusAmount:true});
-              try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
-            }else if(!moved&&!cancelled){
-              openFinanceWalletComposer(wallet.id);
-            }
-            return;
-          }
-
-          const reorder=financeWalletReorder;
-          if(reorder&&reorder.item===item&&reorder.pointerId===event.pointerId){
-            const moved=reorder.moved,startedByLongPress=reorder.startedByLongPress;
-            financeWalletReorder=null;
-            item.classList.remove('is-reordering');
-            try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
-            if(moved)saveFinanceWalletOrder();
-            else if(!startedByLongPress)openFinanceWalletComposer(wallet.id);
+        const finishNormal=event=>{
+          if(!drag||drag.pointerId!==event.pointerId)return;
+          if(drag.timer)clearTimeout(drag.timer);
+          financeWalletLongPress=null;
+          const moved=drag.moved,cancelled=drag.cancelled,target=drag.target,categoryId=target?.dataset?.categoryId||'';
+          target?.classList.remove('is-drop-target');drag.ghost?.remove();document.body.classList.remove('finance-income-dragging');
+          try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
+          drag=null;
+          if(moved&&categoryId){
+            openFinanceExpenseComposer(categoryId,{walletId:wallet.id,focusAmount:true});
+            try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
+          }else if(!moved&&!cancelled){
+            openFinanceWalletComposer(wallet.id);
           }
         };
 
-        item.addEventListener('pointerup',finish);
+        item.addEventListener('pointerup',finishNormal);
         item.addEventListener('pointercancel',event=>{
           if(drag?.timer)clearTimeout(drag.timer);
           drag?.target?.classList.remove('is-drop-target');
@@ -3085,11 +3116,15 @@
           document.body.classList.remove('finance-income-dragging');
           drag=null;
           financeWalletLongPress=null;
-          if(financeWalletReorder?.item===item){
-            item.classList.remove('is-reordering');
-            financeWalletReorder=null;
-          }
         });
+
+        item.addEventListener('click',event=>{
+          if(item.dataset.suppressClick==='1'){
+            delete item.dataset.suppressClick;
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        },true);
       }
 
       function financeWalletRubRates(payload=readMarketTickerLocalCache()){
@@ -3410,7 +3445,7 @@
           if(limitValue>0&&spent>limitValue)amount.classList.add('is-over-limit');
           const limit=document.createElement('span');limit.className='finance-coin-limit';
           const remaining=limitValue-spent;
-          limit.textContent=limitValue>0?(remaining>=0?'осталось '+financeMoney(remaining,category.currency||'RUB'):'перерасход '+financeMoney(Math.abs(remaining),category.currency||'RUB')):'';
+          limit.textContent=limitValue>0?(remaining>=0?financeMoney(remaining,category.currency||'RUB'):'перерасход '+financeMoney(Math.abs(remaining),category.currency||'RUB')):'';
           const progress=document.createElement('span');progress.className='finance-budget-progress';const fill=document.createElement('i');progress.append(fill);
           if(limitValue>0){fill.style.width=Math.min(100,Math.max(0,spent/limitValue*100))+'%';progress.classList.toggle('is-over',spent>limitValue)}
           item.append(remove,label,coin,amount);
@@ -3978,7 +4013,7 @@
         document.getElementById('financeTransferSaveButton')?.addEventListener('click',async()=>{
           const fromWalletId=String(document.getElementById('financeTransferFrom')?.value||''),toWalletId=String(document.getElementById('financeTransferTo')?.value||''),sourceAmount=Number(document.getElementById('financeTransferAmount')?.value||0);
           const status=document.getElementById('financeTransferComposerStatus');if(!fromWalletId||!toWalletId||fromWalletId===toWalletId||sourceAmount<=0){if(status)status.textContent='Проверь кошельки и сумму';return}
-          const date=document.getElementById('financeTransferDate')?.value||financeNowDateTimeInputs().date,time=document.getElementById('financeTransferTime')?.value||financeNowDateTimeInputs().time,occurredAt=new Date(date+'T'+time+':00+03:00').toISOString(),monthKey=financeMonthFromOccurredAt(occurredAt);
+          const {date,time}=ensureCurrentDateTimeInputs('financeTransferDate','financeTransferTime'),occurredAt=new Date(date+'T'+time+':00+03:00').toISOString(),monthKey=financeMonthFromOccurredAt(occurredAt);
           try{
             const data=await financeRequest('save-wallet-transfer',{fromWalletId,toWalletId,sourceAmount,month:monthKey,occurredAt,note:document.getElementById('financeTransferNote')?.value||''});
             renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preservePlan:true});closeFinanceCoinModal('financeTransferComposer');
@@ -10864,8 +10899,9 @@
         };
         const open=()=>{
           form.reset();
-          if(dateInput) dateInput.value=todayState().key;
-          if(timeInput) timeInput.value='08:00';
+          const currentDateTime=financeNowDateTimeInputs();
+          if(dateInput) dateInput.value=currentDateTime.date;
+          if(timeInput) timeInput.value=currentDateTime.time;
           if(responsibleInput) responsibleInput.value='';
           if(repeatInput) repeatInput.value='none';
           if(repeatCountInput) repeatCountInput.value='2';
@@ -10889,7 +10925,11 @@
         form.addEventListener('submit',async event=>{
           event.preventDefault();
           const title=String(titleInput?.value||'').trim();
-          const date=String(dateInput?.value||'').trim();
+          const currentDateTime=financeNowDateTimeInputs();
+          if(dateInput&&!String(dateInput.value||'').trim())dateInput.value=currentDateTime.date;
+          if(timeInput&&!String(timeInput.value||'').trim())timeInput.value=currentDateTime.time;
+          const date=String(dateInput?.value||currentDateTime.date).trim();
+          const time=String(timeInput?.value||currentDateTime.time).trim();
           if(!title||!date) return;
           const repeating=String(repeatInput?.value||'none')!=='none';
           const repeatCount=repeating?Math.max(2,Math.min(365,Math.round(Number(repeatCountInput?.value)||2))):1;
@@ -10899,7 +10939,7 @@
             const payload=await requestTickTickTaskCreate({
               title,
               date,
-              time:String(timeInput?.value||'').trim(),
+              time,
               responsible:String(responsibleInput?.value||'').trim(),
               description:String(descriptionInput?.value||'').trim(),
               repeat:String(repeatInput?.value||'none'),
