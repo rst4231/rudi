@@ -6511,9 +6511,9 @@
         const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
         const moodHistoryTrigger=document.getElementById('moodHistoryButton');
         if(moodHistoryTrigger){
-          moodHistoryTrigger.hidden=true;
-          moodHistoryTrigger.tabIndex=-1;
-          moodHistoryTrigger.setAttribute('aria-hidden','true');
+          moodHistoryTrigger.hidden=false;
+          moodHistoryTrigger.tabIndex=0;
+          moodHistoryTrigger.setAttribute('aria-hidden','false');
         }
         document.getElementById('profileMoodHistoryMenuButton')?.remove();
         if(moodChoices){
