@@ -16294,3 +16294,9 @@ body.finance-category-history-open{overflow:hidden}
     flex-basis:34px
   }
 }
+
+
+/* RUDI v4.49 — normalize spacing between personal finance cards */
+.finance-page[data-finance-tone="personal"] #financeOperationsCard{
+  margin-top:0!important
+}
