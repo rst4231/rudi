@@ -14401,11 +14401,34 @@ body.finance-coin-modal-open{overflow:hidden;overscroll-behavior:none}
   font-size:9px;
   font-weight:820
 }
-.finance-wallet-list{padding-bottom:11px}
-.finance-wallet-item{cursor:grab;touch-action:none}
+.finance-wallet-list{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-template-columns:none!important;
+  grid-auto-columns:calc((100% - 16px)/5)!important;
+  gap:4px!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  padding:2px 5px 11px!important;
+  scroll-snap-type:x proximity;
+  scroll-padding-inline:5px;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  touch-action:pan-x;
+  scrollbar-width:none
+}
+.finance-wallet-list::-webkit-scrollbar{display:none}
+.finance-wallet-item{
+  min-width:0;
+  cursor:grab;
+  touch-action:pan-x;
+  scroll-snap-align:start
+}
 .finance-wallet-item:active{cursor:grabbing}
 .finance-wallet-coin{
   color:#fff;
+  font-size:22px!important;
+  font-weight:900!important;
   background:linear-gradient(145deg,color-mix(in srgb,var(--finance-coin-color,#5b8def) 80%,#fff),var(--finance-coin-color,#5b8def));
   border:1px solid rgba(255,255,255,.34);
   box-shadow:0 7px 15px color-mix(in srgb,var(--finance-coin-color,#5b8def) 24%,transparent),inset 0 1px 1px rgba(255,255,255,.5)
