@@ -337,6 +337,9 @@
                 <button id="financeBalanceEyeButton" class="finance-balance-eye" type="button" aria-label="Скрыть или показать баланс" aria-pressed="false">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg>
                 </button>
+                <button id="financeExportButton" class="finance-balance-export" type="button" aria-label="Экспорт CSV" title="Экспорт CSV">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M5 17v2.2c0 1 .8 1.8 1.8 1.8h10.4c1 0 1.8-.8 1.8-1.8V17"/></svg>
+                </button>
               </div>
             </div>
             <div class="finance-balance-main">
@@ -703,19 +706,6 @@
 
 
 
-        <article class="finance-transfer-card" aria-labelledby="financeTransferTitle">
-          <div class="finance-transfer-copy">
-            <span class="section-eyebrow">Данные</span>
-            <h2 id="financeTransferTitle">Импорт и экспорт</h2>
-            <p>Выбери полный CSV CoinKeeper за весь период. Расходы импортируются с исходными датами, а отсутствующие категории создаются автоматически.</p>
-          </div>
-          <div class="finance-transfer-actions">
-            <button id="financeImportButton" class="finance-transfer-button" type="button">Импорт CoinKeeper</button>
-            <button id="financeExportButton" class="finance-transfer-button is-secondary" type="button">Экспорт CSV</button>
-          </div>
-          <input id="financeImportFile" type="file" accept=".csv,text/csv,text/plain" hidden>
-          <div id="financeTransferStatus" class="finance-status" role="status" aria-live="polite"></div>
-        </article>
 
       </div>
 
