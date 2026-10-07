@@ -1918,6 +1918,7 @@
       }
 
       function renderMarketTicker(payload){
+        renderFinanceWalletTotal(payload);
         const track=document.getElementById('marketTickerTrack');
         const a11y=document.getElementById('marketTickerA11y');
         const tile=document.getElementById('marketTickerTile');
@@ -2759,10 +2760,46 @@
         });
       }
 
+      function financeWalletRubRates(payload=readMarketTickerLocalCache()){
+        const items=Array.isArray(payload?.items)?payload.items:[];
+        const byId=new Map(items.map(item=>[String(item?.id||''),Number(item?.value||0)]));
+        const usdRub=Number(byId.get('usd-rub'))||0;
+        const eurRub=Number(byId.get('eur-rub'))||0;
+        const btcUsd=Number(byId.get('btcusdt'))||0;
+        const ethUsd=Number(byId.get('ethusdt'))||0;
+        const usdtUsd=Number(byId.get('usdtusd'))||1;
+        return {
+          RUB:1,
+          USD:usdRub,
+          EUR:eurRub,
+          USDT:usdRub&&usdtUsd?usdRub*usdtUsd:0,
+          BTC:usdRub&&btcUsd?usdRub*btcUsd:0,
+          ETH:usdRub&&ethUsd?usdRub*ethUsd:0
+        };
+      }
+
+      function renderFinanceWalletTotal(payload=readMarketTickerLocalCache()){
+        const host=document.getElementById('financeWalletTotalRub');if(!host)return;
+        const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
+        if(!wallets.length){host.textContent='Всего: '+financeMoney(0);return}
+        const rates=financeWalletRubRates(payload);
+        let total=0,complete=true;
+        for(const wallet of wallets){
+          const balance=Math.max(0,Number(wallet?.balance||0));
+          if(balance<=0)continue;
+          const currency=String(wallet?.currency||'RUB').toUpperCase();
+          const rate=Number(rates[currency]||0);
+          if(rate<=0){complete=false;continue}
+          total+=balance*rate;
+        }
+        host.textContent=complete?'Всего: '+financeMoney(Math.round(total*100)/100):'Всего: курс загружается…';
+      }
+
       function renderFinanceWallets(){
         const list=document.getElementById('financeWalletList'),empty=document.getElementById('financeWalletEmpty');if(!list)return;
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         list.replaceChildren();if(empty)empty.hidden=wallets.length>0;
+        renderFinanceWalletTotal();
         list.classList.toggle('is-editing',financeWalletEditMode);
         wallets.forEach((wallet,index)=>{
           const item=document.createElement('div');item.className='finance-coin-item finance-wallet-item';item.dataset.walletId=wallet.id;
