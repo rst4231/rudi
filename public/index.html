@@ -368,11 +368,23 @@
               </div>
               <button id="financeExpenseComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
             </div>
+            <div id="financeExpenseComposerSource" class="finance-expense-source" hidden></div>
             <label class="finance-input-field">
               <span>Сумма расхода</span>
               <div class="finance-money-input"><input id="financeExpenseComposerAmount" type="number" min="0.01" max="100000000" step="0.01" inputmode="decimal" placeholder="0" aria-label="Сумма расхода"><b id="financeExpenseComposerCurrency">₽</b></div>
             </label>
             <div id="financeExpenseComposerConversion" class="finance-expense-conversion" hidden></div>
+            <div class="finance-expense-label-block">
+              <div class="finance-expense-label-head">
+                <span>Метка</span>
+                <button id="financeExpenseLabelAddButton" class="finance-expense-label-add" type="button">+ Метка</button>
+              </div>
+              <div id="financeExpenseLabelList" class="finance-expense-label-list" role="listbox" aria-label="Метка расхода"></div>
+              <div id="financeExpenseLabelCreate" class="finance-expense-label-create" hidden>
+                <input id="financeExpenseLabelInput" class="finance-text-input" maxlength="32" placeholder="Новая метка" aria-label="Новая метка расхода">
+                <button id="financeExpenseLabelSave" type="button">Добавить</button>
+              </div>
+            </div>
             <div class="finance-expense-datetime-grid">
               <label class="finance-input-field">
                 <span>Дата</span>
