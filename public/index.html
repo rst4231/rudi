@@ -379,6 +379,16 @@
               <span>Сумма расхода</span>
               <div class="finance-money-input"><input id="financeExpenseComposerAmount" type="number" min="0.01" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Сумма расхода"><b>₽</b></div>
             </label>
+            <div class="finance-expense-datetime-grid">
+              <label class="finance-input-field">
+                <span>Дата</span>
+                <input id="financeExpenseComposerDate" class="finance-text-input" type="date" aria-label="Дата расхода">
+              </label>
+              <label class="finance-input-field">
+                <span>Время</span>
+                <input id="financeExpenseComposerTime" class="finance-text-input" type="time" step="60" aria-label="Время расхода">
+              </label>
+            </div>
             <label class="finance-input-field">
               <span>Комментарий</span>
               <input id="financeExpenseComposerNote" class="finance-text-input" maxlength="120" placeholder="Необязательно" aria-label="Комментарий к расходу">
@@ -386,7 +396,6 @@
             <button id="financeExpenseComposerSave" class="finance-analyst-button finance-expense-composer-save" type="button">Добавить расход</button>
             <div id="financeExpenseComposerStatus" class="finance-status" role="status" aria-live="polite"></div>
             <div id="financeExpenseComposerHistory" class="finance-category-expense-list"></div>
-            <button id="financeExpenseComposerDeleteCategory" class="finance-category-delete-wide" type="button">Удалить категорию</button>
           </section>
         </div>
 
@@ -412,6 +421,34 @@
               <input id="financeCategoryName" class="finance-text-input" maxlength="48" placeholder="Например, Продукты" aria-label="Название категории">
             </label>
             <button id="financeCategoryCreateButton" class="finance-analyst-button" type="button">Создать категорию</button>
+          </section>
+        </div>
+
+        <article class="finance-transfer-card" aria-labelledby="financeTransferTitle">
+          <div class="finance-transfer-copy">
+            <span class="section-eyebrow">Данные</span>
+            <h2 id="financeTransferTitle">Импорт и экспорт</h2>
+            <p>Импортирует расходы из полного CSV CoinKeeper за любой период. Новые категории создаются автоматически.</p>
+          </div>
+          <div class="finance-transfer-actions">
+            <button id="financeImportButton" class="finance-transfer-button" type="button">Импорт CoinKeeper</button>
+            <button id="financeExportButton" class="finance-transfer-button is-secondary" type="button">Экспорт CSV</button>
+          </div>
+          <input id="financeImportFile" type="file" accept=".csv,text/csv,text/plain" hidden>
+          <div id="financeTransferStatus" class="finance-status" role="status" aria-live="polite"></div>
+        </article>
+
+        <div id="financeCategoryDeleteChooser" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeCategoryDeleteBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Отмена"></button>
+          <section class="finance-coin-modal-sheet finance-delete-choice-sheet" role="dialog" aria-modal="true" aria-labelledby="financeCategoryDeleteTitle">
+            <div class="finance-coin-modal-head">
+              <div><small>Категория</small><h3 id="financeCategoryDeleteTitle">Удалить категорию?</h3></div>
+              <button id="financeCategoryDeleteClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <p id="financeCategoryDeleteText" class="finance-delete-choice-copy">Что удалить?</p>
+            <button id="financeCategoryArchiveButton" class="finance-delete-choice-button" type="button">Только иконку · историю сохранить</button>
+            <button id="financeCategoryDeleteAllButton" class="finance-delete-choice-button is-danger" type="button">Иконку и всю историю</button>
+            <button id="financeCategoryDeleteCancel" class="finance-delete-choice-button is-secondary" type="button">Отмена</button>
           </section>
         </div>
 
