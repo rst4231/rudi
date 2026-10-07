@@ -2172,6 +2172,7 @@
       let activeFinanceTab='personal';
       let financeExpenseCategoryId='';
       let financeCategoryHistoryId='';
+      let financeCategoryHistorySearch='';
       let financeExpenseLabel='';
       let financeCategoryEditingId='';
       let financeExpenseWalletId='';
@@ -2918,33 +2919,70 @@
 
       function closeFinanceCategoryHistory(){
         financeCategoryHistoryId='';
+        financeCategoryHistorySearch='';
         const page=document.getElementById('financeCategoryHistoryPage');
         if(page){page.hidden=true;page.setAttribute('aria-hidden','true')}
+        const searchWrap=document.getElementById('financeCategoryHistorySearchWrap');
+        const searchButton=document.getElementById('financeCategoryHistorySearchButton');
+        const searchInput=document.getElementById('financeCategoryHistorySearchInput');
+        if(searchWrap)searchWrap.hidden=true;
+        if(searchButton)searchButton.setAttribute('aria-expanded','false');
+        if(searchInput)searchInput.value='';
         document.body.classList.remove('finance-category-history-open');
+      }
+      function financeCategoryHistorySearchText(row){
+        const wallet=financeWalletById(row.walletId);
+        const date=financeDateTimeLabel(row.occurredAt||row.createdAt);
+        const values=[
+          row.label,row.note,wallet?.name,
+          row.sourceCurrency,row.targetCurrency,row.currency,
+          row.amount,row.rubAmount,row.sourceAmount,row.exchangeRate,
+          date.key,date.time
+        ];
+        return values.filter(value=>value!==undefined&&value!==null&&String(value).trim()!=='')
+          .join(' ')
+          .toLocaleLowerCase('ru-RU');
       }
       function renderFinanceCategoryHistory(){
         const page=document.getElementById('financeCategoryHistoryPage');
         if(!page||!financeCategoryHistoryId)return;
         const category=financeAllCategoryById(financeCategoryHistoryId);
         if(!category){closeFinanceCategoryHistory();return}
-        const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        const mainMonth=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        const monthInput=document.getElementById('financeCategoryHistoryMonthInput');
+        const month=String(monthInput?.value||mainMonth||financeCurrentMonthKey());
+        const query=String(financeCategoryHistorySearch||'').trim().toLocaleLowerCase('ru-RU');
+        const searching=Boolean(query);
         const name=document.getElementById('financeCategoryHistoryName');
         const icon=document.getElementById('financeCategoryHistoryIcon');
         const monthLabel=document.getElementById('financeCategoryHistoryMonth');
+        const totalLabel=document.getElementById('financeCategoryHistoryTotalLabel');
         const total=document.getElementById('financeCategoryHistoryTotal');
         const list=document.getElementById('financeCategoryHistoryList');
         const empty=document.getElementById('financeCategoryHistoryEmpty');
         if(name)name.textContent=category.name||'Категория';
         if(icon)icon.textContent=category.icon||'💳';
-        if(monthLabel)monthLabel.textContent=financeMonthTitle(month);
-        const rows=(financeState.personalExpenses||[])
-          .filter(row=>row.categoryId===category.id&&row.month===month&&!row.manualAdjustment)
-          .sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
-        const monthTotal=rows.reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);
-        if(total)total.textContent=financeMoney(monthTotal,'RUB');
-        if(empty)empty.hidden=rows.length>0;
+        if(monthLabel)monthLabel.textContent=searching?'Поиск по всей истории':financeMonthTitle(month);
+        if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':'За месяц';
+
+        let rows=(financeState.personalExpenses||[])
+          .filter(row=>row.categoryId===category.id&&!row.manualAdjustment);
+        if(searching){
+          rows=rows.filter(row=>financeCategoryHistorySearchText(row).includes(query));
+        }else{
+          rows=rows.filter(row=>row.month===month);
+        }
+        rows.sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
+
+        const visibleTotal=rows.reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);
+        if(total)total.textContent=financeMoney(visibleTotal,'RUB');
+        if(empty){
+          empty.hidden=rows.length>0;
+          empty.textContent=searching?'По всей истории этой категории ничего не найдено':'В этом месяце расходов пока нет';
+        }
         if(!list)return;
         list.replaceChildren();
+
         const now=financeMoscowParts();
         const todayKey=now.year+'-'+now.month+'-'+now.day;
         const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
@@ -2969,7 +3007,12 @@
             rowTitle.textContent=row.label?(row.label+(row.note?' · '+row.note:'')):(row.note||'Расход');
             const detail=document.createElement('small');
             const wallet=financeWalletById(row.walletId);
-            detail.textContent=[wallet?.name,meta.time].filter(Boolean).join(' · ');
+            const sourceCurrency=String(row.sourceCurrency||'').toUpperCase();
+            const targetCurrency=String(row.targetCurrency||category.currency||'RUB').toUpperCase();
+            const sourcePart=sourceCurrency&&sourceCurrency!==targetCurrency&&Number(row.sourceAmount||0)>0
+              ?financeMoney(row.sourceAmount,sourceCurrency)+' → '
+              :'';
+            detail.textContent=[wallet?.name,sourcePart?sourcePart+financeMoney(row.amount,targetCurrency):'',meta.time].filter(Boolean).join(' · ');
             copy.append(rowTitle,detail);
             const value=document.createElement('b');value.textContent='−'+financeMoney(row.rubAmount||row.amount,'RUB');
             const del=document.createElement('button');del.type='button';del.className='finance-category-history-delete';del.textContent='×';del.setAttribute('aria-label','Удалить расход');
@@ -2977,7 +3020,7 @@
               del.disabled=true;
               try{
                 const data=await financeRequest('delete-expense',{id:row.id});
-                renderFinanceState(data,{personalMonth:month,preserveIncome:true,preservePlan:true});
+                renderFinanceState(data,{personalMonth:mainMonth,preserveIncome:true,preservePlan:true});
                 refreshFinanceInsight(true).catch(()=>{});
               }catch(_){del.disabled=false}
             });
@@ -2990,6 +3033,15 @@
         const category=financeAllCategoryById(categoryId),page=document.getElementById('financeCategoryHistoryPage');
         if(!category||!page)return;
         financeCategoryHistoryId=category.id;
+        financeCategoryHistorySearch='';
+        const monthInput=document.getElementById('financeCategoryHistoryMonthInput');
+        if(monthInput)monthInput.value=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        const searchInput=document.getElementById('financeCategoryHistorySearchInput');
+        const searchWrap=document.getElementById('financeCategoryHistorySearchWrap');
+        const searchButton=document.getElementById('financeCategoryHistorySearchButton');
+        if(searchInput)searchInput.value='';
+        if(searchWrap)searchWrap.hidden=true;
+        if(searchButton)searchButton.setAttribute('aria-expanded','false');
         renderFinanceCategoryHistory();
         page.hidden=false;page.setAttribute('aria-hidden','false');
         document.body.classList.add('finance-category-history-open');
@@ -4258,6 +4310,34 @@
         document.getElementById('financeCategoryHistoryBack')?.addEventListener('click',closeFinanceCategoryHistory);
         document.getElementById('financeCategoryHistoryAdd')?.addEventListener('click',()=>{
           if(financeCategoryHistoryId)openFinanceExpenseComposer(financeCategoryHistoryId);
+        });
+        document.getElementById('financeCategoryHistoryMonthInput')?.addEventListener('change',()=>{
+          financeCategoryHistorySearch='';
+          const searchInput=document.getElementById('financeCategoryHistorySearchInput');if(searchInput)searchInput.value='';
+          renderFinanceCategoryHistory();
+        });
+        document.getElementById('financeCategoryHistorySearchButton')?.addEventListener('click',()=>{
+          const wrap=document.getElementById('financeCategoryHistorySearchWrap');
+          const button=document.getElementById('financeCategoryHistorySearchButton');
+          if(!wrap)return;
+          const open=wrap.hidden;
+          wrap.hidden=!open;
+          button?.setAttribute('aria-expanded',open?'true':'false');
+          if(open)setTimeout(()=>document.getElementById('financeCategoryHistorySearchInput')?.focus(),0);
+          else{
+            financeCategoryHistorySearch='';
+            const input=document.getElementById('financeCategoryHistorySearchInput');if(input)input.value='';
+            renderFinanceCategoryHistory();
+          }
+        });
+        document.getElementById('financeCategoryHistorySearchInput')?.addEventListener('input',event=>{
+          financeCategoryHistorySearch=String(event.target?.value||'');
+          renderFinanceCategoryHistory();
+        });
+        document.getElementById('financeCategoryHistorySearchClear')?.addEventListener('click',()=>{
+          financeCategoryHistorySearch='';
+          const input=document.getElementById('financeCategoryHistorySearchInput');if(input){input.value='';input.focus()}
+          renderFinanceCategoryHistory();
         });
         document.getElementById('financeExpenseComposerBackdrop')?.addEventListener('click',()=>closeFinanceCoinModal('financeExpenseComposer'));
         document.getElementById('financeExpenseComposerClose')?.addEventListener('click',()=>closeFinanceCoinModal('financeExpenseComposer'));

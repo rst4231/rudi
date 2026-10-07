@@ -386,8 +386,22 @@
               </div>
               <button id="financeCategoryHistoryAdd" class="finance-category-history-add" type="button">+ Расход</button>
             </div>
+            <div class="finance-category-history-controls">
+              <label class="finance-category-history-month-control" title="Выбрать месяц">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg>
+                <input id="financeCategoryHistoryMonthInput" type="month" aria-label="Месяц истории категории">
+              </label>
+              <button id="financeCategoryHistorySearchButton" class="finance-category-history-search-button" type="button" aria-label="Поиск по всей истории категории" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+              </button>
+            </div>
+            <div id="financeCategoryHistorySearchWrap" class="finance-category-history-search-wrap" hidden>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+              <input id="financeCategoryHistorySearchInput" type="search" autocomplete="off" placeholder="Метка, комментарий, кошелёк, сумма…" aria-label="Поиск по всей истории категории">
+              <button id="financeCategoryHistorySearchClear" type="button" aria-label="Очистить поиск">×</button>
+            </div>
             <div class="finance-category-history-total">
-              <span>За месяц</span>
+              <span id="financeCategoryHistoryTotalLabel">За месяц</span>
               <strong id="financeCategoryHistoryTotal">0 ₽</strong>
             </div>
             <div id="financeCategoryHistoryList" class="finance-category-history-list"></div>
