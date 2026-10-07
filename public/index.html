@@ -470,20 +470,6 @@
           </section>
         </div>
 
-        <article class="finance-transfer-card" aria-labelledby="financeTransferTitle">
-          <div class="finance-transfer-copy">
-            <span class="section-eyebrow">Данные</span>
-            <h2 id="financeTransferTitle">Импорт и экспорт</h2>
-            <p>Выбери полный CSV CoinKeeper за весь период. Расходы импортируются с исходными датами, а отсутствующие категории создаются автоматически.</p>
-          </div>
-          <div class="finance-transfer-actions">
-            <button id="financeImportButton" class="finance-transfer-button" type="button">Импорт CoinKeeper</button>
-            <button id="financeExportButton" class="finance-transfer-button is-secondary" type="button">Экспорт CSV</button>
-          </div>
-          <input id="financeImportFile" type="file" accept=".csv,text/csv,text/plain" hidden>
-          <div id="financeTransferStatus" class="finance-status" role="status" aria-live="polite"></div>
-        </article>
-
         <div id="financeCategoryDeleteChooser" class="finance-coin-modal" hidden aria-hidden="true">
           <button id="financeCategoryDeleteBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Отмена"></button>
           <section class="finance-coin-modal-sheet finance-delete-choice-sheet" role="dialog" aria-modal="true" aria-labelledby="financeCategoryDeleteTitle">
@@ -525,6 +511,21 @@
           <span class="section-eyebrow">ИИ-инсайт месяца</span>
           <p id="financeAiInsightText">Добавь доход и расходы по категориям, и здесь появится короткий разбор.</p>
         </blockquote>
+
+        <article class="finance-transfer-card" aria-labelledby="financeTransferTitle">
+          <div class="finance-transfer-copy">
+            <span class="section-eyebrow">Данные</span>
+            <h2 id="financeTransferTitle">Импорт и экспорт</h2>
+            <p>Выбери полный CSV CoinKeeper за весь период. Расходы импортируются с исходными датами, а отсутствующие категории создаются автоматически.</p>
+          </div>
+          <div class="finance-transfer-actions">
+            <button id="financeImportButton" class="finance-transfer-button" type="button">Импорт CoinKeeper</button>
+            <button id="financeExportButton" class="finance-transfer-button is-secondary" type="button">Экспорт CSV</button>
+          </div>
+          <input id="financeImportFile" type="file" accept=".csv,text/csv,text/plain" hidden>
+          <div id="financeTransferStatus" class="finance-status" role="status" aria-live="polite"></div>
+        </article>
+
       </div>
 
       <div id="financeDebtsPanel" class="finance-tab-panel" data-finance-panel="debts" hidden>
