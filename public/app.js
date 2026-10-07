@@ -2634,7 +2634,31 @@
           });
         }
       }
+      function financeTodayObligationCount(){
+        const now=financeMoscowParts();
+        const month=now.year+'-'+now.month;
+        const day=Number(now.day||0);
+        const obligations=Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[];
+        return obligations.filter(row=>{
+          if(row?.active===false)return false;
+          if(Number(row?.day||0)!==day)return false;
+          return !(Array.isArray(row?.paidMonths)&&row.paidMonths.includes(month));
+        }).length;
+      }
+      function syncFinanceObligationAttention(){
+        const count=financeTodayObligationCount();
+        const badge=document.getElementById('financeProfileBadge');
+        if(badge){
+          badge.textContent=count>99?'99+':String(count);
+          badge.hidden=count<=0;
+          badge.setAttribute('aria-label',count>0?('Обязательных расходов сегодня: '+count):'');
+        }
+        document.documentElement.dataset.financeObligationCount=String(count);
+        queueAppIconBadgeSync();
+        return count;
+      }
       function renderFinanceObligations(){
+        syncFinanceObligationAttention();
         const list=document.getElementById('financeObligationList'),forecast=document.getElementById('financeObligationForecast');if(!list||!forecast)return;
         list.replaceChildren();
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
@@ -5255,6 +5279,7 @@
         applyAppTab(initialTab,{scroll:false});
         updateAppRoute(currentAppTab,{item:initialItem,replace:true});
         runTabSideEffects(currentAppTab,{item:initialItem});
+        if(currentAppTab!=='finances') loadFinances({silent:true}).catch(()=>{});
 
         document.querySelectorAll('#appTabBar [data-app-tab]').forEach(button=>{
           if(button.dataset.routeBound==='1') return;
@@ -9197,6 +9222,7 @@
         let count=activityNotificationsHaveUnread()?1:0;
         count+=attentionCountFromDataset('habitReminderCount');
         count+=attentionCountFromDataset('supplementReminderCount');
+        count+=attentionCountFromDataset('financeObligationCount');
         count+=sharedTasksAttentionCount();
         if(currentActor==='Рустам') count+=attentionCountFromDataset('carTodayTaskCount');
         return Math.min(99,count);
