@@ -15,7 +15,7 @@ function memoryCache(){
   };
 }
 
-test('v4.41 wallet transfers move money without creating income or expense',async()=>{
+test('v4.42 wallet transfers move money without creating income or expense',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache();
   await saveWallet('Рустам',{name:'A',currency:'RUB',balance:10000},{financeCache,id:'wa'});
@@ -37,7 +37,7 @@ test('v4.41 wallet transfers move money without creating income or expense',asyn
   assert.equal(view.walletTransfers.length,0);
 });
 
-test('v4.41 wallet reorder persists exact visible order',async()=>{
+test('v4.42 wallet reorder persists exact visible order',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache();
   await saveWallet('Рустам',{name:'A',currency:'RUB',balance:1},{financeCache,id:'wa'});
@@ -48,7 +48,7 @@ test('v4.41 wallet reorder persists exact visible order',async()=>{
   assert.deepEqual(view.wallets.map(row=>row.id),['wc','wa','wb']);
 });
 
-test('v4.41 ordinary plan save preserves obligations',async()=>{
+test('v4.42 ordinary plan save preserves obligations',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache();
   await saveFinancePlan('Рустам',{goalTitle:'Квартира',obligations:[{id:'rent',title:'Аренда',amount:35000,day:3}]},{financeCache});
@@ -58,7 +58,7 @@ test('v4.41 ordinary plan save preserves obligations',async()=>{
   assert.equal(view.plan.obligations[0].amount,35000);
 });
 
-test('v4.41 finance UI has final requested layout and mobile safeguards',()=>{
+test('v4.42 finance UI has final requested layout and mobile safeguards',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
@@ -80,6 +80,17 @@ test('v4.41 finance UI has final requested layout and mobile safeguards',()=>{
   assert.ok(css.includes('.finance-obligations-card'));
   assert.ok(css.includes('.finance-goal-card-compact .finance-plan-grid{grid-template-columns:1fr!important'));
   assert.ok(!app.includes("'осталось '+financeMoney(remaining"));
+  assert.ok(app.includes("limit.textContent=limitValue>0?financeMoney(limitValue"));
+  assert.ok(app.includes("progress.classList.toggle('is-mid',usage>=.5&&usage<1)"));
+  assert.ok(app.includes("progress.classList.toggle('is-full',usage>=1)"));
+  assert.ok(!html.includes('financeWalletMoveLeft'));
+  assert.ok(!html.includes('financeWalletMoveRight'));
+  assert.ok(!html.includes('financeWalletOrderControl'));
+  assert.ok(!html.includes('financeTransferAddButton'));
+  assert.ok(!html.includes('financeWalletTotalRub'));
+  assert.ok(app.includes("openFinanceTransferComposer({fromWalletId:wallet.id,toWalletId:targetWalletId,focusAmount:true})"));
+  assert.ok(app.includes("targetKind==='wallet'"));
+  assert.ok(app.includes("· по текущему курсу"));
   const planEnd=html.indexOf('id="financePlanStatus"');
   const obligations=html.indexOf('id="financeObligationsTitle"');
   const analyst=html.indexOf('id="financeAnalystTitle"');

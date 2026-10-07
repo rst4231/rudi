@@ -350,10 +350,9 @@
 
           <div class="finance-wallet-section">
             <div class="finance-coin-section-head">
-              <div><span class="section-eyebrow">Источники</span><h2 id="financeWalletsTitle">Кошельки</h2><small id="financeWalletTotalRub" class="finance-wallet-total-rub">Всего: 0 ₽</small></div>
+              <div><span class="section-eyebrow">Источники</span><h2 id="financeWalletsTitle">Кошельки</h2></div>
               <div class="finance-wallet-head-actions">
                 <button id="financeIncomeAddButton" class="finance-wallet-add finance-income-add" type="button">+ Доход</button>
-                <button id="financeTransferAddButton" class="finance-wallet-add finance-transfer-add" type="button">↔ Перевод</button>
                 <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
               </div>
             </div>
@@ -506,13 +505,6 @@
               <span>Баланс</span>
               <input id="financeWalletBalance" class="finance-text-input" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Баланс кошелька">
             </label>
-            <div id="financeWalletOrderControl" class="finance-wallet-order-control" hidden>
-              <span>Позиция в списке</span>
-              <div>
-                <button id="financeWalletMoveLeft" type="button" aria-label="Переместить кошелёк левее">← Левее</button>
-                <button id="financeWalletMoveRight" type="button" aria-label="Переместить кошелёк правее">Правее →</button>
-              </div>
-            </div>
             <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
             <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>

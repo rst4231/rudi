@@ -15201,3 +15201,25 @@ html[data-theme="dark"] .finance-literacy-card{
   .finance-obligations-card .finance-history-head{grid-template-columns:1fr!important;align-items:start!important}
   .finance-obligation-add-button{width:100%!important}
 }
+
+
+/* RUDI v4.42 — category budget states */
+.finance-budget-progress i{
+  background:#35a875!important;
+}
+.finance-budget-progress.is-mid i{
+  background:#e0aa2f!important;
+}
+.finance-budget-progress.is-full i{
+  background:#d94b55!important;
+}
+
+
+/* RUDI v4.42 — wallet-to-wallet transfer drag */
+.finance-wallet-item.is-transfer-target .finance-wallet-coin{
+  transform:scale(1.13);
+  box-shadow:0 0 0 5px color-mix(in srgb,#5b8def 16%,transparent),0 10px 24px color-mix(in srgb,#5b8def 28%,transparent)!important
+}
+.finance-wallet-item.is-transfer-target .finance-coin-label{
+  color:#4f7fe7
+}
