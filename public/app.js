@@ -2812,6 +2812,51 @@
         });
       }
 
+      function financeWalletRubRates(payload=readMarketTickerLocalCache()){
+        const items=Array.isArray(payload?.items)?payload.items:[];
+        const byId=new Map(items.map(item=>[String(item?.id||''),Number(item?.value||0)]));
+        const usdRub=Number(byId.get('usd-rub'))||0;
+        const eurRub=Number(byId.get('eur-rub'))||0;
+        const btcUsd=Number(byId.get('btcusdt'))||0;
+        const ethUsd=Number(byId.get('ethusdt'))||0;
+        const usdtUsd=Number(byId.get('usdtusd'))||1;
+        return {
+          RUB:1,
+          USD:usdRub,
+          EUR:eurRub,
+          USDT:usdRub&&usdtUsd?usdRub*usdtUsd:0,
+          BTC:usdRub&&btcUsd?usdRub*btcUsd:0,
+          ETH:usdRub&&ethUsd?usdRub*ethUsd:0
+        };
+      }
+
+      function renderFinanceWalletTotal(payload=readMarketTickerLocalCache()){
+        const host=document.getElementById('financeCoinBalanceValue');if(!host)return;
+        const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
+        if(!wallets.length){
+          host.textContent=financeMoney(0);
+          host.removeAttribute('title');
+          return;
+        }
+        const rates=financeWalletRubRates(payload);
+        let total=0,complete=true;
+        for(const wallet of wallets){
+          const balance=Number(wallet?.balance||0);
+          if(!Number.isFinite(balance)||Math.abs(balance)<1e-12)continue;
+          const currency=String(wallet?.currency||'RUB').toUpperCase();
+          const rate=Number(rates[currency]||0);
+          if(rate<=0){complete=false;continue}
+          total+=balance*rate;
+        }
+        if(complete){
+          host.textContent=financeMoney(Math.round(total*100)/100);
+          host.title='Общая стоимость активных кошельков в рублях';
+        }else{
+          host.textContent='—';
+          host.title='Жду актуальные курсы для пересчёта кошельков';
+        }
+      }
+
       function renderFinanceWallets(){
         const list=document.getElementById('financeWalletList'),empty=document.getElementById('financeWalletEmpty');if(!list)return;
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
