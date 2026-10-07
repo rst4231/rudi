@@ -3162,7 +3162,27 @@
         if(title)title.textContent=String(article.title||'Финансовая грамотность');
         if(meta)meta.textContent='Статья на '+new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(String(article.date||financeCurrentMonthKey()+'-01')+'T12:00:00Z'));
         body.replaceChildren();
-        String(article.body||'').split(/\n{2,}/).map(text=>text.trim()).filter(Boolean).forEach(text=>{const p=document.createElement('p');p.textContent=text;body.append(p)});
+        const chunks=String(article.body||'').split(/\n{2,}/).map(text=>text.trim()).filter(Boolean);
+        for(const [index,text] of chunks.entries()){
+          const lines=text.split(/\n/).map(line=>line.trim()).filter(Boolean);
+          const headingCandidate=lines.length===1&&lines[0].length<=72&&!/[.!?]$/.test(lines[0]);
+          const numbered=lines.length>1&&lines.every(line=>/^\d+[.)]\s+/.test(line));
+          const bullets=lines.length>1&&lines.every(line=>/^(?:[-•*]|—)\s+/.test(line));
+          if(headingCandidate&&index>0){
+            const h=document.createElement('h3');h.textContent=lines[0];body.append(h);continue;
+          }
+          if(numbered||bullets){
+            const list=document.createElement(numbered?'ol':'ul');
+            for(const line of lines){
+              const li=document.createElement('li');
+              li.textContent=line.replace(numbered?/^\d+[.)]\s+/:/^(?:[-•*]|—)\s+/,'');
+              list.append(li);
+            }
+            body.append(list);continue;
+          }
+          const p=document.createElement('p');p.textContent=text;body.append(p);
+        }
+        if(body.firstElementChild?.tagName==='P')body.firstElementChild.classList.add('finance-literacy-lead');
         const books=(Array.isArray(article.books)?article.books:[]).filter(Boolean);
         if(source){source.hidden=!books.length;source.textContent=books.length?'Идеи по мотивам: '+books.join(' · '):''}
         if(status)status.textContent='';
