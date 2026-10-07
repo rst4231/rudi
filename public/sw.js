@@ -7,7 +7,7 @@ const PRECACHE=[
   '/manifest.webmanifest',
   '/favicon-rudi-v460.png',
   '/apple-touch-icon-rudi-v460.png',
-  '/icon-192-rudi-v460.png',
+  '/icon-192-rudi-v459.png',
   '/icon-512.svg',
   '/icon-maskable.svg'
 ];
@@ -297,8 +297,8 @@ async function deliverPendingPushNotifications(){
     await self.registration.showNotification(String(row?.title||'RUDI'),{
       body:String(row?.body||''),
       tag:notificationTag,
-      icon:String(row?.icon||'/icon-192-rudi-v460.png'),
-      badge:String(row?.badge||'/icon-192-rudi-v460.png'),
+      icon:String(row?.icon||'/icon-192-rudi-v459.png'),
+      badge:String(row?.badge||'/icon-192-rudi-v459.png'),
       data:{url:notificationUrl,id},
       renotify:false
     });
@@ -328,8 +328,8 @@ async function deliverDirectPushNotification(row){
   await self.registration.showNotification(String(row?.title||'RUDI'),{
     body:String(row?.body||''),
     tag:notificationTag,
-    icon:String(row?.icon||'/icon-192-rudi-v460.png'),
-    badge:String(row?.badge||'/icon-192-rudi-v460.png'),
+    icon:String(row?.icon||'/icon-192-rudi-v459.png'),
+    badge:String(row?.badge||'/icon-192-rudi-v459.png'),
     data:{url:notificationUrl,id},
     renotify:false
   });
