@@ -312,3 +312,36 @@ test('deleting wallet income reverses its exact amount and wallet history has de
   assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
   assert.ok(app.includes('finance-wallet-history-delete'));
 });
+
+
+test('deleting wallet income subtracts exact source amount and may leave negative balance', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'USD',currency:'USD',balance:5},{financeCache,id:'income-delete-wallet'});
+  await saveWalletIncome('Рустам',{
+    walletId:'income-delete-wallet',amount:10,currency:'USD',rubAmount:800,exchangeRate:80,
+    month:'2026-10',occurredAt:'2026-10-07T08:30:00.000Z'
+  },{financeCache,id:'income-delete-row'});
+  let view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='income-delete-wallet').balance,15);
+  await deleteWalletIncome('Рустам','income-delete-row',{financeCache});
+  view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='income-delete-wallet').balance,5);
+  assert.equal(view.walletIncomes.length,0);
+  assert.equal(view.personalMonths.find(row=>row.month==='2026-10').income,0);
+
+  await saveWalletIncome('Рустам',{
+    walletId:'income-delete-wallet',amount:10,currency:'USD',rubAmount:800,exchangeRate:80,
+    month:'2026-10',occurredAt:'2026-10-07T09:30:00.000Z'
+  },{financeCache,id:'income-delete-negative'});
+  await saveWallet('Рустам',{id:'income-delete-wallet',name:'USD',currency:'USD',balance:2},{financeCache});
+  await deleteWalletIncome('Рустам','income-delete-negative',{financeCache});
+  view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='income-delete-wallet').balance,-8);
+});
+
+test('wallet history rows expose delete control for income and expense', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
+  assert.ok(app.includes('finance-wallet-history-delete'));
+});
