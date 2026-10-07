@@ -148,6 +148,8 @@ function normalizeState(value) {
           icon: cleanIcon(raw?.icon || '💳'),
           currency: cleanCurrency(raw?.currency || 'RUB'),
           balance: cleanAssetAmount(raw?.balance || 0),
+          archived: Boolean(raw?.archived),
+          importSource: cleanText(raw?.importSource, 24),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
         });
         seen.add(id);
@@ -175,6 +177,7 @@ function normalizeState(value) {
           monthlyLimit: cleanMoney(raw?.monthlyLimit || 0),
           currency: cleanCurrency(raw?.currency || 'RUB'),
           archived: Boolean(raw?.archived),
+          importSource: cleanText(raw?.importSource, 24),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
         });
         seen.add(id);
@@ -274,7 +277,7 @@ function viewState(state, actor = '') {
         .map((row) => ({ ...row, ...personalAmounts(row.income, expenseTotal(normalized, safeActor, row.month)) }))
         .sort((a, b) => String(b.month).localeCompare(String(a.month)))
     : [];
-  const wallets = safeActor ? [...(normalized.wallets[safeActor] || [])] : [];
+  const wallets = safeActor ? [...(normalized.wallets[safeActor] || [])].filter((row) => !row.archived) : [];
   const allCategories = safeActor ? [...(normalized.categories[safeActor] || [])] : [];
   const categories = allCategories.filter((row) => !row.archived);
   const archivedCategories = allCategories.filter((row) => row.archived);
@@ -381,8 +384,12 @@ async function saveWallet(actor, payload = {}, options = {}) {
     const id = requestedId || cleanText(options.id || randomUUID(), 100, { required: true });
     const existing = rows.find((row) => row.id === id);
     const now = new Date(options.now || Date.now()).toISOString();
-    const row = { id, name, icon, currency, balance, createdAt: existing?.createdAt || now };
-    const wallets = rows.filter((item) => item.id !== id).concat(row);
+    const row = {
+      id, name, icon, currency, balance, archived: false,
+      importSource: cleanText(existing?.importSource || payload.importSource, 24),
+      createdAt: existing?.createdAt || now,
+    };
+    const wallets = existing ? rows.map((item) => item.id === id ? row : item) : rows.concat(row);
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
       wallets: { ...current.wallets, [safeActor]: wallets },
@@ -396,10 +403,40 @@ async function deleteWallet(actor, id, options = {}) {
   const cleanId = cleanText(id, 100, { required: true });
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
-    if (!(current.wallets[safeActor] || []).some((row) => row.id === cleanId)) throw new Error('finance-wallet-not-found');
+    const rows = current.wallets[safeActor] || [];
+    if (!rows.some((row) => row.id === cleanId && !row.archived)) throw new Error('finance-wallet-not-found');
+    const referenced = current.personalExpenses.some((row) => row.actor === safeActor && row.walletId === cleanId);
+    const wallets = referenced
+      ? rows.map((row) => row.id === cleanId ? { ...row, archived: true } : row)
+      : rows.filter((row) => row.id !== cleanId);
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
-      wallets: { ...current.wallets, [safeActor]: (current.wallets[safeActor] || []).filter((row) => row.id !== cleanId) },
+      wallets: { ...current.wallets, [safeActor]: wallets },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function reorderWallets(actor, ids = [], options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanIds = Array.isArray(ids) ? [...new Set(ids.map((id) => cleanText(id, 100)).filter(Boolean))] : [];
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.wallets[safeActor] || [];
+    const visible = rows.filter((row) => !row.archived);
+    const archived = rows.filter((row) => row.archived);
+    const byId = new Map(visible.map((row) => [row.id, row]));
+    const ordered = [];
+    for (const id of cleanIds) {
+      const row = byId.get(id);
+      if (!row) continue;
+      ordered.push(row);
+      byId.delete(id);
+    }
+    for (const row of visible) if (byId.has(row.id)) ordered.push(row);
+    const next = normalizeState({
+      ...current, initialized: true, version: current.version + 1,
+      wallets: { ...current.wallets, [safeActor]: ordered.concat(archived) },
     });
     await writeState(next, options);
     return next;
@@ -614,21 +651,84 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
 }
 async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
   const safeActor = cleanActor(actor);
-  const rows = Array.isArray(payloadRows) ? payloadRows.slice(0, 600) : [];
+  const payload = Array.isArray(payloadRows) ? { rows: payloadRows } : (payloadRows && typeof payloadRows === 'object' ? payloadRows : {});
+  const rows = Array.isArray(payload.rows) ? payload.rows.slice(0, 5000) : [];
+  const hasCurrentCategories = Array.isArray(payload.currentCategories);
+  const hasCurrentWallets = Array.isArray(payload.currentWallets);
+  const currentCategoryNames = hasCurrentCategories ? payload.currentCategories.slice(0, 300) : [];
+  const currentWalletRows = hasCurrentWallets ? payload.currentWallets.slice(0, 100) : [];
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     const now = new Date(options.now || Date.now()).toISOString();
     const categories = [...(current.categories[safeActor] || [])];
     const categoryMap = new Map(categories.map((row) => [financeCategoryKey(row.name), row]));
+    const currentCategoryKeys = new Set(currentCategoryNames.map((name) => financeCategoryKey(cleanText(name, 48))).filter(Boolean));
     const existingKeys = new Set(
-      current.personalExpenses
-        .filter((row) => row.actor === safeActor && row.importKey)
-        .map((row) => row.importKey)
+      current.personalExpenses.filter((row) => row.actor === safeActor && row.importKey).map((row) => row.importKey)
     );
     const added = [];
     const affectedMonths = new Set();
     const createdCategories = [];
-    let duplicates = 0, skipped = 0;
+    const createdWallets = [];
+    let duplicates = 0, skipped = 0, entityChanges = 0;
+
+    if (hasCurrentCategories) {
+      for (let index = 0; index < categories.length; index++) {
+        const row = categories[index];
+        if (row.importSource !== 'coinkeeper') continue;
+        const archived = !currentCategoryKeys.has(financeCategoryKey(row.name));
+        if (row.archived !== archived) { categories[index] = { ...row, archived }; categoryMap.set(financeCategoryKey(row.name), categories[index]); entityChanges++; }
+      }
+      for (const rawName of currentCategoryNames) {
+        const name = cleanText(rawName, 48);
+        if (!name) continue;
+        const key = financeCategoryKey(name);
+        let category = categoryMap.get(key);
+        if (!category) {
+          category = { id: randomUUID(), name, icon: '💳', note: '', monthlyLimit: 0, currency: 'RUB', archived: false, importSource: 'coinkeeper', createdAt: now };
+          categories.push(category); categoryMap.set(key, category); createdCategories.push(name); entityChanges++;
+        } else if (category.archived) {
+          const updated = { ...category, archived: false };
+          categories[categories.findIndex((row) => row.id === category.id)] = updated;
+          categoryMap.set(key, updated); entityChanges++;
+        }
+      }
+    }
+
+    let wallets = [...(current.wallets[safeActor] || [])];
+    if (hasCurrentWallets) {
+      const currentWalletKeys = new Set();
+      const normalizedCurrentWallets = [];
+      for (const raw of currentWalletRows) {
+        try {
+          const name = cleanText(raw?.name, 48, { required: true });
+          const currency = cleanCurrency(raw?.currency || 'RUB');
+          const balance = cleanAssetAmount(raw?.balance || 0);
+          const key = financeCategoryKey(name) + '|' + currency;
+          if (currentWalletKeys.has(key)) continue;
+          currentWalletKeys.add(key); normalizedCurrentWallets.push({ name, currency, balance, key });
+        } catch (_) {}
+      }
+      wallets = wallets.map((wallet) => {
+        if (wallet.importSource !== 'coinkeeper') return wallet;
+        const key = financeCategoryKey(wallet.name) + '|' + wallet.currency;
+        const archived = !currentWalletKeys.has(key);
+        if (wallet.archived !== archived) { entityChanges++; return { ...wallet, archived }; }
+        return wallet;
+      });
+      for (const raw of normalizedCurrentWallets) {
+        const existingIndex = wallets.findIndex((wallet) => financeCategoryKey(wallet.name) + '|' + wallet.currency === raw.key);
+        if (existingIndex >= 0) {
+          const existing = wallets[existingIndex];
+          const nextWallet = { ...existing, name: raw.name, currency: raw.currency, balance: raw.balance, archived: false, importSource: existing.importSource || 'coinkeeper' };
+          if (JSON.stringify(existing) !== JSON.stringify(nextWallet)) entityChanges++;
+          wallets[existingIndex] = nextWallet;
+        } else {
+          wallets.push({ id: randomUUID(), name: raw.name, icon: '💳', currency: raw.currency, balance: raw.balance, archived: false, importSource: 'coinkeeper', createdAt: now });
+          createdWallets.push(raw.name); entityChanges++;
+        }
+      }
+    }
 
     for (const raw of rows) {
       try {
@@ -642,71 +742,46 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
         if (existingKeys.has(importKey)) { duplicates++; continue; }
 
         let category = categoryMap.get(categoryKey);
-        if (category?.archived) {
-          category.archived = false;
-          createdCategories.push(categoryName);
-        }
         if (!category) {
+          const archived = hasCurrentCategories && !currentCategoryKeys.has(categoryKey);
           category = {
-            id: randomUUID(),
-            name: categoryName,
-            icon: cleanIcon(raw?.icon || '💳'),
-            note: '',
-            monthlyLimit: 0,
-            currency: 'RUB',
-            archived: false,
-            createdAt: now,
+            id: randomUUID(), name: categoryName, icon: cleanIcon(raw?.icon || '💳'), note: '',
+            monthlyLimit: 0, currency: 'RUB', archived, importSource: 'coinkeeper', createdAt: now,
           };
-          categories.push(category);
-          categoryMap.set(categoryKey, category);
-          createdCategories.push(categoryName);
+          categories.push(category); categoryMap.set(categoryKey, category);
+          if (!archived) createdCategories.push(categoryName);
+          entityChanges++;
+        } else if (category.importSource === 'coinkeeper' && hasCurrentCategories) {
+          const archived = !currentCategoryKeys.has(categoryKey);
+          if (category.archived !== archived) {
+            const updated = { ...category, archived };
+            categories[categories.findIndex((row) => row.id === category.id)] = updated;
+            category = updated; categoryMap.set(categoryKey, updated); entityChanges++;
+          }
         }
 
         added.push({
-          id: randomUUID(),
-          actor: safeActor,
-          month,
-          categoryId: category.id,
-          amount,
-          note: cleanText(raw?.note, 120),
-          walletId: '',
-          sourceAmount: cleanMoney(raw?.sourceAmount || amount),
+          id: randomUUID(), actor: safeActor, month, categoryId: category.id, amount,
+          note: cleanText(raw?.note, 120), walletId: '',
+          sourceAmount: cleanAssetAmount(raw?.sourceAmount || amount),
           sourceCurrency: cleanCurrency(raw?.sourceCurrency || 'RUB'),
-          targetCurrency: 'RUB',
-          exchangeRate: Math.max(0, Number(raw?.exchangeRate || 1)) || 1,
-          rubAmount: amount,
-          importKey,
-          occurredAt,
-          createdAt: now,
-          updatedAt: now,
+          targetCurrency: 'RUB', exchangeRate: Math.max(0, Number(raw?.exchangeRate || 1)) || 1,
+          rubAmount: amount, importKey, occurredAt, createdAt: now, updatedAt: now,
         });
-        existingKeys.add(importKey);
-        affectedMonths.add(month);
-      } catch (_) {
-        skipped++;
-      }
+        existingKeys.add(importKey); affectedMonths.add(month);
+      } catch (_) { skipped++; }
     }
 
     let next = normalizeState({
-      ...current,
-      initialized: true,
-      version: current.version + (added.length || createdCategories.length ? 1 : 0),
+      ...current, initialized: true,
+      version: current.version + (added.length || entityChanges ? 1 : 0),
+      wallets: { ...current.wallets, [safeActor]: wallets },
       categories: { ...current.categories, [safeActor]: categories },
       personalExpenses: current.personalExpenses.concat(added),
     });
-    for (const month of affectedMonths) {
-      next = normalizeState({ ...next, personal: syncPersonalMonthExpenses(next, safeActor, month, now) });
-    }
-    if (added.length || createdCategories.length) await writeState(next, options);
-    return {
-      state: next,
-      result: {
-        imported: added.length,
-        duplicates,
-        skipped,
-        createdCategories,
-      },
-    };
+    for (const month of affectedMonths) next = normalizeState({ ...next, personal: syncPersonalMonthExpenses(next, safeActor, month, now) });
+    if (added.length || entityChanges) await writeState(next, options);
+    return { state: next, result: { imported: added.length, duplicates, skipped, createdCategories, createdWallets } };
   });
 }
 async function deletePersonalExpense(actor, id, options = {}) {
@@ -783,6 +858,6 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanAssetAmount, cleanCurrency, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveWallet, deleteWallet, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };
