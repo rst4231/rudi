@@ -24,7 +24,7 @@ function categorySummary(view, month) {
   const expenses = (Array.isArray(view.personalExpenses) ? view.personalExpenses : []).filter((row) => row.month === month);
   return (Array.isArray(view.categories) ? view.categories : []).map((category) => ({
     ...category,
-    spent: Math.round(expenses.filter((row) => row.categoryId === category.id).reduce((sum, row) => sum + Number(row.amount || 0), 0) * 100) / 100,
+    spent: Math.round(expenses.filter((row) => row.categoryId === category.id).reduce((sum, row) => sum + Number(row.rubAmount || row.amount || 0), 0) * 100) / 100,
   }));
 }
 async function handler(req, res) {
