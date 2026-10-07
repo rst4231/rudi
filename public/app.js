@@ -2662,7 +2662,7 @@
         updateCurrency();select.onchange=updateCurrency;
         if(amount)amount.value='';if(note)note.value='';
         const now=financeNowDateTimeInputs();if(date)date.value=now.date;if(time)time.value=now.time;if(status)status.textContent='';
-        mountFinanceCoinModal(modal,amount,{forceFocus:true});
+        mountFinanceCoinModal(modal);
       }
 
       function openFinanceWalletComposer(walletId=''){
@@ -3000,85 +3000,129 @@
       }
 
       function bindFinanceCategoryInteractions(item,list,category){
+        let gesture=null;
+
+        const cleanupGesture=()=>{
+          if(!gesture)return;
+          if(gesture.timer)clearTimeout(gesture.timer);
+          document.removeEventListener('pointermove',gesture.onMove,true);
+          document.removeEventListener('pointerup',gesture.onEnd,true);
+          document.removeEventListener('pointercancel',gesture.onEnd,true);
+          gesture=null;
+        };
+
+        const beginReorder=(event,{fromLongPress=false,startX=event.clientX,startY=event.clientY}={})=>{
+          financeCategoryReorder={
+            pointerId:event.pointerId,item,startX,startY,
+            moved:false,startedByLongPress:fromLongPress
+          };
+          try{item.setPointerCapture?.(event.pointerId)}catch(_){}
+        };
+
         item.addEventListener('pointerdown',event=>{
           if(event.button!==undefined&&event.button!==0)return;
           if(event.target.closest?.('.finance-category-delete-badge'))return;
-          if(financeCategoryEditMode){
-            financeCategoryReorder={
-              pointerId:event.pointerId,item,startX:event.clientX,startY:event.clientY,
-              moved:false,startedByLongPress:false
-            };
-            try{item.setPointerCapture?.(event.pointerId)}catch(_){}
-            event.preventDefault();
-            return;
-          }
+          cleanupGesture();
 
-          const state={pointerId:event.pointerId,item,startX:event.clientX,startY:event.clientY,entered:false,timer:0};
-          state.timer=setTimeout(()=>{
-            if(financeCategoryLongPress!==state)return;
-            state.entered=true;
-            item.dataset.suppressClick='1';
-            financeCategoryLongPress=null;
-            setFinanceCategoryEditMode(true);
-            financeCategoryReorder={
-              pointerId:event.pointerId,item,startX:state.startX,startY:state.startY,
-              moved:false,startedByLongPress:true
-            };
-            try{item.setPointerCapture?.(event.pointerId)}catch(_){}
-            try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
-          },560);
-          financeCategoryLongPress=state;
-        });
+          const onMove=moveEvent=>{
+            if(!gesture||moveEvent.pointerId!==gesture.pointerId)return;
 
-        item.addEventListener('pointermove',event=>{
-          const hold=financeCategoryLongPress;
-          if(hold&&hold.item===item&&hold.pointerId===event.pointerId&&!hold.entered&&Math.hypot(event.clientX-hold.startX,event.clientY-hold.startY)>10){
-            clearTimeout(hold.timer);
-            financeCategoryLongPress=null;
-          }
+            if(!financeCategoryEditMode&&!gesture.longPressed){
+              const distance=Math.hypot(moveEvent.clientX-gesture.startX,moveEvent.clientY-gesture.startY);
+              if(distance>10){
+                if(gesture.timer){clearTimeout(gesture.timer);gesture.timer=0}
+                return;
+              }
+            }
 
-          const drag=financeCategoryReorder;
-          if(!drag||drag.item!==item||drag.pointerId!==event.pointerId)return;
-          if(!drag.moved&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<6)return;
-          drag.moved=true;
-          item.classList.add('is-reordering');
-          event.preventDefault();
+            const drag=financeCategoryReorder;
+            if(!drag||drag.item!==item||drag.pointerId!==moveEvent.pointerId)return;
+            const distance=Math.hypot(moveEvent.clientX-drag.startX,moveEvent.clientY-drag.startY);
+            if(!drag.moved&&distance<4)return;
 
-          const before=[...list.querySelectorAll('.finance-category-coin-item')].map(node=>node.dataset.categoryId).join('|');
-          financeCategoryMoveByPointer(list,item,event.clientX,event.clientY);
-          const after=[...list.querySelectorAll('.finance-category-coin-item')].map(node=>node.dataset.categoryId).join('|');
-          if(before!==after)try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
+            drag.moved=true;
+            item.classList.add('is-reordering');
+            if(moveEvent.cancelable)moveEvent.preventDefault();
 
-        const finish=event=>{
-          const hold=financeCategoryLongPress;
-          if(hold&&hold.item===item&&hold.pointerId===event.pointerId){
-            clearTimeout(hold.timer);
-            financeCategoryLongPress=null;
-          }
-          const drag=financeCategoryReorder;
-          if(drag&&drag.item===item&&drag.pointerId===event.pointerId){
-            const moved=drag.moved;
+            const before=[...list.querySelectorAll('.finance-category-coin-item')]
+              .map(node=>node.dataset.categoryId).join('|');
+            financeCategoryMoveByPointer(list,item,moveEvent.clientX,moveEvent.clientY);
+            const after=[...list.querySelectorAll('.finance-category-coin-item')]
+              .map(node=>node.dataset.categoryId).join('|');
+            if(before!==after)try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          };
+
+          const onEnd=endEvent=>{
+            if(!gesture||endEvent.pointerId!==gesture.pointerId)return;
+            const drag=financeCategoryReorder;
+            const moved=Boolean(drag&&drag.item===item&&drag.pointerId===endEvent.pointerId&&drag.moved);
+            const startedByLongPress=Boolean(drag?.startedByLongPress);
             financeCategoryReorder=null;
+            financeCategoryLongPress=null;
             item.classList.remove('is-reordering');
-            try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
+            try{item.releasePointerCapture?.(endEvent.pointerId)}catch(_){}
+            cleanupGesture();
+
             if(moved){
               item.dataset.suppressClick='1';
               saveFinanceCategoryOrder();
+            }else if(startedByLongPress){
+              item.dataset.suppressClick='1';
             }
+          };
+
+          gesture={
+            pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,
+            longPressed:false,timer:0,onMove,onEnd
+          };
+          document.addEventListener('pointermove',onMove,{capture:true,passive:false});
+          document.addEventListener('pointerup',onEnd,true);
+          document.addEventListener('pointercancel',onEnd,true);
+
+          if(financeCategoryEditMode){
+            beginReorder(event,{fromLongPress:false});
+            if(event.cancelable)event.preventDefault();
+            return;
           }
-        };
-        item.addEventListener('pointerup',finish);
-        item.addEventListener('pointercancel',finish);
+
+          const state={
+            pointerId:event.pointerId,item,startX:event.clientX,startY:event.clientY,
+            entered:false,timer:0
+          };
+          state.timer=setTimeout(()=>{
+            if(!gesture||gesture.pointerId!==event.pointerId)return;
+            state.entered=true;
+            gesture.longPressed=true;
+            item.dataset.suppressClick='1';
+            financeCategoryLongPress=null;
+            setFinanceCategoryEditMode(true);
+            beginReorder(event,{fromLongPress:true,startX:state.startX,startY:state.startY});
+            try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
+          },560);
+          gesture.timer=state.timer;
+          financeCategoryLongPress=state;
+        });
 
         item.addEventListener('click',event=>{
-          if(item.dataset.suppressClick==='1'){delete item.dataset.suppressClick;event.preventDefault();return}
-          if(financeCategoryEditMode){event.preventDefault();openFinanceCategoryComposer(category.id);return}
+          if(item.dataset.suppressClick==='1'){
+            delete item.dataset.suppressClick;
+            event.preventDefault();
+            return;
+          }
+          if(financeCategoryEditMode){
+            event.preventDefault();
+            openFinanceCategoryComposer(category.id);
+            return;
+          }
           openFinanceExpenseComposer(category.id);
         });
+
         item.addEventListener('keydown',event=>{
           if(financeCategoryEditMode)return;
-          if(event.key==='Enter'||event.key===' '){event.preventDefault();openFinanceExpenseComposer(category.id)}
+          if(event.key==='Enter'||event.key===' '){
+            event.preventDefault();
+            openFinanceExpenseComposer(category.id);
+          }
         });
       }
 
