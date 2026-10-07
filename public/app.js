@@ -2918,15 +2918,28 @@
         return /[;"\n\r]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;
       }
       function exportFinanceCsv(){
-        const rows=[['Дата','Время','Категория','Сумма RUB','Кошелёк','Исходная сумма','Исходная валюта','Курс в RUB','Комментарий']];
-        const expenses=[...(financeState.personalExpenses||[])].sort((a,b)=>String(a.occurredAt||a.createdAt||'').localeCompare(String(b.occurredAt||b.createdAt||'')));
-        for(const row of expenses){
-          const meta=financeDateTimeLabel(row.occurredAt||row.createdAt),category=financeAllCategoryById(row.categoryId),wallet=financeWalletById(row.walletId);
-          rows.push([
-            meta.key,meta.time,category?.name||'Удалённая категория',
-            Number(row.amount||0),wallet?.name||'',Number(row.sourceAmount||row.amount||0),
-            row.sourceCurrency||'RUB',Number(row.exchangeRate||1),row.note||''
-          ]);
+        const rows=[['Дата','Время','Тип','Категория / кошелёк','Сумма RUB','Кошелёк','Исходная сумма','Исходная валюта','Курс в RUB','Комментарий']];
+        const operations=[];
+        for(const row of financeState.personalExpenses||[])operations.push({kind:'Расход',occurredAt:row.occurredAt||row.createdAt,row});
+        for(const row of financeState.walletIncomes||[])operations.push({kind:'Доход',occurredAt:row.occurredAt||row.createdAt,row});
+        operations.sort((a,b)=>String(a.occurredAt||'').localeCompare(String(b.occurredAt||'')));
+        for(const entry of operations){
+          const row=entry.row,meta=financeDateTimeLabel(entry.occurredAt);
+          if(entry.kind==='Доход'){
+            const wallet=financeWalletById(row.walletId);
+            rows.push([
+              meta.key,meta.time,'Доход',wallet?.name||'Кошелёк',
+              Number(row.rubAmount||0),wallet?.name||'',Number(row.amount||0),
+              row.currency||wallet?.currency||'RUB',Number(row.exchangeRate||1),row.note||''
+            ]);
+          }else{
+            const category=financeAllCategoryById(row.categoryId),wallet=financeWalletById(row.walletId);
+            rows.push([
+              meta.key,meta.time,'Расход',category?.name||'Удалённая категория',
+              Number(row.rubAmount||row.amount||0),wallet?.name||'',Number(row.sourceAmount||row.amount||0),
+              row.sourceCurrency||'RUB',Number(row.exchangeRate||1),row.note||''
+            ]);
+          }
         }
         const csv='\uFEFFsep=;\r\n'+rows.map(row=>row.map(financeCsvEscape).join(';')).join('\r\n');
         const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob);
