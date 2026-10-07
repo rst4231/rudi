@@ -249,13 +249,13 @@
       </section>
 
       <nav id="financeTabs" class="finance-tabs" role="tablist" aria-label="Разделы финансов">
-        <button type="button" class="finance-tab is-active" data-finance-tab="shared" role="tab" aria-selected="true">Совместные</button>
-        <button type="button" class="finance-tab" data-finance-tab="personal" role="tab" aria-selected="false">Личные</button>
+        <button type="button" class="finance-tab" data-finance-tab="shared" role="tab" aria-selected="false">Совместные</button>
+        <button type="button" class="finance-tab is-active" data-finance-tab="personal" role="tab" aria-selected="true">Личные</button>
         <button type="button" class="finance-tab" data-finance-tab="debts" role="tab" aria-selected="false">Долги</button>
         <button type="button" class="finance-tab" data-finance-tab="literacy" role="tab" aria-selected="false">Грамотность</button>
       </nav>
 
-      <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared">
+      <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared" hidden>
         <article class="finance-editor-card">
           <div class="finance-editor-head">
             <div class="finance-editor-icon" aria-hidden="true">₽</div>
@@ -324,7 +324,7 @@
         </section>
       </div>
 
-      <div id="financePersonalPanel" class="finance-tab-panel" data-finance-panel="personal" hidden>
+      <div id="financePersonalPanel" class="finance-tab-panel" data-finance-panel="personal">
         <article class="finance-coin-board" aria-label="Личные доходы и категории расходов">
           <div class="finance-coin-overview">
             <div><span>Расходы</span><strong id="financeExpenseMonthTotal">0 ₽</strong></div>
@@ -339,22 +339,13 @@
             <input id="financePersonalMonthInput" class="finance-month-input" type="month" aria-label="Месяц личных финансов">
           </div>
 
-          <div class="finance-income-source finance-income-source-compact">
-            <label class="finance-input-field finance-monthly-income-field">
-              <span>Доход за месяц</span>
-              <div class="finance-money-input">
-                <input id="financePersonalIncomeInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Доход за месяц">
-                <b>₽</b>
-              </div>
-            </label>
-            <div class="finance-drag-hint">Кошельки ниже можно перетаскивать на категории расходов</div>
-          </div>
-          <div id="financePersonalStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite"></div>
-
           <div class="finance-wallet-section">
             <div class="finance-coin-section-head">
               <div><span class="section-eyebrow">Источники</span><h2 id="financeWalletsTitle">Кошельки</h2></div>
-              <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
+              <div class="finance-wallet-head-actions">
+                <button id="financeIncomeAddButton" class="finance-wallet-add finance-income-add" type="button">+ Доход</button>
+                <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
+              </div>
             </div>
             <div id="financeWalletList" class="finance-wallet-list finance-coin-grid" aria-labelledby="financeWalletsTitle"></div>
             <div id="financeWalletEmpty" class="finance-history-empty">Создай кошелёк и укажи валюту</div>
@@ -467,22 +458,49 @@
             <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
             <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>
+            <div class="finance-wallet-history-wrap">
+              <div class="finance-wallet-history-title">История кошелька</div>
+              <div id="financeWalletHistory" class="finance-wallet-history"></div>
+            </div>
           </section>
         </div>
 
-        <article class="finance-transfer-card" aria-labelledby="financeTransferTitle">
-          <div class="finance-transfer-copy">
-            <span class="section-eyebrow">Данные</span>
-            <h2 id="financeTransferTitle">Импорт и экспорт</h2>
-            <p>Выбери полный CSV CoinKeeper за весь период. Расходы импортируются с исходными датами, а отсутствующие категории создаются автоматически.</p>
-          </div>
-          <div class="finance-transfer-actions">
-            <button id="financeImportButton" class="finance-transfer-button" type="button">Импорт CoinKeeper</button>
-            <button id="financeExportButton" class="finance-transfer-button is-secondary" type="button">Экспорт CSV</button>
-          </div>
-          <input id="financeImportFile" type="file" accept=".csv,text/csv,text/plain" hidden>
-          <div id="financeTransferStatus" class="finance-status" role="status" aria-live="polite"></div>
-        </article>
+        <div id="financeIncomeComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeIncomeComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeIncomeComposerTitle">
+            <div class="finance-coin-modal-head">
+              <div><small>Поступление</small><h3 id="financeIncomeComposerTitle">Добавить доход</h3></div>
+              <button id="financeIncomeComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <label class="finance-input-field">
+              <span>Кошелёк</span>
+              <select id="financeIncomeWallet" class="finance-select" aria-label="Кошелёк для дохода"></select>
+            </label>
+            <label class="finance-input-field">
+              <span>Сумма</span>
+              <div class="finance-money-input">
+                <input id="financeIncomeAmount" type="number" min="0.01" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Сумма дохода">
+                <b id="financeIncomeCurrency">₽</b>
+              </div>
+            </label>
+            <div class="finance-expense-datetime-grid">
+              <label class="finance-input-field">
+                <span>Дата</span>
+                <input id="financeIncomeDate" class="finance-text-input" type="date" aria-label="Дата дохода">
+              </label>
+              <label class="finance-input-field">
+                <span>Время</span>
+                <input id="financeIncomeTime" class="finance-text-input" type="time" step="60" aria-label="Время дохода">
+              </label>
+            </div>
+            <label class="finance-input-field">
+              <span>Комментарий</span>
+              <input id="financeIncomeNote" class="finance-text-input" maxlength="120" placeholder="Необязательно" aria-label="Комментарий к доходу">
+            </label>
+            <button id="financeIncomeSaveButton" class="finance-analyst-button" type="button">Добавить доход</button>
+            <div id="financeIncomeStatus" class="finance-status" role="status" aria-live="polite"></div>
+          </section>
+        </div>
 
         <div id="financeCategoryDeleteChooser" class="finance-coin-modal" hidden aria-hidden="true">
           <button id="financeCategoryDeleteBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Отмена"></button>
@@ -525,6 +543,21 @@
           <span class="section-eyebrow">ИИ-инсайт месяца</span>
           <p id="financeAiInsightText">Добавь доход и расходы по категориям, и здесь появится короткий разбор.</p>
         </blockquote>
+
+        <article class="finance-transfer-card" aria-labelledby="financeTransferTitle">
+          <div class="finance-transfer-copy">
+            <span class="section-eyebrow">Данные</span>
+            <h2 id="financeTransferTitle">Импорт и экспорт</h2>
+            <p>Выбери полный CSV CoinKeeper за весь период. Расходы импортируются с исходными датами, а отсутствующие категории создаются автоматически.</p>
+          </div>
+          <div class="finance-transfer-actions">
+            <button id="financeImportButton" class="finance-transfer-button" type="button">Импорт CoinKeeper</button>
+            <button id="financeExportButton" class="finance-transfer-button is-secondary" type="button">Экспорт CSV</button>
+          </div>
+          <input id="financeImportFile" type="file" accept=".csv,text/csv,text/plain" hidden>
+          <div id="financeTransferStatus" class="finance-status" role="status" aria-live="polite"></div>
+        </article>
+
       </div>
 
       <div id="financeDebtsPanel" class="finance-tab-panel" data-finance-panel="debts" hidden>

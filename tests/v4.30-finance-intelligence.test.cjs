@@ -4,7 +4,7 @@ const fs=require('node:fs');
 
 const {
   DEFAULT_CATEGORIES, normalizeState, viewState, expenseTotal,
-  savePersonalIncome, saveExpenseCategory, updateExpenseCategory, savePersonalExpense,
+  saveWallet, saveWalletIncome, saveExpenseCategory, updateExpenseCategory, savePersonalExpense,
   resetMutationQueueForTests,
 }=require('../api/finance-store.cjs');
 const { moscowDateKey, similarity }=require('../api/finance-ai.cjs');
@@ -24,10 +24,14 @@ test('personal finance starts with five default expense categories',()=>{
   assert.equal(DEFAULT_CATEGORIES.length,5);
 });
 
-test('categorized expenses drive monthly spending and balance',async()=>{
+test('categorized expenses and wallet incomes drive monthly balance',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache(null);
-  await savePersonalIncome('Рустам','2026-10',100000,{financeCache,now:'2026-10-06T12:00:00Z'});
+  await saveWallet('Рустам',{name:'Основной',currency:'RUB',balance:0},{financeCache,id:'main-wallet'});
+  await saveWalletIncome('Рустам',{
+    walletId:'main-wallet',amount:100000,currency:'RUB',rubAmount:100000,exchangeRate:1,
+    month:'2026-10',occurredAt:'2026-10-06T12:00:00Z'
+  },{financeCache,id:'income-1',now:'2026-10-06T12:00:00Z'});
   let state=normalizeState(financeCache.value());
   const food=state.categories['Рустам'].find(row=>row.name==='Еда');
   assert.ok(food);
@@ -73,7 +77,7 @@ test('finance UI contains literacy, analyst and autosaved categories without per
   assert.ok(!html.includes('id="financePersonalSaveButton"'));
   assert.ok(!html.includes('id="financePersonalHistoryTitle"'));
 
-  assert.ok(app.includes("financeRequest('save-personal-income'"));
+  assert.ok(app.includes("financeRequest('save-wallet-income'"));
   assert.ok(app.includes("financeRequest('save-expense'"));
   assert.ok(app.includes("financeRequest('analyst'"));
   assert.ok(app.includes("page.dataset.financeTone=activeFinanceTab"));

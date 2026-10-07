@@ -1,7 +1,7 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
-  saveWallet, deleteWallet, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
+  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
@@ -19,6 +19,23 @@ function statusFor(code, error) {
     'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch'
   ].includes(code)) return 400;
   return 500;
+}
+async function financeRubRates() {
+  const ticker = await readMarketTicker();
+  const byId = new Map((ticker.items || []).map((item) => [String(item.id || ''), Number(item.value)]));
+  const usdRub = Number(byId.get('usd-rub'));
+  const eurRub = Number(byId.get('eur-rub'));
+  const btcUsd = Number(byId.get('btcusdt'));
+  const ethUsd = Number(byId.get('ethusdt'));
+  const usdtUsd = Number(byId.get('usdtusd')) || 1;
+  return {
+    RUB: 1,
+    USD: usdRub,
+    EUR: eurRub,
+    USDT: usdRub && usdtUsd ? usdRub * usdtUsd : 0,
+    BTC: usdRub && btcUsd ? usdRub * btcUsd : 0,
+    ETH: usdRub && ethUsd ? usdRub * ethUsd : 0,
+  };
 }
 function categorySummary(view, month) {
   const expenses = (Array.isArray(view.personalExpenses) ? view.personalExpenses : []).filter((row) => row.month === month);
@@ -62,6 +79,40 @@ async function handler(req, res) {
     if (operation === 'delete-wallet') {
       const state = await deleteWallet(actor, body.id);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'reorder-wallets') {
+      const state = await reorderWallets(actor, body.ids);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-wallet-income') {
+      const current = await readFinanceState();
+      const view = viewState(current, actor);
+      const wallet = (view.wallets || []).find((row) => row.id === String(body.walletId || ''));
+      if (!wallet) throw new Error('finance-wallet-not-found');
+      const amount = Number(body.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('finance-amount-invalid');
+      const currency = String(wallet.currency || 'RUB').toUpperCase();
+      const rates = currency === 'RUB' ? { RUB: 1 } : await financeRubRates();
+      const rubRate = Number(rates[currency]);
+      if (!rubRate) throw new Error('finance-rate-invalid');
+      const rubAmount = Math.round(amount * rubRate * 100) / 100;
+      const state = await saveWalletIncome(actor, {
+        walletId: wallet.id,
+        amount,
+        currency,
+        rubAmount,
+        exchangeRate: rubRate,
+        occurredAt: body.occurredAt,
+        month: body.month,
+        note: body.note,
+      });
+      return res.status(200).json({
+        ok: true,
+        actor,
+        canEdit: actor === 'Рустам',
+        income: { walletId: wallet.id, amount, currency, rubAmount, exchangeRate: rubRate },
+        ...viewState(state, actor),
+      });
     }
     if (operation === 'save-category') {
       const state = await saveExpenseCategory(actor, body);
@@ -133,7 +184,11 @@ async function handler(req, res) {
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion: { sourceAmount, sourceCurrency, amount, targetCurrency, rubAmount, exchangeRate }, ...viewState(state, actor) });
     }
     if (operation === 'import-expenses') {
-      const imported = await importPersonalExpenses(actor, body.rows);
+      const imported = await importPersonalExpenses(actor, {
+        rows: body.rows,
+        currentCategories: body.currentCategories,
+        currentWallets: body.currentWallets,
+      });
       return res.status(200).json({
         ok: true,
         actor,

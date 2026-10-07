@@ -24,12 +24,20 @@ function financeMonthPhrase(value) {
 }
 function directFinanceAddress(value, max = 1800) {
   let text = compact(value, max);
-  text = text.replace(/\bу\s+Рустама\b/giu, 'у вас').replace(/\bу\s+Дианы\b/giu, 'у вас');
+  text = text.replace(/у\s+Рустама/giu, 'у вас').replace(/у\s+Дианы/giu, 'у вас');
   const cases = {
     января:'январе', февраля:'феврале', марта:'марте', апреля:'апреле', мая:'мае', июня:'июне',
     июля:'июле', августа:'августе', сентября:'сентябре', октября:'октябре', ноября:'ноябре', декабря:'декабре',
   };
-  for (const [from, to] of Object.entries(cases)) text = text.replace(new RegExp('\\bв\\s+' + from + '\\b', 'giu'), 'в ' + to);
+  for (const [from, to] of Object.entries(cases)) text = text.replace(new RegExp('в\\s+' + from, 'giu'), 'в ' + to);
+  text = text
+    .replace(/для\s+(?:Рустама|Дианы)/giu, 'для вас')
+    .replace(/(?:Рустаму|Диане)/giu, 'вам')
+    .replace(/(?:Рустамом|Дианой|Дианою)/giu, 'вами')
+    .replace(/(?:Рустам|Диана)/giu, 'вы')
+    .replace(/(?:Рустама|Дианы)/giu, 'вас')
+    .replace(/у\s+вы/giu, 'у вас')
+    .replace(/для\s+вы/giu, 'для вас');
   return text;
 }
 function moscowDateKey(value = new Date()) {
@@ -174,7 +182,7 @@ async function getMonthlyFinanceInsight(context = {}, options = {}) {
   const actor = compact(context.actor, 30);
   const month = compact(context.month, 10);
   const version = Math.max(0, Number(context.version || 0));
-  const key = ['insight', actor, month, version].join(':');
+  const key = ['insight-v2', actor, month, version].join(':');
   const cache = cacheOf(options);
   const existing = await cache.get(key);
   if (existing?.text) return existing;
@@ -184,13 +192,15 @@ async function getMonthlyFinanceInsight(context = {}, options = {}) {
   const prompt = [
     'Ты финансовый помощник внутри приложения RUDI.',
     'Дай один короткий полезный вывод по месяцу на русском языке, 2–4 предложения, без морализаторства и без инвестиционных советов.',
+    'Всегда обращайся к пользователю на «вы»: «у вас», «ваши расходы», «вам стоит». Никогда не упоминай имя пользователя в готовом ответе.',
+    'Месяц склоняй естественно: например, «у вас в октябре», а не «в октября».',
     'Опирайся только на переданные цифры. Если данных мало, так и скажи и предложи одно простое действие.',
     'Имя пользователя передано только для внутреннего контекста и не должно появляться в ответе: ' + actor + '. Период: ' + financeMonthPhrase(month) + '.',
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
     categories ? 'Категории: ' + categories : 'Расходы по категориям пока не добавлены.',
   ].join('\n');
   const parsed = await requestJson(prompt, monthlyInsightSchema(), { ...options, timeoutMs: 10000 });
-  const text = compact(parsed?.text, 800);
+  const text = directFinanceAddress(parsed?.text, 800);
   if (!text) throw new Error('finance-insight-empty');
   const result = { text, model: MODEL, provider: 'groq' };
   await cache.set(key, result, { ttl: 60 * 60 * 24 * 35, tags: ['rudi-finance-insight'], name: key });
@@ -214,7 +224,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
   const month = compact(context.month, 10);
   const version = Math.max(0, Number(context.version || 0));
   const literacyDate = compact(context.literacy?.date, 20);
-  const key = ['analyst-v3', actor, month, version, literacyDate || 'none'].join(':');
+  const key = ['analyst-v4', actor, month, version, literacyDate || 'none'].join(':');
   const cache = cacheOf(options);
   const existing = await cache.get(key);
   if (existing?.summary) return existing;
@@ -264,6 +274,6 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
 }
 
 module.exports = {
-  MODEL, NAMESPACE, moscowDateKey, similarity, generateLiteracyArticle, getDailyLiteracyArticle, getMonthlyFinanceInsight,
+  MODEL, NAMESPACE, moscowDateKey, similarity, directFinanceAddress, generateLiteracyArticle, getDailyLiteracyArticle, getMonthlyFinanceInsight,
   getFinancialAnalystReport,
 };
