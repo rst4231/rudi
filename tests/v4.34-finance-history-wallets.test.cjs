@@ -267,3 +267,20 @@ test('literacy article renderer has structural formatting styles', () => {
   assert.ok(css.includes('.finance-literacy-body li::marker'));
   assert.ok(css.includes('.finance-literacy-lead'));
 });
+
+
+test('wallet heading shows total value in RUB using existing market rates', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(html.includes('id="financeWalletTotalRub"'));
+  assert.ok(html.includes('finance-wallet-total-rub'));
+  assert.ok(app.includes('function financeWalletRubRates'));
+  assert.ok(app.includes("byId.get('usd-rub')"));
+  assert.ok(app.includes("byId.get('eur-rub')"));
+  assert.ok(app.includes("byId.get('btcusdt')"));
+  assert.ok(app.includes("byId.get('ethusdt')"));
+  assert.ok(app.includes("byId.get('usdtusd')"));
+  assert.ok(app.includes("renderFinanceWalletTotal(payload)"));
+  assert.ok(css.includes('.finance-wallet-total-rub'));
+});
