@@ -409,6 +409,7 @@ async function saveExpenseCategory(actor, payload = {}, options = {}) {
   const safeActor = cleanActor(actor);
   const name = cleanText(payload.name, 48, { required: true });
   const icon = cleanIcon(payload.icon);
+  const currency = cleanCurrency(payload.currency || 'RUB');
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     const rows = current.categories[safeActor] || [];
@@ -416,7 +417,7 @@ async function saveExpenseCategory(actor, payload = {}, options = {}) {
     const existing = rows.find((row) => financeCategoryKey(row.name) === normalizedName);
     if (existing && !existing.archived) throw new Error('finance-category-duplicate');
     if (existing && existing.archived) {
-      const categories = rows.map((row) => row.id === existing.id ? { ...row, archived: false, icon, monthlyLimit: cleanMoney(payload.monthlyLimit || row.monthlyLimit || 0), currency: 'RUB' } : row);
+      const categories = rows.map((row) => row.id === existing.id ? { ...row, archived: false, icon, monthlyLimit: cleanMoney(payload.monthlyLimit || row.monthlyLimit || 0), currency } : row);
       const next = normalizeState({
         ...current, initialized: true, version: current.version + 1,
         categories: { ...current.categories, [safeActor]: categories },
@@ -426,7 +427,7 @@ async function saveExpenseCategory(actor, payload = {}, options = {}) {
     }
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      name, icon, note: '', monthlyLimit: cleanMoney(payload.monthlyLimit || 0), currency: 'RUB', archived: false,
+      name, icon, note: '', monthlyLimit: cleanMoney(payload.monthlyLimit || 0), currency, archived: false,
       createdAt: new Date(options.now || Date.now()).toISOString(),
     };
     const next = normalizeState({
@@ -456,7 +457,7 @@ async function updateExpenseCategory(actor, payload = {}, options = {}) {
       icon: cleanIcon(payload.icon ?? row.icon),
       note: cleanText(payload.note ?? row.note, 180),
       monthlyLimit: cleanMoney(payload.monthlyLimit ?? row.monthlyLimit ?? 0),
-      currency: 'RUB',
+      currency: cleanCurrency(payload.currency ?? row.currency ?? 'RUB'),
     } : row);
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
