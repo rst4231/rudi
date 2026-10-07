@@ -1094,7 +1094,7 @@
     if(delta) delta.textContent=Number.isFinite(insight.analytics.delta30)?'+'+formatKm(insight.analytics.delta30):'—';
     if(daily) daily.textContent=Number.isFinite(insight.analytics.avgDaily)?Math.round(insight.analytics.avgDaily)+' км/день':'—';
     if(eta) eta.textContent=insight.mileageDueAt&&insight.remaining>0?shortDate(insight.mileageDueAt):'—';
-    if(input&&document.activeElement!==input) input.value=String(car?.state?.lastServiceAt||'');
+    if(input&&document.activeElement!==input){input.value=String(car?.state?.lastServiceAt||'');window.syncRudiTemporalControl?.(input)}
 
     if(historyList){
       historyList.replaceChildren();
@@ -1489,6 +1489,7 @@
     if(open){
       const date=document.getElementById('carTaskDate');
       if(date&&!date.value) date.value=clientMoscowDateKey();
+      window.syncRudiTemporalControl?.(date);
       requestAnimationFrame(()=>document.getElementById('carTaskTitle')?.focus());
     }else{
       form.reset();

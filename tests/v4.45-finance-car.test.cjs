@@ -49,3 +49,27 @@ test('v4.47 iOS temporal controls and compact category/wallet layout',()=>{
   assert.match(css,/RUDI v4\.47 — iOS-safe date\/time controls and compact wallet spacing/);
   assert.match(css,/\.finance-wallet-list\.finance-coin-grid\{[\s\S]*?padding-bottom:6px!important/);
 });
+
+
+test('v4.48 regular wallet may go negative on expense while credit limit remains enforced',async()=>{
+  resetMutationQueueForTests();const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'Обычный',currency:'RUB',balance:100,type:'regular'},{financeCache,id:'regular-negative'});
+  await saveExpenseCategory('Рустам',{name:'Расход минус',icon:'💳'},{financeCache,id:'negative-cat'});
+  await savePersonalExpense('Рустам',{month:'2026-10',categoryId:'negative-cat',amount:500,rubAmount:500,walletId:'regular-negative',sourceAmount:500,sourceCurrency:'RUB',targetCurrency:'RUB',exchangeRate:1,occurredAt:'2026-10-07T12:00:00.000Z'},{financeCache,id:'negative-expense'});
+  const wallet=viewState(await readFinanceState({financeCache}),'Рустам').wallets.find(row=>row.id==='regular-negative');
+  assert.equal(wallet.balance,-400);
+});
+
+test('v4.48 grouped history, global temporal controls and private balances are wired',()=>{
+  const html=fs.readFileSync('public/index.html','utf8'),app=fs.readFileSync('public/app.js','utf8'),css=fs.readFileSync('public/app.css','utf8'),car=fs.readFileSync('public/car.js','utf8');
+  assert.match(app,/function financeOperationDayTitle\(/);
+  assert.match(app,/const rows=q\?filtered:filtered\.slice\(0,250\)/);
+  assert.match(app,/function setupRudiTemporalControls\(\)/);
+  assert.match(css,/\.rudi-temporal-control\{/);
+  assert.match(css,/\.finance-operation-day-head/);
+  assert.match(app,/financeBalanceHidden\?'••••':financeMoney\(wallet\.balance,wallet\.currency\)/);
+  assert.match(app,/renderFinanceWallets\(\);renderFinanceCategories\(month\);renderFinancePulse\(month\)/);
+  assert.match(car,/window\.syncRudiTemporalControl\?\.\(date\)/);
+  assert.match(html,/content="v4\.48"/);
+  assert.doesNotMatch(app,/Недостаточно средств в кошельке/);
+});

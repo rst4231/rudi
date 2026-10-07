@@ -981,8 +981,7 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
       if (wallet.currency !== sourceCurrency) throw new Error('finance-wallet-currency-mismatch');
       if (sourceAmount <= 0) throw new Error('finance-amount-invalid');
       const nextBalanceRaw = Number(wallet.balance || 0) - sourceAmount;
-      if (wallet.type === 'credit') { if (Number(wallet.creditLimit || 0) <= 0 || nextBalanceRaw < -Number(wallet.creditLimit || 0) - 1e-9) throw new Error('finance-wallet-insufficient'); }
-      else if (Number(wallet.balance || 0) + 1e-9 < sourceAmount) throw new Error('finance-wallet-insufficient');
+      if (wallet.type === 'credit' && (Number(wallet.creditLimit || 0) <= 0 || nextBalanceRaw < -Number(wallet.creditLimit || 0) - 1e-9)) throw new Error('finance-wallet-insufficient');
       const nextBalance = cleanWalletBalance(nextBalanceRaw);
       wallets = {
         ...current.wallets,
