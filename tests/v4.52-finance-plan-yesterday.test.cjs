@@ -21,9 +21,3 @@ test('v4.52 shows yesterday expense total below categories in Moscow time',()=>{
   assert.ok(app.includes("financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key"));
   assert.ok(css.includes('.finance-category-yesterday'));
 });
-
-test('v4.52 release assets are versioned',()=>{
-  assert.ok(html.includes('content="v4.52"'));
-  assert.ok(html.includes('/app.css?v=4.52'));
-  assert.ok(html.includes('/app.js?v=4.52'));
-});

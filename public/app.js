@@ -2178,6 +2178,7 @@
       let financeCategoryEditingId='';
       let financeExpenseWalletId='';
       let financeExpenseSourceCurrency='RUB';
+      let financeExpenseInputCurrency='RUB';
       let financeExpenseCalcLeft=null;
       let financeExpenseCalcOperator='';
       let financeExpenseCalcReplace=false;
@@ -3080,6 +3081,58 @@
         });
       }
 
+      function financeExpenseCurrencyChoiceLabel(currency='RUB'){
+        const code=String(currency||'RUB').toUpperCase();
+        return financeCurrencySymbol(code)+' '+code;
+      }
+      function syncFinanceExpenseCurrencyChoice(){
+        const category=financeCategoryById(financeExpenseCategoryId);
+        const wallet=financeExpenseWalletId?financeWalletById(financeExpenseWalletId):null;
+        if(!category)return;
+        const sourceCurrency=String(wallet?.currency||financeExpenseSourceCurrency||category.currency||'RUB').toUpperCase();
+        const targetCurrency=String(category.currency||sourceCurrency).toUpperCase();
+        const canSwitch=Boolean(wallet)&&sourceCurrency!==targetCurrency;
+        if(![sourceCurrency,targetCurrency].includes(financeExpenseInputCurrency))financeExpenseInputCurrency=sourceCurrency;
+        const switcher=document.getElementById('financeExpenseCurrencySwitch');
+        const sourceButton=document.getElementById('financeExpenseCurrencySource');
+        const targetButton=document.getElementById('financeExpenseCurrencyTarget');
+        const currency=document.getElementById('financeExpenseComposerCurrency');
+        const conversion=document.getElementById('financeExpenseComposerConversion');
+        if(switcher)switcher.hidden=!canSwitch;
+        if(sourceButton){
+          sourceButton.dataset.currency=sourceCurrency;
+          sourceButton.textContent=financeExpenseCurrencyChoiceLabel(sourceCurrency);
+          sourceButton.classList.toggle('is-active',financeExpenseInputCurrency===sourceCurrency);
+          sourceButton.setAttribute('aria-pressed',financeExpenseInputCurrency===sourceCurrency?'true':'false');
+        }
+        if(targetButton){
+          targetButton.dataset.currency=targetCurrency;
+          targetButton.textContent=financeExpenseCurrencyChoiceLabel(targetCurrency);
+          targetButton.classList.toggle('is-active',financeExpenseInputCurrency===targetCurrency);
+          targetButton.setAttribute('aria-pressed',financeExpenseInputCurrency===targetCurrency?'true':'false');
+        }
+        if(currency)currency.textContent=financeCurrencySymbol(financeExpenseInputCurrency);
+        if(conversion){
+          conversion.hidden=!canSwitch;
+          if(canSwitch){
+            conversion.textContent=financeExpenseInputCurrency===sourceCurrency
+              ? 'Ввод в '+sourceCurrency+' · спишу '+sourceCurrency+', в категорию запишу '+targetCurrency+' по текущему курсу'
+              : 'Ввод в '+targetCurrency+' · спишу эквивалент в '+sourceCurrency+' по текущему курсу';
+          }else conversion.textContent='';
+        }
+      }
+      function setFinanceExpenseInputCurrency(currency){
+        const code=String(currency||'').toUpperCase();
+        const category=financeCategoryById(financeExpenseCategoryId);
+        const wallet=financeExpenseWalletId?financeWalletById(financeExpenseWalletId):null;
+        if(!category)return;
+        const sourceCurrency=String(wallet?.currency||financeExpenseSourceCurrency||category.currency||'RUB').toUpperCase();
+        const targetCurrency=String(category.currency||sourceCurrency).toUpperCase();
+        if(![sourceCurrency,targetCurrency].includes(code))return;
+        financeExpenseInputCurrency=code;
+        syncFinanceExpenseCurrencyChoice();
+      }
+
       function openFinanceExpenseComposer(categoryId,{walletId='',sourceCurrency='',focusAmount=false}={}){
         const category=financeCategoryById(categoryId),modal=document.getElementById('financeExpenseComposer');
         if(!category||!modal)return;
@@ -3087,12 +3140,12 @@
         financeExpenseWalletId=String(walletId||'');
         const wallet=financeExpenseWalletId?financeWalletById(financeExpenseWalletId):null;
         financeExpenseSourceCurrency=String(wallet?.currency||sourceCurrency||category.currency||'RUB').toUpperCase();
+        financeExpenseInputCurrency=financeExpenseSourceCurrency;
 
         const title=document.getElementById('financeExpenseComposerTitle'),icon=document.getElementById('financeExpenseComposerIcon');
         const amount=document.getElementById('financeExpenseComposerAmount'),currency=document.getElementById('financeExpenseComposerCurrency');
         const note=document.getElementById('financeExpenseComposerNote'),status=document.getElementById('financeExpenseComposerStatus');
         const source=document.getElementById('financeExpenseComposerSource');
-        const conversion=document.getElementById('financeExpenseComposerConversion');
         const dateInput=document.getElementById('financeExpenseComposerDate'),timeInput=document.getElementById('financeExpenseComposerTime');
         const now=financeNowDateTimeInputs();
 
@@ -3117,14 +3170,7 @@
             ? 'Источник: '+String(wallet.name||'Кошелёк')+' · '+financeMoney(wallet.balance,wallet.currency)
             : '';
         }
-        if(conversion){
-          const targetCurrency=String(category.currency||'RUB').toUpperCase();
-          const convert=financeExpenseSourceCurrency!==targetCurrency;
-          conversion.hidden=!convert;
-          conversion.textContent=convert
-            ? financeExpenseSourceCurrency+' → '+targetCurrency+' · пересчитаю по текущему курсу при сохранении'
-            : '';
-        }
+        syncFinanceExpenseCurrencyChoice();
 
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         renderFinanceExpenseComposerHistory(month,category.id);
@@ -4423,6 +4469,13 @@
           if(event.key==='Enter'){event.preventDefault();saveExpenseLabel()}
         });
 
+        ['financeExpenseCurrencySource','financeExpenseCurrencyTarget'].forEach(id=>{
+          document.getElementById(id)?.addEventListener('click',event=>{
+            setFinanceExpenseInputCurrency(event.currentTarget?.dataset?.currency||'');
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+
         document.getElementById('financeExpenseKeypad')?.addEventListener('click',event=>{
           const button=event.target?.closest?.('[data-finance-expense-key]');if(!button)return;
           financeExpenseAppendKey(String(button.dataset.financeExpenseKey||''));
@@ -4441,9 +4494,8 @@
               month:expenseMonth,
               categoryId:financeExpenseCategoryId,
               amount:value,
-              sourceAmount:value,
+              inputCurrency:financeExpenseInputCurrency,
               walletId:financeExpenseWalletId,
-              sourceCurrency:financeExpenseSourceCurrency,
               occurredAt,
               label:financeExpenseLabel,
               note:note?.value||''

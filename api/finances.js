@@ -37,6 +37,34 @@ async function financeRubRates() {
     ETH: usdRub && ethUsd ? usdRub * ethUsd : 0,
   };
 }
+function resolveExpenseConversion({ inputAmount, inputCurrency, sourceCurrency, targetCurrency, rates = {} } = {}) {
+  const input = Number(inputAmount);
+  if (!Number.isFinite(input) || input <= 0) throw new Error('finance-amount-invalid');
+  const source = String(sourceCurrency || 'RUB').toUpperCase();
+  const target = String(targetCurrency || 'RUB').toUpperCase();
+  const chosen = String(inputCurrency || source).toUpperCase();
+  if (![source, target].includes(chosen)) throw new Error('finance-wallet-currency-mismatch');
+  const sourceRate = Number(rates[source]);
+  const targetRate = Number(rates[target]);
+  if (!sourceRate || !targetRate) throw new Error('finance-rate-invalid');
+  const roundMoney = (value) => Math.round(Number(value) * 100) / 100;
+  const roundAsset = (value) => Math.round(Number(value) * 100000000) / 100000000;
+  let sourceAmount;
+  let amount;
+  let rubAmount;
+  if (chosen === target && target !== source) {
+    amount = roundMoney(input);
+    rubAmount = roundMoney(amount * targetRate);
+    sourceAmount = roundAsset(rubAmount / sourceRate);
+  } else {
+    sourceAmount = roundAsset(input);
+    rubAmount = roundMoney(sourceAmount * sourceRate);
+    amount = roundMoney(rubAmount / targetRate);
+  }
+  const exchangeRate = roundAsset(amount / sourceAmount);
+  return { inputAmount: input, inputCurrency: chosen, sourceAmount, sourceCurrency: source, amount, targetCurrency: target, rubAmount, exchangeRate };
+}
+
 function categorySummary(view, month) {
   const expenses = (Array.isArray(view.personalExpenses) ? view.personalExpenses : []).filter((row) => row.month === month);
   return (Array.isArray(view.categories) ? view.categories : []).map((category) => ({
@@ -205,33 +233,11 @@ async function handler(req, res) {
 
       const sourceCurrency = String(wallet?.currency || category.currency || 'RUB').toUpperCase();
       const targetCurrency = String(category.currency || 'RUB').toUpperCase();
-      const sourceAmount = Number(body.sourceAmount ?? body.amount);
-      if (!Number.isFinite(sourceAmount) || sourceAmount <= 0) throw new Error('finance-amount-invalid');
-
-      let rubRates = { RUB: 1 };
-      if (sourceCurrency !== 'RUB' || targetCurrency !== 'RUB') {
-        const ticker = await readMarketTicker();
-        const byId = new Map((ticker.items || []).map((item) => [String(item.id || ''), Number(item.value)]));
-        const usdRub = Number(byId.get('usd-rub'));
-        const eurRub = Number(byId.get('eur-rub'));
-        const btcUsd = Number(byId.get('btcusdt'));
-        const ethUsd = Number(byId.get('ethusdt'));
-        const usdtUsd = Number(byId.get('usdtusd')) || 1;
-        rubRates = {
-          RUB: 1,
-          USD: usdRub,
-          EUR: eurRub,
-          USDT: usdRub && usdtUsd ? usdRub * usdtUsd : 0,
-          BTC: usdRub && btcUsd ? usdRub * btcUsd : 0,
-          ETH: usdRub && ethUsd ? usdRub * ethUsd : 0,
-        };
-      }
-      const sourceRub = Number(rubRates[sourceCurrency]);
-      const targetRub = Number(rubRates[targetCurrency]);
-      if (!sourceRub || !targetRub) throw new Error('finance-rate-invalid');
-      const rubAmount = Math.round(sourceAmount * sourceRub * 100) / 100;
-      const amount = Math.round((rubAmount / targetRub) * 100) / 100;
-      const exchangeRate = Math.round((amount / sourceAmount) * 100000000) / 100000000;
+      const inputAmount = Number(body.amount ?? body.sourceAmount);
+      const inputCurrency = String(body.inputCurrency || sourceCurrency).toUpperCase();
+      const rubRates = sourceCurrency === 'RUB' && targetCurrency === 'RUB' ? { RUB: 1 } : await financeRubRates();
+      const conversion = resolveExpenseConversion({ inputAmount, inputCurrency, sourceCurrency, targetCurrency, rates: rubRates });
+      const { sourceAmount, amount, rubAmount, exchangeRate } = conversion;
 
       const state = await savePersonalExpense(actor, {
         ...body,
@@ -242,7 +248,7 @@ async function handler(req, res) {
         rubAmount,
         exchangeRate,
       });
-      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion: { sourceAmount, sourceCurrency, amount, targetCurrency, rubAmount, exchangeRate }, ...viewState(state, actor) });
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion, ...viewState(state, actor) });
     }
     if (operation === 'import-expenses') {
       const imported = await importPersonalExpenses(actor, {
@@ -318,3 +324,4 @@ module.exports = handler;
 module.exports.handler = handler;
 module.exports.statusFor = statusFor;
 module.exports.categorySummary = categorySummary;
+module.exports.resolveExpenseConversion = resolveExpenseConversion;

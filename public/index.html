@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.52">
+  <meta name="rudi-version" content="v4.53">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.52">
+  <link rel="stylesheet" href="/app.css?v=4.53">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -64,7 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.52"></script>
+  <script defer src="/app.js?v=4.53"></script>
   <script defer src="/pwa-extras.js?v=4.12"></script>
   <script defer src="/weather.js?v=4.12"></script>
   <script defer src="/smart-home.js?v=4.12"></script>
@@ -429,6 +429,10 @@
               <div class="finance-expense-amount-line">
                 <input id="financeExpenseComposerAmount" type="text" inputmode="none" readonly autocomplete="off" placeholder="0" aria-label="Сумма расхода" aria-live="polite">
                 <b id="financeExpenseComposerCurrency">₽</b>
+              </div>
+              <div id="financeExpenseCurrencySwitch" class="finance-expense-currency-switch" role="group" aria-label="Валюта суммы" hidden>
+                <button id="financeExpenseCurrencySource" type="button" aria-pressed="true"></button>
+                <button id="financeExpenseCurrencyTarget" type="button" aria-pressed="false"></button>
               </div>
               <div id="financeExpenseComposerConversion" class="finance-expense-conversion" hidden></div>
               <input id="financeExpenseComposerNote" class="finance-expense-note-input" maxlength="120" placeholder="Добавить комментарий" aria-label="Комментарий к расходу">

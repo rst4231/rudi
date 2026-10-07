@@ -15903,13 +15903,45 @@ html[data-theme="dark"] .finance-literacy-card{
   font-size:8.5px;
   line-height:1.2
 }
+#financeExpenseComposer .finance-expense-currency-switch{
+  justify-self:center;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:3px;
+  min-width:164px;
+  padding:3px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:var(--soft)
+}
+#financeExpenseComposer .finance-expense-currency-switch[hidden]{display:none!important}
+#financeExpenseComposer .finance-expense-currency-switch button{
+  min-height:36px;
+  border:0;
+  border-radius:10px;
+  padding:0 11px;
+  background:transparent;
+  color:var(--muted);
+  font:inherit;
+  font-size:9px;
+  font-weight:830;
+  white-space:nowrap
+}
+#financeExpenseComposer .finance-expense-currency-switch button.is-active{
+  background:var(--surface-strong);
+  color:var(--text);
+  box-shadow:0 2px 8px color-mix(in srgb,var(--text) 8%,transparent)
+}
 #financeExpenseComposer .finance-expense-conversion{
   justify-self:center;
+  max-width:92%;
   margin:0;
   padding:3px 7px;
   background:transparent;
   color:var(--muted);
-  font-size:8px
+  font-size:8px;
+  line-height:1.35;
+  text-align:center
 }
 .finance-expense-note-input{
   width:100%;
