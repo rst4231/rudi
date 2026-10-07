@@ -14887,3 +14887,83 @@ html[data-theme="dark"] .finance-literacy-card{
 
 /* v4.38 category reorder gesture capture */
 .finance-category-coin{touch-action:none}
+
+
+/* v4.39 finance editor and iPhone layout fixes */
+.finance-coin-modal-sheet > .finance-input-field + .finance-input-field{margin-top:10px}
+.finance-expense-datetime-grid{margin-top:10px;min-width:0}
+.finance-expense-datetime-grid .finance-input-field{min-width:0}
+.finance-expense-datetime-grid .finance-text-input{
+  min-width:0;
+  width:100%;
+  max-width:100%;
+  font-size:16px;
+  line-height:1.2
+}
+#financeCategoryIcon{font-size:18px}
+.finance-category-rub-note{
+  margin:9px 1px 2px;
+  color:var(--muted);
+  font-size:9.5px;
+  font-weight:680;
+  line-height:1.4
+}
+.finance-category-spent-field[hidden]{display:none!important}
+.finance-category-spent-field>small{
+  color:var(--muted);
+  font-size:8.7px;
+  line-height:1.35
+}
+.finance-wallet-order-control{
+  display:grid;
+  gap:7px;
+  margin-top:10px
+}
+.finance-wallet-order-control[hidden]{display:none!important}
+.finance-wallet-order-control>span{
+  color:var(--muted);
+  font-size:9.5px;
+  font-weight:720
+}
+.finance-wallet-order-control>div{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px
+}
+.finance-wallet-order-control button{
+  min-height:40px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--soft);
+  color:var(--text);
+  font:inherit;
+  font-size:9.5px;
+  font-weight:800
+}
+.finance-wallet-order-control button:disabled{opacity:.36}
+.finance-wallet-list.finance-coin-grid{
+  min-height:108px;
+  padding-bottom:20px!important
+}
+.finance-wallet-list .finance-wallet-item{
+  min-height:96px;
+  padding-bottom:4px
+}
+.finance-wallet-list .finance-coin-amount{
+  min-height:20px;
+  max-width:100%;
+  padding:1px 1px 2px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  text-align:center;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  line-height:1.24
+}
+#financePlannedMonthTotal.is-over-limit{color:#d94b55}
+@media(max-width:430px){
+  .finance-wallet-list .finance-coin-amount{font-size:7.9px;line-height:1.3}
+}

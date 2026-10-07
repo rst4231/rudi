@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.34">
+  <link rel="stylesheet" href="/app.css?v=4.39">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -64,7 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.34"></script>
+  <script defer src="/app.js?v=4.39"></script>
   <script defer src="/pwa-extras.js?v=4.12"></script>
   <script defer src="/weather.js?v=4.12"></script>
   <script defer src="/smart-home.js?v=4.12"></script>
@@ -410,7 +410,7 @@
           <button id="financeCategoryComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
           <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeCategoryComposerTitle">
             <div class="finance-coin-modal-head">
-              <div><small>Новая монета</small><h3 id="financeCategoryComposerTitle">Категория расхода</h3></div>
+              <div><small id="financeCategoryComposerEyebrow">Новая монета</small><h3 id="financeCategoryComposerTitle">Категория расхода</h3></div>
               <button id="financeCategoryComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
             </div>
             <label class="finance-input-field">
@@ -434,8 +434,17 @@
                 <b>₽</b>
               </div>
             </label>
+            <label id="financeCategorySpentField" class="finance-input-field finance-category-spent-field" hidden>
+              <span id="financeCategorySpentLabel">Потрачено в этом месяце</span>
+              <div class="finance-money-input">
+                <input id="financeCategorySpent" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" placeholder="0" aria-label="Потрачено в категории за выбранный месяц">
+                <b>₽</b>
+              </div>
+              <small>Можно вручную скорректировать итог выбранного месяца.</small>
+            </label>
             <div class="finance-category-rub-note">Расходы в категориях учитываются в рублях.</div>
             <button id="financeCategoryCreateButton" class="finance-analyst-button" type="button">Создать категорию</button>
+            <div id="financeCategoryComposerStatus" class="finance-status" role="status" aria-live="polite"></div>
           </section>
         </div>
 
@@ -465,6 +474,13 @@
               <span>Баланс</span>
               <input id="financeWalletBalance" class="finance-text-input" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Баланс кошелька">
             </label>
+            <div id="financeWalletOrderControl" class="finance-wallet-order-control" hidden>
+              <span>Позиция в списке</span>
+              <div>
+                <button id="financeWalletMoveLeft" type="button" aria-label="Переместить кошелёк левее">← Левее</button>
+                <button id="financeWalletMoveRight" type="button" aria-label="Переместить кошелёк правее">Правее →</button>
+              </div>
+            </div>
             <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
             <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>

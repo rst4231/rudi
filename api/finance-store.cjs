@@ -43,6 +43,11 @@ function cleanMoney(value) {
   if (!Number.isFinite(number) || number < 0 || number > 100000000) throw new Error('finance-amount-invalid');
   return Math.round(number * 100) / 100;
 }
+function cleanSignedMoney(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < -100000000 || number > 100000000) throw new Error('finance-amount-invalid');
+  return Math.round(number * 100) / 100;
+}
 function cleanText(value, max = 140, { required = false } = {}) {
   const text = String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
   if (required && !text) throw new Error('finance-text-required');
@@ -226,22 +231,24 @@ function normalizeState(value) {
       const id = cleanText(raw?.id, 100, { required: true });
       const month = cleanMonth(raw?.month);
       const categoryId = cleanText(raw?.categoryId, 100, { required: true });
-      const amount = cleanMoney(raw?.amount);
-      if (amount <= 0 || !categories[actor].some((row) => row.id === categoryId)) continue;
+      const manualAdjustment = Boolean(raw?.manualAdjustment);
+      const amount = manualAdjustment ? cleanSignedMoney(raw?.amount) : cleanMoney(raw?.amount);
+      if ((!manualAdjustment && amount <= 0) || (manualAdjustment && Math.abs(amount) < 0.005) || !categories[actor].some((row) => row.id === categoryId)) continue;
       const createdAt = new Date(raw?.createdAt || Date.now());
       const updatedAt = new Date(raw?.updatedAt || raw?.createdAt || Date.now());
       const occurredAt = cleanOccurredAt(raw?.occurredAt || raw?.createdAt || Date.now());
-      const rubAmount = cleanMoney(raw?.rubAmount || raw?.amount);
+      const rubAmount = manualAdjustment ? cleanSignedMoney(raw?.rubAmount ?? raw?.amount) : cleanMoney(raw?.rubAmount || raw?.amount);
       personalExpenses.push({
         id, actor, month, categoryId, amount,
         note: cleanText(raw?.note, 120),
         label: cleanExpenseLabel(raw?.label),
-        walletId: cleanText(raw?.walletId, 100),
-        sourceAmount: cleanAssetAmount(raw?.sourceAmount || raw?.amount),
-        sourceCurrency: cleanCurrency(raw?.sourceCurrency || 'RUB'),
-        targetCurrency: cleanCurrency(raw?.targetCurrency || raw?.currency || 'RUB'),
-        exchangeRate: Math.max(0, Number(raw?.exchangeRate || 1)) || 1,
+        walletId: manualAdjustment ? '' : cleanText(raw?.walletId, 100),
+        sourceAmount: manualAdjustment ? 0 : cleanAssetAmount(raw?.sourceAmount || raw?.amount),
+        sourceCurrency: manualAdjustment ? 'RUB' : cleanCurrency(raw?.sourceCurrency || 'RUB'),
+        targetCurrency: manualAdjustment ? 'RUB' : cleanCurrency(raw?.targetCurrency || raw?.currency || 'RUB'),
+        exchangeRate: manualAdjustment ? 1 : (Math.max(0, Number(raw?.exchangeRate || 1)) || 1),
         rubAmount,
+        manualAdjustment,
         importKey: cleanText(raw?.importKey, 220),
         occurredAt,
         createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
@@ -632,10 +639,50 @@ async function updateExpenseCategory(actor, payload = {}, options = {}) {
       currency: cleanCurrency(payload.currency ?? row.currency ?? 'RUB'),
       labels: payload.labels === undefined ? cleanExpenseLabels(row.labels, name) : cleanExpenseLabels(payload.labels, name),
     } : row);
-    const next = normalizeState({
+    const now = new Date(options.now || Date.now()).toISOString();
+    let adjustedMonth = '';
+    let personalExpenses = current.personalExpenses;
+    if (payload.spent !== undefined && payload.month !== undefined) {
+      adjustedMonth = cleanMonth(payload.month);
+      const targetSpent = cleanMoney(payload.spent);
+      const isTargetRow = (row) => row.actor === safeActor && row.month === adjustedMonth && row.categoryId === id;
+      const existingAdjustment = current.personalExpenses.find((row) => isTargetRow(row) && row.manualAdjustment);
+      const baseSpent = Math.round(current.personalExpenses
+        .filter((row) => isTargetRow(row) && !row.manualAdjustment)
+        .reduce((sum, row) => sum + Number(row.rubAmount ?? row.amount ?? 0), 0) * 100) / 100;
+      const delta = Math.round((targetSpent - baseSpent) * 100) / 100;
+      personalExpenses = current.personalExpenses.filter((row) => !(isTargetRow(row) && row.manualAdjustment));
+      if (Math.abs(delta) >= 0.005) {
+        personalExpenses = personalExpenses.concat({
+          id: existingAdjustment?.id || randomUUID(),
+          actor: safeActor,
+          month: adjustedMonth,
+          categoryId: id,
+          amount: delta,
+          note: 'Ручная корректировка итога',
+          label: 'Корректировка',
+          walletId: '',
+          sourceAmount: 0,
+          sourceCurrency: 'RUB',
+          targetCurrency: 'RUB',
+          exchangeRate: 1,
+          rubAmount: delta,
+          manualAdjustment: true,
+          importKey: '',
+          occurredAt: existingAdjustment?.occurredAt || now,
+          createdAt: existingAdjustment?.createdAt || now,
+          updatedAt: now,
+        });
+      }
+    }
+    let next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
       categories: { ...current.categories, [safeActor]: categories },
+      personalExpenses,
     });
+    if (adjustedMonth) {
+      next = normalizeState({ ...next, personal: syncPersonalMonthExpenses(next, safeActor, adjustedMonth, now) });
+    }
     await writeState(next, options);
     return next;
   });
@@ -968,9 +1015,14 @@ async function deletePersonalExpense(actor, id, options = {}) {
         };
       }
     }
+    const clearAdjustment = !found.manualAdjustment;
     const base = normalizeState({
       ...current, version: current.version + 1, wallets,
-      personalExpenses: current.personalExpenses.filter((row) => row.id !== cleanId),
+      personalExpenses: current.personalExpenses.filter((row) => {
+        if (row.id === cleanId) return false;
+        if (clearAdjustment && row.manualAdjustment && row.actor === safeActor && row.month === found.month && row.categoryId === found.categoryId) return false;
+        return true;
+      }),
     });
     const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, found.month, now) });
     await writeState(next, options);
@@ -1020,7 +1072,7 @@ async function toggleDebt(actor, id, paid, options = {}) {
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
-  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanPlan, splitAmounts, personalAmounts,
+  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
   saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
