@@ -675,9 +675,16 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
     if (hasCurrentCategories) {
       for (let index = 0; index < categories.length; index++) {
         const row = categories[index];
-        if (row.importSource !== 'coinkeeper') continue;
-        const archived = !currentCategoryKeys.has(financeCategoryKey(row.name));
-        if (row.archived !== archived) { categories[index] = { ...row, archived }; categoryMap.set(financeCategoryKey(row.name), categories[index]); entityChanges++; }
+        const managedByImport = row.importSource === 'coinkeeper' || String(row.id || '').startsWith('default-');
+        if (!managedByImport) continue;
+        const key = financeCategoryKey(row.name);
+        const archived = !currentCategoryKeys.has(key);
+        const importSource = currentCategoryKeys.has(key) ? 'coinkeeper' : row.importSource;
+        if (row.archived !== archived || row.importSource !== importSource) {
+          categories[index] = { ...row, archived, importSource };
+          categoryMap.set(key, categories[index]);
+          entityChanges++;
+        }
       }
       for (const rawName of currentCategoryNames) {
         const name = cleanText(rawName, 48);
@@ -687,8 +694,8 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
         if (!category) {
           category = { id: randomUUID(), name, icon: '💳', note: '', monthlyLimit: 0, currency: 'RUB', archived: false, importSource: 'coinkeeper', createdAt: now };
           categories.push(category); categoryMap.set(key, category); createdCategories.push(name); entityChanges++;
-        } else if (category.archived) {
-          const updated = { ...category, archived: false };
+        } else if (category.archived || category.importSource !== 'coinkeeper') {
+          const updated = { ...category, archived: false, importSource: category.importSource || 'coinkeeper' };
           categories[categories.findIndex((row) => row.id === category.id)] = updated;
           categoryMap.set(key, updated); entityChanges++;
         }
