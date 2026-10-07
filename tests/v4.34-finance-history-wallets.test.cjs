@@ -284,3 +284,12 @@ test('wallet heading shows total value in RUB using existing market rates', () =
   assert.ok(app.includes("renderFinanceWalletTotal(payload)"));
   assert.ok(css.includes('.finance-wallet-total-rub'));
 });
+
+
+test('wallet reorder gesture uses pointer position instead of element hit-testing', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.ok(app.includes('function financeWalletMoveByPointer'));
+  assert.ok(app.includes('financeWalletMoveByPointer(list,item,event.clientX)'));
+  assert.ok(app.includes('startedByLongPress:true'));
+  assert.ok(app.includes("financeRequest('reorder-wallets',{ids})"));
+});
