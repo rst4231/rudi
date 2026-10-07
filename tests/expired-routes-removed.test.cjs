@@ -14,6 +14,13 @@ const removed = [
   'api/repair-labor-20260823.js',
   'api/retire-products-list.js',
   'api/cinema-topic-migrate.js',
+  'api/stylist-leads.cjs',
+  'api/stylist-web-search.cjs',
+  'config/stylist-leads.json',
+  'tests/stylist-cron.test.cjs',
+  'tests/stylist-leads.test.cjs',
+  'tests/stylist-provider-intent-regression.test.cjs',
+  'tests/stylist-web-search.test.cjs',
 ];
 
 test('expired one-time recovery handlers are absent', () => {
@@ -27,4 +34,13 @@ test('Vercel no longer carries expired recovery function config', () => {
   assert.equal(Object.prototype.hasOwnProperty.call(config.functions || {}, 'api/recover-20260823.js'), false);
   const serialized = JSON.stringify(config);
   for (const relative of removed) assert.equal(serialized.includes(relative), false);
+});
+
+
+test('stylist client search route and code are removed', () => {
+  const indexSource = fs.readFileSync(path.join(root, 'api/index.js'), 'utf8');
+  const config = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  assert.equal(indexSource.includes('stylist-leads'), false);
+  assert.equal(indexSource.includes('runStylistLeadScan'), false);
+  assert.equal(JSON.stringify(config).includes('stylist-leads-cron'), false);
 });
