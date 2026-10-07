@@ -305,6 +305,8 @@ async function handler(req, res) {
         rows: body.rows,
         currentCategories: body.currentCategories,
         currentWallets: body.currentWallets,
+        importSource: body.importSource,
+        walletId: body.walletId,
       });
       return res.status(200).json({
         ok: true,
