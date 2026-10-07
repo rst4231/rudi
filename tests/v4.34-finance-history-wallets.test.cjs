@@ -345,3 +345,17 @@ test('wallet history rows expose delete control for income and expense', () => {
   assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
   assert.ok(app.includes('finance-wallet-history-delete'));
 });
+
+
+test('expense composer shows dragged wallet source and category reorder is two-dimensional', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(html.includes('id="financeExpenseComposerSource"'));
+  assert.ok(app.includes("source.textContent=wallet"));
+  assert.ok(app.includes("'Источник: '+String(wallet.name||'Кошелёк')"));
+  assert.ok(app.includes('function financeCategoryMoveByPointer'));
+  assert.ok(app.includes('financeCategoryMoveByPointer(list,item,event.clientX,event.clientY)'));
+  assert.ok(app.includes('startedByLongPress:true'));
+  assert.ok(css.includes('.finance-expense-source'));
+});
