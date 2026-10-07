@@ -2872,7 +2872,7 @@
         document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
       }
 
-      function parseFinanceCsv(text){
+      function parseFinanceCsv(text,{keepEmpty=false}={}){
         let source=String(text||'').replace(/^\uFEFF/,'');
         let delimiter=',';
         const sep=source.match(/^sep=(.)\r?\n/i);
@@ -2894,7 +2894,7 @@
           else field+=ch;
         }
         if(field||row.length){row.push(field.replace(/\r$/,''));rows.push(row)}
-        return rows.filter(row=>row.some(cell=>String(cell||'').trim()));
+        return keepEmpty?rows:rows.filter(row=>row.some(cell=>String(cell||'').trim()));
       }
 
       function financeHeaderKey(value){
@@ -2922,9 +2922,90 @@
         const cleaned=String(value||'').replace(/\s/g,'').replace(/[^0-9,.-]/g,'').replace(/,(?=\d{1,2}$)/,'.').replace(/,/g,'');
         const num=Math.abs(Number(cleaned));return Number.isFinite(num)?num:0;
       }
+      function coinKeeperCsvSections(text){
+        const raw=parseFinanceCsv(text,{keepEmpty:true}),sections=[];let section=[];
+        const flush=()=>{if(section.some(row=>row.some(cell=>String(cell||'').trim())))sections.push(section.filter(row=>row.some(cell=>String(cell||'').trim())));section=[]};
+        for(const row of raw){
+          if(row.some(cell=>String(cell||'').trim()))section.push(row);
+          else flush();
+        }
+        flush();return sections;
+      }
+      function coinKeeperReferenceEntities(sections,transactionSectionIndex,parseCurrency){
+        let accountsDetected=false,categoriesDetected=false;
+        const currentWallets=[],currentCategories=[];
+        const walletKeys=new Set(),categoryKeys=new Set();
+        const findHeader=(section,matcher)=>{
+          for(let i=0;i<Math.min(section.length,5);i++){
+            const keys=section[i].map(financeHeaderKey);
+            if(matcher(keys))return {index:i,keys};
+          }
+          return null;
+        };
+        const indexOfAlias=(keys,aliases)=>keys.findIndex(key=>aliases.some(alias=>key===alias||key.includes(alias)));
+        for(let s=0;s<sections.length;s++){
+          if(s===transactionSectionIndex)continue;
+          const section=sections[s];
+          const descriptor=section.slice(0,4).flat().map(financeHeaderKey).join(' ');
+          const accountLike=/(account|wallet|счет|кошел)/i.test(descriptor);
+          const expenseCategoryLike=/(expense.{0,20}categor|categor.{0,20}expense|категор.{0,20}расход|расход.{0,20}категор)/i.test(descriptor);
+          if(accountLike){
+            accountsDetected=true;
+            const header=findHeader(section,keys=>{
+              const joined=keys.join(' ');
+              return /(name|назван|account|wallet|счет|кошел)/i.test(joined)&&/(balance|остат|currency|валют)/i.test(joined);
+            });
+            let nameI=0,balanceI=1,currencyI=2,start=1;
+            if(header){
+              nameI=indexOfAlias(header.keys,['name','название','account','wallet','счет','кошелек']);
+              balanceI=indexOfAlias(header.keys,['balance','остаток','amount','сумма']);
+              currencyI=indexOfAlias(header.keys,['currency','валюта']);
+              start=header.index+1;
+            }
+            if(nameI<0)nameI=0;
+            for(let i=start;i<section.length;i++){
+              const row=section[i],name=String(row[nameI]||'').trim();
+              if(!name||/(account|wallet|счет|кошел|name|назван)/i.test(financeHeaderKey(name)))continue;
+              const currency=parseCurrency(currencyI>=0?row[currencyI]:'',row[balanceI]||'');
+              const balance=balanceI>=0?financeParseNumber(row[balanceI]):0;
+              const key=financeHeaderKey(name)+'|'+currency;
+              if(walletKeys.has(key))continue;
+              walletKeys.add(key);currentWallets.push({name:name.slice(0,48),currency,balance});
+            }
+          }
+          if(expenseCategoryLike){
+            categoriesDetected=true;
+            const header=findHeader(section,keys=>keys.some(key=>/(category|категор|name|назван)/i.test(key)));
+            let nameI=0,start=1;
+            if(header){
+              nameI=indexOfAlias(header.keys,['category','категория','name','название']);
+              start=header.index+1;
+            }
+            if(nameI<0)nameI=0;
+            for(let i=start;i<section.length;i++){
+              const name=String(section[i][nameI]||'').trim();
+              if(!name||/(expense|расход|category|категор|name|назван)/i.test(financeHeaderKey(name)))continue;
+              const key=financeHeaderKey(name);if(categoryKeys.has(key))continue;
+              categoryKeys.add(key);currentCategories.push(name.slice(0,48));
+            }
+          }
+        }
+        return {
+          currentWallets:accountsDetected?currentWallets:undefined,
+          currentCategories:categoriesDetected?currentCategories:undefined,
+          accountsDetected,categoriesDetected,
+        };
+      }
       function coinKeeperRowsFromCsv(text){
-        const table=parseFinanceCsv(text);if(table.length<2)throw new Error('csv-empty');
-        const headers=table[0].map(financeHeaderKey);
+        const sections=coinKeeperCsvSections(text);if(!sections.length)throw new Error('csv-empty');
+        let transactionSectionIndex=-1,table=null,headers=null;
+        for(let i=0;i<sections.length;i++){
+          const candidate=sections[i],keys=candidate[0]?.map(financeHeaderKey)||[];
+          if(keys.some(key=>key==='data'||key==='date'||key==='дата')&&keys.some(key=>key.includes('amount')||key.includes('сумма'))){
+            transactionSectionIndex=i;table=candidate;headers=keys;break;
+          }
+        }
+        if(!table||table.length<2)throw new Error('csv-columns');
         const find=(aliases)=>headers.findIndex(h=>aliases.some(alias=>h===alias||h.includes(alias)));
         const dateI=find(['data','date','дата']),typeI=find(['type','тип']),fromI=find(['from','откуда','счет']),toI=find(['to','куда','категор']),tagsI=find(['tags','теги']);
         const amountI=find(['amount','сумма']),noteI=find(['note','comment','комментар','замет']),currencyI=find(['currency','валюта']);
@@ -2940,6 +3021,7 @@
           if(raw.includes('RUB')||raw.includes('RUR')||raw.includes('₽')||raw.includes('РУБ'))return 'RUB';
           return 'RUB';
         };
+        const refs=coinKeeperReferenceEntities(sections,transactionSectionIndex,parseCurrency);
         const result=[];let skipped=0;
         for(let index=1;index<table.length;index++){
           const row=table[index],type=String(row[typeI]||'').trim(),lower=type.toLocaleLowerCase('ru-RU');
@@ -2967,23 +3049,29 @@
             importKey:'coinkeeper:'+financeCsvHash(canonical)
           });
         }
-        return {rows:result,skipped};
+        return {rows:result,skipped,...refs};
       }
 
       async function importFinanceCsvFile(file){
         const status=document.getElementById('financeTransferStatus');
         if(status)status.textContent='Читаю файл…';
         const parsed=coinKeeperRowsFromCsv(await file.text());
-        if(!parsed.rows.length)throw new Error('csv-no-expenses');
-        let imported=0,duplicates=0,skipped=parsed.skipped,created=new Set(),last=null;
-        for(let i=0;i<parsed.rows.length;i+=350){
-          if(status)status.textContent='Импортирую '+Math.min(i+350,parsed.rows.length)+' из '+parsed.rows.length+'…';
-          const data=await financeRequest('import-expenses',{rows:parsed.rows.slice(i,i+350)});
+        if(!parsed.rows.length&&parsed.currentWallets===undefined&&parsed.currentCategories===undefined)throw new Error('csv-no-expenses');
+        let imported=0,duplicates=0,skipped=parsed.skipped,created=new Set(),createdWallets=new Set(),last=null;
+        const chunks=parsed.rows.length?Math.ceil(parsed.rows.length/350):1;
+        for(let chunk=0;chunk<chunks;chunk++){
+          const i=chunk*350;
+          if(status&&parsed.rows.length)status.textContent='Импортирую '+Math.min(i+350,parsed.rows.length)+' из '+parsed.rows.length+'…';
+          const payload={rows:parsed.rows.slice(i,i+350)};
+          if(parsed.currentCategories!==undefined)payload.currentCategories=parsed.currentCategories;
+          if(parsed.currentWallets!==undefined)payload.currentWallets=parsed.currentWallets;
+          const data=await financeRequest('import-expenses',payload);
           last=data;imported+=Number(data.importResult?.imported||0);duplicates+=Number(data.importResult?.duplicates||0);skipped+=Number(data.importResult?.skipped||0);
           for(const name of data.importResult?.createdCategories||[])created.add(name);
+          for(const name of data.importResult?.createdWallets||[])createdWallets.add(name);
         }
         if(last)renderFinanceState(last,{personalMonth:document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
-        if(status)status.textContent='Готово: '+imported+' расходов · новых категорий '+created.size+(duplicates?' · дублей пропущено '+duplicates:'')+(skipped?' · пропущено '+skipped:'');
+        if(status)status.textContent='Готово: '+imported+' расходов · актуальных кошельков '+(parsed.currentWallets?.length??0)+' · новых категорий '+created.size+(createdWallets.size?' · новых кошельков '+createdWallets.size:'')+(duplicates?' · дублей пропущено '+duplicates:'')+(skipped?' · пропущено '+skipped:'');
         refreshFinanceInsight(true).catch(()=>{});
       }
 
