@@ -2572,7 +2572,6 @@
         item.addEventListener('pointerdown',event=>{
           if(event.button!==undefined&&event.button!==0)return;
           drag={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,moved:false,target:null,ghost:null};
-          item.setPointerCapture?.(event.pointerId);
         });
         item.addEventListener('pointermove',event=>{
           if(!drag||drag.pointerId!==event.pointerId)return;
@@ -2580,12 +2579,12 @@
           const distance=Math.hypot(dx,dy);
           if(!drag.moved&&distance<8)return;
           if(!drag.moved&&Math.abs(dx)>Math.abs(dy)*1.15){
-            try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
             drag=null;
             return;
           }
           if(!drag.moved){
             drag.moved=true;
+            try{item.setPointerCapture?.(event.pointerId)}catch(_){}
             const rect=item.querySelector('.finance-coin')?.getBoundingClientRect()||item.getBoundingClientRect();
             const ghost=document.createElement('div');ghost.className='finance-income-drag-ghost';
             ghost.textContent=financeCurrencySymbol(wallet.currency);
