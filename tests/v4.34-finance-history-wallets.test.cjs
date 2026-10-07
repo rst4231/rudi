@@ -388,3 +388,14 @@ test('finance overview shows planned limits and wallet total subtitle', () => {
   assert.ok(css.includes('grid-template-columns:repeat(4,minmax(0,1fr))'));
   assert.ok(css.includes('.finance-wallet-total-rub'));
 });
+
+
+test('income composer does not autofocus amount and category reorder tracks pointer globally', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes('mountFinanceCoinModal(modal);'));
+  assert.ok(!app.includes('mountFinanceCoinModal(modal,amount,{forceFocus:true});'));
+  assert.ok(app.includes("document.addEventListener('pointermove',onMove,{capture:true,passive:false})"));
+  assert.ok(app.includes('financeCategoryMoveByPointer(list,item,moveEvent.clientX,moveEvent.clientY)'));
+  assert.ok(css.includes('.finance-category-coin{touch-action:none}'));
+});
