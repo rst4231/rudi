@@ -159,9 +159,8 @@
     const balance=document.getElementById('financeWalletBalance')?.closest('.finance-input-field');
     const save=document.getElementById('financeWalletSaveButton');if(!save)return null;
     card=document.createElement('section');card.id='financeBankConnectionCard';card.className='finance-bank-card';card.hidden=true;
-    card.innerHTML='<div class="finance-bank-head"><div><strong>Ozon Bank</strong><span id="financeBankStatus">Не подключён</span></div><span class="finance-bank-badge">Банк</span></div><div class="finance-bank-meta"><span>Импорт с</span><b>08.10.2026</b></div><div class="finance-bank-actions"><button id="financeBankConnect" type="button">Подключить</button><button id="financeBankImport" type="button" hidden>Обновить выпиской</button><button id="financeBankDisconnect" type="button" hidden>Отключить</button></div><input id="financeBankFile" type="file" accept=".csv,.txt,text/csv,text/plain" hidden><div id="financeBankMessage" class="finance-bank-message"></div>';
+    card.innerHTML='<div class="finance-bank-head"><div><strong>Ozon Bank</strong><span id="financeBankStatus">Не подключён</span></div><span class="finance-bank-badge">Банк</span></div><div class="finance-bank-meta"><span>Импорт с</span><b>08.10.2026</b></div><div class="finance-bank-actions"><button id="financeBankImport" type="button" hidden>Обновить выпиской</button><button id="financeBankDisconnect" type="button" hidden>Отключить</button></div><input id="financeBankFile" type="file" accept=".csv,.txt,text/csv,text/plain" hidden><div id="financeBankMessage" class="finance-bank-message"></div>';
     (balance||save).insertAdjacentElement('afterend',card);
-    document.getElementById('financeBankConnect')?.addEventListener('click',connect);
     document.getElementById('financeBankImport')?.addEventListener('click',()=>document.getElementById('financeBankFile')?.click());
     document.getElementById('financeBankDisconnect')?.addEventListener('click',disconnect);
     document.getElementById('financeBankFile')?.addEventListener('change',onFile);
@@ -173,9 +172,9 @@
     card.hidden=!wallet;
     if(!wallet)return;
     const linked=wallet.importSource==='ozon';
-    const status=document.getElementById('financeBankStatus'),connectBtn=document.getElementById('financeBankConnect'),importBtn=document.getElementById('financeBankImport'),disconnectBtn=document.getElementById('financeBankDisconnect');
+    const status=document.getElementById('financeBankStatus'),importBtn=document.getElementById('financeBankImport'),disconnectBtn=document.getElementById('financeBankDisconnect');
     if(status)status.textContent=linked?(wallet.bankLastSyncAt?'Подключён · '+new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Moscow'}).format(new Date(wallet.bankLastSyncAt)):'Подключён'):'Не подключён';
-    if(connectBtn)connectBtn.hidden=linked;if(importBtn)importBtn.hidden=!linked;if(disconnectBtn)disconnectBtn.hidden=!linked;
+    if(importBtn)importBtn.hidden=!linked;if(disconnectBtn)disconnectBtn.hidden=!linked;
   };
   async function connect(){
     const wallet=await getWallet(true);if(!wallet)return;
