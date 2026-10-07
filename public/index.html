@@ -339,22 +339,13 @@
             <input id="financePersonalMonthInput" class="finance-month-input" type="month" aria-label="Месяц личных финансов">
           </div>
 
-          <div class="finance-income-source finance-income-source-compact">
-            <label class="finance-input-field finance-monthly-income-field">
-              <span>Доход за месяц</span>
-              <div class="finance-money-input">
-                <input id="financePersonalIncomeInput" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Доход за месяц">
-                <b>₽</b>
-              </div>
-            </label>
-            <div class="finance-drag-hint">Кошельки ниже можно перетаскивать на категории расходов</div>
-          </div>
-          <div id="financePersonalStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite"></div>
-
           <div class="finance-wallet-section">
             <div class="finance-coin-section-head">
               <div><span class="section-eyebrow">Источники</span><h2 id="financeWalletsTitle">Кошельки</h2></div>
-              <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
+              <div class="finance-wallet-head-actions">
+                <button id="financeIncomeAddButton" class="finance-wallet-add finance-income-add" type="button">+ Доход</button>
+                <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
+              </div>
             </div>
             <div id="financeWalletList" class="finance-wallet-list finance-coin-grid" aria-labelledby="financeWalletsTitle"></div>
             <div id="financeWalletEmpty" class="finance-history-empty">Создай кошелёк и укажи валюту</div>
@@ -467,6 +458,47 @@
             <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
             <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>
+            <div class="finance-wallet-history-wrap">
+              <div class="finance-wallet-history-title">История кошелька</div>
+              <div id="financeWalletHistory" class="finance-wallet-history"></div>
+            </div>
+          </section>
+        </div>
+
+        <div id="financeIncomeComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeIncomeComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeIncomeComposerTitle">
+            <div class="finance-coin-modal-head">
+              <div><small>Поступление</small><h3 id="financeIncomeComposerTitle">Добавить доход</h3></div>
+              <button id="financeIncomeComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <label class="finance-input-field">
+              <span>Кошелёк</span>
+              <select id="financeIncomeWallet" class="finance-select" aria-label="Кошелёк для дохода"></select>
+            </label>
+            <label class="finance-input-field">
+              <span>Сумма</span>
+              <div class="finance-money-input">
+                <input id="financeIncomeAmount" type="number" min="0.01" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Сумма дохода">
+                <b id="financeIncomeCurrency">₽</b>
+              </div>
+            </label>
+            <div class="finance-expense-datetime-grid">
+              <label class="finance-input-field">
+                <span>Дата</span>
+                <input id="financeIncomeDate" class="finance-text-input" type="date" aria-label="Дата дохода">
+              </label>
+              <label class="finance-input-field">
+                <span>Время</span>
+                <input id="financeIncomeTime" class="finance-text-input" type="time" step="60" aria-label="Время дохода">
+              </label>
+            </div>
+            <label class="finance-input-field">
+              <span>Комментарий</span>
+              <input id="financeIncomeNote" class="finance-text-input" maxlength="120" placeholder="Необязательно" aria-label="Комментарий к доходу">
+            </label>
+            <button id="financeIncomeSaveButton" class="finance-analyst-button" type="button">Добавить доход</button>
+            <div id="financeIncomeStatus" class="finance-status" role="status" aria-live="polite"></div>
           </section>
         </div>
 
