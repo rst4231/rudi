@@ -31,13 +31,13 @@ function directFinanceAddress(value, max = 1800) {
   };
   for (const [from, to] of Object.entries(cases)) text = text.replace(new RegExp('\\bв\\s+' + from + '\\b', 'giu'), 'в ' + to);
   text = text
-    .replace(/\\bдля\\s+(?:Рустама|Дианы)\\b/giu, 'для вас')
-    .replace(/\\b(?:Рустаму|Диане)\\b/giu, 'вам')
-    .replace(/\\b(?:Рустамом|Дианой|Дианою)\\b/giu, 'вами')
-    .replace(/\\b(?:Рустам|Диана)\\b/giu, 'вы')
-    .replace(/\\b(?:Рустама|Дианы)\\b/giu, 'вас')
-    .replace(/\\bу\\s+вы\\b/giu, 'у вас')
-    .replace(/\\bдля\\s+вы\\b/giu, 'для вас');
+    .replace(/\bдля\s+(?:Рустама|Дианы)\b/giu, 'для вас')
+    .replace(/\b(?:Рустаму|Диане)\b/giu, 'вам')
+    .replace(/\b(?:Рустамом|Дианой|Дианою)\b/giu, 'вами')
+    .replace(/\b(?:Рустам|Диана)\b/giu, 'вы')
+    .replace(/\b(?:Рустама|Дианы)\b/giu, 'вас')
+    .replace(/\bу\s+вы\b/giu, 'у вас')
+    .replace(/\bдля\s+вы\b/giu, 'для вас');
   return text;
 }
 function moscowDateKey(value = new Date()) {
@@ -274,6 +274,6 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
 }
 
 module.exports = {
-  MODEL, NAMESPACE, moscowDateKey, similarity, generateLiteracyArticle, getDailyLiteracyArticle, getMonthlyFinanceInsight,
+  MODEL, NAMESPACE, moscowDateKey, similarity, directFinanceAddress, generateLiteracyArticle, getDailyLiteracyArticle, getMonthlyFinanceInsight,
   getFinancialAnalystReport,
 };
