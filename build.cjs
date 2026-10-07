@@ -123,6 +123,8 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
   html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
   html = html.replace(/\/manifest\.webmanifest\?v=[^"]+/g, '/manifest.webmanifest?v=' + assetVersion);
+  html = html.replace(/<link rel="icon"[^>]+>/, '<link rel="icon" type="image/png" href="/api/rudi-app-icon?v=' + assetVersion + '">');
+  html = html.replace(/<link rel="apple-touch-icon"[^>]+>/, '<link rel="apple-touch-icon" href="/api/rudi-app-icon?v=' + assetVersion + '">');
   html = html.replace(
     /(<meta name="rudi-version" content=")[^"]*(")/,
     '$1' + label + '$2'
@@ -131,6 +133,7 @@ function syncWebVersion(env = process.env) {
   if (fs.existsSync(webServiceWorkerPath)) {
     let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
     serviceWorker = serviceWorker.replace(/const CACHE_NAME='rudi-shell-v[^']+';/, "const CACHE_NAME='rudi-shell-" + label + "';");
+    serviceWorker = serviceWorker.replace(/\/icon-192-v176\.jpg/g, '/api/rudi-app-icon?v=' + assetVersion);
     fs.writeFileSync(webServiceWorkerPath, serviceWorker);
   }
   return label;
