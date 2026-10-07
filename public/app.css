@@ -17250,9 +17250,4 @@ body.finance-month-dialog-open{overflow:hidden!important}
   margin-top:0
 }
 
-/* v4.67 expense editor */
-.finance-expense-edit-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.finance-expense-edit-fields label{display:flex;flex-direction:column;gap:6px;min-width:0}
-.finance-expense-edit-fields label>span{font-size:11px;font-weight:700;color:#8f98aa;text-transform:uppercase;letter-spacing:.05em}
-.finance-expense-edit-fields select,.finance-expense-edit-fields input{width:100%;min-width:0;border:1px solid rgba(148,163,184,.18);border-radius:12px;background:rgba(255,255,255,.04);color:inherit;padding:11px;font:inherit;font-weight:700}
-@media(max-width:520px){.finance-expense-edit-fields{grid-template-columns:1fr}}
+
