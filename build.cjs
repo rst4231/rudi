@@ -141,9 +141,9 @@ function syncServiceWorkerPrecache(assetPaths) {
   const basePrecache = [
     '/',
     '/manifest.webmanifest',
-    '/favicon-rudi-v459.png',
-    '/apple-touch-icon-rudi-v459.png',
-    '/icon-192-rudi-v459.png',
+    '/favicon-rudi-v460.png',
+    '/apple-touch-icon-rudi-v460.png',
+    '/icon-192-rudi-v460.png',
     '/icon-512.svg',
     '/icon-maskable.svg',
   ];
