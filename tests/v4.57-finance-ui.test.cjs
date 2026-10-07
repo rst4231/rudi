@@ -124,4 +124,6 @@ test('v4.71 category amounts follow selected overview currency',()=>{
   assert.ok(app.includes("if(financeCategoryHistoryId)renderFinanceCategoryHistory()"));
   assert.ok(app.includes("total.textContent=financeOverviewMoney(visibleTotal)"));
   assert.ok(app.includes("value.textContent='−'+financeOverviewMoney(row.rubAmount||row.amount)"));
+  assert.ok(app.includes("financeOverviewMoney(row.amount)+' · '+row.day+' числа"));
+  assert.ok(app.includes("'До конца '+financeMonthTitle(month)+': '+financeOverviewMoney(pending)"));
 });
