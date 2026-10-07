@@ -14192,6 +14192,9 @@ html[data-theme="dark"] .finance-coin-overview{background:color-mix(in srgb,var(
 .finance-coin-divider{height:1px;background:var(--line);margin:0 14px}
 .finance-coin-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 14px 7px}
 .finance-coin-section-head h2{margin:1px 0 0;font-size:16px;letter-spacing:-.02em}
+.finance-category-heading{display:grid;align-content:start}
+.finance-category-yesterday{display:flex;align-items:baseline;gap:5px;margin-top:4px;color:var(--muted);font-size:8.5px;line-height:1.2;font-weight:720}
+.finance-category-yesterday strong{color:var(--text);font-size:9px;font-weight:840;letter-spacing:-.01em}
 .finance-coin-grid{
   display:grid!important;
   grid-template-columns:repeat(5,minmax(0,1fr))!important;

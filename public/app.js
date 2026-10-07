@@ -2683,15 +2683,24 @@
         const plannedLimit=(Array.isArray(financeState.categories)?financeState.categories:[])
           .reduce((sum,category)=>sum+Math.max(0,Number(category?.monthlyLimit||0)),0);
         const actualSpent=financeExpenseTotal(month);
-        const obligationPending=(financeState.plan?.obligations||[]).filter(row=>row.active!==false&&!(row.paidMonths||[]).includes(month)).reduce((sum,row)=>sum+Number(row.amount||0),0);
-        const plannedRemaining=Math.round((plannedLimit-actualSpent+obligationPending)*100)/100;
+        const plannedRemaining=Math.round((plannedLimit-actualSpent)*100)/100;
         const coinIncome=document.getElementById('financeCoinIncomeValue');
         const plannedTotal=document.getElementById('financePlannedMonthTotal');
+        const yesterdayTotal=document.getElementById('financeYesterdayExpenseTotal');
         if(coinIncome)coinIncome.textContent=financeBalanceHidden?'••••':financeMoney(income);
         if(plannedTotal){
           plannedTotal.textContent=financeBalanceHidden?'••••':financeMoney(plannedRemaining);
           plannedTotal.classList.toggle('is-over-limit',plannedRemaining<0);
-          plannedTotal.title='Остаток бюджетов категорий + неоплаченные обязательные расходы за '+financeMonthTitle(month);
+          plannedTotal.title='Сумма всех лимитов категорий минус расходы за '+financeMonthTitle(month);
+        }
+        if(yesterdayTotal){
+          const now=financeMoscowParts();
+          const todayKey=now.year+'-'+now.month+'-'+now.day;
+          const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
+          const yesterdaySpent=Math.round((financeState.personalExpenses||[])
+            .filter(row=>financeDateTimeLabel(row.occurredAt||row.createdAt).key===yesterdayKey)
+            .reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0)*100)/100;
+          yesterdayTotal.textContent=financeBalanceHidden?'••••':financeMoney(yesterdaySpent);
         }
         renderFinanceObligations();
       }
