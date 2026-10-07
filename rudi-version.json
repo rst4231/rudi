@@ -1,11 +1,11 @@
 {
-  "current": "v4.36",
-  "versionBranch": "finance-history-import-v4-34",
+  "current": "v4.37",
+  "versionBranch": "main",
   "releaseCommit": null,
   "deploymentSourceCommit": null,
-  "deploymentRequestedAt": null,
+  "deploymentRequestedAt": "2026-10-07",
   "createdAt": "2026-10-07",
-  "basedOnProduction": "v4.35",
+  "basedOnProduction": "v4.36",
   "notes": [
     "В окне расхода добавлены быстрые метки по категориям: по 5 стартовых вариантов для стандартных категорий, выбор метки сохраняется в расходе, а через «+ Метка» можно добавить свою постоянную метку в список категории.",
     "Исправлено перетаскивание категорий расходов во всех направлениях: слева направо, справа налево, сверху вниз и снизу вверх.",
