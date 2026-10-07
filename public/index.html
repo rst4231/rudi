@@ -427,6 +427,13 @@
               <span>Название</span>
               <input id="financeCategoryName" class="finance-text-input" maxlength="48" placeholder="Например, Продукты" aria-label="Название категории">
             </label>
+            <label class="finance-input-field">
+              <span>Лимит на месяц</span>
+              <div class="finance-money-input">
+                <input id="financeCategoryLimit" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="Без лимита" aria-label="Лимит категории на месяц">
+                <b>₽</b>
+              </div>
+            </label>
             <div class="finance-category-rub-note">Расходы в категориях учитываются в рублях.</div>
             <button id="financeCategoryCreateButton" class="finance-analyst-button" type="button">Создать категорию</button>
           </section>
