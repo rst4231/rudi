@@ -16300,3 +16300,33 @@ body.finance-category-history-open{overflow:hidden}
 .finance-page[data-finance-tone="personal"] #financeOperationsCard{
   margin-top:0!important
 }
+
+
+/* RUDI v4.50 — iOS category history viewport stability */
+.finance-category-history-page{
+  inset:auto!important;
+  top:var(--finance-category-history-top,0px)!important;
+  left:var(--finance-category-history-left,0px)!important;
+  right:auto!important;
+  bottom:auto!important;
+  width:var(--finance-category-history-width,100vw)!important;
+  height:var(--finance-category-history-height,100vh)!important;
+  max-width:none!important;
+  max-height:none!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  transform:translateZ(0);
+  will-change:top,left,height
+}
+@supports(height:100dvh){
+  .finance-category-history-page{
+    height:var(--finance-category-history-height,100dvh)!important
+  }
+}
+body.finance-category-history-open{
+  overflow:hidden!important;
+  overscroll-behavior:none!important
+}
