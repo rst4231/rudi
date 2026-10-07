@@ -44,6 +44,14 @@ function cleanText(value, max = 140, { required = false } = {}) {
 function cleanIcon(value) {
   return String(value || '').trim().slice(0, 12) || '💳';
 }
+function cleanOccurredAt(value, fallback = Date.now()) {
+  const date = new Date(value || fallback);
+  if (Number.isNaN(date.getTime())) throw new Error('finance-date-invalid');
+  return date.toISOString();
+}
+function financeCategoryKey(value) {
+  return String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/g, ' ');
+}
 function defaultCategories() {
   return DEFAULT_CATEGORIES.map((row) => ({ ...row, note: '', monthlyLimit: 0, createdAt: '' }));
 }
@@ -149,9 +157,12 @@ function normalizeState(value) {
       if (amount <= 0 || !categories[actor].some((row) => row.id === categoryId)) continue;
       const createdAt = new Date(raw?.createdAt || Date.now());
       const updatedAt = new Date(raw?.updatedAt || raw?.createdAt || Date.now());
+      const occurredAt = cleanOccurredAt(raw?.occurredAt || raw?.createdAt || Date.now());
       personalExpenses.push({
         id, actor, month, categoryId, amount,
         note: cleanText(raw?.note, 120),
+        importKey: cleanText(raw?.importKey, 220),
+        occurredAt,
         createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
         updatedAt: Number.isNaN(updatedAt.getTime()) ? new Date().toISOString() : updatedAt.toISOString(),
       });
@@ -222,7 +233,7 @@ function viewState(state, actor = '') {
     : [];
   const categories = safeActor ? [...(normalized.categories[safeActor] || [])] : [];
   const personalExpenses = safeActor
-    ? normalized.personalExpenses.filter((row) => row.actor === safeActor).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    ? normalized.personalExpenses.filter((row) => row.actor === safeActor).sort((a, b) => String(b.occurredAt || b.createdAt).localeCompare(String(a.occurredAt || a.createdAt)))
     : [];
   const debts = safeActor
     ? normalized.debts.filter((row) => row.actor === safeActor).sort((a, b) => Number(a.paid) - Number(b.paid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
@@ -394,13 +405,14 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
   const amount = cleanMoney(payload.amount);
   if (amount <= 0) throw new Error('finance-amount-invalid');
   const note = cleanText(payload.note, 120);
+  const occurredAt = cleanOccurredAt(payload.occurredAt, options.now || Date.now());
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     if (!(current.categories[safeActor] || []).some((row) => row.id === categoryId)) throw new Error('finance-category-not-found');
     const now = new Date(options.now || Date.now()).toISOString();
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      actor: safeActor, month, categoryId, amount, note, createdAt: now, updatedAt: now,
+      actor: safeActor, month, categoryId, amount, note, importKey: '', occurredAt, createdAt: now, updatedAt: now,
     };
     const base = normalizeState({
       ...current, initialized: true, version: current.version + 1,
@@ -409,6 +421,91 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
     const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, month, now) });
     await writeState(next, options);
     return next;
+  });
+}
+async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
+  const safeActor = cleanActor(actor);
+  const rows = Array.isArray(payloadRows) ? payloadRows.slice(0, 600) : [];
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const now = new Date(options.now || Date.now()).toISOString();
+    const categories = [...(current.categories[safeActor] || [])];
+    const categoryMap = new Map(categories.map((row) => [financeCategoryKey(row.name), row]));
+    const existingKeys = new Set(
+      current.personalExpenses
+        .filter((row) => row.actor === safeActor && row.importKey)
+        .map((row) => row.importKey)
+    );
+    const added = [];
+    const affectedMonths = new Set();
+    const createdCategories = [];
+    let duplicates = 0, skipped = 0;
+
+    for (const raw of rows) {
+      try {
+        const categoryName = cleanText(raw?.categoryName, 48, { required: true });
+        const categoryKey = financeCategoryKey(categoryName);
+        const amount = cleanMoney(raw?.amount);
+        if (amount <= 0) { skipped++; continue; }
+        const month = cleanMonth(raw?.month);
+        const occurredAt = cleanOccurredAt(raw?.occurredAt);
+        const importKey = cleanText(raw?.importKey, 220, { required: true });
+        if (existingKeys.has(importKey)) { duplicates++; continue; }
+
+        let category = categoryMap.get(categoryKey);
+        if (!category) {
+          category = {
+            id: randomUUID(),
+            name: categoryName,
+            icon: cleanIcon(raw?.icon || '💳'),
+            note: '',
+            monthlyLimit: 0,
+            createdAt: now,
+          };
+          categories.push(category);
+          categoryMap.set(categoryKey, category);
+          createdCategories.push(categoryName);
+        }
+
+        added.push({
+          id: randomUUID(),
+          actor: safeActor,
+          month,
+          categoryId: category.id,
+          amount,
+          note: cleanText(raw?.note, 120),
+          importKey,
+          occurredAt,
+          createdAt: now,
+          updatedAt: now,
+        });
+        existingKeys.add(importKey);
+        affectedMonths.add(month);
+      } catch (_) {
+        skipped++;
+      }
+    }
+
+    let next = normalizeState({
+      ...current,
+      initialized: true,
+      version: current.version + (added.length || createdCategories.length ? 1 : 0),
+      categories: { ...current.categories, [safeActor]: categories },
+      personalExpenses: current.personalExpenses.concat(added),
+    });
+    for (const month of affectedMonths) {
+      next = normalizeState({ ...next, personal: syncPersonalMonthExpenses(next, safeActor, month, now) });
+    }
+    if (added.length || createdCategories.length) await writeState(next, options);
+    return {
+      state: next,
+      result: {
+        imported: added.length,
+        duplicates,
+        skipped,
+        createdCategories,
+      },
+    };
   });
 }
 async function deletePersonalExpense(actor, id, options = {}) {
@@ -473,6 +570,6 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveExpenseCategory, updateExpenseCategory, deleteExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveFinancePlan, saveExpenseCategory, updateExpenseCategory, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };
