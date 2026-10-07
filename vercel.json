@@ -241,10 +241,6 @@
       "destination": "/api/index?route=habit-reminder-cron"
     },
     {
-      "source": "/api/stylist-leads-cron",
-      "destination": "/api/index?route=stylist-leads-cron"
-    },
-    {
       "source": "/api/storage-migrate",
       "destination": "/api/index?route=storage-migrate"
     }
