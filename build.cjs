@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
+const { PNG } = require('pngjs');
 
 const WEB_ASSETS = ['app.css', 'pwa-extras.css', 'calendar.css', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js'];
 
@@ -136,6 +137,51 @@ function syncWebVersion(env = process.env) {
   return label;
 }
 
+
+function resizePngNearest(source, width, height, {contain=1}={}) {
+  const out = new PNG({ width, height, colorType: 6 });
+  for (let i = 0; i < out.data.length; i += 4) {
+    out.data[i] = 255; out.data[i + 1] = 255; out.data[i + 2] = 255; out.data[i + 3] = 255;
+  }
+  const scale = Math.min(width / source.width, height / source.height) * contain;
+  const drawW = Math.max(1, Math.round(source.width * scale));
+  const drawH = Math.max(1, Math.round(source.height * scale));
+  const offsetX = Math.floor((width - drawW) / 2);
+  const offsetY = Math.floor((height - drawH) / 2);
+  for (let y = 0; y < drawH; y += 1) {
+    const sy = Math.min(source.height - 1, Math.floor(y * source.height / drawH));
+    for (let x = 0; x < drawW; x += 1) {
+      const sx = Math.min(source.width - 1, Math.floor(x * source.width / drawW));
+      const si = (sy * source.width + sx) * 4;
+      const di = ((offsetY + y) * width + (offsetX + x)) * 4;
+      const a = source.data[si + 3] / 255;
+      out.data[di] = Math.round(source.data[si] * a + 255 * (1 - a));
+      out.data[di + 1] = Math.round(source.data[si + 1] * a + 255 * (1 - a));
+      out.data[di + 2] = Math.round(source.data[si + 2] * a + 255 * (1 - a));
+      out.data[di + 3] = 255;
+    }
+  }
+  return out;
+}
+
+function buildRudiIcons() {
+  const publicDir = path.join(__dirname, 'public');
+  const sourcePath = path.join(publicDir, 'icon-192-rudi-v459.png');
+  if (!fs.existsSync(sourcePath)) throw new Error('Missing RUDI icon source: icon-192-rudi-v459.png');
+  const source = PNG.sync.read(fs.readFileSync(sourcePath));
+  const outputs = [
+    ['favicon-rudi-v460.png', 32, 32, 1],
+    ['apple-touch-icon-rudi-v460.png', 180, 180, 1],
+    ['icon-192-rudi-v460.png', 192, 192, 1],
+    ['icon-512-rudi-v460.png', 512, 512, 1],
+    ['icon-maskable-rudi-v460.png', 512, 512, 0.82],
+  ];
+  for (const [name, width, height, contain] of outputs) {
+    const png = resizePngNearest(source, width, height, { contain });
+    fs.writeFileSync(path.join(publicDir, name), PNG.sync.write(png, { colorType: 6 }));
+  }
+}
+
 function syncServiceWorkerPrecache(assetPaths) {
   if (!fs.existsSync(webServiceWorkerPath)) return;
   const basePrecache = [
@@ -143,9 +189,9 @@ function syncServiceWorkerPrecache(assetPaths) {
     '/manifest.webmanifest',
     '/favicon-rudi-v460.png',
     '/apple-touch-icon-rudi-v460.png',
-    '/icon-192-rudi-v459.png',
-    '/icon-512.svg',
-    '/icon-maskable.svg',
+    '/icon-192-rudi-v460.png',
+    '/icon-512-rudi-v460.png',
+    '/icon-maskable-rudi-v460.png',
   ];
   const precache = [...new Set([...basePrecache, ...assetPaths])];
   let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
@@ -156,6 +202,7 @@ function syncServiceWorkerPrecache(assetPaths) {
 }
 
 function buildWebAssets(env = process.env) {
+  buildRudiIcons();
   // Keep core web assets on stable public paths, but precache the exact release
   // URLs so iOS/Telegram can never fall back to an older shell after an update.
   const versionConfig = JSON.parse(fs.readFileSync(versionConfigPath, 'utf8'));
@@ -194,4 +241,4 @@ if (require.main === module) {
   console.log(`RUDI runtime built locally: ${result.bytes} bytes`);
 }
 
-module.exports = { buildRuntime, resolveVersionLabel, syncWebVersion, buildWebAssets, syncServiceWorkerPrecache, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
+module.exports = { buildRuntime, resolveVersionLabel, syncWebVersion, buildWebAssets, syncServiceWorkerPrecache, buildRudiIcons, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
