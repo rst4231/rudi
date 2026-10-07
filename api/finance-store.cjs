@@ -139,6 +139,7 @@ function normalizeState(value) {
           icon: cleanIcon(raw?.icon),
           note: cleanText(raw?.note, 180),
           monthlyLimit: cleanMoney(raw?.monthlyLimit || 0),
+          archived: Boolean(raw?.archived),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
         });
         seen.add(id);
@@ -231,7 +232,9 @@ function viewState(state, actor = '') {
         .map((row) => ({ ...row, ...personalAmounts(row.income, expenseTotal(normalized, safeActor, row.month)) }))
         .sort((a, b) => String(b.month).localeCompare(String(a.month)))
     : [];
-  const categories = safeActor ? [...(normalized.categories[safeActor] || [])] : [];
+  const allCategories = safeActor ? [...(normalized.categories[safeActor] || [])] : [];
+  const categories = allCategories.filter((row) => !row.archived);
+  const archivedCategories = allCategories.filter((row) => row.archived);
   const personalExpenses = safeActor
     ? normalized.personalExpenses.filter((row) => row.actor === safeActor).sort((a, b) => String(b.occurredAt || b.createdAt).localeCompare(String(a.occurredAt || a.createdAt)))
     : [];
@@ -239,7 +242,7 @@ function viewState(state, actor = '') {
     ? normalized.debts.filter((row) => row.actor === safeActor).sort((a, b) => Number(a.paid) - Number(b.paid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
     : [];
   const plan = safeActor ? normalized.plans[safeActor] : cleanPlan();
-  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, categories, personalExpenses, debts, plan };
+  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, categories, archivedCategories, personalExpenses, debts, plan };
 }
 function enqueueMutation(task) {
   const run = mutationTail.then(task, task);
@@ -329,13 +332,21 @@ async function saveExpenseCategory(actor, payload = {}, options = {}) {
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     const rows = current.categories[safeActor] || [];
-    const normalizedName = name.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
-    if (rows.some((row) => row.name.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е') === normalizedName)) {
-      throw new Error('finance-category-duplicate');
+    const normalizedName = financeCategoryKey(name);
+    const existing = rows.find((row) => financeCategoryKey(row.name) === normalizedName);
+    if (existing && !existing.archived) throw new Error('finance-category-duplicate');
+    if (existing && existing.archived) {
+      const categories = rows.map((row) => row.id === existing.id ? { ...row, archived: false, icon } : row);
+      const next = normalizeState({
+        ...current, initialized: true, version: current.version + 1,
+        categories: { ...current.categories, [safeActor]: categories },
+      });
+      await writeState(next, options);
+      return next;
     }
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      name, icon, note: '', monthlyLimit: 0,
+      name, icon, note: '', monthlyLimit: 0, archived: false,
       createdAt: new Date(options.now || Date.now()).toISOString(),
     };
     const next = normalizeState({
@@ -361,6 +372,53 @@ async function updateExpenseCategory(actor, payload = {}, options = {}) {
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
       categories: { ...current.categories, [safeActor]: categories },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function archiveExpenseCategory(actor, id, options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanId = cleanText(id, 100, { required: true });
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.categories[safeActor] || [];
+    if (!rows.some((row) => row.id === cleanId && !row.archived)) throw new Error('finance-category-not-found');
+    const next = normalizeState({
+      ...current,
+      initialized: true,
+      version: current.version + 1,
+      categories: {
+        ...current.categories,
+        [safeActor]: rows.map((row) => row.id === cleanId ? { ...row, archived: true } : row),
+      },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function reorderExpenseCategories(actor, ids = [], options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanIds = Array.isArray(ids) ? [...new Set(ids.map((id) => cleanText(id, 100)).filter(Boolean))] : [];
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.categories[safeActor] || [];
+    const visible = rows.filter((row) => !row.archived);
+    const archived = rows.filter((row) => row.archived);
+    const byId = new Map(visible.map((row) => [row.id, row]));
+    const ordered = [];
+    for (const id of cleanIds) {
+      const row = byId.get(id);
+      if (!row) continue;
+      ordered.push(row);
+      byId.delete(id);
+    }
+    for (const row of visible) if (byId.has(row.id)) ordered.push(row);
+    const next = normalizeState({
+      ...current,
+      initialized: true,
+      version: current.version + 1,
+      categories: { ...current.categories, [safeActor]: ordered.concat(archived) },
     });
     await writeState(next, options);
     return next;
@@ -453,6 +511,10 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
         if (existingKeys.has(importKey)) { duplicates++; continue; }
 
         let category = categoryMap.get(categoryKey);
+        if (category?.archived) {
+          category.archived = false;
+          createdCategories.push(categoryName);
+        }
         if (!category) {
           category = {
             id: randomUUID(),
@@ -460,6 +522,7 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
             icon: cleanIcon(raw?.icon || '💳'),
             note: '',
             monthlyLimit: 0,
+            archived: false,
             createdAt: now,
           };
           categories.push(category);
@@ -570,6 +633,6 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveExpenseCategory, updateExpenseCategory, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  saveFinancePlan, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };
