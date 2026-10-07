@@ -21,7 +21,7 @@ test('wallet expense keeps timestamp, subtracts source currency and refunds on d
   const financeCache = memoryCache();
 
   await saveWallet('Рустам', { name:'USD карта', icon:'💳', currency:'USD', balance:100 }, { financeCache, id:'wallet-usd', now:Date.UTC(2026,9,7,8,0) });
-  await saveExpenseCategory('Рустам', { name:'Еда', icon:'🍽️' }, { financeCache, id:'cat-food', now:Date.UTC(2026,9,7,8,0) });
+  await saveExpenseCategory('Рустам', { name:'Кафе', icon:'☕', monthlyLimit:5000 }, { financeCache, id:'cat-food', now:Date.UTC(2026,9,7,8,0) });
   await savePersonalExpense('Рустам', {
     month:'2026-10', categoryId:'cat-food', amount:8000, note:'Обед',
     occurredAt:'2026-10-07T09:15:00.000Z',
@@ -34,6 +34,7 @@ test('wallet expense keeps timestamp, subtracts source currency and refunds on d
   assert.equal(view.personalExpenses[0].amount,8000);
   assert.equal(view.personalExpenses[0].sourceAmount,100);
   assert.equal(view.personalExpenses[0].sourceCurrency,'USD');
+  assert.equal(view.categories.find(row=>row.id==='cat-food').monthlyLimit,5000);
 
   await deletePersonalExpense('Рустам','expense-1',{financeCache,now:Date.UTC(2026,9,7,10,0)});
   view=viewState(await readFinanceState({financeCache}),'Рустам');
@@ -95,10 +96,14 @@ test('v4.34 finance UI includes date grouping, CoinKeeper import, wallets and ed
   for (const marker of [
     'financeExpenseComposerDate','financeExpenseComposerTime','finance-expense-day-group',
     'coinKeeperRowsFromCsv','import-expenses','renderFinanceWallets','reorder-categories',
-    'finance-category-delete-badge','archive-category'
+    'finance-category-delete-badge','archive-category','financeCategoryLimit','is-over-limit'
   ]) {
     assert.ok(app.includes(marker)||html.includes(marker)||css.includes(marker),marker);
   }
   assert.ok(ai.includes('Никогда не упоминай имя пользователя'));
   assert.ok(ai.includes('у вас в октябре'));
+  assert.equal(app.includes('<strong>Курсы</strong><small>Показывать на главной</small>'),false);
+  assert.equal(app.includes('Сохраняется автоматически'),false);
+  assert.equal(html.includes('Сохраняется автоматически'),false);
+  assert.ok(css.includes('html[data-theme="dark"] .finance-back-button'));
 });
