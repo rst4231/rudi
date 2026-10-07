@@ -22,6 +22,16 @@ function financeMonthPhrase(value) {
   const months = ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре'];
   return 'в ' + months[Math.max(0, Math.min(11, Number(match[2]) - 1))] + ' ' + match[1] + ' года';
 }
+function directFinanceAddress(value, max = 1800) {
+  let text = compact(value, max);
+  text = text.replace(/\bу\s+Рустама\b/giu, 'у вас').replace(/\bу\s+Дианы\b/giu, 'у вас');
+  const cases = {
+    января:'январе', февраля:'феврале', марта:'марте', апреля:'апреле', мая:'мае', июня:'июне',
+    июля:'июле', августа:'августе', сентября:'сентябре', октября:'октябре', ноября:'ноябре', декабря:'декабре',
+  };
+  for (const [from, to] of Object.entries(cases)) text = text.replace(new RegExp('\\bв\\s+' + from + '\\b', 'giu'), 'в ' + to);
+  return text;
+}
 function moscowDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -204,13 +214,13 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
   const month = compact(context.month, 10);
   const version = Math.max(0, Number(context.version || 0));
   const literacyDate = compact(context.literacy?.date, 20);
-  const key = ['analyst-v2', actor, month, version, literacyDate || 'none'].join(':');
+  const key = ['analyst-v3', actor, month, version, literacyDate || 'none'].join(':');
   const cache = cacheOf(options);
   const existing = await cache.get(key);
   if (existing?.summary) return existing;
 
   const categories = (Array.isArray(context.categories) ? context.categories : []).map((row) => {
-    return compact(row.icon, 12) + ' ' + compact(row.name, 48) + ': потрачено ' + Number(row.spent || 0) + ' ₽';
+    return compact(row.icon, 12) + ' ' + compact(row.name, 48) + ': потрачено ' + Number(row.spent || 0) + ' ₽' + (Number(row.monthlyLimit || 0) > 0 ? ', лимит ' + Number(row.monthlyLimit) + ' ₽' : '');
   }).join('\n');
   const debts = (Array.isArray(context.debts) ? context.debts : []).filter((row) => !row.paid).map((row) => {
     return (row.direction === 'owed' ? 'Мне должны' : 'Я должен') + ': ' + Number(row.amount || 0) + ' ₽' +
@@ -231,7 +241,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
     'summary — 3–5 предложений с общей оценкой.',
     'strengths — сильные стороны финансовой картины, только если они реально видны.',
     'risks — конкретные слабые места/риски, только если они видны.',
-    'Пользователь: ' + actor + '. Месяц: ' + month + '.',
+    'Имя пользователя передано только для внутреннего контекста и не должно появляться в ответе: ' + actor + '. Период: ' + financeMonthPhrase(month) + '.',
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
     'Цель: ' + (compact(context.goalTitle, 80) || 'не задана') + ', накоплено ' + Number(context.goalCurrent || 0) + ' ₽ из ' + Number(context.goalTarget || 0) + ' ₽.',
     categories ? 'Категории расходов:\n' + categories : 'Расходы по категориям пока не добавлены.',
@@ -241,9 +251,9 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
 
   const parsed = await requestJson(prompt, analystSchema(), { ...options, timeoutMs: 14000 });
   const report = {
-    summary: compact(parsed?.summary, 1800),
-    strengths: (Array.isArray(parsed?.strengths) ? parsed.strengths : []).map((x) => compact(x, 500)).filter(Boolean).slice(0, 5),
-    risks: (Array.isArray(parsed?.risks) ? parsed.risks : []).map((x) => compact(x, 500)).filter(Boolean).slice(0, 5),
+    summary: directFinanceAddress(parsed?.summary, 1800),
+    strengths: (Array.isArray(parsed?.strengths) ? parsed.strengths : []).map((x) => directFinanceAddress(x, 500)).filter(Boolean).slice(0, 5),
+    risks: (Array.isArray(parsed?.risks) ? parsed.risks : []).map((x) => directFinanceAddress(x, 500)).filter(Boolean).slice(0, 5),
     model: MODEL,
     provider: 'groq',
     createdAt: new Date(options.now || Date.now()).toISOString(),
