@@ -5,7 +5,7 @@
   "deploymentSourceCommit": null,
   "deploymentRequestedAt": "2026-10-07",
   "createdAt": "2026-10-07",
-  "basedOnProduction": "v4.57",
+  "basedOnProduction": "v4.58",
   "notes": [
     "Обновлены favicon и PWA-иконка RUDI на новую семейную иконку; для iPhone используется новый apple-touch-icon.",
     "На кнопке «Финансы» появляется красный бейдж с количеством неоплаченных обязательных расходов, запланированных именно на сегодня.",
