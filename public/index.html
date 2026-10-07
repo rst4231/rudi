@@ -249,13 +249,13 @@
       </section>
 
       <nav id="financeTabs" class="finance-tabs" role="tablist" aria-label="Разделы финансов">
-        <button type="button" class="finance-tab is-active" data-finance-tab="shared" role="tab" aria-selected="true">Совместные</button>
-        <button type="button" class="finance-tab" data-finance-tab="personal" role="tab" aria-selected="false">Личные</button>
+        <button type="button" class="finance-tab" data-finance-tab="shared" role="tab" aria-selected="false">Совместные</button>
+        <button type="button" class="finance-tab is-active" data-finance-tab="personal" role="tab" aria-selected="true">Личные</button>
         <button type="button" class="finance-tab" data-finance-tab="debts" role="tab" aria-selected="false">Долги</button>
         <button type="button" class="finance-tab" data-finance-tab="literacy" role="tab" aria-selected="false">Грамотность</button>
       </nav>
 
-      <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared">
+      <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared" hidden>
         <article class="finance-editor-card">
           <div class="finance-editor-head">
             <div class="finance-editor-icon" aria-hidden="true">₽</div>
@@ -324,7 +324,7 @@
         </section>
       </div>
 
-      <div id="financePersonalPanel" class="finance-tab-panel" data-finance-panel="personal" hidden>
+      <div id="financePersonalPanel" class="finance-tab-panel" data-finance-panel="personal">
         <article class="finance-coin-board" aria-label="Личные доходы и категории расходов">
           <div class="finance-coin-overview">
             <div><span>Расходы</span><strong id="financeExpenseMonthTotal">0 ₽</strong></div>
