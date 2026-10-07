@@ -3165,14 +3165,13 @@
         const modal=document.getElementById('financeCategoryComposer');if(!modal)return;
         financeCategoryEditingId=String(categoryId||'');
         const category=financeCategoryEditingId?financeCategoryById(financeCategoryEditingId):null;
-        const title=document.getElementById('financeCategoryComposerTitle'),eyebrow=document.getElementById('financeCategoryComposerEyebrow');
+        const title=document.getElementById('financeCategoryComposerTitle');
         const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon'),currency=document.getElementById('financeCategoryCurrency');
         const limit=document.getElementById('financeCategoryLimit'),button=document.getElementById('financeCategoryCreateButton');
         const spentField=document.getElementById('financeCategorySpentField'),spent=document.getElementById('financeCategorySpent'),spentLabel=document.getElementById('financeCategorySpentLabel');
         const status=document.getElementById('financeCategoryComposerStatus');
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         if(title)title.textContent=category?'Редактировать категорию':'Категория расхода';
-        if(eyebrow)eyebrow.textContent=category?'Категория':'Новая монета';
         if(name)name.value=category?.name||'';
         if(icon)icon.value=category?.icon||'💳';
         if(currency)currency.value=category?.currency||'RUB';
@@ -4032,6 +4031,7 @@
         const empty=document.getElementById('financeCapitalEmpty');
         const change=document.getElementById('financeCapitalChange');
         const range=document.getElementById('financeCapitalRange');
+        const summary=change?.parentElement||null;
         const start=document.getElementById('financeCapitalStart');
         const end=document.getElementById('financeCapitalEnd');
         if(!svg||!line||!area||!dot)return;
@@ -4044,12 +4044,14 @@
         if(!points.length){
           line.setAttribute('d','');area.setAttribute('d','');dot.setAttribute('cx','0');dot.setAttribute('cy','0');
           if(empty){empty.hidden=false;empty.textContent='Первый снимок появится автоматически'}
-          if(change)change.textContent='История начнётся сегодня';
+          if(change)change.textContent='';
+          if(summary)summary.hidden=true;
           if(range)range.textContent='';
           if(start)start.textContent='—';if(end)end.textContent='—';
           return;
         }
         if(empty)empty.hidden=true;
+        if(summary)summary.hidden=false;
         const width=320,height=96,padX=8,padY=10;
         const values=points.map(row=>row.value);
         let min=Math.min(...values),max=Math.max(...values);
@@ -4846,10 +4848,9 @@
       }
 
       function renderFinanceLiteracy(article){
-        const title=document.getElementById('financeLiteracyTitle'),meta=document.getElementById('financeLiteracyMeta'),body=document.getElementById('financeLiteracyBody'),source=document.getElementById('financeLiteracySource'),status=document.getElementById('financeLiteracyStatus');
+        const title=document.getElementById('financeLiteracyTitle'),body=document.getElementById('financeLiteracyBody'),source=document.getElementById('financeLiteracySource'),status=document.getElementById('financeLiteracyStatus');
         if(!article||!body)return;
         if(title)title.textContent=String(article.title||'Финансовая грамотность');
-        if(meta)meta.textContent='Статья на '+new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(String(article.date||financeCurrentMonthKey()+'-01')+'T12:00:00Z'));
         body.replaceChildren();
         const chunks=String(article.body||'').split(/\n{2,}/).map(text=>text.trim()).filter(Boolean);
         for(const [index,text] of chunks.entries()){
