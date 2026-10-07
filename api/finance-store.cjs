@@ -11,6 +11,13 @@ const DEFAULT_CATEGORIES = Object.freeze([
   { id: 'default-entertainment', name: 'Развлечения', icon: '🎬' },
   { id: 'default-shopping', name: 'Покупки', icon: '🛍️' },
 ]);
+const DEFAULT_CATEGORY_LABELS = Object.freeze({
+  'жилье': ['Аренда','ЖКХ','Интернет','Ремонт','Мебель'],
+  'транспорт': ['Бензин','Паркинг','Поезд','Самолёт','Такси'],
+  'еда': ['Продукты','Кафе','Ресторан','Доставка','Кофе'],
+  'развлечения': ['Кино','Подписки','Концерт','Игры','Отдых'],
+  'покупки': ['Одежда','Техника','Дом','Маркетплейс','Подарки'],
+});
 let mutationTail = Promise.resolve();
 
 function cacheOf(options = {}) {
@@ -67,8 +74,29 @@ function cleanOccurredAt(value, fallback = Date.now()) {
 function financeCategoryKey(value) {
   return String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/g, ' ');
 }
+function cleanExpenseLabel(value) {
+  return cleanText(value, 32);
+}
+function defaultExpenseLabels(name) {
+  return [...(DEFAULT_CATEGORY_LABELS[financeCategoryKey(name)] || [])];
+}
+function cleanExpenseLabels(value, name = '') {
+  const raw = Array.isArray(value) ? value : [];
+  const source = raw.length ? raw : defaultExpenseLabels(name);
+  const out = [];
+  const seen = new Set();
+  for (const item of source) {
+    const label = cleanExpenseLabel(item);
+    const key = financeCategoryKey(label);
+    if (!label || seen.has(key)) continue;
+    seen.add(key);
+    out.push(label);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
 function defaultCategories() {
-  return DEFAULT_CATEGORIES.map((row) => ({ ...row, note: '', monthlyLimit: 0, currency: 'RUB', archived: false, createdAt: '' }));
+  return DEFAULT_CATEGORIES.map((row) => ({ ...row, note: '', monthlyLimit: 0, currency: 'RUB', labels: cleanExpenseLabels([], row.name), archived: false, createdAt: '' }));
 }
 function splitAmounts(rent, utilities) {
   const total = Math.round((cleanMoney(rent) + cleanMoney(utilities)) * 100) / 100;
@@ -181,6 +209,7 @@ function normalizeState(value) {
           note: cleanText(raw?.note, 180),
           monthlyLimit: cleanMoney(raw?.monthlyLimit || 0),
           currency: cleanCurrency(raw?.currency || 'RUB'),
+          labels: cleanExpenseLabels(raw?.labels, name),
           archived: Boolean(raw?.archived),
           importSource: cleanText(raw?.importSource, 24),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
@@ -206,6 +235,7 @@ function normalizeState(value) {
       personalExpenses.push({
         id, actor, month, categoryId, amount,
         note: cleanText(raw?.note, 120),
+        label: cleanExpenseLabel(raw?.label),
         walletId: cleanText(raw?.walletId, 100),
         sourceAmount: cleanAssetAmount(raw?.sourceAmount || raw?.amount),
         sourceCurrency: cleanCurrency(raw?.sourceCurrency || 'RUB'),
@@ -569,7 +599,7 @@ async function saveExpenseCategory(actor, payload = {}, options = {}) {
     }
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      name, icon, note: '', monthlyLimit: cleanMoney(payload.monthlyLimit || 0), currency, archived: false,
+      name, icon, note: '', monthlyLimit: cleanMoney(payload.monthlyLimit || 0), currency, labels: cleanExpenseLabels(payload.labels, name), archived: false,
       createdAt: new Date(options.now || Date.now()).toISOString(),
     };
     const next = normalizeState({
@@ -600,7 +630,28 @@ async function updateExpenseCategory(actor, payload = {}, options = {}) {
       note: cleanText(payload.note ?? row.note, 180),
       monthlyLimit: cleanMoney(payload.monthlyLimit ?? row.monthlyLimit ?? 0),
       currency: cleanCurrency(payload.currency ?? row.currency ?? 'RUB'),
+      labels: payload.labels === undefined ? cleanExpenseLabels(row.labels, name) : cleanExpenseLabels(payload.labels, name),
     } : row);
+    const next = normalizeState({
+      ...current, initialized: true, version: current.version + 1,
+      categories: { ...current.categories, [safeActor]: categories },
+    });
+    await writeState(next, options);
+    return next;
+  });
+}
+async function addExpenseCategoryLabel(actor, id, label, options = {}) {
+  const safeActor = cleanActor(actor);
+  const cleanId = cleanText(id, 100, { required: true });
+  const cleanLabel = cleanExpenseLabel(label);
+  if (!cleanLabel) throw new Error('finance-label-invalid');
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.categories[safeActor] || [];
+    const found = rows.find((row) => row.id === cleanId && !row.archived);
+    if (!found) throw new Error('finance-category-not-found');
+    const labels = cleanExpenseLabels([...(found.labels || []), cleanLabel], found.name);
+    const categories = rows.map((row) => row.id === cleanId ? { ...row, labels } : row);
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
       categories: { ...current.categories, [safeActor]: categories },
@@ -703,6 +754,7 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
   const amount = cleanMoney(payload.amount);
   if (amount <= 0) throw new Error('finance-amount-invalid');
   const note = cleanText(payload.note, 120);
+  const label = cleanExpenseLabel(payload.label);
   const occurredAt = cleanOccurredAt(payload.occurredAt, options.now || Date.now());
   const walletId = cleanText(payload.walletId, 100);
   const sourceAmount = cleanAssetAmount(payload.sourceAmount ?? amount);
@@ -740,7 +792,7 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
 
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      actor: safeActor, month, categoryId, amount, note,
+      actor: safeActor, month, categoryId, amount, note, label,
       walletId, sourceAmount, sourceCurrency, targetCurrency, exchangeRate,
       rubAmount, importKey: '', occurredAt, createdAt: now, updatedAt: now,
     };
@@ -968,8 +1020,8 @@ async function toggleDebt(actor, id, paid, options = {}) {
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
-  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, cleanMonth, cleanMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanPlan, splitAmounts, personalAmounts,
+  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanPlan, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, resetMutationQueueForTests,
 };
