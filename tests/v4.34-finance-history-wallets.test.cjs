@@ -106,11 +106,11 @@ test('v4.34 finance UI includes date grouping, CoinKeeper import, wallets and ed
   assert.equal(app.includes('Сохраняется автоматически'),false);
   assert.equal(html.includes('Сохраняется автоматически'),false);
   assert.ok(css.includes('html[data-theme="dark"] .finance-back-button'));
-  assert.ok(css.includes('grid-auto-columns:calc((100% - 20px)/5)!important'));
+  assert.ok(css.includes('grid-auto-columns:calc((100% - 16px)/5)!important'));
   assert.ok(css.includes('overflow-x:auto'));
   assert.ok(app.includes('financeCurrencySymbol(wallet.currency)'));
   assert.ok(html.includes('Доходы и кошельки'));
   assert.equal(html.includes('id="financePersonalMonthLabel"'),false);
   assert.ok(html.includes('id="moodHistoryButton"'));
-  assert.ok(html.indexOf('id="moodHistoryButton"')>html.indexOf('id="moodChoices"'));
+  assert.ok(app.includes('moodChoices.prepend(moodHistoryTrigger)'));
 });
