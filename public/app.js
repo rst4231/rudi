@@ -2624,7 +2624,10 @@
 
       function financeAllOperations(){
         const rows=[];
-        for(const row of financeState.personalExpenses||[])rows.push({kind:'expense',occurredAt:row.occurredAt||row.createdAt,row});
+        for(const row of financeState.personalExpenses||[]){
+          if(row?.manualAdjustment)continue;
+          rows.push({kind:'expense',occurredAt:row.occurredAt||row.createdAt,row});
+        }
         for(const row of financeState.walletIncomes||[])rows.push({kind:'income',occurredAt:row.occurredAt||row.createdAt,row});
         for(const row of financeState.walletTransfers||[])rows.push({kind:'transfer',occurredAt:row.occurredAt||row.createdAt,row});
         return rows.sort((a,b)=>String(b.occurredAt||'').localeCompare(String(a.occurredAt||'')));
