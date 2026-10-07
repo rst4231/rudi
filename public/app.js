@@ -2339,8 +2339,7 @@
         const income=Math.max(0,Number(row.income||0));
         const expenses=financeExpenseTotal(month);
         const balanceValue=Math.round((income-expenses)*100)/100;
-        const coinBalance=document.getElementById('financeCoinBalanceValue'),coinIncome=document.getElementById('financeCoinIncomeValue');
-        if(coinBalance)coinBalance.textContent=financeMoney(balanceValue);
+        const coinIncome=document.getElementById('financeCoinIncomeValue');
         if(coinIncome)coinIncome.textContent=financeMoney(income);
       }
       function renderFinancePlan({preserveInputs=false}={}){
