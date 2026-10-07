@@ -6542,6 +6542,7 @@
         if(moodChoices){
           moodChoices.hidden=true;
           moodChoices.classList.remove('is-open');
+          if(moodHistoryTrigger)moodChoices.prepend(moodHistoryTrigger);
           ownCard.tile.insertBefore(moodChoices,ownCard.details);
         }
         if(moodPrompt){
