@@ -173,8 +173,8 @@ function buildRudiIcons() {
     ['favicon-rudi-v460.png', 32, 32, 1],
     ['apple-touch-icon-rudi-v460.png', 180, 180, 1],
     ['icon-192-rudi-v460.png', 192, 192, 1],
-    ['icon-512-rudi-v460.png', 512, 512, 1],
-    ['icon-maskable-rudi-v460.png', 512, 512, 0.82],
+    ['icon-512.svg', 512, 512, 1],
+    ['icon-maskable.svg', 512, 512, 0.82],
   ];
   for (const [name, width, height, contain] of outputs) {
     const png = resizePngNearest(source, width, height, { contain });
@@ -190,8 +190,8 @@ function syncServiceWorkerPrecache(assetPaths) {
     '/favicon-rudi-v460.png',
     '/apple-touch-icon-rudi-v460.png',
     '/icon-192-rudi-v460.png',
-    '/icon-512-rudi-v460.png',
-    '/icon-maskable-rudi-v460.png',
+    '/icon-512.svg',
+    '/icon-maskable.svg',
   ];
   const precache = [...new Set([...basePrecache, ...assetPaths])];
   let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
