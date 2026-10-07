@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   readFinanceState, viewState, resetMutationQueueForTests,
-  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
   archiveExpenseCategory, reorderExpenseCategories, importPersonalExpenses,
 } = require('../api/finance-store.cjs');
 const { directFinanceAddress } = require('../api/finance-ai.cjs');
@@ -292,4 +292,23 @@ test('wallet reorder gesture uses pointer position instead of element hit-testin
   assert.ok(app.includes('financeWalletMoveByPointer(list,item,event.clientX)'));
   assert.ok(app.includes('startedByLongPress:true'));
   assert.ok(app.includes("financeRequest('reorder-wallets',{ids})"));
+});
+
+
+test('deleting wallet income reverses its exact amount and wallet history has delete controls', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'История',currency:'RUB',balance:1000},{financeCache,id:'wallet-history-delete'});
+  await saveWalletIncome('Рустам',{
+    walletId:'wallet-history-delete',amount:500,currency:'RUB',rubAmount:500,exchangeRate:1,
+    month:'2026-10',occurredAt:'2026-10-07T09:00:00.000Z'
+  },{financeCache,id:'income-history-delete'});
+  await deleteWalletIncome('Рустам','income-history-delete',{financeCache});
+  const view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='wallet-history-delete').balance,1000);
+  assert.equal(view.walletIncomes.some(row=>row.id==='income-history-delete'),false);
+
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
+  assert.ok(app.includes('finance-wallet-history-delete'));
 });
