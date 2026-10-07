@@ -24,20 +24,20 @@ function financeMonthPhrase(value) {
 }
 function directFinanceAddress(value, max = 1800) {
   let text = compact(value, max);
-  text = text.replace(/\bу\s+Рустама\b/giu, 'у вас').replace(/\bу\s+Дианы\b/giu, 'у вас');
+  text = text.replace(/у\s+Рустама/giu, 'у вас').replace(/у\s+Дианы/giu, 'у вас');
   const cases = {
     января:'январе', февраля:'феврале', марта:'марте', апреля:'апреле', мая:'мае', июня:'июне',
     июля:'июле', августа:'августе', сентября:'сентябре', октября:'октябре', ноября:'ноябре', декабря:'декабре',
   };
-  for (const [from, to] of Object.entries(cases)) text = text.replace(new RegExp('\\bв\\s+' + from + '\\b', 'giu'), 'в ' + to);
+  for (const [from, to] of Object.entries(cases)) text = text.replace(new RegExp('в\\s+' + from, 'giu'), 'в ' + to);
   text = text
-    .replace(/\bдля\s+(?:Рустама|Дианы)\b/giu, 'для вас')
-    .replace(/\b(?:Рустаму|Диане)\b/giu, 'вам')
-    .replace(/\b(?:Рустамом|Дианой|Дианою)\b/giu, 'вами')
-    .replace(/\b(?:Рустам|Диана)\b/giu, 'вы')
-    .replace(/\b(?:Рустама|Дианы)\b/giu, 'вас')
-    .replace(/\bу\s+вы\b/giu, 'у вас')
-    .replace(/\bдля\s+вы\b/giu, 'для вас');
+    .replace(/для\s+(?:Рустама|Дианы)/giu, 'для вас')
+    .replace(/(?:Рустаму|Диане)/giu, 'вам')
+    .replace(/(?:Рустамом|Дианой|Дианою)/giu, 'вами')
+    .replace(/(?:Рустам|Диана)/giu, 'вы')
+    .replace(/(?:Рустама|Дианы)/giu, 'вас')
+    .replace(/у\s+вы/giu, 'у вас')
+    .replace(/для\s+вы/giu, 'для вас');
   return text;
 }
 function moscowDateKey(value = new Date()) {
