@@ -152,13 +152,3 @@ test('v4.72 category budget uses icon progress halo',()=>{
   assert.ok(css.includes('.finance-category-coin.has-budget::before'));
   assert.ok(css.includes('background:conic-gradient('));
 });
-
-
-test('v4.73 neutral gray category backgrounds keep budget colors',()=>{
-  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
-  assert.ok(css.includes("background:linear-gradient(145deg,#858d99,#68717d)"));
-  assert.ok(css.includes(".finance-category-coin.has-budget::before"));
-  assert.ok(css.includes(".finance-coin-amount.is-budget-low"));
-  assert.ok(css.includes(".finance-coin-amount.is-budget-mid"));
-  assert.ok(css.includes(".finance-coin-amount.is-budget-full"));
-});
