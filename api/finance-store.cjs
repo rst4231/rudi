@@ -44,6 +44,11 @@ function cleanText(value, max = 140, { required = false } = {}) {
 function cleanIcon(value) {
   return String(value || '').trim().slice(0, 12) || '💳';
 }
+function cleanCurrency(value) {
+  const code = String(value || 'RUB').trim().toUpperCase();
+  if (!['RUB','USD','EUR'].includes(code)) throw new Error('finance-currency-invalid');
+  return code;
+}
 function cleanOccurredAt(value, fallback = Date.now()) {
   const date = new Date(value || fallback);
   if (Number.isNaN(date.getTime())) throw new Error('finance-date-invalid');
@@ -53,7 +58,7 @@ function financeCategoryKey(value) {
   return String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/g, ' ');
 }
 function defaultCategories() {
-  return DEFAULT_CATEGORIES.map((row) => ({ ...row, note: '', monthlyLimit: 0, createdAt: '' }));
+  return DEFAULT_CATEGORIES.map((row) => ({ ...row, note: '', monthlyLimit: 0, currency: 'RUB', archived: false, createdAt: '' }));
 }
 function splitAmounts(rent, utilities) {
   const total = Math.round((cleanMoney(rent) + cleanMoney(utilities)) * 100) / 100;
@@ -121,6 +126,30 @@ function normalizeState(value) {
     try { plans[actor] = cleanPlan(rawPlans[actor] || {}); } catch (_) { plans[actor] = cleanPlan(); }
   }
 
+  const wallets = { 'Рустам': [], 'Диана': [] };
+  const rawWallets = source.wallets && typeof source.wallets === 'object' && !Array.isArray(source.wallets) ? source.wallets : {};
+  for (const actor of Object.keys(wallets)) {
+    const rows = Array.isArray(rawWallets[actor]) ? rawWallets[actor] : [];
+    const seen = new Set();
+    for (const raw of rows) {
+      try {
+        const id = cleanText(raw?.id, 100, { required: true });
+        if (seen.has(id)) continue;
+        const createdAtRaw = String(raw?.createdAt || '');
+        const createdAt = createdAtRaw ? new Date(createdAtRaw) : null;
+        wallets[actor].push({
+          id,
+          name: cleanText(raw?.name, 48, { required: true }),
+          icon: cleanIcon(raw?.icon || '💳'),
+          currency: cleanCurrency(raw?.currency || 'RUB'),
+          balance: cleanMoney(raw?.balance || 0),
+          createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
+        });
+        seen.add(id);
+      } catch (_) {}
+    }
+  }
+
   const categories = { 'Рустам': [], 'Диана': [] };
   const rawCategories = source.categories && typeof source.categories === 'object' && !Array.isArray(source.categories) ? source.categories : {};
   for (const actor of Object.keys(categories)) {
@@ -139,6 +168,7 @@ function normalizeState(value) {
           icon: cleanIcon(raw?.icon),
           note: cleanText(raw?.note, 180),
           monthlyLimit: cleanMoney(raw?.monthlyLimit || 0),
+          currency: cleanCurrency(raw?.currency || 'RUB'),
           archived: Boolean(raw?.archived),
           createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toISOString() : '',
         });
@@ -162,6 +192,11 @@ function normalizeState(value) {
       personalExpenses.push({
         id, actor, month, categoryId, amount,
         note: cleanText(raw?.note, 120),
+        walletId: cleanText(raw?.walletId, 100),
+        sourceAmount: cleanMoney(raw?.sourceAmount || raw?.amount),
+        sourceCurrency: cleanCurrency(raw?.sourceCurrency || 'RUB'),
+        targetCurrency: cleanCurrency(raw?.targetCurrency || raw?.currency || 'RUB'),
+        exchangeRate: Math.max(0, Number(raw?.exchangeRate || 1)) || 1,
         importKey: cleanText(raw?.importKey, 220),
         occurredAt,
         createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
@@ -195,7 +230,7 @@ function normalizeState(value) {
   return {
     initialized: Boolean(source.initialized),
     version: Math.max(0, Number(source.version || 0)),
-    months, personal, plans, categories, personalExpenses, debts,
+    months, personal, plans, wallets, categories, personalExpenses, debts,
   };
 }
 function expenseTotal(state, actor, month) {
@@ -232,6 +267,7 @@ function viewState(state, actor = '') {
         .map((row) => ({ ...row, ...personalAmounts(row.income, expenseTotal(normalized, safeActor, row.month)) }))
         .sort((a, b) => String(b.month).localeCompare(String(a.month)))
     : [];
+  const wallets = safeActor ? [...(normalized.wallets[safeActor] || [])] : [];
   const allCategories = safeActor ? [...(normalized.categories[safeActor] || [])] : [];
   const categories = allCategories.filter((row) => !row.archived);
   const archivedCategories = allCategories.filter((row) => row.archived);
@@ -242,7 +278,7 @@ function viewState(state, actor = '') {
     ? normalized.debts.filter((row) => row.actor === safeActor).sort((a, b) => Number(a.paid) - Number(b.paid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
     : [];
   const plan = safeActor ? normalized.plans[safeActor] : cleanPlan();
-  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, categories, archivedCategories, personalExpenses, debts, plan };
+  return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, wallets, categories, archivedCategories, personalExpenses, debts, plan };
 }
 function enqueueMutation(task) {
   const run = mutationTail.then(task, task);
@@ -346,7 +382,7 @@ async function saveExpenseCategory(actor, payload = {}, options = {}) {
     }
     const row = {
       id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      name, icon, note: '', monthlyLimit: 0, archived: false,
+      name, icon, note: '', monthlyLimit: 0, currency: cleanCurrency(payload.currency || 'RUB'), archived: false,
       createdAt: new Date(options.now || Date.now()).toISOString(),
     };
     const next = normalizeState({
@@ -522,6 +558,7 @@ async function importPersonalExpenses(actor, payloadRows = [], options = {}) {
             icon: cleanIcon(raw?.icon || '💳'),
             note: '',
             monthlyLimit: 0,
+            currency: cleanCurrency(raw?.currency || 'RUB'),
             archived: false,
             createdAt: now,
           };
