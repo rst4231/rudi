@@ -4029,7 +4029,6 @@
         const empty=document.getElementById('financeCapitalEmpty');
         const change=document.getElementById('financeCapitalChange');
         const range=document.getElementById('financeCapitalRange');
-        const summary=change?.parentElement;
         const summary=change?.parentElement||null;
         const start=document.getElementById('financeCapitalStart');
         const end=document.getElementById('financeCapitalEnd');
