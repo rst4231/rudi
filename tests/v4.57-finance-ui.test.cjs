@@ -114,3 +114,14 @@ test('v4.66 capital history opens as a dedicated page',()=>{
   const mainSlice=html.slice(mainStart,walletStart);
   assert.equal(mainSlice.includes('id="financeCapitalChart"'),false);
 });
+
+
+test('v4.71 category amounts follow selected overview currency',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.ok(app.includes('function financeDisplayMoney'));
+  assert.ok(app.includes("amount.textContent=financeBalanceHidden?'••••':financeOverviewMoney(spent)"));
+  assert.ok(app.includes("financeDisplayMoney(limitValue,category.currency||'RUB')"));
+  assert.ok(app.includes("if(financeCategoryHistoryId)renderFinanceCategoryHistory()"));
+  assert.ok(app.includes("total.textContent=financeOverviewMoney(visibleTotal)"));
+  assert.ok(app.includes("value.textContent='−'+financeOverviewMoney(row.rubAmount||row.amount)"));
+});
