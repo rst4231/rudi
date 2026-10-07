@@ -377,7 +377,6 @@
               </div>
             </div>
             <div id="financeWalletList" class="finance-wallet-list finance-coin-grid" aria-labelledby="financeWalletsTitle"></div>
-            <div id="financeWalletEmpty" class="finance-history-empty">Создай кошелёк и укажи валюту</div>
           </div>
 
           <div class="finance-coin-divider"></div>
@@ -389,7 +388,6 @@
             </div>
           </div>
           <div id="financeCategoryList" class="finance-category-list finance-coin-grid" aria-labelledby="financeCategoriesTitle"></div>
-          <div id="financeCategoryEmpty" class="finance-history-empty">Категорий пока нет — добавь первую монету</div>
           <div id="financeCategoryStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
 
@@ -540,9 +538,7 @@
                 <input id="financeCategorySpent" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" placeholder="0" aria-label="Потрачено в категории за выбранный месяц">
                 <b>₽</b>
               </div>
-              <small>Можно вручную скорректировать итог выбранного месяца.</small>
             </label>
-            <div class="finance-category-rub-note">Расходы в категориях учитываются в рублях.</div>
             <button id="financeCategoryCreateButton" class="finance-analyst-button" type="button">Создать категорию</button>
             <div id="financeCategoryComposerStatus" class="finance-status" role="status" aria-live="polite"></div>
           </section>
@@ -735,7 +731,7 @@
             </div>
             <div class="finance-capital-summary">
               <strong id="financeCapitalChange">История начнётся сегодня</strong>
-              <span id="financeCapitalRange">Сохраняем дневные снимки общего баланса</span>
+              <span id="financeCapitalRange"></span>
             </div>
             <div class="finance-capital-chart-wrap">
               <svg id="financeCapitalChart" class="finance-capital-chart" viewBox="0 0 320 96" preserveAspectRatio="none" role="img" aria-label="График изменения капитала">
@@ -796,7 +792,6 @@
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
           <div class="finance-literacy-kicker">По вашим данным</div>
           <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
-          <p class="finance-analyst-intro">Анализирует доходы, расходы, бюджеты, обязательные платежи и долги и даёт краткий разбор.</p>
           <div class="finance-analyst-limit">Лимит: 1 анализ в сутки</div>
           <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
           <div id="financeAnalystStatus" class="finance-status" role="status" aria-live="polite"></div>
