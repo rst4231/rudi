@@ -198,7 +198,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
   const month = compact(context.month, 10);
   const version = Math.max(0, Number(context.version || 0));
   const literacyDate = compact(context.literacy?.date, 20);
-  const key = ['analyst', actor, month, version, literacyDate || 'none'].join(':');
+  const key = ['analyst-v2', actor, month, version, literacyDate || 'none'].join(':');
   const cache = cacheOf(options);
   const existing = await cache.get(key);
   if (existing?.summary) return existing;
@@ -219,6 +219,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
     'Если есть сегодняшняя статья по финансовой грамотности, используй её идею как дополнительный контекст, но не копируй её текст.',
     'Не давай конкретных рекомендаций купить или продать ценные бумаги, криптовалюту или иной актив. Не обещай доходность.',
     'Не выдумывай данные. Если информации мало, прямо укажи это.',
+    'Обращайся к пользователю напрямую на «вы». Не называй его по имени и не говори о нём в третьем лице. Пиши, например: «у вас в октябре», а не «у Рустама в октябре».',
     'summary — 3–5 предложений с общей оценкой.',
     'strengths — сильные стороны финансовой картины, только если они реально видны.',
     'risks — конкретные слабые места/риски, только если они видны.',
