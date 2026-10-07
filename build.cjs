@@ -141,7 +141,8 @@ function syncServiceWorkerPrecache(assetPaths) {
   const basePrecache = [
     '/',
     '/manifest.webmanifest',
-    '/icon-192-v176.jpg',
+    '/favicon-rudi-v459.png',
+    '/icon-192-rudi-v459.png',
     '/icon-512.svg',
     '/icon-maskable.svg',
   ];
