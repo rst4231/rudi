@@ -3099,8 +3099,8 @@
           const dailySpent=(dateKey,{excludeAdjustments=false}={})=>Math.round((financeState.personalExpenses||[])
             .filter(row=>financeDateTimeLabel(row.occurredAt||row.createdAt).key===dateKey&&(!excludeAdjustments||!row?.manualAdjustment))
             .reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0)*100)/100;
-          if(yesterdayTotal)yesterdayTotal.textContent=financeBalanceHidden?'••••':financeMoney(dailySpent(yesterdayKey));
-          if(todayTotal)todayTotal.textContent=financeBalanceHidden?'••••':financeMoney(dailySpent(todayKey,{excludeAdjustments:true}));
+          if(yesterdayTotal)yesterdayTotal.textContent=financeBalanceHidden?'••••':financeOverviewMoney(dailySpent(yesterdayKey));
+          if(todayTotal)todayTotal.textContent=financeBalanceHidden?'••••':financeOverviewMoney(dailySpent(todayKey,{excludeAdjustments:true}));
         }
         syncFinanceOverviewCurrencyButton();
         renderFinanceObligations();
