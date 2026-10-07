@@ -142,7 +142,7 @@ test('v4.49 category trend and compact expense keypad are wired',()=>{
   assert.ok(css.includes('RUDI v4.49 — category month trend + CoinKeeper-style expense entry'));
   assert.ok(css.includes('#financeExpenseComposer .finance-expense-entry-history{display:none!important}'));
   assert.ok(css.includes('@media(max-height:590px)'));
-  assert.ok(html.includes('content="v4.50"'));
+  assert.ok(html.includes('content="v4.51"'));
 });
 
 
@@ -171,4 +171,21 @@ test('v4.50 keeps category history pinned to iOS visual viewport',()=>{
   assert.ok(css.includes('top:var(--finance-category-history-top,0px)!important'));
   assert.ok(css.includes('height:var(--finance-category-history-height,100vh)!important'));
   assert.ok(html.includes('content="v4.50"'));
+});
+
+
+test('v4.51 category history is inline responsive and expense header respects safe area',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes("financePage.classList.add('is-category-history')"));
+  assert.ok(app.includes("financePage?.classList.remove('is-category-history')"));
+  assert.ok(!app.includes('function financeCategoryHistoryViewportMetrics()'));
+  assert.ok(!app.includes('__rudiFinanceCategoryHistoryViewportBound'));
+  assert.ok(css.includes('RUDI v4.51 — adaptive finance category subpage'));
+  assert.ok(css.includes('.finance-page.is-category-history #financeCategoryHistoryPage'));
+  assert.ok(css.includes('grid-template-columns:44px minmax(0,1fr) auto!important'));
+  assert.ok(css.includes('RUDI v4.51 — expense composer top safe area'));
+  assert.ok(css.includes('var(--tg-content-safe-area-inset-top,0px)'));
+  assert.ok(html.includes('content="v4.51"'));
 });

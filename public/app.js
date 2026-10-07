@@ -2918,49 +2918,14 @@
         }
       }
 
-      function financeCategoryHistoryViewportMetrics(){
-        const viewport=window.visualViewport;
-        const width=Math.max(1,Math.round(Number(viewport?.width||window.innerWidth||document.documentElement.clientWidth||1)));
-        const height=Math.max(1,Math.round(Number(viewport?.height||window.innerHeight||document.documentElement.clientHeight||1)));
-        const top=Math.max(0,Math.round(Number(viewport?.offsetTop||0)));
-        const left=Math.max(0,Math.round(Number(viewport?.offsetLeft||0)));
-        return {width,height,top,left};
-      }
-      function syncFinanceCategoryHistoryViewport({resetScroll=false}={}){
-        const page=document.getElementById('financeCategoryHistoryPage');
-        if(!page||page.hidden)return;
-        const metrics=financeCategoryHistoryViewportMetrics();
-        page.style.setProperty('--finance-category-history-top',metrics.top+'px');
-        page.style.setProperty('--finance-category-history-left',metrics.left+'px');
-        page.style.setProperty('--finance-category-history-width',metrics.width+'px');
-        page.style.setProperty('--finance-category-history-height',metrics.height+'px');
-        if(resetScroll){
-          try{page.scrollTo({top:0,left:0,behavior:'auto'})}
-          catch(_){page.scrollTop=0;page.scrollLeft=0}
-        }
-      }
-      function resetFinanceCategoryHistoryViewport(){
-        const page=document.getElementById('financeCategoryHistoryPage');
-        if(!page||page.hidden)return;
-        syncFinanceCategoryHistoryViewport({resetScroll:true});
-        requestAnimationFrame(()=>{
-          syncFinanceCategoryHistoryViewport({resetScroll:true});
-          requestAnimationFrame(()=>syncFinanceCategoryHistoryViewport({resetScroll:true}));
-        });
-        setTimeout(()=>syncFinanceCategoryHistoryViewport({resetScroll:true}),80);
-      }
       function closeFinanceCategoryHistory(){
         financeCategoryHistoryId='';
         financeCategoryHistorySearch='';
         const page=document.getElementById('financeCategoryHistoryPage');
+        const financePage=document.getElementById('financePage');
         if(page){
-          try{page.scrollTo({top:0,left:0,behavior:'auto'})}catch(_){page.scrollTop=0;page.scrollLeft=0}
           page.hidden=true;
           page.setAttribute('aria-hidden','true');
-          page.style.removeProperty('--finance-category-history-top');
-          page.style.removeProperty('--finance-category-history-left');
-          page.style.removeProperty('--finance-category-history-width');
-          page.style.removeProperty('--finance-category-history-height');
         }
         const searchWrap=document.getElementById('financeCategoryHistorySearchWrap');
         const searchButton=document.getElementById('financeCategoryHistorySearchButton');
@@ -2968,12 +2933,14 @@
         if(searchWrap)searchWrap.hidden=true;
         if(searchButton)searchButton.setAttribute('aria-expanded','false');
         if(searchInput)searchInput.value='';
+        financePage?.classList.remove('is-category-history');
         document.body.classList.remove('finance-category-history-open');
         const restoreY=Math.max(0,Number(financeCategoryHistoryReturnScrollY||0));
         requestAnimationFrame(()=>{
           try{window.scrollTo({top:restoreY,left:0,behavior:'auto'})}catch(_){window.scrollTo(0,restoreY)}
         });
       }
+
       function financeCategoryHistorySearchText(row){
         const wallet=financeWalletById(row.walletId);
         const date=financeDateTimeLabel(row.occurredAt||row.createdAt);
@@ -3063,16 +3030,11 @@
             del.addEventListener('click',async()=>{
               del.disabled=true;
               try{
-                const historyPage=document.getElementById('financeCategoryHistoryPage');
-                const historyScrollTop=Math.max(0,Number(historyPage?.scrollTop||0));
+                const historyScrollY=Math.max(0,Number(window.scrollY||document.scrollingElement?.scrollTop||0));
                 const data=await financeRequest('delete-expense',{id:row.id});
                 renderFinanceState(data,{personalMonth:mainMonth,preserveIncome:true,preservePlan:true});
                 requestAnimationFrame(()=>{
-                  syncFinanceCategoryHistoryViewport();
-                  if(historyPage&&!historyPage.hidden){
-                    const maxTop=Math.max(0,historyPage.scrollHeight-historyPage.clientHeight);
-                    historyPage.scrollTop=Math.min(historyScrollTop,maxTop);
-                  }
+                  try{window.scrollTo({top:historyScrollY,left:0,behavior:'auto'})}catch(_){window.scrollTo(0,historyScrollY)}
                 });
                 refreshFinanceInsight(true).catch(()=>{});
               }catch(_){del.disabled=false}
@@ -3084,7 +3046,8 @@
       }
       function openFinanceCategoryHistory(categoryId){
         const category=financeAllCategoryById(categoryId),page=document.getElementById('financeCategoryHistoryPage');
-        if(!category||!page)return;
+        const financePage=document.getElementById('financePage');
+        if(!category||!page||!financePage)return;
         financeCategoryHistoryReturnScrollY=Math.max(0,Number(window.scrollY||document.scrollingElement?.scrollTop||0));
         document.activeElement?.blur?.();
         financeCategoryHistoryId=category.id;
@@ -3097,12 +3060,15 @@
         if(searchInput)searchInput.value='';
         if(searchWrap)searchWrap.hidden=true;
         if(searchButton)searchButton.setAttribute('aria-expanded','false');
-        try{page.scrollTo({top:0,left:0,behavior:'auto'})}catch(_){page.scrollTop=0;page.scrollLeft=0}
         renderFinanceCategoryHistory();
+        financePage.classList.add('is-category-history');
         page.hidden=false;
         page.setAttribute('aria-hidden','false');
         document.body.classList.add('finance-category-history-open');
-        resetFinanceCategoryHistoryViewport();
+        requestAnimationFrame(()=>{
+          const top=Math.max(0,Math.round(financePage.getBoundingClientRect().top+(window.scrollY||0)));
+          try{window.scrollTo({top,left:0,behavior:'auto'})}catch(_){window.scrollTo(0,top)}
+        });
       }
 
       function openFinanceExpenseComposer(categoryId,{walletId='',sourceCurrency='',focusAmount=false}={}){
@@ -4365,14 +4331,6 @@
 
 
         document.getElementById('financeCategoryHistoryBack')?.addEventListener('click',closeFinanceCategoryHistory);
-        if(window.__rudiFinanceCategoryHistoryViewportBound!=='1'){
-          window.__rudiFinanceCategoryHistoryViewportBound='1';
-          const syncHistoryViewport=()=>syncFinanceCategoryHistoryViewport();
-          window.addEventListener('resize',syncHistoryViewport,{passive:true});
-          window.addEventListener('orientationchange',()=>setTimeout(syncHistoryViewport,0),{passive:true});
-          window.visualViewport?.addEventListener?.('resize',syncHistoryViewport,{passive:true});
-          window.visualViewport?.addEventListener?.('scroll',syncHistoryViewport,{passive:true});
-        }
         document.getElementById('financeCategoryHistoryAdd')?.addEventListener('click',()=>{
           if(financeCategoryHistoryId)openFinanceExpenseComposer(financeCategoryHistoryId);
         });
