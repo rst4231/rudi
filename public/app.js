@@ -2556,11 +2556,10 @@
         const wallet=financeWalletEditingId?financeWalletById(financeWalletEditingId):null;
         const modal=document.getElementById('financeWalletComposer');if(!modal)return;
         const title=document.getElementById('financeWalletComposerTitle'),name=document.getElementById('financeWalletName');
-        const icon=document.getElementById('financeWalletIcon'),currency=document.getElementById('financeWalletCurrency');
+        const currency=document.getElementById('financeWalletCurrency');
         const balance=document.getElementById('financeWalletBalance'),remove=document.getElementById('financeWalletDeleteButton'),status=document.getElementById('financeWalletStatus');
         if(title)title.textContent=wallet?'Редактировать кошелёк':'Новый кошелёк';
         if(name)name.value=wallet?.name||'';
-        if(icon)icon.value=wallet?.icon||'💳';
         if(currency)currency.value=wallet?.currency||'RUB';
         if(balance)balance.value=wallet&&Number(wallet.balance||0)>0?String(wallet.balance):'';
         if(remove)remove.hidden=!wallet;
@@ -2577,13 +2576,19 @@
         });
         item.addEventListener('pointermove',event=>{
           if(!drag||drag.pointerId!==event.pointerId)return;
-          const distance=Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY);
+          const dx=event.clientX-drag.startX,dy=event.clientY-drag.startY;
+          const distance=Math.hypot(dx,dy);
           if(!drag.moved&&distance<8)return;
+          if(!drag.moved&&Math.abs(dx)>Math.abs(dy)*1.15){
+            try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
+            drag=null;
+            return;
+          }
           if(!drag.moved){
             drag.moved=true;
             const rect=item.querySelector('.finance-coin')?.getBoundingClientRect()||item.getBoundingClientRect();
             const ghost=document.createElement('div');ghost.className='finance-income-drag-ghost';
-            ghost.textContent=wallet.icon||financeCurrencySymbol(wallet.currency);
+            ghost.textContent=financeCurrencySymbol(wallet.currency);
             ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';
             document.body.append(ghost);drag.ghost=ghost;
             document.body.classList.add('finance-income-dragging');
@@ -2622,7 +2627,8 @@
           item.style.setProperty('--finance-coin-color',['#5b8def','#34c99a','#9b7cff','#ffb52b','#2fc7c9'][index%5]);
           item.setAttribute('role','button');item.tabIndex=0;
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=wallet.name||'Кошелёк';
-          const coin=document.createElement('span');coin.className='finance-coin finance-wallet-coin';coin.textContent=wallet.icon||'💳';
+          const coin=document.createElement('span');coin.className='finance-coin finance-wallet-coin';coin.textContent=financeCurrencySymbol(wallet.currency);
+          coin.dataset.currency=String(wallet.currency||'RUB').toUpperCase();
           const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeMoney(wallet.balance,wallet.currency);
           item.append(label,coin,amount);
           item.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openFinanceWalletComposer(wallet.id)}});
@@ -3126,7 +3132,7 @@
         document.getElementById('financeWalletCreateButton')?.addEventListener('click',()=>openFinanceWalletComposer(''));
         const walletSave=document.getElementById('financeWalletSaveButton');
         walletSave?.addEventListener('click',async()=>{
-          const name=document.getElementById('financeWalletName'),icon=document.getElementById('financeWalletIcon');
+          const name=document.getElementById('financeWalletName');
           const currency=document.getElementById('financeWalletCurrency'),balance=document.getElementById('financeWalletBalance');
           const status=document.getElementById('financeWalletStatus'),value=String(name?.value||'').trim();
           if(!value){name?.focus();return}
@@ -3134,7 +3140,7 @@
           try{
             const data=await financeRequest('save-wallet',{
               id:financeWalletEditingId||undefined,
-              name:value,icon:icon?.value||'💳',currency:currency?.value||'RUB',balance:Number(balance?.value||0)
+              name:value,icon:financeCurrencySymbol(currency?.value||'RUB'),currency:currency?.value||'RUB',balance:Number(balance?.value||0)
             });
             closeFinanceCoinModal('financeWalletComposer');
             renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
