@@ -1,7 +1,7 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
-  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
+  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
@@ -12,11 +12,11 @@ function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
-  if (['finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found'].includes(code)) return 404;
+  if (['finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
     'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
-    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid'
+    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid','finance-transfer-same-wallet'
   ].includes(code)) return 400;
   return 500;
 }
@@ -116,6 +116,45 @@ async function handler(req, res) {
     }
     if (operation === 'delete-wallet-income') {
       const state = await deleteWalletIncome(actor, body.id);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'save-wallet-transfer') {
+      const current = await readFinanceState();
+      const view = viewState(current, actor);
+      const fromWallet = (view.wallets || []).find((row) => row.id === String(body.fromWalletId || ''));
+      const toWallet = (view.wallets || []).find((row) => row.id === String(body.toWalletId || ''));
+      if (!fromWallet || !toWallet) throw new Error('finance-wallet-not-found');
+      if (fromWallet.id === toWallet.id) throw new Error('finance-transfer-same-wallet');
+      const sourceAmount = Number(body.sourceAmount);
+      if (!Number.isFinite(sourceAmount) || sourceAmount <= 0) throw new Error('finance-amount-invalid');
+      const rates = await financeRubRates();
+      const sourceRate = Number(rates[String(fromWallet.currency || 'RUB').toUpperCase()]);
+      const targetRate = Number(rates[String(toWallet.currency || 'RUB').toUpperCase()]);
+      if (!sourceRate || !targetRate) throw new Error('finance-rate-invalid');
+      const rubAmount = Math.round(sourceAmount * sourceRate * 100) / 100;
+      const targetAmount = Math.round((rubAmount / targetRate) * 100000000) / 100000000;
+      const state = await saveWalletTransfer(actor, {
+        fromWalletId: fromWallet.id,
+        toWalletId: toWallet.id,
+        sourceAmount,
+        sourceCurrency: fromWallet.currency,
+        targetAmount,
+        targetCurrency: toWallet.currency,
+        sourceRate,
+        targetRate,
+        rubAmount,
+        occurredAt: body.occurredAt,
+        month: body.month,
+        note: body.note,
+      });
+      return res.status(200).json({
+        ok: true, actor, canEdit: actor === 'Рустам',
+        transfer: { fromWalletId: fromWallet.id, toWalletId: toWallet.id, sourceAmount, targetAmount, rubAmount },
+        ...viewState(state, actor),
+      });
+    }
+    if (operation === 'delete-wallet-transfer') {
+      const state = await deleteWalletTransfer(actor, body.id);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'save-category') {

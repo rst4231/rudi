@@ -326,11 +326,22 @@
 
       <div id="financePersonalPanel" class="finance-tab-panel" data-finance-panel="personal">
         <article class="finance-coin-board" aria-label="Личные доходы и категории расходов">
-          <div class="finance-coin-overview">
-            <div><span>Расходы</span><strong id="financeExpenseMonthTotal">0 ₽</strong></div>
-            <div><span>В планах</span><strong id="financePlannedMonthTotal">0 ₽</strong></div>
-            <div><span>Баланс</span><strong id="financeCoinBalanceValue">0 ₽</strong></div>
-            <div><span>Доход</span><strong id="financeCoinIncomeValue">0 ₽</strong></div>
+          <div class="finance-balance-card">
+            <div class="finance-balance-head">
+              <span>Общий баланс</span>
+              <button id="financeBalanceEyeButton" class="finance-balance-eye" type="button" aria-label="Скрыть или показать баланс" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg>
+              </button>
+            </div>
+            <div class="finance-balance-main">
+              <strong id="financeCoinBalanceValue">0 ₽</strong>
+              <span class="finance-balance-spark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+            <div class="finance-balance-metrics">
+              <div><span>Расходы</span><strong id="financeExpenseMonthTotal">0 ₽</strong></div>
+              <div><span>В планах</span><strong id="financePlannedMonthTotal">0 ₽</strong></div>
+              <div><span>Доход</span><strong id="financeCoinIncomeValue">0 ₽</strong></div>
+            </div>
           </div>
 
           <div class="finance-coin-period">
@@ -342,6 +353,7 @@
               <div><span class="section-eyebrow">Источники</span><h2 id="financeWalletsTitle">Кошельки</h2><small id="financeWalletTotalRub" class="finance-wallet-total-rub">Всего: 0 ₽</small></div>
               <div class="finance-wallet-head-actions">
                 <button id="financeIncomeAddButton" class="finance-wallet-add finance-income-add" type="button">+ Доход</button>
+                <button id="financeTransferAddButton" class="finance-wallet-add finance-transfer-add" type="button">↔ Перевод</button>
                 <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
               </div>
             </div>
@@ -358,6 +370,47 @@
           <div id="financeCategoryEmpty" class="finance-history-empty">Категорий пока нет — добавь первую монету</div>
           <div id="financeCategoryStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
+
+        <section class="finance-history-card finance-operations-card" aria-labelledby="financeOperationsTitle">
+          <div class="finance-history-head">
+            <div><span class="section-eyebrow">История</span><h2 id="financeOperationsTitle">Операции</h2></div>
+            <span id="financeOperationCount" class="finance-history-count">0</span>
+          </div>
+          <div class="finance-operation-filters">
+            <input id="financeOperationSearch" class="finance-text-input" type="search" placeholder="Поиск по операциям" aria-label="Поиск по операциям">
+            <select id="financeOperationType" class="finance-select" aria-label="Тип операции">
+              <option value="all">Все типы</option><option value="expense">Расходы</option><option value="income">Доходы</option><option value="transfer">Переводы</option>
+            </select>
+            <select id="financeOperationWallet" class="finance-select" aria-label="Кошелёк"><option value="">Все кошельки</option></select>
+            <select id="financeOperationCategory" class="finance-select" aria-label="Категория"><option value="">Все категории</option></select>
+            <input id="financeOperationFrom" class="finance-text-input" type="date" aria-label="Операции с даты">
+            <input id="financeOperationTo" class="finance-text-input" type="date" aria-label="Операции по дату">
+          </div>
+          <div id="financeOperationSummary" class="finance-operation-summary">Все операции</div>
+          <div id="financeOperationList" class="finance-operation-list"></div>
+          <div id="financeOperationEmpty" class="finance-history-empty">По выбранным фильтрам операций нет</div>
+        </section>
+
+        <section class="finance-history-card finance-analytics-card" aria-labelledby="financeAnalyticsTitle">
+          <div class="finance-history-head">
+            <div><span class="section-eyebrow">Статистика</span><h2 id="financeAnalyticsTitle">Аналитика</h2></div>
+            <select id="financeAnalyticsPeriod" class="finance-select finance-analytics-period" aria-label="Период аналитики">
+              <option value="day">День</option><option value="week">Неделя</option><option value="month" selected>Месяц</option><option value="year">Год</option><option value="custom">Свой период</option>
+            </select>
+          </div>
+          <div id="financeAnalyticsCustom" class="finance-analytics-custom" hidden>
+            <input id="financeAnalyticsFrom" class="finance-text-input" type="date" aria-label="Начало периода аналитики">
+            <input id="financeAnalyticsTo" class="finance-text-input" type="date" aria-label="Конец периода аналитики">
+          </div>
+          <div class="finance-analytics-grid">
+            <div><span>Расходы</span><strong id="financeAnalyticsExpenses">0 ₽</strong></div>
+            <div><span>Доходы</span><strong id="financeAnalyticsIncome">0 ₽</strong></div>
+            <div><span>Итог</span><strong id="financeAnalyticsNet">0 ₽</strong></div>
+            <div><span>Операций</span><strong id="financeAnalyticsCount">0</strong></div>
+          </div>
+          <div id="financeAnalyticsCompare" class="finance-analytics-compare">Нет данных для сравнения</div>
+          <div id="financeAnalyticsCategories" class="finance-analytics-categories"></div>
+        </section>
 
         <div id="financeExpenseComposer" class="finance-coin-modal" hidden aria-hidden="true">
           <button id="financeExpenseComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
@@ -528,6 +581,30 @@
           </section>
         </div>
 
+        <div id="financeTransferComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeTransferComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeTransferComposerTitle">
+            <div class="finance-coin-modal-head">
+              <div><small>Между своими счетами</small><h3 id="financeTransferComposerTitle">Перевод</h3></div>
+              <button id="financeTransferComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <label class="finance-input-field"><span>Откуда</span><select id="financeTransferFrom" class="finance-select" aria-label="Кошелёк списания"></select></label>
+            <label class="finance-input-field"><span>Куда</span><select id="financeTransferTo" class="finance-select" aria-label="Кошелёк зачисления"></select></label>
+            <label class="finance-input-field">
+              <span>Сумма</span>
+              <div class="finance-money-input"><input id="financeTransferAmount" type="number" min="0.01" max="1000000000000" step="any" inputmode="decimal" placeholder="0"><b id="financeTransferCurrency">₽</b></div>
+            </label>
+            <div id="financeTransferPreview" class="finance-transfer-preview">Выбери кошельки и сумму</div>
+            <div class="finance-expense-datetime-grid">
+              <label class="finance-input-field"><span>Дата</span><input id="financeTransferDate" class="finance-text-input" type="date"></label>
+              <label class="finance-input-field"><span>Время</span><input id="financeTransferTime" class="finance-text-input" type="time" step="60"></label>
+            </div>
+            <label class="finance-input-field"><span>Комментарий</span><input id="financeTransferNote" class="finance-text-input" maxlength="120" placeholder="Необязательно"></label>
+            <button id="financeTransferSaveButton" class="finance-analyst-button" type="button">Перевести</button>
+            <div id="financeTransferComposerStatus" class="finance-status" role="status" aria-live="polite"></div>
+          </section>
+        </div>
+
         <div id="financeCategoryDeleteChooser" class="finance-coin-modal" hidden aria-hidden="true">
           <button id="financeCategoryDeleteBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Отмена"></button>
           <section class="finance-coin-modal-sheet finance-delete-choice-sheet" role="dialog" aria-modal="true" aria-labelledby="financeCategoryDeleteTitle">
@@ -562,8 +639,37 @@
           </div>
           <div class="finance-goal-progress" aria-label="Прогресс финансовой цели"><span id="financeGoalProgressBar"></span></div>
           <div id="financeGoalProgressText" class="finance-goal-progress-text">Добавь цель, чтобы видеть прогресс</div>
+          <div class="finance-obligations">
+            <div class="finance-obligation-head"><strong>Обязательные расходы</strong><button id="financeObligationAddButton" type="button">+ Добавить</button></div>
+            <div id="financeObligationList" class="finance-obligation-list"></div>
+            <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных обязательных расходов нет</div>
+          </div>
           <div id="financePlanStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite"></div>
         </section>
+
+        <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
+          <div class="finance-literacy-kicker">По вашим данным</div>
+          <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
+          <p class="finance-analyst-intro">Анализирует доходы, расходы, бюджеты, обязательные платежи и долги и даёт краткий разбор.</p>
+          <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
+          <div id="financeAnalystStatus" class="finance-status" role="status" aria-live="polite"></div>
+          <div id="financeAnalystResult" class="finance-analyst-result" hidden></div>
+        </article>
+
+        <div id="financeObligationComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeObligationComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeObligationComposerTitle">
+            <div class="finance-coin-modal-head">
+              <div><small>Ежемесячный платёж</small><h3 id="financeObligationComposerTitle">Обязательный расход</h3></div>
+              <button id="financeObligationComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <label class="finance-input-field"><span>Название</span><input id="financeObligationTitle" class="finance-text-input" maxlength="80" placeholder="Например, аренда"></label>
+            <label class="finance-input-field"><span>Сумма</span><div class="finance-money-input"><input id="financeObligationAmount" type="number" min="1" max="100000000" step="1" inputmode="decimal" placeholder="0"><b>₽</b></div></label>
+            <label class="finance-input-field"><span>День месяца</span><input id="financeObligationDay" class="finance-text-input" type="number" min="1" max="31" step="1" inputmode="numeric" value="1"></label>
+            <button id="financeObligationSaveButton" class="finance-analyst-button" type="button">Сохранить</button>
+            <div id="financeObligationStatus" class="finance-status" role="status" aria-live="polite"></div>
+          </section>
+        </div>
 
         <blockquote class="finance-ai-insight">
           <span class="section-eyebrow">ИИ-инсайт месяца</span>
@@ -659,14 +765,6 @@
           <div id="financeLiteracyStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
 
-        <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
-          <div class="finance-literacy-kicker">По вашим данным</div>
-          <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
-          <p class="finance-analyst-intro">Анализирует доходы, расходы по категориям и долги и даёт краткий разбор на основе принципов финансовой грамотности.</p>
-          <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
-          <div id="financeAnalystStatus" class="finance-status" role="status" aria-live="polite"></div>
-          <div id="financeAnalystResult" class="finance-analyst-result" hidden></div>
-        </article>
       </div>
     </section>
     <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
