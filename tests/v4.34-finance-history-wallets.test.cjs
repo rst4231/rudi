@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   readFinanceState, viewState, resetMutationQueueForTests,
-  saveWallet, deleteWallet, reorderWallets, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
+  saveWallet, deleteWallet, reorderWallets, saveWalletIncome, saveExpenseCategory, savePersonalExpense, deletePersonalExpense,
   archiveExpenseCategory, reorderExpenseCategories, importPersonalExpenses,
 } = require('../api/finance-store.cjs');
 const { directFinanceAddress } = require('../api/finance-ai.cjs');
@@ -217,4 +217,53 @@ test('wallet UI has long-press editing and drag-to-expense requests immediate am
   assert.ok(app.includes('focusAmount:true'));
   assert.ok(app.includes('forceFocus:focusAmount'));
   assert.ok(css.includes('.finance-wallet-list.is-editing .finance-wallet-delete-badge'));
+});
+
+
+test('wallet income increases selected wallet and monthly income total', async () => {
+  resetMutationQueueForTests();
+  const financeCache=memoryCache();
+  await saveWallet('Рустам',{name:'USD доход',currency:'USD',balance:20},{financeCache,id:'wallet-income'});
+  await saveWalletIncome('Рустам',{
+    walletId:'wallet-income',
+    amount:10,
+    currency:'USD',
+    rubAmount:800,
+    exchangeRate:80,
+    month:'2026-10',
+    occurredAt:'2026-10-07T08:30:00.000Z',
+    note:'Оплата'
+  },{financeCache,id:'income-1'});
+  const view=viewState(await readFinanceState({financeCache}),'Рустам');
+  assert.equal(view.wallets.find(row=>row.id==='wallet-income').balance,30);
+  assert.equal(view.walletIncomes.length,1);
+  assert.equal(view.walletIncomes[0].amount,10);
+  assert.equal(view.walletIncomes[0].rubAmount,800);
+  assert.equal(view.personalMonths.find(row=>row.month==='2026-10').income,800);
+});
+
+test('personal finance opens by default and monthly income field is removed', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.equal(html.includes('financePersonalIncomeInput'),false);
+  assert.ok(html.includes('id="financeIncomeAddButton"'));
+  assert.ok(html.includes('>+ Доход</button>'));
+  assert.ok(html.includes('class="finance-tab is-active" data-finance-tab="personal"'));
+  assert.ok(app.includes("setFinanceTab('personal')"));
+  assert.ok(app.includes("financeRequest('save-wallet-income'"));
+  assert.ok(app.includes("kind:'income'"));
+  assert.ok(app.includes("'Доход',wallet?.name"));
+  assert.ok(css.includes('.finance-wallet-head-actions'));
+  assert.ok(css.includes('.finance-wallet-history-row.is-income'));
+});
+
+test('literacy article renderer has structural formatting styles', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(app.includes("document.createElement(numbered?'ol':'ul')"));
+  assert.ok(app.includes("classList.add('finance-literacy-lead')"));
+  assert.ok(css.includes('.finance-literacy-body h3'));
+  assert.ok(css.includes('.finance-literacy-body li::marker'));
+  assert.ok(css.includes('.finance-literacy-lead'));
 });
