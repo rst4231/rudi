@@ -2658,25 +2658,46 @@
         const rows=(financeState.plan?.obligations||[]).filter(row=>row.id!==id);try{await saveFinancePlanWithObligations(rows)}catch(_){}
       }
 
+      function financeMonthGenitive(month){
+        const match=String(month||'').match(/^(\d{4})-(\d{2})$/),index=match?Number(match[2])-1:-1;
+        return ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][index]||'прошлого месяца';
+      }
+      function financeMonthShortName(month){
+        return String(financeMonthTitle(month)||'месяц').split(/\s+/)[0].toLocaleLowerCase('ru-RU');
+      }
       function renderFinanceComparison(month,total){
         const host=document.getElementById('financeMonthComparison');if(!host)return;
-        const previous=financeRowForMonth(financePreviousMonthKey(month));
+        const previousKey=financePreviousMonthKey(month),previous=financeRowForMonth(previousKey);
         const previousTotal=previous?financeSplit(previous.rent,previous.utilities).total:0;
-        const prev=Number(previousTotal)||0,now=Number(total)||0;
-        if(prev<=0){host.textContent='Нет данных за прошлый месяц';host.dataset.direction='none';return}
+        const prev=Number(previousTotal)||0,now=Number(total)||0,previousName=financeMonthGenitive(previousKey);
+        if(prev<=0){host.textContent='Нет данных за '+previousName;host.dataset.direction='none';return}
         const delta=now-prev,percent=delta/prev*100;
-        if(Math.abs(delta)<.005){host.textContent='Без изменений к прошлому месяцу';host.dataset.direction='same';return}
-        host.textContent=(delta>0?'Выше ':'Ниже ')+financeMoney(Math.abs(delta))+' · '+(delta>0?'+':'−')+financePercent(percent);
+        if(Math.abs(delta)<.005){host.textContent='Без изменений к '+previousName;host.dataset.direction='same';return}
+        host.textContent='На '+financeMoney(Math.abs(delta))+' '+(delta>0?'больше ':'меньше ')+previousName+' · '+(delta>0?'+':'−')+financePercent(percent);
         host.dataset.direction=delta>0?'up':'down';
       }
       function renderFinanceSummary(rent,utilities,month=''){
-        const split=financeSplit(rent,utilities);
+        const split=financeSplit(rent,utilities),key=month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
         const total=document.getElementById('financeTotalValue'),diana=document.getElementById('financeDianaValue'),rustam=document.getElementById('financeRustamValue');
+        const label=document.getElementById('financeTotalLabel'),hint=document.getElementById('financeTotalHint');
         if(total)total.textContent=financeMoney(split.total);
         if(diana)diana.textContent=financeMoney(split.diana);
         if(rustam)rustam.textContent=financeMoney(split.rustam);
-        renderFinanceComparison(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey(),split.total);
+        if(label)label.textContent='Итого за '+financeMonthShortName(key);
+        if(hint)hint.textContent='Квартира '+financeMoney(rent)+' · ЖКУ '+financeMoney(utilities);
+        renderFinanceComparison(key,split.total);
         return split;
+      }
+      function syncFinanceSaveButton({saving=false}={}){
+        const save=document.getElementById('financeSaveButton');if(!save)return;
+        if(currentActor!=='Рустам'){save.hidden=true;return}
+        save.hidden=false;
+        if(saving){save.disabled=true;save.dataset.state='saving';save.textContent='Сохраняю…';return}
+        const month=document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
+        const rent=Number(document.getElementById('financeRentInput')?.value||0),utilities=Number(document.getElementById('financeUtilitiesInput')?.value||0);
+        const row=financeRowForMonth(month),saved=Boolean(row)&&Number(row.rent||0)===rent&&Number(row.utilities||0)===utilities;
+        save.disabled=false;save.dataset.state=saved?'saved':'dirty';
+        save.textContent=saved?'✓ Сохранено':(row?'Сохранить изменения':'Сохранить месяц');
       }
       function renderFinanceSelectedMonth(month,{preserveInputs=false}={}){
         const key=String(month||financeCurrentMonthKey()),row=financeRowForMonth(key);
@@ -2689,6 +2710,7 @@
           if(utilitiesInput)utilitiesInput.value=row?String(row.utilities||0):'';
         }
         renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0,key);
+        syncFinanceSaveButton();
       }
       function renderFinanceHistory(){
         const list=document.getElementById('financeHistoryList'),empty=document.getElementById('financeHistoryEmpty'),count=document.getElementById('financeHistoryCount');
@@ -4396,19 +4418,19 @@
           setFinanceTab(button.dataset.financeTab);try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
         month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
-        const recalc=()=>renderFinanceSummary(rent?.value||0,utilities?.value||0,month.value||financeCurrentMonthKey());
+        const recalc=()=>{renderFinanceSummary(rent?.value||0,utilities?.value||0,month.value||financeCurrentMonthKey());syncFinanceSaveButton()};
         rent?.addEventListener('input',recalc);utilities?.addEventListener('input',recalc);
         save?.addEventListener('click',async()=>{
           if(currentActor!=='Рустам')return;
-          const status=document.getElementById('financeStatus');save.disabled=true;if(status)status.textContent='Сохраняю…';
+          const status=document.getElementById('financeStatus');syncFinanceSaveButton({saving:true});if(status)status.textContent='';
           try{
             const data=await financeRequest('save',{month:month.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0)});
             renderFinanceState(data,{month:month.value,personalMonth:personalMonth?.value,preserveIncome:true,preservePlan:true});
-            if(status)status.textContent='Сохранено';
-            setTimeout(()=>{if(status?.textContent==='Сохранено')status.textContent=''},1800);
+            if(status)status.textContent='';
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
             if(status)status.textContent=error.status===403?'Редактировать может только Рустам':'Не удалось сохранить';
-          }finally{save.disabled=false}
+          }finally{syncFinanceSaveButton()}
         });
 
         personalMonth?.addEventListener('change',()=>{

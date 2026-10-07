@@ -16667,3 +16667,46 @@ body.finance-category-history-open{
     min-height:44px!important;
   }
 }
+
+
+/* RUDI v4.56 — compact shared finances */
+#financeSharedPanel .finance-editor-head{grid-template-columns:minmax(0,1fr) auto;gap:12px}
+#financeSharedPanel .finance-editor-copy span{color:var(--text);font-size:12.5px;font-weight:820;letter-spacing:-.01em}
+.finance-month-picker{position:relative;min-width:132px;min-height:38px;box-sizing:border-box;display:flex;align-items:center;justify-content:flex-end;gap:7px;padding:0 10px 0 12px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text)}
+.finance-month-picker strong{font-size:10.5px;line-height:1;font-weight:760;white-space:nowrap}
+.finance-month-picker svg{width:15px;height:15px;flex:0 0 auto}
+.finance-month-picker .finance-month-input{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;border:0;opacity:0;cursor:pointer}
+#financeSharedPanel .finance-input-grid{margin-top:12px}
+#financeSharedPanel .finance-money-input{min-height:42px;padding:0 11px;border-radius:13px}
+#financeSharedPanel .finance-money-input input{font-size:16px}
+#financeSharedPanel .finance-save-button{min-height:40px;margin-top:11px;border-radius:13px;font-size:10.5px;box-shadow:0 8px 20px rgba(34,166,111,.17)}
+#financeSharedPanel .finance-save-button[data-state="saved"]{background:color-mix(in srgb,var(--finance-green) 12%,var(--surface));color:var(--finance-green);box-shadow:none;border:1px solid color-mix(in srgb,var(--finance-green) 24%,var(--line))}
+#financeSharedPanel .finance-save-button[data-state="saving"]{opacity:.72}
+#financeSharedPanel .finance-status:empty{display:none}
+#financeSharedPanel .finance-status:not(:empty){min-height:0;margin-top:7px}
+#financeSharedPanel .finance-summary{gap:0}
+#financeSharedPanel .finance-total-card{padding:16px;border-radius:21px}
+#financeSharedPanel .finance-total-card::after{right:13px;top:5px;font-size:54px;opacity:.65}
+#financeSharedPanel .finance-total-label{font-size:10px;font-weight:760;opacity:.82}
+#financeSharedPanel .finance-total-card .finance-total-value{display:block;margin-top:4px;font-size:30px;line-height:1.04;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+#financeSharedPanel .finance-total-card .finance-total-hint{display:block;margin-top:8px;font-size:9.5px;font-weight:620;opacity:.78}
+#financeSharedPanel .finance-month-comparison{margin-top:6px;font-size:9px;font-weight:780}
+.finance-total-split{position:relative;z-index:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid rgba(255,255,255,.17)}
+.finance-total-person{min-width:0;display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.10);backdrop-filter:blur(8px)}
+.finance-total-person .finance-person-avatar{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.16)!important;color:#fff!important}
+.finance-total-person-copy{min-width:0;display:grid;gap:3px}
+#financeSharedPanel .finance-total-person-copy span{margin:0;overflow:hidden;color:rgba(255,255,255,.76);font-size:8.5px;font-weight:720;white-space:nowrap;text-overflow:ellipsis}
+.finance-total-person-copy b{overflow:hidden;color:#fff;font-size:14px;line-height:1.05;font-weight:850;letter-spacing:-.025em;font-variant-numeric:tabular-nums;white-space:nowrap;text-overflow:ellipsis}
+@media(max-width:430px){
+  #financeSharedPanel .finance-editor-head{grid-template-columns:minmax(0,1fr) auto}
+  .finance-month-picker{min-width:124px;min-height:36px;padding-inline:10px 9px}
+  .finance-month-picker strong{font-size:10px}
+  #financeSharedPanel .finance-money-input{min-height:41px}
+  #financeSharedPanel .finance-total-card{padding:15px}
+  #financeSharedPanel .finance-total-card .finance-total-value{font-size:28px}
+  .finance-total-person{grid-template-columns:30px minmax(0,1fr);gap:7px;padding:8px}
+  .finance-total-person .finance-person-avatar{width:30px;height:30px}
+  .finance-total-person-copy b{font-size:13px}
+}
+@media(max-width:360px){.finance-total-split{gap:6px}.finance-total-person{padding:7px}.finance-total-person-copy b{font-size:12px}}
+/* end RUDI v4.56 */
