@@ -674,7 +674,7 @@ async function deleteExpenseCategory(actor, id, options = {}) {
     const wallets = {
       ...current.wallets,
       [safeActor]: (current.wallets[safeActor] || []).map((wallet) => refundByWallet.has(wallet.id)
-        ? { ...wallet, balance: cleanAssetAmount(Number(wallet.balance || 0) + Number(refundByWallet.get(wallet.id) || 0)) }
+        ? { ...wallet, balance: cleanWalletBalance(Number(wallet.balance || 0) + Number(refundByWallet.get(wallet.id) || 0)) }
         : wallet),
     };
 
