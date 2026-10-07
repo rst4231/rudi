@@ -701,6 +701,18 @@
           <div id="financePlanStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite"></div>
         </section>
 
+        <section class="finance-obligations-card" aria-labelledby="financeObligationsTitle">
+          <div class="finance-history-head finance-obligations-card-head">
+            <div>
+              <span class="section-eyebrow">Планирование</span>
+              <h2 id="financeObligationsTitle">Обязательные расходы</h2>
+            </div>
+            <button id="financeObligationAddButton" class="finance-obligation-add-button" type="button">+ Добавить</button>
+          </div>
+          <div id="financeObligationList" class="finance-obligation-list"></div>
+          <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных обязательных расходов нет</div>
+        </section>
+
         <section id="financeOperationsCard" class="finance-history-card finance-operations-card finance-collapsible is-collapsed" aria-labelledby="financeOperationsTitle">
                   <div class="finance-history-head">
                     <div><span class="section-eyebrow">Операции</span><h2 id="financeOperationsTitle">История</h2></div>
@@ -725,18 +737,6 @@
                   <div id="financeOperationList" class="finance-operation-list"></div>
                   <div id="financeOperationEmpty" class="finance-history-empty">По выбранным фильтрам операций нет</div>
                 </section>
-
-        <section class="finance-obligations-card" aria-labelledby="financeObligationsTitle">
-          <div class="finance-history-head finance-obligations-card-head">
-            <div>
-              <span class="section-eyebrow">Планирование</span>
-              <h2 id="financeObligationsTitle">Обязательные расходы</h2>
-            </div>
-            <button id="financeObligationAddButton" class="finance-obligation-add-button" type="button">+ Добавить</button>
-          </div>
-          <div id="financeObligationList" class="finance-obligation-list"></div>
-          <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных обязательных расходов нет</div>
-        </section>
 
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
           <div class="finance-literacy-kicker">По вашим данным</div>
