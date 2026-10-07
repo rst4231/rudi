@@ -2300,25 +2300,136 @@
           sync();
         });
       }
+      let financeMonthPickerState=null;
+      function ensureFinanceMonthPicker(){
+        let root=document.getElementById('financeMonthPickerDialog');
+        if(root)return root;
+        root=document.createElement('div');
+        root.id='financeMonthPickerDialog';
+        root.className='finance-month-dialog';
+        root.hidden=true;
+        root.setAttribute('aria-hidden','true');
+        root.innerHTML=''
+          +'<button class="finance-month-dialog-backdrop" type="button" aria-label="Закрыть выбор месяца" data-finance-month-close></button>'
+          +'<section class="finance-month-dialog-sheet" role="dialog" aria-modal="true" aria-labelledby="financeMonthDialogTitle">'
+          +'<div class="finance-month-dialog-head">'
+          +'<div><span>Месяц</span><strong id="financeMonthDialogTitle">Выбери месяц</strong></div>'
+          +'<button class="finance-month-dialog-close" type="button" aria-label="Закрыть" data-finance-month-close>×</button>'
+          +'</div>'
+          +'<div class="finance-month-year-row">'
+          +'<button type="button" aria-label="Предыдущий год" data-finance-month-year="-1">‹</button>'
+          +'<strong id="financeMonthPickerYear">—</strong>'
+          +'<button type="button" aria-label="Следующий год" data-finance-month-year="1">›</button>'
+          +'</div>'
+          +'<div class="finance-month-grid" role="group" aria-label="Месяцы">'
+          +['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'].map((label,index)=>'<button type="button" data-finance-month="'+String(index+1)+'">'+label+'</button>').join('')
+          +'</div>'
+          +'<button class="finance-month-current-button" type="button" data-finance-month-current>Текущий месяц</button>'
+          +'</section>';
+        document.body.append(root);
+        root.querySelectorAll('[data-finance-month-close]').forEach(button=>button.addEventListener('click',closeFinanceMonthPicker));
+        root.addEventListener('click',event=>{
+          const yearButton=event.target.closest?.('[data-finance-month-year]');
+          if(yearButton&&financeMonthPickerState){
+            financeMonthPickerState.year=Math.min(2100,Math.max(2000,financeMonthPickerState.year+Number(yearButton.dataset.financeMonthYear||0)));
+            renderFinanceMonthPicker();
+            return;
+          }
+          const monthButton=event.target.closest?.('[data-finance-month]');
+          if(monthButton&&financeMonthPickerState){
+            selectFinanceMonthPickerMonth(Number(monthButton.dataset.financeMonth||0));
+            return;
+          }
+          if(event.target.closest?.('[data-finance-month-current]')&&financeMonthPickerState){
+            const current=financeCurrentMonthKey().match(/^(\d{4})-(\d{2})$/);
+            if(current){
+              financeMonthPickerState.year=Number(current[1]);
+              selectFinanceMonthPickerMonth(Number(current[2]));
+            }
+          }
+        });
+        if(!window.__rudiFinanceMonthPickerKeyBound){
+          window.__rudiFinanceMonthPickerKeyBound=true;
+          document.addEventListener('keydown',event=>{
+            if(event.key==='Escape'&&financeMonthPickerState)closeFinanceMonthPicker();
+          });
+        }
+        return root;
+      }
+      function renderFinanceMonthPicker(){
+        const state=financeMonthPickerState,root=document.getElementById('financeMonthPickerDialog');
+        if(!state||!root)return;
+        const yearLabel=root.querySelector('#financeMonthPickerYear');
+        if(yearLabel)yearLabel.textContent=String(state.year);
+        const current=financeCurrentMonthKey();
+        root.querySelectorAll('[data-finance-month]').forEach(button=>{
+          const month=Number(button.dataset.financeMonth||0);
+          const key=String(state.year)+'-'+String(month).padStart(2,'0');
+          const selected=state.selectedKey===key;
+          button.classList.toggle('is-selected',selected);
+          button.classList.toggle('is-current',current===key);
+          button.setAttribute('aria-pressed',selected?'true':'false');
+        });
+      }
+      function openFinanceMonthPicker(input){
+        if(!input)return;
+        const key=String(input.value||financeCurrentMonthKey());
+        const match=key.match(/^(\d{4})-(\d{2})$/);
+        const fallback=financeCurrentMonthKey().match(/^(\d{4})-(\d{2})$/);
+        const year=Number(match?.[1]||fallback?.[1]||new Date().getFullYear());
+        const selectedMonth=Number(match?.[2]||fallback?.[2]||1);
+        financeMonthPickerState={
+          input,
+          year,
+          selectedKey:String(year)+'-'+String(selectedMonth).padStart(2,'0'),
+          returnFocus:document.activeElement
+        };
+        const root=ensureFinanceMonthPicker();
+        root.hidden=false;
+        root.setAttribute('aria-hidden','false');
+        document.body.classList.add('finance-month-dialog-open');
+        renderFinanceMonthPicker();
+        requestAnimationFrame(()=>{
+          root.classList.add('is-open');
+          const selected=root.querySelector('[data-finance-month].is-selected');
+          (selected||root.querySelector('[data-finance-month]'))?.focus?.({preventScroll:true});
+        });
+      }
+      function closeFinanceMonthPicker(){
+        const state=financeMonthPickerState,root=document.getElementById('financeMonthPickerDialog');
+        financeMonthPickerState=null;
+        if(root){
+          root.classList.remove('is-open');
+          root.hidden=true;
+          root.setAttribute('aria-hidden','true');
+        }
+        document.body.classList.remove('finance-month-dialog-open');
+        const returnFocus=state?.returnFocus;
+        requestAnimationFrame(()=>{try{returnFocus?.focus?.({preventScroll:true})}catch(_){}});
+      }
+      function selectFinanceMonthPickerMonth(month){
+        const state=financeMonthPickerState;
+        if(!state||month<1||month>12)return;
+        const next=String(state.year)+'-'+String(month).padStart(2,'0');
+        state.input.value=next;
+        state.input.dispatchEvent(new Event('input',{bubbles:true}));
+        state.input.dispatchEvent(new Event('change',{bubbles:true}));
+        closeFinanceMonthPicker();
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
       function bindFinanceMonthPicker(container,input){
         if(!container||!input||container.dataset.monthPickerBound==='1')return;
         container.dataset.monthPickerBound='1';
         container.setAttribute('tabindex','0');
         container.setAttribute('role','button');
         container.setAttribute('aria-haspopup','dialog');
+        container.setAttribute('aria-label',input.getAttribute('aria-label')||'Выбрать месяц');
         input.tabIndex=-1;
+        input.setAttribute('aria-hidden','true');
         const open=event=>{
           event?.preventDefault?.();
           event?.stopPropagation?.();
-          if(typeof input.showPicker==='function'){
-            try{input.showPicker();return}catch(_){}
-          }
-          const current=input.value||financeCurrentMonthKey();
-          const next=window.prompt('Выбери месяц в формате ГГГГ-ММ',current);
-          if(next&&/^\d{4}-(0[1-9]|1[0-2])$/.test(String(next).trim())){
-            input.value=String(next).trim();
-            input.dispatchEvent(new Event('change',{bubbles:true}));
-          }
+          openFinanceMonthPicker(input);
         };
         container.addEventListener('click',open);
         container.addEventListener('keydown',event=>{
