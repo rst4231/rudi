@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.53">
+  <meta name="rudi-version" content="v4.55">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.53">
+  <link rel="stylesheet" href="/app.css?v=4.55">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -64,7 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.53"></script>
+  <script defer src="/app.js?v=4.55"></script>
   <script defer src="/pwa-extras.js?v=4.12"></script>
   <script defer src="/weather.js?v=4.12"></script>
   <script defer src="/smart-home.js?v=4.12"></script>
@@ -334,6 +334,10 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg>
                   <input id="financePersonalMonthInput" class="finance-balance-month-input" type="month" aria-label="Месяц личных финансов">
                 </label>
+                <button id="financeBalanceCurrencyButton" class="finance-balance-currency" type="button" aria-label="Показать баланс в долларах" title="Сейчас RUB · переключить валюту">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 8h12l-3-3M19 16H7l3 3"/></svg>
+                  <span id="financeBalanceCurrencySymbol">₽</span>
+                </button>
                 <button id="financeBalanceEyeButton" class="finance-balance-eye" type="button" aria-label="Скрыть или показать баланс" aria-pressed="false">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg>
                 </button>
@@ -388,7 +392,6 @@
                 <span id="financeCategoryHistoryIcon" class="finance-coin" aria-hidden="true">💳</span>
                 <div><small id="financeCategoryHistoryMonth">Текущий месяц</small><h2 id="financeCategoryHistoryName">Категория</h2></div>
               </div>
-              <button id="financeCategoryHistoryAdd" class="finance-category-history-add" type="button">+ Расход</button>
             </div>
             <div class="finance-category-history-controls">
               <label class="finance-category-history-month-control" title="Выбрать месяц">
