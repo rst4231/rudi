@@ -2339,9 +2339,12 @@
         const row=financePersonalRowForMonth(month)||{};
         const income=Math.max(0,Number(row.income||0));
         const expenses=financeExpenseTotal(month);
-        const balanceValue=Math.round((income-expenses)*100)/100;
+        const planned=(Array.isArray(financeState.categories)?financeState.categories:[])
+          .reduce((sum,category)=>sum+Math.max(0,Number(category?.monthlyLimit||0)),0);
         const coinIncome=document.getElementById('financeCoinIncomeValue');
+        const plannedTotal=document.getElementById('financePlannedMonthTotal');
         if(coinIncome)coinIncome.textContent=financeMoney(income);
+        if(plannedTotal)plannedTotal.textContent=financeMoney(Math.round(planned*100)/100);
       }
       function renderFinancePlan({preserveInputs=false}={}){
         const plan=financeState.plan||{},title=document.getElementById('financeGoalTitleInput'),current=document.getElementById('financeGoalCurrentInput'),target=document.getElementById('financeGoalTargetInput');
@@ -2865,11 +2868,13 @@
       }
 
       function renderFinanceWalletTotal(payload=readMarketTickerLocalCache()){
-        const host=document.getElementById('financeCoinBalanceValue');if(!host)return;
+        const host=document.getElementById('financeCoinBalanceValue');
+        const walletTotal=document.getElementById('financeWalletTotalRub');
+        if(!host&&!walletTotal)return;
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         if(!wallets.length){
-          host.textContent=financeMoney(0);
-          host.removeAttribute('title');
+          if(host){host.textContent=financeMoney(0);host.removeAttribute('title')}
+          if(walletTotal)walletTotal.textContent='Всего: '+financeMoney(0);
           return;
         }
         const rates=financeWalletRubRates(payload);
@@ -2883,11 +2888,12 @@
           total+=balance*rate;
         }
         if(complete){
-          host.textContent=financeMoney(Math.round(total*100)/100);
-          host.title='Общая стоимость активных кошельков в рублях';
+          const text=financeMoney(Math.round(total*100)/100);
+          if(host){host.textContent=text;host.title='Общая стоимость активных кошельков в рублях'}
+          if(walletTotal)walletTotal.textContent='Всего: '+text;
         }else{
-          host.textContent='—';
-          host.title='Жду актуальные курсы для пересчёта кошельков';
+          if(host){host.textContent='—';host.title='Жду актуальные курсы для пересчёта кошельков'}
+          if(walletTotal)walletTotal.textContent='Всего: —';
         }
       }
 
