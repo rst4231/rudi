@@ -1,13 +1,15 @@
 (()=>{
-  const tg=window.Telegram?.WebApp;
+  const telegram=()=>window.Telegram?.WebApp;
   const SYNC_FROM='2026-10-08';
   let selectedWalletId='',stateCache=null,stateAt=0;
 
   const request=async(operation,payload={})=>{
+    try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
+    const initData=telegram()?.initData||'';
     const res=await fetch('/api/finances',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),
+      body:JSON.stringify({initData,operation,...payload}),
       cache:'no-store'
     });
     const data=await res.json().catch(()=>({}));
