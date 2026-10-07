@@ -4460,6 +4460,9 @@
             fill.style.width=Math.min(100,usage*100)+'%';
             progress.classList.toggle('is-mid',usage>=.5&&usage<1);
             progress.classList.toggle('is-full',usage>=1);
+            amount.classList.toggle('is-budget-low',usage<.5);
+            amount.classList.toggle('is-budget-mid',usage>=.5&&usage<1);
+            amount.classList.toggle('is-budget-full',usage>=1);
           }
           const monthTrend=financeCategoryMonthTrend(category.id,month);
           const trend=document.createElement('span');trend.className='finance-category-trend is-'+monthTrend.direction;trend.textContent=monthTrend.text;
