@@ -15253,6 +15253,15 @@ html[data-theme="dark"] .finance-literacy-card{
 .finance-budget-progress.is-full i{
   background:#d94b55!important;
 }
+.finance-category-coin-item .finance-coin-amount.is-budget-low{
+  color:#35a875!important;
+}
+.finance-category-coin-item .finance-coin-amount.is-budget-mid{
+  color:#e0aa2f!important;
+}
+.finance-category-coin-item .finance-coin-amount.is-budget-full{
+  color:#d94b55!important;
+}
 
 
 /* RUDI v4.42 — wallet-to-wallet transfer drag */
