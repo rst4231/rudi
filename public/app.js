@@ -2169,7 +2169,10 @@
 
       let financeState={months:[],personalMonths:[],wallets:[],categories:[],archivedCategories:[],personalExpenses:[],walletIncomes:[],walletTransfers:[],debts:[],plan:{},version:0};
       let financeBalanceHidden=false;
-      let financeOverviewDisplayCurrency='RUB';
+      const FINANCE_OVERVIEW_CURRENCY_STORAGE_KEY='rudi:finance-overview-currency:v1';
+      let financeOverviewDisplayCurrency=(()=>{
+        try{return localStorage.getItem(FINANCE_OVERVIEW_CURRENCY_STORAGE_KEY)==='USD'?'USD':'RUB'}catch(_){return 'RUB'}
+      })();
       let financeObligationEditingId='';
       let financeLoadPromise=null;
       let financeLiteracyPromise=null;
@@ -2256,6 +2259,7 @@
           if(financeOverviewUsdRate()<=0)return;
         }
         financeOverviewDisplayCurrency=next;
+        try{localStorage.setItem(FINANCE_OVERVIEW_CURRENCY_STORAGE_KEY,financeOverviewDisplayCurrency)}catch(_){}
         syncFinanceOverviewCurrencyButton();
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         renderFinanceWallets();
@@ -2946,7 +2950,7 @@
           const detail=document.createElement('span');detail.textContent=financeSharedSummaryText(row.rent,row.utilities,row.items);copy.append(title,detail);
           const total=document.createElement('span');total.className='finance-history-row-total';
           const totalValue=document.createElement('strong');totalValue.textContent=financeMoney(financeSplit(row.rent,row.utilities,row.items).total);
-          const shares=document.createElement('span');shares.textContent='40% / 60%';total.append(totalValue,shares);
+          total.append(totalValue);
           button.append(copy,total);button.addEventListener('click',()=>{setFinanceTab('shared');renderFinanceSelectedMonth(row.month);document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'})});
           list.appendChild(button);
         }
@@ -2970,6 +2974,7 @@
         const coinIncome=document.getElementById('financeCoinIncomeValue');
         const plannedTotal=document.getElementById('financePlannedMonthTotal');
         const yesterdayTotal=document.getElementById('financeYesterdayExpenseTotal');
+        const todayTotal=document.getElementById('financeTodayExpenseTotal');
         if(coinIncome)coinIncome.textContent=financeBalanceHidden?'••••':financeOverviewMoney(income);
         if(plannedTotal){
           plannedTotal.textContent=financeBalanceHidden?'••••':financeOverviewMoney(plannedRemaining);
@@ -2982,14 +2987,15 @@
         if(progressBar)progressBar.style.width=Math.min(100,spentPercent)+'%';
         if(progressPercent)progressPercent.textContent=financePercent(spentPercent);
         document.querySelector('.finance-balance-progress')?.classList.toggle('is-over',spentPercent>100);
-        if(yesterdayTotal){
+        if(yesterdayTotal||todayTotal){
           const now=financeMoscowParts();
           const todayKey=now.year+'-'+now.month+'-'+now.day;
           const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
-          const yesterdaySpent=Math.round((financeState.personalExpenses||[])
-            .filter(row=>financeDateTimeLabel(row.occurredAt||row.createdAt).key===yesterdayKey)
+          const dailySpent=(dateKey)=>Math.round((financeState.personalExpenses||[])
+            .filter(row=>financeDateTimeLabel(row.occurredAt||row.createdAt).key===dateKey)
             .reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0)*100)/100;
-          yesterdayTotal.textContent=financeBalanceHidden?'••••':financeMoney(yesterdaySpent);
+          if(yesterdayTotal)yesterdayTotal.textContent=financeBalanceHidden?'••••':financeMoney(dailySpent(yesterdayKey));
+          if(todayTotal)todayTotal.textContent=financeBalanceHidden?'••••':financeMoney(dailySpent(todayKey));
         }
         syncFinanceOverviewCurrencyButton();
         renderFinanceObligations();
