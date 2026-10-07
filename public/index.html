@@ -590,7 +590,10 @@
             <label class="finance-input-field"><span>Куда</span><select id="financeTransferTo" class="finance-select" aria-label="Кошелёк зачисления"></select></label>
             <label class="finance-input-field">
               <span>Сумма</span>
-              <div class="finance-money-input"><input id="financeTransferAmount" type="number" min="0.01" max="1000000000000" step="any" inputmode="decimal" placeholder="0"><b id="financeTransferCurrency">₽</b></div>
+              <div class="finance-transfer-amount-row">
+                <div class="finance-money-input"><input id="financeTransferAmount" type="number" min="0.01" max="1000000000000" step="any" inputmode="decimal" placeholder="0"><b id="financeTransferCurrency">₽</b></div>
+                <select id="financeTransferInputCurrency" class="finance-select finance-transfer-currency-select" aria-label="Валюта вводимой суммы"></select>
+              </div>
             </label>
             <div id="financeTransferPreview" class="finance-transfer-preview">Выбери кошельки и сумму</div>
             <div class="finance-expense-datetime-grid">

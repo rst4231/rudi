@@ -125,14 +125,28 @@ async function handler(req, res) {
       const toWallet = (view.wallets || []).find((row) => row.id === String(body.toWalletId || ''));
       if (!fromWallet || !toWallet) throw new Error('finance-wallet-not-found');
       if (fromWallet.id === toWallet.id) throw new Error('finance-transfer-same-wallet');
-      const sourceAmount = Number(body.sourceAmount);
-      if (!Number.isFinite(sourceAmount) || sourceAmount <= 0) throw new Error('finance-amount-invalid');
+      const inputAmount = Number(body.amount ?? body.sourceAmount);
+      if (!Number.isFinite(inputAmount) || inputAmount <= 0) throw new Error('finance-amount-invalid');
+      const sourceCurrency = String(fromWallet.currency || 'RUB').toUpperCase();
+      const targetCurrency = String(toWallet.currency || 'RUB').toUpperCase();
+      const inputCurrency = String(body.inputCurrency || sourceCurrency).toUpperCase();
+      if (![sourceCurrency, targetCurrency].includes(inputCurrency)) throw new Error('finance-wallet-currency-mismatch');
       const rates = await financeRubRates();
-      const sourceRate = Number(rates[String(fromWallet.currency || 'RUB').toUpperCase()]);
-      const targetRate = Number(rates[String(toWallet.currency || 'RUB').toUpperCase()]);
+      const sourceRate = Number(rates[sourceCurrency]);
+      const targetRate = Number(rates[targetCurrency]);
       if (!sourceRate || !targetRate) throw new Error('finance-rate-invalid');
-      const rubAmount = Math.round(sourceAmount * sourceRate * 100) / 100;
-      const targetAmount = Math.round((rubAmount / targetRate) * 100000000) / 100000000;
+      let sourceAmount;
+      let targetAmount;
+      let rubAmount;
+      if (inputCurrency === targetCurrency && inputCurrency !== sourceCurrency) {
+        targetAmount = Math.round(inputAmount * 100000000) / 100000000;
+        rubAmount = Math.round(targetAmount * targetRate * 100) / 100;
+        sourceAmount = Math.round((rubAmount / sourceRate) * 100000000) / 100000000;
+      } else {
+        sourceAmount = Math.round(inputAmount * 100000000) / 100000000;
+        rubAmount = Math.round(sourceAmount * sourceRate * 100) / 100;
+        targetAmount = Math.round((rubAmount / targetRate) * 100000000) / 100000000;
+      }
       const state = await saveWalletTransfer(actor, {
         fromWalletId: fromWallet.id,
         toWalletId: toWallet.id,

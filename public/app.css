@@ -16085,3 +16085,8 @@ html[data-theme="dark"] .finance-literacy-card{
   }
   .finance-balance-export svg{width:16px!important;height:16px!important}
 }
+
+.finance-transfer-amount-row{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:7px;align-items:stretch}
+.finance-transfer-currency-select{height:48px;min-width:0;padding:0 8px;border-radius:15px;font-size:11px;font-weight:800;text-align:center}
+.finance-transfer-currency-select:disabled{opacity:.6}
+@media(max-width:360px){.finance-transfer-amount-row{grid-template-columns:minmax(0,1fr) 72px}}

@@ -3411,22 +3411,50 @@
         });
       }
 
+      function syncFinanceTransferInputCurrency({preserve=true}={}){
+        const from=financeWalletById(document.getElementById('financeTransferFrom')?.value);
+        const to=financeWalletById(document.getElementById('financeTransferTo')?.value);
+        const select=document.getElementById('financeTransferInputCurrency');
+        if(!select)return String(from?.currency||'RUB').toUpperCase();
+        const previous=preserve?String(select.value||'').toUpperCase():'';
+        const currencies=[...new Set([from?.currency,to?.currency].map(value=>String(value||'').toUpperCase()).filter(Boolean))];
+        select.replaceChildren();
+        for(const code of currencies){const option=document.createElement('option');option.value=code;option.textContent=code;select.append(option)}
+        select.value=currencies.includes(previous)?previous:String(from?.currency||currencies[0]||'RUB').toUpperCase();
+        select.disabled=currencies.length<=1;
+        return select.value;
+      }
+      function financeTransferAmounts(){
+        const from=financeWalletById(document.getElementById('financeTransferFrom')?.value);
+        const to=financeWalletById(document.getElementById('financeTransferTo')?.value);
+        const inputAmount=Number(document.getElementById('financeTransferAmount')?.value||0);
+        const inputCurrency=String(document.getElementById('financeTransferInputCurrency')?.value||from?.currency||'RUB').toUpperCase();
+        if(!from||!to||from.id===to.id||inputAmount<=0)return {from,to,inputAmount,inputCurrency,sourceAmount:0,targetAmount:0};
+        const rates=financeWalletRubRates(),sourceRate=Number(rates[from.currency]||0),targetRate=Number(rates[to.currency]||0);
+        if(!sourceRate||!targetRate)return {from,to,inputAmount,inputCurrency,sourceAmount:0,targetAmount:0};
+        let sourceAmount,targetAmount;
+        if(inputCurrency===String(to.currency||'').toUpperCase()&&inputCurrency!==String(from.currency||'').toUpperCase()){
+          targetAmount=inputAmount;
+          sourceAmount=inputAmount*targetRate/sourceRate;
+        }else{
+          sourceAmount=inputAmount;
+          targetAmount=inputAmount*sourceRate/targetRate;
+        }
+        return {from,to,inputAmount,inputCurrency,sourceAmount,targetAmount,sourceRate,targetRate};
+      }
       function openFinanceTransferComposer({fromWalletId='',toWalletId='',focusAmount=false}={}){
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         if(wallets.length<2){document.getElementById('financeWalletCreateButton')?.click();return}
         const from=document.getElementById('financeTransferFrom'),to=document.getElementById('financeTransferTo'),amount=document.getElementById('financeTransferAmount'),note=document.getElementById('financeTransferNote');
         for(const select of [from,to]){
           select.replaceChildren();
-          for(const wallet of wallets){
-            const o=document.createElement('option');o.value=wallet.id;o.textContent=wallet.name+' · '+financeMoney(wallet.balance,wallet.currency);select.append(o);
-          }
+          for(const wallet of wallets){const o=document.createElement('option');o.value=wallet.id;o.textContent=wallet.name+' · '+financeMoney(wallet.balance,wallet.currency);select.append(o)}
         }
         const source=wallets.find(row=>row.id===String(fromWalletId||''))||wallets[0];
         const target=wallets.find(row=>row.id===String(toWalletId||'')&&row.id!==source.id)||wallets.find(row=>row.id!==source.id);
-        from.value=source.id;
-        to.value=target?.id||wallets[1].id;
-        if(amount)amount.value='';
-        if(note)note.value='';
+        from.value=source.id;to.value=target?.id||wallets[1].id;
+        syncFinanceTransferInputCurrency({preserve:false});
+        if(amount)amount.value='';if(note)note.value='';
         const now=financeNowDateTimeInputs();
         document.getElementById('financeTransferDate').value=now.date;
         document.getElementById('financeTransferTime').value=now.time;
@@ -3435,15 +3463,15 @@
         mountFinanceCoinModal(document.getElementById('financeTransferComposer'),amount,{forceFocus:focusAmount});
       }
       function updateFinanceTransferPreview(){
-        const from=financeWalletById(document.getElementById('financeTransferFrom')?.value),to=financeWalletById(document.getElementById('financeTransferTo')?.value),amount=Number(document.getElementById('financeTransferAmount')?.value||0);
-        const currency=document.getElementById('financeTransferCurrency'),preview=document.getElementById('financeTransferPreview');if(currency)currency.textContent=financeCurrencySymbol(from?.currency||'RUB');
-        if(!preview)return;if(!from||!to||from.id===to.id||amount<=0){preview.textContent=from&&to&&from.id===to.id?'Выбери разные кошельки':'Укажи сумму перевода';return}
-        const rates=financeWalletRubRates(),fromRate=Number(rates[from.currency]||0),toRate=Number(rates[to.currency]||0);
-        if(fromRate&&toRate){
-          const converted=amount*fromRate/toRate;
+        const {from,to,inputAmount,inputCurrency,sourceAmount,targetAmount,sourceRate,targetRate}=financeTransferAmounts();
+        const currency=document.getElementById('financeTransferCurrency'),preview=document.getElementById('financeTransferPreview');
+        if(currency)currency.textContent=financeCurrencySymbol(inputCurrency||from?.currency||'RUB');
+        if(!preview)return;
+        if(!from||!to||from.id===to.id||inputAmount<=0){preview.textContent=from&&to&&from.id===to.id?'Выбери разные кошельки':'Укажи сумму перевода';return}
+        if(sourceRate&&targetRate){
           preview.textContent=from.currency===to.currency
-            ? financeMoney(amount,from.currency)+' → '+financeMoney(converted,to.currency)
-            : financeMoney(amount,from.currency)+' → ≈ '+financeMoney(converted,to.currency)+' · по текущему курсу';
+            ? financeMoney(sourceAmount,from.currency)+' → '+financeMoney(targetAmount,to.currency)
+            : financeMoney(sourceAmount,from.currency)+' → ≈ '+financeMoney(targetAmount,to.currency)+' · по текущему курсу';
         }else preview.textContent='Курс будет рассчитан при сохранении';
       }
 
@@ -4275,13 +4303,16 @@
           if(index>=0)rows[index]=next;else rows.push(next);
           try{await saveFinancePlanWithObligations(rows);closeFinanceCoinModal('financeObligationComposer');financeObligationEditingId=''}catch(_){if(status)status.textContent='Не удалось сохранить'}
         });
-        ['financeTransferFrom','financeTransferTo','financeTransferAmount'].forEach(id=>document.getElementById(id)?.addEventListener('input',updateFinanceTransferPreview));
+        ['financeTransferFrom','financeTransferTo'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>{syncFinanceTransferInputCurrency();updateFinanceTransferPreview()}));
+        document.getElementById('financeTransferAmount')?.addEventListener('input',updateFinanceTransferPreview);
+        document.getElementById('financeTransferInputCurrency')?.addEventListener('change',updateFinanceTransferPreview);
         document.getElementById('financeTransferSaveButton')?.addEventListener('click',async()=>{
-          const fromWalletId=String(document.getElementById('financeTransferFrom')?.value||''),toWalletId=String(document.getElementById('financeTransferTo')?.value||''),sourceAmount=Number(document.getElementById('financeTransferAmount')?.value||0);
-          const status=document.getElementById('financeTransferComposerStatus');if(!fromWalletId||!toWalletId||fromWalletId===toWalletId||sourceAmount<=0){if(status)status.textContent='Проверь кошельки и сумму';return}
+          const details=financeTransferAmounts();
+          const fromWalletId=String(details.from?.id||''),toWalletId=String(details.to?.id||''),inputAmount=Number(details.inputAmount||0),inputCurrency=String(details.inputCurrency||'');
+          const status=document.getElementById('financeTransferComposerStatus');if(!fromWalletId||!toWalletId||fromWalletId===toWalletId||inputAmount<=0){if(status)status.textContent='Проверь кошельки и сумму';return}
           const {date,time}=ensureCurrentDateTimeInputs('financeTransferDate','financeTransferTime'),occurredAt=new Date(date+'T'+time+':00+03:00').toISOString(),monthKey=financeMonthFromOccurredAt(occurredAt);
           try{
-            const data=await financeRequest('save-wallet-transfer',{fromWalletId,toWalletId,sourceAmount,month:monthKey,occurredAt,note:document.getElementById('financeTransferNote')?.value||''});
+            const data=await financeRequest('save-wallet-transfer',{fromWalletId,toWalletId,amount:inputAmount,inputCurrency,month:monthKey,occurredAt,note:document.getElementById('financeTransferNote')?.value||''});
             renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preservePlan:true});closeFinanceCoinModal('financeTransferComposer');
           }catch(error){if(status)status.textContent=String(error?.message||'').includes('insufficient')?'Недостаточно средств':String(error?.message||'').includes('rate')?'Не удалось получить курс':'Не удалось выполнить перевод'}
         });
