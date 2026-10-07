@@ -2175,13 +2175,19 @@
       }
 
 
-      let financeState={months:[],personalMonths:[],categories:[],personalExpenses:[],debts:[],plan:{},version:0};
+      let financeState={months:[],personalMonths:[],wallets:[],categories:[],archivedCategories:[],personalExpenses:[],debts:[],plan:{},version:0};
       let financeLoadPromise=null;
       let financeLiteracyPromise=null;
       let financeInsightKey='';
       let activeFinanceTab='shared';
       let financeExpenseCategoryId='';
+      let financeExpenseWalletId='';
+      let financeWalletEditingId='';
       let financeIncomeDrag=null;
+      let financeCategoryEditMode=false;
+      let financeCategoryLongPress=null;
+      let financeCategoryReorder=null;
+      let financeCategoryDeleteId='';
       const financeSaveTimers=new Map();
 
       function financeCurrentMonthKey(){
@@ -2195,10 +2201,37 @@
         const date=new Date(Date.UTC(Number(match[1]),Number(match[2])-2,1));
         return date.getUTCFullYear()+'-'+String(date.getUTCMonth()+1).padStart(2,'0');
       }
-      function financeMoney(value){
+      function financeMoney(value,currency='RUB'){
         const number=Number(value)||0;
+        const code=['RUB','USD','EUR'].includes(String(currency||'').toUpperCase())?String(currency).toUpperCase():'RUB';
         const digits=Math.abs(number-Math.round(number))<.001?0:2;
-        return new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:digits,maximumFractionDigits:2}).format(number);
+        return new Intl.NumberFormat('ru-RU',{style:'currency',currency:code,minimumFractionDigits:digits,maximumFractionDigits:2}).format(number);
+      }
+      function financeCurrencySymbol(currency='RUB'){
+        const code=String(currency||'RUB').toUpperCase();
+        return code==='USD'?'$':code==='EUR'?'€':'₽';
+      }
+      function financeMoscowParts(date=new Date()){
+        const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
+        return Object.fromEntries(parts.map(part=>[part.type,part.value]));
+      }
+      function financeNowDateTimeInputs(){
+        const p=financeMoscowParts();
+        return {date:p.year+'-'+p.month+'-'+p.day,time:p.hour+':'+p.minute};
+      }
+      function financeOccurredAtFromInputs(){
+        const date=document.getElementById('financeExpenseComposerDate')?.value||financeNowDateTimeInputs().date;
+        const time=document.getElementById('financeExpenseComposerTime')?.value||financeNowDateTimeInputs().time;
+        const value=new Date(date+'T'+time+':00+03:00');
+        return Number.isNaN(value.getTime())?new Date().toISOString():value.toISOString();
+      }
+      function financeDateTimeLabel(value){
+        const date=new Date(value||Date.now());
+        if(Number.isNaN(date.getTime()))return {day:'Без даты',time:'—',key:''};
+        const key=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+        const day=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'long',year:'numeric'}).format(date);
+        const time=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}).format(date);
+        return {day:day.charAt(0).toUpperCase()+day.slice(1),time,key};
       }
       function financePercent(value){
         const number=Math.abs(Number(value)||0);
@@ -2237,12 +2270,14 @@
         return (financeState.personalExpenses||[]).filter(row=>String(row?.month||'')===String(month||''));
       }
       function financeExpenseTotal(month){
-        return Math.round(financeExpensesForMonth(month).reduce((sum,row)=>sum+Number(row.amount||0),0)*100)/100;
+        return Math.round(financeExpensesForMonth(month).reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0)*100)/100;
       }
       function financeCategorySpent(categoryId,month){
         return Math.round(financeExpensesForMonth(month).filter(row=>row.categoryId===categoryId).reduce((sum,row)=>sum+Number(row.amount||0),0)*100)/100;
       }
       function financeCategoryById(id){return (financeState.categories||[]).find(row=>row.id===id)||null}
+      function financeAllCategoryById(id){return [...(financeState.categories||[]),...(financeState.archivedCategories||[])].find(row=>row.id===id)||null}
+      function financeWalletById(id){return (financeState.wallets||[]).find(row=>row.id===id)||null}
 
       function renderFinanceComparison(month,total){
         const host=document.getElementById('financeMonthComparison');if(!host)return;
@@ -2585,7 +2620,9 @@
           version:Math.max(0,Number(data?.version||0)),
           months:Array.isArray(data?.months)?data.months:[],
           personalMonths:Array.isArray(data?.personalMonths)?data.personalMonths:[],
+          wallets:Array.isArray(data?.wallets)?data.wallets:[],
           categories:Array.isArray(data?.categories)?data.categories:[],
+          archivedCategories:Array.isArray(data?.archivedCategories)?data.archivedCategories:[],
           personalExpenses:Array.isArray(data?.personalExpenses)?data.personalExpenses:[],
           debts:Array.isArray(data?.debts)?data.debts:[],
           plan:data?.plan&&typeof data.plan==='object'?data.plan:{}
@@ -2594,7 +2631,7 @@
         const selected=String(month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey());
         const selectedPersonal=String(personalMonth||document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
         renderFinanceSelectedMonth(selected);renderFinancePersonalMonth(selectedPersonal,{preserveIncome});
-        renderFinancePlan({preserveInputs:preservePlan});
+        renderFinanceWallets();renderFinancePlan({preserveInputs:preservePlan});
       }
       async function loadFinances({silent=false,month=''}={}){
         if(!currentActor)return null;if(financeLoadPromise)return financeLoadPromise;
