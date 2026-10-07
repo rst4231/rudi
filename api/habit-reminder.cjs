@@ -47,34 +47,56 @@ async function writeEveningMarker(actor, date, sentAt, options = {}) {
   return true;
 }
 
-function pendingTaskCounts(tasks,actor){
+function pendingTaskDetails(tasks,actor){
   const visible=filterTasksForActor(tasks,actor);
-  let personal=0;
-  let shared=0;
+  const personal=[];
+  const shared=[];
   for(const task of visible){
-    if(task?.assigned && String(task?.assignee||'')!=='Не назначен') personal+=1;
-    else shared+=1;
+    const title=String(task?.title||'').replace(/\s+/g,' ').trim();
+    if(!title)continue;
+    if(task?.assigned && String(task?.assignee||'')!=='Не назначен') personal.push(title);
+    else shared.push(title);
   }
-  return {personal,shared,total:personal+shared};
+  return {personal,shared,total:personal.length+shared.length};
+}
+
+function pendingTaskCounts(tasks,actor){
+  const details=pendingTaskDetails(tasks,actor);
+  return {personal:details.personal.length,shared:details.shared.length,total:details.total};
+}
+
+function pendingHabitNames(view){
+  return (Array.isArray(view?.habits)?view.habits:[])
+    .filter(row=>String(view?.statuses?.[row?.id]||'')==='pending')
+    .map(row=>[String(row?.emoji||'').trim(),String(row?.name||'').trim()].filter(Boolean).join(' '))
+    .filter(Boolean);
 }
 
 function buildEveningSummary(actor, data = {}) {
-  const pending = Math.max(0, Number(data.pending || 0));
-  const taskCounts = data.taskCounts || { personal:0, shared:0 };
-  const obligationRows = Array.isArray(data.obligationRows) ? data.obligationRows : [];
-  const lines = [];
+  const pendingHabits=Array.isArray(data.pendingHabits)?data.pendingHabits.filter(Boolean):[];
+  const taskDetails=data.taskDetails||{personal:[],shared:[]};
+  const personalTasks=Array.isArray(taskDetails.personal)?taskDetails.personal.filter(Boolean):[];
+  const sharedTasks=Array.isArray(taskDetails.shared)?taskDetails.shared.filter(Boolean):[];
+  const obligationRows=Array.isArray(data.obligationRows)?data.obligationRows:[];
+  const blocks=[];
 
-  if (pending) lines.push('• Привычки: ' + pending);
-  if (taskCounts.personal) lines.push('• Личные дела: ' + taskCounts.personal);
-  if (taskCounts.shared) lines.push('• Совместные дела: ' + taskCounts.shared);
+  if(pendingHabits.length){
+    blocks.push('Привычки:\n'+pendingHabits.map(name=>'• '+name).join('\n'));
+  }
+  if(personalTasks.length){
+    blocks.push('Личные дела:\n'+personalTasks.map(title=>'• '+title).join('\n'));
+  }
+  if(sharedTasks.length){
+    blocks.push('Совместные дела:\n'+sharedTasks.map(title=>'• '+title).join('\n'));
+  }
 
-  const obligationPart = eveningObligationPart(obligationRows);
-  if (obligationPart) lines.push('• ' + obligationPart);
+  const obligationPart=eveningObligationPart(obligationRows);
+  if(obligationPart)blocks.push(obligationPart);
 
-  return String(actor || '').trim() + ', добрый вечер!\n\n'
-    + 'Что осталось на сегодня:\n'
-    + lines.join('\n')
-    + '\n\nЗагляни и закрой оставшееся.';
+  return String(actor||'').trim()+', добрый вечер!\n\n'
+    +'Что осталось на сегодня:\n\n'
+    +blocks.join('\n\n')
+    +'\n\nЗагляни и закрой оставшееся.';
 }
 
 async function sendHabitReminder(actor, options = {}) {
@@ -86,11 +108,13 @@ async function sendHabitReminder(actor, options = {}) {
     loadDueObligationsByActor({ ...options, now }).catch(() => ({ [actor]:[] })),
   ]);
   const view = viewHabits(state, { ...options, now, date });
-  const pending = Math.max(0, Number(view?.pending || 0));
-  const taskCounts=pendingTaskCounts(tasks,actor);
+  const pendingHabits=pendingHabitNames(view);
+  const pending=pendingHabits.length;
+  const taskDetails=pendingTaskDetails(tasks,actor);
+  const taskCounts={personal:taskDetails.personal.length,shared:taskDetails.shared.length,total:taskDetails.total};
   const obligationRows=Array.isArray(obligationsByActor?.[actor])?obligationsByActor[actor]:[];
   const unpaidObligations=obligationRows.filter(row=>!row.paid);
-  if (!pending && !taskCounts.total && !unpaidObligations.length) {
+  if (!pending && !taskDetails.total && !unpaidObligations.length) {
     return { actor, sent:false, reason:'all-done', pending:0, personalTasks:0, sharedTasks:0, unpaidObligations:0 };
   }
 
@@ -121,7 +145,7 @@ async function sendHabitReminder(actor, options = {}) {
     };
   }
 
-  const text = buildEveningSummary(actor, { pending, taskCounts, obligationRows });
+  const text=buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows});
   const result = await telegramSendMessage(chatId, text, {
     ...options,
     fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,
@@ -170,7 +194,9 @@ module.exports={
   handleHabitReminderCron,
   sendHabitReminder,
   reminderId,
+  pendingTaskDetails,
   pendingTaskCounts,
+  pendingHabitNames,
   buildEveningSummary,
   readEveningMarker,
   writeEveningMarker,
