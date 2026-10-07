@@ -4454,12 +4454,14 @@
           if(limitValue>0&&Number.isFinite(limitRub)&&spent>limitRub)amount.classList.add('is-over-limit');
           const limit=document.createElement('span');limit.className='finance-coin-limit';
           limit.textContent=limitValue>0?(financeBalanceHidden?'••••':financeDisplayMoney(limitValue,category.currency||'RUB')):'';
-          const progress=document.createElement('span');progress.className='finance-budget-progress';const fill=document.createElement('i');progress.append(fill);
           if(limitValue>0){
             const usage=Number.isFinite(limitRub)&&limitRub>0?Math.max(0,spent/limitRub):0;
-            fill.style.width=Math.min(100,usage*100)+'%';
-            progress.classList.toggle('is-mid',usage>=.5&&usage<1);
-            progress.classList.toggle('is-full',usage>=1);
+            const usagePercent=Math.min(100,usage*100);
+            coin.classList.add('has-budget');
+            coin.style.setProperty('--finance-budget-progress',usagePercent+'%');
+            coin.classList.toggle('is-budget-low',usage<.5);
+            coin.classList.toggle('is-budget-mid',usage>=.5&&usage<1);
+            coin.classList.toggle('is-budget-full',usage>=1);
             amount.classList.toggle('is-budget-low',usage<.5);
             amount.classList.toggle('is-budget-mid',usage>=.5&&usage<1);
             amount.classList.toggle('is-budget-full',usage>=1);
@@ -4468,7 +4470,7 @@
           const trend=document.createElement('span');trend.className='finance-category-trend is-'+monthTrend.direction;trend.textContent=monthTrend.text;
           if(monthTrend.previousMonth)trend.title='К '+financeMonthTitle(monthTrend.previousMonth);
           item.append(remove,label,coin,amount);
-          if(limitValue>0)item.append(limit,progress);
+          if(limitValue>0)item.append(limit);
           item.append(trend);
           bindFinanceCategoryInteractions(item,list,category);
           list.append(item);
