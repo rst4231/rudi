@@ -15262,6 +15262,30 @@ html[data-theme="dark"] .finance-literacy-card{
 .finance-category-coin-item .finance-coin-amount.is-budget-full{
   color:#d94b55!important;
 }
+.finance-category-coin.has-budget{
+  position:relative;
+  isolation:isolate;
+  --finance-budget-ring:#35a875;
+}
+.finance-category-coin.has-budget.is-budget-mid{
+  --finance-budget-ring:#e0aa2f;
+}
+.finance-category-coin.has-budget.is-budget-full{
+  --finance-budget-ring:#d94b55;
+}
+.finance-category-coin.has-budget::before{
+  content:"";
+  position:absolute;
+  inset:-4px;
+  border-radius:50%;
+  pointer-events:none;
+  background:conic-gradient(
+    var(--finance-budget-ring) var(--finance-budget-progress,0%),
+    color-mix(in srgb,var(--line) 72%,transparent) 0
+  );
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2.5px));
+}
 
 
 /* RUDI v4.42 — wallet-to-wallet transfer drag */
