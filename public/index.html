@@ -355,6 +355,15 @@
           </div>
           <div id="financePersonalStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite">Сохраняется автоматически</div>
 
+          <div class="finance-wallet-section">
+            <div class="finance-coin-section-head">
+              <div><span class="section-eyebrow">Источники</span><h2 id="financeWalletsTitle">Кошельки</h2></div>
+              <button id="financeWalletCreateButton" class="finance-wallet-add" type="button">+ Кошелёк</button>
+            </div>
+            <div id="financeWalletList" class="finance-wallet-list finance-coin-grid" aria-labelledby="financeWalletsTitle"></div>
+            <div id="financeWalletEmpty" class="finance-history-empty">Создай кошелёк и укажи валюту</div>
+          </div>
+
           <div class="finance-coin-divider"></div>
           <div class="finance-coin-section-head">
             <div><span class="section-eyebrow">Расходы</span><h2 id="financeCategoriesTitle">Категории</h2></div>
@@ -377,8 +386,9 @@
             </div>
             <label class="finance-input-field">
               <span>Сумма расхода</span>
-              <div class="finance-money-input"><input id="financeExpenseComposerAmount" type="number" min="0.01" max="100000000" step="1" inputmode="decimal" placeholder="0" aria-label="Сумма расхода"><b>₽</b></div>
+              <div class="finance-money-input"><input id="financeExpenseComposerAmount" type="number" min="0.01" max="100000000" step="0.01" inputmode="decimal" placeholder="0" aria-label="Сумма расхода"><b id="financeExpenseComposerCurrency">₽</b></div>
             </label>
+            <div id="financeExpenseComposerConversion" class="finance-expense-conversion" hidden></div>
             <div class="finance-expense-datetime-grid">
               <label class="finance-input-field">
                 <span>Дата</span>
@@ -420,7 +430,51 @@
               <span>Название</span>
               <input id="financeCategoryName" class="finance-text-input" maxlength="48" placeholder="Например, Продукты" aria-label="Название категории">
             </label>
+            <label class="finance-input-field">
+              <span>Валюта категории</span>
+              <select id="financeCategoryCurrency" class="finance-select" aria-label="Валюта категории">
+                <option value="RUB">RUB · ₽</option>
+                <option value="USD">USD · $</option>
+                <option value="EUR">EUR · €</option>
+              </select>
+            </label>
             <button id="financeCategoryCreateButton" class="finance-analyst-button" type="button">Создать категорию</button>
+          </section>
+        </div>
+
+        <div id="financeWalletComposer" class="finance-coin-modal" hidden aria-hidden="true">
+          <button id="financeWalletComposerBackdrop" class="finance-coin-modal-backdrop" type="button" aria-label="Закрыть"></button>
+          <section class="finance-coin-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="financeWalletComposerTitle">
+            <div class="finance-coin-modal-head">
+              <div><small>Источник денег</small><h3 id="financeWalletComposerTitle">Кошелёк</h3></div>
+              <button id="financeWalletComposerClose" class="finance-coin-modal-close" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <label class="finance-input-field">
+              <span>Название</span>
+              <input id="financeWalletName" class="finance-text-input" maxlength="48" placeholder="Например, Карта" aria-label="Название кошелька">
+            </label>
+            <label class="finance-input-field">
+              <span>Иконка</span>
+              <select id="financeWalletIcon" class="finance-select" aria-label="Иконка кошелька">
+                <option value="💳">💳</option><option value="💵">💵</option><option value="💰">💰</option>
+                <option value="🏦">🏦</option><option value="💶">💶</option><option value="💲">💲</option>
+              </select>
+            </label>
+            <label class="finance-input-field">
+              <span>Валюта</span>
+              <select id="financeWalletCurrency" class="finance-select" aria-label="Валюта кошелька">
+                <option value="RUB">RUB · ₽</option>
+                <option value="USD">USD · $</option>
+                <option value="EUR">EUR · €</option>
+              </select>
+            </label>
+            <label class="finance-input-field">
+              <span>Баланс</span>
+              <input id="financeWalletBalance" class="finance-text-input" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" placeholder="0" aria-label="Баланс кошелька">
+            </label>
+            <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
+            <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
+            <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>
           </section>
         </div>
 
