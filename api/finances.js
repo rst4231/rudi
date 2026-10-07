@@ -1,20 +1,22 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
-  saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
+  saveWallet, deleteWallet, saveExpenseCategory, updateExpenseCategory, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, toggleDebt, viewState,
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport } = require('./finance-ai.cjs');
+const { fetchFiatRub } = require('./market-ticker.cjs');
 
 function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
-  if (['finance-debt-not-found','finance-category-not-found','finance-expense-not-found'].includes(code)) return 404;
+  if (['finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
-    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid'
+    'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
+    'finance-currency-invalid','finance-wallet-insufficient'
   ].includes(code)) return 400;
   return 500;
 }
@@ -53,6 +55,14 @@ async function handler(req, res) {
       const state = await saveFinancePlan(actor, body);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
+    if (operation === 'save-wallet') {
+      const state = await saveWallet(actor, body);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if (operation === 'delete-wallet') {
+      const state = await deleteWallet(actor, body.id);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
     if (operation === 'save-category') {
       const state = await saveExpenseCategory(actor, body);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
@@ -74,8 +84,40 @@ async function handler(req, res) {
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'save-expense') {
-      const state = await savePersonalExpense(actor, body);
-      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+      const current = await readFinanceState();
+      const view = viewState(current, actor);
+      const category = (view.categories || []).find((row) => row.id === String(body.categoryId || ''));
+      if (!category) throw new Error('finance-category-not-found');
+      const wallet = body.walletId ? (view.wallets || []).find((row) => row.id === String(body.walletId || '')) : null;
+      if (body.walletId && !wallet) throw new Error('finance-wallet-not-found');
+
+      const sourceCurrency = String(wallet?.currency || category.currency || 'RUB').toUpperCase();
+      const targetCurrency = String(category.currency || 'RUB').toUpperCase();
+      const sourceAmount = Number(body.sourceAmount ?? body.amount);
+      if (!Number.isFinite(sourceAmount) || sourceAmount <= 0) throw new Error('finance-amount-invalid');
+
+      let rubRates = { RUB: 1 };
+      if (sourceCurrency !== 'RUB' || targetCurrency !== 'RUB') {
+        const fiat = await fetchFiatRub();
+        rubRates = { RUB: 1, ...Object.fromEntries(fiat.map((item) => [String(item.id || '').split('-')[0].toUpperCase(), Number(item.value)])) };
+      }
+      const sourceRub = Number(rubRates[sourceCurrency]);
+      const targetRub = Number(rubRates[targetCurrency]);
+      if (!sourceRub || !targetRub) throw new Error('finance-currency-invalid');
+      const rubAmount = Math.round(sourceAmount * sourceRub * 100) / 100;
+      const amount = Math.round((rubAmount / targetRub) * 100) / 100;
+      const exchangeRate = Math.round((amount / sourceAmount) * 1000000) / 1000000;
+
+      const state = await savePersonalExpense(actor, {
+        ...body,
+        amount,
+        sourceAmount,
+        sourceCurrency,
+        targetCurrency,
+        rubAmount,
+        exchangeRate,
+      });
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion: { sourceAmount, sourceCurrency, amount, targetCurrency, rubAmount, exchangeRate }, ...viewState(state, actor) });
     }
     if (operation === 'import-expenses') {
       const imported = await importPersonalExpenses(actor, body.rows);
