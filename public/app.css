@@ -16768,3 +16768,73 @@ body.finance-category-history-open{
   .finance-debt-detail-summary{grid-template-columns:1fr 1fr}
   .finance-debt-detail-summary>div:last-child{grid-column:1/-1}
 }
+
+
+/* RUDI v4.60 — shared finance custom blocks and desktop month picker */
+.finance-month-picker .finance-month-input,
+.finance-balance-month .finance-balance-month-input{
+  pointer-events:none!important
+}
+.finance-shared-extra-list:empty{display:none}
+.finance-shared-extra-head{
+  min-height:22px;
+  display:flex;
+  align-items:center;
+  gap:6px
+}
+.finance-shared-extra-title{
+  min-width:0;
+  width:100%;
+  padding:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--muted);
+  font:inherit;
+  font-size:9.5px;
+  font-weight:720
+}
+.finance-shared-extra-title:focus{color:var(--text)}
+.finance-shared-extra-title-view{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--muted);
+  font-size:9.5px;
+  font-weight:720
+}
+.finance-shared-extra-remove{
+  width:22px;
+  height:22px;
+  flex:0 0 22px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:8px;
+  background:color-mix(in srgb,#ef4444 10%,var(--surface));
+  color:#d94848;
+  font:inherit;
+  font-size:17px;
+  line-height:1;
+  cursor:pointer
+}
+.finance-shared-add-button{
+  width:100%;
+  min-height:38px;
+  margin-top:10px;
+  border:1px dashed color-mix(in srgb,var(--finance-green) 42%,var(--line));
+  border-radius:13px;
+  background:color-mix(in srgb,var(--finance-green) 6%,var(--surface));
+  color:var(--finance-green);
+  font:inherit;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer
+}
+.finance-shared-add-button:active{transform:scale(.988)}
+#financeSharedPanel .finance-total-hint{
+  white-space:normal;
+  overflow-wrap:anywhere
+}

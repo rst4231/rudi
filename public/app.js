@@ -2300,19 +2300,26 @@
         if(!container||!input||container.dataset.monthPickerBound==='1')return;
         container.dataset.monthPickerBound='1';
         container.setAttribute('tabindex','0');
+        container.setAttribute('role','button');
+        container.setAttribute('aria-haspopup','dialog');
+        input.tabIndex=-1;
         const open=event=>{
-          if(event?.target===input)return;
+          event?.preventDefault?.();
+          event?.stopPropagation?.();
           if(typeof input.showPicker==='function'){
-            event?.preventDefault?.();
             try{input.showPicker();return}catch(_){}
           }
-          try{input.focus({preventScroll:true})}catch(_){input.focus?.()}
-          input.click?.();
+          const current=input.value||financeCurrentMonthKey();
+          const next=window.prompt('Выбери месяц в формате ГГГГ-ММ',current);
+          if(next&&/^\d{4}-(0[1-9]|1[0-2])$/.test(String(next).trim())){
+            input.value=String(next).trim();
+            input.dispatchEvent(new Event('change',{bubbles:true}));
+          }
         };
         container.addEventListener('click',open);
         container.addEventListener('keydown',event=>{
           if(event.key!=='Enter'&&event.key!==' ')return;
-          event.preventDefault();open(event);
+          open(event);
         });
       }
 
@@ -2398,11 +2405,62 @@
         const text=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(date);
         return text.charAt(0).toUpperCase()+text.slice(1);
       }
-      function financeSplit(rent,utilities){
-        const total=Math.round((Math.max(0,Number(rent)||0)+Math.max(0,Number(utilities)||0))*100)/100;
+      function financeNormalizeSharedItems(items){
+        const out=[],seen=new Set();
+        for(const raw of Array.isArray(items)?items:[]){
+          const title=String(raw?.title||'').trim().replace(/\s+/g,' ').slice(0,60);
+          const id=String(raw?.id||'').trim().slice(0,100);
+          const amount=Math.max(0,Number(raw?.amount)||0);
+          if(!title||!id||seen.has(id))continue;
+          seen.add(id);out.push({id,title,amount:Math.round(amount*100)/100});
+          if(out.length>=24)break;
+        }
+        return out;
+      }
+      function financeSplit(rent,utilities,items=[]){
+        const extras=financeNormalizeSharedItems(items).reduce((sum,row)=>sum+Number(row.amount||0),0);
+        const total=Math.round((Math.max(0,Number(rent)||0)+Math.max(0,Number(utilities)||0)+extras)*100)/100;
         const diana=Math.round(total*40)/100;
         const rustam=Math.round((total-diana)*100)/100;
         return {total,diana,rustam};
+      }
+      function financeSharedItemsFromInputs(){
+        return financeNormalizeSharedItems([...document.querySelectorAll('#financeSharedExtraList [data-finance-shared-item]')].map(row=>({
+          id:row.dataset.financeSharedItem,
+          title:row.querySelector('.finance-shared-extra-title')?.value||row.dataset.financeSharedTitle||'',
+          amount:Number(row.querySelector('.finance-shared-extra-amount')?.value||0)
+        })));
+      }
+      function financeSharedItemsEqual(left,right){
+        const a=financeNormalizeSharedItems(left),b=financeNormalizeSharedItems(right);
+        return a.length===b.length&&a.every((row,index)=>row.id===b[index].id&&row.title===b[index].title&&Number(row.amount||0)===Number(b[index].amount||0));
+      }
+      function financeSharedSummaryText(rent,utilities,items=[]){
+        return ['Квартира '+financeMoney(rent),'ЖКУ '+financeMoney(utilities),...financeNormalizeSharedItems(items).map(row=>row.title+' '+financeMoney(row.amount))].join(' · ');
+      }
+      function refreshFinanceSharedDraft(){
+        const month=document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
+        renderFinanceSummary(document.getElementById('financeRentInput')?.value||0,document.getElementById('financeUtilitiesInput')?.value||0,month,financeSharedItemsFromInputs());
+        syncFinanceSaveButton();
+      }
+      function renderFinanceSharedItems(items=[]){
+        const host=document.getElementById('financeSharedExtraList');if(!host)return;
+        host.replaceChildren();
+        const canEdit=currentActor==='Рустам';
+        for(const item of financeNormalizeSharedItems(items)){
+          const field=document.createElement('div');field.className='finance-input-field finance-shared-extra-field';field.dataset.financeSharedItem=item.id;field.dataset.financeSharedTitle=item.title;
+          const head=document.createElement('div');head.className='finance-shared-extra-head';
+          if(canEdit){
+            const title=document.createElement('input');title.type='text';title.className='finance-shared-extra-title';title.maxLength=60;title.value=item.title;title.setAttribute('aria-label','Название совместного расхода');title.addEventListener('input',()=>{field.dataset.financeSharedTitle=title.value;refreshFinanceSharedDraft()});
+            const remove=document.createElement('button');remove.type='button';remove.className='finance-shared-extra-remove';remove.setAttribute('aria-label','Удалить '+item.title);remove.textContent='×';remove.addEventListener('click',()=>{field.remove();refreshFinanceSharedDraft()});
+            head.append(title,remove);
+          }else{
+            const title=document.createElement('span');title.className='finance-shared-extra-title-view';title.textContent=item.title;head.append(title);
+          }
+          const money=document.createElement('div');money.className='finance-money-input';
+          const amount=document.createElement('input');amount.type='number';amount.min='0';amount.max='10000000';amount.step='1';amount.inputMode='decimal';amount.placeholder='0';amount.value=item.amount>0?String(item.amount):'';amount.disabled=!canEdit;amount.className='finance-shared-extra-amount';amount.setAttribute('aria-label','Сумма '+item.title);amount.addEventListener('input',refreshFinanceSharedDraft);
+          const currency=document.createElement('b');currency.textContent='₽';money.append(amount,currency);field.append(head,money);host.append(field);
+        }
       }
       function financeDebounce(key,fn,delay=650){
         const old=financeSaveTimers.get(key);if(old)clearTimeout(old);
@@ -2714,7 +2772,7 @@
       function renderFinanceComparison(month,total){
         const host=document.getElementById('financeMonthComparison');if(!host)return;
         const previousKey=financePreviousMonthKey(month),previous=financeRowForMonth(previousKey);
-        const previousTotal=previous?financeSplit(previous.rent,previous.utilities).total:0;
+        const previousTotal=previous?financeSplit(previous.rent,previous.utilities,previous.items).total:0;
         const prev=Number(previousTotal)||0,now=Number(total)||0,previousName=financeMonthGenitive(previousKey);
         if(prev<=0){host.textContent='Нет данных за '+previousName;host.dataset.direction='none';return}
         const delta=now-prev,percent=delta/prev*100;
@@ -2722,15 +2780,16 @@
         host.textContent='На '+financeMoney(Math.abs(delta))+' '+(delta>0?'больше ':'меньше ')+previousName+' · '+(delta>0?'+':'−')+financePercent(percent);
         host.dataset.direction=delta>0?'up':'down';
       }
-      function renderFinanceSummary(rent,utilities,month=''){
-        const split=financeSplit(rent,utilities),key=month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
+      function renderFinanceSummary(rent,utilities,month='',items=null){
+        const sharedItems=Array.isArray(items)?items:financeSharedItemsFromInputs();
+        const split=financeSplit(rent,utilities,sharedItems),key=month||document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
         const total=document.getElementById('financeTotalValue'),diana=document.getElementById('financeDianaValue'),rustam=document.getElementById('financeRustamValue');
         const label=document.getElementById('financeTotalLabel'),hint=document.getElementById('financeTotalHint');
         if(total)total.textContent=financeMoney(split.total);
         if(diana)diana.textContent=financeMoney(split.diana);
         if(rustam)rustam.textContent=financeMoney(split.rustam);
         if(label)label.textContent='Итого за '+financeMonthShortName(key);
-        if(hint)hint.textContent='Квартира '+financeMoney(rent)+' · ЖКУ '+financeMoney(utilities);
+        if(hint)hint.textContent=financeSharedSummaryText(rent,utilities,sharedItems);
         renderFinanceComparison(key,split.total);
         return split;
       }
@@ -2741,7 +2800,7 @@
         if(saving){save.disabled=true;save.dataset.state='saving';save.textContent='Сохраняю…';return}
         const month=document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
         const rent=Number(document.getElementById('financeRentInput')?.value||0),utilities=Number(document.getElementById('financeUtilitiesInput')?.value||0);
-        const row=financeRowForMonth(month),saved=Boolean(row)&&Number(row.rent||0)===rent&&Number(row.utilities||0)===utilities;
+        const items=financeSharedItemsFromInputs(),row=financeRowForMonth(month),saved=Boolean(row)&&Number(row.rent||0)===rent&&Number(row.utilities||0)===utilities&&financeSharedItemsEqual(row.items,items);
         save.disabled=false;save.dataset.state=saved?'saved':'dirty';
         save.textContent=saved?'✓ Сохранено':(row?'Сохранить изменения':'Сохранить месяц');
       }
@@ -2754,8 +2813,9 @@
         if(!preserveInputs){
           if(rentInput)rentInput.value=row?String(row.rent||0):'';
           if(utilitiesInput)utilitiesInput.value=row?String(row.utilities||0):'';
+          renderFinanceSharedItems(row?.items||[]);
         }
-        renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0,key);
+        renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0,key,financeSharedItemsFromInputs());
         syncFinanceSaveButton();
       }
       function renderFinanceHistory(){
@@ -2766,9 +2826,9 @@
           const button=document.createElement('button');button.type='button';button.className='finance-history-row';button.dataset.financeMonth=String(row.month||'');
           const copy=document.createElement('span');copy.className='finance-history-row-copy';
           const title=document.createElement('strong');title.textContent=financeMonthTitle(row.month);
-          const detail=document.createElement('span');detail.textContent='Квартира '+financeMoney(row.rent)+' · ЖКУ '+financeMoney(row.utilities);copy.append(title,detail);
+          const detail=document.createElement('span');detail.textContent=financeSharedSummaryText(row.rent,row.utilities,row.items);copy.append(title,detail);
           const total=document.createElement('span');total.className='finance-history-row-total';
-          const totalValue=document.createElement('strong');totalValue.textContent=financeMoney(financeSplit(row.rent,row.utilities).total);
+          const totalValue=document.createElement('strong');totalValue.textContent=financeMoney(financeSplit(row.rent,row.utilities,row.items).total);
           const shares=document.createElement('span');shares.textContent='40% / 60%';total.append(totalValue,shares);
           button.append(copy,total);button.addEventListener('click',()=>{setFinanceTab('shared');renderFinanceSelectedMonth(row.month);document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'})});
           list.appendChild(button);
@@ -4548,8 +4608,8 @@
         if(activeFinanceTab==='personal')refreshFinanceInsight().catch(()=>{});
       }
       function applyFinancePermissions(){
-        const canEdit=currentActor==='Рустам',rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton'),note=document.getElementById('financeReadOnlyNote');
-        if(rent)rent.disabled=!canEdit;if(utilities)utilities.disabled=!canEdit;if(save)save.hidden=!canEdit;if(note)note.hidden=canEdit;
+        const canEdit=currentActor==='Рустам',rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton'),add=document.getElementById('financeSharedAddButton'),note=document.getElementById('financeReadOnlyNote');
+        if(rent)rent.disabled=!canEdit;if(utilities)utilities.disabled=!canEdit;if(save)save.hidden=!canEdit;if(add)add.hidden=!canEdit;if(note)note.hidden=canEdit;
       }
       function renderFinanceState(data,{month='',personalMonth='',preserveIncome=false,preservePlan=false}={}){
         financeState={
@@ -4595,13 +4655,22 @@
           setFinanceTab(button.dataset.financeTab);try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
         month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
-        const recalc=()=>{renderFinanceSummary(rent?.value||0,utilities?.value||0,month.value||financeCurrentMonthKey());syncFinanceSaveButton()};
+        const recalc=()=>refreshFinanceSharedDraft();
         rent?.addEventListener('input',recalc);utilities?.addEventListener('input',recalc);
+        document.getElementById('financeSharedAddButton')?.addEventListener('click',()=>{
+          if(currentActor!=='Рустам')return;
+          const items=financeSharedItemsFromInputs();
+          const id='shared-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6);
+          items.push({id,title:'Новый расход',amount:0});
+          renderFinanceSharedItems(items);
+          const title=document.querySelector('#financeSharedExtraList [data-finance-shared-item="'+id+'"] .finance-shared-extra-title');
+          title?.focus();title?.select();refreshFinanceSharedDraft();
+        });
         save?.addEventListener('click',async()=>{
           if(currentActor!=='Рустам')return;
           const status=document.getElementById('financeStatus');syncFinanceSaveButton({saving:true});if(status)status.textContent='';
           try{
-            const data=await financeRequest('save',{month:month.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0)});
+            const data=await financeRequest('save',{month:month.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0),items:financeSharedItemsFromInputs()});
             renderFinanceState(data,{month:month.value,personalMonth:personalMonth?.value,preserveIncome:true,preservePlan:true});
             if(status)status.textContent='';
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}

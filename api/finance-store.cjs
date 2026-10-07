@@ -103,8 +103,25 @@ function cleanExpenseLabels(value, name = '') {
 function defaultCategories() {
   return DEFAULT_CATEGORIES.map((row) => ({ ...row, note: '', monthlyLimit: 0, currency: 'RUB', labels: cleanExpenseLabels([], row.name), archived: false, createdAt: '' }));
 }
-function splitAmounts(rent, utilities) {
-  const total = Math.round((cleanMoney(rent) + cleanMoney(utilities)) * 100) / 100;
+function cleanSharedItems(value = []) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of Array.isArray(value) ? value : []) {
+    try {
+      const title = cleanText(raw?.title, 60, { required: true });
+      const fallbackId = 'shared-' + String(out.length + 1);
+      const id = cleanText(raw?.id, 100) || fallbackId;
+      if (seen.has(id)) continue;
+      out.push({ id, title, amount: cleanMoney(raw?.amount || 0) });
+      seen.add(id);
+      if (out.length >= 24) break;
+    } catch (_) {}
+  }
+  return out;
+}
+function splitAmounts(rent, utilities, items = []) {
+  const extras = cleanSharedItems(items).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const total = Math.round((cleanMoney(rent) + cleanMoney(utilities) + extras) * 100) / 100;
   const diana = Math.round(total * 40) / 100;
   const rustam = Math.round((total - diana) * 100) / 100;
   return { total, diana, rustam };
@@ -176,12 +193,16 @@ function normalizeState(value) {
     let month;
     try { month = cleanMonth(rawMonth); } catch (_) { continue; }
     const row = rawRow && typeof rawRow === 'object' && !Array.isArray(rawRow) ? rawRow : {};
-    let rent = 0, utilities = 0;
-    try { rent = cleanMoney(row.rent || 0); utilities = cleanMoney(row.utilities || 0); } catch (_) { continue; }
+    let rent = 0, utilities = 0, items = [];
+    try {
+      rent = cleanMoney(row.rent || 0);
+      utilities = cleanMoney(row.utilities || 0);
+      items = cleanSharedItems(row.items);
+    } catch (_) { continue; }
     const updatedAtRaw = String(row.updatedAt || '').trim();
     const updatedAtDate = updatedAtRaw ? new Date(updatedAtRaw) : null;
     months[month] = {
-      month, rent, utilities,
+      month, rent, utilities, items,
       updatedAt: updatedAtDate && !Number.isNaN(updatedAtDate.getTime()) ? updatedAtDate.toISOString() : '',
       updatedBy: String(row.updatedBy || '').trim() === 'Рустам' ? 'Рустам' : '',
     };
@@ -447,7 +468,7 @@ function viewState(state, actor = '') {
   const normalized = normalizeState(state);
   const months = Object.values(normalized.months)
     .sort((a, b) => String(b.month).localeCompare(String(a.month)))
-    .map((row) => ({ ...row, ...splitAmounts(row.rent, row.utilities) }));
+    .map((row) => ({ ...row, ...splitAmounts(row.rent, row.utilities, row.items) }));
   const safeActor = ['Рустам', 'Диана'].includes(String(actor || '').trim()) ? String(actor).trim() : '';
   const personalMonths = safeActor
     ? Object.values(normalized.personal[safeActor] || {})
@@ -487,15 +508,20 @@ async function writeState(next, options = {}) {
     ttl: TTL_SECONDS, tags: ['rudi-household-finances'], name: STATE_KEY,
   });
 }
-async function saveFinanceMonth(actor, month, rent, utilities, options = {}) {
+async function saveFinanceMonth(actor, month, rent, utilities, itemsOrOptions, maybeOptions = {}) {
   if (String(actor || '').trim() !== 'Рустам') throw new Error('finance-owner-only');
+  const itemsProvided = Array.isArray(itemsOrOptions);
+  const options = itemsProvided
+    ? maybeOptions
+    : (itemsOrOptions && typeof itemsOrOptions === 'object' && !Array.isArray(itemsOrOptions) ? itemsOrOptions : maybeOptions);
   const clean = { month: cleanMonth(month), rent: cleanMoney(rent), utilities: cleanMoney(utilities) };
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
+    const items = itemsProvided ? cleanSharedItems(itemsOrOptions) : cleanSharedItems(current.months[clean.month]?.items);
     const updatedAt = new Date(options.now || Date.now()).toISOString();
     const next = normalizeState({
       ...current, initialized: true, version: current.version + 1,
-      months: { ...current.months, [clean.month]: { ...clean, updatedAt, updatedBy: 'Рустам' } },
+      months: { ...current.months, [clean.month]: { ...clean, items, updatedAt, updatedBy: 'Рустам' } },
     });
     await writeState(next, options);
     return next;
@@ -1311,7 +1337,7 @@ async function toggleDebt(actor, id, paid, options = {}) {
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
-  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, splitAmounts, personalAmounts,
+  NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, cleanSharedItems, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
   saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, payDebt, deleteDebt, toggleDebt, resetMutationQueueForTests,

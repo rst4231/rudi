@@ -85,7 +85,7 @@ async function handler(req, res) {
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'save') {
-      const state = await saveFinanceMonth(actor, body.month, body.rent, body.utilities);
+      const state = await saveFinanceMonth(actor, body.month, body.rent, body.utilities, body.items);
       return res.status(200).json({ ok: true, actor, canEdit: true, ...viewState(state, actor) });
     }
     if (operation === 'save-personal') {
