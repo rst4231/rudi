@@ -10092,7 +10092,8 @@
         const amount=Number(row?.amount||0),category=String(row?.category||'').trim(),occurredAt=String(row?.occurredAt||'');
         if(!row||amount<=0||!occurredAt){node.hidden=true;node.textContent='';return}
         const meta=financeDateTimeLabel(occurredAt);
-        node.textContent='Последний расход: '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+meta.time;
+        const shortDate=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'long'}).format(new Date(occurredAt));
+        node.textContent='Последний расход: '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+shortDate+' · '+meta.time;
         node.hidden=false;
       }
 
