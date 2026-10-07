@@ -4,7 +4,7 @@ const CACHE_TTL_SECONDS = 300;
 const STALE_CACHE_TTL_SECONDS = 6 * 60 * 60;
 const PROVIDER_BACKOFF_SECONDS = 10 * 60;
 const CBR_URL = 'https://www.cbr.ru/scripts/XML_daily.asp';
-const KRAKEN_URL = 'https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD';
+const KRAKEN_URL = 'https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,USDTUSD';
 
 let refreshPromise = null;
 
@@ -73,6 +73,7 @@ function parseKrakenCrypto(payload) {
   const rows = [
     ['XBT', 'btcusdt', 'BTC'],
     ['ETH', 'ethusdt', 'ETH'],
+    ['USDT', 'usdtusd', 'USDT'],
   ];
   const items = rows.map(([token, id, label]) => {
     const row = krakenRow(result, token);
@@ -88,7 +89,7 @@ function parseKrakenCrypto(payload) {
       source: 'Kraken',
     };
   }).filter(Boolean);
-  if (items.length !== 2) throw new Error('market-kraken-price-invalid');
+  if (items.length < 2) throw new Error('market-kraken-price-invalid');
   return items;
 }
 
@@ -108,7 +109,7 @@ async function fetchKrakenCrypto(options = {}) {
 
 function completeItems(items) {
   const ids = new Set((Array.isArray(items) ? items : []).map((item) => String(item?.id || '')));
-  return ['usd-rub','eur-rub','btcusdt','ethusdt'].every((id) => ids.has(id));
+  return ['usd-rub','eur-rub','btcusdt','ethusdt','usdtusd'].every((id) => ids.has(id));
 }
 
 function cacheOf(options = {}) {
@@ -192,7 +193,7 @@ async function refreshMarketTicker(cache, options = {}) {
     }
     if (validCached(stale, { requireComplete: true })) {
       stale.items
-        .filter((item) => item?.id === 'btcusdt' || item?.id === 'ethusdt')
+        .filter((item) => ['btcusdt','ethusdt','usdtusd'].includes(item?.id))
         .forEach((item) => byId.set(item.id, { ...item, stale: true }));
     }
   }
@@ -205,7 +206,7 @@ async function refreshMarketTicker(cache, options = {}) {
     }
   }
 
-  const items = ['usd-rub','eur-rub','btcusdt','ethusdt'].map((id) => byId.get(id)).filter(Boolean);
+  const items = ['usd-rub','eur-rub','btcusdt','ethusdt','usdtusd'].map((id) => byId.get(id)).filter(Boolean);
   if (!items.length) {
     const reasons = primary
       .filter((row) => row.status === 'rejected')
