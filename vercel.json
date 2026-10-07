@@ -252,7 +252,7 @@
     },
     {
       "path": "/api/habit-reminder-cron",
-      "schedule": "0 18 * * *"
+      "schedule": "0 17 * * *"
     },
     {
       "path": "/api/cinema-premieres-cron",
