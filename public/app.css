@@ -15561,3 +15561,96 @@ html[data-theme="dark"] .finance-literacy-card{
 .finance-expense-datetime-grid input[type="date"]::-webkit-date-and-time-value,.finance-expense-datetime-grid input[type="time"]::-webkit-date-and-time-value{width:100%!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-align:center!important}
 .finance-credit-fields{display:grid;gap:10px;min-width:0}.finance-credit-fields[hidden]{display:none!important}.finance-credit-estimate{color:var(--muted);font-size:9.5px;line-height:1.35}.finance-wallet-credit-meta{display:block;max-width:100%;margin-top:2px;color:var(--muted);font-size:7.5px;line-height:1.2;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#financeOperationsCard{margin-top:12px}
 @media(max-width:430px){.finance-expense-datetime-grid{gap:7px!important}.finance-expense-datetime-grid input[type="date"],.finance-expense-datetime-grid input[type="time"]{padding-left:8px!important;padding-right:8px!important;font-size:13px!important;line-height:1.15!important}}@media(max-width:340px){.finance-expense-datetime-grid{grid-template-columns:1fr!important}}
+
+
+/* RUDI v4.46 — compact month control and finance spacing */
+.finance-balance-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:4px
+}
+.finance-balance-month{
+  position:relative;
+  width:30px;
+  height:30px;
+  flex:0 0 30px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:10px;
+  color:#fff;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent
+}
+.finance-balance-month svg{
+  width:19px;
+  height:19px;
+  pointer-events:none
+}
+.finance-balance-month-input{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  opacity:0!important;
+  cursor:pointer!important;
+  font-size:16px!important;
+  -webkit-appearance:none!important;
+  appearance:none!important
+}
+.finance-balance-month-input::-webkit-calendar-picker-indicator{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  margin:0;
+  padding:0;
+  opacity:0;
+  cursor:pointer
+}
+.finance-personal-toolbar{display:none!important}
+.finance-wallet-section{padding-top:0!important}
+.finance-page[data-finance-tone="personal"] .finance-balance-card{
+  margin-bottom:4px!important
+}
+.finance-page[data-finance-tone="personal"] .finance-wallet-section>.finance-coin-section-head{
+  padding-top:6px!important
+}
+@media(max-width:700px){
+  .finance-balance-month,
+  .finance-balance-eye{
+    width:24px!important;
+    height:24px!important;
+    flex-basis:24px!important;
+    border-radius:8px!important
+  }
+  .finance-balance-month svg,
+  .finance-balance-eye svg{
+    width:16px!important;
+    height:16px!important
+  }
+  .finance-page[data-finance-tone="personal"] .finance-balance-card{
+    margin-bottom:2px!important
+  }
+  .finance-page[data-finance-tone="personal"] .finance-wallet-section>.finance-coin-section-head{
+    padding-top:5px!important
+  }
+}
+@media(max-width:430px){
+  .finance-wallet-head-actions{
+    max-width:190px!important;
+    gap:5px!important
+  }
+  .finance-wallet-head-actions #financeIncomeAddButton,
+  .finance-wallet-head-actions #financeWalletCreateButton{
+    min-height:32px!important;
+    padding:4px 7px!important;
+    border-radius:9px!important;
+    font-size:9px!important
+  }
+}

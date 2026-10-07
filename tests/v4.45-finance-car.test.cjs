@@ -19,3 +19,17 @@ test('v4.45 requested finance and car UI markers exist',()=>{
   assert.match(html,/id="financeWalletType"/);assert.match(app,/financeWalletCreditLimit/);assert.match(css,/min-inline-size:0!important/);
   assert.match(car,/CAR_EXPENSE_LABELS=\['Бензин','Паркинг','Ремонт','Страховка','ТО'\]/);assert.match(car,/normalizeFinanceText\(row\?\.name\)==='транспорт'/);assert.match(car,/buildCarSmartCard\('expenses','Расходы',expenses\)/);assert.match(carCss,/\.car-expense-month-head/);
 });
+
+
+test('v4.46 month picker is an icon by the eye and finance spacing is compact',()=>{
+  const html=fs.readFileSync('public/index.html','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.doesNotMatch(html,/class="finance-personal-toolbar"/);
+  assert.match(html,/class="finance-balance-actions"/);
+  assert.match(html,/class="finance-balance-month"/);
+  assert.match(html,/id="financePersonalMonthInput"[^>]*type="month"/);
+  assert.ok(html.indexOf('finance-balance-month')<html.indexOf('financeBalanceEyeButton'));
+  assert.match(css,/RUDI v4\.46 — compact month control and finance spacing/);
+  assert.match(css,/\.finance-wallet-head-actions\{[\s\S]*?max-width:190px!important/);
+  assert.match(css,/min-height:32px!important/);
+});
