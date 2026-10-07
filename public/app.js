@@ -2994,11 +2994,11 @@
           const now=financeMoscowParts();
           const todayKey=now.year+'-'+now.month+'-'+now.day;
           const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
-          const dailySpent=(dateKey)=>Math.round((financeState.personalExpenses||[])
-            .filter(row=>financeDateTimeLabel(row.occurredAt||row.createdAt).key===dateKey)
+          const dailySpent=(dateKey,{excludeAdjustments=false}={})=>Math.round((financeState.personalExpenses||[])
+            .filter(row=>financeDateTimeLabel(row.occurredAt||row.createdAt).key===dateKey&&(!excludeAdjustments||!row?.manualAdjustment))
             .reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0)*100)/100;
           if(yesterdayTotal)yesterdayTotal.textContent=financeBalanceHidden?'••••':financeMoney(dailySpent(yesterdayKey));
-          if(todayTotal)todayTotal.textContent=financeBalanceHidden?'••••':financeMoney(dailySpent(todayKey));
+          if(todayTotal)todayTotal.textContent=financeBalanceHidden?'••••':financeMoney(dailySpent(todayKey,{excludeAdjustments:true}));
         }
         syncFinanceOverviewCurrencyButton();
         renderFinanceObligations();
