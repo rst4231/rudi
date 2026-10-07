@@ -1057,12 +1057,7 @@
         }catch(_){return 'system'}
       }
 
-      function marketTickerEnabled(){
-        try{
-          const value=localStorage.getItem(marketTickerEnabledStorageKey());
-          return value===null?true:value!=='0';
-        }catch(_){return true}
-      }
+      function marketTickerEnabled(){return true}
 
       function parseActivitySeenMarker(value){
         const raw=String(value||'').trim();
@@ -2208,7 +2203,7 @@
       }
       function financeCurrencySymbol(currency='RUB'){
         const code=String(currency||'RUB').toUpperCase();
-        return code==='USD'?'$':code==='EUR'?'€':code==='BTC'?'₿':code==='ETH'?'Ξ':code==='USDT'?'USDT':'₽';
+        return code==='USD'?'$':code==='EUR'?'€':code==='BTC'?'₿':code==='ETH'?'Ξ':code==='USDT'?'₮':'₽';
       }
       function financeMoscowParts(date=new Date()){
         const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
@@ -2409,12 +2404,13 @@
         financeCategoryEditingId=String(categoryId||'');
         const category=financeCategoryEditingId?financeCategoryById(financeCategoryEditingId):null;
         const title=document.getElementById('financeCategoryComposerTitle');
-        const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon');
+        const name=document.getElementById('financeCategoryName'),icon=document.getElementById('financeCategoryIcon'),currency=document.getElementById('financeCategoryCurrency');
         const limit=document.getElementById('financeCategoryLimit'),button=document.getElementById('financeCategoryCreateButton');
         const status=document.getElementById('financeCategoryStatus');
         if(title)title.textContent=category?'Редактировать категорию':'Категория расхода';
         if(name)name.value=category?.name||'';
-        if(icon&&category?.icon)icon.value=category.icon;
+        if(icon)icon.value=category?.icon||'💳';
+        if(currency)currency.value=category?.currency||'RUB';
         if(limit)limit.value=Number(category?.monthlyLimit||0)>0?String(category.monthlyLimit):'';
         if(button)button.textContent=category?'Сохранить':'Создать категорию';
         if(status)status.textContent='';
@@ -2449,8 +2445,9 @@
             const copy=document.createElement('div');copy.className='finance-expense-row-copy';
             const title=document.createElement('span');title.textContent=row.note||'Расход';
             const detail=document.createElement('small');
-            const sourceDiff=row.sourceCurrency&&row.sourceCurrency!=='RUB'&&Number(row.sourceAmount||0)>0
-              ?' · '+financeMoney(row.sourceAmount,row.sourceCurrency)+' → '+financeMoney(row.amount,'RUB')
+            const targetCurrency=String(row.targetCurrency||category?.currency||'RUB').toUpperCase();
+            const sourceDiff=row.sourceCurrency&&row.sourceCurrency!==targetCurrency&&Number(row.sourceAmount||0)>0
+              ?' · '+financeMoney(row.sourceAmount,row.sourceCurrency)+' → '+financeMoney(row.amount,targetCurrency)
               :'';
             detail.textContent=meta.time+sourceDiff;
             copy.append(title,detail);
@@ -2495,10 +2492,11 @@
         if(timeInput)timeInput.value=now.time;
         if(status)status.textContent='';
         if(conversion){
-          const convert=financeExpenseSourceCurrency!=='RUB';
+          const targetCurrency=String(category.currency||'RUB').toUpperCase();
+          const convert=financeExpenseSourceCurrency!==targetCurrency;
           conversion.hidden=!convert;
           conversion.textContent=convert
-            ? financeExpenseSourceCurrency+' → RUB · пересчитаю по текущему курсу при сохранении'
+            ? financeExpenseSourceCurrency+' → '+targetCurrency+' · пересчитаю по текущему курсу при сохранении'
             : '';
         }
 
@@ -2730,7 +2728,7 @@
 
         const palette=['#34c99a','#ffb52b','#6b9cff','#f27372','#9b7cff','#2fc7c9','#f28f44','#8dbf45','#d96daf','#5ba8d8'];
         categories.forEach((category,index)=>{
-          const spent=Math.round(expenses.filter(row=>row.categoryId===category.id).reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0)*100)/100;
+          const spent=Math.round(expenses.filter(row=>row.categoryId===category.id).reduce((sum,row)=>sum+Number(row.amount||0),0)*100)/100;
           const item=document.createElement('div');item.className='finance-coin-item finance-category-coin-item';item.dataset.categoryId=category.id;item.style.setProperty('--finance-coin-color',palette[index%palette.length]);
           item.setAttribute('role','button');item.tabIndex=0;
           const remove=document.createElement('button');remove.type='button';remove.className='finance-category-delete-badge';remove.textContent='×';remove.setAttribute('aria-label','Удалить '+String(category.name||'категорию'));
@@ -2738,10 +2736,10 @@
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=category.name||'Категория';
           const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.textContent=category.icon||'💳';
           const limitValue=Math.max(0,Number(category.monthlyLimit||0));
-          const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeMoney(spent,'RUB');
+          const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeMoney(spent,category.currency||'RUB');
           if(limitValue>0&&spent>limitValue)amount.classList.add('is-over-limit');
           const limit=document.createElement('span');limit.className='finance-coin-limit';
-          limit.textContent=limitValue>0?'из '+financeMoney(limitValue,'RUB'):'';
+          limit.textContent=limitValue>0?'из '+financeMoney(limitValue,category.currency||'RUB'):'';
           item.append(remove,label,coin,amount);
           if(limitValue>0)item.append(limit);
           bindFinanceCategoryInteractions(item,list,category);
@@ -2848,9 +2846,9 @@
           const currencyRaw=String(row[currencyI]||'').toUpperCase();
           const sourceCurrency=currencyRaw.includes('USD')||String(row[amountI]).includes('$')?'USD':currencyRaw.includes('EUR')||String(row[amountI]).includes('€')?'EUR':'RUB';
           const meta=financeMoscowParts(date),month=meta.year+'-'+meta.month;
-          const canonical=[row[dateI],type,row[fromI]||'',row[toI]||'',row[amountI],row[noteI]||'',index].join('|');
+          const canonical=[row[dateI],type,row[fromI]||'',row[toI]||'',row[tagsI]||'',row[amountI],row[currencyI]||'',row[noteI]||''].join('|');
           result.push({
-            categoryName:category.slice(0,48),amount,sourceAmount:amount,sourceCurrency,
+            categoryName:category.slice(0,48),amount,sourceAmount:amount,sourceCurrency,currency:sourceCurrency,
             exchangeRate:1,month,occurredAt:date.toISOString(),note,
             importKey:'coinkeeper:'+financeCsvHash(canonical)
           });
@@ -3092,7 +3090,7 @@
           try{
             const data=await financeRequest(editing?'update-category':'save-category',{
               ...(editing?{id:financeCategoryEditingId}:{}),
-              name:value,icon:icon?.value||'💳',monthlyLimit:Number(limit?.value||0)
+              name:value,icon:icon?.value||'💳',currency:document.getElementById('financeCategoryCurrency')?.value||'RUB',monthlyLimit:Number(limit?.value||0)
             });
             financeCategoryEditingId='';
             if(name)name.value='';if(limit)limit.value='';
@@ -6568,6 +6566,11 @@
         profile.after(selfCard.tile,partnerCard.tile,luluTile,nearest);
         syncProfileContactButtons();
 
+        // RUDI_REMOVE_MARKET_TICKER_SETTING
+        document.querySelectorAll('#homeSettingsPanel .home-settings-row').forEach(row=>{
+          const title=String(row.querySelector('strong')?.textContent||'').trim().toLocaleLowerCase('ru-RU');
+          if(title==='курсы'||title==='курсы валют')row.remove();
+        });
         document.body.dataset.profileSplitReady='1';
         try{window.dispatchEvent(new CustomEvent('rudi:profile-ready'))}catch(_){}
         syncStaticProfileWorkStatus();
