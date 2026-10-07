@@ -53,14 +53,15 @@ test('an explicitly empty category list stays empty',async()=>{
   assert.deepEqual(viewState(state,'Рустам').categories,[]);
 });
 
-test('finance category UI has delete but no category limit, category note or analyst actions',()=>{
+test('finance category UI keeps delete, monthly limit and no category note or analyst actions',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   const app=fs.readFileSync('public/app.js','utf8');
   const ai=fs.readFileSync('api/finance-ai.cjs','utf8');
 
   assert.ok(app.includes("financeRequest('delete-category'"));
-  assert.ok(app.includes('Все расходы внутри неё тоже будут удалены'));
-  assert.ok(!app.includes("limitCaption.textContent='Лимит в месяц'"));
+  assert.ok(app.includes("financeRequest(removeHistory?'delete-category':'archive-category'"));
+  assert.ok(html.includes('id="financeCategoryLimit"'));
+  assert.ok(app.includes('monthlyLimit:Number(limit?.value||0)'));
   assert.ok(!app.includes("noteCaption.textContent='Заметка категории'"));
   assert.ok(!app.includes("['Что делать',Array.isArray(report.actions)"));
   assert.ok(!html.includes('расходы по категориям, лимиты и долги'));
