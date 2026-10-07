@@ -2580,7 +2580,23 @@
           copy.append(title,detail);
           const value=document.createElement('strong');
           value.textContent=(entry.kind==='income'?'+':'−')+financeMoney(entry.kind==='income'?row.amount:(row.sourceAmount||row.amount),wallet.currency);
-          item.append(copy,value);host.append(item);
+          const del=document.createElement('button');
+          del.type='button';
+          del.className='finance-expense-delete finance-wallet-history-delete';
+          del.textContent='×';
+          del.setAttribute('aria-label',entry.kind==='income'?'Удалить доход':'Удалить расход');
+          del.addEventListener('click',async()=>{
+            del.disabled=true;
+            try{
+              const operation=entry.kind==='income'?'delete-wallet-income':'delete-expense';
+              const data=await financeRequest(operation,{id:row.id});
+              const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+              renderFinanceState(data,{personalMonth:month,preservePlan:true});
+              renderFinanceWalletHistory(walletId);
+              refreshFinanceInsight(true).catch(()=>{});
+            }catch(_){del.disabled=false}
+          });
+          item.append(copy,value,del);host.append(item);
         }
       }
 
