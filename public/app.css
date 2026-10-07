@@ -14568,3 +14568,34 @@ html[data-theme="dark"] .finance-back-button svg{stroke:#f4f7fb!important}
   display:grid!important;place-items:center!important;box-shadow:none!important
 }
 .profile-person-card #moodChoices #moodHistoryButton .mood-emoji{font-size:18px!important;line-height:1!important}
+
+/* v4.34 wallet strip: five visible, swipe for more */
+.finance-wallet-list.finance-coin-grid{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-template-columns:none!important;
+  grid-auto-columns:calc((100% - 20px)/5)!important;
+  gap:0 5px!important;
+  align-items:start;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:6px 8px 13px!important;
+  scroll-snap-type:x proximity;
+  scroll-padding-inline:8px;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+  overscroll-behavior-x:contain
+}
+.finance-wallet-list::-webkit-scrollbar{display:none}
+.finance-wallet-list .finance-wallet-item{
+  width:100%;
+  min-width:0;
+  scroll-snap-align:start;
+  touch-action:pan-x
+}
+.finance-wallet-coin{
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:-.04em
+}
+.finance-wallet-coin[data-currency="USDT"]{font-size:12px;letter-spacing:-.06em}
