@@ -8,8 +8,8 @@ const PRECACHE=[
   '/favicon-rudi-v460.png',
   '/apple-touch-icon-rudi-v460.png',
   '/icon-192-rudi-v460.png',
-  '/icon-512-rudi-v460.png',
-  '/icon-maskable-rudi-v460.png'
+  '/icon-512.svg',
+  '/icon-maskable.svg'
 ];
 
 const SYNC_DB='rudi-background-sync-v1';
