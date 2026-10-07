@@ -97,3 +97,20 @@ test('v4.65 finance history subpages and filters are wired',()=>{
   assert.ok(app.includes("if(row?.manualAdjustment)return false"));
   assert.equal(html.includes('id="financeOperationsToggle"'),false);
 });
+
+
+test('v4.66 capital history opens as a dedicated page',()=>{
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+  assert.ok(html.includes('id="financeCapitalMetricButton"'));
+  assert.ok(html.includes('id="financeCapitalHistoryPage"'));
+  assert.ok(html.includes('id="financeCapitalHistoryBack"'));
+  assert.ok(app.includes("bindFinanceMetricAction('financeCapitalMetricButton','capital')"));
+  assert.ok(app.includes("page.classList.toggle('is-capital-history',isCapital)"));
+  assert.ok(css.includes('RUDI v4.66 — capital history subpage'));
+  const mainStart=html.indexOf('id="financeCapitalMetricButton"');
+  const walletStart=html.indexOf('class="finance-wallet-section"',mainStart);
+  const mainSlice=html.slice(mainStart,walletStart);
+  assert.equal(mainSlice.includes('id="financeCapitalChart"'),false);
+});

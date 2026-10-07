@@ -17207,3 +17207,45 @@ body.finance-month-dialog-open{overflow:hidden!important}
     grid-column:1!important
   }
 }
+
+
+/* RUDI v4.66 — capital history subpage */
+.finance-capital-metric-action{
+  cursor:pointer;
+  border-radius:14px;
+  transition:transform .16s ease,background .16s ease
+}
+.finance-capital-metric-action:active{transform:scale(.985)}
+.finance-capital-metric-action:focus-visible{
+  outline:2px solid rgba(255,255,255,.72);
+  outline-offset:2px
+}
+.finance-page.is-capital-history{gap:0!important}
+.finance-page.is-capital-history > .finance-page-head,
+.finance-page.is-capital-history > #marketTickerTile,
+.finance-page.is-capital-history > #financeTabs,
+.finance-page.is-capital-history > .finance-tab-panel:not(#financePersonalPanel){
+  display:none!important
+}
+.finance-page.is-capital-history > #financePersonalPanel{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important
+}
+.finance-page.is-capital-history > #financePersonalPanel > :not(#financeCapitalHistoryPage){
+  display:none!important
+}
+.finance-page.is-capital-history #financeCapitalHistoryPage{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important
+}
+.finance-page.is-capital-history .finance-capital-card{
+  margin:0!important
+}
+.finance-capital-history-page .finance-capital-head{
+  margin-top:0
+}

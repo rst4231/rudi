@@ -2819,11 +2819,13 @@
       }
       function closeFinanceLedgerPage(){
         const page=document.getElementById('financePage');
-        page?.classList.remove('is-expense-history','is-income-history');
+        page?.classList.remove('is-expense-history','is-income-history','is-capital-history');
         const expense=document.getElementById('financeExpenseHistoryPage');
         const income=document.getElementById('financeIncomeHistoryPage');
+        const capital=document.getElementById('financeCapitalHistoryPage');
         if(expense){expense.hidden=true;expense.setAttribute('aria-hidden','true')}
         if(income){income.hidden=true;income.setAttribute('aria-hidden','true')}
+        if(capital){capital.hidden=true;capital.setAttribute('aria-hidden','true')}
         const restoreY=Math.max(0,Number(financeLedgerReturnScrollY||0));
         requestAnimationFrame(()=>window.scrollTo({top:restoreY,behavior:'auto'}));
       }
@@ -2833,12 +2835,19 @@
         financeLedgerReturnScrollY=Math.max(0,Number(window.scrollY||document.scrollingElement?.scrollTop||0));
         const expense=document.getElementById('financeExpenseHistoryPage');
         const income=document.getElementById('financeIncomeHistoryPage');
+        const capital=document.getElementById('financeCapitalHistoryPage');
         const isExpense=kind==='expense';
+        const isIncome=kind==='income';
+        const isCapital=kind==='capital';
         page.classList.toggle('is-expense-history',isExpense);
-        page.classList.toggle('is-income-history',!isExpense);
+        page.classList.toggle('is-income-history',isIncome);
+        page.classList.toggle('is-capital-history',isCapital);
         if(expense){expense.hidden=!isExpense;expense.setAttribute('aria-hidden',isExpense?'false':'true')}
-        if(income){income.hidden=isExpense;income.setAttribute('aria-hidden',isExpense?'true':'false')}
-        if(isExpense)renderFinanceOperations();else renderFinanceIncomeHistory();
+        if(income){income.hidden=!isIncome;income.setAttribute('aria-hidden',isIncome?'false':'true')}
+        if(capital){capital.hidden=!isCapital;capital.setAttribute('aria-hidden',isCapital?'false':'true')}
+        if(isExpense)renderFinanceOperations();
+        else if(isIncome)renderFinanceIncomeHistory();
+        else if(isCapital){renderFinanceCapitalHistory();recordFinanceCapitalSnapshot().catch(()=>{})}
         requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'auto'}));
       }
 
@@ -5000,8 +5009,10 @@
         };
         bindFinanceMetricAction('financeExpenseMetricButton','expense');
         bindFinanceMetricAction('financeIncomeMetricButton','income');
+        bindFinanceMetricAction('financeCapitalMetricButton','capital');
         document.getElementById('financeExpenseHistoryBack')?.addEventListener('click',closeFinanceLedgerPage);
         document.getElementById('financeIncomeHistoryBack')?.addEventListener('click',closeFinanceLedgerPage);
+        document.getElementById('financeCapitalHistoryBack')?.addEventListener('click',closeFinanceLedgerPage);
 
         ['financeGoalTitleInput','financeGoalCurrentInput','financeGoalTargetInput'].forEach(id=>{
           document.getElementById(id)?.addEventListener('input',()=>{
