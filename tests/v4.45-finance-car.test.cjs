@@ -33,3 +33,19 @@ test('v4.46 month picker is an icon by the eye and finance spacing is compact',(
   assert.match(css,/\.finance-wallet-head-actions\{[\s\S]*?max-width:190px!important/);
   assert.match(css,/min-height:32px!important/);
 });
+
+
+test('v4.47 iOS temporal controls and compact category/wallet layout',()=>{
+  const html=fs.readFileSync('public/index.html','utf8');
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/app.css','utf8');
+  for(const id of ['financeExpenseComposerDate','financeExpenseComposerTime','financeIncomeDate','financeIncomeTime','financeTransferDate','financeTransferTime']){
+    assert.match(html,new RegExp('id="'+id+'Display"'));
+    assert.match(html,new RegExp('id="'+id+'" class="finance-temporal-native"'));
+  }
+  assert.doesNotMatch(html,/id="financeCategoryCount"/);
+  assert.match(app,/function bindFinanceTemporalControls\(\)/);
+  assert.match(app,/function syncFinanceTemporalControl\(inputOrId\)/);
+  assert.match(css,/RUDI v4\.47 — iOS-safe date\/time controls and compact wallet spacing/);
+  assert.match(css,/\.finance-wallet-list\.finance-coin-grid\{[\s\S]*?padding-bottom:6px!important/);
+});

@@ -2220,6 +2220,36 @@
         const p=financeMoscowParts();
         return {date:p.year+'-'+p.month+'-'+p.day,time:p.hour+':'+p.minute};
       }
+      function financeTemporalDisplayValue(input){
+        const value=String(input?.value||'').trim();
+        if(!value)return '—';
+        if(input?.type==='date'){
+          const match=value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if(!match)return value;
+          const date=new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]),12));
+          if(Number.isNaN(date.getTime()))return value;
+          return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(date);
+        }
+        return value;
+      }
+      function syncFinanceTemporalControl(inputOrId){
+        const input=typeof inputOrId==='string'?document.getElementById(inputOrId):inputOrId;
+        if(!input)return;
+        const display=document.getElementById(input.id+'Display');
+        if(display)display.textContent=financeTemporalDisplayValue(input);
+      }
+      function bindFinanceTemporalControls(){
+        document.querySelectorAll('.finance-temporal-native').forEach(input=>{
+          if(input.dataset.temporalBound==='1'){syncFinanceTemporalControl(input);return}
+          input.dataset.temporalBound='1';
+          const sync=()=>syncFinanceTemporalControl(input);
+          input.addEventListener('input',sync);
+          input.addEventListener('change',sync);
+          input.addEventListener('blur',sync);
+          sync();
+        });
+      }
+
       function ensureCurrentDateTimeInputs(dateId,timeId){
         const now=financeNowDateTimeInputs();
         const dateInput=document.getElementById(dateId),timeInput=document.getElementById(timeId);
@@ -2728,6 +2758,7 @@
         renderFinanceExpenseLabels(category);
         if(dateInput)dateInput.value=now.date;
         if(timeInput)timeInput.value=now.time;
+        syncFinanceTemporalControl(dateInput);syncFinanceTemporalControl(timeInput);
         if(status)status.textContent='';
         if(source){
           source.hidden=!wallet;
@@ -2875,7 +2906,7 @@
         const updateCurrency=()=>{const wallet=financeWalletById(select.value);if(currency)currency.textContent=financeCurrencySymbol(wallet?.currency||'RUB')};
         updateCurrency();select.onchange=updateCurrency;
         if(amount)amount.value='';if(note)note.value='';
-        const now=financeNowDateTimeInputs();if(date)date.value=now.date;if(time)time.value=now.time;if(status)status.textContent='';
+        const now=financeNowDateTimeInputs();if(date)date.value=now.date;if(time)time.value=now.time;syncFinanceTemporalControl(date);syncFinanceTemporalControl(time);if(status)status.textContent='';
         mountFinanceCoinModal(modal);
       }
 
@@ -3219,6 +3250,7 @@
         const now=financeNowDateTimeInputs();
         document.getElementById('financeTransferDate').value=now.date;
         document.getElementById('financeTransferTime').value=now.time;
+        syncFinanceTemporalControl('financeTransferDate');syncFinanceTemporalControl('financeTransferTime');
         updateFinanceTransferPreview();
         mountFinanceCoinModal(document.getElementById('financeTransferComposer'),amount,{forceFocus:focusAmount});
       }
@@ -3886,6 +3918,7 @@
         const personalMonth=document.getElementById('financePersonalMonthInput');
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();
         applyFinancePermissions();setFinanceTab('personal');
+        bindFinanceTemporalControls();
         bindFinanceCardCollapse('financeOperationsCard','financeOperationsToggle');
         bindFinanceCardCollapse('financeGoalCard','financeGoalToggle');
 

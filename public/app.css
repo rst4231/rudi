@@ -15654,3 +15654,115 @@ html[data-theme="dark"] .finance-literacy-card{
     font-size:9px!important
   }
 }
+
+
+/* RUDI v4.47 — iOS-safe date/time controls and compact wallet spacing */
+.finance-expense-datetime-grid{
+  grid-template-columns:minmax(0,1.45fr) minmax(0,.8fr)!important;
+  gap:10px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:visible!important
+}
+.finance-expense-datetime-grid>.finance-input-field{
+  min-width:0!important;
+  width:100%!important;
+  overflow:visible!important
+}
+.finance-temporal-control{
+  position:relative;
+  width:100%;
+  height:48px;
+  min-width:0;
+  max-width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 18px;
+  align-items:center;
+  gap:8px;
+  box-sizing:border-box;
+  overflow:hidden;
+  padding:0 13px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--surface);
+  color:var(--text)
+}
+.finance-temporal-value{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:13px;
+  line-height:1;
+  font-weight:760;
+  font-variant-numeric:tabular-nums;
+  text-align:left
+}
+.finance-temporal-icon{
+  width:18px;
+  height:18px;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  color:var(--muted);
+  pointer-events:none
+}
+.finance-temporal-native{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:inherit!important;
+  opacity:0!important;
+  cursor:pointer!important;
+  font-size:16px!important;
+  line-height:1!important;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  -webkit-tap-highlight-color:transparent!important
+}
+.finance-temporal-native::-webkit-date-and-time-value{
+  width:auto!important;
+  min-width:0!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important
+}
+.finance-temporal-native::-webkit-calendar-picker-indicator{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  opacity:0!important;
+  cursor:pointer!important
+}
+.finance-wallet-list.finance-coin-grid{
+  min-height:96px!important;
+  padding-bottom:6px!important
+}
+.finance-wallet-section{padding-bottom:0!important}
+@media(max-width:430px){
+  .finance-expense-datetime-grid{
+    grid-template-columns:minmax(0,1.5fr) minmax(0,.78fr)!important;
+    gap:8px!important
+  }
+  .finance-temporal-control{
+    height:46px;
+    padding:0 10px;
+    border-radius:13px
+  }
+  .finance-temporal-value{font-size:12px}
+  .finance-temporal-icon{width:16px;height:16px}
+}
+@media(max-width:330px){
+  .finance-expense-datetime-grid{grid-template-columns:1fr!important}
+}

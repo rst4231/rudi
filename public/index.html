@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.46">
+  <meta name="rudi-version" content="v4.47">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.46">
+  <link rel="stylesheet" href="/app.css?v=4.47">
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -64,7 +64,7 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.45"></script>
+  <script defer src="/app.js?v=4.47"></script>
   <script defer src="/pwa-extras.js?v=4.12"></script>
   <script defer src="/weather.js?v=4.12"></script>
   <script defer src="/smart-home.js?v=4.12"></script>
@@ -365,7 +365,6 @@
           <div class="finance-coin-divider"></div>
           <div class="finance-coin-section-head">
             <div><span class="section-eyebrow">Расходы</span><h2 id="financeCategoriesTitle">Категории</h2></div>
-            <span id="financeCategoryCount" class="finance-history-count">5</span>
           </div>
           <div id="financeCategoryList" class="finance-category-list finance-coin-grid" aria-labelledby="financeCategoriesTitle"></div>
           <div id="financeCategoryEmpty" class="finance-history-empty">Категорий пока нет — добавь первую монету</div>
@@ -402,11 +401,19 @@
             <div class="finance-expense-datetime-grid">
               <label class="finance-input-field">
                 <span>Дата</span>
-                <input id="financeExpenseComposerDate" class="finance-text-input" type="date" aria-label="Дата расхода">
+                <div class="finance-temporal-control">
+                  <span id="financeExpenseComposerDateDisplay" class="finance-temporal-value">—</span>
+                  <svg class="finance-temporal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg>
+                  <input id="financeExpenseComposerDate" class="finance-temporal-native" type="date" aria-label="Дата расхода">
+                </div>
               </label>
               <label class="finance-input-field">
                 <span>Время</span>
-                <input id="financeExpenseComposerTime" class="finance-text-input" type="time" step="60" aria-label="Время расхода">
+                <div class="finance-temporal-control">
+                  <span id="financeExpenseComposerTimeDisplay" class="finance-temporal-value">—</span>
+                  <svg class="finance-temporal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+                  <input id="financeExpenseComposerTime" class="finance-temporal-native" type="time" step="60" aria-label="Время расхода">
+                </div>
               </label>
             </div>
             <label class="finance-input-field">
@@ -525,11 +532,19 @@
             <div class="finance-expense-datetime-grid">
               <label class="finance-input-field">
                 <span>Дата</span>
-                <input id="financeIncomeDate" class="finance-text-input" type="date" aria-label="Дата дохода">
+                <div class="finance-temporal-control">
+                  <span id="financeIncomeDateDisplay" class="finance-temporal-value">—</span>
+                  <svg class="finance-temporal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg>
+                  <input id="financeIncomeDate" class="finance-temporal-native" type="date" aria-label="Дата дохода">
+                </div>
               </label>
               <label class="finance-input-field">
                 <span>Время</span>
-                <input id="financeIncomeTime" class="finance-text-input" type="time" step="60" aria-label="Время дохода">
+                <div class="finance-temporal-control">
+                  <span id="financeIncomeTimeDisplay" class="finance-temporal-value">—</span>
+                  <svg class="finance-temporal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+                  <input id="financeIncomeTime" class="finance-temporal-native" type="time" step="60" aria-label="Время дохода">
+                </div>
               </label>
             </div>
             <label class="finance-input-field">
@@ -556,8 +571,8 @@
             </label>
             <div id="financeTransferPreview" class="finance-transfer-preview">Выбери кошельки и сумму</div>
             <div class="finance-expense-datetime-grid">
-              <label class="finance-input-field"><span>Дата</span><input id="financeTransferDate" class="finance-text-input" type="date"></label>
-              <label class="finance-input-field"><span>Время</span><input id="financeTransferTime" class="finance-text-input" type="time" step="60"></label>
+              <label class="finance-input-field"><span>Дата</span><div class="finance-temporal-control"><span id="financeTransferDateDisplay" class="finance-temporal-value">—</span><svg class="finance-temporal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></svg><input id="financeTransferDate" class="finance-temporal-native" type="date" aria-label="Дата перевода"></div></label>
+              <label class="finance-input-field"><span>Время</span><div class="finance-temporal-control"><span id="financeTransferTimeDisplay" class="finance-temporal-value">—</span><svg class="finance-temporal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><input id="financeTransferTime" class="finance-temporal-native" type="time" step="60" aria-label="Время перевода"></div></label>
             </div>
             <label class="finance-input-field"><span>Комментарий</span><input id="financeTransferNote" class="finance-text-input" maxlength="120" placeholder="Необязательно"></label>
             <button id="financeTransferSaveButton" class="finance-analyst-button" type="button">Перевести</button>
