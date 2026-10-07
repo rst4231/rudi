@@ -520,20 +520,28 @@ async function deleteExpenseCategory(actor, id, options = {}) {
     const current = await readFinanceState(options);
     const rows = current.categories[safeActor] || [];
     if (!rows.some((row) => row.id === cleanId)) throw new Error('finance-category-not-found');
-    const affectedMonths = [...new Set(
-      current.personalExpenses
-        .filter((row) => row.actor === safeActor && row.categoryId === cleanId)
-        .map((row) => row.month)
-    )];
+
+    const removedExpenses = current.personalExpenses.filter((row) => row.actor === safeActor && row.categoryId === cleanId);
+    const affectedMonths = [...new Set(removedExpenses.map((row) => row.month))];
+    const refundByWallet = new Map();
+    for (const row of removedExpenses) {
+      if (!row.walletId || Number(row.sourceAmount || 0) <= 0) continue;
+      refundByWallet.set(row.walletId, (refundByWallet.get(row.walletId) || 0) + Number(row.sourceAmount || 0));
+    }
+    const wallets = {
+      ...current.wallets,
+      [safeActor]: (current.wallets[safeActor] || []).map((wallet) => refundByWallet.has(wallet.id)
+        ? { ...wallet, balance: cleanAssetAmount(Number(wallet.balance || 0) + Number(refundByWallet.get(wallet.id) || 0)) }
+        : wallet),
+    };
+
     const now = new Date(options.now || Date.now()).toISOString();
     let next = normalizeState({
       ...current,
       initialized: true,
       version: current.version + 1,
-      categories: {
-        ...current.categories,
-        [safeActor]: rows.filter((row) => row.id !== cleanId),
-      },
+      wallets,
+      categories: { ...current.categories, [safeActor]: rows.filter((row) => row.id !== cleanId) },
       personalExpenses: current.personalExpenses.filter(
         (row) => !(row.actor === safeActor && row.categoryId === cleanId)
       ),
