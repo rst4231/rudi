@@ -40,7 +40,11 @@
   function render(items){
     activeItems=items;
     list.replaceChildren();
-    tile.hidden=items.length===0;
+    // Main navigation restores home tiles by [data-home-empty], not by hidden alone.
+    // Keep both signals in sync so empty recommendations never reappear as a blank card.
+    const empty=items.length===0;
+    tile.dataset.homeEmpty=empty?'1':'0';
+    tile.hidden=empty;
     for(const item of items){
       const row=node('article','rudi-recommendation-row');
       row.dataset.recommendationId=item.id;
