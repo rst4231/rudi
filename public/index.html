@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.99">
+  <meta name="rudi-version" content="v4.100">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-rudi-v460.png?v=4.60">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-rudi-v460.png?v=4.60">
-  <link rel="manifest" href="/manifest.webmanifest?v=4.99">
+  <link rel="manifest" href="/manifest.webmanifest?v=4.100">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
@@ -27,21 +27,21 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.99">
-  <link rel="stylesheet" href="/finance-decisions.css?v=4.99">
+  <link rel="stylesheet" href="/app.css?v=4.100">
+  <link rel="stylesheet" href="/finance-decisions.css?v=4.100">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
-  <link rel="stylesheet" href="/pwa-extras.css?v=4.99">
-  <link rel="stylesheet" href="/calendar.css?v=4.99">
-  <link rel="stylesheet" href="/smart-home.css?v=4.99">
-  <link rel="stylesheet" href="/car.css?v=4.99">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.99">
-  <link rel="stylesheet" href="/supplement-advanced.css?v=4.99">
-  <link rel="stylesheet" href="/rudi-design-system.css?v=4.99">
-  <link rel="stylesheet" href="/finance-cards.css?v=4.99">
-  <link rel="stylesheet" href="/recommendations.css?v=4.99">
+  <link rel="stylesheet" href="/pwa-extras.css?v=4.100">
+  <link rel="stylesheet" href="/calendar.css?v=4.100">
+  <link rel="stylesheet" href="/smart-home.css?v=4.100">
+  <link rel="stylesheet" href="/car.css?v=4.100">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.100">
+  <link rel="stylesheet" href="/supplement-advanced.css?v=4.100">
+  <link rel="stylesheet" href="/rudi-design-system.css?v=4.100">
+  <link rel="stylesheet" href="/finance-cards.css?v=4.100">
+  <link rel="stylesheet" href="/recommendations.css?v=4.100">
   <script>
     (() => {
       const launchContext=String(location.search||'')+String(location.hash||'');
@@ -69,19 +69,19 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.99"></script>
-  <script defer src="/recommendations.js?v=4.99"></script>
-  <script defer src="/finance-decisions-core.js?v=4.99"></script>
-  <script defer src="/finance-decisions-ui.js?v=4.99"></script>
+  <script defer src="/app.js?v=4.100"></script>
+  <script defer src="/recommendations.js?v=4.100"></script>
+  <script defer src="/finance-decisions-core.js?v=4.100"></script>
+  <script defer src="/finance-decisions-ui.js?v=4.100"></script>
 
-  <script defer src="/pwa-extras.js?v=4.99"></script>
-  <script defer src="/weather.js?v=4.99"></script>
-  <script defer src="/smart-home.js?v=4.99"></script>
-  <script defer src="/car.js?v=4.99"></script>
-  <script defer src="/profile-supplements.js?v=4.99"></script>
-  <script defer src="/mood-history.js?v=4.99"></script>
-  <script defer src="/supplement-editor.js?v=4.99"></script>
-  <script defer src="/supplement-advanced.js?v=4.99"></script>
+  <script defer src="/pwa-extras.js?v=4.100"></script>
+  <script defer src="/weather.js?v=4.100"></script>
+  <script defer src="/smart-home.js?v=4.100"></script>
+  <script defer src="/car.js?v=4.100"></script>
+  <script defer src="/profile-supplements.js?v=4.100"></script>
+  <script defer src="/mood-history.js?v=4.100"></script>
+  <script defer src="/supplement-editor.js?v=4.100"></script>
+  <script defer src="/supplement-advanced.js?v=4.100"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -232,21 +232,21 @@
       <div id="rudiRecommendationsList" class="rudi-recommendations-list" aria-live="polite"></div>
     </section>
 
-    <section class="personal-tool-page-head fasting-page-head" data-app-tab-section="habits" aria-labelledby="habitPageTitle" hidden>
-      <button id="habitBackButton" class="fasting-back-button" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+    <section class="rudi-app-page-head personal-tool-page-head fasting-page-head" data-app-tab-section="habits" aria-labelledby="habitPageTitle" hidden>
+      <button id="habitBackButton" class="fasting-back-button rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
       <div class="fasting-page-title"><div class="section-eyebrow">Личное</div><h1 id="habitPageTitle">Трекер привычек</h1><blockquote id="habitYesterdayQuote" class="personal-habits-yesterday-quote" hidden></blockquote></div>
     </section>
     <section id="habitHomeTile" class="personal-habits-tile home-tools-tile" data-app-tab-section="habits" aria-label="Трекер привычек" hidden></section>
 
-    <section class="personal-tool-page-head fasting-page-head" data-app-tab-section="supplements" aria-labelledby="supplementPageTitle" hidden>
-      <button id="supplementBackButton" class="fasting-back-button" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+    <section class="rudi-app-page-head personal-tool-page-head fasting-page-head" data-app-tab-section="supplements" aria-labelledby="supplementPageTitle" hidden>
+      <button id="supplementBackButton" class="fasting-back-button rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
       <div class="fasting-page-title"><div class="section-eyebrow">Личное</div><h1 id="supplementPageTitle">БАДы и витамины</h1></div>
     </section>
     <section id="supplementsHomeTile" class="personal-supplements-tile home-tools-tile" data-app-tab-section="supplements" aria-label="БАДы и витамины" hidden></section>
 
     <section id="financePage" class="finance-page" data-app-tab-section="finances" data-tab-available="1" data-no-pull-refresh="true" aria-labelledby="financePageTitle" hidden>
-      <div class="finance-page-head">
-        <button id="financeBackButton" class="fasting-back-button finance-back-button" type="button" aria-label="Назад">
+      <div class="rudi-app-page-head finance-page-head">
+        <button id="financeBackButton" class="fasting-back-button finance-back-button rudi-app-page-back" type="button" aria-label="Назад">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div class="finance-page-title">
@@ -1199,8 +1199,8 @@
     </section>
 
     <section id="carPage" class="car-page" data-app-tab-section="car" data-tab-available="1" aria-labelledby="carPageTitle" hidden>
-      <div class="car-page-head">
-        <button id="carPageBack" class="car-page-back" type="button" aria-label="Назад">
+      <div class="rudi-app-page-head car-page-head">
+        <button id="carPageBack" class="car-page-back rudi-app-page-back" type="button" aria-label="Назад">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <h1 id="carPageTitle">Машина</h1>
@@ -1516,8 +1516,8 @@
     </section>
 
     <section id="workCalendarSection" class="work-page work-section" data-app-tab-section="schedule" aria-label="Календарь">
-      <header class="work-page-head">
-        <button id="workCalendarBack" class="work-page-back" type="button" aria-label="Назад">
+      <header class="rudi-app-page-head work-page-head">
+        <button id="workCalendarBack" class="work-page-back rudi-app-page-back" type="button" aria-label="Назад">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div><span>RUDI</span><h1>Календарь</h1></div>
@@ -1678,8 +1678,8 @@
     </section>
 
     <section class="smart-saves-page" data-app-tab-section="smart-saves" aria-labelledby="smartSavesPageTitle">
-      <div class="smart-saves-page-head">
-        <button id="smartSavesBackButton" class="smart-saves-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="rudi-app-page-head smart-saves-page-head">
+        <button id="smartSavesBackButton" class="smart-saves-back rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
         <h1 id="smartSavesPageTitle">Сохранённое</h1><span></span>
       </div>
       <div id="smartSavesFilters" class="smart-saves-filters" role="group" aria-label="Фильтр сохранений по автору">
@@ -1693,7 +1693,7 @@
 
     <section class="wishlist-page wishlist-section" data-app-tab-section="wishlist" aria-label="Вишлист">
       <span id="wishlistStatus" class="section-status wishlist-page-status" hidden></span>
-      <div class="wishlist-page-head"><button id="wishlistBackButton" class="wishlist-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h1 class="wishlist-page-title">Наш вишлист</h1><span></span></div>
+      <div class="rudi-app-page-head wishlist-page-head"><button id="wishlistBackButton" class="wishlist-page-back rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h1 class="wishlist-page-title">Наш вишлист</h1><span></span></div>
       <div class="wishlist-card">
         <form id="wishlistForm" class="wishlist-form">
           <div class="wishlist-form-fields">
@@ -1877,8 +1877,8 @@
     </section>
 
     <section id="fastingPage" class="fasting-page" data-app-tab-section="fasting" data-no-pull-refresh="true" aria-labelledby="fastingPageTitle" hidden>
-      <div class="fasting-page-head">
-        <button id="fastingBackButton" class="fasting-back-button" type="button" aria-label="Назад в Кухню">
+      <div class="rudi-app-page-head fasting-page-head">
+        <button id="fastingBackButton" class="fasting-back-button rudi-app-page-back" type="button" aria-label="Назад в Кухню">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div class="fasting-page-title">
@@ -1986,8 +1986,8 @@
     </section>
 
     <section id="datesPage" class="dates-page" data-app-tab-section="dates" aria-labelledby="datesPageTitle" hidden>
-      <div class="dates-page-head">
-        <button id="datesBackButton" class="dates-back-button" type="button" aria-label="Назад на главную">
+      <div class="rudi-app-page-head dates-page-head">
+        <button id="datesBackButton" class="dates-back-button rudi-app-page-back" type="button" aria-label="Назад на главную">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div><h1 id="datesPageTitle">Свидания</h1></div>
@@ -2027,8 +2027,8 @@
     </section>
 
     <section id="forDiPage" class="for-di-page" data-app-tab-section="for-di" aria-labelledby="forDiPageTitle" hidden>
-      <div class="for-di-page-head">
-        <button id="forDiBackButton" class="for-di-back-button" type="button" aria-label="Назад на главную">
+      <div class="rudi-app-page-head for-di-page-head">
+        <button id="forDiBackButton" class="for-di-back-button rudi-app-page-back" type="button" aria-label="Назад на главную">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div>
