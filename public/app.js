@@ -12900,6 +12900,14 @@
 
       function setWorkCalendarRangeActive(view){
         currentWorkCalendarView=['month','next-month'].includes(view)?view:'month';
+        const title=document.getElementById('workCalendarMonthTitle');
+        if(title){
+          const {parts}=todayState();
+          const offset=currentWorkCalendarView==='next-month'?1:0;
+          const monthDate=new Date(Date.UTC(parts.year,parts.month-1+offset,1));
+          const name=new Intl.DateTimeFormat('ru-RU',{month:'long',timeZone:'UTC'}).format(monthDate);
+          title.textContent=name.charAt(0).toUpperCase()+name.slice(1);
+        }
         document.querySelectorAll('[data-work-view]').forEach(button=>{
           const active=button.dataset.workView===currentWorkCalendarView;
           button.classList.toggle('active',active);
@@ -13067,7 +13075,6 @@
         const container=document.getElementById('workCalendarDays');
         const selected=document.getElementById('workCalendarSelected');
         const status=document.getElementById('workCalendarStatus');
-        const label=document.getElementById('workWeekLabel');
         container.replaceChildren();
         selected.hidden=true;
         selected.replaceChildren();
@@ -13091,19 +13098,9 @@
           return;
         }
 
-        const first=dateFromKey(days[0].date);
-        const last=dateFromKey(days[days.length-1].date);
         const view=String(payload?.view||currentWorkCalendarView||'month');
         const isMonth=view==='month'||view==='next-month';
         if(view==='month') renderPartnerWorkStatus(days);
-        if(isMonth){
-          const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
-          label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
-        }else{
-          const firstText=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(first).replace('.','');
-          const lastText=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(last).replace('.','');
-          label.textContent=firstText+' — '+lastText;
-        }
         setWorkCalendarRangeActive(view);
         if(payload.stale){
           status.hidden=false;
