@@ -5,6 +5,8 @@ const app=fs.readFileSync(path.join(__dirname,'../public/app.js'),'utf8');
 const start=app.indexOf('const MOOD_REASON_META={'),end=app.indexOf('let partnerMoodReasonTimer=0;',start);
 assert.ok(start>0&&end>start,'Reason formatter must exist');
 const describe=vm.runInNewContext(app.slice(start,end)+';partnerMoodReasonText',{Date,Intl});
+const CURRENT_RELEASE = require('node:fs').readFileSync(require('node:path').join(__dirname,'..','VERSION'),'utf8').trim();
+
 test('reason label includes stored mood time in Moscow, not current time',()=>{
  const row={mood:'fatigue',updatedAt:'2026-10-08T07:24:00.000Z',samples:[{mood:'fatigue',reason:'work',updatedAt:'2026-10-08T07:24:00.000Z'}]};
  assert.equal(describe(row),'💼 Работа · 10:24');
@@ -20,7 +22,7 @@ test('no valid timestamp means no invented time',()=>{
 test('release PWA uses correct version and cache',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../public/index.html'),'utf8');
  const sw=fs.readFileSync(path.join(__dirname,'../public/sw.js'),'utf8');
- assert.match(html,/name="rudi-version" content="v4\.84"/);
- assert.match(sw,/rudi-shell-v4\.84/);
- assert.equal(fs.readFileSync(path.join(__dirname,'../VERSION'),'utf8').trim(),'v4.84');
+ assert.ok(html.includes('name="rudi-version" content="'+CURRENT_RELEASE+'"'));
+ assert.ok(sw.includes("rudi-shell-"+CURRENT_RELEASE));
+ assert.equal(fs.readFileSync(path.join(__dirname,'../VERSION'),'utf8').trim(),CURRENT_RELEASE);
 });

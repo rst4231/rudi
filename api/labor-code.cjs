@@ -1,5 +1,4 @@
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
-const { syncForumTopicTitles } = require('./forum-topic-sync.cjs');
 const { queueForDiMessage } = require('./for-di-private.cjs');
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -81,35 +80,12 @@ async function telegramCall(token, method, payload, fetchImpl) {
   return response.json();
 }
 
-async function deleteLegacyLaborTopicOnce({ token, chatId, legacyTopicId, targetTopicId, cache, fetchImpl }) {
-  if (!Number.isInteger(legacyTopicId) || legacyTopicId <= 0 || legacyTopicId === targetTopicId) return false;
-  const key = `labor:legacy-topic-deleted:${legacyTopicId}`;
-  if (await cache.get(key)) return true;
-  try {
-    await telegramCall(token, 'deleteForumTopic', {
-      chat_id: chatId,
-      message_thread_id: legacyTopicId,
-    }, fetchImpl);
-  } catch (error) {
-    if (!/TOPIC_ID_INVALID|message thread not found|topic.*not found/i.test(String(error.detail || error.message))) throw error;
-  }
-  await cache.set(key, true, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-topic'] });
-  return true;
-}
-
 async function ensureLaborTopic({ token, chatId, cache, fetchImpl, forumTopicsConfig, forumTopicsOptions }) {
   const config = forumTopicsConfig || await loadForumTopicsConfig(forumTopicsOptions || {});
   const topicId = Number(config?.clients);
   const legacyTopicId = Number(config?.labor);
   if (!Number.isInteger(topicId) || topicId <= 0) throw new Error('For Di topic id is unavailable');
 
-  await syncForumTopicTitles({
-    token,
-    chatId,
-    config,
-    fetchImpl,
-  });
-  await deleteLegacyLaborTopicOnce({ token, chatId, legacyTopicId, targetTopicId: topicId, cache, fetchImpl });
   await cache.set('labor:topic-id', topicId, { ttl: CACHE_TTL_SECONDS, tags: ['rudi-labor-topic'] });
   return topicId;
 }
@@ -159,7 +135,7 @@ async function recordArticlePublication(cache, articleId, todayKey, messageId, t
 }
 
 async function publishLaborArticle(options = {}) {
-  const queueOnly = options.queueOnly === true;
+  const queueOnly = true; // All labor articles go to the private RUDI feed.
   const token = String(options.token || '').trim();
   const chatId = options.chatId;
   if (!queueOnly && !token) throw new Error('Telegram bot token is required for labor articles');
@@ -215,6 +191,5 @@ module.exports = {
   publishLaborArticle,
   replaceLaborArticle,
   ensureLaborTopic,
-  deleteLegacyLaborTopicOnce,
   dateKeyInMoscow,
 };

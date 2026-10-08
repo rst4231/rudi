@@ -363,6 +363,13 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
   const payload = base.parseRequestPayload(init);
   const topicId = Number(payload?.message_thread_id);
   const endpoint = base.telegramEndpoint(input);
+  // Retired group writes are suppressed; direct Telegram messages remain untouched.
+  if (endpoint && String(payload?.chat_id || '') === KNOWN_FORUM_CHAT_ID &&
+      (/^send[A-Z]/.test(endpoint.method) || ['copyMessage','forwardMessage','editForumTopic','deleteForumTopic','deleteMessages','deleteMessage'].includes(endpoint.method))) {
+    return new Response(JSON.stringify({ ok: true, result: { message_id: 0, retired_group: true } }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    });
+  }
   const isEventPost = topicId === base.EVENTS_TOPIC_ID && endpoint && EVENT_POST_METHODS.has(endpoint.method);
   const needsCache = topicId === base.EVENTS_TOPIC_ID || topicId === base.HOLIDAYS_TOPIC_ID || topicId === base.COUPLE_TOPIC_ID;
   const cache = options.cache || (needsCache ? resolveTopicCache(options) : undefined);

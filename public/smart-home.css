@@ -108,7 +108,8 @@
   grid-template-columns:34px minmax(0,1fr);
   grid-template-areas:
     "icon value"
-    "icon label";
+    "icon label"
+    "icon assessment";
   column-gap:7px;
   align-items:center;
   padding:4px 9px;
@@ -166,6 +167,19 @@
   text-overflow:ellipsis;
   white-space:nowrap;
 }
+.smart-home-climate-assessment{
+  grid-area:assessment;
+  min-width:0;
+  margin-top:3px;
+  font-size:9px;
+  font-weight:760;
+  line-height:1.15;
+  overflow-wrap:anywhere;
+}
+.smart-home-climate-assessment[hidden]{display:none!important}
+.smart-home-climate-assessment.is-normal{color:#83e4ac}
+.smart-home-climate-assessment.is-caution{color:#ffd17c}
+.smart-home-climate-assessment.is-alert{color:#ff9797}
 .smart-home-status{
   margin:0 0 11px;
   padding:8px 10px;
@@ -515,6 +529,7 @@ html[data-theme="dark"] .smart-home-scenario{
   .smart-home-climate-icon svg{width:22px;height:22px}
   .smart-home-climate-card strong{font-size:15px}
   .smart-home-climate-card small{font-size:7.5px}
+  .smart-home-climate-assessment{font-size:8px;line-height:1.2;margin-top:2px}
   .smart-home-room-head strong{font-size:13px}
   .smart-home-device-row{min-height:62px;grid-template-columns:43px minmax(0,1fr) auto;gap:8px;padding:7px 8px}
   .smart-home-device-visual{width:42px;height:42px;border-radius:12px}

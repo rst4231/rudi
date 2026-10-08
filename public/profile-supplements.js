@@ -131,7 +131,14 @@ function renderHabitYesterdayQuote(){
   const statuses=view.statuses&&typeof view.statuses==='object'?view.statuses:{};
   const done=habits.filter(item=>statuses[item.id]==='done');
   const total=habits.length;
-  habitYesterdayQuote.textContent='Вчера '+(actor==='Диана'?'выполнила':'выполнил')+' '+done.length+' из '+total+' привычек';
+  const praise=total===0
+    ? 'Сегодня можно начать с одной небольшой привычки.'
+    : done.length===total
+      ? 'Отличная работа! Все привычки выполнены, так держать!'
+      : done.length>0
+        ? 'Хорошая работа! Каждый выполненный шаг имеет значение.'
+        : 'Сегодня новый день. Начни с малого, всё получится!';
+  habitYesterdayQuote.textContent='Вчера '+(actor==='Диана'?'выполнила':'выполнил')+' '+done.length+' из '+total+' привычек. '+praise;
   habitYesterdayQuote.hidden=false;
 }
 function applyHabitView(data){

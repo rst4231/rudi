@@ -532,7 +532,11 @@
             markUpdateCheck();
             return registration.update().catch(()=>{});
           };
-          if(Date.now()-lastUpdateCheckAt()>=UPDATE_CHECK_INTERVAL_MS) checkForUpdate();
+          // Check on every fresh launch; throttle subsequent foreground checks.
+          checkForUpdate(true);
+          window.setInterval(()=>{
+            if(document.visibilityState==='visible') checkForUpdate();
+          },UPDATE_CHECK_INTERVAL_MS);
           window.addEventListener('online',()=>checkForUpdate(true));
           window.addEventListener('focus',()=>checkForUpdate());
           window.addEventListener('pageshow',()=>checkForUpdate());

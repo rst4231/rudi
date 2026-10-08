@@ -53,6 +53,14 @@ function parseJsonText(text) {
   if (!raw) throw new Error('finance-ai-empty');
   try { return JSON.parse(raw); } catch (_) { throw new Error('finance-ai-invalid-json'); }
 }
+function isFinanceAiProviderFailure(error) {
+  const code = String(error?.message || error || '');
+  return /^(?:finance-ai-|groq-api-key-missing|finance-literacy-too-short|finance-literacy-repeat|finance-insight-empty|finance-analyst-empty)/.test(code);
+}
+function logFinanceAiDegraded(error) {
+  if (!isFinanceAiProviderFailure(error)) throw error;
+  console.warn('RUDI_FINANCE_AI_DEGRADED', String(error?.message || error));
+}
 function responseText(payload) {
   return String(payload?.choices?.[0]?.message?.content || '').trim();
 }
@@ -153,6 +161,8 @@ async function generateLiteracyArticle(history = [], options = {}) {
       return { title, topic, body, books, model: MODEL, provider: 'groq' };
     } catch (error) {
       lastError = error;
+      // Provider outages are not fixed by repeating the same expensive call.
+      if (isFinanceAiProviderFailure(error) && !/^(?:finance-literacy-too-short|finance-literacy-repeat)/.test(String(error?.message || ''))) throw error;
       if (attempt >= 3) throw error;
     }
   }
@@ -165,7 +175,19 @@ async function getDailyLiteracyArticle(options = {}) {
   const history = Array.isArray(state?.articles) ? state.articles : [];
   const existing = history.find((row) => row.date === date);
   if (existing) return existing;
-  const generated = await generateLiteracyArticle(history, options);
+  let generated;
+  try {
+    generated = await generateLiteracyArticle(history, options);
+  } catch (error) {
+    logFinanceAiDegraded(error);
+    return {
+      date, title: 'Финансовая статья временно недоступна',
+      topic: 'Временная недоступность AI',
+      body: 'Сервис финансовых статей сейчас недоступен. Ваши доходы, расходы и финансовая история не затронуты. Попробуйте открыть статью позже.',
+      books: [], model: null, provider: 'fallback', degraded: true,
+      createdAt: new Date(options.now || Date.now()).toISOString(),
+    };
+  }
   const article = { date, ...generated, createdAt: new Date(options.now || Date.now()).toISOString() };
   const next = { articles: [article, ...history.filter((row) => row.date !== date)].slice(0, 365) };
   await cache.set('articles', next, { ttl: TTL_SECONDS, tags: ['rudi-finance-literacy'], name: 'articles' });
@@ -200,7 +222,16 @@ async function getMonthlyFinanceInsight(context = {}, options = {}) {
     'Доход: ' + Number(context.income || 0) + ' ₽. Расходы: ' + Number(context.expenses || 0) + ' ₽. Баланс: ' + Number(context.balance || 0) + ' ₽.',
     categories ? 'Категории: ' + categories : 'Расходы по категориям пока не добавлены.',
   ].join('\n');
-  const parsed = await requestJson(prompt, monthlyInsightSchema(), { ...options, timeoutMs: 10000 });
+  let parsed;
+  try {
+    parsed = await requestJson(prompt, monthlyInsightSchema(), { ...options, timeoutMs: 10000 });
+  } catch (error) {
+    logFinanceAiDegraded(error);
+    return {
+      text: 'AI-анализ временно недоступен. Учёт доходов и расходов продолжает работать. Попробуйте получить вывод позже.',
+      model: null, provider: 'fallback', degraded: true,
+    };
+  }
   const text = directFinanceAddress(parsed?.text, 800);
   if (!text) throw new Error('finance-insight-empty');
   const result = { text, model: MODEL, provider: 'groq' };
@@ -260,7 +291,17 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
     context.literacy?.title ? 'Сегодняшняя статья: ' + compact(context.literacy.title, 140) + '. Тема: ' + compact(context.literacy.topic, 120) + '. Ключевой текст: ' + compact(context.literacy.body, 2200) : '',
   ].filter(Boolean).join('\n');
 
-  const parsed = await requestJson(prompt, analystSchema(), { ...options, timeoutMs: 14000 });
+  let parsed;
+  try {
+    parsed = await requestJson(prompt, analystSchema(), { ...options, timeoutMs: 14000 });
+  } catch (error) {
+    logFinanceAiDegraded(error);
+    return {
+      summary: 'AI-аналитик временно недоступен. Данные финансового учёта остаются доступны. Попробуйте повторить запрос позже.',
+      strengths: [], risks: [], model: null, provider: 'fallback', degraded: true,
+      createdAt: new Date(options.now || Date.now()).toISOString(),
+    };
+  }
   const report = {
     summary: directFinanceAddress(parsed?.summary, 1800),
     strengths: (Array.isArray(parsed?.strengths) ? parsed.strengths : []).map((x) => directFinanceAddress(x, 500)).filter(Boolean).slice(0, 5),

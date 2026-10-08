@@ -23,12 +23,12 @@ test('calendar draws tags, exposes payment checkboxes and leaves tasks intact',(
  const src=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
  const api=fs.readFileSync(path.join(root,'api/finances.js'),'utf8');
  const css=fs.readFileSync(path.join(root,'public/calendar.css'),'utf8');
- assert.ok(src.includes('calendarObligationsForDay'));
- assert.ok(src.includes('calendar-obligation-tags'));
+ assert.ok(src.includes('function calendarObligationsForDay('));
+ assert.ok(src.includes('calendar-obligation-count'));
  assert.ok(src.includes("financeRequest('calendar-obligations')"));
  assert.ok(src.includes("financeRequest('set-obligation-paid'"));
+ assert.ok(src.includes('setCalendarObligationPaid('));
  assert.ok(src.includes('completeCalendarTickTickTask(event,row,complete'));
- assert.ok(src.includes("complete.setAttribute('aria-checked',obligation.paid?'true':'false')"));
  assert.ok(api.includes("operation==='calendar-obligations'"));
  assert.ok(css.includes('.calendar-obligation-tag.is-paid'));
 });

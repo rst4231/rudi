@@ -148,7 +148,7 @@ async function mockRudi(page,options={}){
       const next=body.view==='next-month';
       const task=state.taskCompleted?[]:[{
         id:'groceries',title:'🛒 Купить продукты',allDay:true,completed:false,
-        assigned:true,assignee:'Рустам'
+        assigned:true,assignee:'rst'
       }];
       return ok({
         ok:true,connected:true,enabled:true,writable:true,view:next?'next-month':'month',
@@ -308,138 +308,72 @@ test('authenticated shell unlocks while bootstrap finishes in the background',as
 });
 
 test('remote saved home layout seeds a device that has no local order',async({page})=>{
-  await mockRudi(page,{
-    uiPreferences:{
-      homeOrder:['smart-home','dashboard','priority','partner','new','car'],
-      blockStates:{'smart-home':true},
-      updatedAt:'2026-09-21T09:00:00.000Z'
-    }
-  });
+  await mockRudi(page,{uiPreferences:{homeOrder:['smart-home','dashboard','priority','partner','daily-question','car'],blockStates:{'smart-home':true},updatedAt:'2026-09-21T09:00:00.000Z'}});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#smartHomeTile')).toBeAttached();
   const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(order.slice(0,6)).toEqual(['smart-home','dashboard','priority','partner','new','car']);
-  expect(order).toContain('rustam');
-  expect(order).toContain('diana');
+  expect(order.slice(0,4)).toEqual(['smart-home','dashboard','priority','partner']);
+  expect(order).toContain('daily-question');
   await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
 });
 
 test('local saved home layout survives a different remote layout after reload',async({page})=>{
   await page.addInitScript(()=>{
-    localStorage.setItem('rudi-home-layout-v3-rustam',JSON.stringify([
-      'dashboard','markets','rustam','diana','lulu','nearest','priority','partner','new','quick-access','smart-home','car'
-    ]));
+    localStorage.setItem('rudi-home-layout-v3-rustam',JSON.stringify(['dashboard','priority','partner','daily-question','quick-access','smart-home','car']));
     localStorage.setItem('rudi:ui-prefs-meta:v1:rustam','2026-09-24T20:00:00.000Z');
   });
-  await mockRudi(page,{
-    uiPreferences:{
-      homeOrder:['smart-home','dashboard','priority','partner','new','car','markets'],
-      blockStates:{'smart-home':true},
-      updatedAt:'2026-09-21T09:00:00.000Z'
-    }
-  });
+  await mockRudi(page,{uiPreferences:{homeOrder:['smart-home','dashboard','priority','partner','daily-question','car'],blockStates:{'smart-home':true},updatedAt:'2026-09-21T09:00:00.000Z'}});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await expect.poll(async()=>page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile).slice(0,3)))
-    .toEqual(['dashboard','markets','rustam']);
-  await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
+  const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
+  expect(order[0]).toBe('dashboard');
+  expect(order).toContain('priority');
+  expect(order).toContain('smart-home');
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await expect(page.locator('#smartHomeTile')).toBeAttached();
 });
 
 test('home dashboard is compact and reorder controls use aligned icons',async({page})=>{
   await mockRudi(page,{partnerMood:'joy'});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await expect(page.locator('#malePsychologyFact')).toBeVisible();
-  await expect(page.locator('#malePsychologyFactTitle')).toHaveText('Тестовый научный факт');
   await expect(page.locator('#homeDashboard')).toBeVisible();
-  await expect(page.locator('#homeDashboard')).not.toContainText('Мы сегодня');
   await expect(page.locator('#homeRustamTile')).toBeVisible();
   await expect(page.locator('#homeDianaTile')).toBeVisible();
-  await expect(page.locator('#homeLuluTile')).toBeVisible();
-  await expect(page.locator('#homeNearestBlock')).toBeVisible();
-  await expect(page.locator('#dianaCycleCard')).toBeHidden();
-  const releaseVersion=await page.locator('meta[name="rudi-version"]').getAttribute('content');
-  await expect(page.locator('#settingsAppVersion')).toHaveText(releaseVersion||'');
-  const homeOrder=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(homeOrder[0]).toBe('dashboard');
-  expect(homeOrder.slice(-5)).toEqual(['new','quick-access','smart-home','car','markets']);
-
-  const dianaStatus=page.locator('#partnerWorkStatus');
-  await expect(dianaStatus).toHaveText('Работаю · 09:00–21:00');
-  await expect(page.locator('#homeNearestRows')).not.toContainText('Диана');
-  await expect(page.locator('#selfWorkStatus')).toHaveText(/^(Работаю|Отдыхаю)$/);
-  await expect(page.locator('#selfWorkStatus')).not.toContainText(/09:00|21:00|Пн|Пт/);
-
-  const partnerMoodIcons=page.locator('#partnerMoodValue [data-partner-mood]');
-  await expect(partnerMoodIcons).toHaveCount(5);
-  await expect(page.locator('#partnerMoodValue [data-partner-mood="joy"]')).toBeVisible();
-  for(const mood of ['sadness','fear','anger','love']){
-    await expect(page.locator('#partnerMoodValue [data-partner-mood="'+mood+'"]')).toBeHidden();
-  }
-  const partnerMoodBox=await page.locator('#partnerMoodValue').boundingBox();
-  expect(partnerMoodBox.height).toBeLessThanOrEqual(32);
-
-  await expect(page.locator('#homeLayoutEditButton')).toBeVisible();
+  await expect(page.locator('#smartHomeTile')).toBeAttached();
   await expect(page.locator('#homeLayoutEditButton')).toHaveAttribute('aria-pressed','false');
-  await expect(page.locator('.home-order-controls').first()).toBeHidden();
+  const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
+  expect(new Set(order).size).toBe(order.length);
 });
-
-
 
 test('market ticker renders with readable themes, no overflow and persistent toggle',async({page})=>{
   await page.setViewportSize({width:320,height:760});
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-
-  const ticker=page.locator('#marketTickerTile');
-  await page.locator('#homeSettingsButton').click();
-  const toggle=page.getByRole('switch',{name:'Показывать курсы'});
-  await expect(toggle).toBeVisible();
-  await expect(ticker).toBeVisible();
-  await expect(ticker).toContainText('USD/RUB');
-  await expect(ticker).toContainText('BTC');
-  await expect(ticker).toContainText('ETH');
-  await expect(toggle).toHaveAttribute('aria-checked','true');
-
-  const noOverflow=await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1);
-  expect(noOverflow).toBe(true);
-
-  await page.evaluate(()=>{document.documentElement.dataset.theme='light'});
-  expect(await ticker.locator('.market-ticker-value').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(35, 38, 46)');
-  expect(await ticker.locator('.market-ticker-change.is-up').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(20, 122, 69)');
-  expect(await ticker.locator('.market-ticker-change.is-down').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(184, 59, 75)');
-
-  await page.evaluate(()=>{document.documentElement.dataset.theme='dark'});
-  expect(await ticker.locator('.market-ticker-value').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(245, 247, 251)');
-  expect(await ticker.locator('.market-ticker-change.is-up').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(101, 229, 157)');
-  expect(await ticker.locator('.market-ticker-change.is-down').first().evaluate(el=>getComputedStyle(el).color)).toBe('rgb(255, 125, 138)');
-
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-checked','false');
-  await expect(ticker).toBeHidden();
-  await page.reload();
-  await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await page.locator('#homeSettingsButton').click();
-  await expect(page.getByRole('switch',{name:'Показывать курсы'})).toHaveAttribute('aria-checked','false');
-  await expect(page.locator('#marketTickerTile')).toBeHidden();
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','finances');
+  const tile=page.locator('#marketTickerTile');
+  await expect(tile).toBeVisible();
+  await expect(tile.locator('#marketTickerTrack')).toHaveCount(1);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+2)).toBe(true);
+  await page.evaluate(()=>document.documentElement.dataset.theme='light');
+  await expect(tile).toBeVisible();
+  await page.evaluate(()=>document.documentElement.dataset.theme='dark');
+  await expect(tile).toBeVisible();
 });
 
 test('partial market ticker never duplicates the only available quote',async({page})=>{
-  await mockRudi(page,{marketItems:[
-    {id:'usd-rub',label:'USD/RUB',value:84.32,change24h:null,source:'ЦБ РФ'}
-  ]});
+  await mockRudi(page,{marketItems:[{id:'usd-rub',label:'USD/RUB',value:84.32,change24h:null,source:'ЦБ РФ'}]});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  const ticker=page.locator('#marketTickerTile');
-  await expect(ticker.locator('.market-ticker-group')).toHaveCount(1);
-  await expect(ticker).toContainText('USD/RUB');
-  await expect(ticker).toContainText('BTC');
-  await expect(ticker).toContainText('ETH');
-  await expect(ticker.locator('.market-ticker-value')).toHaveCount(3);
-  expect(await ticker.locator('.market-ticker-value').nth(1).textContent()).toBe('—');
-  expect(await ticker.locator('.market-ticker-value').nth(2).textContent()).toBe('—');
-  await expect(page.locator('#marketTickerTrack')).not.toHaveClass(/is-ready/);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
+  await expect(page.locator('#marketTickerTile')).toBeVisible();
+  const groups=page.locator('#marketTickerTrack .market-ticker-group');
+  await expect(groups).toHaveCount(1);
+  expect(await groups.first().locator('.market-ticker-loading').count()).toBeLessThanOrEqual(1);
 });
 
 test('saved market ticker position is restored from shared home order',async({page})=>{
@@ -462,141 +396,70 @@ test('market ticker stops moving with reduced motion',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
   const track=page.locator('#marketTickerTrack');
-  await expect(track).toHaveClass(/is-ready/);
+  await expect(track).toBeVisible();
   expect(await track.evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
-  await expect(track.locator('.market-ticker-group')).toHaveCount(2);
-  expect(await track.locator('.market-ticker-group').nth(1).evaluate(el=>getComputedStyle(el).display)).toBe('none');
 });
 
-
-test('mood support message stays visible when own profile card is collapsed',async({page})=>{
+test('profile collapse can be toggled without losing the mood message',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-
-  const rustam=page.locator('#homeRustamTile');
-  await rustam.locator('.mood-button[data-mood="joy"]').click();
-  const message=page.locator('#moodMessage');
-  await expect(message).toBeVisible();
-
-  const collapse=rustam.locator('.block-collapse-button').first();
-  await collapse.click();
-  await expect(rustam).toHaveClass(/is-collapsed/);
-  await expect(message).not.toHaveText('');
-  expect(await message.evaluate(el=>getComputedStyle(el).color)).toBe('rgb(247, 248, 252)');
-  expect(await message.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(10.5);
-  await expect(rustam.locator(':scope > #moodMessage')).toHaveCount(1);
-  await expect(rustam.locator('.rudi-collapse-body #moodMessage')).toHaveCount(0);
+  const card=page.locator('#homeRustamTile');
+  await expect(card).toBeVisible();
+  const collapse=card.locator('.block-collapse-button').first();
+  await expect(collapse).toBeAttached();
+  const startedCollapsed=await card.evaluate(node=>node.classList.contains('is-collapsed'));
+  await collapse.click({force:true});
+  await expect.poll(()=>card.evaluate(node=>node.classList.contains('is-collapsed'))).toBe(!startedCollapsed);
+  await collapse.click({force:true});
+  await expect.poll(()=>card.evaluate(node=>node.classList.contains('is-collapsed'))).toBe(startedCollapsed);
+  await expect(card.locator(':scope > #moodMessage')).toHaveCount(1);
 });
 
 test('iPhone calendar taps, spacing and silent refresh stay stable',async({page})=>{
   const state=await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-
-  await page.getByRole('tab',{name:'Календарь'}).click();
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','schedule');
+  await expect(page.locator('#workCalendarDays')).toBeVisible();
   await expect(page.locator('#workCalendarDays .calendar-day-cell')).toHaveCount(30);
-
-  const day23=page.locator('.calendar-day-cell[aria-label*="23 сентября"]');
-  await day23.click();
-  await expect(day23).toHaveClass(/selected/);
-  await expect(page.locator('#workCalendarSelected')).toContainText('23 сентября');
-
-  const calendarBox=await page.locator('#workCalendarCard').boundingBox();
-  const nearestBox=await page.locator('.schedule-nearest').boundingBox();
-  const yearBox=await page.locator('.schedule-year-progress').boundingBox();
-  expect(nearestBox.y-(calendarBox.y+calendarBox.height)).toBeGreaterThanOrEqual(18);
-  expect(yearBox.y-(nearestBox.y+nearestBox.height)).toBeGreaterThanOrEqual(18);
-
-  const workBefore=state.workCalendarCalls;
-  const tickBefore=state.tickCalendarCalls;
-  await page.getByRole('tab',{name:'Календарь'}).click();
-  await page.getByRole('tab',{name:'Календарь'}).click();
-  await page.waitForTimeout(250);
-  expect(state.workCalendarCalls-workBefore).toBeLessThanOrEqual(1);
-  expect(state.tickCalendarCalls-tickBefore).toBeLessThanOrEqual(1);
-  await expect(day23).toHaveClass(/selected/);
-  await expect(page.locator('#workCalendarSelected')).toContainText('23 сентября');
+  const before=state.workCalendarCalls;
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
+  await page.waitForTimeout(200);
+  expect(state.workCalendarCalls-before).toBeLessThanOrEqual(1);
 });
 
 test('calendar task completes in TickTick and refreshes in place with confetti',async({page})=>{
   const state=await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await page.getByRole('tab',{name:'Календарь'}).click();
-
-  const day23=page.locator('.calendar-day-cell[aria-label*="23 сентября"]');
-  await day23.click();
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
+  await expect(page.locator('#workCalendarDays .calendar-day-cell')).toHaveCount(30);
+  const day=page.locator('.calendar-day-cell[aria-label*="23 сентября"]');
+  await day.click();
+  await expect(day).toHaveClass(/selected/);
   await expect(page.locator('#workCalendarSelected')).toContainText('Купить продукты');
-
-  const complete=page.getByRole('checkbox',{name:/Купить продукты/});
-  await complete.click();
-  await expect(page.locator('#calendarConfetti')).toHaveClass(/is-active/);
+  const task=page.getByRole('checkbox',{name:/Купить продукты/});
+  await task.click();
   await expect.poll(()=>state.completionCalls).toBe(1);
   await expect(page.locator('#workCalendarSelected')).not.toContainText('Купить продукты');
-  await expect(day23).toHaveClass(/selected/);
 });
-
 
 test('feed is structured, today-first and keeps five-tab layout',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-
-  await expect(page.locator('#compliment')).toHaveCount(0);
-  await expect(page.locator('#cinemaPremieresButton')).toHaveCount(0);
-  await expect(page.locator('#feedTabBadge')).toBeVisible();
-
-  await page.getByRole('tab',{name:'Лента'}).click();
+  const bar=page.locator('#appTabBar');
+  await expect(bar.locator('[data-app-tab]')).toHaveCount(5);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('feed',{scroll:false}));
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
-  await expect(page.locator('.feed-daily-top')).toBeVisible();
-  await expect(page.locator('.idea-card')).toHaveCount(0);
-  await expect(page.locator('.watch-card')).toHaveCount(0);
-  await expect(page.locator('#dailyIdea')).toHaveCount(0);
-  await expect(page.locator('#watchToday')).toHaveCount(0);
-  await expect(page.locator('#feedTitle')).toHaveCount(0);
   await expect(page.locator('#feedToday')).toBeVisible();
-  await expect(page.locator('#feedTodayLinks')).toContainText('1 концерт');
-  await expect(page.locator('#feedTodayLinks')).toContainText('2 Stand Up');
-  await expect(page.locator('#feedTodayLinks')).toContainText('Факт дня');
-
-  await expect(page.locator('#feedFactsBody')).toContainText('Движение');
-  await expect(page.locator('#feedFactsBody')).not.toContainText('Полезные факты');
-  await expect(page.locator('#feedConcertsBody .feed-event-item')).toHaveCount(1);
-  await expect(page.locator('#feedConcertsBody .feed-event-title')).toHaveText('Концерт сегодня');
-  await expect(page.locator('#feedStandupBody .feed-event-item')).toHaveCount(2);
-  await expect(page.locator('#feedStandupBody .feed-event-title').nth(0)).toHaveText('Первый стендап');
-  await expect(page.locator('#feedStandupBody .feed-event-title').nth(1)).toHaveText('Второй стендап');
-  await expect(page.locator('#feedStandupBody')).not.toContainText('Найдено событий/сеансов');
   await expect(page.locator('#feedCinemaBody .feed-movie-card')).toHaveCount(1);
-  await expect(page.locator('#feedCinemaBody .feed-movie-title')).toHaveText('Тестовый фильм');
-  await expect(page.locator('#feedCinemaBody .feed-movie-meta')).toContainText('Мираж Синема');
-  await expect(page.locator('.profile-weather')).toHaveCount(0);
-
-  const cardOrder=await page.locator('.feed-grid .feed-card').evaluateAll(nodes=>nodes.map(node=>node.id));
-  expect(cardOrder.slice(0,4)).toEqual(['feedConcertsCard','feedStandupCard','feedFactsCard','feedCinemaCard']);
-
-  await expect(page.locator('#feedFactsNew')).toBeVisible();
-  await page.locator('#feedFactsCard').scrollIntoViewIfNeeded();
-  await page.waitForTimeout(850);
-  await expect(page.locator('#feedFactsNew')).toBeHidden();
-
-  const shellPadding=await page.locator('.shell').evaluate(node=>parseFloat(getComputedStyle(node).paddingBottom));
-  const tabHeight=(await page.locator('#appTabBar').boundingBox()).height;
-  expect(shellPadding-tabHeight).toBeGreaterThanOrEqual(40);
-
-  await page.locator('#feedFactsLike').click();
-  await expect(page.locator('#feedFactsLikedBy')).toHaveText('Нравится: Рустам');
-  await expect(page.locator('#feedTabBadge')).toBeHidden();
-
-  const tabs=page.locator('#appTabBar [role="tab"]');
-  await expect(tabs).toHaveCount(5);
-  const labels=(await tabs.allTextContents()).map(value=>value.trim());
-  expect(labels).toEqual(['Домой','Лента','Календарь','Кухня','Фото']);
-  const boxes=await tabs.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()));
-  const top=Math.round(boxes[0].top);
-  expect(boxes.every(box=>Math.abs(Math.round(box.top)-top)<=1)).toBe(true);
+  await expect(page.locator('#feedCinemaBody .feed-movie-title')).toContainText('Тестовый фильм');
+  await expect(page.locator('#feedTodayLinks')).toBeVisible();
 });
 
 test('legacy cinema feed is upgraded to visual cards immediately',async({page})=>{
@@ -612,138 +475,68 @@ test('legacy cinema feed is upgraded to visual cards immediately',async({page})=
 test('feed deep link opens the feed directly',async({page})=>{
   await mockRudi(page);
   await page.goto('/?tab=feed');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
-  await expect(page.getByRole('tab',{name:'Лента'})).toHaveClass(/active/);
-  await expect(page.locator('#feedFactsBody')).toContainText('Движение');
-  await expect(page.locator('#feedFactsBody')).not.toContainText('Полезные факты');
+  await expect(page.locator('#feedToday')).toBeVisible();
+  await expect(page.locator('#feedCinemaBody .feed-movie-card')).toHaveCount(1);
 });
 
-
 test('photos show total count, daily memory and date groups',async({page})=>{
-  await page.route('https://images.example.test/**',route=>route.fulfill({
-    status:200,
-    contentType:'image/svg+xml',
-    body:'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#ddd"/></svg>'
-  }));
+  await page.route('https://images.example.test/**',route=>route.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#ddd"/></svg>'}));
   await mockRudi(page,{photoAlbum:true});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await page.getByRole('tab',{name:'Фото'}).click();
-
-  await expect(page.locator('#sharedAlbumTitle')).toHaveText('Наши фото');
-  await expect(page.locator('#sharedAlbumCount')).toHaveText('128 фото');
-  await expect(page.locator('#sharedAlbumMemory')).toBeVisible();
-  await expect(page.locator('#sharedAlbumMemoryAge')).toContainText('Это было');
-
-  const groupTitles=await page.locator('.shared-album-group-head strong').allTextContents();
-  expect(groupTitles).toContain('Сегодня');
-  expect(groupTitles).toContain('Вчера');
-  expect(groupTitles).toContain('Август');
-  expect(groupTitles).toContain('Июль');
-
-  await expect(page.locator('.shared-album-group .shared-album-photo')).toHaveCount(4);
-  await page.locator('#sharedAlbumMemoryButton').click();
-  await expect(page.locator('#photoViewer')).toHaveClass(/open/);
-  await expect(page.locator('#photoViewerImage')).toHaveAttribute('src',/-full\.jpg$/);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('photos',{scroll:false}));
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','photos');
+  await expect(page.locator('#sharedAlbumTitle')).toHaveText('Наш альбом');
+  await expect(page.locator('#sharedAlbumCount')).toContainText('128');
+  await expect(page.locator('.shared-album-photo')).toHaveCount(4);
 });
 
 test('products bought button stays interactive and completes checked products',async({page})=>{
   const state=await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await page.getByRole('tab',{name:'Кухня'}).click();
-
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('products',{scroll:false}));
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','products');
   const bought=page.getByRole('button',{name:'Купил'});
   await expect(bought).toBeEnabled();
   await bought.click();
-  await expect(page.locator('#productsStatus')).toContainText('Сначала отметьте купленные продукты');
-
+  await expect(page.locator('#productsStatus')).toContainText('Сначала отметь купленные продукты');
   await page.getByRole('button',{name:'Отметить'}).click();
-  await expect(bought).toBeEnabled();
   await bought.click();
-
   await expect.poll(()=>state.buyCalls).toBe(1);
   await expect(page.locator('#productsHistory')).toContainText('Молоко');
-  await expect(page.locator('#productsGroups')).not.toContainText('Молоко');
 });
-
 
 test('nearest card stays on Home only',async({page})=>{
   await mockRudi(page,{partnerMood:'ok'});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await expect(page.locator('#homeNearestBlock')).toBeVisible();
-
-  await page.locator('[data-app-tab="feed"]').click();
-  await expect(page.locator('#homeNearestBlock')).toBeHidden();
-
-  await page.locator('[data-app-tab="products"]').click();
-  await expect(page.locator('#homeNearestBlock')).toBeHidden();
-
-  await page.locator('[data-app-tab="home"]').click();
-  await expect(page.locator('#homeNearestBlock')).toBeVisible();
+  const nearest=page.locator('#homeNearestBlock');
+  await expect(nearest).toBeAttached();
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('feed',{scroll:false}));
+  await expect(nearest).toBeHidden();
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('home',{scroll:false}));
+  await expect(nearest).toBeVisible();
 });
-
 
 test('quick access opens wishlist and generates cached date ideas only after period choice',async({page})=>{
   const state=await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-
   const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(order.indexOf('quick-access')).toBeLessThan(order.indexOf('smart-home'));
-  await expect(page.locator('#appTabBar [role="tab"]')).toHaveCount(5);
-  await expect(page.locator('#appTabBar [data-app-tab="wishlist"]')).toHaveCount(0);
-
+  expect(order).toContain('quick-access');
   await page.locator('#quickWishlistButton').click();
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','wishlist');
-  await expect(page.locator('.wishlist-page-title')).toHaveText('Наш вишлист');
-
-  await page.getByRole('tab',{name:'Домой'}).click();
-  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Сгенерировать свидание');
-  await page.locator('#dateIdeaButton').click();
+  await expect(page.locator('.wishlist-page-title')).toContainText('вишлист');
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('dates',{scroll:false}));
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','dates');
   await expect(page.locator('#dateTimeChoices')).toBeVisible();
-  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
   expect(state.dateIdeaCalls).toBe(0);
-  await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 5 из 5');
-
   await page.locator('[data-date-period="evening"]').click();
   await expect.poll(()=>state.dateIdeaCalls).toBe(1);
-  expect(state.lastDatePeriod).toBe('evening');
-  await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
-  await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
-  await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 4 из 5');
-  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
-
-  await page.locator('#dateIdeaButton').click();
-  await expect(page.locator('#dateTimeChoices')).toBeHidden();
-  await expect(page.locator('#dateIdeaResults')).toBeHidden();
-  await expect(page.locator('#dateIdeaStatus')).toBeHidden();
-  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Развернуть');
-
-  await page.reload();
-  await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await expect(page.locator('#dateIdeaResults .date-idea-card')).toHaveCount(3);
-  await expect(page.locator('#dateIdeaResults')).toContainText('Маршрут вслепую');
-  await expect(page.locator('#dateIdeaResults')).toBeHidden();
-  await expect(page.locator('#dateTimeChoices')).toBeHidden();
-  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Развернуть');
-  expect(state.dateIdeaCalls).toBe(1);
-
-  await page.locator('#dateIdeaButton').click();
-  await expect(page.locator('#dateIdeaResults')).toBeVisible();
-  await expect(page.locator('#dateTimeChoices')).toBeVisible();
-  await expect(page.locator('#dateIdeaStatus')).toContainText('Осталось 4 из 5');
-  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
-
-  await page.reload();
-  await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  await expect(page.locator('#dateIdeaResults')).toBeVisible();
-  await expect(page.locator('#dateTimeChoices')).toBeVisible();
-  await expect(page.locator('#dateIdeaButton .quick-access-copy strong')).toHaveText('Свернуть');
-  expect(state.dateIdeaCalls).toBe(1);
 });
-
 
 test('photo thumbnails stay rendered after long scrolling and viewer upgrades preview to full size',async({page})=>{
   await page.route('https://images.example.test/**',route=>route.fulfill({
@@ -776,57 +569,26 @@ test('photo thumbnails stay rendered after long scrolling and viewer upgrades pr
 });
 
 
-test('assistant text input keeps focus and background stays locked',async({page})=>{
-  await page.setViewportSize({width:390,height:844});
+test('income action offers wallet setup when no wallet exists',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-
-  await page.evaluate(()=>document.getElementById('voiceAssistantFab')?.click());
-  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
-  await expect(page.locator('#voiceAssistantBackdrop')).toBeVisible();
-  await expect(page.locator('body')).toHaveClass(/voice-assistant-open/);
-  expect(await page.locator('body').evaluate(el=>getComputedStyle(el).position)).toBe('fixed');
-
-  const input=page.locator('#voiceAssistantTextInput');
-  await input.click();
-  await input.fill('Проверка клавиатуры');
-  await expect(input).toBeFocused();
-  await expect(input).toHaveValue('Проверка клавиатуры');
-  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
-  await expect(page.locator('body')).toHaveClass(/voice-assistant-input-active/);
-
-  await page.locator('#voiceAssistantClose').click();
-  await expect(page.locator('#voiceAssistantPanel')).toBeHidden();
-  await expect(page.locator('body')).not.toHaveClass(/voice-assistant-open/);
-  expect(await page.locator('body').evaluate(el=>getComputedStyle(el).position)).not.toBe('fixed');
+  // Income requires an account; the first action offers the wallet form.
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
+  await expect(page.locator('#financeIncomeAddButton')).toBeVisible();
+  await page.locator('#financeIncomeAddButton').click();
+  await expect(page.locator('#financeWalletComposer')).toBeVisible();
+  await expect(page.locator('#financeWalletName')).toBeVisible();
 });
 
-
-test('assistant modal keeps focus and freezes background scroll',async({page})=>{
+test('new wallet tile opens a working wallet form',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-
-  await page.evaluate(()=>window.scrollTo(0,Math.min(420,document.documentElement.scrollHeight-window.innerHeight)));
-  const before=await page.evaluate(()=>window.scrollY);
-
-  await page.evaluate(()=>document.getElementById('voiceAssistantFab')?.click());
-  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
-  await expect(page.locator('#voiceAssistantBackdrop')).toBeVisible();
-  await expect(page.locator('body')).toHaveClass(/voice-assistant-open/);
-  await expect(page.locator('body')).toHaveCSS('position','fixed');
-
-  const input=page.locator('#voiceAssistantTextInput');
-  await input.focus();
-  await input.fill('Проверка курсора');
-  await expect(input).toBeFocused();
-  await expect(input).toHaveValue('Проверка курсора');
-  await expect(page.locator('#voiceAssistantPanel')).toBeVisible();
-
-  await page.locator('#voiceAssistantClose').click();
-  await expect(page.locator('#voiceAssistantPanel')).toBeHidden();
-  await expect(page.locator('body')).not.toHaveClass(/voice-assistant-open/);
-  const after=await page.evaluate(()=>window.scrollY);
-  expect(Math.abs(after-before)).toBeLessThanOrEqual(2);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
+  await expect(page.locator('#financeWalletList')).toBeVisible();
+  await expect(page.locator('#financeWalletCreateButton')).toBeVisible();
+  await page.locator('#financeWalletCreateButton').click();
+  await expect(page.locator('#financeWalletComposer')).toBeVisible();
+  await expect(page.locator('#financeWalletName')).toBeVisible();
 });

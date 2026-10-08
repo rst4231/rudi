@@ -4,6 +4,8 @@ const fs=require('node:fs');
 const path=require('node:path');
 const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
 
+const CURRENT_RELEASE = require('node:fs').readFileSync(require('node:path').join(__dirname,'..','VERSION'),'utf8').trim();
+
 test('supplement undo is scoped to the actor, item and current Moscow date',async()=>{
  const store=require('../api/supplements-store.cjs');
  store.resetMutationQueuesForTests();
@@ -66,11 +68,11 @@ test('push notification preserves app deep link and supports rewards shop',()=>{
 
 test('PWA version and asset links are aligned',()=>{
  const html=read('public/index.html');
- assert.match(html,/name="rudi-version" content="v4\.84"/);
- assert.match(html,/rudi-design-system\.css\?v=4\.84/);
- assert.match(html,/profile-supplements\.js\?v=4\.84/);
- assert.match(html,/supplement-advanced\.js\?v=4\.84/);
- assert.match(read('public/sw.js'),/rudi-shell-v4\.84/);
- assert.equal(read('VERSION').trim(),'v4.84');
- assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.84');
+ assert.ok(html.includes('name="rudi-version" content="'+CURRENT_RELEASE+'"'));
+ assert.ok(html.includes('rudi-design-system.css?v='+CURRENT_RELEASE.slice(1)));
+ assert.ok(html.includes('profile-supplements.js?v='+CURRENT_RELEASE.slice(1)));
+ assert.ok(html.includes('supplement-advanced.js?v='+CURRENT_RELEASE.slice(1)));
+ assert.ok(read('public/sw.js').includes('rudi-shell-'+CURRENT_RELEASE));
+ assert.equal(read('VERSION').trim(),CURRENT_RELEASE);
+ assert.equal(JSON.parse(read('rudi-version.json')).current,CURRENT_RELEASE);
 });

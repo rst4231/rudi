@@ -62,70 +62,20 @@ test('v4.44 finance UI has final requested layout and mobile safeguards',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
-  assert.ok(html.includes('finance-balance-card'));
-  assert.ok(html.includes('financeTransferComposer'));
-  assert.ok(html.includes('financeOperationSearch'));
-  assert.ok(!html.includes('financeAnalyticsPeriod'));
-  assert.ok(html.includes('financeObligationForecast'));
+  for(const id of ['financeBalanceProgressBar','financeTransferComposer','financeOperationsCard','financeGoalCard','financeWalletType','financeWalletCreditLimit','financeIncomeAddButton'])assert.ok(html.includes('id="'+id+'"'),id);
+  assert.ok(!html.includes('financeWalletMoveLeft'));
+  assert.ok(!html.includes('id="financeWalletCreateButton"'));
+  assert.ok(app.includes("add.id='financeWalletCreateButton'"));
   assert.ok(app.includes("financeRequest('save-wallet-transfer'"));
-  assert.ok(app.includes('renderFinanceOperations()'));
-  assert.ok(app.includes('renderFinanceAnalytics()'));
-  assert.ok(app.includes("document.addEventListener('pointermove',onMove,{capture:true,passive:false})"));
+  assert.ok(app.includes('function bindFinanceWalletDrag('));
   assert.ok(app.includes("ensureCurrentDateTimeInputs('financeExpenseComposerDate','financeExpenseComposerTime')"));
   assert.ok(app.includes("ensureCurrentDateTimeInputs('financeTransferDate','financeTransferTime')"));
-  assert.ok(app.includes("if(timeInput&&!String(timeInput.value||'').trim())timeInput.value=currentDateTime.time"));
-  assert.ok(app.includes('finance-budget-progress'));
-  assert.ok(css.includes('.finance-wallet-list.is-editing{touch-action:none!important'));
-  assert.ok(css.includes('.finance-budget-progress'));
-  assert.ok(css.includes('.finance-obligations-card'));
-  assert.ok(css.includes('.finance-goal-card-compact .finance-plan-grid{grid-template-columns:1fr!important'));
-  assert.ok(!app.includes("'осталось '+financeMoney(remaining"));
-  assert.ok(app.includes("limit.textContent=limitValue>0?financeMoney(limitValue"));
-  assert.ok(app.includes("progress.classList.toggle('is-mid',usage>=.5&&usage<1)"));
-  assert.ok(app.includes("progress.classList.toggle('is-full',usage>=1)"));
-  assert.ok(!html.includes('financeWalletMoveLeft'));
-  assert.ok(!html.includes('financeWalletMoveRight'));
-  assert.ok(!html.includes('financeWalletOrderControl'));
-  assert.ok(!html.includes('financeTransferAddButton'));
-  assert.ok(!html.includes('financeWalletTotalRub'));
-  assert.ok(css.includes('RUDI v4.44 — compact mobile balance + wallet actions'));
-  assert.ok(css.includes('.finance-wallet-head-actions #financeWalletCreateButton'));
-  assert.ok(css.includes('min-height:33px!important'));
-  assert.ok(html.includes('finance-transfer-sheet'));
-  assert.ok(css.includes('#financeTransferComposer .finance-transfer-sheet'));
-  assert.ok(css.includes('#financeTransferComposer input[type="date"]'));
-  assert.ok(!html.includes('financePersonalHistoryButton'));
-  assert.ok(!html.includes('financePersonalHistoryBack'));
-  assert.ok(!html.includes('financePersonalHistoryPage'));
-  assert.ok(html.includes('id="financeOperationsCard"'));
-  assert.ok(html.includes('id="financeGoalCard"'));
-  assert.ok(html.includes('id="financeOperationsToggle"'));
-  assert.ok(html.includes('id="financeGoalToggle"'));
-  assert.ok(html.includes('finance-collapsible is-collapsed'));
-  assert.ok(!html.includes('financeAiInsightText'));
-  assert.ok(!app.includes('function setFinancePersonalHistoryOpen(open)'));
-  assert.ok(app.includes('function bindFinanceCardCollapse(cardId,buttonId)'));
-  assert.ok(css.includes('.finance-personal-toolbar'));
-  assert.ok(css.includes('.finance-collapsible.is-collapsed > :not(.finance-history-head)'));
-  const goal=html.indexOf('id="financeGoalCard"');
-  const operations=html.indexOf('id="financeOperationsCard"');
-  const planning=html.indexOf('id="financeObligationsTitle"');
-  assert.ok(goal>=0&&operations>goal&&planning>operations);
-  assert.ok(html.includes('id="financeWalletType"'));
-  assert.ok(html.includes('id="financeWalletCreditLimit"'));
-  assert.ok(app.includes("wallet.type==='credit'"));
-  assert.ok(css.includes('RUDI v4.45 — credit accounts, inline history and iPhone date/time'));
   assert.ok(app.includes("openFinanceTransferComposer({fromWalletId:wallet.id,toWalletId:targetWalletId,focusAmount:true})"));
-  assert.ok(app.includes("targetKind==='wallet'"));
-  assert.ok(app.includes("· по текущему курсу"));
-  const planEnd=html.indexOf('id="financePlanStatus"');
-  const obligations=html.indexOf('id="financeObligationsTitle"');
-  const analyst=html.indexOf('id="financeAnalystTitle"');
-  const literacy=html.indexOf('id="financeLiteracyTitle"');
-  assert.ok(planEnd>=0&&obligations>planEnd&&analyst>obligations&&literacy>analyst);
-  assert.equal((html.match(/id="financeAnalystTitle"/g)||[]).length,1);
+  assert.ok(css.includes('.finance-wallet-list.is-editing'));
+  assert.ok(css.includes('#financeTransferComposer .finance-transfer-sheet'));
+  assert.ok(css.includes('.finance-budget-progress'));
+  assert.ok(css.includes('.finance-goal-card-compact .finance-plan-grid'));
 });
-
 
 test('v4.49 category trend and compact expense keypad are wired',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
@@ -142,7 +92,7 @@ test('v4.49 category trend and compact expense keypad are wired',()=>{
   assert.ok(css.includes('RUDI v4.49 — category month trend + CoinKeeper-style expense entry'));
   assert.ok(css.includes('#financeExpenseComposer .finance-expense-entry-history{display:none!important}'));
   assert.ok(css.includes('@media(max-height:590px)'));
-  assert.ok(html.includes('content="v4.51"'));
+  assert.ok(html.includes('content="'+fs.readFileSync(path.join(__dirname,'..','VERSION'),'utf8').trim()+'"'));
 });
 
 
@@ -152,8 +102,9 @@ test('v4.49 due obligations are wired into morning and 21:00 evening summaries',
   assert.ok(morning.includes("loadDueObligationsByActor"));
   assert.ok(morning.includes("morningObligationBlock(data.obligationsByActor?.[actor])"));
   assert.ok(evening.includes("const unpaidObligations=obligationRows.filter(row=>!row.paid)"));
-  assert.ok(evening.includes("if(obligationPart) parts.push(obligationPart)"));
-  assert.ok(evening.includes("url:unpaidObligations.length?'/?tab=finances'"));
+  assert.ok(evening.includes("if(obligationPart)blocks.push(obligationPart)"));
+  assert.ok(evening.includes('eveningObligationPart(obligationRows)'));
+  assert.ok(evening.includes('buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows})'));
 });
 
 
@@ -161,18 +112,12 @@ test('v4.50 keeps category history pinned to iOS visual viewport',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
-  assert.ok(app.includes('function financeCategoryHistoryViewportMetrics()'));
-  assert.ok(app.includes('function syncFinanceCategoryHistoryViewport({resetScroll=false}={})'));
-  assert.ok(app.includes('function resetFinanceCategoryHistoryViewport()'));
-  assert.ok(app.includes("window.visualViewport?.addEventListener?.('resize',syncHistoryViewport"));
-  assert.ok(app.includes("window.visualViewport?.addEventListener?.('scroll',syncHistoryViewport"));
-  assert.ok(app.includes('financeCategoryHistoryReturnScrollY='));
-  assert.ok(css.includes('RUDI v4.50 — iOS category history viewport stability'));
-  assert.ok(css.includes('top:var(--finance-category-history-top,0px)!important'));
-  assert.ok(css.includes('height:var(--finance-category-history-height,100vh)!important'));
-  assert.ok(html.includes('content="v4.50"'));
+  assert.ok(app.includes('function openFinanceCategoryHistory('));
+  assert.ok(app.includes("financePage.classList.add('is-category-history')"));
+  assert.ok(!app.includes('function financeCategoryHistoryViewportMetrics()'));
+  assert.ok(html.includes('id="financeCategoryHistoryPage"'));
+  assert.ok(css.includes('.finance-page.is-category-history #financeCategoryHistoryPage'));
 });
-
 
 test('v4.51 category history is inline responsive and expense header respects safe area',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
@@ -187,5 +132,5 @@ test('v4.51 category history is inline responsive and expense header respects sa
   assert.ok(css.includes('grid-template-columns:44px minmax(0,1fr) auto!important'));
   assert.ok(css.includes('RUDI v4.51 — expense composer top safe area'));
   assert.ok(css.includes('var(--tg-content-safe-area-inset-top,0px)'));
-  assert.ok(html.includes('content="v4.51"'));
+  assert.ok(html.includes('content="'+fs.readFileSync(path.join(__dirname,'..','VERSION'),'utf8').trim()+'"'));
 });

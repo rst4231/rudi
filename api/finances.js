@@ -12,6 +12,7 @@ function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
+  if (code.startsWith('market-ticker-unavailable')) return 503;
   if (['finance-obligation-not-found','finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found','finance-wallet-income-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
@@ -372,6 +373,8 @@ async function handler(req, res) {
         debts: view.debts || [],
         literacy,
       });
+      // A temporary provider failure must not consume the daily AI report allowance.
+      if (report.degraded) return res.status(200).json({ ok: true, report, analystDate: today, cached: false, limitReached: false, degraded: true });
       await saveFinancePlan(actor, { analystLastDate: today, analystLastReport: report });
       return res.status(200).json({ ok: true, report, analystDate: today, cached: false, limitReached: true });
     }

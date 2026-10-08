@@ -43,7 +43,7 @@ test('v4.57 requested finance UI changes are wired',()=>{
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
   const api=fs.readFileSync(path.join(__dirname,'..','api','finances.js'),'utf8');
   assert.ok(app.includes('function bindFinanceMonthPicker(container,input)'));
-  assert.ok(app.includes('input.showPicker'));
+  assert.ok(app.includes('function openFinanceMonthPicker(input)'));
   assert.ok(html.includes('id="financeWalletHistoryWrap"'));
   assert.ok(app.includes("if(historyWrap)historyWrap.hidden=!wallet"));
   assert.ok(html.includes('Лимит: 1 анализ в сутки'));
@@ -125,9 +125,9 @@ test('v4.71 category amounts follow selected overview currency',()=>{
   assert.ok(app.includes("total.textContent=financeOverviewMoney(visibleTotal)"));
   assert.ok(app.includes("value.textContent='−'+financeOverviewMoney(row.rubAmount||row.amount)"));
   assert.ok(app.includes("financeOverviewMoney(row.amount)+' · '+row.day+' числа"));
-  assert.ok(app.includes("'До конца '+financeMonthTitle(month)+': '+financeOverviewMoney(pending)"));
+  assert.ok(app.includes("'До конца месяца: '+financeOverviewMoney(pending)"));
   assert.ok(app.includes("financeOverviewMoney(dailySpent(yesterdayKey))"));
-  assert.ok(app.includes("financeOverviewMoney(dailySpent(todayKey,{excludeAdjustments:true}))"));
+  assert.ok(app.includes("financeOverviewMoney(dailySpent(todayKey))"));
 });
 
 
@@ -167,7 +167,7 @@ test('v4.74 removes redundant finance helper copy',()=>{
   ].forEach(text=>assert.ok(!html.includes(text)));
   assert.ok(!app.includes("Сохраняем дневные снимки общего баланса"));
   assert.ok(html.includes('Лимит: 1 анализ в сутки'));
-  assert.ok(html.includes('Запланированных обязательных расходов нет'));
+  assert.ok(app.includes('Запланированных ежемесячных расходов нет'));
   assert.ok(html.includes('Расходов за выбранный месяц нет'));
   assert.ok(html.includes('Доходов за выбранный месяц нет'));
   assert.ok(html.includes('Активных долгов пока нет'));
@@ -189,7 +189,6 @@ test('v4.75 removes remaining finance labels and gaps',()=>{
     '<span class="section-eyebrow">Операции</span>',
     '<div class="finance-literacy-kicker">По вашим данным</div>',
     '<span class="section-eyebrow">Долги</span>',
-    'financeDebtCount',
     '<div class="finance-literacy-kicker">Статья дня</div>',
     'Новая статья каждый день',
     'История начнётся сегодня'

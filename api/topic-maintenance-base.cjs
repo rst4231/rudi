@@ -251,18 +251,7 @@ async function handleTelegramTopicRequest(input, init = {}, options = {}) {
 
   let cache;
   if (topicId === COUPLE_TOPIC_ID && MESSAGE_CREATING_METHODS.has(endpoint.method)) {
-    try {
-      cache = options.cache || getRuntimeCache();
-      await deleteCoupleTopicOnce({ chatId: payload?.chat_id, baseUrl: endpoint.baseUrl, cache, fetchImpl });
-    } catch (error) { console.error('RUDI_COUPLE_TOPIC_MAINTENANCE_ERROR', error); }
     return telegramOkResponse({ message_id: 0, message_thread_id: COUPLE_TOPIC_ID });
-  }
-
-  if (MANAGED_TOPICS.has(topicId) && MESSAGE_CREATING_METHODS.has(endpoint.method)) {
-    try {
-      cache = options.cache || getRuntimeCache();
-      await deleteCoupleTopicOnce({ chatId: payload?.chat_id, baseUrl: endpoint.baseUrl, cache, fetchImpl });
-    } catch (error) { console.error('RUDI_COUPLE_TOPIC_MAINTENANCE_ERROR', error); }
   }
 
   const response = await fetchImpl(input, nextInit);

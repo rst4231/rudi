@@ -4,11 +4,6 @@ const { listSourceHealth } = require('./source-health.cjs');
 const { getEventCleanupStatus, getEventTrackingState } = require('./event-active-rollover.cjs');
 const { getDailyCronState } = require('./daily-cron-state.cjs');
 const { getTopicMaintenanceCache } = require('./stateful-cache.cjs');
-const { resolveTelegramBotToken } = require('./products-bought.cjs');
-const { getKnownForumChatId } = require('./topic-maintenance-base.cjs');
-const { syncConfiguredForumTopicNames } = require('./forum-topic-names.cjs');
-const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
-const { deleteLegacyLaborTopicOnce } = require('./labor-code.cjs');
 
 const SOURCE_IDS = [
   'events:yandex',
@@ -18,10 +13,8 @@ const SOURCE_IDS = [
   'daily-content',
   'clients-advice',
 ];
-const KNOWN_FORUM_CHAT_ID = '-1004476323368';
 const STALE_PUBLICATION_PENDING_MS = 10 * 60 * 1000;
 
-let topicNameSyncFlight = null;
 
 function moscowParts(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
@@ -114,39 +107,10 @@ async function defaultDailyCronState(options = {}) {
 }
 
 
-async function syncForumTopicNamesSafe(options = {}) {
-  if (options.enabled === false) return null;
-  if (!topicNameSyncFlight) {
-    topicNameSyncFlight = (async () => {
-      const cache = options.cache || getTopicMaintenanceCache(options.cacheOptions || {});
-      const chatId = await getKnownForumChatId({ cache }) || KNOWN_FORUM_CHAT_ID;
-      const token = resolveTelegramBotToken(options.env || process.env);
-      const fetchImpl = options.fetchImpl || globalThis.fetch;
-      const config = options.config || await loadForumTopicsConfig({
-        fetchImpl: options.configFetchImpl || fetchImpl,
-      });
-
-      const renamed = await syncConfiguredForumTopicNames({ token, chatId, fetchImpl, config });
-      const legacyLaborDeleted = await deleteLegacyLaborTopicOnce({
-        token,
-        chatId,
-        legacyTopicId: Number(config.labor),
-        targetTopicId: Number(config.clients),
-        cache,
-        fetchImpl,
-      });
-      return { ...renamed, legacyLaborDeleted };
-    })().catch((error) => {
-      console.warn('RUDI_FORUM_TOPIC_NAME_SYNC_ERROR', String(error?.message || error));
-      return null;
-    });
-  }
-  return topicNameSyncFlight;
-}
+// Health checks must never mutate Telegram forum topics.
+async function syncForumTopicNamesSafe() { return null; }
 
 async function buildHealthPayload(options = {}) {
-  await syncForumTopicNamesSafe(options.topicNameOptions || {});
-
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const settingsLoader = options.settingsLoader || loadRudiSettings;
   const latestRunGetter = options.getLatestDailyRun || getLatestDailyRun;

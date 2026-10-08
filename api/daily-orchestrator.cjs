@@ -1,4 +1,3 @@
-const { prepareDailyTopicCleanup } = require('./topic-maintenance.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { markProductsRuntimeStale } = require('./products-state.cjs');
 const { runNativeSection } = require('./section-runners.cjs');
@@ -114,7 +113,7 @@ async function runDailyOrchestrator(req, res, options = {}) {
   const nativeResults = {};
 
   try {
-    await (options.cleanup || prepareDailyTopicCleanup)({
+    if (typeof options.cleanup === 'function') await options.cleanup({
       token: options.token || resolveTelegramBotToken(options.env || process.env),
       fetchImpl: options.fetchImpl || globalThis.fetch,
       settings,

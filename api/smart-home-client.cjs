@@ -14,6 +14,8 @@ let cache = null;
 let cacheAt = 0;
 const CAMERA_STATUS_NAMESPACE = 'rudi-camera-status-v1';
 const CAMERA_STATUS_TTL_SECONDS = 60 * 60 * 24 * 3650;
+const CAMERA_BACKOFF_MS = 5 * 60 * 1000;
+const cameraRetryAfter = new Map();
 
 function cameraStatusCache(options = {}) {
   return options.cameraStatusCache || createStrictRuntimeCache({
@@ -32,16 +34,21 @@ async function observeCameraStatus(snapshot, options = {}) {
   const camera=(snapshot?.devices||[]).find(isCameraDevice);
   if(!camera?.id) return {found:false};
 
+  const cameraId=String(camera.id);
+  const retryAt=Number(cameraRetryAfter.get(cameraId)||0);
+  if(retryAt>Date.now()) return {found:true,unavailable:true,retryAt:new Date(retryAt).toISOString()};
   let detail;
   try{
     detail=await yandex('/devices/'+encodeURIComponent(camera.id),{
       fetchImpl:options.fetchImpl || globalThis.fetch,
       tokenValue:options.tokenValue || '',
-      retries:1,
+      retries:0,
     });
+    cameraRetryAfter.delete(cameraId);
   }catch(error){
+    if(isTransientYandexError(error)) cameraRetryAfter.set(cameraId,Date.now()+CAMERA_BACKOFF_MS);
     console.warn('RUDI_CAMERA_STATUS_QUERY_WARN',String(error?.message||error));
-    return {found:true,error:String(error?.message||error)};
+    return {found:true,unavailable:true,error:String(error?.message||error)};
   }
 
   const state=String(detail?.state||'').toLowerCase();
