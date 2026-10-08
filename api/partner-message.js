@@ -714,7 +714,7 @@ async function sendShopUnlockNotification(actor,rewards,options={}){
   if(!cleanActor)return [];
   const plural=rows.length>1;
   const rewardText=rows.map(row=>String(row.icon||'🎁')+' '+String(row.label||'Награда')+' — '+pointsFromUnits(row.costUnits)+' ⭐').join(', ');
-  const text=(plural?'Открылись новые награды в магазине: ':'Открылась новая награда в магазине: ')+rewardText;
+  const text=(plural?'Открылись новые награды: ':'Открылась новая награда: ')+rewardText;
   const dedupe='reward-unlock:'+cleanActor+':'+rows.map(row=>String(row.id||row.label||'reward')).join('|');
   await recordActivity({
     type:'reward-unlock',
@@ -722,7 +722,7 @@ async function sendShopUnlockNotification(actor,rewards,options={}){
     visibleTo:cleanActor,
     text,
     icon:'🔓',
-    targetTab:'score',
+    targetTab:'',
     dedupeKey:dedupe,
   },options);
   return [{actor:cleanActor,recorded:true,push:false}];

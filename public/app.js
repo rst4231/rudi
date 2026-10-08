@@ -6656,7 +6656,7 @@
             '<div id="scoreGiftPanel" class="score-gift-panel" hidden></div>'+
             '<div id="scoreModalTabs" class="score-modal-tabs" role="tablist">'+
               '<button type="button" data-score-tab="history" class="active">История</button>'+
-              '<button type="button" data-score-tab="shop">Магазин</button>'+
+              '<button type="button" data-score-tab="shop">Награды</button>'+
             '</div>'+
             '<div id="scoreHistoryPanel" class="score-panel"></div>'+
             '<div id="scoreShopPanel" class="score-panel" hidden></div>'+
@@ -7751,6 +7751,7 @@
 
       function activityTargetTab(item){
         const type=String(item?.type||'');
+        if(type==='reward-unlock') return '';
         const raw=String(item?.targetTab||'').trim();
         if(raw) return raw==='saves'?'dates':raw;
         if(type==='partner-message'||type==='like') return 'home';
@@ -7758,7 +7759,6 @@
         if(type==='calendar') return 'schedule';
         if(type==='wishlist') return 'wishlist';
         if(type==='saved-recipe') return 'products';
-        if(type==='reward-unlock') return 'score';
         if(type==='task-complete'||type==='checklist-complete'||type==='daily-question'||type==='lulu-walk'||type==='mood') return 'home';
         return '';
       }
