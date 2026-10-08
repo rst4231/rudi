@@ -221,10 +221,22 @@ function enhanceCards(){
     if(meta.childNodes.length)top.insertAdjacentElement('afterend',meta);
     const actions=document.createElement('div');actions.className='supplement-card-actions';
     if(item.status==='active'){
-      const take=document.createElement('button');take.type='button';take.className='supplement-take';take.textContent=takeIdleLabel(item);take.classList.toggle('is-complete',completedToday(item));take.disabled=completedToday(item);
+      const take=document.createElement('button');take.type='button';take.className='supplement-take';take.textContent=takeIdleLabel(item);take.classList.toggle('is-complete',completedToday(item));take.setAttribute('aria-pressed',String(completedToday(item)));
       const skip=document.createElement('button');skip.type='button';skip.className='supplement-skip';skip.textContent=skippedToday(item)?'Пропущено':'Пропустить';skip.classList.toggle('is-complete',skippedToday(item));skip.disabled=skippedToday(item)||takenToday(item);
       actions.append(take,skip);
-      take.addEventListener('click',async event=>{event.stopPropagation();take.disabled=true;try{const data=await req('take',{id:item.id});setItems(data.items||getItems());const current=(data.items||getItems()).find(row=>row.id===item.id)||data.item||item;const count=intakesTodayCount(current),target=plannedIntakes(current);setStatus(data.duplicate?'Все '+target+' приёма на сегодня уже отмечены.':target>1?'Приём '+count+'/'+target+' отмечен ✓':'Приём отмечен ✓');document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'))}catch(error){take.disabled=false;setStatus('Не удалось отметить приём.',true)}});
+      take.addEventListener('click',async event=>{
+        event.stopPropagation();
+        const cancel=completedToday(item),operation=cancel?'untake':'take';
+        take.disabled=true;
+        try{
+          const data=await req(operation,{id:item.id});
+          setItems(data.items||getItems());
+          const current=(data.items||getItems()).find(row=>row.id===item.id)||data.item||item;
+          const count=intakesTodayCount(current),target=plannedIntakes(current);
+          setStatus(cancel?(data.duplicate?'Сегодняшнего приёма уже нет.':'Приём отменён.'):(data.duplicate?'Все '+target+' приёма на сегодня уже отмечены.':target>1?'Приём '+count+'/'+target+' отмечен ✓':'Приём отмечен ✓'));
+          document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'));
+        }catch(error){take.disabled=false;setStatus(cancel?'Не удалось отменить приём.':'Не удалось отметить приём.',true);}
+      });
       skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
     }else{
       const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.append(resume);

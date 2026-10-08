@@ -258,3 +258,26 @@ html[data-theme="light"] #supplementProfileButton .rudi-supplement-progress-valu
 @media(prefers-reduced-motion:reduce){
  #supplementProfileButton .rudi-supplement-progress-value{transition:none}
 }
+
+/* v4.83: keep the production v4.82 SVG perimeter, anchored to the real button. */
+body[data-app-tab="home"] :is(#fastingProfileButton,#habitProfileButton,#financeProfileButton,#supplementProfileButton){position:relative!important}
+body[data-app-tab="home"] #supplementProfileButton .rudi-supplement-progress-outline{pointer-events:none!important}
+/* Finance literacy: legible semantic lists and inline emphasis. */
+.finance-literacy-body strong{font-weight:800}
+.finance-literacy-body > :is(ol,ul){
+ margin:0;padding:14px 14px 14px 36px;border:1px solid color-mix(in srgb,#7b68db 12%,var(--line));
+ border-radius:15px;background:color-mix(in srgb,#7b68db 4%,var(--surface));
+ display:grid;gap:15px;list-style-position:outside;
+}
+.finance-literacy-body > ol > li::marker{color:#7b68db;font-weight:900}
+.finance-literacy-body > ol > li{font-size:12.4px;line-height:1.67;min-width:0;padding-left:4px}
+.finance-literacy-body > ol > li > p{margin:0 0 8px;font-weight:650}
+.finance-literacy-body .finance-literacy-substeps{
+ list-style-type:lower-alpha;padding:0 0 0 22px;margin:7px 0 0;display:grid;gap:7px;border:0;background:none;
+}
+.finance-literacy-body .finance-literacy-substeps > li{font-weight:420;font-size:12px;line-height:1.62}
+.finance-literacy-body .finance-literacy-substeps > li::marker{color:#7664d4;font-weight:730}
+@media(max-width:430px){
+ .finance-literacy-body > :is(ol,ul){padding:13px 12px 13px 30px;gap:13px}
+ .finance-literacy-body > ol > li{font-size:12px}
+}

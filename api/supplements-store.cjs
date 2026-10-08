@@ -161,6 +161,21 @@ async function markSupplementTaken(actor,id,o={}){
     const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date,count:saved.items[index].intakes.filter(row=>row.date===date).length,target};
   });
 }
+async function unmarkSupplementTaken(actor,id,o={}){
+  const who=cleanActor(actor),safeId=cleanText(id,96);
+  if(!safeId)throw new Error('supplement-id-required');
+  return enqueue(who,async()=>{
+    const state=await readSupplements(who,o),index=state.items.findIndex(item=>item.id===safeId);
+    if(index<0)throw new Error('supplement-not-found');
+    const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
+    const last=current.intakes.map(row=>row.date).lastIndexOf(date);
+    if(last<0)return {state,item:current,duplicate:true,date,count:0};
+    const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];
+    items[index]=normalizeItem({...current,intakes:current.intakes.filter((row,i)=>i!==last),updatedAt:now});
+    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);
+    return {state:saved,item:saved.items[index],duplicate:false,date,count:saved.items[index].intakes.filter(row=>row.date===date).length};
+  });
+}
 async function markSupplementSkipped(actor,id,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96);if(!safeId)throw new Error('supplement-id-required');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
@@ -192,4 +207,4 @@ async function saveInteractionCheck(actor,input,o={}){
 }
 function resetMutationQueuesForTests(){tails.clear()}
 
-module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,resetMutationQueuesForTests};
+module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,unmarkSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,resetMutationQueuesForTests};

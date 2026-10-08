@@ -4865,37 +4865,75 @@
         if(history&&!history.hidden)animateRudiCollection(history,'.finance-debt-history-row',10);
       }
 
+      function appendFinanceLiteracyInline(host,text){
+        const value=String(text||'').replace(/\r/g,'');
+        const bold=/\*\*([^*\n]+?)\*\*/g;
+        let pos=0,match;
+        while((match=bold.exec(value))){
+          if(match.index>pos)host.appendChild(document.createTextNode(value.slice(pos,match.index)));
+          const strong=document.createElement('strong');strong.textContent=match[1];host.appendChild(strong);
+          pos=bold.lastIndex;
+        }
+        if(pos<value.length)host.appendChild(document.createTextNode(value.slice(pos)));
+      }
+      function appendFinanceLiteracyParagraph(host,text,tag='p'){
+        const node=document.createElement(tag);
+        appendFinanceLiteracyInline(node,text);
+        host.append(node);
+        return node;
+      }
+      function appendFinanceLiteracyListItem(host,text){
+        const li=document.createElement('li'),value=String(text||'').trim();
+        const firstStep=/(?:^|\s)([a-zа-я])\)\s+/i.exec(value);
+        if(firstStep){
+          const lead=value.slice(0,firstStep.index).trim();
+          if(lead)appendFinanceLiteracyParagraph(li,lead);
+          const steps=value.slice(firstStep.index).trim().split(/\s+(?=[a-zа-я]\)\s+)/i).filter(Boolean);
+          const sub=document.createElement('ol');sub.className='finance-literacy-substeps';
+          for(const step of steps){
+            const subitem=document.createElement('li');
+            appendFinanceLiteracyInline(subitem,step.replace(/^[a-zа-я]\)\s+/i,''));
+            sub.append(subitem);
+          }
+          li.append(sub);
+        }else appendFinanceLiteracyInline(li,value);
+        host.append(li);
+      }
       function renderFinanceLiteracy(article){
         const title=document.getElementById('financeLiteracyTitle'),body=document.getElementById('financeLiteracyBody'),source=document.getElementById('financeLiteracySource'),status=document.getElementById('financeLiteracyStatus');
         if(!article||!body)return;
         if(title)title.textContent=String(article.title||'Финансовая грамотность');
         body.replaceChildren();
-        const chunks=String(article.body||'').split(/\n{2,}/).map(text=>text.trim()).filter(Boolean);
-        for(const [index,text] of chunks.entries()){
+        const raw=String(article.body||'').replace(/\r\n?/g,'\n').trim();
+        const chunks=raw.split(/\n{2,}/).flatMap(block=>block.split(/\n(?=\s*\d+[.)]\s+)/)).map(text=>text.trim()).filter(Boolean);
+        let lastList=null,lastListType='',hasLead=false;
+        for(const text of chunks){
           const lines=text.split(/\n/).map(line=>line.trim()).filter(Boolean);
-          const headingCandidate=lines.length===1&&lines[0].length<=72&&!/[.!?]$/.test(lines[0]);
-          const numbered=lines.length>1&&lines.every(line=>/^\d+[.)]\s+/.test(line));
-          const bullets=lines.length>1&&lines.every(line=>/^(?:[-•*]|—)\s+/.test(line));
-          if(headingCandidate&&index>0){
-            const h=document.createElement('h3');h.textContent=lines[0];body.append(h);continue;
-          }
-          if(numbered||bullets){
-            const list=document.createElement(numbered?'ol':'ul');
-            for(const line of lines){
-              const li=document.createElement('li');
-              li.textContent=line.replace(numbered?/^\d+[.)]\s+/:/^(?:[-•*]|—)\s+/,'');
-              list.append(li);
+          const numbered=/^\d+[.)]\s+/.test(text);
+          const bullets=lines.length>0&&lines.every(line=>/^[-•*—]\s+/.test(line));
+          const numberedLines=lines.length>1&&lines.every(line=>/^\d+[.)]\s+/.test(line));
+          if(numbered||numberedLines||bullets){
+            const kind=bullets?'ul':'ol';
+            if(!lastList||lastListType!==kind){
+              lastList=document.createElement(kind);body.append(lastList);lastListType=kind;
             }
-            body.append(list);continue;
+            for(const line of (numberedLines||bullets?lines:[text])){
+              appendFinanceLiteracyListItem(lastList,line.replace(kind==='ol'?/^\d+[.)]\s+/:/^[-•*—]\s+/,''));
+            }
+            continue;
           }
-          const p=document.createElement('p');p.textContent=text;body.append(p);
+          lastList=null;lastListType='';
+          const headingText=text.replace(/^#{1,4}\s*/,'').trim();
+          const headingCandidate=/^#{1,4}\s+/.test(text)||(lines.length===1&&text.length<=72&&!/[.!?]$/.test(text)&&hasLead);
+          if(headingCandidate){appendFinanceLiteracyParagraph(body,headingText,'h3');continue;}
+          const node=appendFinanceLiteracyParagraph(body,text);
+          if(!hasLead){node.classList.add('finance-literacy-lead');hasLead=true;}
         }
-        if(body.firstElementChild?.tagName==='P')body.firstElementChild.classList.add('finance-literacy-lead');
         const books=(Array.isArray(article.books)?article.books:[]).filter(Boolean);
         if(source){source.hidden=!books.length;source.textContent=books.length?'Идеи по мотивам: '+books.join(' · '):''}
         if(status)status.textContent='';
       }
-      async function loadFinanceLiteracy({force=false}={}){
+            async function loadFinanceLiteracy({force=false}={}){
         if(financeLiteracyPromise&&!force)return financeLiteracyPromise;
         const status=document.getElementById('financeLiteracyStatus');if(status)status.textContent='Готовлю статью…';
         financeLiteracyPromise=financeRequest('literacy').then(data=>{renderFinanceLiteracy(data.article);return data.article}).catch(error=>{if(status)status.textContent='Сегодняшнюю статью пока не удалось загрузить';throw error}).finally(()=>{financeLiteracyPromise=null});
@@ -5479,10 +5517,11 @@
         if(tab==='habits'||tab==='supplements') Promise.resolve(window.RudiSupplementApp?.loadHomeTools?.({force:false})).catch(()=>{});
         if(tab==='score'){
           const modal=ensureScoreModal();
-          const actor=String(item||scoreModalActor||currentActor||'').trim();
-          if(actor){
+          const actor=String(['Рустам','Диана'].includes(item)?item:scoreModalActor||currentActor||document.body.dataset.rudiActor||'').trim();
+          if(actor==='Рустам'||actor==='Диана'){
             scoreModalActor=actor;
             if(currentScoreState) renderScoreModal(actor,currentScoreState);
+            if(item==='shop')modal.querySelector('[data-score-tab="shop"]')?.click();
             scoreRequest('state').then(data=>{
               acceptScoreState(data.score);
               renderScoreStickers(currentScoreState);
@@ -5748,7 +5787,7 @@
         const initialItem=requestedItemId||initial.item||'';
         if(initialTab==='score'){
           ensureScoreModal();
-          scoreModalActor=String(initialItem||currentActor||'').trim();
+          scoreModalActor=['Рустам','Диана'].includes(initialItem)?initialItem:String(currentActor||document.body.dataset.rudiActor||'').trim();
         }
         applyAppTab(initialTab,{scroll:false});
         updateAppRoute(currentAppTab,{item:initialItem,replace:true});
@@ -7731,7 +7770,7 @@
         if(type==='daily-question') return 'daily-question';
         if(type==='lulu-walk') return 'lulu';
         if(type==='mood') return String(item?.actor||'')==='Диана'?'diana':'rustam';
-        if(type==='reward-unlock') return currentActor;
+        if(type==='reward-unlock') return 'shop';
         if(type==='task-complete'||type==='checklist-complete') return 'priority';
         return '';
       }

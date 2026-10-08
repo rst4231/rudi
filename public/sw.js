@@ -1,11 +1,11 @@
-const CACHE_NAME='rudi-shell-v4.82';
+const CACHE_NAME='rudi-shell-v4.83';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
   '/',
   '/manifest.webmanifest',
-  '/rudi-design-system.css?v=4.82',
+  '/rudi-design-system.css?v=4.83',
   '/favicon-rudi-v460.png',
   '/apple-touch-icon-rudi-v460.png',
   '/icon-192-rudi-v460.png',
@@ -355,17 +355,22 @@ self.addEventListener('push',event=>{
 });
 
 self.addEventListener('notificationclick',event=>{
-  event.notification.close();
-  const rawUrl=String(event.notification?.data?.url||'/');
-  event.waitUntil((async()=>{
-    const target=new URL(rawUrl,self.location.origin).href;
-    const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-    for(const client of windows){
-      if(new URL(client.url).origin!==self.location.origin) continue;
-      try{await client.focus()}catch(_){}
-      try{client.postMessage({type:'RUDI_PUSH_NAVIGATE',url:rawUrl})}catch(_){}
-      return;
-    }
-    await self.clients.openWindow(target);
-  })());
+ event.notification.close();
+ const rawUrl=String(event.notification?.data?.url||'/');
+ event.waitUntil((async()=>{
+  const parsed=new URL(rawUrl,self.location.origin);
+  const target=parsed.origin===self.location.origin?parsed.href:self.location.origin+'/';
+  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  for(const client of windows){
+   if(new URL(client.url).origin!==self.location.origin)continue;
+   try{
+    const routed=await client.navigate(target);
+    if(routed){await routed.focus();return}
+   }catch(_){}
+   try{await client.focus()}catch(_){}
+   try{client.postMessage({type:'RUDI_PUSH_NAVIGATE',url:target})}catch(_){}
+   return;
+  }
+  await self.clients.openWindow(target);
+ })());
 });

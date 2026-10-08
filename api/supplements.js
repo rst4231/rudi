@@ -2,7 +2,7 @@ const crypto=require('node:crypto');
 const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {
   readSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,
-  markSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck
+  markSupplementTaken,unmarkSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck
 }=require('./supplements-store.cjs');
 const {generateSupplementDescription,analyzeSupplementSet}=require('./supplement-ai.cjs');
 const {profileContext}=require('./personal-profile-context.cjs');
@@ -73,6 +73,10 @@ async function handler(req,res){
     }
     if(operation==='take'){
       const result=await markSupplementTaken(actor,body.id);
+      return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items,duplicate:result.duplicate,date:result.date});
+    }
+    if(operation==='untake'){
+      const result=await unmarkSupplementTaken(actor,body.id);
       return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items,duplicate:result.duplicate,date:result.date});
     }
     if(operation==='skip'){
