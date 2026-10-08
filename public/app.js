@@ -11426,12 +11426,19 @@
       function dianaPeriodDateKeys(cfg){
         const source=cfg&&typeof cfg==='object'?cfg:{};
         const length=Math.max(1,Math.min(10,Math.round(Number(source.periodLengthDays)||5)));
+        const starts=(Array.isArray(source.historyStarts)?source.historyStarts:[])
+          .map(parseCycleDate).filter(Number.isFinite).sort((a,b)=>a-b);
+        const latest=starts.length?starts[starts.length-1]:null;
+        const explicitEnd=parseCycleDate(source.lastPeriodEnd);
+        const todayUtc=todayState().utc;
         const keys=new Set();
-        for(const raw of Array.isArray(source.historyStarts)?source.historyStarts:[]){
-          const start=parseCycleDate(raw);
-          if(!Number.isFinite(start)) continue;
-          for(let offset=0;offset<length;offset+=1){
-            keys.add(new Date(start+offset*DAY).toISOString().slice(0,10));
+        for(const start of starts){
+          // Only recorded cycles, never predicted dates. A recorded end shortens the latest one.
+          const last=Number.isFinite(explicitEnd)&&start===latest&&explicitEnd>=start
+            ?Math.min(start+(length-1)*DAY,explicitEnd)
+            :start+(length-1)*DAY;
+          for(let date=start;date<=last&&date<=todayUtc;date+=DAY){
+            keys.add(new Date(date).toISOString().slice(0,10));
           }
         }
         return keys;
@@ -12206,7 +12213,7 @@
             title:String(value?.title||'').trim(),date:String(value?.date||'').trim(),
             time:String(value?.time||'').trim(),responsible:String(value?.responsible||'').trim(),
             description:String(value?.description||'').trim(),repeat:String(value?.repeat||'none'),
-            repeatCount:Number(value?.repeatCount||1)},
+            repeatCount:Number(value?.repeatCount||1),preserveRepeat:value?.preserveRepeat===true},
           ttlMs:0,timeoutMs:12000
         });
       }
@@ -12648,7 +12655,9 @@
           const editedId=editingTask?.id||'';
           try{
             const data={title,date,time,responsible:String(responsibleInput?.value||'').trim(),
-              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount};
+              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,
+              preserveRepeat:Boolean(editingTask&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
+                &&(!repeating||repeatCount===Math.max(2,Math.min(365,Math.round(Number(editingTask.repeatCount)||2)))))};
             const payload=editedId?await requestTickTickTaskUpdate(editedId,data):await requestTickTickTaskCreate(data);
             if(!payload?.ok) throw new Error(payload?.error||(editedId?'ticktick-task-update':'ticktick-task-create'));
             close();
@@ -13129,6 +13138,7 @@
             .slice(0,5)
             .filter(Boolean);
           const obligations=calendarObligationsForDay(day.date,financeObligations);
+          const unpaidObligations=obligations.filter(row=>!row.paid);
           const times=events
             .map(event=>event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–')))
             .filter(Boolean);
@@ -13139,7 +13149,7 @@
           cell.className='calendar-day-cell '+(day.working?'working':'off')+
             (tasks.length?' has-tasks':'')+
             (holidays.length?' has-holidays':'')+
-            (obligations.length?' has-obligations':'')+
+
             (day.date===today?' today':'');
           const tooltip=[
             day.working?timeText:'Выходной',
@@ -13154,7 +13164,7 @@
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
             (tasks.length?', дел: '+tasks.length:'')+
             (holidays.length?', праздников: '+holidays.length:'')+
-            (obligations.length?', платежей: '+obligations.length:'')
+            (unpaidObligations.length?', неоплаченных обязательных расходов: '+unpaidObligations.length:'')
           );
 
           if(!isMonth){
@@ -13169,24 +13179,7 @@
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
 
-          if(obligations.length){
-            const tags=document.createElement('span');
-            tags.className='calendar-obligation-tags';
-            for(const obligation of obligations.slice(0,2)){
-              const tag=document.createElement('span');
-              tag.className='calendar-obligation-tag tone-'+calendarObligationTone(obligation)+(obligation.paid?' is-paid':'');
-              tag.textContent=String(obligation.title||'Платёж');
-              tag.setAttribute('aria-hidden','true');
-              tags.appendChild(tag);
-            }
-            if(obligations.length>2){
-              const more=document.createElement('span');more.className='calendar-obligation-more';
-              more.textContent='+'+(obligations.length-2);tags.appendChild(more);
-            }
-            cell.appendChild(tags);
-          }
-
-          if(tasks.length||holidays.length){
+          if(tasks.length||unpaidObligations.length){
             const indicators=document.createElement('span');
             indicators.className='calendar-day-indicators';
             if(tasks.length){
@@ -13196,12 +13189,12 @@
               taskCount.setAttribute('aria-hidden','true');
               indicators.appendChild(taskCount);
             }
-            if(holidays.length){
-              const holidayMark=document.createElement('span');
-              holidayMark.className='calendar-holiday-mark';
-              holidayMark.textContent='✦';
-              holidayMark.setAttribute('aria-hidden','true');
-              indicators.appendChild(holidayMark);
+            if(unpaidObligations.length){
+              const obligationCount=document.createElement('span');
+              obligationCount.className='calendar-obligation-count';
+              obligationCount.textContent=String(unpaidObligations.length);
+              obligationCount.setAttribute('aria-hidden','true');
+              indicators.appendChild(obligationCount);
             }
             cell.appendChild(indicators);
           }
@@ -13260,29 +13253,29 @@
                   :'Эта задача назначена другому участнику');
                 complete.disabled=!event?.id||payload?.ticktickWritable===false||!canComplete;
 
-                const taskCopy=document.createElement('span');
+                const taskCopy=document.createElement('button');
+                taskCopy.type='button';
                 taskCopy.className='calendar-task-copy';
+                taskCopy.disabled=!event?.id||payload?.ticktickWritable===false||event?.canEdit===false;
+                taskCopy.setAttribute('aria-label','Редактировать: '+String(event.title||'Дело'));
                 const start=String(event.startTime||'').trim();
                 const end=String(event.endTime||'').trim();
                 const range=event.allDay?'':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
-                const rawAssignee=String(event.assignee||'').trim().toLocaleLowerCase('ru-RU');
-                const assigneeName=rawAssignee==='ди'?'Диана':rawAssignee==='rst'?'Рустам':String(event.assignee||'').trim();
-                const assignee=event.assigned&&assigneeName&&assigneeName!=='Не назначен'?' · '+assigneeName:'';
-
-                if(range){
-                  const time=document.createElement('span');
-                  time.className='calendar-task-time';
-                  time.textContent=range;
-                  taskCopy.appendChild(time);
-                }
                 const text=document.createElement('span');
                 text.className='calendar-task-title';
-                text.textContent=String(event.title||'Дело')+assignee;
-                taskCopy.appendChild(text);
+                text.textContent=String(event.title||'Дело');
+                const meta=document.createElement('span');
+                meta.className='calendar-task-time';
+                meta.textContent=[range,tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
+                taskCopy.append(text,meta);
                 row.append(complete,taskCopy);
                 complete.addEventListener('click',clickEvent=>{
                   clickEvent.stopPropagation();
                   completeCalendarTickTickTask(event,row,complete,payload?.ticktickWritable!==false);
+                });
+                taskCopy.addEventListener('click',clickEvent=>{
+                  clickEvent.stopPropagation();
+                  if(!taskCopy.disabled) openTickTickTaskForEditing?.(event);
                 });
                 group.appendChild(row);
               }
@@ -14650,27 +14643,37 @@
 
       function renderNearest(config){
         const events=[];
+        const todayUtc=todayState().utc;
+        // Usual dates within 30 days. New Year appears from November 1.
         for(const b of config.birthdays||[]){
+          if(!b.month||!b.day) continue;
           const n=nextOccurrence(b.month,b.day);
+          if(n.days>30) continue;
           events.push({
             title:'День рождения '+b.name,
             meta:dateLabel(b.month,b.day)+' · исполнится '+(n.year-b.year),
             days:n.days,target:n.target
           });
         }
-        for(const e of config.importantDates||[]){
-          if(!e.month||!e.day) continue;
-          const n=nextOccurrence(e.month,e.day);
-          events.push({title:e.title,meta:dateLabel(e.month,e.day),days:n.days,target:n.target});
+        for(const item of config.importantDates||[]){
+          if(!item.month||!item.day) continue;
+          const n=nextOccurrence(item.month,item.day);
+          const isNewYear=Number(item.month)===1&&Number(item.day)===1;
+          const windowStart=isNewYear
+            ?Date.UTC(n.year,Number(item.month)-3,Number(item.day))
+            :n.target-30*DAY;
+          if(todayUtc<windowStart) continue;
+          events.push({title:item.title,meta:dateLabel(item.month,item.day),days:n.days,target:n.target});
         }
         events.sort((a,b)=>a.target-b.target);
-        const e=events[0];
-        homeDashboardState.nearestStatic=e||null;
+        const nearest=events[0]||null;
+        homeDashboardState.nearestStatic=nearest;
+        const block=document.querySelector('#workCalendarSection .schedule-nearest');
+        if(block) block.hidden=!nearest;
+        document.getElementById('nearestTitle').textContent=nearest?.title||'';
+        document.getElementById('nearestMeta').textContent=nearest?.meta||'';
+        document.getElementById('nearestDays').textContent=nearest?daysLabel(nearest.days):'';
         renderHomeDashboard();
-        if(!e) return;
-        document.getElementById('nearestTitle').textContent=e.title;
-        document.getElementById('nearestMeta').textContent=e.meta;
-        document.getElementById('nearestDays').textContent=daysLabel(e.days);
       }
 
       async function reactionsRequest(operation,payload={}){

@@ -670,3 +670,59 @@ body[data-app-tab="schedule"] .footer{margin-top:22px!important}
 .work-page .calendar-obligation-amount{font-size:10px!important;font-weight:680!important;color:var(--muted)!important}
 .work-page .calendar-obligation-row.is-paid .calendar-obligation-title{text-decoration:line-through!important;opacity:.55!important}
 @media(max-width:375px){.work-page .work-calendar-days{gap:4px!important}.work-page .calendar-obligation-tag{font-size:6.5px!important;padding:2px!important}}
+
+
+/* RUDI v4.90: compact day cells, real unpaid obligation counters and cycle marks. */
+.work-page #workCalendarDays .calendar-day-cell,
+.work-page .work-calendar-days:has(.calendar-day-cell.has-obligations) #workCalendarDays .calendar-day-cell,
+.work-page .work-calendar-days:has(.calendar-day-cell.has-obligations) .calendar-day-cell{
+  aspect-ratio:1.16!important;
+  min-height:0!important;
+  border-radius:11px!important;
+}
+.work-page #workCalendarDays .calendar-day-cell.today{
+  border-color:#e53935!important;
+  box-shadow:0 0 0 1.5px #e53935!important;
+}
+.work-page #workCalendarDays .calendar-day-cell.selected,
+.work-page #workCalendarDays .calendar-day-cell.off.selected,
+.work-page #workCalendarDays .calendar-day-cell.working.selected{
+  border-color:#17191f!important;
+  box-shadow:0 0 0 2px #17191f!important;
+}
+.work-page #workCalendarDays .calendar-day-cell.today.selected{
+  box-shadow:inset 0 0 0 1px #e53935,0 0 0 2px #17191f!important;
+}
+.work-page #workCalendarDays .calendar-obligation-count{
+  position:absolute!important;top:3px!important;left:3px!important;
+  display:grid!important;place-items:center!important;
+  min-width:13px!important;height:13px!important;padding:0 3px!important;
+  border-radius:999px!important;background:#b64152!important;color:white!important;
+  font-size:8px!important;font-weight:850!important;line-height:13px!important;
+  z-index:2!important;
+}
+.work-page #workCalendarDays .calendar-period-dot{
+  display:block!important;position:absolute!important;left:4px!important;bottom:4px!important;
+  width:7px!important;height:7px!important;border-radius:50%!important;
+  background:#ed303b!important;box-shadow:none!important;z-index:4!important;
+}
+.work-page .calendar-task-copy{
+  appearance:none!important;border:0!important;background:none!important;
+  padding:0!important;text-align:left!important;font:inherit!important;
+  display:flex!important;flex-direction:column!important;align-items:flex-start!important;
+  justify-content:center!important;gap:2px!important;width:100%!important;
+  color:inherit!important;cursor:pointer!important;
+}
+.work-page .calendar-task-copy:disabled{cursor:default!important;opacity:.65!important}
+.work-page .calendar-task-copy:not(:disabled):focus-visible{
+  outline:2px solid var(--accent)!important;outline-offset:3px!important;border-radius:4px!important;
+}
+.work-page .calendar-task-title{font-size:10.5px!important;line-height:1.32!important;font-weight:650!important}
+.work-page .calendar-task-time{font-size:9px!important;line-height:1.25!important;font-weight:500!important;color:var(--muted)!important}
+@media(max-width:390px){
+  .work-page .calendar-task-title{font-size:10px!important}
+  .work-page .calendar-task-time{font-size:8.5px!important}
+}
+
+/* Hide the upcoming-event panel when there are no upcoming events. */
+.work-page .schedule-nearest[hidden]{display:none!important}

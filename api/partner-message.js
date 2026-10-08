@@ -93,6 +93,8 @@ const {
   completeTickTickTask,
   fetchTask,
   calendarDateKey,
+  calendarTime,
+  tickTickTaskDateKeys,
 } = require('./ticktick-client.cjs');
 const {
   readChecklistAuditState,
@@ -1732,7 +1734,9 @@ async function handleTickTick(req, res, action, options = {}) {
       const date = String(body.date || '').trim();
       const time = String(body.time || '').trim();
       const dateTime = tickTickTaskDateTime(date,time);
-      const repeatFlag = tickTickRepeatFlag(body.repeat,body.repeatCount);
+      const repeatFlag = body.preserveRepeat===true
+        ?String(current.repeatFlag || '')
+        :tickTickRepeatFlag(body.repeat,body.repeatCount);
       let assigneeUsername = '';
       if (responsible) {
         const wanted=responsible==='Рустам'?'RST':'Ди';
@@ -1750,12 +1754,29 @@ async function handleTickTick(req, res, action, options = {}) {
         assigneeUsername,
         repeatFlag,
       },options);
+      // A 2xx write response is not proof that TickTick actually moved the task.
+      let confirmed=null;
+      for(let attempt=0;attempt<3;attempt+=1){
+        if(attempt) await new Promise(resolve=>setTimeout(resolve,180));
+        const readback=await fetchTask(token.accessToken,config.projectId,taskId,options);
+        const keys=tickTickTaskDateKeys(readback);
+        const actualTime=readback?.isAllDay?'':calendarTime(readback?.startDate||readback?.dueDate);
+        if(String(readback?.id||'')===taskId
+          &&String(readback?.title||'').trim()===title
+          &&keys.length===1&&keys[0]===date
+          &&Boolean(readback?.isAllDay)===!time
+          &&(!time||actualTime===time)){
+          confirmed=readback;
+          break;
+        }
+      }
+      if(!confirmed) throw new Error('ticktick-task-update-unconfirmed');
       await setSharedTaskMeta(taskId,{
         responsible,
         createdBy:String(currentMeta?.createdBy || actor).trim(),
         source:'rudi',
       },options);
-      return res.status(200).json({ok:true,taskId});
+      return res.status(200).json({ok:true,taskId,date:tickTickTaskDateKeys(confirmed)[0],confirmed:true});
     } catch (error) {
       const code=String(error?.message || error);
       if (code === 'ticktick-token-invalid') {
@@ -1935,6 +1956,7 @@ async function handleTickTick(req, res, action, options = {}) {
             repeat: String(source.repeatFlag || '').includes('BYDAY=MO,TU,WE,TH,FR') ? 'weekdays'
               : (String(source.repeatFlag || '').match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1] || 'none').toLowerCase(),
             repeatCount: Number(String(source.repeatFlag || '').match(/COUNT=(\d+)/)?.[1] || 2),
+            repeatFlag:String(source.repeatFlag||''),
             checklist,
           };
         });
@@ -2063,10 +2085,10 @@ async function handleTickTick(req, res, action, options = {}) {
 
   if (action === 'calendar') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-    let body;
+    let body, actor;
     try {
       body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeRequest(req, body.initData, options);
+      ({actor} = authorizeRequest(req, body.initData, options));
     } catch (error) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
@@ -2124,6 +2146,14 @@ async function handleTickTick(req, res, action, options = {}) {
           event.assignee = assignee.assignee;
           event.assigned = assignee.assigned;
           event.responsible = assignee.responsibility.responsible;
+          event.date=String(day.date||'');
+          event.canEdit=sharedTaskCanDelete(actor,source,meta);
+          event.description=String(source.desc||source.content||'').trim().slice(0,5000);
+          const repeatFlag=String(source.repeatFlag||'');
+          event.repeatFlag=repeatFlag;
+          event.repeat=repeatFlag.includes('BYDAY=MO,TU,WE,TH,FR')?'weekdays'
+            :(repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase();
+          event.repeatCount=Number(repeatFlag.match(/COUNT=(\d+)/)?.[1]||2);
         }
       }
       return res.status(200).json({
