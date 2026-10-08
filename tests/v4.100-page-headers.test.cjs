@@ -42,7 +42,7 @@ test('cache-bust and source version remain aligned across future RUDI releases',
   const cfg = JSON.parse(read('rudi-version.json'));
   const html = read('public/index.html');
   const sw = read('public/sw.js');
-  assert.match(version, /^v4\\.\\d+$/);
+  assert.match(version, /^v4\.\d+$/);
   assert.ok(Number(version.split('.')[1]) >= 100, 'release must not revert before v4.100');
   assert.equal(cfg.current, version);
   const number = version.slice(1);
