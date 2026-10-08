@@ -10,13 +10,13 @@ test('design stylesheet loaded after older styles, before JavaScript',()=>{
  const h=read('public/index.html');
  assert.ok(h.indexOf('/rudi-design-system.css?v='+CURRENT_RELEASE.slice(1))>h.indexOf('/supplement-advanced.css'));
  assert.ok(h.indexOf('/rudi-design-system.css?v='+CURRENT_RELEASE.slice(1))<h.indexOf('<script defer src="/app.js'));
- assert.match(h,/<meta name="rudi-version" content="v4.84">/);
+ assert.ok(h.includes('<meta name="rudi-version" content="'+CURRENT_RELEASE+'">'));
 });
 test('build includes versioned design stylesheet',()=>{
  const b=read('build.cjs'),sw=read('public/sw.js');
  assert.ok(b.includes("'rudi-design-system.css'"));
  assert.ok(b.includes('rudi-design-system\\.css'));
- assert.ok(sw.includes('/rudi-design-system.css?v='+CURRENT_RELEASE.slice(1)));
+ assert.ok(sw.includes('rudi-design-system.css?v='+CURRENT_RELEASE.slice(1)));
 });
 test('visual scope covers cards, icons, charts, iOS forms and reduced motion',()=>{
  const s=read('public/rudi-design-system.css');

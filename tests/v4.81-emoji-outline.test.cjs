@@ -22,10 +22,10 @@ test('neon outline follows the four emoji buttons only',()=>{
 test('visual update cache and version labels',()=>{
  const html=read('public/index.html');
  const sw=read('public/sw.js');
- assert.ok(html.includes("name=\"rudi-version\" content=\"\""+CURRENT_RELEASE));
- assert.ok(html.includes("rudi-design-system.css?v="+CURRENT_RELEASE.slice(1)+CURRENT_RELEASE.slice(1)));
- assert.ok(sw.includes("rudi-shell-"+CURRENT_RELEASE));
- assert.ok(sw.includes("rudi-design-system.css?v="+CURRENT_RELEASE.slice(1)+CURRENT_RELEASE.slice(1)));
+ assert.ok(html.includes('name="rudi-version" content="'+CURRENT_RELEASE+'"'));
+ assert.ok(html.includes('rudi-design-system.css?v='+CURRENT_RELEASE.slice(1)));
+ assert.ok(sw.includes('rudi-shell-'+CURRENT_RELEASE));
+ assert.ok(sw.includes('rudi-design-system.css?v='+CURRENT_RELEASE.slice(1)));
  assert.equal(read('VERSION').trim(),CURRENT_RELEASE);
  assert.equal(JSON.parse(read('rudi-version.json')).current,CURRENT_RELEASE);
 });

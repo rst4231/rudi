@@ -5,7 +5,7 @@ const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
   '/',
   '/manifest.webmanifest',
-  '/rudi-design-system.css?v=4.84',
+  '/rudi-design-system.css?v=4.92',
   '/favicon-rudi-v460.png',
   '/apple-touch-icon-rudi-v460.png',
   '/icon-192-rudi-v460.png',

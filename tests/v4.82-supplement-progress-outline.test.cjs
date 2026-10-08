@@ -26,11 +26,11 @@ test('iOS border stroke stays in bounds and does not swallow taps',()=>{
 });
 test('PWA version invalidates stale asset cache on iPhone',()=>{
  const h=read('public/index.html'),sw=read('public/sw.js');
- assert.ok(h.includes("name=\"rudi-version\" content=\"\""+CURRENT_RELEASE));
- assert.ok(h.includes("profile-supplements.js?v=4.84"+CURRENT_RELEASE.slice(1)));
- assert.ok(h.includes("rudi-design-system.css?v="+CURRENT_RELEASE.slice(1)+CURRENT_RELEASE.slice(1)));
- assert.ok(sw.includes("rudi-shell-"+CURRENT_RELEASE));
- assert.ok(sw.includes("rudi-design-system.css?v="+CURRENT_RELEASE.slice(1)+CURRENT_RELEASE.slice(1)));
+ assert.ok(h.includes('name="rudi-version" content="'+CURRENT_RELEASE+'"'));
+ assert.ok(h.includes('profile-supplements.js?v='+CURRENT_RELEASE.slice(1)));
+ assert.ok(h.includes('rudi-design-system.css?v='+CURRENT_RELEASE.slice(1)));
+ assert.ok(sw.includes('rudi-shell-'+CURRENT_RELEASE));
+ assert.ok(sw.includes('rudi-design-system.css?v='+CURRENT_RELEASE.slice(1)));
  assert.equal(read('VERSION').trim(),CURRENT_RELEASE);
  assert.equal(JSON.parse(read('rudi-version.json')).current,CURRENT_RELEASE);
 });

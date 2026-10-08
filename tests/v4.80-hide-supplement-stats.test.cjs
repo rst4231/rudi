@@ -22,9 +22,9 @@ test('supplement duplicates and all action buttons remain available',()=>{
   assert.match(js,/makeActionButton\('interactions'/);
 });
 test('new assets and version enable iPhone PWA refresh',()=>{
-  assert.ok(source('public/index.html').includes("name=\"rudi-version\" content=\"\""+CURRENT_RELEASE));
-  assert.ok(source('public/index.html').includes("supplement-advanced.js?v=4.84"+CURRENT_RELEASE.slice(1)));
-  assert.ok(source('public/sw.js').includes("rudi-shell-"+CURRENT_RELEASE));
+  assert.ok(source('public/index.html').includes('name="rudi-version" content="'+CURRENT_RELEASE+'"'));
+  assert.ok(source('public/index.html').includes('supplement-advanced.js?v='+CURRENT_RELEASE.slice(1)));
+  assert.ok(source('public/sw.js').includes('rudi-shell-'+CURRENT_RELEASE));
   assert.equal(source('VERSION').trim(),CURRENT_RELEASE);
   assert.equal(JSON.parse(source('rudi-version.json')).current,CURRENT_RELEASE);
 });
