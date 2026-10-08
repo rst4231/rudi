@@ -9,6 +9,7 @@ const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveD
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
+const { withTaskEmoji } = require('./shared-task-emoji.cjs');
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish, restoreWish } = require('./wishlist-store.cjs');
 const {
@@ -1639,7 +1640,7 @@ async function handleTickTick(req, res, action, options = {}) {
     if (tokenHasWriteScope(token) === false) return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
 
     try {
-      const title = String(body.title || '').trim().slice(0,500);
+      const title = withTaskEmoji(String(body.title || '').trim()).slice(0,500);
       if (!title) return res.status(400).json({ok:false,error:'ticktick-task-title-required'});
       const responsibleValue = String(body.responsible || '').trim();
       const responsible = ['Рустам','Диана'].includes(responsibleValue) ? responsibleValue : '';
