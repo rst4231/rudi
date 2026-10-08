@@ -1,0 +1,39 @@
+/* RUDI Finance Decisions v4.93, isolated from existing finance component styling. */
+.rudi-decision-suite{display:grid;gap:14px;margin:14px 0}
+.rudi-decision-card{padding:17px;border-radius:21px;border:1px solid var(--line);background:var(--surface);box-shadow:0 9px 25px rgba(0,0,0,.04)}
+.rudi-decision-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:14px}
+.rudi-decision-head h2{margin:0;font-size:18px;letter-spacing:-.025em}
+.rudi-decision-head h3{margin:0;font-size:15px}
+.rudi-decision-head>span{color:var(--muted);font-size:11px;white-space:nowrap}
+.rudi-forecast-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rudi-forecast-tile{display:flex;flex-direction:column;gap:7px;min-width:0;padding:12px 10px;border-radius:14px;background:var(--surface-strong,var(--surface));border:1px solid var(--line)}
+.rudi-forecast-tile small{font-size:10px;color:var(--muted)}
+.rudi-forecast-tile strong{font-size:15px;font-weight:800;white-space:nowrap;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis}
+.rudi-forecast-tile span{color:var(--muted);font-size:9.5px;line-height:1.35}
+.rudi-decision-muted{font-size:11px;line-height:1.55;color:var(--muted);margin:12px 0 0}
+.rudi-decision-list{display:grid;gap:10px;margin-top:12px}
+.rudi-decision-item{padding:11px 12px;border:1px solid var(--line);border-radius:13px;background:var(--surface-strong,var(--surface))}
+.rudi-decision-item-title{font-weight:750;font-size:12px}
+.rudi-decision-item p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
+.rudi-decision-payment{display:flex;justify-content:space-between;gap:10px;font-size:11px}
+.rudi-decision-payment b{white-space:nowrap;font-size:11px}
+.rudi-scenario-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rudi-decision-field{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:11px;min-width:0;margin:0 0 11px}
+.rudi-decision-field select,.rudi-decision-field input{width:100%;box-sizing:border-box;min-width:0;font-size:14px;color:var(--text);background:var(--surface)}
+.rudi-decision-primary{width:100%;min-height:43px;margin-top:8px;border:0;border-radius:13px;color:#fff;background:linear-gradient(125deg,#7764dc,#5a49bd);font:inherit;font-size:12px;font-weight:760}
+.rudi-decision-primary:disabled{opacity:.55}
+.rudi-scenario-result{margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:13px;background:var(--surface-strong,var(--surface))}
+.rudi-scenario-result[hidden]{display:none}
+.rudi-scenario-result strong{font-size:15px}
+.rudi-scenario-result p{font-size:11px;line-height:1.45;color:var(--muted);margin:7px 0 0}
+.rudi-scenario-result .rudi-decision-warning{color:#df8a48;font-weight:700}
+.rudi-goal-advisor{border-top:1px solid var(--line);margin-top:18px;padding-top:16px}
+.rudi-goal-summary{display:grid;gap:6px;margin-top:10px}
+.rudi-goal-summary p{margin:0;font-size:11px;color:var(--muted);line-height:1.4}
+@media(max-width:390px){
+.rudi-decision-card{padding:13px}
+.rudi-forecast-tile{padding:10px 7px}
+.rudi-forecast-tile strong{font-size:12px}
+.rudi-forecast-tile span{font-size:9px}
+.rudi-scenario-fields{grid-template-columns:1fr}
+}

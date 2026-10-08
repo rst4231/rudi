@@ -1,0 +1,11 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const core=require('../public/finance-decisions-core.js');
+const date=new Date(2026,9,8,12);
+const base={wallets:[{currency:'RUB',balance:100000,type:'regular'}],plan:{reserve:20000,obligations:[]},personalExpenses:[],walletIncomes:[],categories:[]};
+test('forecast without history separates certainty',()=>{const f=core.forecast(base,date,30);assert.equal(f.opening,100000);assert.equal(f.estimated,false)});
+test('planned payment counted once',()=>{const s={...base,plan:{reserve:20000,obligations:[{id:'rent',title:'Rent',amount:35000,day:9,paidMonths:[]}]}};assert.equal(core.forecast(s,date,7).scheduledTotal,35000)});
+test('paid monthly payment excluded',()=>{const s={...base,plan:{reserve:20000,obligations:[{id:'rent',title:'Rent',amount:35000,day:9,paidMonths:['2026-10']}]}};assert.equal(core.forecast(s,date,7).scheduledTotal,0)});
+test('goal monthly contribution and reserve',()=>{const s={...base,plan:{reserve:95000,goalTarget:200000,goalCurrent:50000,goalMonthlyContribution:10000}};const g=core.goal(s,date);assert.equal(g.timeMonths,15);assert.equal(g.safe,false)});
+test('mortgage annuity zero rate',()=>{const a=core.simulate('mortgage',{cost:2400000,down:0,years:20,rate:0,rent:9000},base,date);assert.equal(a.main,10000)});

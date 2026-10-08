@@ -5280,6 +5280,7 @@
         if(activeFinanceTab==='personal')recordFinanceCapitalSnapshot().catch(()=>{});
         if(financeCategoryHistoryId)renderFinanceCategoryHistory();
         restartRudiMotion(document.querySelector('.finance-balance-card'),'rudi-data-refresh',360);
+        document.dispatchEvent(new CustomEvent('rudi-finances-updated',{detail:data}));
       }
       async function loadFinances({silent=false,month=''}={}){
         if(!currentActor)return null;if(financeLoadPromise)return financeLoadPromise;
@@ -5290,6 +5291,7 @@
         const month=document.getElementById('financeMonthInput'),rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton');
         if(!month||month.dataset.bound==='1')return;
         month.dataset.bound='1';month.value=financeCurrentMonthKey();
+        document.addEventListener('rudi-finance-plan-saved',()=>loadFinances({silent:true}).catch(()=>{}));
         const personalMonth=document.getElementById('financePersonalMonthInput');
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();
         applyFinancePermissions();setFinanceTab('personal');

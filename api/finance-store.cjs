@@ -179,6 +179,8 @@ function cleanPlan(value = {}) {
     goalTitle: cleanText(source.goalTitle, 80),
     goalCurrent: cleanMoney(source.goalCurrent || 0),
     goalTarget: cleanMoney(source.goalTarget || 0),
+    goalDeadline: /^\d{4}-\d{2}-\d{2}$/.test(String(source.goalDeadline||'')) && !Number.isNaN(new Date(String(source.goalDeadline)+'T12:00:00').getTime()) ? String(source.goalDeadline) : '',
+    goalMonthlyContribution: cleanMoney(source.goalMonthlyContribution || 0),
     obligations: cleanObligations(source.obligations),
     analystLastDate,
     analystLastReport: cleanAnalystReport(source.analystLastReport),
