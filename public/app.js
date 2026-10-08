@@ -17035,13 +17035,20 @@
         const button=document.getElementById('fastingProfileButton');
         if(!button)return;
         const startMs=Date.parse(String(active?.startedAt||''));
+        const activeNow=Number.isFinite(startMs);
+        const elapsedNode=button.querySelector('#fastingProfileElapsed');
+        const hours=activeNow?Math.floor(Math.max(0,Date.now()-startMs)/3600000):0;
+        if(elapsedNode){
+          elapsedNode.textContent=activeNow?hours+' ч':'';
+          elapsedNode.hidden=!activeNow;
+        }
         const goalHours=Number(active?.goalHours);
-        const running=Number.isFinite(startMs)&&Number.isFinite(goalHours)&&goalHours>0;
+        const running=activeNow&&Number.isFinite(goalHours)&&goalHours>0;
         button.dataset.fastingActive=running?'1':'0';
         let svg=button.querySelector('.rudi-fasting-progress-outline');
         if(!running){
           if(svg)svg.hidden=true;
-          button.setAttribute('aria-label','Открыть трекер голодания');
+          button.setAttribute('aria-label',activeNow?'Голодание '+hours+' ч. Открыть трекер голодания':'Открыть трекер голодания');
           return;
         }
         if(!svg){
@@ -17063,7 +17070,7 @@
         const percent=Math.min(100,Math.max(0,(Date.now()-startMs)/(goalHours*3600000)*100));
         const total=168+52*Math.PI;
         svg.querySelector('.rudi-fasting-progress-value').style.strokeDasharray=(total*percent/100)+' '+total;
-        button.setAttribute('aria-label','Открыть трекер голодания · '+Math.round(percent)+'% от цели');
+        button.setAttribute('aria-label','Голодание '+hours+' ч · '+Math.round(percent)+'% от цели. Открыть трекер голодания');
       }
       function renderFastingHomeStatus(overview=fastingOverviewState){
         const activeOf=entry=>{
@@ -17078,25 +17085,12 @@
         const selfActor=currentActor==='Диана'?'Диана':'Рустам';
         renderFastingProfileOutline(fastingOverviewState[selfActor]);
         const partnerActor=selfActor==='Рустам'?'Диана':'Рустам';
-        const selfNode=document.getElementById('selfFastingStatus');
         const partnerNode=document.getElementById('partnerFastingStatus');
-        const pairs=[
-          [selfNode,fastingOverviewState[selfActor],true],
-          [partnerNode,fastingOverviewState[partnerActor],false],
-        ];
-
-        pairs.forEach(([node,active,firstPerson])=>{
-          if(!node) return;
-          const label=fastingHomeLabel(active,firstPerson);
-          node.textContent=label;
-          node.hidden=!label;
-          if(firstPerson){
-            node.classList.toggle('is-clickable',Boolean(label));
-            node.tabIndex=label?0:-1;
-            node.setAttribute('role',label?'button':'status');
-            node.setAttribute('aria-label',label?label+'. Открыть трекер голодания':label);
-          }
-        });
+        if(partnerNode){
+          const label=fastingHomeLabel(fastingOverviewState[partnerActor],false);
+          partnerNode.textContent=label;
+          partnerNode.hidden=!label;
+        }
       }
 
       function updateOwnFastingOverview(active){
@@ -17406,7 +17400,6 @@
 
       function setupFastingTracker(){
         const profileButton=document.getElementById('fastingProfileButton');
-        const selfStatus=document.getElementById('selfFastingStatus');
         const back=document.getElementById('fastingBackButton');
         const start=document.getElementById('fastingStartButton');
         const stop=document.getElementById('fastingStopButton');
@@ -17419,17 +17412,7 @@
           navigateToAppTab('fasting',{scroll:true});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
-        const openOwnFastingStatus=()=>{
-          if(selfStatus?.hidden) return;
-          navigateOwnFasting();
-        };
         profileButton?.addEventListener('click',navigateOwnFasting);
-        selfStatus?.addEventListener('click',openOwnFastingStatus);
-        selfStatus?.addEventListener('keydown',(event)=>{
-          if(event.key!=='Enter'&&event.key!==' ') return;
-          event.preventDefault();
-          openOwnFastingStatus();
-        });
 
         historyToggle?.addEventListener('click',()=>{
           const card=document.querySelector('.fasting-history-card');

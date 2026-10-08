@@ -17642,3 +17642,33 @@ body.finance-month-dialog-open{overflow:hidden!important}
  .finance-obligations-card .finance-obligations-card-head #financeObligationsToggle{flex-basis:32px}
  .finance-obligations-card-head .finance-obligations-heading h2{font-size:13px!important}
 }
+
+/* RUDI v4.102 — active fasting hours below the existing profile tracker icon. */
+.profile-person-card #fastingProfileButton{overflow:visible!important}
+.profile-person-card #fastingProfileButton .fasting-profile-elapsed{
+  position:absolute;
+  z-index:4;
+  top:calc(100% + 4px);
+  left:50%;
+  transform:translateX(-50%);
+  pointer-events:none;
+  color:rgba(232,237,251,.86);
+  font-size:10px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:.01em;
+  white-space:nowrap;
+  text-align:center;
+}
+.profile-person-card #fastingProfileButton .fasting-profile-elapsed[hidden]{display:none!important}
+html[data-theme="light"] .profile-person-card #fastingProfileButton .fasting-profile-elapsed{color:#454f68}
+@media(max-width:430px){
+  .profile-person-card #fastingProfileButton .fasting-profile-elapsed{top:calc(100% + 3px);font-size:9px}
+}
+
+/* RUDI v4.102 — slightly smaller mood emoji for both profiles, without resizing buttons. */
+.profile-person-card .profile-name-row > #moodCurrentButton.avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge .partner-mood-icon .mood-emoji{
+  font-size:20px!important;
+}
