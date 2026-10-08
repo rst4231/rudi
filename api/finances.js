@@ -12,11 +12,11 @@ function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
-  if (['finance-obligation-not-found','finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found'].includes(code)) return 404;
+  if (['finance-obligation-not-found','finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-income-not-found','finance-wallet-not-found','finance-transfer-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
     'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
-    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid','finance-transfer-same-wallet','finance-credit-limit-invalid'
+    'finance-currency-invalid','finance-wallet-income-wallet-change-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid','finance-transfer-same-wallet','finance-credit-limit-invalid'
   ].includes(code)) return 400;
   return 500;
 }
@@ -183,6 +183,7 @@ async function handler(req, res) {
       if (!rubRate) throw new Error('finance-rate-invalid');
       const rubAmount = Math.round(amount * rubRate * 100) / 100;
       const state = await saveWalletIncome(actor, {
+        id: body.id,
         walletId: wallet.id,
         amount,
         currency,
