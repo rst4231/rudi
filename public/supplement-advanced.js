@@ -1,7 +1,7 @@
 (()=>{'use strict';
 
 let started=false;
-let statsNode=null,duplicatePanel=null,actionRow=null,drawer=null;
+let duplicatePanel=null,actionRow=null,drawer=null;
 let searchInput=null,interactionChoices=null,interactionRun=null,interactionResult=null;
 let interactionCheck=null,openActionName='',selectedInteractionIds=new Set();
 const actionButtons=new Map(),actionPanels=new Map();
@@ -82,7 +82,6 @@ function ensureToolbar(){
   if(!form||document.getElementById('supplementAdvancedToolbar'))return;
 
   const wrap=document.createElement('div');wrap.id='supplementAdvancedToolbar';wrap.className='supplement-advanced-toolbar';
-  statsNode=document.createElement('div');statsNode.className='supplement-summary-stats';
   duplicatePanel=document.createElement('div');duplicatePanel.className='supplement-auto-duplicates';duplicatePanel.hidden=true;
 
   actionRow=document.createElement('div');actionRow.className='supplement-action-icons';actionRow.setAttribute('aria-label','Действия с БАДами');
@@ -107,7 +106,7 @@ function ensureToolbar(){
   interactionPanel.append(interactionHint,interactionChoices,interactionRun,interactionResult);
 
   drawer.append(addPanel,searchPanel,interactionPanel);
-  wrap.append(statsNode,duplicatePanel,actionRow,drawer);
+  wrap.append(duplicatePanel,actionRow,drawer);
   const body=document.querySelector('.personal-supplements-body');body?.insertBefore(wrap,body.firstChild);
 
   searchInput.addEventListener('input',applyGrouping);
@@ -115,11 +114,7 @@ function ensureToolbar(){
 }
 
 function updateStats(){
-  if(!statsNode)return;
-  const all=getItems(),active=all.filter(item=>item.status==='active'),paused=all.filter(item=>item.status==='paused').length;
-  const morning=active.filter(item=>item.schedule?.time&&item.schedule.time<'12:00').length;
-  const evening=active.filter(item=>item.schedule?.time&&item.schedule.time>='18:00').length;
-  statsNode.textContent=active.length+' активных · '+morning+' утром · '+evening+' вечером'+(paused?' · '+paused+' на паузе':'');
+  const active=getItems().filter(item=>item.status==='active');
   renderAutomaticDuplicates(active);
 }
 function renderAutomaticDuplicates(active){
