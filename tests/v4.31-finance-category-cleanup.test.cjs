@@ -4,7 +4,7 @@ const fs=require('node:fs');
 
 const {
   normalizeState, viewState, expenseTotal,
-  savePersonalIncome, savePersonalExpense, deleteExpenseCategory,
+  saveWallet, saveWalletIncome, savePersonalExpense, deleteExpenseCategory,
   resetMutationQueueForTests,
 }=require('../api/finance-store.cjs');
 
@@ -20,7 +20,11 @@ function memoryCache(initial=null){
 test('deleting a category removes its expenses and recalculates the month',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache(null);
-  await savePersonalIncome('Рустам','2026-10',100000,{financeCache,now:'2026-10-06T12:00:00Z'});
+  await saveWallet('Рустам',{name:'Основной',currency:'RUB',balance:0},{financeCache,id:'income-wallet'});
+  await saveWalletIncome('Рустам',{
+    walletId:'income-wallet',amount:100000,currency:'RUB',rubAmount:100000,exchangeRate:1,
+    month:'2026-10',occurredAt:'2026-10-06T12:00:00.000Z'
+  },{financeCache,id:'income-row'});
   let state=normalizeState(financeCache.value());
   const food=state.categories['Рустам'].find(row=>row.name==='Еда');
   assert.ok(food);
@@ -58,7 +62,6 @@ test('finance category UI keeps delete, monthly limit and no category note or an
   const app=fs.readFileSync('public/app.js','utf8');
   const ai=fs.readFileSync('api/finance-ai.cjs','utf8');
 
-  assert.ok(app.includes("financeRequest('delete-category'"));
   assert.ok(app.includes("financeRequest(removeHistory?'delete-category':'archive-category'"));
   assert.ok(html.includes('id="financeCategoryLimit"'));
   assert.ok(app.includes('monthlyLimit:Number(limit?.value||0)'));

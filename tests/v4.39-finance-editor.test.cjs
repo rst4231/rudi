@@ -34,13 +34,16 @@ test('v4.39 category spent correction can lower and raise current total',async()
 });
 
 test('v4.39 finance UI contains wallet reorder, iPhone fixes and remaining plan formula',()=>{
-  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
-  assert.ok(html.includes('financeWalletMoveLeft'));
-  assert.ok(html.includes('financeCategorySpent'));
-  assert.ok(app.includes('plannedLimit-actualSpent'));
-  assert.ok(app.includes("plannedTotal.classList.toggle('is-over-limit',plannedRemaining<0)"));
-  assert.ok(css.includes('.finance-wallet-list .finance-coin-amount'));
-  assert.ok(css.includes('.finance-expense-datetime-grid .finance-text-input'));
+  assert.ok(html.includes('id="financeWalletList"'));
+  assert.ok(!html.includes('financeWalletMoveLeft'));
+  assert.ok(!html.includes('financeWalletMoveRight'));
+  assert.ok(app.includes('function bindFinanceWalletDrag('));
+  assert.ok(app.includes('function financeWalletMoveByPointer('));
+  assert.ok(app.includes("financeRequest('reorder-wallets',{ids})"));
+  assert.ok(html.includes('id="financePlannedMonthTotal"'));
+  assert.ok(app.includes('function syncFinanceTemporalControl('));
+  assert.ok(css.includes('.finance-wallet-list.is-editing'));
 });

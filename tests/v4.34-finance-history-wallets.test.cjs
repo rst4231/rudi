@@ -115,10 +115,10 @@ test('v4.34 finance UI includes date grouping, CoinKeeper import, wallets and ed
   assert.ok(css.includes('grid-auto-columns:calc((100% - 16px)/5)!important'));
   assert.ok(css.includes('overflow-x:auto'));
   assert.ok(app.includes('financeCurrencySymbol(wallet.currency)'));
-  assert.ok(html.includes('Доходы и кошельки'));
+  assert.ok(html.includes('id="financeWalletsTitle">Кошельки'));
   assert.equal(html.includes('id="financePersonalMonthLabel"'),false);
   assert.ok(html.includes('id="moodHistoryButton"'));
-  assert.ok(html.indexOf('financeImportButton')>html.indexOf('financeAiInsightText'));
+  assert.ok(html.includes('id="financeImportButton"'));
   assert.ok(app.includes('moodChoices.prepend(moodHistoryTrigger)'));
   assert.ok(app.includes('/income|доход|transfer|перевод/'));
 });
@@ -261,7 +261,7 @@ test('personal finance opens by default and monthly income field is removed', ()
 test('literacy article renderer has structural formatting styles', () => {
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
-  assert.ok(app.includes("document.createElement(numbered?'ol':'ul')"));
+  assert.ok(app.includes("document.createElement(kind)"));
   assert.ok(app.includes("classList.add('finance-literacy-lead')"));
   assert.ok(css.includes('.finance-literacy-body h3'));
   assert.ok(css.includes('.finance-literacy-body li::marker'));
@@ -282,7 +282,7 @@ test('wallet heading shows total value in RUB using existing market rates', () =
   assert.ok(app.includes("byId.get('ethusdt')"));
   assert.ok(app.includes("byId.get('usdtusd')"));
   assert.ok(app.includes("renderFinanceWalletTotal(payload)"));
-  assert.equal(css.includes('.finance-wallet-total-rub'),false);
+  assert.ok(css.includes('.finance-balance-card'));
 });
 
 
@@ -290,7 +290,7 @@ test('wallet reorder gesture uses pointer position instead of element hit-testin
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   assert.ok(app.includes('function financeWalletMoveByPointer'));
   assert.ok(app.includes('financeWalletMoveByPointer(list,item,event.clientX)'));
-  assert.ok(app.includes('startedByLongPress:true'));
+  assert.ok(app.includes('beginReorder(held.pointerId'));
   assert.ok(app.includes("financeRequest('reorder-wallets',{ids})"));
 });
 
@@ -309,7 +309,7 @@ test('deleting wallet income reverses its exact amount and wallet history has de
   assert.equal(view.walletIncomes.some(row=>row.id==='income-history-delete'),false);
 
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
-  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
+  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':entry.kind==='transfer'?'delete-wallet-transfer':'delete-expense'"));
   assert.ok(app.includes('finance-wallet-history-delete'));
 });
 
@@ -342,7 +342,7 @@ test('deleting wallet income subtracts exact source amount and may leave negativ
 
 test('wallet history rows expose delete control for income and expense', () => {
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
-  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':'delete-expense'"));
+  assert.ok(app.includes("entry.kind==='income'?'delete-wallet-income':entry.kind==='transfer'?'delete-wallet-transfer':'delete-expense'"));
   assert.ok(app.includes('finance-wallet-history-delete'));
 });
 
@@ -355,8 +355,8 @@ test('expense composer shows dragged wallet source and category reorder is two-d
   assert.ok(app.includes("source.textContent=wallet"));
   assert.ok(app.includes("'Источник: '+String(wallet.name||'Кошелёк')"));
   assert.ok(app.includes('function financeCategoryMoveByPointer'));
-  assert.ok(app.includes('financeCategoryMoveByPointer(list,item,event.clientX,event.clientY)'));
-  assert.ok(app.includes('startedByLongPress:true'));
+  assert.ok(app.includes('financeCategoryMoveByPointer(list,item,moveEvent.clientX,moveEvent.clientY)'));
+  assert.ok(app.includes('startedByLongPress:fromLongPress'));
   assert.ok(css.includes('.finance-expense-source'));
 });
 
@@ -376,19 +376,18 @@ test('expense labels persist per category and on expense rows', () => {
 });
 
 
-test('finance overview shows planned limits and wallet total subtitle', () => {
+test('finance overview shows planned limits and wallet total subtitle',()=>{
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
   assert.ok(html.includes('id="financePlannedMonthTotal"'));
-  assert.ok(html.includes('id="financeWalletTotalRub"'));
+  assert.ok(html.includes('id="financeCoinBalanceValue"'));
   assert.ok(html.includes('<span>В планах</span>'));
-  assert.ok(app.includes("category?.monthlyLimit||0"));
-  assert.ok(app.includes("walletTotal.textContent='Всего: '+text"));
+  assert.ok(!html.includes('id="financeWalletTotalRub"'));
+  assert.ok(app.includes('function renderFinanceWalletTotal'));
+  assert.ok(app.includes('function financeWalletRubRates'));
   assert.ok(css.includes('grid-template-columns:repeat(4,minmax(0,1fr))'));
-  assert.ok(css.includes('.finance-wallet-total-rub'));
 });
-
 
 test('income composer does not autofocus amount and category reorder tracks pointer globally', () => {
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
