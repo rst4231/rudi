@@ -1,0 +1,18 @@
+.rudi-recommendations{padding:16px 16px 6px;min-width:0}
+.rudi-recommendations[hidden]{display:none!important}
+.rudi-recommendations-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.rudi-recommendations-head h2{margin:0;font-size:17px;font-weight:750;letter-spacing:-.025em}
+.rudi-recommendations-head small{font-size:12px;opacity:.62;margin-left:auto}
+.rudi-recommendations-list{display:grid;gap:0}
+.rudi-recommendation-row{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--border,rgba(128,128,128,.16))}
+.rudi-recommendation-row:first-child{border-top:0;padding-top:1px}
+.rudi-recommendation-icon{width:35px;height:35px;display:grid;place-items:center;flex-shrink:0;border-radius:11px;background:rgba(128,128,128,.09);font-size:19px}
+.rudi-recommendation-copy{min-width:0;flex:1}
+.rudi-recommendation-title{display:block;font-size:14px;line-height:1.35;font-weight:720}
+.rudi-recommendation-detail{font-size:13px;line-height:1.45;margin:5px 0 10px;opacity:.75;overflow-wrap:anywhere}
+.rudi-recommendation-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rudi-recommendation-actions button{border:0;border-radius:10px;padding:8px 11px;font-size:12px;font-weight:650;cursor:pointer;min-height:34px}
+.rudi-recommendation-open{background:var(--accent,#3b82f6);color:#fff}
+.rudi-recommendation-secondary{background:rgba(128,128,128,.12);color:inherit}
+.rudi-recommendation-actions button:disabled{opacity:.55;cursor:wait}
+@media (max-width:380px){.rudi-recommendations{padding:14px 13px 4px}.rudi-recommendation-actions{gap:6px}.rudi-recommendation-actions button{padding:8px 9px}}

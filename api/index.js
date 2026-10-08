@@ -32,6 +32,7 @@ const { evaluateHumidityAlert } = require('./smart-home-humidity-alert.cjs');
 const { handleHabitReminderCron } = require('./habit-reminder.cjs');
 const { handleWeatherRequest } = require('./weather.cjs');
 const { handleCarRequest } = require('./car-client.cjs');
+const { handleRecommendations } = require('./recommendations.cjs');
 const {
   handleFeedbackCallback,
   cleanupLegacyFeedbackKeyboards,
@@ -172,6 +173,7 @@ async function handler(req, res) {
     if (req.query?.route === 'habit-reminder-cron') return handleHabitReminderCron(req, res);
     if (req.query?.route === 'weather') return handleWeatherRequest(req, res);
     if (req.query?.route === 'car') return handleCarRequest(req, res);
+    if (req.query?.route === 'recommendations') return handleRecommendations(req, res);
     if (req.query?.route === 'telegram') {
       if (await handleFeedbackCallback(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch, env: process.env })) {
         return res.status(200).json({ ok: true, handled: 'feedback' });
