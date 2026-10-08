@@ -177,12 +177,17 @@ async function handler(req, res) {
       if (!wallet) throw new Error('finance-wallet-not-found');
       const amount = Number(body.amount);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error('finance-amount-invalid');
+      const existing = body.id ? (view.walletIncomes || []).find(row => row.id === String(body.id)) : null;
+      if (body.id && !existing) throw new Error('finance-wallet-income-not-found');
+      if (existing && existing.walletId !== wallet.id) throw new Error('finance-wallet-currency-mismatch');
       const currency = String(wallet.currency || 'RUB').toUpperCase();
-      const rates = currency === 'RUB' ? { RUB: 1 } : await financeRubRates();
+      // Edits keep the historical conversion rate; do not reprice old transactions.
+      const rates = !existing && currency !== 'RUB' ? await financeRubRates() : { [currency]: Number(existing?.exchangeRate || 1) };
       const rubRate = Number(rates[currency]);
       if (!rubRate) throw new Error('finance-rate-invalid');
       const rubAmount = Math.round(amount * rubRate * 100) / 100;
       const state = await saveWalletIncome(actor, {
+        id: existing?.id,
         walletId: wallet.id,
         amount,
         currency,
