@@ -1,6 +1,6 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const {
-  readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan,
+  readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan, setFinanceObligationPaid,
   saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, viewState,
@@ -12,7 +12,7 @@ function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
-  if (['finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found'].includes(code)) return 404;
+  if (['finance-obligation-not-found','finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
     'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
@@ -145,6 +145,14 @@ async function handler(req, res) {
     if (operation === 'save-personal-income') {
       const state = await savePersonalIncome(actor, body.month, body.income);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+    }
+    if(operation==='calendar-obligations'){
+      const state=await readFinanceState();
+      return res.status(200).json({ok:true,actor,obligations:viewState(state,actor).plan.obligations});
+    }
+    if(operation==='set-obligation-paid'){
+      const state=await setFinanceObligationPaid(actor,body.id,body.month,body.paid);
+      return res.status(200).json({ok:true,actor,obligations:viewState(state,actor).plan.obligations});
     }
     if (operation === 'save-plan') {
       const state = await saveFinancePlan(actor, body);

@@ -632,3 +632,41 @@ body[data-app-tab="schedule"] .footer{margin-top:22px!important}
 #workCalendarCard .block-collapse-button{display:none!important}
 #workCalendarCard.is-collapsed .rudi-collapse-body{grid-template-rows:1fr!important}
 #workCalendarCard.is-collapsed .rudi-collapse-body-inner{visibility:visible!important;opacity:1!important;transform:none!important}
+
+/* RUDI v4.79: private payment labels and checkboxes. */
+.work-page .work-calendar-days:has(.calendar-day-cell.has-obligations) .calendar-day-cell{
+ aspect-ratio:auto!important;min-height:64px!important
+}
+.work-page .calendar-day-cell.has-obligations{position:relative!important;overflow:hidden!important;align-content:start!important}
+.work-page .calendar-day-cell.has-obligations .calendar-date-number{align-self:start!important;padding-top:2px!important}
+.work-page .calendar-obligation-tags{
+ position:absolute!important;inset:auto 2px 2px!important;display:flex!important;
+ flex-direction:column!important;gap:2px!important;min-width:0!important;pointer-events:none!important
+}
+.work-page .calendar-obligation-tag{
+ display:block!important;overflow:hidden!important;padding:2px 3px!important;border-radius:4px!important;
+ font-size:7px!important;font-weight:800!important;line-height:1.2!important;text-align:left!important;
+ white-space:nowrap!important;text-overflow:ellipsis!important;background:#d9e8ff!important;color:#274d8a!important
+}
+.work-page .calendar-obligation-tag.tone-1{background:#f4d9f0!important;color:#88367d!important}
+.work-page .calendar-obligation-tag.tone-2{background:#fbe4c8!important;color:#94540e!important}
+.work-page .calendar-obligation-tag.tone-3{background:#d5f1e1!important;color:#216746!important}
+.work-page .calendar-obligation-tag.tone-4{background:#e5def9!important;color:#594193!important}
+.work-page .calendar-obligation-tag.is-paid{background:#e2e6e9!important;color:#69747a!important;text-decoration:line-through!important;opacity:.77!important}
+.work-page .calendar-obligation-more{font-size:8px!important;font-weight:800!important;text-align:right!important;color:var(--muted)!important}
+.work-page .calendar-selected-obligations .calendar-obligation-row{
+ display:grid!important;grid-template-columns:24px minmax(0,1fr)!important;gap:9px!important;
+ align-items:center!important;min-width:0!important;padding:3px 0!important
+}
+.work-page .calendar-obligation-complete{
+ width:24px!important;height:24px!important;border:1.5px solid var(--green)!important;
+ border-radius:8px!important;background:var(--surface)!important;color:var(--green)!important;
+ font-size:16px!important;font-weight:800!important;display:grid!important;place-items:center!important;cursor:pointer!important
+}
+.work-page .calendar-obligation-row.is-paid .calendar-obligation-complete{background:var(--green)!important;color:white!important}
+.work-page .calendar-obligation-complete:disabled{opacity:.45!important;cursor:wait!important}
+.work-page .calendar-obligation-copy{display:grid!important;gap:2px!important;min-width:0!important}
+.work-page .calendar-obligation-title{font-size:11px!important;font-weight:740!important;color:var(--text)!important;overflow-wrap:anywhere!important}
+.work-page .calendar-obligation-amount{font-size:10px!important;font-weight:680!important;color:var(--muted)!important}
+.work-page .calendar-obligation-row.is-paid .calendar-obligation-title{text-decoration:line-through!important;opacity:.55!important}
+@media(max-width:375px){.work-page .work-calendar-days{gap:4px!important}.work-page .calendar-obligation-tag{font-size:6.5px!important;padding:2px!important}}

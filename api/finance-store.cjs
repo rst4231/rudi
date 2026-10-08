@@ -618,6 +618,28 @@ async function saveFinancePlan(actor, payload = {}, options = {}) {
     return next;
   });
 }
+
+async function setFinanceObligationPaid(actor,id,month,paid,options={}){
+  const safeActor=cleanActor(actor);
+  const safeId=cleanText(id,100,{required:true});
+  const safeMonth=cleanMonth(month);
+  if(typeof paid!=='boolean')throw new Error('finance-operation-invalid');
+  return enqueueMutation(async()=>{
+    const current=await readFinanceState(options);
+    const plan=current.plans[safeActor]||cleanPlan();
+    if(!plan.obligations.some(row=>row.id===safeId&&row.active!==false))throw new Error('finance-obligation-not-found');
+    const obligations=plan.obligations.map(row=>{
+      if(row.id!==safeId)return row;
+      const months=new Set(row.paidMonths||[]);
+      if(paid)months.add(safeMonth);else months.delete(safeMonth);
+      return {...row,paidMonths:[...months].sort().slice(-48)};
+    });
+    const next=normalizeState({...current,initialized:true,version:current.version+1,
+      plans:{...current.plans,[safeActor]:{...plan,obligations,updatedAt:new Date(options.now||Date.now()).toISOString()}}});
+    await writeState(next,options);
+    return next;
+  });
+}
 async function saveWallet(actor, payload = {}, options = {}) {
   const safeActor = cleanActor(actor);
   const name = cleanText(payload.name, 48, { required: true });
@@ -1439,6 +1461,6 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, cleanCapitalHistory, cleanSharedItems, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  saveFinancePlan, setFinanceObligationPaid, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, resetMutationQueueForTests,
 };

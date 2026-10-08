@@ -12631,6 +12631,44 @@
         }
       }
 
+
+      function calendarObligationsForDay(dateKey,rows){
+        const key=String(dateKey||'');
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(key))return [];
+        const year=Number(key.slice(0,4)),month=Number(key.slice(5,7));
+        const day=Number(key.slice(8,10)),last=new Date(Date.UTC(year,month,0)).getUTCDate();
+        return (Array.isArray(rows)?rows:[])
+          .filter(r=>r&&r.active!==false&&Math.min(last,Math.max(1,Number(r.day||1)))===day)
+          .map(r=>({...r,paid:Array.isArray(r.paidMonths)&&r.paidMonths.includes(key.slice(0,7))}))
+          .sort((a,b)=>Number(a.paid)-Number(b.paid)||String(a.title||'').localeCompare(String(b.title||''),'ru'));
+      }
+      function calendarObligationTone(row){
+        let n=0;for(const code of String(row?.id||row?.title||''))n=(n*31+code.charCodeAt(0))|0;
+        return Math.abs(n%5);
+      }
+      async function setCalendarObligationPaid(obligation,month,paid,button){
+        if(button.disabled)return;
+        button.disabled=true;
+        try{
+          const result=await financeRequest('set-obligation-paid',{id:obligation.id,month,paid});
+          if(result.actor!==currentActor)throw new Error('finance-actor-mismatch');
+          const obligations=Array.isArray(result.obligations)?result.obligations:[];
+          for(const view of ['month','next-month']){
+            const cached=calendarViewCache[view];
+            if(cached&&cached.obligationActor===currentActor)cached.financeObligations=obligations;
+          }
+          financeState.plan={...financeState.plan,obligations};
+          renderFinanceObligations();
+          const active=calendarViewCache[currentWorkCalendarView];
+          if(active&&active.obligationActor===currentActor)renderWorkCalendar(active,{force:true});
+          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+        }catch(error){
+          button.disabled=false;
+          const status=document.getElementById('workCalendarStatus');
+          if(status){status.hidden=false;status.textContent='Не удалось сохранить оплату'}
+          console.warn('RUDI_CALENDAR_OBLIGATION_WARN',String(error?.message||error));
+        }
+      }
       function workCalendarRenderSignature(payload){
         try{
           return JSON.stringify({
@@ -12638,7 +12676,9 @@
             stale:Boolean(payload?.stale),
             days:Array.isArray(payload?.days)?payload.days:[],
             ticktickDays:Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[],
-            holidayDays:Array.isArray(payload?.holidayDays)?payload.holidayDays:[]
+            holidayDays:Array.isArray(payload?.holidayDays)?payload.holidayDays:[],
+            obligationActor:String(payload?.obligationActor||''),
+            financeObligations:Array.isArray(payload?.financeObligations)?payload.financeObligations:[]
           });
         }catch(_){return String(Date.now())}
       }
@@ -12663,6 +12703,7 @@
         const days=Array.isArray(payload?.days)?payload.days:[];
         const tickDays=new Map((Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[]).map(day=>[String(day?.date||''),day]));
         const holidayDays=new Map((Array.isArray(payload?.holidayDays)?payload.holidayDays:[]).map(day=>[String(day?.date||''),day]));
+        const financeObligations=payload?.obligationActor===currentActor&&Array.isArray(payload.financeObligations)?payload.financeObligations:[];
         if(!payload?.configured){
           status.hidden=false;
           status.textContent='Не подключён';
@@ -12724,6 +12765,7 @@
           const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
             .slice(0,5)
             .filter(Boolean);
+          const obligations=calendarObligationsForDay(day.date,financeObligations);
           const times=events
             .map(event=>event.allDay?'Весь день':([event.startTime,event.endTime].filter(Boolean).join('–')))
             .filter(Boolean);
@@ -12734,11 +12776,13 @@
           cell.className='calendar-day-cell '+(day.working?'working':'off')+
             (tasks.length?' has-tasks':'')+
             (holidays.length?' has-holidays':'')+
+            (obligations.length?' has-obligations':'')+
             (day.date===today?' today':'');
           const tooltip=[
             day.working?timeText:'Выходной',
             tasks.length?tasks.map(event=>event.title).filter(Boolean).join(' · '):'',
-            holidays.length?holidays.join(' · '):''
+            holidays.length?holidays.join(' · '):'',
+            obligations.length?obligations.map(row=>String(row.title||'Платёж')+(row.paid?' ✓':'')).join(' · '):''
           ].filter(Boolean).join(' · ');
           cell.title=tooltip;
           cell.setAttribute(
@@ -12746,7 +12790,8 @@
             (day.working?'Работа ':'Выходной ')+
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
             (tasks.length?', дел: '+tasks.length:'')+
-            (holidays.length?', праздников: '+holidays.length:'')
+            (holidays.length?', праздников: '+holidays.length:'')+
+            (obligations.length?', платежей: '+obligations.length:'')
           );
 
           if(!isMonth){
@@ -12760,6 +12805,23 @@
           number.className='calendar-date-number';
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
+
+          if(obligations.length){
+            const tags=document.createElement('span');
+            tags.className='calendar-obligation-tags';
+            for(const obligation of obligations.slice(0,2)){
+              const tag=document.createElement('span');
+              tag.className='calendar-obligation-tag tone-'+calendarObligationTone(obligation)+(obligation.paid?' is-paid':'');
+              tag.textContent=String(obligation.title||'Платёж');
+              tag.setAttribute('aria-hidden','true');
+              tags.appendChild(tag);
+            }
+            if(obligations.length>2){
+              const more=document.createElement('span');more.className='calendar-obligation-more';
+              more.textContent='+'+(obligations.length-2);tags.appendChild(more);
+            }
+            cell.appendChild(tags);
+          }
 
           if(tasks.length||holidays.length){
             const indicators=document.createElement('span');
@@ -12864,6 +12926,35 @@
               details.appendChild(group);
             }
 
+            if(obligations.length){
+              const group=document.createElement('div');
+              group.className='calendar-selected-group calendar-selected-obligations';
+              const groupTitle=document.createElement('b');
+              groupTitle.textContent='Обязательные расходы';
+              group.appendChild(groupTitle);
+              for(const obligation of obligations){
+                const row=document.createElement('div');
+                row.className='calendar-selected-row calendar-obligation-row'+(obligation.paid?' is-paid':'');
+                const complete=document.createElement('button');complete.type='button';
+                complete.className='calendar-obligation-complete';
+                complete.setAttribute('role','checkbox');
+                complete.setAttribute('aria-checked',obligation.paid?'true':'false');
+                complete.setAttribute('aria-label',(obligation.paid?'Снять оплату: ':'Отметить оплату: ')+String(obligation.title||'Платёж'));
+                complete.textContent=obligation.paid?'✓':'';
+                complete.addEventListener('click',event=>{
+                  event.stopPropagation();
+                  setCalendarObligationPaid(obligation,String(day.date).slice(0,7),!obligation.paid,complete);
+                });
+                const copy=document.createElement('span');copy.className='calendar-obligation-copy';
+                const label=document.createElement('span');label.className='calendar-obligation-title';
+                label.textContent=String(obligation.title||'Платёж');
+                const amount=document.createElement('small');amount.className='calendar-obligation-amount';
+                amount.textContent=financeOverviewMoney(obligation.amount)+(obligation.paid?' · Оплачено':' · К оплате');
+                copy.append(label,amount);row.append(complete,copy);group.appendChild(row);
+              }
+              details.appendChild(group);
+            }
+
             if(holidays.length){
               const group=document.createElement('span');
               group.className='calendar-selected-group calendar-selected-holidays';
@@ -12933,13 +13024,14 @@
       async function fetchCombinedCalendar(view){
         const requested=['month','next-month'].includes(view)?view:'month';
         const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested};
-        const [workResult,tickResult,holidayResult]=await Promise.allSettled([
+        const [workResult,tickResult,holidayResult,obligationResult]=await Promise.allSettled([
           fetchCalendarJson('work-calendar:'+requested,'/api/work-calendar',base,5000),
           fetchCalendarJson('ticktick-calendar:'+requested,'/api/ticktick/calendar',base,3000),
           fetchCalendarJson('holiday-calendar:'+requested,'/api/partner-message?rudiAction=holiday-calendar',{
             initData:telegramInitData(),
             view:requested
-          },60000)
+          },60000),
+          financeRequest('calendar-obligations')
         ]);
         if(workResult.status!=='fulfilled') throw workResult.reason;
         const work=workResult.value;
@@ -12952,7 +13044,9 @@
           holidayDays:Array.isArray(holidays?.days)?holidays.days:[],
           ticktickConnected:tick?.connected!==false,
           ticktickWritable:tick?.writable!==false,
-          holidaysReady:holidayResult.status==='fulfilled'
+          holidaysReady:holidayResult.status==='fulfilled',
+          obligationActor:obligationResult.status==='fulfilled'?String(obligationResult.value?.actor||''):'',
+          financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
         };
       }
 
@@ -12975,7 +13069,11 @@
         currentWorkCalendarView=requested;
         setWorkCalendarRangeActive(requested);
         const status=document.getElementById('workCalendarStatus');
-        if(calendarViewCache[requested]) renderWorkCalendar(calendarViewCache[requested]);
+        if(calendarViewCache[requested]){
+          const cached=calendarViewCache[requested];
+          if(cached.obligationActor&&cached.obligationActor!==currentActor)calendarViewCache[requested]=null;
+          else renderWorkCalendar(cached);
+        }
         if(!silent){
           status.hidden=false;
           status.textContent=calendarViewCache[requested]?'Обновляю':'Загружаю';
