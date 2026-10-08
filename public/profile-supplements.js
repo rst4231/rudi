@@ -410,10 +410,39 @@ function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=prof
 function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
 function todaySupplementProgress(){const today=habitDateKey(new Date()),active=activeSupplementItems();const taken=active.filter(item=>supplementIntakesOn(item,today)>0).length;return{taken,total:active.length}}
 function todaySupplementCount(){return todaySupplementProgress().taken}
+const SUPPLEMENT_OUTLINE_LENGTH=168+52*Math.PI;
+const SUPPLEMENT_OUTLINE_PATH='M50 3 H71 C85.36 3 97 14.64 97 29 V71 C97 85.36 85.36 97 71 97 H29 C14.64 97 3 85.36 3 71 V29 C3 14.64 14.64 3 29 3 H50';
+function renderSupplementProfileOutline(progress){
+  const button=document.getElementById('supplementProfileButton');
+  if(!button)return;
+  const percent=progress.total?Math.max(0,Math.min(100,Math.round(progress.taken/progress.total*100))):0;
+  button.dataset.supplementProgress=String(percent);
+  button.setAttribute('aria-label','Открыть БАДы и витамины · '+progress.taken+' из '+progress.total+' принято');
+  let svg=button.querySelector('.rudi-supplement-progress-outline');
+  if(!svg){
+    const ns='http://www.w3.org/2000/svg';
+    svg=document.createElementNS(ns,'svg');
+    svg.classList.add('rudi-supplement-progress-outline');
+    svg.setAttribute('viewBox','0 0 100 100');
+    svg.setAttribute('aria-hidden','true');
+    svg.setAttribute('focusable','false');
+    for(const className of ['rudi-supplement-progress-track','rudi-supplement-progress-value']){
+      const path=document.createElementNS(ns,'path');
+      path.classList.add(className);
+      path.setAttribute('d',SUPPLEMENT_OUTLINE_PATH);
+      path.setAttribute('fill','none');
+      svg.appendChild(path);
+    }
+    button.appendChild(svg);
+  }
+  svg.hidden=progress.total===0;
+  const value=svg.querySelector('.rudi-supplement-progress-value');
+  if(value)value.style.strokeDasharray=(SUPPLEMENT_OUTLINE_LENGTH*percent/100)+' '+SUPPLEMENT_OUTLINE_LENGTH;
+}
 function renderSupplementSummary(){
-  if(!supplementSummaryNode)return;
   const progress=todaySupplementProgress(),percent=progress.total?Math.round(progress.taken/progress.total*100):0;
-  supplementSummaryNode.textContent='Сегодня принято: '+progress.taken+' из '+progress.total;
+  renderSupplementProfileOutline(progress);
+  if(supplementSummaryNode)supplementSummaryNode.textContent='Сегодня принято: '+progress.taken+' из '+progress.total;
   if(supplementProgressFill)supplementProgressFill.style.width=percent+'%';
   if(supplementPercentNode)supplementPercentNode.textContent=percent+'%';
   updateReminderBadges();

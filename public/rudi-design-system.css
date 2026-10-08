@@ -220,3 +220,41 @@ body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > :is(#fasti
 @media(prefers-reduced-motion:reduce){
  body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > :is(#fastingProfileButton,#habitProfileButton,#financeProfileButton,#supplementProfileButton)::after{animation:none}
 }
+/* RUDI v4.82: real supplement completion follows the rounded emoji button border. */
+body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > #supplementProfileButton{
+ border-color:rgba(246,190,81,.30)!important;
+ box-shadow:none!important;
+ isolation:isolate;
+}
+body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > #supplementProfileButton::after{
+ content:none!important;
+ display:none!important;
+}
+#supplementProfileButton .rudi-supplement-progress-outline{
+ position:absolute!important;
+ inset:0!important;
+ width:100%!important;
+ height:100%!important;
+ max-width:none!important;
+ display:block;
+ overflow:visible;
+ z-index:3;
+ pointer-events:none!important;
+}
+#supplementProfileButton .rudi-supplement-progress-outline[hidden]{display:none!important}
+#supplementProfileButton .rudi-supplement-progress-outline path{
+ fill:none!important;
+ stroke-width:7;
+ stroke-linecap:round;
+ stroke-linejoin:round;
+}
+#supplementProfileButton .rudi-supplement-progress-track{stroke:rgba(245,197,104,.18)}
+#supplementProfileButton .rudi-supplement-progress-value{
+ stroke:#ffca65;
+ stroke-dashoffset:0;
+ transition:stroke-dasharray 400ms ease;
+}
+html[data-theme="light"] #supplementProfileButton .rudi-supplement-progress-value{stroke:#c8861d}
+@media(prefers-reduced-motion:reduce){
+ #supplementProfileButton .rudi-supplement-progress-value{transition:none}
+}
