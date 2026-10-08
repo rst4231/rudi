@@ -24,11 +24,11 @@ test('iOS border stroke stays in bounds and does not swallow taps',()=>{
 });
 test('PWA version invalidates stale asset cache on iPhone',()=>{
  const h=read('public/index.html'),sw=read('public/sw.js');
- assert.match(h,/name="rudi-version" content="v4\.82"/);
- assert.match(h,/profile-supplements\.js\?v=4\.82/);
- assert.match(h,/rudi-design-system\.css\?v=4\.82/);
- assert.match(sw,/rudi-shell-v4\.82/);
- assert.match(sw,/rudi-design-system\.css\?v=4\.82/);
- assert.equal(read('VERSION').trim(),'v4.82');
- assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.82');
+ assert.match(h,/name="rudi-version" content="v4\.83"/);
+ assert.match(h,/profile-supplements\.js\?v=4\.83/);
+ assert.match(h,/rudi-design-system\.css\?v=4\.83/);
+ assert.match(sw,/rudi-shell-v4\.83/);
+ assert.match(sw,/rudi-design-system\.css\?v=4\.83/);
+ assert.equal(read('VERSION').trim(),'v4.83');
+ assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.83');
 });

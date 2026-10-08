@@ -8,7 +8,7 @@ test('design stylesheet loaded after older styles, before JavaScript',()=>{
  const h=read('public/index.html');
  assert.ok(h.indexOf('/rudi-design-system.css?v=4.78')>h.indexOf('/supplement-advanced.css'));
  assert.ok(h.indexOf('/rudi-design-system.css?v=4.78')<h.indexOf('<script defer src="/app.js'));
- assert.match(h,/<meta name="rudi-version" content="v4.78">/);
+ assert.match(h,/<meta name="rudi-version" content="v4.83">/);
 });
 test('build includes versioned design stylesheet',()=>{
  const b=read('build.cjs'),sw=read('public/sw.js');
@@ -23,8 +23,8 @@ test('visual scope covers cards, icons, charts, iOS forms and reduced motion',()
  '.finance-goal-progress','prefers-reduced-motion','safe-area-inset','focus-visible']) assert.ok(s.includes(token),token);
 });
 test('version metadata and VERSION agree',()=>{
- assert.equal(read('VERSION').trim(),'v4.78');
- assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.78');
+ assert.equal(read('VERSION').trim(),'v4.83');
+ assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.83');
 });
 
 test('expense keypad sheet retains its v4.77 layout',()=>{
