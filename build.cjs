@@ -14,6 +14,20 @@ const versionConfigPath = path.join(__dirname, 'rudi-version.json');
 const webIndexPath = path.join(__dirname, 'public', 'index.html');
 const webServiceWorkerPath = path.join(__dirname, 'public', 'sw.js');
 
+// Atomic replacement prevents concurrent readers from seeing temporarily empty HTML.
+function writeBuiltFile(filePath, content) {
+  const next = Buffer.isBuffer(content) ? content : Buffer.from(String(content));
+  if (fs.existsSync(filePath) && fs.readFileSync(filePath).equals(next)) return false;
+  const tempPath = filePath + '.tmp-' + process.pid + '-' + require('node:crypto').randomBytes(5).toString('hex');
+  try {
+    fs.writeFileSync(tempPath, next);
+    fs.renameSync(tempPath, filePath);
+  } finally {
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+  }
+  return true;
+}
+
 function assertProductionGitDeployment(env = process.env) {
   const isVercelProduction = env?.VERCEL === '1' && (env?.VERCEL_TARGET_ENV || env?.VERCEL_ENV) === 'production';
   if (!isVercelProduction) return true;
@@ -131,11 +145,11 @@ function syncWebVersion(env = process.env) {
     /(<meta name="rudi-version" content=")[^"]*(")/,
     '$1' + label + '$2'
   );
-  fs.writeFileSync(webIndexPath, html);
+  writeBuiltFile(webIndexPath, html);
   if (fs.existsSync(webServiceWorkerPath)) {
     let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
     serviceWorker = serviceWorker.replace(/const CACHE_NAME='rudi-shell-v[^']+';/, "const CACHE_NAME='rudi-shell-" + label + "';");
-    fs.writeFileSync(webServiceWorkerPath, serviceWorker);
+    writeBuiltFile(webServiceWorkerPath, serviceWorker);
   }
   return label;
 }
@@ -201,7 +215,7 @@ function syncServiceWorkerPrecache(assetPaths) {
   const pattern = /const PRECACHE=\[[\s\S]*?\];/;
   if (!pattern.test(serviceWorker)) throw new Error('Missing service worker precache block');
   serviceWorker = serviceWorker.replace(pattern, 'const PRECACHE=' + JSON.stringify(precache, null, 2) + ';');
-  fs.writeFileSync(webServiceWorkerPath, serviceWorker);
+  writeBuiltFile(webServiceWorkerPath, serviceWorker);
 }
 
 function buildWebAssets(env = process.env) {

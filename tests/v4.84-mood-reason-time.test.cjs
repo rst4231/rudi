@@ -22,7 +22,7 @@ test('no valid timestamp means no invented time',()=>{
 test('release PWA uses correct version and cache',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../public/index.html'),'utf8');
  const sw=fs.readFileSync(path.join(__dirname,'../public/sw.js'),'utf8');
- assert.ok(html.includes("name=\"rudi-version\" content=\"\""+CURRENT_RELEASE));
+ assert.ok(html.includes('name="rudi-version" content="'+CURRENT_RELEASE+'"'));
  assert.ok(sw.includes("rudi-shell-"+CURRENT_RELEASE));
  assert.equal(fs.readFileSync(path.join(__dirname,'../VERSION'),'utf8').trim(),CURRENT_RELEASE);
 });
