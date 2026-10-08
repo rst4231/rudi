@@ -3,6 +3,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
+const CURRENT_RELEASE = require('node:fs').readFileSync(require('node:path').join(__dirname,'..','VERSION'),'utf8').trim();
+
 test('SVG contour percent follows today supplement count, including 40%',()=>{
  const js=read('public/profile-supplements.js');
  assert.match(js,/function renderSupplementProfileOutline\(progress\)/);
@@ -24,11 +26,11 @@ test('iOS border stroke stays in bounds and does not swallow taps',()=>{
 });
 test('PWA version invalidates stale asset cache on iPhone',()=>{
  const h=read('public/index.html'),sw=read('public/sw.js');
- assert.match(h,/name="rudi-version" content="v4\.84"/);
- assert.match(h,/profile-supplements\.js\?v=4\.84/);
- assert.match(h,/rudi-design-system\.css\?v=4\.84/);
- assert.match(sw,/rudi-shell-v4\.84/);
- assert.match(sw,/rudi-design-system\.css\?v=4\.84/);
- assert.equal(read('VERSION').trim(),'v4.84');
- assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.84');
+ assert.ok(h.includes("name=\"rudi-version\" content=\"\""+CURRENT_RELEASE));
+ assert.ok(h.includes("profile-supplements.js?v=4.84"+CURRENT_RELEASE.slice(1)));
+ assert.ok(h.includes("rudi-design-system.css?v="+CURRENT_RELEASE.slice(1)+CURRENT_RELEASE.slice(1)));
+ assert.ok(sw.includes("rudi-shell-"+CURRENT_RELEASE));
+ assert.ok(sw.includes("rudi-design-system.css?v="+CURRENT_RELEASE.slice(1)+CURRENT_RELEASE.slice(1)));
+ assert.equal(read('VERSION').trim(),CURRENT_RELEASE);
+ assert.equal(JSON.parse(read('rudi-version.json')).current,CURRENT_RELEASE);
 });

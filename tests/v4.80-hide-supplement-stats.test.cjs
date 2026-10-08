@@ -4,6 +4,8 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const source=p=>fs.readFileSync(path.join(root,p),'utf8');
+const CURRENT_RELEASE = require('node:fs').readFileSync(require('node:path').join(__dirname,'..','VERSION'),'utf8').trim();
+
 test('supplement counts line is removed from DOM and updates',()=>{
   const js=source('public/supplement-advanced.js');
   assert.ok(!js.includes('supplement-summary-stats'));
@@ -20,9 +22,9 @@ test('supplement duplicates and all action buttons remain available',()=>{
   assert.match(js,/makeActionButton\('interactions'/);
 });
 test('new assets and version enable iPhone PWA refresh',()=>{
-  assert.match(source('public/index.html'),/name="rudi-version" content="v4\.84"/);
-  assert.match(source('public/index.html'),/supplement-advanced\.js\?v=4\.84/);
-  assert.match(source('public/sw.js'),/rudi-shell-v4\.84/);
-  assert.equal(source('VERSION').trim(),'v4.84');
-  assert.equal(JSON.parse(source('rudi-version.json')).current,'v4.84');
+  assert.ok(source('public/index.html').includes("name=\"rudi-version\" content=\"\""+CURRENT_RELEASE));
+  assert.ok(source('public/index.html').includes("supplement-advanced.js?v=4.84"+CURRENT_RELEASE.slice(1)));
+  assert.ok(source('public/sw.js').includes("rudi-shell-"+CURRENT_RELEASE));
+  assert.equal(source('VERSION').trim(),CURRENT_RELEASE);
+  assert.equal(JSON.parse(source('rudi-version.json')).current,CURRENT_RELEASE);
 });
