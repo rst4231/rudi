@@ -126,10 +126,10 @@
         nearestStatic:null,
         partnerLastExpense:null
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','priority','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+        return ['dashboard',...people,'lulu','priority','recommendations','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       }
       function homePrimaryBlocksMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -1604,6 +1604,10 @@
           if(!valid.includes('habits')) valid.splice(insertAt,0,'habits');
           const habitsIndex=valid.indexOf('habits');
           if(!valid.includes('supplements')) valid.splice(habitsIndex+1,0,'supplements');
+        }
+        if(!valid.includes('recommendations')){
+          const afterPriority=valid.indexOf('priority');
+          valid.splice(afterPriority>=0?afterPriority+1:valid.length,0,'recommendations');
         }
         for(const id of defaults) if(!valid.includes(id)) valid.push(id);
         return valid;
