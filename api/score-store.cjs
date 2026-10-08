@@ -25,7 +25,7 @@ const REWARDS = Object.freeze([
   { id:'breakfast', label:'Завтрак в постель', description:'Партнёр готовит и приносит завтрак в постель.', icon:'🥐', costUnits:300 },
   { id:'small-surprise', label:'Маленький сюрприз', description:'Партнёр придумывает для тебя небольшой сюрприз.', icon:'🎁', costUnits:350 },
   { id:'massage', label:'Массаж', description:'Домашний массаж от партнёра на 20–30 минут.', icon:'💆', costUnits:400 },
-  { id:'home-date', label:'Домашнее свидание', description:'Партнёр организует уютное свидание дома.', icon:'🕯️', costUnits:500 },
+  { id:'home-date', label:'Telegram Premium на месяц', description:'Партнёр дарит подписку Telegram Premium на 1 месяц.', icon:'⭐', costUnits:500 },
   { id:'favorite-dish', label:'Любимое блюдо от партнёра', description:'Партнёр сам готовит для тебя выбранное тобой блюдо.', icon:'🍳', costUnits:700 },
   { id:'your-evening', label:'Вечер по твоим правилам', description:'Ты выбираешь, как провести вечер: фильм, игра, прогулка, еда или другое совместное занятие.', icon:'✨', costUnits:850 },
   { id:'day-off', label:'День без домашних обязанностей', description:'Партнёр берёт домашние дела на себя на один день.', icon:'🛋️', costUnits:900 },
