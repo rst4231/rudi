@@ -21,7 +21,7 @@ test('built assets keep stable public paths with the current release version',()
   try{
     for(const file of ['build.cjs','runtime','config','rudi-version.json','public']) fs.cpSync(file,path.join(dir,file),{recursive:true});
     const build=()=>{
-      const result=spawnSync(process.execPath,['build.cjs'],{cwd:dir,encoding:'utf8'});
+      const result=spawnSync(process.execPath,['build.cjs'],{cwd:dir,encoding:'utf8',env:{...process.env,NODE_PATH:path.join(process.cwd(),'node_modules')}});
       assert.equal(result.status,0,result.stderr);
       return fs.readFileSync(path.join(dir,'public/index.html'),'utf8');
     };

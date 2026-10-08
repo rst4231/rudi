@@ -39,14 +39,14 @@ test('car page uses an in-app confirmation modal above Telegram chrome',()=>{
   assert.match(css,/var\(--tg-content-safe-area-inset-bottom/);
 });
 
-test('habit tracker shows a two-sentence yesterday quote with theme-aware text',()=>{
+test('habit tracker shows a compact yesterday progress summary with theme-aware text',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   const js=fs.readFileSync('public/profile-supplements.js','utf8');
   const css=fs.readFileSync('public/profile-supplements.css','utf8');
   assert.match(html,/id="habitYesterdayQuote"/);
   assert.match(js,/function renderHabitYesterdayQuote\(\)/);
-  assert.match(js,/Вчера выполнено/);
-  assert.match(js,/не выполнено/);
+  assert.match(js,/habitYesterdayQuote\.textContent='Вчера '/);
+  assert.match(js,/actor==='Диана'\?'выполнила':'выполнил'/);
   assert.match(css,/html\[data-theme="light"\] \.personal-habits-yesterday-quote\{[\s\S]*?color:#111418!important/);
   assert.match(css,/html\[data-theme="dark"\] \.personal-habits-yesterday-quote\{[\s\S]*?color:#fff!important/);
 });
@@ -121,7 +121,7 @@ test('poster proxy retries once and returns gateway statuses for upstream failur
   }
 });
 
-test('retired Telegram chat is cached after chat not found and not retried',async()=>{
+test('retired Telegram topic cannot trigger stale-group deletion calls',async()=>{
   const map=new Map();
   const cache={
     async get(key){return map.get(key)},
@@ -139,5 +139,5 @@ test('retired Telegram chat is cached after chat not found and not retried',asyn
   const url='https://api.telegram.org/bot1:testtoken/sendMessage';
   assert.equal((await handleTelegramTopicRequest(url,request,{cache,fetchImpl})).status,200);
   assert.equal((await handleTelegramTopicRequest(url,request,{cache,fetchImpl})).status,200);
-  assert.equal(calls,1);
+  assert.equal(calls,0);
 });
