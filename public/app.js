@@ -6497,6 +6497,7 @@
         const status=dianaRhythmStatus(now,model);
         node.textContent=status;
         node.hidden=!status;
+        renderProfileEnergy('Диана',now);
         const recommendation=dianaRhythmRecommendation(now,model);
         node.title=recommendation?'Лучше сейчас: '+recommendation:'';
         const advice=document.getElementById('dianaRhythmAdvice');
@@ -6560,12 +6561,112 @@
         }[String(status||'')]||'';
       }
 
+
+      /* RUDI v4.104: illustrative daily energy curve based on existing rhythm statuses. */
+      const PROFILE_ENERGY_VALUES=Object.freeze({
+        'Сон':9,'Старт':25,'Разгон':52,'Пик':91,'Пауза':39,'Темп':69,
+        'Спад':37,'Движ':76,'Выдох':34,'Чилл':21,'Тише':13
+      });
+      const profileEnergyCache=new Map();
+      function profileEnergyScore(status){
+        const label=String(status||'Сон').split(' · ')[0];
+        let value=PROFILE_ENERGY_VALUES[label]??35;
+        if(String(status).includes(' · бережно')&&['Разгон','Пик','Темп','Движ'].includes(label))value-=17;
+        else if(String(status).includes(' · мягче')&&['Разгон','Пик','Темп','Движ'].includes(label))value-=9;
+        return Math.max(6,Math.min(96,value));
+      }
+      function profileEnergyColor(value){
+        const score=Number(value)||0;
+        return score>=78?'#f6cb70':score>=47?'#55d8a6':'#8996ce';
+      }
+      function profileEnergyCurve(actor,now=new Date(),cycleModel=dianaRhythmCycleModel){
+        const parts=getMoscowParts(now);
+        const day=[parts.year,parts.month,parts.day].join('-');
+        const adjustment=actor==='Диана'?dianaRhythmCycleAdjustment(cycleModel):'normal';
+        const key=day+':'+adjustment;
+        const cached=profileEnergyCache.get(actor);
+        if(cached?.key===key)return cached;
+        // Europe/Moscow uses UTC+3; generate date objects for the same Moscow day.
+        const dayStart=Date.UTC(parts.year,parts.month-1,parts.day,-3,0);
+        const raw=Array.from({length:97},(_,index)=>{
+          const at=new Date(dayStart+index*15*60000);
+          const status=actor==='Диана'?dianaRhythmStatus(at,cycleModel):rustamRhythmStatus(at);
+          return profileEnergyScore(status);
+        });
+        // Weighted moving average softens discrete transitions without changing their timing.
+        const scores=raw.map((_,index)=>{
+          const weights=[1,2,3,2,1];
+          let sum=0,total=0;
+          for(let shift=-2;shift<=2;shift++){
+            const target=Math.max(0,Math.min(raw.length-1,index+shift));
+            sum+=raw[target]*weights[shift+2];
+            total+=weights[shift+2];
+          }
+          return sum/total;
+        });
+        const points=scores.map((score,index)=>({
+          x:Number((index*640/96).toFixed(2)),
+          y:Number((35-score*.255).toFixed(2)),
+          score
+        }));
+        let path='M '+points[0].x+' '+points[0].y;
+        for(let index=1;index<points.length-1;index++){
+          const at=points[index],next=points[index+1];
+          path+=' Q '+at.x+' '+at.y+' '+((at.x+next.x)/2).toFixed(2)+' '+((at.y+next.y)/2).toFixed(2);
+        }
+        const last=points[points.length-1];
+        path+=' L '+last.x+' '+last.y;
+        const stops=Array.from({length:25},(_,index)=>{
+          const sampled=scores[index*4];
+          return '<stop offset="'+(index*100/24).toFixed(3)+'%" stop-color="'+profileEnergyColor(sampled)+'"/>';
+        }).join('');
+        const model={key,points,path,stops};
+        profileEnergyCache.set(actor,model);
+        return model;
+      }
+      function renderProfileEnergy(actor,now=new Date()){
+        const card=document.getElementById(actor==='Диана'?'homeDianaTile':'homeRustamTile');
+        const strip=card?.querySelector('.profile-energy-strip');
+        if(!strip)return;
+        const model=profileEnergyCurve(actor,now,dianaRhythmCycleModel);
+        const svg=strip.querySelector('.profile-energy-svg');
+        if(svg&&strip.dataset.energyCurveKey!==model.key){
+          const id=actor==='Диана'?'rudi-energy-diana':'rudi-energy-rustam';
+          svg.innerHTML='<defs><linearGradient id="'+id+'" x1="0" y1="0" x2="1" y2="0">'+model.stops+'</linearGradient></defs>'+
+            '<path class="profile-energy-base" d="'+model.path+'"/>'+
+            '<path class="profile-energy-glow" d="'+model.path+'" stroke="url(#'+id+')"/>'+
+            '<path class="profile-energy-path" d="'+model.path+'" stroke="url(#'+id+')"/>';
+          strip.dataset.energyCurveKey=model.key;
+        }
+        const parts=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'})
+          .formatToParts(now);
+        const clock=Object.fromEntries(parts.filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+        const minutes=Math.min(1440,Math.max(0,(clock.hour||0)*60+(clock.minute||0)));
+        const position=minutes/15;
+        const index=Math.floor(position);
+        const a=model.points[Math.min(96,index)],b=model.points[Math.min(96,index+1)];
+        const fraction=position-index;
+        const y=a.y+(b.y-a.y)*fraction;
+        const score=a.score+(b.score-a.score)*fraction;
+        const marker=strip.querySelector('.profile-energy-now');
+        if(marker){
+          marker.style.left=(minutes/1440*100)+'%';
+          marker.style.top=(y/40*100)+'%';
+          marker.style.setProperty('--profile-energy-current',profileEnergyColor(score));
+        }
+        const phase=actor==='Диана'?dianaRhythmStatus(now,dianaRhythmCycleModel):rustamRhythmStatus(now);
+        const label=strip.querySelector('.profile-energy-phase');
+        if(label)label.textContent=phase;
+        strip.setAttribute('aria-label',actor+': ориентировочная энергия по распорядку на сутки. Сейчас: '+phase);
+      }
+
       function syncRustamRhythmStatus(now=new Date()){
         const node=document.getElementById('rustamRhythmStatus');
         if(!node) return;
         const text=rustamRhythmStatus(now);
         node.textContent=text;
         node.hidden=!text;
+        renderProfileEnergy('Рустам',now);
         const advice=document.getElementById('rustamRhythmAdvice');
         const recommendation=rustamRhythmRecommendation(text);
         if(advice){
@@ -9120,7 +9221,19 @@
             actions.append(partnerFastingButton,makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
             head.appendChild(actions);
           }
-          tile.appendChild(head);
+          const energy=document.createElement('div');
+          energy.className='profile-energy-strip';
+          energy.dataset.energyActor=actor;
+          energy.setAttribute('role','img');
+          energy.setAttribute('aria-label',actor+': ориентировочная энергия по распорядку');
+          energy.innerHTML=
+            '<div class="profile-energy-label"><span>⚡ Энергия</span><span class="profile-energy-phase"></span></div>'+
+            '<div class="profile-energy-plot">'+
+              '<svg class="profile-energy-svg" viewBox="0 0 640 40" preserveAspectRatio="none" aria-hidden="true"></svg>'+
+              '<span class="profile-energy-now" aria-hidden="true"></span>'+
+            '</div>'+
+            '<div class="profile-energy-times" aria-hidden="true"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>';
+          tile.append(energy,head);
 
           const details=document.createElement('div');
           details.id=actor==='Диана'?'homeDianaDetails':'homeRustamDetails';

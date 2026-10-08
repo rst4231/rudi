@@ -17713,3 +17713,77 @@ html[data-theme="light"] .profile-person-card #partnerFastingProfileButton .fast
 @media(max-width:430px){
   .profile-person-card #partnerFastingProfileButton .fasting-profile-elapsed{top:calc(100% + 3px);font-size:9px}
 }
+
+/* RUDI v4.104: compact, per-person daily energy timeline. */
+.profile-person-card .profile-energy-strip{
+  display:grid!important;
+  grid-template-columns:73px minmax(0,1fr)!important;
+  grid-template-rows:27px 12px!important;
+  column-gap:9px!important;
+  row-gap:0!important;
+  width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+  margin:0!important;
+  padding:0 2px!important;
+  overflow:visible!important;
+}
+.profile-person-card .profile-energy-label{
+  grid-row:1/3;grid-column:1;align-self:start;
+  display:grid;gap:3px;min-width:0;padding-top:3px;
+  font-size:10px;line-height:1.15;font-weight:790;
+  color:rgba(234,239,252,.88);
+}
+.profile-person-card .profile-energy-phase{
+  display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:8px;line-height:1.15;font-weight:710;
+  color:rgba(219,227,245,.54);
+}
+.profile-person-card .profile-energy-plot{
+  position:relative;grid-row:1;grid-column:2;
+  width:100%;height:27px;min-width:0;
+}
+.profile-person-card .profile-energy-svg{
+  position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible;
+}
+.profile-person-card .profile-energy-svg .profile-energy-base{
+  fill:none;stroke:rgba(181,194,220,.19);stroke-width:2;vector-effect:non-scaling-stroke;
+}
+.profile-person-card .profile-energy-svg .profile-energy-glow{
+  fill:none;stroke-width:7;stroke-linecap:round;opacity:.16;vector-effect:non-scaling-stroke;
+}
+.profile-person-card .profile-energy-svg .profile-energy-path{
+  fill:none;stroke-width:2.6;stroke-linecap:round;vector-effect:non-scaling-stroke;
+}
+.profile-person-card .profile-energy-now{
+  position:absolute;z-index:2;width:9px;height:9px;box-sizing:border-box;
+  border:2px solid #fff;border-radius:50%;
+  background:var(--profile-energy-current,#55d8a6);
+  box-shadow:0 0 0 2px rgba(255,255,255,.09),0 0 12px var(--profile-energy-current,#55d8a6);
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.profile-person-card .profile-energy-times{
+  grid-row:2;grid-column:2;
+  display:flex;justify-content:space-between;gap:0;
+  width:100%;font-size:7.3px;line-height:1.1;font-weight:700;
+  color:rgba(225,232,247,.47);
+  font-variant-numeric:tabular-nums;
+}
+.profile-person-card .profile-energy-times span{white-space:nowrap}
+.profile-person-card .profile-person-head{margin-top:11px}
+@media(max-width:430px){
+  .profile-person-card .profile-energy-strip{grid-template-columns:61px minmax(0,1fr)!important;column-gap:7px!important}
+  .profile-person-card .profile-energy-label{font-size:9px}
+  .profile-person-card .profile-energy-phase{font-size:7.5px}
+  .profile-person-card .profile-energy-times{font-size:6.6px}
+  .profile-person-card .profile-person-head{margin-top:10px}
+}
+@media(max-width:350px){
+  .profile-person-card .profile-energy-strip{grid-template-columns:51px minmax(0,1fr)!important;column-gap:6px!important}
+  .profile-person-card .profile-energy-label{font-size:8px}
+  .profile-person-card .profile-energy-times{font-size:6px}
+}
+@media(prefers-reduced-motion:reduce){
+  .profile-person-card .profile-energy-now{transition:none!important}
+}
