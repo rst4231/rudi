@@ -410,7 +410,7 @@ body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
 /* RUDI v4.103 — partner fasting progress outline matches own tracker. */
 #partnerFastingProfileButton .rudi-fasting-progress-outline{
  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
- max-width:none!important;display:block;overflow:visible;z-index:3;pointer-events:none!important
+ max-width:none!important;display:block;overflow:visible;z-index:3;pointer-events:none
 }
 #partnerFastingProfileButton .rudi-fasting-progress-outline[hidden]{display:none!important}
 #partnerFastingProfileButton .rudi-fasting-progress-outline path{
