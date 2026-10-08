@@ -1,5 +1,6 @@
 .rudi-recommendations{padding:16px 16px 6px;min-width:0}
 .rudi-recommendations[hidden]{display:none!important}
+.rudi-recommendations[data-home-empty="1"]{display:none!important}
 .rudi-recommendations-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .rudi-recommendations-head h2{margin:0;font-size:17px;font-weight:750;letter-spacing:-.025em}
 .rudi-recommendations-head small{font-size:12px;opacity:.62;margin-left:auto}

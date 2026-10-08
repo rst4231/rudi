@@ -313,7 +313,7 @@ test('remote saved home layout seeds a device that has no local order',async({pa
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#smartHomeTile')).toBeAttached();
   const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(order.slice(0,4)).toEqual(['smart-home','dashboard','priority','partner']);
+  expect(order.slice(0,5)).toEqual(['smart-home','dashboard','priority','recommendations','partner']);
   expect(order).toContain('daily-question');
   await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
 });
