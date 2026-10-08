@@ -28,9 +28,13 @@ test('zero expected income is explicit, not a missing value',()=>{
   const f=forecast({...base,plan:{...base.plan,expectedMonthlyIncome:0,plannedMonthlyVariableExpenses:5000}},now,30);
   assert.equal(f.estimated,true);assert.equal(f.estimatedIncome,0);
 });
-test('credit and foreign currencies are not added to ruble balance',()=>{
-  const f=forecast({...base,wallets:[...base.wallets,{currency:'USD',balance:5000},{type:'credit',currency:'RUB',balance:200000}]},now,30);
-  assert.equal(f.opening,30304);assert.deepEqual(f.otherCurrencies,['USD']);
+test('credit balance is excluded, USD wallet uses the ticker rate',()=>{
+  const wallets=[...base.wallets,{currency:'USD',balance:5000},{type:'credit',currency:'RUB',balance:200000}];
+  const withoutRate=forecast({...base,wallets},now,30);
+  assert.equal(withoutRate.opening,null);
+  const withRate=forecast({...base,wallets},now,30,{rates:{RUB:1,USD:80}});
+  assert.equal(withRate.opening,430304);
+  assert.deepEqual(withRate.otherCurrencies,['USD']);
 });
 test('salary received today is not counted again in existing account balance',()=>{
   const f=forecast({...base,plan:{...base.plan,expectedMonthlyIncome:80000,expectedIncomeDay:8,plannedMonthlyVariableExpenses:10000}},now,7);

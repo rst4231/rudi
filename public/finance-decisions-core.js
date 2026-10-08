@@ -54,10 +54,18 @@
 
   // Forecast values are optional until both income and variable spending are known.
   // A mandatory-payment shortfall is NOT a prediction of future account balances.
-  function forecast(state,now,h){
+  function forecast(state,now,h,options={}){
     const accounts=rows(state.wallets).filter(w=>!w.archived&&w.type!=='credit');
-    const rub=accounts.filter(w=>w.currency==='RUB'),other=accounts.filter(w=>w.currency!=='RUB');
-    const opening=rub.length?money(rub.reduce((s,w)=>s+num(w.balance),0)):null;
+    const rates=options?.rates||{};
+    const other=accounts.filter(w=>String(w.currency||'RUB').toUpperCase()!=='RUB');
+    const missingCurrencies=[...new Set(accounts.filter(w=>{
+      const currency=String(w.currency||'RUB').toUpperCase();
+      return currency!=='RUB'&&Math.abs(num(w.balance))>=0.00000001&&(!Number.isFinite(Number(rates[currency]))||Number(rates[currency])<=0);
+    }).map(w=>String(w.currency||'RUB').toUpperCase()))];
+    const opening=accounts.length===0||missingCurrencies.length?null:money(accounts.reduce((s,w)=>{
+      const code=String(w.currency||'RUB').toUpperCase();
+      return s+num(w.balance)*(code==='RUB'?1:Number(rates[code]));
+    },0));
     const plan=state.plan||{},history=monthHistory(state,now),obligations=rows(plan.obligations);
     const scheduled=obligationsFor(state,now,h),scheduledTotal=money(scheduled.reduce((s,x)=>s+x.amount,0));
     const knownShortfall=opening===null?null:money(Math.max(0,scheduledTotal-opening));
@@ -86,12 +94,13 @@
       }
     }
     const missing=[];
-    if(opening===null)missing.push('рублёвый баланс');
+    if(missingCurrencies.length)missing.push('курс '+missingCurrencies.join(', '));
+    else if(opening===null)missing.push('баланс кошельков');
     if(!manualIncome)missing.push('ожидаемый доход');
     else if(monthlyIncome>0&&!daySet)missing.push('день поступления дохода');
     if(dailyVariable===null)missing.push('повседневные расходы');
     const estimated=missing.length===0;
-    return {days:h,opening,otherCurrencies:[...new Set(other.map(w=>String(w.currency)))],
+    return {days:h,opening,otherCurrencies:[...new Set(other.map(w=>String(w.currency)))],missingCurrencies,
       dailyVariable:dailyVariable===null?null:money(dailyVariable),estimatedIncome:income,
       estimatedVariableSpend:outgo,scheduled,scheduledTotal,
       knownShortfall,availableAfterBills,predicted:estimated?money(opening+income-outgo-scheduledTotal):null,
@@ -141,13 +150,13 @@
     }
     return alerts.sort((a,b)=>b.priority-a.priority||b.amount-a.amount).slice(0,9);
   }
-  function goal(state,now){
+  function goal(state,now,options={}){
     const p=state.plan||{},target=Math.max(0,num(p.goalTarget)),current=Math.max(0,num(p.goalCurrent)),left=Math.max(0,target-current);
     const monthly=Math.max(0,num(p.goalMonthlyContribution)),deadline=/^\d{4}-\d{2}-\d{2}$/.test(p.goalDeadline||'')?p.goalDeadline:null;
     let monthsUntil=null,needed=null;
     if(deadline){const end=new Date(deadline+'T12:00:00'),valid=!Number.isNaN(end.getTime());if(valid){monthsUntil=Math.max(0,(end.getFullYear()-now.getFullYear())*12+(end.getMonth()-now.getMonth())+(end.getDate()-now.getDate())/30.44);needed=left===0?0:monthsUntil>0?money(left/monthsUntil):null}}
     const timeMonths=left===0?0:monthly>0?Math.ceil(left/monthly):null;
-    const resultForecast=forecast(state,now,30);
+    const resultForecast=forecast(state,now,30,options);
     const freeNow=resultForecast.opening===null?null:money(resultForecast.opening-Math.max(0,num(p.reserve)));
     const safe=freeNow===null?null:monthly<=Math.max(0,freeNow);
     const historical=monthHistory(state,now),historicSpend=historical.expenses.reduce((s,x)=>s+amount(x),0);
@@ -168,12 +177,16 @@
     if(out.length===0)out.push({title:'Накопи историю операций',detail:'Сохраняй доходы, расходы и обязательные платежи: рекомендации станут точнее, когда появятся данные за завершённые месяцы.',possibleSaving:null});
     return out.slice(0,5);
   }
-  function simulate(mode,p={},state={},now=new Date()){
-    const g=goal(state,now),cash=forecast(state,now,30).opening,reserve=Math.max(0,num(state.plan?.reserve));
+  function simulate(mode,p={},state={},now=new Date(),options={}){
+    const g=goal(state,now,options),cash=forecast(state,now,30,options).opening,reserve=Math.max(0,num(state.plan?.reserve));
     if(mode==='purchase'){
       const cost=Math.max(0,num(p.cost));
       return {main:cash===null?null:money(cash-cost),secondary:cash===null?null:money(cash-cost-reserve),
-        explanation:cash===null?'Нет рублёвых кошельков: укажи баланс, чтобы оценить остаток.':'Остаток после покупки и после сохранения неприкосновенного резерва.',warning:cash!==null&&cash-cost<reserve?'Покупка затронет резерв.':''};
+        cash,cost,reserve,shortfall:cash===null?null:money(Math.max(0,cost-cash)),
+        remains:cash===null?null:money(Math.max(0,cash-cost)),
+        freeAboveReserve:cash===null?null:money(Math.max(0,cash-reserve)),
+        explanation:cash===null?'Невозможно подсчитать все кошельки: проверь курс валют.':'Проверка, хватит ли денег на покупку без потери резерва.',
+        warning:cash!==null&&cash-cost<reserve?'Покупка затронет резерв.':''};
     }
     if(mode==='saving'){
       const monthly=Math.max(0,num(p.monthly)),sum=Math.max(0,num(p.cost||g.left));

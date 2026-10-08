@@ -1923,6 +1923,7 @@
 
       function renderMarketTicker(payload){
         renderFinanceWalletTotal(payload);
+        document.dispatchEvent(new CustomEvent('rudi-finance-rates-changed'));
         renderFinanceCapitalHistory();
         if(currentAppTab==='finances'&&activeFinanceTab==='personal')recordFinanceCapitalSnapshot().catch(()=>{});
         const track=document.getElementById('marketTickerTrack');
@@ -2288,6 +2289,7 @@
         renderFinancePulse(month);
         if(financeCategoryHistoryId)renderFinanceCategoryHistory();
         renderFinanceCapitalHistory();
+        document.dispatchEvent(new CustomEvent('rudi-finance-currency-changed'));
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
       function financeMoscowParts(date=new Date()){
@@ -4158,6 +4160,10 @@
         };
       }
 
+      window.RUDI_FINANCE_CURRENCY_CONTEXT=()=>({
+        displayCurrency:financeOverviewDisplayCurrency,
+        rates:financeWalletRubRates(readMarketTickerLocalCache()),
+      });
       function financeCapitalHistoryRows(){
         const source=Array.isArray(financeState.capitalHistory)?financeState.capitalHistory:[];
         const period=String(document.getElementById('financeCapitalPeriod')?.value||'30');
