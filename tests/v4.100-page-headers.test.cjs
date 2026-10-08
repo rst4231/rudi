@@ -13,12 +13,12 @@ const expectedButtons = [
 
 test('ten RUDI section headers use the same opt-in header and back control', () => {
   const html = read('public/index.html');
-  assert.equal((html.match(/class="[^"]*\\brudi-app-page-head\\b[^"]*"/g) || []).length, 10);
-  assert.equal((html.match(/class="[^"]*\\brudi-app-page-back\\b[^"]*"/g) || []).length, 10);
+  assert.equal((html.match(/class="[^"]*\brudi-app-page-head\b[^"]*"/g) || []).length, 10);
+  assert.equal((html.match(/class="[^"]*\brudi-app-page-back\b[^"]*"/g) || []).length, 10);
   for (const id of expectedButtons) {
-    const button = html.match(new RegExp('<button\\\\b[^>]*\\\\bid="' + id + '"[^>]*>'))?.[0] || '';
+    const button = html.match(new RegExp('<button\\b[^>]*\\bid="' + id + '"[^>]*>'))?.[0] || '';
     assert.ok(button, id + ' must retain its original ID');
-    assert.match(button, /\\brudi-app-page-back\\b/, id);
+    assert.match(button, /\brudi-app-page-back\b/, id);
   }
 });
 
@@ -32,8 +32,8 @@ test('responsive header design keeps shared geometry, theme coloring and safe ar
     'var(--tg-content-safe-area-inset-top,0px)', 'body[data-app-tab="schedule"] .work-page',
     '.for-di-page-head.rudi-app-page-head'
   ]) assert.ok(css.includes(token), token);
-  assert.match(css, /@media\\(max-width:430px\\)/);
-  assert.match(css, /font-size:var\\(--rudi-page-head-title\\)!important/);
+  assert.match(css, /@media\(max-width:430px\)/);
+  assert.match(css, /font-size:var\(--rudi-page-head-title\)!important/);
   assert.doesNotMatch(css.slice(css.indexOf('RUDI v4.100 — unified page headers')), /pointer-events:none!important/);
 });
 
