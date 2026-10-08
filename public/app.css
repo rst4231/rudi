@@ -17438,3 +17438,11 @@ body.finance-month-dialog-open{overflow:hidden!important}
   .finance-category-coin-item .finance-coin{transition:none!important}
 }
 /* end RUDI v4.76 */
+
+/* RUDI v4.86 — expense history deletion and optimistic expense changes */
+.finance-operation-row.is-expense{grid-template-columns:31px minmax(0,1fr) auto 32px!important;gap:7px!important}
+.finance-operation-delete{display:grid;place-items:center;width:32px;height:32px;min-width:32px;min-height:32px;padding:0;border:0;border-radius:10px;background:var(--soft);color:#c95a61;font:inherit;font-size:22px;font-weight:500;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.finance-operation-delete:active{transform:scale(.94)}
+.finance-operation-delete:disabled{opacity:.45;cursor:default}
+.finance-operation-row.is-pending{opacity:.78}
+.finance-operation-row.is-expense .finance-operation-copy{min-width:0}

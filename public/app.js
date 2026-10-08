@@ -2193,6 +2193,7 @@
       let financeExpenseCalcLeft=null;
       let financeExpenseCalcOperator='';
       let financeExpenseCalcReplace=false;
+      let financeExpenseMutationInFlight=false;
       let financeWalletEditingId='';
       let financeDebtFilter='all';
       let financeDebtSelectedId='';
@@ -2708,6 +2709,72 @@
       function financeSelectedPersonalMonth(){
         return String(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey());
       }
+      function financePreviewExpense(payload){
+        const category=financeAllCategoryById(payload.categoryId);
+        const wallet=payload.walletId?financeWalletById(payload.walletId):null;
+        if(!category||(payload.walletId&&!wallet))return null;
+        const sourceCurrency=String(wallet?.currency||category.currency||'RUB').toUpperCase();
+        const targetCurrency=String(category.currency||'RUB').toUpperCase();
+        const inputCurrency=String(payload.inputCurrency||sourceCurrency).toUpperCase();
+        if(inputCurrency!==sourceCurrency&&inputCurrency!==targetCurrency)return null;
+        const rates=financeWalletRubRates();
+        const sourceRate=Number(rates[sourceCurrency]||0);
+        const targetRate=Number(rates[targetCurrency]||0);
+        if(sourceRate<=0||targetRate<=0)return null;
+        const roundMoney=value=>Math.round(Number(value)*100)/100;
+        const roundAsset=value=>Math.round(Number(value)*100000000)/100000000;
+        const input=Number(payload.amount);
+        let amount,sourceAmount,rubAmount;
+        if(inputCurrency===targetCurrency&&targetCurrency!==sourceCurrency){
+          amount=roundMoney(input);
+          rubAmount=roundMoney(amount*targetRate);
+          sourceAmount=roundAsset(rubAmount/sourceRate);
+        }else{
+          sourceAmount=roundAsset(input);
+          rubAmount=roundMoney(sourceAmount*sourceRate);
+          amount=roundMoney(rubAmount/targetRate);
+        }
+        if(!Number.isFinite(amount)||!Number.isFinite(sourceAmount)||rubAmount<=0||sourceAmount<=0)return null;
+        return {id:'pending-expense-'+Date.now(),actor:currentActor,month:payload.month,
+          categoryId:payload.categoryId,walletId:payload.walletId||'',note:payload.note||'',
+          label:payload.label||'',sourceCurrency,targetCurrency,sourceAmount,amount,rubAmount,
+          exchangeRate:roundAsset(amount/sourceAmount),occurredAt:payload.occurredAt,
+          createdAt:new Date().toISOString(),optimistic:true};
+      }
+      function financeRenderExpensePreview(month){
+        renderFinancePersonalMonth(month);
+        renderFinanceWallets();
+        renderFinanceOperations();
+        renderFinanceAnalytics();
+        renderFinanceCapitalHistory();
+        if(financeCategoryHistoryId)renderFinanceCategoryHistory();
+      }
+      function financeApplyExpensePreview(row,remove=false){
+        const isExternal=String(row.importKey||'').startsWith('ozon:');
+        const change=(remove?1:-1)*Number(row.sourceAmount||0);
+        const wallets=!isExternal&&row.walletId&&Number.isFinite(change)
+          ?financeState.wallets.map(wallet=>wallet.id===row.walletId
+            ?{...wallet,balance:Math.round((Number(wallet.balance||0)+change)*100000000)/100000000}
+            :wallet)
+          :financeState.wallets;
+        const personalExpenses=remove
+          ?financeState.personalExpenses.filter(item=>item.id!==row.id&&
+            !(item.manualAdjustment&&item.month===row.month&&item.categoryId===row.categoryId))
+          :[row,...financeState.personalExpenses];
+        financeState={...financeState,personalExpenses,wallets};
+        financeRenderExpensePreview(row.month);
+      }
+      function financeExpenseSaveError(error){
+        const code=String(error?.message||'');
+        return code.includes('wallet-insufficient')?'Превышен кредитный лимит'
+          :code.includes('currency')||code.includes('rate')?'Не удалось получить курс валют'
+          :'Не удалось сохранить расход';
+      }
+      function financeExpenseAlert(message){
+        try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+        try{if(tg?.showAlert){tg.showAlert(message);return}}catch(_){}
+        window.alert(message);
+      }
       function renderFinanceOperations(){
         const list=document.getElementById('financeOperationList');
         const empty=document.getElementById('financeOperationEmpty');
@@ -2778,7 +2845,31 @@
             rowTitle.textContent=(category?.name||'Расход')+(row.label?' · '+row.label:'');
             detail.textContent=[wallet?.name,row.note,meta.time].filter(Boolean).join(' · ');
             value.textContent='−'+financeMoney(row.rubAmount||row.amount);
-            copy.append(rowTitle,detail);item.append(icon,copy,value);rowsHost.append(item);
+            if(row.optimistic){item.classList.add('is-pending');detail.textContent=[wallet?.name,row.note,'Сохраняется…'].filter(Boolean).join(' · ')}
+            const del=document.createElement('button');del.type='button';del.className='finance-operation-delete';
+            del.textContent='×';del.setAttribute('aria-label','Удалить расход: '+(category?.name||'Расход'));
+            del.addEventListener('click',async event=>{
+              event.stopPropagation();
+              if(financeExpenseMutationInFlight)return;
+              const approved=await smartSaveConfirm('Удалить расход «'+(category?.name||'Расход')+'» на '+financeMoney(row.rubAmount||row.amount)+'?');
+              if(!approved||financeExpenseMutationInFlight)return;
+              financeExpenseMutationInFlight=true;
+              const previousState=financeState,previousMonth=financeSelectedPersonalMonth();
+              del.disabled=true;
+              financeApplyExpensePreview(row,true);
+              try{
+                const data=await financeRequest('delete-expense',{id:row.id});
+                renderFinanceState(data,{personalMonth:previousMonth,preserveIncome:true,preservePlan:true});
+                refreshFinanceInsight(true).catch(()=>{});
+                try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              }catch(error){
+                financeState=previousState;
+                financeRenderExpensePreview(previousMonth);
+                financeExpenseAlert('Не удалось удалить расход. Баланс восстановлен.');
+                loadFinances({silent:true}).catch(()=>{});
+              }finally{financeExpenseMutationInFlight=false;del.disabled=false}
+            });
+            copy.append(rowTitle,detail);item.append(icon,copy,value,del);rowsHost.append(item);
           }
           group.append(rowsHost);list.append(group);
         }
@@ -5227,35 +5318,39 @@
         });
 
         document.getElementById('financeExpenseComposerSave')?.addEventListener('click',async()=>{
+          if(financeExpenseMutationInFlight)return;
           const amount=document.getElementById('financeExpenseComposerAmount'),note=document.getElementById('financeExpenseComposerNote');
           const button=document.getElementById('financeExpenseComposerSave'),status=document.getElementById('financeExpenseComposerStatus');
           const value=financeExpenseFinalizeCalculator();
           if(!financeExpenseCategoryId||value<=0){amount?.focus();return}
           const occurredAt=financeOccurredAtFromInputs(),expenseMonth=financeMonthFromOccurredAt(occurredAt);
-          button.disabled=true;if(status)status.textContent='Сохраняю…';
+          const payload={
+            month:expenseMonth,categoryId:financeExpenseCategoryId,amount:value,
+            inputCurrency:financeExpenseInputCurrency,walletId:financeExpenseWalletId,
+            occurredAt,label:financeExpenseLabel,note:note?.value||''
+          };
+          const previousState=financeState,previousMonth=financeSelectedPersonalMonth();
+          const preview=financePreviewExpense(payload);
+          financeExpenseMutationInFlight=true;
+          button.disabled=true;
+          if(status)status.textContent='Сохраняю…';
+          if(preview)financeApplyExpensePreview(preview);
+          closeFinanceCoinModal('financeExpenseComposer');
           try{
-            const data=await financeRequest('save-expense',{
-              month:expenseMonth,
-              categoryId:financeExpenseCategoryId,
-              amount:value,
-              inputCurrency:financeExpenseInputCurrency,
-              walletId:financeExpenseWalletId,
-              occurredAt,
-              label:financeExpenseLabel,
-              note:note?.value||''
-            });
+            const data=await financeRequest('save-expense',payload);
             renderFinanceState(data,{personalMonth:expenseMonth,preserveIncome:true,preservePlan:true});
-            closeFinanceCoinModal('financeExpenseComposer');
             refreshFinanceInsight(true).catch(()=>{});
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
-            if(status){
-              const code=String(error?.message||'');
-              status.textContent=code.includes('wallet-insufficient')?'Превышен кредитный лимит'
-                :code.includes('currency')||code.includes('rate')?'Не удалось получить курс валют'
-                :'Не удалось добавить расход';
-            }
-          }finally{button.disabled=false}
+            financeState=previousState;
+            financeRenderExpensePreview(previousMonth);
+            financeExpenseAlert(financeExpenseSaveError(error)+'. Изменения отменены.');
+            loadFinances({silent:true}).catch(()=>{});
+          }finally{
+            financeExpenseMutationInFlight=false;
+            button.disabled=false;
+            if(status)status.textContent='';
+          }
         });
         document.getElementById('financeExpenseComposerAmount')?.addEventListener('keydown',event=>{
           if(event.key==='Enter'){event.preventDefault();document.getElementById('financeExpenseComposerSave')?.click()}
