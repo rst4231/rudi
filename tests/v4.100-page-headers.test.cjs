@@ -37,15 +37,17 @@ test('responsive header design keeps shared geometry, theme coloring and safe ar
   assert.doesNotMatch(css.slice(css.indexOf('RUDI v4.100 — unified page headers')), /pointer-events:none!important/);
 });
 
-test('v4.100 cache-bust and source version agree before deploy', () => {
+test('cache-bust and source version remain aligned across future RUDI releases', () => {
   const version = read('VERSION').trim();
   const cfg = JSON.parse(read('rudi-version.json'));
   const html = read('public/index.html');
   const sw = read('public/sw.js');
-  assert.equal(version, 'v4.100');
+  assert.match(version, /^v4\\.\\d+$/);
+  assert.ok(Number(version.split('.')[1]) >= 100, 'release must not revert before v4.100');
   assert.equal(cfg.current, version);
-  assert.ok(html.includes('name="rudi-version" content="v4.100"'));
-  assert.ok(html.includes('/rudi-design-system.css?v=4.100'));
-  assert.ok(sw.includes("rudi-shell-v4.100"));
-  assert.ok(sw.includes('/rudi-design-system.css?v=4.100'));
+  const number = version.slice(1);
+  assert.ok(html.includes('name="rudi-version" content="' + version + '"'));
+  assert.ok(html.includes('/rudi-design-system.css?v=' + number));
+  assert.ok(sw.includes('rudi-shell-' + version));
+  assert.ok(sw.includes('/rudi-design-system.css?v=' + number));
 });
