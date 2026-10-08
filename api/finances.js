@@ -173,16 +173,26 @@ async function handler(req, res) {
     if (operation === 'save-wallet-income') {
       const current = await readFinanceState();
       const view = viewState(current, actor);
+      const existingId = String(body.id || '').trim();
+      const existing = existingId ? (view.walletIncomes || []).find((row) => row.id === existingId) : null;
+      if (existingId && !existing) throw new Error('finance-wallet-income-not-found');
       const wallet = (view.wallets || []).find((row) => row.id === String(body.walletId || ''));
       if (!wallet) throw new Error('finance-wallet-not-found');
       const amount = Number(body.amount);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error('finance-amount-invalid');
       const currency = String(wallet.currency || 'RUB').toUpperCase();
-      const rates = currency === 'RUB' ? { RUB: 1 } : await financeRubRates();
+      // Keep the original conversion rate for edits in the same wallet: editing
+      // only the comment must never rewrite the historical RUB amount.
+      const historicalRate = existing && existing.walletId === wallet.id && existing.currency === currency
+        ? Number(existing.exchangeRate || (Number(existing.rubAmount || 0) / Number(existing.amount || 1)))
+        : 0;
+      const rates = historicalRate > 0 ? { [currency]: historicalRate }
+        : currency === 'RUB' ? { RUB: 1 } : await financeRubRates();
       const rubRate = Number(rates[currency]);
       if (!rubRate) throw new Error('finance-rate-invalid');
       const rubAmount = Math.round(amount * rubRate * 100) / 100;
       const state = await saveWalletIncome(actor, {
+        id: existingId || undefined,
         walletId: wallet.id,
         amount,
         currency,
@@ -196,7 +206,7 @@ async function handler(req, res) {
         ok: true,
         actor,
         canEdit: actor === 'Рустам',
-        income: { walletId: wallet.id, amount, currency, rubAmount, exchangeRate: rubRate },
+        income: { id: existingId || null, walletId: wallet.id, amount, currency, rubAmount, exchangeRate: rubRate },
         ...viewState(state, actor),
       });
     }

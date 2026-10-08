@@ -2194,6 +2194,8 @@
       let financeExpenseCalcOperator='';
       let financeExpenseCalcReplace=false;
       let financeExpenseMutationInFlight=false;
+      let financeIncomeEditingId='';
+      let financeIncomeMutationInFlight=false;
       let financeWalletEditingId='';
       let financeDebtFilter='all';
       let financeDebtSelectedId='';
@@ -2929,7 +2931,34 @@
               :'';
             detail.textContent=[source,row.note,meta.time].filter(Boolean).join(' · ');
             const value=document.createElement('b');value.textContent='+'+financeMoney(row.rubAmount||0);
-            copy.append(title,detail);item.append(copy,value);host.append(item);
+            const actions=document.createElement('div');actions.className='finance-income-history-actions';
+            const edit=document.createElement('button');edit.type='button';edit.className='finance-income-history-edit';
+            edit.textContent='✎';edit.setAttribute('aria-label','Редактировать доход');
+            edit.addEventListener('click',event=>{
+              event.stopPropagation();
+              if(financeIncomeMutationInFlight)return;
+              openFinanceIncomeComposer(row.walletId,row.id);
+            });
+            const del=document.createElement('button');del.type='button';del.className='finance-income-history-delete';
+            del.textContent='×';del.setAttribute('aria-label','Удалить доход');
+            del.addEventListener('click',async event=>{
+              event.stopPropagation();
+              if(financeIncomeMutationInFlight)return;
+              const approved=await smartSaveConfirm('Удалить доход на '+financeMoney(row.amount,row.currency||'RUB')+'?');
+              if(!approved||financeIncomeMutationInFlight)return;
+              financeIncomeMutationInFlight=true;
+              del.disabled=true;edit.disabled=true;
+              try{
+                const data=await financeRequest('delete-wallet-income',{id:row.id});
+                renderFinanceState(data,{personalMonth:financeSelectedPersonalMonth(),preservePlan:true});
+                refreshFinanceInsight(true).catch(()=>{});
+                try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              }catch(error){
+                financeExpenseAlert('Не удалось удалить доход. Баланс кошелька не изменён.');
+              }finally{financeIncomeMutationInFlight=false;del.disabled=false;edit.disabled=false}
+            });
+            actions.append(edit,del);
+            copy.append(title,detail);item.append(copy,value,actions);host.append(item);
           }
           section.append(host);list.append(section);
         }
@@ -3802,24 +3831,40 @@
         return Number.isNaN(value.getTime())?new Date().toISOString():value.toISOString();
       }
 
-      function openFinanceIncomeComposer(walletId=''){
+      function openFinanceIncomeComposer(walletId='',incomeId=''){
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         if(!wallets.length){openFinanceWalletComposer('');return}
+        const existing=incomeId
+          ?(financeState.walletIncomes||[]).find(row=>row.id===incomeId)
+          :null;
+        if(incomeId&&!existing)return;
+        financeIncomeEditingId=existing?.id||'';
         const modal=document.getElementById('financeIncomeComposer'),select=document.getElementById('financeIncomeWallet');
         const amount=document.getElementById('financeIncomeAmount'),currency=document.getElementById('financeIncomeCurrency');
         const date=document.getElementById('financeIncomeDate'),time=document.getElementById('financeIncomeTime');
         const note=document.getElementById('financeIncomeNote'),status=document.getElementById('financeIncomeStatus');
+        const title=document.getElementById('financeIncomeComposerTitle'),save=document.getElementById('financeIncomeSaveButton');
         if(!modal||!select)return;
         select.replaceChildren();
         for(const wallet of wallets){
           const option=document.createElement('option');option.value=wallet.id;
           option.textContent=wallet.name+' · '+financeMoney(wallet.balance,wallet.currency);select.append(option);
         }
-        select.value=wallets.some(row=>row.id===walletId)?walletId:wallets[0].id;
+        select.value=wallets.some(row=>row.id===(existing?.walletId||walletId))
+          ?(existing?.walletId||walletId):wallets[0].id;
+        select.disabled=Boolean(existing);
         const updateCurrency=()=>{const wallet=financeWalletById(select.value);if(currency)currency.textContent=financeCurrencySymbol(wallet?.currency||'RUB')};
         updateCurrency();select.onchange=updateCurrency;
-        if(amount)amount.value='';if(note)note.value='';
-        const now=financeNowDateTimeInputs();if(date)date.value=now.date;if(time)time.value=now.time;syncFinanceTemporalControl(date);syncFinanceTemporalControl(time);if(status)status.textContent='';
+        if(amount)amount.value=existing?String(existing.amount):'';
+        if(note)note.value=existing?.note||'';
+        const recorded=existing?financeMoscowParts(new Date(existing.occurredAt||existing.createdAt)):null;
+        const now=financeNowDateTimeInputs();
+        if(date)date.value=recorded?recorded.year+'-'+recorded.month+'-'+recorded.day:now.date;
+        if(time)time.value=recorded?recorded.hour+':'+recorded.minute:now.time;
+        syncFinanceTemporalControl(date);syncFinanceTemporalControl(time);
+        if(title)title.textContent=existing?'Редактировать доход':'Добавить доход';
+        if(save)save.textContent=existing?'Сохранить изменения':'Добавить доход';
+        if(status)status.textContent='';
         mountFinanceCoinModal(modal);
       }
 
@@ -5433,22 +5478,29 @@
 
         document.getElementById('financeIncomeAddButton')?.addEventListener('click',()=>openFinanceIncomeComposer(''));
         document.getElementById('financeIncomeSaveButton')?.addEventListener('click',async()=>{
+          if(financeIncomeMutationInFlight)return;
           const walletId=String(document.getElementById('financeIncomeWallet')?.value||'');
           const amount=document.getElementById('financeIncomeAmount'),note=document.getElementById('financeIncomeNote');
           const button=document.getElementById('financeIncomeSaveButton'),status=document.getElementById('financeIncomeStatus');
           const value=Number(amount?.value||0);
           if(!walletId||value<=0){amount?.focus();return}
           const occurredAt=financeIncomeOccurredAt(),monthKey=financeMonthFromOccurredAt(occurredAt);
+          const editId=financeIncomeEditingId;
+          financeIncomeMutationInFlight=true;
           button.disabled=true;if(status)status.textContent='Сохраняю…';
           try{
-            const data=await financeRequest('save-wallet-income',{walletId,amount:value,month:monthKey,occurredAt,note:note?.value||''});
-            renderFinanceState(data,{personalMonth:monthKey,preservePlan:true});
+            const data=await financeRequest('save-wallet-income',{
+              ...(editId?{id:editId}:{}),walletId,amount:value,month:monthKey,occurredAt,note:note?.value||''
+            });
+            financeIncomeEditingId='';
+            renderFinanceState(data,{personalMonth:editId?financeSelectedPersonalMonth():monthKey,preservePlan:true});
             closeFinanceCoinModal('financeIncomeComposer');
             refreshFinanceInsight(true).catch(()=>{});
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
-            if(status)status.textContent=String(error?.message||'').includes('rate')?'Не удалось получить курс валют':'Не удалось добавить доход';
-          }finally{button.disabled=false}
+            if(status)status.textContent=String(error?.message||'').includes('rate')?'Не удалось получить курс валют'
+              :editId?'Не удалось изменить доход':'Не удалось добавить доход';
+          }finally{financeIncomeMutationInFlight=false;button.disabled=false}
         });
         document.getElementById('financeIncomeAmount')?.addEventListener('keydown',event=>{
           if(event.key==='Enter'){event.preventDefault();document.getElementById('financeIncomeSaveButton')?.click()}
