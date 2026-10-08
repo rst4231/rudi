@@ -6595,7 +6595,7 @@
             '<div id="scoreGiftPanel" class="score-gift-panel" hidden></div>'+
             '<div id="scoreModalTabs" class="score-modal-tabs" role="tablist">'+
               '<button type="button" data-score-tab="history" class="active">История</button>'+
-              '<button type="button" data-score-tab="shop">Магазин</button>'+
+              '<button type="button" data-score-tab="shop">Награды</button>'+
             '</div>'+
             '<div id="scoreHistoryPanel" class="score-panel"></div>'+
             '<div id="scoreShopPanel" class="score-panel" hidden></div>'+
