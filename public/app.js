@@ -2879,17 +2879,28 @@
         const list=document.getElementById('financeIncomeHistoryList');
         const empty=document.getElementById('financeIncomeHistoryEmpty');
         const totalHost=document.getElementById('financeIncomeHistoryTotal');
+        const totalLabel=document.getElementById('financeIncomeHistoryTotalLabel');
         const monthHost=document.getElementById('financeIncomeHistoryMonth');
         if(!list)return;
         const selectedMonth=financeSelectedPersonalMonth();
+        const from=String(document.getElementById('financeIncomeHistoryFrom')?.value||'');
+        const to=String(document.getElementById('financeIncomeHistoryTo')?.value||'');
+        const explicitDateRange=Boolean(from||to);
         const rows=(financeState.walletIncomes||[])
-          .filter(row=>String(row.month||'')===selectedMonth)
+          .filter(row=>{
+            const date=financeDateTimeLabel(row.occurredAt||row.createdAt).key;
+            if(!explicitDateRange&&String(row.month||'')!==selectedMonth)return false;
+            if(from&&date<from)return false;
+            if(to&&date>to)return false;
+            return true;
+          })
           .sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
         const total=rows.reduce((sum,row)=>sum+Number(row.rubAmount||0),0);
         if(totalHost)totalHost.textContent=financeMoney(total);
-        if(monthHost)monthHost.textContent=financeMonthTitle(selectedMonth);
+        if(totalLabel)totalLabel.textContent=explicitDateRange?'Доход за период':'Доход за месяц';
+        if(monthHost)monthHost.textContent=explicitDateRange?'Выбранный период':financeMonthTitle(selectedMonth);
         list.replaceChildren();
-        if(empty){empty.hidden=rows.length>0;empty.textContent='Доходов за '+financeMonthTitle(selectedMonth).toLocaleLowerCase('ru-RU')+' нет'}
+        if(empty){empty.hidden=rows.length>0;empty.textContent=explicitDateRange?'Доходов за выбранный период нет':'Доходов за '+financeMonthTitle(selectedMonth).toLocaleLowerCase('ru-RU')+' нет'}
         const now=financeMoscowParts();
         const todayKey=now.year+'-'+now.month+'-'+now.day;
         const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
@@ -5391,6 +5402,11 @@
           renderFinanceWallets();renderFinanceCategories(month);renderFinancePulse(month);
         });
         ['financeOperationSearch','financeOperationWallet','financeOperationCategory','financeOperationLabel','financeOperationFrom','financeOperationTo'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderFinanceOperations));
+        ['financeIncomeHistoryFrom','financeIncomeHistoryTo'].forEach(id=>{
+          const field=document.getElementById(id);
+          field?.addEventListener('input',renderFinanceIncomeHistory);
+          field?.addEventListener('change',renderFinanceIncomeHistory);
+        });
         ['financeAnalyticsPeriod','financeAnalyticsFrom','financeAnalyticsTo'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderFinanceAnalytics));
         document.getElementById('financeObligationAddButton')?.addEventListener('click',()=>openFinanceObligationComposer(''));
         document.getElementById('financeObligationSaveButton')?.addEventListener('click',async()=>{

@@ -765,8 +765,10 @@
                 <select id="financeOperationWallet" class="finance-select" aria-label="Кошелёк"><option value="">Все кошельки</option></select>
                 <select id="financeOperationCategory" class="finance-select" aria-label="Категория"><option value="">Все категории</option></select>
                 <select id="financeOperationLabel" class="finance-select" aria-label="Метка"><option value="">Все метки</option></select>
-                <input id="financeOperationFrom" class="finance-text-input" type="date" aria-label="Расходы с даты">
-                <input id="financeOperationTo" class="finance-text-input" type="date" aria-label="Расходы по дату">
+                <div class="finance-ledger-date-range" role="group" aria-label="Период расходов">
+                  <label class="finance-ledger-date-field"><span>От</span><input id="financeOperationFrom" class="finance-text-input" type="date" aria-label="Расходы с даты"></label>
+                  <label class="finance-ledger-date-field"><span>До</span><input id="financeOperationTo" class="finance-text-input" type="date" aria-label="Расходы по дату"></label>
+                </div>
               </div>
               <div id="financeOperationSummary" class="finance-operation-summary">Расходы за выбранный месяц</div>
               <div id="financeOperationList" class="finance-operation-list"></div>
@@ -783,7 +785,11 @@
               </button>
               <div><small id="financeIncomeHistoryMonth">Текущий месяц</small><h2>Доход</h2></div>
             </div>
-            <div class="finance-ledger-total"><span>Доход за месяц</span><strong id="financeIncomeHistoryTotal">0 ₽</strong></div>
+            <div class="finance-ledger-total"><span id="financeIncomeHistoryTotalLabel">Доход за месяц</span><strong id="financeIncomeHistoryTotal">0 ₽</strong></div>
+            <div class="finance-ledger-date-range finance-income-date-range" role="group" aria-label="Период доходов">
+              <label class="finance-ledger-date-field"><span>От</span><input id="financeIncomeHistoryFrom" class="finance-text-input" type="date" aria-label="Доходы с даты"></label>
+              <label class="finance-ledger-date-field"><span>До</span><input id="financeIncomeHistoryTo" class="finance-text-input" type="date" aria-label="Доходы по дату"></label>
+            </div>
             <div id="financeIncomeHistoryList" class="finance-category-history-list"></div>
             <div id="financeIncomeHistoryEmpty" class="finance-history-empty">Доходов за выбранный месяц нет</div>
           </div>
