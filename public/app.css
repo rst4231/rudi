@@ -17494,3 +17494,23 @@ body.finance-month-dialog-open{overflow:hidden!important}
  .finance-income-history-actions{gap:3px}
  .finance-income-history-action{min-width:30px;min-height:32px;width:30px;height:32px}
 }
+
+
+/* RUDI v4.88: long-press text selection and one-tap copy in saved cards */
+.smart-saves-page .smart-save-title,
+.smart-saves-page .smart-save-body p,
+.smart-saves-page .smart-save-raw-text,
+.smart-saves-page .smart-save-body,
+.smart-saves-home .smart-save-title{
+  -webkit-user-select:text!important;user-select:text!important;
+  -webkit-touch-callout:default!important;touch-action:pan-y;
+}
+.smart-save-copy{
+  display:inline-flex;justify-content:center;align-items:center;justify-self:start;
+  min-height:34px;margin-top:6px;padding:7px 13px;
+  border-radius:10px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
+  background:color-mix(in srgb,var(--accent) 9%,var(--surface-strong));
+  color:var(--accent);font:inherit;font-size:11px;font-weight:780;cursor:pointer;
+}
+.smart-save-copy:disabled{opacity:.75;cursor:default}
+/* End RUDI v4.88 smart-save copy */

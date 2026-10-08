@@ -8083,6 +8083,61 @@
       }
       function smartSaveStamp(value){const date=new Date(String(value||''));if(Number.isNaN(date.getTime()))return'';return new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(date).replace('.','')}
       function smartSaveConfirm(text){return new Promise(resolve=>{if(tg?.showConfirm){try{tg.showConfirm(text,value=>resolve(Boolean(value)));return}catch(_){}}resolve(window.confirm(text))})}
+
+      // RUDI v4.88: iOS Telegram WebView may disallow modern clipboard permission.
+      // Keep both legacy selection modes as fallbacks and avoid deleting user selection.
+      function copySmartSaveSelection(text,mode){
+        const value=String(text||'');
+        const target=mode==='rich'?document.createElement('div'):document.createElement('textarea');
+        if(mode==='rich'){
+          target.contentEditable='true';
+          target.textContent=value;
+        }else{
+          target.value=value;
+          target.readOnly=true;
+        }
+        target.style.cssText='position:fixed;left:0;top:0;z-index:-1;opacity:.01;width:1px;height:1px;pointer-events:none;';
+        document.body.appendChild(target);
+        const previousFocus=document.activeElement;
+        let copied=false;
+        try{
+          target.focus({preventScroll:true});
+          if(mode==='rich'){
+            const range=document.createRange();range.selectNodeContents(target);
+            const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+          }else{
+            target.select();target.setSelectionRange(0,value.length);
+          }
+          copied=Boolean(document.execCommand('copy'));
+        }catch(_){}
+        finally{
+          window.getSelection?.()?.removeAllRanges();
+          target.remove();
+          try{previousFocus?.focus?.({preventScroll:true})}catch(_){}
+        }
+        return copied;
+      }
+      async function copySmartSaveText(text){
+        const value=String(text||'');
+        if(!value.trim())return false;
+        const ios=/iPad|iPhone|iPod/i.test(String(navigator.userAgent||''));
+        if(ios){
+          if(copySmartSaveSelection(value,'textarea'))return true;
+          if(copySmartSaveSelection(value,'rich'))return true;
+        }
+        try{
+          if(navigator.clipboard?.writeText){
+            await navigator.clipboard.writeText(value);
+            return true;
+          }
+        }catch(_){}
+        if(!ios){
+          if(copySmartSaveSelection(value,'textarea'))return true;
+          if(copySmartSaveSelection(value,'rich'))return true;
+        }
+        return false;
+      }
+
       function smartSaveCard(item,{compact=false}={}){
         const card=document.createElement('article');card.className='smart-save-card'+(compact?' is-compact':'');card.dataset.rudiItemId=String(item?.id||'');
         if(/^coffee\s*3$/iu.test(String(item?.title||'').trim())) card.classList.add('is-coffee3');
@@ -8092,6 +8147,7 @@
         const stamp=document.createElement('time');stamp.textContent=String(item?.actor||'')+' · '+smartSaveStamp(item?.createdAt);meta.append(category,stamp);
         const title=item?.url?document.createElement('a'):document.createElement('strong');title.className='smart-save-title';title.textContent=String(item?.title||'Сохранение');
         if(item?.url){title.href=String(item.url);title.target='_blank';title.rel='noopener noreferrer'}
+        title.classList.add('smart-save-selectable');
         body.append(meta,title);
         if(!compact&&item?.description){
           let description=String(item.description).trim();
@@ -8114,7 +8170,7 @@
           card.classList.add('is-link');
           card.setAttribute('role','link');
           card.tabIndex=0;
-          card.addEventListener('click',event=>{if(event.target.closest('a,button'))return;openUrl()});
+          card.addEventListener('click',event=>{if(event.target.closest('a,button'))return;if(window.getSelection?.()?.toString())return;openUrl()});
           card.addEventListener('keydown',event=>{if(event.target!==card||!['Enter',' '].includes(event.key))return;event.preventDefault();openUrl()});
           const open=document.createElement('button');open.type='button';open.className='smart-save-open';open.innerHTML='<span>Перейти</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
           open.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openUrl()});
@@ -8129,6 +8185,23 @@
           card.classList.add('is-expandable');
           card.addEventListener('click',event=>{if(event.target.closest('a,button'))return;if(window.getSelection?.()?.toString())return;setExpanded(toggle.getAttribute('aria-expanded')!=='true')});
           body.append(toggle,details);
+        }
+        // Copy original saved text, not a truncated card preview.
+        const saveCopyText=String(item?.rawText||'').trim()||[item?.title,item?.description,item?.url].map(value=>String(value||'').trim()).filter(Boolean).join('\n');
+        if(!compact&&saveCopyText){
+          const copy=document.createElement('button');
+          copy.type='button';copy.className='smart-save-copy';copy.textContent='Скопировать';
+          copy.setAttribute('aria-label','Скопировать сохранение');
+          copy.addEventListener('click',async event=>{
+            event.preventDefault();event.stopPropagation();
+            if(copy.disabled)return;
+            copy.disabled=true;
+            const success=await copySmartSaveText(saveCopyText);
+            copy.textContent=success?'Скопировано':'Выделите текст долгим нажатием';
+            try{if(success)tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            setTimeout(()=>{if(copy.isConnected){copy.textContent='Скопировать';copy.disabled=false}},2200);
+          });
+          body.appendChild(copy);
         }
         const ownSave=String(item?.actor||'')===String(currentActor||'');
         card.appendChild(body);

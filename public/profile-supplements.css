@@ -815,3 +815,91 @@ html[data-theme="dark"] .personal-habit-archive-delete{
   background:rgba(224,80,91,.09);
 }
 /* end RUDI v4.04 */
+
+
+/* RUDI v4.88: habits page, mint-green / turquoise glass */
+body[data-app-tab="habits"] .personal-habits-tile{
+  color:#144235!important;
+  padding:18px 16px 20px!important;
+  border:1px solid rgba(255,255,255,.72)!important;
+  border-radius:26px!important;
+  background:
+    radial-gradient(circle at 12% -16%,rgba(215,255,208,.9),transparent 43%),
+    radial-gradient(circle at 94% 1%,rgba(149,245,224,.58),transparent 42%),
+    linear-gradient(154deg,#bcf4db 0%,#84dfbb 45%,#77ddca 100%)!important;
+  box-shadow:0 18px 38px rgba(22,129,103,.15),inset 0 1px 0 rgba(255,255,255,.7)!important;
+}
+body[data-app-tab="habits"] .personal-habits-tile::after{opacity:.06!important}
+body[data-app-tab="habits"] .personal-habits-progress-text{color:#246858!important;opacity:1!important;font-weight:740}
+body[data-app-tab="habits"] .personal-habits-percent{color:#155a46!important;opacity:1!important;font-weight:850}
+body[data-app-tab="habits"] .personal-habits-progress{background:rgba(255,255,255,.65)!important;height:9px!important}
+body[data-app-tab="habits"] .personal-habits-progress-fill{background:linear-gradient(90deg,#16b95b,#07b88a)!important}
+body[data-app-tab="habits"] .personal-home-tile-icon.is-habit{background:rgba(255,255,255,.66)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.9)}
+body[data-app-tab="habits"] .personal-habits-info{color:#176347!important;background:rgba(255,255,255,.75)!important}
+body[data-app-tab="habits"] .personal-habits-tile>.personal-habits-calendar{
+  margin-top:16px!important;padding:8px!important;border-radius:19px!important;
+  background:rgba(255,255,255,.36)!important;border:1px solid rgba(255,255,255,.45)!important;
+}
+body[data-app-tab="habits"] .personal-habit-date,
+body[data-app-tab="habits"] .personal-habits-calendar-picker{
+  background:rgba(255,255,255,.78)!important;color:#276652!important;border-radius:12px!important;
+}
+body[data-app-tab="habits"] .personal-habit-date span{opacity:.75!important}
+body[data-app-tab="habits"] .personal-habit-date.is-selected{
+  color:white!important;background:linear-gradient(155deg,#25d56b,#10b85d)!important;
+  box-shadow:0 7px 16px rgba(10,148,79,.35)!important;
+}
+body[data-app-tab="habits"] .personal-habit-date.is-selected strong,
+body[data-app-tab="habits"] .personal-habit-date.is-selected span{color:#fff!important;opacity:1!important}
+body[data-app-tab="habits"] .personal-habits-list{display:grid!important;gap:10px!important;margin-top:15px!important}
+body[data-app-tab="habits"] .personal-habit-row{
+  padding:12px!important;border:1px solid rgba(255,255,255,.95)!important;
+  border-radius:17px!important;background:#fff!important;
+  box-shadow:0 6px 18px rgba(20,106,90,.085)!important;opacity:1!important;
+}
+body[data-app-tab="habits"] .personal-habit-main{grid-template-columns:42px minmax(0,1fr) 30px!important;align-items:center!important}
+body[data-app-tab="habits"] .personal-habit-emoji{
+  width:42px!important;height:42px!important;border-radius:14px!important;
+  background:linear-gradient(145deg,#e5f9ee,#d2f4e6)!important;font-size:23px!important;
+  box-shadow:inset 0 0 0 1px rgba(15,151,100,.08);
+}
+body[data-app-tab="habits"] .personal-habit-row:nth-child(4n + 2) .personal-habit-emoji{background:linear-gradient(145deg,#e9f2ff,#dbeaff)!important}
+body[data-app-tab="habits"] .personal-habit-row:nth-child(4n + 3) .personal-habit-emoji{background:linear-gradient(145deg,#fff0d6,#ffecd1)!important}
+body[data-app-tab="habits"] .personal-habit-row:nth-child(4n + 4) .personal-habit-emoji{background:linear-gradient(145deg,#f4e8ff,#ebdcff)!important}
+body[data-app-tab="habits"] .personal-habit-name{color:#18382f!important;font-size:14px!important}
+body[data-app-tab="habits"] .personal-habit-purpose,
+body[data-app-tab="habits"] .personal-habit-streak,
+body[data-app-tab="habits"] .personal-habit-score-meta{color:#567269!important;opacity:1!important}
+body[data-app-tab="habits"] .personal-habit-remove{color:#738c84!important;opacity:.6!important}
+body[data-app-tab="habits"] .personal-habit-actions{margin:10px 0 0!important;gap:9px!important}
+body[data-app-tab="habits"] .personal-habit-status-button{min-height:40px!important;border-radius:12px!important;font-size:12px!important}
+body[data-app-tab="habits"] .personal-habit-status-button.is-done:not(.is-history-locked):not(.is-time-locked){
+  color:#13884c!important;border-color:#7cddb0!important;background:#e6f9ef!important;
+}
+body[data-app-tab="habits"] .personal-habit-status-button.is-notdone:not(.is-history-locked):not(.is-time-locked){
+  color:#b44c52!important;border-color:#f2bfc1!important;background:#fff2f2!important;
+}
+body[data-app-tab="habits"] .personal-habit-status-button.is-done.is-active:not(.is-history-locked):not(.is-time-locked){
+  color:#fff!important;background:linear-gradient(135deg,#23c86a,#0baf64)!important;border-color:#19b85d!important;
+}
+body[data-app-tab="habits"] .personal-habit-status-button.is-notdone.is-active:not(.is-history-locked):not(.is-time-locked){
+  color:#fff!important;background:#cf555b!important;border-color:#cf555b!important;
+}
+body[data-app-tab="habits"] .personal-habits-add{
+  min-height:48px!important;border:0!important;border-radius:15px!important;
+  color:#fff!important;background:linear-gradient(110deg,#1bcf71,#04b981)!important;
+  box-shadow:0 9px 20px rgba(0,149,94,.22)!important;opacity:1!important;
+}
+body[data-app-tab="habits"] .personal-habits-form input{
+  background:#fff!important;color:#163b30!important;border-color:rgba(16,138,90,.22)!important;
+}
+body[data-app-tab="habits"] .personal-habits-empty{
+  background:rgba(255,255,255,.82)!important;color:#315949!important;opacity:1!important;
+}
+body[data-app-tab="habits"] .personal-habit-row.is-history .personal-habit-day-status.is-pending{color:#5e7770}
+@media(max-width:390px){
+  body[data-app-tab="habits"] .personal-habits-tile{padding:13px 11px 17px!important}
+  body[data-app-tab="habits"] .personal-habits-tile>.personal-habits-calendar{padding:5px!important}
+  body[data-app-tab="habits"] .personal-habit-row{padding:10px!important}
+}
+/* End RUDI v4.88 habits page */
