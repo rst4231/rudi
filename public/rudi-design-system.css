@@ -178,3 +178,45 @@ body[data-app-tab="home"] :is(.panel,.home-tools-tile,.card){scroll-margin-top:1
  .finance-shared-add-button,.finance-tab,.ticktick-connect,.app-tab-button,
  .profile-tool-button):active{transform:none!important}
 }
+
+/* RUDI v4.81 - precise orbiting border along emoji shortcut squares; no outer blur. */
+@property --rudi-emoji-outline-angle{
+ syntax:"<angle>";
+ inherits:false;
+ initial-value:0deg;
+}
+@keyframes rudiEmojiOutlineOrbit{
+ to{--rudi-emoji-outline-angle:360deg}
+}
+body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > :is(#fastingProfileButton,#habitProfileButton,#financeProfileButton,#supplementProfileButton){
+ position:relative!important;
+ border:1.5px solid rgba(139,158,255,.80)!important;
+ box-shadow:inset 0 0 0 .6px rgba(222,229,255,.24)!important;
+}
+body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > :is(#fastingProfileButton,#habitProfileButton,#financeProfileButton,#supplementProfileButton)::after{
+ content:"";
+ position:absolute;
+ inset:0;
+ z-index:2;
+ box-sizing:border-box;
+ border:2px solid transparent;
+ border-radius:inherit;
+ background:conic-gradient(
+  from var(--rudi-emoji-outline-angle),
+  rgba(146,164,255,.35) 0deg,
+  rgba(176,191,255,.85) 55deg,
+  rgba(252,253,255,1) 91deg,
+  rgba(164,184,255,.96) 133deg,
+  rgba(132,151,249,.37) 190deg,
+  rgba(146,164,255,.35) 360deg
+ ) border-box;
+ -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+ -webkit-mask-composite:xor;
+ mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+ mask-composite:exclude;
+ pointer-events:none;
+ animation:rudiEmojiOutlineOrbit 4s linear infinite;
+}
+@media(prefers-reduced-motion:reduce){
+ body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > :is(#fastingProfileButton,#habitProfileButton,#financeProfileButton,#supplementProfileButton)::after{animation:none}
+}
