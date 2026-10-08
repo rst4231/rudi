@@ -92,41 +92,38 @@ body[data-app-tab="home"] :is(.panel,.home-tools-tile,.card){scroll-margin-top:1
  box-shadow:inset 0 1px 2px color-mix(in srgb,var(--text) 6%,transparent)
 }
 /* Prevent sheets from escaping iPhone viewport. Keep finance expense keypad intact. */
-.finance-coin-modal,.ticktick-task-modal{max-width:100%;overflow-x:clip}
-.finance-coin-modal-sheet,.ticktick-task-modal-sheet{
+.finance-coin-modal:not(#financeExpenseComposer),.ticktick-task-modal{
+ max-width:100%;overflow-x:clip
+}
+.finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet,
+.ticktick-task-modal-sheet{
  box-sizing:border-box;min-width:0;max-width:100%;overflow-x:hidden;
  overscroll-behavior:contain;-webkit-overflow-scrolling:touch
 }
-.finance-coin-modal-sheet{
+.finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet{
  max-height:min(760px,calc(100dvh - max(12px,env(safe-area-inset-top)) - 8px));
  padding-bottom:max(18px,env(safe-area-inset-bottom))
 }
 .ticktick-task-modal-sheet{
  max-height:calc(100dvh - max(24px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)))
 }
-.finance-coin-modal-sheet :is(input,select,textarea),
+.finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet :is(input,select,textarea),
 .ticktick-task-modal-sheet :is(input,select,textarea){
  box-sizing:border-box;min-width:0;max-width:100%
 }
-.finance-coin-modal-sheet :is(.finance-input-grid,.finance-expense-datetime-grid),
-.ticktick-task-modal-sheet .ticktick-task-form,.finance-coin-modal-sheet .finance-money-input,
-.finance-coin-modal-sheet .finance-temporal-control{min-width:0}
+.finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet :is(.finance-input-grid,.finance-expense-datetime-grid,.finance-money-input,.finance-temporal-control),
+.ticktick-task-modal-sheet .ticktick-task-form{min-width:0}
 @media(max-width:600px){
- .finance-coin-modal{
+ .finance-coin-modal:not(#financeExpenseComposer){
   padding-left:max(0px,env(safe-area-inset-left));
   padding-right:max(0px,env(safe-area-inset-right))
  }
- .finance-coin-modal-sheet{
+ .finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet{
   width:100%;border-radius:20px 20px 0 0;
   padding-left:max(12px,env(safe-area-inset-left));
   padding-right:max(12px,env(safe-area-inset-right))
  }
- .finance-expense-entry-sheet{
-  width:100%;min-width:0;max-width:100%;max-height:100dvh;height:100dvh;
-  overflow-y:auto;overflow-x:hidden;border-radius:0;
-  padding-top:max(24px,env(safe-area-inset-top),var(--tg-content-safe-top,0px))!important;
-  padding-bottom:max(10px,env(safe-area-inset-bottom))
- }
+ /* Expense entry sheet keeps v4.77 sizes, keypad and scrolling untouched. */
  .ticktick-task-modal{
   padding-left:max(10px,env(safe-area-inset-left));
   padding-right:max(10px,env(safe-area-inset-right))
@@ -136,19 +133,19 @@ body[data-app-tab="home"] :is(.panel,.home-tools-tile,.card){scroll-margin-top:1
   max-height:calc(100dvh - max(18px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)));
   border-radius:19px;padding:14px
  }
- .finance-coin-modal-sheet input:not([readonly]),
- .finance-coin-modal-sheet textarea,.finance-coin-modal-sheet select,
+ .finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet input:not([readonly]),
+ .finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet textarea,
+ .finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet select,
  .ticktick-task-modal-sheet input,.ticktick-task-modal-sheet textarea,
  .ticktick-task-modal-sheet select{font-size:max(16px,1em)}
- .finance-coin-modal-sheet .finance-expense-entry-amount input[readonly]{font-size:inherit}
- .finance-coin-modal-sheet .finance-input-grid{gap:8px}
+ .finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet .finance-input-grid{gap:8px}
  .section-heading h2{font-size:17px}
  .shell{gap:12px}
 }
 @media(max-width:375px){
  .finance-category-card{padding:10px}
  .finance-wallet-add{padding-inline:9px}
- .finance-coin-modal-sheet{padding-inline:10px}
+ .finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet{padding-inline:10px}
  .ticktick-task-modal-sheet{padding-inline:12px}
 }
 @media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){

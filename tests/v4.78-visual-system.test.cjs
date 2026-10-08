@@ -26,3 +26,10 @@ test('version metadata and VERSION agree',()=>{
  assert.equal(read('VERSION').trim(),'v4.78');
  assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.78');
 });
+
+test('expense keypad sheet retains its v4.77 layout',()=>{
+ const s=read('public/rudi-design-system.css');
+ assert.ok(s.includes(':not(#financeExpenseComposer)'));
+ assert.ok(!s.includes(' .finance-expense-entry-sheet{'));
+ assert.ok(!s.includes('height:100dvh;'));
+});
