@@ -7698,7 +7698,6 @@
         if(type==='calendar') return 'schedule';
         if(type==='wishlist') return 'wishlist';
         if(type==='saved-recipe') return 'products';
-        if(type==='reward-unlock') return 'score';
         if(type==='task-complete'||type==='checklist-complete'||type==='daily-question'||type==='lulu-walk'||type==='mood') return 'home';
         return '';
       }
