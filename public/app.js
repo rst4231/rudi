@@ -1923,6 +1923,7 @@
 
       function renderMarketTicker(payload){
         renderFinanceWalletTotal(payload);
+        renderFinanceObligationCoverage();
         document.dispatchEvent(new CustomEvent('rudi-finance-rates-changed'));
         renderFinanceCapitalHistory();
         if(currentAppTab==='finances'&&activeFinanceTab==='personal')recordFinanceCapitalSnapshot().catch(()=>{});
@@ -3072,6 +3073,57 @@
         queueAppIconBadgeSync();
         return count;
       }
+      // Same net wallet balance as "Общий баланс": includes credit balances and FX conversion.
+      // Compare against unpaid obligations for the CURRENT month even when history is selected.
+      function renderFinanceObligationCoverage(){
+        const view=document.getElementById('financeObligationCoverage');
+        if(!view)return;
+        const month=financeCurrentMonthKey();
+        const obligations=(Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[])
+          .filter(row=>row&&row.active!==false);
+        const due=Math.round(obligations.reduce((sum,row)=>{
+          const alreadyPaid=Array.isArray(row.paidMonths)&&row.paidMonths.includes(month);
+          return sum+(alreadyPaid?0:Math.max(0,Number(row.amount)||0));
+        },0)*100)/100;
+        view.dataset.state='neutral';
+        if(!obligations.length){
+          view.textContent='Проверка баланса: добавь ежемесячные платежи';
+          return;
+        }
+        if(due<=0){
+          view.dataset.state='enough';
+          view.textContent='Все ежемесячные платежи этого месяца оплачены';
+          return;
+        }
+        const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
+        if(!wallets.length){
+          view.textContent='Хватит ли денег: добавь баланс кошелька';
+          return;
+        }
+        const rates=financeWalletRubRates();
+        let available=0;
+        for(const wallet of wallets){
+          const balance=Number(wallet?.balance||0);
+          if(!Number.isFinite(balance)){view.textContent='Невозможно проверить баланс кошельков';return}
+          if(Math.abs(balance)<1e-12)continue;
+          const rate=Number(rates[String(wallet?.currency||'RUB').toUpperCase()]||0);
+          if(rate<=0){view.textContent='Для проверки баланса нужен актуальный курс валют';return}
+          available+=balance*rate;
+        }
+        if(financeBalanceHidden){
+          view.textContent='Хватит ли денег: баланс скрыт';
+          return;
+        }
+        if(financeOverviewDisplayCurrency==='USD'&&financeOverviewUsdRate()<=0){
+          view.textContent='Для расчёта в долларах нужен курс USD';
+          return;
+        }
+        const difference=Math.round((available-due)*100)/100;
+        view.dataset.state=difference>=0?'enough':'short';
+        view.textContent=difference>=0
+          ?'На платежи этого месяца хватит · останется '+financeOverviewMoney(difference)
+          :'На платежи этого месяца не хватит '+financeOverviewMoney(-difference);
+      }
       function renderFinanceObligations(){
         syncFinanceObligationAttention();
         const list=document.getElementById('financeObligationList'),forecast=document.getElementById('financeObligationForecast');if(!list||!forecast)return;
@@ -3093,6 +3145,7 @@
           item.append(toggle,copy,del);list.append(item);
         }
         forecast.textContent=obligations.length?'До конца месяца: '+financeOverviewMoney(pending):'Запланированных ежемесячных расходов нет';
+        renderFinanceObligationCoverage();
         animateRudiCollection(list,'.finance-obligation-row',10);
       }
       async function saveFinancePlanWithObligations(obligations){
@@ -4314,6 +4367,7 @@
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         list.replaceChildren();if(empty)empty.hidden=wallets.length>0;
         renderFinanceWalletTotal();
+        renderFinanceObligationCoverage();
         list.classList.toggle('is-editing',financeWalletEditMode);
         wallets.forEach((wallet,index)=>{
           const item=document.createElement('div');item.className='finance-coin-item finance-wallet-item';item.dataset.walletId=wallet.id;

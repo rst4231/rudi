@@ -1,0 +1,147 @@
+/* RUDI v4.98 — harmonized personal-finance cards. All controls stay in place. */
+#financePersonalPanel .rudi-decision-suite{
+  width:100%;min-width:0;margin:14px 0!important;gap:12px!important
+}
+#financePersonalPanel .rudi-decision-card:first-child{--rudi-card-topic:#df925b;--rudi-card-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M4%2019v-6m5%206V8m5%2011v-4m5%204V4%22%20stroke%3D%22black%22%20fill%3D%22none%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E")}
+#financePersonalPanel .rudi-decision-card:nth-child(2){--rudi-card-topic:#8c7ce2;--rudi-card-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M3%2012h7m0%200%204-5h7m-11%205%204%205h7m-3-13%203%203-3%203m0%204%203%203-3%203%22%20stroke%3D%22black%22%20fill%3D%22none%22%20stroke-width%3D%221.8%22%20stroke-linejoin%3D%22round%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E")}
+#financePersonalPanel #financeGoalCard{--rudi-card-topic:#3da986;--rudi-card-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%20stroke%3D%22black%22%20fill%3D%22none%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%225%22%20stroke%3D%22black%22%20fill%3D%22none%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221.7%22%20fill%3D%22black%22%2F%3E%3C%2Fsvg%3E")}
+#financePersonalPanel #financeObligationsCard{--rudi-card-topic:#579bcc;--rudi-card-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20x%3D%223%22%20y%3D%225%22%20width%3D%2218%22%20height%3D%2216%22%20rx%3D%222.5%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20fill%3D%22none%22%2F%3E%3Cpath%20d%3D%22M8%203v4m8-4v4M3%2010h18M8%2014h2m4%200h2m-8%203h2m4%200h2%22%20stroke%3D%22black%22%20fill%3D%22none%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E")}
+html[data-theme="dark"] #financePersonalPanel .rudi-decision-card:first-child{--rudi-card-topic:#f2a36e}
+html[data-theme="dark"] #financePersonalPanel .rudi-decision-card:nth-child(2){--rudi-card-topic:#a99aff}
+html[data-theme="dark"] #financePersonalPanel #financeGoalCard{--rudi-card-topic:#62c8a4}
+html[data-theme="dark"] #financePersonalPanel #financeObligationsCard{--rudi-card-topic:#86baf0}
+#financePersonalPanel :is(.rudi-decision-card,#financeGoalCard,#financeObligationsCard){
+  --rudi-card-inset:17px;--rudi-card-control:36px;
+  box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;
+  min-height:72px!important;padding:var(--rudi-card-inset)!important;
+  border:1px solid color-mix(in srgb,var(--rudi-card-topic) 22%,var(--line))!important;
+  border-radius:21px!important;
+  background:linear-gradient(112deg,
+    color-mix(in srgb,var(--rudi-card-topic) 5%,var(--surface-strong)) 0%,
+    color-mix(in srgb,var(--rudi-card-topic) 1.5%,var(--surface-strong)) 72%)!important;
+  box-shadow:inset 3px 0 0 color-mix(in srgb,var(--rudi-card-topic) 62%,transparent),
+    0 9px 24px color-mix(in srgb,var(--text) 3%,transparent)!important;
+  overflow:hidden!important;
+}
+#financePersonalPanel .rudi-decision-card>details{min-width:0;width:100%}
+#financePersonalPanel :is(.rudi-decision-summary,.rudi-scenario-summary,
+  #financeGoalCard>.finance-history-head,#financeObligationsCard .finance-obligations-card-head){
+  box-sizing:border-box!important;display:flex!important;align-items:center!important;
+  justify-content:space-between!important;gap:9px!important;
+  min-height:36px!important;margin:0!important;padding:0!important;
+}
+#financePersonalPanel #financeGoalCard>.finance-history-head>div,
+#financePersonalPanel #financeObligationsCard .finance-obligations-heading{
+  box-sizing:border-box!important;flex:1 1 auto!important;min-width:0!important;
+  padding:0!important;margin:0!important;text-align:left!important;
+}
+#financePersonalPanel :is(#rudiAlertsHeading,#rudiScenarioHeading,
+  #financePlanningTitle,#financeObligationsTitle){
+  box-sizing:border-box!important;position:relative;display:block!important;
+  flex:1 1 auto;min-width:0!important;height:36px!important;
+  padding:0 0 0 44px!important;margin:0!important;
+  color:var(--text)!important;font-size:clamp(14px,3.9vw,18px)!important;
+  line-height:36px!important;letter-spacing:-.025em!important;
+  font-weight:800!important;text-align:left!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+}
+#financePersonalPanel :is(#rudiAlertsHeading,#rudiScenarioHeading,
+  #financePlanningTitle,#financeObligationsTitle)::before{
+  content:"";position:absolute;z-index:1;left:8px;top:50%;
+  width:17px;height:17px;transform:translateY(-50%);
+  background:var(--rudi-card-topic);-webkit-mask:var(--rudi-card-mask) center/contain no-repeat;
+  mask:var(--rudi-card-mask) center/contain no-repeat;pointer-events:none
+}
+#financePersonalPanel :is(#rudiAlertsHeading,#rudiScenarioHeading,
+  #financePlanningTitle,#financeObligationsTitle)::after{
+  content:"";position:absolute;left:0;top:50%;width:33px;height:33px;
+  transform:translateY(-50%);box-sizing:border-box;border-radius:10px;
+  border:1px solid color-mix(in srgb,var(--rudi-card-topic) 22%,var(--line));
+  background:color-mix(in srgb,var(--rudi-card-topic) 11%,var(--soft));
+  pointer-events:none
+}
+#financePersonalPanel :is(.rudi-decision-summary .rudi-decision-chevron,
+  .rudi-scenario-summary .rudi-decision-chevron,#financeGoalToggle,
+  #financeObligationsToggle,#financeObligationAddButton){
+  box-sizing:border-box!important;display:grid!important;place-items:center!important;
+  width:var(--rudi-card-control)!important;height:var(--rudi-card-control)!important;
+  min-width:var(--rudi-card-control)!important;min-height:var(--rudi-card-control)!important;
+  max-width:var(--rudi-card-control)!important;max-height:var(--rudi-card-control)!important;
+  padding:0!important;flex:0 0 var(--rudi-card-control)!important;
+  border:1px solid color-mix(in srgb,var(--rudi-card-topic) 12%,var(--line))!important;
+  border-radius:11px!important;background:var(--soft)!important;
+  color:var(--muted)!important
+}
+#financePersonalPanel :is(#financeObligationsToggle,#financeObligationAddButton) svg{
+  width:16px!important;height:16px!important
+}
+#financePersonalPanel #financeObligationsCard{position:relative!important}
+#financePersonalPanel #financeObligationsCard>.finance-obligations-details{display:block!important}
+#financePersonalPanel #financeObligationsCard .finance-obligations-card-head{
+  position:relative;min-width:0;padding-right:calc(2 * var(--rudi-card-control) + 8px)!important;
+  cursor:pointer
+}
+#financePersonalPanel #financeObligationsCard #financeObligationsToggle{
+  position:absolute!important;right:0!important;top:0!important;margin:0!important
+}
+#financePersonalPanel #financeObligationsCard #financeObligationAddButton{
+  position:absolute!important;z-index:4!important;
+  top:var(--rudi-card-inset)!important;
+  right:calc(var(--rudi-card-inset) + var(--rudi-card-control) + 8px)!important;
+  margin:0!important;cursor:pointer
+}
+#financePersonalPanel #financeObligationsCard.is-collapsed>#financeObligationAddButton{display:grid!important}
+#financePersonalPanel .rudi-alert-details[open] .rudi-decision-summary,
+#financePersonalPanel .rudi-scenario-details[open] .rudi-scenario-summary,
+#financePersonalPanel #financeObligationsDetails[open]>.finance-obligations-card-head{
+  margin-bottom:12px!important
+}
+#financePersonalPanel #financeGoalCard:not(.is-collapsed)>.finance-history-head{margin-bottom:12px!important}
+#financePersonalPanel #financeObligationsCard .finance-obligation-coverage{
+  margin-top:9px;padding:10px 11px;border-radius:11px;
+  font-size:11px;line-height:1.45;font-weight:760;
+  color:var(--muted);background:var(--soft);
+  border:1px solid var(--line)
+}
+#financePersonalPanel #financeObligationCoverage[data-state="enough"]{
+  color:color-mix(in srgb,#1e9a6d 84%,var(--text));
+  border-color:color-mix(in srgb,#20a67a 24%,var(--line));
+  background:color-mix(in srgb,#1fa77a 8%,var(--surface))
+}
+#financePersonalPanel #financeObligationCoverage[data-state="short"]{
+  color:color-mix(in srgb,#df6060 85%,var(--text));
+  border-color:color-mix(in srgb,#d95959 24%,var(--line));
+  background:color-mix(in srgb,#dc6060 8%,var(--surface))
+}
+html[data-theme="dark"] #financePersonalPanel #financeObligationCoverage[data-state="enough"]{color:#79d6ad}
+html[data-theme="dark"] #financePersonalPanel #financeObligationCoverage[data-state="short"]{color:#f39796}
+@media(max-width:430px){
+ #financePersonalPanel :is(.rudi-decision-card,#financeGoalCard,#financeObligationsCard){
+   --rudi-card-inset:15px;--rudi-card-control:34px;
+   min-height:70px!important;border-radius:19px!important
+ }
+ #financePersonalPanel :is(#rudiAlertsHeading,#rudiScenarioHeading,#financePlanningTitle,#financeObligationsTitle){
+   font-size:clamp(13px,3.9vw,17px)!important
+ }
+}
+@media(max-width:360px){
+ #financePersonalPanel :is(.rudi-decision-card,#financeGoalCard,#financeObligationsCard){
+   --rudi-card-inset:12px;--rudi-card-control:30px;min-height:66px!important
+ }
+ #financePersonalPanel :is(#rudiAlertsHeading,#rudiScenarioHeading,#financePlanningTitle,#financeObligationsTitle){
+   padding-left:36px!important;font-size:13px!important
+ }
+ #financePersonalPanel :is(#rudiAlertsHeading,#rudiScenarioHeading,#financePlanningTitle,#financeObligationsTitle)::after{
+   width:28px;height:28px;border-radius:9px
+ }
+ #financePersonalPanel :is(#rudiAlertsHeading,#rudiScenarioHeading,#financePlanningTitle,#financeObligationsTitle)::before{
+   left:6px;width:16px;height:16px
+ }
+ #financePersonalPanel :is(.rudi-decision-summary,.rudi-scenario-summary,
+  #financeGoalCard>.finance-history-head,#financeObligationsCard .finance-obligations-card-head){gap:6px!important}
+}
+@media(prefers-reduced-motion:no-preference){
+ #financePersonalPanel :is(.rudi-decision-card,#financeGoalCard,#financeObligationsCard){
+  transition:border-color .18s ease,background .18s ease
+ }
+}

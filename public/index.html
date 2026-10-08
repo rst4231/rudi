@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.97">
+  <meta name="rudi-version" content="v4.98">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-rudi-v460.png?v=4.60">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-rudi-v460.png?v=4.60">
-  <link rel="manifest" href="/manifest.webmanifest?v=4.97">
+  <link rel="manifest" href="/manifest.webmanifest?v=4.98">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
@@ -27,19 +27,20 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.97">
-  <link rel="stylesheet" href="/finance-decisions.css?v=4.97">
+  <link rel="stylesheet" href="/app.css?v=4.98">
+  <link rel="stylesheet" href="/finance-decisions.css?v=4.98">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
-  <link rel="stylesheet" href="/pwa-extras.css?v=4.97">
-  <link rel="stylesheet" href="/calendar.css?v=4.97">
-  <link rel="stylesheet" href="/smart-home.css?v=4.97">
-  <link rel="stylesheet" href="/car.css?v=4.97">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.97">
-  <link rel="stylesheet" href="/supplement-advanced.css?v=4.97">
-  <link rel="stylesheet" href="/rudi-design-system.css?v=4.97">
+  <link rel="stylesheet" href="/pwa-extras.css?v=4.98">
+  <link rel="stylesheet" href="/calendar.css?v=4.98">
+  <link rel="stylesheet" href="/smart-home.css?v=4.98">
+  <link rel="stylesheet" href="/car.css?v=4.98">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.98">
+  <link rel="stylesheet" href="/supplement-advanced.css?v=4.98">
+  <link rel="stylesheet" href="/rudi-design-system.css?v=4.98">
+  <link rel="stylesheet" href="/finance-cards.css?v=4.98">
   <script>
     (() => {
       const launchContext=String(location.search||'')+String(location.hash||'');
@@ -67,18 +68,18 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.97"></script>
-  <script defer src="/finance-decisions-core.js?v=4.97"></script>
-  <script defer src="/finance-decisions-ui.js?v=4.97"></script>
+  <script defer src="/app.js?v=4.98"></script>
+  <script defer src="/finance-decisions-core.js?v=4.98"></script>
+  <script defer src="/finance-decisions-ui.js?v=4.98"></script>
 
-  <script defer src="/pwa-extras.js?v=4.97"></script>
-  <script defer src="/weather.js?v=4.97"></script>
-  <script defer src="/smart-home.js?v=4.97"></script>
-  <script defer src="/car.js?v=4.97"></script>
-  <script defer src="/profile-supplements.js?v=4.97"></script>
-  <script defer src="/mood-history.js?v=4.97"></script>
-  <script defer src="/supplement-editor.js?v=4.97"></script>
-  <script defer src="/supplement-advanced.js?v=4.97"></script>
+  <script defer src="/pwa-extras.js?v=4.98"></script>
+  <script defer src="/weather.js?v=4.98"></script>
+  <script defer src="/smart-home.js?v=4.98"></script>
+  <script defer src="/car.js?v=4.98"></script>
+  <script defer src="/profile-supplements.js?v=4.98"></script>
+  <script defer src="/mood-history.js?v=4.98"></script>
+  <script defer src="/supplement-editor.js?v=4.98"></script>
+  <script defer src="/supplement-advanced.js?v=4.98"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -713,6 +714,7 @@
             </summary>
             <div id="financeObligationList" class="finance-obligation-list"></div>
             <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных ежемесячных расходов нет</div>
+            <div id="financeObligationCoverage" class="finance-obligation-coverage" role="status" aria-live="polite"></div>
           </details>
           <button id="financeObligationAddButton" class="finance-collapse-toggle finance-obligation-add-button" type="button" aria-label="Добавить ежемесячный расход" title="Добавить ежемесячный расход"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
         </section>
