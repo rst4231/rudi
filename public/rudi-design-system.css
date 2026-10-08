@@ -1,0 +1,183 @@
+/* RUDI v4.78 - visual polish layer. Design only, no behavior changes. */
+:root{
+ --rudi-ui-radius:20px;
+ --rudi-ui-control-radius:13px;
+ --rudi-ui-ease:cubic-bezier(.22,.76,.24,1);
+ --rudi-ui-focus:color-mix(in srgb,var(--accent) 65%,transparent);
+}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;font-synthesis:none}
+body{font-kerning:normal;font-variant-numeric:lining-nums}
+.shell,.shell>*,[data-app-tab-section],.finance-page,.car-page,
+.work-page,.wishlist-page,.fasting-page,.dates-page,.smart-saves-page{min-width:0}
+.shell{gap:13px}
+.panel,.card,.section-block,.profile,.finance-coin-board,.finance-history-card,
+.finance-planning-card,.finance-obligations-card,.finance-category-card,
+.work-page .work-calendar-card,.work-page .calendar-disclosure-card,
+.ticktick-panel,.shared-album-card,.products-card,.wishlist-card,
+.fasting-active-card,.fasting-start-card,.fasting-stat,
+.personal-habits-tile,.personal-supplements-tile{
+ border-radius:var(--rudi-ui-radius)
+}
+.panel,.card,.section-block,.finance-coin-board,.finance-history-card,
+.finance-planning-card,.finance-obligations-card,.finance-category-card{
+ border-color:color-mix(in srgb,var(--line) 88%,transparent)
+}
+.profile{border-radius:21px!important}
+.section-heading h2,.finance-page-head h1,.car-page-head h1,
+.fasting-page-title h1,.dates-page-head h1,.wishlist-page-head h1,
+.smart-saves-page-head h1,.personal-tool-page-head h1{
+ line-height:1.15;letter-spacing:-.033em;font-weight:820;text-wrap:balance
+}
+.section-heading h2{font-size:clamp(17px,4.4vw,19px)}
+.section-eyebrow,.panel-label,.finance-total-label{letter-spacing:.055em}
+.finance-coin-section-head h2,.finance-history-head h2,.fasting-history-head h2{
+ font-weight:800;letter-spacing:-.025em
+}
+.finance-balance-card strong,.finance-balance-metrics strong,.finance-total-value,
+.finance-history-card strong,.finance-category-card-stats strong,.car-page strong,
+.fasting-stat strong,.year-progress-head strong,.personal-habits-progress-row strong,
+.personal-supplements-progress-row strong{font-variant-numeric:tabular-nums}
+button,input,select,textarea{font-family:inherit}
+button,[role="button"],a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+:is(button,[role="button"],a,input,select,textarea):focus-visible{
+ outline:2px solid var(--rudi-ui-focus);outline-offset:3px
+}
+.finance-wallet-add,.finance-analyst-button,.finance-save-button,
+.finance-shared-add-button,.finance-tab,.finance-income-add,
+.finance-balance-currency,.ticktick-add-button,.ticktick-connect,
+.fasting-back-button,.finance-back-button,.finance-coin-modal-close,
+.ticktick-task-modal-close,.app-tab-button{border-radius:var(--rudi-ui-control-radius)}
+.finance-wallet-add,.finance-analyst-button,.finance-save-button,
+.finance-shared-add-button,.ticktick-connect{min-height:40px}
+.finance-wallet-add,.finance-analyst-button,.finance-save-button,
+.finance-shared-add-button,.finance-tab,.ticktick-connect,.app-tab-button{font-weight:730}
+.finance-category-list,.finance-wallet-list,.finance-history-list,
+.wishlist-page-list{row-gap:9px}
+.finance-category-card{padding:12px;gap:9px;border-radius:16px}
+.finance-category-card-icon,.finance-category-expense-row{border-radius:11px}
+.finance-coin-section-head{row-gap:7px}
+.finance-page,.car-page,.fasting-page,.dates-page,.smart-saves-page{row-gap:12px}
+body[data-app-tab="home"] .shell{gap:12px}
+body[data-app-tab="home"] .priority-section{padding:11px!important;border-radius:19px!important}
+body[data-app-tab="home"] :is(.panel,.home-tools-tile,.card){scroll-margin-top:14px}
+.work-page{gap:15px!important}
+.work-page :is(.work-calendar-card,.calendar-disclosure-card){border-radius:20px!important}
+.work-page .work-calendar-card{padding:13px 12px!important}
+.app-tabbar{border-radius:20px!important}
+.app-tab-button{border-radius:14px!important}
+.app-tab-icon{display:grid;place-items:center;border-radius:11px!important}
+.app-tab-icon svg,.fasting-back-button svg,.finance-back-button svg,
+.finance-category-history-back svg,.car-page-head svg{
+ stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke
+}
+.app-tab-icon svg{stroke-width:1.85}
+.app-tab-button.active .app-tab-icon{
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 11%,transparent)
+}
+:is(.finance-category-card-icon,.finance-coin,.profile-tool-button,.fasting-profile-button)
+:is(svg,img){max-width:100%}
+.finance-category-card-icon,.profile-tool-button,.fasting-profile-button{flex-shrink:0}
+.finance-balance-progress-track,.finance-category-progress,.finance-goal-progress,
+.finance-budget-progress,.fasting-progress,.personal-habits-progress,
+.personal-supplements-progress,.year-progress-track,.cycle-progress,
+.car-service-progress{border-radius:999px;overflow:hidden}
+.finance-balance-progress-track i,.finance-category-progress span,
+.finance-goal-progress span,.finance-budget-progress i,.fasting-progress span,
+.personal-habits-progress-fill,.personal-supplements-progress-fill,
+.year-progress-bar,.cycle-progress span,.car-service-progress span{
+ border-radius:inherit;will-change:auto
+}
+.finance-balance-progress-track,.finance-goal-progress,
+.personal-habits-progress,.personal-supplements-progress,.fasting-progress{
+ box-shadow:inset 0 1px 2px color-mix(in srgb,var(--text) 6%,transparent)
+}
+/* Prevent sheets from escaping iPhone viewport. Keep finance expense keypad intact. */
+.finance-coin-modal,.ticktick-task-modal{max-width:100%;overflow-x:clip}
+.finance-coin-modal-sheet,.ticktick-task-modal-sheet{
+ box-sizing:border-box;min-width:0;max-width:100%;overflow-x:hidden;
+ overscroll-behavior:contain;-webkit-overflow-scrolling:touch
+}
+.finance-coin-modal-sheet{
+ max-height:min(760px,calc(100dvh - max(12px,env(safe-area-inset-top)) - 8px));
+ padding-bottom:max(18px,env(safe-area-inset-bottom))
+}
+.ticktick-task-modal-sheet{
+ max-height:calc(100dvh - max(24px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)))
+}
+.finance-coin-modal-sheet :is(input,select,textarea),
+.ticktick-task-modal-sheet :is(input,select,textarea){
+ box-sizing:border-box;min-width:0;max-width:100%
+}
+.finance-coin-modal-sheet :is(.finance-input-grid,.finance-expense-datetime-grid),
+.ticktick-task-modal-sheet .ticktick-task-form,.finance-coin-modal-sheet .finance-money-input,
+.finance-coin-modal-sheet .finance-temporal-control{min-width:0}
+@media(max-width:600px){
+ .finance-coin-modal{
+  padding-left:max(0px,env(safe-area-inset-left));
+  padding-right:max(0px,env(safe-area-inset-right))
+ }
+ .finance-coin-modal-sheet{
+  width:100%;border-radius:20px 20px 0 0;
+  padding-left:max(12px,env(safe-area-inset-left));
+  padding-right:max(12px,env(safe-area-inset-right))
+ }
+ .finance-expense-entry-sheet{
+  width:100%;min-width:0;max-width:100%;max-height:100dvh;height:100dvh;
+  overflow-y:auto;overflow-x:hidden;border-radius:0;
+  padding-top:max(24px,env(safe-area-inset-top),var(--tg-content-safe-top,0px))!important;
+  padding-bottom:max(10px,env(safe-area-inset-bottom))
+ }
+ .ticktick-task-modal{
+  padding-left:max(10px,env(safe-area-inset-left));
+  padding-right:max(10px,env(safe-area-inset-right))
+ }
+ .ticktick-task-modal-sheet{
+  width:100%;
+  max-height:calc(100dvh - max(18px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)));
+  border-radius:19px;padding:14px
+ }
+ .finance-coin-modal-sheet input:not([readonly]),
+ .finance-coin-modal-sheet textarea,.finance-coin-modal-sheet select,
+ .ticktick-task-modal-sheet input,.ticktick-task-modal-sheet textarea,
+ .ticktick-task-modal-sheet select{font-size:max(16px,1em)}
+ .finance-coin-modal-sheet .finance-expense-entry-amount input[readonly]{font-size:inherit}
+ .finance-coin-modal-sheet .finance-input-grid{gap:8px}
+ .section-heading h2{font-size:17px}
+ .shell{gap:12px}
+}
+@media(max-width:375px){
+ .finance-category-card{padding:10px}
+ .finance-wallet-add{padding-inline:9px}
+ .finance-coin-modal-sheet{padding-inline:10px}
+ .ticktick-task-modal-sheet{padding-inline:12px}
+}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .panel:is(:hover,:focus-within),.finance-category-card:hover,.finance-wallet-card:hover{
+  border-color:color-mix(in srgb,var(--accent) 17%,var(--line))
+ }
+}
+@media(prefers-reduced-motion:no-preference){
+ :is(.finance-wallet-add,.finance-analyst-button,.finance-save-button,
+ .finance-shared-add-button,.finance-tab,.ticktick-connect,.finance-category-card,
+ .finance-category-expense-row,.app-tab-button,.ticktick-add-button,.profile-tool-button){
+  transition-duration:180ms;transition-timing-function:var(--rudi-ui-ease)
+ }
+ .finance-balance-progress-track i,.finance-category-progress span,
+ .finance-goal-progress span,.finance-budget-progress i,.fasting-progress span,
+ .personal-habits-progress-fill,.personal-supplements-progress-fill,
+ .year-progress-bar,.cycle-progress span,.car-service-progress span{
+  transition:width 420ms var(--rudi-ui-ease),transform 420ms var(--rudi-ui-ease)!important
+ }
+ :is(.finance-wallet-add,.finance-analyst-button,.finance-save-button,
+ .finance-shared-add-button,.ticktick-connect,.finance-tab,.app-tab-button,
+ .profile-tool-button):active{transform:scale(.975)}
+}
+@media(prefers-reduced-motion:reduce){
+ .finance-balance-progress-track i,.finance-category-progress span,.finance-goal-progress span,
+ .finance-budget-progress i,.fasting-progress span,.personal-habits-progress-fill,
+ .personal-supplements-progress-fill,.year-progress-bar,.cycle-progress span,
+ .car-service-progress span{animation:none!important;transition:none!important}
+ :is(.finance-wallet-add,.finance-analyst-button,.finance-save-button,
+ .finance-shared-add-button,.finance-tab,.ticktick-connect,.app-tab-button,
+ .profile-tool-button):active{transform:none!important}
+}
