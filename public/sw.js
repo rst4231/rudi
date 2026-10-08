@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.84';
+const CACHE_NAME='rudi-shell-v4.92';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -167,7 +167,8 @@ self.addEventListener('fetch',event=>{
     if(cached) return cached;
 
     try{
-      const response=await fetchWithTimeout(request,STATIC_TIMEOUT_MS);
+      const freshRequest=/\.(?:js|css)$/.test(url.pathname) ? new Request(request,{cache:'no-store'}) : request;
+      const response=await fetchWithTimeout(freshRequest,STATIC_TIMEOUT_MS);
       if(response&&response.ok){
         const copy=response.clone();
         cache.put(request,copy).catch(()=>{});
