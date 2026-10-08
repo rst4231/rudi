@@ -395,6 +395,49 @@
     }
   }
 
+  // Calendar-based seasons approximate the Russian indoor comfort standards.
+  function indoorClimateSeason(at=new Date()){
+    let month;
+    try{month=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Moscow',month:'numeric'}).format(at))}
+    catch(_){month=at.getMonth()+1}
+    return month>=5&&month<=9?'warm':'cold';
+  }
+  function indoorClimateNumber(value,type){
+    if(value===null||value===undefined||value==='')return null;
+    const n=Number(value);
+    if(!Number.isFinite(n))return null;
+    if(type==='humidity'&&(n<0||n>100))return null;
+    if(type==='temperature'&&(n<-30||n>60))return null;
+    return n;
+  }
+  function assessIndoorClimate(type,value,at=new Date()){
+    const raw=indoorClimateNumber(value,type);
+    if(raw===null)return null;
+    if(type==='humidity'){
+      if(raw<30)return {label:'Сухо',level:'alert'};
+      if(raw<=50)return {label:'Норма',level:'normal'};
+      if(raw<=60)return {label:'Влажновато',level:'caution'};
+      return {label:'Слишком влажно',level:'alert'};
+    }
+    if(type==='temperature'){
+      const n=Number(raw.toFixed(1)),warm=indoorClimateSeason(at)==='warm';
+      const minimum=warm?20:18,low=warm?22:20,high=warm?25:22,maximum=warm?28:25;
+      if(n<minimum)return {label:'Холодно',level:'alert'};
+      if(n<low)return {label:'Прохладно',level:'caution'};
+      if(n<=high)return {label:'Норма',level:'normal'};
+      if(n<=maximum)return {label:'Тепловато',level:'caution'};
+      return {label:'Жарко',level:'alert'};
+    }
+    return null;
+  }
+  function renderIndoorClimateAssessment(id,assessment){
+    const node=document.getElementById(id);
+    if(!node)return;
+    node.textContent=assessment?.label||'';
+    node.className='smart-home-climate-assessment'+(assessment?' is-'+assessment.level:'');
+    node.hidden=!assessment;
+  }
+
   function renderClimate(data){
     const climate=(data?.devices||[]).find(device=>
       (device.properties||[]).some(row=>row?.parameters?.instance==='temperature')
@@ -408,9 +451,13 @@
     const humidityNode=document.getElementById('smartHomeHumidity');
     const humidityHint=document.getElementById('smartHomeHumidityHint');
 
-    if(tempNode)tempNode.textContent=Number.isFinite(Number(temp))?Number(temp).toFixed(1)+'°C':'—';
-    if(humidityNode)humidityNode.textContent=Number.isFinite(Number(humidity))?Math.round(Number(humidity))+'%':'—';
+    const validTemp=indoorClimateNumber(temp,'temperature');
+    const validHumidity=indoorClimateNumber(humidity,'humidity');
+    if(tempNode)tempNode.textContent=validTemp===null?'—':validTemp.toFixed(1)+'°C';
+    if(humidityNode)humidityNode.textContent=validHumidity===null?'—':Math.round(validHumidity)+'%';
     if(humidityHint)humidityHint.textContent='Влажность';
+    renderIndoorClimateAssessment('smartHomeTemperatureAssessment',assessIndoorClimate('temperature',validTemp));
+    renderIndoorClimateAssessment('smartHomeHumidityAssessment',assessIndoorClimate('humidity',validHumidity));
   }
 
   async function runScenario(scenario,button){
@@ -543,7 +590,7 @@
     });
   }
 
-  window.RUDI_SMART_HOME={refresh:()=>loadHome({force:true,silent:true})};
+  window.RUDI_SMART_HOME={refresh:()=>loadHome({force:true,silent:true}),assessClimate:assessIndoorClimate};
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
   else start();
