@@ -17481,3 +17481,16 @@ body.finance-month-dialog-open{overflow:hidden!important}
   .finance-ledger-date-range{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px}
   .finance-ledger-date-field>.finance-text-input{font-size:10px!important;padding-inline:3px!important}
 }
+
+/* RUDI v4.87 — income history edit and deletion without shifting original date ranges */
+.finance-ledger-income-row{grid-template-columns:minmax(0,1fr) auto auto!important;gap:7px!important;min-width:0}
+.finance-ledger-income-row>.finance-category-history-copy{min-width:0}
+.finance-income-history-actions{display:flex;align-items:center;gap:5px}
+.finance-income-history-action{display:grid;place-items:center;min-width:34px;min-height:34px;width:34px;height:34px;padding:0;border:0;border-radius:10px;background:var(--soft);color:var(--text);font:inherit;font-size:16px;line-height:1;cursor:pointer}
+.finance-income-history-action.is-delete{color:#c95a61;font-size:22px}
+.finance-income-history-action:disabled{opacity:.45}
+@media(max-width:390px){
+ .finance-ledger-income-row{padding:9px 7px;gap:5px!important}
+ .finance-income-history-actions{gap:3px}
+ .finance-income-history-action{min-width:30px;min-height:32px;width:30px;height:32px}
+}

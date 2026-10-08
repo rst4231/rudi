@@ -12,11 +12,11 @@ function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
-  if (['finance-obligation-not-found','finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found'].includes(code)) return 404;
+  if (['finance-obligation-not-found','finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found','finance-wallet-income-not-found'].includes(code)) return 404;
   if ([
     'finance-month-invalid','finance-amount-invalid','finance-operation-invalid','finance-actor-invalid',
     'finance-text-required','finance-debt-direction-invalid','finance-debt-owner-invalid','finance-category-duplicate','finance-date-invalid',
-    'finance-currency-invalid','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid','finance-transfer-same-wallet','finance-credit-limit-invalid'
+    'finance-currency-invalid','finance-wallet-income-wallet-locked','finance-wallet-insufficient','finance-rate-invalid','finance-wallet-currency-mismatch','finance-label-invalid','finance-transfer-same-wallet','finance-credit-limit-invalid'
   ].includes(code)) return 400;
   return 500;
 }
@@ -173,17 +173,23 @@ async function handler(req, res) {
     if (operation === 'save-wallet-income') {
       const current = await readFinanceState();
       const view = viewState(current, actor);
-      const wallet = (view.wallets || []).find((row) => row.id === String(body.walletId || ''));
-      if (!wallet) throw new Error('finance-wallet-not-found');
+      const editId = String(body.id || '').trim();
+      const existing = editId ? (view.walletIncomes || []).find(row => row.id === editId) : null;
+      if (editId && !existing) throw new Error('finance-wallet-income-not-found');
+      if (existing && String(body.walletId || '') !== String(existing.walletId)) throw new Error('finance-wallet-income-wallet-locked');
+      const wallet = (view.wallets || []).find(row => row.id === String(existing?.walletId || body.walletId || ''));
+      if (!wallet && !existing) throw new Error('finance-wallet-not-found');
       const amount = Number(body.amount);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error('finance-amount-invalid');
-      const currency = String(wallet.currency || 'RUB').toUpperCase();
-      const rates = currency === 'RUB' ? { RUB: 1 } : await financeRubRates();
-      const rubRate = Number(rates[currency]);
-      if (!rubRate) throw new Error('finance-rate-invalid');
+      const currency = String(wallet?.currency || existing?.currency || 'RUB').toUpperCase();
+      // Original FX rate is locked for historical income edits.
+      const rates = existing ? null : currency === 'RUB' ? { RUB: 1 } : await financeRubRates();
+      const rubRate = existing ? Number(existing.exchangeRate || (Number(existing.rubAmount)/Number(existing.amount))) : Number(rates[currency]);
+      if (!Number.isFinite(rubRate) || rubRate <= 0) throw new Error('finance-rate-invalid');
       const rubAmount = Math.round(amount * rubRate * 100) / 100;
       const state = await saveWalletIncome(actor, {
-        walletId: wallet.id,
+        ...(existing ? { id: existing.id } : {}),
+        walletId: existing?.walletId || wallet.id,
         amount,
         currency,
         rubAmount,

@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { decorateSharedTaskTitle } = require('./shared-task-emoji.cjs');
 const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage, togglePartnerMessageLike } = require('./partner-message-store.cjs');
@@ -1639,7 +1640,7 @@ async function handleTickTick(req, res, action, options = {}) {
     if (tokenHasWriteScope(token) === false) return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
 
     try {
-      const title = String(body.title || '').trim().slice(0,500);
+      const title = decorateSharedTaskTitle(String(body.title || '').trim()).slice(0,500);
       if (!title) return res.status(400).json({ok:false,error:'ticktick-task-title-required'});
       const responsibleValue = String(body.responsible || '').trim();
       const responsible = ['Рустам','Диана'].includes(responsibleValue) ? responsibleValue : '';

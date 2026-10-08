@@ -2194,6 +2194,8 @@
       let financeExpenseCalcOperator='';
       let financeExpenseCalcReplace=false;
       let financeExpenseMutationInFlight=false;
+      let financeIncomeEditingId='';
+      let financeIncomeMutationInFlight=false;
       let financeWalletEditingId='';
       let financeDebtFilter='all';
       let financeDebtSelectedId='';
@@ -2929,7 +2931,29 @@
               :'';
             detail.textContent=[source,row.note,meta.time].filter(Boolean).join(' · ');
             const value=document.createElement('b');value.textContent='+'+financeMoney(row.rubAmount||0);
-            copy.append(title,detail);item.append(copy,value);host.append(item);
+            const actions=document.createElement('div');actions.className='finance-income-history-actions';
+            const edit=document.createElement('button');edit.type='button';edit.className='finance-income-history-action is-edit';
+            edit.textContent='✎';edit.setAttribute('aria-label','Редактировать доход');
+            edit.addEventListener('click',()=>openFinanceIncomeComposer(row.walletId,row.id));
+            const del=document.createElement('button');del.type='button';del.className='finance-income-history-action is-delete';
+            del.textContent='×';del.setAttribute('aria-label','Удалить доход');
+            del.addEventListener('click',async()=>{
+              if(financeIncomeMutationInFlight)return;
+              const approved=await smartSaveConfirm('Удалить доход на '+financeMoney(row.amount,row.currency)+'?');
+              if(!approved||financeIncomeMutationInFlight)return;
+              financeIncomeMutationInFlight=true;del.disabled=true;edit.disabled=true;
+              try{
+                const data=await financeRequest('delete-wallet-income',{id:row.id});
+                renderFinanceState(data,{personalMonth:financeSelectedPersonalMonth(),preservePlan:true});
+                refreshFinanceInsight(true).catch(()=>{});
+                try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              }catch(error){
+                financeExpenseAlert('Не удалось удалить доход. Баланс кошелька не изменён.');
+                del.disabled=false;edit.disabled=false;
+              }finally{financeIncomeMutationInFlight=false}
+            });
+            actions.append(edit,del);
+            copy.append(title,detail);item.append(copy,value,actions);host.append(item);
           }
           section.append(host);list.append(section);
         }
@@ -3802,27 +3826,42 @@
         return Number.isNaN(value.getTime())?new Date().toISOString():value.toISOString();
       }
 
-      function openFinanceIncomeComposer(walletId=''){
+      function openFinanceIncomeComposer(walletId='',incomeId=''){
+        const existing=incomeId?(financeState.walletIncomes||[]).find(row=>row.id===incomeId):null;
+        if(incomeId&&!existing)return;
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         if(!wallets.length){openFinanceWalletComposer('');return}
+        financeIncomeEditingId=existing?.id||'';
         const modal=document.getElementById('financeIncomeComposer'),select=document.getElementById('financeIncomeWallet');
         const amount=document.getElementById('financeIncomeAmount'),currency=document.getElementById('financeIncomeCurrency');
         const date=document.getElementById('financeIncomeDate'),time=document.getElementById('financeIncomeTime');
         const note=document.getElementById('financeIncomeNote'),status=document.getElementById('financeIncomeStatus');
+        const heading=document.getElementById('financeIncomeComposerTitle'),save=document.getElementById('financeIncomeSaveButton');
         if(!modal||!select)return;
         select.replaceChildren();
         for(const wallet of wallets){
           const option=document.createElement('option');option.value=wallet.id;
           option.textContent=wallet.name+' · '+financeMoney(wallet.balance,wallet.currency);select.append(option);
         }
-        select.value=wallets.some(row=>row.id===walletId)?walletId:wallets[0].id;
-        const updateCurrency=()=>{const wallet=financeWalletById(select.value);if(currency)currency.textContent=financeCurrencySymbol(wallet?.currency||'RUB')};
+        const currentWallet=existing?.walletId||walletId;
+        if(currentWallet&&!wallets.some(row=>row.id===currentWallet)){
+          const option=document.createElement('option');option.value=currentWallet;option.textContent='Исходный кошелёк';select.append(option);
+        }
+        select.value=wallets.some(row=>row.id===currentWallet)||existing?currentWallet:wallets[0].id;
+        select.disabled=Boolean(existing);
+        const updateCurrency=()=>{const wallet=financeWalletById(select.value);if(currency)currency.textContent=financeCurrencySymbol(wallet?.currency||existing?.currency||'RUB')};
         updateCurrency();select.onchange=updateCurrency;
-        if(amount)amount.value='';if(note)note.value='';
-        const now=financeNowDateTimeInputs();if(date)date.value=now.date;if(time)time.value=now.time;syncFinanceTemporalControl(date);syncFinanceTemporalControl(time);if(status)status.textContent='';
+        if(heading)heading.textContent=existing?'Редактировать доход':'Добавить доход';
+        if(save)save.textContent=existing?'Сохранить изменения':'Добавить доход';
+        if(amount)amount.value=existing?String(existing.amount):'';
+        if(note)note.value=existing?.note||'';
+        const now=financeNowDateTimeInputs(),timestamp=existing?financeDateTimeLabel(existing.occurredAt||existing.createdAt):null;
+        if(date)date.value=timestamp?.key||now.date;
+        if(time)time.value=timestamp?.time&&/^\d{2}:\d{2}$/.test(timestamp.time)?timestamp.time:now.time;
+        syncFinanceTemporalControl(date);syncFinanceTemporalControl(time);
+        if(status)status.textContent='';
         mountFinanceCoinModal(modal);
       }
-
 
       function updateFinanceWalletCreditFields(){
         const type=document.getElementById('financeWalletType'),currency=document.getElementById('financeWalletCurrency'),balance=document.getElementById('financeWalletBalance'),annualRate=document.getElementById('financeWalletAnnualRate'),fields=document.getElementById('financeWalletCreditFields');
@@ -5433,22 +5472,24 @@
 
         document.getElementById('financeIncomeAddButton')?.addEventListener('click',()=>openFinanceIncomeComposer(''));
         document.getElementById('financeIncomeSaveButton')?.addEventListener('click',async()=>{
+          if(financeIncomeMutationInFlight)return;
           const walletId=String(document.getElementById('financeIncomeWallet')?.value||'');
           const amount=document.getElementById('financeIncomeAmount'),note=document.getElementById('financeIncomeNote');
           const button=document.getElementById('financeIncomeSaveButton'),status=document.getElementById('financeIncomeStatus');
-          const value=Number(amount?.value||0);
+          const value=Number(amount?.value||0),editingId=financeIncomeEditingId;
           if(!walletId||value<=0){amount?.focus();return}
           const occurredAt=financeIncomeOccurredAt(),monthKey=financeMonthFromOccurredAt(occurredAt);
-          button.disabled=true;if(status)status.textContent='Сохраняю…';
+          financeIncomeMutationInFlight=true;button.disabled=true;if(status)status.textContent='Сохраняю…';
           try{
-            const data=await financeRequest('save-wallet-income',{walletId,amount:value,month:monthKey,occurredAt,note:note?.value||''});
-            renderFinanceState(data,{personalMonth:monthKey,preservePlan:true});
+            const data=await financeRequest('save-wallet-income',{id:editingId||undefined,walletId,amount:value,month:monthKey,occurredAt,note:note?.value||''});
+            renderFinanceState(data,{personalMonth:financeSelectedPersonalMonth(),preservePlan:true});
             closeFinanceCoinModal('financeIncomeComposer');
+            financeIncomeEditingId='';
             refreshFinanceInsight(true).catch(()=>{});
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
-            if(status)status.textContent=String(error?.message||'').includes('rate')?'Не удалось получить курс валют':'Не удалось добавить доход';
-          }finally{button.disabled=false}
+            if(status)status.textContent=String(error?.message||'').includes('rate')?'Не удалось получить курс валют':editingId?'Не удалось изменить доход':'Не удалось добавить доход';
+          }finally{button.disabled=false;financeIncomeMutationInFlight=false}
         });
         document.getElementById('financeIncomeAmount')?.addEventListener('keydown',event=>{
           if(event.key==='Enter'){event.preventDefault();document.getElementById('financeIncomeSaveButton')?.click()}

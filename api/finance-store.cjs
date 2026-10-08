@@ -726,40 +726,42 @@ async function reorderWallets(actor, ids = [], options = {}) {
   });
 }
 async function saveWalletIncome(actor, payload = {}, options = {}) {
-  const safeActor = cleanActor(actor);
-  const walletId = cleanText(payload.walletId, 100, { required: true });
-  const amount = cleanAssetAmount(payload.amount);
-  if (amount <= 0) throw new Error('finance-amount-invalid');
-  const rubAmount = cleanMoney(payload.rubAmount);
-  if (rubAmount <= 0) throw new Error('finance-rate-invalid');
-  const occurredAt = cleanOccurredAt(payload.occurredAt);
-  const month = cleanMonth(payload.month);
-  const exchangeRate = Math.max(0, Number(payload.exchangeRate || 0));
-  if (!exchangeRate) throw new Error('finance-rate-invalid');
-  const note = cleanText(payload.note, 120);
-  return enqueueMutation(async () => {
-    const current = await readFinanceState(options);
-    const rows = current.wallets[safeActor] || [];
-    const wallet = rows.find((row) => row.id === walletId && !row.archived);
-    if (!wallet) throw new Error('finance-wallet-not-found');
-    const currency = cleanCurrency(payload.currency || wallet.currency);
-    if (currency !== wallet.currency) throw new Error('finance-wallet-currency-mismatch');
-    const now = new Date(options.now || Date.now()).toISOString();
-    const nextWallets = rows.map((row) => row.id === walletId ? { ...row, balance: cleanWalletBalance(Number(row.balance || 0) + amount) } : row);
-    const incomeRow = {
-      id: cleanText(options.id || randomUUID(), 100, { required: true }),
-      actor: safeActor, month, walletId, amount, currency, rubAmount, exchangeRate,
-      note, importKey: cleanText(payload.importKey, 220), occurredAt, createdAt: now,
+  const safeActor=cleanActor(actor),editId=cleanText(payload.id,100);
+  const walletId=cleanText(payload.walletId,100,{required:true});
+  const amount=cleanAssetAmount(payload.amount);
+  if(amount<=0)throw new Error('finance-amount-invalid');
+  const rubAmount=cleanMoney(payload.rubAmount);
+  if(rubAmount<=0)throw new Error('finance-rate-invalid');
+  const occurredAt=cleanOccurredAt(payload.occurredAt,options.now||Date.now());
+  const month=cleanMonth(payload.month);
+  const exchangeRate=Math.max(0,Number(payload.exchangeRate||0));
+  if(!exchangeRate)throw new Error('finance-rate-invalid');
+  const note=cleanText(payload.note,120);
+  return enqueueMutation(async()=>{
+    const current=await readFinanceState(options);
+    const existing=editId?current.walletIncomes.find(row=>row.id===editId&&row.actor===safeActor):null;
+    if(editId&&!existing)throw new Error('finance-wallet-income-not-found');
+    if(existing&&walletId!==existing.walletId)throw new Error('finance-wallet-income-wallet-locked');
+    const rows=current.wallets[safeActor]||[];
+    const wallet=rows.find(row=>row.id===walletId&&(!row.archived||Boolean(existing)));
+    if(!wallet)throw new Error('finance-wallet-not-found');
+    const currency=cleanCurrency(payload.currency||wallet.currency);
+    if(currency!==wallet.currency)throw new Error('finance-wallet-currency-mismatch');
+    const now=new Date(options.now||Date.now()).toISOString();
+    // Only credit or debit the difference from the previously recorded income.
+    const delta=amount-Number(existing?.amount||0);
+    const nextWallets=rows.map(row=>row.id===walletId?{...row,balance:cleanWalletBalance(Number(row.balance||0)+delta)}:row);
+    const incomeRow={
+      ...(existing||{}),
+      id:existing?.id||cleanText(options.id||randomUUID(),100,{required:true}),
+      actor:safeActor,month,walletId,amount,currency,rubAmount,exchangeRate,
+      note,importKey:existing?.importKey||cleanText(payload.importKey,220),
+      occurredAt,createdAt:existing?.createdAt||now,updatedAt:now
     };
-    const base = normalizeState({
-      ...current,
-      initialized: true,
-      version: current.version + 1,
-      wallets: { ...current.wallets, [safeActor]: nextWallets },
-      walletIncomes: current.walletIncomes.concat(incomeRow),
-    });
-    const next = normalizeState({ ...base, personal: syncPersonalMonthExpenses(base, safeActor, month, now) });
-    await writeState(next, options);
+    const walletIncomes=existing?current.walletIncomes.map(row=>row.id===editId&&row.actor===safeActor?incomeRow:row):current.walletIncomes.concat(incomeRow);
+    let next=normalizeState({...current,initialized:true,version:current.version+1,wallets:{...current.wallets,[safeActor]:nextWallets},walletIncomes});
+    for(const m of new Set([month,existing?.month].filter(Boolean)))next=normalizeState({...next,personal:syncPersonalMonthExpenses(next,safeActor,m,now)});
+    await writeState(next,options);
     return next;
   });
 }
