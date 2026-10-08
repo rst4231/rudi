@@ -2782,6 +2782,7 @@
           }
           group.append(rowsHost);list.append(group);
         }
+        animateRudiCollection(list,'.finance-operation-day',10);
       }
       function renderFinanceIncomeHistory(){
         const list=document.getElementById('financeIncomeHistoryList');
@@ -2830,6 +2831,7 @@
           }
           section.append(host);list.append(section);
         }
+        animateRudiCollection(list,'.finance-category-history-day',10);
       }
       function closeFinanceLedgerPage(){
         const page=document.getElementById('financePage');
@@ -2862,6 +2864,8 @@
         if(isExpense)renderFinanceOperations();
         else if(isIncome)renderFinanceIncomeHistory();
         else if(isCapital){renderFinanceCapitalHistory();recordFinanceCapitalSnapshot().catch(()=>{})}
+        const opened=isExpense?expense:isIncome?income:capital;
+        restartRudiMotion(opened,'finance-panel-enter',420);
         requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'auto'}));
       }
 
@@ -2960,6 +2964,7 @@
           item.append(toggle,copy,del);list.append(item);
         }
         forecast.textContent=obligations.length?'До конца '+financeMonthTitle(month)+': '+financeOverviewMoney(pending):'Запланированных обязательных расходов нет';
+        animateRudiCollection(list,'.finance-obligation-row',10);
       }
       async function saveFinancePlanWithObligations(obligations){
         const data=await financeRequest('save-plan',{
@@ -3059,6 +3064,7 @@
           button.append(copy,total);button.addEventListener('click',()=>{setFinanceTab('shared');renderFinanceSelectedMonth(row.month);document.getElementById('financePage')?.scrollIntoView?.({behavior:'smooth',block:'start'})});
           list.appendChild(button);
         }
+        animateRudiCollection(list,'.finance-history-row',10);
       }
 
       function renderFinancePersonalMonth(month){
@@ -3142,6 +3148,8 @@
         // iOS Safari/Telegram otherwise positions fixed relative to that container
         // and the sheet can end up below the visible viewport.
         if(modal.parentElement!==document.body)document.body.appendChild(modal);
+        if(modal._financeCloseTimer){clearTimeout(modal._financeCloseTimer);modal._financeCloseTimer=null}
+        modal.classList.remove('is-closing');
         modal.hidden=false;modal.setAttribute('aria-hidden','false');
         document.body.classList.add('finance-coin-modal-open');
         requestAnimationFrame(()=>{
@@ -3157,9 +3165,15 @@
         }
       }
       function closeFinanceCoinModal(id){
-        const modal=document.getElementById(id);if(!modal)return;
-        modal.hidden=true;modal.setAttribute('aria-hidden','true');
-        document.body.classList.remove('finance-coin-modal-open');
+        const modal=document.getElementById(id);if(!modal||modal.hidden)return;
+        const finish=()=>{
+          modal.hidden=true;modal.setAttribute('aria-hidden','true');modal.classList.remove('is-closing');modal._financeCloseTimer=null;
+          if(!document.querySelector('.finance-coin-modal:not([hidden])'))document.body.classList.remove('finance-coin-modal-open');
+        };
+        if(rudiMotionReduced()){finish();return}
+        modal.classList.add('is-closing');
+        if(modal._financeCloseTimer)clearTimeout(modal._financeCloseTimer);
+        modal._financeCloseTimer=setTimeout(finish,190);
       }
       function openFinanceCategoryComposer(categoryId=''){
         const modal=document.getElementById('financeCategoryComposer');if(!modal)return;
@@ -3450,6 +3464,7 @@
           }
           section.append(host);list.append(section);
         }
+        animateRudiCollection(list,'.finance-category-history-day',10);
       }
       function openFinanceCategoryHistory(categoryId){
         const category=financeAllCategoryById(categoryId),page=document.getElementById('financeCategoryHistoryPage');
@@ -3472,6 +3487,7 @@
         page.hidden=false;
         page.setAttribute('aria-hidden','false');
         document.body.classList.add('finance-category-history-open');
+        restartRudiMotion(page,'finance-panel-enter',420);
         requestAnimationFrame(()=>{
           const top=Math.max(0,Math.round(financePage.getBoundingClientRect().top+(window.scrollY||0)));
           try{window.scrollTo({top,left:0,behavior:'auto'})}catch(_){window.scrollTo(0,top)}
@@ -3675,6 +3691,7 @@
           });
           item.append(copy,value,del);host.append(item);
         }
+        animateRudiCollection(host,'.finance-wallet-history-row',12);
       }
 
       function financeIncomeOccurredAt(){
@@ -4159,6 +4176,7 @@
           bindFinanceWalletDrag(item,list,wallet);
           list.append(item);
         });
+        if(!financeWalletEditMode)animateRudiCollection(list,'.finance-wallet-item',10);
       }
 
       function syncFinanceTransferInputCurrency({preserve=true}={}){
@@ -4482,6 +4500,7 @@
         const addText=document.createElement('span');addText.className='finance-coin-amount';addText.textContent='Добавить';
         add.append(addLabel,addCoin,addText);add.addEventListener('click',()=>{setFinanceCategoryEditMode(false);openFinanceCategoryComposer()});list.append(add);
         list.classList.toggle('is-editing',financeCategoryEditMode);
+        if(!financeCategoryEditMode)animateRudiCollection(list,'.finance-coin-item',10);
         bindFinanceIncomeDrag();
       }
 
@@ -4842,6 +4861,8 @@
             }
           }
         }
+        animateRudiCollection(list,'.finance-debt-row',10);
+        if(history&&!history.hidden)animateRudiCollection(history,'.finance-debt-history-row',10);
       }
 
       function renderFinanceLiteracy(article){
@@ -4965,6 +4986,8 @@
         document.body.dataset.financeTone=activeFinanceTab;
         document.querySelectorAll('[data-finance-tab]').forEach(button=>{const active=button.dataset.financeTab===activeFinanceTab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',active?'true':'false')});
         document.querySelectorAll('[data-finance-panel]').forEach(panel=>panel.hidden=panel.dataset.financePanel!==activeFinanceTab);
+        const activePanel=document.querySelector('[data-finance-panel="'+activeFinanceTab+'"]');
+        restartRudiMotion(activePanel,'finance-panel-enter',420);
         if(activeFinanceTab==='literacy')loadFinanceLiteracy().catch(()=>{});
         if(activeFinanceTab==='personal')refreshFinanceInsight().catch(()=>{});
       }
@@ -4994,6 +5017,7 @@
         renderFinanceWallets();renderFinanceCapitalHistory();renderFinancePlan({preserveInputs:preservePlan});renderFinanceOperations();renderFinanceIncomeHistory();renderFinanceAnalytics();renderFinanceObligations();syncFinanceAnalystDailyState();
         if(activeFinanceTab==='personal')recordFinanceCapitalSnapshot().catch(()=>{});
         if(financeCategoryHistoryId)renderFinanceCategoryHistory();
+        restartRudiMotion(document.querySelector('.finance-balance-card'),'rudi-data-refresh',360);
       }
       async function loadFinances({silent=false,month=''}={}){
         if(!currentActor)return null;if(financeLoadPromise)return financeLoadPromise;

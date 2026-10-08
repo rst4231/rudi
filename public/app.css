@@ -17391,3 +17391,50 @@ body.finance-month-dialog-open{overflow:hidden!important}
 #financeCategoryComposer .finance-coin-modal-head{
   margin-bottom:8px!important
 }
+
+
+/* RUDI v4.76 — finance motion */
+@keyframes financePanelEnter{
+  from{opacity:.01;transform:translate3d(0,10px,0) scale(.992)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+.finance-panel-enter{
+  animation:financePanelEnter 420ms cubic-bezier(.2,.82,.2,1) both;
+}
+@keyframes financeModalBackdropIn{from{opacity:0}to{opacity:1}}
+@keyframes financeModalSheetIn{
+  from{opacity:.01;transform:translate3d(0,28px,0) scale(.992)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes financeModalBackdropOut{from{opacity:1}to{opacity:0}}
+@keyframes financeModalSheetOut{
+  from{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  to{opacity:.01;transform:translate3d(0,18px,0) scale(.994)}
+}
+.finance-coin-modal:not([hidden]):not(.is-closing) .finance-coin-modal-backdrop{animation:financeModalBackdropIn 180ms ease both}
+.finance-coin-modal:not([hidden]):not(.is-closing) .finance-coin-modal-sheet{animation:financeModalSheetIn 340ms cubic-bezier(.2,.82,.2,1) both}
+.finance-coin-modal.is-closing .finance-coin-modal-backdrop{animation:financeModalBackdropOut 180ms ease both}
+.finance-coin-modal.is-closing .finance-coin-modal-sheet{animation:financeModalSheetOut 180ms ease both}
+.finance-coin,
+.finance-history-row,
+.finance-debt-row,
+.finance-obligation-row,
+.finance-operation-row,
+.finance-wallet-history-row{-webkit-tap-highlight-color:transparent}
+.finance-wallet-item:not(.is-reordering) .finance-coin,
+.finance-category-coin-item:not(.is-reordering) .finance-coin{
+  transition:transform 150ms ease,box-shadow 180ms ease,filter 180ms ease
+}
+.finance-wallet-item:not(.is-reordering):active .finance-coin,
+.finance-category-coin-item:not(.is-reordering):active .finance-coin{
+  transform:scale(.95);
+  filter:brightness(.98)
+}
+@media(prefers-reduced-motion:reduce){
+  .finance-panel-enter,
+  .finance-coin-modal:not([hidden]) .finance-coin-modal-backdrop,
+  .finance-coin-modal:not([hidden]) .finance-coin-modal-sheet{animation:none!important}
+  .finance-wallet-item .finance-coin,
+  .finance-category-coin-item .finance-coin{transition:none!important}
+}
+/* end RUDI v4.76 */
