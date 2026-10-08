@@ -51,24 +51,52 @@
     }
     return used;
   };
+
+  // Forecast values are optional until both income and variable spending are known.
+  // A mandatory-payment shortfall is NOT a prediction of future account balances.
   function forecast(state,now,h){
     const accounts=rows(state.wallets).filter(w=>!w.archived&&w.type!=='credit');
     const rub=accounts.filter(w=>w.currency==='RUB'),other=accounts.filter(w=>w.currency!=='RUB');
     const opening=rub.length?money(rub.reduce((s,w)=>s+num(w.balance),0)):null;
-    const historical=monthHistory(state,now),obligations=rows(state.plan?.obligations);
-    const fixed=matchedFixedExpenses(historical.expenses,obligations);
-    const variable=historical.expenses.filter(x=>!fixed.has(String(x.id)));
-    const expDays=historical.expenseMonths.reduce((s,m)=>s+monthEndDays(m),0);
-    const daily=expDays?money(variable.reduce((s,x)=>s+amount(x),0)/expDays):null;
-    const income=historical.avgIncome===null?null:money(historical.avgIncome*h/30.44);
-    const outgo=daily===null?null:money(daily*h);
+    const plan=state.plan||{},history=monthHistory(state,now),obligations=rows(plan.obligations);
     const scheduled=obligationsFor(state,now,h),scheduledTotal=money(scheduled.reduce((s,x)=>s+x.amount,0));
-    const enough=opening!==null&&income!==null&&outgo!==null;
-    return {days:h,opening,otherCurrencies:other.map(w=>String(w.currency)).filter((v,i,a)=>a.indexOf(v)===i),dailyVariable:daily,
-      estimatedIncome:income,estimatedVariableSpend:outgo,scheduled,scheduledTotal,
-      predicted:opening===null?null:enough?money(opening+income-outgo-scheduledTotal):money(opening-scheduledTotal),
-      estimated:enough,historyMonths:historical.months.length,
-      reserve:Math.max(0,num(state.plan?.reserve)),confidence:enough&&historical.months.length>=2?'medium':'low'};
+    const knownShortfall=opening===null?null:money(Math.max(0,scheduledTotal-opening));
+    const availableAfterBills=opening===null?null:money(Math.max(0,opening-scheduledTotal));
+    // Only use at least two complete historical months to estimate variable spending.
+    const eligibleHistory=history.expenseMonths.length>=2;
+    const fixed=matchedFixedExpenses(history.expenses,obligations);
+    const variable=history.expenses.filter(x=>!fixed.has(String(x.id)));
+    const totalDays=history.expenseMonths.reduce((s,m)=>s+monthEndDays(m),0);
+    const historicDailySpend=eligibleHistory&&totalDays?money(variable.reduce((s,x)=>s+amount(x),0)/totalDays):null;
+    const manualSpend=typeof plan.plannedMonthlyVariableExpenses==='number'&&Number.isFinite(plan.plannedMonthlyVariableExpenses);
+    const dailyVariable=manualSpend?Math.max(0,num(plan.plannedMonthlyVariableExpenses))/30.44:historicDailySpend;
+    const outgo=dailyVariable===null?null:money(dailyVariable*h);
+    const manualIncome=typeof plan.expectedMonthlyIncome==='number'&&Number.isFinite(plan.expectedMonthlyIncome);
+    const monthlyIncome=manualIncome?Math.max(0,num(plan.expectedMonthlyIncome)):null;
+    const day=Number(plan.expectedIncomeDay);
+    const daySet=Number.isInteger(day)&&day>=1&&day<=31;
+    let income=null;
+    if(manualIncome&&(monthlyIncome===0||daySet)){
+      income=0;const end=new Date(now.getTime()+h*DAY);
+      if(monthlyIncome>0){
+        for(let i=0;i<=4;i++){
+          const due=monthDate(addMonths(monthKey(now),i),day);
+          if(due>now&&due<end)income=money(income+monthlyIncome);
+        }
+      }
+    }
+    const missing=[];
+    if(opening===null)missing.push('рублёвый баланс');
+    if(!manualIncome)missing.push('ожидаемый доход');
+    else if(monthlyIncome>0&&!daySet)missing.push('день поступления дохода');
+    if(dailyVariable===null)missing.push('повседневные расходы');
+    const estimated=missing.length===0;
+    return {days:h,opening,otherCurrencies:[...new Set(other.map(w=>String(w.currency)))],
+      dailyVariable:dailyVariable===null?null:money(dailyVariable),estimatedIncome:income,
+      estimatedVariableSpend:outgo,scheduled,scheduledTotal,
+      knownShortfall,availableAfterBills,predicted:estimated?money(opening+income-outgo-scheduledTotal):null,
+      estimated,missing,historyMonths:history.months.length,
+      reserve:Math.max(0,num(plan.reserve)),confidence:estimated?'planning':'insufficient'};
   }
   const monthlyTotals=(expenses,month)=>{const o=new Map();for(const e of expenses.filter(x=>x.month===month))o.set(String(e.categoryId),money((o.get(String(e.categoryId))||0)+amount(e)));return o};
   function detectIssues(state,now){

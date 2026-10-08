@@ -3,7 +3,7 @@
   'use strict';
   const core=window.RUDI_FINANCE_DECISIONS;
   if(!core)return;
-  const rub=v=>Number.isFinite(Number(v))?new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(v))+' ₽':'—';
+  const rub=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))?new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(v))+' ₽':'—';
   const html=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id=s=>document.getElementById(s);
   const money=v=>Math.max(0,Number(v)||0);
@@ -33,7 +33,25 @@
         <section class="rudi-decision-card" aria-labelledby="rudiForecastHeading">
           <div class="rudi-decision-head"><h2 id="rudiForecastHeading">Прогноз денег</h2><span>7 / 30 / 90 дней</span></div>
           <div id="rudiForecastTiles" class="rudi-forecast-grid" aria-live="polite"></div>
+          <div id="rudiForecastCash" class="rudi-forecast-cash" aria-live="polite"></div>
           <p id="rudiForecastNote" class="rudi-decision-muted"></p>
+          <details class="rudi-forecast-config">
+            <summary>Настроить ожидаемые доходы и расходы</summary>
+            <div class="rudi-scenario-fields">
+              <label class="rudi-decision-field">Доход в месяц, ₽
+                <input type="number" id="rudiExpectedIncome" class="finance-text-input" min="0" max="100000000" inputmode="decimal" placeholder="Не указан">
+              </label>
+              <label class="rudi-decision-field">День поступления (1–31)
+                <input type="number" id="rudiExpectedIncomeDay" class="finance-text-input" min="1" max="31" step="1" inputmode="numeric" placeholder="Не указан">
+              </label>
+              <label class="rudi-decision-field">Повседневные расходы в месяц, ₽
+                <input type="number" id="rudiExpectedSpending" class="finance-text-input" min="0" max="100000000" inputmode="decimal" placeholder="Не указаны">
+              </label>
+            </div>
+            <p class="rudi-decision-muted">Повседневные расходы указывай без обязательных платежей из списка ниже, чтобы не считать их дважды. Если истории расходов достаточно, поле можно оставить пустым.</p>
+            <button id="rudiForecastSave" type="button" class="rudi-decision-primary">Сохранить настройки</button>
+            <p id="rudiForecastStatus" class="rudi-decision-muted" role="status" aria-live="polite"></p>
+          </details>
           <div id="rudiForecastPayments" class="rudi-decision-list"></div>
         </section>
         <section class="rudi-decision-card" aria-labelledby="rudiAlertsHeading">
@@ -61,6 +79,7 @@
       panel.insertBefore(host,goalCard);
       id('rudiScenarioMode')?.addEventListener('change',e=>{activeMode=e.target.value;renderScenarioFields()});
       id('rudiScenarioRun')?.addEventListener('click',runScenario);
+      id('rudiForecastSave')?.addEventListener('click',saveForecast);
       renderScenarioFields();
     }
     if(!id('rudiGoalAdvisor')){
@@ -99,14 +118,64 @@
     host.hidden=false;
   }
   function renderForecast(){
-    const date=nowMoscow(),fs=[7,30,90].map(days=>core.forecast(snapshot,date,days)),tiles=id('rudiForecastTiles'),note=id('rudiForecastNote'),payments=id('rudiForecastPayments');
+    const date=nowMoscow(),fs=[7,30,90].map(days=>core.forecast(snapshot,date,days));
+    const tiles=id('rudiForecastTiles'),note=id('rudiForecastNote'),payments=id('rudiForecastPayments'),cash=id('rudiForecastCash');
     if(!tiles)return;
-    tiles.innerHTML=fs.map(f=>'<div class="rudi-forecast-tile"><small>Через '+f.days+' дн.</small><strong>'+rub(f.predicted)+'</strong><span>'+(f.estimated?'Оценка по истории':'После известных платежей*')+'</span></div>').join('');
-    const f30=fs[1],history=f30.historyMonths;
-    const missing=f30.otherCurrencies.length?' Балансы в '+html(f30.otherCurrencies.join(', '))+' не включены: нет надёжного курса.':'';
-    note.textContent=(f30.opening===null?'Нет рублёвого кошелька: сначала добавь баланс. ':f30.estimated?'История: '+history+' завершённых мес. Прогноз приблизительный, учитывает историю расходов и доходов, плюс известные обязательства. ':'* Недостаточно истории доходов и расходов для прогноза: учтены только текущий баланс и известные обязательные платежи. ')+' Исторические платежи, не распознанные как обязательные, могут учитываться дважды.'+missing;
+    tiles.innerHTML=fs.map(f=>{
+      const title=!f.estimated?'Недостаточно данных':f.predicted<0?'Не хватает '+rub(-f.predicted):rub(f.predicted);
+      const info=!f.estimated?'Нет полного прогноза':f.predicted<0?'Возможный дефицит':'Оценка по плану';
+      return '<div class="rudi-forecast-tile"><small>Через '+f.days+' дн.</small><strong class="'+(!f.estimated?'is-empty':f.predicted<0?'is-shortfall':'')+'">'+html(title)+'</strong><span>'+info+'</span></div>';
+    }).join('');
+    const f30=fs[1],p=snapshot?.plan||{};
+    if(cash)cash.innerHTML=f30.opening===null
+      ?'<div><span>Текущий рублёвый баланс</span><strong>Не указан</strong></div>'
+      :'<div><span>Сейчас на рублёвых кошельках</span><strong>'+rub(f30.opening)+'</strong></div>'+
+        '<div><span>Обязательные платежи на 30 дней</span><strong>'+rub(f30.scheduledTotal)+'</strong></div>'+
+        '<div class="'+(f30.knownShortfall>0?'is-shortfall':'')+'"><span>'+(f30.knownShortfall>0?'Не хватает на платежи без новых поступлений':'Останется после платежей без новых поступлений')+'</span><strong>'+rub(f30.knownShortfall>0?f30.knownShortfall:f30.availableAfterBills)+'</strong></div>';
+    const missing=f30.otherCurrencies.length?' Валюты '+f30.otherCurrencies.join(', ')+' не пересчитаны в рубли.':'';
+    const why=f30.estimated
+      ?'Это примерный сценарий на основе планового дохода, расходов и известных платежей, не гарантия будущего остатка.'
+      :'Прогноз пока недоступен: '+f30.missing.join(', ')+'. Укажи ожидаемый доход, день поступления и повседневные расходы в настройках.';
+    note.textContent=why+' Платежи отмечай оплаченными, чтобы не резервировать их повторно.'+missing;
+    for(const [key,value]of [
+      ['rudiExpectedIncome',p.expectedMonthlyIncome],
+      ['rudiExpectedIncomeDay',p.expectedIncomeDay],
+      ['rudiExpectedSpending',p.plannedMonthlyVariableExpenses]
+    ]){
+      const element=id(key);
+      if(element&&document.activeElement!==element)element.value=value===null||value===undefined?'':String(value);
+    }
     const scheduled=f30.scheduled;
-    payments.innerHTML=scheduled.length?'<div class="rudi-decision-item-title">Обязательные платежи в ближайшие 30 дней · '+rub(f30.scheduledTotal)+'</div>'+scheduled.slice(0,5).map(p=>'<div class="rudi-decision-payment"><span>'+html(p.title)+(p.pastDue?' · срок прошёл':'')+'</span><b>'+rub(p.amount)+'</b></div>').join(''):'<p class="rudi-decision-muted">Неоплаченных обязательных платежей на 30 дней не найдено.</p>';
+    payments.innerHTML=scheduled.length?'<div class="rudi-decision-item-title">Ближайшие обязательные платежи · '+rub(f30.scheduledTotal)+'</div>'+scheduled.slice(0,5).map(p=>'<div class="rudi-decision-payment"><span>'+html(p.title)+(p.pastDue?' · срок прошёл':'')+'</span><b>'+rub(p.amount)+'</b></div>').join(''):'<p class="rudi-decision-muted">Неоплаченных обязательных платежей в ближайшие 30 дней нет.</p>';
+  }
+  async function saveForecast(){
+    const button=id('rudiForecastSave'),status=id('rudiForecastStatus');
+    if(!button||!status)return;
+    const read=(key,integer=false)=>{
+      const raw=id(key)?.value?.trim()||'';
+      if(raw==='')return null;
+      const number=Number(raw);
+      if(!Number.isFinite(number)||number<0||number>100000000||(integer&&(!Number.isInteger(number)||number<1||number>31)))throw new Error('invalid-finance-input');
+      return number;
+    };
+    let expectedMonthlyIncome,expectedIncomeDay,plannedMonthlyVariableExpenses;
+    try{
+      expectedMonthlyIncome=read('rudiExpectedIncome');
+      expectedIncomeDay=read('rudiExpectedIncomeDay',true);
+      plannedMonthlyVariableExpenses=read('rudiExpectedSpending');
+    }catch(_){status.textContent='Проверь суммы и день поступления (от 1 до 31).';return;}
+    if(expectedMonthlyIncome>0&&expectedIncomeDay===null){
+      status.textContent='Укажи день месяца, когда ожидаешь поступление дохода.';return;
+    }
+    button.disabled=true;status.textContent='Сохраняю…';
+    try{
+      snapshot=await request('save-plan',{expectedMonthlyIncome,expectedIncomeDay,plannedMonthlyVariableExpenses});
+      loadedAt=Date.now();render();
+      document.dispatchEvent(new CustomEvent('rudi-finance-plan-saved'));
+      const f=core.forecast(snapshot,nowMoscow(),30);
+      status.textContent=f.estimated?'Настройки сохранены, прогноз пересчитан.':'Настройки сохранены. Для прогноза ещё нужны: '+f.missing.join(', ')+'.';
+    }catch(_){status.textContent='Не удалось сохранить настройки. Попробуй ещё раз.'}
+    finally{button.disabled=false}
   }
   function renderGoal(useForm=false){
     if(!snapshot)return;

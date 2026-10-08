@@ -37,3 +37,17 @@
 .rudi-forecast-tile span{font-size:9px}
 .rudi-scenario-fields{grid-template-columns:1fr}
 }
+
+/* RUDI v4.94: distinguish known obligations from optional scenario projection. */
+.rudi-forecast-cash{display:grid;gap:8px;padding:12px 13px;margin-top:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-strong,var(--surface))}
+.rudi-forecast-cash>div{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.rudi-forecast-cash span{font-size:11px;line-height:1.4;color:var(--muted)}
+.rudi-forecast-cash strong{font-size:13px;white-space:nowrap;text-align:right}
+.rudi-forecast-cash .is-shortfall strong,.rudi-forecast-tile strong.is-shortfall{color:#e5a574}
+.rudi-forecast-tile strong.is-empty{font-size:12px;white-space:normal;line-height:1.25;overflow-wrap:anywhere}
+.rudi-forecast-config{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px}
+.rudi-forecast-config summary{cursor:pointer;font-size:12px;font-weight:750}
+.rudi-forecast-config[open] summary{margin-bottom:12px}
+.rudi-forecast-config .rudi-scenario-fields .rudi-decision-field:last-child{grid-column:1/-1}
+.rudi-forecast-config .rudi-decision-muted{margin:8px 0}
+@media(max-width:390px){.rudi-forecast-cash>div{align-items:flex-start}.rudi-forecast-cash strong{font-size:12px}}
