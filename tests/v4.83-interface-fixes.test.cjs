@@ -66,11 +66,11 @@ test('push notification preserves app deep link and supports rewards shop',()=>{
 
 test('PWA version and asset links are aligned',()=>{
  const html=read('public/index.html');
- assert.match(html,/name="rudi-version" content="v4\.83"/);
- assert.match(html,/rudi-design-system\.css\?v=4\.83/);
- assert.match(html,/profile-supplements\.js\?v=4\.83/);
- assert.match(html,/supplement-advanced\.js\?v=4\.83/);
- assert.match(read('public/sw.js'),/rudi-shell-v4\.83/);
- assert.equal(read('VERSION').trim(),'v4.83');
- assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.83');
+ assert.match(html,/name="rudi-version" content="v4\.84"/);
+ assert.match(html,/rudi-design-system\.css\?v=4\.84/);
+ assert.match(html,/profile-supplements\.js\?v=4\.84/);
+ assert.match(html,/supplement-advanced\.js\?v=4\.84/);
+ assert.match(read('public/sw.js'),/rudi-shell-v4\.84/);
+ assert.equal(read('VERSION').trim(),'v4.84');
+ assert.equal(JSON.parse(read('rudi-version.json')).current,'v4.84');
 });

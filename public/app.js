@@ -15080,9 +15080,12 @@
         const latest=[...samples].reverse().find(sample=>String(sample?.mood||'')===String(entry?.mood||''))||samples[samples.length-1]||null;
         const reason=String(latest?.reason||'').trim();
         const reasonText=String(latest?.reasonText||'').trim();
-        if(reason==='other') return reasonText||'Причина не указана';
         const meta=MOOD_REASON_META[reason];
-        return meta?(meta[0]+' '+meta[1]):'Причина не указана';
+        const label=reason==='other'?(reasonText||'Причина не указана'):(meta?(meta[0]+' '+meta[1]):'Причина не указана');
+        const stamp=String(latest?.updatedAt||entry?.updatedAt||'').trim();
+        const timestamp=stamp?new Date(stamp):null;
+        const time=timestamp&&Number.isFinite(timestamp.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(timestamp):'';
+        return time?label+' · '+time:label;
       }
 
       let partnerMoodReasonTimer=0;
