@@ -416,6 +416,7 @@ function renderSupplementProfileOutline(progress){
   if(!button)return;
   const percent=progress.total?Math.max(0,Math.min(100,Math.round(progress.taken/progress.total*100))):0;
   button.dataset.supplementProgress=String(percent);
+  button.dataset.supplementComplete=progress.total>0&&progress.taken===progress.total?'1':'0';
   button.setAttribute('aria-label','Открыть БАДы и витамины · '+progress.taken+' из '+progress.total+' принято');
   let svg=button.querySelector('.rudi-supplement-progress-outline');
   if(!svg){

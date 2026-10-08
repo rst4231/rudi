@@ -56,3 +56,27 @@
 .rudi-scenario-details[open] .rudi-scenario-summary i{transform:rotate(180deg)}
 .rudi-scenario-body{margin-top:20px}
 @media(max-width:390px){.rudi-scenario-summary span{font-size:10px}.rudi-scenario-summary h2{font-size:17px}}
+
+.rudi-decision-summary,.rudi-scenario-summary{
+ display:flex;justify-content:space-between;align-items:center;gap:10px;
+ min-height:30px;cursor:pointer;list-style:none;margin:0
+}
+.rudi-decision-summary::-webkit-details-marker,.rudi-scenario-summary::-webkit-details-marker{display:none}
+.rudi-decision-summary::marker,.rudi-scenario-summary::marker{content:""}
+.rudi-decision-summary h2,.rudi-scenario-summary h2{margin:0}
+.rudi-decision-summary .rudi-decision-chevron,.rudi-scenario-summary .rudi-decision-chevron{
+ width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;
+ border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--muted);padding:0
+}
+.rudi-decision-summary .rudi-decision-chevron svg,.rudi-scenario-summary .rudi-decision-chevron svg{
+ width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+ transform:rotate(-90deg);transition:transform .2s ease
+}
+.rudi-alert-details[open] .rudi-decision-chevron svg,.rudi-scenario-details[open] .rudi-decision-chevron svg{transform:rotate(0)}
+.rudi-alert-details[open] .rudi-decision-summary{margin-bottom:14px}
+.rudi-scenario-body{margin-top:20px}
+@media(max-width:430px){
+ .rudi-decision-summary .rudi-decision-chevron,.rudi-scenario-summary .rudi-decision-chevron{
+  width:32px;height:32px;flex-basis:32px
+ }
+}

@@ -59,14 +59,19 @@
       host.id='rudiDecisionSuite';host.className='rudi-decision-suite';
       host.innerHTML=`
         <section class="rudi-decision-card" aria-labelledby="rudiAlertsHeading">
-          <div class="rudi-decision-head"><h2 id="rudiAlertsHeading">Где уходят деньги</h2><span>Автопроверка</span></div>
-          <div id="rudiAlertList" class="rudi-decision-list" aria-live="polite"></div>
+          <details id="rudiAlertsDetails" class="rudi-alert-details">
+            <summary class="rudi-decision-head rudi-decision-summary">
+              <h2 id="rudiAlertsHeading">Где уходят деньги</h2>
+              <span class="finance-collapse-toggle rudi-decision-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </summary>
+            <div id="rudiAlertList" class="rudi-decision-list" aria-live="polite"></div>
+          </details>
         </section>
         <section class="rudi-decision-card" aria-labelledby="rudiScenarioHeading">
           <details id="rudiScenarioDetails" class="rudi-scenario-details">
             <summary class="rudi-scenario-summary">
               <h2 id="rudiScenarioHeading">Симулятор решений</h2>
-              <span>Сравнение сценариев <i aria-hidden="true">⌄</i></span>
+              <span class="finance-collapse-toggle rudi-decision-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
             </summary>
             <div class="rudi-scenario-body">
           <label class="rudi-decision-field">Сценарий

@@ -726,3 +726,10 @@ body[data-app-tab="schedule"] .footer{margin-top:22px!important}
 
 /* Hide the upcoming-event panel when there are no upcoming events. */
 .work-page .schedule-nearest[hidden]{display:none!important}
+
+html[data-theme="dark"] .work-page .calendar-day-cell.selected,
+html[data-theme="dark"] .work-page #workCalendarDays .calendar-day-cell.selected,
+html[data-theme="dark"] .work-page .shared-calendar-card .calendar-day-cell.selected{
+ border-color:#fff!important;
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),0 0 0 2px #fff!important
+}

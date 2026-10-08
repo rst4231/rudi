@@ -597,3 +597,33 @@ test('new wallet tile opens a working wallet form',async({page})=>{
   await expect(page.locator('#financeWalletComposer')).toBeVisible();
   await expect(page.locator('#financeWalletName')).toBeVisible();
 });
+
+test('v4.97 monthly expenses and decision cards respond to mobile clicks',async({page})=>{
+ await mockRudi(page);await page.goto('/');
+ await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
+ const card=page.locator('#financeObligationsDetails');
+ await expect(card).not.toHaveAttribute('open','');
+ await page.locator('#financeObligationAddButton').click();
+ await expect(page.locator('#financeObligationComposer')).toBeVisible();
+ await expect(card).not.toHaveAttribute('open','');
+ await page.locator('#financeObligationComposerClose').click();
+ await page.locator('#financeObligationsTitle').click();
+ await expect(card).toHaveAttribute('open','');
+ await page.locator('#financeObligationsToggle').click();
+ await expect(card).not.toHaveAttribute('open','');
+ await page.locator('#rudiAlertsHeading').click();
+ await expect(page.locator('#rudiAlertsDetails')).toHaveAttribute('open','');
+ await page.locator('#rudiScenarioHeading').click();
+ await expect(page.locator('#rudiScenarioDetails')).toHaveAttribute('open','');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+});
+test('v4.97 analyst is above literacy article',async({page})=>{
+ await mockRudi(page);await page.goto('/');
+ await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
+ await page.locator('[data-finance-tab="literacy"]').click();
+ await expect(page.locator('#financeAnalystButton')).toBeVisible();
+ await expect(page.locator('#financeLiteracyBody')).toBeVisible();
+ expect(await page.evaluate(()=>[...document.querySelector('#financeLiteracyPanel').children].slice(0,2).map(e=>e.classList[0]))).toEqual(['finance-analyst-card','finance-literacy-card']);
+});

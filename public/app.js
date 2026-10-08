@@ -5252,6 +5252,24 @@
         const card=document.getElementById(cardId),button=document.getElementById(buttonId);
         if(!card||!button||button.dataset.bound==='1')return;
         button.dataset.bound='1';
+        const details=card.querySelector('#financeObligationsDetails');
+        if(details){
+          const sync=()=>{
+            const collapsed=!details.open;
+            card.classList.toggle('is-collapsed',collapsed);
+            button.setAttribute('aria-expanded',String(!collapsed));
+            button.setAttribute('aria-label',collapsed?'Развернуть ежемесячные расходы':'Свернуть ежемесячные расходы');
+          };
+          button.addEventListener('click',event=>{
+            event.preventDefault();
+            event.stopPropagation();
+            details.open=!details.open;
+            sync();
+          });
+          details.addEventListener('toggle',sync);
+          sync();
+          return;
+        }
         setFinanceCardCollapsed(cardId,buttonId,card.classList.contains('is-collapsed'));
         button.addEventListener('click',()=>{
           setFinanceCardCollapsed(cardId,buttonId,!card.classList.contains('is-collapsed'));
@@ -16955,13 +16973,52 @@
         return hours<1 ? '🍽️ '+verb+' меньше часа' : '🍽️ '+verb+' '+hours+' '+fastingHoursWord(hours);
       }
 
+      function renderFastingProfileOutline(active){
+        const button=document.getElementById('fastingProfileButton');
+        if(!button)return;
+        const startMs=Date.parse(String(active?.startedAt||''));
+        const goalHours=Number(active?.goalHours);
+        const running=Number.isFinite(startMs)&&Number.isFinite(goalHours)&&goalHours>0;
+        button.dataset.fastingActive=running?'1':'0';
+        let svg=button.querySelector('.rudi-fasting-progress-outline');
+        if(!running){
+          if(svg)svg.hidden=true;
+          button.setAttribute('aria-label','Открыть трекер голодания');
+          return;
+        }
+        if(!svg){
+          const ns='http://www.w3.org/2000/svg';
+          svg=document.createElementNS(ns,'svg');
+          svg.classList.add('rudi-fasting-progress-outline');
+          svg.setAttribute('viewBox','0 0 100 100');
+          svg.setAttribute('aria-hidden','true');
+          svg.setAttribute('focusable','false');
+          for(const className of ['rudi-fasting-progress-track','rudi-fasting-progress-value']){
+            const path=document.createElementNS(ns,'path');
+            path.classList.add(className);
+            path.setAttribute('d','M50 3 H71 C85.36 3 97 14.64 97 29 V71 C97 85.36 85.36 97 71 97 H29 C14.64 97 3 85.36 3 71 V29 C3 14.64 14.64 3 29 3 H50');
+            svg.appendChild(path);
+          }
+          button.appendChild(svg);
+        }
+        svg.hidden=false;
+        const percent=Math.min(100,Math.max(0,(Date.now()-startMs)/(goalHours*3600000)*100));
+        const total=168+52*Math.PI;
+        svg.querySelector('.rudi-fasting-progress-value').style.strokeDasharray=(total*percent/100)+' '+total;
+        button.setAttribute('aria-label','Открыть трекер голодания · '+Math.round(percent)+'% от цели');
+      }
       function renderFastingHomeStatus(overview=fastingOverviewState){
+        const activeOf=entry=>{
+          const active=entry&&Object.prototype.hasOwnProperty.call(entry,'active')?entry.active:entry;
+          return active&&Number.isFinite(Date.parse(String(active.startedAt||'')))?active:null;
+        };
         fastingOverviewState={
-          'Рустам':overview?.['Рустам']?.active||null,
-          'Диана':overview?.['Диана']?.active||null,
+          'Рустам':activeOf(overview?.['Рустам']),
+          'Диана':activeOf(overview?.['Диана']),
         };
 
         const selfActor=currentActor==='Диана'?'Диана':'Рустам';
+        renderFastingProfileOutline(fastingOverviewState[selfActor]);
         const partnerActor=selfActor==='Рустам'?'Диана':'Рустам';
         const selfNode=document.getElementById('selfFastingStatus');
         const partnerNode=document.getElementById('partnerFastingStatus');
@@ -17166,6 +17223,7 @@
         if(feeling) feeling.textContent=stage.feeling;
         if(action) action.textContent=stage.action;
         if(bar) bar.style.width=goalProgress+'%';
+        renderFastingProfileOutline(active);
 
         if(goalState){
           const goalReached=elapsedHours>=goalHours;
@@ -17203,6 +17261,7 @@
         }else{
           clearInterval(fastingTicker);
           fastingTicker=0;
+          renderFastingProfileOutline(null);
           const input=document.getElementById('fastingStartAt');
           if(input&&!input.value) input.value=fastingLocalInputValue();
         }

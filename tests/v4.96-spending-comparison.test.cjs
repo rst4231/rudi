@@ -83,29 +83,19 @@ test('savings and goal report if all spendable wallets cover amount',()=>{
   assert.equal(funds.opening,10000);
 });
 
-test('full orange category progress ring turns green and intermediate stays orange',()=>{
-  const css=fs.readFileSync(path.resolve(__dirname,'../public/app.css'),'utf8');
-  assert.ok(css.includes('.finance-category-coin.has-budget.is-budget-mid{\n  --finance-budget-ring:#e0aa2f;'));
-  assert.ok(css.includes('.finance-category-coin.has-budget.is-budget-full{\n  --finance-budget-ring:#35a875;'));
-  assert.ok(css.includes('.finance-category-coin-item .finance-coin-amount.is-budget-full{\n  color:#d94b55!important;'));
+test('finance ring is green until warning, orange near limit and red at limit',()=>{
+ const css=fs.readFileSync(path.resolve(__dirname,'../public/app.css'),'utf8');
+ assert.ok(css.includes('--finance-budget-ring:#35a875;'));
+ assert.ok(css.includes('.finance-category-coin.has-budget.is-budget-mid{\n  --finance-budget-ring:#e0aa2f;'));
+ assert.ok(css.includes('.finance-category-coin.has-budget.is-budget-full{\n  --finance-budget-ring:#d94b55;'));
 });
-
-test('monthly spending card is folded by default with compact buttons and centered title',()=>{
-  const html=fs.readFileSync(path.resolve(__dirname,'../public/index.html'),'utf8');
-  const css=fs.readFileSync(path.resolve(__dirname,'../public/app.css'),'utf8');
-  const app=fs.readFileSync(path.resolve(__dirname,'../public/app.js'),'utf8');
-  assert.ok(html.includes('id="financeObligationsCard" class="finance-obligations-card finance-collapsible is-collapsed"'));
-  assert.ok(html.includes('id="financeObligationAddButton" class="finance-collapse-toggle finance-obligation-add-button"'));
-  assert.ok(html.includes('id="financeObligationsToggle" class="finance-collapse-toggle"'));
-  assert.ok(html.includes('finance-obligations-title-spacer'));
-  assert.ok(css.includes('grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important'));
-  assert.ok(css.includes('.finance-obligations-head-spacer')===false);
-  assert.ok(app.includes("bindFinanceCardCollapse('financeObligationsCard','financeObligationsToggle')"));
-});
-test('monthly spending add button is plus only and remains independent of expand button',()=>{
-  const html=fs.readFileSync(path.resolve(__dirname,'../public/index.html'),'utf8');
-  const app=fs.readFileSync(path.resolve(__dirname,'../public/app.js'),'utf8');
-  assert.ok(html.includes('title="Добавить ежемесячный расход">+</button>'));
-  assert.ok(!html.includes('id="financeObligationAddButton" class="finance-obligation-add-button" type="button">+ Добавить'));
-  assert.ok(app.includes("document.getElementById('financeObligationAddButton')?.addEventListener('click',()=>openFinanceObligationComposer(''))"));
+test('monthly expenses native details and controls remain independently clickable',()=>{
+ const html=fs.readFileSync(path.resolve(__dirname,'../public/index.html'),'utf8');
+ const js=fs.readFileSync(path.resolve(__dirname,'../public/app.js'),'utf8');
+ assert.ok(html.includes('id="financeObligationsCard" class="finance-obligations-card finance-collapsible is-collapsed"'));
+ assert.ok(html.includes('<details id="financeObligationsDetails"'));
+ assert.ok(html.includes('id="financeObligationsToggle" class="finance-collapse-toggle"'));
+ assert.ok(html.indexOf('id="financeObligationAddButton"')>html.indexOf('</details>',html.indexOf('id="financeObligationsDetails"')));
+ assert.ok(js.includes("bindFinanceCardCollapse('financeObligationsCard','financeObligationsToggle')"));
+ assert.ok(js.includes("document.getElementById('financeObligationAddButton')?.addEventListener('click',()=>openFinanceObligationComposer(''))"));
 });

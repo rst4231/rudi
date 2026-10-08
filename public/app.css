@@ -15282,7 +15282,7 @@ html[data-theme="dark"] .finance-literacy-card{
   --finance-budget-ring:#e0aa2f;
 }
 .finance-category-coin.has-budget.is-budget-full{
-  --finance-budget-ring:#35a875;
+  --finance-budget-ring:#d94b55;
 }
 .finance-category-coin.has-budget::before{
   content:"";
@@ -17605,3 +17605,40 @@ body.finance-month-dialog-open{overflow:hidden!important}
   .finance-obligations-card-head .finance-obligations-heading h2{font-size:13px!important}
 }
 @media(max-width:360px){.finance-obligations-card-head .finance-obligations-heading h2{font-size:11px!important}}
+
+.finance-obligations-card{position:relative}
+.finance-obligations-card.is-collapsed>.finance-obligations-details{display:block!important}
+.finance-obligations-card.is-collapsed>#financeObligationAddButton{display:grid!important}
+.finance-obligations-card .finance-obligations-card-head{
+ display:flex!important;justify-content:space-between!important;align-items:center!important;
+ gap:8px!important;min-height:32px;cursor:pointer;list-style:none;margin-bottom:0!important
+}
+.finance-obligations-details>summary::-webkit-details-marker{display:none}
+.finance-obligations-details>summary::marker{content:""}
+.finance-obligations-card-head .finance-obligations-heading{
+ flex:1 1 auto!important;grid-column:auto!important;min-width:0!important;
+ justify-self:start!important;text-align:left!important;padding-right:41px
+}
+.finance-obligations-card-head .finance-obligations-heading h2{
+ text-align:left!important;font-size:15px!important;white-space:normal!important
+}
+.finance-obligations-card .finance-obligations-card-head #financeObligationsToggle{
+ display:grid!important;place-items:center!important;flex:0 0 30px
+}
+.finance-obligations-details:not([open]) #financeObligationsToggle svg{transform:rotate(-90deg)}
+.finance-obligations-details[open]>summary{margin-bottom:10px!important}
+.finance-obligations-card #financeObligationAddButton{
+ position:absolute!important;right:52px;top:14px;z-index:4;
+ width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;
+ max-width:30px!important;max-height:30px!important;
+ border-radius:10px!important;padding:0!important;display:grid!important;place-items:center!important
+}
+.finance-obligations-card #financeObligationAddButton svg{width:15px;height:15px}
+@media(max-width:430px){
+ .finance-obligations-card #financeObligationAddButton{
+  top:13px;right:50px;width:32px!important;height:32px!important;
+  min-width:32px!important;min-height:32px!important;max-width:32px!important;max-height:32px!important
+ }
+ .finance-obligations-card .finance-obligations-card-head #financeObligationsToggle{flex-basis:32px}
+ .finance-obligations-card-head .finance-obligations-heading h2{font-size:13px!important}
+}

@@ -281,3 +281,25 @@ body[data-app-tab="home"] #supplementProfileButton .rudi-supplement-progress-out
  .finance-literacy-body > :is(ol,ul){padding:13px 12px 13px 30px;gap:13px}
  .finance-literacy-body > ol > li{font-size:12px}
 }
+
+body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > #supplementProfileButton[data-supplement-complete="1"]{
+ border-color:rgba(50,184,111,.5)!important
+}
+#supplementProfileButton[data-supplement-complete="1"] .rudi-supplement-progress-track{stroke:rgba(50,184,111,.25)}
+#supplementProfileButton[data-supplement-complete="1"] .rudi-supplement-progress-value{stroke:#39ca83!important}
+body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > #fastingProfileButton[data-fasting-active="1"]::after{
+ content:none!important;display:none!important
+}
+#fastingProfileButton .rudi-fasting-progress-outline{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+ max-width:none!important;display:block;overflow:visible;z-index:3;pointer-events:none!important
+}
+#fastingProfileButton .rudi-fasting-progress-outline[hidden]{display:none!important}
+#fastingProfileButton .rudi-fasting-progress-outline path{
+ fill:none!important;stroke-width:7;stroke-linecap:round;stroke-linejoin:round
+}
+#fastingProfileButton .rudi-fasting-progress-track{stroke:rgba(151,146,245,.22)}
+#fastingProfileButton .rudi-fasting-progress-value{
+ stroke:#a59af9;stroke-dashoffset:0;transition:stroke-dasharray .5s linear
+}
+@media(prefers-reduced-motion:reduce){#fastingProfileButton .rudi-fasting-progress-value{transition:none}}
