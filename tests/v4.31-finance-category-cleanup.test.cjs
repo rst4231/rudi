@@ -72,7 +72,7 @@ test('finance category UI keeps delete, monthly limit and no category note or an
   assert.ok(!ai.includes("'actions — приоритетные практические действия"));
   assert.ok(html.includes('id="financeIncomeAddButton"'));
   assert.ok(html.includes('id="financeExpenseComposer"'));
-  assert.ok(app.includes("openFinanceExpenseComposer(categoryId)"));
+  assert.ok(app.includes("function openFinanceExpenseComposer(categoryId,{walletId="));
   assert.ok(app.includes("className='finance-coin-item finance-category-coin-item'"));
   assert.ok(!html.includes('id="financePulseTitle"'));
   assert.ok(!html.includes('id="financeReserveInput"'));
