@@ -17544,3 +17544,30 @@ body.finance-month-dialog-open{overflow:hidden!important}
  .finance-obligations-card{margin-top:0!important;padding:11px 12px!important}
  .finance-obligations-card .finance-history-head{margin-bottom:7px!important;gap:7px!important}
 }
+
+/* v4.92: new wallet uses the same compact coin tile as new expense categories. */
+.finance-wallet-list .finance-add-wallet-item{
+  width:100%;
+  min-width:0;
+  cursor:pointer;
+  touch-action:manipulation;
+  scroll-snap-align:start;
+}
+.finance-wallet-list .finance-add-wallet-item .finance-coin-amount{
+  color:var(--muted);
+  font-weight:700;
+}
+.finance-category-heading #financeCategoriesTitle{margin-top:0!important}
+@media(max-width:430px){
+  .finance-wallet-head-actions{
+    display:flex!important;
+    width:auto!important;
+    max-width:none!important;
+    justify-content:flex-end!important
+  }
+  .finance-wallet-head-actions #financeIncomeAddButton{
+    width:auto!important;
+    min-width:96px!important;
+    grid-column:auto!important
+  }
+}

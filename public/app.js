@@ -4317,6 +4317,16 @@
           bindFinanceWalletDrag(item,list,wallet);
           list.append(item);
         });
+        // New-wallet control uses the same in-grid coin tile as new expense categories.
+        const add=document.createElement('button');add.id='financeWalletCreateButton';add.type='button';
+        add.className='finance-coin-item finance-add-category-item finance-add-wallet-item';
+        add.setAttribute('aria-label','Добавить кошелёк');
+        const addLabel=document.createElement('span');addLabel.className='finance-coin-label';addLabel.textContent='Кошелёк';
+        const addCoin=document.createElement('span');addCoin.className='finance-coin finance-add-category-coin';addCoin.textContent='+';
+        const addText=document.createElement('span');addText.className='finance-coin-amount';addText.textContent='Добавить';
+        add.append(addLabel,addCoin,addText);
+        add.addEventListener('click',()=>{setFinanceWalletEditMode(false);openFinanceWalletComposer('')});
+        list.append(add);
         if(!financeWalletEditMode)animateRudiCollection(list,'.finance-wallet-item',10);
       }
 
@@ -4353,7 +4363,7 @@
       }
       function openFinanceTransferComposer({fromWalletId='',toWalletId='',focusAmount=false}={}){
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
-        if(wallets.length<2){document.getElementById('financeWalletCreateButton')?.click();return}
+        if(wallets.length<2){openFinanceWalletComposer('');return}
         const from=document.getElementById('financeTransferFrom'),to=document.getElementById('financeTransferTo'),amount=document.getElementById('financeTransferAmount'),note=document.getElementById('financeTransferNote');
         for(const select of [from,to]){
           select.replaceChildren();
@@ -5569,7 +5579,6 @@
         });
 
         ['financeWalletType','financeWalletCurrency','financeWalletBalance','financeWalletAnnualRate'].forEach(id=>{document.getElementById(id)?.addEventListener('input',updateFinanceWalletCreditFields);document.getElementById(id)?.addEventListener('change',updateFinanceWalletCreditFields);});
-        document.getElementById('financeWalletCreateButton')?.addEventListener('click',()=>openFinanceWalletComposer(''));
         const walletSave=document.getElementById('financeWalletSaveButton');
         walletSave?.addEventListener('click',async()=>{
           const name=document.getElementById('financeWalletName');
