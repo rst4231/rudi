@@ -1,12 +1,12 @@
-const CACHE_NAME='rudi-shell-v4.105';
+const CACHE_NAME='rudi-shell-v4.106';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
   '/',
   '/manifest.webmanifest',
-  '/rudi-design-system.css?v=4.105',
-  '/finance-cards.css?v=4.105',
+  '/rudi-design-system.css?v=4.106',
+  '/finance-cards.css?v=4.106',
   '/favicon-rudi-v460.png',
   '/apple-touch-icon-rudi-v460.png',
   '/icon-192-rudi-v460.png',

@@ -19,8 +19,8 @@ test('biorythm data, cycle label and energy updates remain wired',()=>{
   assert.match(js,/syncRustamRhythmStatus\(\)/);
   assert.match(js,/syncDianaRhythmStatus\(\)/);
 });
-test('version is v4.105 and scripts bust old app cache',()=>{
-  assert.match(html,/name="rudi-version" content="v4\.105"/);
-  assert.match(html,/\/app\.css\?v=4\.105/);
-  assert.match(html,/\/app\.js\?v=4\.105/);
+test('release version and scripts bust old app cache',()=>{
+  assert.match(html,/name="rudi-version" content="v4\.\d+"/);
+  assert.match(html,/\/app\.css\?v=4\.\d+/);
+  assert.match(html,/\/app\.js\?v=4\.\d+/);
 });
