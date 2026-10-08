@@ -9104,7 +9104,20 @@
           if(actor!==currentActor){
             const actions=document.createElement('div');
             actions.className='profile-person-actions';
-            actions.append(makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
+            const partnerFastingButton=document.createElement('button');
+            partnerFastingButton.id='partnerFastingProfileButton';
+            partnerFastingButton.className='fasting-profile-button partner-mood-value partner-fasting-button';
+            partnerFastingButton.type='button';
+            partnerFastingButton.hidden=true;
+            partnerFastingButton.setAttribute('aria-label','Голодание партнёра');
+            partnerFastingButton.innerHTML='<span class="mood-emoji" aria-hidden="true">🍽️</span><span id="partnerFastingElapsed" class="fasting-profile-elapsed" aria-hidden="true" hidden></span>';
+            partnerFastingButton.addEventListener('click',event=>{
+              event.preventDefault();
+              event.stopPropagation();
+              showPartnerFastingGoal(partnerFastingButton);
+              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+            });
+            actions.append(partnerFastingButton,makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
             head.appendChild(actions);
           }
           tile.appendChild(head);
@@ -15519,11 +15532,11 @@
         const reason=String(latest?.reason||'').trim();
         const reasonText=String(latest?.reasonText||'').trim();
         const meta=MOOD_REASON_META[reason];
-        const label=reason==='other'?(reasonText||'Причина не указана'):(meta?(meta[0]+' '+meta[1]):'Причина не указана');
+        const label=reason==='other'?reasonText:(meta?(meta[0]+' '+meta[1]):'');
         const stamp=String(latest?.updatedAt||entry?.updatedAt||'').trim();
         const timestamp=stamp?new Date(stamp):null;
         const time=timestamp&&Number.isFinite(timestamp.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(timestamp):'';
-        return time?label+' · '+time:label;
+        return label&&time?label+' · '+time:(label||time);
       }
 
       let partnerMoodReasonTimer=0;
@@ -15533,7 +15546,8 @@
       }
       function showPartnerMoodReason(holder){
         if(!holder||holder.hidden) return;
-        const text=String(holder.dataset.moodReasonText||'Причина не указана').trim()||'Причина не указана';
+        const text=String(holder.dataset.moodReasonText||'').trim();
+        if(!text)return;
         const existing=document.getElementById('partnerMoodReasonPopover');
         if(existing){existing.remove();if(existing.dataset.reasonText===text)return}
         const popover=document.createElement('div');
@@ -15576,7 +15590,7 @@
           'aria-label',
           visiblePartner+': '+(
             mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='neutral'?'нейтрально':mood==='fatigue'?'усталость':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
-          )+'. Нажмите, чтобы увидеть причину.'
+          )+'. Нажмите, чтобы увидеть подробности.'
         );
         if(holder.dataset.moodReasonBound!=='1'){
           holder.dataset.moodReasonBound='1';
@@ -17031,24 +17045,29 @@
         return hours<1 ? '🍽️ '+verb+' меньше часа' : '🍽️ '+verb+' '+hours+' '+fastingHoursWord(hours);
       }
 
-      function renderFastingProfileOutline(active){
-        const button=document.getElementById('fastingProfileButton');
+      function renderFastingProfileOutline(active,partner=false){
+        const button=document.getElementById(partner?'partnerFastingProfileButton':'fastingProfileButton');
         if(!button)return;
         const startMs=Date.parse(String(active?.startedAt||''));
         const activeNow=Number.isFinite(startMs);
-        const elapsedNode=button.querySelector('#fastingProfileElapsed');
+        const elapsedNode=button.querySelector(partner?'#partnerFastingElapsed':'#fastingProfileElapsed');
         const hours=activeNow?Math.floor(Math.max(0,Date.now()-startMs)/3600000):0;
+        if(partner){
+          button.hidden=!activeNow;
+          if(!activeNow)hidePartnerFastingGoal();
+        }
         if(elapsedNode){
           elapsedNode.textContent=activeNow?hours+' ч':'';
           elapsedNode.hidden=!activeNow;
         }
         const goalHours=Number(active?.goalHours);
         const running=activeNow&&Number.isFinite(goalHours)&&goalHours>0;
+        if(partner)button.dataset.fastingGoalHours=running?String(goalHours):'';
         button.dataset.fastingActive=running?'1':'0';
         let svg=button.querySelector('.rudi-fasting-progress-outline');
         if(!running){
           if(svg)svg.hidden=true;
-          button.setAttribute('aria-label',activeNow?'Голодание '+hours+' ч. Открыть трекер голодания':'Открыть трекер голодания');
+          button.setAttribute('aria-label',partner?'Голодание партнёра '+hours+' ч':(activeNow?'Голодание '+hours+' ч. Открыть трекер голодания':'Открыть трекер голодания'));
           return;
         }
         if(!svg){
@@ -17070,8 +17089,40 @@
         const percent=Math.min(100,Math.max(0,(Date.now()-startMs)/(goalHours*3600000)*100));
         const total=168+52*Math.PI;
         svg.querySelector('.rudi-fasting-progress-value').style.strokeDasharray=(total*percent/100)+' '+total;
-        button.setAttribute('aria-label','Голодание '+hours+' ч · '+Math.round(percent)+'% от цели. Открыть трекер голодания');
+        button.setAttribute('aria-label',partner?'Голодание партнёра '+hours+' ч · '+Math.round(percent)+'% от цели. Показать цель':('Голодание '+hours+' ч · '+Math.round(percent)+'% от цели. Открыть трекер голодания'));
       }
+      let partnerFastingGoalTimer=0;
+      function hidePartnerFastingGoal(){
+        clearTimeout(partnerFastingGoalTimer);
+        partnerFastingGoalTimer=0;
+        document.getElementById('partnerFastingGoalPopover')?.remove();
+      }
+      function showPartnerFastingGoal(button){
+        if(!button||button.hidden)return;
+        const goal=Number(button.dataset.fastingGoalHours);
+        if(!Number.isFinite(goal)||goal<=0)return;
+        const goalText='Цель голодания: '+String(goal).replace('.',',')+' ч';
+        const existing=document.getElementById('partnerFastingGoalPopover');
+        if(existing){
+          const same=existing.textContent===goalText;
+          hidePartnerFastingGoal();
+          if(same)return;
+        }
+        const popup=document.createElement('div');
+        popup.id='partnerFastingGoalPopover';
+        popup.className='partner-fasting-goal-popover';
+        popup.setAttribute('role','status');
+        popup.textContent=goalText;
+        document.body.appendChild(popup);
+        const anchor=button.getBoundingClientRect();
+        const box=popup.getBoundingClientRect();
+        const width=Math.max(150,box.width||180);
+        popup.style.left=Math.max(10,Math.min(window.innerWidth-width-10,anchor.left+anchor.width/2-width/2))+'px';
+        const above=anchor.top-box.height-10;
+        popup.style.top=(above>=10?above:Math.max(10,Math.min(window.innerHeight-box.height-10,anchor.bottom+24)))+'px';
+        partnerFastingGoalTimer=setTimeout(hidePartnerFastingGoal,4000);
+      }
+
       function renderFastingHomeStatus(overview=fastingOverviewState){
         const activeOf=entry=>{
           const active=entry&&Object.prototype.hasOwnProperty.call(entry,'active')?entry.active:entry;
@@ -17085,12 +17136,7 @@
         const selfActor=currentActor==='Диана'?'Диана':'Рустам';
         renderFastingProfileOutline(fastingOverviewState[selfActor]);
         const partnerActor=selfActor==='Рустам'?'Диана':'Рустам';
-        const partnerNode=document.getElementById('partnerFastingStatus');
-        if(partnerNode){
-          const label=fastingHomeLabel(fastingOverviewState[partnerActor],false);
-          partnerNode.textContent=label;
-          partnerNode.hidden=!label;
-        }
+        renderFastingProfileOutline(fastingOverviewState[partnerActor],true);
       }
 
       function updateOwnFastingOverview(active){

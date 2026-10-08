@@ -406,3 +406,20 @@ body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
   font-size:var(--rudi-page-head-title)!important;
  }
 }
+
+/* RUDI v4.103 — partner fasting progress outline matches own tracker. */
+#partnerFastingProfileButton .rudi-fasting-progress-outline{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+ max-width:none!important;display:block;overflow:visible;z-index:3;pointer-events:none!important
+}
+#partnerFastingProfileButton .rudi-fasting-progress-outline[hidden]{display:none!important}
+#partnerFastingProfileButton .rudi-fasting-progress-outline path{
+ fill:none!important;stroke-width:7;stroke-linecap:round;stroke-linejoin:round
+}
+#partnerFastingProfileButton .rudi-fasting-progress-track{stroke:rgba(151,146,245,.22)}
+#partnerFastingProfileButton .rudi-fasting-progress-value{
+ stroke:#a59af9;stroke-dashoffset:0;transition:stroke-dasharray .5s linear
+}
+@media(prefers-reduced-motion:reduce){
+ #partnerFastingProfileButton .rudi-fasting-progress-value{transition:none}
+}

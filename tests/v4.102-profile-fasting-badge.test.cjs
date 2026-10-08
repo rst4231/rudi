@@ -23,7 +23,7 @@ test('fasting time shows whole hours and hides when inactive without losing prog
   assert.match(app,/profileButton\?\.addEventListener\('click',navigateOwnFasting\)/);
   assert.match(app,/fastingHomeTicker=setInterval\(\(\)=>renderFastingHomeStatus\(fastingOverviewState\),60\*1000\)/);
   assert.doesNotMatch(app,/getElementById\('selfFastingStatus'\)/);
-  assert.match(app,/getElementById\('partnerFastingStatus'\)/);
+  assert.match(app,/renderFastingProfileOutline\(fastingOverviewState\[partnerActor\],true\)/);
 });
 
 test('profile mood emoji are equally slightly smaller for Rustam and Diana',()=>{
