@@ -108,7 +108,7 @@ function buildRecommendations({finance=null,taskCount=null,humidity=null,car=nul
   const humidityValue=Number(humidity?.value);
   const measured=Date.parse(String(humidity?.updatedAt||''))||0;
   const ageMs=now.getTime()-measured;
-  if(humidity && Number.isFinite(humidityValue) && humidityValue>=0 && humidityValue<cfg.lowHumidity
+  if(humidity && humidity.value!==null && humidity.value!==undefined && Number.isFinite(humidityValue) && humidityValue>=0 && humidityValue<cfg.lowHumidity
      && measured>0 && ageMs>=0 && ageMs<=cfg.humidityFreshHours*3600000){
     const week=Math.floor(Date.parse(today+'T00:00:00Z')/(7*86400000));
     push({id:'humidity:'+week,severity:'attention',priority:65,icon:'💧',
@@ -170,7 +170,7 @@ async function getSources(actor,options={}){
       }).length;
     },
     humidity:()=>readAppState('Рустам','smart-home:humidity-alert',options.dbOptions||{}),
-    car:()=>readCarState(options.carOptions||{})
+    car:()=>actor==='Рустам'?readCarState(options.carOptions||{}):null
   };
   const all=await Promise.all(Object.entries(jobs).map(async([name,fn])=>{
     try{return [name,await fn()]}catch(error){console.warn('RUDI_RECOMMENDATIONS_SOURCE_UNAVAILABLE',name,String(error?.message||error));return[name,null]}
