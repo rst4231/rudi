@@ -2184,6 +2184,7 @@
       let financeExpenseCategoryId='';
       let financeCategoryHistoryId='';
       let financeCategoryHistorySearch='';
+      let financeCategoryHistoryRange=null;
       let financeCategoryHistoryReturnScrollY=0;
       let financeLedgerReturnScrollY=0;
       let financeExpenseLabel='';
@@ -3472,6 +3473,7 @@
       function closeFinanceCategoryHistory(){
         financeCategoryHistoryId='';
         financeCategoryHistorySearch='';
+        financeCategoryHistoryRange=null;
         const page=document.getElementById('financeCategoryHistoryPage');
         const financePage=document.getElementById('financePage');
         if(page){
@@ -3523,14 +3525,19 @@
         const empty=document.getElementById('financeCategoryHistoryEmpty');
         if(name)name.textContent=category.name||'Категория';
         if(icon)icon.textContent=category.icon||'💳';
-        if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':'За месяц';
+        if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':financeCategoryHistoryRange?'За выбранные даты':'За месяц';
 
         let rows=(financeState.personalExpenses||[])
           .filter(row=>row.categoryId===category.id&&!row.manualAdjustment);
         if(searching){
           rows=rows.filter(row=>financeCategoryHistorySearchText(row).includes(query));
         }else{
-          rows=rows.filter(row=>row.month===month);
+          rows=rows.filter(row=>{
+            if(row.month!==month)return false;
+            if(!financeCategoryHistoryRange)return true;
+            const key=financeDateTimeLabel(row.occurredAt||row.createdAt).key;
+            return key>=financeCategoryHistoryRange.from&&key<=financeCategoryHistoryRange.to;
+          });
         }
         rows.sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
 
@@ -3594,7 +3601,7 @@
         }
         animateRudiCollection(list,'.finance-category-history-day',10);
       }
-      function openFinanceCategoryHistory(categoryId){
+      function openFinanceCategoryHistory(categoryId,{range=null}={}){
         const category=financeAllCategoryById(categoryId),page=document.getElementById('financeCategoryHistoryPage');
         const financePage=document.getElementById('financePage');
         if(!category||!page||!financePage)return;
@@ -3602,8 +3609,12 @@
         document.activeElement?.blur?.();
         financeCategoryHistoryId=category.id;
         financeCategoryHistorySearch='';
+        financeCategoryHistoryRange=range&&/^\d{4}-\d{2}-\d{2}$/.test(range.from||'')&&
+          /^\d{4}-\d{2}-\d{2}$/.test(range.to||'')&&range.from<=range.to&&
+          range.from.slice(0,7)===range.to.slice(0,7)?{from:range.from,to:range.to}:null;
         const monthInput=document.getElementById('financeCategoryHistoryMonthInput');
-        if(monthInput)monthInput.value=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        if(monthInput)monthInput.value=financeCategoryHistoryRange?.from.slice(0,7)||
+          document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
         const searchInput=document.getElementById('financeCategoryHistorySearchInput');
         const searchWrap=document.getElementById('financeCategoryHistorySearchWrap');
         const searchButton=document.getElementById('financeCategoryHistorySearchButton');
@@ -5305,6 +5316,7 @@
         bindFinanceMonthPicker(document.querySelector('.finance-month-picker'),month);
         bindFinanceMonthPicker(document.querySelector('.finance-balance-month'),personalMonth);
         bindFinanceCardCollapse('financeGoalCard','financeGoalToggle');
+        bindFinanceCardCollapse('financeObligationsCard','financeObligationsToggle');
         document.getElementById('financeCapitalPeriod')?.addEventListener('change',renderFinanceCapitalHistory);
 
         document.getElementById('financeTabs')?.addEventListener('click',event=>{
@@ -5365,7 +5377,13 @@
 
 
         document.getElementById('financeCategoryHistoryBack')?.addEventListener('click',closeFinanceCategoryHistory);
+        document.addEventListener('rudi-finance-open-category-history',event=>{
+          const detail=event.detail||{};
+          if(!detail.categoryId)return;
+          openFinanceCategoryHistory(String(detail.categoryId),{range:{from:detail.from,to:detail.to}});
+        });
         document.getElementById('financeCategoryHistoryMonthInput')?.addEventListener('change',()=>{
+          financeCategoryHistoryRange=null;
           financeCategoryHistorySearch='';
           const searchInput=document.getElementById('financeCategoryHistorySearchInput');if(searchInput)searchInput.value='';
           renderFinanceCategoryHistory();

@@ -703,12 +703,18 @@
           <div id="financePlanStatus" class="finance-status finance-autosave-status" role="status" aria-live="polite"></div>
         </section>
 
-        <section class="finance-obligations-card" aria-labelledby="financeObligationsTitle">
+        <section id="financeObligationsCard" class="finance-obligations-card finance-collapsible is-collapsed" aria-labelledby="financeObligationsTitle">
           <div class="finance-history-head finance-obligations-card-head">
-            <div>
+            <span class="finance-obligations-title-spacer" aria-hidden="true"></span>
+            <div class="finance-obligations-heading">
               <h2 id="financeObligationsTitle">Ежемесячные расходы</h2>
             </div>
-            <button id="financeObligationAddButton" class="finance-obligation-add-button" type="button">+ Добавить</button>
+            <div class="finance-collapse-actions">
+              <button id="financeObligationAddButton" class="finance-collapse-toggle finance-obligation-add-button" type="button" aria-label="Добавить ежемесячный расход" title="Добавить ежемесячный расход">+</button>
+              <button id="financeObligationsToggle" class="finance-collapse-toggle" type="button" aria-expanded="false" aria-controls="financeObligationsCard" aria-label="Развернуть ежемесячные расходы">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+            </div>
           </div>
           <div id="financeObligationList" class="finance-obligation-list"></div>
           <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных ежемесячных расходов нет</div>

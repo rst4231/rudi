@@ -107,19 +107,55 @@
       estimated,missing,historyMonths:history.months.length,
       reserve:Math.max(0,num(plan.reserve)),confidence:estimated?'planning':'insufficient'};
   }
-  const monthlyTotals=(expenses,month)=>{const o=new Map();for(const e of expenses.filter(x=>x.month===month))o.set(String(e.categoryId),money((o.get(String(e.categoryId))||0)+amount(e)));return o};
-  function detectIssues(state,now){
-    const current=monthKey(now),last=addMonths(current,-1),past=addMonths(current,-2),history=monthHistory(state,now),all=rows(state.personalExpenses).filter(x=>!x.manualAdjustment),alerts=[];
-    const curr=monthlyTotals(all,current),prev=monthlyTotals(all,last),old=monthlyTotals(all,past);
-    const dayOfMonth=now.getDate(),days=monthEndDays(current);
-    if(dayOfMonth>=7)for(const [id,spent]of curr){
-      const prior=prev.get(id)||0;
-      if(prior<1500)continue;
-      const expected=prior*dayOfMonth/days;
-      if(spent>expected*1.35&&spent-expected>=1000)alerts.push({kind:'overspend',title:'Рост трат: '+(history.categories.get(id)||'Категория'),detail:'За текущую часть месяца '+Math.round(spent)+' ₽ против '+Math.round(expected)+' ₽ по темпу прошлого.',amount:money(spent-expected),priority:2});
+  // Compare actual recorded transactions for matching calendar days. Never extrapolate.
+  const moscowExpenseDate=row=>{
+    const raw=row?.occurredAt||row?.createdAt;
+    if(!raw)return '';
+    const date=new Date(raw);
+    if(Number.isNaN(date.getTime()))return '';
+    const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{
+      timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'
+    }).formatToParts(date).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+    return parts.year+'-'+parts.month+'-'+parts.day;
+  };
+  const periodTotals=(expenses,month,throughDay)=>{
+    const sums=new Map(),from=month+'-01',to=month+'-'+String(throughDay).padStart(2,'0');
+    for(const item of expenses){
+      const key=moscowExpenseDate(item);
+      if(key<from||key>to||!key)continue;
+      const category=String(item.categoryId||'');
+      if(!category)continue;
+      sums.set(category,money((sums.get(category)||0)+amount(item)));
     }
-    if(prev.size&&old.size)for(const [id,spent]of prev){
-      const prior=old.get(id)||0;if(prior>=2000&&spent>prior*1.3&&spent-prior>=1000)alerts.push({kind:'trend',title:'Расходы растут: '+(history.categories.get(id)||'Категория'),detail:'Прошлый месяц выше предыдущего на '+Math.round(spent-prior)+' ₽.',amount:money(spent-prior),priority:2});
+    return {from,to,sums};
+  };
+  function detectIssues(state,now){
+    const current=monthKey(now),last=addMonths(current,-1);
+    const history=monthHistory(state,now);
+    const all=rows(state.personalExpenses).filter(x=>!x.manualAdjustment);
+    const alerts=[];
+    const day=Math.min(now.getDate(),monthEndDays(current));
+    const currentPeriod=periodTotals(all,current,day);
+    const prevPeriod=periodTotals(all,last,Math.min(day,monthEndDays(last)));
+    const categories=new Map([...rows(state.categories),...rows(state.archivedCategories)]
+      .map(x=>[String(x.id),label(x.name||x.title||'Категория')]));
+    for(const [id,spent] of currentPeriod.sums){
+      if(spent<1500)continue;
+      const prior=prevPeriod.sums.get(id)||0;
+      const delta=money(spent-prior);
+      const periods={current:{from:currentPeriod.from,to:currentPeriod.to,total:spent},
+        previous:{from:prevPeriod.from,to:prevPeriod.to,total:prior}};
+      const title=categories.get(id)||'Категория';
+      if(prior>0&&delta>=1000&&spent>prior*1.3){
+        const percent=money(delta/prior*100);
+        alerts.push({kind:'overspend',categoryId:id,title:'Расходы выросли: '+title,
+          detail:'Сравнение реальных операций за одинаковые даты двух месяцев.',
+          current:spent,previous:prior,delta,percent,periods,amount:delta,priority:2});
+      }else if(prior===0&&spent>=2000){
+        alerts.push({kind:'no-baseline',categoryId:id,title:'Нет сравнения: '+title,
+          detail:'В прошлом месяце за этот период нет записанных расходов. Рост не рассчитывается.',
+          current:spent,previous:0,delta:null,percent:null,periods,amount:0,priority:1});
+      }
     }
     const seen=new Map(),transactions=all.slice().sort((a,b)=>String(a.occurredAt||'').localeCompare(String(b.occurredAt||'')));
     for(const e of transactions){

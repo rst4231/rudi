@@ -22,7 +22,35 @@
       return data;
     }finally{clearTimeout(timer)}
   };
-  const list=(items,empty)=>items.length?items.map(x=>'<div class="rudi-decision-item"><div class="rudi-decision-item-title">'+html(x.title)+'</div><p>'+html(x.detail)+'</p></div>').join(''):'<p class="rudi-decision-muted">'+html(empty)+'</p>';
+  const periodLabel=period=>{
+    const to=String(period?.to||'');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(to))return 'период';
+    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'})
+      .format(new Date(to+'T12:00:00Z')).replace(/^\d+/,'1–'+Number(to.slice(8)));
+  };
+  const renderAlert=issue=>{
+    const ctx=currencyContext();
+    const dates=[issue.periods.current,issue.periods.previous];
+    const buttons=dates.map((period,index)=>{
+      const amountRub=index===0?issue.current:issue.previous;
+      const name=periodLabel(period);
+      return '<button type="button" class="rudi-alert-period" data-alert-category="'+html(issue.categoryId)+
+        '" data-alert-from="'+html(period.from)+'" data-alert-to="'+html(period.to)+
+        '" aria-label="Открыть расходы за '+html(name)+'"><span>'+html(name)+
+        '</span><b>'+html(displayMoney(amountRub,ctx))+'</b></button>';
+    }).join('');
+    const difference=issue.percent===null
+      ?'За прошлый период нет записанных расходов. Процент не рассчитывается.'
+      :'Разница: +'+displayMoney(issue.delta,ctx)+' (+'+
+        new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(issue.percent)+'%).';
+    return '<article class="rudi-decision-item"><div class="rudi-decision-item-title">'+html(issue.title)+
+      '</div><div class="rudi-alert-periods">'+buttons+'</div><p>'+html(difference)+
+      ' Нажми на период, чтобы открыть операции.</p></article>';
+  };
+  const list=(items,empty)=>items.length?items.map(x=>x.periods&&x.categoryId?renderAlert(x):
+    '<div class="rudi-decision-item"><div class="rudi-decision-item-title">'+html(x.title)+
+    '</div><p>'+html(x.detail)+'</p></div>').join(''):
+    '<p class="rudi-decision-muted">'+html(empty)+'</p>';
   function mount(){
     const panel=id('financePersonalPanel'),goalCard=id('financeGoalCard');
     if(!panel||!goalCard)return false;
@@ -35,7 +63,12 @@
           <div id="rudiAlertList" class="rudi-decision-list" aria-live="polite"></div>
         </section>
         <section class="rudi-decision-card" aria-labelledby="rudiScenarioHeading">
-          <div class="rudi-decision-head"><h2 id="rudiScenarioHeading">Симулятор решений</h2><span>Сравнение сценариев</span></div>
+          <details id="rudiScenarioDetails" class="rudi-scenario-details">
+            <summary class="rudi-scenario-summary">
+              <h2 id="rudiScenarioHeading">Симулятор решений</h2>
+              <span>Сравнение сценариев <i aria-hidden="true">⌄</i></span>
+            </summary>
+            <div class="rudi-scenario-body">
           <label class="rudi-decision-field">Сценарий
             <select id="rudiScenarioMode" class="finance-select">
               <option value="purchase">Покупка сейчас</option>
@@ -46,6 +79,8 @@
           <div id="rudiScenarioFields" class="rudi-scenario-fields"></div>
           <button id="rudiScenarioRun" class="rudi-decision-primary" type="button">Рассчитать</button>
           <div id="rudiScenarioResult" class="rudi-scenario-result" role="status" aria-live="polite" hidden></div>
+            </div>
+          </details>
         </section>`;
       panel.insertBefore(host,goalCard);
       id('rudiScenarioMode')?.addEventListener('change',e=>{activeMode=e.target.value;renderScenarioFields()});
@@ -152,9 +187,21 @@
         }else parts+='<p>Резерв сохраняется.</p>';
       }
     }else if(activeMode==='saving'){
+      const total=core.forecast(snapshot||{},nowMoscow(),30,{rates:ctx.rates}).opening;
+      const goalAmount=values.cost;
       parts='<strong>'+(r.main===null?'Укажи ежемесячный взнос':'Накопишь за '+Math.round(r.main)+' мес.')+'</strong>'+
-        '<p>За 12 месяцев отложишь '+html(displayMoney(r.secondary,ctx))+'.</p>'+
-        '<p>Без учёта процентов и инфляции.</p>';
+        '<p>За 12 месяцев отложишь '+html(displayMoney(r.secondary,ctx))+'.</p>';
+      if(total===null){
+        parts+='<p>Не могу проверить общий баланс: нет курса для одного из кошельков.</p>';
+      }else{
+        const missing=Math.max(0,goalAmount-total);
+        parts+='<div class="rudi-decision-list">'+
+          line('На всех обычных кошельках',displayMoney(total,ctx))+
+          line('Нужно накопить',displayMoney(goalAmount,ctx))+
+          line(missing>0?'Не хватает сейчас':'Денег уже хватает',missing>0?displayMoney(missing,ctx):'Да')+
+          '</div>';
+      }
+      parts+='<p>Без учёта доходности и инфляции. Кредитные счета не включены.</p>';
     }else{
       const delta=Math.abs(r.secondary||0);
       parts='<strong>Ипотека и содержание: '+html(displayMoney(r.main,ctx))+' в месяц</strong>';
@@ -185,7 +232,8 @@
     if(!snapshot)return;
     const plan={...snapshot.plan};
     if(useForm){plan.goalTitle=id('financeGoalTitleInput')?.value||plan.goalTitle;plan.goalCurrent=money(id('financeGoalCurrentInput')?.value??plan.goalCurrent);plan.goalTarget=money(id('financeGoalTargetInput')?.value??plan.goalTarget)}
-    const g=core.goal({...snapshot,plan},nowMoscow()),host=id('rudiGoalSummary');if(!host)return;
+    const ctx=currencyContext();
+    const g=core.goal({...snapshot,plan},nowMoscow(),{rates:ctx.rates}),host=id('rudiGoalSummary');if(!host)return;
     const facts=[];
     if(g.left===0&&g.target>0)facts.push('Цель достигнута.');
     else if(g.target>0){
@@ -197,12 +245,18 @@
       if(g.feasible===false)facts.push('Взнос превышает историческую разницу доходов и расходов.');
       if(g.safe===false)facts.push('Взнос может затронуть резерв из текущих рублёвых средств.');
     }else facts.push('Задай сумму цели выше, чтобы появился расчёт.');
+    if(g.target>0){
+      const total=core.forecast(snapshot,nowMoscow(),30,{rates:ctx.rates}).opening;
+      if(total===null)facts.push('Недостаточно курса валют для проверки всех кошельков.');
+      else if(total>=g.target)facts.push('С учётом всех обычных кошельков денег на цель уже хватает.');
+      else facts.push('С учётом всех обычных кошельков на цель не хватает '+displayMoney(g.target-total,ctx)+'.');
+    }
     host.replaceChildren(...facts.map(t=>{const p=document.createElement('p');p.textContent=t;return p}));
   }
   function render(){
     if(!snapshot||!mount())return;
     id('rudiAlertList').innerHTML=list(core.detectIssues(snapshot,nowMoscow()),'Сигналов по текущей истории не найдено. Это не означает, что лишних трат нет.');
-    const g=core.goal(snapshot,nowMoscow());
+    const g=core.goal(snapshot,nowMoscow(),{rates:currencyContext().rates});
     if(document.activeElement!==id('rudiGoalDeadline'))id('rudiGoalDeadline').value=g.deadline||'';
     if(document.activeElement!==id('rudiGoalMonthly'))id('rudiGoalMonthly').value=g.monthly||'';
     if(document.activeElement!==id('rudiGoalReserve'))id('rudiGoalReserve').value=g.reserve||'';
@@ -225,7 +279,7 @@
     if(snapshot&&!force&&Date.now()-loadedAt<30000)return;
     working=true;
     try{snapshot=await request('list');loadedAt=Date.now();render()}
-    catch(_){id('rudiForecastNote').textContent='Не удалось загрузить финансовые данные. Открой RUDI в Telegram или попробуй позже.'}
+    catch(_){const host=id('rudiAlertList');if(host)host.textContent='Не удалось загрузить финансовые данные. Открой RUDI в Telegram или попробуй позже.'}
     finally{working=false}
   }
   const init=()=>{
@@ -236,8 +290,16 @@
     },true);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true)});
     document.addEventListener('rudi-finances-updated',event=>{if(event.detail?.plan){snapshot=event.detail;loadedAt=Date.now();render()}});
-    document.addEventListener('rudi-finance-currency-changed',()=>syncScenarioCurrency());
+    id('rudiAlertList')?.addEventListener('click',event=>{
+      const button=event.target.closest?.('button[data-alert-category]');
+      if(!button)return;
+      document.dispatchEvent(new CustomEvent('rudi-finance-open-category-history',{detail:{
+        categoryId:button.dataset.alertCategory,from:button.dataset.alertFrom,to:button.dataset.alertTo
+      }}));
+    });
+    document.addEventListener('rudi-finance-currency-changed',()=>{syncScenarioCurrency();if(snapshot)render()});
     document.addEventListener('rudi-finance-rates-changed',()=>{
+      if(snapshot)render();
       const result=id('rudiScenarioResult');
       if(result&&!result.hidden)runScenario();
     });

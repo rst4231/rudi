@@ -38,3 +38,21 @@
 .rudi-scenario-fields{grid-template-columns:1fr}
 }
 
+
+/* v4.96: actual expense comparison with tappable periods; collapsed simulator */
+.rudi-alert-periods{display:grid;gap:7px;margin-top:11px}
+.rudi-alert-period{appearance:none;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;min-width:0;padding:10px 11px;border:1px solid var(--line);border-radius:12px;
+  background:var(--surface);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.rudi-alert-period span{font-size:12px;color:var(--muted)}
+.rudi-alert-period b{font-size:13px;white-space:nowrap}
+.rudi-alert-period:focus-visible{outline:2px solid #7d67e1;outline-offset:2px}
+.rudi-scenario-details>summary{list-style:none;cursor:pointer}
+.rudi-scenario-details>summary::-webkit-details-marker{display:none}
+.rudi-scenario-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:25px}
+.rudi-scenario-summary h2{font-size:18px;margin:0}
+.rudi-scenario-summary span{color:var(--muted);font-size:11px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.rudi-scenario-summary i{display:inline-block;font-size:21px;font-style:normal;transform:rotate(0deg);transition:transform .18s}
+.rudi-scenario-details[open] .rudi-scenario-summary i{transform:rotate(180deg)}
+.rudi-scenario-body{margin-top:20px}
+@media(max-width:390px){.rudi-scenario-summary span{font-size:10px}.rudi-scenario-summary h2{font-size:17px}}
