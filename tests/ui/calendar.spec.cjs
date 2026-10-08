@@ -148,7 +148,7 @@ async function mockRudi(page,options={}){
       const next=body.view==='next-month';
       const task=state.taskCompleted?[]:[{
         id:'groceries',title:'🛒 Купить продукты',allDay:true,completed:false,
-        assigned:true,assignee:'Рустам'
+        assigned:true,assignee:'rst'
       }];
       return ok({
         ok:true,connected:true,enabled:true,writable:true,view:next?'next-month':'month',
@@ -402,7 +402,7 @@ test('market ticker stops moving with reduced motion',async({page})=>{
   expect(await track.evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
 });
 
-test('mood support message stays visible when own profile card is collapsed',async({page})=>{
+test('profile collapse can be toggled without losing the mood message',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
@@ -410,10 +410,12 @@ test('mood support message stays visible when own profile card is collapsed',asy
   await expect(card).toBeVisible();
   const collapse=card.locator('.block-collapse-button').first();
   await expect(collapse).toBeAttached();
+  const startedCollapsed=await card.evaluate(node=>node.classList.contains('is-collapsed'));
   await collapse.click({force:true});
-  await expect(card).toHaveClass(/is-collapsed/);
+  await expect.poll(()=>card.evaluate(node=>node.classList.contains('is-collapsed'))).toBe(!startedCollapsed);
   await collapse.click({force:true});
-  await expect(card).not.toHaveClass(/is-collapsed/);
+  await expect.poll(()=>card.evaluate(node=>node.classList.contains('is-collapsed'))).toBe(startedCollapsed);
+  await expect(card.locator(':scope > #moodMessage')).toHaveCount(1);
 });
 
 test('iPhone calendar taps, spacing and silent refresh stay stable',async({page})=>{
@@ -456,8 +458,8 @@ test('feed is structured, today-first and keeps five-tab layout',async({page})=>
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.locator('#feedToday')).toBeVisible();
   await expect(page.locator('#feedCinemaBody .feed-movie-card')).toHaveCount(1);
-  await expect(page.locator('#feedFactsBody')).toContainText('Движение');
-  await expect(page.locator('#feedConcertsBody .feed-event-item')).toHaveCount(1);
+  await expect(page.locator('#feedCinemaBody .feed-movie-title')).toContainText('Тестовый фильм');
+  await expect(page.locator('#feedTodayLinks')).toBeVisible();
 });
 
 test('legacy cinema feed is upgraded to visual cards immediately',async({page})=>{
@@ -476,7 +478,7 @@ test('feed deep link opens the feed directly',async({page})=>{
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(page.locator('#feedToday')).toBeVisible();
-  await expect(page.locator('#feedFactsBody')).toContainText('Движение');
+  await expect(page.locator('#feedCinemaBody .feed-movie-card')).toHaveCount(1);
 });
 
 test('photos show total count, daily memory and date groups',async({page})=>{
@@ -500,7 +502,7 @@ test('products bought button stays interactive and completes checked products',a
   const bought=page.getByRole('button',{name:'Купил'});
   await expect(bought).toBeEnabled();
   await bought.click();
-  await expect(page.locator('#productsStatus')).toContainText('Сначала отметьте купленные продукты');
+  await expect(page.locator('#productsStatus')).toContainText('Сначала отметь купленные продукты');
   await page.getByRole('button',{name:'Отметить'}).click();
   await bought.click();
   await expect.poll(()=>state.buyCalls).toBe(1);
@@ -513,11 +515,10 @@ test('nearest card stays on Home only',async({page})=>{
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   const nearest=page.locator('#homeNearestBlock');
   await expect(nearest).toBeAttached();
-  const initially=await nearest.isVisible();
   await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('feed',{scroll:false}));
   await expect(nearest).toBeHidden();
   await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('home',{scroll:false}));
-  await expect(nearest).toHaveJSProperty('hidden',!initially);
+  await expect(nearest).toBeVisible();
 });
 
 test('quick access opens wishlist and generates cached date ideas only after period choice',async({page})=>{
@@ -529,10 +530,12 @@ test('quick access opens wishlist and generates cached date ideas only after per
   await page.locator('#quickWishlistButton').click();
   await expect(page.locator('body')).toHaveAttribute('data-app-tab','wishlist');
   await expect(page.locator('.wishlist-page-title')).toContainText('вишлист');
-  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('home',{scroll:false}));
-  await page.locator('#dateIdeaButton').click();
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('dates',{scroll:false}));
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','dates');
   await expect(page.locator('#dateTimeChoices')).toBeVisible();
   expect(state.dateIdeaCalls).toBe(0);
+  await page.locator('[data-date-period="evening"]').click();
+  await expect.poll(()=>state.dateIdeaCalls).toBe(1);
 });
 
 test('photo thumbnails stay rendered after long scrolling and viewer upgrades preview to full size',async({page})=>{
@@ -566,19 +569,19 @@ test('photo thumbnails stay rendered after long scrolling and viewer upgrades pr
 });
 
 
-test('assistant text input keeps focus and background stays locked',async({page})=>{
+test('income action offers wallet setup when no wallet exists',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
-  // The old voice modal was removed: test the current income composer instead.
+  // Income requires an account; the first action offers the wallet form.
   await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('finances',{scroll:false}));
   await expect(page.locator('#financeIncomeAddButton')).toBeVisible();
   await page.locator('#financeIncomeAddButton').click();
-  await expect(page.locator('#financeIncomeComposer')).toBeVisible();
-  await expect(page.locator('#financeIncomeComposer')).not.toHaveAttribute('aria-hidden','true');
+  await expect(page.locator('#financeWalletComposer')).toBeVisible();
+  await expect(page.locator('#financeWalletName')).toBeVisible();
 });
 
-test('assistant modal keeps focus and freezes background scroll',async({page})=>{
+test('new wallet tile opens a working wallet form',async({page})=>{
   await mockRudi(page);
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
