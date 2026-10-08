@@ -88,6 +88,7 @@ const {
   visibleChecklistItems,
   updateTaskChecklistItem,
   createTickTickTask,
+  updateTickTickTask,
   deleteTickTickTask,
   completeTickTickTask,
   fetchTask,
@@ -1703,6 +1704,72 @@ async function handleTickTick(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'task-update') {
+    if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
+    let body, actor;
+    try {
+      body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      ({actor} = authorizeRequest(req, body.initData, options));
+    } catch (error) {
+      return res.status(statusForError(error)).json({ok:false,error:String(error?.message || error)});
+    }
+    const taskId = String(body.taskId || '').trim();
+    if (!taskId) return res.status(400).json({ok:false,error:'ticktick-task-update-invalid'});
+    const config = await loadTickTickConfig(options);
+    if (!config.enabled) return res.status(409).json({ok:false,error:'ticktick-disabled'});
+    const token = await readTickTickTokenWithBackup(body,options);
+    if (!token?.accessToken) return res.status(401).json({ok:false,error:'ticktick-not-connected'});
+    if (tokenHasWriteScope(token) === false) return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+
+    try {
+      const current = await fetchTask(token.accessToken,config.projectId,taskId,options);
+      const currentMeta = await getSharedTaskMeta(taskId,options).catch(() => null);
+      if (!sharedTaskCanDelete(actor,current,currentMeta)) return res.status(403).json({ok:false,error:'ticktick-task-update-forbidden'});
+      const title = String(body.title || '').trim().slice(0,500);
+      if (!title) return res.status(400).json({ok:false,error:'ticktick-task-title-required'});
+      const requestedResponsible = String(body.responsible || '').trim();
+      const responsible = ['Рустам','Диана'].includes(requestedResponsible) ? requestedResponsible : '';
+      const date = String(body.date || '').trim();
+      const time = String(body.time || '').trim();
+      const dateTime = tickTickTaskDateTime(date,time);
+      const repeatFlag = tickTickRepeatFlag(body.repeat,body.repeatCount);
+      let assigneeUsername = '';
+      if (responsible) {
+        const wanted=responsible==='Рустам'?'RST':'Ди';
+        const members=await listTickTickProjectMembers(token.accessToken,config.projectId,options);
+        assigneeUsername=String(members.find(row=>String(row?.displayName||'').trim()===wanted)?.username||'').trim();
+        if (!assigneeUsername) throw new Error('ticktick-assignee-not-found:'+wanted);
+      }
+      await updateTickTickTask(token.accessToken,config.projectId,taskId,{
+        title,
+        desc:String(body.description || '').trim().slice(0,5000),
+        isAllDay:!time,
+        startDate:dateTime,
+        dueDate:dateTime,
+        timeZone:'Europe/Moscow',
+        assigneeUsername,
+        repeatFlag,
+      },options);
+      await setSharedTaskMeta(taskId,{
+        responsible,
+        createdBy:String(currentMeta?.createdBy || actor).trim(),
+        source:'rudi',
+      },options);
+      return res.status(200).json({ok:true,taskId});
+    } catch (error) {
+      const code=String(error?.message || error);
+      if (code === 'ticktick-token-invalid') {
+        await clearToken(options);
+        return res.status(401).json({ok:false,error:'ticktick-reconnect-required'});
+      }
+      if (code === 'ticktick-write-forbidden') return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
+      if (code === 'ticktick-task-not-found') return res.status(404).json({ok:false,error:code});
+      if (/^ticktick-task-(?:date|time|repeat|update)-invalid$/.test(code)) return res.status(400).json({ok:false,error:code});
+      console.error('RUDI_TICKTICK_TASK_UPDATE_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-update-unavailable'});
+    }
+  }
+
   if (action === 'task-delete') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
     let body;
@@ -1865,6 +1932,9 @@ async function handleTickTick(req, res, action, options = {}) {
             responsibilityKnown: assignee.responsibility.known,
             canDelete: sharedTaskCanDelete(actor, source, meta),
             description: String(source.desc || source.content || '').trim().slice(0, 5000),
+            repeat: String(source.repeatFlag || '').includes('BYDAY=MO,TU,WE,TH,FR') ? 'weekdays'
+              : (String(source.repeatFlag || '').match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1] || 'none').toLowerCase(),
+            repeatCount: Number(String(source.repeatFlag || '').match(/COUNT=(\d+)/)?.[1] || 2),
             checklist,
           };
         });

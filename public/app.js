@@ -3089,7 +3089,7 @@
           toggle.addEventListener('click',()=>toggleFinanceObligationPaid(row.id,!paid));copy.addEventListener('click',()=>openFinanceObligationComposer(row.id));del.addEventListener('click',()=>deleteFinanceObligation(row.id));
           item.append(toggle,copy,del);list.append(item);
         }
-        forecast.textContent=obligations.length?'До конца '+financeMonthTitle(month)+': '+financeOverviewMoney(pending):'Запланированных обязательных расходов нет';
+        forecast.textContent=obligations.length?'До конца месяца: '+financeOverviewMoney(pending):'Запланированных ежемесячных расходов нет';
         animateRudiCollection(list,'.finance-obligation-row',10);
       }
       async function saveFinancePlanWithObligations(obligations){
@@ -4649,8 +4649,47 @@
         const text=String(value??'');
         return /[;"\n\r]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;
       }
-      function exportFinanceCsv(){
-        const rows=[['Дата','Время','Тип','Категория / кошелёк','Сумма RUB','Кошелёк','Исходная сумма','Исходная валюта','Курс в RUB','Комментарий']];
+      function financeSpreadsheetXmlEscape(value){
+        return String(value??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+      }
+      function financeSpreadsheetZip(entries){
+        // Store-only ZIP: valid XLSX without external scripts or downloads.
+        const encoder=new TextEncoder(),output=[],directory=[];
+        const table=new Uint32Array(256);
+        for(let k=0;k<256;k++){let c=k;for(let j=0;j<8;j++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;table[k]=c>>>0}
+        let offset=0;
+        const crc32=bytes=>{
+          let c=0xffffffff;
+          for(let k=0;k<bytes.length;k++)c=table[(c^bytes[k])&255]^(c>>>8);
+          return (c^0xffffffff)>>>0;
+        };
+        for(const [filename,content] of entries){
+          const name=encoder.encode(filename),data=encoder.encode(content),crc=crc32(data);
+          const local=new Uint8Array(30+name.length),lv=new DataView(local.buffer);
+          lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);
+          lv.setUint16(6,0x0800,true);lv.setUint32(14,crc,true);
+          lv.setUint32(18,data.length,true);lv.setUint32(22,data.length,true);
+          lv.setUint16(26,name.length,true);local.set(name,30);
+          output.push(local,data);
+          const central=new Uint8Array(46+name.length),cv=new DataView(central.buffer);
+          cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);
+          cv.setUint16(8,0x0800,true);cv.setUint32(16,crc,true);
+          cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);
+          cv.setUint16(28,name.length,true);cv.setUint32(42,offset,true);
+          central.set(name,46);directory.push(central);
+          offset+=local.length+data.length;
+        }
+        const dirSize=directory.reduce((sum,item)=>sum+item.length,0);
+        const end=new Uint8Array(22),view=new DataView(end.buffer);
+        view.setUint32(0,0x06054b50,true);view.setUint16(8,entries.length,true);
+        view.setUint16(10,entries.length,true);view.setUint32(12,dirSize,true);
+        view.setUint32(16,offset,true);
+        return new Blob([...output,...directory,end],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      }
+      function exportFinanceSpreadsheet(){
+        const rows=[['Дата','Время','Тип','Категория / кошелёк','Сумма ₽','Кошелёк','Исходная сумма','Валюта','Курс ₽','Комментарий']];
         const operations=[];
         for(const row of financeState.personalExpenses||[])operations.push({kind:'Расход',occurredAt:row.occurredAt||row.createdAt,row});
         for(const row of financeState.walletIncomes||[])operations.push({kind:'Доход',occurredAt:row.occurredAt||row.createdAt,row});
@@ -4659,24 +4698,58 @@
           const row=entry.row,meta=financeDateTimeLabel(entry.occurredAt);
           if(entry.kind==='Доход'){
             const wallet=financeWalletById(row.walletId);
-            rows.push([
-              meta.key,meta.time,'Доход',wallet?.name||'Кошелёк',
-              Number(row.rubAmount||0),wallet?.name||'',Number(row.amount||0),
-              row.currency||wallet?.currency||'RUB',Number(row.exchangeRate||1),row.note||''
-            ]);
+            rows.push([meta.key,meta.time,'Доход',wallet?.name||'Кошелёк',Number(row.rubAmount||0),
+              wallet?.name||'',Number(row.amount||0),row.currency||wallet?.currency||'RUB',
+              Number(row.exchangeRate||1),row.note||'']);
           }else{
             const category=financeAllCategoryById(row.categoryId),wallet=financeWalletById(row.walletId);
-            rows.push([
-              meta.key,meta.time,'Расход',category?.name||'Удалённая категория',
-              Number(row.rubAmount||row.amount||0),wallet?.name||'',Number(row.sourceAmount||row.amount||0),
-              row.sourceCurrency||'RUB',Number(row.exchangeRate||1),row.note||''
-            ]);
+            rows.push([meta.key,meta.time,'Расход',category?.name||'Удалённая категория',
+              Number(row.rubAmount||row.amount||0),wallet?.name||'',
+              Number(row.sourceAmount||row.amount||0),row.sourceCurrency||'RUB',
+              Number(row.exchangeRate||1),row.note||'']);
           }
         }
-        const csv='\uFEFFsep=;\r\n'+rows.map(row=>row.map(financeCsvEscape).join(';')).join('\r\n');
-        const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob);
-        const a=document.createElement('a');a.href=url;a.download='rudi-finances-'+new Date().toISOString().slice(0,10)+'.csv';
-        document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+        const escape=financeSpreadsheetXmlEscape;
+        const colName=n=>{let value=n+1,name='';while(value){name=String.fromCharCode(65+(value-1)%26)+name;value=Math.floor((value-1)/26)}return name};
+        const rowXml=rows.map((row,index)=>{
+          const cells=row.map((value,col)=>{
+            const ref=colName(col)+(index+1);
+            if(index>0&&[4,6,8].includes(col)&&Number.isFinite(Number(value))){
+              return '<c r="'+ref+'" s="2"><v>'+Number(value)+'</v></c>';
+            }
+            return '<c r="'+ref+'" t="inlineStr"'+(index===0?' s="1"':'')+'><is><t xml:space="preserve">'+escape(value)+'</t></is></c>';
+          }).join('');
+          return '<row r="'+(index+1)+'"'+(index===0?' ht="29" customHeight="1"':'')+'>'+cells+'</row>';
+        }).join('');
+        const lastRow=rows.length;
+        const sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          +'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+          +'<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+          +'<sheetFormatPr defaultRowHeight="21"/><cols>'
+          +[17,11,14,29,17,25,20,12,16,50].map((width,k)=>'<col min="'+(k+1)+'" max="'+(k+1)+'" width="'+width+'" customWidth="1"/>').join('')
+          +'</cols><sheetData>'+rowXml+'</sheetData><autoFilter ref="A1:J'+lastRow+'"/></worksheet>';
+        const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          +'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+          +'<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>'
+          +'<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF26354A"/><bgColor indexed="64"/></patternFill></fill></fills>'
+          +'<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+          +'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+          +'<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+          +'<xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFill="1" applyFont="1"/>'
+          +'<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>'
+          +'</styleSheet>';
+        const files=[
+          ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+          ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+          ['xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Операции" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+          ['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+          ['xl/worksheets/sheet1.xml',sheet],['xl/styles.xml',styles],
+        ];
+        const blob=financeSpreadsheetZip(files),url=URL.createObjectURL(blob);
+        const link=document.createElement('a');link.href=url;
+        link.download='rudi-finances-'+new Date().toISOString().slice(0,10)+'.xlsx';
+        document.body.append(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1500);
       }
 
       function parseFinanceCsv(text,{keepEmpty=false}={}){
@@ -5574,7 +5647,7 @@
             }
           }finally{importFile.value=''}
         });
-        document.getElementById('financeExportButton')?.addEventListener('click',exportFinanceCsv);
+        document.getElementById('financeExportButton')?.addEventListener('click',exportFinanceSpreadsheet);
 
         document.getElementById('financeAnalystButton')?.addEventListener('click',()=>runFinancialAnalyst());
 
@@ -6043,27 +6116,27 @@
 
         const makeStatus=(label,advice)=>({
           label,
-          advice:advice||'Лучше ориентироваться на своё самочувствие и выбирать комфортный для себя темп дня.'
+          advice:advice||'Ориентируйтесь на своё самочувствие и выбирайте комфортный для себя темп дня.'
         });
 
         if(phase==='Месячные'){
           return makeStatus(
             'Месячные',
-            'Лучше снизить нагрузку, оставить больше времени на отдых и ориентироваться на самочувствие.'
+            'Если чувствуете усталость, снизьте нагрузку и оставьте больше времени на отдых.'
           );
         }
 
         if(!periodActive&&Number.isFinite(daysToNext)&&daysToNext===0){
           return makeStatus(
             'Ожидаются сегодня',
-            'Сегодня прогнозная дата начала. Факт месячных появится только после отметки Дианы.'
+            'Сегодня предполагаемая дата начала месячных. Если они начнутся, отметьте это в календаре.'
           );
         }
 
         if(!periodActive&&Number.isFinite(daysToNext)&&daysToNext<0){
           return makeStatus(
             'Прогнозная дата прошла',
-            'Месячные пока не отмечены. Когда они фактически начнутся, Диана сможет отметить начало.'
+            'Прогнозная дата прошла, но начало месячных пока не отмечено. Отметьте его, когда они начнутся.'
           );
         }
 
@@ -6071,12 +6144,12 @@
           if(Number.isFinite(day)&&day<=periodLength+2){
             return makeStatus(
               'Восстановление',
-              'Организм выходит из месячных: лучше возвращаться к обычному темпу постепенно и ориентироваться на самочувствие.'
+              'После месячных возвращайтесь к привычному темпу постепенно и ориентируйтесь на своё самочувствие.'
             );
           }
           return makeStatus(
             'Энергии больше',
-            'Можно держать более активный темп, планировать важные дела, прогулки и встречи.'
+            'Если чувствуете прилив сил, можете запланировать важные дела, прогулки и встречи.'
           );
         }
 
@@ -6084,12 +6157,12 @@
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day===ovulationDay){
             return makeStatus(
               'Овуляция',
-              'Сегодня ориентировочный день овуляции. Самочувствие индивидуально, а дата прогноза приблизительная.'
+              'Сегодня по прогнозу возможна овуляция. Прислушивайтесь к самочувствию: календарный прогноз приблизителен.'
             );
           }
           return makeStatus(
             'Фертильные дни',
-            'Сейчас ориентировочное фертильное окно. Даты прогноза приблизительные и не подходят для контрацепции.'
+            'Сейчас по календарю у вас могут быть фертильные дни. Даты приблизительны: этот прогноз нельзя использовать для контрацепции.'
           );
         }
 
@@ -6097,12 +6170,12 @@
           if(Number.isFinite(daysToNext)&&daysToNext<=5){
             return makeStatus(
               'Скоро месячные',
-              'До месячных осталось немного времени: лучше оставить запас по нагрузке и учитывать возможные изменения самочувствия.'
+              'До ожидаемых месячных осталось немного времени. Оставьте запас сил и учитывайте, как меняется ваше самочувствие.'
             );
           }
           return makeStatus(
             'Восстановление',
-            'Лучше держать ровный темп и ориентироваться на самочувствие без лишней перегрузки.'
+            'Старайтесь сохранять ровный темп и не перегружать себя.'
           );
         }
 
@@ -6137,39 +6210,39 @@
 
         if(phase==='Месячные'){
           if(Number.isFinite(periodDay)&&periodDay<=2){
-            return '🧠 Мозг: первые 1–2 дня у части женщин сильнее ощущаются усталость, боль и снижение концентрации. Лучше короткие задачи, больше пауз и меньше многозадачности.';
+            return '🧠 Мозг: в первые 1–2 дня месячных вы можете сильнее ощущать усталость, боль или снижение концентрации. Делайте короткие задачи и чаще отдыхайте.';
           }
-          return '🧠 Мозг: ближе к окончанию месячных энергия и фокус у многих постепенно возвращаются. Нагрузку можно наращивать мягко, ориентируясь на самочувствие.';
+          return '🧠 Мозг: ближе к окончанию месячных вам может становиться легче сосредоточиться. Наращивайте нагрузку постепенно, если чувствуете себя хорошо.';
         }
 
         if(phase==='Фолликулярная фаза'){
           if(Number.isFinite(day)&&day<=periodLength+2){
-            return '🧠 Мозг: ранняя фолликулярная фаза — период восстановления. Фокус и мотивация могут постепенно усиливаться, но запас энергии ещё не всегда максимальный.';
+            return '🧠 Мозг: сейчас вы можете постепенно ощущать больше энергии и мотивации, хотя восстановление ещё продолжается. Не требуйте от себя максимума.';
           }
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day<=ovulationDay-4){
-            return '🧠 Мозг: в середине фолликулярной фазы рост эстрогена у части женщин совпадает с более лёгким фокусом, обучением и желанием начинать новые задачи.';
+            return '🧠 Мозг: в этот период вам может быть проще сосредоточиться, учиться и начинать новые задачи. Планируйте их с учётом своего самочувствия.';
           }
-          return '🧠 Мозг: ближе к фертильному окну у части женщин повышаются энергия, инициативность и социальная вовлечённость. Удобное время для встреч и сложных задач, если самочувствие хорошее.';
+          return '🧠 Мозг: ближе к фертильным дням у вас могут повыситься энергия и желание общаться. Если чувствуете себя хорошо, используйте это время для встреч и важных дел.';
         }
 
         if(phase==='Фертильное окно'){
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day===ovulationDay){
-            return '🧠 Мозг: ориентировочный день овуляции. У части женщин выше энергия и общительность, но у других возможны головная боль, чувствительность или усталость — реакция индивидуальна.';
+            return '🧠 Мозг: сегодня по прогнозу овуляция. Вы можете чувствовать больше энергии, но также возможны усталость или дискомфорт. Всё индивидуально.';
           }
-          return '🧠 Мозг: во время фертильного окна у части женщин легче идут общение, быстрые решения и активные задачи. Это не гарантированный эффект — важнее фактическое самочувствие Дианы.';
+          return '🧠 Мозг: в фертильные дни вам могут легче даваться общение и активные задачи. Это не гарантировано, поэтому ориентируйтесь прежде всего на свои ощущения.';
         }
 
         if(phase==='Лютеиновая фаза'){
           if(Number.isFinite(daysToNext)&&daysToNext<=2){
-            return '🧠 Мозг: за 1–2 дня до месячных чаще ощущаются утомляемость, раздражительность и перегруз от большого количества задач. Лучше меньше переключений и больше запаса по времени.';
+            return '🧠 Мозг: за 1–2 дня до месячных вы можете быстрее уставать или раздражаться. Оставьте запас времени и уменьшите количество переключений.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=5){
-            return '🧠 Мозг: предменструальные дни могут повышать чувствительность к стрессу и снижать устойчивость внимания. Лучше разбивать сложные дела на короткие блоки.';
+            return '🧠 Мозг: перед месячными у вас может усилиться чувствительность к стрессу. Разбивайте сложные дела на небольшие этапы.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=10){
-            return '🧠 Мозг: середина лютеиновой фазы обычно более ровная, но некоторым уже требуется больше восстановления и сна. Полезнее стабильный темп без перегруза.';
+            return '🧠 Мозг: в середине этой фазы вам может потребоваться больше сна и восстановления. Старайтесь поддерживать комфортный ритм.';
           }
-          return '🧠 Мозг: в ранней лютеиновой фазе прогестерон растёт; у части женщин появляется более спокойный темп или сонливость. Хорошо подходят последовательные, привычные задачи.';
+          return '🧠 Мозг: после овуляции вы можете ощущать сонливость или более спокойный темп. Сейчас удобнее выполнять последовательные, привычные задачи.';
         }
         return '';
       }
@@ -6185,39 +6258,39 @@
 
         if(phase==='Месячные'){
           if(Number.isFinite(periodDay)&&periodDay<=2){
-            return '🍽 Аппетит: в первые дни он может быть непредсказуемым — от снижения из-за боли или дискомфорта до сохранения тяги к сладкому и сытной еде после ПМС.';
+            return '🍽 Аппетит: в первые дни месячных у вас может меняться чувство голода и желание сладкого. Ешьте так, чтобы вам было комфортно.';
           }
-          return '🍽 Аппетит: по мере окончания месячных у многих становится ровнее. Тяга к сладкому и частым перекусам может ослабевать по сравнению с предменструальными днями.';
+          return '🍽 Аппетит: к концу месячных вы можете заметить, что тяга к перекусам ослабевает. Ориентируйтесь на свой голод.';
         }
 
         if(phase==='Фолликулярная фаза'){
           if(Number.isFinite(day)&&day<=periodLength+2){
-            return '🍽 Аппетит: после месячных часто становится спокойнее. Может быть проще держать обычные интервалы между едой и меньше тянуться к случайным перекусам.';
+            return '🍽 Аппетит: после месячных вам может быть проще придерживаться обычного режима питания. Не забывайте о регулярных приёмах пищи.';
           }
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day<=ovulationDay-4){
-            return '🍽 Аппетит: в середине фолликулярной фазы у многих он достаточно ровный и ниже, чем во второй половине цикла. Полезно ориентироваться на обычный голод, а не на календарь.';
+            return '🍽 Аппетит: в середине этой фазы у вас может быть более ровный аппетит. Лучше ориентироваться на чувство голода, а не на календарь.';
           }
-          return '🍽 Аппетит: ближе к овуляции у части женщин немного снижается голод. Даже если есть хочется меньше, лучше не пропускать обычные приёмы пищи.';
+          return '🍽 Аппетит: ближе к овуляции вы можете замечать меньший голод. Даже если есть хочется меньше, старайтесь питаться регулярно.';
         }
 
         if(phase==='Фертильное окно'){
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day===ovulationDay){
-            return '🍽 Аппетит: около овуляции у части женщин он минимальный за цикл, у других не меняется вовсе. Если голод слабее, это не значит, что организму не нужна обычная еда.';
+            return '🍽 Аппетит: около овуляции у вас может уменьшиться аппетит, но он также может остаться прежним. Ориентируйтесь на свои потребности.';
           }
-          return '🍽 Аппетит: чаще остаётся стабильным или немного ниже обычного. После овуляции он может начать постепенно усиливаться по мере перехода в лютеиновую фазу.';
+          return '🍽 Аппетит: сейчас у вас может быть привычный или чуть меньший аппетит. После овуляции он иногда постепенно усиливается.';
         }
 
         if(phase==='Лютеиновая фаза'){
           if(Number.isFinite(daysToNext)&&daysToNext<=2){
-            return '🍽 Аппетит: за 1–2 дня до месячных голод и тяга к сладкому, солёному или более калорийной еде могут быть наиболее заметными. Это частая предменструальная реакция.';
+            return '🍽 Аппетит: за 1–2 дня до месячных у вас может усилиться тяга к сладкому или сытной пище. Это возможно, но необязательно.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=5){
-            return '🍽 Аппетит: перед месячными чаще усиливаются голод и желание перекусов. Более сытные обычные приёмы пищи могут уменьшить ощущение постоянного поиска еды.';
+            return '🍽 Аппетит: перед месячными вам может чаще хотеться перекусов. Попробуйте более сытные регулярные приёмы пищи.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=10){
-            return '🍽 Аппетит: в середине лютеиновой фазы может постепенно расти. Порции и желание углеводной еды у некоторых становятся немного больше.';
+            return '🍽 Аппетит: в середине этой фазы вы можете замечать, что голод усиливается и хочется больше углеводной еды.';
           }
-          return '🍽 Аппетит: после овуляции он может понемногу усиливаться. Это обычно происходит постепенно, а выраженная тяга к сладкому чаще появляется ближе к ПМС.';
+          return '🍽 Аппетит: после овуляции вы можете постепенно ощущать больше голода. Если ближе к месячным хочется сладкого, это тоже бывает.';
         }
         return '';
       }
@@ -8298,7 +8371,7 @@
           const advice=document.getElementById('homeCycleAdvice');
           const brain=document.getElementById('homeCycleBrain');
           const appetite=document.getElementById('homeCycleAppetite');
-          if(status) status.textContent=word?'🌸 Диана: '+word:'';
+          if(status) status.textContent=word?'🌸 '+word:'';
           if(advice) advice.textContent=dianaCycleDailyAdvice(cycleModel);
           if(brain) brain.textContent=dianaCycleBrainNote(cycleModel);
           if(appetite) appetite.textContent=dianaCycleAppetiteNote(cycleModel);
@@ -12125,6 +12198,19 @@
         });
       }
 
+      async function requestTickTickTaskUpdate(taskId,value){
+        const id=String(taskId||'').trim();
+        if(!id)throw new Error('ticktick-task-update-invalid');
+        return managedJsonRequest('ticktick-task-update:'+id,'/api/ticktick/task-update',{
+          body:{initData:telegramInitData(),backupToken:currentStateBackupToken,taskId:id,
+            title:String(value?.title||'').trim(),date:String(value?.date||'').trim(),
+            time:String(value?.time||'').trim(),responsible:String(value?.responsible||'').trim(),
+            description:String(value?.description||'').trim(),repeat:String(value?.repeat||'none'),
+            repeatCount:Number(value?.repeatCount||1)},
+          ttlMs:0,timeoutMs:12000
+        });
+      }
+
       async function requestTickTickTaskDelete(taskId){
         const id=String(taskId||'').trim();
         if(!id) throw new Error('ticktick-task-delete-invalid');
@@ -12284,6 +12370,7 @@
         }
       }
 
+      let openTickTickTaskForEditing=null;
       function renderTickTickTodayState(payload,{preserveExpanded=false}={}){
         const title=document.getElementById('ticktickTitle');
         const list=document.getElementById('ticktickTodayList');
@@ -12404,6 +12491,13 @@
           row.append(complete,copy);
           if(task?.canDelete){
             row.classList.add('has-delete');
+            const actions=document.createElement('div');actions.className='ticktick-today-actions';
+            const editButton=document.createElement('button');editButton.type='button';editButton.className='ticktick-today-edit';
+            editButton.setAttribute('aria-label','Редактировать задачу: '+String(task?.title||'Дело'));
+            editButton.title='Редактировать';editButton.disabled=payload?.writable===false;
+            editButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.5-1 10-10a2 2 0 0 0-3-3l-10 10L4 20z"/><path d="m13.5 7.5 3 3"/></svg>';
+            editButton.addEventListener('click',event=>{event.stopPropagation();openTickTickTaskForEditing?.(task)});
+            actions.appendChild(editButton);
             const remove=document.createElement('button');
             remove.type='button';
             remove.className='ticktick-today-delete';
@@ -12415,7 +12509,8 @@
               event.stopPropagation();
               deleteTickTickTodayTask(task,row,remove);
             });
-            row.appendChild(remove);
+            actions.appendChild(remove);
+            row.appendChild(actions);
           }
           if(inlineDetails) row.appendChild(inlineDetails);
           list.appendChild(row);
@@ -12488,6 +12583,8 @@
         const repeatCountInput=document.getElementById('ticktickTaskRepeatCountInput');
         const save=document.getElementById('ticktickTaskSaveButton');
         const status=document.getElementById('ticktickTaskFormStatus');
+        const heading=document.getElementById('ticktickTaskModalTitle');
+        let editingTask=null;
         if(!add||!modal||!form||add.dataset.bound==='1') return;
         add.dataset.bound='1';
 
@@ -12497,20 +12594,26 @@
           if(repeatCountInput) repeatCountInput.required=repeating;
         };
         const close=()=>{
+          editingTask=null;
           modal.hidden=true;
           modal.setAttribute('aria-hidden','true');
           document.body.classList.remove('ticktick-task-modal-open');
           if(status) status.textContent='';
         };
-        const open=()=>{
+        const open=(task=null)=>{
+          editingTask=task?.id?task:null;
           form.reset();
           const currentDateTime=financeNowDateTimeInputs();
-          if(dateInput) dateInput.value=currentDateTime.date;
-          if(timeInput) timeInput.value=currentDateTime.time;
+          if(dateInput)dateInput.value=editingTask?.date||currentDateTime.date;
+          if(timeInput)timeInput.value=editingTask?(editingTask.allDay?'':String(editingTask.startTime||'')):currentDateTime.time;
           syncRudiTemporalControl(dateInput);syncRudiTemporalControl(timeInput);
-          if(responsibleInput) responsibleInput.value='';
-          if(repeatInput) repeatInput.value='none';
-          if(repeatCountInput) repeatCountInput.value='2';
+          if(titleInput)titleInput.value=editingTask?.title||'';
+          if(responsibleInput)responsibleInput.value=editingTask?.responsible||'';
+          if(descriptionInput)descriptionInput.value=editingTask?.description||'';
+          if(repeatInput)repeatInput.value=editingTask?.repeat||'none';
+          if(repeatCountInput)repeatCountInput.value=String(editingTask?.repeatCount||2);
+          if(heading)heading.textContent=editingTask?'Редактировать дело':'Новое дело';
+          if(save)save.textContent=editingTask?'Сохранить':'Добавить';
           syncRepeat();
           modal.hidden=false;
           modal.setAttribute('aria-hidden','false');
@@ -12520,7 +12623,8 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
 
-        add.addEventListener('click',open);
+        add.addEventListener('click',()=>open());
+        openTickTickTaskForEditing=task=>open(task);
         closeButton?.addEventListener('click',close);
         cancelButton?.addEventListener('click',close);
         backdrop?.addEventListener('click',close);
@@ -12533,32 +12637,27 @@
           const title=String(titleInput?.value||'').trim();
           const currentDateTime=financeNowDateTimeInputs();
           if(dateInput&&!String(dateInput.value||'').trim())dateInput.value=currentDateTime.date;
-          if(timeInput&&!String(timeInput.value||'').trim())timeInput.value=currentDateTime.time;
+          if(!editingTask&&timeInput&&!String(timeInput.value||'').trim())timeInput.value=currentDateTime.time;
           const date=String(dateInput?.value||currentDateTime.date).trim();
-          const time=String(timeInput?.value||currentDateTime.time).trim();
+          const time=editingTask?String(timeInput?.value||'').trim():String(timeInput?.value||currentDateTime.time).trim();
           if(!title||!date) return;
           const repeating=String(repeatInput?.value||'none')!=='none';
           const repeatCount=repeating?Math.max(2,Math.min(365,Math.round(Number(repeatCountInput?.value)||2))):1;
           if(save) save.disabled=true;
-          if(status) status.textContent='Добавляю…';
+          if(status) status.textContent=editingTask?'Сохраняю…':'Добавляю…';
+          const editedId=editingTask?.id||'';
           try{
-            const payload=await requestTickTickTaskCreate({
-              title,
-              date,
-              time,
-              responsible:String(responsibleInput?.value||'').trim(),
-              description:String(descriptionInput?.value||'').trim(),
-              repeat:String(repeatInput?.value||'none'),
-              repeatCount
-            });
-            if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-create');
+            const data={title,date,time,responsible:String(responsibleInput?.value||'').trim(),
+              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount};
+            const payload=editedId?await requestTickTickTaskUpdate(editedId,data):await requestTickTickTaskCreate(data);
+            if(!payload?.ok) throw new Error(payload?.error||(editedId?'ticktick-task-update':'ticktick-task-create'));
             close();
             await refreshAfterTickTickTaskChange({preserveExpanded:false});
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
             if(status){
               const code=String(error?.message||'');
-              status.textContent=code.includes('permission')?'Нужно заново разрешить запись в TickTick':'Не удалось добавить задачу';
+              status.textContent=code.includes('permission')?'Нужно заново разрешить запись в TickTick':(editedId?'Не удалось сохранить изменения':'Не удалось добавить задачу');
             }
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{

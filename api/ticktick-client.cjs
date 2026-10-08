@@ -386,6 +386,45 @@ async function createTickTickTask(accessToken, value, options = {}) {
   return { ...body };
 }
 
+async function updateTickTickTask(accessToken, projectId, taskId, changes = {}, options = {}) {
+  const current = await fetchTask(accessToken, projectId, taskId, options);
+  const id = String(taskId || '').trim();
+  const project = String(projectId || '').trim();
+  const title = String(changes.title || '').trim();
+  if (!id || !project || !title) throw new Error('ticktick-task-update-invalid');
+
+  // Preserve checklist and unrelated task state during an edit.
+  const body = { id, projectId:project, title:title.slice(0,500) };
+  for (const key of ['content','priority','status','items','tags','reminders','sortOrder']) {
+    if (current[key] !== undefined && current[key] !== null) body[key] = current[key];
+  }
+  body.desc = String(changes.desc ?? current.desc ?? '').slice(0,5000);
+  body.isAllDay = Boolean(changes.isAllDay);
+  body.startDate = String(changes.startDate || '');
+  body.dueDate = String(changes.dueDate || '');
+  body.timeZone = String(changes.timeZone || current.timeZone || 'Europe/Moscow');
+  body.assigneeUsername = String(changes.assigneeUsername ?? current.assigneeUsername ?? '');
+  body.repeatFlag = String(changes.repeatFlag ?? current.repeatFlag ?? '');
+  body.repeatFrom = Number.isFinite(Number(current.repeatFrom)) ? Number(current.repeatFrom) : 0;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(API_BASE_URL + '/task/' + encodeURIComponent(id), {
+    method:'POST',
+    headers:{
+      Authorization:'Bearer ' + accessToken,
+      'Content-Type':'application/json',
+      Accept:'application/json',
+      'user-agent':'RUDI-TickTick/1.0',
+    },
+    body:JSON.stringify(body),
+    cache:'no-store',
+  });
+  if(response.status === 401) throw new Error('ticktick-token-invalid');
+  if(response.status === 403) throw new Error('ticktick-write-forbidden');
+  if(response.status === 404) throw new Error('ticktick-task-not-found');
+  if(!response.ok) throw new Error('ticktick-update-failed:' + response.status);
+  return response.json().catch(() => ({...current,...body}));
+}
+
 async function deleteTickTickTask(accessToken, projectId, taskId, options = {}) {
   const id = String(taskId || '').trim();
   const project = String(projectId || '').trim();
@@ -643,6 +682,7 @@ module.exports = {
   updateTaskChecklistItem,
   cleanTickTickChecklistItems,
   createTickTickTask,
+  updateTickTickTask,
   deleteTickTickTask,
   completeTickTickTask,
   fetchProjectData,

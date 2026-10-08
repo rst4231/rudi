@@ -130,16 +130,8 @@ function renderHabitYesterdayQuote(){
   const habits=Array.isArray(view.habits)?view.habits:[];
   const statuses=view.statuses&&typeof view.statuses==='object'?view.statuses:{};
   const done=habits.filter(item=>statuses[item.id]==='done');
-  const notDone=habits.filter(item=>statuses[item.id]==='notdone');
-  const doneText=done.length?habitSummaryNames(done):'ничего';
-  const notDoneText=notDone.length?habitSummaryNames(notDone):'ничего';
   const total=habits.length;
-  const motivation=total&&done.length===total
-    ? 'Отличный темп, сегодня постарайся сохранить эту серию.'
-    : total&&done.length>=Math.ceil(total/2)
-      ? 'Хороший темп, сегодня попробуй закрыть ещё одну привычку больше.'
-      : 'Не гонись за идеалом, сегодня выбери одну привычку и доведи её до конца.';
-  habitYesterdayQuote.textContent='Вчера выполнено '+done.length+' из '+total+': '+doneText+'; не выполнено: '+notDoneText+'. '+motivation;
+  habitYesterdayQuote.textContent='Вчера '+(actor==='Диана'?'выполнила':'выполнил')+' '+done.length+' из '+total+' привычек';
   habitYesterdayQuote.hidden=false;
 }
 function applyHabitView(data){

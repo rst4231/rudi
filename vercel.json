@@ -233,6 +233,10 @@
       "destination": "/api/partner-message?ticktickAction=task-create"
     },
     {
+      "source": "/api/ticktick/task-update",
+      "destination": "/api/partner-message?ticktickAction=task-update"
+    },
+    {
       "source": "/api/smart-home-humidity-cron",
       "destination": "/api/index?route=smart-home-humidity-cron"
     },

@@ -28,7 +28,7 @@
     })();
   </script>
   <link rel="stylesheet" href="/app.css?v=4.69">
-  <link rel="stylesheet" href="/finance-bank.css?v=4.69">
+
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
@@ -67,7 +67,7 @@
     })();
   </script>
   <script defer src="/app.js?v=4.69"></script>
-  <script defer src="/finance-bank.js?v=4.69"></script>
+
   <script defer src="/pwa-extras.js?v=4.60"></script>
   <script defer src="/weather.js?v=4.60"></script>
   <script defer src="/smart-home.js?v=4.60"></script>
@@ -349,7 +349,7 @@
                 <button id="financeBalanceEyeButton" class="finance-balance-eye" type="button" aria-label="Скрыть или показать баланс" aria-pressed="false">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg>
                 </button>
-                <button id="financeExportButton" class="finance-balance-export" type="button" aria-label="Экспорт CSV" title="Экспорт CSV">
+                <button id="financeExportButton" class="finance-balance-export" type="button" aria-label="Скачать Excel" title="Скачать Excel">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M5 17v2.2c0 1 .8 1.8 1.8 1.8h10.4c1 0 1.8-.8 1.8-1.8V17"/></svg>
                 </button>
               </div>
@@ -520,6 +520,8 @@
                 <option value="💊">💊</option><option value="🐶">🐶</option><option value="👕">👕</option>
                 <option value="🎁">🎁</option><option value="🎬">🎬</option><option value="✈️">✈️</option>
                 <option value="💻">💻</option><option value="📱">📱</option><option value="🧾">🧾</option><option value="⭐">⭐</option>
+                <option value="🎮">🎮</option><option value="🎓">🎓</option><option value="💇">💇</option><option value="🏋️">🏋️</option><option value="🛠️">🛠️</option>
+                <option value="🏥">🏥</option><option value="🎵">🎵</option><option value="📚">📚</option><option value="🌿">🌿</option><option value="🏦">🏦</option>
               </select>
             </label>
             <label class="finance-input-field">
@@ -578,8 +580,8 @@
               <div id="financeWalletCreditEstimate" class="finance-credit-estimate"></div>
             </div>
             <label class="finance-input-field"><span id="financeWalletBalanceLabel">Баланс</span><input id="financeWalletBalance" class="finance-text-input" type="number" min="-1000000000000" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Баланс кошелька"></label>
-            <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить кошелёк</button>
-            <button id="financeWalletDeleteButton" class="finance-category-delete-wide" type="button" hidden>Удалить кошелёк</button>
+            <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить</button>
+
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>
             <div id="financeWalletHistoryWrap" class="finance-wallet-history-wrap" hidden>
               <div class="finance-wallet-history-title">История кошелька</div>
@@ -703,12 +705,12 @@
         <section class="finance-obligations-card" aria-labelledby="financeObligationsTitle">
           <div class="finance-history-head finance-obligations-card-head">
             <div>
-              <h2 id="financeObligationsTitle">Обязательные расходы</h2>
+              <h2 id="financeObligationsTitle">Ежемесячные расходы</h2>
             </div>
             <button id="financeObligationAddButton" class="finance-obligation-add-button" type="button">+ Добавить</button>
           </div>
           <div id="financeObligationList" class="finance-obligation-list"></div>
-          <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных обязательных расходов нет</div>
+          <div id="financeObligationForecast" class="finance-obligation-forecast">Запланированных ежемесячных расходов нет</div>
         </section>
 
         <section id="financeCapitalHistoryPage" class="finance-ledger-page finance-capital-history-page" hidden aria-hidden="true">
