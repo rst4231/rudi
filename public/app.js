@@ -7690,6 +7690,7 @@
 
       function activityTargetTab(item){
         const type=String(item?.type||'');
+        if(type==='reward-unlock') return '';
         const raw=String(item?.targetTab||'').trim();
         if(raw) return raw==='saves'?'dates':raw;
         if(type==='partner-message'||type==='like') return 'home';
