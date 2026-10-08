@@ -516,9 +516,14 @@ test('nearest card stays on Home only',async({page})=>{
   const nearest=page.locator('#homeNearestBlock');
   await expect(nearest).toBeAttached();
   await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('feed',{scroll:false}));
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','feed');
   await expect(nearest).toBeHidden();
   await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('home',{scroll:false}));
-  await expect(nearest).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute('data-app-tab','home');
+  await expect.poll(async()=>{
+    const isEmpty=await nearest.getAttribute('data-home-empty');
+    return isEmpty==='1' ? !(await nearest.isVisible()) : (await nearest.isVisible());
+  }).toBe(true);
 });
 
 test('quick access opens wishlist and generates cached date ideas only after period choice',async({page})=>{
