@@ -4,7 +4,7 @@ const fs = require('node:fs');
 
 const source = fs.readFileSync('api/labor-code.cjs', 'utf8');
 
-test('labor publisher deletes legacy configured topic before publishing to For Di', () => {
-  assert.match(source, /deleteForumTopic/);
-  assert.match(source, /forumTopicsConfig/);
+test('labor publisher no longer deletes Telegram forum topics', () => {
+  assert.doesNotMatch(source, /deleteForumTopic/);
+  assert.match(source, /queueOnly = true/);
 });

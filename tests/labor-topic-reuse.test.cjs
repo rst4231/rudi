@@ -38,7 +38,7 @@ function telegramStub(calls, options = {}) {
   };
 }
 
-test('queues future Labor posts privately and retires legacy topic 696', async () => {
+test('queues Labor posts privately without touching legacy topic 696', async () => {
   const calls = [];
   const now = new Date('2026-09-04T18:00:00Z');
   const cache = memoryCache({
@@ -56,11 +56,8 @@ test('queues future Labor posts privately and retires legacy topic 696', async (
     forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
   });
 
-  assert.equal(result.topicId, 126);
-  assert.deepEqual(calls.find((call) => call.method === 'deleteForumTopic')?.body, {
-    chat_id: -1004476323368,
-    message_thread_id: 696,
-  });
+  assert.equal(result.topicId, null);
+  assert.equal(calls.length, 0);
   assert.equal(result.queuedForPrivateDelivery, true);
   assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
   assert.equal(calls.some((call) => call.method === 'createForumTopic'), false);
@@ -78,7 +75,7 @@ test('keeps private Labor delivery when legacy topic 696 is already deleted', as
     forumTopicsConfig: { version: 1, clients: 126, labor: 696 },
   });
 
-  assert.equal(result.topicId, 126);
+  assert.equal(result.topicId, null);
   assert.equal(result.queuedForPrivateDelivery, true);
   assert.equal(calls.some((call) => call.method === 'sendMessage'), false);
 });

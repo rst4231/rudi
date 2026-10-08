@@ -11,7 +11,7 @@
       "enabled": false,
       "topicId": 44,
       "maxItems": 5,
-      "publishToTelegram": true
+      "publishToTelegram": false
     },
     "facts": {
       "enabled": false,
@@ -21,7 +21,7 @@
     "clients": {
       "enabled": true,
       "topicId": 126,
-      "publishToTelegram": true
+      "publishToTelegram": false
     },
     "cinema": {
       "enabled": true,
@@ -29,7 +29,7 @@
     },
     "labor": {
       "enabled": true,
-      "publishToTelegram": true
+      "publishToTelegram": false
     }
   },
   "sources": {

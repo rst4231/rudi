@@ -5,7 +5,6 @@ const { runWithCronSecretHidden, installGlobalTelegramFetchGuard } = require('./
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const {
   handleTelegramTopicRequest,
-  prepareDailyTopicCleanup,
   isRemovedCoupleTopicUpdate,
   sanitizeHealthPayload,
   getKnownForumChatId,
@@ -215,8 +214,6 @@ async function handler(req, res) {
 
     if (req.query?.route === 'daily') {
       if (!isCronRequestAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
-      try { const cleanup = await prepareDailyTopicCleanup({ token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch }); console.log('RUDI_TOPIC_CLEANUP_RESULT', cleanup); }
-      catch (error) { console.error('RUDI_DAILY_TOPIC_CLEANUP_ERROR', error); }
       let runtimeResult; try { runtimeResult = await runRuntime(req, res); } finally { markProductsRuntimeStale(); }
       try { const labor = await publishDailyLaborArticle({ queueOnly: true }); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
