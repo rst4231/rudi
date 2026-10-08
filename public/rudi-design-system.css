@@ -303,3 +303,106 @@ body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > #fastingPr
  stroke:#a59af9;stroke-dashoffset:0;transition:stroke-dasharray .5s linear
 }
 @media(prefers-reduced-motion:reduce){#fastingProfileButton .rudi-fasting-progress-value{transition:none}}
+
+/* RUDI v4.100 — unified page headers. Geometry only; theme colors and navigation stay intact. */
+:root{
+ --rudi-page-head-control:48px;
+ --rudi-page-head-height:76px;
+ --rudi-page-head-title:25px;
+}
+/* A single top safe area for all ten standalone sections, including Telegram/iOS. */
+body:is(
+ [data-app-tab="finances"],[data-app-tab="schedule"],[data-app-tab="car"],
+ [data-app-tab="habits"],[data-app-tab="supplements"],[data-app-tab="fasting"],
+ [data-app-tab="dates"],[data-app-tab="for-di"],[data-app-tab="smart-saves"],
+ [data-app-tab="wishlist"]
+){
+ padding-top:max(
+  28px,
+  env(safe-area-inset-top),
+  var(--tg-safe-area-inset-top,0px),
+  var(--tg-content-safe-area-inset-top,0px),
+  calc(var(--tg-content-safe-top,0px) + 12px)
+ )!important;
+}
+:is(
+ .finance-page,.car-page,.fasting-page,.dates-page,
+ .for-di-page,.smart-saves-page,.wishlist-page
+){padding-top:4px!important}
+body[data-app-tab="schedule"] .work-page{padding-top:4px!important}
+.rudi-app-page-head{
+ display:grid!important;
+ grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr)!important;
+ align-items:center!important;
+ column-gap:12px!important;
+ min-height:var(--rudi-page-head-height)!important;
+ margin:0!important;
+ padding:4px 3px 2px!important;
+}
+.rudi-app-page-head > .rudi-app-page-back{
+ width:var(--rudi-page-head-control)!important;
+ height:var(--rudi-page-head-control)!important;
+ min-width:var(--rudi-page-head-control)!important;
+ min-height:var(--rudi-page-head-control)!important;
+ flex-shrink:0!important;
+ border-radius:16px!important;
+ display:grid!important;
+ place-items:center!important;
+ padding:0!important;
+ box-sizing:border-box!important;
+}
+.rudi-app-page-head > .rudi-app-page-back svg{
+ width:20px!important;
+ height:20px!important;
+ stroke-width:2!important;
+ stroke-linecap:round!important;
+ stroke-linejoin:round!important;
+}
+.rudi-app-page-head h1{
+ margin:2px 0 0!important;
+ color:inherit;
+ font-family:inherit!important;
+ font-size:var(--rudi-page-head-title)!important;
+ font-style:normal!important;
+ font-weight:820!important;
+ letter-spacing:-.033em!important;
+ line-height:1.15!important;
+ text-align:left!important;
+ overflow-wrap:anywhere;
+}
+.rudi-app-page-head .section-eyebrow,
+.work-page-head.rudi-app-page-head > div > span{
+ font-size:10px!important;
+ line-height:1.2!important;
+ letter-spacing:.12em!important;
+ margin-bottom:2px!important;
+}
+.rudi-app-page-head > :is(.car-page-head-spacer,.work-page-head-spacer),
+.rudi-app-page-head > span:last-child:not(#forDiTotalCount){display:none!important}
+/* The 'Для Ди' counter stays at the far right without moving the title. */
+.for-di-page-head.rudi-app-page-head{
+ grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr) auto!important;
+}
+.for-di-page-head.rudi-app-page-head > #forDiTotalCount{justify-self:end}
+/* Existing wedding-date editorial rule uses !important and higher specificity. */
+body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
+ font-family:inherit!important;
+ font-style:normal!important;
+ font-size:var(--rudi-page-head-title)!important;
+}
+@media(max-width:430px){
+ :root{
+  --rudi-page-head-control:44px;
+  --rudi-page-head-height:72px;
+  --rudi-page-head-title:23px;
+ }
+ .rudi-app-page-head{
+  grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr)!important;
+ }
+ .for-di-page-head.rudi-app-page-head{
+  grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr) auto!important;
+ }
+ body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
+  font-size:var(--rudi-page-head-title)!important;
+ }
+}
