@@ -17787,3 +17787,6 @@ html[data-theme="light"] .profile-person-card #partnerFastingProfileButton .fast
 @media(prefers-reduced-motion:reduce){
   .profile-person-card .profile-energy-now{transition:none!important}
 }
+
+/* RUDI v4.105 — remove duplicate rhythm text beneath profile statuses; charts remain live. */
+.profile-person-card :is(#rustamRhythmStatus,#dianaRhythmStatus){display:none!important}

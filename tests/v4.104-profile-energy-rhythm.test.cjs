@@ -31,5 +31,5 @@ test('layout protects original controls and scales to mobile widths',()=>{
   assert.match(css,/\.profile-person-card \.profile-person-head\{margin-top:11px\}/);
   assert.match(css,/@media\(max-width:430px\)\{/);
   assert.match(css,/@media\(max-width:350px\)\{/);
-  assert.match(html,/name="rudi-version" content="v4\.104"/);
+  assert.match(html,/name="rudi-version" content="v4\.\d+"/);
 });
