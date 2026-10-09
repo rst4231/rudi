@@ -14014,6 +14014,90 @@
         if(minutes<18*60)return 'day';
         return 'evening';
       }
+      function requestPersonalTickTickTaskMove(task,date,time){
+        const taskId=String(task?.id||'').trim();
+        const projectId=String(task?.projectId||'').trim();
+        if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
+        return managedJsonRequest('ticktick-personal-move:'+taskId,
+          '/api/partner-message?ticktickAction=personal-task-move',{
+            body:{initData:telegramInitData(),taskId,projectId,date,time},
+            ttlMs:0,timeoutMs:12000
+          });
+      }
+      function calendarAttachPersonalTimeDrag(block,stamp,event,dateKey,viewport){
+        const task=event.task;
+        if(calendarScope!=='personal'||currentActor!=='Рустам'||!task?.personal||
+          !task?.id||!task?.projectId||task?.canComplete===false||
+          String(task?.repeatFlag||'').trim())return;
+        const handle=document.createElement('button');
+        handle.type='button';
+        handle.className='calendar-week-drag-handle';
+        handle.setAttribute('aria-label','Перетащить задачу для изменения времени: '+String(task.title||'Дело'));
+        handle.title='Удерживайте и перетащите для изменения времени';
+        handle.innerHTML='<svg viewBox="0 0 16 20" width="14" height="18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="4" cy="10" r="1.5"/><circle cx="11" cy="10" r="1.5"/><circle cx="4" cy="16" r="1.5"/><circle cx="11" cy="16" r="1.5"/></svg>';
+        block.appendChild(handle);
+        const originalTop=block.style.top;
+        const originalTime=stamp.textContent;
+        const duration=Math.max(15,event.end-event.start);
+        const maxStart=Math.max(0,Math.floor((1440-duration)/15)*15);
+        const timeLabel=minutes=>String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
+        let pointer=null,startY=0,startScroll=0,nextMinutes=event.start,changed=false,busy=false;
+        const restorePreview=()=>{
+          block.style.top=originalTop;
+          stamp.textContent=originalTime;
+          block.classList.remove('is-dragging');
+        };
+        handle.addEventListener('pointerdown',pointerEvent=>{
+          if(busy||pointer!==null||(pointerEvent.pointerType==='mouse'&&pointerEvent.button!==0))return;
+          pointerEvent.preventDefault();pointerEvent.stopPropagation();
+          pointer=pointerEvent.pointerId;
+          startY=pointerEvent.clientY;
+          startScroll=viewport.scrollTop;
+          nextMinutes=event.start;changed=false;
+          block.classList.add('is-dragging');
+          handle.setPointerCapture?.(pointer);
+        });
+        handle.addEventListener('pointermove',pointerEvent=>{
+          if(pointer!==pointerEvent.pointerId)return;
+          pointerEvent.preventDefault();pointerEvent.stopPropagation();
+          const bounds=viewport.getBoundingClientRect();
+          if(pointerEvent.clientY<bounds.top+36)viewport.scrollTop=Math.max(0,viewport.scrollTop-16);
+          else if(pointerEvent.clientY>bounds.bottom-36)viewport.scrollTop+=16;
+          const delta=(pointerEvent.clientY-startY)+(viewport.scrollTop-startScroll);
+          const snapped=Math.round((event.start+delta*60/CALENDAR_AGENDA_HOUR_HEIGHT)/15)*15;
+          nextMinutes=Math.min(maxStart,Math.max(0,snapped));
+          changed=nextMinutes!==event.start;
+          block.style.top=String(nextMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT+2)+'px';
+          stamp.textContent=timeLabel(nextMinutes);
+        });
+        const finish=async(pointerEvent,cancelled=false)=>{
+          if(pointer!==pointerEvent.pointerId)return;
+          pointerEvent.preventDefault();pointerEvent.stopPropagation();
+          const id=pointer;pointer=null;
+          try{handle.releasePointerCapture?.(id)}catch(_){}
+          block.classList.remove('is-dragging');
+          if(cancelled||!changed){restorePreview();return}
+          busy=true;handle.disabled=true;block.classList.add('is-saving');
+          try{
+            const payload=await requestPersonalTickTickTaskMove(task,dateKey,timeLabel(nextMinutes));
+            if(!payload?.ok)throw new Error(payload?.error||'ticktick-personal-move-failed');
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            await refreshAfterTickTickTaskChange({preserveExpanded:false});
+          }catch(error){
+            restorePreview();
+            const status=document.getElementById('workCalendarStatus');
+            if(status){status.hidden=false;status.textContent='Не удалось перенести задачу. Попробуйте ещё раз'}
+            console.warn('RUDI_PERSONAL_CALENDAR_DRAG_WARN',String(error?.message||error));
+            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          }finally{
+            busy=false;handle.disabled=false;block.classList.remove('is-saving');
+          }
+        };
+        handle.addEventListener('pointerup',event=>{finish(event).catch(()=>restorePreview())});
+        handle.addEventListener('pointercancel',event=>{finish(event,true).catch(()=>restorePreview())});
+        handle.addEventListener('click',event=>{event.preventDefault();event.stopPropagation()});
+      }
+
       function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true){
         const panel=document.createElement('div');
         panel.className='calendar-week-agenda';
@@ -14056,7 +14140,8 @@
             row.setAttribute('role','link');
             row.setAttribute('aria-label','Открыть в TickTick: '+String(task.title||'Дело'));
             row.addEventListener('click',event=>{
-              if(event.target===checkbox||checkbox.contains(event.target))return;
+              if(event.target===checkbox||checkbox.contains(event.target)||
+                event.target?.closest?.('.calendar-week-drag-handle'))return;
               calendarOpenPersonalTickTickTask(task);
             });
             row.addEventListener('keydown',event=>{
@@ -14126,6 +14211,7 @@
           title.textContent=event.title;
           block.append(when,title);
           attachCompletion(block,event.task);
+          calendarAttachPersonalTimeDrag(block,when,event,dateKey,viewport);
           track.appendChild(block);
         }
         if(dateKey===todayState().key){
