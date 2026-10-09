@@ -444,7 +444,7 @@
   // when the service worker successfully refreshed in the background.
   function installReleaseWatcher(){
     const loadedVersion=String(document.querySelector('meta[name="rudi-version"]')?.content||'');
-    if(!/^v\\d+(?:\\.\\d+)?$/.test(loadedVersion))return;
+    if(!/^v\d+(?:\.\d+)?$/.test(loadedVersion))return;
     const numericParts=value=>value.replace(/^v/,'').split('.').map(Number);
     const isNewer=(remote,local)=>{
       const a=numericParts(remote),b=numericParts(local);
@@ -481,7 +481,7 @@
         const response=await nativeFetch('/version.json?check='+Date.now(),{cache:'no-store'});
         if(!response.ok)return;
         const version=String((await response.json())?.version||'');
-        if(/^v\\d+(?:\\.\\d+)?$/.test(version)&&isNewer(version,loadedVersion)){
+        if(/^v\d+(?:\.\d+)?$/.test(version)&&isNewer(version,loadedVersion)){
           pendingVersion=version;
           refreshWhenSafe();
         }
