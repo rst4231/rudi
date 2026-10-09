@@ -159,3 +159,57 @@ test('personal Undo does not bypass expired/invalid credentials with saved snaps
     id:'task-1',projectId:'list-1',title:'Original'
   }},deps({fetchTask:async()=>{throw new Error('ticktick-token-invalid')}})),/ticktick-token-invalid/);
 });
+
+test('Undo tokens include the required sealed-snapshot version for personal and shared tasks',()=>{
+  const source=fs.readFileSync('api/partner-message.js','utf8');
+  assert.ok(source.includes("version:2,type:'ticktick-task-completion-undo-v1'"));
+  assert.equal(source.split("version:2,type:'ticktick-task-completion-undo-v1'").length-1,2);
+  assert.ok(source.includes("version:2,type:'ticktick-task-delete-undo-v1'"));
+});
+
+test('a personal calendar drag updates only its own timed task, preserving duration',async()=>{
+  const {rescheduleRustamPersonalTask}=require('../api/ticktick-personal-completion.cjs');
+  let changes=null;
+  const task={
+    id:'task-1',projectId:'list-1',title:'Original title',status:0,
+    isAllDay:false,desc:'Keep details',startDate:'2026-10-09T07:00:00+0000',
+    dueDate:'2026-10-09T07:45:00+0000',timeZone:'Europe/Moscow'
+  };
+  const permissions={
+    listTickTickProjects:async()=>[{id:'list-1'}],
+    fetchTask:async()=>task,
+    updateTickTickTask:async(_token,_project,_id,next)=>{changes=next}
+  };
+  const moved=await rescheduleRustamPersonalTask({
+    ...own,date:'2026-10-09',time:'10:30'
+  },permissions);
+  assert.equal(moved.moved,true);
+  assert.equal(changes.startDate,'2026-10-09T07:30:00+0000');
+  assert.equal(changes.dueDate,'2026-10-09T08:15:00+0000');
+  assert.equal(changes.desc,'Keep details');
+  await assert.rejects(
+    rescheduleRustamPersonalTask({...own,date:'2026-10-09',time:'10:10'},permissions),
+    /time-invalid/
+  );
+  await assert.rejects(
+    rescheduleRustamPersonalTask({...own,date:'2026-10-09',time:'10:30'},
+      {...permissions,fetchTask:async()=>({...task,repeatFlag:'RRULE:FREQ=WEEKLY'})}),
+    /reschedule-unsupported/
+  );
+  await assert.rejects(
+    rescheduleRustamPersonalTask({...own,actor:'Диана',date:'2026-10-09',time:'10:30'},permissions),
+    /owner-forbidden/
+  );
+});
+
+test('personal week blocks have a drag handle and secure reschedule endpoint',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const backend=fs.readFileSync('api/partner-message.js','utf8');
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  assert.ok(app.includes('function calendarAttachPersonalTimeDrag('));
+  assert.ok(app.includes('calendarAttachPersonalTimeDrag(block,when,event,dateKey,viewport)'));
+  assert.ok(app.includes('calendar-week-drag-handle'));
+  assert.ok(app.includes("ticktickAction=personal-task-move"));
+  assert.ok(backend.includes("if (action === 'personal-task-move')"));
+  assert.ok(css.includes('touch-action:none!important'));
+});
