@@ -72,7 +72,11 @@ async function reopenRustamPersonalTask(input = {}, deps = {}) {
     task=await getTask(token.accessToken,projectId,taskId,options);
   } catch(error) {
     // Completed tasks are not always available via the TickTick Open API.
-    if(String(error?.message||'')!=='ticktick-task-not-found'||!original)throw error;
+    const code=String(error?.message||'');
+    // A temporary read outage should not block a best-effort restore from
+    // the sealed snapshot, while unauthorized and validation errors still fail.
+    if(!original||!/^ticktick-(?:task-not-found|network-failed|api-failed:5\d\d|api-failed:429)$/.test(code))
+      throw error;
     task=original;
   }
   if (String(task?.id || '') !== taskId || String(task?.projectId || '') !== projectId)
