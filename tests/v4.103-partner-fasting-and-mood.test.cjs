@@ -27,8 +27,8 @@ test('tapping partner icon displays goal without opening own tracker',()=>{
   assert.match(app,/const goalText='Цель голодания: '\+String\(goal\)\.replace\('\.',','\)\+' ч'/);
   assert.match(app,/partnerFastingGoalTimer=setTimeout\(hidePartnerFastingGoal,4000\)/);
 });
-test('partner mood popover displays only time when no reason is set',()=>{
-  assert.match(app,/const label=reason==='other'\?reasonText:\(meta\?\(meta\[0\]\+' '\+meta\[1\]\):''\)/);
+test('partner mood popover displays mood name when no reason is set',()=>{
+  assert.match(app,/const label=reasonLabel\|\|MOOD_META\[mood==='fear'\?'boredom':mood\]\?\.label\|\|''/);
   assert.match(app,/return label&&time\?label\+' · '\+time:\(label\|\|time\)/);
   assert.match(app,/const text=String\(holder\.dataset\.moodReasonText\|\|''\)\.trim\(\)/);
   assert.doesNotMatch(app,/reasonText\|\|'Причина не указана'/);
