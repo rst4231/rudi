@@ -1437,12 +1437,18 @@ body[data-calendar-scope="personal"] .work-page #workCalendarSelected{
 }
 body[data-calendar-scope="personal"] .work-page #workCalendarSelected[hidden]{display:none!important}
 
-/* Task and obligation event blocks exactly match their blue and dark-red calendar dots. */
-.work-page .calendar-week-allday-item.calendar-agenda-task,
-.work-page .calendar-week-time-event.calendar-agenda-task{
-  border-color:#21a5ed!important;background:#21a5ed!important;color:#fff!important
+/* v4.123: selected-day checkboxes match the exact personal calendar dot colors. */
+body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-task-complete{
+  border:2px solid #21a5ed!important;
+  background:color-mix(in srgb,#21a5ed 8%,var(--surface-strong))!important;
+  color:#21a5ed!important
 }
-.work-page .calendar-week-allday-item.calendar-agenda-payment,
-.work-page .calendar-week-time-event.calendar-agenda-payment{
-  border-color:#b64152!important;background:#b64152!important;color:#fff!important
+body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-obligation-complete{
+  border:2px solid #b64152!important;
+  background:color-mix(in srgb,#b64152 7%,var(--surface))!important;
+  color:#b64152!important
+}
+body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-obligation-row.is-paid .calendar-obligation-complete{
+  background:#b64152!important;
+  color:#fff!important
 }
