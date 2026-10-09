@@ -1578,3 +1578,19 @@ html.rudi-calendar-week-no-pull,html.rudi-calendar-week-no-pull body{
 body[data-app-tab="schedule"] .work-page #workCalendarCard[data-calendar-mode="week"] .calendar-week-time-viewport{
   overscroll-behavior-y:contain!important
 }
+
+/* RUDI v4.134: responsibility labels inside the joint weekly agenda. */
+body[data-calendar-scope="shared"] .work-page .calendar-week-time-event.calendar-agenda-task.has-owner-label{
+  grid-template-rows:auto auto auto!important;min-height:43px!important
+}
+body[data-calendar-scope="shared"] .work-page .calendar-week-time-event.calendar-agenda-task.has-owner-label .calendar-agenda-task-checkbox{
+  grid-row:1 / 4!important
+}
+body[data-calendar-scope="shared"] .work-page .calendar-week-task-owner{
+  font-size:9px!important;line-height:1.1!important;font-weight:650!important;
+  opacity:.74!important;min-width:0!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important
+}
+body[data-calendar-scope="shared"] .work-page .calendar-week-allday-item .calendar-week-task-owner{
+  margin-left:auto!important;flex:none!important
+}
