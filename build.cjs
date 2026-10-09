@@ -121,9 +121,9 @@ function syncWebVersion(env = process.env) {
     html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
   }
   html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
-  html = html.replace(/\/finance-decisions\.css\?v=[^"]+/g, '/finance-decisions.css?v=' + assetVersion);
-  html = html.replace(/\/finance-decisions-core\.js\?v=[^"]+/g, '/finance-decisions-core.js?v=' + assetVersion);
-  html = html.replace(/\/finance-decisions-ui\.js\?v=[^"]+/g, '/finance-decisions-ui.js?v=' + assetVersion);
+  html = html.replace(/\/finance-decisions\.css\?v=[^"'\s]+/g, '/finance-decisions.css?v=' + assetVersion);
+  html = html.replace(/\/finance-decisions-core\.js\?v=[^"'\s]+/g, '/finance-decisions-core.js?v=' + assetVersion);
+  html = html.replace(/\/finance-decisions-ui\.js\?v=[^"'\s]+/g, '/finance-decisions-ui.js?v=' + assetVersion);
   html = html.replace(/\/finance-bank\.css\?v=[^"]+/g, '/finance-bank.css?v=' + assetVersion);
   html = html.replace(/\/rudi-design-system\.css\?v=[^"]+/g, '/rudi-design-system.css?v=' + assetVersion);
   html = html.replace(/\/pwa-extras\.css\?v=[^"]+/g, '/pwa-extras.css?v=' + assetVersion);
