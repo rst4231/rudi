@@ -13394,7 +13394,7 @@
           scopeSwitch.title=nextName+' календарь';
           scopeSwitch.setAttribute('aria-label','Переключить на '+(nextScope==='shared'?'совместный':'личный')+' календарь');
         }
-        const title=document.querySelector('#workCalendarCard .work-calendar-title');
+        const title=document.getElementById('calendarPageTitle');
         if(title)title.textContent=calendarScope==='shared'?'Совместный':'Личный';
         const create=document.getElementById('calendarCreateTask');
         if(create)create.hidden=calendarScope!=='shared';

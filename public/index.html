@@ -1589,7 +1589,7 @@
         <button id="workCalendarBack" class="work-page-back rudi-app-page-back" type="button" aria-label="Назад">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <div><h1>Календарь</h1></div>
+        <div class="work-page-head-copy"><h1 id="calendarPageTitle">Личный</h1><span class="work-page-subtitle">Задачи и события</span></div>
         <span class="work-page-head-spacer" aria-hidden="true"></span>
       </header>
       <article class="panel nearest-panel schedule-nearest" hidden>
@@ -1634,10 +1634,6 @@
       </div>
       <div id="workCalendarCard" class="work-calendar-card calendar-disclosure-card">
         <div class="work-calendar-head">
-          <div class="calendar-heading-copy">
-            <div class="work-calendar-title">Личный</div>
-            <div class="work-calendar-month">Задачи и события</div>
-          </div>
           <div class="calendar-header-actions" role="group" aria-label="Переключатели календаря">
             <button id="calendarScopeSwitch" class="calendar-header-control calendar-scope-switch" type="button" data-calendar-scope="shared" aria-label="Переключить на совместный календарь" title="Совместный календарь">Совместный</button>
             <button id="calendarModeSwitch" class="calendar-header-control calendar-mode-switch" type="button" data-calendar-mode="week" aria-label="Показать неделю" title="Неделя"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg></button>

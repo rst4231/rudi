@@ -1478,3 +1478,18 @@ body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-selecte
   font-weight:740!important;
 }
 /* Time and list names remain secondary; a read-only task is still visible. */
+
+/* v4.125: use the page header for the active calendar title and subtitle. */
+body[data-app-tab="schedule"] .work-page .work-page-head-copy{
+  display:grid!important;align-content:center!important;gap:4px!important;min-width:0!important
+}
+body[data-app-tab="schedule"] .work-page .work-page-head-copy .work-page-subtitle{
+  display:block!important;
+  margin:0!important;
+  color:var(--muted)!important;
+  font-size:13px!important;line-height:1.25!important;font-weight:640!important;
+  letter-spacing:0!important;text-transform:none!important
+}
+body[data-app-tab="schedule"] .work-page #workCalendarCard .work-calendar-head{
+  justify-content:flex-end!important
+}
