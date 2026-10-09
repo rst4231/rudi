@@ -130,6 +130,30 @@
       <div id="appGateText" class="app-gate-text" hidden></div>
     </div>
   </div>
+  <script>
+    // Runs independently of app.js: iPhone PWA can otherwise remain a dark screen forever.
+    (() => {
+      const showRecovery = () => {
+        if (!document.body?.classList.contains('auth-pending')) return;
+        const gate=document.getElementById('appGate');
+        if (!gate) return;
+        const title=document.getElementById('appGateTitle');
+        const text=document.getElementById('appGateText');
+        if(title)title.textContent='RUDI долго загружается';
+        if(text){text.hidden=false;text.textContent='Проверь интернет и попробуй открыть снова.'}
+        if(document.getElementById('rudiStartupRetry'))return;
+        const button=document.createElement('button');
+        button.id='rudiStartupRetry';button.type='button';button.textContent='Повторить запуск';
+        button.style.cssText='display:block;margin:16px auto 0;padding:12px 18px;min-height:44px;border:0;border-radius:12px;font:600 14px system-ui;color:#111;background:#fff';
+        button.addEventListener('click',()=>{
+          button.disabled=true;
+          window.location.replace('/?rudi-retry='+Date.now());
+        });
+        gate.querySelector('.app-gate-card')?.appendChild(button);
+      };
+      setTimeout(showRecovery,12000);
+    })();
+  </script>
 
   <main class="shell">
     <section class="profile" data-app-tab-section="home" data-home-tile="profile" aria-label="Профиль">
