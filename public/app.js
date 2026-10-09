@@ -5657,6 +5657,13 @@
             inputCurrency:financeExpenseInputCurrency,walletId:financeExpenseWalletId,
             occurredAt,label:financeExpenseLabel,note:note?.value||''
           };
+          // Stable across retries of the same form, including a lost server response.
+          const signature=JSON.stringify(payload);
+          if(button.dataset.rudiExpenseSignature!==signature){
+            button.dataset.rudiExpenseSignature=signature;
+            button.dataset.rudiExpenseRequestId=window.crypto?.randomUUID?.()||('expense-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+          }
+          payload.requestId=button.dataset.rudiExpenseRequestId;
           const previousState=financeState,previousMonth=financeSelectedPersonalMonth();
           const preview=financePreviewExpense(payload);
           financeExpenseMutationInFlight=true;
@@ -5666,6 +5673,8 @@
           closeFinanceCoinModal('financeExpenseComposer');
           try{
             const data=await financeRequest('save-expense',payload);
+            delete button.dataset.rudiExpenseSignature;
+            delete button.dataset.rudiExpenseRequestId;
             renderFinanceState(data,{personalMonth:expenseMonth,preserveIncome:true,preservePlan:true});
             refreshFinanceInsight(true).catch(()=>{});
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
