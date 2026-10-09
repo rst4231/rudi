@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.134">
+  <meta name="rudi-version" content="v4.135">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
   <link rel="stylesheet" href="/pwa-extras.css?v=4.119">
-  <link rel="stylesheet" href="/calendar.css?v=4.134">
+  <link rel="stylesheet" href="/calendar.css?v=4.135">
   <link rel="stylesheet" href="/smart-home.css?v=4.119">
   <link rel="stylesheet" href="/car.css?v=4.119">
   <link rel="stylesheet" href="/profile-supplements.css?v=4.119">
@@ -70,6 +70,7 @@
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.119"></script>
   <script defer src="/app.js?v=4.134"></script>
+  <script defer src="/calendar-day-recap.js?v=4.135"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
@@ -1668,6 +1669,7 @@
           <div class="work-calendar-skeleton"></div>
         </div>
         <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
+        <div id="calendarPersonalDayRecap" class="calendar-personal-day-recap" hidden aria-live="polite"></div>
       </div>
 
       <div id="calendarSearchReadOnly" class="calendar-search-readonly" hidden>
