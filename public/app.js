@@ -13488,7 +13488,7 @@
       async function loadSharedPeriodMarks(){
         if(calendarScope!=='shared'||!currentActor)return;
         if(sharedPeriodMarksPromise)return sharedPeriodMarksPromise;
-        if(currentDianaCycleConfig&&Date.now()-sharedPeriodMarksLoadedAt<10*60*1000){applyDianaPeriodDots();return}
+        if(sharedPeriodMarksLoadedAt&&Date.now()-sharedPeriodMarksLoadedAt<10*60*1000){applyDianaPeriodDots();return}
         sharedPeriodMarksPromise=(async()=>{
           const data=await cycleRequest('get');
           currentDianaCycleConfig=data.configured&&data.cycle&&data.cycle.enabled!==false?data.cycle:null;
