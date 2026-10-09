@@ -905,8 +905,10 @@ body[data-app-tab="habits"] .personal-habit-row.is-history .personal-habit-day-s
 /* End RUDI v4.88 habits page */
 
 /* RUDI v4.136 — partner's habit total below today's supplements */
+/* Keep the partner detail cards on the shared 6px grid rhythm. */
+.profile-person-card .profile-supplement-intakes{margin-top:0}
 .profile-partner-habits-summary{
-  margin-top:8px;
+  margin-top:0;
   padding:10px 12px;
   border:1px solid color-mix(in srgb,currentColor 10%,transparent);
   border-radius:13px;
