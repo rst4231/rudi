@@ -96,7 +96,7 @@ test('client only loads historical personal MONTH dates, caches month, and hides
   assert.match(js,/dataset\.calendarScope==='personal'/);
   assert.match(js,/dataset\.calendarMode==='month'/);
   assert.match(js,/cache\.get\(key\)/);
-  assert.match(js,/pending\.has\(month\)/);
+  assert.match(js,/pending\.has\(key\)/);
   assert.match(js,/\/api\/calendar-day-summary/);
   assert.match(css,/body\[data-app-tab="schedule"\] #appTabBar\{display:none!important\}/);
   assert.match(html,/id="calendarPersonalDayRecap"/);
