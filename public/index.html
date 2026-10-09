@@ -27,16 +27,16 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.138">
+  <link rel="stylesheet" href="/app.css?v=4.139">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
   <link rel="stylesheet" href="/pwa-extras.css?v=4.119">
-  <link rel="stylesheet" href="/calendar.css?v=4.135">
+  <link rel="stylesheet" href="/calendar.css?v=4.139">
   <link rel="stylesheet" href="/smart-home.css?v=4.119">
   <link rel="stylesheet" href="/car.css?v=4.119">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.138">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.139">
   <link rel="stylesheet" href="/supplement-advanced.css?v=4.119">
   <link rel="stylesheet" href="/rudi-design-system.css?v=4.119">
   <link rel="stylesheet" href="/finance-cards.css?v=4.119">
@@ -69,8 +69,8 @@
     })();
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.119"></script>
-  <script defer src="/app.js?v=4.138"></script>
-  <script defer src="/calendar-day-recap.js?v=4.138"></script>
+  <script defer src="/app.js?v=4.139"></script>
+  <script defer src="/calendar-day-recap.js?v=4.139"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
@@ -117,7 +117,7 @@
   <script defer src="/weather.js?v=4.119"></script>
   <script defer src="/smart-home.js?v=4.119"></script>
   <script defer src="/car.js?v=4.119"></script>
-  <script defer src="/profile-supplements.js?v=4.138"></script>
+  <script defer src="/profile-supplements.js?v=4.139"></script>
   <script defer src="/mood-history.js?v=4.119"></script>
   <script defer src="/supplement-editor.js?v=4.119"></script>
   <script defer src="/supplement-advanced.js?v=4.119"></script>
@@ -2035,7 +2035,8 @@
           <span id="fastingStageBadge" class="fasting-stage-badge">Стадия</span>
           <span id="fastingGoalState" class="fasting-goal-state"></span>
         </div>
-        <div id="fastingElapsed" class="fasting-elapsed">00:00:00</div>
+        <button id="fastingElapsed" class="fasting-elapsed" type="button" aria-label="Прошедшее время голодания. Нажми для обратного отсчёта" aria-pressed="false" title="Переключить таймер">00:00:00</button>
+        <span id="fastingTimerHint" class="fasting-timer-hint">Прошло времени · нажми для обратного отсчёта</span>
         <div class="fasting-reward-status" aria-live="polite">
           <div id="fastingRewardNow" class="fasting-reward-now">
             <span>Награда сейчас</span>
@@ -2056,7 +2057,7 @@
         <div class="fasting-progress" aria-label="Прогресс к цели"><span id="fastingProgressBar"></span></div>
         <div class="fasting-active-meta">
           <span>Начало <strong id="fastingStartedLabel">—</strong></span>
-          <span>Цель <strong id="fastingGoalLabel">—</strong></span>
+          <span>Окончание <strong id="fastingGoalLabel">—</strong></span>
         </div>
         <button id="fastingStopButton" class="fasting-stop-button" type="button">Закончить голодание</button>
       </article>

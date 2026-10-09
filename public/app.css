@@ -18033,3 +18033,17 @@ html[data-theme="light"] .profile-person-card #partnerFastingProfileButton .fast
 /* RUDI v4.138 — collapse the empty contact autosave status row. */
 .settings-page .settings-contact-group:has(#settingsContactStatus) .settings-contact-footer{min-height:0;padding:0 2px}
 .settings-page .settings-contact-group:has(#settingsContactStatus:empty) .settings-contact-footer{display:none}
+
+/* v4.139: accessible tap-to-toggle fasting timer (elapsed / remaining). */
+button.fasting-elapsed{
+  display:block;width:max-content;max-width:100%;
+  padding:0;border:0;background:none;text-align:left;
+  color:inherit;font-family:inherit;cursor:pointer;touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent
+}
+button.fasting-elapsed:focus-visible{outline:2px solid var(--accent);outline-offset:5px;border-radius:6px}
+.fasting-timer-hint{
+  position:relative;z-index:1;display:block;margin:2px 0 12px;
+  color:var(--muted);font-size:10px;line-height:1.4;font-weight:650
+}
+@media(prefers-reduced-motion:reduce){button.fasting-elapsed{animation:none!important}}

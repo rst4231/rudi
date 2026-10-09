@@ -75,3 +75,33 @@ test('shared view shows assigned and unassigned TickTick tasks from joint projec
   assert.match(backend,/selectedScope && selectedScope !== 'shared'/);
   assert.match(backend,/actor !== 'Рустам'/);
 });
+
+test('calendar opens on today after restart and does not persist historical cursor',()=>{
+ const vm=require('node:vm');
+ const start=app.indexOf('function calendarViewStorageKey()');
+ const end=app.indexOf('function calendarActiveMonth()',start);
+ assert.ok(start>0&&end>start,'calendar preference helpers are present');
+ const helpers=app.slice(start,end);
+ const key='rudi:calendar:view:v1:rustam';
+ const storage={[key]:JSON.stringify({scope:'shared',mode:'week',date:'2026-09-09'})};
+ const context={
+  currentActor:'Рустам',
+  calendarScope:'shared',calendarDisplayMode:'week',calendarDateCursor:'2026-10-09',
+  currentSelectedWorkDate:'2026-10-09',
+  localStorage:{getItem:k=>storage[k]||null,setItem:(k,value)=>{storage[k]=value}},
+  todayState:()=>({key:'2026-10-09'}),Date
+ };
+ const saved=vm.runInNewContext(helpers+'; calendarReadSavedView();',context);
+ assert.equal(saved.scope,'shared');
+ assert.equal(saved.mode,'week');
+ assert.equal(saved.date,undefined,'historical date must not be restored');
+ const init=app.slice(app.indexOf('function setupWorkCalendarDisclosure(){'));
+ assert.match(init,/calendarDateCursor=todayState\(\)\.key;\s*currentSelectedWorkDate=calendarDateCursor;/);
+ assert.doesNotMatch(init.slice(0,700),/saved\.date/);
+ vm.runInNewContext(helpers+'; calendarSaveView();',context);
+ const persisted=JSON.parse(storage[key]);
+ assert.equal(persisted.scope,'shared');
+ assert.equal(persisted.mode,'week');
+ assert.equal(persisted.date,undefined,'old calendar selection should not persist across launches');
+ assert.match(app,/calendarDateCursor=calendarDisplayMode==='week'\?calendarDateShift\(cursor,direction\*7\):calendarMonthShift\(cursor,direction\)/);
+});

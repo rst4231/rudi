@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'wallet-brand-icons.js', 'finance-bank.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js'];
+const WEB_ASSETS = ['app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -131,6 +131,7 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
   html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
+  html = html.replace(/\/calendar-day-recap\.js\?v=[^"]+/g, '/calendar-day-recap.js?v=' + assetVersion);
   html = html.replace(/\/wallet-brand-icons\.js\?v=[^"]+/g, '/wallet-brand-icons.js?v=' + assetVersion);
   html = html.replace(/\/finance-bank\.js\?v=[^"]+/g, '/finance-bank.js?v=' + assetVersion);
   html = html.replace(/\/pwa-extras\.js\?v=[^"]+/g, '/pwa-extras.js?v=' + assetVersion);

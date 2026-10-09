@@ -13497,14 +13497,12 @@
         try{
           const data=JSON.parse(localStorage.getItem(calendarViewStorageKey())||'{}');
           if(!data||typeof data!=='object'||Array.isArray(data))return {};
-          return {scope:data.scope==='shared'?'shared':'personal',mode:data.mode==='week'?'week':'month',
-            date:calendarValidDateKey(data.date)?data.date:todayState().key};
+          return {scope:data.scope==='shared'?'shared':'personal',mode:data.mode==='week'?'week':'month'};
         }catch(_){return {}}
       }
       function calendarSaveView(){
-        const date=calendarValidDateKey(currentSelectedWorkDate)?currentSelectedWorkDate:calendarDateCursor;
         try{localStorage.setItem(calendarViewStorageKey(),JSON.stringify({
-          scope:calendarScope,mode:calendarDisplayMode,date:calendarValidDateKey(date)?date:todayState().key
+          scope:calendarScope,mode:calendarDisplayMode
         }))}catch(_){}
       }
       function calendarActiveMonth(){return (calendarDateCursor||todayState().key).slice(0,7)}
@@ -13867,7 +13865,7 @@
       function setupWorkCalendarDisclosure(){
         setupCalendarConnections();
         const saved=calendarReadSavedView();
-        calendarDateCursor=saved.date||todayState().key;
+        calendarDateCursor=todayState().key;
         currentSelectedWorkDate=calendarDateCursor;
         setWorkCalendarRangeActive(saved.mode||'month');
         calendarSetScope(saved.scope||'personal',{reload:false});
@@ -18237,6 +18235,7 @@
 
       let fastingState=null;
       let fastingTicker=0;
+      let fastingCountdownMode=false;
       let fastingHomeTicker=0;
       let fastingOverviewState={'Рустам':null,'Диана':null};
       let selectedFastingGoal=16;
@@ -18617,7 +18616,18 @@
         const nextRewardCountdown=document.getElementById('fastingNextRewardCountdown');
         const nextReward=fastingNextReward(elapsedHours);
 
-        if(elapsed) elapsed.textContent=fastingPad(hours)+':'+fastingPad(minutes)+':'+fastingPad(seconds);
+        if(elapsed){
+          const remainingSeconds=Math.max(0,Math.ceil((goalHours*3600000-(Date.now()-startMs))/1000));
+          const timerSeconds=fastingCountdownMode?remainingSeconds:elapsedSeconds;
+          const timerHours=Math.floor(timerSeconds/3600);
+          const timerMinutes=Math.floor((timerSeconds%3600)/60);
+          const timerRemainder=timerSeconds%60;
+          elapsed.textContent=fastingPad(timerHours)+':'+fastingPad(timerMinutes)+':'+fastingPad(timerRemainder);
+          elapsed.setAttribute('aria-pressed',String(fastingCountdownMode));
+          elapsed.setAttribute('aria-label',fastingCountdownMode?'Осталось до цели. Нажми, чтобы увидеть прошедшее время':'Прошедшее время голодания. Нажми для обратного отсчёта');
+          const hint=document.getElementById('fastingTimerHint');
+          if(hint)hint.textContent=fastingCountdownMode?(remainingSeconds>0?'Осталось до цели · нажми, чтобы показать прошедшее время':'Цель достигнута · нажми, чтобы показать прошедшее время'):'Прошло времени · нажми для обратного отсчёта';
+        }
         if(rewardValue) rewardValue.textContent=String(fastingRewardStarsForHours(elapsedHours)).replace('.',',');
         if(nextRewardValue) nextRewardValue.textContent=nextReward?String(nextReward.stars).replace('.',','):'5';
         if(nextRewardCountdown) nextRewardCountdown.textContent=nextReward
@@ -18659,7 +18669,11 @@
           const started=document.getElementById('fastingStartedLabel');
           const goal=document.getElementById('fastingGoalLabel');
           if(started) started.textContent=fastingDateTimeLabel(active.startedAt);
-          if(goal) goal.textContent=String(active.goalHours||16)+' ч';
+          if(goal){
+            const startMs=Date.parse(String(active.startedAt||''));
+            const endMs=startMs+(Number(active.goalHours)||16)*3600000;
+            goal.textContent=Number.isFinite(endMs)?fastingDateTimeLabel(new Date(endMs).toISOString()):'—';
+          }
 
           clearInterval(fastingTicker);
           renderFastingTicker();
@@ -18753,6 +18767,12 @@
       }
 
       function setupFastingTracker(){
+        document.getElementById('fastingElapsed')?.addEventListener('click',()=>{
+          if(!fastingState?.active)return;
+          fastingCountdownMode=!fastingCountdownMode;
+          renderFastingTicker();
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        });
         const profileButton=document.getElementById('fastingProfileButton');
         const back=document.getElementById('fastingBackButton');
         const start=document.getElementById('fastingStartButton');

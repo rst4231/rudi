@@ -111,7 +111,25 @@ async function loadHabitsForDate(date){
   }
   finally{if(requestId===habitDateRequestSeq&&habitTile)habitTile.classList.remove('is-date-loading')}
 }
-function habitEmoji(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/вод|пить/.test(value))return'💧';if(/заряд|трен|спорт|ходь|шаг/.test(value))return'🏃';if(/чит|книг/.test(value))return'📚';if(/медит|дых/.test(value))return'🧘';if(/сон|спать|ложиться/.test(value))return'🌙';if(/сахар|слад/.test(value))return'🍎';if(/уч|англ|язык/.test(value))return'🧠';return'🌱'}
+function habitEmoji(name,index=0){
+ const value=String(name||'').toLowerCase().replace(/ё/g,'е');
+ if(/алкогол|спирт|пив|вино|трезв/.test(value))return'🍷';
+ if(/никотин|курю|курить|курен|сигар|вейп|табак/.test(value))return'🚭';
+ if(/кофе|кофеин|капучин|эспрессо/.test(value))return'☕';
+ if(/вод|пить/.test(value))return'💧';
+ if(/заряд|трен|спорт|ходь|шаг/.test(value))return'🏃';
+ if(/чит|книг/.test(value))return'📚';
+ if(/медит|дых/.test(value))return'🧘';
+ if(/сон|спать|ложиться/.test(value))return'🌙';
+ if(/сахар|слад/.test(value))return'🍎';
+ if(/уч|англ|язык/.test(value))return'🧠';
+ const fallback=['🎯','🌿','✨','🧩','💪','📌','🌻','📖'];
+ return fallback[Math.abs(index)%fallback.length];
+}
+function habitDisplayEmoji(habit,index=0){
+ const saved=String(habit?.emoji||'').trim();
+ return saved&&saved!=='🌱'?saved:habitEmoji(habit?.name,index);
+}
 function habitSummaryNames(items){
   const names=(Array.isArray(items)?items:[]).map(item=>String(item?.name||'').trim()).filter(Boolean);
   if(names.length<=4)return names.join(', ');
@@ -298,7 +316,7 @@ function renderHabits(){
     const id=String(habit.id||''),status=String(statuses[id]||'pending'),isDone=status==='done',isNotDone=status==='notdone';
     const row=document.createElement('div');row.className='personal-habit-row';row.classList.toggle('is-done',isDone);row.classList.toggle('is-notdone',isNotDone);row.classList.toggle('is-history',isHistorical);
     const main=document.createElement('div');main.className='personal-habit-main';
-    const emoji=document.createElement('span');emoji.className='personal-habit-emoji';emoji.textContent=habit.emoji||habitEmoji(habit.name);
+    const emoji=document.createElement('span');emoji.className='personal-habit-emoji';emoji.textContent=habitDisplayEmoji(habit,habits.indexOf(habit));
     const copy=document.createElement('div');copy.className='personal-habit-copy';
     const name=document.createElement('div');name.className='personal-habit-name';name.textContent=String(habit.name||'Привычка');
     const purpose=document.createElement('div');purpose.className='personal-habit-purpose';purpose.textContent=String(habit.purpose||'').trim();purpose.hidden=!purpose.textContent;
@@ -387,9 +405,9 @@ function renderHabits(){
     title.addEventListener('click',()=>{habitArchiveExpanded=!habitArchiveExpanded;renderHabits()});
     section.appendChild(title);
     if(habitArchiveExpanded){
-      for(const habit of archived){
+      for(const [index,habit] of archived.entries()){
         const row=document.createElement('div');row.className='personal-habit-archive-row';
-        const emoji=document.createElement('span');emoji.textContent=habit.emoji||habitEmoji(habit.name);
+        const emoji=document.createElement('span');emoji.textContent=habitDisplayEmoji(habit,index);
         const name=document.createElement('span');name.textContent=habit.name;
         const remove=document.createElement('button');
         remove.type='button';

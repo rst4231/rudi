@@ -137,3 +137,31 @@ test('calendar recap uses existing Vercel function without exceeding Hobby 12-fu
     source:'/api/calendar-day-summary',destination:'/api/index?route=calendar-day-summary'
   });
 });
+
+test('redesigned historical recap stays single-request and accessible',()=>{
+ const js=fs.readFileSync(path.resolve(__dirname,'../public/calendar-day-recap.js'),'utf8');
+ const css=fs.readFileSync(path.resolve(__dirname,'../public/calendar.css'),'utf8');
+ assert.match(js,/calendar-recap-overview/);
+ assert.match(js,/calendar-recap-section-head/);
+ assert.match(js,/metric\(overview,'Потрачено'/);
+ assert.match(js,/metric\(overview,'Привычки'/);
+ assert.match(css,/\.calendar-recap-metric\{/);
+ assert.match(css,/\.calendar-recap-row\.is-done/);
+ assert.equal((js.match(/fetch\('\/api\/calendar-day-summary'/g)||[]).length,1);
+ assert.match(css,/\.calendar-navigation\{/);
+});
+test('fasting countdown, end date and habit icons use local UI state',()=>{
+ const app=fs.readFileSync(path.resolve(__dirname,'../public/app.js'),'utf8');
+ const html=fs.readFileSync(path.resolve(__dirname,'../public/index.html'),'utf8');
+ const habits=fs.readFileSync(path.resolve(__dirname,'../public/profile-supplements.js'),'utf8');
+ const styles=fs.readFileSync(path.resolve(__dirname,'../public/profile-supplements.css'),'utf8');
+ assert.match(html,/<button id="fastingElapsed"/);
+ assert.match(html,/<span>Окончание <strong id="fastingGoalLabel"/);
+ assert.match(app,/fastingCountdownMode/);
+ assert.match(app,/fastingTimerHint/);
+ assert.match(app,/remainingSeconds=Math.max\(0,Math.ceil/);
+ assert.match(habits,/никотин\|курю/);
+ assert.match(habits,/кофе\|кофеин/);
+ assert.match(habits,/алкогол\|спирт/);
+ assert.match(styles,/#327dff,#235cda/);
+});

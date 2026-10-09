@@ -887,8 +887,8 @@ body[data-app-tab="habits"] .personal-habit-status-button.is-notdone.is-active:n
 }
 body[data-app-tab="habits"] .personal-habits-add{
   min-height:48px!important;border:0!important;border-radius:15px!important;
-  color:#fff!important;background:linear-gradient(110deg,#1bcf71,#04b981)!important;
-  box-shadow:0 9px 20px rgba(0,149,94,.22)!important;opacity:1!important;
+  color:#fff!important;background:linear-gradient(110deg,#327dff,#235cda)!important;
+  box-shadow:0 9px 20px rgba(37,98,218,.24)!important;opacity:1!important;
 }
 body[data-app-tab="habits"] .personal-habits-form input{
   background:#fff!important;color:#163b30!important;border-color:rgba(16,138,90,.22)!important;

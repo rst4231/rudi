@@ -49,9 +49,17 @@
     if(value!==undefined)el.textContent=String(value);
     return el;
   };
-  const section=title=>{
+  const section=(title,hint='')=>{
     const part=node('section','calendar-recap-block');
-    part.append(node('h3','calendar-recap-block-title',title));panel.append(part);return part;
+    const heading=node('div','calendar-recap-section-head');
+    heading.append(node('h3','calendar-recap-block-title',title));
+    if(hint)heading.append(node('small','calendar-recap-section-hint',hint));
+    part.append(heading);panel.append(part);return part;
+  };
+  const metric=(target,label,value,kind)=>{
+    const tile=node('div','calendar-recap-metric is-'+kind);
+    tile.append(node('span','calendar-recap-metric-label',label),node('strong','calendar-recap-metric-value',value));
+    target.append(tile);
   };
   const empty=(part,value)=>part.append(node('p','calendar-recap-empty',value));
   const line=(part,title,value,meta='',status='')=>{
@@ -80,36 +88,48 @@
     head.append(node('span','calendar-recap-kicker','Итоги дня'));
     head.append(node('h2','calendar-recap-date',dateLabel.format(new Date(date+'T12:00:00Z'))));
     panel.append(head);
-    const expense=section('Расходы');
+
+    const overview=node('div','calendar-recap-overview');
+    if(data.expenses?.available)metric(overview,'Потрачено',money.format(data.expenses.totalRub||0),'expenses');
+    if(data.habits?.available){
+      const habits=data.habits.habits||[];
+      metric(overview,'Привычки',habits.filter(item=>item.status==='done').length+' / '+habits.length,'habits');
+    }
+    if(overview.childElementCount)panel.append(overview);
+
+    const expenseRows=data.expenses?.items||[];
+    const expense=section('Расходы',expenseRows.length?expenseRows.length+' операций':'');
     if(!missing(expense,data.expenses)){
-      const rows=data.expenses.items||[];
-      if(!rows.length)empty(expense,'Нет записанных расходов');
-      else{
-        expense.append(node('strong','calendar-recap-money',money.format(data.expenses.totalRub)));
-        rows.forEach(item=>line(expense,(item.categoryIcon?item.categoryIcon+' ':'')+item.category,
-          money.format(item.amountRub),[item.label,item.note].filter(Boolean).join(' · ')));
-      }
+      if(!expenseRows.length)empty(expense,'Нет записанных расходов');
+      else expenseRows.forEach(item=>line(expense,(item.categoryIcon?item.categoryIcon+' ':'')+item.category,
+        money.format(item.amountRub),[item.label,item.note].filter(Boolean).join(' · ')));
     }
-    const habits=section('Привычки');
+
+    const habitsRows=data.habits?.habits||[];
+    const habits=section('Привычки',habitsRows.length?habitsRows.filter(x=>x.status==='done').length+' из '+habitsRows.length+' выполнено':'');
     if(!missing(habits,data.habits)){
-      const rows=data.habits.habits||[];
-      if(!rows.length)empty(habits,'Привычки на этот день не найдены');
-      else{
-        habits.append(node('span','calendar-recap-caption','Выполнено '+rows.filter(x=>x.status==='done').length+' из '+rows.length));
-        rows.forEach(item=>{
-          const kind=item.status==='done'?'done':item.status==='notdone'?'missed':'pending';
-          line(habits,(item.emoji?item.emoji+' ':'')+item.name,
-            kind==='done'?'✓ Выполнено':kind==='missed'?'✕ Не выполнено':'Нет отметки','',kind);
-        });
-      }
+      if(!habitsRows.length)empty(habits,'Привычки на этот день не найдены');
+      else habitsRows.forEach(item=>{
+        const kind=item.status==='done'?'done':item.status==='notdone'?'missed':'pending';
+        const name=String(item.name||'');
+        const icon=/алкогол|спирт|пив|вино/i.test(name)?'🍷'
+          :/никотин|курю|курить|сигар|вейп/i.test(name)?'🚭'
+          :/кофе|кофеин/i.test(name)?'☕'
+          :item.emoji||'🌱';
+        line(habits,icon+' '+name,
+          kind==='done'?'✓ Выполнено':kind==='missed'?'✕ Не выполнено':'— Нет отметки','',kind);
+      });
     }
-    const fasting=section('Голодание');
+
+    const fastingRows=data.fasting?.sessions||[];
+    const fasting=section('Голодание',fastingRows.length?fastingRows.length+' сеанса':'');
     if(!missing(fasting,data.fasting)){
-      const rows=data.fasting.sessions||[];
-      if(!rows.length)empty(fasting,'Нет записей о голодании');
-      else rows.forEach(item=>line(fasting,'Голодание',item.durationMinutes==null?'В процессе':minutes(item.durationMinutes),
+      if(!fastingRows.length)empty(fasting,'Нет записей о голодании');
+      else fastingRows.forEach((item,index)=>line(fasting,'Сеанс '+(index+1),
+        item.durationMinutes==null?'В процессе':minutes(item.durationMinutes),
         [format(item.startedAt,fullLabel),item.endedAt?format(item.endedAt,fullLabel):'продолжается'].filter(Boolean).join(' – ')));
     }
+
     const mood=section('Среднее настроение');
     if(!missing(mood,data.mood)){
       if(data.mood.averageMood){
@@ -117,11 +137,12 @@
         if(data.mood.sampleCount)mood.append(node('span','calendar-recap-caption','Отметок за день: '+data.mood.sampleCount));
       }else empty(mood,'Настроение не отмечалось');
     }
-    const supplements=section('БАДы');
+
+    const supplementRows=data.supplements?.items||[];
+    const supplements=section('БАДы',supplementRows.length?supplementRows.length+' приёма':'');
     if(!missing(supplements,data.supplements)){
-      const rows=data.supplements.items||[];
-      if(!rows.length)empty(supplements,'Приёмов за день не записано');
-      else rows.forEach(item=>line(supplements,item.name,format(item.at,timeLabel)||'Время неизвестно'));
+      if(!supplementRows.length)empty(supplements,'Приёмов за день не записано');
+      else supplementRows.forEach(item=>line(supplements,item.name,format(item.at,timeLabel)||'Время неизвестно'));
     }
     panel.hidden=false;
   }
