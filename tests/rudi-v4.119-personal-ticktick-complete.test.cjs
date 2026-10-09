@@ -96,7 +96,7 @@ test('shared plus opens existing task modal using selected calendar date and cur
   const app=fs.readFileSync('public/app.js','utf8');
   const html=fs.readFileSync('public/index.html','utf8');
   assert.ok(html.includes('id="calendarCreateTask"'));
-  assert.ok(app.includes("create.hidden=calendarScope!=='shared'"));
+  assert.ok(app.includes("if(shared)shared.hidden=calendarScope!=='shared'"));
   assert.ok(app.includes("document.getElementById('calendarCreateTask')?.addEventListener"));
   assert.ok(app.includes('const date=currentSelectedWorkDate||calendarDateCursor||todayState().key'));
   assert.ok(app.includes('const time=financeNowDateTimeInputs().time'));
