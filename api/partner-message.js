@@ -10,7 +10,7 @@ const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveD
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken, savePersonalToken, readPersonalToken, clearPersonalToken } = require('./ticktick-store.cjs');
-const { completeRustamPersonalTask, reopenRustamPersonalTask } = require('./ticktick-personal-completion.cjs');
+const { completeRustamPersonalTask, reopenRustamPersonalTask, rescheduleRustamPersonalTask } = require('./ticktick-personal-completion.cjs');
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish, restoreWish } = require('./wishlist-store.cjs');
 const {
@@ -2099,6 +2099,46 @@ async function handleTickTick(req, res, action, options = {}) {
     }
   }
 
+  // Move a timed personal TickTick calendar block without changing shared tasks.
+  if (action === 'personal-task-move') {
+    if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
+    let body,actor;
+    try{
+      body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      ({actor}=authorizeRequest(req,body.initData,options));
+    }catch(error){
+      return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)});
+    }
+    if(actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
+    if(!credentialsConfigured(options.env||process.env))
+      return res.status(503).json({ok:false,error:'ticktick-not-configured'});
+    try{
+      const token=await readPersonalToken('Рустам',options);
+      const config=await loadTickTickConfig(options);
+      if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
+      const result=await rescheduleRustamPersonalTask({
+        actor,token,taskId:body.taskId,projectId:body.projectId,
+        date:body.date,time:body.time,sharedProjectId:config.projectId,options
+      });
+      return res.status(200).json(result);
+    }catch(error){
+      const code=String(error?.message||error);
+      if(code==='ticktick-token-invalid'){
+        await clearPersonalToken('Рустам',options).catch(()=>{});
+        return res.status(401).json({ok:false,error:'ticktick-personal-reconnect-required'});
+      }
+      if(code==='ticktick-personal-not-connected')return res.status(401).json({ok:false,error:code});
+      if(code.includes('owner-forbidden')||code.includes('project-forbidden')||
+         code.includes('write-permission-required')||code==='ticktick-write-forbidden')
+        return res.status(403).json({ok:false,error:code});
+      if(code.includes('invalid')||code.includes('mismatch')||code.includes('unsupported'))
+        return res.status(400).json({ok:false,error:code});
+      if(code==='ticktick-task-not-found')return res.status(404).json({ok:false,error:code});
+      console.error('RUDI_PERSONAL_TICKTICK_MOVE_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-personal-move-unavailable'});
+    }
+  }
+
   // Personal completions do not send partner notifications or award shared-task scores.
   if (action === 'personal-task-complete') {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
@@ -2516,6 +2556,7 @@ async function handleTickTick(req, res, action, options = {}) {
                   projectId:String(source.projectId||''),
                   projectName:String(source.projectName||'Список'),
                   description:String(source.desc||source.content||'').slice(0,5000),
+                  repeatFlag:String(source.repeatFlag||''),
                   canEdit:false,canComplete:tokenHasWriteScope(personalToken)!==false,assigned:false,assignee:''
                 });
               }
