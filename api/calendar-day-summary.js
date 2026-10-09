@@ -8,7 +8,7 @@ const {readSupplements}=require('./supplements-store.cjs');
 // One authenticated read of each data source per month; no requests on every date tap.
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 const MONTH_RE=/^\d{4}-(0[1-9]|1[0-2])$/;
-const CACHE_TTL_MS=60*1000;
+const CACHE_TTL_MS=15*1000;
 const MAX_CACHED=12;
 const summaryCache=new Map();
 const summaryInflight=new Map();
