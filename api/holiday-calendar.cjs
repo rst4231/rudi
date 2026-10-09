@@ -30,10 +30,13 @@ function moscowDateKey(value = new Date()) {
   return `${row.year}-${row.month}-${row.day}`;
 }
 
-function monthRange(now = new Date(), view = 'month') {
+function monthRange(now = new Date(), view = 'month', monthKey = '') {
   const [year, month] = moscowDateKey(now).split('-').map(Number);
-  const offset = view === 'next-month' ? 1 : 0;
-  const first = new Date(Date.UTC(year, month - 1 + offset, 1));
+  const customMonth = /^(20\d{2}|2100)-(0[1-9]|1[0-2])$/.test(String(monthKey || '')) ? String(monthKey) : '';
+  const offset = !customMonth && view === 'next-month' ? 1 : 0;
+  const first = customMonth
+    ? new Date(Date.UTC(Number(customMonth.slice(0,4)), Number(customMonth.slice(5,7)) - 1, 1))
+    : new Date(Date.UTC(year, month - 1 + offset, 1));
   const rangeYear = first.getUTCFullYear();
   const rangeMonth = first.getUTCMonth() + 1;
   return {
@@ -165,7 +168,7 @@ function validCachedMonth(value, range) {
 }
 
 async function getHolidayCalendar(options = {}) {
-  const range = monthRange(options.now || new Date(), options.view || 'month');
+  const range = monthRange(options.now || new Date(), options.view || 'month', options.monthKey || '');
   const cache = cacheOf(options);
   const key = 'month:' + range.monthKey;
   const cached = validCachedMonth(await cache.get(key).catch(() => null), range);

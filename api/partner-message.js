@@ -2136,8 +2136,14 @@ async function handleTickTick(req, res, action, options = {}) {
       const calendar = buildTickTickCalendar(
         sourceTasks,
         options.now ? new Date(options.now) : new Date(),
-        view
+        view,
+        undefined,
+        String(body.month || '')
       );
+      const selectedScope = ['rustam','diana','shared'].includes(String(body.scope || '')) ? String(body.scope) : '';
+      if (selectedScope === 'rustam' && actor !== 'Рустам' || selectedScope === 'diana' && actor !== 'Диана') {
+        return res.status(403).json({ ok:false, error:'calendar-owner-forbidden' });
+      }
       for (const day of calendar.days || []) {
         for (const event of day.events || []) {
           const source = sourceById.get(String(event?.id || '')) || {};
@@ -2147,6 +2153,10 @@ async function handleTickTick(req, res, action, options = {}) {
           event.assigned = assignee.assigned;
           event.responsible = assignee.responsibility.responsible;
           event.date=String(day.date||'');
+          event.ownerScope = assignee.responsibility.known
+            ? (assignee.responsibility.responsible === 'Рустам' ? 'rustam'
+              : assignee.responsibility.responsible === 'Диана' ? 'diana' : 'shared')
+            : 'unknown';
           event.canEdit=sharedTaskCanDelete(actor,source,meta);
           event.description=String(source.desc||source.content||'').trim().slice(0,5000);
           const repeatFlag=String(source.repeatFlag||'');
@@ -2155,6 +2165,7 @@ async function handleTickTick(req, res, action, options = {}) {
             :(repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase();
           event.repeatCount=Number(repeatFlag.match(/COUNT=(\d+)/)?.[1]||2);
         }
+        if (selectedScope) day.events = day.events.filter(event => event.ownerScope === selectedScope);
       }
       return res.status(200).json({
         ok: true,
@@ -3541,6 +3552,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const calendar = await getHolidayCalendar({
         ...options,
         view,
+        monthKey: String(body.month || ''),
       });
       return res.status(200).json({ ok: true, ...calendar });
     } catch (error) {
@@ -3596,6 +3608,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const week = await getWorkWeek({
         ...options,
         view,
+        monthKey: String(body.month || ''),
         calendarUrl: backupSnapshot?.calendarUrl || '',
       });
       if (view === 'month' && week?.configured && Array.isArray(week.days)) {

@@ -539,11 +539,14 @@ function calendarTime(date, timeZone = CALENDAR_TIMEZONE) {
   }).format(value);
 }
 
-function tickTickMonthRange(now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE) {
+function tickTickMonthRange(now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE, monthKey = '') {
   const today = calendarDateKey(now, timeZone);
   const [year, month] = today.split('-').map(Number);
-  const offset = view === 'next-month' ? 1 : 0;
-  const first = new Date(Date.UTC(year, month - 1 + offset, 1));
+  const customMonth = /^(20\d{2}|2100)-(0[1-9]|1[0-2])$/.test(String(monthKey || '')) ? String(monthKey) : '';
+  const offset = !customMonth && view === 'next-month' ? 1 : 0;
+  const first = customMonth
+    ? new Date(Date.UTC(Number(customMonth.slice(0,4)), Number(customMonth.slice(5,7)) - 1, 1))
+    : new Date(Date.UTC(year, month - 1 + offset, 1));
   const rangeYear = first.getUTCFullYear();
   const rangeMonth = first.getUTCMonth() + 1;
   const dayCount = new Date(Date.UTC(rangeYear, rangeMonth, 0)).getUTCDate();
@@ -591,8 +594,8 @@ function tickTickTaskDateKey(task, timeZone = CALENDAR_TIMEZONE) {
   return tickTickTaskDateKeys(task, timeZone)[0] || '';
 }
 
-function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE) {
-  const range = tickTickMonthRange(now, view, timeZone);
+function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE, monthKey = '') {
+  const range = tickTickMonthRange(now, view, timeZone, monthKey);
   const days = Array.from({ length: range.dayCount }, (_, index) => {
     const date = new Date(Date.UTC(range.year, range.month - 1, index + 1));
     const key = [

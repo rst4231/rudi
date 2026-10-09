@@ -336,7 +336,10 @@ async function getWorkWeek(options = {}) {
   let startKey;
   let dayCount;
   if (view === 'month' || view === 'next-month') {
-    const range = monthRange(now, tz, view === 'next-month' ? 1 : 0);
+    const customMonth = /^(20\d{2}|2100)-(0[1-9]|1[0-2])$/.test(String(options.monthKey || '')) ? String(options.monthKey) : '';
+    const range = customMonth
+      ? { startKey: customMonth + '-01', dayCount: new Date(Date.UTC(Number(customMonth.slice(0,4)), Number(customMonth.slice(5,7)), 0)).getUTCDate() }
+      : monthRange(now, tz, view === 'next-month' ? 1 : 0);
     startKey = range.startKey;
     dayCount = range.dayCount;
   } else {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.116">
+  <meta name="rudi-version" content="v4.117">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-rudi-v460.png?v=4.60">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-rudi-v460.png?v=4.60">
-  <link rel="manifest" href="/manifest.webmanifest?v=4.116">
+  <link rel="manifest" href="/manifest.webmanifest?v=4.117">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
@@ -27,20 +27,20 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.116">
+  <link rel="stylesheet" href="/app.css?v=4.117">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
-  <link rel="stylesheet" href="/pwa-extras.css?v=4.116">
-  <link rel="stylesheet" href="/calendar.css?v=4.116">
-  <link rel="stylesheet" href="/smart-home.css?v=4.116">
-  <link rel="stylesheet" href="/car.css?v=4.116">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.116">
-  <link rel="stylesheet" href="/supplement-advanced.css?v=4.116">
-  <link rel="stylesheet" href="/rudi-design-system.css?v=4.116">
-  <link rel="stylesheet" href="/finance-cards.css?v=4.116">
-  <link rel="stylesheet" href="/recommendations.css?v=4.116">
+  <link rel="stylesheet" href="/pwa-extras.css?v=4.117">
+  <link rel="stylesheet" href="/calendar.css?v=4.117">
+  <link rel="stylesheet" href="/smart-home.css?v=4.117">
+  <link rel="stylesheet" href="/car.css?v=4.117">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.117">
+  <link rel="stylesheet" href="/supplement-advanced.css?v=4.117">
+  <link rel="stylesheet" href="/rudi-design-system.css?v=4.117">
+  <link rel="stylesheet" href="/finance-cards.css?v=4.117">
+  <link rel="stylesheet" href="/recommendations.css?v=4.117">
   <script>
     (() => {
       const launchContext=String(location.search||'')+String(location.hash||'');
@@ -68,9 +68,9 @@
       });
     })();
   </script>
-  <script defer src="/wallet-brand-icons.js?v=4.116"></script>
-  <script defer src="/app.js?v=4.116"></script>
-  <script defer src="/recommendations.js?v=4.116"></script>
+  <script defer src="/wallet-brand-icons.js?v=4.117"></script>
+  <script defer src="/app.js?v=4.117"></script>
+  <script defer src="/recommendations.js?v=4.117"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
     (() => {
@@ -88,12 +88,12 @@
         loading=(async()=>{
           if(!document.querySelector('[data-rudi-finance-decisions-css]')){
             const style=document.createElement('link');style.rel='stylesheet';
-            style.href='/finance-decisions.css?v=4.116';
+            style.href='/finance-decisions.css?v=4.117';
             style.dataset.rudiFinanceDecisionsCss='1';
             document.head.appendChild(style);
           }
-          await loadScript('/finance-decisions-core.js?v=4.116');
-          await loadScript('/finance-decisions-ui.js?v=4.116');
+          await loadScript('/finance-decisions-core.js?v=4.117');
+          await loadScript('/finance-decisions-ui.js?v=4.117');
         })().catch(error=>{loading=null;console.warn('RUDI_LAZY_FINANCE_WARN',String(error?.message||error))});
         return loading;
       };
@@ -112,14 +112,14 @@
     })();
   </script>
 
-  <script defer src="/pwa-extras.js?v=4.116"></script>
-  <script defer src="/weather.js?v=4.116"></script>
-  <script defer src="/smart-home.js?v=4.116"></script>
-  <script defer src="/car.js?v=4.116"></script>
-  <script defer src="/profile-supplements.js?v=4.116"></script>
-  <script defer src="/mood-history.js?v=4.116"></script>
-  <script defer src="/supplement-editor.js?v=4.116"></script>
-  <script defer src="/supplement-advanced.js?v=4.116"></script>
+  <script defer src="/pwa-extras.js?v=4.117"></script>
+  <script defer src="/weather.js?v=4.117"></script>
+  <script defer src="/smart-home.js?v=4.117"></script>
+  <script defer src="/car.js?v=4.117"></script>
+  <script defer src="/profile-supplements.js?v=4.117"></script>
+  <script defer src="/mood-history.js?v=4.117"></script>
+  <script defer src="/supplement-editor.js?v=4.117"></script>
+  <script defer src="/supplement-advanced.js?v=4.117"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -1606,14 +1606,26 @@
       <div id="workCalendarCard" class="work-calendar-card calendar-disclosure-card">
         <div class="work-calendar-head">
           <div class="calendar-heading-copy">
-            <div class="work-calendar-title">График</div>
-            <div id="workWeekLabel" class="work-calendar-month">Этот месяц</div>
+            <div class="work-calendar-title">Личный</div>
+            <div class="work-calendar-month">Задачи и события</div>
           </div>
         </div>
         <span id="workCalendarStatus" class="section-status work-page-status" hidden></span>
-        <div id="workCalendarRanges" class="work-calendar-ranges" role="group" aria-label="Период графика">
-          <button class="work-range-button active" type="button" data-work-view="month" aria-pressed="true">Этот месяц</button>
-          <button class="work-range-button" type="button" data-work-view="next-month" aria-pressed="false">Следующий месяц</button>
+        <div id="calendarScopeTabs" class="calendar-scope-tabs" role="group" aria-label="Выбор календаря">
+          <button type="button" class="active" data-calendar-scope="personal" aria-pressed="true">Личный</button>
+          <button type="button" data-calendar-scope="shared" aria-pressed="false">Совместный</button>
+        </div>
+        <div id="calendarModeTabs" class="calendar-mode-tabs" role="group" aria-label="Вид календаря">
+          <button type="button" data-calendar-mode="day" aria-pressed="false">День</button>
+          <button type="button" data-calendar-mode="week" aria-pressed="false">Неделя</button>
+          <button type="button" class="active" data-calendar-mode="month" aria-pressed="true">Месяц</button>
+          <button type="button" data-calendar-mode="list" aria-pressed="false">Список</button>
+        </div>
+        <div class="calendar-navigation" role="group" aria-label="Переход по датам">
+          <button type="button" id="calendarPrev" aria-label="Предыдущий период">‹</button>
+          <span class="calendar-nav-label" id="workWeekLabel">Этот месяц</span>
+          <button type="button" id="calendarNext" aria-label="Следующий период">›</button>
+          <button type="button" id="calendarToday" class="calendar-today">Сегодня</button>
         </div>
         <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
           <div class="work-calendar-skeleton"></div>

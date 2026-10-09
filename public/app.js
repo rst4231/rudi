@@ -72,6 +72,7 @@
       let holidayItemsCache = null;
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
+      let calendarScope='personal',calendarDisplayMode='month',calendarDateCursor='',calendarLoadEpoch=0;
       let currentSelectedWorkDate = '';
       let currentWorkCalendarRenderSignature = '';
       let currentDianaCycleConfig = null;
@@ -5930,7 +5931,10 @@
           }else if(item) focusDeepLinkedItem('home',item);
         }
         if(tab==='feed') loadFeed({silent:true});
-        if(tab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true}).finally(()=>focusDeepLinkedItem('schedule',item));
+        if(tab==='schedule'){
+          calendarSetScope('personal',{reload:false});
+          loadWorkCalendar('month',{silent:true}).finally(()=>focusDeepLinkedItem('schedule',item));
+        }
         if(tab==='products'){
           loadProducts({silent:true}).finally(()=>focusDeepLinkedItem('products',item));
           Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('products',item));
@@ -8757,6 +8761,8 @@
           if(brain) brain.textContent=dianaCycleBrainNote(cycleModel);
           if(appetite) appetite.textContent=dianaCycleAppetiteNote(cycleModel);
           cycle.hidden=!word;
+          const open=document.getElementById('homeCycleOpen');
+          if(open)open.hidden=currentActor!=='Диана';
         }
 
         const message=document.getElementById('homeMessageNew');
@@ -9322,6 +9328,7 @@
         cycleOpen.className='home-cycle-open';
         cycleOpen.type='button';
         cycleOpen.textContent='Показать полностью';
+        cycleOpen.hidden=currentActor!=='Диана';
         cycleSummary.append(cycleStatus,cycleAdvice,cycleBrain,cycleAppetite,cycleOpen);
 
         const makeProfileContactButton=(kind,actor)=>{
@@ -11882,7 +11889,7 @@
       }
 
       function applyDianaPeriodDots(cfg=currentDianaCycleConfig){
-        const keys=dianaPeriodDateKeys(cfg);
+        const keys=calendarScope==='personal'&&currentActor==='Диана'?dianaPeriodDateKeys(cfg):new Set();
         document.querySelectorAll('#workCalendarDays .calendar-day-cell[data-date]').forEach(cell=>{
           const active=keys.has(String(cell.dataset.date||''));
           const existing=cell.querySelector('.calendar-period-dot');
@@ -12080,7 +12087,7 @@
 
       async function loadDianaCycle({silent=false}={}){
         const card=document.getElementById('dianaCycleCard');
-        if(!card||!currentActor) return;
+        if(!card||currentActor!=='Диана'||calendarScope!=='personal') return;
         try{
           const data=await cycleRequest('get');
           renderDianaCycle(data.configured?data.cycle:null);
@@ -13335,28 +13342,86 @@
         return new Date(Date.UTC(year,month-1,day));
       }
 
+      function calendarDateShift(key,days){
+        const date=dateFromKey(key||todayState().key);
+        date.setUTCDate(date.getUTCDate()+days);
+        return date.toISOString().slice(0,10);
+      }
+      function calendarMonthShift(key,months){
+        const source=dateFromKey(key||todayState().key);
+        const first=new Date(Date.UTC(source.getUTCFullYear(),source.getUTCMonth()+months,1));
+        const last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+        first.setUTCDate(Math.min(source.getUTCDate(),last));
+        return first.toISOString().slice(0,10);
+      }
+      function calendarActiveMonth(){return (calendarDateCursor||todayState().key).slice(0,7)}
+      function calendarCacheKey(month=calendarActiveMonth(),scope=calendarScope){return month+':'+scope}
+      function calendarSetScope(scope,{reload=true}={}){
+        calendarScope=scope==='shared'?'shared':'personal';
+        document.body.dataset.calendarScope=calendarScope;
+        document.querySelectorAll('[data-calendar-scope]').forEach(button=>{
+          const active=button.dataset.calendarScope===calendarScope;
+          button.classList.toggle('active',active);
+          button.setAttribute('aria-pressed',active?'true':'false');
+        });
+        const title=document.querySelector('#workCalendarCard .work-calendar-title');
+        if(title)title.textContent=calendarScope==='shared'?'Совместный':'Личный';
+        if(calendarScope==='personal'&&currentActor==='Диана')loadDianaCycle({silent:true}).catch(()=>{});
+        applyDianaPeriodDots();
+        if(reload)loadWorkCalendar('month',{silent:false}).catch(()=>{});
+      }
       function setWorkCalendarRangeActive(view){
-        currentWorkCalendarView=['month','next-month'].includes(view)?view:'month';
-        document.querySelectorAll('[data-work-view]').forEach(button=>{
-          const active=button.dataset.workView===currentWorkCalendarView;
+        currentWorkCalendarView='month';
+        calendarDisplayMode=['day','week','month','list'].includes(view)?view:'month';
+        const container=document.getElementById('workCalendarDays');
+        if(container)container.dataset.calendarMode=calendarDisplayMode;
+        document.querySelectorAll('[data-calendar-mode]').forEach(button=>{
+          const active=button.dataset.calendarMode===calendarDisplayMode;
           button.classList.toggle('active',active);
           button.setAttribute('aria-pressed',active?'true':'false');
         });
       }
-
+      function calendarNavigationMove(direction){
+        const cursor=calendarDateCursor||todayState().key;
+        calendarDateCursor=calendarDisplayMode==='day'?calendarDateShift(cursor,direction)
+          :calendarDisplayMode==='week'?calendarDateShift(cursor,direction*7):calendarMonthShift(cursor,direction);
+        currentSelectedWorkDate=calendarDisplayMode==='day'?calendarDateCursor:'';
+        loadWorkCalendar('month',{silent:false}).catch(()=>{});
+      }
       function setupWorkCalendarDisclosure(){
-        const rangeButtons=Array.from(document.querySelectorAll('[data-work-view]'));
+        calendarDateCursor=todayState().key;
         setWorkCalendarRangeActive('month');
-        rangeButtons.forEach(button=>button.addEventListener('click',async()=>{
-          const view=button.dataset.workView||'month';
-          if(view===currentWorkCalendarView) return;
-          setWorkCalendarRangeActive(view);
-          if(calendarViewCache[view]) renderWorkCalendar(calendarViewCache[view]);
-          await loadWorkCalendar(view,{silent:Boolean(calendarViewCache[view])});
+        calendarSetScope('personal',{reload:false});
+        document.querySelectorAll('[data-calendar-scope]').forEach(button=>button.addEventListener('click',()=>{
+          if(button.dataset.calendarScope===calendarScope)return;
+          currentSelectedWorkDate='';calendarSetScope(button.dataset.calendarScope);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         }));
+        document.querySelectorAll('[data-calendar-mode]').forEach(button=>button.addEventListener('click',()=>{
+          const mode=button.dataset.calendarMode;
+          if(mode===calendarDisplayMode)return;
+          setWorkCalendarRangeActive(mode);
+          currentSelectedWorkDate=mode==='day'?calendarDateCursor:'';
+          loadWorkCalendar('month',{silent:true}).catch(()=>{});
+        }));
+        document.getElementById('calendarPrev')?.addEventListener('click',()=>calendarNavigationMove(-1));
+        document.getElementById('calendarNext')?.addEventListener('click',()=>calendarNavigationMove(1));
+        document.getElementById('calendarToday')?.addEventListener('click',()=>{
+          calendarDateCursor=todayState().key;currentSelectedWorkDate=calendarDateCursor;
+          loadWorkCalendar('month',{silent:true}).catch(()=>{});
+        });
+        const grid=document.getElementById('workCalendarDays');
+        let startX=0,startY=0;
+        grid?.addEventListener('touchstart',event=>{
+          const touch=event.touches?.[0];if(!touch)return;
+          startX=touch.clientX;startY=touch.clientY;
+        },{passive:true});
+        grid?.addEventListener('touchend',event=>{
+          const touch=event.changedTouches?.[0];if(!touch)return;
+          const dx=touch.clientX-startX,dy=touch.clientY-startY;
+          if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.4)calendarNavigationMove(dx<0?1:-1);
+        },{passive:true});
       }
-
 
       function dianaWorkingNow(row,nowMinutes=homeCurrentMinutes()){
         if(!row||!row.working) return false;
@@ -13462,13 +13527,12 @@
           const result=await financeRequest('set-obligation-paid',{id:obligation.id,month,paid});
           if(result.actor!==currentActor)throw new Error('finance-actor-mismatch');
           const obligations=Array.isArray(result.obligations)?result.obligations:[];
-          for(const view of ['month','next-month']){
-            const cached=calendarViewCache[view];
+          for(const cached of Object.values(calendarViewCache)){
             if(cached&&cached.obligationActor===currentActor)cached.financeObligations=obligations;
           }
           financeState.plan={...financeState.plan,obligations};
           renderFinanceObligations();
-          const active=calendarViewCache[currentWorkCalendarView];
+          const active=calendarViewCache[calendarCacheKey()];
           if(active&&active.obligationActor===currentActor)renderWorkCalendar(active,{force:true});
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(error){
@@ -13481,7 +13545,7 @@
       function workCalendarRenderSignature(payload){
         try{
           return JSON.stringify({
-            view:String(payload?.view||'month'),
+            view:String(payload?.view||'month'),scope:calendarScope,mode:calendarDisplayMode,cursor:calendarDateCursor,
             stale:Boolean(payload?.stale),
             days:Array.isArray(payload?.days)?payload.days:[],
             ticktickDays:Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[],
@@ -13509,7 +13573,16 @@
         selected.hidden=true;
         selected.replaceChildren();
 
-        const days=Array.isArray(payload?.days)?payload.days:[];
+        const allDays=Array.isArray(payload?.days)?payload.days:[];
+        const focus=calendarDateCursor||todayState().key;
+        const weekStart=calendarDateShift(focus,-((dateFromKey(focus).getUTCDay()+6)%7));
+        const days=calendarDisplayMode==='day'?allDays.filter(day=>day.date===focus)
+          :calendarDisplayMode==='week'?allDays.filter(day=>day.date>=weekStart&&day.date<=calendarDateShift(weekStart,6))
+          :calendarDisplayMode==='list'?allDays.filter(day=>{
+            const tasks=(payload?.ticktickDays||[]).find(row=>row.date===day.date)?.events||[];
+            const holidays=(payload?.holidayDays||[]).find(row=>row.date===day.date)?.items||[];
+            return Boolean(day.working||tasks.some(row=>!row.completed)||holidays.length||calendarObligationsForDay(day.date,payload?.financeObligations||[]).length);
+          }):allDays;
         const tickDays=new Map((Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[]).map(day=>[String(day?.date||''),day]));
         const holidayDays=new Map((Array.isArray(payload?.holidayDays)?payload.holidayDays:[]).map(day=>[String(day?.date||''),day]));
         const financeObligations=payload?.obligationActor===currentActor&&Array.isArray(payload.financeObligations)?payload.financeObligations:[];
@@ -13524,16 +13597,16 @@
         }
         if(!days.length){
           status.hidden=false;
-          status.textContent='Нет данных';
+          status.textContent=calendarDisplayMode==='list'?'На выбранный период событий нет':'Нет данных';
           return;
         }
 
         const first=dateFromKey(days[0].date);
         const last=dateFromKey(days[days.length-1].date);
         const view=String(payload?.view||currentWorkCalendarView||'month');
-        const isMonth=view==='month'||view==='next-month';
-        if(view==='month') renderPartnerWorkStatus(days);
-        if(isMonth){
+        const isMonth=calendarDisplayMode==='month';
+        if((calendarScope==='shared'||currentActor==='Диана')&&calendarActiveMonth()===todayState().key.slice(0,7))renderPartnerWorkStatus(allDays);
+        if(isMonth||calendarDisplayMode==='list'){
           const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
           label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
         }else{
@@ -13541,7 +13614,7 @@
           const lastText=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(last).replace('.','');
           label.textContent=firstText+' — '+lastText;
         }
-        setWorkCalendarRangeActive(view);
+        setWorkCalendarRangeActive(calendarDisplayMode);
         if(payload.stale){
           status.hidden=false;
           status.textContent='Кэш';
@@ -13589,7 +13662,7 @@
 
             (day.date===today?' today':'');
           const tooltip=[
-            day.working?timeText:'Выходной',
+            calendarScope==='shared'||currentActor==='Диана'?(day.working?timeText:'Выходной'):'Личный календарь',
             tasks.length?tasks.map(event=>event.title).filter(Boolean).join(' · '):'',
             holidays.length?holidays.join(' · '):'',
             obligations.length?obligations.map(row=>String(row.title||'Платёж')+(row.paid?' ✓':'')).join(' · '):''
@@ -13597,7 +13670,7 @@
           cell.title=tooltip;
           cell.setAttribute(
             'aria-label',
-            (day.working?'Работа ':'Выходной ')+
+            (calendarScope==='shared'||currentActor==='Диана'?(day.working?'Работа ':'Выходной '):'Дата ')+
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
             (tasks.length?', дел: '+tasks.length:'')+
             (holidays.length?', праздников: '+holidays.length:'')+
@@ -13615,6 +13688,17 @@
           number.className='calendar-date-number';
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
+          if(calendarDisplayMode==='list'){
+            const summary=document.createElement('span');
+            summary.className='calendar-list-summary';
+            const parts=[];
+            if(day.working)parts.push('Смена '+(times.join(' / ')||''));
+            parts.push(...tasks.slice(0,3).map(task=>task.title));
+            parts.push(...holidays.slice(0,2));
+            parts.push(...obligations.slice(0,2).map(row=>'Платёж: '+row.title));
+            summary.textContent=parts.filter(Boolean).join(' · ')||'Событий нет';
+            cell.appendChild(summary);
+          }
 
           if(tasks.length||unpaidObligations.length){
             const indicators=document.createElement('span');
@@ -13655,11 +13739,12 @@
 
             const info=document.createElement('span');
             info.className='work-selected-status';
+            const showShift=calendarScope==='shared'||currentActor==='Диана';
             const prefix=day.date===today?'Сегодня у Дианы ':'У Дианы ';
-            info.textContent=prefix+(day.working?'рабочий день':'выходной');
+            info.textContent=showShift?prefix+(day.working?'рабочий день':'выходной'):'Личный календарь';
             copy.append(heading,info);
 
-            if(day.working){
+            if(day.working&&(calendarScope==='shared'||currentActor==='Диана')){
               const shift=document.createElement('span');
               shift.className='work-selected-shift';
               const titles=events.map(event=>event.title).filter(Boolean);
@@ -13785,12 +13870,12 @@
           };
 
           cell.addEventListener('click',()=>showDayDetails(true));
-          const preferredDate=currentSelectedWorkDate||today;
+          const preferredDate=currentSelectedWorkDate||focus;
           if(day.date===preferredDate) showDayDetails(false);
           container.appendChild(cell);
         }
 
-        if(currentSelectedWorkDate&&!days.some(day=>String(day?.date||'')===currentSelectedWorkDate)){
+        if(currentSelectedWorkDate&&!allDays.some(day=>String(day?.date||'')===currentSelectedWorkDate)){
           currentSelectedWorkDate='';
         }
         applyDianaPeriodDots();
@@ -13814,84 +13899,78 @@
         return managedJsonRequest(resource,url,{body,ttlMs,timeoutMs:12000});
       }
 
-      async function fetchCombinedCalendar(view){
-        const requested=['month','next-month'].includes(view)?view:'month';
-        const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested};
+      async function fetchCombinedCalendar(view,monthOverride='',includeNeighbors=true){
+        const requested='month',month=monthOverride||calendarActiveMonth();
+        const scope=calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam';
+        const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested,month};
+        const needsWork=scope==='diana'||scope==='shared';
         const [workResult,tickResult,holidayResult,obligationResult]=await Promise.allSettled([
-          fetchCalendarJson('work-calendar:'+requested,'/api/work-calendar',base,5000),
-          fetchCalendarJson('ticktick-calendar:'+requested,'/api/ticktick/calendar',base,3000),
-          fetchCalendarJson('holiday-calendar:'+requested,'/api/partner-message?rudiAction=holiday-calendar',{
-            initData:telegramInitData(),
-            view:requested
-          },60000),
-          financeRequest('calendar-obligations')
+          needsWork?fetchCalendarJson('work-calendar:'+month,'/api/work-calendar',base,5000):Promise.resolve(null),
+          fetchCalendarJson('ticktick-calendar:'+month+':'+scope,'/api/ticktick/calendar',{...base,scope},3000),
+          scope==='shared'?fetchCalendarJson('holiday-calendar:'+month,'/api/partner-message?rudiAction=holiday-calendar',{initData:telegramInitData(),view:requested,month},60000):Promise.resolve(null),
+          scope!=='shared'?financeRequest('calendar-obligations'):Promise.resolve(null)
         ]);
-        if(workResult.status!=='fulfilled') throw workResult.reason;
-        const work=workResult.value;
         const tick=tickResult.status==='fulfilled'?tickResult.value:{};
         const holidays=holidayResult.status==='fulfilled'?holidayResult.value:{};
-        return {
-          ...work,
-          view:requested,
+        const work=workResult.status==='fulfilled'?workResult.value:null;
+        const first=month+'-01',count=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).getUTCDate();
+        const fallback=Array.from({length:count},(_,i)=>({date:calendarDateShift(first,i),working:false,events:[]}));
+        const days=Array.isArray(work?.days)&&work.days.length===count?work.days:fallback;
+        const result={
+          configured:true,view:requested,days,
+          workReady:Boolean(work?.configured),stale:Boolean(work?.stale),
           ticktickDays:Array.isArray(tick?.days)?tick.days:[],
           holidayDays:Array.isArray(holidays?.days)?holidays.days:[],
-          ticktickConnected:tick?.connected!==false,
-          ticktickWritable:tick?.writable!==false,
+          ticktickConnected:tick?.connected!==false,ticktickWritable:tick?.writable!==false,
           holidaysReady:holidayResult.status==='fulfilled',
           obligationActor:obligationResult.status==='fulfilled'?String(obligationResult.value?.actor||''):'',
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
         };
+        if(includeNeighbors&&calendarDisplayMode==='week'){
+          const anchor=calendarDateCursor||todayState().key;
+          const start=calendarDateShift(anchor,-((dateFromKey(anchor).getUTCDay()+6)%7));
+          const end=calendarDateShift(start,6);
+          const adjacent=[...new Set([start.slice(0,7),end.slice(0,7)])].filter(key=>key!==month);
+          if(adjacent.length){
+            const others=await Promise.allSettled(adjacent.map(key=>fetchCombinedCalendar('month',key,false)));
+            for(const row of others){
+              if(row.status!=='fulfilled')continue;
+              const other=row.value;
+              result.days.push(...other.days);
+              result.ticktickDays.push(...other.ticktickDays);
+              result.holidayDays.push(...other.holidayDays);
+            }
+            result.days.sort((a,b)=>a.date.localeCompare(b.date));
+          }
+        }
+        return result;
       }
-
       async function prefetchCalendarView(view){
-        const requested=['month','next-month'].includes(view)?view:'month';
-        if(calendarViewCache[requested]) return calendarViewCache[requested];
-        try{
-          const payload=await fetchCombinedCalendar(requested);
-          calendarViewCache[requested]=payload;
-          return payload;
-        }catch(_){
-          return null;
-        }
+        const key=calendarCacheKey();
+        if(calendarViewCache[key])return calendarViewCache[key];
+        try{const payload=await fetchCombinedCalendar('month');calendarViewCache[key]=payload;return payload}
+        catch(_){return null}
       }
-
       async function loadWorkCalendar(view=currentWorkCalendarView,{silent=false,force=false}={}){
-        if(!currentActor) return;
-        const requested=['month','next-month'].includes(view)?view:'month';
-        if(force) invalidateManagedRequests('ticktick-calendar:'+requested);
-        currentWorkCalendarView=requested;
-        setWorkCalendarRangeActive(requested);
-        const status=document.getElementById('workCalendarStatus');
-        if(calendarViewCache[requested]){
-          const cached=calendarViewCache[requested];
-          if(cached.obligationActor&&cached.obligationActor!==currentActor)calendarViewCache[requested]=null;
-          else renderWorkCalendar(cached);
-        }
-        if(!silent){
-          status.hidden=false;
-          status.textContent=calendarViewCache[requested]?'Обновляю':'Загружаю';
-        }
+        if(!currentActor)return null;
+        const key=calendarCacheKey(),epoch=++calendarLoadEpoch;
+        if(force)invalidateManagedRequests('ticktick-calendar:'+calendarActiveMonth()+':'+(calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam'));
+        const status=document.getElementById('workCalendarStatus'),cached=calendarViewCache[key];
+        if(cached)renderWorkCalendar(cached);
+        if(!silent){status.hidden=false;status.textContent=cached?'Обновляю':'Загружаю'}
         try{
-          const payload=await fetchCombinedCalendar(requested);
-          calendarViewCache[requested]=payload;
+          const payload=await fetchCombinedCalendar('month');
+          calendarViewCache[key]=payload;
+          if(epoch!==calendarLoadEpoch||key!==calendarCacheKey())return payload;
           renderWorkCalendar(payload);
-          if(requested==='month') setTimeout(()=>loadActivityJournal({silent:true}),180);
-          if(requested==='next-month') refreshPartnerWorkStatus();
-          if(currentAppTab==='schedule'&&requested==='month'&&!calendarViewCache['next-month']){
-            setTimeout(()=>prefetchCalendarView('next-month'),80);
-          }
+          if(calendarActiveMonth()===todayState().key.slice(0,7))setTimeout(()=>loadActivityJournal({silent:true}),180);
+          return payload;
         }catch(error){
-          if(error?.name==='AbortError') return calendarViewCache[requested]||null;
-          if(calendarViewCache[requested]){
-            renderWorkCalendar(calendarViewCache[requested]);
-            status.hidden=false;
-            status.textContent='Кэш';
-            return;
-          }
-          status.hidden=false;
-          status.textContent='Ошибка';
-          const container=document.getElementById('workCalendarDays');
-          container.innerHTML='<div class="wishlist-empty">Не удалось обновить график.</div>';
+          if(epoch!==calendarLoadEpoch||key!==calendarCacheKey())return null;
+          if(cached){renderWorkCalendar(cached);status.hidden=false;status.textContent='Кэш';return cached}
+          status.hidden=false;status.textContent='Ошибка';
+          document.getElementById('workCalendarDays').innerHTML='<div class="wishlist-empty">Не удалось обновить календарь.</div>';
+          return null;
         }
       }
 
