@@ -1467,3 +1467,14 @@ body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-task-co
   opacity:1!important;
   cursor:default!important;
 }
+
+/* v4.125: legible titles for personal TickTick tasks even without edit permission. */
+body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-selected-tasks .calendar-task-copy:disabled{
+  opacity:1!important;
+  cursor:default!important;
+}
+body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-selected-tasks .calendar-task-title{
+  color:var(--text)!important;
+  font-weight:740!important;
+}
+/* Time and list names remain secondary; a read-only task is still visible. */
