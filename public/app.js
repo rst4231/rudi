@@ -13604,8 +13604,33 @@
         description.textContent=String(task.description||'');description.hidden=!description.textContent;
         box.hidden=false;document.getElementById('calendarSearchDetailClose')?.focus({preventScroll:true});
       }
+      // Personal lists are read-only in RUDI, but TickTick can open the original task.
+      // HTTPS links allow iOS Universal Links to open the native app when installed,
+      // and otherwise fall back to the same task in the browser.
+      function calendarTickTickTaskWebUrl(task){
+        const taskId=String(task?.id||'').trim(),projectId=String(task?.projectId||'').trim();
+        if(!/^[A-Za-z0-9_-]+$/.test(taskId)||!/^[A-Za-z0-9_-]+$/.test(projectId))return '';
+        return 'https://ticktick.com/webapp/#p/'+encodeURIComponent(projectId)+'/tasks/'+encodeURIComponent(taskId);
+      }
+      function calendarOpenPersonalTickTickTask(task){
+        if(currentActor!=='Рустам'||calendarScope!=='personal'||task?.personal!==true||task?.canEdit!==false)return false;
+        const url=calendarTickTickTaskWebUrl(task);
+        if(!url)return false;
+        // Telegram's openLink delegates to the operating system; installed TickTick
+        // can handle the universal link, while missing apps fall back to HTTPS.
+        if(tg?.initData&&typeof tg.openLink==='function'){
+          try{tg.openLink(url);return true}catch(_){}
+        }
+        const link=document.createElement('a');
+        link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+        document.body.appendChild(link);
+        try{link.click()}finally{link.remove()}
+        return true;
+      }
+
       function calendarOpenSearchResult(task){
         if(!calendarValidDateKey(task?.date))return;
+        if(calendarOpenPersonalTickTickTask(task)){calendarCloseSearch();return}
         calendarCloseSearch();calendarDateCursor=task.date;currentSelectedWorkDate=task.date;
         calendarSaveView();currentWorkCalendarRenderSignature='';
         loadWorkCalendar('month',{silent:true}).catch(()=>{});
@@ -13934,6 +13959,21 @@
             completeCalendarTickTickTask(task,row,checkbox,writable);
           });
           row.prepend(checkbox);
+          if(isPersonal&&calendarScope==='personal'&&task.canEdit===false&&calendarTickTickTaskWebUrl(task)){
+            row.classList.add('calendar-external-task');
+            row.style.cursor='pointer';
+            row.tabIndex=0;
+            row.setAttribute('role','link');
+            row.setAttribute('aria-label','Открыть в TickTick: '+String(task.title||'Дело'));
+            row.addEventListener('click',event=>{
+              if(event.target===checkbox||checkbox.contains(event.target))return;
+              calendarOpenPersonalTickTickTask(task);
+            });
+            row.addEventListener('keydown',event=>{
+              if(event.target!==row||(event.key!=='Enter'&&event.key!==' '))return;
+              event.preventDefault();calendarOpenPersonalTickTickTask(task);
+            });
+          }
         };
         // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
         for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':' · К оплате'),'','');
@@ -14265,8 +14305,9 @@
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
                 taskCopy.className='calendar-task-copy';
-                taskCopy.disabled=!event?.id||payload?.ticktickWritable===false||event?.canEdit===false;
-                taskCopy.setAttribute('aria-label','Редактировать: '+String(event.title||'Дело'));
+                const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&event?.canEdit===false&&Boolean(calendarTickTickTaskWebUrl(event));
+                taskCopy.disabled=!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false));
+                taskCopy.setAttribute('aria-label',(opensInTickTick?'Открыть в TickTick: ':'Редактировать: ')+String(event.title||'Дело'));
                 const start=String(event.startTime||'').trim();
                 const end=String(event.endTime||'').trim();
                 const range=event.allDay?'':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
@@ -14284,7 +14325,9 @@
                 });
                 taskCopy.addEventListener('click',clickEvent=>{
                   clickEvent.stopPropagation();
-                  if(!taskCopy.disabled) openTickTickTaskForEditing?.(event);
+                  if(taskCopy.disabled)return;
+                  if(opensInTickTick){calendarOpenPersonalTickTickTask(event);return}
+                  openTickTickTaskForEditing?.(event);
                 });
                   group.appendChild(row);
                 }
