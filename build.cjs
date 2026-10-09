@@ -230,7 +230,9 @@ function buildWebAssets(env = process.env) {
   const assetVersion = label.replace(/^v/i, '');
   const missingAssets = WEB_ASSETS.filter((name) => !fs.existsSync(path.join(__dirname, 'public', name)));
   if (missingAssets.length) throw new Error('Missing web assets: ' + missingAssets.join(', '));
-  const versionedAssets = WEB_ASSETS.map((name) => '/' + name + '?v=' + assetVersion);
+  // Optional financial planning modules must not compete with the home screen during SW installation.
+  const lazyAssets = new Set(['finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js']);
+  const versionedAssets = WEB_ASSETS.filter(name => !lazyAssets.has(name)).map(name => '/' + name + '?v=' + assetVersion);
   syncServiceWorkerPrecache(versionedAssets);
 }
 
