@@ -14,6 +14,7 @@ const MAX_REDEMPTIONS = 240;
 const HISTORY_RETENTION_DAYS = 30;
 const GIFT_WEEKLY_LIMIT_UNITS = 50;
 const TZ = 'Europe/Moscow';
+const DAILY_EXPENSE_SCORE_UNITS = 2;
 const ACTORS = ['Рустам', 'Диана'];
 
 const REWARDS = Object.freeze([
@@ -275,7 +276,12 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
       streakDays:{...state.streakDays},
       history:[...state.history],dedupe:{...state.dedupe},
     };
-    if(dedupeKey) next.dedupe[dedupeKey]=now.toISOString();
+    if(dedupeKey){
+      const expenseRef=String(meta.expenseRef||'').trim();
+      next.dedupe[dedupeKey]=dedupeKey.startsWith('score:finance-daily:')&&/^[a-f0-9-]{36}$/i.test(expenseRef)
+        ?expenseRef
+        :now.toISOString();
+    }
     if(awardedUnits>0){
       next.balances[who]+=awardedUnits;
       next.lifetimeEarned[who]+=awardedUnits;
@@ -537,6 +543,6 @@ function resetMutationQueueForTests(){ mutationTail=Promise.resolve(); }
 
 module.exports={
   NAMESPACE,STATE_KEY,TTL_SECONDS,DAILY_LIMIT_UNITS,PRODUCT_DAILY_LIMIT_UNITS,PRODUCT_REPEAT_MS,HISTORY_RETENTION_DAYS,REWARDS,normalizeState,scoreDateKey,pointsFromUnits,
-  readScoreState,writeScoreState,awardScore,awardProductScore,penalizeScore,reversePenaltyByDedupeKey,reverseScoreByDedupeKey,transferStars,redeemReward,completeReward,scoreView,restoreScoreState,
+  readScoreState,writeScoreState,awardScore,DAILY_EXPENSE_SCORE_UNITS,awardProductScore,penalizeScore,reversePenaltyByDedupeKey,reverseScoreByDedupeKey,transferStars,redeemReward,completeReward,scoreView,restoreScoreState,
   resetMutationQueueForTests,
 };

@@ -7,6 +7,39 @@ const {
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
+const { awardScore,readScoreState,reverseScoreByDedupeKey,scoreView,scoreDateKey,DAILY_EXPENSE_SCORE_UNITS } = require('./score-store.cjs');
+
+function financeDailyScoreKey(actor, dateKey = scoreDateKey()) {
+  return 'score:finance-daily:'+actor+':'+dateKey;
+}
+async function awardFirstDailyExpense(actor, expenseId) {
+  const key=financeDailyScoreKey(actor);
+  try {
+    const award=await awardScore(actor,DAILY_EXPENSE_SCORE_UNITS,{
+      label:'Первый расход за день',icon:'💳',dedupeKey:key,expenseRef:expenseId
+    });
+    return scoreView(award.state);
+  } catch(error) {
+    console.warn('RUDI_FINANCE_SCORE_AWARD_WARN',String(error?.message||error));
+    return null;
+  }
+}
+async function reverseDeletedDailyExpense(actor, expenseId) {
+  try {
+    const current=await readScoreState();
+    const key=Object.keys(current.dedupe||{}).find(key=>
+      key.startsWith('score:finance-daily:'+actor+':')&&current.dedupe[key]===expenseId
+    );
+    if(!key) return null;
+    const reversed=await reverseScoreByDedupeKey(key,{
+      label:'Удалён расход за день',detail:'Отмена бонуса за удалённый расход',icon:'↩️',skipStreak:true
+    });
+    return scoreView(reversed.state);
+  } catch(error) {
+    console.warn('RUDI_FINANCE_SCORE_REVERSE_WARN',String(error?.message||error));
+    return null;
+  }
+}
 
 function statusFor(code, error) {
   const auth = statusForError(error);
@@ -304,6 +337,7 @@ async function handler(req, res) {
       const conversion = resolveExpenseConversion({ inputAmount, inputCurrency, sourceCurrency, targetCurrency, rates: rubRates });
       const { sourceAmount, amount, rubAmount, exchangeRate } = conversion;
 
+      const isNew=!String(body.id||'').trim();
       const state = await savePersonalExpense(actor, {
         ...body,
         amount,
@@ -313,7 +347,11 @@ async function handler(req, res) {
         rubAmount,
         exchangeRate,
       });
-      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion, ...viewState(state, actor) });
+      const newExpense=isNew?(state.personalExpenses||[]).at(-1):null;
+      const score=newExpense?.actor===actor&&!newExpense.importKey
+        ?await awardFirstDailyExpense(actor,newExpense.id)
+        :null;
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion, ...(score?{score}:{}), ...viewState(state, actor) });
     }
     if (operation === 'import-expenses') {
       const imported = await importPersonalExpenses(actor, {
@@ -332,8 +370,13 @@ async function handler(req, res) {
       });
     }
     if (operation === 'delete-expense') {
+      const current=await readFinanceState();
+      const removed=(current.personalExpenses||[]).find(row=>row.actor===actor&&row.id===String(body.id||''));
       const state = await deletePersonalExpense(actor, body.id);
-      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+      const score=removed&&!removed.manualAdjustment&&!removed.importKey
+        ?await reverseDeletedDailyExpense(actor,removed.id)
+        :null;
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...(score?{score}:{}), ...viewState(state, actor) });
     }
     if (operation === 'monthly-insight') {
       const month = String(body.month || '').trim();

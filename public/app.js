@@ -1160,6 +1160,7 @@
         let themeModeValue='system';
         let autoRefreshEnabledValue=true;
         let interfaceTextSizeValue='normal';
+        let startupTabValue='home';
         let contactTelegramUsernameValue='';
         let contactPhoneValue='';
         let moodNotifyPartnerEnabledValue=true;
@@ -1183,6 +1184,7 @@
         try{themeModeValue=currentThemeMode()}catch(_){}
         try{autoRefreshEnabledValue=autoRefreshEnabled()}catch(_){}
         try{interfaceTextSizeValue=currentInterfaceTextSize()}catch(_){}
+        try{startupTabValue=currentStartupTab()}catch(_){}
         try{const contact=ownProfileContact();contactTelegramUsernameValue=contact.telegram;contactPhoneValue=contact.phone}catch(_){}
         try{moodNotifyPartnerEnabledValue=moodNotifyPartnerEnabled()}catch(_){}
         try{moodReceivePartnerEnabledValue=moodReceivePartnerEnabled()}catch(_){}
@@ -1194,7 +1196,8 @@
         try{luluWalkNotificationsEnabledValue=luluWalkNotificationsEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:9,
+          syncSchemaVersion:10,
+          startupTab:startupTabValue,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
           viewStates:viewStates&&typeof viewStates==='object'&&!Array.isArray(viewStates)?viewStates:{},
@@ -1235,6 +1238,7 @@
         const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
         const hasRemoteAutoRefresh=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'autoRefreshEnabled');
         const hasRemoteTextSize=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'interfaceTextSize');
+        const hasRemoteStartupTab=remoteSchema>=10&&Object.prototype.hasOwnProperty.call(remote,'startupTab');
         const hasRemoteTelegram=remoteSchema>=8&&Object.prototype.hasOwnProperty.call(remote,'contactTelegramUsername');
         const hasRemotePhone=remoteSchema>=8&&Object.prototype.hasOwnProperty.call(remote,'contactPhone');
         const hasRemoteMoodNotify=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodNotifyPartnerEnabled');
@@ -1300,6 +1304,9 @@
             const size=['small','normal','large'].includes(String(remote.interfaceTextSize||''))?String(remote.interfaceTextSize):'normal';
             localStorage.setItem(interfaceTextSizeStorageKey(),size);
           }
+          if(hasRemoteStartupTab){
+            localStorage.setItem(startupTabStorageKey(),cleanStartupTab(remote.startupTab));
+          }
           if(hasRemoteTelegram&&!migrateLocalTelegram)localStorage.setItem(contactTelegramStorageKey(),normalizeContactTelegram(remote.contactTelegramUsername));
           if(hasRemotePhone&&!migrateLocalPhone)localStorage.setItem(contactPhoneStorageKey(),normalizeContactPhone(remote.contactPhone));
           if(hasRemoteMoodNotify){
@@ -1327,11 +1334,12 @@
             localStorage.setItem(luluWalkNotificationsStorageKey(),remote.luluWalkNotificationsEnabled===false?'0':'1');
           }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<9||migrateLocalTelegram||migrateLocalPhone){
+          if(keepLocalOrder||remoteSchema<10||migrateLocalTelegram||migrateLocalPhone){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             const structural=localUiPreferences();
             markUiPreferencesChanged({
-              syncSchemaVersion:9,
+              syncSchemaVersion:10,
+              startupTab:structural.startupTab,
               homeOrder:structural.homeOrder,
               blockStates:structural.blockStates,
               viewStates:structural.viewStates,
@@ -1385,7 +1393,8 @@
         updateThemeSettingControls();
         updateContactSettingsUi();
         updateAutoRefreshUi();
-        updateMoodNotificationSettingsUi();
+        updateMoodNotificationSettingsUi();        updateStartupTabSetting();
+
         updateHumidityAlertSettingsUi();
         updateGeneralNotificationSettingsUi();
         updateContactSettingsUi();
@@ -2079,6 +2088,36 @@
       const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','dates','for-di','score','settings','smart-saves','car'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
       const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','wishlist','dates','for-di','smart-saves']);
+      const STARTUP_TABS=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
+      function startupTabStorageKey(){
+        return 'rudi:startup-tab:v1:'+(currentActor==='Диана'?'diana':'rustam');
+      }
+      function cleanStartupTab(value){
+        const tab=String(value||'').trim();
+        return STARTUP_TABS.includes(tab)&&(tab!=='car'||currentActor==='Рустам')?tab:'home';
+      }
+      function currentStartupTab(){
+        try{return cleanStartupTab(localStorage.getItem(startupTabStorageKey()))}catch(_){return 'home'}
+      }
+      function updateStartupTabSetting(){
+        const select=document.getElementById('settingsStartupTab');
+        if(!select)return;
+        const carOption=select.querySelector('option[value="car"]');
+        if(carOption){carOption.hidden=currentActor!=='Рустам';carOption.disabled=currentActor!=='Рустам'}
+        select.value=currentStartupTab();
+      }
+      function setStartupTab(value){
+        const next=cleanStartupTab(value);
+        try{localStorage.setItem(startupTabStorageKey(),next)}catch(_){}
+        updateStartupTabSetting();
+        if(currentActor)markUiPreferencesChanged({startupTab:next,syncSchemaVersion:10});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+      function requestedInitialTab(){
+        const route=routeFromLocation();
+        return requestedAppTab||(route.tab!=='home'?route.tab:currentStartupTab());
+      }
+
 
       function routeFromLocation(){
         try{
@@ -2623,6 +2662,7 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){const error=new Error(data.error||'finance-request-failed');error.status=response.status;throw error}
+        if(data.score) renderScoreStickers(data.score);
         return data;
       }
       function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
@@ -6173,7 +6213,7 @@
         setupFinancePage();
 
         const initial=routeFromLocation();
-        const initialTab=requestedAppTab||initial.tab||'home';
+        const initialTab=requestedInitialTab();
         const initialItem=requestedItemId||initial.item||'';
         if(initialTab==='score'){
           ensureScoreModal();
@@ -9014,6 +9054,17 @@
 
             '<section class="settings-group">'+
               '<div class="settings-group-title">Интерфейс</div>'+
+              '<label class="home-settings-row settings-startup-row" for="settingsStartupTab">'+
+                '<span class="home-settings-copy"><strong>Стартовая страница</strong><small>Какой раздел открывать при запуске</small></span>'+
+                '<select id="settingsStartupTab" class="settings-startup-select" aria-label="Стартовая страница">'+
+                  '<option value="home">Главная</option><option value="finances">Финансы</option>'+
+                  '<option value="supplements">БАДы</option><option value="habits">Привычки</option>'+
+                  '<option value="car">Машина</option><option value="schedule">Календарь</option>'+
+                  '<option value="feed">Лента</option><option value="products">Кухня</option>'+
+                  '<option value="photos">Фото</option><option value="fasting">Трекер голодания</option>'+
+                '</select>'+
+              '</label>'+
+
               '<div class="home-settings-row home-settings-theme-row">'+
                 '<div class="home-settings-copy"><strong>Тема</strong><small>Вид приложения</small></div>'+
                 '<div class="settings-theme-options" role="group" aria-label="Тема приложения">'+
@@ -10111,6 +10162,12 @@
           button.addEventListener('click',()=>setInterfaceTextSize(button.dataset.textSize));
         });
         const contactSave=document.getElementById('settingsContactSave');
+        const startupSelect=document.getElementById('settingsStartupTab');
+        if(startupSelect&&startupSelect.dataset.bound!=='1'){
+          startupSelect.dataset.bound='1';
+          startupSelect.addEventListener('change',()=>setStartupTab(startupSelect.value));
+        }
+
         if(contactSave&&contactSave.dataset.bound!=='1'){
           contactSave.dataset.bound='1';
           contactSave.addEventListener('click',saveContactSettings);
@@ -11118,7 +11175,7 @@
 
       function initialBootstrapTab(){
         const initial=routeFromLocation();
-        return requestedAppTab||initial.tab||'home';
+        return requestedInitialTab();
       }
 
       function renderHomePartnerLastExpense(value){

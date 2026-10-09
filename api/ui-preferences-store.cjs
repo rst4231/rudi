@@ -65,6 +65,9 @@ function normalizeUiPreferencesState(value) {
   const autoRefreshEnabled = Object.prototype.hasOwnProperty.call(source, 'autoRefreshEnabled')
     ? Boolean(source.autoRefreshEnabled)
     : true;
+  const startupTabAllowed=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
+  const requestedStartupTab=String(source.startupTab||'home').trim();
+  const startupTab=startupTabAllowed.includes(requestedStartupTab)?requestedStartupTab:'home';
   const interfaceTextSize = ['small', 'normal', 'large'].includes(String(source.interfaceTextSize || '').trim())
     ? String(source.interfaceTextSize).trim()
     : 'normal';
@@ -116,6 +119,7 @@ function normalizeUiPreferencesState(value) {
     themeMode,
     autoRefreshEnabled,
     interfaceTextSize,
+    startupTab,
     contactTelegramUsername,
     contactPhone,
     moodNotifyPartnerEnabled,
@@ -161,7 +165,8 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 9,
+      syncSchemaVersion: 10,
+      startupTab: has('startupTab')?(actor==='Диана'&&incoming.startupTab==='car'?'home':incoming.startupTab):current.startupTab,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
         ? { ...current.blockStates, ...incoming.blockStates }
@@ -212,6 +217,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       || has('themeMode')
       || has('autoRefreshEnabled')
       || has('interfaceTextSize')
+      || has('startupTab')
       || has('contactTelegramUsername')
       || has('contactPhone')
       || has('moodNotifyPartnerEnabled')
@@ -226,7 +232,8 @@ async function seedUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
-      syncSchemaVersion: 9,
+      syncSchemaVersion: 10,
+      startupTab: actor==='Диана'&&incoming.startupTab==='car'?'home':incoming.startupTab,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
       viewStates: incoming.viewStates,

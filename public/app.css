@@ -17929,3 +17929,28 @@ html[data-theme="light"] .profile-person-card #partnerFastingProfileButton .fast
 @media(prefers-reduced-motion:reduce){
   .finance-wallet-list .finance-stars-wallet-coin{animation:none!important}
 }
+
+/* RUDI v4.110: compact profile cards; keep avatar layout unchanged. */
+.profile-person-card{padding-block:9px!important;gap:5px!important}
+.profile-person-card .profile-person-head{min-height:56px!important;margin-top:1px!important}
+.profile-person-card .profile-person-details{gap:6px}
+.profile-person-card .rhythm-advice{padding:7px 10px}
+@media(max-width:430px){
+  .profile-person-card{padding-block:8px!important;gap:4px!important}
+  .profile-person-card .profile-person-head{min-height:54px!important;margin-top:1px!important}
+}
+
+/* RUDI v4.110: responsive startup page selector. */
+.settings-startup-row{gap:12px!important;align-items:center}
+.settings-startup-row .home-settings-copy{min-width:0;flex:1 1 auto}
+.settings-startup-select{
+  display:block;flex:0 1 178px;min-width:0;max-width:55%;min-height:36px;
+  padding:6px 9px;border:1px solid var(--line);border-radius:11px;
+  background:var(--surface-strong);color:var(--text);font:inherit;font-size:12px;
+  font-weight:700;cursor:pointer;
+}
+.settings-startup-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:360px){
+  .settings-startup-row{flex-wrap:wrap}
+  .settings-startup-select{max-width:100%;flex-basis:100%}
+}
