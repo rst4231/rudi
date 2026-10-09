@@ -49,7 +49,7 @@ const {
 } = require('./shared-album.cjs');
 const { readDailyMood, setDailyMood, setDailyMoodReason, moodView, restoreDailyMoodState, readDailyMoodState, readMoodHistory, readMoodAnalysis, clearMoodAnalyses } = require('./daily-mood-store.cjs');
 const { readLatestMoodAnalysisCache, writeMoodAnalysisCache, normalizeWindowDays, readMoodFeedback, saveMoodFeedback, readMoodAnalysisQuota, recordSuccessfulMoodAnalysis } = require('./mood-analysis-store.cjs');
-const { readHabits, habitCreatedByDate } = require('./habit-tracker-store.cjs');
+const { readHabits, viewHabits, habitCreatedByDate } = require('./habit-tracker-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
 const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
@@ -574,6 +574,7 @@ function scheduleStateBackupRestore(token, options = {}) {
 async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
   const now = options.now || Date.now();
   const date = moscowDateKey(now);
+  const partnerActor = actor === 'Диана' ? 'Рустам' : 'Диана';
   const questionOptions = {
     ...options,
     env: options.env || process.env,
@@ -592,6 +593,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     feedLive,
     workWeek,
     album,
+    partnerHabitsLive,
   ] = await Promise.all([
     readPartnerMessageForHome(options),
     readActivityJournal(options).catch(() => null),
@@ -605,6 +607,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     readFeedSnapshot(options).then((current) => refreshFeedFromPreviewIfNeeded(current, options)).catch(() => null),
     getWorkWeek({ ...options, view:'week' }).catch(() => null),
     getLatestPhotos(options).catch(() => null),
+    readHabits(partnerActor, options).catch(() => null),
   ]);
 
   const journal = journalLive?.initialized ? journalLive : (backupSnapshot?.activityJournal || journalLive);
@@ -617,6 +620,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     ? workWeek.days.find((day) => String(day?.date || '') === date) || null
     : undefined;
   const compactFeed = compactFeedForHome(feedLive);
+  const partnerHabitView = partnerHabitsLive ? viewHabits(partnerHabitsLive, { now }) : null;
 
   const score = scoreState ? scoreView(scoreState, { now }) : null;
   const activity = journal ? {
@@ -640,6 +644,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     cycle: { configured: Boolean(cycle), cycle: cycle || null },
     ...(workDay !== undefined ? { workDay } : {}),
     ...(compactFeed ? { feed: compactFeed } : {}),
+    ...(partnerHabitView ? { partnerHabits: { actor: partnerActor, date, done: partnerHabitView.done, total: partnerHabitView.total } } : {}),
     counts: {
       ...(wishlist ? { wishlist: (wishlist.items || []).filter((item) => !item?.done).length } : {}),
       ...(products ? { products: (products.items || []).filter((item) => !item?.bought).length } : {}),

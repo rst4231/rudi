@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.135">
+  <meta name="rudi-version" content="v4.136">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,7 +27,7 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.134">
+  <link rel="stylesheet" href="/app.css?v=4.136">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="/calendar.css?v=4.135">
   <link rel="stylesheet" href="/smart-home.css?v=4.119">
   <link rel="stylesheet" href="/car.css?v=4.119">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.119">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.136">
   <link rel="stylesheet" href="/supplement-advanced.css?v=4.119">
   <link rel="stylesheet" href="/rudi-design-system.css?v=4.119">
   <link rel="stylesheet" href="/finance-cards.css?v=4.119">
@@ -69,8 +69,8 @@
     })();
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.119"></script>
-  <script defer src="/app.js?v=4.135"></script>
-  <script defer src="/calendar-day-recap.js?v=4.135"></script>
+  <script defer src="/app.js?v=4.136"></script>
+  <script defer src="/calendar-day-recap.js?v=4.136"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
@@ -117,7 +117,7 @@
   <script defer src="/weather.js?v=4.119"></script>
   <script defer src="/smart-home.js?v=4.119"></script>
   <script defer src="/car.js?v=4.119"></script>
-  <script defer src="/profile-supplements.js?v=4.119"></script>
+  <script defer src="/profile-supplements.js?v=4.136"></script>
   <script defer src="/mood-history.js?v=4.119"></script>
   <script defer src="/supplement-editor.js?v=4.119"></script>
   <script defer src="/supplement-advanced.js?v=4.119"></script>
@@ -2418,7 +2418,7 @@ document.getElementById('financeExpenseComposerSave')?.addEventListener('click',
  const button=e.currentTarget,amountEl=document.getElementById('financeExpenseComposerAmount'),date=document.getElementById('financeExpenseComposerDate')?.value,time=document.getElementById('financeExpenseComposerTime')?.value,note=document.getElementById('financeExpenseComposerNote')?.value||'';
  const amount=Number(String(amountEl?.value||'').replace(/\s/g,'').replace(',','.'));if(!amount||!date||!time)return;
  button.disabled=true;
- try{await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:new Date(date+'T'+time+':00+03:00').toISOString(),label:active.label||'',note});active=null;cache=null;location.reload()}catch(_){button.disabled=false;const s=document.getElementById('financeExpenseComposerStatus');if(s)s.textContent='Не удалось сохранить изменения'}
+ try{await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:new Date(date+'T'+time+':00+03:00').toISOString(),label:active.label||'',note});document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));active=null;cache=null;location.reload()}catch(_){button.disabled=false;const s=document.getElementById('financeExpenseComposerStatus');if(s)s.textContent='Не удалось сохранить изменения'}
 },true);
 const back=document.getElementById('financeExpenseHistoryBack');
 back?.addEventListener('click',e=>{const m=modal();if(active&&m&&!m.hidden){e.preventDefault();e.stopImmediatePropagation();m.hidden=true;m.setAttribute('aria-hidden','true');document.body.classList.remove('finance-coin-modal-open');active=null}},true);

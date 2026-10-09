@@ -50,6 +50,7 @@ async function habitRequest(operation,payload={},options={}){
   if(data.score)document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:data.score}}));
   if(readOnly)return saveCachedRead(habitReadCache,cacheKey,data);
   clearReadCache(habitReadCache);
+  document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
   return data;
 }
 function errorText(error){
@@ -276,6 +277,15 @@ function showHabitUndo({id,date,previousStatus,nextStatus}){
   bar.classList.add('is-visible');
   habitUndoTimer=setTimeout(()=>bar.classList.remove('is-visible'),5000);
 }
+function paintHabitChoice(row,yes,no,status){
+  const done=status==='done',notDone=status==='notdone';
+  row.classList.toggle('is-done',done);
+  row.classList.toggle('is-notdone',notDone);
+  yes.classList.toggle('is-active',done);
+  no.classList.toggle('is-active',notDone);
+  yes.setAttribute('aria-pressed',String(done));
+  no.setAttribute('aria-pressed',String(notDone));
+}
 function renderHabits(){
   if(!habitList||!habitProgressText||!habitProgressFill)return;
   const habits=Array.isArray(habitState.habits)?habitState.habits:[],statuses=habitState.statuses||{},done=habits.filter(h=>statuses[h.id]==='done').length,total=habits.length,percent=total?Math.round(done/total*100):0;
@@ -305,6 +315,7 @@ function renderHabits(){
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
     const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);
+    paintHabitChoice(row,yes,no,status);
     const pastDateLocked=Boolean(habitSelectedDate&&habitSelectedDate<habitState.today);
     const todayTimeLocked=habitSelectedDate===habitState.today&&!habitState.canCompleteToday;
     yes.classList.toggle('is-history-locked',pastDateLocked);
@@ -344,6 +355,7 @@ function renderHabits(){
       }
       const previousStatus=status;
       const actionDate=habitSelectedDate||habitState.today;
+      paintHabitChoice(row,yes,no,next);
       yes.disabled=true;no.disabled=true;remove.disabled=true;setHabitStatus('');
       try{
         const data=await habitRequest('status',{id,status:next,date:actionDate});
@@ -355,6 +367,7 @@ function renderHabits(){
         }
       }
       catch(error){
+        paintHabitChoice(row,yes,no,previousStatus);
         console.error('RUDI_HABIT_STATUS_UI_ERROR',error);
         const code=String(error?.message||'');
         if(code!=='habit-status-too-early'&&code!=='habit-done-too-early')setHabitStatus('Не удалось сохранить статус.',true);

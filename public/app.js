@@ -2667,6 +2667,7 @@
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){const error=new Error(data.error||'finance-request-failed');error.status=response.status;throw error}
         if(data.score) renderScoreStickers(data.score);
+        if(/expense|categor/i.test(operation))document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
         return data;
       }
       function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
@@ -9235,7 +9236,6 @@
               '</label>'+
               '<div class="settings-contact-footer">'+
                 '<small id="settingsContactStatus" aria-live="polite"></small>'+
-                '<button id="settingsContactSave" class="settings-contact-save" type="button">Сохранить</button>'+
               '</div>'+
             '</section>'+
 
@@ -9555,6 +9555,12 @@
         const dianaSupplementBlock=makeSupplementIntakeBlock('Диана');
         rustamCard.details.appendChild(rustamSupplementBlock);
         dianaCard.details.appendChild(dianaSupplementBlock);
+        const partnerHabitSummary=document.createElement('div');
+        partnerHabitSummary.id='homePartnerHabitsSummary';
+        partnerHabitSummary.className='profile-partner-habits-summary';
+        partnerHabitSummary.hidden=true;
+        partnerCard.details.appendChild(partnerHabitSummary);
+        renderHomePartnerHabits(homeDashboardState.partnerHabits);
 
         dianaCard.details.appendChild(cycleSummary);
         const ownCard=selfActor==='Диана'?dianaCard:rustamCard;
@@ -10222,40 +10228,56 @@
         if(status&&!status.dataset.persist)status.textContent='';
       }
 
+      let contactAutosaveTimer=0;
+      let contactSaveStatusTimer=0;
+      let contactSaveBusy=false;
+      let contactSaveQueued=false;
+      function scheduleContactSettingsSave(immediate=false){
+        clearTimeout(contactAutosaveTimer);
+        clearTimeout(contactSaveStatusTimer);
+        const status=document.getElementById('settingsContactStatus');
+        if(status){status.textContent='';delete status.dataset.persist}
+        if(immediate){void saveContactSettings();return}
+        contactAutosaveTimer=setTimeout(saveContactSettings,850);
+      }
       async function saveContactSettings(){
         const telegram=document.getElementById('settingsTelegramUsername');
         const phone=document.getElementById('settingsContactPhone');
-        const button=document.getElementById('settingsContactSave');
         const status=document.getElementById('settingsContactStatus');
         if(!telegram||!phone||!currentActor)return;
+        if(contactSaveBusy){contactSaveQueued=true;return}
         const username=normalizeContactTelegram(telegram.value);
         const normalizedPhone=normalizeContactPhone(phone.value);
-        if(!username){
-          if(status){status.textContent='Укажи Telegram-ник.';status.dataset.persist='1'}
-          telegram.focus({preventScroll:true});return;
+        if(!username||!/^\+\d{10,15}$/u.test(normalizedPhone)){
+          if(status){status.textContent=!username?'Укажи Telegram-ник.':'Проверь номер телефона.';status.dataset.persist='1'}
+          return;
         }
-        if(!/^\+\d{10,15}$/u.test(normalizedPhone)){
-          if(status){status.textContent='Проверь номер телефона.';status.dataset.persist='1'}
-          phone.focus({preventScroll:true});return;
-        }
-        if(button){button.disabled=true;button.textContent='Сохраняю…'}
+        const current=ownProfileContact();
+        if(current.telegram===username&&current.phone===normalizedPhone)return;
+        contactSaveBusy=true;
+        if(status){status.textContent='Сохраняю…';status.dataset.persist='1'}
         try{
           localStorage.setItem(contactTelegramStorageKey(),username);
           localStorage.setItem(contactPhoneStorageKey(),normalizedPhone);
-          telegram.value=username;phone.value=normalizedPhone;
           markUiPreferencesChanged({syncSchemaVersion:9,contactTelegramUsername:username,contactPhone:normalizedPhone});
-          const saved=await flushUiPreferencesToServer();
+          let saved=await flushUiPreferencesToServer();
+          if(saved&&Object.keys(pendingUiPreferencesPatch).length)saved=await flushUiPreferencesToServer();
           if(!saved)throw new Error('contact-save-failed');
           await refreshStateBackup().catch(()=>{});
           syncProfileContactButtons();
-          if(status){status.textContent='Сохранено';status.dataset.persist='1'}
-          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          const sameInputs=normalizeContactTelegram(telegram.value)===username&&normalizeContactPhone(phone.value)===normalizedPhone;
+          if(sameInputs){
+            telegram.value=username;phone.value=normalizedPhone;
+            if(status){status.textContent='Сохранено';status.dataset.persist='1'}
+          }
         }catch(_){
-          if(status){status.textContent='Не удалось сохранить.';status.dataset.persist='1'}
-          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          if(status){status.textContent='Не удалось сохранить. Попробую ещё раз при следующем изменении.';status.dataset.persist='1'}
         }finally{
-          if(button){button.disabled=false;button.textContent='Сохранить'}
-          setTimeout(()=>{if(status){status.textContent='';delete status.dataset.persist}},1800);
+          contactSaveBusy=false;
+          const needsLatest=contactSaveQueued||normalizeContactTelegram(telegram.value)!==username||normalizeContactPhone(phone.value)!==normalizedPhone;
+          contactSaveQueued=false;
+          if(needsLatest)scheduleContactSettingsSave(true);
+          else contactSaveStatusTimer=setTimeout(()=>{if(status){status.textContent='';delete status.dataset.persist}},2200);
         }
       }
 
@@ -10301,16 +10323,18 @@
           button.dataset.bound='1';
           button.addEventListener('click',()=>setInterfaceTextSize(button.dataset.textSize));
         });
-        const contactSave=document.getElementById('settingsContactSave');
         const startupSelect=document.getElementById('settingsStartupTab');
         if(startupSelect&&startupSelect.dataset.bound!=='1'){
           startupSelect.dataset.bound='1';
           startupSelect.addEventListener('change',()=>setStartupTab(startupSelect.value));
         }
 
-        if(contactSave&&contactSave.dataset.bound!=='1'){
-          contactSave.dataset.bound='1';
-          contactSave.addEventListener('click',saveContactSettings);
+        for(const id of ['settingsTelegramUsername','settingsContactPhone']){
+          const input=document.getElementById(id);
+          if(!input||input.dataset.autosaveBound==='1')continue;
+          input.dataset.autosaveBound='1';
+          input.addEventListener('input',()=>scheduleContactSettingsSave());
+          input.addEventListener('blur',()=>scheduleContactSettingsSave(true));
         }
         const pinSave=document.getElementById('settingsPinSave');
         if(pinSave&&pinSave.dataset.bound!=='1'){
@@ -11334,6 +11358,17 @@
         node.hidden=false;
       }
 
+      function renderHomePartnerHabits(summary){
+        const node=document.getElementById('homePartnerHabitsSummary');
+        if(!node)return;
+        const currentDate=todayState().key;
+        if(!summary||summary.date!==currentDate){node.hidden=true;node.textContent='';return}
+        const done=Math.max(0,Math.round(Number(summary.done)||0));
+        const total=Math.max(done,Math.round(Number(summary.total)||0));
+        node.textContent='🌱 Привычки сегодня: '+done+' из '+total;
+        node.hidden=false;
+      }
+
       async function loadHomePartnerLastExpense({force=false}={}){
         if(!currentActor)return null;
         if(!force&&homePartnerExpenseLoadedAt&&Date.now()-homePartnerExpenseLoadedAt<HOME_PARTNER_EXPENSE_CACHE_MS){
@@ -11384,6 +11419,10 @@
           renderHomeDashboard();
           const feedVersion=String(home.feed?.version||'');
           setFeedBadge(Boolean(feedVersion&&feedVersion!==feedSeenVersion()&&currentAppTab!=='feed'));
+        }
+        if(Object.prototype.hasOwnProperty.call(home,'partnerHabits')){
+          homeDashboardState.partnerHabits=home.partnerHabits;
+          renderHomePartnerHabits(homeDashboardState.partnerHabits);
         }
         const counts=home.counts&&typeof home.counts==='object'?home.counts:{};
         if(Number.isFinite(Number(counts.wishlist))) homeDashboardState.wishlistCount=Math.max(0,Number(counts.wishlist));
@@ -16787,13 +16826,15 @@
         other:['✍️','Свой ответ']
       };
 
-      function partnerMoodReasonText(entry){
+      function partnerMoodReasonText(entry,moodValue=''){
         const samples=Array.isArray(entry?.samples)?entry.samples:[];
         const latest=[...samples].reverse().find(sample=>String(sample?.mood||'')===String(entry?.mood||''))||samples[samples.length-1]||null;
         const reason=String(latest?.reason||'').trim();
         const reasonText=String(latest?.reasonText||'').trim();
         const meta=MOOD_REASON_META[reason];
-        const label=reason==='other'?reasonText:(meta?(meta[0]+' '+meta[1]):'');
+        const reasonLabel=reason==='other'?reasonText:(meta?(meta[0]+' '+meta[1]):'');
+        const mood=String(latest?.mood||entry?.mood||moodValue||'');
+        const label=reasonLabel||MOOD_META[mood==='fear'?'boredom':mood]?.label||'';
         const stamp=String(latest?.updatedAt||entry?.updatedAt||'').trim();
         const timestamp=stamp?new Date(stamp):null;
         const time=timestamp&&Number.isFinite(timestamp.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(timestamp):'';
@@ -16818,9 +16859,11 @@
         popover.textContent=text;
         document.body.appendChild(popover);
         const rect=holder.getBoundingClientRect();
-        const width=Math.min(260,Math.max(150,popover.getBoundingClientRect().width||180));
-        const left=Math.max(10,Math.min(window.innerWidth-width-10,rect.right-width));
-        const top=Math.min(window.innerHeight-60,rect.bottom+8);
+        const rightSpace=Math.max(80,window.innerWidth-rect.right-18);
+        popover.style.maxWidth=Math.min(260,rightSpace)+'px';
+        const width=popover.getBoundingClientRect().width||Math.min(180,rightSpace);
+        const left=Math.max(10,Math.min(window.innerWidth-width-10,rect.right+8));
+        const top=Math.max(10,Math.min(window.innerHeight-popover.offsetHeight-10,rect.top+(rect.height-popover.offsetHeight)/2));
         popover.style.left=left+'px';
         popover.style.top=top+'px';
         clearTimeout(partnerMoodReasonTimer);
@@ -16838,7 +16881,7 @@
         const hasMood=['sadness','boredom','neutral','fatigue','anger','joy','love'].includes(normalizedMood);
         if(label) label.textContent='';
         holder.dataset.mood=normalizedMood;
-        holder.dataset.moodReasonText=partnerMoodReasonText(entry);
+        holder.dataset.moodReasonText=partnerMoodReasonText(entry,normalizedMood);
         holder.hidden=!hasMood;
         if(!hasMood) hidePartnerMoodReason();
         holder.querySelectorAll('[data-partner-mood]').forEach(icon=>{
@@ -16880,6 +16923,7 @@
         const payload=await response.json().catch(()=>({}));
         if(!response.ok) throw new Error(payload.error||'mood');
         if(payload.backupToken) await storeStateBackupToken(payload.backupToken,backupContext);
+        if(operation==='set'||operation==='reason')document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
         return payload;
       }
 
@@ -18528,6 +18572,7 @@
           error.status=response.status;
           throw error;
         }
+        if(operation==='start'||operation==='stop')document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
         return data;
       }
 
