@@ -202,14 +202,44 @@ test('a personal calendar drag updates only its own timed task, preserving durat
   );
 });
 
-test('personal week blocks have a drag handle and secure reschedule endpoint',()=>{
+test('personal week blocks move by long-press, not by a six-dot button',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const backend=fs.readFileSync('api/partner-message.js','utf8');
   const css=fs.readFileSync('public/calendar.css','utf8');
   assert.ok(app.includes('function calendarAttachPersonalTimeDrag('));
   assert.ok(app.includes('calendarAttachPersonalTimeDrag(block,when,event,dateKey,viewport)'));
-  assert.ok(app.includes('calendar-week-drag-handle'));
+  assert.ok(app.includes('const HOLD_MS=420'));
+  assert.ok(app.includes("block.addEventListener('pointerdown'"));
+  assert.ok(app.includes("block.classList.add('calendar-week-draggable')"));
+  assert.ok(!app.includes("document.createElement('button');\n        handle.type='button';\n        handle.className='calendar-week-drag-handle'"));
+  assert.ok(!css.includes('.calendar-week-drag-handle{'));
+  assert.ok(css.includes('.calendar-week-time-event.calendar-agenda-task.calendar-week-draggable{'));
+  assert.ok(css.includes('touch-action:none!important'));
   assert.ok(app.includes("ticktickAction=personal-task-move"));
   assert.ok(backend.includes("if (action === 'personal-task-move')"));
-  assert.ok(css.includes('touch-action:none!important'));
+});
+test('week mode disables browser pull-to-refresh for both personal and shared',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  assert.ok(app.includes("document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'"));
+  assert.ok(app.includes("function syncCalendarWeeklyOverscroll()"));
+  assert.ok(css.includes('html.rudi-calendar-week-no-pull'));
+  assert.ok(app.includes("if(document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){reset();return}"));
+});
+test('drag save restores the visible day and page scroll after repaint',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.ok(app.includes('const savedPageX=window.scrollX,savedPageY=window.scrollY'));
+  assert.ok(app.includes('const savedTimeScroll=viewport.scrollTop'));
+  assert.ok(app.includes('if(replacement)replacement.scrollTop=savedTimeScroll'));
+  assert.ok(app.includes('window.scrollTo(savedPageX,savedPageY)'));
+  assert.ok(app.includes('panel.dataset.calendarDate=dateKey'));
+});
+test('TickTick API 500 in shared list does not block personal calendar or erase cache',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const backend=fs.readFileSync('api/partner-message.js','utf8');
+  assert.ok(backend.includes("if(!personalOnly)throw error"));
+  assert.ok(backend.includes('sharedUnavailable:sharedFetchFailed'));
+  assert.ok(backend.includes('personalUnavailable:personalFetchFailed'));
+  assert.ok(app.includes("status.textContent='TickTick временно недоступен'"));
+  assert.ok(app.includes('fallbackTick&&retainedTick.length?retainedTick'));
 });
