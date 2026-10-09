@@ -80,7 +80,7 @@ test('month and week calendar include iOS-inspired layout and green shared days 
   assert.ok(css.includes('calendar-month-week-number'));
   assert.ok(css.includes('calendar-week-now-line'));
   assert.ok(app.includes("calendarScope==='shared'&&payload?.workReady&&!day.working?' diana-day-off':''"));
-  assert.ok(css.includes('body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.diana-day-off:not(.today) .calendar-date-number'));
+  assert.ok(css.includes('body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.diana-day-off:not(.today):not(.selected) .calendar-date-number'));
   assert.ok(css.includes('background:#ff393e!important'));
   assert.ok(css.includes('html[data-theme="dark"] .work-page #workCalendarDays'));
 });
@@ -148,4 +148,13 @@ test('v4.120 personal mode keeps shared plus button hidden',()=>{
   const release=css.slice(css.indexOf('/* v4.120: compact month layout'));
   assert.ok(release.includes('.calendar-navigation #calendarCreateTask[hidden]'));
   assert.ok(release.includes('display:none!important'));
+});
+
+test('v4.120 scope and view toggles are both compact in mobile and desktop themes',()=>{
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  const release=css.slice(css.indexOf('/* v4.120: compact month layout'));
+  assert.ok(release.includes('#calendarScopeTabs.calendar-scope-tabs button,'));
+  assert.ok(release.includes('#calendarModeTabs.calendar-mode-tabs button{'));
+  assert.ok(release.includes('min-height:38px!important;height:38px!important;'));
+  assert.ok(release.includes('font-size:11.5px!important;line-height:1.15!important'));
 });
