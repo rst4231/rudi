@@ -7,6 +7,20 @@ const TTL_SECONDS = 60 * 60 * 24 * 3650;
 const MAX_ACTIVE = 200;
 const MAX_HISTORY = 500;
 const MAX_TEXT = 180;
+const MAX_NOTE = 140;
+const PRODUCT_CATEGORIES = ['Мясо и рыба','Овощи и зелень','Фрукты и ягоды','Молочное и яйца','Хлеб и выпечка','Бакалея','Сладкое и снеки','Напитки','Заморозка','Для дома','Гигиена','Для Лулу','Другое'];
+const PRODUCT_UNITS = ['шт.','кг','г','л','мл','уп.'];
+function normalizeEditorFields(value) {
+  const quantity = String(value?.quantity ?? '').replace(',', '.').trim();
+  if (quantity && (!/^\d{1,5}(?:\.\d{1,2})?$/.test(quantity) || Number(quantity) <= 0)) throw new Error('product-quantity-invalid');
+  const unit = String(value?.unit || '').trim();
+  if (unit && !PRODUCT_UNITS.includes(unit)) throw new Error('product-unit-invalid');
+  const categoryOverride = String(value?.categoryOverride || '').trim();
+  if (categoryOverride && !PRODUCT_CATEGORIES.includes(categoryOverride)) throw new Error('product-category-invalid');
+  const note = String(value?.note || '').replace(/\s+/g, ' ').trim();
+  if (note.length > MAX_NOTE) throw new Error('product-note-too-long');
+  return { quantity, unit, categoryOverride, note };
+}
 
 let mutationQueue = Promise.resolve();
 
@@ -27,6 +41,12 @@ function keyOf(value) {
 
 function categorizeProduct(value) {
   const text = keyOf(value);
+  // Prefer the purchased item's type to words describing what it is for.
+  if (/(приправ|специ|прян|маринад|сухая смесь)/u.test(text)) return 'Бакалея';
+  if (/(руккол|рукол|шпинат|базилик|микрозелен|микрозелён|сельдере|шампиньон|гриб|вешенк|лисичк)/u.test(text)) return 'Овощи и зелень';
+  if (/(тортиль|лаваш|пит[аы](?:\s|$)|чиабатт|фокачч|хлебц)/u.test(text)) return 'Хлеб и выпечка';
+  if (/(авокад)/u.test(text)) return 'Фрукты и ягоды';
+  if (/(^|\s)вод[аыуе](?=\s|$)|вода питьев|питьевая вода/u.test(text)) return 'Напитки';
 
   const rules = [
     ['Мясо и рыба', /(мяс|говя|свин|кур|индей|фарш|котлет|колбас|сосиск|ветчин|бекон|рыб|лосос|семг|сёмг|форел|тунец|кревет|морепродукт|минтай|кальмар|треск|скумбри|хек|сельд|сардин|дорад|сибас|палтус|камбал|миди|осьминог|гребеш|гребёш)/u],
@@ -35,8 +55,8 @@ function categorizeProduct(value) {
     ['Молочное и яйца', /(молок|кефир|йогур|творог|сыр|сметан|сливк|масло слив|ряжен|яйц)/u],
     ['Хлеб и выпечка', /(хлеб|батон(?!чик)|булк|лаваш|лепеш|лепёш|багет|выпеч|круассан|пирог)/u],
     ['Бакалея', /(макарон|паст[аы](?!\s+зуб)|рис|греч|круп|мук|сахар|соль|специ|приправ|масло раст|оливков|соус|кетчуп|майонез|консерв|фасол|горох|чечев|овсян|хлопь)/u],
-    ['Сладкое и снеки', /(шоколад|конфет|печень|вафл|мармелад|зефир|торт|чипс|сухар|орех|батончик|морожен(?:ое|ого|ому|ым|ом|ые|ых|ыми)?(?!\p{L}))/u],
-    ['Напитки', /(вод[аы]\b|сок|газиров|кола|чай|кофе|морс|компот|энергет|лимонад)/u],
+    ['Сладкое и снеки', /(шоколад|конфет|печень|вафл|мармелад|зефир|(?:^|\s)торт(?:\s|$)|тортик|чипс|сухар|орех|батончик|морожен(?:ое|ого|ому|ым|ом|ые|ых|ыми)?(?!\p{L}))/u],
+    ['Напитки', /(вод[аы]\b|сок|газиров|(?:^|\s)кола(?:\s|$)|чай|кофе|морс|компот|энергет|лимонад)/u],
     ['Заморозка', /(заморож|пельмен|вареник|наггет|заморозк)/u],
     ['Для дома', /(бумаг|салфет|пакет|губк|моющ|порошок|капсул|средство для|перчатк|фольг|пл[её]нк|мусор)/u],
     ['Гигиена', /(шампун|гель|мыло|паст[аы] зуб|щетк|щёт|дезодорант|крем|ватн|бритв|проклад|тампон)/u],
@@ -140,21 +160,23 @@ function normalizeState(value) {
     initialized: Boolean(value?.initialized),
     version: Number(value?.version || 0),
     items: items.map((item) => ({
+      ...normalizeEditorFields(item),
       id: String(item?.id || ''),
       text: String(item?.text || '').trim().slice(0, MAX_TEXT),
       addedBy: String(item?.addedBy || ''),
-      category: categorizeProduct(item?.text),
-      weeklyAmount: estimateWeeklyAmount(item?.text, categorizeProduct(item?.text)),
+      category: normalizeEditorFields(item).categoryOverride || categorizeProduct(item?.text),
+      weeklyAmount: estimateWeeklyAmount(item?.text, normalizeEditorFields(item).categoryOverride || categorizeProduct(item?.text)),
       checked: Boolean(item?.checked),
       createdAt: String(item?.createdAt || ''),
     })).filter((item) => item.id && item.text).slice(0, MAX_ACTIVE),
     history: history.map((item) => ({
+      ...normalizeEditorFields(item),
       id: String(item?.id || ''),
       text: String(item?.text || '').trim().slice(0, MAX_TEXT),
       addedBy: String(item?.addedBy || ''),
       boughtBy: String(item?.boughtBy || ''),
-      category: categorizeProduct(item?.text),
-      weeklyAmount: estimateWeeklyAmount(item?.text, categorizeProduct(item?.text)),
+      category: normalizeEditorFields(item).categoryOverride || categorizeProduct(item?.text),
+      weeklyAmount: estimateWeeklyAmount(item?.text, normalizeEditorFields(item).categoryOverride || categorizeProduct(item?.text)),
       boughtAt: String(item?.boughtAt || ''),
     })).filter((item) => item.id && item.text && item.boughtAt).slice(0, MAX_HISTORY),
   };
@@ -260,6 +282,21 @@ async function addProducts(values, addedBy = '', options = {}) {
   });
 }
 
+async function updateProduct(id, changes = {}, options = {}) {
+  return enqueue(async () => {
+    const state = await readProductList(options);
+    const item = state.items.find((row) => row.id === String(id || ''));
+    if (!item) throw new Error('product-item-not-found');
+    const text = normalizeText(changes.text);
+    if (state.items.some((row) => row.id !== item.id && keyOf(row.text) === keyOf(text))) throw new Error('product-duplicate');
+    const fields = normalizeEditorFields(changes);
+    item.text = text;
+    Object.assign(item, fields);
+    item.category = fields.categoryOverride || categorizeProduct(text);
+    item.weeklyAmount = estimateWeeklyAmount(text, item.category);
+    return writeState(state, options);
+  });
+}
 async function removeProduct(id, options = {}) {
   return enqueue(async () => {
     const state = await readProductList(options);
@@ -324,6 +361,7 @@ async function markCheckedProductsBought(boughtBy = '', options = {}) {
       boughtBy: String(boughtBy || ''),
       category: categorizeProduct(item.text),
       weeklyAmount: estimateWeeklyAmount(item.text),
+      ...normalizeEditorFields(item),
       boughtAt,
     }));
 
@@ -356,6 +394,7 @@ async function markProductsBoughtByIds(ids, boughtBy = '', options = {}) {
       boughtBy: String(boughtBy || ''),
       category: categorizeProduct(item.text),
       weeklyAmount: estimateWeeklyAmount(item.text),
+      ...normalizeEditorFields(item),
       boughtAt,
     }));
 
@@ -378,6 +417,7 @@ async function markProductBought(id, boughtBy = '', options = {}) {
       boughtBy: String(boughtBy || ''),
       category: categorizeProduct(item.text),
       weeklyAmount: estimateWeeklyAmount(item.text),
+      ...normalizeEditorFields(item),
       boughtAt: new Date(options.now || Date.now()).toISOString(),
     });
     state.history = state.history.slice(0, MAX_HISTORY);
@@ -417,6 +457,7 @@ async function restoreProducts(values, options = {}) {
         weeklyAmount: estimateWeeklyAmount(text),
         checked: Boolean(item.checked),
         createdAt: String(item.createdAt || new Date(options.now || Date.now()).toISOString()),
+      ...normalizeEditorFields(item),
       });
       existingIds.add(id);
       existingText.add(textKey);
@@ -435,7 +476,7 @@ function resetMutationQueueForTests() {
 
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
-  readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, removeProductByText,
+  readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, updateProduct, removeProductByText,
   toggleProductChecked, setProductCheckedSelection, markCheckedProductsBought, markProductsBoughtByIds, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   normalizeProductListState: normalizeState,
   resetMutationQueueForTests,

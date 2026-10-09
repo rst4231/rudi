@@ -17942,7 +17942,7 @@
         return JSON.stringify({
           items:(Array.isArray(items)?items:[]).map(item=>[
             String(item?.id||''),String(item?.text||''),Boolean(item?.checked),
-            String(item?.addedBy||''),String(item?.category||''),String(item?.weeklyAmount||'')
+            String(item?.addedBy||''),String(item?.category||''),String(item?.weeklyAmount||''),String(item?.quantity||''),String(item?.unit||''),String(item?.note||''),String(item?.categoryOverride||'')
           ]),
           history:(Array.isArray(history)?history:[]).map(item=>[
             String(item?.id||''),String(item?.text||''),String(item?.boughtAt||''),String(item?.boughtBy||'')
@@ -17994,6 +17994,8 @@
         const renderSignature=productsRenderSignature(items,history);
         const unchanged=renderSignature===latestProductsRenderSignature;
         latestProductsRenderSignature=renderSignature;
+        window.RUDI_PRODUCTS_CURRENT={items,history};
+        window.dispatchEvent(new Event('rudi-products-update'));
         const previousProductCount=homeDashboardState.productCount;
         homeDashboardState.productCount=items.length;
         if(previousProductCount!==items.length) renderHomeDashboard();
@@ -18089,18 +18091,32 @@
 
             const main=document.createElement('div');
             main.className='product-main';
+            main.tabIndex=0;
+            main.setAttribute('role','button');
+            main.setAttribute('aria-label','Изменить '+String(item.text||''));
             const text=document.createElement('div');
             text.className='product-text';
             text.textContent=String(item.text||'');
             const amount=document.createElement('small');
             amount.className='product-weekly-amount';
             const weeklyAmount=String(item.weeklyAmount||'').trim();
-            amount.textContent=weeklyAmount?'На неделю для двоих: ~'+weeklyAmount:'';
-            amount.hidden=!weeklyAmount;
+            const quantityLabel=[String(item.quantity||'').trim(),String(item.unit||'').trim()].filter(Boolean).join(' ');
+            const normalizedName=String(item.text||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('ru-RU');
+            const recentlyBought=history.some(previous=>{
+              const day=Date.parse(String(previous?.boughtAt||''));
+              if(!Number.isFinite(day)||Date.now()-day>14*86400000)return false;
+              return String(previous?.text||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('ru-RU')===normalizedName;
+            });
+            amount.textContent=quantityLabel?'Купить: '+quantityLabel
+              :recentlyBought?'Покупали недавно · возможно, запас ещё есть'
+              :'';
+            amount.hidden=!amount.textContent;
             const meta=document.createElement('small');
             meta.className='product-added-by';
             meta.textContent=productAddedByLabel(item.addedBy);
-            main.append(text,amount,meta);
+            const noteText=String(item.note||'').trim();
+            if(noteText){ const note=document.createElement('small'); note.className='product-added-by'; note.textContent=noteText; main.append(text,amount,note,meta); }
+            else main.append(text,amount,meta);
 
             const actions=document.createElement('div');
             actions.className='product-actions';
@@ -18955,6 +18971,7 @@
         setKitchenView(activeKitchenView);
       }
 
+      window.RUDI_PRODUCTS_API={request:productsRequest,reload:loadProducts};
       function setupProducts(){
         const form=document.getElementById('productsForm');
         const input=document.getElementById('productsInput');

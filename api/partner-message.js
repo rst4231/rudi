@@ -20,6 +20,7 @@ const {
   normalizeProductListState,
   addProducts,
   removeProduct,
+  updateProduct,
   toggleProductChecked,
   setProductCheckedSelection,
   markCheckedProductsBought,
@@ -4419,6 +4420,14 @@ async function handleRudiAction(req, res, action, options = {}) {
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ok:true,actor,...state,backupToken});
       }
+      if (operation === 'update') {
+        const state = await updateProduct(body.id, {
+          text: body.text, quantity: body.quantity, unit: body.unit,
+          categoryOverride: body.categoryOverride, note: body.note,
+        }, options);
+        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        return res.status(200).json({ ok: true, actor, ...state, backupToken });
+      }
       if (operation === 'remove') {
         const before = await readProductList(options);
         const removedItem = (before.items || []).find((item) => item.id === String(body.id || '')) || null;
@@ -4463,6 +4472,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'product-item-not-found' ? 404
+        : code === 'product-duplicate' ? 409
+        : code.startsWith('product-') ? 400
         : code.startsWith('product-') ? 400
         : 500;
       if (status === 500) console.error('RUDI_PRODUCTS_ERROR', code);

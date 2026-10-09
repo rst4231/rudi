@@ -1,0 +1,33 @@
+
+/* RUDI v4.141 shopping editor, quick picks and inline autocomplete */
+.rudi-products-autocomplete{position:relative;min-width:0}
+.rudi-products-autocomplete .products-form{margin-bottom:0}
+.rudi-products-dropdown{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);max-height:min(290px,45vh);overflow:auto;background:var(--surface-strong,#171b22);border:1px solid var(--line,rgba(140,145,158,.24));border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.27);padding:5px}
+.rudi-products-dropdown[hidden],.rudi-frequent-products[hidden],.rudi-product-editor-overlay[hidden]{display:none!important}
+.rudi-product-suggestion{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;width:100%;min-height:43px;padding:10px 12px;border:0;border-radius:9px;background:transparent;color:var(--text,#f5f6fa);font:inherit;cursor:pointer}
+.rudi-product-suggestion:hover,.rudi-product-suggestion:focus-visible{background:var(--surface,rgba(150,150,150,.14))}
+.rudi-product-suggestion-meta{white-space:nowrap;font-size:11px;color:var(--muted,#9197a4)}
+.rudi-frequent-products{margin:16px 0 6px}
+.rudi-frequent-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.rudi-frequent-head strong{font-size:13px}
+.rudi-frequent-head small{font-size:11px;color:var(--muted,#9299a7)}
+.rudi-frequent-chips{display:flex;flex-wrap:wrap;gap:7px}
+.rudi-frequent-chip{border:1px solid var(--line,rgba(140,145,158,.24));border-radius:999px;padding:9px 12px;min-height:37px;background:var(--surface,rgba(120,130,150,.10));color:var(--text,#f1f2f6);font:inherit;font-size:12px;cursor:pointer}
+.rudi-frequent-chip:disabled{opacity:.5}
+.product-main{cursor:pointer}
+.product-main:focus-visible{outline:2px solid var(--accent,#879bff);outline-offset:2px;border-radius:8px}
+.rudi-product-editor-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.60);display:flex;align-items:center;justify-content:center;padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));box-sizing:border-box}
+.rudi-product-editor{box-sizing:border-box;width:min(100%,440px);max-height:min(90dvh,680px);overflow:auto;border-radius:22px;background:var(--surface-strong,#20242b);color:var(--text,#f3f5f8);border:1px solid var(--line,rgba(150,155,165,.24));padding:18px;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.rudi-product-editor-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-size:17px}
+.rudi-product-editor-head button{width:36px;height:36px;border:0;border-radius:50%;background:var(--surface,#303540);color:inherit;font-size:26px;cursor:pointer}
+.rudi-product-editor form{display:grid;gap:12px}
+.rudi-product-editor label{display:grid;gap:6px;color:var(--muted,#a0a6b0);font-size:12px;font-weight:600}
+.rudi-product-editor input,.rudi-product-editor select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;border:1px solid var(--line,rgba(155,160,175,.28));border-radius:12px;padding:10px 12px;background:var(--surface,#171a21);color:var(--text,#fafafa);font:500 15px system-ui}
+.rudi-product-editor-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rudi-product-editor-footer{display:flex;gap:10px;margin-top:5px}
+.rudi-product-editor-footer button{flex:1;min-height:44px;border:1px solid var(--line,rgba(150,150,150,.28));border-radius:12px;color:inherit;background:var(--surface,#2d333b);font:600 14px system-ui;cursor:pointer}
+#rudiProductEditSave{background:var(--accent,#8a9cff);color:#111827;border-color:transparent}
+.rudi-product-editor-error{font-size:12px;color:#ff8282}
+body.rudi-product-modal-open{overflow:hidden}
+@media(max-height:550px){.rudi-product-editor-overlay{align-items:flex-start}}
+@media(prefers-reduced-motion:reduce){.rudi-product-editor-overlay,.rudi-product-editor{animation:none}}
