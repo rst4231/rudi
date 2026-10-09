@@ -28,8 +28,32 @@ async function consumeOAuthState(state, options = {}) {
   return Boolean(value);
 }
 
-async function saveToken(token, options = {}) {
-  const cache = options.cache || getTickTickCache(options.cacheOptions || {});
+function personalTokenKey(actor){
+  if (actor !== 'Рустам') throw new Error('ticktick-personal-owner-forbidden');
+  return 'personal-token:rustam';
+}
+
+async function savePersonalToken(actor, token, options = {}) {
+  const cache=options.cache || getTickTickCache(options.cacheOptions || {});
+  const key=personalTokenKey(actor);
+  const value=normalizeToken(token);
+  await cache.set(key,value,{ttl:TOKEN_TTL_SECONDS,tags:['rudi-ticktick-personal'],name:key});
+  return value;
+}
+
+async function readPersonalToken(actor, options = {}) {
+  if (actor !== 'Рустам') return null;
+  const cache=options.cache || getTickTickCache(options.cacheOptions || {});
+  const value=await cache.get(personalTokenKey(actor));
+  return value && typeof value==='object' && String(value.accessToken||'').trim() ? value : null;
+}
+
+async function clearPersonalToken(actor, options = {}) {
+  const cache=options.cache || getTickTickCache(options.cacheOptions || {});
+  await cache.delete(personalTokenKey(actor));
+}
+
+function normalizeToken(token) {
   const savedAt = new Date().toISOString();
   const expiresIn = Number(token?.expires_in ?? token?.expiresIn ?? 0) || 0;
   const refreshExpiresIn = Number(token?.refresh_expires_in ?? token?.refreshExpiresIn ?? 0) || 0;
@@ -44,6 +68,11 @@ async function saveToken(token, options = {}) {
     expiresAt: String(token?.expiresAt || (expiresIn ? new Date(Date.now() + expiresIn * 1000).toISOString() : '')),
   };
   if (!value.accessToken) throw new Error('ticktick-access-token-missing');
+  return value;
+}
+async function saveToken(token, options = {}) {
+  const cache = options.cache || getTickTickCache(options.cacheOptions || {});
+  const value = normalizeToken(token);
   await cache.set(TOKEN_KEY, value, {
     ttl: TOKEN_TTL_SECONDS,
     tags: ['rudi-ticktick-oauth'],
@@ -75,4 +104,7 @@ module.exports = {
   saveToken,
   readToken,
   clearToken,
+  savePersonalToken,
+  readPersonalToken,
+  clearPersonalToken,
 };

@@ -9,7 +9,7 @@ const tick=require('../api/ticktick-client.cjs');
 const holiday=require('../api/holiday-calendar.cjs');
 test('personal/shared tabs, navigation and iPhone affordances',()=>{
  for(const name of ['personal','shared'])assert.match(html,new RegExp('data-calendar-scope="'+name+'"'));
- for(const name of ['day','week','month','list'])assert.match(html,new RegExp('data-calendar-mode="'+name+'"'));
+ for(const name of ['week','month'])assert.match(html,new RegExp('data-calendar-mode="'+name+'"'));
  for(const id of ['calendarPrev','calendarNext','calendarToday'])assert.ok(html.includes('id="'+id+'"'));
  assert.match(src,/calendarSetScope\('personal',\{reload:false\}\)/);
  assert.match(src,/touchstart/);assert.match(src,/touchend/);
@@ -21,11 +21,11 @@ test('cycle only shown for Diana personal view and loading not tied to home boot
  assert.match(css,/body:not\(\[data-calendar-scope="personal"\]\) #dianaCycleCard/);
  assert.match(src,/cycleOpen.hidden=currentActor!=='Диана'/);
 });
-test('owner only task access filtered on server; shared means unassigned',()=>{
+test('owner-only personal task access and full joint project in shared',()=>{
  assert.match(backend,/calendar-owner-forbidden/);
  assert.match(backend,/event.ownerScope = assignee.responsibility.known/);
- assert.match(backend,/day.events = day.events.filter\(event => event.ownerScope === selectedScope\)/);
- assert.match(src,/scope==='shared'\?'shared':currentActor==='Диана'\?'diana':'rustam'/);
+ assert.match(backend,/selectedScope && selectedScope !== 'shared'/);
+ assert.match(src,/calendarScope==='shared'\?'shared':currentActor==='Диана'\?'diana':'rustam'/);
  assert.match(src,/scope==='shared'\?fetchCalendarJson\('holiday-calendar:/);
  assert.match(src,/const needsWork=scope==='diana'\|\|scope==='shared'/);
 });

@@ -491,6 +491,39 @@ async function completeTickTickTask(accessToken, projectId, taskId, options = {}
   return true;
 }
 
+
+async function listTickTickProjects(accessToken, options = {}) {
+  const response=await fetchTickTickRead(API_BASE_URL+'/project',{
+    headers:{Authorization:'Bearer '+accessToken,Accept:'application/json','user-agent':'RUDI-TickTick/1.0'},
+    cache:'no-store',
+  },options);
+  if(response.status===401||response.status===403)throw new Error('ticktick-token-invalid');
+  if(!response.ok)throw new Error('ticktick-project-list-failed:'+response.status);
+  const rows=await response.json();
+  if(!Array.isArray(rows))throw new Error('ticktick-project-list-invalid');
+  return rows.filter(row=>row&&String(row.id||'').trim());
+}
+
+async function fetchPersonalProjectTasks(accessToken, sharedProjectId, options = {}) {
+  const projects=(await listTickTickProjects(accessToken,options))
+    .filter(row=>String(row.id||'')!==String(sharedProjectId||''))
+    .slice(0,60);
+  const results=[];
+  // Small batches keep the TickTick public API within comfortable rate limits.
+  for(let index=0;index<projects.length;index+=4){
+    const slice=projects.slice(index,index+4);
+    const page=await Promise.allSettled(slice.map(row=>fetchProjectData(accessToken,row.id,options)));
+    for(let i=0;i<page.length;i++){
+      if(page[i].status!=='fulfilled')continue;
+      const row=slice[i],data=page[i].value;
+      for(const task of Array.isArray(data?.tasks)?data.tasks:[]){
+        if(Number(task?.status??0)!==0)continue;
+        results.push({...task,projectId:String(row.id),projectName:String(row.name||'Список').slice(0,100)});
+      }
+    }
+  }
+  return results;
+}
 async function fetchProjectData(accessToken, projectId, options = {}) {
   const response = await fetchTickTickRead(API_BASE_URL + '/project/' + encodeURIComponent(projectId) + '/data', {
     headers: {
@@ -689,6 +722,8 @@ module.exports = {
   deleteTickTickTask,
   completeTickTickTask,
   fetchProjectData,
+  listTickTickProjects,
+  fetchPersonalProjectTasks,
   CALENDAR_TIMEZONE,
   calendarDateKey,
   calendarTime,

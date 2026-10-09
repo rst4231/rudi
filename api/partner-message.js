@@ -9,7 +9,7 @@ const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOp
 const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveDurablePasskeys } = require('./rudi-auth-db.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
-const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken } = require('./ticktick-store.cjs');
+const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken, savePersonalToken, readPersonalToken, clearPersonalToken } = require('./ticktick-store.cjs');
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish, restoreWish } = require('./wishlist-store.cjs');
 const {
@@ -80,6 +80,7 @@ const {
   exchangeCode,
   loadTickTickConfig,
   fetchProjectData,
+  fetchPersonalProjectTasks,
   buildTickTickCalendar,
   chooseNextTask,
   resolveAssigneeName,
@@ -1187,6 +1188,26 @@ function createTickTickOAuthState(options = {}) {
   return 'v2.' + payload + '.' + signature;
 }
 
+function createRustamPersonalTickTickOAuthState(options = {}) {
+  const issuedAt=Math.floor((options.now||Date.now())/1000);
+  const nonce=crypto.randomBytes(18).toString('base64url');
+  const payload='personal.rustam.'+issuedAt+'.'+nonce;
+  const signature=crypto.createHmac('sha256',tickTickOAuthStateKey(options)).update(payload).digest('base64url');
+  return 'v3.'+payload+'.'+signature;
+}
+
+function verifyRustamPersonalTickTickOAuthState(value,options={}) {
+  const parts=String(value||'').split('.');
+  if(parts.length!==6||parts[0]!=='v3'||parts[1]!=='personal'||parts[2]!=='rustam')return false;
+  const issuedAt=Number(parts[3]),nonce=String(parts[4]||''),signature=String(parts[5]||'');
+  if(!Number.isFinite(issuedAt)||!nonce||!signature||Math.abs(Math.floor((options.now||Date.now())/1000)-issuedAt)>600)return false;
+  const expected=crypto.createHmac('sha256',tickTickOAuthStateKey(options))
+    .update('personal.rustam.'+issuedAt+'.'+nonce).digest();
+  let actual;
+  try{actual=Buffer.from(signature,'base64url')}catch{return false}
+  return actual.length===expected.length&&crypto.timingSafeEqual(actual,expected);
+}
+
 function verifyTickTickOAuthState(value, options = {}) {
   const parts = String(value || '').split('.');
   if (parts.length !== 4 || parts[0] !== 'v2') return false;
@@ -1479,11 +1500,13 @@ async function handleTickTick(req, res, action, options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      authorizeRequest(req, body.initData, options);
+      const { actor } = authorizeRequest(req, body.initData, options);
+      const kind=String(body.kind||'shared')==='personal'?'personal':'shared';
+      if(actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-connect-owner-forbidden'});
       if (!credentialsConfigured(options.env || process.env)) {
         return res.status(503).json({ ok: false, error: 'ticktick-not-configured' });
       }
-      const state = createTickTickOAuthState(options);
+      const state=kind==='personal'?createRustamPersonalTickTickOAuthState(options):createTickTickOAuthState(options);
       const { clientId, redirectUri } = getCredentials(options.env || process.env);
       const authorizeUrl = buildAuthorizeUrl({ clientId, redirectUri, state });
       return res.status(200).json({ ok: true, authorizeUrl });
@@ -1507,10 +1530,18 @@ async function handleTickTick(req, res, action, options = {}) {
     if (!code || !state) return redirect('invalid-callback');
 
     try {
-      const validState = verifyTickTickOAuthState(state, options)
+      const personalState=verifyRustamPersonalTickTickOAuthState(state,options);
+      const validState=personalState||verifyTickTickOAuthState(state, options)
         || await consumeOAuthState(state, options).catch(() => false);
       if (!validState) return redirect('invalid-state');
       const token = await exchangeCode(code, { ...options, env: options.env || process.env });
+      if(personalState){
+        // Personal token has an independent storage key and is NEVER included in shared backup.
+        await savePersonalToken('Рустам',token,{
+          ...options,cacheOptions:{...(options.cacheOptions||{}),confirmWrites:false}
+        });
+        return redirect('connected-personal');
+      }
       const savedToken = await saveToken(token, {
         ...options,
         cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
@@ -1525,6 +1556,25 @@ async function handleTickTick(req, res, action, options = {}) {
       console.error('RUDI_TICKTICK_OAUTH_ERROR', String(error?.message || error));
       return redirect('error');
     }
+  }
+
+  if (action === 'connections-status') {
+    if (req.method !== 'POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
+    try{
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const { actor }=authorizeRequest(req,body.initData,options);
+      const [shared,personal,calendarUrl]=await Promise.all([
+        readTickTickTokenWithBackup(body,options),
+        actor==='Рустам'?readPersonalToken('Рустам',options).catch(()=>null):Promise.resolve(null),
+        readCalendarUrl(options).catch(()=>null)
+      ]);
+      return res.status(200).json({
+        ok:true,sharedConnected:Boolean(shared?.accessToken),
+        personalAvailable:actor==='Рустам',
+        personalConnected:actor==='Рустам'&&Boolean(personal?.accessToken),
+        dianaWorkConnected:Boolean(calendarUrl)
+      });
+    }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
   }
 
   if (action === 'next') {
@@ -2114,7 +2164,9 @@ async function handleTickTick(req, res, action, options = {}) {
     }
 
     const token = await readTickTickTokenWithBackup(body, options);
-    if (!token?.accessToken) {
+    const personalOnly = String(body.scope||'')==='rustam' && actor==='Рустам';
+    const rustamToken = personalOnly ? await readPersonalToken('Рустам', options).catch(()=>null) : null;
+    if (!token?.accessToken && !rustamToken?.accessToken) {
       return res.status(401).json({
         ok: false,
         connected: false,
@@ -2129,7 +2181,9 @@ async function handleTickTick(req, res, action, options = {}) {
       : 'month';
 
     try {
-      const data = await fetchProjectData(token.accessToken, config.projectId, options);
+      const data = token?.accessToken
+        ? await fetchProjectData(token.accessToken, config.projectId, options)
+        : { tasks:[], project:{name:'Личный'} };
       const sourceTasks = Array.isArray(data?.tasks) ? data.tasks : [];
       const sourceById = new Map(sourceTasks.map((task) => [String(task?.id || ''), task]));
       const sharedTaskMetaState = await readSharedTaskMetaState(options).catch(() => ({ entries: {} }));
@@ -2141,7 +2195,7 @@ async function handleTickTick(req, res, action, options = {}) {
         String(body.month || '')
       );
       const selectedScope = ['rustam','diana','shared'].includes(String(body.scope || '')) ? String(body.scope) : '';
-      if (selectedScope === 'rustam' && actor !== 'Рустам' || selectedScope === 'diana' && actor !== 'Диана') {
+      if ((selectedScope === 'rustam' && actor !== 'Рустам') || (selectedScope === 'diana' && actor !== 'Диана')) {
         return res.status(403).json({ ok:false, error:'calendar-owner-forbidden' });
       }
       for (const day of calendar.days || []) {
@@ -2165,7 +2219,44 @@ async function handleTickTick(req, res, action, options = {}) {
             :(repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase();
           event.repeatCount=Number(repeatFlag.match(/COUNT=(\d+)/)?.[1]||2);
         }
-        if (selectedScope) day.events = day.events.filter(event => event.ownerScope === selectedScope);
+        if (selectedScope && selectedScope !== 'shared') day.events = day.events.filter(event => event.ownerScope === selectedScope);
+      }
+      // Personal TickTick is Rustam-only. Never use shared OAuth token as a fallback.
+      if(selectedScope==='rustam' && actor==='Рустам'){
+        const personalToken=rustamToken || await readPersonalToken('Рустам',options).catch(()=>null);
+        if(personalToken?.accessToken){
+          try{
+            const personalTasks=await fetchPersonalProjectTasks(personalToken.accessToken,config.projectId,options);
+            const ownCalendar=buildTickTickCalendar(
+              personalTasks,options.now?new Date(options.now):new Date(),
+              view,undefined,String(body.month||'')
+            );
+            const taskById=new Map(personalTasks.map(task=>[String(task.id||''),task]));
+            const byDate=new Map((calendar.days||[]).map(day=>[day.date,day]));
+            for(const day of ownCalendar.days||[]){
+              const target=byDate.get(day.date);
+              if(!target)continue;
+              for(const item of day.events||[]){
+                const source=taskById.get(String(item.id||''))||{};
+                target.events.push({
+                  ...item,date:day.date,personal:true,
+                  responsible:'Рустам',ownerScope:'rustam',
+                  projectId:String(source.projectId||''),
+                  projectName:String(source.projectName||'Список'),
+                  description:String(source.desc||source.content||'').slice(0,5000),
+                  canEdit:false,canComplete:false,assigned:false,assignee:''
+                });
+              }
+              target.events.sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99'));
+            }
+          }catch(error){
+            if(String(error?.message||'')==='ticktick-token-invalid'){
+              await clearPersonalToken('Рустам',options).catch(()=>{});
+            }else{
+              console.warn('RUDI_PERSONAL_TICKTICK_CALENDAR_WARN',String(error?.message||error));
+            }
+          }
+        }
       }
       return res.status(200).json({
         ok: true,

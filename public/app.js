@@ -73,6 +73,7 @@
       let holidayItemsPromise = null;
       let currentWorkCalendarView = 'month';
       let calendarScope='personal',calendarDisplayMode='month',calendarDateCursor='',calendarLoadEpoch=0;
+      let pendingCalendarScope='';
       let currentSelectedWorkDate = '';
       let currentWorkCalendarRenderSignature = '';
       let currentDianaCycleConfig = null;
@@ -5932,7 +5933,9 @@
         }
         if(tab==='feed') loadFeed({silent:true});
         if(tab==='schedule'){
-          calendarSetScope('personal',{reload:false});
+          const selectedScope=pendingCalendarScope==='shared'?'shared':'personal';
+          pendingCalendarScope='';
+          calendarSetScope(selectedScope,{reload:false});
           loadWorkCalendar('month',{silent:true}).finally(()=>focusDeepLinkedItem('schedule',item));
         }
         if(tab==='products'){
@@ -8828,6 +8831,14 @@
       function setupHomeDashboardActions(){
         setupActivityNotifications();
         setupSettingsPanel();
+        const priorityLink=document.getElementById('priorityCalendarOpen');
+        if(priorityLink&&priorityLink.dataset.bound!=='1'){
+          priorityLink.dataset.bound='1';
+          priorityLink.addEventListener('click',()=>{
+            pendingCalendarScope='shared';
+            navigateToAppTab('schedule',{scroll:true});
+          });
+        }
         const calendarBack=document.getElementById('workCalendarBack');if(calendarBack&&calendarBack.dataset.bound!=='1'){calendarBack.dataset.bound='1';calendarBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
         const nearestOpen=document.getElementById('homeNearestOpen');if(nearestOpen&&nearestOpen.dataset.bound!=='1'){nearestOpen.dataset.bound='1';nearestOpen.addEventListener('click',()=>navigateToAppTab('schedule',{scroll:true}))}
         const smartMore=document.getElementById('smartSavesHomeMore');if(smartMore&&smartMore.dataset.bound!=='1'){smartMore.dataset.bound='1';smartMore.addEventListener('click',()=>navigateToAppTab('smart-saves',{scroll:true}))}
@@ -11889,7 +11900,8 @@
       }
 
       function applyDianaPeriodDots(cfg=currentDianaCycleConfig){
-        const keys=calendarScope==='personal'&&currentActor==='Диана'?dianaPeriodDateKeys(cfg):new Set();
+        const showMarks=calendarScope==='shared'||(calendarScope==='personal'&&currentActor==='Диана');
+        const keys=showMarks?dianaPeriodDateKeys(cfg):new Set();
         document.querySelectorAll('#workCalendarDays .calendar-day-cell[data-date]').forEach(cell=>{
           const active=keys.has(String(cell.dataset.date||''));
           const existing=cell.querySelector('.calendar-period-dot');
@@ -12994,26 +13006,11 @@
 
       function setupTickTickConnect(){
         const button=document.getElementById('ticktickConnect');
-        button.addEventListener('click',async()=>{
-          button.disabled=true;
-          try{
-            const response=await fetch('/api/ticktick/connect',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({initData:tg?.initData||'',backupToken:currentStateBackupToken}),
-              cache:'no-store'
-            });
-            const payload=await response.json().catch(()=>({}));
-            if(!response.ok||!payload.authorizeUrl) throw new Error(payload.error||'ticktick-connect');
-            window.location.assign(payload.authorizeUrl);
-          }catch(_){
-            {
-              const badge=document.getElementById('ticktickBadge');
-              badge.hidden=false;
-              badge.textContent='Ошибка';
-            }
-            button.disabled=false;
-          }
+        if(!button||button.dataset.bound==='1')return;
+        button.dataset.bound='1';
+        button.addEventListener('click',()=>{
+          navigateToAppTab('schedule',{scroll:true});
+          openCalendarConnections();
         });
       }
 
@@ -13356,6 +13353,19 @@
       }
       function calendarActiveMonth(){return (calendarDateCursor||todayState().key).slice(0,7)}
       function calendarCacheKey(month=calendarActiveMonth(),scope=calendarScope){return month+':'+scope}
+      let sharedPeriodMarksPromise=null;
+      async function loadSharedPeriodMarks(){
+        if(calendarScope!=='shared'||!currentActor)return;
+        if(sharedPeriodMarksPromise)return sharedPeriodMarksPromise;
+        sharedPeriodMarksPromise=(async()=>{
+          const data=await cycleRequest('get');
+          currentDianaCycleConfig=data.configured&&data.cycle&&data.cycle.enabled!==false?data.cycle:null;
+          if(calendarScope==='shared')applyDianaPeriodDots();
+        })().catch(error=>{
+          console.warn('RUDI_SHARED_PERIOD_MARKS_WARN',String(error?.message||error));
+        }).finally(()=>{sharedPeriodMarksPromise=null});
+        return sharedPeriodMarksPromise;
+      }
       function calendarSetScope(scope,{reload=true}={}){
         calendarScope=scope==='shared'?'shared':'personal';
         document.body.dataset.calendarScope=calendarScope;
@@ -13367,12 +13377,13 @@
         const title=document.querySelector('#workCalendarCard .work-calendar-title');
         if(title)title.textContent=calendarScope==='shared'?'Совместный':'Личный';
         if(calendarScope==='personal'&&currentActor==='Диана')loadDianaCycle({silent:true}).catch(()=>{});
+        if(calendarScope==='shared')loadSharedPeriodMarks().catch(()=>{});
         applyDianaPeriodDots();
         if(reload)loadWorkCalendar('month',{silent:false}).catch(()=>{});
       }
       function setWorkCalendarRangeActive(view){
         currentWorkCalendarView='month';
-        calendarDisplayMode=['day','week','month','list'].includes(view)?view:'month';
+        calendarDisplayMode=['week','month'].includes(view)?view:'month';
         const container=document.getElementById('workCalendarDays');
         if(container)container.dataset.calendarMode=calendarDisplayMode;
         document.querySelectorAll('[data-calendar-mode]').forEach(button=>{
@@ -13383,12 +13394,109 @@
       }
       function calendarNavigationMove(direction){
         const cursor=calendarDateCursor||todayState().key;
-        calendarDateCursor=calendarDisplayMode==='day'?calendarDateShift(cursor,direction)
-          :calendarDisplayMode==='week'?calendarDateShift(cursor,direction*7):calendarMonthShift(cursor,direction);
-        currentSelectedWorkDate=calendarDisplayMode==='day'?calendarDateCursor:'';
+        calendarDateCursor=calendarDisplayMode==='week'?calendarDateShift(cursor,direction*7):calendarMonthShift(cursor,direction);
+        currentSelectedWorkDate=calendarDisplayMode==='week'?calendarDateCursor:'';
         loadWorkCalendar('month',{silent:false}).catch(()=>{});
       }
+
+      let calendarConnectionsRefreshPromise=null;
+      function closeCalendarConnections(){
+        const modal=document.getElementById('calendarConnectionsModal');
+        if(!modal)return;
+        modal.hidden=true;modal.setAttribute('aria-hidden','true');
+        document.body.classList.remove('calendar-connections-open');
+      }
+      async function refreshCalendarConnections(){
+        if(calendarConnectionsRefreshPromise)return calendarConnectionsRefreshPromise;
+        const message=document.getElementById('calendarConnectionsMessage');
+        calendarConnectionsRefreshPromise=(async()=>{
+          const response=await fetch('/api/partner-message?ticktickAction=connections-status',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken}),
+            cache:'no-store'
+          });
+          const data=await response.json().catch(()=>({}));
+          if(!response.ok||!data.ok)throw new Error('Не удалось проверить подключения');
+          const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
+          const sharedButton=document.getElementById('calendarSharedTickTickConnect');
+          if(sharedButton)sharedButton.hidden=currentActor!=='Рустам';
+          set('calendarPersonalTickTickStatus',data.personalConnected?'Подключён':'Не подключён');
+          set('calendarSharedTickTickStatus',data.sharedConnected?'Подключён':'Не подключён');
+          set('calendarWorkCalendarStatus',data.dianaWorkConnected?'Подключён':'Не подключён');
+          set('calendarPersonalTickTickConnect',data.personalConnected?'Переподключить':'Подключить');
+          set('calendarSharedTickTickConnect',data.sharedConnected?'Переподключить':'Подключить');
+          const work=document.getElementById('calendarWorkCalendarSetup');
+          if(work)work.hidden=Boolean(data.dianaWorkConnected);
+          return data;
+        })().catch(error=>{if(message)message.textContent=String(error.message||error);return null})
+          .finally(()=>{calendarConnectionsRefreshPromise=null});
+        return calendarConnectionsRefreshPromise;
+      }
+      function openCalendarConnections(){
+        const modal=document.getElementById('calendarConnectionsModal');
+        if(!modal)return;
+        modal.hidden=false;modal.setAttribute('aria-hidden','false');
+        document.body.classList.add('calendar-connections-open');
+        const personalRow=document.getElementById('calendarPersonalTickTickRow');
+        if(personalRow)personalRow.hidden=currentActor!=='Рустам';
+        const work=document.getElementById('calendarWorkCalendarSetup');
+        if(work)work.hidden=true;
+        const message=document.getElementById('calendarConnectionsMessage');
+        if(message)message.textContent='';
+        refreshCalendarConnections().catch(()=>{});
+        document.getElementById('calendarConnectionsClose')?.focus({preventScroll:true});
+      }
+      function setupCalendarConnections(){
+        const gear=document.getElementById('calendarConnectionsGear');
+        if(!gear||gear.dataset.bound==='1')return;
+        gear.dataset.bound='1';
+        gear.addEventListener('click',openCalendarConnections);
+        document.getElementById('calendarConnectionsClose')?.addEventListener('click',closeCalendarConnections);
+        document.getElementById('calendarConnectionsBackdrop')?.addEventListener('click',closeCalendarConnections);
+        document.addEventListener('keydown',event=>{
+          if(event.key==='Escape'&&!document.getElementById('calendarConnectionsModal')?.hidden)closeCalendarConnections();
+        });
+        const connectTickTick=async(kind,button)=>{
+          if(kind==='personal'&&currentActor!=='Рустам')return;
+          const message=document.getElementById('calendarConnectionsMessage');
+          if(message)message.textContent='Подключаю TickTick…';
+          button.disabled=true;
+          try{
+            const response=await fetch('/api/ticktick/connect',{
+              method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken,kind}),
+              cache:'no-store'
+            });
+            const data=await response.json().catch(()=>({}));
+            if(!response.ok||!data.authorizeUrl)throw new Error(data.error||'Не удалось подключить');
+            window.location.assign(data.authorizeUrl);
+          }catch(error){
+            if(message)message.textContent=String(error?.message||error);
+            button.disabled=false;
+          }
+        };
+        const personal=document.getElementById('calendarPersonalTickTickConnect');
+        const shared=document.getElementById('calendarSharedTickTickConnect');
+        personal?.addEventListener('click',()=>connectTickTick('personal',personal));
+        shared?.addEventListener('click',()=>connectTickTick('shared',shared));
+        document.getElementById('calendarWorkCalendarConnect')?.addEventListener('click',async()=>{
+          const key=String(document.getElementById('calendarWorkCalendarKey')?.value||'').trim();
+          const message=document.getElementById('calendarConnectionsMessage');
+          if(!key){if(message)message.textContent='Укажите ключ подключения';return}
+          try{
+            const response=await fetch('/api/work-calendar/setup',{
+              method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({key}),cache:'no-store'
+            });
+            const data=await response.json().catch(()=>({}));
+            if(!response.ok||!data.ok)throw new Error('Неверный ключ календаря');
+            if(message)message.textContent='График подключён';
+            refreshCalendarConnections().catch(()=>{});
+          }catch(error){if(message)message.textContent=String(error?.message||error)}
+        });
+      }
       function setupWorkCalendarDisclosure(){
+        setupCalendarConnections();
         calendarDateCursor=todayState().key;
         setWorkCalendarRangeActive('month');
         calendarSetScope('personal',{reload:false});
@@ -13401,7 +13509,8 @@
           const mode=button.dataset.calendarMode;
           if(mode===calendarDisplayMode)return;
           setWorkCalendarRangeActive(mode);
-          currentSelectedWorkDate=mode==='day'?calendarDateCursor:'';
+          if(mode==='week')calendarDateCursor=currentSelectedWorkDate||calendarDateCursor;
+          currentSelectedWorkDate=mode==='week'?calendarDateCursor:'';
           loadWorkCalendar('month',{silent:true}).catch(()=>{});
         }));
         document.getElementById('calendarPrev')?.addEventListener('click',()=>calendarNavigationMove(-1));
@@ -13556,6 +13665,107 @@
         }catch(_){return String(Date.now())}
       }
 
+      const CALENDAR_AGENDA_HOUR_HEIGHT=72;
+      function calendarAgendaMinutes(value){
+        const match=/^(\d{1,2}):(\d{2})$/.exec(String(value||'').trim());
+        if(!match)return null;
+        const hours=Number(match[1]),minutes=Number(match[2]);
+        return hours<=23&&minutes<=59?hours*60+minutes:null;
+      }
+      function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations){
+        const panel=document.createElement('div');
+        panel.className='calendar-week-agenda';
+        panel.setAttribute('aria-label','Расписание на '+dateKey);
+        const allDayItems=[];
+        const timed=[];
+        const put=(kind,title,startTime,endTime)=>{
+          const start=calendarAgendaMinutes(startTime);
+          const finish=calendarAgendaMinutes(endTime);
+          if(start===null){
+            allDayItems.push({kind,title});
+          }else{
+            timed.push({kind,title,start,end:finish!==null&&finish>start?finish:Math.min(start+45,1440)});
+          }
+        };
+        for(const title of holidays)put('holiday',String(title),'','');
+        for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':' · К оплате'),'','');
+        for(const item of tasks)put('task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime);
+        if(calendarScope==='shared'||currentActor==='Диана'){
+          for(const event of workEvents){
+            const hours=event.allDay?'':event.startTime;
+            put('shift',String(event.title||'Смена Дианы'),hours,event.endTime);
+          }
+        }
+        if(allDayItems.length){
+          const strip=document.createElement('div');
+          strip.className='calendar-week-allday';
+          const caption=document.createElement('span');
+          caption.className='calendar-week-allday-label';
+          caption.textContent='Весь день';
+          strip.appendChild(caption);
+          const pills=document.createElement('div');
+          pills.className='calendar-week-allday-items';
+          for(const item of allDayItems){
+            const pill=document.createElement('span');
+            pill.className='calendar-week-allday-item calendar-agenda-'+item.kind;
+            pill.textContent=item.title;
+            pills.appendChild(pill);
+          }
+          strip.appendChild(pills);panel.appendChild(strip);
+        }
+        const viewport=document.createElement('div');
+        viewport.className='calendar-week-time-viewport';
+        viewport.setAttribute('aria-label','Время с 00:00 до 23:59');
+        const track=document.createElement('div');
+        track.className='calendar-week-time-track';
+        for(let hour=0;hour<24;hour++){
+          const row=document.createElement('div');
+          row.className='calendar-week-hour';
+          row.style.top=String(hour*CALENDAR_AGENDA_HOUR_HEIGHT)+'px';
+          const stamp=document.createElement('time');
+          stamp.textContent=String(hour).padStart(2,'0')+':00';
+          stamp.dateTime=stamp.textContent;
+          row.appendChild(stamp);
+          track.appendChild(row);
+        }
+        timed.sort((left,right)=>left.start-right.start||right.end-left.end);
+        const occupied=[];
+        for(const event of timed){
+          let lane=occupied.findIndex(value=>value<=event.start);
+          if(lane<0){lane=occupied.length;occupied.push(0)}
+          occupied[lane]=event.end;
+          const block=document.createElement('div');
+          block.className='calendar-week-time-event calendar-agenda-'+event.kind;
+          block.style.top=(event.start/60*CALENDAR_AGENDA_HOUR_HEIGHT+2)+'px';
+          block.style.height=Math.max(30,(event.end-event.start)/60*CALENDAR_AGENDA_HOUR_HEIGHT-4)+'px';
+          block.style.setProperty('--calendar-agenda-lane-offset',String(Math.min(lane,4)*10)+'px');
+          const when=document.createElement('small');
+          when.textContent=String(Math.floor(event.start/60)).padStart(2,'0')+':'+String(event.start%60).padStart(2,'0');
+          const title=document.createElement('span');
+          title.textContent=event.title;
+          block.append(when,title);track.appendChild(block);
+        }
+        if(dateKey===todayState().key){
+          const now=homeCurrentMinutes();
+          if(Number.isFinite(now)){
+            const line=document.createElement('div');
+            line.className='calendar-week-now-line';
+            line.style.top=String(now/60*CALENDAR_AGENDA_HOUR_HEIGHT)+'px';
+            const stamp=document.createElement('span');
+            stamp.textContent=String(Math.floor(now/60)).padStart(2,'0')+':'+String(now%60).padStart(2,'0');
+            line.appendChild(stamp);track.appendChild(line);
+          }
+        }
+        viewport.appendChild(track);panel.appendChild(viewport);
+        const startMinutes=dateKey===todayState().key
+          ?Math.max(0,homeCurrentMinutes()-120)
+          :timed.length?Math.max(0,Math.min(8*60,timed[0].start-60)):8*60;
+        requestAnimationFrame(()=>{
+          if(viewport.isConnected)viewport.scrollTop=startMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT;
+        });
+        return panel;
+      }
+
       function renderWorkCalendar(payload,{force=false}={}){
         const signature=workCalendarRenderSignature(payload);
         if(!force&&signature===currentWorkCalendarRenderSignature){
@@ -13576,13 +13786,9 @@
         const allDays=Array.isArray(payload?.days)?payload.days:[];
         const focus=calendarDateCursor||todayState().key;
         const weekStart=calendarDateShift(focus,-((dateFromKey(focus).getUTCDay()+6)%7));
-        const days=calendarDisplayMode==='day'?allDays.filter(day=>day.date===focus)
-          :calendarDisplayMode==='week'?allDays.filter(day=>day.date>=weekStart&&day.date<=calendarDateShift(weekStart,6))
-          :calendarDisplayMode==='list'?allDays.filter(day=>{
-            const tasks=(payload?.ticktickDays||[]).find(row=>row.date===day.date)?.events||[];
-            const holidays=(payload?.holidayDays||[]).find(row=>row.date===day.date)?.items||[];
-            return Boolean(day.working||tasks.some(row=>!row.completed)||holidays.length||calendarObligationsForDay(day.date,payload?.financeObligations||[]).length);
-          }):allDays;
+        const days=calendarDisplayMode==='week'
+          ?allDays.filter(day=>day.date>=weekStart&&day.date<=calendarDateShift(weekStart,6))
+          :allDays;
         const tickDays=new Map((Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[]).map(day=>[String(day?.date||''),day]));
         const holidayDays=new Map((Array.isArray(payload?.holidayDays)?payload.holidayDays:[]).map(day=>[String(day?.date||''),day]));
         const financeObligations=payload?.obligationActor===currentActor&&Array.isArray(payload.financeObligations)?payload.financeObligations:[];
@@ -13597,7 +13803,7 @@
         }
         if(!days.length){
           status.hidden=false;
-          status.textContent=calendarDisplayMode==='list'?'На выбранный период событий нет':'Нет данных';
+          status.textContent='Нет данных';
           return;
         }
 
@@ -13606,7 +13812,7 @@
         const view=String(payload?.view||currentWorkCalendarView||'month');
         const isMonth=calendarDisplayMode==='month';
         if((calendarScope==='shared'||currentActor==='Диана')&&calendarActiveMonth()===todayState().key.slice(0,7))renderPartnerWorkStatus(allDays);
-        if(isMonth||calendarDisplayMode==='list'){
+        if(isMonth){
           const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
           label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
         }else{
@@ -13688,17 +13894,6 @@
           number.className='calendar-date-number';
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
-          if(calendarDisplayMode==='list'){
-            const summary=document.createElement('span');
-            summary.className='calendar-list-summary';
-            const parts=[];
-            if(day.working)parts.push('Смена '+(times.join(' / ')||''));
-            parts.push(...tasks.slice(0,3).map(task=>task.title));
-            parts.push(...holidays.slice(0,2));
-            parts.push(...obligations.slice(0,2).map(row=>'Платёж: '+row.title));
-            summary.textContent=parts.filter(Boolean).join(' · ')||'Событий нет';
-            cell.appendChild(summary);
-          }
 
           if(tasks.length||unpaidObligations.length){
             const indicators=document.createElement('span');
@@ -13706,14 +13901,14 @@
             if(tasks.length){
               const taskCount=document.createElement('span');
               taskCount.className='calendar-task-count';
-              taskCount.textContent=String(tasks.length);
+              taskCount.textContent='';
               taskCount.setAttribute('aria-hidden','true');
               indicators.appendChild(taskCount);
             }
             if(unpaidObligations.length){
               const obligationCount=document.createElement('span');
               obligationCount.className='calendar-obligation-count';
-              obligationCount.textContent=String(unpaidObligations.length);
+              obligationCount.textContent='';
               obligationCount.setAttribute('aria-hidden','true');
               indicators.appendChild(obligationCount);
             }
@@ -13769,9 +13964,10 @@
                 complete.className='calendar-task-complete';
                 complete.setAttribute('role','checkbox');
                 complete.setAttribute('aria-checked','false');
-                const canComplete=tickTickTaskCanComplete(event);
-                complete.setAttribute('aria-label',canComplete
-                  ?'Отметить выполненным: '+String(event.title||'Дело')
+                const canComplete=tickTickTaskCanComplete(event)&&event?.personal!==true;
+                complete.setAttribute('aria-label',event?.personal===true
+                  ?'Личную задачу можно завершить в TickTick: '+String(event.title||'Дело')
+                  :canComplete?'Отметить выполненным: '+String(event.title||'Дело')
                   :'Эта задача назначена другому участнику');
                 complete.disabled=!event?.id||payload?.ticktickWritable===false||!canComplete;
 
@@ -13788,7 +13984,7 @@
                 text.textContent=String(event.title||'Дело');
                 const meta=document.createElement('span');
                 meta.className='calendar-task-time';
-                meta.textContent=[range,tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
+                meta.textContent=[range,event?.personal?String(event.projectName||'Личный список'):tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
                 taskCopy.append(text,meta);
                 row.append(complete,taskCopy);
                 complete.addEventListener('click',clickEvent=>{
@@ -13860,7 +14056,12 @@
             }
 
             selected.replaceChildren(icon,copy);
+            if(calendarDisplayMode==='week'){
+              const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations);
+              selected.appendChild(agenda);
+            }
             if(details.childElementCount) selected.appendChild(details);
+            selected.classList.toggle('calendar-week-view',calendarDisplayMode==='week');
             selected.classList.toggle('is-off',!day.working);
             selected.hidden=false;
             restartRudiMotion(selected,'rudi-data-refresh',360);
