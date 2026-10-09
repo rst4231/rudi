@@ -5,13 +5,13 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {REWARDS,scoreView}=require('../api/score-store.cjs');
 const root=path.join(__dirname,'..');
-test('removed reward ids cannot be redeemed and premium costs 50 stars',()=>{
+test('removed reward ids cannot be redeemed and premium costs 11 stars',()=>{
   assert.ok(!REWARDS.some(item=>['playlist','coffee-tea','home-date'].includes(item.id)));
   const premium=REWARDS.find(item=>item.id==='telegram-premium');
   assert.ok(premium);
   assert.equal(premium.label,'Telegram Premium на месяц');
-  assert.equal(premium.costUnits,500);
-  assert.equal(scoreView({},{}).rewards.find(item=>item.id==='telegram-premium').cost,50);
+  assert.equal(premium.costUnits,110);
+  assert.equal(scoreView({},{}).rewards.find(item=>item.id==='telegram-premium').cost,11);
 });
 test('rewards UI has no reward notification navigation',()=>{
   const app=fs.readFileSync(path.join(root,'public','app.js'),'utf8');

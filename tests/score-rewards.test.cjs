@@ -3,18 +3,18 @@ const assert = require('node:assert/strict');
 const { REWARDS, DAILY_LIMIT_UNITS, scoreView, awardScore, awardProductScore, redeemReward, resetMutationQueueForTests } = require('../api/score-store.cjs');
 
 const expected = [
-  ['playlist', 5, 'Ты выбираешь музыку/плейлист в машине на весь день.'],
-  ['coffee-tea', 8, 'Партнёр приготовит и принесёт тебе кофе или чай.'],
-  ['dessert', 10, 'Ты выбираешь десерт или любимую вкусняшку.'],
-  ['movie', 15, 'Ты выбираешь фильм или сериал для совместного просмотра.'],
-  ['breakfast', 30, 'Партнёр готовит и приносит завтрак в постель.'],
-  ['order-food', 30, 'Ты выбираешь, что и откуда заказать.'],
-  ['small-surprise', 35, 'Партнёр придумывает для тебя небольшой сюрприз.'],
-  ['massage', 40, 'Домашний массаж от партнёра.'],
-  ['home-date', 50, 'Партнёр организует уютное свидание дома.'],
-  ['day-off', 100, 'На день освобождаешься от домашних обязанностей.'],
-  ['date', 110, 'Ты выбираешь идею и формат следующего свидания.'],
-  ['gift-3000', 140, 'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.'],
+  ["movie", 3, "Ты выбираешь фильм или сериал для совместного просмотра."],
+  ["dessert", 10, "Партнёр покупает для тебя выбранный десерт или вкусняшку стоимостью до 300 ₽."],
+  ["telegram-premium", 11, "Партнёр дарит подписку Telegram Premium на 1 месяц."],
+  ["breakfast", 20, "Партнёр готовит и приносит завтрак в постель."],
+  ["small-surprise", 20, "Партнёр придумывает для тебя небольшой сюрприз стоимостью до 500 ₽."],
+  ["favorite-dish", 35, "Партнёр сам готовит для тебя выбранное тобой блюдо."],
+  ["massage", 40, "Домашний массаж от партнёра на 20–30 минут."],
+  ["order-food", 50, "Ты выбираешь, что и откуда заказать."],
+  ["gift-1500", 50, "Партнёр заказывает для тебя выбранный подарок стоимостью до 1500 ₽."],
+  ["your-evening", 85, "Ты выбираешь, как провести вечер: фильм, игра, прогулка, еда или другое совместное занятие."],
+  ["day-off", 90, "Партнёр берёт домашние дела на себя на один день."],
+  ["gift-3000", 100, "Партнёр заказывает для тебя выбранный подарок стоимостью до 3000 ₽."],
 ];
 
 test('reward shop contains all rewards with prices and descriptions', () => {
@@ -96,7 +96,7 @@ test('movie and series are one shop reward and legacy series stays compatible', 
   const movie=REWARDS.find((row)=>row.id==='movie');
   assert.ok(movie);
   assert.equal(movie.label,'Выбрать фильм или сериал');
-  assert.equal(movie.costUnits,150);
+  assert.equal(movie.costUnits,30);
   assert.equal(REWARDS.some((row)=>row.id==='series'),false);
 
   resetMutationQueueForTests();

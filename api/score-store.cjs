@@ -18,18 +18,18 @@ const DAILY_EXPENSE_SCORE_UNITS = 2;
 const ACTORS = ['Рустам', 'Диана'];
 
 const REWARDS = Object.freeze([
-  { id:'dessert', label:'Выбрать десерт или вкусняшку', description:'Ты выбираешь десерт или любимую вкусняшку.', icon:'🍰', costUnits:100 },
-  { id:'movie', label:'Выбрать фильм или сериал', description:'Ты выбираешь фильм или сериал для совместного просмотра.', icon:'🎬', costUnits:150 },
-  { id:'order-food', label:'Выбрать, что заказать поесть', description:'Ты выбираешь, что и откуда заказать.', icon:'🍕', costUnits:250 },
-  { id:'breakfast', label:'Завтрак в постель', description:'Партнёр готовит и приносит завтрак в постель.', icon:'🥐', costUnits:300 },
-  { id:'small-surprise', label:'Маленький сюрприз', description:'Партнёр придумывает для тебя небольшой сюрприз.', icon:'🎁', costUnits:350 },
-  { id:'massage', label:'Массаж', description:'Домашний массаж от партнёра на 20–30 минут.', icon:'💆', costUnits:400 },
-  { id:'telegram-premium', label:'Telegram Premium на месяц', description:'Партнёр дарит подписку Telegram Premium на 1 месяц.', icon:'⭐', costUnits:500 },
-  { id:'favorite-dish', label:'Любимое блюдо от партнёра', description:'Партнёр сам готовит для тебя выбранное тобой блюдо.', icon:'🍳', costUnits:700 },
-  { id:'your-evening', label:'Вечер по твоим правилам', description:'Ты выбираешь, как провести вечер: фильм, игра, прогулка, еда или другое совместное занятие.', icon:'✨', costUnits:850 },
-  { id:'day-off', label:'День без домашних обязанностей', description:'Партнёр берёт домашние дела на себя на один день.', icon:'🛋️', costUnits:900 },
-  { id:'date', label:'Выбрать свидание', description:'Ты выбираешь идею и формат следующего свидания.', icon:'💞', costUnits:1100 },
-  { id:'gift-3000', label:'Подарок до 3 000 ₽', description:'Партнёр заказывает для тебя выбранный подарок стоимостью до 3 000 ₽.', icon:'🎀', costUnits:1400 },
+  { id:"movie", label:"Выбрать фильм или сериал", description:"Ты выбираешь фильм или сериал для совместного просмотра.", icon:"🎬", costUnits:30 },
+  { id:"dessert", label:"Десерт или вкусняшка до 300 ₽", description:"Партнёр покупает для тебя выбранный десерт или вкусняшку стоимостью до 300 ₽.", icon:"🍰", costUnits:100 },
+  { id:"telegram-premium", label:"Telegram Premium на месяц", description:"Партнёр дарит подписку Telegram Premium на 1 месяц.", icon:"⭐", costUnits:110 },
+  { id:"breakfast", label:"Завтрак в постель", description:"Партнёр готовит и приносит завтрак в постель.", icon:"🥐", costUnits:200 },
+  { id:"small-surprise", label:"Маленький сюрприз до 500 ₽", description:"Партнёр придумывает для тебя небольшой сюрприз стоимостью до 500 ₽.", icon:"🎁", costUnits:200 },
+  { id:"favorite-dish", label:"Любимое блюдо от партнёра", description:"Партнёр сам готовит для тебя выбранное тобой блюдо.", icon:"🍳", costUnits:350 },
+  { id:"massage", label:"Массаж 20–30 минут", description:"Домашний массаж от партнёра на 20–30 минут.", icon:"💆", costUnits:400 },
+  { id:"order-food", label:"Выбрать, что заказать поесть", description:"Ты выбираешь, что и откуда заказать.", icon:"🍕", costUnits:500 },
+  { id:"gift-1500", label:"Подарок до 1500 ₽", description:"Партнёр заказывает для тебя выбранный подарок стоимостью до 1500 ₽.", icon:"🎁", costUnits:500 },
+  { id:"your-evening", label:"Вечер по твоим правилам", description:"Ты выбираешь, как провести вечер: фильм, игра, прогулка, еда или другое совместное занятие.", icon:"✨", costUnits:850 },
+  { id:"day-off", label:"День без домашних обязанностей", description:"Партнёр берёт домашние дела на себя на один день.", icon:"🧹", costUnits:900 },
+  { id:"gift-3000", label:"Подарок до 3000 ₽", description:"Партнёр заказывает для тебя выбранный подарок стоимостью до 3000 ₽.", icon:"🎀", costUnits:1000 },
 ]);
 
 let mutationTail = Promise.resolve();
