@@ -17896,11 +17896,8 @@ html[data-theme="light"] .profile-person-card #partnerFastingProfileButton .fast
 .finance-goal-card-compact #financePlanningTitle[role="button"],
 .profile-person-card :is(#displayName,#partnerHeaderName)[role="button"],
 #smartHomeTile #smartHomeTitle[role="button"],
-#dailyQuestionTile #dailyQuestionTitle[role="button"],
-#homeLuluTile .lulu-copy h2[role="button"]{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#dailyQuestionTile #dailyQuestionTitle[role="button"]{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .finance-goal-card-compact #financePlanningTitle[role="button"]:focus-visible,
 .profile-person-card :is(#displayName,#partnerHeaderName)[role="button"]:focus-visible,
 #smartHomeTile #smartHomeTitle[role="button"]:focus-visible,
-#dailyQuestionTile #dailyQuestionTitle[role="button"]:focus-visible,
-#homeLuluTile .lulu-copy h2[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
-#homeLuluTile.is-collapsed :is(.lulu-toilet-status,.lulu-walk-status,#luluWalkHistory){display:none!important}
+#dailyQuestionTile #dailyQuestionTitle[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}

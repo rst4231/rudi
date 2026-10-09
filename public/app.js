@@ -7608,8 +7608,6 @@
       }
 
       function toggleLuluWalkHistory(){
-        const luluCard=document.getElementById('homeLuluTile');
-        if(luluCard?.classList.contains('is-collapsed')) luluCard.querySelector('.lulu-copy h2')?.click();
         const panel=document.getElementById('luluWalkHistory');
         const toggle=document.getElementById('luluWalkHistoryToggle');
         if(!panel||!toggle) return;
@@ -8686,31 +8684,6 @@
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
         document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',toggleLuluWalkHistory);
-        const luluCard=document.getElementById('homeLuluTile');
-        const luluHeading=luluCard?.querySelector('.lulu-copy h2');
-        if(luluCard&&luluHeading&&luluHeading.dataset.collapseBound!=='1'){
-          luluHeading.dataset.collapseBound='1';
-          luluHeading.setAttribute('role','button');
-          luluHeading.setAttribute('tabindex','0');
-          luluHeading.setAttribute('aria-label','Свернуть или развернуть Лулу');
-          const applyLuluCollapse=collapsed=>{
-            luluCard.classList.toggle('is-collapsed',collapsed);
-            luluHeading.setAttribute('aria-expanded',collapsed?'false':'true');
-          };
-          const toggleLuluCollapse=()=>{
-            const collapsed=!luluCard.classList.contains('is-collapsed');
-            applyLuluCollapse(collapsed);
-            setBlockCollapsed('lulu',collapsed);
-            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-          };
-          applyLuluCollapse(getBlockCollapsed('lulu',false));
-          luluHeading.addEventListener('click',toggleLuluCollapse);
-          luluHeading.addEventListener('keydown',event=>{
-            if(event.key!=='Enter'&&event.key!==' ')return;
-            event.preventDefault();
-            toggleLuluCollapse();
-          });
-        }
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
           navigateToAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
