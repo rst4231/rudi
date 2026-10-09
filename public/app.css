@@ -17947,3 +17947,18 @@ html[data-theme="light"] .profile-person-card #partnerFastingProfileButton .fast
   .profile-person-card .profile-person-head{min-height:54px!important;margin-top:1px!important}
   .profile-person-card .score-avatar-wrap > .score-sticker{top:auto!important;bottom:-9px!important}
 }
+
+/* RUDI v4.110: responsive startup page selector. */
+.settings-startup-row{gap:12px!important;align-items:center}
+.settings-startup-row .home-settings-copy{min-width:0;flex:1 1 auto}
+.settings-startup-select{
+  display:block;flex:0 1 178px;min-width:0;max-width:55%;min-height:36px;
+  padding:6px 9px;border:1px solid var(--line);border-radius:11px;
+  background:var(--surface-strong);color:var(--text);font:inherit;font-size:12px;
+  font-weight:700;cursor:pointer;
+}
+.settings-startup-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:360px){
+  .settings-startup-row{flex-wrap:wrap}
+  .settings-startup-select{max-width:100%;flex-basis:100%}
+}
