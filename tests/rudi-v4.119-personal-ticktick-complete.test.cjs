@@ -112,8 +112,10 @@ test('v4.120 selected day never paints a cell-sized square, in either theme',()=
   assert.ok(release.includes('html[data-theme="light"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.selected'));
   assert.ok(release.includes('html[data-theme="dark"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.selected'));
   assert.ok(release.includes('border-radius:0!important;background:transparent!important;'));
-  assert.ok(release.includes('outline:2px solid #ff3b40!important;'));
-  assert.ok(release.includes('outline:2px solid #ff4a50!important;'));
+  assert.ok(release.includes('/* v4.121: iOS-style inverted selected-date circle'));
+  assert.ok(release.includes('color:#fff!important;background:#000!important;'));
+  assert.ok(release.includes('color:#000!important;background:#fff!important;'));
+  assert.ok(release.includes('outline:0!important;box-shadow:none!important;border:0!important'));
 });
 test('v4.120 green highlights Diana days off only when shift data is ready',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
