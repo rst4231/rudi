@@ -44,7 +44,10 @@
     {
       "source": "/version.json",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, max-age=0"
+        }
       ]
     },
     {
@@ -152,6 +155,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/wallet-logo",
+      "destination": "/api/index?route=wallet-logo"
+    },
     {
       "source": "/api/feed",
       "destination": "/api/partner-message?rudiAction=feed"

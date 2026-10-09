@@ -28,7 +28,8 @@ test('Wallet UI loads optional icon script before application and retains stars 
   const js=read('public/app.js');
   const css=read('public/app.css');
   assert.match(html,/id="financeWalletBrand"/);
-  assert.ok(html.indexOf('wallet-brand-icons.js')<html.indexOf('/app.js?v=4.115'));
+  const current=JSON.parse(read('rudi-version.json')).current.slice(1);
+  assert.ok(html.indexOf('wallet-brand-icons.js')<html.indexOf('/app.js?v='+current));
   assert.match(js,/RudiWalletBrandIcons\?\.decorateCoin\(coin,wallet\)/);
   assert.match(js,/RudiWalletBrandIcons\?\.selectedIcon/);
   assert.match(js,/list\.append\(stars\)/);

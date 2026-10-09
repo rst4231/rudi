@@ -122,24 +122,37 @@
     if(!coin||typeof document==='undefined')return;
     const brand=resolveBrand(wallet);
     if(!brand)return;
+    // Image must be attached to the coin before loading. Detached lazy images
+    // may never request their URL in standalone iOS WebKit.
     const img=document.createElement('img');
     img.className='finance-wallet-brand-image';
     img.alt='';
     img.setAttribute('aria-hidden','true');
-    img.loading='lazy';
+    img.loading='eager';
     img.decoding='async';
     img.referrerPolicy='no-referrer';
+    img.style.position='absolute';
+    img.style.visibility='hidden';
+    const sources=[
+      '/api/wallet-logo?brand='+encodeURIComponent(brand.id),
+      'https://www.google.com/s2/favicons?domain='+encodeURIComponent(brand.domain)+'&sz=128',
+      'https://icons.duckduckgo.com/ip3/'+brand.domain+'.ico'
+    ];
+    let attempt=0;
     img.onload=()=>{
+      img.style.position='';
+      img.style.visibility='';
       coin.replaceChildren(img);
       coin.classList.add('has-brand-icon');
       coin.setAttribute('title',brand.title);
     };
     img.onerror=()=>{
-      if(img.dataset.rudiIconFallback)return;
-      img.dataset.rudiIconFallback='1';
-      img.src='https://icons.duckduckgo.com/ip3/'+brand.domain+'.ico';
-    }; // A second trusted icon source, then retain the currency symbol if both fail.
-    img.src='https://www.google.com/s2/favicons?domain='+encodeURIComponent(brand.domain)+'&sz=128';
+      attempt++;
+      if(attempt<sources.length) img.src=sources[attempt];
+      else img.remove(); // The original currency symbol remains visible.
+    };
+    coin.appendChild(img);
+    img.src=sources[0];
   }
   function syncComposerHint(select,hint,name){
     if(!hint)return;

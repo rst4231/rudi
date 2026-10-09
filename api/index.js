@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const { handleWalletLogo } = require('./wallet-logo.cjs');
 const { stripStagePriceLines, compactEventTelegramRequest } = require('./event-text-sanitizer.cjs');
 const { maybeSendEventImages } = require('./event-images.cjs');
 const { runWithCronSecretHidden, installGlobalTelegramFetchGuard } = require('./runtime-guard.cjs');
@@ -139,6 +140,7 @@ async function publishDailyLaborArticle(options = {}) {
 
 async function handler(req, res) {
   try {
+    if (req.query?.route === 'wallet-logo') return handleWalletLogo(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
     if (req.query?.route === 'smart-home-humidity-cron') {
       const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {
