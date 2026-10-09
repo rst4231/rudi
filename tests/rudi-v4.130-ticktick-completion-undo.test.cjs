@@ -243,3 +243,51 @@ test('TickTick API 500 in shared list does not block personal calendar or erase 
   assert.ok(app.includes("status.textContent='TickTick временно недоступен'"));
   assert.ok(app.includes('fallbackTick&&retainedTick.length?retainedTick'));
 });
+
+test('calendar composition renders on success and safely preserves data when TickTick times out',async()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const start=app.indexOf('      async function fetchCombinedCalendar(');
+  const end=app.indexOf('      async function prefetchCalendarView(',start);
+  assert.ok(start>=0&&end>start,'calendar source extractable');
+  const code=app.slice(start,end);
+  const make=(scope,fail=false,previous=null)=>{
+    const env={
+      calendarActiveMonth:()=> '2026-10',
+      calendarScope:scope,currentActor:'Рустам',
+      telegramInitData:()=>'',currentStateBackupToken:'',
+      fetchCalendarJson:async key=>{
+        if(key.startsWith('ticktick-calendar:')){
+          if(fail)throw new Error('ticktick-api-failed:500');
+          return {ok:true,connected:true,personalConnected:true,days:[
+            {date:'2026-10-09',events:[{id:'task-1',personal:true}]}
+          ]};
+        }
+        return {ok:true,configured:true,days:[]};
+      },
+      financeRequest:async()=>({actor:'Рустам',obligations:[]}),
+      calendarDateShift:(first,days)=>{
+        const date=new Date(first+'T00:00:00Z');
+        date.setUTCDate(date.getUTCDate()+days);
+        return date.toISOString().slice(0,10);
+      },
+      calendarViewCache:previous?{'2026-10:personal':previous}:{},
+      calendarCacheKey:()=> '2026-10:personal',
+      calendarPersonalTickTickConnected:true,
+      calendarDisplayMode:'month',
+      dateFromKey:key=>new Date(key+'T00:00:00Z')
+    };
+    return new Function(...Object.keys(env),code+';return fetchCombinedCalendar;')(...Object.values(env));
+  };
+  const personal=await make('personal')('month');
+  assert.equal(personal.ticktickUnavailable,false);
+  assert.equal(personal.ticktickDays[0].events[0].id,'task-1');
+  assert.equal(personal.personalTickTickConnected,true);
+  const stale=await make('personal',true,personal)('month');
+  assert.equal(stale.ticktickUnavailable,true);
+  assert.equal(stale.stale,true);
+  assert.equal(stale.ticktickDays[0].events[0].id,'task-1');
+  assert.equal(stale.personalTickTickConnected,true);
+  const shared=await make('shared')('month');
+  assert.equal(shared.ticktickUnavailable,false);
+  assert.ok(Array.isArray(shared.days));
+});
