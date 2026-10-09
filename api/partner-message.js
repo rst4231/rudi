@@ -10,7 +10,7 @@ const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveD
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken, savePersonalToken, readPersonalToken, clearPersonalToken } = require('./ticktick-store.cjs');
-const { completeRustamPersonalTask, reopenRustamPersonalTask, rescheduleRustamPersonalTask } = require('./ticktick-personal-completion.cjs');
+const { completeRustamPersonalTask, reopenRustamPersonalTask, rescheduleRustamPersonalTask, rescheduleTickTickTaskTime } = require('./ticktick-personal-completion.cjs');
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish, restoreWish } = require('./wishlist-store.cjs');
 const {
@@ -2096,6 +2096,52 @@ async function handleTickTick(req, res, action, options = {}) {
       }
       console.error('RUDI_TICKTICK_TODAY_ERROR', String(error?.message || error));
       return res.status(502).json({ ok: false, connected: true, tasks: [], error: 'ticktick-unavailable' });
+    }
+  }
+
+  // The shared TickTick list allows moving only owned and joint tasks.
+  if(action==='task-move'){
+    if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
+    let body,actor;
+    try{
+      body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      ({actor}=authorizeRequest(req,body.initData,options));
+    }catch(error){
+      return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)});
+    }
+    const taskId=String(body.taskId||'').trim();
+    if(!taskId||taskId.length>200)return res.status(400).json({ok:false,error:'ticktick-task-move-invalid'});
+    if(!credentialsConfigured(options.env||process.env))
+      return res.status(503).json({ok:false,error:'ticktick-not-configured'});
+    try{
+      const config=await loadTickTickConfig(options);
+      if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
+      const token=await readTickTickTokenWithBackup(body,options);
+      if(!token?.accessToken)return res.status(401).json({ok:false,error:'ticktick-not-connected'});
+      if(tokenHasWriteScope(token)===false)
+        return res.status(403).json({ok:false,error:'ticktick-write-permission-required'});
+      const task=await fetchTask(token.accessToken,config.projectId,taskId,options);
+      const meta=await getSharedTaskMeta(taskId,options).catch(()=>null);
+      if(!sharedTaskCanDelete(actor,task,meta))
+        return res.status(403).json({ok:false,error:'ticktick-task-move-forbidden'});
+      const result=await rescheduleTickTickTaskTime({
+        task,accessToken:token.accessToken,taskId,projectId:config.projectId,
+        date:body.date,time:body.time,options
+      });
+      return res.status(200).json(result);
+    }catch(error){
+      const code=String(error?.message||error);
+      if(code==='ticktick-token-invalid'){
+        await clearToken(options).catch(()=>{});
+        return res.status(401).json({ok:false,error:'ticktick-reconnect-required'});
+      }
+      if(code.includes('forbidden')||code.includes('write-permission-required'))
+        return res.status(403).json({ok:false,error:code});
+      if(code.includes('invalid')||code.includes('mismatch')||code.includes('unsupported'))
+        return res.status(400).json({ok:false,error:code});
+      if(code==='ticktick-task-not-found')return res.status(404).json({ok:false,error:code});
+      console.error('RUDI_SHARED_TICKTICK_MOVE_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-task-move-unavailable'});
     }
   }
 
