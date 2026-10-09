@@ -6,19 +6,15 @@ let searchInput=null,interactionChoices=null,interactionRun=null,interactionResu
 let interactionCheck=null,openActionName='',selectedInteractionIds=new Set();
 const actionButtons=new Map(),actionPanels=new Map();
 
-const GROUP_STATE_PREFIX='rudi-supplement-groups-v1:';
-function groupStateKey(){return GROUP_STATE_PREFIX+(app()?.getActor?.()||'unknown')}
-function readGroupState(){
-  try{
-    const value=JSON.parse(localStorage.getItem(groupStateKey())||'{}');
-    return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
-  }catch{return{}}
+const STATUS_TAB_PREF='rudi-supplement-status-tab-v1:';
+function statusTabKey(){return STATUS_TAB_PREF+(app()?.getActor?.()||'unknown')}
+function readStatusTab(){
+  try{const value=localStorage.getItem(statusTabKey());return ['active','paused','finished'].includes(value)?value:'active'}catch{return'active'}
 }
-function writeGroupState(status,collapsed){
-  const next={...readGroupState(),[status]:Boolean(collapsed)};
-  try{localStorage.setItem(groupStateKey(),JSON.stringify(next))}catch{}
-  return next;
-}
+function writeStatusTab(status){try{localStorage.setItem(statusTabKey(),status)}catch{}}
+let selectedStatusTab='active';
+let selectedStatusActor='';
+let statusTabBar=null;
 
 const app=()=>window.RudiSupplementApp;
 const req=(op,payload)=>app().request(op,payload);
@@ -132,48 +128,87 @@ function renderAutomaticDuplicates(active){
   const title=document.createElement('strong');title.textContent='⚠️ Повторяются активные вещества';duplicatePanel.appendChild(title);
   for(const row of duplicates){const p=document.createElement('p');p.textContent=row.ingredient+': '+[...new Set(row.items)].join(', ');duplicatePanel.appendChild(p)}
 }
-function supplementTimeKey(item){return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(item?.schedule?.time||''))?String(item.schedule.time):'99:99'}
+function supplementTimeKey(item){const times=Array.isArray(item?.schedule?.times)?item.schedule.times:[item?.schedule?.time];return times.find(value=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||'')))||'99:99'}
 function groupTitle(status){
   if(status==='paused')return'На паузе';
   if(status==='finished')return'Архив';
   return'Принимаю';
 }
+function ensureStatusTabs(list){
+  const currentActor=app()?.getActor?.()||'';
+  if(selectedStatusActor!==currentActor){
+    selectedStatusActor=currentActor;
+    selectedStatusTab=readStatusTab();
+  }
+  if(statusTabBar?.isConnected)return statusTabBar;
+  statusTabBar=document.createElement('div');
+  statusTabBar.className='supplement-status-tabs';
+  statusTabBar.setAttribute('role','tablist');
+  statusTabBar.setAttribute('aria-label','Состояние приёма БАДов');
+  list.id=list.id||'supplementStatusItems';
+  for(const status of ['active','paused','finished']){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='supplement-status-tab is-'+status;
+    button.dataset.status=status;
+    button.setAttribute('role','tab');
+    button.setAttribute('aria-controls',list.id);
+    const label=document.createElement('span');label.className='supplement-status-tab-label';label.textContent=groupTitle(status);
+    const count=document.createElement('span');count.className='supplement-status-tab-count';count.textContent='0';
+    button.append(label,count);
+    button.addEventListener('click',()=>{
+      if(selectedStatusTab===status)return;
+      selectedStatusTab=status;
+      writeStatusTab(status);
+      applyGrouping();
+    });
+    button.addEventListener('keydown',event=>{
+      if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+      const statuses=['active','paused','finished'];
+      const next=statuses[(statuses.indexOf(status)+(event.key==='ArrowRight'?1:2))%statuses.length];
+      event.preventDefault();
+      statusTabBar.querySelector('[data-status="'+next+'"]')?.click();
+      statusTabBar.querySelector('[data-status="'+next+'"]')?.focus();
+    });
+    statusTabBar.appendChild(button);
+  }
+  list.before(statusTabBar);
+  return statusTabBar;
+}
 function applyGrouping(){
   const list=document.querySelector('.personal-supplements-list');if(!list)return;
+  const tabs=ensureStatusTabs(list);
   const query=(searchInput?.value||'').trim().toLowerCase();
   list.querySelectorAll('.supplement-group-title,.supplement-group-empty').forEach(node=>node.remove());
-  const rows=getItems().map(item=>({item,card:list.querySelector('[data-id="'+CSS.escape(item.id)+'"]')})).filter(row=>row.card);
-  for(const row of rows){
-    row.matches=!query||[row.item.name,row.item.goal,...(row.item.ingredients||[])].join(' ').toLowerCase().includes(query);
-    row.card.hidden=!row.matches;
+  const all=getItems();
+  for(const button of tabs.querySelectorAll('.supplement-status-tab')){
+    const status=button.dataset.status;
+    const count=all.filter(item=>String(item?.status||'active')===status).length;
+    const selected=status===selectedStatusTab;
+    button.classList.toggle('is-selected',selected);
+    button.setAttribute('aria-selected',String(selected));
+    button.tabIndex=selected?0:-1;
+    button.querySelector('.supplement-status-tab-count').textContent=String(count);
+    button.setAttribute('aria-label',groupTitle(status)+': '+count);
   }
-  let visible=0;
-  for(const status of ['active','paused','finished']){
-    const group=rows.filter(row=>row.matches&&row.item.status===status).sort((a,b)=>{
-      const byTaken=status==='active'?Number(handledToday(a.item))-Number(handledToday(b.item)):0;
-      const byTime=supplementTimeKey(a.item).localeCompare(supplementTimeKey(b.item));
-      return byTaken||byTime||a.item.name.localeCompare(b.item.name,'ru');
-    });
-    if(!group.length)continue;
-    visible+=group.length;
-    const stored=readGroupState();
-    const collapsed=!query&&(Object.prototype.hasOwnProperty.call(stored,status)?stored[status]===true:status!=='active');
-    const title=document.createElement('button');
-    title.type='button';
-    title.className='supplement-group-title is-'+status+(collapsed?' is-collapsed':'');
-    title.setAttribute('aria-expanded',String(!collapsed));
-    title.setAttribute('aria-label',(collapsed?'Развернуть ':'Свернуть ')+groupTitle(status));
-    const label=document.createElement('span');label.className='supplement-group-title-label';label.textContent=groupTitle(status);
-    const count=document.createElement('span');count.className='supplement-group-title-count';count.textContent=String(group.length);
-    const arrow=document.createElement('span');arrow.className='supplement-group-title-arrow';arrow.textContent='⌄';
-    title.append(label,count,arrow);
-    title.addEventListener('click',()=>{writeGroupState(status,!collapsed);applyGrouping()});
-    list.appendChild(title);
-    for(const row of group){row.card.hidden=collapsed;list.appendChild(row.card)}
-  }
-  for(const row of rows.filter(row=>!row.matches))list.appendChild(row.card);
-  if(!visible&&rows.length){
-    const empty=document.createElement('div');empty.className='supplement-group-empty';empty.textContent='Ничего не найдено';list.prepend(empty);
+  const rows=all.map(item=>({item,card:list.querySelector('[data-id="'+CSS.escape(item.id)+'"]')})).filter(row=>row.card);
+  const matches=rows.filter(row=>{
+    const sameStatus=String(row.item?.status||'active')===selectedStatusTab;
+    const sameSearch=!query||[row.item.name,row.item.goal,...(row.item.ingredients||[])].join(' ').toLowerCase().includes(query);
+    row.visible=sameStatus&&sameSearch;
+    return row.visible;
+  }).sort((a,b)=>{
+    const byTaken=selectedStatusTab==='active'?Number(handledToday(a.item))-Number(handledToday(b.item)):0;
+    const byTime=supplementTimeKey(a.item).localeCompare(supplementTimeKey(b.item));
+    return byTaken||byTime||a.item.name.localeCompare(b.item.name,'ru');
+  });
+  for(const row of matches){row.card.hidden=false;list.appendChild(row.card)}
+  for(const row of rows.filter(row=>!row.visible)){row.card.hidden=true;list.appendChild(row.card)}
+  if(!matches.length&&rows.length){
+    const empty=document.createElement('div');
+    empty.className='supplement-group-empty';
+    empty.textContent=query?'В этом разделе ничего не найдено.':selectedStatusTab==='paused'?'Пока нет БАДов на паузе.':selectedStatusTab==='finished'?'Архив пока пуст.':'Пока нет БАДов, которые ты принимаешь.';
+    list.prepend(empty);
   }
 }
 
@@ -214,7 +249,8 @@ function enhanceCards(){
     const meta=document.createElement('div');meta.className='supplement-card-meta';
     if(item.goal)meta.appendChild(chip('🎯 '+item.goal));
     const perDay=plannedIntakes(item)>1?plannedIntakes(item)+'× в день':'';
-    const schedule=[item.schedule?.dosage,item.schedule?.time,perDay,foodLabel(item.schedule?.food)].filter(Boolean).join(' · ');if(schedule)meta.appendChild(chip('⏰ '+schedule));
+    const clocks=(Array.isArray(item.schedule?.times)?item.schedule.times:[item.schedule?.time]).filter(Boolean).join(' / ');
+    const schedule=[item.schedule?.dosage,clocks,perDay,foodLabel(item.schedule?.food)].filter(Boolean).join(' · ');if(schedule)meta.appendChild(chip('⏰ '+schedule));
     const course=courseText(item);if(course)meta.appendChild(chip('📅 '+course));
     if(item.expirationDate)meta.appendChild(chip('📦 до '+item.expirationDate));
     const run=streak(item);if(run)meta.appendChild(chip('🔥 '+run+' дн.'));

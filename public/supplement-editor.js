@@ -1,5 +1,5 @@
 (()=>{'use strict';
-let modal=null,form=null,itemId='',notesBox=null,historyBox=null;
+let modal=null,form=null,itemId='',notesBox=null,historyBox=null,timeInputsWrap=null,draftTimes=[];
 const app=()=>window.RudiSupplementApp;
 const req=(op,payload)=>app().request(op,payload);
 const rows=()=>app().getItems();
@@ -19,7 +19,29 @@ function field(label,type,name,options=[]){
   }
   input.name=name;wrap.append(title,input);return wrap;
 }
-function close(){if(modal)modal.hidden=true;itemId='';document.body.classList.remove('supplement-editor-open')}
+function plannedTimes(){
+  return Math.max(1,Math.min(12,Math.round(Number(form?.elements.timesPerDay?.value)||1)));
+}
+function renderTimeInputs(){
+  if(!timeInputsWrap)return;
+  const count=plannedTimes();
+  timeInputsWrap.replaceChildren();
+  const heading=document.createElement('span');
+  heading.className='supplement-editor-times-heading';
+  heading.textContent=count===1?'Время приёма':'Время каждого приёма';
+  timeInputsWrap.appendChild(heading);
+  const grid=document.createElement('div');
+  grid.className='supplement-editor-times-grid';
+  for(let index=0;index<count;index++){
+    const row=field(count===1?'Время':'Приём '+(index+1),'time','intakeTime'+index);
+    const input=row.querySelector('input');
+    input.value=draftTimes[index]||'';
+    input.addEventListener('input',()=>{draftTimes[index]=input.value});
+    grid.appendChild(row);
+  }
+  timeInputsWrap.appendChild(grid);
+}
+function close(){if(modal)modal.hidden=true;itemId='';draftTimes=[];document.body.classList.remove('supplement-editor-open')}
 function build(){
   if(modal)return;
   modal=document.createElement('div');modal.className='supplement-editor-modal';modal.hidden=true;
@@ -35,14 +57,15 @@ function build(){
     field('Состав / активные вещества','textarea','ingredients'),
     field('Дозировка','text','dosage'),
     field('Приёмов в день','number','timesPerDay'),
-    field('Время','time','time'),
+    timeInputsWrap=document.createElement('div'),
     field('Относительно еды','select','food',[['any','Не важно'],['before','До еды'],['with','Во время еды'],['after','После еды']]),
     field('Начало курса','date','startDate'),
     field('Длительность курса, дней','number','durationDays'),
     field('Статус','select','status',[['active','Принимаю'],['paused','На паузе'],['finished',app().getActor()==='Диана'?'Закончила':'Закончил']]),
     field('Срок годности','date','expirationDate')
   );
-  const timesPerDay=form.elements.timesPerDay;if(timesPerDay){timesPerDay.min='1';timesPerDay.max='12';timesPerDay.step='1';timesPerDay.inputMode='numeric'}
+  timeInputsWrap.className='supplement-editor-times';
+  const timesPerDay=form.elements.timesPerDay;if(timesPerDay){timesPerDay.min='1';timesPerDay.max='12';timesPerDay.step='1';timesPerDay.inputMode='numeric';timesPerDay.addEventListener('input',renderTimeInputs);timesPerDay.addEventListener('change',renderTimeInputs)}
   const save=document.createElement('button');save.type='submit';save.className='supplement-editor-save';save.textContent='Сохранить';form.appendChild(save);
 
   const noteSection=document.createElement('section');noteSection.className='supplement-editor-section';
@@ -87,7 +110,10 @@ function open(id){
   build();const item=rows().find(row=>row.id===id);if(!item)return;itemId=id;
   document.getElementById('supplementEditorTitle').textContent=(app().emojiForSupplement?.(item.name)||'💊')+' '+item.name;
   const e=form.elements;
-  e.goal.value=item.goal||'';e.ingredients.value=(item.ingredients||[]).join(', ');e.dosage.value=item.schedule?.dosage||'';e.timesPerDay.value=Math.max(1,Number(item.schedule?.timesPerDay)||1);e.time.value=item.schedule?.time||'';
+  e.goal.value=item.goal||'';e.ingredients.value=(item.ingredients||[]).join(', ');e.dosage.value=item.schedule?.dosage||'';e.timesPerDay.value=Math.max(1,Number(item.schedule?.timesPerDay)||1);
+  draftTimes=Array.isArray(item.schedule?.times)?[...item.schedule.times]:[item.schedule?.time||''];
+  if(!draftTimes[0])draftTimes[0]=item.schedule?.time||'';
+  renderTimeInputs();
   e.food.value=item.schedule?.food||'any';
   e.startDate.value=item.course?.startDate||'';e.durationDays.value=item.course?.durationDays||'';e.status.value=item.status||'active';e.expirationDate.value=item.expirationDate||'';
   renderNotes(item);renderHistory(item);modal.hidden=false;document.body.classList.add('supplement-editor-open');
@@ -97,7 +123,7 @@ async function saveSettings(event){
   const e=form.elements,button=form.querySelector('.supplement-editor-save');button.disabled=true;button.textContent='Сохраняю…';
   const patch={
     goal:e.goal.value,ingredients:e.ingredients.value,
-    schedule:{dosage:e.dosage.value,timesPerDay:Math.max(1,Math.min(12,Number(e.timesPerDay.value)||1)),time:e.time.value,food:e.food.value},
+    schedule:{dosage:e.dosage.value,timesPerDay:plannedTimes(),time:draftTimes[0]||'',times:Array.from({length:plannedTimes()},(_,index)=>draftTimes[index]||''),food:e.food.value},
     course:{startDate:e.startDate.value,durationDays:Number(e.durationDays.value||0)},
     status:e.status.value,expirationDate:e.expirationDate.value
   };

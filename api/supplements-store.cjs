@@ -42,7 +42,13 @@ function isoOrEmpty(v){if(!v)return'';const d=new Date(v);return Number.isNaN(d.
 
 function normalizeSchedule(v){
   const s=v&&typeof v==='object'?v:{};
-  return{dosage:cleanText(s.dosage,80),time:cleanTime(s.time),food:cleanFood(s.food),timesPerDay:cleanTimesPerDay(s.timesPerDay)};
+  const timesPerDay=cleanTimesPerDay(s.timesPerDay);
+  const legacyTime=cleanTime(s.time);
+  // Older records only have schedule.time. Keep that field for existing clients,
+  // while preserving a separate clock time for each daily intake.
+  const inputTimes=Array.isArray(s.times)?s.times:[legacyTime];
+  const times=Array.from({length:timesPerDay},(_,index)=>cleanTime(inputTimes[index]??(index===0?legacyTime:'')));
+  return{dosage:cleanText(s.dosage,80),time:times[0]||'',times,food:cleanFood(s.food),timesPerDay};
 }
 function normalizeCourse(v){
   const s=v&&typeof v==='object'?v:{};

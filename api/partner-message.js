@@ -3931,13 +3931,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'add') {
         const values=Array.isArray(body.items)&&body.items.length?body.items:[body.text];
-        const before=await readProductList(options); const beforeIds=new Set((before.items||[]).map((item)=>String(item.id||'')));
+        // Updating the shopping list should not create noise in activity history.
         const state=await addProducts(values,actor,options);
-        const addedItems=(state.items||[]).filter((item)=>!beforeIds.has(String(item.id||'')));
-        const added=compactActivityValues(addedItems.map((item)=>item.text));
-        if(added){
-          await recordActivity({type:'products',actor,text:actor+' '+activityVerb(actor,'добавил','добавила')+' в список продуктов: '+added,icon:'🛒',targetTab:'products'},options);
-        }
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ok:true,actor,...state,backupToken});
       }

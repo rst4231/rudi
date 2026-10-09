@@ -233,6 +233,22 @@ function formatDate(now) {
   }).format(now);
 }
 
+// Keep the same synodic epoch and 8-phase labels as homeMoonPhase in public/app.js.
+function formatMoonPhase(now = new Date()) {
+  const date = now instanceof Date ? now : new Date(now);
+  const synodicMonth = 29.530588853;
+  const newMoonEpoch = Date.UTC(2000, 0, 6, 18, 14, 0);
+  const age = ((((date.getTime()-newMoonEpoch)/86400000)%synodicMonth)+synodicMonth)%synodicMonth;
+  if (age < 1.84566 || age >= 27.68493) return '🌑 Новолуние';
+  if (age < 5.53699) return '🌒 Растущая Луна';
+  if (age < 9.22831) return '🌓 Первая четверть';
+  if (age < 12.91963) return '🌔 Растущая Луна';
+  if (age < 16.61096) return '🌕 Полнолуние';
+  if (age < 20.30228) return '🌖 Убывающая Луна';
+  if (age < 23.99361) return '🌗 Последняя четверть';
+  return '🌘 Убывающая Луна';
+}
+
 function isNewAfter(value, since) {
   const time = Date.parse(String(value || ''));
   const threshold = Date.parse(String(since || ''));
@@ -540,7 +556,7 @@ function rustamCarBlock(data = {}) {
 function buildMorningSummary(actor, data = {}) {
   const partner = partnerFor(actor);
   const blocks = [
-    '☀️ <b>' + actor + ', доброе утро</b>\n' + escapeTelegramHtml(String(data.dateLabel || '')),
+    '☀️ <b>' + actor + ', доброе утро</b>\n' + escapeTelegramHtml(String(data.dateLabel || '')) + (data.moonPhaseLabel ? ' · ' + escapeTelegramHtml(String(data.moonPhaseLabel)) : ''),
   ];
 
   if (data.workDay) {
@@ -698,6 +714,7 @@ async function collectMorningData(options = {}) {
     now,
     date,
     dateLabel: formatDate(now),
+    moonPhaseLabel: formatMoonPhase(now),
     holidays: Array.isArray(holidays) ? holidays : [],
     tasks,
     workDay,
@@ -850,6 +867,7 @@ module.exports = {
   loadTodayCarTasks,
   loadMorningCarState,
   buildMorningSummary,
+  formatMoonPhase,
   loadTodayTasks,
   loadDianaWorkDay,
   collectMorningData,

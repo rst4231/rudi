@@ -181,11 +181,16 @@ function handledSupplementToday(item,today){
 }
 function overdueSupplementCount(now=new Date()){
   const today=habitDateKey(now),minutes=moscowClockMinutes(now);
-  return activeSupplementItems().filter(item=>{
-    const match=String(item?.schedule?.time||'').match(/^(\d{2}):(\d{2})$/);
-    if(!match||handledSupplementToday(item,today))return false;
-    return minutes>=Number(match[1])*60+Number(match[2]);
-  }).length;
+  return activeSupplementItems().reduce((overdue,item)=>{
+    if((item.skips||[]).some(row=>String(row?.date||'')===today))return overdue;
+    const expected=supplementPlannedIntakes(item);
+    const configured=Array.isArray(item?.schedule?.times)?item.schedule.times:[item?.schedule?.time];
+    const due=configured.slice(0,expected).reduce((count,value)=>{
+      const match=String(value||'').match(/^(\d{2}):(\d{2})$/);
+      return match&&minutes>=Number(match[1])*60+Number(match[2])?count+1:count;
+    },0);
+    return overdue+Math.max(0,due-supplementIntakesOn(item,today));
+  },0);
 }
 function pendingHabitCount(now=new Date()){
   if(moscowClockMinutes(now)<20*60)return 0;

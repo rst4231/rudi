@@ -7170,7 +7170,7 @@
             '<button id="scoreModalBack" class="score-page-back" type="button" aria-label="Назад">'+
               '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'+
             '</button>'+
-            '<div class="score-page-heading"><div class="score-page-kicker">Звёзды</div><h1 id="scoreModalTitle"></h1></div>'+
+            '<div class="score-page-heading"><div class="score-page-kicker">Звёзды</div><div class="score-page-title-row"><h1 id="scoreModalTitle"></h1><button id="scoreRulesInfoButton" class="score-rules-info-button" type="button" aria-label="Как работают звёзды" aria-haspopup="dialog" aria-expanded="false" title="Как работают звёзды"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></div></div>'+
           '</header>'+
           '<section class="score-modal-sheet">'+
             '<div class="score-balance-card">'+
@@ -7188,6 +7188,7 @@
           '</section>';
         document.body.appendChild(modal);
         modal.querySelector('#scoreModalBack')?.addEventListener('click',()=>closeScoreModal());
+        modal.querySelector('#scoreRulesInfoButton')?.addEventListener('click',openScoreRulesDialog);
         modal.querySelectorAll('[data-score-tab]').forEach(button=>{
           button.addEventListener('click',()=>{
             const tab=String(button.dataset.scoreTab||'history');
@@ -7202,7 +7203,73 @@
         return modal;
       }
 
+
+      function ensureScoreRulesDialog(){
+        let dialog=document.getElementById('scoreRulesDialog');
+        if(dialog) return dialog;
+        dialog=document.createElement('div');
+        dialog.id='scoreRulesDialog';
+        dialog.className='score-rules-dialog';
+        dialog.hidden=true;
+        dialog.innerHTML=`
+          <button class="score-rules-backdrop" type="button" aria-label="Закрыть памятку"></button>
+          <section class="score-rules-sheet" role="dialog" aria-modal="true" aria-labelledby="scoreRulesTitle" aria-describedby="scoreRulesIntro">
+            <header class="score-rules-head">
+              <div class="score-rules-heading">
+                <span class="score-rules-kicker">⭐ Правила RUDI</span>
+                <h2 id="scoreRulesTitle">Как заработать звёзды?</h2>
+                <p id="scoreRulesIntro">Делаешь полезное дело — получаешь звёзды. Их можно копить, дарить или тратить на награды.</p>
+              </div>
+              <button type="button" id="scoreRulesClose" class="score-rules-close" aria-label="Закрыть">×</button>
+            </header>
+            <div class="score-rules-content">
+              <section class="score-rules-group score-rules-earn" aria-label="Как получить звёзды">
+                <h3><span class="score-rules-group-symbol">＋</span> Звёзды прибавляются</h3>
+                <div class="score-rules-item"><span class="score-rules-emoji">✅</span><span>Выполнил задачу</span><strong>+2 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🐾</span><span>Погулял с Лулу<small>Рустам: +2 · Диана: +1</small></span><strong>⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🟢</span><span>Выполнил привычку</span><strong>+0,2 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🔥</span><span>21 день подряд выполнял привычку</span><strong>+5 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">⏱️</span><span>Закончил голодание<small>12 ч: +0,5 · 16 ч: +1,5 · 24 ч: +3 · 40 ч: +5</small></span><strong>до +5 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🙂</span><span>Отметил настроение<small>Утром, днём или вечером</small></span><strong>+0,1 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">💌</span><span>Написал послание<small>Один раз в день</small></span><strong>+0,1 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">💳</span><span>Записал первый расход за день</span><strong>+0,2 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🎁</span><span>Партнёр исполнил твоё желание</span><strong>+5 ⭐</strong></div>
+              </section>
+              <section class="score-rules-group score-rules-spend" aria-label="Когда звёзды уменьшаются">
+                <h3><span class="score-rules-group-symbol">−</span> Звёзды уменьшаются</h3>
+                <div class="score-rules-item"><span class="score-rules-emoji">🔴</span><span>Не выполнил привычку</span><strong>−1 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🛍️</span><span>Купил награду<small>Снимается столько звёзд, сколько она стоит</small></span><strong>−⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">💝</span><span>Подарил звёзды партнёру<small>Они переходят партнёру</small></span><strong>−⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">↩️</span><span>Отменил действие<small>Выданные за него звёзды могут забрать обратно</small></span><strong>−⭐</strong></div>
+              </section>
+              <p class="score-rules-note">💡 Обычно можно заработать до 15 ⭐ в день. Бонус +5 ⭐ за 21 день привычки считается отдельно. Подарить партнёру можно до 5 ⭐ за неделю.</p>
+            </div>
+          </section>`;
+        document.body.appendChild(dialog);
+        dialog.querySelector('.score-rules-backdrop')?.addEventListener('click',closeScoreRulesDialog);
+        dialog.querySelector('#scoreRulesClose')?.addEventListener('click',closeScoreRulesDialog);
+        dialog.addEventListener('keydown',event=>{
+          if(event.key==='Escape'){event.preventDefault();closeScoreRulesDialog();}
+          if(event.key==='Tab'){event.preventDefault();dialog.querySelector('#scoreRulesClose')?.focus();}
+        });
+        return dialog;
+      }
+      function openScoreRulesDialog(){
+        const dialog=ensureScoreRulesDialog();
+        dialog.hidden=false;
+        document.getElementById('scoreRulesInfoButton')?.setAttribute('aria-expanded','true');
+        dialog.querySelector('#scoreRulesClose')?.focus();
+      }
+      function closeScoreRulesDialog(){
+        const dialog=document.getElementById('scoreRulesDialog');
+        if(!dialog||dialog.hidden)return;
+        dialog.hidden=true;
+        document.getElementById('scoreRulesInfoButton')?.setAttribute('aria-expanded','false');
+        document.getElementById('scoreRulesInfoButton')?.focus();
+      }
+
       function closeScoreModal(){
+        closeScoreRulesDialog();
         const target=APP_TABS.includes(scoreReturnTab)&&scoreReturnTab!=='score'?scoreReturnTab:'home';
         scoreModalActor='';
         navigateToAppTab(target,{scroll:true,replace:true});
@@ -8325,7 +8392,10 @@
         const list=document.getElementById('homeActivityList'),empty=document.getElementById('homeActivityEmpty');
         if(!list||!empty) return;
         const source=Array.isArray(items)?items:[];
-        const filtered=activityPanelMode==='history'?source:source.filter(activityNotificationItem);
+        // Product list edits are intentionally kept out of the shared activity feed.
+        // This also hides legacy records without deleting other historical activity.
+        const withoutProductAdds=source.filter(item=>String(item?.type||'')!=='products');
+        const filtered=activityPanelMode==='history'?withoutProductAdds:withoutProductAdds.filter(activityNotificationItem);
         const summaries=compactActivityItems(filtered);
         const visible=activityJournalExpanded?summaries:summaries.slice(0,5);
         const read=new Set(currentActivityReadIds());
