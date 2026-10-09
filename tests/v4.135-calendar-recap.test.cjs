@@ -110,6 +110,8 @@ test('calendar API and UI avoid repeat loads while retaining freshness on edits'
   assert.match(app,/calendarCombinedPending\.get\(requestKey\)/);
   assert.match(app,/calendarViewLoadedAt\.clear\(\)/);
   assert.match(app,/finance-calendar-obligations:/);
+  assert.match(app,/invalidateManagedRequests\('finance-calendar-obligations:'\+currentActor\)/);
+  assert.match(app,/allDays\.filter\(day=>String\(day\.date\|\|''\)\.slice\(0,7\)===calendarActiveMonth\(\)\)/);
   assert.match(app,/calendarCacheKey\(month=calendarActiveMonth\(\),scope=calendarScope\)\{return month\+':'\+scope\+':'\+currentActor\}/);
   assert.match(app,/if\(sharedPeriodMarksLoadedAt&&Date\.now\(\)-sharedPeriodMarksLoadedAt/);
   assert.match(recap,/cache\.get\(key\)/);
