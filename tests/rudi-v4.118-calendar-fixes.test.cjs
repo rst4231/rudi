@@ -58,12 +58,13 @@ test('calendar task and payment badges are rendered as 5px dots with no count',(
  assert.match(css,/\.calendar-task-count\{[\s\S]*?min-width:5px!important/);
  assert.match(css,/\.calendar-obligation-count\{[\s\S]*?min-width:5px!important/);
 });
-test('personal TickTick remains exclusive to Rustam and is read-only in calendar',()=>{
+test('personal TickTick remains exclusive to Rustam and writable only through owner API',()=>{
  const backend=fs.readFileSync('api/partner-message.js','utf8');
  const store=fs.readFileSync('api/ticktick-store.cjs','utf8');
  assert.match(backend,/if\(actor!=='Рустам'\)return res.status\(403\)/);
  assert.match(backend,/selectedScope==='rustam' && actor==='Рустам'/);
  assert.match(app,/event\?\.personal===true/);
+ assert.match(backend,/canComplete:tokenHasWriteScope\(personalToken\)!==false/);
  assert.match(store,/if \(actor !== 'Рустам'\) return null/);
 });
 

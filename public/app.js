@@ -12643,6 +12643,17 @@
         });
       }
 
+      function requestPersonalTickTickTaskCompletion(task){
+        const taskId=String(task?.id||'').trim();
+        const projectId=String(task?.projectId||'').trim();
+        if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
+        return managedJsonRequest('ticktick-personal-complete:'+taskId,
+          '/api/partner-message?ticktickAction=personal-task-complete',{
+            body:{initData:telegramInitData(),taskId,projectId},
+            ttlMs:0,timeoutMs:12000
+          });
+      }
+
       async function requestTickTickTaskCreate(value){
         return managedJsonRequest('ticktick-task-create','/api/ticktick/task-create',{
           body:{
@@ -12742,7 +12753,7 @@
 
       async function completeCalendarTickTickTask(task,row,button,writable){
         if(!task?.id||row?.dataset?.busy==='1') return;
-        if(!tickTickTaskCanComplete(task)){
+        if(!tickTickTaskCanComplete(task)||(task?.personal===true&&currentActor!=='Рустам')){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
           status.textContent='Задача назначена другому участнику';
@@ -12760,7 +12771,9 @@
         row.classList.add('is-completing');
         button.disabled=true;
         try{
-          const payload=await requestTickTickTaskCompletion(task.id);
+          const payload=task?.personal===true
+            ?await requestPersonalTickTickTaskCompletion(task)
+            :await requestTickTickTaskCompletion(task.id);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
           if(payload?.score){
             acceptScoreState(payload.score);
@@ -13964,12 +13977,15 @@
                 complete.className='calendar-task-complete';
                 complete.setAttribute('role','checkbox');
                 complete.setAttribute('aria-checked','false');
-                const canComplete=tickTickTaskCanComplete(event)&&event?.personal!==true;
-                complete.setAttribute('aria-label',event?.personal===true
-                  ?'Личную задачу можно завершить в TickTick: '+String(event.title||'Дело')
-                  :canComplete?'Отметить выполненным: '+String(event.title||'Дело')
-                  :'Эта задача назначена другому участнику');
-                complete.disabled=!event?.id||payload?.ticktickWritable===false||!canComplete;
+                const isPersonalTask=event?.personal===true;
+                const canComplete=isPersonalTask
+                  ?currentActor==='Рустам'&&event?.canComplete!==false
+                  :tickTickTaskCanComplete(event);
+                complete.setAttribute('aria-label',canComplete
+                  ?'Отметить выполненным: '+String(event.title||'Дело')
+                  :isPersonalTask?'Недостаточно прав для выполнения личной задачи':'Эта задача назначена другому участнику');
+                const taskWritable=isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false;
+                complete.disabled=!event?.id||!taskWritable||!canComplete;
 
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
@@ -13989,7 +14005,7 @@
                 row.append(complete,taskCopy);
                 complete.addEventListener('click',clickEvent=>{
                   clickEvent.stopPropagation();
-                  completeCalendarTickTickTask(event,row,complete,payload?.ticktickWritable!==false);
+                  completeCalendarTickTickTask(event,row,complete,taskWritable);
                 });
                 taskCopy.addEventListener('click',clickEvent=>{
                   clickEvent.stopPropagation();
