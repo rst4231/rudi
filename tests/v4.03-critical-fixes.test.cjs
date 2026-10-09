@@ -84,7 +84,8 @@ test('recipes keep cooking actions, servings and iPhone-safe time choices',()=>{
 
 test('release build precaches the current stable asset URLs',()=>{
   const build=fs.readFileSync('build.cjs','utf8');
-  assert.match(build,/const versionedAssets = WEB_ASSETS\.map/);
+  assert.match(build,/const versionedAssets = WEB_ASSETS\.filter/);
+  assert.match(build,/lazyAssets = new Set/);
   assert.match(build,/syncServiceWorkerPrecache\(versionedAssets\)/);
 });
 
