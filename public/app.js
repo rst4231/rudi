@@ -13109,7 +13109,7 @@
           if(responsibleInput)responsibleInput.value=editingTask?.responsible||'';
           if(descriptionInput)descriptionInput.value=editingTask?.description||'';
           if(repeatInput)repeatInput.value=editingTask?.repeat||'none';
-          if(repeatCountInput)repeatCountInput.value=String(editingTask?.repeatCount||2);
+          if(repeatCountInput)repeatCountInput.value=String(editingTask?.repeatCount||1);
           if(heading)heading.textContent=editingTask?'Редактировать дело':'Новое дело';
           if(save)save.textContent=editingTask?'Сохранить':'Добавить';
           syncRepeat();
@@ -13141,7 +13141,7 @@
           const time=editingTask?String(timeInput?.value||'').trim():String(timeInput?.value||currentDateTime.time).trim();
           if(!title||!date) return;
           const repeating=String(repeatInput?.value||'none')!=='none';
-          const repeatCount=repeating?Math.max(2,Math.min(365,Math.round(Number(repeatCountInput?.value)||2))):1;
+          const repeatCount=repeating?Math.max(1,Math.min(365,Math.round(Number(repeatCountInput?.value)||1))):1;
           if(save) save.disabled=true;
           if(status) status.textContent=editingTask?'Сохраняю…':'Добавляю…';
           const editedId=editingTask?.id||'';
@@ -13149,7 +13149,7 @@
             const data={title,date,time,responsible:String(responsibleInput?.value||'').trim(),
               description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,
               preserveRepeat:Boolean(editingTask&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
-                &&(!repeating||repeatCount===Math.max(2,Math.min(365,Math.round(Number(editingTask.repeatCount)||2)))))};
+                &&(!repeating||repeatCount===Math.max(1,Math.min(365,Math.round(Number(editingTask.repeatCount)||1)))))};
             const payload=editedId?await requestTickTickTaskUpdate(editedId,data):await requestTickTickTaskCreate(data);
             if(!payload?.ok) throw new Error(payload?.error||(editedId?'ticktick-task-update':'ticktick-task-create'));
             close();

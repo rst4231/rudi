@@ -6,14 +6,16 @@ const { readProductList } = require('./product-list-store.cjs');
 const { readDailyMood } = require('./daily-mood-store.cjs');
 const { readCycleState, cycleViewForDate } = require('./cycle-store.cjs');
 const { getWorkWeek } = require('./work-calendar.cjs');
-const { readToken } = require('./ticktick-store.cjs');
+const { readToken, readPersonalToken } = require('./ticktick-store.cjs');
 const {
   loadTickTickConfig,
   fetchProjectData,
+  fetchPersonalProjectTasks,
   buildTickTickCalendar,
   calendarDateKey,
 } = require('./ticktick-client.cjs');
 const { readFeedSnapshot, moscowDateKey } = require('./feed-store.cjs');
+const { readSharedTaskMetaState } = require('./shared-task-meta-store.cjs');
 const { telegramSendMessage, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 const { readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { loadCarTasks, serviceScheduleForMileage } = require('./car-client.cjs');
@@ -96,6 +98,8 @@ function filterTasksForActor(tasks, actor) {
   const expected = assigneeFor(actor);
   return (Array.isArray(tasks) ? tasks : []).filter((task) => {
     if (task?.completed) return false;
+    // Rustam's private TickTick lists must never appear in Diana's summary.
+    if (task?.personal === true) return actor === 'Рустам';
     if (!task?.assigned || task?.assignee === 'Не назначен') return true;
     return String(task?.assignee || '') === expected;
   });
@@ -601,7 +605,7 @@ function buildMorningSummary(actor, data = {}) {
   } else {
     const tasks = filterTasksForActor(data.tasks, actor);
     if (tasks.length) {
-      const visible = tasks.slice(0, 6);
+      const visible = tasks.slice(0, 15);
       let body = '📅 <b>Твои дела на сегодня</b>\n' + visible.map(taskLine).join('\n');
       if (tasks.length > visible.length) body += '\n• ещё ' + (tasks.length - visible.length);
       blocks.push(body);
@@ -639,21 +643,90 @@ function buildMorningSummary(actor, data = {}) {
 
 async function loadTodayTasks(options = {}) {
   if (typeof options.loadTasksImpl === 'function') return options.loadTasksImpl(options);
+  const fetchImpl = options.tickTickFetchImpl || globalThis.fetch;
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const today = calendarDateKey(now);
   try {
-    const token = await readToken(options);
-    if (!token?.accessToken) return null;
-    const config = await loadTickTickConfig({
-      env: options.env || process.env,
-      fetchImpl: options.tickTickFetchImpl || globalThis.fetch,
+    const [sharedResult, personalResult] = await Promise.allSettled([
+      (options.readTokenImpl || readToken)(options),
+      options.includePersonal === false ? Promise.resolve(null)
+        : (options.readPersonalTokenImpl || readPersonalToken)('Рустам', options),
+    ]);
+    const sharedToken = sharedResult.status === 'fulfilled' ? sharedResult.value : null;
+    const personalToken = personalResult.status === 'fulfilled' ? personalResult.value : null;
+    if (!sharedToken?.accessToken && !personalToken?.accessToken) return null;
+    const config = await (options.loadTickTickConfigImpl || loadTickTickConfig)({
+      env: options.env || process.env, fetchImpl,
     });
     if (!config.enabled) return null;
-    const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
-    const data = await fetchProjectData(token.accessToken, config.projectId, {
-      fetchImpl: options.tickTickFetchImpl || globalThis.fetch,
-    });
-    const calendar = buildTickTickCalendar(data?.tasks || [], now, 'month');
-    const today = calendarDateKey(now);
-    return calendar.days.find((day) => day.date === today)?.events || [];
+    const requestOptions = { fetchImpl };
+    const tasks = [];
+    let loaded = false;
+
+    if (sharedToken?.accessToken) {
+      try {
+        const [data, metaState] = await Promise.all([
+          (options.fetchProjectDataImpl || fetchProjectData)(sharedToken.accessToken, config.projectId, requestOptions),
+          (options.readSharedTaskMetaStateImpl || readSharedTaskMetaState)(options).catch(() => ({ entries: {} })),
+        ]);
+        const sources = new Map((Array.isArray(data?.tasks) ? data.tasks : [])
+          .map(task => [String(task?.id || ''), task]));
+        const todayEvents = buildTickTickCalendar(data?.tasks || [], now, 'month')
+          .days.find(day => day.date === today)?.events || [];
+        for (const item of todayEvents) {
+          const source = sources.get(String(item.id || '')) || {};
+          const meta = metaState?.entries?.[String(item.id || '')];
+          const responsible = ['Рустам', 'Диана'].includes(String(meta?.responsible || ''))
+            ? String(meta.responsible) : '';
+          const assigned = meta && typeof meta === 'object' ? Boolean(responsible) : item.assigned;
+          const assignee = meta && typeof meta === 'object'
+            ? (responsible === 'Рустам' ? 'RST' : responsible === 'Диана' ? 'Ди' : 'Не назначен')
+            : item.assignee;
+          tasks.push({ ...item, projectId: String(source.projectId || config.projectId),
+            assigned, assignee });
+        }
+        loaded = true;
+      } catch (error) {
+        console.warn('RUDI_SUMMARY_SHARED_TICKTICK_WARN', String(error?.message || error));
+      }
+    }
+
+    // Personal TickTick is Rustam-only. Always use his separate OAuth token,
+    // never use the shared token to read other project lists.
+    if (personalToken?.accessToken) {
+      try {
+        const personal = await (options.fetchPersonalProjectTasksImpl || fetchPersonalProjectTasks)(
+          personalToken.accessToken, config.projectId, requestOptions);
+        const active = (Array.isArray(personal) ? personal : [])
+          .filter(task => Number(task?.status ?? 0) === 0);
+        const sourceById = new Map(active.map(task => [String(task?.id || ''), task]));
+        const todayEvents = buildTickTickCalendar(active, now, 'month')
+          .days.find(day => day.date === today)?.events || [];
+        for (const item of todayEvents) {
+          const source = sourceById.get(String(item.id || '')) || {};
+          tasks.push({
+            ...item,
+            completed: false, personal: true, assigned: true, assignee: 'RST',
+            projectId: String(source.projectId || ''),
+            projectName: String(source.projectName || 'Список'),
+          });
+        }
+        loaded = true;
+      } catch (error) {
+        console.warn('RUDI_SUMMARY_PERSONAL_TICKTICK_WARN', String(error?.message || error));
+      }
+    }
+    if (!loaded) return null;
+    const seen = new Set();
+    return tasks.filter(task => {
+      if (task.completed) return false;
+      const key = String(task.projectId || '') + ':' + String(task.id || '');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).sort((a, b) =>
+      String(a.startTime || '99:99').localeCompare(String(b.startTime || '99:99')) ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'ru'));
   } catch (error) {
     console.warn('RUDI_MORNING_TICKTICK_WARN', String(error?.message || error));
     return null;

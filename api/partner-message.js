@@ -1456,14 +1456,20 @@ function sharedTaskCanDelete(actor, task, meta = null) {
 function tickTickRepeatFlag(value, count) {
   const repeat = String(value || 'none').trim().toLowerCase();
   if (!repeat || repeat === 'none') return '';
-  const total = Math.max(2, Math.min(365, Math.round(Number(count) || 2)));
-  const suffix = ';COUNT=' + total;
+  // The UI counts repeats after the initial occurrence; RRULE COUNT includes it.
+  const repetitions = Math.max(1, Math.min(365, Math.round(Number(count) || 1)));
+  const suffix = ';COUNT=' + (repetitions + 1);
   if (repeat === 'daily') return 'RRULE:FREQ=DAILY;INTERVAL=1' + suffix;
   if (repeat === 'weekdays') return 'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR' + suffix;
   if (repeat === 'weekly') return 'RRULE:FREQ=WEEKLY;INTERVAL=1' + suffix;
   if (repeat === 'monthly') return 'RRULE:FREQ=MONTHLY;INTERVAL=1' + suffix;
   if (repeat === 'yearly') return 'RRULE:FREQ=YEARLY;INTERVAL=1' + suffix;
   throw new Error('ticktick-task-repeat-invalid');
+}
+
+function tickTickRepetitionsFromFlag(value) {
+  const total = Number(String(value || '').match(/COUNT=(\d+)/)?.[1] || 2);
+  return Math.max(1, Math.min(365, total - 1));
 }
 
 function tickTickTaskDateTime(date, time = '') {
@@ -1742,7 +1748,7 @@ async function handleTickTick(req, res, action, options = {}) {
           canDelete:!responsible||responsible===actor,
           description:String(body.description || '').trim().slice(0,5000),
           repeat:String(body.repeat || 'none'),
-          repeatCount:repeatFlag?Math.max(2,Math.min(365,Math.round(Number(body.repeatCount)||2))):1,
+          repeatCount:repeatFlag?Math.max(1,Math.min(365,Math.round(Number(body.repeatCount)||1))):1,
         }
       });
     } catch (error) {
@@ -2068,7 +2074,7 @@ async function handleTickTick(req, res, action, options = {}) {
             description: String(source.desc || source.content || '').trim().slice(0, 5000),
             repeat: String(source.repeatFlag || '').includes('BYDAY=MO,TU,WE,TH,FR') ? 'weekdays'
               : (String(source.repeatFlag || '').match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1] || 'none').toLowerCase(),
-            repeatCount: Number(String(source.repeatFlag || '').match(/COUNT=(\d+)/)?.[1] || 2),
+            repeatCount: tickTickRepetitionsFromFlag(source.repeatFlag),
             repeatFlag:String(source.repeatFlag||''),
             checklist,
           };
@@ -2315,7 +2321,7 @@ async function handleTickTick(req, res, action, options = {}) {
               canEdit:Boolean(details.canEdit),
               repeat:repeatFlag.includes('BYDAY=MO,TU,WE,TH,FR')?'weekdays':
                 (repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase(),
-              repeatCount:Number(repeatFlag.match(/COUNT=(\d+)/)?.[1]||2)
+              repeatCount:tickTickRepetitionsFromFlag(repeatFlag)
             });
           }
         };
@@ -2387,7 +2393,7 @@ async function handleTickTick(req, res, action, options = {}) {
           event.repeatFlag=repeatFlag;
           event.repeat=repeatFlag.includes('BYDAY=MO,TU,WE,TH,FR')?'weekdays'
             :(repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase();
-          event.repeatCount=Number(repeatFlag.match(/COUNT=(\d+)/)?.[1]||2);
+          event.repeatCount=tickTickRepetitionsFromFlag(repeatFlag);
         }
         if (selectedScope && selectedScope !== 'shared') day.events = day.events.filter(event => event.ownerScope === selectedScope || (event.ownerScope === 'shared' && event.together === true));
       }

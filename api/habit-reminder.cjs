@@ -104,7 +104,7 @@ async function sendHabitReminder(actor, options = {}) {
   const date = moscowDateKey(now);
   const [state,tasks,obligationsByActor] = await Promise.all([
     readHabits(actor, { ...options, now }),
-    loadTodayTasks({ ...options, now }).catch(() => null),
+    loadTodayTasks({ ...options, now, includePersonal: actor === 'Рустам' }).catch(() => null),
     loadDueObligationsByActor({ ...options, now }).catch(() => ({ [actor]:[] })),
   ]);
   const view = viewHabits(state, { ...options, now, date });

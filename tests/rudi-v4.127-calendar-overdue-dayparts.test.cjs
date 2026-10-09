@@ -12,7 +12,8 @@ test('calendar groups tasks into All day, Morning, Day, Evening',()=>{
  assert.match(app,/items.sort\(/);
  assert.match(css,/calendar-tasks-period-heading/);
  assert.match(css,/text-transform:none!important/);
- assert.match(html,/calendar.css\?v=4.127/);
+ const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.slice(1).replace(/\./g,'\\.');
+ assert.match(html,new RegExp('calendar\\.css\\?v='+version));
 });
 
 const {isOverdueTickTickTask,countOverdueTickTickTasks}=require('../api/ticktick-overdue.cjs');
