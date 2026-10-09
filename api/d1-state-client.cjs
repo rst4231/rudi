@@ -108,12 +108,14 @@ function createD1StateClient(options={}){
       tags:normalizeTags(cacheOptions.tags),
       expiresAt:expiresAtFromOptions(cacheOptions,Number(cacheOptions.now||Date.now())),
     });
-    if(data?.ok!==true)throw new Error('rudi-d1-write-unconfirmed');
-    return Boolean(data.inserted);
+    // /set-if-absent may acknowledge success through the inserted boolean.
+    if(data?.ok===false||typeof data?.inserted!=='boolean')throw new Error('rudi-d1-write-unconfirmed');
+    return data.inserted;
   }
   async function remove(namespace,key){
     const data=await request('/delete',{namespace:String(namespace||''),key:String(key||'')});
-    if(data?.ok!==true)throw new Error('rudi-d1-write-unconfirmed');
+    if(data?.ok===false||(data?.ok!==true&&!Object.prototype.hasOwnProperty.call(data||{},'deleted')))
+      throw new Error('rudi-d1-write-unconfirmed');
     return true;
   }
   async function list(namespace){
@@ -129,7 +131,8 @@ function createD1StateClient(options={}){
   }
   async function expireTag(namespace,tag){
     const data=await request('/expire-tag',{namespace:String(namespace||''),tag:String(tag||'')});
-    if(data?.ok!==true)throw new Error('rudi-d1-write-unconfirmed');
+    if(data?.ok===false||!Number.isFinite(Number(data?.deleted)))
+      throw new Error('rudi-d1-write-unconfirmed');
     return Number(data.deleted||0);
   }
   return{health,getRecord,setRecord,set,setIfAbsent,remove,list,expireTag,baseUrl};
