@@ -13981,6 +13981,7 @@
           const result=await financeRequest('set-obligation-paid',{id:obligation.id,month,paid});
           if(result.actor!==currentActor)throw new Error('finance-actor-mismatch');
           const obligations=Array.isArray(result.obligations)?result.obligations:[];
+          invalidateManagedRequests('finance-calendar-obligations:'+currentActor);
           for(const cached of Object.values(calendarViewCache)){
             if(cached&&cached.obligationActor===currentActor)cached.financeObligations=obligations;
           }
@@ -14363,7 +14364,7 @@
         const weekStart=calendarDateShift(focus,-((dateFromKey(focus).getUTCDay()+6)%7));
         const days=calendarDisplayMode==='week'
           ?allDays.filter(day=>day.date>=weekStart&&day.date<=calendarDateShift(weekStart,6))
-          :allDays;
+          :allDays.filter(day=>String(day.date||'').slice(0,7)===calendarActiveMonth());
         const tickDays=new Map((Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[]).map(day=>[String(day?.date||''),day]));
         const holidayDays=new Map((Array.isArray(payload?.holidayDays)?payload.holidayDays:[]).map(day=>[String(day?.date||''),day]));
         const financeObligations=payload?.obligationActor===currentActor&&Array.isArray(payload.financeObligations)?payload.financeObligations:[];
