@@ -10,7 +10,7 @@ const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveD
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken, savePersonalToken, readPersonalToken, clearPersonalToken } = require('./ticktick-store.cjs');
-const { completeRustamPersonalTask } = require('./ticktick-personal-completion.cjs');
+const { completeRustamPersonalTask, reopenRustamPersonalTask } = require('./ticktick-personal-completion.cjs');
 const { decodeSetupKey, saveCalendarUrl, readCalendarUrl, getWorkWeek } = require('./work-calendar.cjs');
 const { readWishlist, addWish, toggleWish, removeWish, restoreWish } = require('./wishlist-store.cjs');
 const {
@@ -93,6 +93,7 @@ const {
   updateTickTickTask,
   deleteTickTickTask,
   completeTickTickTask,
+  reopenTickTickTask,
   fetchTask,
   calendarDateKey,
   calendarTime,
@@ -2118,7 +2119,12 @@ async function handleTickTick(req, res, action, options = {}) {
         actor,token,taskId:body.taskId,projectId:body.projectId,
         sharedProjectId:config.projectId,options
       });
-      return res.status(200).json(result);
+      const undoToken=result.wasOpen?sealSnapshot({
+        type:'ticktick-task-completion-undo-v1',
+        actor,personal:true,taskId:String(body.taskId||''),
+        projectId:String(body.projectId||''),expiresAt:Date.now()+30000,
+      },options):'';
+      return res.status(200).json({...result,undoToken});
     } catch (error) {
       const code = String(error?.message || error);
       if (code === 'ticktick-token-invalid') {
@@ -2136,6 +2142,88 @@ async function handleTickTick(req, res, action, options = {}) {
         return res.status(code === 'ticktick-task-not-found'?404:400).json({ ok:false,error:code });
       console.error('RUDI_PERSONAL_TICKTICK_COMPLETE_ERROR',code);
       return res.status(502).json({ ok:false,error:'ticktick-personal-complete-unavailable' });
+    }
+  }
+
+
+  if (action === 'task-completion-undo') {
+    if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
+    let body,actor;
+    try {
+      body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      ({actor}=authorizeRequest(req,body.initData,options));
+    } catch(error) {
+      return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)});
+    }
+    let snapshot;
+    try { snapshot=openSnapshot(String(body.undoToken||''),options); } catch(_) {}
+    if(snapshot?.type!=='ticktick-task-completion-undo-v1'||snapshot.actor!==actor||
+      !snapshot.taskId||!snapshot.projectId)
+      return res.status(400).json({ok:false,error:'ticktick-task-undo-invalid'});
+    if(Number(snapshot.expiresAt||0)<Date.now())
+      return res.status(410).json({ok:false,error:'ticktick-task-undo-expired'});
+    if(!credentialsConfigured(options.env||process.env))
+      return res.status(503).json({ok:false,error:'ticktick-not-configured'});
+    const config=await loadTickTickConfig(options);
+    if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
+    const personal=snapshot.personal===true;
+    if(personal&&actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
+    if(!personal&&String(snapshot.projectId)!==String(config.projectId))
+      return res.status(403).json({ok:false,error:'ticktick-shared-project-forbidden'});
+    try {
+      const token=personal?await readPersonalToken('Рустам',options)
+        :await readTickTickTokenWithBackup(body,options);
+      if(!token?.accessToken)return res.status(401).json({ok:false,error:'ticktick-not-connected'});
+      if(tokenHasWriteScope(token)===false)
+        return res.status(403).json({ok:false,error:'ticktick-write-permission-required'});
+      let result;
+      if(personal) {
+        result=await reopenRustamPersonalTask({actor,token,taskId:snapshot.taskId,
+          projectId:snapshot.projectId,sharedProjectId:config.projectId,options});
+      } else {
+        const task=await fetchTask(token.accessToken,config.projectId,snapshot.taskId,options);
+        if(String(task?.id||'')!==String(snapshot.taskId))
+          return res.status(400).json({ok:false,error:'ticktick-task-undo-mismatch'});
+        const meta=await getSharedTaskMeta(snapshot.taskId,options).catch(()=>null);
+        const responsibility=sharedTaskResponsibility(task,meta);
+        if(!responsibility.known)return res.status(409).json({ok:false,error:'ticktick-task-assignee-unknown'});
+        if(responsibility.responsible&&responsibility.responsible!==actor)
+          return res.status(403).json({ok:false,error:'ticktick-task-assignee-forbidden'});
+        result=await reopenTickTickTask(token.accessToken,config.projectId,snapshot.taskId,{...options,task});
+      }
+      let scoreState=null;
+      if(!personal&&Array.isArray(snapshot.scoreActors)){
+        for(const scoreActor of snapshot.scoreActors){
+          if(scoreActor!=='Рустам'&&scoreActor!=='Диана')continue;
+          const key='score:task:'+snapshot.taskId+':'+String(snapshot.scoreDate||'')+':'+scoreActor;
+          const reversed=await reverseScoreByDedupeKey(key,{
+            label:'Отмена выполнения задачи',detail:'Задача возвращена в список',
+            icon:'↩️',clearDedupe:true,
+          },options).catch(error=>{
+            console.warn('RUDI_TICKTICK_UNDO_SCORE_WARN',String(error?.message||error));
+            return null;
+          });
+          scoreState=reversed?.state||scoreState;
+        }
+      }
+      const backupToken=personal?'':await refreshBackupToken(backupSnapshotFromToken(body.backupToken,options),options);
+      return res.status(200).json({ok:true,reopened:true,taskId:snapshot.taskId,
+        personal,alreadyOpen:Boolean(result?.alreadyOpen),
+        ...(scoreState?{score:scoreView(scoreState,{now:options.now||Date.now()})}:{}),
+        ...(backupToken?{backupToken}:{})});
+    } catch(error) {
+      const code=String(error?.message||error);
+      if(code==='ticktick-token-invalid'){
+        if(personal)await clearPersonalToken('Рустам',options).catch(()=>{});
+        else await clearToken(options).catch(()=>{});
+        return res.status(401).json({ok:false,error:'ticktick-reconnect-required'});
+      }
+      if(/forbidden|permission-required/.test(code))
+        return res.status(403).json({ok:false,error:code});
+      if(/invalid|mismatch|not-found/.test(code))
+        return res.status(400).json({ok:false,error:code});
+      console.error('RUDI_TICKTICK_UNDO_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-undo-unavailable'});
     }
   }
 
@@ -2216,9 +2304,14 @@ async function handleTickTick(req, res, action, options = {}) {
         scheduleShopUnlockNotification(scoreActor, award?.unlockedRewards, options);
       }
 
+      const undoToken=wasOpen?sealSnapshot({
+        type:'ticktick-task-completion-undo-v1',actor,personal:false,
+        taskId,projectId:config.projectId,scoreActors,scoreDate,
+        expiresAt:Date.now()+30000,
+      },options):'';
       const backupToken = await refreshBackupToken(previousSnapshot, options);
       return res.status(200).json({
-        ok:true,connected:true,writable:true,taskId,completed:true,
+        ok:true,connected:true,writable:true,taskId,completed:true,undoToken,
         title:String(task?.title||'').trim(),
         ...(scoreState ? {score:scoreView(scoreState,{now:options.now||Date.now()})} : {}),
         backupToken,

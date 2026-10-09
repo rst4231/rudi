@@ -492,6 +492,45 @@ async function completeTickTickTask(accessToken, projectId, taskId, options = {}
 }
 
 
+async function reopenTickTickTask(accessToken, projectId, taskId, options = {}) {
+  const id = String(taskId || '').trim();
+  const project = String(projectId || '').trim();
+  if (!id || !project) throw new Error('ticktick-task-reopen-invalid');
+  const task = options.task || await fetchTask(accessToken, project, id, options);
+  if (String(task?.id || '') !== id || String(task?.projectId || '') !== project)
+    throw new Error('ticktick-task-reopen-mismatch');
+  if (Number(task.status ?? 0) === 0) return { reopened: false, alreadyOpen: true };
+  // TickTick has no documented "uncomplete" endpoint. Restore status through
+  // the documented task-update endpoint, preserving all editable task fields.
+  const body = { id, projectId: project, title: String(task.title || '').trim(), status: 0, completedTime: null };
+  if (!body.title) throw new Error('ticktick-task-reopen-invalid');
+  for (const field of ['content', 'desc', 'isAllDay', 'startDate', 'dueDate', 'timeZone',
+    'reminders', 'repeatFlag', 'repeatFrom', 'priority', 'sortOrder', 'items',
+    'assigneeUsername', 'tags', 'kind']) {
+    if (task[field] !== undefined && task[field] !== null) body[field] = task[field];
+  }
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const response = await fetchImpl(API_BASE_URL + '/task/' + encodeURIComponent(id), {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'user-agent': 'RUDI-TickTick/1.0',
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (response.status === 401) throw new Error('ticktick-token-invalid');
+  if (response.status === 403) throw new Error('ticktick-write-forbidden');
+  if (response.status === 404) throw new Error('ticktick-task-not-found');
+  if (!response.ok) throw new Error('ticktick-task-reopen-failed:' + response.status);
+  const checked = await fetchTask(accessToken, project, id, options);
+  if (Number(checked?.status ?? 2) !== 0)
+    throw new Error('ticktick-task-reopen-not-applied');
+  return { reopened: true, alreadyOpen: false };
+}
+
 async function listTickTickProjects(accessToken, options = {}) {
   const response=await fetchTickTickRead(API_BASE_URL+'/project',{
     headers:{Authorization:'Bearer '+accessToken,Accept:'application/json','user-agent':'RUDI-TickTick/1.0'},
@@ -721,6 +760,7 @@ module.exports = {
   updateTickTickTask,
   deleteTickTickTask,
   completeTickTickTask,
+  reopenTickTickTask,
   fetchProjectData,
   listTickTickProjects,
   fetchPersonalProjectTasks,

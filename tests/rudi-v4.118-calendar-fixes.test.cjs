@@ -5,7 +5,9 @@ const app=fs.readFileSync('public/app.js','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 const css=fs.readFileSync('public/calendar.css','utf8');
 test('calendar has only week/month, neither day nor list',()=>{
- for(const mode of ['week','month'])assert.ok(html.includes('data-calendar-mode="'+mode+'"'));
+ // The latest interface has a single week/month switch, not two mode tabs.
+ assert.ok(html.includes('id="calendarModeSwitch"'));
+ assert.ok(html.includes('data-calendar-mode="week"'));
  for(const mode of ['day','list'])assert.ok(!html.includes('data-calendar-mode="'+mode+'"'));
  assert.doesNotMatch(app,/calendarDisplayMode==='list'/);
  assert.match(css,/calendar-mode-tabs\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);

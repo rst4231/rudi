@@ -12667,6 +12667,31 @@
         }
       }
 
+
+      async function requestTickTickTaskCompletionUndo(undoToken){
+        const token=String(undoToken||'').trim();
+        if(!token)throw new Error('ticktick-task-undo-invalid');
+        return managedJsonRequest('ticktick-completion-undo:'+token.slice(-20),
+          '/api/partner-message?ticktickAction=task-completion-undo',{
+            body:{initData:telegramInitData(),backupToken:currentStateBackupToken,undoToken:token},
+            ttlMs:0,timeoutMs:12000
+          });
+      }
+      function showTickTickCompletionUndo(task,payload){
+        const undoToken=String(payload?.undoToken||'').trim();
+        if(!undoToken)return;
+        showUndoSnackbar('Задача выполнена',async()=>{
+          const restored=await requestTickTickTaskCompletionUndo(undoToken);
+          if(!restored?.ok)throw new Error(restored?.error||'ticktick-task-undo-failed');
+          recentlyCompletedTickTickTaskIds.delete(String(task?.id||''));
+          if(restored?.score){
+            acceptScoreState(restored.score);
+            document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:restored.score}}));
+          }
+          await refreshAfterTickTickTaskChange({preserveExpanded:false});
+        },10000);
+      }
+
       async function requestTickTickTaskCompletion(taskId){
         const id=String(taskId||'').trim();
         if(!id) throw new Error('ticktick-task-complete-invalid');
@@ -12822,6 +12847,7 @@
           await new Promise(resolve=>setTimeout(resolve,300));
           if(row.isConnected) row.remove();
           await refreshAfterTickTickTaskChange({preserveExpanded:false});
+          showTickTickCompletionUndo(task,payload);
         }catch(error){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
@@ -12868,6 +12894,7 @@
           await new Promise(resolve=>setTimeout(resolve,420));
           removeCompletedTickTickTodayRow(task.id,row);
           await refreshAfterTickTickTaskChange({preserveExpanded:false});
+          showTickTickCompletionUndo(task,payload);
         }catch(_){
           row.classList.remove('done');
           const badge=document.getElementById('ticktickBadge');
