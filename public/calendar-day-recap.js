@@ -9,7 +9,7 @@
   const moscowDate=new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Europe/Moscow'});
   const moodNames={joy:'Радость',love:'Любовь',neutral:'Спокойствие',fatigue:'Усталость',anger:'Злость',boredom:'Скука',sadness:'Грусть'};
   const cache=new Map(),pending=new Map(),ttl=300000;
-  let active='',scheduled=false;
+  let active='',scheduled=false,lastActor='';
   const node=(tag,cls,value)=>{
     const el=document.createElement(tag);
     if(cls)el.className=cls;
@@ -95,9 +95,10 @@
   const showable=()=>document.body.dataset.appTab==='schedule'&&
     document.body.dataset.calendarScope==='personal'&&grid.dataset.calendarMode==='month';
   const fetchMonth=month=>{
-    const found=cache.get(month);
+    const key=String(document.body.dataset.rudiActor||'')+':'+month;
+    const found=cache.get(key);
     if(found&&Date.now()-found.at<ttl)return Promise.resolve(found.data);
-    if(pending.has(month))return pending.get(month);
+    if(pending.has(key))return pending.get(key);
     const req=fetch('/api/calendar-day-summary',{
       method:'POST',credentials:'same-origin',cache:'no-store',
       headers:{'Content-Type':'application/json'},
@@ -105,13 +106,15 @@
     }).then(async response=>{
       const data=await response.json();
       if(!response.ok||!data.ok)throw new Error(data.error||'unavailable');
-      cache.set(month,{at:Date.now(),data});
+      cache.set(key,{at:Date.now(),data});
       while(cache.size>4)cache.delete(cache.keys().next().value);
       return data;
-    }).finally(()=>pending.delete(month));
-    pending.set(month,req);return req;
+    }).finally(()=>pending.delete(key));
+    pending.set(key,req);return req;
   };
   function sync(){
+    const actor=String(document.body.dataset.rudiActor||'');
+    if(actor!==lastActor){lastActor=actor;active='';panel.hidden=true;cache.clear()}
     if(!showable()){panel.hidden=true;active='';return}
     const date=String(grid.querySelector('.calendar-day-cell.selected[data-date]')?.dataset.date||'');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date>=moscowDate.format(new Date())){
@@ -136,7 +139,9 @@
     queue();
   });
   new MutationObserver(queue).observe(grid,{childList:true});
-  new MutationObserver(queue).observe(document.body,{attributes:true,attributeFilter:['data-app-tab','data-calendar-scope']});
+  new MutationObserver(queue).observe(document.body,{attributes:true,attributeFilter:['data-app-tab','data-calendar-scope','data-rudi-actor']});
+  document.addEventListener('rudi-finances-updated',()=>{cache.clear();active='';queue()});
+  document.addEventListener('rudi:supplement-intake-updated',()=>{cache.clear();active='';queue()});
   window.addEventListener('pageshow',queue);
   queue();
 })();
