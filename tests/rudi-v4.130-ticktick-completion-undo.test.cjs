@@ -191,11 +191,15 @@ test('a personal calendar drag updates only its own timed task, preserving durat
     rescheduleRustamPersonalTask({...own,date:'2026-10-09',time:'10:10'},permissions),
     /time-invalid/
   );
-  await assert.rejects(
-    rescheduleRustamPersonalTask({...own,date:'2026-10-09',time:'10:30'},
-      {...permissions,fetchTask:async()=>({...task,repeatFlag:'RRULE:FREQ=WEEKLY'})}),
-    /reschedule-unsupported/
+  const repeating=await rescheduleRustamPersonalTask(
+    {...own,date:'2026-10-09',time:'10:30'},
+    {...permissions,fetchTask:async()=>({...task,repeatFlag:'RRULE:FREQ=WEEKLY'})}
   );
+  assert.equal(repeating.moved,true);
+  assert.equal(repeating.series,true);
+  assert.equal(changes.repeatFlag,'RRULE:FREQ=WEEKLY');
+  assert.equal(changes.startDate,'2026-10-09T07:30:00+0000');
+  assert.equal(changes.dueDate,'2026-10-09T08:15:00+0000');
   await assert.rejects(
     rescheduleRustamPersonalTask({...own,actor:'Диана',date:'2026-10-09',time:'10:30'},permissions),
     /owner-forbidden/
@@ -206,8 +210,8 @@ test('personal week blocks move by long-press, not by a six-dot button',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const backend=fs.readFileSync('api/partner-message.js','utf8');
   const css=fs.readFileSync('public/calendar.css','utf8');
-  assert.ok(app.includes('function calendarAttachPersonalTimeDrag('));
-  assert.ok(app.includes('calendarAttachPersonalTimeDrag(block,when,event,dateKey,viewport)'));
+  assert.ok(app.includes('function calendarAttachTaskTimeDrag('));
+  assert.ok(app.includes('calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable)'));
   assert.ok(app.includes('const HOLD_MS=420'));
   assert.ok(app.includes("block.addEventListener('pointerdown'"));
   assert.ok(app.includes("block.classList.add('calendar-week-draggable')"));
