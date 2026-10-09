@@ -14,7 +14,7 @@ test('personal/shared tabs, navigation and iPhone affordances',()=>{
  assert.match(src,/document\.body\.dataset\.calendarScope=calendarScope/);
  assert.match(src,/calendarDisplayMode=\['week','month'\]/);
  for(const id of ['calendarPrev','calendarNext','calendarToday'])assert.ok(html.includes('id="'+id+'"'));
- assert.match(src,/calendarSetScope\('personal',\{reload:false\}\)/);
+ assert.match(src,/function calendarSetScope\(scope,\{reload=true\}=\{\}\)/);
  assert.match(src,/touchstart/);assert.match(src,/touchend/);
  assert.match(css,/min-height:44px!important/);
 });
