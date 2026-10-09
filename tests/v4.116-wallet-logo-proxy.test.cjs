@@ -93,7 +93,7 @@ test('Browser attaches eager image and retains currency until verified image loa
   }
 });
 
-test('Release 4.116 serves new route without new serverless function and updates PWA cache',()=>{
+test('wallet logo proxy remains available and PWA assets match current release',()=>{
   const root=path.resolve(__dirname,'..');
   const index=fs.readFileSync(path.join(root,'api/index.js'),'utf8');
   const vercel=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));
@@ -101,7 +101,8 @@ test('Release 4.116 serves new route without new serverless function and updates
   const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
   assert.match(index,/handleWalletLogo\(req, res\)/);
   assert.deepEqual(vercel.rewrites.find(r=>r.source==='/api/wallet-logo'),{source:'/api/wallet-logo',destination:'/api/index?route=wallet-logo'});
-  assert.match(sw,/const CACHE_NAME='rudi-shell-v4\.116';/);
-  assert.match(html,/wallet-brand-icons\.js\?v=4\.116/);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(root,'rudi-version.json'),'utf8')).current,'v4.116');
+  const version=fs.readFileSync(path.join(root,'VERSION'),'utf8').trim();
+  assert.ok(sw.includes("const CACHE_NAME='rudi-shell-"+version+"';"));
+  assert.ok(html.includes('wallet-brand-icons.js?v='+version.slice(1)));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root,'rudi-version.json'),'utf8')).current,version);
 });
