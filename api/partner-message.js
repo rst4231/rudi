@@ -2125,7 +2125,8 @@ async function handleTickTick(req, res, action, options = {}) {
         projectId:String(body.projectId||''),taskSnapshot:result.taskSnapshot,
         expiresAt:Date.now()+90000,
       },options):'';
-      return res.status(200).json({...result,undoToken});
+      const {taskSnapshot:privateUndoSnapshot,...publicResult}=result;
+      return res.status(200).json({...publicResult,undoToken});
     } catch (error) {
       const code = String(error?.message || error);
       if (code === 'ticktick-token-invalid') {
