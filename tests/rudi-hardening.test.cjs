@@ -61,7 +61,7 @@ test('manual expense retry uses the same request ID and charges wallet once',asy
 test('failed finance storage write is surfaced and old state remains intact',async()=>{
   resetMutationQueueForTests();
   const financeCache=memoryCache(),opts={financeCache};
-  await saveExpenseCategory('Диана',{name:'Еда'},{...opts,id:'test-category'});
+  await saveExpenseCategory('Диана',{name:'Hardening test expense category'},{...opts,id:'test-category'});
   financeCache.fail(true);
   await assert.rejects(()=>savePersonalExpense('Диана',{
     month:'2026-10',categoryId:'test-category',amount:100,occurredAt:'2026-10-09T07:00:00.000Z'
