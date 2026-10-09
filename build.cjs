@@ -149,6 +149,8 @@ function syncWebVersion(env = process.env) {
     '$1' + label + '$2'
   );
   writeBuiltFile(webIndexPath, html);
+  // Tiny uncached release marker for Telegram/iOS environments where SW updates lag.
+  writeBuiltFile(path.join(__dirname, 'public', 'version.json'), JSON.stringify({ version: label }) + '\n');
   if (fs.existsSync(webServiceWorkerPath)) {
     let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
     serviceWorker = serviceWorker.replace(/const CACHE_NAME='rudi-shell-v[^']+';/, "const CACHE_NAME='rudi-shell-" + label + "';");
