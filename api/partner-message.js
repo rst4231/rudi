@@ -2122,7 +2122,8 @@ async function handleTickTick(req, res, action, options = {}) {
       const undoToken=result.wasOpen?sealSnapshot({
         type:'ticktick-task-completion-undo-v1',
         actor,personal:true,taskId:String(body.taskId||''),
-        projectId:String(body.projectId||''),expiresAt:Date.now()+30000,
+        projectId:String(body.projectId||''),taskSnapshot:result.taskSnapshot,
+        expiresAt:Date.now()+90000,
       },options):'';
       return res.status(200).json({...result,undoToken});
     } catch (error) {
@@ -2179,7 +2180,8 @@ async function handleTickTick(req, res, action, options = {}) {
       let result;
       if(personal) {
         result=await reopenRustamPersonalTask({actor,token,taskId:snapshot.taskId,
-          projectId:snapshot.projectId,sharedProjectId:config.projectId,options});
+          projectId:snapshot.projectId,sharedProjectId:config.projectId,
+          taskSnapshot:snapshot.taskSnapshot,options});
       } else {
         const task=await fetchTask(token.accessToken,config.projectId,snapshot.taskId,options);
         if(String(task?.id||'')!==String(snapshot.taskId))
