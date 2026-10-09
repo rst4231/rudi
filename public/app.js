@@ -8146,14 +8146,21 @@
           if(typeof action!=='function') return;
           button.disabled=true;
           clearTimeout(undoSnackbarTimer);
+          let succeeded=false;
           try{
             await action();
+            succeeded=true;
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-          }catch(_){
+          }catch(error){
+            console.warn('RUDI_UNDO_RETRY_AVAILABLE',String(error?.message||error));
+            const copy=document.getElementById('undoSnackbarText');
+            if(copy)copy.textContent='Не удалось отменить. Попробовать ещё раз';
+            clearTimeout(undoSnackbarTimer);
+            undoSnackbarTimer=setTimeout(hideUndoSnackbar,10000);
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
             button.disabled=false;
-            hideUndoSnackbar();
+            if(succeeded)hideUndoSnackbar();
           }
         });
       }
@@ -12846,8 +12853,9 @@
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           await new Promise(resolve=>setTimeout(resolve,300));
           if(row.isConnected) row.remove();
-          await refreshAfterTickTickTaskChange({preserveExpanded:false});
+          // Keep Undo available immediately, even if TickTick refresh is slow or down.
           showTickTickCompletionUndo(task,payload);
+          await refreshAfterTickTickTaskChange({preserveExpanded:false});
         }catch(error){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
@@ -12893,8 +12901,9 @@
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           await new Promise(resolve=>setTimeout(resolve,420));
           removeCompletedTickTickTodayRow(task.id,row);
-          await refreshAfterTickTickTaskChange({preserveExpanded:false});
+          // Keep Undo available immediately, even if TickTick refresh is slow or down.
           showTickTickCompletionUndo(task,payload);
+          await refreshAfterTickTickTaskChange({preserveExpanded:false});
         }catch(_){
           row.classList.remove('done');
           const badge=document.getElementById('ticktickBadge');
