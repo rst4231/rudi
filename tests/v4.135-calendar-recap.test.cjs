@@ -116,7 +116,10 @@ test('calendar API and UI avoid repeat loads while retaining freshness on edits'
   assert.match(app,/if\(sharedPeriodMarksLoadedAt&&Date\.now\(\)-sharedPeriodMarksLoadedAt/);
   assert.match(recap,/cache\.get\(key\)/);
   assert.match(recap,/lastActor===actor/);
-  assert.match(recap,/rudi-finances-updated/);
+  assert.match(recap,/readStored\(month\)/);
+  assert.match(recap,/saveStored\(month,data\)/);
+  assert.match(recap,/rudi:calendar-recap-dirty/);
+  assert.doesNotMatch(recap,/rudi-finances-updated/);
   assert.match(recap,/rudi:supplement-intake-updated/);
 });
 
