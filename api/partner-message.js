@@ -1876,7 +1876,7 @@ async function handleTickTick(req, res, action, options = {}) {
       await removeSharedTaskMeta(taskId, options).catch(() => null);
       const deletedAt = Date.now();
       const undoToken = sealSnapshot({
-        type:'ticktick-task-delete-undo-v1',
+        version:2,type:'ticktick-task-delete-undo-v1',
         actor,
         deletedAt,
         expiresAt:deletedAt + 30000,
@@ -2160,7 +2160,7 @@ async function handleTickTick(req, res, action, options = {}) {
         sharedProjectId:config.projectId,options
       });
       const undoToken=result.wasOpen?sealSnapshot({
-        type:'ticktick-task-completion-undo-v1',
+        version:2,type:'ticktick-task-completion-undo-v1',
         actor,personal:true,taskId:String(body.taskId||''),
         projectId:String(body.projectId||''),taskSnapshot:result.taskSnapshot,
         expiresAt:Date.now()+90000,
@@ -2348,7 +2348,7 @@ async function handleTickTick(req, res, action, options = {}) {
       }
 
       const undoToken=wasOpen?sealSnapshot({
-        type:'ticktick-task-completion-undo-v1',actor,personal:false,
+        version:2,type:'ticktick-task-completion-undo-v1',actor,personal:false,
         taskId,projectId:config.projectId,scoreActors,scoreDate,
         expiresAt:Date.now()+30000,
       },options):'';
