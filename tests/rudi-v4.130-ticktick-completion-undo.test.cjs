@@ -103,3 +103,43 @@ test('calendar and dashboard share the existing global Undo UI',()=>{
   assert.ok(backend.includes("reverseScoreByDedupeKey(key,"));
   assert.ok(backend.includes("if(personal&&actor!=='Рустам')"));
 });
+
+test('personal completion captures an exact short-lived restore snapshot',async()=>{
+  const {completeRustamPersonalTask}=require('../api/ticktick-personal-completion.cjs');
+  const result=await completeRustamPersonalTask(own,{
+    listTickTickProjects:async()=>[{id:'list-1'}],
+    fetchTask:async()=>({id:'task-1',projectId:'list-1',title:'Keep original',status:0,desc:'Details',priority:5}),
+    completeTickTickTask:async()=>true
+  });
+  assert.equal(result.taskSnapshot.title,'Keep original');
+  assert.equal(result.taskSnapshot.desc,'Details');
+  assert.equal(result.taskSnapshot.priority,5);
+  assert.ok(!Object.hasOwn(result.taskSnapshot,'status'));
+});
+test('personal undo restores from sealed pre-completion snapshot when completed task GET returns 404',async()=>{
+  let restored=null;
+  const snapshot={id:'task-1',projectId:'list-1',title:'Keep original',desc:'Details'};
+  const result=await reopenRustamPersonalTask({...own,taskSnapshot:snapshot},deps({
+    fetchTask:async()=>{throw new Error('ticktick-task-not-found')},
+    reopenTickTickTask:async(token,project,id,options)=>{restored=options;return {reopened:true}}
+  }));
+  assert.equal(result.reopened,true);
+  assert.equal(restored.task.title,'Keep original');
+  assert.equal(restored.force,true);
+});
+test('forcing a known pre-completion snapshot posts status zero instead of skipping',async()=>{
+  const api=fakeTickTick({initial:2});
+  const result=await reopenTickTickTask('token','list-1','task-1',{
+    fetchImpl:api.fetchImpl,
+    task:{id:'task-1',projectId:'list-1',title:'Keep original',status:0},
+    force:true
+  });
+  assert.equal(result.reopened,true);
+  assert.equal(api.status,0);
+  assert.equal(api.calls.filter(call=>call.method==='POST').length,1);
+});
+test('undo snackbar retains action and shows error when request fails',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.ok(app.includes("copy.textContent='Не удалось отменить. Попробовать ещё раз'"));
+  assert.ok(app.includes('if(succeeded)hideUndoSnackbar()'));
+});
