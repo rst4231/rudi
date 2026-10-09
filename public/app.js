@@ -13466,6 +13466,15 @@
         }).finally(()=>{sharedPeriodMarksPromise=null});
         return sharedPeriodMarksPromise;
       }
+      let calendarPersonalTickTickConnected=false;
+      function calendarUpdateCreateButtons(){
+        const shared=document.getElementById('calendarCreateTask');
+        const personal=document.getElementById('calendarPersonalCreateTask');
+        const isPersonalReady=calendarScope==='personal'&&currentActor==='Рустам'&&calendarPersonalTickTickConnected;
+        if(shared)shared.hidden=calendarScope!=='shared';
+        if(personal)personal.hidden=!isPersonalReady;
+        document.body.dataset.personalTicktickConnected=calendarPersonalTickTickConnected?'true':'false';
+      }
       function calendarSetScope(scope,{reload=true}={}){
         calendarScope=scope==='shared'?'shared':'personal';
         document.body.dataset.calendarScope=calendarScope;
@@ -13480,8 +13489,7 @@
         }
         const title=document.getElementById('calendarPageTitle');
         if(title)title.textContent=calendarScope==='shared'?'Совместный':'Личный';
-        const create=document.getElementById('calendarCreateTask');
-        if(create)create.hidden=calendarScope!=='shared';
+        calendarUpdateCreateButtons();
         if(calendarScope==='personal'&&currentActor==='Диана')loadDianaCycle({silent:true}).catch(()=>{});
         if(calendarScope==='shared')loadSharedPeriodMarks().catch(()=>{});
         applyDianaPeriodDots();
@@ -13534,6 +13542,8 @@
           });
           const data=await response.json().catch(()=>({}));
           if(!response.ok||!data.ok)throw new Error('Не удалось проверить подключения');
+          calendarPersonalTickTickConnected=currentActor==='Рустам'&&data.personalConnected===true;
+          calendarUpdateCreateButtons();
           const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
           const sharedButton=document.getElementById('calendarSharedTickTickConnect');
           if(sharedButton)sharedButton.hidden=currentActor!=='Рустам';
@@ -13655,6 +13665,49 @@
         return true;
       }
 
+      // TickTick documents opening its iOS app via a URL scheme, but does not
+      // document a blank quick-add composer link. Open Today (where users can
+      // tap TickTick's native +) without creating an empty task automatically.
+      function calendarOpenPersonalTickTickComposer(){
+        if(currentActor!=='Рустам'||calendarScope!=='personal'||!calendarPersonalTickTickConnected)return false;
+        const webUrl='https://ticktick.com/webapp/#p/inbox/tasks';
+        const openWeb=()=>{
+          if(tg?.initData&&typeof tg.openLink==='function'){
+            try{tg.openLink(webUrl);return}catch(_){}
+          }
+          if(typeof window.location?.assign==='function')window.location.assign(webUrl);
+        };
+        const onIphone=/iPhone|iPad|iPod/i.test(String(navigator.userAgent||''));
+        if(!onIphone){
+          if(tg?.initData&&typeof tg.openLink==='function'){
+            try{tg.openLink(webUrl);return true}catch(_){}
+          }
+          const link=document.createElement('a');
+          link.href=webUrl;link.target='_blank';link.rel='noopener noreferrer';
+          document.body.appendChild(link);
+          try{link.click()}finally{link.remove()}
+          return true;
+        }
+        // If iOS cannot find the native TickTick app, navigate to TickTick web.
+        const nativeUrl='ticktick://v1/show?smartlist=today';
+        let leaving=false,timer=0;
+        const onHidden=()=>{if(document.hidden){leaving=true;clearTimeout(timer);cleanup()}};
+        const onPageHide=()=>{leaving=true;clearTimeout(timer);cleanup()};
+        const cleanup=()=>{
+          document.removeEventListener('visibilitychange',onHidden);
+          window.removeEventListener('pagehide',onPageHide);
+        };
+        document.addEventListener('visibilitychange',onHidden);
+        window.addEventListener('pagehide',onPageHide);
+        timer=setTimeout(()=>{
+          cleanup();
+          if(!leaving&&!document.hidden)openWeb();
+        },1300);
+        try{window.location.assign(nativeUrl)}
+        catch(_){clearTimeout(timer);cleanup();openWeb()}
+        return true;
+      }
+
       function calendarOpenSearchResult(task){
         if(!calendarValidDateKey(task?.date))return;
         if(calendarOpenPersonalTickTickTask(task)){calendarCloseSearch();return}
@@ -13771,6 +13824,7 @@
           const time=financeNowDateTimeInputs().time;
           openTickTickTaskForCreation?.({date,time});
         });
+        document.getElementById('calendarPersonalCreateTask')?.addEventListener('click',calendarOpenPersonalTickTickComposer);
         const grid=document.getElementById('workCalendarDays');
         let startX=0,startY=0;
         grid?.addEventListener('touchstart',event=>{
@@ -14087,6 +14141,8 @@
       }
 
       function renderWorkCalendar(payload,{force=false}={}){
+        if(calendarScope==='personal')calendarPersonalTickTickConnected=currentActor==='Рустам'&&payload?.personalTickTickConnected===true;
+        calendarUpdateCreateButtons();
         const signature=workCalendarRenderSignature(payload);
         if(!force&&signature===currentWorkCalendarRenderSignature){
           const currentStatus=document.getElementById('workCalendarStatus');
@@ -14496,6 +14552,7 @@
           ticktickDays:Array.isArray(tick?.days)?tick.days:[],
           holidayDays:Array.isArray(holidays?.days)?holidays.days:[],
           ticktickConnected:tick?.connected!==false,ticktickWritable:tick?.writable!==false,
+          personalTickTickConnected:scope==='rustam'&&tick?.personalConnected===true,
           holidaysReady:holidayResult.status==='fulfilled',
           obligationActor:obligationResult.status==='fulfilled'?String(obligationResult.value?.actor||''):'',
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]

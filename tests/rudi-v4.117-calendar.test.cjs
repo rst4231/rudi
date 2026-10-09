@@ -8,8 +8,11 @@ const backend=fs.readFileSync('api/partner-message.js','utf8');
 const tick=require('../api/ticktick-client.cjs');
 const holiday=require('../api/holiday-calendar.cjs');
 test('personal/shared tabs, navigation and iPhone affordances',()=>{
- for(const name of ['personal','shared'])assert.match(html,new RegExp('data-calendar-scope="'+name+'"'));
- for(const name of ['week','month'])assert.match(html,new RegExp('data-calendar-mode="'+name+'"'));
+ // RUDI switches scope and mode dynamically via one button per selector.
+ assert.match(html,/id="calendarScopeSwitch"/);
+ assert.match(html,/id="calendarModeSwitch"/);
+ assert.match(src,/document\.body\.dataset\.calendarScope=calendarScope/);
+ assert.match(src,/calendarDisplayMode=\['week','month'\]/);
  for(const id of ['calendarPrev','calendarNext','calendarToday'])assert.ok(html.includes('id="'+id+'"'));
  assert.match(src,/calendarSetScope\('personal',\{reload:false\}\)/);
  assert.match(src,/touchstart/);assert.match(src,/touchend/);

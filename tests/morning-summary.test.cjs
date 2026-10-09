@@ -65,22 +65,27 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
 
   const rustam = buildMorningSummary('Рустам', common);
   assert.match(rustam, /Задача Рустама/);
+  for(const text of [rustam,buildMorningSummary('Диана',common)]) {
+    for(const block of [/Продукты/,/Сегодня в Ленте/,/Дом и погода/])assert.doesNotMatch(text,block);
+  }
   assert.match(rustam, /Совместная задача/);
   assert.doesNotMatch(rustam, /Задача Дианы/);
   assert.doesNotMatch(rustam, /Сегодня рабочий день/);
-  assert.match(rustam, /Диана сегодня работает/);
+  assert.match(rustam, /<b>Диана сегодня<\/b>/);
   assert.match(rustam, /09:00–21:00/);
-  assert.match(rustam, /Диана по циклу/);
+  assert.match(rustam, /🌸 Цикл:/);
   assert.match(rustam, /Чувствительная/);
   assert.match(rustam, /лютеиновая фаза/);
-  assert.match(rustam, /Как лучше сегодня с Дианой/);
+  assert.match(rustam, /🤍 Совет:/);
   assert.match(rustam, /говори мягче/i);
   assert.match(rustam, /Праздники сегодня/);
   assert.match(rustam, /Всемирный день улыбки/);
-  assert.match(rustam, /Дом и погода/);
-  assert.match(rustam, /Дома: 23\.2°C · влажность 56%/);
-  assert.match(rustam, /На улице: 16°C · облачно/);
+  assert.doesNotMatch(rustam, /Дом и погода/);
+  assert.doesNotMatch(rustam, /Дома: 23\.2°C · влажность 56%/);
+  assert.doesNotMatch(rustam, /На улице: 16°C · облачно/);
   assert.match(rustam, /Машина/);
+  assert.match(rustam,/Диана сегодня<\/b>\n💼 Работает: 09:00–21:00\n🌸 Цикл: <b>Чувствительная<\/b> · лютеиновая фаза\n🤍 Совет:/);
+  assert.equal((rustam.match(/<b>Диана сегодня<\/b>/g)||[]).length,1);
   assert.match(rustam, /Шины: Можно на летних/);
   assert.match(rustam, /Мойка: сегодня/);
   assert.match(rustam, /Рекомендации:/);
@@ -95,12 +100,27 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.match(diana, /09:00–21:00/);
   assert.match(diana, /Твой статус по циклу/);
   assert.match(diana, /Чувствительная/);
-  assert.doesNotMatch(diana, /Как лучше сегодня с Дианой/);
-  assert.match(diana, /Дом и погода/);
-  assert.match(diana, /Дома: 23\.2°C · влажность 56%/);
-  assert.match(diana, /На улице: 16°C · облачно/);
+  assert.doesNotMatch(diana, /🤍 Совет:/);
+  assert.doesNotMatch(diana, /Дом и погода/);
+  assert.doesNotMatch(diana, /Дома: 23\.2°C · влажность 56%/);
+  assert.doesNotMatch(diana, /На улице: 16°C · облачно/);
   assert.doesNotMatch(diana, /Шины:/);
   assert.doesNotMatch(diana, /Проверить давление в шинах/);
+});
+
+test('Rustam morning Diana overview gracefully handles partial data and escapes values',()=>{
+ const workOnly=buildMorningSummary('Рустам',{workDay:{working:true,events:[]},tasks:[]});
+ assert.match(workOnly,/<b>Диана сегодня<\/b>\n💼 Работает/);
+ assert.doesNotMatch(workOnly,/Цикл:|Совет:/);
+ const cycleOnly=buildMorningSummary('Рустам',{cycle:{moodWord:'Тест <b>',phase:''},tasks:[]});
+ assert.match(cycleOnly,/<b>Диана сегодня<\/b>\n🌸 Цикл: <b>Тест &lt;b&gt;<\/b>/);
+ assert.doesNotMatch(cycleOnly,/Работает|Совет:/);
+ const missing=buildMorningSummary('Рустам',{tasks:[]});
+ assert.doesNotMatch(missing,/<b>Диана сегодня<\/b>/);
+ const partner=buildMorningSummary('Диана',{workDay:{working:false},cycle:{moodWord:'Активная',phase:'Фертильное окно'},tasks:[]});
+ assert.match(partner,/Сегодня выходной/);
+ assert.match(partner,/Твой статус по циклу/);
+ assert.doesNotMatch(partner,/<b>Диана сегодня<\/b>/);
 });
 
 test('feed summary keeps active Feed sections without retired facts', () => {
@@ -205,17 +225,17 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
 
   assert.match(rustam.text,/Рустам, доброе утро/);
   assert.match(rustam.text,/понедельник, 21 сентября/);
-  assert.match(rustam.text,/Диана сегодня не работает/);
+  assert.match(rustam.text,/💼 Сегодня выходной/);
   assert.match(rustam.text,/Задача Рустама/);
   assert.doesNotMatch(rustam.text,/Задача Дианы/);
   assert.doesNotMatch(rustam.text,/Новое послание/);
   assert.doesNotMatch(rustam.text,/Подарок Дианы|Подарок Рустама|Вишлист/);
   assert.match(rustam.text,/Вдумчивая/);
-  assert.match(rustam.text,/Как лучше сегодня с Дианой/);
+  assert.match(rustam.text,/🤍 Совет:/);
   assert.match(rustam.text,/не торопи с разговорами и решениями/i);
-  assert.match(rustam.text,/2 Stand Up/);
-  assert.match(rustam.text,/Дома: 22\.8°C · влажность 54%/);
-  assert.match(rustam.text,/На улице: 11°C · пасмурно/);
+  assert.doesNotMatch(rustam.text,/2 Stand Up/);
+  assert.doesNotMatch(rustam.text,/Дома: 22\.8°C · влажность 54%/);
+  assert.doesNotMatch(rustam.text,/На улице: 11°C · пасмурно/);
   assert.match(rustam.text,/Шины: Лучше на зимних/);
   assert.match(rustam.text,/Мойка: сегодня/);
   assert.match(rustam.text,/Рекомендации:/);
@@ -236,11 +256,11 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.match(diana.text,/Праздники сегодня/);
   assert.match(diana.text,/День осенней прогулки/);
   assert.match(diana.text,/Вдумчивая/);
-  assert.match(diana.text,/Дома: 22\.8°C · влажность 54%/);
-  assert.match(diana.text,/На улице: 11°C · пасмурно/);
+  assert.doesNotMatch(diana.text,/Дома: 22\.8°C · влажность 54%/);
+  assert.doesNotMatch(diana.text,/На улице: 11°C · пасмурно/);
   assert.doesNotMatch(diana.text,/Шины:/);
   assert.doesNotMatch(diana.text,/Чек-ап машины/);
-  assert.doesNotMatch(diana.text,/Как лучше сегодня с Дианой/);
+  assert.doesNotMatch(diana.text,/🤍 Совет:/);
 
   assert.equal(rustam.reply_markup,undefined);
   assert.equal(diana.reply_markup,undefined);

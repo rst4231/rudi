@@ -2531,6 +2531,7 @@ async function handleTickTick(req, res, action, options = {}) {
         ok: true,
         connected: true,
         enabled: true,
+        personalConnected:selectedScope==='rustam'&&actor==='Рустам'&&Boolean(rustamToken?.accessToken),
         writable: tokenHasWriteScope(token) !== false,
         project: data?.project?.name || 'Общий',
         ...calendar,

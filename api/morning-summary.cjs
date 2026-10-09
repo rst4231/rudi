@@ -563,25 +563,32 @@ function buildMorningSummary(actor, data = {}) {
     '☀️ <b>' + actor + ', доброе утро</b>\n' + escapeTelegramHtml(String(data.dateLabel || '')) + (data.moonPhaseLabel ? ' · ' + escapeTelegramHtml(String(data.moonPhaseLabel)) : ''),
   ];
 
-  if (data.workDay) {
-    blocks.push(actor === 'Диана'
-      ? workDayBlock(data.workDay)
-      : dianaWorkDayBlock(data.workDay));
-  }
-
-  if (data.cycle?.moodWord) {
-    const title = actor === 'Диана' ? 'Твой статус по циклу' : 'Диана по циклу';
-    blocks.push(
-      '🌸 <b>' + title + '</b>\n'
-      + '<b>' + escapeTelegramHtml(data.cycle.moodWord) + '</b>'
-      + (data.cycle.phase ? ' · ' + escapeTelegramHtml(lowerFirst(data.cycle.phase)) : '')
-    );
-  }
-
-  if (actor === 'Рустам' && data.cycle?.phase) {
-    const guidance = cycleGuidanceForRustam(data.cycle.moodWord, data.cycle.phase);
-    if (guidance) {
-      blocks.push('🤍 <b>Как лучше сегодня с Дианой</b>\n' + escapeTelegramHtml(guidance));
+  if (actor === 'Рустам') {
+    // The work schedule, cycle and relationship guidance belong to one compact
+    // morning section. Keep them independent internally so missing data is safe.
+    const diana = [];
+    if (data.workDay) {
+      const event = Array.isArray(data.workDay.events) ? data.workDay.events[0] : null;
+      const hasShift = data.workDay.working && event?.startTime && event?.endTime;
+      diana.push(data.workDay.working
+        ? '💼 Работает' + (hasShift ? ': ' + escapeTelegramHtml(event.startTime) + '–' + escapeTelegramHtml(event.endTime) : '')
+        : '💼 Сегодня выходной');
+    }
+    if (data.cycle?.moodWord) {
+      diana.push('🌸 Цикл: <b>' + escapeTelegramHtml(data.cycle.moodWord) + '</b>'
+        + (data.cycle.phase ? ' · ' + escapeTelegramHtml(lowerFirst(data.cycle.phase)) : ''));
+    }
+    if (data.cycle?.phase) {
+      const guidance = cycleGuidanceForRustam(data.cycle.moodWord, data.cycle.phase);
+      if (guidance) diana.push('🤍 Совет: ' + escapeTelegramHtml(guidance));
+    }
+    if (diana.length) blocks.push('<b>Диана сегодня</b>\n' + diana.join('\n'));
+  } else {
+    if (data.workDay) blocks.push(workDayBlock(data.workDay));
+    if (data.cycle?.moodWord) {
+      blocks.push('🌸 <b>Твой статус по циклу</b>\n'
+        + '<b>' + escapeTelegramHtml(data.cycle.moodWord) + '</b>'
+        + (data.cycle.phase ? ' · ' + escapeTelegramHtml(lowerFirst(data.cycle.phase)) : ''));
     }
   }
 
@@ -591,9 +598,6 @@ function buildMorningSummary(actor, data = {}) {
       + data.holidays.slice(0,5).map(item => '• ' + escapeTelegramHtml(item)).join('\n')
     );
   }
-
-  const environment = environmentBlock(data);
-  if (environment) blocks.push(environment);
 
   if (actor === 'Рустам') {
     const car = rustamCarBlock(data);
@@ -623,18 +627,6 @@ function buildMorningSummary(actor, data = {}) {
       '❤️ <b>' + partner + '</b>\n'
       + 'Настроение: ' + partnerMood.emoji + ' ' + partnerMood.text
     );
-  }
-
-  const productCount = Number(data.productCount || 0);
-  if (productCount > 0) {
-    blocks.push(
-      '🛒 <b>Продукты</b>\nВ списке ' + productCount + ' '
-      + countWord(productCount, 'позиция', 'позиции', 'позиций')
-    );
-  }
-
-  if (Array.isArray(data.feedLines) && data.feedLines.length) {
-    blocks.push('📰 <b>Сегодня в Ленте</b>\n' + data.feedLines.join('\n'));
   }
 
   blocks.push('Хорошего дня 🤍');

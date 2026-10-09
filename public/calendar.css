@@ -1537,3 +1537,26 @@ body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-tasks-p
 body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-tasks-period-heading:first-child{
   margin-top:2px!important;
 }
+
+/* v4.130: personal TickTick shortcut matches the shared + / Today controls. */
+body[data-calendar-scope="personal"][data-personal-ticktick-connected="true"] .work-page #workCalendarCard .calendar-navigation{
+  grid-template-columns:minmax(0,1fr) 34px 34px auto 38px!important;
+}
+.work-page #workCalendarCard #calendarPersonalCreateTask{
+  grid-column:5!important;grid-row:1!important;
+  min-width:38px!important;width:38px!important;max-width:38px!important;
+  min-height:38px!important;height:38px!important;max-height:38px!important;
+  box-sizing:border-box!important;border:0!important;border-radius:11px!important;
+  display:grid!important;place-items:center!important;
+  font-size:25px!important;font-weight:500!important;line-height:1!important;
+  padding:0!important;box-shadow:none!important;
+  background:#4578e6!important;color:#fff!important;
+}
+@media(max-width:360px){
+  body[data-calendar-scope="personal"][data-personal-ticktick-connected="true"] .work-page #workCalendarCard .calendar-navigation{
+    grid-template-columns:minmax(0,1fr) 29px 29px auto 38px!important;
+  }
+}
+.work-page #workCalendarCard .calendar-navigation #calendarPersonalCreateTask[hidden]{
+  display:none!important;
+}
