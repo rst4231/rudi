@@ -3,6 +3,7 @@ const {readFinanceState,viewState}=require('./finance-store.cjs');
 const {readHabits,viewHabits,moscowDateKey}=require('./habit-tracker-store.cjs');
 const {readFastingState}=require('./fasting-store.cjs');
 const {readMoodHistory}=require('./daily-mood-store.cjs');
+const {readSupplements}=require('./supplements-store.cjs');
 
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 const moscowDayFormatter=new Intl.DateTimeFormat('en-CA',{
@@ -63,6 +64,13 @@ function summarizeMood(history,date){
   const row=(Array.isArray(history)?history:[]).find(item=>item.date===date);
   return{available:true,averageMood:row?.averageMood||row?.mood||'',sampleCount:Number(row?.sampleCount||0)};
 }
+function summarizeSupplements(state,date){
+  const items=(state.items||[]).flatMap(item=>(item.intakes||[])
+    .filter(intake=>intake.date===date&&Number.isFinite(Date.parse(intake.at)))
+    .map(intake=>({name:String(item.name||'БАД').slice(0,120),at:intake.at}))
+  ).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+  return{available:true,items};
+}
 function resultOf(settled,format){
   if(settled.status!=='fulfilled')return{available:false};
   try{return format(settled.value)}catch{return{available:false}}
@@ -74,17 +82,18 @@ async function handler(req,res){
     const {actor}=authorizeRequest(req,body.initData);
     const now=Date.now(),date=String(body.date||'');
     if(!validPastDay(date,now))return res.status(400).json({ok:false,error:'calendar-summary-date-invalid'});
-    const [finance,habits,fasting,mood]=await Promise.allSettled([
-      readFinanceState(),readHabits(actor,{now}),readFastingState(actor),readMoodHistory(actor,{now})
+    const [finance,habits,fasting,mood,supplements]=await Promise.allSettled([
+      readFinanceState(),readHabits(actor,{now}),readFastingState(actor),readMoodHistory(actor,{now}),readSupplements(actor)
     ]);
     const result={
       ok:true,date,
       expenses:resultOf(finance,state=>summarizeExpenses(state,actor,date)),
       habits:resultOf(habits,state=>summarizeHabits(state,date,now)),
       fasting:resultOf(fasting,state=>summarizeFasting(state,date,now)),
-      mood:resultOf(mood,history=>summarizeMood(history,date))
+      mood:resultOf(mood,history=>summarizeMood(history,date)),
+      supplements:resultOf(supplements,state=>summarizeSupplements(state,date))
     };
-    result.partial=[result.expenses,result.habits,result.fasting,result.mood].some(item=>!item.available);
+    result.partial=[result.expenses,result.habits,result.fasting,result.mood,result.supplements].some(item=>!item.available);
     return res.status(200).json(result);
   }catch(error){
     const code=String(error?.message||error),status=statusForError(error);
@@ -100,3 +109,4 @@ module.exports.summarizeExpenses=summarizeExpenses;
 module.exports.summarizeHabits=summarizeHabits;
 module.exports.summarizeFasting=summarizeFasting;
 module.exports.summarizeMood=summarizeMood;
+module.exports.summarizeSupplements=summarizeSupplements;
