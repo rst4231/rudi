@@ -27,7 +27,9 @@ test('fasting time shows whole hours and hides when inactive without losing prog
 });
 
 test('profile mood emoji are equally slightly smaller for Rustam and Diana',()=>{
-  const last=css.slice(css.lastIndexOf('RUDI v4.102 — slightly smaller mood emoji'));
+  const start=css.lastIndexOf('RUDI v4.102 — slightly smaller mood emoji');
+  const end=css.indexOf('/* RUDI v4.103',start);
+  const last=css.slice(start,end>=0?end:undefined);
   assert.match(last,/#moodCurrentButton\.avatar-mood-badge \.mood-emoji/);
   assert.match(last,/#partnerMoodValue\.avatar-mood-badge \.partner-mood-icon \.mood-emoji/);
   assert.match(last,/font-size:20px!important/);
