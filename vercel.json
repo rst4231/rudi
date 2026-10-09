@@ -156,6 +156,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/calendar-day-summary",
+      "destination": "/api/index?route=calendar-day-summary"
+    },
+    {
       "source": "/api/wallet-logo",
       "destination": "/api/index?route=wallet-logo"
     },

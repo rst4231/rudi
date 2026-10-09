@@ -46,7 +46,7 @@ function fixture(){
       }}
     }
   };
-  const file=fs.readFileSync(path.resolve(__dirname,'../api/calendar-day-summary.js'),'utf8');
+  const file=fs.readFileSync(path.resolve(__dirname,'../api/calendar-day-summary.cjs'),'utf8');
   const module={exports:{}};
   vm.runInNewContext(file,{module,require:p=>mocks[p],console,process,Date,Intl,Map,Set,Promise},
     {filename:'calendar-day-summary.js'});
@@ -118,4 +118,19 @@ test('calendar API and UI avoid repeat loads while retaining freshness on edits'
   assert.match(recap,/lastActor===actor/);
   assert.match(recap,/rudi-finances-updated/);
   assert.match(recap,/rudi:supplement-intake-updated/);
+});
+
+test('calendar recap uses existing Vercel function without exceeding Hobby 12-function limit',()=>{
+  const root=path.resolve(__dirname,'..');
+  const config=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));
+  const api=fs.readFileSync(path.join(root,'api/index.js'),'utf8');
+  const scripts=fs.readdirSync(path.join(root,'api')).filter(file=>file.endsWith('.js'));
+  assert.ok(scripts.length<=12,'too many deployable api/*.js functions: '+scripts.length);
+  assert.ok(!scripts.includes('calendar-day-summary.js'));
+  assert.ok(fs.existsSync(path.join(root,'api/calendar-day-summary.cjs')));
+  assert.ok(api.includes("require('./calendar-day-summary.cjs')"));
+  assert.ok(api.includes("req.query?.route === 'calendar-day-summary'"));
+  assert.deepEqual(config.rewrites.find(row=>row.source==='/api/calendar-day-summary'),{
+    source:'/api/calendar-day-summary',destination:'/api/index?route=calendar-day-summary'
+  });
 });
