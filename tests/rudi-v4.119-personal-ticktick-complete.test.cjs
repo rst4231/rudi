@@ -65,7 +65,7 @@ test('calendar checkbox targets private endpoint while shared completion stays u
   assert.ok(api.includes("if (action === 'personal-task-complete')"));
   assert.ok(api.includes("if (actor !== 'Рустам') return res.status(403)"));
   assert.ok(api.includes("canComplete:tokenHasWriteScope(personalToken)!==false"));
-  const section=api.slice(api.indexOf("if (action === 'personal-task-complete')"),api.indexOf("if (action === 'task-complete')"));
+  const section=api.slice(api.indexOf("if (action === 'personal-task-complete')"),api.indexOf("if (action === 'task-completion-undo')"));
   for(const forbidden of ['sendTaskCompletedNotificationToPartner','awardScore','readTickTickTokenWithBackup'])assert.ok(!section.includes(forbidden));
   assert.ok(api.includes("if (action === 'task-complete')"));
 });
