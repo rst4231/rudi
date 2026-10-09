@@ -78,12 +78,12 @@ test('mobile version checks, lazy finance modules and untouched expense keypad',
   const styles=fs.readFileSync('public/rudi-design-system.css','utf8');
   const vercel=JSON.parse(fs.readFileSync('vercel.json','utf8'));
   assert.match(index,/loadFinanceDecisions/);
-  assert.doesNotMatch(index,/<script defer src="\\/finance-decisions-core\\.js/);
+  assert.doesNotMatch(index,/<script defer src="\/finance-decisions-core\.js/);
   assert.match(build,/lazyAssets = new Set/);
-  assert.match(build,/public', 'version\\.json'/);
-  assert.match(pwa,/function installReleaseWatcher\\(\\)/);
+  assert.match(build,/public', 'version\.json'/);
+  assert.match(pwa,/function installReleaseWatcher\(\)/);
   assert.match(pwa,/safeToRefresh/);
   assert.match(styles,/Shared editing-sheet contract/);
-  assert.match(styles,/:not\\(#financeExpenseComposer\\)/);
+  assert.match(styles,/:not\(#financeExpenseComposer\)/);
   assert.ok(vercel.headers.some(row=>row.source==='/version.json'&&row.headers.some(h=>h.key==='Cache-Control'&&h.value.includes('no-store'))));
 });
