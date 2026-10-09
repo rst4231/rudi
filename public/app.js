@@ -14033,13 +14033,35 @@
             ttlMs:0,timeoutMs:12000
           });
       }
-      function calendarAttachPersonalTimeDrag(block,stamp,event,dateKey,viewport){
+      function requestCalendarTickTickTaskMove(task,date,time){
+        if(task?.personal===true)return requestPersonalTickTickTaskMove(task,date,time);
+        const taskId=String(task?.id||'').trim();
+        if(!taskId)throw new Error('ticktick-shared-task-invalid');
+        return managedJsonRequest('ticktick-shared-move:'+taskId,
+          '/api/partner-message?ticktickAction=task-move',{
+            body:{initData:telegramInitData(),taskId,date,time},
+            ttlMs:0,timeoutMs:12000
+          });
+      }
+      function calendarSharedTaskOwnerLabel(task){
+        if(calendarScope!=='shared'||!task)return '';
+        if(task.together===true||task.ownerScope==='shared')return 'Вместе';
+        if(task.responsible==='Рустам'||task.responsible==='Диана')return task.responsible;
+        if(task.assignee==='RST')return 'Рустам';
+        if(task.assignee==='Ди')return 'Диана';
+        return '';
+      }
+      function calendarAttachTaskTimeDrag(block,stamp,event,dateKey,viewport,sharedWritable=true){
         const task=event.task;
-        if(calendarScope!=='personal'||currentActor!=='Рустам'||!task?.personal||
-          !task?.id||!task?.projectId||task?.canComplete===false||
-          String(task?.repeatFlag||'').trim())return;
+        if(!task?.id)return;
+        if(task.personal===true){
+          if(calendarScope!=='personal'||currentActor!=='Рустам'||
+            !task.projectId||task.canComplete===false)return;
+        }else if(sharedWritable!==true||task.canEdit!==true)return;
         block.classList.add('calendar-week-draggable');
-        block.title='Удерживайте карточку и перетащите для изменения времени';
+        block.title=String(task?.repeatFlag||'').trim()
+          ?'Удерживайте и перетащите: время изменится у всех повторений'
+          :'Удерживайте карточку и перетащите для изменения времени';
         const originalTop=block.style.top;
         const originalTime=stamp.textContent;
         const duration=Math.max(15,event.end-event.start);
@@ -14110,7 +14132,7 @@
           const savedTimeScroll=viewport.scrollTop;
           busy=true;block.classList.add('is-saving');
           try{
-            const payload=await requestPersonalTickTickTaskMove(task,dateKey,timeLabel(g.nextMinutes));
+            const payload=await requestCalendarTickTickTaskMove(task,dateKey,timeLabel(g.nextMinutes));
             if(!payload?.ok)throw new Error(payload?.error||'ticktick-personal-move-failed');
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             await refreshAfterTickTickTaskChange({preserveExpanded:false});
@@ -14219,6 +14241,13 @@
             const title=document.createElement('span');
             title.textContent=item.title;
             pill.appendChild(title);
+            const ownerLabel=calendarSharedTaskOwnerLabel(item.task);
+            if(ownerLabel){
+              const owner=document.createElement('small');
+              owner.className='calendar-week-task-owner';
+              owner.textContent=ownerLabel;
+              pill.appendChild(owner);
+            }
             attachCompletion(pill,item.task);
             pills.appendChild(pill);
           }
@@ -14255,8 +14284,16 @@
           const title=document.createElement('span');
           title.textContent=event.title;
           block.append(when,title);
+          const ownerLabel=calendarSharedTaskOwnerLabel(event.task);
+          if(ownerLabel){
+            block.classList.add('has-owner-label');
+            const owner=document.createElement('small');
+            owner.className='calendar-week-task-owner';
+            owner.textContent=ownerLabel;
+            block.appendChild(owner);
+          }
           attachCompletion(block,event.task);
-          calendarAttachPersonalTimeDrag(block,when,event,dateKey,viewport);
+          calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
           track.appendChild(block);
         }
         if(dateKey===todayState().key){
