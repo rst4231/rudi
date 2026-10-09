@@ -2227,6 +2227,71 @@ async function handleTickTick(req, res, action, options = {}) {
         ? await fetchProjectData(token.accessToken, config.projectId, options)
         : { tasks:[], project:{name:'Личный'} };
       const sourceTasks = Array.isArray(data?.tasks) ? data.tasks : [];
+
+      // Search all dated TickTick tasks, maintaining each actor's permissions.
+      const searchText=String(body.search||'').trim().slice(0,100);
+      if(searchText){
+        const selectedScope=['rustam','diana','shared'].includes(String(body.scope||''))?String(body.scope):'shared';
+        if((selectedScope==='rustam'&&actor!=='Рустам')||(selectedScope==='diana'&&actor!=='Диана'))
+          return res.status(403).json({ok:false,error:'calendar-owner-forbidden'});
+        const fold=value=>String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
+        const words=fold(searchText).split(/\s+/).filter(Boolean),results=[];
+        const addTask=(task,details={})=>{
+          if(Number(task?.status??0)!==0)return;
+          const title=String(task?.title||'').trim(),description=String(task?.desc||task?.content||'').trim();
+          const haystack=fold(title+' '+description);
+          if(!title||!words.every(word=>haystack.includes(word)))return;
+          const rawTime=String(task?.startDate||task?.dueDate||''),repeatFlag=String(task?.repeatFlag||'');
+          for(const date of tickTickTaskDateKeys(task)){
+            if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+            const startTime=!task?.isAllDay&&rawTime&&calendarDateKey(rawTime)===date?calendarTime(rawTime):'';
+            results.push({
+              id:String(task?.id||''),title,date,startTime:startTime||'',allDay:Boolean(task?.isAllDay),
+              description:description.slice(0,5000),responsible:details.responsible||'',
+              together:Boolean(details.together),personal:Boolean(details.personal),
+              projectId:String(details.projectId||''),projectName:String(details.projectName||''),
+              canEdit:Boolean(details.canEdit),
+              repeat:repeatFlag.includes('BYDAY=MO,TU,WE,TH,FR')?'weekdays':
+                (repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase(),
+              repeatCount:Number(repeatFlag.match(/COUNT=(\d+)/)?.[1]||2)
+            });
+          }
+        };
+        const metaState=await readSharedTaskMetaState(options).catch(()=>({entries:{}}));
+        for(const task of sourceTasks){
+          const meta=metaState.entries?.[String(task?.id||'')]||null;
+          const assignment=sharedTaskAssigneePayload(task,meta);
+          const ownerScope=assignment.responsibility.known
+            ?assignment.responsibility.responsible==='Рустам'?'rustam'
+              :assignment.responsibility.responsible==='Диана'?'diana':'shared':'unknown';
+          if(selectedScope!=='shared'&&ownerScope!==selectedScope&&!assignment.responsibility.common)continue;
+          addTask(task,{responsible:assignment.responsibility.responsible,
+            together:assignment.responsibility.common,canEdit:sharedTaskCanDelete(actor,task,meta)});
+        }
+        if(selectedScope==='rustam'&&actor==='Рустам'){
+          const personalToken=rustamToken||await readPersonalToken('Рустам',options).catch(()=>null);
+          if(personalToken?.accessToken){
+            try{
+              const personalTasks=await fetchPersonalProjectTasks(personalToken.accessToken,config.projectId,options);
+              for(const task of personalTasks)addTask(task,{personal:true,responsible:'Рустам',
+                projectId:task.projectId,projectName:task.projectName,canEdit:false});
+            }catch(error){
+              if(String(error?.message||'')==='ticktick-token-invalid')
+                await clearPersonalToken('Рустам',options).catch(()=>{});
+              else console.warn('RUDI_PERSONAL_TICKTICK_SEARCH_WARN',String(error?.message||error));
+            }
+          }
+        }
+        const today=calendarDateKey(options.now?new Date(options.now):new Date());
+        results.sort((a,b)=>{
+          const af=a.date>=today,bf=b.date>=today;
+          if(af!==bf)return af?-1:1;
+          return (af?a.date.localeCompare(b.date):b.date.localeCompare(a.date))||
+            String(a.startTime||'').localeCompare(String(b.startTime||''))||
+            String(a.title||'').localeCompare(String(b.title||''),'ru');
+        });
+        return res.status(200).json({ok:true,results:results.slice(0,500),truncated:results.length>500});
+      }
       const sourceById = new Map(sourceTasks.map((task) => [String(task?.id || ''), task]));
       const sharedTaskMetaState = await readSharedTaskMetaState(options).catch(() => ({ entries: {} }));
       const calendar = buildTickTickCalendar(
@@ -2253,6 +2318,7 @@ async function handleTickTick(req, res, action, options = {}) {
             ? (assignee.responsibility.responsible === 'Рустам' ? 'rustam'
               : assignee.responsibility.responsible === 'Диана' ? 'diana' : 'shared')
             : 'unknown';
+          event.together=assignee.responsibility.common===true;
           event.canEdit=sharedTaskCanDelete(actor,source,meta);
           event.description=String(source.desc||source.content||'').trim().slice(0,5000);
           const repeatFlag=String(source.repeatFlag||'');
@@ -2261,7 +2327,7 @@ async function handleTickTick(req, res, action, options = {}) {
             :(repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase();
           event.repeatCount=Number(repeatFlag.match(/COUNT=(\d+)/)?.[1]||2);
         }
-        if (selectedScope && selectedScope !== 'shared') day.events = day.events.filter(event => event.ownerScope === selectedScope);
+        if (selectedScope && selectedScope !== 'shared') day.events = day.events.filter(event => event.ownerScope === selectedScope || (event.ownerScope === 'shared' && event.together === true));
       }
       // Personal TickTick is Rustam-only. Never use shared OAuth token as a fallback.
       if(selectedScope==='rustam' && actor==='Рустам'){

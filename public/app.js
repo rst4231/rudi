@@ -6254,12 +6254,7 @@
               persistAppTabScroll();
               updateAppRoute(next,{replace:true});
               requestAnimationFrame(()=>modal.scrollTo({top:0,left:0,behavior:'auto'}));
-              if(next==='schedule'){
-                currentSelectedWorkDate=todayState().key;
-                currentWorkCalendarView='month';
-                setWorkCalendarRangeActive('month');
-                loadWorkCalendar('month',{silent:true});
-              }
+              if(next==='schedule')loadWorkCalendar('month',{silent:true});
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
               return;
             }
@@ -13367,6 +13362,28 @@
         first.setUTCDate(Math.min(source.getUTCDate(),last));
         return first.toISOString().slice(0,10);
       }
+
+      function calendarViewStorageKey(){return 'rudi:calendar:view:v1:'+(currentActor==='Диана'?'diana':'rustam')}
+      function calendarValidDateKey(value){
+        const key=String(value||'');
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(key))return false;
+        const date=new Date(key+'T00:00:00Z');
+        return !Number.isNaN(date.getTime())&&date.toISOString().slice(0,10)===key;
+      }
+      function calendarReadSavedView(){
+        try{
+          const data=JSON.parse(localStorage.getItem(calendarViewStorageKey())||'{}');
+          if(!data||typeof data!=='object'||Array.isArray(data))return {};
+          return {scope:data.scope==='shared'?'shared':'personal',mode:data.mode==='week'?'week':'month',
+            date:calendarValidDateKey(data.date)?data.date:todayState().key};
+        }catch(_){return {}}
+      }
+      function calendarSaveView(){
+        const date=calendarValidDateKey(currentSelectedWorkDate)?currentSelectedWorkDate:calendarDateCursor;
+        try{localStorage.setItem(calendarViewStorageKey(),JSON.stringify({
+          scope:calendarScope,mode:calendarDisplayMode,date:calendarValidDateKey(date)?date:todayState().key
+        }))}catch(_){}
+      }
       function calendarActiveMonth(){return (calendarDateCursor||todayState().key).slice(0,7)}
       function calendarCacheKey(month=calendarActiveMonth(),scope=calendarScope){return month+':'+scope}
       let sharedPeriodMarksPromise=null;
@@ -13401,7 +13418,9 @@
         if(calendarScope==='personal'&&currentActor==='Диана')loadDianaCycle({silent:true}).catch(()=>{});
         if(calendarScope==='shared')loadSharedPeriodMarks().catch(()=>{});
         applyDianaPeriodDots();
+        calendarSaveView();
         if(reload)loadWorkCalendar('month',{silent:false}).catch(()=>{});
+        if(reload&&!document.getElementById('calendarSearchPanel')?.hidden)calendarRunSearch();
       }
       function setWorkCalendarRangeActive(view){
         currentWorkCalendarView='month';
@@ -13425,7 +13444,8 @@
       function calendarNavigationMove(direction){
         const cursor=calendarDateCursor||todayState().key;
         calendarDateCursor=calendarDisplayMode==='week'?calendarDateShift(cursor,direction*7):calendarMonthShift(cursor,direction);
-        currentSelectedWorkDate=calendarDisplayMode==='week'?calendarDateCursor:'';
+        currentSelectedWorkDate=calendarDateCursor;
+        calendarSaveView();
         loadWorkCalendar('month',{silent:false}).catch(()=>{});
       }
 
@@ -13525,14 +13545,113 @@
           }catch(error){if(message)message.textContent=String(error?.message||error)}
         });
       }
+
+      let calendarSearchEpoch=0,calendarSearchTimer=0,calendarSearchController=null;
+      function calendarCloseSearch(){
+        document.getElementById('calendarSearchPanel').hidden=true;
+        clearTimeout(calendarSearchTimer);calendarSearchEpoch++;
+        calendarSearchController?.abort();calendarSearchController=null;
+        document.getElementById('calendarSearchButton')?.setAttribute('aria-expanded','false');
+      }
+      function calendarShowSearchDetails(task){
+        const box=document.getElementById('calendarSearchReadOnly');
+        if(!box)return;
+        document.getElementById('calendarSearchDetailTitle').textContent=String(task.title||'Дело');
+        document.getElementById('calendarSearchDetailDate').textContent=
+          new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
+            .format(dateFromKey(task.date))+(task.startTime?' · '+task.startTime:'')+(task.projectName?' · '+task.projectName:'');
+        const description=document.getElementById('calendarSearchDetailDescription');
+        description.textContent=String(task.description||'');description.hidden=!description.textContent;
+        box.hidden=false;document.getElementById('calendarSearchDetailClose')?.focus({preventScroll:true});
+      }
+      function calendarOpenSearchResult(task){
+        if(!calendarValidDateKey(task?.date))return;
+        calendarCloseSearch();calendarDateCursor=task.date;currentSelectedWorkDate=task.date;
+        calendarSaveView();currentWorkCalendarRenderSignature='';
+        loadWorkCalendar('month',{silent:true}).catch(()=>{});
+        if(task.canEdit===true&&!task.personal&&typeof openTickTickTaskForEditing==='function')
+          openTickTickTaskForEditing(task);
+        else calendarShowSearchDetails(task);
+      }
+      function calendarRenderSearchResults(rows,truncated){
+        const list=document.getElementById('calendarSearchResults');
+        const status=document.getElementById('calendarSearchStatus');
+        list.replaceChildren();
+        status.textContent=rows.length?'Найдено: '+rows.length+(truncated?' · показаны первые результаты':''):'Ничего не найдено';
+        for(const task of rows){
+          if(!calendarValidDateKey(task?.date))continue;
+          const row=document.createElement('button');row.type='button';row.className='calendar-search-result';
+          const title=document.createElement('strong');title.textContent=String(task.title||'Дело');
+          const date=document.createElement('span');
+          date.textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
+            .format(dateFromKey(task.date))+(task.startTime?' · '+task.startTime:'')+
+            (task.personal?' · Личный':task.together?' · Вместе':task.responsible?' · '+task.responsible:'');
+          row.append(title,date);row.addEventListener('click',()=>calendarOpenSearchResult(task));
+          list.appendChild(row);
+        }
+      }
+      async function calendarRunSearch(){
+        const panel=document.getElementById('calendarSearchPanel');
+        if(!panel||panel.hidden)return;
+        const query=String(document.getElementById('calendarSearchInput')?.value||'').trim();
+        const status=document.getElementById('calendarSearchStatus');
+        const list=document.getElementById('calendarSearchResults');
+        const epoch=++calendarSearchEpoch;calendarSearchController?.abort();calendarSearchController=null;
+        list.replaceChildren();
+        if(query.length<2){status.textContent='Введите минимум 2 символа';return}
+        status.textContent='Ищу дела…';
+        const scope=calendarScope,controller=new AbortController();
+        calendarSearchController=controller;
+        try{
+          const response=await fetch('/api/ticktick/calendar',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken,
+              scope:scope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam',search:query}),
+            cache:'no-store',signal:controller.signal
+          });
+          const data=await response.json().catch(()=>({}));
+          if(!response.ok||data.ok===false)throw Error(data.error||'calendar-search-failed');
+          if(epoch!==calendarSearchEpoch||panel.hidden||scope!==calendarScope)return;
+          calendarRenderSearchResults(Array.isArray(data.results)?data.results:[],Boolean(data.truncated));
+        }catch(error){
+          if(error?.name==='AbortError'||epoch!==calendarSearchEpoch)return;
+          status.textContent='Не удалось выполнить поиск. Попробуй ещё раз.';
+        }finally{if(calendarSearchController===controller)calendarSearchController=null}
+      }
+      function setupCalendarSearch(){
+        const button=document.getElementById('calendarSearchButton'),panel=document.getElementById('calendarSearchPanel'),
+          input=document.getElementById('calendarSearchInput');
+        if(!button||!panel||button.dataset.bound==='1')return;
+        button.dataset.bound='1';
+        button.addEventListener('click',()=>{
+          if(!panel.hidden){calendarCloseSearch();return}
+          panel.hidden=false;button.setAttribute('aria-expanded','true');
+          input?.focus({preventScroll:true});calendarRunSearch();
+        });
+        input?.addEventListener('input',()=>{clearTimeout(calendarSearchTimer);calendarSearchTimer=setTimeout(calendarRunSearch,300)});
+        document.getElementById('calendarSearchClose')?.addEventListener('click',calendarCloseSearch);
+        const closeDetails=()=>{document.getElementById('calendarSearchReadOnly').hidden=true};
+        document.getElementById('calendarSearchDetailClose')?.addEventListener('click',closeDetails);
+        document.getElementById('calendarSearchReadOnlyBackdrop')?.addEventListener('click',closeDetails);
+        document.addEventListener('keydown',event=>{
+          if(event.key!=='Escape')return;
+          const detail=document.getElementById('calendarSearchReadOnly');
+          if(detail&&!detail.hidden)closeDetails();
+          else if(!panel.hidden)calendarCloseSearch();
+        });
+      }
+
       function setupWorkCalendarDisclosure(){
         setupCalendarConnections();
-        calendarDateCursor=todayState().key;
-        setWorkCalendarRangeActive('month');
-        calendarSetScope('personal',{reload:false});
+        const saved=calendarReadSavedView();
+        calendarDateCursor=saved.date||todayState().key;
+        currentSelectedWorkDate=calendarDateCursor;
+        setWorkCalendarRangeActive(saved.mode||'month');
+        calendarSetScope(saved.scope||'personal',{reload:false});
+        setupCalendarSearch();
         document.querySelectorAll('[data-calendar-scope]').forEach(button=>button.addEventListener('click',()=>{
           if(button.dataset.calendarScope===calendarScope)return;
-          currentSelectedWorkDate='';calendarSetScope(button.dataset.calendarScope);
+          calendarSetScope(button.dataset.calendarScope);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         }));
         document.querySelectorAll('[data-calendar-mode]').forEach(button=>button.addEventListener('click',()=>{
@@ -13540,13 +13659,15 @@
           if(mode===calendarDisplayMode)return;
           setWorkCalendarRangeActive(mode);
           if(mode==='week')calendarDateCursor=currentSelectedWorkDate||calendarDateCursor;
-          currentSelectedWorkDate=mode==='week'?calendarDateCursor:'';
+          currentSelectedWorkDate=calendarDateCursor;
+          calendarSaveView();
           loadWorkCalendar('month',{silent:true}).catch(()=>{});
         }));
         document.getElementById('calendarPrev')?.addEventListener('click',()=>calendarNavigationMove(-1));
         document.getElementById('calendarNext')?.addEventListener('click',()=>calendarNavigationMove(1));
         document.getElementById('calendarToday')?.addEventListener('click',()=>{
           calendarDateCursor=todayState().key;currentSelectedWorkDate=calendarDateCursor;
+          calendarSaveView();
           loadWorkCalendar('month',{silent:true}).catch(()=>{});
         });
         document.getElementById('calendarCreateTask')?.addEventListener('click',()=>{
@@ -14011,6 +14132,7 @@
 
           const showDayDetails=(withHaptic=false)=>{
             currentSelectedWorkDate=String(day.date||'');
+            if(withHaptic)calendarSaveView();
             container.querySelectorAll('.calendar-day-cell.selected').forEach(node=>node.classList.remove('selected'));
             cell.classList.add('selected');
 

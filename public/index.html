@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.119">
+  <meta name="rudi-version" content="v4.126">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,13 +27,13 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.119">
+  <link rel="stylesheet" href="/app.css?v=4.126">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
   <link rel="stylesheet" href="/pwa-extras.css?v=4.119">
-  <link rel="stylesheet" href="/calendar.css?v=4.119">
+  <link rel="stylesheet" href="/calendar.css?v=4.126">
   <link rel="stylesheet" href="/smart-home.css?v=4.119">
   <link rel="stylesheet" href="/car.css?v=4.119">
   <link rel="stylesheet" href="/profile-supplements.css?v=4.119">
@@ -69,7 +69,7 @@
     })();
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.119"></script>
-  <script defer src="/app.js?v=4.119"></script>
+  <script defer src="/app.js?v=4.126"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
@@ -1637,10 +1637,17 @@
           <div class="calendar-header-actions" role="group" aria-label="Переключатели календаря">
             <button id="calendarScopeSwitch" class="calendar-header-control calendar-scope-switch" type="button" data-calendar-scope="shared" aria-label="Переключить на совместный календарь" title="Совместный календарь">Совместный</button>
             <button id="calendarModeSwitch" class="calendar-header-control calendar-mode-switch" type="button" data-calendar-mode="week" aria-label="Показать неделю" title="Неделя"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg></button>
+            <button id="calendarSearchButton" class="calendar-header-control calendar-search-button" type="button" aria-label="Поиск по календарю" title="Найти дело" aria-expanded="false" aria-controls="calendarSearchPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.5 15.5 5 5"/></svg></button>
           <button id="calendarConnectionsGear" class="calendar-connections-gear calendar-header-control" type="button" aria-label="Подключения календаря" title="Подключения">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.2 3.5h3.6l.5 2.2 1.7.9 2.1-.8 2.1 3.1-1.7 1.7v2l1.7 1.8-2.1 3-2.1-.7-1.7.9-.5 2.2h-3.6l-.5-2.2-1.7-.9-2.1.7-2.1-3 1.7-1.8v-2L3.8 9l2.1-3.1 2.1.8 1.7-.9z"/><circle cx="12" cy="12" r="3.1"/></svg>
           </button>
           </div>
+        </div>
+        <div id="calendarSearchPanel" class="calendar-search-panel" hidden>
+          <div class="calendar-search-head"><label for="calendarSearchInput">Поиск по календарю</label><button type="button" id="calendarSearchClose" aria-label="Закрыть поиск">×</button></div>
+          <input type="search" id="calendarSearchInput" placeholder="Например, тренировка" autocomplete="off" maxlength="100" aria-controls="calendarSearchResults">
+          <p id="calendarSearchStatus" class="calendar-search-status" role="status" aria-live="polite">Введите минимум 2 символа</p>
+          <div id="calendarSearchResults" class="calendar-search-results"></div>
         </div>
         <span id="workCalendarStatus" class="section-status work-page-status" hidden></span>
         <div class="calendar-navigation" role="group" aria-label="Переход по датам">
@@ -1662,6 +1669,14 @@
         <div id="workCalendarSelected" class="work-calendar-selected" hidden></div>
       </div>
 
+      <div id="calendarSearchReadOnly" class="calendar-search-readonly" hidden>
+        <button type="button" id="calendarSearchReadOnlyBackdrop" class="calendar-search-readonly-backdrop" aria-label="Закрыть дело"></button>
+        <section class="calendar-search-readonly-sheet" role="dialog" aria-modal="true" aria-labelledby="calendarSearchDetailTitle">
+          <button type="button" id="calendarSearchDetailClose" class="calendar-search-readonly-close" aria-label="Закрыть">×</button>
+          <h2 id="calendarSearchDetailTitle"></h2><p id="calendarSearchDetailDate"></p>
+          <p id="calendarSearchDetailDescription" hidden></p><span class="calendar-search-readonly-note">Только просмотр</span>
+        </section>
+      </div>
     <section id="dianaCycleCard" class="panel cycle-card" data-app-tab-section="schedule" aria-labelledby="dianaCycleTitle">
       <div class="cycle-head">
         <div class="cycle-head-copy">
