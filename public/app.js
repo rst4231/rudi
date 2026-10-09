@@ -10703,6 +10703,7 @@
         };
 
         document.addEventListener('touchstart',event=>{
+          if(document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){reset();return}
           if(refreshing||!appAccessReady||!currentActor||event.touches?.length!==1||scrollTop()>topTolerance) return;
           if(document.body.classList.contains('score-modal-open')) return;
           if(event.target?.closest?.('[data-no-pull-refresh="true"]')) return;
@@ -10714,6 +10715,7 @@
         },{passive:false,capture:true});
 
         document.addEventListener('touchmove',event=>{
+          if(document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){reset();return}
           if(!tracking||refreshing||event.touches?.length!==1) return;
           if(document.body.classList.contains('score-modal-open')){reset();return}
           if(event.target?.closest?.('[data-no-pull-refresh="true"]')){reset();return}
@@ -10732,6 +10734,7 @@
         },{passive:false,capture:true});
 
         const finish=()=>{
+          if(document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){if(!refreshing)reset();return}
           if(!tracking||refreshing) return;
           if(!armed){reset();return}
           tracking=false;
@@ -13506,9 +13509,15 @@
         if(reload)loadWorkCalendar('month',{silent:false}).catch(()=>{});
         if(reload&&!document.getElementById('calendarSearchPanel')?.hidden)calendarRunSearch();
       }
+      function syncCalendarWeeklyOverscroll(){
+        const active=document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week';
+        document.documentElement.classList.toggle('rudi-calendar-week-no-pull',active);
+      }
+      window.addEventListener('rudi:app-tab-change',syncCalendarWeeklyOverscroll);
       function setWorkCalendarRangeActive(view){
         currentWorkCalendarView='month';
         calendarDisplayMode=['week','month'].includes(view)?view:'month';
+        syncCalendarWeeklyOverscroll();
         const container=document.getElementById('workCalendarDays');
         if(container)container.dataset.calendarMode=calendarDisplayMode;
         const card=document.getElementById('workCalendarCard');
@@ -14029,60 +14038,90 @@
         if(calendarScope!=='personal'||currentActor!=='Рустам'||!task?.personal||
           !task?.id||!task?.projectId||task?.canComplete===false||
           String(task?.repeatFlag||'').trim())return;
-        const handle=document.createElement('button');
-        handle.type='button';
-        handle.className='calendar-week-drag-handle';
-        handle.setAttribute('aria-label','Перетащить задачу для изменения времени: '+String(task.title||'Дело'));
-        handle.title='Удерживайте и перетащите для изменения времени';
-        handle.innerHTML='<svg viewBox="0 0 16 20" width="14" height="18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="4" cy="10" r="1.5"/><circle cx="11" cy="10" r="1.5"/><circle cx="4" cy="16" r="1.5"/><circle cx="11" cy="16" r="1.5"/></svg>';
-        block.appendChild(handle);
+        block.classList.add('calendar-week-draggable');
+        block.title='Удерживайте карточку и перетащите для изменения времени';
         const originalTop=block.style.top;
         const originalTime=stamp.textContent;
         const duration=Math.max(15,event.end-event.start);
         const maxStart=Math.max(0,Math.floor((1440-duration)/15)*15);
         const timeLabel=minutes=>String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
-        let pointer=null,startY=0,startScroll=0,nextMinutes=event.start,changed=false,busy=false;
+        const HOLD_MS=420;
+        let gesture=null,holdTimer=null,busy=false,suppressClickUntil=0;
+        const clearHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}};
         const restorePreview=()=>{
           block.style.top=originalTop;
           stamp.textContent=originalTime;
           block.classList.remove('is-dragging');
         };
-        handle.addEventListener('pointerdown',pointerEvent=>{
-          if(busy||pointer!==null||(pointerEvent.pointerType==='mouse'&&pointerEvent.button!==0))return;
-          pointerEvent.preventDefault();pointerEvent.stopPropagation();
-          pointer=pointerEvent.pointerId;
-          startY=pointerEvent.clientY;
-          startScroll=viewport.scrollTop;
-          nextMinutes=event.start;changed=false;
-          block.classList.add('is-dragging');
-          handle.setPointerCapture?.(pointer);
+        block.addEventListener('pointerdown',pointerEvent=>{
+          if(busy||gesture||!pointerEvent.isPrimary||
+            (pointerEvent.pointerType==='mouse'&&pointerEvent.button!==0)||
+            pointerEvent.target?.closest?.('button,a,input,textarea,select,[contenteditable="true"]'))return;
+          gesture={
+            id:pointerEvent.pointerId,kind:pointerEvent.pointerType,
+            startY:pointerEvent.clientY,startX:pointerEvent.clientX,
+            startScroll:viewport.scrollTop,dragging:false,scrolling:false,
+            nextMinutes:event.start,changed:false
+          };
+          try{block.setPointerCapture(pointerEvent.pointerId)}catch(_){}
+          holdTimer=setTimeout(()=>{
+            holdTimer=null;
+            if(!gesture||gesture.id!==pointerEvent.pointerId||gesture.scrolling)return;
+            gesture.dragging=true;
+            block.classList.add('is-dragging');
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          },HOLD_MS);
         });
-        handle.addEventListener('pointermove',pointerEvent=>{
-          if(pointer!==pointerEvent.pointerId)return;
-          pointerEvent.preventDefault();pointerEvent.stopPropagation();
-          const bounds=viewport.getBoundingClientRect();
-          if(pointerEvent.clientY<bounds.top+36)viewport.scrollTop=Math.max(0,viewport.scrollTop-16);
-          else if(pointerEvent.clientY>bounds.bottom-36)viewport.scrollTop+=16;
-          const delta=(pointerEvent.clientY-startY)+(viewport.scrollTop-startScroll);
-          const snapped=Math.round((event.start+delta*60/CALENDAR_AGENDA_HOUR_HEIGHT)/15)*15;
-          nextMinutes=Math.min(maxStart,Math.max(0,snapped));
-          changed=nextMinutes!==event.start;
-          block.style.top=String(nextMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT+2)+'px';
-          stamp.textContent=timeLabel(nextMinutes);
+        block.addEventListener('pointermove',pointerEvent=>{
+          const g=gesture;
+          if(!g||g.id!==pointerEvent.pointerId)return;
+          const movedY=pointerEvent.clientY-g.startY;
+          const movedX=pointerEvent.clientX-g.startX;
+          if(!g.dragging){
+            if(Math.abs(movedY)>8||Math.abs(movedX)>8){
+              clearHold();
+              g.scrolling=true;
+            }
+            // Draggable cards use touch-action:none to stop iOS page
+            // scrolling. Before long-press, emulate normal timeline scrolling.
+            if(g.scrolling&&g.kind==='touch'){
+              pointerEvent.preventDefault();
+              viewport.scrollTop=Math.max(0,g.startScroll-movedY);
+            }
+            return;
+          }
+          pointerEvent.preventDefault();
+          pointerEvent.stopPropagation();
+          const snapped=Math.round((event.start+movedY*60/CALENDAR_AGENDA_HOUR_HEIGHT)/15)*15;
+          g.nextMinutes=Math.min(maxStart,Math.max(0,snapped));
+          g.changed=g.nextMinutes!==event.start;
+          block.style.top=String(g.nextMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT+2)+'px';
+          stamp.textContent=timeLabel(g.nextMinutes);
         });
         const finish=async(pointerEvent,cancelled=false)=>{
-          if(pointer!==pointerEvent.pointerId)return;
-          pointerEvent.preventDefault();pointerEvent.stopPropagation();
-          const id=pointer;pointer=null;
-          try{handle.releasePointerCapture?.(id)}catch(_){}
+          const g=gesture;
+          if(!g||g.id!==pointerEvent.pointerId)return;
+          clearHold();gesture=null;
+          try{block.releasePointerCapture(g.id)}catch(_){}
+          if(g.dragging||g.scrolling)suppressClickUntil=Date.now()+800;
           block.classList.remove('is-dragging');
-          if(cancelled||!changed){restorePreview();return}
-          busy=true;handle.disabled=true;block.classList.add('is-saving');
+          if(cancelled||!g.dragging||!g.changed){restorePreview();return}
+          const savedPageX=window.scrollX,savedPageY=window.scrollY;
+          const savedTimeScroll=viewport.scrollTop;
+          busy=true;block.classList.add('is-saving');
           try{
-            const payload=await requestPersonalTickTickTaskMove(task,dateKey,timeLabel(nextMinutes));
+            const payload=await requestPersonalTickTickTaskMove(task,dateKey,timeLabel(g.nextMinutes));
             if(!payload?.ok)throw new Error(payload?.error||'ticktick-personal-move-failed');
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             await refreshAfterTickTickTaskChange({preserveExpanded:false});
+            // Rendering recreates the time viewport and otherwise jumps to its
+            // default scroll position and can also reset the page scroll.
+            requestAnimationFrame(()=>requestAnimationFrame(()=>{
+              const selector='.calendar-week-agenda[data-calendar-date="'+dateKey+'"] .calendar-week-time-viewport';
+              const replacement=document.querySelector(selector);
+              if(replacement)replacement.scrollTop=savedTimeScroll;
+              window.scrollTo(savedPageX,savedPageY);
+            }));
           }catch(error){
             restorePreview();
             const status=document.getElementById('workCalendarStatus');
@@ -14090,17 +14129,24 @@
             console.warn('RUDI_PERSONAL_CALENDAR_DRAG_WARN',String(error?.message||error));
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
-            busy=false;handle.disabled=false;block.classList.remove('is-saving');
+            busy=false;block.classList.remove('is-saving');
           }
         };
-        handle.addEventListener('pointerup',event=>{finish(event).catch(()=>restorePreview())});
-        handle.addEventListener('pointercancel',event=>{finish(event,true).catch(()=>restorePreview())});
-        handle.addEventListener('click',event=>{event.preventDefault();event.stopPropagation()});
+        block.addEventListener('pointerup',event=>{finish(event).catch(()=>restorePreview())});
+        block.addEventListener('pointercancel',event=>{finish(event,true).catch(()=>restorePreview())});
+        block.addEventListener('click',event=>{
+          if(Date.now()>=suppressClickUntil)return;
+          event.preventDefault();event.stopImmediatePropagation();
+        },true);
+        block.addEventListener('contextmenu',event=>{
+          if(gesture||Date.now()<suppressClickUntil)event.preventDefault();
+        });
       }
 
       function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true){
         const panel=document.createElement('div');
         panel.className='calendar-week-agenda';
+        panel.dataset.calendarDate=dateKey;
         panel.setAttribute('aria-label','Расписание на '+dateKey);
         const allDayItems=[];
         const timed=[];
@@ -14140,8 +14186,7 @@
             row.setAttribute('role','link');
             row.setAttribute('aria-label','Открыть в TickTick: '+String(task.title||'Дело'));
             row.addEventListener('click',event=>{
-              if(event.target===checkbox||checkbox.contains(event.target)||
-                event.target?.closest?.('.calendar-week-drag-handle'))return;
+              if(event.target===checkbox||checkbox.contains(event.target))return;
               calendarOpenPersonalTickTickTask(task);
             });
             row.addEventListener('keydown',event=>{
