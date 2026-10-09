@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.113';
+const CACHE_NAME='rudi-shell-v4.114';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -142,12 +142,18 @@ self.addEventListener('fetch',event=>{
         const response=await fetchWithTimeout(networkRequest,NAVIGATION_TIMEOUT_MS);
         if(response&&response.ok){
           const copy=response.clone();
-          await caches.open(CACHE_NAME).then(cache=>cache.put('/',copy)).catch(()=>{});
+          // Cache Storage can stall on iOS standalone. Never delay the HTML response.
+          caches.open(CACHE_NAME).then(cache=>cache.put('/',copy)).catch(()=>{});
         }
         return response;
       }catch(_){
-        const cache=await caches.open(CACHE_NAME);
-        return (await cache.match(request)) || (await cache.match('/')) || Response.error();
+        try{
+          const cache=await caches.open(CACHE_NAME);
+          const cached=(await cache.match(request)) || (await cache.match('/'));
+          if(cached)return cached;
+        }catch(_cacheError){}
+        // Even with a corrupt or empty cache, show a recoverable screen, not a blank WebView.
+        return new Response('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RUDI</title><body style="background:#0b0d12;color:white;font:16px system-ui;display:grid;place-items:center;min-height:90vh;text-align:center"><main><h2>RUDI пока не загрузился</h2><p>Проверь интернет и повтори запуск.</p><button style="font:inherit;padding:12px 22px;border-radius:12px" onclick="location.reload()">Повторить</button></main></body></html>',{status:200,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}});
       }
     })());
     return;

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.113">
+  <meta name="rudi-version" content="v4.114">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-rudi-v460.png?v=4.60">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-rudi-v460.png?v=4.60">
-  <link rel="manifest" href="/manifest.webmanifest?v=4.113">
+  <link rel="manifest" href="/manifest.webmanifest?v=4.114">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
@@ -27,20 +27,20 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.113">
+  <link rel="stylesheet" href="/app.css?v=4.114">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
-  <link rel="stylesheet" href="/pwa-extras.css?v=4.113">
-  <link rel="stylesheet" href="/calendar.css?v=4.113">
-  <link rel="stylesheet" href="/smart-home.css?v=4.113">
-  <link rel="stylesheet" href="/car.css?v=4.113">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.113">
-  <link rel="stylesheet" href="/supplement-advanced.css?v=4.113">
-  <link rel="stylesheet" href="/rudi-design-system.css?v=4.113">
-  <link rel="stylesheet" href="/finance-cards.css?v=4.113">
-  <link rel="stylesheet" href="/recommendations.css?v=4.113">
+  <link rel="stylesheet" href="/pwa-extras.css?v=4.114">
+  <link rel="stylesheet" href="/calendar.css?v=4.114">
+  <link rel="stylesheet" href="/smart-home.css?v=4.114">
+  <link rel="stylesheet" href="/car.css?v=4.114">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.114">
+  <link rel="stylesheet" href="/supplement-advanced.css?v=4.114">
+  <link rel="stylesheet" href="/rudi-design-system.css?v=4.114">
+  <link rel="stylesheet" href="/finance-cards.css?v=4.114">
+  <link rel="stylesheet" href="/recommendations.css?v=4.114">
   <script>
     (() => {
       const launchContext=String(location.search||'')+String(location.hash||'');
@@ -68,8 +68,8 @@
       });
     })();
   </script>
-  <script defer src="/app.js?v=4.113"></script>
-  <script defer src="/recommendations.js?v=4.113"></script>
+  <script defer src="/app.js?v=4.114"></script>
+  <script defer src="/recommendations.js?v=4.114"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
     (() => {
@@ -87,12 +87,12 @@
         loading=(async()=>{
           if(!document.querySelector('[data-rudi-finance-decisions-css]')){
             const style=document.createElement('link');style.rel='stylesheet';
-            style.href='/finance-decisions.css?v=4.113';
+            style.href='/finance-decisions.css?v=4.114';
             style.dataset.rudiFinanceDecisionsCss='1';
             document.head.appendChild(style);
           }
-          await loadScript('/finance-decisions-core.js?v=4.113');
-          await loadScript('/finance-decisions-ui.js?v=4.113');
+          await loadScript('/finance-decisions-core.js?v=4.114');
+          await loadScript('/finance-decisions-ui.js?v=4.114');
         })().catch(error=>{loading=null;console.warn('RUDI_LAZY_FINANCE_WARN',String(error?.message||error))});
         return loading;
       };
@@ -111,14 +111,14 @@
     })();
   </script>
 
-  <script defer src="/pwa-extras.js?v=4.113"></script>
-  <script defer src="/weather.js?v=4.113"></script>
-  <script defer src="/smart-home.js?v=4.113"></script>
-  <script defer src="/car.js?v=4.113"></script>
-  <script defer src="/profile-supplements.js?v=4.113"></script>
-  <script defer src="/mood-history.js?v=4.113"></script>
-  <script defer src="/supplement-editor.js?v=4.113"></script>
-  <script defer src="/supplement-advanced.js?v=4.113"></script>
+  <script defer src="/pwa-extras.js?v=4.114"></script>
+  <script defer src="/weather.js?v=4.114"></script>
+  <script defer src="/smart-home.js?v=4.114"></script>
+  <script defer src="/car.js?v=4.114"></script>
+  <script defer src="/profile-supplements.js?v=4.114"></script>
+  <script defer src="/mood-history.js?v=4.114"></script>
+  <script defer src="/supplement-editor.js?v=4.114"></script>
+  <script defer src="/supplement-advanced.js?v=4.114"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -130,6 +130,30 @@
       <div id="appGateText" class="app-gate-text" hidden></div>
     </div>
   </div>
+  <script>
+    // Runs independently of app.js: iPhone PWA can otherwise remain a dark screen forever.
+    (() => {
+      const showRecovery = () => {
+        if (!document.body?.classList.contains('auth-pending')) return;
+        const gate=document.getElementById('appGate');
+        if (!gate) return;
+        const title=document.getElementById('appGateTitle');
+        const text=document.getElementById('appGateText');
+        if(title)title.textContent='RUDI долго загружается';
+        if(text){text.hidden=false;text.textContent='Проверь интернет и попробуй открыть снова.'}
+        if(document.getElementById('rudiStartupRetry'))return;
+        const button=document.createElement('button');
+        button.id='rudiStartupRetry';button.type='button';button.textContent='Повторить запуск';
+        button.style.cssText='display:block;margin:16px auto 0;padding:12px 18px;min-height:44px;border:0;border-radius:12px;font:600 14px system-ui;color:#111;background:#fff';
+        button.addEventListener('click',()=>{
+          button.disabled=true;
+          window.location.replace('/?rudi-retry='+Date.now());
+        });
+        gate.querySelector('.app-gate-card')?.appendChild(button);
+      };
+      setTimeout(showRecovery,12000);
+    })();
+  </script>
 
   <main class="shell">
     <section class="profile" data-app-tab-section="home" data-home-tile="profile" aria-label="Профиль">
