@@ -92,7 +92,8 @@ function createD1StateClient(options={}){
       expiresAt:row?.expires_at?String(row.expires_at):(row?.expiresAt?String(row.expiresAt):null),
       ...(row?.updated_at||row?.updatedAt?{updatedAt:String(row.updated_at||row.updatedAt)}:{}),
     });
-    return{ok:Boolean(data?.ok),updatedAt:String(data?.updatedAt||'')};
+    if(data?.ok!==true)throw new Error('rudi-d1-write-unconfirmed');
+    return{ok:true,updatedAt:String(data.updatedAt||'')};
   }
   async function set(namespace,key,value,cacheOptions={}){
     return setRecord({
@@ -107,10 +108,12 @@ function createD1StateClient(options={}){
       tags:normalizeTags(cacheOptions.tags),
       expiresAt:expiresAtFromOptions(cacheOptions,Number(cacheOptions.now||Date.now())),
     });
-    return Boolean(data?.inserted);
+    if(data?.ok!==true)throw new Error('rudi-d1-write-unconfirmed');
+    return Boolean(data.inserted);
   }
   async function remove(namespace,key){
-    await request('/delete',{namespace:String(namespace||''),key:String(key||'')});
+    const data=await request('/delete',{namespace:String(namespace||''),key:String(key||'')});
+    if(data?.ok!==true)throw new Error('rudi-d1-write-unconfirmed');
     return true;
   }
   async function list(namespace){
@@ -126,7 +129,8 @@ function createD1StateClient(options={}){
   }
   async function expireTag(namespace,tag){
     const data=await request('/expire-tag',{namespace:String(namespace||''),tag:String(tag||'')});
-    return Number(data?.deleted||0);
+    if(data?.ok!==true)throw new Error('rudi-d1-write-unconfirmed');
+    return Number(data.deleted||0);
   }
   return{health,getRecord,setRecord,set,setIfAbsent,remove,list,expireTag,baseUrl};
 }
