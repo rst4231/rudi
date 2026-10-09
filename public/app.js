@@ -79,6 +79,8 @@
       let currentDianaCycleConfig = null;
       let currentSharedCalendarView = 'month';
       const calendarViewCache = {month:null,'next-month':null};
+      const calendarViewLoadedAt=new Map();
+      const calendarCombinedPending=new Map();
       let calendarConfettiTimer = 0;
       let sharedAlbumUrl = '';
       let sharedAlbumPhotos = [];
@@ -5987,7 +5989,7 @@
         if(now-previous<7000) return;
         appTabPreloadAt.set(next,now);
         if(next==='feed') loadFeed({silent:true}).catch(()=>{});
-        else if(next==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true}).catch(()=>{});
+        else if(next==='schedule') {/* Calendar loads on actual entry; no speculative network requests. */}
         else if(next==='products') loadProducts({silent:true}).catch(()=>{});
         else if(next==='photos') Promise.resolve(loadSharedAlbum()).catch(()=>{});
         else if(next==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
@@ -12808,6 +12810,9 @@
         invalidateManagedRequests('ticktick-today','ticktick-calendar');
         calendarViewCache.month=null;
         calendarViewCache['next-month']=null;
+        calendarViewLoadedAt.clear();
+        calendarCombinedPending.clear();
+        calendarLoadEpoch+=1;
         currentWorkCalendarRenderSignature='';
       }
 
@@ -13464,14 +13469,30 @@
         }))}catch(_){}
       }
       function calendarActiveMonth(){return (calendarDateCursor||todayState().key).slice(0,7)}
-      function calendarCacheKey(month=calendarActiveMonth(),scope=calendarScope){return month+':'+scope}
-      let sharedPeriodMarksPromise=null;
+      function calendarCacheKey(month=calendarActiveMonth(),scope=calendarScope){return month+':'+scope+':'+currentActor}
+      function calendarCacheFresh(key){
+        const updated=Number(calendarViewLoadedAt.get(key)||0),payload=calendarViewCache[key];
+        if(!updated||!payload||payload.ticktickUnavailable||payload.stale)return false;
+        const month=String(key).slice(0,7),active=month===todayState().key.slice(0,7);
+        return Date.now()-updated<(active?60*1000:10*60*1000);
+      }
+      function calendarCacheCoversSelectedWeek(payload){
+        if(calendarDisplayMode!=='week')return true;
+        const anchor=calendarDateCursor||todayState().key;
+        const first=calendarDateShift(anchor,-((dateFromKey(anchor).getUTCDay()+6)%7));
+        const last=calendarDateShift(first,6);
+        const keys=new Set((payload?.days||[]).map(day=>String(day.date||'')));
+        return keys.has(first)&&keys.has(last);
+      }
+      let sharedPeriodMarksPromise=null,sharedPeriodMarksLoadedAt=0;
       async function loadSharedPeriodMarks(){
         if(calendarScope!=='shared'||!currentActor)return;
         if(sharedPeriodMarksPromise)return sharedPeriodMarksPromise;
+        if(sharedPeriodMarksLoadedAt&&Date.now()-sharedPeriodMarksLoadedAt<10*60*1000){applyDianaPeriodDots();return}
         sharedPeriodMarksPromise=(async()=>{
           const data=await cycleRequest('get');
           currentDianaCycleConfig=data.configured&&data.cycle&&data.cycle.enabled!==false?data.cycle:null;
+          sharedPeriodMarksLoadedAt=Date.now();
           if(calendarScope==='shared')applyDianaPeriodDots();
         })().catch(error=>{
           console.warn('RUDI_SHARED_PERIOD_MARKS_WARN',String(error?.message||error));
@@ -13960,6 +13981,7 @@
           const result=await financeRequest('set-obligation-paid',{id:obligation.id,month,paid});
           if(result.actor!==currentActor)throw new Error('finance-actor-mismatch');
           const obligations=Array.isArray(result.obligations)?result.obligations:[];
+          invalidateManagedRequests('finance-calendar-obligations:'+currentActor);
           for(const cached of Object.values(calendarViewCache)){
             if(cached&&cached.obligationActor===currentActor)cached.financeObligations=obligations;
           }
@@ -14342,7 +14364,7 @@
         const weekStart=calendarDateShift(focus,-((dateFromKey(focus).getUTCDay()+6)%7));
         const days=calendarDisplayMode==='week'
           ?allDays.filter(day=>day.date>=weekStart&&day.date<=calendarDateShift(weekStart,6))
-          :allDays;
+          :allDays.filter(day=>String(day.date||'').slice(0,7)===calendarActiveMonth());
         const tickDays=new Map((Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[]).map(day=>[String(day?.date||''),day]));
         const holidayDays=new Map((Array.isArray(payload?.holidayDays)?payload.holidayDays:[]).map(day=>[String(day?.date||''),day]));
         const financeObligations=payload?.obligationActor===currentActor&&Array.isArray(payload.financeObligations)?payload.financeObligations:[];
@@ -14712,14 +14734,17 @@
 
       async function fetchCombinedCalendar(view,monthOverride='',includeNeighbors=true){
         const requested='month',month=monthOverride||calendarActiveMonth();
+        const sourceKey=calendarCacheKey(month);
+        if(!includeNeighbors&&typeof calendarCacheFresh==='function'&&calendarCacheFresh(sourceKey))return calendarViewCache[sourceKey];
         const scope=calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam';
         const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested,month};
         const needsWork=scope==='diana'||scope==='shared';
+        const ttlMs=month===(typeof todayState==='function'?todayState().key.slice(0,7):month)?60*1000:10*60*1000;
         const [workResult,tickResult,holidayResult,obligationResult]=await Promise.allSettled([
-          needsWork?fetchCalendarJson('work-calendar:'+month,'/api/work-calendar',base,5000):Promise.resolve(null),
-          fetchCalendarJson('ticktick-calendar:'+month+':'+scope,'/api/ticktick/calendar',{...base,scope},3000),
-          scope==='shared'?fetchCalendarJson('holiday-calendar:'+month,'/api/partner-message?rudiAction=holiday-calendar',{initData:telegramInitData(),view:requested,month},60000):Promise.resolve(null),
-          scope!=='shared'?financeRequest('calendar-obligations'):Promise.resolve(null)
+          needsWork?fetchCalendarJson('work-calendar:'+month,'/api/work-calendar',base,ttlMs):Promise.resolve(null),
+          fetchCalendarJson('ticktick-calendar:'+month+':'+scope,'/api/ticktick/calendar',{...base,scope},ttlMs),
+          scope==='shared'?fetchCalendarJson('holiday-calendar:'+month,'/api/partner-message?rudiAction=holiday-calendar',{initData:telegramInitData(),view:requested,month},60*60*1000):Promise.resolve(null),
+          scope!=='shared'?fetchCalendarJson('finance-calendar-obligations:'+currentActor,'/api/finances',{initData:telegramInitData(),operation:'calendar-obligations'},3*60*1000):Promise.resolve(null)
         ]);
         const tick=tickResult.status==='fulfilled'?tickResult.value:{};
         const tickUnavailable=tickResult.status!=='fulfilled'||tick?.ok===false||
@@ -14745,6 +14770,10 @@
           obligationActor:obligationResult.status==='fulfilled'?String(obligationResult.value?.actor||''):'',
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
         };
+        if(!includeNeighbors){
+          calendarViewCache[sourceKey]=result;
+          calendarViewLoadedAt.set(sourceKey,Date.now());
+        }
         if(includeNeighbors&&calendarDisplayMode==='week'){
           const anchor=calendarDateCursor||todayState().key;
           const start=calendarDateShift(anchor,-((dateFromKey(anchor).getUTCDay()+6)%7));
@@ -14766,23 +14795,44 @@
       }
       async function prefetchCalendarView(view){
         const key=calendarCacheKey();
-        if(calendarViewCache[key])return calendarViewCache[key];
-        try{const payload=await fetchCombinedCalendar('month');calendarViewCache[key]=payload;return payload}
-        catch(_){return null}
+        if(calendarCacheFresh(key))return calendarViewCache[key];
+        try{
+          const payload=await fetchCombinedCalendar('month');
+          calendarViewCache[key]=payload;calendarViewLoadedAt.set(key,Date.now());return payload;
+        }catch(_){return null}
       }
       async function loadWorkCalendar(view=currentWorkCalendarView,{silent=false,force=false}={}){
         if(!currentActor)return null;
         const key=calendarCacheKey(),epoch=++calendarLoadEpoch;
-        if(force)invalidateManagedRequests('ticktick-calendar:'+calendarActiveMonth()+':'+(calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam'));
+        const sourceScope=calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam';
         const status=document.getElementById('workCalendarStatus'),cached=calendarViewCache[key];
+        if(!force&&calendarCacheFresh(key)&&calendarCacheCoversSelectedWeek(cached)){
+          renderWorkCalendar(cached);
+          return cached;
+        }
+        if(force){
+          invalidateManagedRequests('ticktick-calendar:'+calendarActiveMonth()+':'+sourceScope);
+          calendarViewLoadedAt.delete(key);
+        }
         if(cached)renderWorkCalendar(cached);
         if(!silent){status.hidden=false;status.textContent=cached?'Обновляю':'Загружаю'}
         try{
-          const payload=await fetchCombinedCalendar('month');
-          calendarViewCache[key]=payload;
+          const first=calendarDateCursor||todayState().key;
+          const weekStart=calendarDateShift(first,-((dateFromKey(first).getUTCDay()+6)%7));
+          const requestKey=key+(calendarDisplayMode==='week'?':week:'+weekStart:':month');
+          if(force)calendarCombinedPending.delete(requestKey);
+          let promise=calendarCombinedPending.get(requestKey);
+          if(!promise){
+            promise=fetchCombinedCalendar('month').finally(()=>{
+              if(calendarCombinedPending.get(requestKey)===promise)calendarCombinedPending.delete(requestKey);
+            });
+            calendarCombinedPending.set(requestKey,promise);
+          }
+          const payload=await promise;
           if(epoch!==calendarLoadEpoch||key!==calendarCacheKey())return payload;
+          calendarViewCache[key]=payload;
+          calendarViewLoadedAt.set(key,Date.now());
           renderWorkCalendar(payload);
-          if(calendarActiveMonth()===todayState().key.slice(0,7))setTimeout(()=>loadActivityJournal({silent:true}),180);
           return payload;
         }catch(error){
           if(epoch!==calendarLoadEpoch||key!==calendarCacheKey())return null;
@@ -20166,7 +20216,7 @@
         },
         {
           key:'work-calendar',everyMs:30*60*1000,offsetMs:75*1000,
-          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='schedule'),
+          shouldRun:()=>Boolean(currentActor&&autoRefreshEnabled()&&appVisibleForRefresh()&&currentAppTab==='schedule'&&calendarActiveMonth()===todayState().key.slice(0,7)),
           run:()=>loadWorkCalendar(currentWorkCalendarView,{silent:true})
         },
         {
