@@ -7113,13 +7113,6 @@
       function renderScoreStickers(score=currentScoreState){
         if(score) acceptScoreState(score);
         if(!currentScoreState) return;
-        document.querySelectorAll('.score-sticker[data-score-actor]').forEach(sticker=>{
-          const actor=String(sticker.dataset.scoreActor||'');
-          const value=scoreNumber(currentScoreState?.balances?.[actor]||0);
-          const holder=sticker.querySelector('.score-sticker-value');
-          if(holder) holder.textContent=value;
-          sticker.setAttribute('aria-label',actor+': '+value+' звёзд. Открыть историю звёзд');
-        });
         renderFinanceStarsWallet();
         if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
       }
@@ -9278,21 +9271,13 @@
 
           const head=document.createElement('div');
           head.className='profile-person-head';
-          const scoreSticker=document.createElement('button');
-          scoreSticker.type='button';
-          scoreSticker.className='score-sticker';
-          scoreSticker.dataset.scoreActor=actor;
-          scoreSticker.innerHTML='<span aria-hidden="true">⭐</span><b class="score-sticker-value">0</b>';
-          scoreSticker.addEventListener('click',event=>{
-            event.preventDefault();event.stopPropagation();openScoreModal(actor);
-          });
           const avatar=identity.querySelector('.avatar');
           if(avatar){
             const avatarWrap=document.createElement('div');
             avatarWrap.className='score-avatar-wrap';
             const moodBadge=avatar.querySelector('.avatar-mood-badge');
             avatar.parentNode.insertBefore(avatarWrap,avatar);
-            avatarWrap.append(avatar,scoreSticker);
+            avatarWrap.append(avatar);
             if(moodBadge){
               moodBadge.classList.remove('score-avatar-mood-badge','profile-card-mood-badge','avatar-mood-sticker');
               const nameRow=identity.querySelector('.profile-name-row');
@@ -9302,8 +9287,6 @@
                 else nameRow.appendChild(moodBadge);
               }
             }
-          }else{
-            identity.appendChild(scoreSticker);
           }
           head.appendChild(identity);
           if(actor!==currentActor){
@@ -9491,8 +9474,6 @@
           '<div id="homeNearestRows" class="home-nearest-rows"></div>';
 
         profile.after(selfCard.tile,partnerCard.tile,luluTile,nearest);
-        renderScoreStickers(currentScoreState);
-        scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{});
         syncProfileContactButtons();
 
         // RUDI_REMOVE_MARKET_TICKER_SETTING

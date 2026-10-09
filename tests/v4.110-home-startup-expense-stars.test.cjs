@@ -8,10 +8,11 @@ const prefsSource=fs.readFileSync('api/ui-preferences-store.cjs','utf8');
 const {awardScore,reverseScoreByDedupeKey,scoreDateKey,scoreView,DAILY_EXPENSE_SCORE_UNITS,resetMutationQueueForTests}=require('../api/score-store.cjs');
 const {normalizeUiPreferencesState,saveUiPreferences,resetMutationQueueForTests:resetPrefs}=require('../api/ui-preferences-store.cjs');
 function memoryCache(initial=null){let state=initial;return{async get(){return state},async set(_key,next){state=next;return true}}}
-test('avatars have bottom score stickers, finance stars wallet stays',()=>{
-  assert.match(app,/avatarWrap\.append\(avatar,scoreSticker\)/);
-  assert.match(app,/document\.querySelectorAll\('\.score-sticker\[data-score-actor\]'\)/);
-  assert.match(css,/\.score-avatar-wrap > \.score-sticker\{[\s\S]*?top:auto!important;bottom:-10px!important/);
+test('star stickers stay absent from avatars while finance wallet remains',()=>{
+  const profile=app.slice(app.indexOf('const makePersonTile=(actor,identity)=>{'),app.indexOf('const selfActor=currentActor'));
+  assert.doesNotMatch(profile,/scoreSticker|className='score-sticker'/);
+  assert.match(profile,/avatarWrap\.append\(avatar\)/);
+  assert.doesNotMatch(css.slice(css.indexOf('/* RUDI v4.110: compact profile cards')),/score-avatar-wrap > \.score-sticker/);
   assert.match(app,/renderFinanceStarsWallet\(\)/);
 });
 test('profile card compactness preserves avatar and action sizes',()=>{
