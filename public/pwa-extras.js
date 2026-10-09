@@ -440,6 +440,67 @@
   }
   window.rudiRequestPwaUpdate=requestPwaUpdate;
 
+  // Independent release checks: Telegram WebView sometimes keeps an old page even
+  // when the service worker successfully refreshed in the background.
+  function installReleaseWatcher(){
+    const loadedVersion=String(document.querySelector('meta[name="rudi-version"]')?.content||'');
+    if(!/^v\\d+(?:\\.\\d+)?$/.test(loadedVersion))return;
+    const numericParts=value=>value.replace(/^v/,'').split('.').map(Number);
+    const isNewer=(remote,local)=>{
+      const a=numericParts(remote),b=numericParts(local);
+      return a.some((part,index)=>part>(b[index]||0)&&a.slice(0,index).every((v,i)=>v===(b[i]||0)));
+    };
+    let pendingVersion='',checking=false,lastCheckAt=0;
+    const safeToRefresh=()=>{
+      const active=document.activeElement;
+      return document.visibilityState==='visible'
+        &&!document.body.classList.contains('keyboard-editing')
+        &&!document.body.classList.contains('finance-coin-modal-open')
+        &&!document.querySelector('[aria-busy="true"]')
+        &&!active?.matches?.('input,textarea,select,[contenteditable="true"]');
+    };
+    const refreshWhenSafe=()=>{
+      if(!pendingVersion||!safeToRefresh())return;
+      const key='rudi:release-refresh:'+loadedVersion+':'+pendingVersion;
+      try{
+        if(sessionStorage.getItem(key)==='1')return;
+        sessionStorage.setItem(key,'1');
+      }catch(_){}
+      const lookup=navigator.serviceWorker?.getRegistration?.('/');
+      if(lookup&&typeof lookup.then==='function'){
+        lookup.then(registration=>registration?.update?.())
+          .catch(()=>{})
+          .finally(()=>window.location.reload());
+      }else window.location.reload();
+    };
+    const check=async(force=false)=>{
+      if(checking||document.visibilityState!=='visible'||navigator.onLine===false)return;
+      if(!force&&Date.now()-lastCheckAt<10*60*1000)return;
+      checking=true;lastCheckAt=Date.now();
+      try{
+        const response=await nativeFetch('/version.json?check='+Date.now(),{cache:'no-store'});
+        if(!response.ok)return;
+        const version=String((await response.json())?.version||'');
+        if(/^v\\d+(?:\\.\\d+)?$/.test(version)&&isNewer(version,loadedVersion)){
+          pendingVersion=version;
+          refreshWhenSafe();
+        }
+      }catch(error){console.warn('RUDI_VERSION_CHECK_WARN',String(error?.message||error))}
+      finally{checking=false}
+    };
+    window.addEventListener('load',()=>{
+      setTimeout(()=>check(true),1200);
+      window.setInterval(()=>check(),10*60*1000);
+    },{once:true});
+    window.addEventListener('focusout',()=>setTimeout(refreshWhenSafe,200));
+    window.addEventListener('focus',()=>check());
+    window.addEventListener('pageshow',()=>check());
+    window.addEventListener('online',()=>check(true));
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible'){refreshWhenSafe();check()}
+    });
+  }
+
   function installServiceWorker(){
     if(!('serviceWorker' in navigator)) return;
     const hadController=Boolean(navigator.serviceWorker.controller);
@@ -1737,6 +1798,7 @@
     setupRecipeWakeLock();
   }
 
+  installReleaseWatcher();
   installServiceWorker();
   installNativeInteractionPolish();
   installBackgroundSync();

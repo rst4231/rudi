@@ -435,3 +435,30 @@ body[data-app-tab="home"] .profile-person-card .profile-person-actions #partnerF
   stroke:#38dc8f!important;
   filter:drop-shadow(0 0 2px rgba(57,207,131,.70));
 }
+
+/* Shared editing-sheet contract. Never resize the expense keypad composer. */
+:root{
+ --rudi-sheet-control-height:44px;
+ --rudi-sheet-input-radius:13px;
+}
+.finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet,
+.ticktick-task-modal-sheet{
+ overscroll-behavior-y:contain;
+ overflow-wrap:anywhere;
+}
+.finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet :is(input,select,textarea),
+.ticktick-task-modal-sheet :is(input,select,textarea){
+ min-width:0;max-width:100%;box-sizing:border-box;
+ border-radius:var(--rudi-sheet-input-radius);
+}
+.finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet :is(.finance-save-button,button[type="submit"]),
+.ticktick-task-modal-sheet :is(button[type="submit"],.ticktick-task-save){
+ min-height:var(--rudi-sheet-control-height);
+}
+@media(max-width:600px){
+ .finance-coin-modal:not(#financeExpenseComposer) .finance-coin-modal-sheet,
+ .ticktick-task-modal-sheet{
+  max-width:100%;
+  max-height:calc(100dvh - max(16px,env(safe-area-inset-top)) - max(12px,env(safe-area-inset-bottom)));
+ }
+}

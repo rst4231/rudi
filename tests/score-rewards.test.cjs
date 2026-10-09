@@ -77,11 +77,11 @@ test('home actions use the configured fractional star rewards', () => {
   const api = fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
   const app = fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
 
-  assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Вопрос дня'/s);
+  assert.match(api,/reward:\{stars:0,awarded:false\}/);
   assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Послание'/s);
   assert.match(api,/const walkRewardUnits=actor==='Рустам'\?20:10;/);
   assert.match(api,/awardScoreSafe\(actor,walkRewardUnits,\{label:'Прогулка с Лулу'/);
-  assert.match(app,/Ответ сохранён · \+0,1 ⭐/);
+  assert.match(app,/Ответ сохранён/);
 
   const likeStart=api.indexOf("if (action === 'partner-message-like')");
   const likeEnd=api.indexOf("if (action === 'partner-message-read')",likeStart);

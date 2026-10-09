@@ -121,9 +121,9 @@ function syncWebVersion(env = process.env) {
     html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
   }
   html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
-  html = html.replace(/\/finance-decisions\.css\?v=[^"]+/g, '/finance-decisions.css?v=' + assetVersion);
-  html = html.replace(/\/finance-decisions-core\.js\?v=[^"]+/g, '/finance-decisions-core.js?v=' + assetVersion);
-  html = html.replace(/\/finance-decisions-ui\.js\?v=[^"]+/g, '/finance-decisions-ui.js?v=' + assetVersion);
+  html = html.replace(/\/finance-decisions\.css\?v=[^"'\s]+/g, '/finance-decisions.css?v=' + assetVersion);
+  html = html.replace(/\/finance-decisions-core\.js\?v=[^"'\s]+/g, '/finance-decisions-core.js?v=' + assetVersion);
+  html = html.replace(/\/finance-decisions-ui\.js\?v=[^"'\s]+/g, '/finance-decisions-ui.js?v=' + assetVersion);
   html = html.replace(/\/finance-bank\.css\?v=[^"]+/g, '/finance-bank.css?v=' + assetVersion);
   html = html.replace(/\/rudi-design-system\.css\?v=[^"]+/g, '/rudi-design-system.css?v=' + assetVersion);
   html = html.replace(/\/pwa-extras\.css\?v=[^"]+/g, '/pwa-extras.css?v=' + assetVersion);
@@ -149,6 +149,8 @@ function syncWebVersion(env = process.env) {
     '$1' + label + '$2'
   );
   writeBuiltFile(webIndexPath, html);
+  // Tiny uncached release marker for Telegram/iOS environments where SW updates lag.
+  writeBuiltFile(path.join(__dirname, 'public', 'version.json'), JSON.stringify({ version: label }) + '\n');
   if (fs.existsSync(webServiceWorkerPath)) {
     let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
     serviceWorker = serviceWorker.replace(/const CACHE_NAME='rudi-shell-v[^']+';/, "const CACHE_NAME='rudi-shell-" + label + "';");
@@ -230,7 +232,9 @@ function buildWebAssets(env = process.env) {
   const assetVersion = label.replace(/^v/i, '');
   const missingAssets = WEB_ASSETS.filter((name) => !fs.existsSync(path.join(__dirname, 'public', name)));
   if (missingAssets.length) throw new Error('Missing web assets: ' + missingAssets.join(', '));
-  const versionedAssets = WEB_ASSETS.map((name) => '/' + name + '?v=' + assetVersion);
+  // Optional financial planning modules must not compete with the home screen during SW installation.
+  const lazyAssets = new Set(['finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js']);
+  const versionedAssets = WEB_ASSETS.filter(name => !lazyAssets.has(name)).map(name => '/' + name + '?v=' + assetVersion);
   syncServiceWorkerPrecache(versionedAssets);
 }
 

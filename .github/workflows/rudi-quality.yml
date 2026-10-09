@@ -1,0 +1,30 @@
+name: RUDI quality gates
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "hardening/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - name: Check code syntax
+        run: |
+          node --check api/d1-state-client.cjs
+          node --check api/finance-store.cjs
+          node --check public/app.js
+          node --check public/pwa-extras.js
+          node --check build.cjs
+      - name: Regression and integration tests
+        run: npm run test:current
