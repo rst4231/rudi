@@ -31,10 +31,11 @@ test('stars wallet uses score state, per-actor balance and balance privacy',()=>
   assert.match(navigation,/scoreRequest\('state'\)\.then\(data=>renderScoreStickers\(data\.score\)\)/);
 });
 
-test('score stickers removed from both avatars without touching mood',()=>{
+test('avatar score stickers restored while keeping the finance wallet',()=>{
   const profile=scope('const makePersonTile=(actor,identity)=>{','const selfActor=currentActor');
-  assert.doesNotMatch(profile,/scoreSticker|className='score-sticker'/);
-  assert.match(profile,/avatarWrap\.append\(avatar\)/);
+  assert.match(profile,/scoreSticker\.className='score-sticker'/);
+  assert.match(profile,/avatarWrap\.append\(avatar,scoreSticker\)/);
+  assert.match(profile,/openScoreModal\(actor\)/);
   assert.match(profile,/const moodBadge=avatar\.querySelector\('\.avatar-mood-badge'\)/);
   assert.match(profile,/nameElement\.insertAdjacentElement\('afterend',moodBadge\)/);
 });
