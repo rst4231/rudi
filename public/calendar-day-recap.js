@@ -123,7 +123,6 @@
     if(active===date&&!panel.hidden)return;
     active=date;panel.hidden=false;
     panel.replaceChildren(node('p','calendar-recap-loading','Загружаю итоги дня…'));
-    const actor=String(document.body.dataset.rudiActor||'');
     fetchMonth(date.slice(0,7)).then(data=>{
       if(!showable()||active!==date||lastActor!==actor)return;
       if(data.days?.[date])render(date,data.days[date]);
