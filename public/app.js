@@ -14734,11 +14734,11 @@
       async function fetchCombinedCalendar(view,monthOverride='',includeNeighbors=true){
         const requested='month',month=monthOverride||calendarActiveMonth();
         const sourceKey=calendarCacheKey(month);
-        if(!includeNeighbors&&calendarCacheFresh(sourceKey))return calendarViewCache[sourceKey];
+        if(!includeNeighbors&&typeof calendarCacheFresh==='function'&&calendarCacheFresh(sourceKey))return calendarViewCache[sourceKey];
         const scope=calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam';
         const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested,month};
         const needsWork=scope==='diana'||scope==='shared';
-        const ttlMs=month===todayState().key.slice(0,7)?60*1000:10*60*1000;
+        const ttlMs=month===(typeof todayState==='function'?todayState().key.slice(0,7):month)?60*1000:10*60*1000;
         const [workResult,tickResult,holidayResult,obligationResult]=await Promise.allSettled([
           needsWork?fetchCalendarJson('work-calendar:'+month,'/api/work-calendar',base,ttlMs):Promise.resolve(null),
           fetchCalendarJson('ticktick-calendar:'+month+':'+scope,'/api/ticktick/calendar',{...base,scope},ttlMs),
