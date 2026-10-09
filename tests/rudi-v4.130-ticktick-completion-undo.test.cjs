@@ -143,3 +143,19 @@ test('undo snackbar retains action and shows error when request fails',()=>{
   assert.ok(app.includes("copy.textContent='Не удалось отменить. Попробовать ещё раз'"));
   assert.ok(app.includes('if(succeeded)hideUndoSnackbar()'));
 });
+
+test('personal Undo tolerates temporary TickTick 500 on completed task GET',async()=>{
+  let restored=null;
+  const original={id:'task-1',projectId:'list-1',title:'Original'};
+  await reopenRustamPersonalTask({...own,taskSnapshot:original},deps({
+    fetchTask:async()=>{throw new Error('ticktick-api-failed:500')},
+    reopenTickTickTask:async(_token,_project,_task,options)=>{restored=options}
+  }));
+  assert.equal(restored.task.title,'Original');
+  assert.equal(restored.force,true);
+});
+test('personal Undo does not bypass expired/invalid credentials with saved snapshot',async()=>{
+  await assert.rejects(reopenRustamPersonalTask({...own,taskSnapshot:{
+    id:'task-1',projectId:'list-1',title:'Original'
+  }},deps({fetchTask:async()=>{throw new Error('ticktick-token-invalid')}})),/ticktick-token-invalid/);
+});
