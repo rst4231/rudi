@@ -1,9 +1,9 @@
 {
   "current": "v4.131",
   "versionBranch": "main",
-  "releaseCommit": "pending-v4.131",
-  "deploymentSourceCommit": "pending-v4.131",
-  "deploymentRequestedAt": "",
+  "releaseCommit": "e429ca3461a400dde61b31bb6873a966d68d61e6",
+  "deploymentSourceCommit": "e429ca3461a400dde61b31bb6873a966d68d61e6",
+  "deploymentRequestedAt": "2026-10-09T14:39:48.536Z",
   "createdAt": "2026-10-09",
   "basedOnProduction": "v4.130",
   "notes": [
