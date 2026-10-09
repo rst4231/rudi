@@ -801,7 +801,7 @@ async function open(){return loadHomeTools()}
 function close(){}
 function bindName(){
   const name=document.getElementById('displayName');
-  if(name){name.classList.remove('personal-profile-name-link');name.removeAttribute('role');name.removeAttribute('tabindex');name.removeAttribute('aria-label')}
+  if(name)name.classList.remove('personal-profile-name-link');
   const update=()=>{const who=String(document.body.dataset.rudiActor||'').trim();if(who)loadHomeTools()};
   update();new MutationObserver(update).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
 }

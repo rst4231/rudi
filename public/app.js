@@ -5305,6 +5305,7 @@
         card.classList.toggle('is-collapsed',next);
         button.setAttribute('aria-expanded',next?'false':'true');
         button.setAttribute('aria-label',next?'Развернуть блок':'Свернуть блок');
+        card.querySelector('#financePlanningTitle[role="button"]')?.setAttribute('aria-expanded',next?'false':'true');
       }
       function bindFinanceCardCollapse(cardId,buttonId){
         const card=document.getElementById(cardId),button=document.getElementById(buttonId);
@@ -5333,6 +5334,21 @@
           setFinanceCardCollapsed(cardId,buttonId,!card.classList.contains('is-collapsed'));
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
+        if(cardId==='financeGoalCard'){
+          const title=card.querySelector('#financePlanningTitle');
+          if(title){
+            title.setAttribute('role','button');
+            title.tabIndex=0;
+            title.setAttribute('aria-controls',cardId);
+            title.setAttribute('aria-expanded',button.getAttribute('aria-expanded'));
+            title.addEventListener('click',()=>button.click());
+            title.addEventListener('keydown',event=>{
+              if(event.key!=='Enter'&&event.key!==' ')return;
+              event.preventDefault();
+              button.click();
+            });
+          }
+        }
       }
 
       function setFinanceTab(tab){
@@ -7592,6 +7608,8 @@
       }
 
       function toggleLuluWalkHistory(){
+        const luluCard=document.getElementById('homeLuluTile');
+        if(luluCard?.classList.contains('is-collapsed')) luluCard.querySelector('.lulu-copy h2')?.click();
         const panel=document.getElementById('luluWalkHistory');
         const toggle=document.getElementById('luluWalkHistoryToggle');
         if(!panel||!toggle) return;
@@ -8668,6 +8686,31 @@
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
         document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',toggleLuluWalkHistory);
+        const luluCard=document.getElementById('homeLuluTile');
+        const luluHeading=luluCard?.querySelector('.lulu-copy h2');
+        if(luluCard&&luluHeading&&luluHeading.dataset.collapseBound!=='1'){
+          luluHeading.dataset.collapseBound='1';
+          luluHeading.setAttribute('role','button');
+          luluHeading.setAttribute('tabindex','0');
+          luluHeading.setAttribute('aria-label','Свернуть или развернуть Лулу');
+          const applyLuluCollapse=collapsed=>{
+            luluCard.classList.toggle('is-collapsed',collapsed);
+            luluHeading.setAttribute('aria-expanded',collapsed?'false':'true');
+          };
+          const toggleLuluCollapse=()=>{
+            const collapsed=!luluCard.classList.contains('is-collapsed');
+            applyLuluCollapse(collapsed);
+            setBlockCollapsed('lulu',collapsed);
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          };
+          applyLuluCollapse(getBlockCollapsed('lulu',false));
+          luluHeading.addEventListener('click',toggleLuluCollapse);
+          luluHeading.addEventListener('keydown',event=>{
+            if(event.key!=='Enter'&&event.key!==' ')return;
+            event.preventDefault();
+            toggleLuluCollapse();
+          });
+        }
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
           navigateToAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
@@ -9500,10 +9543,22 @@
         section.classList.add('rudi-collapsible');
         const button=collapseButton('Свернуть или развернуть блок');
         addHeaderCollapseButton(section,host,button);
+        const titleTrigger=key.startsWith('profile-')
+          ?host.querySelector('#displayName,#partnerHeaderName')
+          :key==='smart-home'?host.querySelector('#smartHomeTitle')
+          :key==='daily-question'?host.querySelector('#dailyQuestionTitle')
+          :null;
+        if(titleTrigger){
+          titleTrigger.setAttribute('role','button');
+          titleTrigger.tabIndex=0;
+          titleTrigger.setAttribute('aria-controls','rudiCollapseBody-'+key);
+          body.id='rudiCollapseBody-'+key;
+        }
 
         const apply=collapsed=>{
           section.classList.toggle('is-collapsed',collapsed);
           button.setAttribute('aria-expanded',collapsed?'false':'true');
+          titleTrigger?.setAttribute('aria-expanded',collapsed?'false':'true');
           body.setAttribute('aria-hidden',collapsed?'true':'false');
         };
         apply(!persist||resetCollapsedOnInit?Boolean(defaultCollapsed):getBlockCollapsed(key,defaultCollapsed));
@@ -9514,6 +9569,20 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
         button.addEventListener('click',toggleCollapsed);
+        if(titleTrigger){
+          titleTrigger.addEventListener('click',event=>{
+            if(document.body.classList.contains('home-layout-editing'))return;
+            event.preventDefault();
+            event.stopPropagation();
+            toggleCollapsed();
+          });
+          titleTrigger.addEventListener('keydown',event=>{
+            if(event.key!=='Enter'&&event.key!==' ')return;
+            event.preventDefault();
+            event.stopPropagation();
+            toggleCollapsed();
+          });
+        }
         if(key==='partner'){
           section.querySelector('#partnerEditButton')?.addEventListener('click',()=>{
             if(section.classList.contains('is-collapsed')){
@@ -17175,6 +17244,8 @@
         }
         const goalHours=Number(active?.goalHours);
         const running=activeNow&&Number.isFinite(goalHours)&&goalHours>0;
+        const reached=running&&Date.now()-startMs>=goalHours*3600000;
+        button.dataset.fastingComplete=reached?'1':'0';
         if(partner)button.dataset.fastingGoalHours=running?String(goalHours):'';
         button.dataset.fastingActive=running?'1':'0';
         let svg=button.querySelector('.rudi-fasting-progress-outline');

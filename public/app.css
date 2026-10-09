@@ -17891,3 +17891,16 @@ html[data-theme="light"] .profile-person-card #partnerFastingProfileButton .fast
   .profile-person-card .profile-energy-times{font-size:6.3px!important}
   .profile-person-card .profile-person-head{gap:4px!important}
 }
+
+/* RUDI v4.107 — click titles to collapse without intercepting card actions. */
+.finance-goal-card-compact #financePlanningTitle[role="button"],
+.profile-person-card :is(#displayName,#partnerHeaderName)[role="button"],
+#smartHomeTile #smartHomeTitle[role="button"],
+#dailyQuestionTile #dailyQuestionTitle[role="button"],
+#homeLuluTile .lulu-copy h2[role="button"]{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.finance-goal-card-compact #financePlanningTitle[role="button"]:focus-visible,
+.profile-person-card :is(#displayName,#partnerHeaderName)[role="button"]:focus-visible,
+#smartHomeTile #smartHomeTitle[role="button"]:focus-visible,
+#dailyQuestionTile #dailyQuestionTitle[role="button"]:focus-visible,
+#homeLuluTile .lulu-copy h2[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
+#homeLuluTile.is-collapsed :is(.lulu-toilet-status,.lulu-walk-status,#luluWalkHistory){display:none!important}

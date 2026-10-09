@@ -423,3 +423,15 @@ body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
 @media(prefers-reduced-motion:reduce){
  #partnerFastingProfileButton .rudi-fasting-progress-value{transition:none}
 }
+
+/* RUDI v4.107: green outline when fasting goal is reached. */
+body[data-app-tab="home"] .profile-person-card .profile-mood .mood-self-buttons > #fastingProfileButton[data-fasting-complete="1"],
+body[data-app-tab="home"] .profile-person-card .profile-person-actions #partnerFastingProfileButton[data-fasting-complete="1"]{
+  border-color:#39cf83!important;
+  box-shadow:0 0 0 1px rgba(57,207,131,.22),0 0 10px rgba(57,207,131,.34),inset 0 0 0 .6px rgba(139,247,184,.42)!important;
+}
+:is(#fastingProfileButton,#partnerFastingProfileButton)[data-fasting-complete="1"] .rudi-fasting-progress-track{stroke:rgba(57,207,131,.30)!important}
+:is(#fastingProfileButton,#partnerFastingProfileButton)[data-fasting-complete="1"] .rudi-fasting-progress-value{
+  stroke:#38dc8f!important;
+  filter:drop-shadow(0 0 2px rgba(57,207,131,.70));
+}

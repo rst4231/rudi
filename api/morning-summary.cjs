@@ -227,6 +227,7 @@ function feedSummaryLines(feed, date) {
 function formatDate(now) {
   return new Intl.DateTimeFormat('ru-RU', {
     timeZone: 'Europe/Moscow',
+    weekday: 'long',
     day: 'numeric',
     month: 'long',
   }).format(now);
@@ -831,6 +832,7 @@ module.exports = {
   eventCount,
   feedSectionUpdatedOnDate,
   feedSummaryLines,
+  formatDate,
   wishlistLines,
   messageIsNewForActor,
   workDayBlock,

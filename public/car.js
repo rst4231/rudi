@@ -641,6 +641,7 @@
     card.classList.toggle('is-collapsed',value);
     const button=card.querySelector('[data-car-collapse]');
     button?.setAttribute('aria-expanded',value?'false':'true');
+    card.querySelector('.car-smart-card-title[role="button"]')?.setAttribute('aria-expanded',value?'false':'true');
     if(persist) writeCarCardCollapsed(card.dataset.carCard,value);
   }
 
@@ -665,6 +666,10 @@
     head.className='car-smart-card-head';
     const titleWrap=document.createElement('div');
     titleWrap.className='car-smart-card-title';
+    titleWrap.setAttribute('role','button');
+    titleWrap.tabIndex=0;
+    titleWrap.setAttribute('aria-label','Свернуть или развернуть '+title);
+    titleWrap.setAttribute('aria-controls','carSmartBody-'+id);
     const icon=carSmartIcon(source);
     if(icon) titleWrap.appendChild(icon);
     const titleNode=document.createElement('strong');
@@ -693,15 +698,23 @@
 
     const body=document.createElement('div');
     body.className='car-smart-card-body';
+    body.id='carSmartBody-'+id;
     const inner=document.createElement('div');
     inner.className='car-smart-card-body-inner';
     body.appendChild(inner);
     inner.appendChild(source);
     card.append(head,body);
 
-    collapse.addEventListener('click',()=>{
+    const toggleCard=()=>{
       setCarCardCollapsed(card,!card.classList.contains('is-collapsed'));
       try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+    };
+    collapse.addEventListener('click',toggleCard);
+    titleWrap.addEventListener('click',toggleCard);
+    titleWrap.addEventListener('keydown',event=>{
+      if(event.key!=='Enter'&&event.key!==' ')return;
+      event.preventDefault();
+      toggleCard();
     });
     setCarCardCollapsed(card,readCarCardCollapsed(id),{persist:false});
     return card;

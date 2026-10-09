@@ -5,6 +5,7 @@ const path = require('node:path');
 const {
   filterTasksForActor,
   feedSummaryLines,
+  formatDate,
   buildCarRecommendations,
   buildMorningSummary,
   sendDailyMorningSummaries,
@@ -27,6 +28,12 @@ const tasks = [
   { id:'x', title:'Чужая задача', assigned:true, assignee:'Назначен', completed:false },
   { id:'c', title:'Готовая задача', assigned:true, assignee:'RST', completed:true },
 ];
+
+test('morning summary uses Moscow weekday even across UTC midnight', () => {
+  assert.equal(formatDate(new Date('2026-10-09T04:27:00Z')), 'пятница, 9 октября');
+  assert.equal(formatDate(new Date('2026-10-08T22:30:00Z')), 'пятница, 9 октября');
+  assert.equal(formatDate(new Date('2026-10-09T21:30:00Z')), 'суббота, 10 октября');
+});
 
 test('morning summary task filter uses RST for Rustam, Ди for Diana, and includes unassigned for both', () => {
   assert.deepEqual(filterTasksForActor(tasks, 'Рустам').map(row=>row.id), ['r','u']);
@@ -197,6 +204,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   const diana=calls.find(row=>row.chat_id===2);
 
   assert.match(rustam.text,/Рустам, доброе утро/);
+  assert.match(rustam.text,/понедельник, 21 сентября/);
   assert.match(rustam.text,/Диана сегодня не работает/);
   assert.match(rustam.text,/Задача Рустама/);
   assert.doesNotMatch(rustam.text,/Задача Дианы/);
@@ -219,6 +227,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.doesNotMatch(rustam.text,/я обновил Ленту/);
 
   assert.match(diana.text,/Диана, доброе утро/);
+  assert.match(diana.text,/понедельник, 21 сентября/);
   assert.match(diana.text,/Задача Дианы/);
   assert.doesNotMatch(diana.text,/Задача Рустама/);
   assert.match(diana.text,/Сегодня выходной/);
