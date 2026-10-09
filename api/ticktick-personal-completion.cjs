@@ -90,7 +90,62 @@ async function reopenRustamPersonalTask(input = {}, deps = {}) {
   return { ok: true, reopened: true, personal: true, taskId };
 }
 // A vertical drag reschedules a single personal task. Never touch a shared project.
-async function rescheduleRustamPersonalTask(input={},deps={}) {
+// The route must authorize task ownership and OAuth scope before calling this helper.
+async function rescheduleTickTickTaskTime(input={},deps={}){
+  const task=input.task;
+  const taskId=String(input.taskId||'').trim();
+  const projectId=String(input.projectId||'').trim();
+  const date=String(input.date||'').trim();
+  const time=String(input.time||'').trim();
+  if(!taskId||!projectId||String(task?.id||'')!==taskId||
+     String(task?.projectId||'')!==projectId)
+    throw new Error('ticktick-personal-task-mismatch');
+  if(!/^20\d\d-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(date)||
+     !/^([01]\d|2[0-3]):(00|15|30|45)$/.test(time)||
+     new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)
+    throw new Error('ticktick-personal-time-invalid');
+  if(Number(task.status??0)!==0||task.isAllDay===true)
+    throw new Error('ticktick-personal-reschedule-unsupported');
+  const original=String(task.startDate||task.dueDate||'');
+  const oldMillis=Date.parse(original);
+  const newMillis=Date.parse(date+'T'+time+':00+03:00');
+  if(!Number.isFinite(oldMillis)||!Number.isFinite(newMillis))
+    throw new Error('ticktick-personal-date-mismatch');
+  const originalMoscow=new Date(oldMillis+3*60*60*1000);
+  const series=Boolean(String(task.repeatFlag||'').trim());
+  if(!series&&originalMoscow.toISOString().slice(0,10)!==date)
+    throw new Error('ticktick-personal-date-mismatch');
+  // Change the recurring task's clock time, not its anchor day or RRULE.
+  const originalMinutes=originalMoscow.getUTCHours()*60+originalMoscow.getUTCMinutes();
+  const targetMinutes=Number(time.slice(0,2))*60+Number(time.slice(3,5));
+  const delta=series?(targetMinutes-originalMinutes)*60000:newMillis-oldMillis;
+  if(!delta)return {ok:true,moved:false,taskId,date,time,series};
+  const format=millis=>new Date(millis).toISOString().replace(/\.\d{3}Z$/,'+0000');
+  const existingStart=task.startDate?Date.parse(task.startDate):null;
+  const existingDue=task.dueDate?Date.parse(task.dueDate):null;
+  if((existingStart!==null&&!Number.isFinite(existingStart))||
+     (existingDue!==null&&!Number.isFinite(existingDue))||
+     (existingStart!==null&&existingDue!==null&&
+       (existingDue-existingStart<0||existingDue-existingStart>24*60*60*1000)))
+    throw new Error('ticktick-personal-date-mismatch');
+  const changes={
+    title:String(task.title||'').trim(),
+    isAllDay:false,
+    startDate:existingStart===null?'':format(existingStart+delta),
+    dueDate:existingDue===null?'':format(existingDue+delta),
+    desc:String(task.desc||''),
+    timeZone:String(task.timeZone||'Europe/Moscow'),
+    repeatFlag:String(task.repeatFlag||'')
+  };
+  if(!changes.title)throw new Error('ticktick-personal-task-invalid');
+  await (deps.updateTickTickTask||updateTickTickTask)(
+    input.accessToken,projectId,taskId,changes,input.options||{}
+  );
+  return {ok:true,moved:true,taskId,date,time,series};
+}
+
+// A private TickTick task requires Rustam's own token and project ownership.
+async function rescheduleRustamPersonalTask(input={},deps={}){
   const actor=String(input.actor||'');
   if(actor!=='Рустам')throw new Error('ticktick-personal-owner-forbidden');
   const token=input.token;
@@ -103,10 +158,6 @@ async function rescheduleRustamPersonalTask(input={},deps={}) {
     throw new Error('ticktick-personal-task-invalid');
   if(projectId===String(input.sharedProjectId||''))
     throw new Error('ticktick-personal-shared-project-forbidden');
-  if(!/^20\d\d-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(date)||
-     !/^([01]\d|2[0-3]):(00|15|30|45)$/.test(time)||
-     new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)
-    throw new Error('ticktick-personal-time-invalid');
   if((deps.tokenHasWriteScope||tokenHasWriteScope)(token)===false)
     throw new Error('ticktick-personal-write-permission-required');
   const options=input.options||{};
@@ -114,38 +165,9 @@ async function rescheduleRustamPersonalTask(input={},deps={}) {
   if(!Array.isArray(projects)||!projects.slice(0,60).some(row=>String(row?.id||'')===projectId))
     throw new Error('ticktick-personal-project-forbidden');
   const task=await (deps.fetchTask||fetchTask)(token.accessToken,projectId,taskId,options);
-  if(String(task?.id||'')!==taskId||String(task?.projectId||'')!==projectId)
-    throw new Error('ticktick-personal-task-mismatch');
-  if(Number(task.status??0)!==0||task.isAllDay===true||
-    String(task.repeatFlag||'').trim())
-    throw new Error('ticktick-personal-reschedule-unsupported');
-  const original=String(task.startDate||task.dueDate||'');
-  const oldMillis=Date.parse(original);
-  const newMillis=Date.parse(date+'T'+time+':00+03:00');
-  if(!Number.isFinite(oldMillis)||!Number.isFinite(newMillis)||
-     new Date(oldMillis+3*60*60*1000).toISOString().slice(0,10)!==date)
-    throw new Error('ticktick-personal-date-mismatch');
-  const delta=newMillis-oldMillis;
-  if(!delta)return {ok:true,moved:false,taskId,date,time};
-  const format=millis=>new Date(millis).toISOString().replace(/\.\d{3}Z$/,'+0000');
-  const existingStart=task.startDate?Date.parse(task.startDate):null;
-  const existingDue=task.dueDate?Date.parse(task.dueDate):null;
-  if((existingStart!==null&&!Number.isFinite(existingStart))||
-    (existingDue!==null&&!Number.isFinite(existingDue))||
-    (existingStart!==null&&existingDue!==null&&(existingDue-existingStart<0||existingDue-existingStart>24*60*60*1000)))
-    throw new Error('ticktick-personal-date-mismatch');
-  const changes={
-    title:String(task.title||'').trim(),
-    isAllDay:false,
-    startDate:existingStart===null?'':format(existingStart+delta),
-    dueDate:existingDue===null?'':format(existingDue+delta),
-    desc:String(task.desc||''),
-    timeZone:String(task.timeZone||'Europe/Moscow'),
-    repeatFlag:String(task.repeatFlag||'')
-  };
-  if(!changes.title)throw new Error('ticktick-personal-task-invalid');
-  await (deps.updateTickTickTask||updateTickTickTask)(token.accessToken,projectId,taskId,changes,options);
-  return {ok:true,moved:true,taskId,date,time};
+  return rescheduleTickTickTaskTime({
+    task,accessToken:token.accessToken,taskId,projectId,date,time,options
+  },deps);
 }
 
-module.exports = { completeRustamPersonalTask, reopenRustamPersonalTask, rescheduleRustamPersonalTask };
+module.exports = { completeRustamPersonalTask, reopenRustamPersonalTask, rescheduleRustamPersonalTask, rescheduleTickTickTaskTime };
