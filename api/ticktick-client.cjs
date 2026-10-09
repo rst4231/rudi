@@ -499,7 +499,7 @@ async function reopenTickTickTask(accessToken, projectId, taskId, options = {}) 
   const task = options.task || await fetchTask(accessToken, project, id, options);
   if (String(task?.id || '') !== id || String(task?.projectId || '') !== project)
     throw new Error('ticktick-task-reopen-mismatch');
-  if (Number(task.status ?? 0) === 0) return { reopened: false, alreadyOpen: true };
+  if (Number(task.status ?? 0) === 0 && !options.force) return { reopened: false, alreadyOpen: true };
   // TickTick has no documented "uncomplete" endpoint. Restore status through
   // the documented task-update endpoint, preserving all editable task fields.
   const body = { id, projectId: project, title: String(task.title || '').trim(), status: 0, completedTime: null };
