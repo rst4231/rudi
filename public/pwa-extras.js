@@ -466,11 +466,12 @@
         if(sessionStorage.getItem(key)==='1')return;
         sessionStorage.setItem(key,'1');
       }catch(_){}
-      navigator.serviceWorker?.getRegistration?.('/')
-        .then(registration=>registration?.update?.())
-        .catch(()=>{})
-        .finally(()=>window.location.reload());
-      if(!navigator.serviceWorker?.getRegistration)window.location.reload();
+      const lookup=navigator.serviceWorker?.getRegistration?.('/');
+      if(lookup&&typeof lookup.then==='function'){
+        lookup.then(registration=>registration?.update?.())
+          .catch(()=>{})
+          .finally(()=>window.location.reload());
+      }else window.location.reload();
     };
     const check=async(force=false)=>{
       if(checking||document.visibilityState!=='visible'||navigator.onLine===false)return;
