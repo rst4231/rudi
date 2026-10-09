@@ -69,3 +69,36 @@ test('calendar checkbox targets private endpoint while shared completion stays u
   for(const forbidden of ['sendTaskCompletedNotificationToPartner','awardScore','readTickTickTokenWithBackup'])assert.ok(!section.includes(forbidden));
   assert.ok(api.includes("if (action === 'task-complete')"));
 });
+
+test('month and week calendar include iOS-inspired layout and green shared working dates',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  assert.ok(app.includes('function calendarIsoWeekNumber(date)'));
+  assert.ok(app.includes('appendCalendarMonthWeekNumber(container,first,today)'));
+  assert.ok(app.includes('appendCalendarMonthWeekNumber(container,date,today)'));
+  assert.ok(app.includes("date.getUTCDay()===1"));
+  assert.ok(css.includes('calendar-month-week-number'));
+  assert.ok(css.includes('calendar-week-now-line'));
+  assert.ok(css.includes('body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.working:not(.today) .calendar-date-number'));
+  assert.ok(css.includes('background:#ff393e!important'));
+  assert.ok(css.includes('html[data-theme="dark"] .work-page #workCalendarDays'));
+});
+test('week agenda avoids duplicate selected task list and retains checkbox completion',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  assert.ok(app.includes("if(tasks.length&&calendarDisplayMode!=='week')"));
+  assert.ok(app.includes('const attachCompletion=(row,task)=>{'));
+  assert.ok(app.includes('completeCalendarTickTickTask(task,row,checkbox,writable)'));
+  assert.ok(app.includes('attachCompletion(block,event.task)'));
+  assert.ok(app.includes('attachCompletion(pill,item.task)'));
+});
+test('shared plus opens existing task modal using selected calendar date and current time',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const html=fs.readFileSync('public/index.html','utf8');
+  assert.ok(html.includes('id="calendarCreateTask"'));
+  assert.ok(app.includes("create.hidden=calendarScope!=='shared'"));
+  assert.ok(app.includes("document.getElementById('calendarCreateTask')?.addEventListener"));
+  assert.ok(app.includes('const date=currentSelectedWorkDate||calendarDateCursor||todayState().key'));
+  assert.ok(app.includes('const time=financeNowDateTimeInputs().time'));
+  assert.ok(app.includes('openTickTickTaskForCreation?.({date,time})'));
+  assert.ok(app.includes('openTickTickTaskForCreation=options=>open(null,options)'));
+});

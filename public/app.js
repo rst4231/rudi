@@ -12847,6 +12847,7 @@
       }
 
       let openTickTickTaskForEditing=null;
+      let openTickTickTaskForCreation=null;
       function renderTickTickTodayState(payload,{preserveExpanded=false}={}){
         const title=document.getElementById('ticktickTitle');
         const list=document.getElementById('ticktickTodayList');
@@ -13061,12 +13062,13 @@
           document.body.classList.remove('ticktick-task-modal-open');
           if(status) status.textContent='';
         };
-        const open=(task=null)=>{
+        const open=(task=null,{date='',time=''}={})=>{
           editingTask=task?.id?task:null;
           form.reset();
           const currentDateTime=financeNowDateTimeInputs();
-          if(dateInput)dateInput.value=editingTask?.date||currentDateTime.date;
-          if(timeInput)timeInput.value=editingTask?(editingTask.allDay?'':String(editingTask.startTime||'')):currentDateTime.time;
+          const chosenDate=/^\d{4}-\d{2}-\d{2}$/.test(String(date))?date:currentDateTime.date;
+          if(dateInput)dateInput.value=editingTask?.date||chosenDate;
+          if(timeInput)timeInput.value=editingTask?(editingTask.allDay?'':String(editingTask.startTime||'')):(time||currentDateTime.time);
           syncRudiTemporalControl(dateInput);syncRudiTemporalControl(timeInput);
           if(titleInput)titleInput.value=editingTask?.title||'';
           if(responsibleInput)responsibleInput.value=editingTask?.responsible||'';
@@ -13086,6 +13088,7 @@
 
         add.addEventListener('click',()=>open());
         openTickTickTaskForEditing=task=>open(task);
+        openTickTickTaskForCreation=options=>open(null,options);
         closeButton?.addEventListener('click',close);
         cancelButton?.addEventListener('click',close);
         backdrop?.addEventListener('click',close);
@@ -13389,6 +13392,8 @@
         });
         const title=document.querySelector('#workCalendarCard .work-calendar-title');
         if(title)title.textContent=calendarScope==='shared'?'Совместный':'Личный';
+        const create=document.getElementById('calendarCreateTask');
+        if(create)create.hidden=calendarScope!=='shared';
         if(calendarScope==='personal'&&currentActor==='Диана')loadDianaCycle({silent:true}).catch(()=>{});
         if(calendarScope==='shared')loadSharedPeriodMarks().catch(()=>{});
         applyDianaPeriodDots();
@@ -13399,6 +13404,8 @@
         calendarDisplayMode=['week','month'].includes(view)?view:'month';
         const container=document.getElementById('workCalendarDays');
         if(container)container.dataset.calendarMode=calendarDisplayMode;
+        const card=document.getElementById('workCalendarCard');
+        if(card)card.dataset.calendarMode=calendarDisplayMode;
         document.querySelectorAll('[data-calendar-mode]').forEach(button=>{
           const active=button.dataset.calendarMode===calendarDisplayMode;
           button.classList.toggle('active',active);
@@ -13531,6 +13538,12 @@
         document.getElementById('calendarToday')?.addEventListener('click',()=>{
           calendarDateCursor=todayState().key;currentSelectedWorkDate=calendarDateCursor;
           loadWorkCalendar('month',{silent:true}).catch(()=>{});
+        });
+        document.getElementById('calendarCreateTask')?.addEventListener('click',()=>{
+          if(calendarScope!=='shared'||!currentActor)return;
+          const date=currentSelectedWorkDate||calendarDateCursor||todayState().key;
+          const time=financeNowDateTimeInputs().time;
+          openTickTickTaskForCreation?.({date,time});
         });
         const grid=document.getElementById('workCalendarDays');
         let startX=0,startY=0;
@@ -13678,6 +13691,26 @@
         }catch(_){return String(Date.now())}
       }
 
+
+      // ISO 8601: week numbers align with the Monday-first month grid.
+      function calendarIsoWeekNumber(date){
+        const thursday=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate()));
+        thursday.setUTCDate(thursday.getUTCDate()+3-((thursday.getUTCDay()+6)%7));
+        const first=new Date(Date.UTC(thursday.getUTCFullYear(),0,1));
+        return Math.ceil(((thursday-first)/86400000+1)/7);
+      }
+      function appendCalendarMonthWeekNumber(container,monday,today){
+        const number=document.createElement('span');
+        number.className='calendar-month-week-number';
+        number.textContent=String(calendarIsoWeekNumber(monday));
+        number.setAttribute('aria-label','Неделя '+number.textContent);
+        const currentMonday=calendarDateShift(today,-((dateFromKey(today).getUTCDay()+6)%7));
+        if(calendarDateShift(monday.toISOString().slice(0,10),-((monday.getUTCDay()+6)%7))===currentMonday){
+          number.classList.add('is-current');
+        }
+        container.appendChild(number);
+      }
+
       const CALENDAR_AGENDA_HOUR_HEIGHT=72;
       function calendarAgendaMinutes(value){
         const match=/^(\d{1,2}):(\d{2})$/.exec(String(value||'').trim());
@@ -13685,24 +13718,45 @@
         const hours=Number(match[1]),minutes=Number(match[2]);
         return hours<=23&&minutes<=59?hours*60+minutes:null;
       }
-      function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations){
+      function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true){
         const panel=document.createElement('div');
         panel.className='calendar-week-agenda';
         panel.setAttribute('aria-label','Расписание на '+dateKey);
         const allDayItems=[];
         const timed=[];
-        const put=(kind,title,startTime,endTime)=>{
+        const put=(kind,title,startTime,endTime,task=null)=>{
           const start=calendarAgendaMinutes(startTime);
           const finish=calendarAgendaMinutes(endTime);
           if(start===null){
-            allDayItems.push({kind,title});
+            allDayItems.push({kind,title,task});
           }else{
-            timed.push({kind,title,start,end:finish!==null&&finish>start?finish:Math.min(start+45,1440)});
+            timed.push({kind,title,task,start,end:finish!==null&&finish>start?finish:Math.min(start+45,1440)});
           }
+        };
+        const attachCompletion=(row,task)=>{
+          if(!task)return;
+          row.classList.add('calendar-agenda-task');
+          const isPersonal=task.personal===true;
+          const writable=isPersonal?task.canComplete!==false:sharedWritable;
+          const allowed=isPersonal
+            ?currentActor==='Рустам'&&task.canComplete!==false
+            :tickTickTaskCanComplete(task);
+          const checkbox=document.createElement('button');
+          checkbox.type='button';
+          checkbox.className='calendar-agenda-task-checkbox';
+          checkbox.setAttribute('role','checkbox');
+          checkbox.setAttribute('aria-checked','false');
+          checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
+          checkbox.disabled=!task.id||!writable||!allowed;
+          checkbox.addEventListener('click',event=>{
+            event.stopPropagation();
+            completeCalendarTickTickTask(task,row,checkbox,writable);
+          });
+          row.prepend(checkbox);
         };
         for(const title of holidays)put('holiday',String(title),'','');
         for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':' · К оплате'),'','');
-        for(const item of tasks)put('task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime);
+        for(const item of tasks)put('task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
         if(calendarScope==='shared'||currentActor==='Диана'){
           for(const event of workEvents){
             const hours=event.allDay?'':event.startTime;
@@ -13719,9 +13773,12 @@
           const pills=document.createElement('div');
           pills.className='calendar-week-allday-items';
           for(const item of allDayItems){
-            const pill=document.createElement('span');
+            const pill=document.createElement('div');
             pill.className='calendar-week-allday-item calendar-agenda-'+item.kind;
-            pill.textContent=item.title;
+            const title=document.createElement('span');
+            title.textContent=item.title;
+            pill.appendChild(title);
+            attachCompletion(pill,item.task);
             pills.appendChild(pill);
           }
           strip.appendChild(pills);panel.appendChild(strip);
@@ -13756,7 +13813,9 @@
           when.textContent=String(Math.floor(event.start/60)).padStart(2,'0')+':'+String(event.start%60).padStart(2,'0');
           const title=document.createElement('span');
           title.textContent=event.title;
-          block.append(when,title);track.appendChild(block);
+          block.append(when,title);
+          attachCompletion(block,event.task);
+          track.appendChild(block);
         }
         if(dateKey===todayState().key){
           const now=homeCurrentMinutes();
@@ -13771,8 +13830,8 @@
         }
         viewport.appendChild(track);panel.appendChild(viewport);
         const startMinutes=dateKey===todayState().key
-          ?Math.max(0,homeCurrentMinutes()-120)
-          :timed.length?Math.max(0,Math.min(8*60,timed[0].start-60)):8*60;
+          ?Math.max(0,Math.min(5*60,homeCurrentMinutes()-8*60))
+          :timed.length?Math.max(0,Math.min(5*60,timed[0].start-60)):5*60;
         requestAnimationFrame(()=>{
           if(viewport.isConnected)viewport.scrollTop=startMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT;
         });
@@ -13827,7 +13886,9 @@
         if((calendarScope==='shared'||currentActor==='Диана')&&calendarActiveMonth()===todayState().key.slice(0,7))renderPartnerWorkStatus(allDays);
         if(isMonth){
           const monthLabel=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(first);
-          label.textContent=monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
+          const monthOnly=new Intl.DateTimeFormat('ru-RU',{month:'long',timeZone:'UTC'}).format(first);
+          label.textContent=monthOnly.charAt(0).toUpperCase()+monthOnly.slice(1);
+          label.title=monthLabel;
         }else{
           const firstText=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(first).replace('.','');
           const lastText=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'}).format(last).replace('.','');
@@ -13842,24 +13903,32 @@
           status.textContent='';
         }
 
+        const today=todayState().key;
         if(isMonth){
-          ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(value=>{
+          const weekHeading=document.createElement('span');
+          weekHeading.className='calendar-week-number-heading';
+          weekHeading.setAttribute('aria-hidden','true');
+          container.appendChild(weekHeading);
+          ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach((value,index)=>{
             const head=document.createElement('div');
-            head.className='calendar-weekday';
+            head.className='calendar-weekday'+(index>=5?' calendar-weekend':'');
             head.textContent=value;
             container.appendChild(head);
           });
+          appendCalendarMonthWeekNumber(container,first,today);
           const firstWeekday=(first.getUTCDay()+6)%7;
           for(let i=0;i<firstWeekday;i+=1){
             const blank=document.createElement('div');
             blank.className='calendar-empty';
+            blank.setAttribute('aria-hidden','true');
             container.appendChild(blank);
           }
         }
-
-        const today=todayState().key;
         for(const day of days){
           const date=dateFromKey(day.date);
+          if(isMonth&&day.date!==days[0].date&&date.getUTCDay()===1){
+            appendCalendarMonthWeekNumber(container,date,today);
+          }
           const events=Array.isArray(day.events)?day.events:[];
           const tasks=(Array.isArray(tickDays.get(String(day.date))?.events)?tickDays.get(String(day.date)).events:[])
             .filter(event=>!event?.completed&&!tickTickTaskRecentlyCompleted(event?.id));
@@ -13876,6 +13945,7 @@
           cell.type='button';
           cell.dataset.date=String(day.date||'');
           cell.className='calendar-day-cell '+(day.working?'working':'off')+
+            ([0,6].includes(date.getUTCDay())?' calendar-weekend':'')+
             (tasks.length?' has-tasks':'')+
             (holidays.length?' has-holidays':'')+
 
@@ -13951,6 +14021,16 @@
             const prefix=day.date===today?'Сегодня у Дианы ':'У Дианы ';
             info.textContent=showShift?prefix+(day.working?'рабочий день':'выходной'):'Личный календарь';
             copy.append(heading,info);
+            if(calendarDisplayMode==='week'){
+              const weekNumber=document.createElement('span');
+              weekNumber.className='calendar-week-heading-number';
+              weekNumber.textContent='Нед '+calendarIsoWeekNumber(date);
+              const fullDate=new Intl.DateTimeFormat('ru-RU',{
+                weekday:'long',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'
+              }).format(date).replace(',',' —');
+              heading.textContent=fullDate.charAt(0).toUpperCase()+fullDate.slice(1);
+              copy.prepend(weekNumber);
+            }
 
             if(day.working&&(calendarScope==='shared'||currentActor==='Диана')){
               const shift=document.createElement('span');
@@ -13963,7 +14043,7 @@
             const details=document.createElement('div');
             details.className='calendar-selected-details';
 
-            if(tasks.length){
+            if(tasks.length&&calendarDisplayMode!=='week'){
               const group=document.createElement('span');
               group.className='calendar-selected-group calendar-selected-tasks';
               const groupTitle=document.createElement('b');
@@ -14073,7 +14153,7 @@
 
             selected.replaceChildren(icon,copy);
             if(calendarDisplayMode==='week'){
-              const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations);
+              const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations,payload?.ticktickWritable!==false);
               selected.appendChild(agenda);
             }
             if(details.childElementCount) selected.appendChild(details);
@@ -14092,6 +14172,16 @@
           container.appendChild(cell);
         }
 
+        if(isMonth){
+          const firstWeekday=(first.getUTCDay()+6)%7;
+          const remaining=(7-(firstWeekday+days.length)%7)%7;
+          for(let i=0;i<remaining;i++){
+            const blank=document.createElement('div');
+            blank.className='calendar-empty';
+            blank.setAttribute('aria-hidden','true');
+            container.appendChild(blank);
+          }
+        }
         if(currentSelectedWorkDate&&!allDays.some(day=>String(day?.date||'')===currentSelectedWorkDate)){
           currentSelectedWorkDate='';
         }

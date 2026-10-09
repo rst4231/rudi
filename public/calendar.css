@@ -971,3 +971,294 @@ body[data-calendar-scope="shared"] .work-page .calendar-connections-gear{color:#
   .work-page .calendar-week-time-event{left:calc(58px + var(--calendar-agenda-lane-offset,0px))!important}
   .work-page .calendar-week-now-line{left:49px!important}
 }
+
+
+/* v4.119 Apple Calendar-inspired month/week layout. UI-only, shared work days are green. */
+body[data-app-tab="schedule"] .work-page #workCalendarCard.work-calendar-card{
+  border:0!important;border-radius:0!important;box-shadow:none!important;
+  background:transparent!important;padding:14px 0 18px!important;overflow:visible!important
+}
+.work-page #workCalendarCard .calendar-navigation{
+  display:grid!important;grid-template-columns:minmax(0,1fr) 34px 34px auto!important;
+  align-items:center!important;gap:5px!important;margin:9px 0 15px!important
+}
+.work-page #workCalendarCard .calendar-nav-label{
+  grid-column:1!important;grid-row:1!important;min-width:0!important;
+  text-align:left!important;color:var(--text)!important;font-weight:850!important;
+  font-size:16px!important;line-height:1.07!important;letter-spacing:-.035em!important
+}
+.work-page #workCalendarCard #calendarPrev{grid-column:2!important;grid-row:1!important}
+.work-page #workCalendarCard #calendarNext{grid-column:3!important;grid-row:1!important}
+.work-page #workCalendarCard #calendarToday{grid-column:4!important;grid-row:1!important}
+.work-page #workCalendarCard .calendar-navigation button{
+  min-width:34px!important;min-height:34px!important;border:0!important;
+  border-radius:10px!important;box-shadow:none!important
+}
+.work-page #workCalendarCard[data-calendar-mode="month"] .calendar-nav-label{
+  font-size:clamp(34px,9.5vw,47px)!important;letter-spacing:-.06em!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"]{
+  display:grid!important;
+  grid-template-columns:23px repeat(7,minmax(0,1fr))!important;
+  gap:0!important;margin:0!important;align-items:stretch!important;
+  background:transparent!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-week-number-heading{
+  height:31px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-weekday{
+  display:grid!important;place-items:center!important;height:31px!important;padding:0!important;
+  color:var(--text)!important;font-size:12px!important;font-weight:730!important;
+  text-transform:uppercase!important;letter-spacing:0!important
+}
+.work-page #workCalendarDays .calendar-weekend,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-weekday.calendar-weekend{
+  color:#8e8e93!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-month-week-number{
+  align-self:stretch!important;display:flex!important;align-items:flex-start!important;justify-content:center!important;
+  padding-top:7px!important;border-top:1px solid var(--line)!important;
+  color:#8e8e93!important;font-size:10px!important;font-weight:650!important;
+  font-variant-numeric:tabular-nums!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-month-week-number.is-current{
+  color:#ff3b40!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-empty{
+  width:100%!important;min-height:63px!important;aspect-ratio:auto!important;
+  border-top:1px solid var(--line)!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell,
+.work-page .work-calendar-days:has(.calendar-day-cell.has-obligations) #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell{
+  position:relative!important;display:flex!important;justify-content:center!important;align-items:flex-start!important;
+  min-width:0!important;width:100%!important;min-height:63px!important;height:63px!important;
+  aspect-ratio:auto!important;margin:0!important;padding:6px 0 0!important;overflow:visible!important;
+  border:0!important;border-top:1px solid var(--line)!important;border-radius:0!important;
+  background:transparent!important;box-shadow:none!important;transform:none!important;
+  color:var(--text)!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-date-number{
+  position:relative!important;inset:auto!important;display:grid!important;place-items:center!important;
+  flex:none!important;width:37px!important;height:37px!important;padding:0!important;margin:0!important;
+  border:0!important;border-radius:50%!important;
+  font-size:23px!important;line-height:1!important;font-weight:650!important;
+  color:inherit!important;letter-spacing:-.035em!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.today .calendar-date-number,
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.today .calendar-date-number{
+  color:#fff!important;background:#ff393e!important;font-weight:750!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.selected:not(.today) .calendar-date-number,
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.selected:not(.today) .calendar-date-number{
+  outline:2px solid #ff393e!important;outline-offset:-1px!important
+}
+body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.working:not(.today) .calendar-date-number{
+  color:#259568!important
+}
+body[data-calendar-scope="personal"] .work-page #workCalendarDays .calendar-day-cell.working:not(.today) .calendar-date-number{
+  color:var(--text)!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.calendar-weekend:not(.working):not(.today) .calendar-date-number,
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.calendar-weekend:not(.working):not(.today) .calendar-date-number{
+  color:#8e8e93!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-day-indicators{
+  position:absolute!important;inset:auto 0 7px!important;height:6px!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:4px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-indicators .calendar-task-count,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-indicators .calendar-obligation-count{
+  position:static!important;inset:auto!important;display:block!important;flex:none!important;
+  width:6px!important;height:6px!important;min-width:6px!important;max-width:6px!important;
+  padding:0!important;margin:0!important;border:0!important;border-radius:50%!important
+}
+body[data-calendar-scope="shared"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-task-count{
+  background:#23966a!important
+}
+body[data-calendar-scope="personal"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-task-count{
+  background:#21a5ed!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-period-dot{
+  bottom:5px!important;left:calc(50% - 3px)!important;width:6px!important;height:6px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-work-dot,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-check,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-obligation-tags,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-holiday-mark{
+  display:none!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"]{
+  gap:0!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  padding-bottom:8px!important;border-bottom:1px solid var(--line)!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell{
+  min-width:0!important;min-height:77px!important;height:77px!important;
+  aspect-ratio:auto!important;padding:6px 0!important;gap:5px!important;
+  border:0!important;border-radius:0!important;background:transparent!important;
+  box-shadow:none!important;color:var(--text)!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-week-label{
+  font-size:12px!important;line-height:1.2!important;font-weight:730!important;
+  text-transform:uppercase!important;color:var(--text)!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.calendar-weekend .calendar-week-label{
+  color:#8e8e93!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell .calendar-date-number{
+  display:grid!important;place-items:center!important;
+  min-width:42px!important;width:42px!important;min-height:42px!important;height:42px!important;
+  border-radius:50%!important;font-size:23px!important;line-height:1!important;
+  font-weight:650!important;color:inherit!important
+}
+.work-page #workCalendarSelected.calendar-week-view{
+  margin-top:0!important;padding:16px 0 0!important;gap:0!important;
+  background:transparent!important;border:0!important;border-radius:0!important;
+  box-shadow:none!important;overflow:visible!important
+}
+.work-page #workCalendarSelected.calendar-week-view>.work-selected-copy{
+  display:grid!important;grid-template-columns:76px minmax(0,1fr)!important;align-items:center!important;
+  column-gap:10px!important;min-height:58px!important;padding:0 0 10px!important;
+  border-bottom:1px solid var(--line)!important
+}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-heading-number{
+  color:#8e8e93!important;font-size:12px!important;line-height:1.25!important;font-weight:550!important
+}
+.work-page #workCalendarSelected.calendar-week-view>.work-selected-copy>strong{
+  font-size:clamp(15px,4.4vw,20px)!important;line-height:1.15!important;
+  letter-spacing:-.025em!important;font-weight:790!important
+}
+.work-page #workCalendarSelected.calendar-week-view>.work-selected-copy>.work-selected-status,
+.work-page #workCalendarSelected.calendar-week-view>.work-selected-copy>.work-selected-shift{
+  display:none!important
+}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-agenda{gap:0!important}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-time-viewport{
+  border:0!important;border-radius:0!important;background:transparent!important;
+  height:clamp(480px,72svh,840px)!important;max-height:none!important
+}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-time-track{
+  background:transparent!important
+}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-hour{
+  border-top:1px solid var(--line)!important
+}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-hour time{
+  font-size:12px!important;font-weight:460!important;color:#8e8e93!important
+}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-now-line{
+  height:2px!important;background:#ff393e!important
+}
+.work-page #workCalendarSelected.calendar-week-view .calendar-week-now-line span{
+  background:#ff393e!important;border-radius:999px!important;
+  font-size:12px!important;padding:3px 6px!important
+}
+html[data-theme="dark"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell,
+html[data-theme="dark"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell{
+  background:transparent!important;border-color:#333337!important;box-shadow:none!important
+}
+html[data-theme="dark"] .work-page #workCalendarDays .calendar-weekend,
+html[data-theme="dark"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-month-week-number{
+  color:#85858c!important
+}
+html[data-theme="dark"] .work-page #workCalendarSelected.calendar-week-view .calendar-week-hour{
+  border-color:#36363b!important
+}
+@media(max-width:430px){
+  .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-empty,
+  .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell{min-height:60px!important;height:60px!important}
+  .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-date-number{
+    width:36px!important;height:36px!important;font-size:22px!important
+  }
+  .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell .calendar-date-number{
+    width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;font-size:21px!important
+  }
+  .work-page #workCalendarSelected.calendar-week-view>.work-selected-copy{
+    grid-template-columns:66px minmax(0,1fr)!important
+  }
+}
+
+
+/* Full-screen neutral page and non-overlapping calendar markers. */
+body[data-app-tab="schedule"]{
+  background:#fff!important
+}
+body[data-app-tab="schedule"]::before,
+body[data-app-tab="schedule"]::after{display:none!important}
+html[data-theme="dark"] body[data-app-tab="schedule"]{
+  background:#000!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell .calendar-day-indicators{
+  inset:auto 0 0!important;display:flex!important;justify-content:center!important;
+  align-items:center!important;gap:3px!important;height:6px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-indicators .calendar-task-count,
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-indicators .calendar-obligation-count{
+  position:static!important;inset:auto!important;flex:none!important;display:block!important;
+  min-width:6px!important;max-width:6px!important;width:6px!important;height:6px!important;
+  padding:0!important;border:0!important;border-radius:50%!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.has-tasks .calendar-period-dot,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.has-obligations .calendar-period-dot{
+  left:calc(50% + 10px)!important
+}
+body[data-calendar-scope="shared"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-task-count{
+  background:#23966a!important
+}
+body[data-calendar-scope="personal"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-task-count{
+  background:#21a5ed!important
+}
+
+
+/* Weekly agenda uses its own checkboxes, not a duplicate task list below the selected day. */
+.work-page .calendar-week-allday-item.calendar-agenda-task{
+  display:flex!important;align-items:center!important;gap:8px!important;padding:3px 8px 3px 4px!important
+}
+.work-page .calendar-week-time-event.calendar-agenda-task{
+  display:grid!important;grid-template-columns:26px minmax(0,1fr)!important;
+  grid-template-rows:auto minmax(0,1fr)!important;align-content:center!important;
+  column-gap:7px!important;row-gap:0!important;padding:4px 6px!important
+}
+.work-page .calendar-week-time-event.calendar-agenda-task .calendar-agenda-task-checkbox{
+  grid-column:1!important;grid-row:1 / 3!important;align-self:center!important
+}
+.work-page .calendar-week-time-event.calendar-agenda-task>small,
+.work-page .calendar-week-time-event.calendar-agenda-task>span{
+  grid-column:2!important;min-width:0!important
+}
+.work-page .calendar-agenda-task-checkbox{
+  appearance:none!important;display:grid!important;place-items:center!important;
+  flex:none!important;width:26px!important;height:26px!important;min-width:26px!important;
+  border:1.5px solid currentColor!important;border-radius:50%!important;
+  background:transparent!important;color:inherit!important;cursor:pointer!important;
+  touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important
+}
+.work-page .calendar-agenda-task-checkbox:disabled{opacity:.45!important;cursor:default!important}
+.work-page .calendar-agenda-task.is-completing{opacity:.5!important}
+.work-page .calendar-agenda-task-checkbox svg{
+  display:block!important;width:16px!important;height:16px!important
+}
+
+
+/* Shared calendar composer shortcut appears next to Today only in shared scope. */
+.work-page #workCalendarCard #calendarCreateTask[hidden]{display:none!important}
+body[data-calendar-scope="shared"] .work-page #workCalendarCard .calendar-navigation{
+  grid-template-columns:minmax(0,1fr) 34px 34px auto 42px!important;
+}
+.work-page #workCalendarCard #calendarCreateTask{
+  grid-column:5!important;grid-row:1!important;
+  min-width:42px!important;width:42px!important;height:42px!important;min-height:42px!important;
+  border:0!important;border-radius:12px!important;
+  font-size:27px!important;line-height:1!important;font-weight:500!important;
+  box-shadow:none!important;
+}
+body[data-calendar-scope="shared"] .work-page #workCalendarCard #calendarCreateTask{
+  background:#23966a!important;color:#fff!important
+}
+@media(max-width:360px){
+  body[data-calendar-scope="shared"] .work-page #workCalendarCard .calendar-navigation{
+    grid-template-columns:minmax(0,1fr) 29px 29px auto 38px!important;gap:3px!important
+  }
+  .work-page #workCalendarCard #calendarCreateTask{
+    min-width:38px!important;width:38px!important;height:42px!important
+  }
+}
