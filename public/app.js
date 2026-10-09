@@ -13754,7 +13754,7 @@
           });
           row.prepend(checkbox);
         };
-        for(const title of holidays)put('holiday',String(title),'','');
+        // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
         for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':' · К оплате'),'','');
         for(const item of tasks)put('task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
         if(calendarScope==='shared'||currentActor==='Диана'){
@@ -13945,6 +13945,7 @@
           cell.type='button';
           cell.dataset.date=String(day.date||'');
           cell.className='calendar-day-cell '+(day.working?'working':'off')+
+            (calendarScope==='shared'&&payload?.workReady&&!day.working?' diana-day-off':'')+
             ([0,6].includes(date.getUTCDay())?' calendar-weekend':'')+
             (tasks.length?' has-tasks':'')+
             (holidays.length?' has-holidays':'')+
@@ -14125,7 +14126,7 @@
               details.appendChild(group);
             }
 
-            if(holidays.length){
+            if(holidays.length&&calendarDisplayMode==='month'){
               const group=document.createElement('span');
               group.className='calendar-selected-group calendar-selected-holidays';
               const groupTitle=document.createElement('b');

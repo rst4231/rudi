@@ -70,7 +70,7 @@ test('calendar checkbox targets private endpoint while shared completion stays u
   assert.ok(api.includes("if (action === 'task-complete')"));
 });
 
-test('month and week calendar include iOS-inspired layout and green shared working dates',()=>{
+test('month and week calendar include iOS-inspired layout and green shared days off',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const css=fs.readFileSync('public/calendar.css','utf8');
   assert.ok(app.includes('function calendarIsoWeekNumber(date)'));
@@ -79,7 +79,8 @@ test('month and week calendar include iOS-inspired layout and green shared worki
   assert.ok(app.includes("date.getUTCDay()===1"));
   assert.ok(css.includes('calendar-month-week-number'));
   assert.ok(css.includes('calendar-week-now-line'));
-  assert.ok(css.includes('body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.working:not(.today) .calendar-date-number'));
+  assert.ok(app.includes("calendarScope==='shared'&&payload?.workReady&&!day.working?' diana-day-off':''"));
+  assert.ok(css.includes('body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.diana-day-off:not(.today) .calendar-date-number'));
   assert.ok(css.includes('background:#ff393e!important'));
   assert.ok(css.includes('html[data-theme="dark"] .work-page #workCalendarDays'));
 });
@@ -101,4 +102,50 @@ test('shared plus opens existing task modal using selected calendar date and cur
   assert.ok(app.includes('const time=financeNowDateTimeInputs().time'));
   assert.ok(app.includes('openTickTickTaskForCreation?.({date,time})'));
   assert.ok(app.includes('openTickTickTaskForCreation=options=>open(null,options)'));
+});
+
+test('v4.120 selected day never paints a cell-sized square, in either theme',()=>{
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  const start=css.indexOf('/* v4.120: compact month layout');
+  assert.ok(start>=0);
+  const release=css.slice(start);
+  assert.ok(release.includes('html[data-theme="light"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.selected'));
+  assert.ok(release.includes('html[data-theme="dark"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.selected'));
+  assert.ok(release.includes('border-radius:0!important;background:transparent!important;'));
+  assert.ok(release.includes('outline:2px solid #ff3b40!important;'));
+  assert.ok(release.includes('outline:2px solid #ff4a50!important;'));
+});
+test('v4.120 green highlights Diana days off only when shift data is ready',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  assert.ok(app.includes("calendarScope==='shared'&&payload?.workReady&&!day.working?' diana-day-off':''"));
+  const start=css.indexOf('/* v4.120: compact month layout');
+  const release=css.slice(start);
+  assert.ok(release.includes('.calendar-day-cell.diana-day-off:not(.today):not(.selected) .calendar-date-number'));
+  assert.ok(release.includes('.calendar-day-cell.working:not(.today) .calendar-date-number'));
+  assert.ok(release.includes('color:#39c78c!important'));
+});
+test('v4.120 calendar is compact and plus button matches Today height',()=>{
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  const release=css.slice(css.indexOf('/* v4.120: compact month layout'));
+  assert.ok(release.includes('grid-auto-rows:max-content!important;align-content:start!important'));
+  assert.ok(release.includes('min-height:54px!important;height:54px!important'));
+  assert.ok(release.includes('font-size:19px!important'));
+  assert.ok(release.includes('.calendar-navigation #calendarToday,'));
+  assert.ok(release.includes('.calendar-navigation #calendarCreateTask{'));
+  assert.ok(release.includes('height:38px!important;min-height:38px!important;max-height:38px!important'));
+});
+
+test('v4.120 holidays appear on month details but not inside week agenda or week day details',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const agenda=app.slice(app.indexOf('function calendarWeekAgenda('),app.indexOf('function renderWorkCalendar('));
+  assert.ok(!agenda.includes("put('holiday'"));
+  assert.ok(app.includes("if(holidays.length&&calendarDisplayMode==='month')"));
+  assert.ok(app.includes("const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations,"));
+});
+test('v4.120 personal mode keeps shared plus button hidden',()=>{
+  const css=fs.readFileSync('public/calendar.css','utf8');
+  const release=css.slice(css.indexOf('/* v4.120: compact month layout'));
+  assert.ok(release.includes('.calendar-navigation #calendarCreateTask[hidden]'));
+  assert.ok(release.includes('display:none!important'));
 });

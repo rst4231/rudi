@@ -1262,3 +1262,122 @@ body[data-calendar-scope="shared"] .work-page #workCalendarCard #calendarCreateT
     min-width:38px!important;width:38px!important;height:42px!important
   }
 }
+
+
+/* v4.120: compact month layout, private/shared theme selection and Diana's actual days off. */
+/* Keep auto-sized grid rows at the top; tall pages must never stretch the header-to-calendar gap. */
+body[data-app-tab="schedule"] #workCalendarSection.work-page{
+  display:grid!important;grid-auto-rows:max-content!important;align-content:start!important;
+  row-gap:10px!important;
+}
+body[data-app-tab="schedule"] #workCalendarSection .work-page-head{
+  margin:0!important;padding-bottom:0!important
+}
+body[data-app-tab="schedule"] #workCalendarCard.work-calendar-card{
+  padding-top:2px!important
+}
+/* Existing modal and nearest placeholder cannot take up grid space while hidden. */
+body[data-app-tab="schedule"] #workCalendarSection .schedule-nearest[hidden],
+body[data-app-tab="schedule"] #workCalendarSection #calendarConnectionsModal[hidden]{
+  display:none!important
+}
+.work-page #workCalendarCard[data-calendar-mode="month"] .calendar-nav-label{
+  font-size:clamp(30px,8vw,40px)!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-week-number-heading,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-weekday{
+  height:28px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-empty,
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell,
+.work-page .work-calendar-days:has(.calendar-day-cell.has-obligations) #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell{
+  min-height:54px!important;height:54px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell{
+  padding-top:5px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-date-number{
+  width:33px!important;height:33px!important;
+  font-size:20px!important;line-height:1!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell{
+  min-height:70px!important;height:70px!important
+}
+.work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell .calendar-date-number{
+  min-width:36px!important;width:36px!important;min-height:36px!important;height:36px!important;
+  font-size:20px!important;line-height:1!important
+}
+/* Previous release left focus/selected square border shadows at higher specificity. */
+html[data-theme="light"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.selected,
+html[data-theme="dark"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.selected,
+html[data-theme="light"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.selected,
+html[data-theme="dark"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell.selected{
+  border:0!important;border-top:1px solid var(--line)!important;
+  border-radius:0!important;background:transparent!important;
+  outline:0!important;box-shadow:none!important;filter:none!important
+}
+/* Clean circular selected date in both modes and both themes. */
+html[data-theme="light"] .work-page #workCalendarDays .calendar-day-cell.selected:not(.today) .calendar-date-number{
+  display:grid!important;place-items:center!important;
+  border-radius:50%!important;background:#fff!important;color:#686970!important;
+  outline:2px solid #ff3b40!important;outline-offset:-2px!important;
+  box-shadow:none!important
+}
+html[data-theme="dark"] .work-page #workCalendarDays .calendar-day-cell.selected:not(.today) .calendar-date-number{
+  display:grid!important;place-items:center!important;
+  border-radius:50%!important;background:#141417!important;color:#e9e9ed!important;
+  outline:2px solid #ff4a50!important;outline-offset:-2px!important;
+  box-shadow:none!important
+}
+/* Only actual nonworking dates in the shared schedule are green, never every Saturday/Sunday. */
+body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.working:not(.today) .calendar-date-number{
+  color:var(--text)!important
+}
+body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.diana-day-off:not(.today):not(.selected) .calendar-date-number{
+  color:#159568!important
+}
+html[data-theme="dark"] body[data-calendar-scope="shared"] .work-page #workCalendarDays .calendar-day-cell.diana-day-off:not(.today):not(.selected) .calendar-date-number{
+  color:#39c78c!important
+}
+/* Preserve red current-day circle independent of shift/workday/selection color. */
+html[data-theme="light"] .work-page #workCalendarDays .calendar-day-cell.today .calendar-date-number,
+html[data-theme="dark"] .work-page #workCalendarDays .calendar-day-cell.today .calendar-date-number{
+  color:#fff!important;background:#ff393e!important;outline:none!important
+}
+/* Today and the shared-calendar add button must be identical in height. */
+.work-page #workCalendarCard .calendar-navigation #calendarToday,
+.work-page #workCalendarCard .calendar-navigation #calendarCreateTask{
+  height:38px!important;min-height:38px!important;max-height:38px!important;
+  box-sizing:border-box!important;border-radius:11px!important;
+  display:grid!important;place-items:center!important;
+  line-height:1!important;padding:0 9px!important
+}
+.work-page #workCalendarCard .calendar-navigation #calendarCreateTask{
+  width:38px!important;min-width:38px!important;max-width:38px!important;
+  font-size:25px!important;padding:0!important
+}
+body[data-calendar-scope="shared"] .work-page #workCalendarCard .calendar-navigation{
+  grid-template-columns:minmax(0,1fr) 34px 34px auto 38px!important;
+}
+@media(max-width:360px){
+  body[data-calendar-scope="shared"] .work-page #workCalendarCard .calendar-navigation{
+    grid-template-columns:minmax(0,1fr) 29px 29px auto 38px!important
+  }
+}
+@media(max-width:430px){
+  .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-empty,
+  .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell{
+    min-height:54px!important;height:54px!important
+  }
+  .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-date-number{
+    width:32px!important;height:32px!important;font-size:19px!important
+  }
+  .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-day-cell .calendar-date-number{
+    width:35px!important;min-width:35px!important;height:35px!important;min-height:35px!important;font-size:19px!important
+  }
+}
+
+/* Respect the HTML hidden state even after applying matching control heights. */
+.work-page #workCalendarCard .calendar-navigation #calendarCreateTask[hidden]{
+  display:none!important
+}
