@@ -32,10 +32,10 @@ test('shared calendar renders actual Diana menstrual dates as red dots without s
 });
 
 test('week agenda renders hourly timeline with optional timed and all-day events',()=>{
- assert.match(app,/function calendarWeekAgenda\(dateKey,tasks,workEvents,holidays,obligations\)/);
+ assert.match(app,/function calendarWeekAgenda\(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true\)/);
  assert.match(app,/for\(let hour=0;hour<24;hour\+\+\)/);
  assert.match(app,/CALENDAR_AGENDA_HOUR_HEIGHT=72/);
- assert.match(app,/calendarWeekAgenda\(day.date,tasks,events,holidays,obligations\)/);
+ assert.match(app,/calendarWeekAgenda\(day.date,tasks,events,holidays,obligations,payload\?\.ticktickWritable!==false\)/);
  assert.match(css,/calendar-week-time-viewport/);
  assert.match(css,/calendar-week-now-line/);
 });
