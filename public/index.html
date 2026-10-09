@@ -28,7 +28,6 @@
     })();
   </script>
   <link rel="stylesheet" href="/app.css?v=4.112">
-  <link rel="stylesheet" href="/finance-decisions.css?v=4.112">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
@@ -71,8 +70,46 @@
   </script>
   <script defer src="/app.js?v=4.112"></script>
   <script defer src="/recommendations.js?v=4.112"></script>
-  <script defer src="/finance-decisions-core.js?v=4.112"></script>
-  <script defer src="/finance-decisions-ui.js?v=4.112"></script>
+  <!-- Finance decision tools are optional: load only when opening Finances. -->
+  <script>
+    (() => {
+      let loading=null;
+      const shouldLoad=()=>document.body?.dataset.appTab==='finances'
+        || new URLSearchParams(location.search).get('tab')==='finances';
+      const loadScript=src=>new Promise((resolve,reject)=>{
+        const script=document.createElement('script');
+        script.src=src;script.async=false;
+        script.onload=resolve;script.onerror=()=>reject(new Error('RUDI lazy module failed: '+src));
+        document.head.appendChild(script);
+      });
+      const loadFinanceDecisions=()=>{
+        if(loading)return loading;
+        loading=(async()=>{
+          if(!document.querySelector('[data-rudi-finance-decisions-css]')){
+            const style=document.createElement('link');style.rel='stylesheet';
+            style.href='/finance-decisions.css?v=4.112';
+            style.dataset.rudiFinanceDecisionsCss='1';
+            document.head.appendChild(style);
+          }
+          await loadScript('/finance-decisions-core.js?v=4.112');
+          await loadScript('/finance-decisions-ui.js?v=4.112');
+        })().catch(error=>{loading=null;console.warn('RUDI_LAZY_FINANCE_WARN',String(error?.message||error))});
+        return loading;
+      };
+      document.addEventListener('DOMContentLoaded',()=>{
+        if(shouldLoad())loadFinanceDecisions();
+        const observer=new MutationObserver(()=>{
+          if(shouldLoad()){observer.disconnect();loadFinanceDecisions()}
+        });
+        observer.observe(document.body,{attributes:true,attributeFilter:['data-app-tab']});
+        document.addEventListener('click',event=>{
+          if(event.target.closest?.('#financeProfileButton,[data-app-tab="finances"],[data-finance-tab="personal"]')){
+            loadFinanceDecisions();
+          }
+        },true);
+      },{once:true});
+    })();
+  </script>
 
   <script defer src="/pwa-extras.js?v=4.112"></script>
   <script defer src="/weather.js?v=4.112"></script>
