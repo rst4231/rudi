@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.126">
+  <meta name="rudi-version" content="v4.127">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,13 +27,13 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.126">
+  <link rel="stylesheet" href="/app.css?v=4.127">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
   <link rel="stylesheet" href="/pwa-extras.css?v=4.119">
-  <link rel="stylesheet" href="/calendar.css?v=4.126">
+  <link rel="stylesheet" href="/calendar.css?v=4.127">
   <link rel="stylesheet" href="/smart-home.css?v=4.119">
   <link rel="stylesheet" href="/car.css?v=4.119">
   <link rel="stylesheet" href="/profile-supplements.css?v=4.119">
@@ -69,7 +69,7 @@
     })();
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.119"></script>
-  <script defer src="/app.js?v=4.126"></script>
+  <script defer src="/app.js?v=4.127"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
@@ -2288,8 +2288,9 @@
       <span>Лента</span>
     </button>
     <button role="tab" class="app-tab-button" type="button" data-app-tab="schedule" aria-selected="false">
-      <span class="app-tab-icon" aria-hidden="true">
+      <span class="app-tab-icon calendar-tab-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 9.5h17"/><path d="M8 13h.01M12 13h.01M16 13h.01M8 16.5h.01M12 16.5h.01"/></svg>
+        <span id="calendarOverdueBadge" class="calendar-overdue-badge" hidden></span>
       </span>
       <span>Календарь</span>
     </button>

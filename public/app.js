@@ -6818,6 +6818,43 @@
         return tickTickTaskCanComplete(task);
       }
 
+
+      let calendarOverdueCount=0;
+      let calendarOverdueRequest=null;
+      function renderCalendarOverdueBadge(count){
+        calendarOverdueCount=Math.max(0,Math.min(9999,Math.trunc(Number(count)||0)));
+        const badge=document.getElementById('calendarOverdueBadge');
+        const tab=document.querySelector('#appTabBar [data-app-tab="schedule"]');
+        if(badge){
+          badge.textContent=calendarOverdueCount>99?'99+':String(calendarOverdueCount);
+          badge.hidden=calendarOverdueCount===0;
+          badge.setAttribute('aria-label',calendarOverdueCount+' просроченных дел');
+        }
+        if(tab)tab.setAttribute('aria-label',calendarOverdueCount
+          ?'Календарь, просроченных задач: '+calendarOverdueCount:'Календарь');
+        queueAppIconBadgeSync();
+      }
+      async function loadCalendarOverdueCount({force=false}={}){
+        if(!currentActor)return;
+        if(calendarOverdueRequest){
+          // Task edits must get a fresh value after any older in-flight read.
+          return force?calendarOverdueRequest.then(()=>loadCalendarOverdueCount({force:true})):calendarOverdueRequest;
+        }
+        const actor=currentActor;
+        calendarOverdueRequest=(async()=>{
+          if(force)invalidateManagedRequests('ticktick-overdue:'+actor);
+          const result=await managedJsonRequest('ticktick-overdue:'+actor,
+            '/api/partner-message?ticktickAction=overdue',{
+              body:{initData:telegramInitData(),backupToken:currentStateBackupToken},
+              ttlMs:60*1000,timeoutMs:12000
+            });
+          if(currentActor===actor&&result?.ok)renderCalendarOverdueBadge(result.count);
+        })().catch(error=>{
+          console.warn('RUDI_CALENDAR_OVERDUE_WARN',String(error?.message||error));
+        }).finally(()=>{calendarOverdueRequest=null});
+        return calendarOverdueRequest;
+      }
+
       function sharedTasksAttentionCount(){
         const tasks=Array.isArray(homeDashboardState.tasks)?homeDashboardState.tasks:[];
         return tasks.filter(homeTaskForActor).length;
@@ -10487,6 +10524,8 @@
 
       function appAttentionCount(){
         if(!currentActor) return 0;
+        // When overdue tasks exist, display their exact count on the PWA icon.
+        if(calendarOverdueCount>0)return Math.min(99,calendarOverdueCount);
         let count=activityNotificationsHaveUnread()?1:0;
         count+=attentionCountFromDataset('habitReminderCount');
         count+=attentionCountFromDataset('supplementReminderCount');
@@ -12742,7 +12781,8 @@
         await Promise.allSettled([
           loadTickTickNext({preserveExpanded,force:true}),
           loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}),
-          loadActivityJournal({silent:true})
+          loadActivityJournal({silent:true}),
+          loadCalendarOverdueCount({force:true})
         ]);
       }
 
@@ -13849,6 +13889,13 @@
         const hours=Number(match[1]),minutes=Number(match[2]);
         return hours<=23&&minutes<=59?hours*60+minutes:null;
       }
+      function calendarTaskPeriod(task){
+        const minutes=task?.allDay?null:calendarAgendaMinutes(task?.startTime);
+        if(minutes===null)return 'all-day';
+        if(minutes<12*60)return 'morning';
+        if(minutes<18*60)return 'day';
+        return 'evening';
+      }
       function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true){
         const panel=document.createElement('div');
         panel.className='calendar-week-agenda';
@@ -14177,12 +14224,24 @@
             details.className='calendar-selected-details';
 
             if(tasks.length&&calendarDisplayMode!=='week'){
-              const group=document.createElement('span');
+              const group=document.createElement('div');
               group.className='calendar-selected-group calendar-selected-tasks';
-              const groupTitle=document.createElement('b');
-              groupTitle.textContent='Дела';
-              group.appendChild(groupTitle);
-              for(const event of tasks){
+              const periods=[
+                ['all-day','Весь день'],['morning','Утро'],
+                ['day','День'],['evening','Вечер']
+              ];
+              const byPeriod=new Map(periods.map(([key])=>[key,[]]));
+              for(const task of tasks)byPeriod.get(calendarTaskPeriod(task)).push(task);
+              for(const [period,label] of periods){
+                const items=byPeriod.get(period);
+                if(!items.length)continue;
+                items.sort((a,b)=>String(a?.startTime||'').localeCompare(String(b?.startTime||''),'ru')||
+                  String(a?.title||'').localeCompare(String(b?.title||''),'ru'));
+                const heading=document.createElement('h3');
+                heading.className='calendar-tasks-period-heading';
+                heading.textContent=label;
+                group.appendChild(heading);
+                for(const event of items){
                 const row=document.createElement('div');
                 row.className='calendar-selected-row calendar-task-row';
                 const complete=document.createElement('button');
@@ -14224,7 +14283,8 @@
                   clickEvent.stopPropagation();
                   if(!taskCopy.disabled) openTickTickTaskForEditing?.(event);
                 });
-                group.appendChild(row);
+                  group.appendChild(row);
+                }
               }
               details.appendChild(group);
             }
@@ -19740,6 +19800,7 @@
         setupWishlist();
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
+        loadCalendarOverdueCount({force:true}).catch(()=>{});
         markDataSyncNow();
         setTimeout(()=>{if(!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},2500);
       }
@@ -19756,6 +19817,11 @@
           key:'mood-ui',everyMs:60*1000,offsetMs:0,
           shouldRun:()=>Boolean(currentActor),
           run:()=>{resetMoodForNewDay();if(currentConfig) renderDailyCompliment(currentConfig)}
+        },
+        {
+          key:'calendar-overdue',everyMs:5*60*1000,offsetMs:20*1000,
+          shouldRun:()=>Boolean(currentActor&&appAccessReady&&appVisibleForRefresh()),
+          run:()=>loadCalendarOverdueCount({force:true})
         },
         {
           key:'ticktick',everyMs:10*60*1000,offsetMs:15*1000,
@@ -19856,7 +19922,7 @@
           requestAnimationFrame(()=>requestAnimationFrame(resolve));
         }).then(async()=>{
           resetMoodForNewDay();
-          const tabTasks=[];
+          const tabTasks=[loadCalendarOverdueCount({force:true})];
           if(currentAppTab==='home'){
             tabTasks.push(force
               ?loadHomeBootstrap({force:true})

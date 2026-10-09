@@ -119,6 +119,7 @@ const { findForumChatIdInEnv } = require('./forum-chat-id.cjs');
 const { loadForumTopicsConfig } = require('./forum-topics-config.cjs');
 const { readFeedSnapshot, updateFeedSections } = require('./feed-store.cjs');
 const { searchGlobalData } = require('./global-search.cjs');
+const { countOverdueTickTickTasks } = require('./ticktick-overdue.cjs');
 const { telegramSendMessage, telegramDeleteMessage, sendToAllRecipients, escapeTelegramHtml, appUrlForTab } = require('./telegram-notifications.cjs');
 const { publicApplicationServerKey, savePushSubscription, resolvePushActor, removePushSubscriptions, readPendingPushNotifications, sendPushNotification, stripTelegramHtml } = require('./web-push.cjs');
 const RUDI_FORUM_CHAT_ID = '-1004476323368';
@@ -1940,6 +1941,67 @@ async function handleTickTick(req, res, action, options = {}) {
       if (code === 'ticktick-write-forbidden') return res.status(403).json({ok:false,writable:false,error:'ticktick-write-permission-required'});
       console.error('RUDI_TICKTICK_TASK_RESTORE_ERROR',code);
       return res.status(502).json({ok:false,error:'ticktick-restore-unavailable'});
+    }
+  }
+
+
+  if (action === 'overdue') {
+    if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
+    let body,actor;
+    try{
+      body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      ({actor}=authorizeRequest(req,body.initData,options));
+    }catch(error){
+      return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)});
+    }
+    if(!credentialsConfigured(options.env||process.env))
+      return res.status(503).json({ok:false,error:'ticktick-not-configured'});
+    const config=await loadTickTickConfig(options);
+    if(!config.enabled)return res.status(200).json({ok:true,count:0,enabled:false});
+    const sharedToken=await readTickTickTokenWithBackup(body,options);
+    const personalToken=actor==='Рустам'
+      ?await readPersonalToken('Рустам',options).catch(()=>null)
+      :null;
+    if(!sharedToken?.accessToken&&!personalToken?.accessToken)
+      return res.status(401).json({ok:false,error:'ticktick-not-connected'});
+    try{
+      const selected=[];
+      if(sharedToken?.accessToken){
+        const [project,metaState]=await Promise.all([
+          fetchProjectData(sharedToken.accessToken,config.projectId,options),
+          readSharedTaskMetaState(options).catch(()=>({entries:{}}))
+        ]);
+        for(const task of Array.isArray(project?.tasks)?project.tasks:[]){
+          const meta=metaState.entries?.[String(task?.id||'')]||null;
+          const responsibility=sharedTaskResponsibility(task,meta);
+          // Include a user's own shared tasks and ones marked "Вместе".
+          if(!responsibility.known||(!responsibility.common&&responsibility.responsible!==actor))continue;
+          selected.push({...task,projectId:config.projectId});
+        }
+      }
+      if(actor==='Рустам'&&personalToken?.accessToken){
+        try{
+          const personalTasks=await fetchPersonalProjectTasks(personalToken.accessToken,config.projectId,options);
+          selected.push(...personalTasks);
+        }catch(error){
+          if(String(error?.message||'')==='ticktick-token-invalid'){
+            await clearPersonalToken('Рустам',options).catch(()=>{});
+          }else throw error;
+        }
+      }
+      const now=options.now?new Date(options.now):new Date();
+      const count=countOverdueTickTickTasks(selected,now,{
+        calendarDateKey,calendarTime,tickTickTaskDateKeys
+      });
+      return res.status(200).json({ok:true,count,asOf:now.toISOString()});
+    }catch(error){
+      const code=String(error?.message||error);
+      if(code==='ticktick-token-invalid'){
+        await clearToken(options).catch(()=>{});
+        return res.status(401).json({ok:false,error:'ticktick-reconnect-required'});
+      }
+      console.error('RUDI_TICKTICK_OVERDUE_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-overdue-unavailable'});
     }
   }
 
