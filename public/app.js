@@ -3991,6 +3991,7 @@
         const creditLimit=document.getElementById('financeWalletCreditLimit'),annualRate=document.getElementById('financeWalletAnnualRate'),minimumPayment=document.getElementById('financeWalletMinimumPayment');
         if(title)title.textContent=wallet?'Редактировать кошелёк':'Новый кошелёк';
         if(name)name.value=wallet?.name||'';
+        window.RudiWalletBrandIcons?.setupBrandSelect(document.getElementById('financeWalletBrand'),document.getElementById('financeWalletBrandHint'),wallet,name);
         if(currency)currency.value=wallet?.currency||'RUB';if(type)type.value=wallet?.type==='credit'?'credit':'regular';
         if(balance)balance.value=wallet&&Number.isFinite(Number(wallet.balance))&&Number(wallet.balance)!==0?String(wallet.balance):'';
         if(creditLimit)creditLimit.value=wallet?.type==='credit'&&Number(wallet.creditLimit||0)>0?String(wallet.creditLimit):'';
@@ -4457,6 +4458,7 @@
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=wallet.name||'Кошелёк';
           const coin=document.createElement('span');coin.className='finance-coin finance-wallet-coin';coin.textContent=financeCurrencySymbol(wallet.currency);
           coin.dataset.currency=String(wallet.currency||'RUB').toUpperCase();
+          window.RudiWalletBrandIcons?.decorateCoin(coin,wallet);
           const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeBalanceHidden?'••••':financeMoney(wallet.balance,wallet.currency);
           const creditMeta=document.createElement('small');creditMeta.className='finance-wallet-credit-meta';
           if(wallet.type==='credit'){item.classList.add('is-credit');const debt=Math.max(0,-Number(wallet.balance||0)),available=Math.max(0,Number(wallet.creditLimit||0)-debt),interest=debt*Math.max(0,Number(wallet.annualRate||0))/1200;creditMeta.textContent=financeBalanceHidden?'Кредит':'Кредит · доступно '+financeMoney(available,wallet.currency)+(interest>0?' · ≈ '+financeMoney(interest,wallet.currency)+'/мес':'')}else creditMeta.hidden=true;
@@ -5794,7 +5796,7 @@
           try{
             const data=await financeRequest('save-wallet',{
               id:financeWalletEditingId||undefined,
-              name:value,icon:financeCurrencySymbol(currency?.value||'RUB'),currency:currency?.value||'RUB',balance:Number(balance?.value||0),type:type?.value==='credit'?'credit':'regular',creditLimit:Number(creditLimit?.value||0),annualRate:Number(annualRate?.value||0),minimumPayment:Number(minimumPayment?.value||0)
+              name:value,icon:window.RudiWalletBrandIcons?.selectedIcon(document.getElementById('financeWalletBrand'),financeCurrencySymbol(currency?.value||'RUB'))||financeCurrencySymbol(currency?.value||'RUB'),currency:currency?.value||'RUB',balance:Number(balance?.value||0),type:type?.value==='credit'?'credit':'regular',creditLimit:Number(creditLimit?.value||0),annualRate:Number(annualRate?.value||0),minimumPayment:Number(minimumPayment?.value||0)
             });
             closeFinanceCoinModal('financeWalletComposer');
             renderFinanceState(data,{personalMonth:personalMonth?.value||financeCurrentMonthKey(),preserveIncome:true,preservePlan:true});
