@@ -14698,7 +14698,7 @@
         const result={
           configured:true,view:requested,days,
           workReady:Boolean(work?.configured),stale:Boolean(work?.stale)||Boolean(tickUnavailable&&retainedTick.length),
-          ticktickUnavailable,
+          ticktickUnavailable:tickUnavailable,
           ticktickDays:fallbackTick&&retainedTick.length?retainedTick:(Array.isArray(tick?.days)?tick.days:[]),
           holidayDays:Array.isArray(holidays?.days)?holidays.days:[],
           ticktickConnected:tick?.connected!==false,ticktickWritable:tick?.writable!==false,
