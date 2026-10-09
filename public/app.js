@@ -13708,6 +13708,9 @@
         document.getElementById('calendarToday')?.addEventListener('click',()=>{
           calendarDateCursor=todayState().key;currentSelectedWorkDate=calendarDateCursor;
           calendarSaveView();
+          // A different day in the same month only changes the DOM, not the render signature.
+          // Invalidate it so the cached month immediately reselects today.
+          currentWorkCalendarRenderSignature='';
           loadWorkCalendar('month',{silent:true}).catch(()=>{});
         });
         document.getElementById('calendarCreateTask')?.addEventListener('click',()=>{
