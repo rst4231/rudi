@@ -322,12 +322,14 @@ function renderHabits(){
     no.classList.toggle('is-history-locked',pastDateLocked);
     yes.classList.toggle('is-time-locked',todayTimeLocked);
     no.classList.toggle('is-time-locked',todayTimeLocked);
-    yes.disabled=pastDateLocked;
-    no.disabled=pastDateLocked;
-    yes.setAttribute('aria-disabled',pastDateLocked||todayTimeLocked||isNotDone?'true':'false');
-    no.setAttribute('aria-disabled',pastDateLocked||todayTimeLocked?'true':'false');
-    yes.title=pastDateLocked?'Прошлые дни доступны только для просмотра':isNotDone?'После «Не выполнено» изменить на «Выполнено» нельзя':todayTimeLocked?'Отметить привычку можно после 20:00':'';
-    no.title=pastDateLocked?'Прошлые дни доступны только для просмотра':todayTimeLocked?'Отметить привычку можно после 20:00':'';
+    const choiceLocked=pastDateLocked||status!=='pending';
+    yes.disabled=choiceLocked;
+    no.disabled=choiceLocked;
+    yes.setAttribute('aria-disabled',choiceLocked||todayTimeLocked?'true':'false');
+    no.setAttribute('aria-disabled',choiceLocked||todayTimeLocked?'true':'false');
+    const choiceTitle=pastDateLocked?'Прошлые дни доступны только для просмотра':status!=='pending'?'Отметка уже сделана. Для отмены используйте «Отменить»':todayTimeLocked?'Отметить привычку можно после 20:00':'';
+    yes.title=choiceTitle;
+    no.title=choiceTitle;
     const actionHint=document.createElement('div');
     actionHint.className='personal-habit-action-hint';
     actionHint.textContent='Отметить привычку можно после 20:00';
@@ -349,10 +351,7 @@ function renderHabits(){
     const save=async(next,button)=>{
       if(pastDateLocked)return;
       if(todayTimeLocked)return;
-      if(next==='done'&&isNotDone){
-        setHabitStatus('После «Не выполнено» изменить на «Выполнено» нельзя.',true);
-        return;
-      }
+      if(status!=='pending')return;
       const previousStatus=status;
       const actionDate=habitSelectedDate||habitState.today;
       paintHabitChoice(row,yes,no,next);
@@ -371,7 +370,7 @@ function renderHabits(){
         console.error('RUDI_HABIT_STATUS_UI_ERROR',error);
         const code=String(error?.message||'');
         if(code!=='habit-status-too-early'&&code!=='habit-done-too-early')setHabitStatus('Не удалось сохранить статус.',true);
-        yes.disabled=pastDateLocked;no.disabled=pastDateLocked;remove.disabled=false;
+        yes.disabled=choiceLocked;no.disabled=choiceLocked;remove.disabled=false;
       }
     };
     yes.addEventListener('click',()=>save('done',yes));no.addEventListener('click',()=>save('notdone',no));

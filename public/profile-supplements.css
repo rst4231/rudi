@@ -919,3 +919,55 @@ body[data-app-tab="habits"] .personal-habit-row.is-history .personal-habit-day-s
   font-weight:750;
 }
 .profile-partner-habits-summary[hidden]{display:none!important}
+
+/* RUDI v4.137 — habit choice lock, card halo and readable past-day buttons */
+body[data-app-tab="habits"] .personal-habit-row.is-done{
+  border-color:#21b96b!important;
+  box-shadow:0 0 0 3px rgba(30,184,99,.20),0 8px 22px rgba(13,130,78,.16)!important;
+}
+body[data-app-tab="habits"] .personal-habit-row.is-notdone{
+  border-color:#da5c62!important;
+  box-shadow:0 0 0 3px rgba(218,78,88,.19),0 8px 22px rgba(169,48,59,.14)!important;
+}
+body[data-app-tab="habits"] .personal-habit-row:is(.is-done,.is-notdone) .personal-habit-status-button:not(.is-active){
+  background:#f0f3f2!important;
+  border-color:#ced8d3!important;
+  color:#61766c!important;
+  -webkit-text-fill-color:#61766c!important;
+  opacity:1!important;
+  box-shadow:none!important;
+}
+body[data-app-tab="habits"] .personal-habit-row.is-history .personal-habit-status-button.is-done.is-active,
+body[data-app-tab="habits"] .personal-habit-row.is-done .personal-habit-status-button.is-done.is-active:disabled{
+  background:#e6f9ef!important;
+  border-color:#75d9a7!important;
+  color:#137c48!important;
+  -webkit-text-fill-color:#137c48!important;
+  opacity:1!important;
+  box-shadow:none!important;
+}
+body[data-app-tab="habits"] .personal-habit-row.is-history .personal-habit-status-button.is-notdone.is-active,
+body[data-app-tab="habits"] .personal-habit-row.is-notdone .personal-habit-status-button.is-notdone.is-active:disabled{
+  background:#fff0f0!important;
+  border-color:#e9a5a9!important;
+  color:#ab3b45!important;
+  -webkit-text-fill-color:#ab3b45!important;
+  opacity:1!important;
+  box-shadow:none!important;
+}
+body[data-app-tab="habits"] .personal-habit-row.is-history:not(.is-done):not(.is-notdone) .personal-habit-status-button.is-done{
+  background:#e7f8ed!important;
+  border-color:#7dcc9f!important;
+  color:#207448!important;
+  -webkit-text-fill-color:#207448!important;
+  opacity:1!important;
+}
+body[data-app-tab="habits"] .personal-habit-row.is-history:not(.is-done):not(.is-notdone) .personal-habit-status-button.is-notdone{
+  background:#fff0f0!important;
+  border-color:#dfafb2!important;
+  color:#a54149!important;
+  -webkit-text-fill-color:#a54149!important;
+  opacity:1!important;
+}
+body[data-app-tab="habits"] .personal-habit-day-status.is-done{color:#217147!important;background:#e7f6ec!important;border-color:#bbdfc7!important}
+body[data-app-tab="habits"] .personal-habit-day-status.is-notdone{color:#a43f48!important;background:#fff0f0!important;border-color:#ebc0c3!important}
