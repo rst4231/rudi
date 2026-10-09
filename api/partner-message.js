@@ -2427,9 +2427,19 @@ async function handleTickTick(req, res, action, options = {}) {
       : 'month';
 
     try {
-      const data = token?.accessToken
-        ? await fetchProjectData(token.accessToken, config.projectId, options)
-        : { tasks:[], project:{name:'Личный'} };
+      // The personal calendar must remain usable if the separate shared
+      // TickTick project is unavailable (the Open API sometimes returns 500).
+      let sharedFetchFailed=false;
+      let data={tasks:[],project:{name:'Личный'}};
+      if(token?.accessToken){
+        try{
+          data=await fetchProjectData(token.accessToken,config.projectId,options);
+        }catch(error){
+          if(!personalOnly)throw error;
+          sharedFetchFailed=true;
+          console.warn('RUDI_PERSONAL_CALENDAR_SHARED_UNAVAILABLE',String(error?.message||error));
+        }
+      }
       const sourceTasks = Array.isArray(data?.tasks) ? data.tasks : [];
 
       // Search all dated TickTick tasks, maintaining each actor's permissions.
@@ -2534,6 +2544,7 @@ async function handleTickTick(req, res, action, options = {}) {
         if (selectedScope && selectedScope !== 'shared') day.events = day.events.filter(event => event.ownerScope === selectedScope || (event.ownerScope === 'shared' && event.together === true));
       }
       // Personal TickTick is Rustam-only. Never use shared OAuth token as a fallback.
+      let personalFetchFailed=false;
       if(selectedScope==='rustam' && actor==='Рустам'){
         const personalToken=rustamToken || await readPersonalToken('Рустам',options).catch(()=>null);
         if(personalToken?.accessToken){
@@ -2566,6 +2577,7 @@ async function handleTickTick(req, res, action, options = {}) {
             if(String(error?.message||'')==='ticktick-token-invalid'){
               await clearPersonalToken('Рустам',options).catch(()=>{});
             }else{
+              personalFetchFailed=true;
               console.warn('RUDI_PERSONAL_TICKTICK_CALENDAR_WARN',String(error?.message||error));
             }
           }
@@ -2575,6 +2587,8 @@ async function handleTickTick(req, res, action, options = {}) {
         ok: true,
         connected: true,
         enabled: true,
+        sharedUnavailable:sharedFetchFailed,
+        personalUnavailable:personalFetchFailed,
         personalConnected:selectedScope==='rustam'&&actor==='Рустам'&&Boolean(rustamToken?.accessToken),
         writable: tokenHasWriteScope(token) !== false,
         project: data?.project?.name || 'Общий',
