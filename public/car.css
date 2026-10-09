@@ -2558,3 +2558,22 @@ html[data-theme="light"] .car-confirm-dialog{background:#fff;color:#111418}
 /* RUDI v4.107 — car card titles use the same collapse action as arrows. */
 .car-smart-card-title[role="button"]{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .car-smart-card-title[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:7px}
+
+/* RUDI v4.139: car actions belong to the expanded panels, not their headers. */
+.car-smart-card[data-car-card="errors"] .car-body-add,
+.car-smart-card[data-car-card="tasks"] .car-body-add{
+  box-sizing:border-box;width:100%!important;min-height:38px!important;height:auto!important;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin:0 0 10px!important;padding:9px 12px!important;border-radius:12px!important;
+  font-size:12px!important;font-weight:800!important;line-height:1.2!important;
+}
+.car-smart-card[data-car-card="errors"] .car-body-add{
+  background:rgba(229,100,116,.11)!important;color:#e68a98!important;
+  border:1px solid rgba(229,100,116,.24)!important;
+}
+.car-smart-card[data-car-card="tasks"] .car-body-add{
+  background:rgba(97,138,245,.13)!important;color:#9bb5ff!important;
+  border:1px solid rgba(97,138,245,.28)!important;
+}
+html[data-theme="light"] .car-smart-card[data-car-card="errors"] .car-body-add{color:#b74558!important}
+html[data-theme="light"] .car-smart-card[data-car-card="tasks"] .car-body-add{color:#3462d2!important}

@@ -777,7 +777,7 @@
       add.className='car-task-add';
       add.type='button';
       add.textContent='+ Задача';
-      taskCard.querySelector('.car-smart-card-actions')?.prepend(add);
+      add.classList.add('car-body-add');
 
       const form=document.createElement('form');
       form.id='carTaskForm';
@@ -787,7 +787,7 @@
         '<label class="car-task-field"><span>Задача</span><input id="carTaskTitle" maxlength="120" autocomplete="off" placeholder="Например переобуться" required></label>'
         +'<label class="car-task-field"><span>Дата</span><input id="carTaskDate" type="date"></label>'
         +'<div class="car-task-form-actions"><button id="carTaskCancel" type="button">Отмена</button><button id="carTaskSave" type="submit">Добавить</button></div>';
-      tasks.prepend(form);
+      tasks.prepend(add,form);
     }
 
     if(page.dataset.carEnhancementsReady==='1') return;
@@ -844,7 +844,12 @@
 
     const errorCard=cards.find(card=>card.dataset.carCard==='errors');
     const errorActions=errors?.querySelector('.car-errors-head-actions');
-    if(errorActions&&errorCard) errorCard.querySelector('.car-smart-card-actions')?.prepend(errorActions);
+    if(errorActions&&errorCard){
+      const meta=errorActions.querySelector('#carErrorsMeta');
+      if(meta)errorCard.querySelector('.car-smart-card-actions')?.prepend(meta);
+      const add=errorActions.querySelector('#carErrorAdd');
+      if(add){add.classList.add('car-body-add');errors.prepend(add)}
+    }
     errors?.querySelector('.car-section-head')?.remove();
 
     const taskCard=cards.find(card=>card.dataset.carCard==='tasks');
