@@ -32,7 +32,15 @@ async function completeRustamPersonalTask(input = {}, deps = {}) {
     const complete = deps.completeTickTickTask || completeTickTickTask;
     await complete(token.accessToken, projectId, taskId, options);
   }
-  return { ok: true, completed: true, wasOpen, personal: true, taskId };
+  // Save the original task before TickTick hides a completed task from its read API.
+  // This is sealed into the short-lived Undo token, never sent back in clear text.
+  const taskSnapshot=wasOpen?Object.fromEntries(
+    ['id','projectId','title','content','desc','isAllDay','startDate','dueDate',
+      'timeZone','reminders','repeatFlag','repeatFrom','priority','sortOrder',
+      'items','assigneeUsername','tags','kind']
+      .filter(field=>task[field]!==undefined).map(field=>[field,task[field]])
+  ):null;
+  return { ok: true, completed: true, wasOpen, personal: true, taskId, taskSnapshot };
 }
 
 async function reopenRustamPersonalTask(input = {}, deps = {}) {
@@ -56,13 +64,25 @@ async function reopenRustamPersonalTask(input = {}, deps = {}) {
     .some(row => String(row?.id || '') === projectId))
     throw new Error('ticktick-personal-project-forbidden');
   const getTask = deps.fetchTask || fetchTask;
-  const task = await getTask(token.accessToken, projectId, taskId, options);
+  const original=input.taskSnapshot;
+  if(original&&(String(original.id||'')!==taskId||String(original.projectId||'')!==projectId))
+    throw new Error('ticktick-personal-task-mismatch');
+  let task;
+  try {
+    task=await getTask(token.accessToken,projectId,taskId,options);
+  } catch(error) {
+    // Completed tasks are not always available via the TickTick Open API.
+    if(String(error?.message||'')!=='ticktick-task-not-found'||!original)throw error;
+    task=original;
+  }
   if (String(task?.id || '') !== taskId || String(task?.projectId || '') !== projectId)
     throw new Error('ticktick-personal-task-mismatch');
-  if (Number(task.status ?? 0) === 0)
+  if (task!==original&&Number(task.status ?? 0) === 0)
     return { ok: true, reopened: true, alreadyOpen: true, personal: true, taskId };
   const reopen = deps.reopenTickTickTask || reopenTickTickTask;
-  await reopen(token.accessToken, projectId, taskId, { ...options, task });
+  await reopen(token.accessToken, projectId, taskId, {
+    ...options, task, force:Boolean(original)
+  });
   return { ok: true, reopened: true, personal: true, taskId };
 }
 module.exports = { completeRustamPersonalTask, reopenRustamPersonalTask };
