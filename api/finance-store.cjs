@@ -355,6 +355,7 @@ function normalizeState(value) {
         rubAmount,
         manualAdjustment,
         importKey: cleanText(raw?.importKey, 220),
+        requestId: cleanText(raw?.requestId, 100),
         occurredAt,
         createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
         updatedAt: Number.isNaN(updatedAt.getTime()) ? new Date().toISOString() : updatedAt.toISOString(),
@@ -1079,6 +1080,7 @@ async function deleteExpenseCategory(actor, id, options = {}) {
 async function savePersonalExpense(actor, payload = {}, options = {}) {
   const safeActor = cleanActor(actor);
   const editId = cleanText(payload.id, 100);
+  const requestId = cleanText(payload.requestId, 100);
   const month = cleanMonth(payload.month);
   const categoryId = cleanText(payload.categoryId, 100, { required: true });
   const amount = cleanMoney(payload.amount);
@@ -1095,6 +1097,10 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
 
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
+    // Retry after a lost response must never debit the wallet a second time.
+    if (!editId && requestId && current.personalExpenses.some(row =>
+      row.actor === safeActor && row.requestId === requestId && !row.manualAdjustment
+    )) return current;
     const existing = editId
       ? current.personalExpenses.find((row) => row.actor === safeActor && row.id === editId && !row.manualAdjustment)
       : null;
@@ -1139,7 +1145,7 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
       id: existing?.id || cleanText(options.id || randomUUID(), 100, { required: true }),
       actor: safeActor, month, categoryId, amount, note, label,
       walletId, sourceAmount, sourceCurrency, targetCurrency, exchangeRate,
-      rubAmount, importKey: existing?.importKey || '',
+      rubAmount, importKey: existing?.importKey || '', requestId: existing?.requestId || requestId,
       occurredAt, createdAt: existing?.createdAt || now, updatedAt: now,
     };
     const personalExpenses = existing
