@@ -13979,7 +13979,7 @@
         try{
           return JSON.stringify({
             view:String(payload?.view||'month'),scope:calendarScope,mode:calendarDisplayMode,cursor:calendarDateCursor,
-            stale:Boolean(payload?.stale),
+            stale:Boolean(payload?.stale),ticktickUnavailable:Boolean(payload?.ticktickUnavailable),
             days:Array.isArray(payload?.days)?payload.days:[],
             ticktickDays:Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[],
             holidayDays:Array.isArray(payload?.holidayDays)?payload.holidayDays:[],
@@ -14286,7 +14286,8 @@
         const signature=workCalendarRenderSignature(payload);
         if(!force&&signature===currentWorkCalendarRenderSignature){
           const currentStatus=document.getElementById('workCalendarStatus');
-          if(payload?.stale){currentStatus.hidden=false;currentStatus.textContent='Кэш'}
+          if(payload?.ticktickUnavailable){currentStatus.hidden=false;currentStatus.textContent='TickTick временно недоступен'}
+          else if(payload?.stale){currentStatus.hidden=false;currentStatus.textContent='Кэш'}
           else{currentStatus.hidden=true;currentStatus.textContent=''}
           return false;
         }
@@ -14339,7 +14340,10 @@
           label.textContent=firstText+' — '+lastText;
         }
         setWorkCalendarRangeActive(calendarDisplayMode);
-        if(payload.stale){
+        if(payload.ticktickUnavailable){
+          status.hidden=false;
+          status.textContent='TickTick временно недоступен';
+        }else if(payload.stale){
           status.hidden=false;
           status.textContent='Кэш';
         }else{
@@ -14681,6 +14685,11 @@
           scope!=='shared'?financeRequest('calendar-obligations'):Promise.resolve(null)
         ]);
         const tick=tickResult.status==='fulfilled'?tickResult.value:{};
+        const tickUnavailable=tickResult.status!=='fulfilled'||tick?.ok===false||
+          tick?.personalUnavailable===true||tick?.sharedUnavailable===true;
+        const previousTick=month===calendarActiveMonth()?calendarViewCache[calendarCacheKey()]:null;
+        const retainedTick=Array.isArray(previousTick?.ticktickDays)?previousTick.ticktickDays:[];
+        const fallbackTick=tickResult.status!=='fulfilled'||tick?.ok===false||tick?.personalUnavailable===true;
         const holidays=holidayResult.status==='fulfilled'?holidayResult.value:{};
         const work=workResult.status==='fulfilled'?workResult.value:null;
         const first=month+'-01',count=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).getUTCDate();
@@ -14688,11 +14697,13 @@
         const days=Array.isArray(work?.days)&&work.days.length===count?work.days:fallback;
         const result={
           configured:true,view:requested,days,
-          workReady:Boolean(work?.configured),stale:Boolean(work?.stale),
-          ticktickDays:Array.isArray(tick?.days)?tick.days:[],
+          workReady:Boolean(work?.configured),stale:Boolean(work?.stale)||Boolean(tickUnavailable&&retainedTick.length),
+          ticktickUnavailable,
+          ticktickDays:fallbackTick&&retainedTick.length?retainedTick:(Array.isArray(tick?.days)?tick.days:[]),
           holidayDays:Array.isArray(holidays?.days)?holidays.days:[],
           ticktickConnected:tick?.connected!==false,ticktickWritable:tick?.writable!==false,
-          personalTickTickConnected:scope==='rustam'&&tick?.personalConnected===true,
+          personalTickTickConnected:scope==='rustam'&&(tick?.personalConnected===true||
+            (tickUnavailable&&(previousTick?.personalTickTickConnected===true||calendarPersonalTickTickConnected))),
           holidaysReady:holidayResult.status==='fulfilled',
           obligationActor:obligationResult.status==='fulfilled'?String(obligationResult.value?.actor||''):'',
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
