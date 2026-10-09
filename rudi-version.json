@@ -1,11 +1,11 @@
 {
-  "current": "v4.112",
+  "current": "v4.113",
   "versionBranch": "main",
-  "releaseCommit": "pending-v4.112",
-  "deploymentSourceCommit": "pending-v4.112",
+  "releaseCommit": "pending-v4.113",
+  "deploymentSourceCommit": "pending-v4.113",
   "deploymentRequestedAt": "",
   "createdAt": "2026-10-09",
-  "basedOnProduction": "v4.111",
+  "basedOnProduction": "v4.112",
   "notes": [
     "В кошельке звёзд появилась иконка Info с простыми правилами начислений, штрафов, подарков и наград",
     "Утренняя Telegram-сводка показывает фазу Луны рядом с датой и днём недели",
