@@ -97,3 +97,19 @@ test('client only loads historical personal MONTH dates, caches month, and hides
   assert.match(css,/body\[data-app-tab="schedule"\] #appTabBar\{display:none!important\}/);
   assert.match(html,/id="calendarPersonalDayRecap"/);
 });
+
+test('calendar API and UI avoid repeat loads while retaining freshness on edits',()=>{
+  const app=fs.readFileSync(path.resolve(__dirname,'../public/app.js'),'utf8');
+  const recap=fs.readFileSync(path.resolve(__dirname,'../public/calendar-day-recap.js'),'utf8');
+  assert.match(app,/function calendarCacheFresh\(/);
+  assert.match(app,/calendarCacheCoversSelectedWeek/);
+  assert.match(app,/calendarCombinedPending\.get\(requestKey\)/);
+  assert.match(app,/calendarViewLoadedAt\.clear\(\)/);
+  assert.match(app,/finance-calendar-obligations:/);
+  assert.match(app,/calendarCacheKey\(month=calendarActiveMonth\(\),scope=calendarScope\)\{return month\+':'\+scope\+':'\+currentActor\}/);
+  assert.match(app,/if\(sharedPeriodMarksLoadedAt&&Date\.now\(\)-sharedPeriodMarksLoadedAt/);
+  assert.match(recap,/cache\.get\(key\)/);
+  assert.match(recap,/lastActor===actor/);
+  assert.match(recap,/rudi-finances-updated/);
+  assert.match(recap,/rudi:supplement-intake-updated/);
+});
