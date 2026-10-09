@@ -13385,11 +13385,15 @@
       function calendarSetScope(scope,{reload=true}={}){
         calendarScope=scope==='shared'?'shared':'personal';
         document.body.dataset.calendarScope=calendarScope;
-        document.querySelectorAll('[data-calendar-scope]').forEach(button=>{
-          const active=button.dataset.calendarScope===calendarScope;
-          button.classList.toggle('active',active);
-          button.setAttribute('aria-pressed',active?'true':'false');
-        });
+        const scopeSwitch=document.getElementById('calendarScopeSwitch');
+        if(scopeSwitch){
+          const nextScope=calendarScope==='personal'?'shared':'personal';
+          const nextName=nextScope==='shared'?'Совместный':'Личный';
+          scopeSwitch.dataset.calendarScope=nextScope;
+          scopeSwitch.textContent=nextName;
+          scopeSwitch.title=nextName+' календарь';
+          scopeSwitch.setAttribute('aria-label','Переключить на '+(nextScope==='shared'?'совместный':'личный')+' календарь');
+        }
         const title=document.querySelector('#workCalendarCard .work-calendar-title');
         if(title)title.textContent=calendarScope==='shared'?'Совместный':'Личный';
         const create=document.getElementById('calendarCreateTask');
@@ -13406,11 +13410,17 @@
         if(container)container.dataset.calendarMode=calendarDisplayMode;
         const card=document.getElementById('workCalendarCard');
         if(card)card.dataset.calendarMode=calendarDisplayMode;
-        document.querySelectorAll('[data-calendar-mode]').forEach(button=>{
-          const active=button.dataset.calendarMode===calendarDisplayMode;
-          button.classList.toggle('active',active);
-          button.setAttribute('aria-pressed',active?'true':'false');
-        });
+        const modeSwitch=document.getElementById('calendarModeSwitch');
+        if(modeSwitch){
+          const nextMode=calendarDisplayMode==='month'?'week':'month';
+          const nextName=nextMode==='week'?'Неделя':'Месяц';
+          modeSwitch.dataset.calendarMode=nextMode;
+          modeSwitch.title=nextName;
+          modeSwitch.setAttribute('aria-label','Показать '+(nextMode==='week'?'неделю':'месяц'));
+          modeSwitch.innerHTML=nextMode==='week'
+            ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg>'
+            :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M9 9v12M15 9v12"/></svg>';
+        }
       }
       function calendarNavigationMove(direction){
         const cursor=calendarDateCursor||todayState().key;
@@ -14152,7 +14162,8 @@
               details.appendChild(group);
             }
 
-            selected.replaceChildren(icon,copy);
+            selected.replaceChildren();
+            if(calendarScope!=='personal')selected.append(icon,copy);
             if(calendarDisplayMode==='week'){
               const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations,payload?.ticktickWritable!==false);
               selected.appendChild(agenda);
@@ -14160,8 +14171,8 @@
             if(details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('calendar-week-view',calendarDisplayMode==='week');
             selected.classList.toggle('is-off',!day.working);
-            selected.hidden=false;
-            restartRudiMotion(selected,'rudi-data-refresh',360);
+            selected.hidden=calendarScope==='personal'&&calendarDisplayMode!=='week'&&details.childElementCount===0;
+            if(!selected.hidden)restartRudiMotion(selected,'rudi-data-refresh',360);
             if(withHaptic){
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
             }

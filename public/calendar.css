@@ -1405,3 +1405,44 @@ html[data-theme="dark"] body[data-app-tab="schedule"] .work-page #workCalendarDa
   color:#000!important;background:#fff!important;
   outline:0!important;box-shadow:none!important;border:0!important
 }
+
+
+/* v4.122: three equal-size header controls, in target-calendar / view / settings order. */
+.work-page #workCalendarCard .work-calendar-head{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;min-width:0!important;gap:8px!important
+}
+.work-page #workCalendarCard .calendar-heading-copy{min-width:0!important;flex:1 1 auto!important}
+.work-page #workCalendarCard .calendar-header-actions{
+  --calendar-header-size:clamp(60px,17vw,74px);
+  display:flex!important;align-items:center!important;justify-content:flex-end!important;
+  gap:5px!important;flex:none!important;min-width:0!important
+}
+.work-page #workCalendarCard .calendar-header-actions>button{
+  box-sizing:border-box!important;flex:0 0 var(--calendar-header-size)!important;
+  min-width:var(--calendar-header-size)!important;max-width:var(--calendar-header-size)!important;width:var(--calendar-header-size)!important;
+  height:44px!important;min-height:44px!important;max-height:44px!important;
+  display:grid!important;place-items:center!important;align-content:center!important;
+  margin:0!important;padding:0 3px!important;border:1px solid var(--line)!important;
+  border-radius:12px!important;background:var(--soft)!important;color:var(--text)!important;
+  box-shadow:none!important;white-space:nowrap!important;
+  font:750 clamp(9px,2.6vw,11px)/1.1 system-ui,-apple-system,sans-serif!important;cursor:pointer!important
+}
+.work-page #workCalendarCard .calendar-header-actions>button>svg{display:block!important;width:22px!important;height:22px!important}
+.work-page #workCalendarCard .calendar-header-actions>button:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px!important}
+
+/* Suppress redundant date/checked-status card without hiding tasks, payments, or week agenda. */
+body[data-calendar-scope="personal"] .work-page #workCalendarSelected{
+  min-height:0!important;margin-top:4px!important;padding:0!important;
+  border:0!important;background:transparent!important;box-shadow:none!important
+}
+body[data-calendar-scope="personal"] .work-page #workCalendarSelected[hidden]{display:none!important}
+
+/* Task and obligation event blocks exactly match their blue and dark-red calendar dots. */
+.work-page .calendar-week-allday-item.calendar-agenda-task,
+.work-page .calendar-week-time-event.calendar-agenda-task{
+  border-color:#21a5ed!important;background:#21a5ed!important;color:#fff!important
+}
+.work-page .calendar-week-allday-item.calendar-agenda-payment,
+.work-page .calendar-week-time-event.calendar-agenda-payment{
+  border-color:#b64152!important;background:#b64152!important;color:#fff!important
+}

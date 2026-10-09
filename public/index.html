@@ -1589,7 +1589,7 @@
         <button id="workCalendarBack" class="work-page-back rudi-app-page-back" type="button" aria-label="Назад">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <div><span>RUDI</span><h1>Календарь</h1></div>
+        <div><h1>Календарь</h1></div>
         <span class="work-page-head-spacer" aria-hidden="true"></span>
       </header>
       <article class="panel nearest-panel schedule-nearest" hidden>
@@ -1638,19 +1638,15 @@
             <div class="work-calendar-title">Личный</div>
             <div class="work-calendar-month">Задачи и события</div>
           </div>
-          <button id="calendarConnectionsGear" class="calendar-connections-gear" type="button" aria-label="Подключения календаря" title="Подключения">
+          <div class="calendar-header-actions" role="group" aria-label="Переключатели календаря">
+            <button id="calendarScopeSwitch" class="calendar-header-control calendar-scope-switch" type="button" data-calendar-scope="shared" aria-label="Переключить на совместный календарь" title="Совместный календарь">Совместный</button>
+            <button id="calendarModeSwitch" class="calendar-header-control calendar-mode-switch" type="button" data-calendar-mode="week" aria-label="Показать неделю" title="Неделя"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg></button>
+          <button id="calendarConnectionsGear" class="calendar-connections-gear calendar-header-control" type="button" aria-label="Подключения календаря" title="Подключения">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.2 3.5h3.6l.5 2.2 1.7.9 2.1-.8 2.1 3.1-1.7 1.7v2l1.7 1.8-2.1 3-2.1-.7-1.7.9-.5 2.2h-3.6l-.5-2.2-1.7-.9-2.1.7-2.1-3 1.7-1.8v-2L3.8 9l2.1-3.1 2.1.8 1.7-.9z"/><circle cx="12" cy="12" r="3.1"/></svg>
           </button>
+          </div>
         </div>
         <span id="workCalendarStatus" class="section-status work-page-status" hidden></span>
-        <div id="calendarScopeTabs" class="calendar-scope-tabs" role="group" aria-label="Выбор календаря">
-          <button type="button" class="active" data-calendar-scope="personal" aria-pressed="true">Личный</button>
-          <button type="button" data-calendar-scope="shared" aria-pressed="false">Совместный</button>
-        </div>
-        <div id="calendarModeTabs" class="calendar-mode-tabs" role="group" aria-label="Вид календаря">
-          <button type="button" data-calendar-mode="week" aria-pressed="false">Неделя</button>
-          <button type="button" class="active" data-calendar-mode="month" aria-pressed="true">Месяц</button>
-        </div>
         <div class="calendar-navigation" role="group" aria-label="Переход по датам">
           <button type="button" id="calendarPrev" aria-label="Предыдущий период">‹</button>
           <span class="calendar-nav-label" id="workWeekLabel">Этот месяц</span>
