@@ -85,13 +85,17 @@ test('rejects future and malformed periods without accessing storage',async()=>{
   }
   assert.deepEqual(calls,{finance:0,habits:0,fasting:0,mood:0,supplements:0});
 });
+test('client summary script is valid JavaScript',()=>{
+  const src=fs.readFileSync(path.resolve(__dirname,'../public/calendar-day-recap.js'),'utf8');
+  new vm.Script(src);
+});
 test('client only loads historical personal MONTH dates, caches month, and hides dock',()=>{
   const js=fs.readFileSync(path.resolve(__dirname,'../public/calendar-day-recap.js'),'utf8');
   const css=fs.readFileSync(path.resolve(__dirname,'../public/calendar.css'),'utf8');
   const html=fs.readFileSync(path.resolve(__dirname,'../public/index.html'),'utf8');
   assert.match(js,/dataset\.calendarScope==='personal'/);
   assert.match(js,/dataset\.calendarMode==='month'/);
-  assert.match(js,/cache\.get\(month\)/);
+  assert.match(js,/cache\.get\(key\)/);
   assert.match(js,/pending\.has\(month\)/);
   assert.match(js,/\/api\/calendar-day-summary/);
   assert.match(css,/body\[data-app-tab="schedule"\] #appTabBar\{display:none!important\}/);
