@@ -2623,6 +2623,7 @@
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){const error=new Error(data.error||'finance-request-failed');error.status=response.status;throw error}
+        if(data.score) renderScoreStickers(data.score);
         return data;
       }
       function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
