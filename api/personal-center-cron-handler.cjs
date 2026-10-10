@@ -4,19 +4,13 @@ const {isGitHubActionsRequestAuthorized}=require('./github-actions-oidc.cjs');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const state=require('./personal-center-store.cjs');
 const {generate}=require('./personal-center-ai.cjs');
-function slotAt(now=Date.now()){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)));return hour>=7&&hour<10?'morning':hour>=21&&hour<24?'evening':'';}
+function slotAt(now=Date.now()){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)));return hour>=7&&hour<10?'morning':'';}
 async function run(options={}){
  const now=options.now||Date.now(),date=state.moscowDate(now),slot=slotAt(now);
- const backfillOnly=options.backfillOnly===true;
- const releaseBackfill=date>'2026-10-10'&&date<='2026-10-12';
- if(!slot&&!backfillOnly)return {ok:true,skipped:'outside-schedule',date};
+ if(!slot)return {ok:true,skipped:'outside-morning-window',date};
  const client=options.client||createRudiStateClient({env:options.env||process.env,fetchImpl:options.fetchImpl||globalThis.fetch});
  const results=[];
- const targets=[];
- if(releaseBackfill||backfillOnly)targets.push({date:'2026-10-10',slot:'evening'});
- if(slot&&!backfillOnly)targets.push({date,slot});
- for(const target of targets)for(const actor of state.ACTORS){
-  const {date,slot}=target;
+ for(const actor of state.ACTORS){
   const key=state.reportKey(actor,date,slot);
   const exists=await client.getRecord(state.NS,key);
   if(exists?.value){results.push({actor,status:'exists'});continue;}
@@ -35,7 +29,7 @@ async function handler(req,res){
  const authorized=isCronRequestAuthorized(req)||await isGitHubActionsRequestAuthorized(req,{audience:'rudi-personal-ai-center',workflowRef:'rst4231/rudi/.github/workflows/personal-ai-center.yml@refs/heads/main'});
  if(!authorized)return res.status(401).json({ok:false,error:'unauthorized'});
  if(req.method!=='GET'&&req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
- try{const result=await run({backfillOnly:String(req.query?.backfill||'')==='2026-10-10'});res.setHeader('Cache-Control','no-store');return res.status(result.ok?200:503).json(result);}
+ try{const result=await run();res.setHeader('Cache-Control','no-store');return res.status(result.ok?200:503).json(result);}
  catch(error){console.error('RUDI_PERSONAL_CRON_FAILURE',String(error?.message||error));return res.status(503).json({ok:false,error:'generation-failed'});}
 }
 module.exports=handler;module.exports.run=run;module.exports.slotAt=slotAt;

@@ -7,9 +7,12 @@
   "createdAt": "2026-10-10",
   "basedOnProduction": "v4.158",
   "notes": [
-    "Remove the emotional dynamics summary card and its heading from the AI center without leftover spacing.",
-    "Keep the mood history graph and derived emotion data for existing AI report calculations.",
-    "No change to Diana cycle, health, body measurements or report generation."
+    "AI center: remove redundant emotional dynamics card while retaining mood history and chart.",
+    "Morning-only personal reports at 07:00 Moscow via GitHub Actions; no 21:00 generation or replay.",
+    "Validated cross-section observations comparing recorded habits, expenses, emotions, symptoms and Diana work calendar with sample thresholds and no causal claims.",
+    "Real income and expenses are differentiated in prompts and report output. Legacy false-income claims are masked in the UI.",
+    "Diana cycle appears in a dedicated AI-center card directly after the emotions history chart; recording start/end uses existing authenticated cycle API.",
+    "One scheduled analysis pass per user; raw source data remain in existing Cloudflare D1 with no new deployed function."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

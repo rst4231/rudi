@@ -4,6 +4,7 @@ const store=require('../api/personal-center-store.cjs');
 const cron=require('../api/personal-center-cron-handler.cjs');
 const ai=require('../api/personal-center-ai.cjs');
 const emotions=require('../api/personal-center-emotions.cjs');
+const connections=require('../api/personal-center-connections.cjs');
 const cycle=require('../api/cycle-store.cjs');
 const fs=require('node:fs'),path=require('node:path');
 const map=new Map();
@@ -39,7 +40,8 @@ test('per-account erase does not delete existing finance or partner entries',asy
 });
 test('Moscow scheduled slots use UTC+3',()=>{
  assert.equal(cron.slotAt(Date.parse('2026-10-10T04:00:00Z')),'morning');
- assert.equal(cron.slotAt(Date.parse('2026-10-10T18:00:00Z')),'evening');
+ assert.equal(cron.slotAt(Date.parse('2026-10-10T18:00:00Z')),'');
+ assert.equal(cron.slotAt(Date.parse('2026-10-10T21:00:00Z')),'');
  assert.equal(cron.slotAt(Date.parse('2026-10-10T12:00:00Z')),'');
 });
 test('scheduler does not regenerate existing reports',async()=>{
@@ -87,15 +89,18 @@ test('cycle history stays in D1 with no expiration and much larger lifetime hori
  assert.equal(cycle.TTL_SECONDS,0);
  assert.ok(cycle.MAX_HISTORY>=1000);
 });
-test('one time evening summary for 10 Oct and next morning summary are idempotent',async()=>{
+test('morning summary for each actor is idempotent without backfill',async()=>{
  map.clear();const c=client(),now=Date.parse('2026-10-11T04:00:00Z');
  let n=0;const generate=async actor=>{n++;return {narrative:{overview:actor},model:'test'};};
  const first=await cron.run({client:c,now,generate});
  assert.equal(first.ok,true);
- assert.equal(n,4);
- assert.equal(first.results.filter(x=>x.status==='created').length,4);
+ assert.equal(n,2);
+ assert.equal(first.results.filter(x=>x.status==='created').length,2);
  await cron.run({client:c,now,generate});
- assert.equal(n,4);
+ assert.equal(n,2);
+ const evening=await cron.run({client:c,now:Date.parse('2026-10-11T18:00:00Z'),generate});
+ assert.equal(evening.skipped,'outside-morning-window');
+ assert.equal(n,2);
 });
 test('AI center never calls LLM on open or pull refresh; source data is not reentered',()=>{
  const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
@@ -150,4 +155,73 @@ test('AI center hides the entire emotion summary card but keeps derived mood his
  assert.match(app,/Динамика негативных эмоций/);
  assert.match(app,/pcDianaCycleSlot/);
  assert.match(app,/const emotions=data.emotions/);
+});
+
+test('scheduled AI report runs only at 07:00 Moscow, no evening or legacy replay',()=>{
+ const yaml=fs.readFileSync(path.join(__dirname,'..','.github/workflows/personal-ai-center.yml'),'utf8');
+ const handler=fs.readFileSync(path.join(__dirname,'..','api/personal-center-cron-handler.cjs'),'utf8');
+ assert.match(yaml,/cron: '0 4 \\* \\* \\*'/);
+ assert.doesNotMatch(yaml,/cron: '0 4,18/);
+ assert.doesNotMatch(handler,/backfillOnly|releaseBackfill/);
+ assert.equal(cron.slotAt(Date.parse('2026-10-10T04:00:00Z')),'morning');
+ assert.equal(cron.slotAt(Date.parse('2026-10-10T18:00:00Z')),'');
+});
+test('paired evidence identifies supported habit-mood and expense comparisons, not missing values',()=>{
+ const completions={},failures={},moodHistory=[],personalExpenses=[],id='habit-ABCDEFGH';
+ for(let n=1;n<=12;n++){
+  const date='2026-09-'+String(n*2).padStart(2,'0');
+  const done=n<=6;
+  (done?completions:failures)[date]=[id];
+  moodHistory.push({date,mood:done?'joy':'sadness',samples:[{mood:done?'joy':'sadness'}]});
+  personalExpenses.push({actor:'Рустам',categoryId:'food',rubAmount:done?950:300,occurredAt:date+'T11:00:00+03:00'});
+ }
+ const input={actor:'Рустам',date:'2026-10-10',moodHistory,finances:{categories:{'Рустам':[{id:'food',name:'Продукты'}]},personalExpenses},
+ habits:{habits:[{id,name:'Зарядка',createdAt:'2026-08-01T00:00:00Z'}],completions,failures}};
+ const result=connections.analyzeConnections(input);
+ assert.equal(result.coverage.moodDays,12);
+ assert.ok(result.findings.some(f=>f.kind==='habit-mood'));
+ assert.ok(result.findings.some(f=>f.kind==='habit-expenses'));
+ assert.ok(result.findings.filter(x=>x.kind==='habit-mood'||x.kind==='habit-expenses').every(x=>x.daysA>=6&&x.daysB>=6));
+ assert.match(result.disclaimer,/не доказательство причины/);
+ assert.equal(connections.analyzeConnections({...input,moodHistory:moodHistory.slice(0,5),finances:{...input.finances,personalExpenses:[]}}).findings.length,0);
+ const diana=connections.analyzeConnections({...input,actor:'Диана',habits:{habits:[],completions:{},failures:{}}});
+ assert.equal(diana.coverage.expenseDays,0);
+ assert.equal(diana.findings.length,0);
+});
+test('Diana work calendar comparisons require genuine recorded dates and no stale calendar',()=>{
+ const days=[],expenses=[];
+ for(let day=1;day<=24;day++){
+  const date='2026-09-'+String(day).padStart(2,'0'),work=day%2===0;
+  days.push({date,events:work?[{title:'Работа'}]:[]});
+  expenses.push({actor:'Диана',categoryId:'food',rubAmount:work?900:300,occurredAt:date+'T11:00:00+03:00'});
+ }
+ const input={actor:'Диана',date:'2026-10-10',finances:{categories:{'Диана':[{id:'food',name:'Еда'}]},personalExpenses:expenses},workCalendar:{configured:true,days}};
+ assert.equal(connections.analyzeConnections(input).coverage.calendarDays,24);
+ assert.ok(connections.analyzeConnections(input).findings.some(x=>x.kind==='calendar-expenses'));
+ assert.equal(connections.analyzeConnections({...input,actor:'Рустам'}).coverage.calendarDays,0);
+ assert.equal(connections.analyzeConnections({...input,workCalendar:{configured:true,stale:true,days}}).findings.length,0);
+});
+test('finance digest separates expenses from wallet incomes and does not invent income',()=>{
+ const expenses=[{actor:'Рустам',month:'2026-10',rubAmount:55807,occurredAt:'2026-10-10T11:00:00+03:00'}];
+ const without=ai.financeDigest({personalExpenses:expenses,walletIncomes:[]},'Рустам','2026-10-10');
+ assert.equal(without.expenseMonths[0].expenseRub,55807);
+ assert.equal(without.incomeEntries,0);
+ assert.deepEqual(without.incomeMonths,[]);
+ const withIncome=ai.financeDigest({personalExpenses:expenses,walletIncomes:[{actor:'Рустам',month:'2026-10',rubAmount:3000}]},'Рустам','2026-10-10');
+ assert.equal(withIncome.incomeMonths[0].incomeRub,3000);
+ const fallback=ai.makeFallback({data:{profile:{slot:'morning'},connections:{findings:[]},finances:without,habits:null}});
+ assert.match(fallback.financeText,/расходов/);
+ assert.doesNotMatch(fallback.financeText,/доходов/);
+});
+test('Diana cycle stays directly below dynamics chart, independently of calendar router',()=>{
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ const chart=app.indexOf('id="pcGraph"'),slot=app.indexOf('id="pcDianaCycleSlot"');
+ assert.ok(chart>0&&slot>chart&&slot-chart<2500);
+ assert.match(app,/id="pcCyclePhase"/);
+ assert.match(app,/id="pcCycleRecord"/);
+ assert.match(app,/recordPersonalCycle/);
+ assert.match(app,/who==='Диана'&&open/);
+ assert.doesNotMatch(app,/pcCycleOriginalAnchor|slot\.append\(card\)/);
+ assert.match(css,/#dianaCycleCard\[data-app-tab-section="schedule"\]/);
 });

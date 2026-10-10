@@ -26,7 +26,7 @@ function makeMarkup(){
  p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><h2>✦ AI-сводка дня</h2><span class="rudi-center__meta" id="pcReportDate">По расписанию</span></div><p id="pcReport">Данных пока нет</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div><small>ГЛАВНОЕ ИЗМЕНЕНИЕ</small><p id="pcMainChange">—</p></div><div><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div><small>СЛЕДУЮЩЕЕ ДЕЙСТВИЕ</small><p id="pcMainAction">—</p></div><div><small>ПРОГНОЗ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Подробный анализ →</button><div class="rudi-center__status" id="pcStatus"></div></div>');
  p.push('<div class="rudi-center__tile-grid"><button class="rudi-center__tile" data-open="symptoms"><span class="rudi-center__tile-icon">♡</span><strong>Здоровье</strong><small id="pcSymptomsCount">Дневник здоровья</small></button><button class="rudi-center__tile" data-open="weight"><span class="rudi-center__tile-icon">↟</span><strong>Моё тело</strong><small id="pcWeight">Вес и рост</small></button></div>');
  p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика негативных эмоций</h2><button class="rudi-center__link" data-open="history" type="button">История →</button></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 115" role="img" aria-label="График доли негативных эмоций"></svg><small class="rudi-center__meta" id="pcHistoryCaption">История по дням, неделям и месяцам</small></div>');
- p.push('<div id="pcDianaCycleSlot" class="rudi-center__cycle-slot" hidden></div>');
+ p.push('<div id="pcDianaCycleSlot" class="rudi-center__cycle-slot" hidden><section class="rudi-center__card rudi-center__cycle-card"><div class="rudi-center__head"><h2>Цикл Дианы</h2><span class="rudi-center__meta">Прогноз</span></div><div class="rudi-center__cycle-grid"><div><span>Фаза</span><strong id="pcCyclePhase">—</strong></div><div><span>День цикла</span><strong id="pcCycleDay">—</strong></div><div><span>До следующих месячных</span><strong id="pcCycleCountdown">—</strong></div><div><span>Последнее начало</span><strong id="pcCyclePeriod">—</strong></div></div><p id="pcCycleNote" class="rudi-center__meta">Прогноз ориентировочный.</p><button id="pcCycleRecord" class="rudi-center__btn" type="button" hidden>Отметить начало сегодня</button></section></div>');
  p.push('</div></div>');
  p.push('<div class="rudi-center__overlay" id="pcOverlay" hidden><div class="rudi-center__sheet" role="dialog" aria-modal="true" aria-labelledby="pcSheetTitle"><div class="rudi-center__sheet-head"><button id="pcSheetClose" class="rudi-center__back" type="button">← Назад</button><h2 id="pcSheetTitle">Данные</h2><span class="rudi-center__sheet-spacer" aria-hidden="true"></span></div><div id="pcSheetContent" class="rudi-center__sheet-content"></div></div></div>');
  return p.join('');
@@ -36,6 +36,7 @@ function attach(){
  root=document.createElement('section');root.id='personalAICenter';root.className='rudi-center';root.hidden=true;root.dataset.noPullRefresh='true';
  root.innerHTML=makeMarkup();document.body.appendChild(root);
  $('pcBack').onclick=hide;$('pcSettings').onclick=()=>sheet('settings');
+ $('pcCycleRecord').onclick=()=>void recordPersonalCycle();
  $('pcSheetClose').onclick=closeSheet;$('pcOverlay').addEventListener('click',e=>{if(e.target===$('pcOverlay'))closeSheet();});
  root.addEventListener('click',e=>{
   const btn=e.target.closest('[data-open],[data-external],[data-tab]');if(!btn)return;
@@ -88,11 +89,27 @@ async function show(){
  try{await fetchOverview(false);}
  catch(_){if(!data&&!showOffline())setStatus('Нет соединения с RUDI · попробуй позже');}
 }
-function hide(){closeSheet();open=false;
- const slot=$('pcDianaCycleSlot'),card=$('dianaCycleCard');
- if(slot&&card&&slot.contains(card)){const anchor=$('pcCycleOriginalAnchor');if(anchor?.parentNode){anchor.parentNode.insertBefore(card,anchor);card.setAttribute('data-app-tab-section','schedule');}}
- if(root)root.hidden=true;document.body.classList.remove('rudi-center-open');}
+function hide(){closeSheet();open=false;if(root)root.hidden=true;document.body.classList.remove('rudi-center-open');}
 function showText(id,text){if($(id))$(id).textContent=String(text??'');}
+function safeNarrative(row){
+ const original=row?.narrative;if(!original)return null;
+ const n={...original,focus:Array.isArray(original.focus)?[...original.focus]:[]};
+ const f=row?.observations?.finances;
+ // Some old AI reports mistakenly called sums in personalExpenses "income".
+ // Only redact when no verified incomes were supplied in those observations.
+ const financePresent=Boolean(f&&(Array.isArray(f.months)||Array.isArray(f.expenseMonths)));
+ const noIncomeProof=financePresent&&!(Number(f?.incomeEntries)>0);
+ if(noIncomeProof){
+  const financialClaim=/доход|заработ|выручк|прибыл/i;
+  for(const key of ['headline','overview','mainChange','mainObservation','financeText','trendText']){
+   if(financialClaim.test(String(n[key]||'')))n[key]='В сводке нет подтверждённых данных о доходах: суммы из личных операций относятся к расходам.';
+  }
+  n.focus=n.focus.filter(v=>!financialClaim.test(String(v||'')));
+ }
+ if(/головн|симптом|боль|лечен|диагноз|заболев/i.test(String(n.forecast||'')))
+  n.forecast='Недостаточно данных для медицинского прогноза.';
+ return n;
+}
 function graph(){
  const graphEl=$('pcGraph');if(!graphEl)return;graphEl.replaceChildren();
  const items=(data?.emotions?.daily||[]).filter(x=>Number.isFinite(x.negativePercent)).slice(-30).map(x=>({d:x.date,v:x.negativePercent}));
@@ -159,29 +176,51 @@ function syncSheetViewport(){
  root.style.setProperty('--pc-visual-top',Math.max(0,Math.round(vv?.offsetTop||0))+'px');
 }
 function mountDianaCycle(){
- const slot=$('pcDianaCycleSlot'),card=$('dianaCycleCard');
- if(!slot)return;
+ const slot=$('pcDianaCycleSlot');if(!slot)return;
+ // Independent card: the calendar's router no longer controls visibility.
  const allowed=who==='Диана'&&open;
  slot.hidden=!allowed;
- if(!allowed||!card)return;
- if(card.parentElement!==slot){if(!$('pcCycleOriginalAnchor')){const anchor=document.createElement('span');anchor.id='pcCycleOriginalAnchor';anchor.hidden=true;card.parentNode?.insertBefore(anchor,card);}slot.append(card);}
- card.removeAttribute('data-app-tab-section');
- card.hidden=false;
- renderCycleSnapshot();
-}
-function renderCycleSnapshot(){
- if(who!=='Диана')return;
+ if(!allowed)return;
  const c=cycleInfo;
- const set=(id,v)=>{const e=$(id);if(e)e.textContent=String(v||'—')};
- if(!c){set('dianaCyclePhase','Данных пока нет');return;}
- set('dianaCyclePhase',c.phase);
- set('dianaCycleDay',c.cycleDay?c.cycleDay+'-й день цикла':'—');
- set('dianaCycleCountdown',Number.isFinite(c.daysToNext)?(c.daysToNext===0?'Сегодня':String(Math.abs(c.daysToNext))):'—');
- set('dianaCycleCountdownLabel',c.daysToNext===0?'ожидаемое начало месячных':c.daysToNext>0?'дней до месячных':'дней после прогнозной даты');
- set('dianaCyclePeriod',c.periodStart||'—');
- set('dianaCycleNote','Расчёт по сохранённым датам. Прогноз ориентировочный.');
- const progress=$('dianaCycleProgress');if(progress&&c.cycleDay&&c.cycleLengthDays)progress.style.width=Math.round(c.cycleDay/c.cycleLengthDays*100)+'%';
- const b=$('dianaCycleStartToday');if(b){b.hidden=false;b.disabled=false;b.dataset.cycleOperation=c.periodActive?'record-end':'record-start';b.textContent=c.periodActive?'Отметить конец сегодня':'Отметить начало сегодня';}
+ const label=(id,text)=>showText(id,text||'—');
+ if(!c){
+  label('pcCyclePhase','Данных пока нет');
+  label('pcCycleDay','—');label('pcCycleCountdown','—');label('pcCyclePeriod','—');
+  label('pcCycleNote','Нет сохранённых данных о цикле.');
+  const btn=$('pcCycleRecord');if(btn)btn.hidden=true;
+  return;
+ }
+ label('pcCyclePhase',c.phase);
+ label('pcCycleDay',c.cycleDay?c.cycleDay+'-й день':'—');
+ label('pcCycleCountdown',Number.isFinite(c.daysToNext)?(c.daysToNext>0?c.daysToNext+' дн.':c.daysToNext===0?'Сегодня':'Дата прогноза прошла'):'—');
+ label('pcCyclePeriod',c.periodStart||'—');
+ label('pcCycleNote','Ориентировочный расчёт по сохранённой истории. Возможны отклонения.');
+ const btn=$('pcCycleRecord');
+ if(btn){
+  btn.hidden=false;
+  btn.dataset.operation=c.periodActive?'record-end':'record-start';
+  btn.textContent=c.periodActive?'Отметить конец месячных сегодня':'Отметить начало месячных сегодня';
+ }
+}
+async function recordPersonalCycle(){
+ const btn=$('pcCycleRecord');if(!btn||who!=='Диана'||!open||!cycleInfo)return;
+ const op=btn.dataset.operation==='record-end'?'record-end':'record-start';
+ const message=op==='record-end'?'Отметить сегодня как последний день месячных?':'Отметить сегодня как первый день нового цикла?';
+ const confirm=()=>new Promise(resolve=>{
+  const tg=window.Telegram?.WebApp;
+  if(tg?.showConfirm){try{tg.showConfirm(message,result=>resolve(Boolean(result)));return;}catch(_){}}
+  resolve(window.confirm(message));
+ });
+ if(!await confirm())return;
+ btn.disabled=true;btn.textContent='Сохраняю…';
+ try{
+  const response=await fetch('/api/cycle',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify({initData:String(window.Telegram?.WebApp?.initData||''),operation:op})});
+  const value=await response.json().catch(()=>null);
+  if(!response.ok||!value?.ok)throw Error('cycle-save-failed');
+  await fetchOverview(true);
+  setStatus('Данные цикла обновлены');
+ }catch(_){setStatus('Не удалось сохранить запись цикла');}
+ finally{btn.disabled=false;mountDianaCycle();}
 }
 function draw(){
  if(!data)return;
@@ -193,8 +232,8 @@ function draw(){
  showText('pcSymptomsCount',activeSymptoms.some(x=>Date.now()-Date.parse(x.updatedAt)>24*3600*1000)?'Как самочувствие сегодня?':activeSymptoms.length+' активных записей');
  showText('pcWeight',data.weights?.length?data.weights.at(-1).kg+' кг':'Добавить вес');
  showText('pcReportDate',report?asDate(report.createdAt)+' · '+(report.slot==='morning'?'Утро':'Вечер'):'Нет сводки');
- showText('pcReport',report?.narrative?.overview||'Данных пока нет');
- const insight=report?.narrative||null;
+ const insight=safeNarrative(report);
+ showText('pcReport',insight?.overview||'Данных пока нет');
  const blocks=[['pcMainChange',insight?.mainChange],['pcMainObservation',insight?.mainObservation],['pcMainAction',insight?.mainAction],['pcForecast',insight?.forecast]];
  if($('pcSummaryGrid'))$('pcSummaryGrid').hidden=!insight;
  for(const [id,value] of blocks)showText(id,value||'Недостаточно данных');
@@ -229,7 +268,7 @@ function sheet(name){
   title='Подробная AI-сводка';
   if(!report?.narrative){html='<p class="rudi-center__meta">Данных пока нет</p>';}
   else {
-    const n=report.narrative,ctx=report.observations||{},source=ctx.moodHistory;
+    const n=safeNarrative(report),ctx=report.observations||{},source=ctx.moodHistory;
     const section=(head,value)=>value?'<section class="rudi-center__report-section"><h3>'+esc(head)+'</h3><p>'+esc(value)+'</p></section>':'';
     html='<p class="rudi-center__meta">'+esc(asDate(report.createdAt))+' · '+(report.slot==='morning'?'Утро':'Вечер')+'</p>';
     html+=section(n.headline||'Главное',n.overview);
