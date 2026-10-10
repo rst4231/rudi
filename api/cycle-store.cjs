@@ -2,8 +2,8 @@ const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const NAMESPACE = 'rudi-private-cycle-v1';
 const STATE_KEY = 'diana-cycle';
-const TTL_SECONDS = 60 * 60 * 24 * 3650;
-const MAX_HISTORY = 24;
+const TTL_SECONDS = 0; // Cloudflare D1: personal history persists until user explicitly deletes it
+const MAX_HISTORY = 5000; // preserve full recorded history, not just the most recent 24 starts
 const DAY = 86400000;
 
 function cacheOf(options = {}) {
@@ -216,7 +216,6 @@ async function writeCycleState(value, options = {}) {
   if (!normalized) throw new Error('cycle-state-invalid');
   normalized.updatedAt = new Date(options.now || Date.now()).toISOString();
   await cacheOf(options).set(STATE_KEY, normalized, {
-    ttl: TTL_SECONDS,
     tags: ['rudi-private-cycle'],
     name: STATE_KEY,
   });
