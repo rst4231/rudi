@@ -6,6 +6,7 @@
   let pending = 0;
   let needsReview = 0;
   let syncing = false;
+  const offlineNow = () => navigator.onLine === false || root.document?.body?.dataset?.offlineMode === '1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const id = () => (root.crypto?.randomUUID?.() || String(Date.now()) + '-' + Math.random().toString(36).slice(2));
   const key = (who, scope, month) => [who, scope, month].join('|');
@@ -149,7 +150,7 @@
     throw Error('calendar-offline-unsupported-action');
   }
   async function flush(who, auth) {
-    if (syncing || !who || navigator.onLine === false) return { sent: 0, pending };
+    if (syncing || !who || offlineNow()) return { sent: 0, pending };
     syncing = true;
     let sent = 0;
     try {
@@ -157,7 +158,7 @@
         .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
       for (const row of rows) {
         // An interrupted in-flight POST might have succeeded. Never blindly replay it.
-        if (row.state !== 'queued' || navigator.onLine === false) break;
+        if (row.state !== 'queued' || offlineNow()) break;
         const details = row.details || {};
         const { task, value, ...parameters } = details;
         const body = { ...auth(), ...parameters, ...(value || {}) };
@@ -196,6 +197,7 @@
     init, cached, capture, materialize, enqueue, flush, summary,
     hasPendingSync: () => pending > 0,
     isSyncing: () => syncing,
+    isOffline: offlineNow,
     status: () => ({ pending, needsReview })
   };
 })(window);
