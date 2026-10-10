@@ -11111,7 +11111,7 @@
           backupButton.type='button';backupButton.className='rudi-auth-secondary';
           backupButton.textContent='Face ID недоступен? Войти по PIN';
           const pinForm=document.createElement('form');
-          pinForm.className='rudi-iphone-pin-fallback';pinForm.hidden=true;
+          pinForm.className='rudi-iphone-pin-fallback';pinForm.style.display='none';pinForm.style.gap='10px';
           const pin=pinInputNode();
           const pinSubmit=document.createElement('button');
           pinSubmit.type='submit';pinSubmit.className='rudi-auth-submit';
@@ -11157,8 +11157,9 @@
           });
           backupButton.addEventListener('click',()=>{
             if(finished)return;
-            pinForm.hidden=!pinForm.hidden;
-            if(!pinForm.hidden)pin.focus();
+            const opening=pinForm.style.display==='none';
+            pinForm.style.display=opening?'grid':'none';
+            if(opening)pin.focus();
           });
           pinForm.addEventListener('submit',async event=>{
             event.preventDefault();
