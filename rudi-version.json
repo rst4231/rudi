@@ -9,7 +9,8 @@
   "notes": [
     "Move Rustam-only CloudCam into Прихожая directly above the existing Камера row; remove the standalone Камеры group.",
     "Expand EyePlus viewer to the entire viewport, add zoom-to-fit and enlarge controls for the third-party desktop page.",
-    "Clarify that iframe CAPTCHA may fail due to EyePlus third-party restrictions, with primary Safari fallback; no credentials or RTSP access exposed."
+    "Clarify that iframe CAPTCHA may fail due to EyePlus third-party restrictions, with primary Safari fallback; no credentials or RTSP access exposed.",
+    "Release approved: include full-screen CloudCam iframe layout and Hallway placement in one production build."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
