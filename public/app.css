@@ -18095,3 +18095,53 @@ body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut:fo
     font-size:10px!important;
   }
 }
+
+
+/* RUDI v4.149: consistent motion for calendar, finance and rewards. */
+@keyframes rudi149Enter{from{opacity:.65;transform:translate3d(0,7px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes rudi149SheetEnter{from{opacity:.2;transform:translate3d(0,15px,0) scale(.995)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+@keyframes rudi149SheetExit{from{opacity:1;transform:translate3d(0,0,0) scale(1)}to{opacity:0;transform:translate3d(0,12px,0) scale(.995)}}
+@keyframes rudi149BackdropEnter{from{opacity:0}to{opacity:1}}
+/* Do not style the Personal/Shared switch. */
+.work-page #workCalendarDays .calendar-day-cell{
+ transition:background-color 170ms ease,border-color 170ms ease,box-shadow 170ms ease,color 170ms ease,transform 130ms ease;
+}
+.work-page :is(#calendarPrev,#calendarNext,#calendarToday,#calendarModeSwitch,#calendarSearchButton,#calendarConnectionsGear){
+ transition:transform 150ms cubic-bezier(.22,.8,.22,1),background-color 160ms ease,box-shadow 160ms ease;
+}
+.work-page :is(#calendarPrev,#calendarNext,#calendarToday,#calendarModeSwitch,#calendarSearchButton,#calendarConnectionsGear):active{transform:scale(.95)}
+#calendarSearchPanel:not([hidden]){animation:rudi149Enter 210ms cubic-bezier(.22,.8,.22,1) both}
+#calendarSearchReadOnly:not([hidden]) .calendar-search-readonly-sheet,
+#calendarConnectionsModal:not([hidden]) .calendar-connections-panel{animation:rudi149SheetEnter 240ms cubic-bezier(.22,.8,.22,1) both}
+.finance-coin-modal:not([hidden]):not(.is-closing) .finance-coin-modal-sheet{animation:rudi149SheetEnter 240ms cubic-bezier(.22,.8,.22,1) both}
+.finance-coin-modal.is-closing .finance-coin-modal-sheet{animation:rudi149SheetExit 180ms cubic-bezier(.22,.8,.22,1) both}
+.finance-coin-modal:not([hidden]):not(.is-closing) .finance-coin-modal-backdrop{animation:rudi149BackdropEnter 180ms ease both}
+#financePage .finance-tab-panel:not([hidden]),
+#financeCategoryHistoryPage:not([hidden]),
+#financePage .finance-ledger-page:not([hidden]){animation:rudi149Enter 215ms cubic-bezier(.22,.8,.22,1) both}
+#financeCategoryHistorySearchWrap:not([hidden]){animation:rudi149Enter 180ms cubic-bezier(.22,.8,.22,1) both}
+#financePage :is(.finance-tabs button,.finance-ledger-back,.finance-category-history-back){
+ transition:background-color 160ms ease,color 160ms ease,box-shadow 180ms ease,transform 130ms ease;
+}
+#financePage :is(.finance-tabs button,.finance-ledger-back,.finance-category-history-back):active{transform:scale(.97)}
+#scoreModal .score-panel:not([hidden]),
+#scoreModal .score-active-rewards:not([hidden]){animation:rudi149Enter 210ms cubic-bezier(.22,.8,.22,1) both}
+#scoreModal :is(.score-modal-tabs button,.score-reward-button,.score-active-button){
+ transition:background-color 170ms ease,color 170ms ease,border-color 170ms ease,box-shadow 170ms ease,opacity 160ms ease,transform 120ms ease;
+}
+#scoreModal :is(.score-reward-button,.score-active-button):active:not(:disabled){transform:scale(.96)}
+#scoreModal .score-reward-card{transition:border-color 170ms ease,box-shadow 170ms ease,background-color 170ms ease}
+@media(prefers-reduced-motion:reduce){
+ .work-page #workCalendarDays .calendar-day-cell,
+ .work-page :is(#calendarPrev,#calendarNext,#calendarToday,#calendarModeSwitch,#calendarSearchButton,#calendarConnectionsGear),
+ #financePage :is(.finance-tabs button,.finance-ledger-back,.finance-category-history-back),
+ #scoreModal :is(.score-modal-tabs button,.score-reward-button,.score-active-button,.score-reward-card){transition:none!important}
+ #calendarSearchPanel:not([hidden]),
+ #calendarSearchReadOnly:not([hidden]) .calendar-search-readonly-sheet,
+ #calendarConnectionsModal:not([hidden]) .calendar-connections-panel,
+ .finance-coin-modal:not([hidden]) :is(.finance-coin-modal-sheet,.finance-coin-modal-backdrop),
+ #financePage .finance-tab-panel:not([hidden]),
+ #financeCategoryHistoryPage:not([hidden]),#financePage .finance-ledger-page:not([hidden]),
+ #financeCategoryHistorySearchWrap:not([hidden]),
+ #scoreModal .score-panel:not([hidden]),#scoreModal .score-active-rewards:not([hidden]){animation:none!important}
+}

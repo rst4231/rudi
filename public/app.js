@@ -3654,7 +3654,7 @@
         const empty=document.getElementById('financeCategoryHistoryEmpty');
         if(name)name.textContent=category.name||'Категория';
         if(icon)icon.textContent=category.icon||'💳';
-        if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':financeCategoryHistoryRange?'За выбранные даты':'За месяц';
+        if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':financeCategoryHistoryRange?'За выбранные даты':'За '+financeMonthGenitive(month);
 
         let rows=(financeState.personalExpenses||[])
           .filter(row=>row.categoryId===category.id&&!row.manualAdjustment);
@@ -16549,6 +16549,19 @@
         status.textContent='';
 
         const mineAnswered=Boolean(data?.mineAnswered);
+        // Today's unanswered question always opens for the current user.
+        // Collapse once after answering, but allow manual reopening afterwards.
+        if(tile){
+          const previous=String(tile.dataset.dailyQuestionAnswerState||'');
+          const shouldCollapse=mineAnswered&&previous==='unanswered';
+          if(!mineAnswered||shouldCollapse){
+            tile.classList.toggle('is-collapsed',shouldCollapse);
+            tile.querySelector(':scope > .rudi-collapse-body')?.setAttribute('aria-hidden',shouldCollapse?'true':'false');
+            tile.querySelector('.block-collapse-button')?.setAttribute('aria-expanded',shouldCollapse?'false':'true');
+            tile.querySelector('#dailyQuestionTitle')?.setAttribute('aria-expanded',shouldCollapse?'false':'true');
+          }
+          tile.dataset.dailyQuestionAnswerState=mineAnswered?'answered':'unanswered';
+        }
         const partnerAnswered=Boolean(data?.partnerAnswered);
         const bothAnswered=mineAnswered&&partnerAnswered;
         const revealed=Boolean(data?.revealed&&data?.answers);
@@ -20733,3 +20746,88 @@
       });
     })();
 
+
+
+/* RUDI v4.149: subtle animation after user-driven list updates; no data mutations. */
+(() => {
+  'use strict';
+  if(window.__rudiMotion149)return;
+  window.__rudiMotion149=true;
+  const motionOff=()=>window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
+  const visible=el=>Boolean(el?.isConnected&&!el.hidden&&el.getClientRects().length);
+  const motions=new WeakMap();
+  let calendarIntent=0,financeIntent=0,rewardIntent=0;
+  const animate=(el,frames,duration=180)=>{
+    if(motionOff()||!visible(el)||typeof el.animate!=='function')return;
+    try{
+      motions.get(el)?.cancel();
+      const task=el.animate(frames,{duration,easing:'cubic-bezier(.22,.8,.22,1)'});
+      motions.set(el,task);
+      task.finished.catch(()=>{}).finally(()=>{if(motions.get(el)===task)motions.delete(el)});
+    }catch(_){}
+  };
+  const enter=el=>animate(el,[{opacity:.75,transform:'translate3d(0,5px,0)'},{opacity:1,transform:'translate3d(0,0,0)'}],190);
+  const watch=(selector,callback)=>{
+    const el=document.querySelector(selector);
+    if(!el||!window.MutationObserver)return;
+    let queued=false;
+    const observer=new MutationObserver(changes=>{
+      if(queued||!changes.some(x=>x.type==='childList'))return;
+      queued=true;
+      requestAnimationFrame(()=>{queued=false;callback(el)});
+    });
+    observer.observe(el,{childList:true});
+  };
+  const setup=()=>{
+    document.addEventListener('click',event=>{
+      const el=event.target instanceof Element?event.target:null;
+      const button=el?.closest('button');
+      if(button?.matches('#calendarPrev,#calendarNext,#calendarToday,#calendarModeSwitch')||
+          el?.closest('#workCalendarDays .calendar-day-cell'))calendarIntent=performance.now();
+      if(el?.closest('#financePage') && (button||el?.closest('.finance-coin')))financeIntent=performance.now();
+      if(button?.closest('#scoreModal')&&button.matches('[data-score-tab],.score-reward-button,.score-active-button'))rewardIntent=performance.now();
+    },true);
+    for(const id of ['#workCalendarDays','#workCalendarSelected']){
+      watch(id,el=>{if(performance.now()-calendarIntent<2300)enter(el)});
+    }
+    for(const id of ['#financeWalletList','#financeCategoryList','#financeCategoryHistoryList','#financeExpenseHistoryPage','#financeIncomeHistoryPage']){
+      watch(id,el=>{
+        if(performance.now()-financeIntent<2400&&!el.classList.contains('is-editing'))enter(el);
+      });
+    }
+    const bindScore=()=>{
+      const score=document.getElementById('scoreModal');
+      if(!score||score.dataset.motion149==='1')return Boolean(score);
+      score.dataset.motion149='1';
+      const shop=score.querySelector('#scoreShopPanel');
+      if(shop&&window.MutationObserver){
+        const observer=new MutationObserver(changes=>{
+          if(!changes.some(c=>c.addedNodes.length))return;
+          requestAnimationFrame(()=>{
+            if(performance.now()-rewardIntent>6500||!visible(shop)||motionOff())return;
+            [...shop.querySelectorAll('.score-reward-card')].slice(0,8).forEach((card,i)=>{
+              if(!visible(card)||typeof card.animate!=='function')return;
+              card.animate([{opacity:.6,transform:'translate3d(0,6px,0)'},{opacity:1,transform:'none'}],
+                {duration:190,delay:i*18,easing:'cubic-bezier(.22,.8,.22,1)'});
+            });
+          });
+        });
+        observer.observe(shop,{childList:true});
+      }
+      const balance=score.querySelector('#scoreModalBalance');
+      if(balance&&window.MutationObserver){
+        const observer=new MutationObserver(()=>requestAnimationFrame(()=>{
+          if(performance.now()-rewardIntent<6500)animate(balance,[{opacity:.6},{opacity:1}],170);
+        }));
+        observer.observe(balance,{childList:true,subtree:true,characterData:true});
+      }
+      return true;
+    };
+    if(!bindScore()&&window.MutationObserver){
+      const observer=new MutationObserver(()=>{if(bindScore())observer.disconnect()});
+      observer.observe(document.body,{childList:true});
+    }
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});
+  else setup();
+})();
