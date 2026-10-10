@@ -14943,10 +14943,10 @@
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
         };
         if(offlineStore){
-          if(tickUnavailable){
+          if(tickUnavailable||offlineStore.isOffline?.()){
             const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
             if(local)return offlineStore.materialize(currentActor,month,local);
-            result.offlineStale=navigator.onLine===false;
+            result.offlineStale=offlineStore.isOffline?.()===true;
           }else{
             await offlineStore.capture(currentActor,offlineScope,month,result).catch(error=>{
               console.warn('RUDI_CALENDAR_OFFLINE_SAVE_WARN',String(error?.message||error));
